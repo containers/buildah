@@ -231,7 +231,12 @@ func (i *containerImageSource) GetBlob(blob types.BlobInfo) (reader io.ReadClose
 		size = st.Size()
 	}
 	logrus.Debugf("reading layer %q", blob.Digest.String())
-	return layerFile, size, nil
+	closer := func() error {
+		layerFile.Close()
+		logrus.Debugf("finished reading layer %q", blob.Digest.String())
+		return nil
+	}
+	return ioutils.NewReadCloserWrapper(layerFile, closer), size, nil
 }
 
 func makeContainerImageRef(store storage.Store, container *storage.Container, config string) types.ImageReference {
