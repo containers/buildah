@@ -79,7 +79,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		}
 	}
 
-	path, err := ioutil.TempDir(os.TempDir(), "stevedore")
+	path, err := ioutil.TempDir(os.TempDir(), Package)
 	if err != nil {
 		return nil, err
 	}

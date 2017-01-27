@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	ContainerType = "stevedore 0.0.0"
+	Package       = "stevedore"
+	ContainerType = Package + " 0.0.0"
 )
 
 type ContainerMetadata struct {

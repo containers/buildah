@@ -14,7 +14,7 @@ func main() {
 	}
 
 	app := cli.NewApp()
-	app.Name = "stevedore"
+	app.Name = Package
 	app.Usage = "minimal image builder"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
