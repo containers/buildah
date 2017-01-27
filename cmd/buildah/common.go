@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	Package       = "stevedore"
+	Package       = "buildah"
 	ContainerType = Package + " 0.0.0"
 )
 
