@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/mattn/go-shellwords"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
 )
@@ -27,35 +28,35 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "user",
-			Usage: "user name to run containers as",
+			Usage: "user to run containers based on image as",
 		},
 		cli.StringSliceFlag{
 			Name:  "port",
-			Usage: "ports to expose when running containers",
+			Usage: "port to expose when running containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "env",
-			Usage: "environment variable to set when running containers",
+			Usage: "environment variable to set when running containers based on image",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:  "entrypoint",
-			Usage: "container entry point",
+			Usage: "entry point for containers based on image",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:  "cmd",
-			Usage: "container command",
+			Usage: "command for containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "volume",
-			Usage: "container volume",
+			Usage: "volume to create for containers based on image",
 		},
 		cli.StringFlag{
 			Name:  "workingdir",
-			Usage: "container working directory",
+			Usage: "initial working directory for containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "label",
-			Usage: "container label",
+			Usage: "image label e.g. label=value",
 		},
 	}
 )
@@ -80,6 +81,8 @@ func updateConfig(c *cli.Context, config []byte) []byte {
 	if image.OS == "" {
 		image.OS = runtime.GOOS
 	}
+	image.History = []v1.History{}
+	image.RootFS = v1.RootFS{}
 	if c.IsSet("author") {
 		image.Author = c.String("author")
 	}
@@ -89,9 +92,44 @@ func updateConfig(c *cli.Context, config []byte) []byte {
 	if c.IsSet("os") {
 		image.OS = c.String("os")
 	}
+	if c.IsSet("user") {
+		image.Config.User = c.String("user")
+	}
+	if c.IsSet("port") {
+		if image.Config.ExposedPorts == nil {
+			image.Config.ExposedPorts = make(map[string]struct{})
+		}
+		for _, portSpec := range c.StringSlice("port") {
+			image.Config.ExposedPorts[portSpec] = struct{}{}
+		}
+	}
 	if c.IsSet("env") {
 		for _, envSpec := range c.StringSlice("env") {
 			image.Config.Env = append(append([]string{}, image.Config.Env...), envSpec)
+		}
+	}
+	if c.IsSet("entrypoint") {
+		entrypointSpec, err := shellwords.Parse(c.String("entrypoint"))
+		if err != nil {
+			logrus.Errorf("error parsing --entrypoint %q: %v", c.String("entrypoint"), err)
+		} else {
+			image.Config.Entrypoint = entrypointSpec
+		}
+	}
+	if c.IsSet("cmd") {
+		cmdSpec, err := shellwords.Parse(c.String("cmd"))
+		if err != nil {
+			logrus.Errorf("error parsing --cmd %q: %v", c.String("cmd"), err)
+		} else {
+			image.Config.Cmd = cmdSpec
+		}
+	}
+	if c.IsSet("volume") {
+		if image.Config.Volumes == nil {
+			image.Config.Volumes = make(map[string]struct{})
+		}
+		for _, volSpec := range c.StringSlice("volume") {
+			image.Config.Volumes[volSpec] = struct{}{}
 		}
 	}
 	if c.IsSet("label") {
