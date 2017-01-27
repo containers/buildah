@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/docker/reference"
@@ -78,6 +79,12 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 			return nil, fmt.Errorf("unable to read layer %q: %v", layerID, err)
 		}
 	}
+	logrus.Debugf("layer list: %q", layers)
+
+	createdDate, err := time.Now().MarshalText()
+	if err != nil {
+		return nil, err
+	}
 
 	path, err := ioutil.TempDir(os.TempDir(), Package)
 	if err != nil {
@@ -92,17 +99,25 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		}
 	}()
 
+	image := v1.Image{}
+	err = json.Unmarshal(i.config, &image)
+	if err != nil {
+		return nil, err
+	}
+
 	manifest := v1.Manifest{
 		Versioned: specs.Versioned{
 			SchemaVersion: 2,
 		},
 		Config: v1.Descriptor{
 			MediaType: v1.MediaTypeImageConfig,
-			Digest:    digest.FromBytes(i.config),
-			Size:      int64(len(i.config)),
 		},
 		Layers: []v1.Descriptor{},
 	}
+
+	image.RootFS.Type = "layers"
+	image.RootFS.DiffIDs = []string{}
+	layerDiffID := ""
 
 	for _, layerID := range layers {
 		rc, err := i.store.Diff("", layerID)
@@ -133,7 +148,27 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 			Size:      size,
 		}
 		manifest.Layers = append(manifest.Layers, layerDescriptor)
+		layerDiffID = hasher.Digest().String()
+		image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, layerDiffID)
 	}
+
+	news := v1.History{
+		Created:    string(createdDate),
+		CreatedBy:  "manual edits",
+		Author:     image.Author,
+		EmptyLayer: false,
+	}
+	image.History = append(append([]v1.History{}, news), image.History...)
+
+	config, err := json.Marshal(&image)
+	if err != nil {
+		return nil, err
+	}
+	logrus.Debugf("config = %s\n", config)
+	i.config = config
+
+	manifest.Config.Digest = digest.FromBytes(config)
+	manifest.Config.Size = int64(len(config))
 
 	mfest, err := json.Marshal(&manifest)
 	if err != nil {
