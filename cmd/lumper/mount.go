@@ -104,5 +104,7 @@ func mountCmd(c *cli.Context) error {
 		return err
 	}
 
+	fmt.Printf("%s\n", mountPoint)
+
 	return nil
 }
