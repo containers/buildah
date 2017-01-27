@@ -144,7 +144,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		err = os.Rename(filepath.Join(path, "layer"), filepath.Join(path, hasher.Digest().String()))
 		layerDescriptor := v1.Descriptor{
 			MediaType: v1.MediaTypeImageLayer,
-			Digest:    hasher.Digest(),
+			Digest:    hasher.Digest().String(),
 			Size:      size,
 		}
 		manifest.Layers = append(manifest.Layers, layerDescriptor)
@@ -167,7 +167,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 	logrus.Debugf("config = %s\n", config)
 	i.config = config
 
-	manifest.Config.Digest = digest.FromBytes(config)
+	manifest.Config.Digest = digest.FromBytes(config).String()
 	manifest.Config.Size = int64(len(config))
 
 	mfest, err := json.Marshal(&manifest)
@@ -183,7 +183,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		container:    i.container,
 		manifest:     mfest,
 		config:       i.config,
-		configDigest: manifest.Config.Digest,
+		configDigest: digest.FromBytes(config),
 	}
 	return src, nil
 }
