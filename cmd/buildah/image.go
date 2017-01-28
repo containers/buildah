@@ -142,9 +142,12 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		destHasher := digest.Canonical.Digester()
 		counter := ioutils.NewWriteCounter(layerFile)
 		multiWriter := io.MultiWriter(counter, destHasher.Hash())
+		mediaType := v1.MediaTypeImageLayer
 		if i.compression != archive.Uncompressed {
 			switch i.compression {
 			case archive.Gzip:
+				// TODO: when we can update to a newer image-spec that defines it:
+				// mediaType = MediaTypeImageLayerGzip
 				logrus.Debugf("compressing layer %q with gzip", layerID)
 			case archive.Bzip2:
 				logrus.Debugf("compressing layer %q with bzip2", layerID)
@@ -172,7 +175,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		logrus.Debugf("layer %q size is %d bytes", layerID, size)
 		err = os.Rename(filepath.Join(path, "layer"), filepath.Join(path, destHasher.Digest().String()))
 		layerDescriptor := v1.Descriptor{
-			MediaType: v1.MediaTypeImageLayer,
+			MediaType: mediaType,
 			Digest:    destHasher.Digest().String(),
 			Size:      size,
 		}
