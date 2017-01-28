@@ -1,0 +1,11 @@
+language: go
+go:
+    - 1.6
+    - 1.7
+    - tip
+sudo: required
+before_install:
+    - sudo apt-get -qq update
+    - sudo apt-get -qq install btrfs-tools libdevmapper-dev
+script:
+    - make
