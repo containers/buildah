@@ -34,6 +34,10 @@ var (
 			Name:  "registry",
 			Usage: "prefix to prepend to the image name in order to pull the image",
 		},
+		cli.StringFlag{
+			Name:  "signature-policy",
+			Usage: "signature policy path",
+		},
 		cli.BoolFlag{
 			Name:  "mount",
 			Usage: "mount the working container",
@@ -44,6 +48,14 @@ var (
 		},
 	}
 )
+
+func getSystemContext(c *cli.Context) *types.SystemContext {
+	sc := &types.SystemContext{}
+	if c.IsSet("signature-policy") {
+		sc.SignaturePolicyPath = c.String("signature-policy")
+	}
+	return sc
+}
 
 func pullImage(c *cli.Context, store storage.Store, sc *types.SystemContext, name string) error {
 	spec := name

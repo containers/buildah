@@ -33,10 +33,6 @@ func main() {
 			Name:  "storage-option",
 			Usage: "storage driver option",
 		},
-		cli.StringFlag{
-			Name:  "signature-policy",
-			Usage: "signature policy path",
-		},
 		cli.BoolFlag{
 			Name:  "debug",
 			Usage: "print debugging information",

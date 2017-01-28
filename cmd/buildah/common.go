@@ -6,7 +6,6 @@ import (
 
 	"github.com/containers/image/copy"
 	is "github.com/containers/image/storage"
-	"github.com/containers/image/types"
 	"github.com/containers/storage/storage"
 	"github.com/urfave/cli"
 )
@@ -44,14 +43,6 @@ func getStore(c *cli.Context) (storage.Store, error) {
 		is.Transport.SetStore(store)
 	}
 	return store, err
-}
-
-func getSystemContext(c *cli.Context) *types.SystemContext {
-	sc := &types.SystemContext{}
-	if c.GlobalIsSet("signature-policy") {
-		sc.SignaturePolicyPath = c.GlobalString("signature-policy")
-	}
-	return sc
 }
 
 func getCopyOptions() *copy.Options {
