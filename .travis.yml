@@ -6,6 +6,6 @@ go:
 sudo: required
 before_install:
     - sudo apt-get -qq update
-    - sudo apt-get -qq install btrfs-tools libdevmapper-dev
+    - sudo apt-get -qq install btrfs-tools libdevmapper-dev libgpgme11-dev
 script:
     - make

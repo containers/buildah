@@ -1,9 +1,10 @@
 GOPATH := $(shell pwd)/vendor:$(shell rm -fr .gopath && mkdir -p .gopath/src/github.com/containers && ln -s ../../../.. .gopath/src/github.com/containers/buildah && cd .gopath && pwd):$(shell rm -fr .govendorpath && mkdir -p .govendorpath && ln -s ../vendor .govendorpath/src && cd .govendorpath && pwd)
+AUTOTAGS := $(shell ./btrfs_tag.sh) $(shell ./libdm_tag.sh)
 
 all: buildah
 
 buildah: cmd/buildah/*.go
-	go build -o buildah ./cmd/buildah
+	go build -o buildah -tags "$(AUTOTAGS) $(TAGS)" ./cmd/buildah
 
 .PHONY: clean
 clean:
