@@ -16,6 +16,7 @@ clean:
 gopath:
 	test $(shell pwd) = $(shell cd ../../../../src/github.com/containers/buildah ; pwd)
 
+# We use https://github.com/lk4d4/vndr to manage dependencies.
 .PHONY: deps
 deps: gopath
 	env GOPATH=$(shell cd ../../../.. ; pwd) vndr
