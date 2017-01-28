@@ -7,6 +7,7 @@ import (
 	"github.com/containers/image/copy"
 	"github.com/containers/image/signature"
 	"github.com/containers/image/transports"
+	"github.com/containers/storage/pkg/archive"
 	"github.com/urfave/cli"
 )
 
@@ -23,6 +24,10 @@ var (
 		cli.StringFlag{
 			Name:  "link",
 			Usage: "symlink to the root directory of the working container",
+		},
+		cli.BoolFlag{
+			Name:  "do-not-compress",
+			Usage: "don't compress layers",
 		},
 		cli.StringFlag{
 			Name:  "output",
@@ -52,6 +57,10 @@ func commitCmd(c *cli.Context) error {
 	output := ""
 	if c.IsSet("output") {
 		output = c.String("output")
+	}
+	compress := archive.Uncompressed
+	if !c.IsSet("do-not-compress") || !c.Bool("do-not-compress") {
+		compress = archive.Gzip
 	}
 	if output == "" {
 		return fmt.Errorf("the --output flag must be specified")
@@ -90,7 +99,7 @@ func commitCmd(c *cli.Context) error {
 	}
 
 	config := updateConfig(c, metadata.Config)
-	err = copy.Image(policyContext, destRef, makeContainerImageRef(store, container, string(config)), getCopyOptions())
+	err = copy.Image(policyContext, destRef, makeContainerImageRef(store, container, string(config), compress), getCopyOptions())
 
 	return err
 }

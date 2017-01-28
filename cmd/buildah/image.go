@@ -24,10 +24,11 @@ import (
 )
 
 type containerImageRef struct {
-	store     storage.Store
-	container *storage.Container
-	name      reference.Named
-	config    []byte
+	store       storage.Store
+	container   *storage.Container
+	compression archive.Compression
+	name        reference.Named
+	config      []byte
 }
 
 type containerImageSource struct {
@@ -35,6 +36,7 @@ type containerImageSource struct {
 	ref          *containerImageRef
 	store        storage.Store
 	container    *storage.Container
+	compression  archive.Compression
 	config       []byte
 	configDigest digest.Digest
 	manifest     []byte
@@ -90,6 +92,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 	if err != nil {
 		return nil, err
 	}
+	logrus.Debugf("using %q to hold temporary data", path)
 	defer func() {
 		if src == nil {
 			err2 := os.RemoveAll(path)
@@ -130,25 +133,51 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 			return nil, fmt.Errorf("error decompressing layer %q: %v", layerID, err)
 		}
 		defer uncompressed.Close()
-		hasher := digest.Canonical.Digester()
-		reader := io.TeeReader(uncompressed, hasher.Hash())
+		srcHasher := digest.Canonical.Digester()
+		reader := io.TeeReader(uncompressed, srcHasher.Hash())
 		layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			return nil, fmt.Errorf("error opening file for layer %q: %v", layerID, err)
 		}
-		size, err := io.Copy(layerFile, reader)
+		destHasher := digest.Canonical.Digester()
+		counter := ioutils.NewWriteCounter(layerFile)
+		multiWriter := io.MultiWriter(counter, destHasher.Hash())
+		if i.compression != archive.Uncompressed {
+			switch i.compression {
+			case archive.Gzip:
+				logrus.Debugf("compressing layer %q with gzip", layerID)
+			case archive.Bzip2:
+				logrus.Debugf("compressing layer %q with bzip2", layerID)
+			default:
+				logrus.Debugf("compressing layer %q with unknown compressor(?)", layerID)
+			}
+		}
+		compressor, err := archive.CompressStream(multiWriter, i.compression)
+		if err != nil {
+			return nil, fmt.Errorf("error compressing layer %q: %v", layerID, err)
+		}
+		size, err := io.Copy(compressor, reader)
 		if err != nil {
 			return nil, fmt.Errorf("error storing layer %q to file: %v", layerID, err)
 		}
+		compressor.Close()
 		layerFile.Close()
-		err = os.Rename(filepath.Join(path, "layer"), filepath.Join(path, hasher.Digest().String()))
+		if i.compression == archive.Uncompressed {
+			if size != counter.Count {
+				return nil, fmt.Errorf("error storing layer %q to file: inconsistent layer size (copied %d, wrote %d)", layerID, size, counter.Count)
+			}
+		} else {
+			size = counter.Count
+		}
+		logrus.Debugf("layer %q size is %d bytes", layerID, size)
+		err = os.Rename(filepath.Join(path, "layer"), filepath.Join(path, destHasher.Digest().String()))
 		layerDescriptor := v1.Descriptor{
 			MediaType: v1.MediaTypeImageLayer,
-			Digest:    hasher.Digest().String(),
+			Digest:    destHasher.Digest().String(),
 			Size:      size,
 		}
 		manifest.Layers = append(manifest.Layers, layerDescriptor)
-		layerDiffID = hasher.Digest().String()
+		layerDiffID = destHasher.Digest().String()
 		image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, layerDiffID)
 	}
 
@@ -181,6 +210,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		ref:          i,
 		store:        i.store,
 		container:    i.container,
+		compression:  i.compression,
 		manifest:     mfest,
 		config:       i.config,
 		configDigest: digest.FromBytes(config),
@@ -274,7 +304,7 @@ func (i *containerImageSource) GetBlob(blob types.BlobInfo) (reader io.ReadClose
 	return ioutils.NewReadCloserWrapper(layerFile, closer), size, nil
 }
 
-func makeContainerImageRef(store storage.Store, container *storage.Container, config string) types.ImageReference {
+func makeContainerImageRef(store storage.Store, container *storage.Container, config string, compress archive.Compression) types.ImageReference {
 	var err error
 	var name reference.Named
 	if len(container.Names) > 0 {
@@ -284,9 +314,10 @@ func makeContainerImageRef(store storage.Store, container *storage.Container, co
 		}
 	}
 	return &containerImageRef{
-		store:     store,
-		container: container,
-		name:      name,
-		config:    []byte(config),
+		store:       store,
+		container:   container,
+		compression: compress,
+		name:        name,
+		config:      []byte(config),
 	}
 }
