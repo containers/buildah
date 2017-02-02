@@ -3,6 +3,7 @@ go:
     - 1.6
     - 1.7
     - tip
+dist: trusty
 sudo: required
 before_install:
     - sudo apt-get -qq update
