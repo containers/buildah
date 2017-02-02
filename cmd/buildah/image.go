@@ -83,7 +83,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 	}
 	logrus.Debugf("layer list: %q", layers)
 
-	createdDate, err := time.Now().MarshalText()
+	createdDate, err := time.Now().UTC().MarshalText()
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		Author:     image.Author,
 		EmptyLayer: false,
 	}
-	image.History = append(append([]v1.History{}, news), image.History...)
+	image.History = append(image.History, news)
 
 	config, err := json.Marshal(&image)
 	if err != nil {

@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	docker "github.com/docker/docker/image"
 	"github.com/mattn/go-shellwords"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/urfave/cli"
 )
 
@@ -61,15 +62,81 @@ var (
 	}
 )
 
-func updateConfig(c *cli.Context, config []byte) []byte {
-	image := v1.Image{}
-	if err := json.Unmarshal(config, &image); err != nil {
-		if len(config) > 0 {
-			logrus.Errorf("error importing image configuration, using original configuration")
-			return config
+func copyDockerImageConfig(dimage *docker.Image) (ociv1.Image, error) {
+	created, err := dimage.Created.UTC().MarshalText()
+	if err != nil {
+		created = []byte{}
+	}
+	image := ociv1.Image{
+		Created:      string(created),
+		Author:       dimage.Author,
+		Architecture: dimage.Architecture,
+		OS:           dimage.OS,
+		Config: ociv1.ImageConfig{
+			User:         dimage.Config.User,
+			ExposedPorts: map[string]struct{}{},
+			Env:          dimage.Config.Env,
+			Entrypoint:   dimage.Config.Entrypoint,
+			Cmd:          dimage.Config.Cmd,
+			Volumes:      dimage.Config.Volumes,
+			WorkingDir:   dimage.Config.WorkingDir,
+			Labels:       dimage.Config.Labels,
+		},
+		RootFS: ociv1.RootFS{
+			Type:    "",
+			DiffIDs: []string{},
+		},
+		History: []ociv1.History{},
+	}
+	for port, what := range dimage.Config.ExposedPorts {
+		image.Config.ExposedPorts[string(port)] = what
+	}
+	RootFS := docker.RootFS{}
+	if dimage.RootFS != nil {
+		RootFS = *dimage.RootFS
+	}
+	if RootFS.Type == docker.TypeLayers {
+		image.RootFS.Type = docker.TypeLayers
+		for _, id := range RootFS.DiffIDs {
+			image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, id.String())
 		}
 	}
-	createdBytes, err := time.Now().MarshalText()
+	for _, history := range dimage.History {
+		created, err := history.Created.UTC().MarshalText()
+		if err != nil {
+			created = []byte{}
+		}
+		ohistory := ociv1.History{
+			Created:    string(created),
+			CreatedBy:  history.CreatedBy,
+			Author:     history.Author,
+			Comment:    history.Comment,
+			EmptyLayer: history.EmptyLayer,
+		}
+		image.History = append(image.History, ohistory)
+	}
+	return image, nil
+}
+
+func updateConfig(c *cli.Context, config []byte) []byte {
+	image := ociv1.Image{}
+	dimage := docker.Image{}
+	if err := json.Unmarshal(config, &dimage); err == nil && dimage.DockerVersion != "" {
+		logrus.Debugf("attempting to read image configuration as a docker image configuration")
+		if image, err = copyDockerImageConfig(&dimage); err != nil {
+			logrus.Errorf("error importing docker image configuration, using original configuration")
+			return config
+		}
+	} else {
+		logrus.Debugf("attempting to parse image configuration as an OCI image configuration")
+		if err := json.Unmarshal(config, &image); err != nil {
+			if len(config) > 0 {
+				logrus.Errorf("error importing image configuration, using original configuration")
+				return config
+			}
+		}
+	}
+	createdBytes, err := time.Now().UTC().MarshalText()
 	if err != nil {
 		logrus.Errorf("error setting image creation time: %v", err)
 	} else {
@@ -81,8 +148,6 @@ func updateConfig(c *cli.Context, config []byte) []byte {
 	if image.OS == "" {
 		image.OS = runtime.GOOS
 	}
-	image.History = []v1.History{}
-	image.RootFS = v1.RootFS{}
 	if c.IsSet("author") {
 		image.Author = c.String("author")
 	}
