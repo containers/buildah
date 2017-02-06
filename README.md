@@ -17,4 +17,4 @@ Future goals include:
 * docs
 * CI tests
 * refactoring the CLI tool's logic into a library that the CLI tool will wrap
-* additional CLI commands
+* additional CLI commands (run, copy, add, build?)
