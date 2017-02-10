@@ -5,6 +5,8 @@ import (
 	"os"
 )
 
+// Delete removes the working container.  The Builder object should not be used
+// after this method is called.
 func (b *Builder) Delete() error {
 	for _, link := range b.Links {
 		if err := os.Remove(link); err != nil {

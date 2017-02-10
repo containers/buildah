@@ -6,6 +6,8 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// Unmount unmounts a build container, removing any links which have been made
+// to its root.
 func (b *Builder) Unmount() error {
 	err := b.store.Unmount(b.ContainerID)
 	if err == nil {

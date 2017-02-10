@@ -121,7 +121,7 @@ func (b *Builder) updatedConfig() []byte {
 		if image.Config.ExposedPorts == nil {
 			image.Config.ExposedPorts = make(map[string]struct{})
 		}
-		for k, _ := range b.Expose {
+		for k := range b.Expose {
 			image.Config.ExposedPorts[k] = struct{}{}
 		}
 	}

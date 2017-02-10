@@ -8,6 +8,9 @@ import (
 )
 
 const (
+	// DefaultRegistry is a prefix that we apply to an image name if we
+	// can't find one in the local Store, in order to generate a source
+	// reference for the image that we can then copy to the local Store.
 	DefaultRegistry = "docker://"
 )
 

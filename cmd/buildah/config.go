@@ -11,6 +11,8 @@ import (
 )
 
 const (
+	// DefaultCreatedBy is the default description of how an image layer
+	// was created that we use when adding to an image's history.
 	DefaultCreatedBy = "manual edits"
 )
 

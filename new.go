@@ -9,6 +9,8 @@ import (
 )
 
 const (
+	// BaseImageFakeName is the "name" of a source image which we interpret
+	// as "no image".
 	BaseImageFakeName = "scratch"
 )
 
@@ -18,6 +20,9 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	config := []byte{}
 
 	name := "working-container"
+	if options.FromImage == BaseImageFakeName {
+		options.FromImage = ""
+	}
 	image := options.FromImage
 	if options.Container != "" {
 		name = options.Container
@@ -42,7 +47,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 
 	systemContext := getSystemContext(options.SignaturePolicyPath)
 
-	if options.FromImage != "" && options.FromImage != BaseImageFakeName {
+	if image != "" {
 		if options.PullAlways {
 			err := pullImage(store, options, systemContext)
 			if err != nil {
@@ -103,8 +108,8 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 
 	builder := &Builder{
 		store:       store,
-		Type:        ContainerType,
-		FromImage:   options.FromImage,
+		Type:        containerType,
+		FromImage:   image,
 		Config:      config,
 		Manifest:    manifest,
 		Container:   name,
