@@ -1,4 +1,5 @@
 #!/bin/bash -x
+set -e
 read
 export PATH=`pwd`:$PATH
 systemctl restart ocid
