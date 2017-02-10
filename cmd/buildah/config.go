@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	configFlags = []cli.Flag{
+	configurationFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "author",
 			Usage: "image author contact information",
@@ -72,7 +72,7 @@ var (
 			Usage: "image annotation e.g. annotation=value",
 		},
 	}
-	configCmdFlags = []cli.Flag{
+	configFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
 			Usage: "name of the working container",

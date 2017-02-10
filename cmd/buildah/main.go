@@ -85,7 +85,7 @@ func main() {
 			Name:        "config",
 			Usage:       "update image configuration settings",
 			Description: "updates a working container's image configuration settings",
-			Flags:       append(configCmdFlags, configFlags...),
+			Flags:       append(configFlags, configurationFlags...),
 			Action:      configCmd,
 		},
 		{
@@ -93,7 +93,7 @@ func main() {
 			Aliases:     []string{"c"},
 			Usage:       "create an image from a working container",
 			Description: "creates an image from a working container",
-			Flags:       append(commitFlags, configFlags...),
+			Flags:       append(commitFlags, configurationFlags...),
 			Action:      commitCmd,
 		},
 		{
