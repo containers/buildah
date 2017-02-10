@@ -1,27 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/containers/image/copy"
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage/storage"
+	"github.com/nalind/buildah"
 	"github.com/urfave/cli"
 )
-
-const (
-	Package       = "buildah"
-	ContainerType = Package + " 0.0.0"
-)
-
-type ContainerMetadata struct {
-	Type     string
-	Config   []byte
-	Manifest []byte
-	Links    []string
-	Mounts   []string
-}
 
 func getStore(c *cli.Context) (storage.Store, error) {
 	options := storage.DefaultStoreOptions
@@ -45,66 +31,21 @@ func getStore(c *cli.Context) (storage.Store, error) {
 	return store, err
 }
 
-func getCopyOptions() *copy.Options {
-	return &copy.Options{}
-}
-
-func lookupContainer(store storage.Store, name, root, link string) (*storage.Container, error) {
-	containers, err := store.Containers()
+func openBuilder(store storage.Store, name, root, link string) (builder *buildah.Builder, err error) {
+	if name != "" {
+		builder, err = buildah.OpenBuilder(store, name)
+	}
+	if root != "" {
+		builder, err = buildah.OpenBuilderByPath(store, root)
+	}
+	if link != "" {
+		builder, err = buildah.OpenBuilderByPath(store, link)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("error listing containers: %v", err)
+		return nil, fmt.Errorf("error reading build container: %v", err)
 	}
-	for _, c := range containers {
-		if name != "" {
-			matches := false
-			for _, n := range c.Names {
-				if name == n {
-					matches = true
-					break
-				}
-			}
-			if !matches {
-				continue
-			}
-		}
-		metadata := ContainerMetadata{}
-		if root != "" || link != "" {
-			mdata, err := store.GetMetadata(c.ID)
-			if err != nil || mdata == "" {
-				// probably not one of ours
-				continue
-			}
-			err = json.Unmarshal([]byte(mdata), &metadata)
-			if err != nil {
-				// probably not one of ours
-				continue
-			}
-		}
-		if root != "" {
-			matches := false
-			for _, m := range metadata.Mounts {
-				if m == root {
-					matches = true
-					break
-				}
-			}
-			if !matches {
-				continue
-			}
-		}
-		if link != "" {
-			matches := false
-			for _, l := range metadata.Links {
-				if l == link {
-					matches = true
-					break
-				}
-			}
-			if !matches {
-				continue
-			}
-		}
-		return &c, nil
+	if builder == nil {
+		return nil, fmt.Errorf("error finding build container")
 	}
-	return nil, fmt.Errorf("no matching container found")
+	return builder, nil
 }

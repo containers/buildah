@@ -1,13 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/containers/image/copy"
-	"github.com/containers/image/signature"
 	"github.com/containers/image/transports"
 	"github.com/containers/storage/pkg/archive"
+	"github.com/nalind/buildah"
 	"github.com/urfave/cli"
 )
 
@@ -33,15 +31,14 @@ var (
 			Name:  "output",
 			Usage: "image to create",
 		},
+		cli.StringFlag{
+			Name:  "signature-policy",
+			Usage: "signature policy path",
+		},
 	}
 )
 
 func commitCmd(c *cli.Context) error {
-	store, err := getStore(c)
-	if err != nil {
-		return err
-	}
-
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
@@ -58,6 +55,10 @@ func commitCmd(c *cli.Context) error {
 	if c.IsSet("output") {
 		output = c.String("output")
 	}
+	signaturePolicy := ""
+	if c.IsSet("signature-policy") {
+		signaturePolicy = c.String("signature-policy")
+	}
 	compress := archive.Uncompressed
 	if !c.IsSet("do-not-compress") || !c.Bool("do-not-compress") {
 		compress = archive.Gzip
@@ -69,37 +70,30 @@ func commitCmd(c *cli.Context) error {
 		return fmt.Errorf("either --name or --root or --link, or some combination, must be specified")
 	}
 
-	container, err := lookupContainer(store, name, root, link)
+	store, err := getStore(c)
 	if err != nil {
 		return err
 	}
 
-	mdata, err := store.GetMetadata(container.ID)
+	builder, err := openBuilder(store, name, root, link)
 	if err != nil {
-		return err
-	}
-	metadata := ContainerMetadata{}
-	err = json.Unmarshal([]byte(mdata), &metadata)
-	if err != nil {
-		return err
+		return fmt.Errorf("error reading build container %q: %v", name, err)
 	}
 
-	policy, err := signature.DefaultPolicy(getSystemContext(c))
+	dest, err := transports.ParseImageName(output)
 	if err != nil {
-		return err
-	}
-	policyContext, err := signature.NewPolicyContext(policy)
-	if err != nil {
-		return err
+		return fmt.Errorf("error parsing target image name %q: %v", name, err)
 	}
 
-	destRef, err := transports.ParseImageName(output)
+	options := buildah.CommitOptions{
+		Compression:         compress,
+		SignaturePolicyPath: signaturePolicy,
+	}
+	updateConfig(builder, c)
+	err = builder.Commit(dest, options)
 	if err != nil {
-		return fmt.Errorf("error parsing output image name %q: %v", output, err)
+		return fmt.Errorf("error committing container to %q: %v", output, err)
 	}
 
-	config := updateConfig(c, metadata.Config)
-	err = copy.Image(policyContext, destRef, makeContainerImageRef(store, container, string(config), compress), getCopyOptions())
-
-	return err
+	return nil
 }

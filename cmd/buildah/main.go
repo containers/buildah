@@ -5,6 +5,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/reexec"
+	"github.com/nalind/buildah"
 	"github.com/urfave/cli"
 )
 
@@ -14,8 +15,8 @@ func main() {
 	}
 
 	app := cli.NewApp()
-	app.Name = Package
-	app.Usage = "minimal image builder"
+	app.Name = buildah.Package
+	app.Usage = "an image builder"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "root",
@@ -79,6 +80,13 @@ func main() {
 			Description: "unmounts and removes a symbolic link to a working container's filesystem root",
 			Flags:       umountFlags,
 			Action:      umountCmd,
+		},
+		{
+			Name:        "config",
+			Usage:       "update image configuration settings",
+			Description: "updates a working container's image configuration settings",
+			Flags:       append(configCmdFlags, configFlags...),
+			Action:      configCmd,
 		},
 		{
 			Name:        "commit",

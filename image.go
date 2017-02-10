@@ -1,4 +1,4 @@
-package main
+package buildah
 
 import (
 	"bytes"
@@ -29,6 +29,8 @@ type containerImageRef struct {
 	compression archive.Compression
 	name        reference.Named
 	config      []byte
+	createdBy   string
+	annotations map[string]string
 }
 
 type containerImageSource struct {
@@ -115,12 +117,13 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		Config: v1.Descriptor{
 			MediaType: v1.MediaTypeImageConfig,
 		},
-		Layers: []v1.Descriptor{},
+		Layers:      []v1.Descriptor{},
+		Annotations: i.annotations,
 	}
 
 	image.RootFS.Type = "layers"
 	image.RootFS.DiffIDs = []string{}
-	layerDiffID := ""
+	lastLayerDiffID := ""
 
 	for _, layerID := range layers {
 		rc, err := i.store.Diff("", layerID)
@@ -180,13 +183,13 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 			Size:      size,
 		}
 		manifest.Layers = append(manifest.Layers, layerDescriptor)
-		layerDiffID = destHasher.Digest().String()
-		image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, layerDiffID)
+		lastLayerDiffID = destHasher.Digest().String()
+		image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, lastLayerDiffID)
 	}
 
 	news := v1.History{
 		Created:    string(createdDate),
-		CreatedBy:  "manual edits",
+		CreatedBy:  i.createdBy,
 		Author:     image.Author,
 		EmptyLayer: false,
 	}
@@ -307,20 +310,26 @@ func (i *containerImageSource) GetBlob(blob types.BlobInfo) (reader io.ReadClose
 	return ioutils.NewReadCloserWrapper(layerFile, closer), size, nil
 }
 
-func makeContainerImageRef(store storage.Store, container *storage.Container, config string, compress archive.Compression) types.ImageReference {
-	var err error
+func (b *Builder) makeContainerImageRef(compress archive.Compression) (types.ImageReference, error) {
 	var name reference.Named
+	container, err := b.store.GetContainer(b.ContainerID)
+	if err != nil {
+		return nil, err
+	}
 	if len(container.Names) > 0 {
 		name, err = reference.ParseNamed(container.Names[0])
 		if err != nil {
 			name = nil
 		}
 	}
-	return &containerImageRef{
-		store:       store,
+	ref := &containerImageRef{
+		store:       b.store,
 		container:   container,
 		compression: compress,
 		name:        name,
-		config:      []byte(config),
+		config:      b.updatedConfig(),
+		createdBy:   b.CreatedBy,
+		annotations: b.Annotations,
 	}
+	return ref, nil
 }
