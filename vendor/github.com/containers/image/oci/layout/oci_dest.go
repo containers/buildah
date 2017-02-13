@@ -37,7 +37,6 @@ func (d *ociImageDestination) Close() {
 func (d *ociImageDestination) SupportedManifestMIMETypes() []string {
 	return []string{
 		imgspecv1.MediaTypeImageManifest,
-		manifest.DockerV2Schema2MediaType,
 	}
 }
 
@@ -134,60 +133,16 @@ func (d *ociImageDestination) ReapplyBlob(info types.BlobInfo) (types.BlobInfo, 
 	return info, nil
 }
 
-func createManifest(m []byte) ([]byte, string, error) {
-	om := imgspecv1.Manifest{}
-	mt := manifest.GuessMIMEType(m)
-	switch mt {
-	case manifest.DockerV2Schema1MediaType, manifest.DockerV2Schema1SignedMediaType:
-		// There a simple reason about not yet implementing this.
-		// OCI image-spec assure about backward compatibility with docker v2s2 but not v2s1
-		// generating a v2s2 is a migration docker does when upgrading to 1.10.3
-		// and I don't think we should bother about this now (I don't want to have migration code here in skopeo)
-		return nil, "", errors.New("can't create an OCI manifest from Docker V2 schema 1 manifest")
-	case manifest.DockerV2Schema2MediaType:
-		if err := json.Unmarshal(m, &om); err != nil {
-			return nil, "", err
-		}
-		om.MediaType = imgspecv1.MediaTypeImageManifest
-		for i, l := range om.Layers {
-			if l.MediaType == manifest.DockerV2Schema2ForeignLayerMediaType {
-				om.Layers[i].MediaType = imgspecv1.MediaTypeImageLayerNonDistributable
-			} else {
-				om.Layers[i].MediaType = imgspecv1.MediaTypeImageLayer
-			}
-		}
-		om.Config.MediaType = imgspecv1.MediaTypeImageConfig
-		b, err := json.Marshal(om)
-		if err != nil {
-			return nil, "", err
-		}
-		return b, om.MediaType, nil
-	case manifest.DockerV2ListMediaType:
-		return nil, "", errors.New("can't create an OCI manifest from Docker V2 schema 2 manifest list")
-	case imgspecv1.MediaTypeImageManifestList:
-		return nil, "", errors.New("can't create an OCI manifest from OCI manifest list")
-	case imgspecv1.MediaTypeImageManifest:
-		return m, mt, nil
-	}
-	return nil, "", errors.Errorf("unrecognized manifest media type %q", mt)
-}
-
 func (d *ociImageDestination) PutManifest(m []byte) error {
-	// TODO(mitr, runcom): this breaks signatures entirely since at this point we're creating a new manifest
-	// and signatures don't apply anymore. Will fix.
-	ociMan, mt, err := createManifest(m)
-	if err != nil {
-		return err
-	}
-	digest, err := manifest.Digest(ociMan)
+	digest, err := manifest.Digest(m)
 	if err != nil {
 		return err
 	}
 	desc := imgspecv1.Descriptor{}
-	desc.Digest = digest.String()
+	desc.Digest = digest
 	// TODO(runcom): beaware and add support for OCI manifest list
-	desc.MediaType = mt
-	desc.Size = int64(len(ociMan))
+	desc.MediaType = imgspecv1.MediaTypeImageManifest
+	desc.Size = int64(len(m))
 	data, err := json.Marshal(desc)
 	if err != nil {
 		return err
@@ -197,7 +152,10 @@ func (d *ociImageDestination) PutManifest(m []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(blobPath, ociMan, 0644); err != nil {
+	if err := ensureParentDirectoryExists(blobPath); err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(blobPath, m, 0644); err != nil {
 		return err
 	}
 	// TODO(runcom): ugly here?

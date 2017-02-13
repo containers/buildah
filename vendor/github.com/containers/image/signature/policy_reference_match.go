@@ -17,7 +17,7 @@ func parseImageAndDockerReference(image types.UnparsedImage, s2 string) (referen
 		return nil, nil, PolicyRequirementError(fmt.Sprintf("Docker reference match attempted on image %s with no known Docker reference identity",
 			transports.ImageName(image.Reference())))
 	}
-	r2, err := reference.ParseNamed(s2)
+	r2, err := reference.ParseNormalizedNamed(s2)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -69,11 +69,11 @@ func (prm *prmMatchRepository) matchesDockerReference(image types.UnparsedImage,
 
 // parseDockerReferences converts two reference strings into parsed entities, failing on any error
 func parseDockerReferences(s1, s2 string) (reference.Named, reference.Named, error) {
-	r1, err := reference.ParseNamed(s1)
+	r1, err := reference.ParseNormalizedNamed(s1)
 	if err != nil {
 		return nil, nil, err
 	}
-	r2, err := reference.ParseNamed(s2)
+	r2, err := reference.ParseNormalizedNamed(s2)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -5,6 +5,7 @@ package signature
 import (
 	"fmt"
 
+	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/manifest"
 	"github.com/opencontainers/go-digest"
 )
@@ -24,6 +25,10 @@ func SignDockerManifest(m []byte, dockerReference string, mech SigningMechanism,
 // using mech.
 func VerifyDockerManifestSignature(unverifiedSignature, unverifiedManifest []byte,
 	expectedDockerReference string, mech SigningMechanism, expectedKeyIdentity string) (*Signature, error) {
+	expectedRef, err := reference.ParseNormalizedNamed(expectedDockerReference)
+	if err != nil {
+		return nil, err
+	}
 	sig, err := verifyAndExtractSignature(mech, unverifiedSignature, signatureAcceptanceRules{
 		validateKeyIdentity: func(keyIdentity string) error {
 			if keyIdentity != expectedKeyIdentity {
@@ -32,7 +37,11 @@ func VerifyDockerManifestSignature(unverifiedSignature, unverifiedManifest []byt
 			return nil
 		},
 		validateSignedDockerReference: func(signedDockerReference string) error {
-			if signedDockerReference != expectedDockerReference {
+			signedRef, err := reference.ParseNormalizedNamed(signedDockerReference)
+			if err != nil {
+				return InvalidSignatureError{msg: fmt.Sprintf("Invalid docker reference %s in signature", signedDockerReference)}
+			}
+			if signedRef.String() != expectedRef.String() {
 				return InvalidSignatureError{msg: fmt.Sprintf("Docker reference %s does not match %s",
 					signedDockerReference, expectedDockerReference)}
 			}

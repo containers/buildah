@@ -12,6 +12,7 @@ import (
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
 	"github.com/opencontainers/go-digest"
+	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -166,11 +167,52 @@ func (m *manifestSchema2) UpdatedImage(options types.ManifestUpdateOptions) (typ
 	case "": // No conversion, OK
 	case manifest.DockerV2Schema1SignedMediaType, manifest.DockerV2Schema1MediaType:
 		return copy.convertToManifestSchema1(options.InformationOnly.Destination)
+	case imgspecv1.MediaTypeImageManifest:
+		return copy.convertToManifestOCI1()
 	default:
 		return nil, errors.Errorf("Conversion of image manifest from %s to %s is not implemented", manifest.DockerV2Schema2MediaType, options.ManifestMIMEType)
 	}
 
 	return memoryImageFromManifest(&copy), nil
+}
+
+func (m *manifestSchema2) convertToManifestOCI1() (types.Image, error) {
+	configBlob, err := m.ConfigBlob()
+	if err != nil {
+		return nil, err
+	}
+	// docker v2s2 and OCI v1 are mostly compatible but v2s2 contains more fields
+	// than OCI v1. This unmarshal, then re-marshal makes sure we drop docker v2s2
+	// fields that aren't needed in OCI v1.
+	configOCI := &imgspecv1.Image{}
+	if err := json.Unmarshal(configBlob, configOCI); err != nil {
+		return nil, err
+	}
+	configOCIBytes, err := json.Marshal(configOCI)
+	if err != nil {
+		return nil, err
+	}
+
+	config := descriptor{
+		MediaType: imgspecv1.MediaTypeImageConfig,
+		Size:      int64(len(configOCIBytes)),
+		Digest:    digest.FromBytes(configOCIBytes),
+	}
+
+	layers := make([]descriptor, len(m.LayersDescriptors))
+	for idx := range layers {
+		layers[idx] = m.LayersDescriptors[idx]
+		if m.LayersDescriptors[idx].MediaType == manifest.DockerV2Schema2ForeignLayerMediaType {
+			layers[idx].MediaType = imgspecv1.MediaTypeImageLayerNonDistributable
+		} else {
+			// we assume layers are gzip'ed because docker v2s2 only deals with
+			// gzip'ed layers. However, OCI has non-gzip'ed layers as well.
+			layers[idx].MediaType = imgspecv1.MediaTypeImageLayerGzip
+		}
+	}
+
+	m1 := manifestOCI1FromComponents(config, m.src, configOCIBytes, layers)
+	return memoryImageFromManifest(m1), nil
 }
 
 // Based on docker/distribution/manifest/schema1/config_builder.go

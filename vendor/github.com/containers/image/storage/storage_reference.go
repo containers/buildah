@@ -87,7 +87,7 @@ func (s storageReference) PolicyConfigurationNamespaces() []string {
 			// The reference without the ID is also a valid namespace.
 			namespaces = append(namespaces, storeSpec+s.reference)
 		}
-		components := strings.Split(s.name.FullName(), "/")
+		components := strings.Split(s.name.Name(), "/")
 		for len(components) > 0 {
 			namespaces = append(namespaces, storeSpec+strings.Join(components, "/"))
 			components = components[:len(components)-1]

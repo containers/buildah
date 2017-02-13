@@ -15,7 +15,6 @@ type manifestOCI1 struct {
 	src               types.ImageSource // May be nil if configBlob is not nil
 	configBlob        []byte            // If set, corresponds to contents of ConfigDescriptor.
 	SchemaVersion     int               `json:"schemaVersion"`
-	MediaType         string            `json:"mediaType"`
 	ConfigDescriptor  descriptor        `json:"config"`
 	LayersDescriptors []descriptor      `json:"layers"`
 }
@@ -29,12 +28,11 @@ func manifestOCI1FromManifest(src types.ImageSource, manifest []byte) (genericMa
 }
 
 // manifestOCI1FromComponents builds a new manifestOCI1 from the supplied data:
-func manifestOCI1FromComponents(config descriptor, configBlob []byte, layers []descriptor) genericManifest {
+func manifestOCI1FromComponents(config descriptor, src types.ImageSource, configBlob []byte, layers []descriptor) genericManifest {
 	return &manifestOCI1{
-		src:               nil,
+		src:               src,
 		configBlob:        configBlob,
 		SchemaVersion:     2,
-		MediaType:         imgspecv1.MediaTypeImageManifest,
 		ConfigDescriptor:  config,
 		LayersDescriptors: layers,
 	}
@@ -45,7 +43,7 @@ func (m *manifestOCI1) serialize() ([]byte, error) {
 }
 
 func (m *manifestOCI1) manifestMIMEType() string {
-	return m.MediaType
+	return imgspecv1.MediaTypeImageManifest
 }
 
 // ConfigInfo returns a complete BlobInfo for the separate config object, or a BlobInfo{Digest:""} if there isn't a separate object.

@@ -131,11 +131,10 @@ func (s storageImageDestination) ShouldCompressLayers() bool {
 	return false
 }
 
-// PutBlob is used to both store filesystem layers and binary data that is part
-// of the image.  Filesystem layers are assumed to be imported in order, as
-// that is required by some of the underlying storage drivers.
-func (s *storageImageDestination) PutBlob(stream io.Reader, blobinfo types.BlobInfo) (types.BlobInfo, error) {
-	blobSize := int64(-1)
+// putBlob stores a layer or data blob, optionally enforcing that a digest in
+// blobinfo matches the incoming data.
+func (s *storageImageDestination) putBlob(stream io.Reader, blobinfo types.BlobInfo, enforceDigestAndSize bool) (types.BlobInfo, error) {
+	blobSize := blobinfo.Size
 	digest := blobinfo.Digest
 	errorBlobInfo := types.BlobInfo{
 		Digest: "",
@@ -207,10 +206,9 @@ func (s *storageImageDestination) PutBlob(stream io.Reader, blobinfo types.BlobI
 			// Hang on to the new layer's ID.
 			id = layer.ID
 		}
-		blobSize = counter.Count
 		// Check if the size looks right.
-		if blobinfo.Size >= 0 && blobSize != blobinfo.Size {
-			logrus.Debugf("blob %q size is %d, not %d, rejecting", blobinfo.Digest, blobSize, blobinfo.Size)
+		if enforceDigestAndSize && blobinfo.Size >= 0 && blobinfo.Size != counter.Count {
+			logrus.Debugf("layer blob %q size is %d, not %d, rejecting", blobinfo.Digest, counter.Count, blobinfo.Size)
 			if layer != nil {
 				// Something's wrong; delete the newly-created layer.
 				s.imageRef.transport.store.DeleteLayer(layer.ID)
@@ -218,13 +216,17 @@ func (s *storageImageDestination) PutBlob(stream io.Reader, blobinfo types.BlobI
 			return errorBlobInfo, ErrBlobSizeMismatch
 		}
 		// If the content digest was specified, verify it.
-		if digest.Validate() == nil && digest.String() != hash {
-			logrus.Debugf("blob %q digests to %q, rejecting", blobinfo.Digest, hash)
+		if enforceDigestAndSize && digest.Validate() == nil && digest.String() != hash {
+			logrus.Debugf("layer blob %q digests to %q, rejecting", blobinfo.Digest, hash)
 			if layer != nil {
 				// Something's wrong; delete the newly-created layer.
 				s.imageRef.transport.store.DeleteLayer(layer.ID)
 			}
 			return errorBlobInfo, ErrBlobDigestMismatch
+		}
+		// If we didn't get a blob size, return the one we calculated.
+		if blobSize == -1 {
+			blobSize = counter.Count
 		}
 		// If we didn't get a digest, construct one.
 		if digest == "" {
@@ -234,7 +236,7 @@ func (s *storageImageDestination) PutBlob(stream io.Reader, blobinfo types.BlobI
 		// ended up having.  This is a list, in case the same blob is
 		// being applied more than once.
 		s.Layers[digest] = append(s.Layers[digest], id)
-		s.BlobList = append(s.BlobList, types.BlobInfo{Digest: digest, Size: blobSize})
+		s.BlobList = append(s.BlobList, types.BlobInfo{Digest: digest, Size: counter.Count})
 		if layer != nil {
 			logrus.Debugf("blob %q imported as a filesystem layer %q", blobinfo.Digest, id)
 		} else {
@@ -249,17 +251,20 @@ func (s *storageImageDestination) PutBlob(stream io.Reader, blobinfo types.BlobI
 		if err != nil && err != io.EOF {
 			return errorBlobInfo, err
 		}
-		blobSize = int64(len(blob))
 		hash = hasher.Digest().String()
-		if blobinfo.Size >= 0 && blobSize != blobinfo.Size {
-			logrus.Debugf("blob %q size is %d, not %d, rejecting", blobinfo.Digest, blobSize, blobinfo.Size)
+		if enforceDigestAndSize && blobinfo.Size >= 0 && int64(len(blob)) != blobinfo.Size {
+			logrus.Debugf("blob %q size is %d, not %d, rejecting", blobinfo.Digest, int64(len(blob)), blobinfo.Size)
 			return errorBlobInfo, ErrBlobSizeMismatch
 		}
 		// If we were given a digest, verify that the content matches
 		// it.
-		if digest.Validate() == nil && digest.String() != hash {
+		if enforceDigestAndSize && digest.Validate() == nil && digest.String() != hash {
 			logrus.Debugf("blob %q digests to %q, rejecting", blobinfo.Digest, hash)
 			return errorBlobInfo, ErrBlobDigestMismatch
+		}
+		// If we didn't get a blob size, return the one we calculated.
+		if blobSize == -1 {
+			blobSize = int64(len(blob))
 		}
 		// If we didn't get a digest, construct one.
 		if digest == "" {
@@ -267,13 +272,20 @@ func (s *storageImageDestination) PutBlob(stream io.Reader, blobinfo types.BlobI
 		}
 		// Save the blob for when we Commit().
 		s.BlobData[digest] = blob
-		s.BlobList = append(s.BlobList, types.BlobInfo{Digest: digest, Size: blobSize})
+		s.BlobList = append(s.BlobList, types.BlobInfo{Digest: digest, Size: int64(len(blob))})
 		logrus.Debugf("blob %q imported as opaque data %q", blobinfo.Digest, digest)
 	}
 	return types.BlobInfo{
 		Digest: digest,
 		Size:   blobSize,
 	}, nil
+}
+
+// PutBlob is used to both store filesystem layers and binary data that is part
+// of the image.  Filesystem layers are assumed to be imported in order, as
+// that is required by some of the underlying storage drivers.
+func (s *storageImageDestination) PutBlob(stream io.Reader, blobinfo types.BlobInfo) (types.BlobInfo, error) {
+	return s.putBlob(stream, blobinfo, true)
 }
 
 func (s *storageImageDestination) HasBlob(blobinfo types.BlobInfo) (bool, int64, error) {
@@ -305,7 +317,7 @@ func (s *storageImageDestination) ReapplyBlob(blobinfo types.BlobInfo) (types.Bl
 	if err != nil {
 		return types.BlobInfo{}, err
 	}
-	return s.PutBlob(rc, blobinfo)
+	return s.putBlob(rc, blobinfo, false)
 }
 
 func (s *storageImageDestination) Commit() error {

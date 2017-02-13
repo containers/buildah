@@ -374,6 +374,12 @@ const (
 	EXTA                             = 0xe
 	EXTB                             = 0xf
 	EXTPROC                          = 0x10000
+	FALLOC_FL_COLLAPSE_RANGE         = 0x8
+	FALLOC_FL_INSERT_RANGE           = 0x20
+	FALLOC_FL_KEEP_SIZE              = 0x1
+	FALLOC_FL_NO_HIDE_STALE          = 0x4
+	FALLOC_FL_PUNCH_HOLE             = 0x2
+	FALLOC_FL_ZERO_RANGE             = 0x10
 	FD_CLOEXEC                       = 0x1
 	FD_SETSIZE                       = 0x400
 	FLUSHO                           = 0x2000

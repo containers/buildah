@@ -4,10 +4,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/containers/image/docker/reference"
 	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 )
 
 // ImageTransport is a top-level namespace for ways to to store/load an image.

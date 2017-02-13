@@ -3,23 +3,22 @@ package policyconfiguration
 import (
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/containers/image/docker/reference"
+	"github.com/pkg/errors"
 )
 
 // DockerReferenceIdentity returns a string representation of the reference, suitable for policy lookup,
 // as a backend for ImageReference.PolicyConfigurationIdentity.
 // The reference must satisfy !reference.IsNameOnly().
 func DockerReferenceIdentity(ref reference.Named) (string, error) {
-	res := ref.FullName()
+	res := ref.Name()
 	tagged, isTagged := ref.(reference.NamedTagged)
 	digested, isDigested := ref.(reference.Canonical)
 	switch {
-	case isTagged && isDigested: // This should not happen, docker/reference.ParseNamed drops the tag.
-		return "", errors.Errorf("Unexpected Docker reference %s with both a name and a digest", ref.String())
+	case isTagged && isDigested: // Note that this CAN actually happen.
+		return "", errors.Errorf("Unexpected Docker reference %s with both a name and a digest", reference.FamiliarString(ref))
 	case !isTagged && !isDigested: // This should not happen, the caller is expected to ensure !reference.IsNameOnly()
-		return "", errors.Errorf("Internal inconsistency: Docker reference %s with neither a tag nor a digest", ref.String())
+		return "", errors.Errorf("Internal inconsistency: Docker reference %s with neither a tag nor a digest", reference.FamiliarString(ref))
 	case isTagged:
 		res = res + ":" + tagged.Tag()
 	case isDigested:
@@ -43,7 +42,7 @@ func DockerReferenceNamespaces(ref reference.Named) []string {
 	// ref.FullName() == ref.Hostname() + "/" + ref.RemoteName(), so the last
 	// iteration matches the host name (for any namespace).
 	res := []string{}
-	name := ref.FullName()
+	name := ref.Name()
 	for {
 		res = append(res, name)
 

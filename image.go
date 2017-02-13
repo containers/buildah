@@ -149,8 +149,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		if i.compression != archive.Uncompressed {
 			switch i.compression {
 			case archive.Gzip:
-				// TODO: when we can update to a newer image-spec that defines it:
-				// mediaType = MediaTypeImageLayerGzip
+				mediaType = MediaTypeImageLayerGzip
 				logrus.Debugf("compressing layer %q with gzip", layerID)
 			case archive.Bzip2:
 				logrus.Debugf("compressing layer %q with bzip2", layerID)

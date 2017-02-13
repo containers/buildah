@@ -19,11 +19,10 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/pkg/errors"
-
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
+	"github.com/pkg/errors"
 )
 
 // systemDefaultPolicyPath is the policy path used for DefaultPolicy().
@@ -634,7 +633,7 @@ func (prm *prmMatchRepository) UnmarshalJSON(data []byte) error {
 
 // newPRMExactReference is NewPRMExactReference, except it resturns the private type.
 func newPRMExactReference(dockerReference string) (*prmExactReference, error) {
-	ref, err := reference.ParseNamed(dockerReference)
+	ref, err := reference.ParseNormalizedNamed(dockerReference)
 	if err != nil {
 		return nil, InvalidPolicyFormatError(fmt.Sprintf("Invalid format of dockerReference %s: %s", dockerReference, err.Error()))
 	}
@@ -686,7 +685,7 @@ func (prm *prmExactReference) UnmarshalJSON(data []byte) error {
 
 // newPRMExactRepository is NewPRMExactRepository, except it resturns the private type.
 func newPRMExactRepository(dockerRepository string) (*prmExactRepository, error) {
-	if _, err := reference.ParseNamed(dockerRepository); err != nil {
+	if _, err := reference.ParseNormalizedNamed(dockerRepository); err != nil {
 		return nil, InvalidPolicyFormatError(fmt.Sprintf("Invalid format of dockerRepository %s: %s", dockerRepository, err.Error()))
 	}
 	return &prmExactRepository{

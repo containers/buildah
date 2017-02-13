@@ -46,11 +46,11 @@ type daemonReference struct {
 
 // ParseReference converts a string, which should not start with the ImageTransport.Name prefix, into an ImageReference.
 func ParseReference(refString string) (types.ImageReference, error) {
-	// This is intended to be compatible with reference.ParseIDOrReference, but more strict about refusing some of the ambiguous cases.
+	// This is intended to be compatible with reference.ParseAnyReference, but more strict about refusing some of the ambiguous cases.
 	// In particular, this rejects unprefixed digest values (64 hex chars), and sha256 digest prefixes (sha256:fewer-than-64-hex-chars).
 
 	// digest:hexstring is structurally the same as a reponame:tag (meaning docker.io/library/reponame:tag).
-	// reference.ParseIDOrReference interprets such strings as digests.
+	// reference.ParseAnyReference interprets such strings as digests.
 	if dgst, err := digest.Parse(refString); err == nil {
 		// The daemon explicitly refuses to tag images with a reponame equal to digest.Canonical - but _only_ this digest name.
 		// Other digest references are ambiguous, so refuse them.
@@ -60,11 +60,11 @@ func ParseReference(refString string) (types.ImageReference, error) {
 		return NewReference(dgst, nil)
 	}
 
-	ref, err := reference.ParseNamed(refString) // This also rejects unprefixed digest values
+	ref, err := reference.ParseNormalizedNamed(refString) // This also rejects unprefixed digest values
 	if err != nil {
 		return nil, err
 	}
-	if ref.Name() == digest.Canonical.String() {
+	if reference.FamiliarName(ref) == digest.Canonical.String() {
 		return nil, errors.Errorf("Invalid docker-daemon: reference %s: The %s repository name is reserved for (non-shortened) digest references", refString, digest.Canonical)
 	}
 	return NewReference("", ref)
@@ -77,10 +77,11 @@ func NewReference(id digest.Digest, ref reference.Named) (types.ImageReference, 
 	}
 	if ref != nil {
 		if reference.IsNameOnly(ref) {
-			return nil, errors.Errorf("docker-daemon: reference %s has neither a tag nor a digest", ref.String())
+			return nil, errors.Errorf("docker-daemon: reference %s has neither a tag nor a digest", reference.FamiliarString(ref))
 		}
 		// A github.com/distribution/reference value can have a tag and a digest at the same time!
-		// docker/reference does not handle that, so fail.
+		// Most versions of docker/reference do not handle that (ignoring the tag), so reject such input.
+		// This MAY be accepted in the future.
 		_, isTagged := ref.(reference.NamedTagged)
 		_, isDigested := ref.(reference.Canonical)
 		if isTagged && isDigested {
@@ -108,7 +109,7 @@ func (ref daemonReference) StringWithinTransport() string {
 	case ref.id != "":
 		return ref.id.String()
 	case ref.ref != nil:
-		return ref.ref.String()
+		return reference.FamiliarString(ref.ref)
 	default: // Coverage: Should never happen, NewReference above should refuse such values.
 		panic("Internal inconsistency: daemonReference has empty id and nil ref")
 	}

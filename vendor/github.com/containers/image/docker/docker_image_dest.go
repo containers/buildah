@@ -11,11 +11,27 @@ import (
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
+
+var manifestMIMETypes = []string{
+	// TODO(runcom): we'll add OCI as part of another PR here
+	manifest.DockerV2Schema2MediaType,
+	manifest.DockerV2Schema1SignedMediaType,
+	manifest.DockerV2Schema1MediaType,
+}
+
+func supportedManifestMIMETypesMap() map[string]bool {
+	m := make(map[string]bool, len(manifestMIMETypes))
+	for _, mt := range manifestMIMETypes {
+		m[mt] = true
+	}
+	return m
+}
 
 type dockerImageDestination struct {
 	ref dockerReference
@@ -26,7 +42,7 @@ type dockerImageDestination struct {
 
 // newImageDestination creates a new ImageDestination for the specified image reference.
 func newImageDestination(ctx *types.SystemContext, ref dockerReference) (types.ImageDestination, error) {
-	c, err := newDockerClient(ctx, ref, true)
+	c, err := newDockerClient(ctx, ref, true, "push")
 	if err != nil {
 		return nil, err
 	}
@@ -47,12 +63,7 @@ func (d *dockerImageDestination) Close() {
 }
 
 func (d *dockerImageDestination) SupportedManifestMIMETypes() []string {
-	return []string{
-		// TODO(runcom): we'll add OCI as part of another PR here
-		manifest.DockerV2Schema2MediaType,
-		manifest.DockerV2Schema1SignedMediaType,
-		manifest.DockerV2Schema1MediaType,
-	}
+	return manifestMIMETypes
 }
 
 // SupportsSignatures returns an error (to be displayed to the user) if the destination certainly can't store signatures.
@@ -88,7 +99,7 @@ func (c *sizeCounter) Write(p []byte) (n int, err error) {
 // If stream.Read() at any time, ESPECIALLY at end of input, returns an error, PutBlob MUST 1) fail, and 2) delete any data stored so far.
 func (d *dockerImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobInfo) (types.BlobInfo, error) {
 	if inputInfo.Digest.String() != "" {
-		checkURL := fmt.Sprintf(blobsURL, d.ref.ref.RemoteName(), inputInfo.Digest.String())
+		checkURL := fmt.Sprintf(blobsURL, reference.Path(d.ref.ref), inputInfo.Digest.String())
 
 		logrus.Debugf("Checking %s", checkURL)
 		res, err := d.c.makeRequest("HEAD", checkURL, nil, nil)
@@ -102,17 +113,17 @@ func (d *dockerImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobI
 			return types.BlobInfo{Digest: inputInfo.Digest, Size: getBlobSize(res)}, nil
 		case http.StatusUnauthorized:
 			logrus.Debugf("... not authorized")
-			return types.BlobInfo{}, errors.Errorf("not authorized to read from destination repository %s", d.ref.ref.RemoteName())
+			return types.BlobInfo{}, errors.Errorf("not authorized to read from destination repository %s", reference.Path(d.ref.ref))
 		case http.StatusNotFound:
 			// noop
 		default:
-			return types.BlobInfo{}, errors.Errorf("failed to read from destination repository %s: %v", d.ref.ref.RemoteName(), http.StatusText(res.StatusCode))
+			return types.BlobInfo{}, errors.Errorf("failed to read from destination repository %s: %v", reference.Path(d.ref.ref), http.StatusText(res.StatusCode))
 		}
 		logrus.Debugf("... failed, status %d", res.StatusCode)
 	}
 
 	// FIXME? Chunked upload, progress reporting, etc.
-	uploadURL := fmt.Sprintf(blobUploadURL, d.ref.ref.RemoteName())
+	uploadURL := fmt.Sprintf(blobUploadURL, reference.Path(d.ref.ref))
 	logrus.Debugf("Uploading %s", uploadURL)
 	res, err := d.c.makeRequest("POST", uploadURL, nil, nil)
 	if err != nil {
@@ -168,7 +179,7 @@ func (d *dockerImageDestination) HasBlob(info types.BlobInfo) (bool, int64, erro
 	if info.Digest == "" {
 		return false, -1, errors.Errorf(`"Can not check for a blob with unknown digest`)
 	}
-	checkURL := fmt.Sprintf(blobsURL, d.ref.ref.RemoteName(), info.Digest.String())
+	checkURL := fmt.Sprintf(blobsURL, reference.Path(d.ref.ref), info.Digest.String())
 
 	logrus.Debugf("Checking %s", checkURL)
 	res, err := d.c.makeRequest("HEAD", checkURL, nil, nil)
@@ -182,12 +193,12 @@ func (d *dockerImageDestination) HasBlob(info types.BlobInfo) (bool, int64, erro
 		return true, getBlobSize(res), nil
 	case http.StatusUnauthorized:
 		logrus.Debugf("... not authorized")
-		return false, -1, errors.Errorf("not authorized to read from destination repository %s", d.ref.ref.RemoteName())
+		return false, -1, errors.Errorf("not authorized to read from destination repository %s", reference.Path(d.ref.ref))
 	case http.StatusNotFound:
 		logrus.Debugf("... not present")
 		return false, -1, types.ErrBlobNotFound
 	default:
-		logrus.Errorf("failed to read from destination repository %s: %v", d.ref.ref.RemoteName(), http.StatusText(res.StatusCode))
+		logrus.Errorf("failed to read from destination repository %s: %v", reference.Path(d.ref.ref), http.StatusText(res.StatusCode))
 	}
 	logrus.Debugf("... failed, status %d, ignoring", res.StatusCode)
 	return false, -1, types.ErrBlobNotFound
@@ -204,11 +215,11 @@ func (d *dockerImageDestination) PutManifest(m []byte) error {
 	}
 	d.manifestDigest = digest
 
-	reference, err := d.ref.tagOrDigest()
+	refTail, err := d.ref.tagOrDigest()
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf(manifestURL, d.ref.ref.RemoteName(), reference)
+	url := fmt.Sprintf(manifestURL, reference.Path(d.ref.ref), refTail)
 
 	headers := map[string][]string{}
 	mimeType := manifest.GuessMIMEType(m)

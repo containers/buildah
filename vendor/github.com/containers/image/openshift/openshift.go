@@ -13,6 +13,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/docker"
+	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
 	"github.com/containers/image/version"
@@ -153,7 +154,7 @@ func (c *openshiftClient) convertDockerImageReference(ref string) (string, error
 	if len(parts) != 2 {
 		return "", errors.Errorf("Invalid format of docker reference %s: missing '/'", ref)
 	}
-	return c.ref.dockerReference.Hostname() + "/" + parts[1], nil
+	return reference.Domain(c.ref.dockerReference) + "/" + parts[1], nil
 }
 
 type openshiftImageSource struct {
@@ -305,7 +306,7 @@ func newImageDestination(ctx *types.SystemContext, ref openshiftReference) (type
 	// FIXME: Should this always use a digest, not a tag? Uploading to Docker by tag requires the tag _inside_ the manifest to match,
 	// i.e. a single signed image cannot be available under multiple tags.  But with types.ImageDestination, we don't know
 	// the manifest digest at this point.
-	dockerRefString := fmt.Sprintf("//%s/%s/%s:%s", client.ref.dockerReference.Hostname(), client.ref.namespace, client.ref.stream, client.ref.dockerReference.Tag())
+	dockerRefString := fmt.Sprintf("//%s/%s/%s:%s", reference.Domain(client.ref.dockerReference), client.ref.namespace, client.ref.stream, client.ref.dockerReference.Tag())
 	dockerRef, err := docker.ParseReference(dockerRefString)
 	if err != nil {
 		return nil, err

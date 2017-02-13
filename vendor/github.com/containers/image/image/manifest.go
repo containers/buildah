@@ -3,11 +3,10 @@ package image
 import (
 	"time"
 
-	"github.com/docker/engine-api/types/strslice"
-	"github.com/opencontainers/go-digest"
-
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
+	"github.com/docker/docker/api/types/strslice"
+	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

@@ -14,7 +14,7 @@ import (
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -95,9 +95,12 @@ func (d *daemonImageDestination) Close() {
 	if !d.committed {
 		logrus.Debugf("docker-daemon: Closing tar stream to abort loading")
 		// In principle, goroutineCancel() should abort the HTTP request and stop the process from continuing.
-		// In practice, though, https://github.com/docker/engine-api/blob/master/client/transport/cancellable/cancellable.go
-		// currently just runs the HTTP request to completion in a goroutine, and returns early if the context is canceled
-		// without terminating the HTTP request at all.  So we need this CloseWithError to terminate sending the HTTP request Body
+		// In practice, though, various HTTP implementations used by client.Client.ImageLoad() (including
+		// https://github.com/golang/net/blob/master/context/ctxhttp/ctxhttp_pre17.go and the
+		// net/http version with native Context support in Go 1.7) do not always actually immediately cancel
+		// the operation: they may process the HTTP request, or a part of it, to completion in a goroutine, and
+		// return early if the context is canceled without terminating the goroutine at all.
+		// So we need this CloseWithError to terminate sending the HTTP request Body
 		// immediately, and hopefully, through terminating the sending which uses "Transfer-Encoding: chunked"" without sending
 		// the terminating zero-length chunk, prevent the docker daemon from processing the tar stream at all.
 		// Whether that works or not, closing the PipeWriter seems desirable in any case.
@@ -144,6 +147,10 @@ func (d *daemonImageDestination) AcceptsForeignLayerURLs() bool {
 // to any other readers for download using the supplied digest.
 // If stream.Read() at any time, ESPECIALLY at end of input, returns an error, PutBlob MUST 1) fail, and 2) delete any data stored so far.
 func (d *daemonImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobInfo) (types.BlobInfo, error) {
+	if inputInfo.Digest.String() == "" {
+		return types.BlobInfo{}, errors.Errorf(`Can not stream a blob with unknown digest to "docker-daemon:"`)
+	}
+
 	if ok, size, err := d.HasBlob(inputInfo); err == nil && ok {
 		return types.BlobInfo{Digest: inputInfo.Digest, Size: size}, nil
 	}
@@ -223,7 +230,7 @@ func (d *daemonImageDestination) PutManifest(m []byte) error {
 	// a hostname-qualified reference.
 	// See https://github.com/containers/image/issues/72 for a more detailed
 	// analysis and explanation.
-	refString := fmt.Sprintf("%s:%s", d.namedTaggedRef.FullName(), d.namedTaggedRef.Tag())
+	refString := fmt.Sprintf("%s:%s", d.namedTaggedRef.Name(), d.namedTaggedRef.Tag())
 
 	items := []manifestItem{{
 		Config:       man.Config.Digest.String(),

@@ -4,6 +4,7 @@ import (
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
@@ -52,7 +53,7 @@ func (i *UnparsedImage) Manifest() ([]byte, string, error) {
 		ref := i.Reference().DockerReference()
 		if ref != nil {
 			if canonical, ok := ref.(reference.Canonical); ok {
-				digest := canonical.Digest()
+				digest := digest.Digest(canonical.Digest())
 				matches, err := manifest.MatchesDigest(m, digest)
 				if err != nil {
 					return nil, "", errors.Wrap(err, "Error computing manifest digest")
