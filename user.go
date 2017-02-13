@@ -24,23 +24,10 @@ func getUser(username string) (specs.User, error) {
 	if err != nil {
 		return specs.User{}, nil
 	}
-	groups, err := runuser.GroupIds()
-	if err != nil {
-		return specs.User{}, err
-	}
-	gids := []uint32{}
-	for _, group := range groups {
-		if g, err := user.LookupGroup(group); err == nil {
-			if gid, err := strconv.ParseUint(g.Gid, 10, 32); err == nil {
-				gids = append(gids, uint32(gid))
-			}
-		}
-	}
 	u := specs.User{
-		UID:            uint32(uid),
-		GID:            uint32(gid),
-		AdditionalGids: gids,
-		Username:       username,
+		UID:      uint32(uid),
+		GID:      uint32(gid),
+		Username: username,
 	}
 	return u, nil
 }
