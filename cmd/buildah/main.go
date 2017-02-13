@@ -82,6 +82,13 @@ func main() {
 			Action:      umountCmd,
 		},
 		{
+			Name:        "run",
+			Usage:       "run a command inside of the container",
+			Description: "runs a command using the container's root filesystem",
+			Flags:       append(runFlags, runConfigurationFlags...),
+			Action:      runCmd,
+		},
+		{
 			Name:        "config",
 			Usage:       "update image configuration settings",
 			Description: "updates a working container's image configuration settings",

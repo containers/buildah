@@ -72,6 +72,32 @@ var (
 			Usage: "image annotation e.g. annotation=value",
 		},
 	}
+	runConfigurationFlags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "user",
+			Usage: "user to run containers based on image as",
+		},
+		cli.StringSliceFlag{
+			Name:  "port",
+			Usage: "port to expose when running containers based on image",
+		},
+		cli.StringSliceFlag{
+			Name:  "env",
+			Usage: "environment variable to set when running containers based on image",
+		},
+		cli.StringSliceFlag{
+			Name:  "volume",
+			Usage: "volume to create for containers based on image",
+		},
+		cli.StringFlag{
+			Name:  "workingdir",
+			Usage: "initial working directory for containers based on image",
+		},
+		cli.StringFlag{
+			Name:  "hostname",
+			Usage: "hostname to set for the command",
+		},
+	}
 	configFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
