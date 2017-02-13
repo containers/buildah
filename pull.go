@@ -5,6 +5,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/copy"
+	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/signature"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
@@ -30,7 +31,7 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 	}
 
 	if ref := srcRef.DockerReference(); ref != nil {
-		name = ref.FullName()
+		name = reference.Domain(ref) + "/" + reference.Path(ref)
 	}
 
 	destRef, err := is.Transport.ParseStoreReference(store, name)

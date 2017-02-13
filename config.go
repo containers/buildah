@@ -11,12 +11,8 @@ import (
 )
 
 func copyDockerImageConfig(dimage *docker.Image) (ociv1.Image, error) {
-	created, err := dimage.Created.UTC().MarshalText()
-	if err != nil {
-		created = []byte{}
-	}
 	image := ociv1.Image{
-		Created:      string(created),
+		Created:      dimage.Created.UTC(),
 		Author:       dimage.Author,
 		Architecture: dimage.Architecture,
 		OS:           dimage.OS,
@@ -50,12 +46,9 @@ func copyDockerImageConfig(dimage *docker.Image) (ociv1.Image, error) {
 		}
 	}
 	for _, history := range dimage.History {
-		created, err := history.Created.UTC().MarshalText()
-		if err != nil {
-			created = []byte{}
-		}
+		created := history.Created.UTC()
 		ohistory := ociv1.History{
-			Created:    string(created),
+			Created:    created,
 			CreatedBy:  history.CreatedBy,
 			Author:     history.Author,
 			Comment:    history.Comment,
@@ -81,10 +74,7 @@ func (b *Builder) updatedConfig() []byte {
 			}
 		}
 	}
-	createdBytes, err := time.Now().UTC().MarshalText()
-	if err == nil {
-		image.Created = string(createdBytes)
-	}
+	image.Created = time.Now().UTC()
 	if image.Architecture == "" {
 		image.Architecture = runtime.GOARCH
 	}
@@ -102,6 +92,11 @@ func (b *Builder) updatedConfig() []byte {
 	}
 	if b.User != "" {
 		image.Config.User = b.User
+	}
+	if len(b.Volumes) > 0 {
+		for _, volSpec := range b.Volumes {
+			image.Config.Volumes[volSpec] = struct{}{}
+		}
 	}
 	if b.Workdir != "" {
 		image.Config.WorkingDir = b.Workdir

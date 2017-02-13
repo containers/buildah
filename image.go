@@ -85,10 +85,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 	}
 	logrus.Debugf("layer list: %q", layers)
 
-	createdDate, err := time.Now().UTC().MarshalText()
-	if err != nil {
-		return nil, err
-	}
+	created := time.Now().UTC()
 
 	path, err := ioutil.TempDir(os.TempDir(), Package)
 	if err != nil {
@@ -149,7 +146,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		if i.compression != archive.Uncompressed {
 			switch i.compression {
 			case archive.Gzip:
-				mediaType = MediaTypeImageLayerGzip
+				mediaType = v1.MediaTypeImageLayerGzip
 				logrus.Debugf("compressing layer %q with gzip", layerID)
 			case archive.Bzip2:
 				logrus.Debugf("compressing layer %q with bzip2", layerID)
@@ -178,7 +175,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		err = os.Rename(filepath.Join(path, "layer"), filepath.Join(path, destHasher.Digest().String()))
 		layerDescriptor := v1.Descriptor{
 			MediaType: mediaType,
-			Digest:    destHasher.Digest().String(),
+			Digest:    destHasher.Digest(),
 			Size:      size,
 		}
 		manifest.Layers = append(manifest.Layers, layerDescriptor)
@@ -187,7 +184,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 	}
 
 	news := v1.History{
-		Created:    string(createdDate),
+		Created:    created,
 		CreatedBy:  i.createdBy,
 		Author:     image.Author,
 		EmptyLayer: false,
@@ -201,7 +198,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 	logrus.Debugf("config = %s\n", config)
 	i.config = config
 
-	manifest.Config.Digest = digest.FromBytes(config).String()
+	manifest.Config.Digest = digest.FromBytes(config)
 	manifest.Config.Size = int64(len(config))
 
 	mfest, err := json.Marshal(&manifest)
