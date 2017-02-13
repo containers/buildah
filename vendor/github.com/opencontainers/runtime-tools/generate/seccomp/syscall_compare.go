@@ -11,7 +11,7 @@ import (
 
 // Determine if a new syscall rule should be appended, overwrite an existing rule
 // or if no action should be taken at all
-func decideCourseOfAction(newSyscall *rspec.Syscall, syscalls []rspec.Syscall) (string, error) {
+func decideCourseOfAction(newSyscall *rspec.LinuxSyscall, syscalls []rspec.LinuxSyscall) (string, error) {
 	ruleForSyscallAlreadyExists := false
 
 	var sliceOfDeterminedActions []string
@@ -83,16 +83,16 @@ func decideCourseOfAction(newSyscall *rspec.Syscall, syscalls []rspec.Syscall) (
 	return "", fmt.Errorf("Trouble determining action: %s", sliceOfDeterminedActions)
 }
 
-func hasArguments(config *rspec.Syscall) bool {
-	nilSyscall := new(rspec.Syscall)
+func hasArguments(config *rspec.LinuxSyscall) bool {
+	nilSyscall := new(rspec.LinuxSyscall)
 	return !sameArgs(nilSyscall, config)
 }
 
-func identical(config1, config2 *rspec.Syscall) bool {
+func identical(config1, config2 *rspec.LinuxSyscall) bool {
 	return reflect.DeepEqual(config1, config2)
 }
 
-func identicalExceptAction(config1, config2 *rspec.Syscall) bool {
+func identicalExceptAction(config1, config2 *rspec.LinuxSyscall) bool {
 	samename := sameName(config1, config2)
 	sameAction := sameAction(config1, config2)
 	sameArgs := sameArgs(config1, config2)
@@ -100,7 +100,7 @@ func identicalExceptAction(config1, config2 *rspec.Syscall) bool {
 	return samename && !sameAction && sameArgs
 }
 
-func identicalExceptArgs(config1, config2 *rspec.Syscall) bool {
+func identicalExceptArgs(config1, config2 *rspec.LinuxSyscall) bool {
 	samename := sameName(config1, config2)
 	sameAction := sameAction(config1, config2)
 	sameArgs := sameArgs(config1, config2)
@@ -108,33 +108,33 @@ func identicalExceptArgs(config1, config2 *rspec.Syscall) bool {
 	return samename && sameAction && !sameArgs
 }
 
-func sameName(config1, config2 *rspec.Syscall) bool {
+func sameName(config1, config2 *rspec.LinuxSyscall) bool {
 	return config1.Name == config2.Name
 }
 
-func sameAction(config1, config2 *rspec.Syscall) bool {
+func sameAction(config1, config2 *rspec.LinuxSyscall) bool {
 	return config1.Action == config2.Action
 }
 
-func sameArgs(config1, config2 *rspec.Syscall) bool {
+func sameArgs(config1, config2 *rspec.LinuxSyscall) bool {
 	return reflect.DeepEqual(config1.Args, config2.Args)
 }
 
-func bothHaveArgs(config1, config2 *rspec.Syscall) bool {
+func bothHaveArgs(config1, config2 *rspec.LinuxSyscall) bool {
 	return hasArguments(config1) && hasArguments(config2)
 }
 
-func onlyOneHasArgs(config1, config2 *rspec.Syscall) bool {
+func onlyOneHasArgs(config1, config2 *rspec.LinuxSyscall) bool {
 	conf1 := hasArguments(config1)
 	conf2 := hasArguments(config2)
 
 	return (conf1 && !conf2) || (!conf1 && conf2)
 }
 
-func neitherHasArgs(config1, config2 *rspec.Syscall) bool {
+func neitherHasArgs(config1, config2 *rspec.LinuxSyscall) bool {
 	return !hasArguments(config1) && !hasArguments(config2)
 }
 
-func firstParamOnlyHasArgs(config1, config2 *rspec.Syscall) bool {
+func firstParamOnlyHasArgs(config1, config2 *rspec.LinuxSyscall) bool {
 	return !hasArguments(config1) && hasArguments(config2)
 }

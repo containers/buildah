@@ -8,7 +8,7 @@ import (
 
 // ParseArchitectureFlag takes the raw string passed with the --arch flag, parses it
 // and updates the Seccomp config accordingly
-func ParseArchitectureFlag(architectureArg string, config *rspec.Seccomp) error {
+func ParseArchitectureFlag(architectureArg string, config *rspec.LinuxSeccomp) error {
 	correctedArch, err := parseArch(architectureArg)
 	if err != nil {
 		return err

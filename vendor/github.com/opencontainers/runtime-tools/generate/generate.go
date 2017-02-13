@@ -69,7 +69,7 @@ func New() Generator {
 				"CAP_KILL",
 				"CAP_AUDIT_WRITE",
 			},
-			Rlimits: []rspec.Rlimit{
+			Rlimits: []rspec.LinuxRlimit{
 				{
 					Type: "RLIMIT_NOFILE",
 					Hard: uint64(1024),
@@ -117,15 +117,15 @@ func New() Generator {
 			},
 		},
 		Linux: &rspec.Linux{
-			Resources: &rspec.Resources{
-				Devices: []rspec.DeviceCgroup{
+			Resources: &rspec.LinuxResources{
+				Devices: []rspec.LinuxDeviceCgroup{
 					{
 						Allow:  false,
-						Access: strPtr("rwm"),
+						Access: "rwm",
 					},
 				},
 			},
-			Namespaces: []rspec.Namespace{
+			Namespaces: []rspec.LinuxNamespace{
 				{
 					Type: "pid",
 				},
@@ -142,7 +142,7 @@ func New() Generator {
 					Type: "mount",
 				},
 			},
-			Devices: []rspec.Device{},
+			Devices: []rspec.LinuxDevice{},
 		},
 	}
 	spec.Linux.Seccomp = seccomp.DefaultProfile(&spec)
@@ -367,7 +367,7 @@ func (g *Generator) AddProcessRlimits(rType string, rHard uint64, rSoft uint64) 
 		}
 	}
 
-	newRlimit := rspec.Rlimit{
+	newRlimit := rspec.LinuxRlimit{
 		Type: rType,
 		Hard: rHard,
 		Soft: rSoft,
@@ -394,7 +394,7 @@ func (g *Generator) ClearProcessRlimits() {
 	if g.spec == nil {
 		return
 	}
-	g.spec.Process.Rlimits = []rspec.Rlimit{}
+	g.spec.Process.Rlimits = []rspec.LinuxRlimit{}
 }
 
 // ClearProcessAdditionalGids clear g.spec.Process.AdditionalGids.
@@ -425,7 +425,7 @@ func (g *Generator) SetProcessSelinuxLabel(label string) {
 // SetLinuxCgroupsPath sets g.spec.Linux.CgroupsPath.
 func (g *Generator) SetLinuxCgroupsPath(path string) {
 	g.initSpecLinux()
-	g.spec.Linux.CgroupsPath = strPtr(path)
+	g.spec.Linux.CgroupsPath = path
 }
 
 // SetLinuxMountLabel sets g.spec.Linux.MountLabel.
@@ -453,7 +453,7 @@ func (g *Generator) SetLinuxResourcesCPUShares(shares uint64) {
 }
 
 // SetLinuxResourcesCPUQuota sets g.spec.Linux.Resources.CPU.Quota.
-func (g *Generator) SetLinuxResourcesCPUQuota(quota uint64) {
+func (g *Generator) SetLinuxResourcesCPUQuota(quota int64) {
 	g.initSpecLinuxResourcesCPU()
 	g.spec.Linux.Resources.CPU.Quota = &quota
 }
@@ -465,7 +465,7 @@ func (g *Generator) SetLinuxResourcesCPUPeriod(period uint64) {
 }
 
 // SetLinuxResourcesCPURealtimeRuntime sets g.spec.Linux.Resources.CPU.RealtimeRuntime.
-func (g *Generator) SetLinuxResourcesCPURealtimeRuntime(time uint64) {
+func (g *Generator) SetLinuxResourcesCPURealtimeRuntime(time int64) {
 	g.initSpecLinuxResourcesCPU()
 	g.spec.Linux.Resources.CPU.RealtimeRuntime = &time
 }
@@ -479,41 +479,41 @@ func (g *Generator) SetLinuxResourcesCPURealtimePeriod(period uint64) {
 // SetLinuxResourcesCPUCpus sets g.spec.Linux.Resources.CPU.Cpus.
 func (g *Generator) SetLinuxResourcesCPUCpus(cpus string) {
 	g.initSpecLinuxResourcesCPU()
-	g.spec.Linux.Resources.CPU.Cpus = &cpus
+	g.spec.Linux.Resources.CPU.Cpus = cpus
 }
 
 // SetLinuxResourcesCPUMems sets g.spec.Linux.Resources.CPU.Mems.
 func (g *Generator) SetLinuxResourcesCPUMems(mems string) {
 	g.initSpecLinuxResourcesCPU()
-	g.spec.Linux.Resources.CPU.Mems = &mems
+	g.spec.Linux.Resources.CPU.Mems = mems
 }
 
 // SetLinuxResourcesMemoryLimit sets g.spec.Linux.Resources.Memory.Limit.
-func (g *Generator) SetLinuxResourcesMemoryLimit(limit uint64) {
+func (g *Generator) SetLinuxResourcesMemoryLimit(limit int64) {
 	g.initSpecLinuxResourcesMemory()
 	g.spec.Linux.Resources.Memory.Limit = &limit
 }
 
 // SetLinuxResourcesMemoryReservation sets g.spec.Linux.Resources.Memory.Reservation.
-func (g *Generator) SetLinuxResourcesMemoryReservation(reservation uint64) {
+func (g *Generator) SetLinuxResourcesMemoryReservation(reservation int64) {
 	g.initSpecLinuxResourcesMemory()
 	g.spec.Linux.Resources.Memory.Reservation = &reservation
 }
 
 // SetLinuxResourcesMemorySwap sets g.spec.Linux.Resources.Memory.Swap.
-func (g *Generator) SetLinuxResourcesMemorySwap(swap uint64) {
+func (g *Generator) SetLinuxResourcesMemorySwap(swap int64) {
 	g.initSpecLinuxResourcesMemory()
 	g.spec.Linux.Resources.Memory.Swap = &swap
 }
 
 // SetLinuxResourcesMemoryKernel sets g.spec.Linux.Resources.Memory.Kernel.
-func (g *Generator) SetLinuxResourcesMemoryKernel(kernel uint64) {
+func (g *Generator) SetLinuxResourcesMemoryKernel(kernel int64) {
 	g.initSpecLinuxResourcesMemory()
 	g.spec.Linux.Resources.Memory.Kernel = &kernel
 }
 
 // SetLinuxResourcesMemoryKernelTCP sets g.spec.Linux.Resources.Memory.KernelTCP.
-func (g *Generator) SetLinuxResourcesMemoryKernelTCP(kernelTCP uint64) {
+func (g *Generator) SetLinuxResourcesMemoryKernelTCP(kernelTCP int64) {
 	g.initSpecLinuxResourcesMemory()
 	g.spec.Linux.Resources.Memory.KernelTCP = &kernelTCP
 }
@@ -539,7 +539,7 @@ func (g *Generator) AddLinuxResourcesNetworkPriorities(name string, prio uint32)
 			return
 		}
 	}
-	interfacePrio := new(rspec.InterfacePriority)
+	interfacePrio := new(rspec.LinuxInterfacePriority)
 	interfacePrio.Name = name
 	interfacePrio.Priority = prio
 	g.spec.Linux.Resources.Network.Priorities = append(g.spec.Linux.Resources.Network.Priorities, *interfacePrio)
@@ -559,7 +559,7 @@ func (g *Generator) DropLinuxResourcesNetworkPriorities(name string) {
 // SetLinuxResourcesPidsLimit sets g.spec.Linux.Resources.Pids.Limit.
 func (g *Generator) SetLinuxResourcesPidsLimit(limit int64) {
 	g.initSpecLinuxResourcesPids()
-	g.spec.Linux.Resources.Pids.Limit = &limit
+	g.spec.Linux.Resources.Pids.Limit = limit
 }
 
 // ClearLinuxSysctl clears g.spec.Linux.Sysctl.
@@ -589,12 +589,12 @@ func (g *Generator) ClearLinuxUIDMappings() {
 	if g.spec == nil || g.spec.Linux == nil {
 		return
 	}
-	g.spec.Linux.UIDMappings = []rspec.IDMapping{}
+	g.spec.Linux.UIDMappings = []rspec.LinuxIDMapping{}
 }
 
 // AddLinuxUIDMapping adds uidMap into g.spec.Linux.UIDMappings.
 func (g *Generator) AddLinuxUIDMapping(hid, cid, size uint32) {
-	idMapping := rspec.IDMapping{
+	idMapping := rspec.LinuxIDMapping{
 		HostID:      hid,
 		ContainerID: cid,
 		Size:        size,
@@ -609,12 +609,12 @@ func (g *Generator) ClearLinuxGIDMappings() {
 	if g.spec == nil || g.spec.Linux == nil {
 		return
 	}
-	g.spec.Linux.GIDMappings = []rspec.IDMapping{}
+	g.spec.Linux.GIDMappings = []rspec.LinuxIDMapping{}
 }
 
 // AddLinuxGIDMapping adds gidMap into g.spec.Linux.GIDMappings.
 func (g *Generator) AddLinuxGIDMapping(hid, cid, size uint32) {
-	idMapping := rspec.IDMapping{
+	idMapping := rspec.LinuxIDMapping{
 		HostID:      hid,
 		ContainerID: cid,
 		Size:        size,
@@ -847,24 +847,24 @@ func (g *Generator) DropProcessCapability(c string) error {
 	return nil
 }
 
-func mapStrToNamespace(ns string, path string) (rspec.Namespace, error) {
+func mapStrToNamespace(ns string, path string) (rspec.LinuxNamespace, error) {
 	switch ns {
 	case "network":
-		return rspec.Namespace{Type: rspec.NetworkNamespace, Path: path}, nil
+		return rspec.LinuxNamespace{Type: rspec.NetworkNamespace, Path: path}, nil
 	case "pid":
-		return rspec.Namespace{Type: rspec.PIDNamespace, Path: path}, nil
+		return rspec.LinuxNamespace{Type: rspec.PIDNamespace, Path: path}, nil
 	case "mount":
-		return rspec.Namespace{Type: rspec.MountNamespace, Path: path}, nil
+		return rspec.LinuxNamespace{Type: rspec.MountNamespace, Path: path}, nil
 	case "ipc":
-		return rspec.Namespace{Type: rspec.IPCNamespace, Path: path}, nil
+		return rspec.LinuxNamespace{Type: rspec.IPCNamespace, Path: path}, nil
 	case "uts":
-		return rspec.Namespace{Type: rspec.UTSNamespace, Path: path}, nil
+		return rspec.LinuxNamespace{Type: rspec.UTSNamespace, Path: path}, nil
 	case "user":
-		return rspec.Namespace{Type: rspec.UserNamespace, Path: path}, nil
+		return rspec.LinuxNamespace{Type: rspec.UserNamespace, Path: path}, nil
 	case "cgroup":
-		return rspec.Namespace{Type: rspec.CgroupNamespace, Path: path}, nil
+		return rspec.LinuxNamespace{Type: rspec.CgroupNamespace, Path: path}, nil
 	default:
-		return rspec.Namespace{}, fmt.Errorf("Should not reach here!")
+		return rspec.LinuxNamespace{}, fmt.Errorf("Should not reach here!")
 	}
 }
 
@@ -873,7 +873,7 @@ func (g *Generator) ClearLinuxNamespaces() {
 	if g.spec == nil || g.spec.Linux == nil {
 		return
 	}
-	g.spec.Linux.Namespaces = []rspec.Namespace{}
+	g.spec.Linux.Namespaces = []rspec.LinuxNamespace{}
 }
 
 // AddOrReplaceLinuxNamespace adds or replaces a namespace inside
