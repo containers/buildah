@@ -25,6 +25,15 @@ var (
 			Name:  "link",
 			Usage: "symlink to the root directory of the working container",
 		},
+		cli.StringFlag{
+			Name:  "runtime",
+			Usage: "use an alternate runtime",
+			Value: buildah.DefaultRuntime,
+		},
+		cli.StringSliceFlag{
+			Name:  "runtime-flag",
+			Usage: "add global flags for the container runtime",
+		},
 	}
 )
 
@@ -40,6 +49,17 @@ func runCmd(c *cli.Context) error {
 	link := ""
 	if c.IsSet("link") {
 		link = c.String("link")
+	}
+	runtime := ""
+	if c.IsSet("runtime") {
+		runtime = c.String("runtime")
+	}
+	flags := []string{}
+	if c.IsSet("runtime-flag") {
+		flags = c.StringSlice("runtime-flag")
+	}
+	if c.IsSet("runtime") {
+		runtime = c.String("runtime")
 	}
 	if name == "" && root == "" && link == "" {
 		return fmt.Errorf("either --name or --root or --link, or some combination, must be specified")
@@ -62,6 +82,8 @@ func runCmd(c *cli.Context) error {
 	}
 	options := buildah.RunOptions{
 		Hostname: hostname,
+		Runtime:  runtime,
+		Args:     flags,
 	}
 	runerr := builder.Run(c.Args(), options)
 	if runerr != nil {

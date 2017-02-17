@@ -18,12 +18,18 @@ import (
 const (
 	// DefaultWorkingDir is used if none was specified.
 	DefaultWorkingDir = "/"
+	// DefaultRuntime is the default command to use to run the container.
+	DefaultRuntime = "runc"
 )
 
 // RunOptions can be used to alter how a command is run in the container.
 type RunOptions struct {
 	// Hostname is the hostname we set for the running container.
 	Hostname string
+	// Runtime is the name of the command to run.  It should accept the same arguments that runc does.
+	Runtime string
+	// Args adds global arguments for the runtime.
+	Args []string
 }
 
 func getExportOptions() generate.ExportOptions {
@@ -105,7 +111,12 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return fmt.Errorf("error storing runtime configuration: %v", err)
 	}
 	logrus.Debugf("config = %v", string(specbytes))
-	cmd := exec.Command("runc", "--debug", "run", "-b", path, Package+"-"+b.ContainerID)
+	runtime := options.Runtime
+	if runtime == "" {
+		runtime = DefaultRuntime
+	}
+	args := append(options.Args, "run", "-b", path, Package+"-"+b.ContainerID)
+	cmd := exec.Command(runtime, args...)
 	cmd.Dir = mountPoint
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
