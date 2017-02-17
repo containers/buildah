@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 )
 
@@ -30,6 +31,8 @@ type RunOptions struct {
 	Runtime string
 	// Args adds global arguments for the runtime.
 	Args []string
+	// Mounts are additional mount points which we want to provide.
+	Mounts []specs.Mount
 }
 
 func getExportOptions() generate.ExportOptions {
@@ -87,6 +90,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if options.Hostname != "" {
 		g.SetHostname(options.Hostname)
 	}
+	for volume := range image.Config.Volumes {
+		g.AddTmpfsMount(volume, nil)
+	}
 	mountPoint, err := b.Mount("")
 	if err != nil {
 		return err
@@ -102,6 +108,20 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if spec.Process.Cwd == "" {
 		spec.Process.Cwd = DefaultWorkingDir
 	}
+	mounts := options.Mounts
+	for _, specMount := range spec.Mounts {
+		override := false
+		for _, mount := range mounts {
+			if specMount.Destination == mount.Destination {
+				// Already have an override for it, so skip this one.
+				override = true
+			}
+		}
+		if !override {
+			mounts = append(mounts, specMount)
+		}
+	}
+	spec.Mounts = mounts
 	specbytes, err := json.Marshal(spec)
 	if err != nil {
 		return err
