@@ -3,8 +3,10 @@ package buildah
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 
+	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/storage"
 )
 
@@ -13,6 +15,7 @@ const (
 	// identify working containers.
 	Package       = "buildah"
 	containerType = Package + " 0.0.0"
+	stateFile     = Package + ".json"
 )
 
 // Builder objects are used to represent containers which are being used to
@@ -128,11 +131,11 @@ func NewBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 
 // OpenBuilder loads information about a build container given its name or ID.
 func OpenBuilder(store storage.Store, container string) (*Builder, error) {
-	c, err := store.GetContainer(container)
+	cdir, err := store.GetContainerDirectory(container)
 	if err != nil {
 		return nil, err
 	}
-	buildstate, err := store.GetMetadata(c.ID)
+	buildstate, err := ioutil.ReadFile(filepath.Join(cdir, stateFile))
 	if err != nil {
 		return nil, err
 	}
@@ -199,5 +202,9 @@ func (b *Builder) Save() error {
 	if err != nil {
 		return err
 	}
-	return b.store.SetMetadata(b.ContainerID, string(buildstate))
+	cdir, err := b.store.GetContainerDirectory(b.ContainerID)
+	if err != nil {
+		return err
+	}
+	return ioutils.AtomicWriteFile(filepath.Join(cdir, stateFile), buildstate, 0600)
 }
