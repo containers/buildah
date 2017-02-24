@@ -82,7 +82,7 @@ func commitCmd(c *cli.Context) error {
 
 	dest, err := transports.ParseImageName(output)
 	if err != nil {
-		return fmt.Errorf("error parsing target image name %q: %v", name, err)
+		return fmt.Errorf("error parsing target image name %q: %v", output, err)
 	}
 
 	options := buildah.CommitOptions{
