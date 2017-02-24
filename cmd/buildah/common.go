@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage/storage"
@@ -34,6 +35,12 @@ func getStore(c *cli.Context) (storage.Store, error) {
 func openBuilder(store storage.Store, name, root, link string) (builder *buildah.Builder, err error) {
 	if name != "" {
 		builder, err = buildah.OpenBuilder(store, name)
+		if os.IsNotExist(err) {
+			options := buildah.ImportOptions{
+				Container: name,
+			}
+			builder, err = buildah.ImportBuilder(store, options)
+		}
 	}
 	if root != "" {
 		builder, err = buildah.OpenBuilderByPath(store, root)

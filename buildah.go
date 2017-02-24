@@ -124,9 +124,27 @@ type BuilderOptions struct {
 	SignaturePolicyPath string
 }
 
+// ImportOptions are used to initialize a Builder.
+type ImportOptions struct {
+	// Container is the name of the build container.
+	Container string
+	// SignaturePolicyPath specifies an override location for the signature
+	// policy which should be used for verifying the new image as it is
+	// being written.  Except in specific circumstances, no value should be
+	// specified, indicating that the shared, system-wide default policy
+	// should be used.
+	SignaturePolicyPath string
+}
+
 // NewBuilder creates a new build container.
 func NewBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	return newBuilder(store, options)
+}
+
+// ImportBuilder creates a new build configuration using an already-present
+// container.
+func ImportBuilder(store storage.Store, options ImportOptions) (*Builder, error) {
+	return importBuilder(store, options)
 }
 
 // OpenBuilder loads information about a build container given its name or ID.
