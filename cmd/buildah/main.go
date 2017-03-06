@@ -82,6 +82,20 @@ func main() {
 			Action:      umountCmd,
 		},
 		{
+			Name:        "add",
+			Usage:       "add content to the container",
+			Description: "add content to the container's filesystem",
+			Flags:       addFlags,
+			Action:      addCmd,
+		},
+		{
+			Name:        "copy",
+			Usage:       "copy content into the container",
+			Description: "copy content into the container's filesystem",
+			Flags:       copyFlags,
+			Action:      copyCmd,
+		},
+		{
 			Name:        "run",
 			Usage:       "run a command inside of the container",
 			Description: "runs a command using the container's root filesystem",
