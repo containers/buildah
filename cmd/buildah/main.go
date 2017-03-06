@@ -26,7 +26,7 @@ func main() {
 			Name:  "runroot",
 			Usage: "storage state dir",
 		},
-		cli.BoolFlag{
+		cli.StringFlag{
 			Name:  "storage-driver",
 			Usage: "storage driver",
 		},
