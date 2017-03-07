@@ -173,6 +173,9 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		}
 		logrus.Debugf("layer %q size is %d bytes", layerID, size)
 		err = os.Rename(filepath.Join(path, "layer"), filepath.Join(path, destHasher.Digest().String()))
+		if err != nil {
+			return nil, fmt.Errorf("error storing layer %q to file: %v", layerID, err)
+		}
 		layerDescriptor := v1.Descriptor{
 			MediaType: mediaType,
 			Digest:    destHasher.Digest(),
