@@ -8,6 +8,7 @@ load helpers
 
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
 	root=$(buildah mount --name=$cid)
+	buildah config --name=$cid --workingdir /
 	buildah copy --name=$cid ${TMPDIR}/randomfile
 	buildah unmount --name=$cid
 	buildah commit --signature-policy ${TESTSDIR}/policy.json --name=$cid --output=containers-storage:new-image
