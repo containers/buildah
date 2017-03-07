@@ -5,14 +5,14 @@ TESTSDIR=${TESTSDIR:-$(dirname ${BASH_SOURCE})}
 
 function setup() {
 	suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | base64)
-	TOPDIR=${BATS_TMPDIR}/${suffix}
-	rm -fr ${TOPDIR}
-	mkdir -p ${TOPDIR}/{root,runroot}
-	REPO=${TOPDIR}/root
+	TESTDIR=${BATS_TMPDIR}/${suffix}
+	rm -fr ${TESTDIR}
+	mkdir -p ${TESTDIR}/{root,runroot}
+	REPO=${TESTDIR}/root
 }
 
 function teardown() {
-	rm -fr ${TOPDIR}
+	rm -fr ${TESTDIR}
 }
 
 function createrandom() {
@@ -20,5 +20,5 @@ function createrandom() {
 }
 
 function buildah() {
-	${BUILDAH_BINARY} --debug --root ${TOPDIR}/root --runroot ${TOPDIR}/runroot --storage-driver vfs "$@"
+	${BUILDAH_BINARY} --debug --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver vfs "$@"
 }

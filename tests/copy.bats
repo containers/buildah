@@ -3,13 +3,13 @@
 load helpers
 
 @test "copy-local-plain" {
-	createrandom ${TMPDIR}/randomfile
-	createrandom ${TMPDIR}/other-randomfile
+	createrandom ${TESTDIR}/randomfile
+	createrandom ${TESTDIR}/other-randomfile
 
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
 	root=$(buildah mount --name=$cid)
 	buildah config --name=$cid --workingdir /
-	buildah copy --name=$cid ${TMPDIR}/randomfile
+	buildah copy --name=$cid ${TESTDIR}/randomfile
 	buildah unmount --name=$cid
 	buildah commit --signature-policy ${TESTSDIR}/policy.json --name=$cid --output=containers-storage:new-image
 	buildah delete --name=$cid
@@ -17,6 +17,6 @@ load helpers
 	newcid=$(buildah from --image new-image)
 	newroot=$(buildah mount --name=$newcid)
 	test -s $newroot/randomfile
-	cmp ${TMPDIR}/randomfile $newroot/randomfile
+	cmp ${TESTDIR}/randomfile $newroot/randomfile
 	buildah delete --name=$newcid
 }
