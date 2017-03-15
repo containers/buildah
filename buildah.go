@@ -198,7 +198,11 @@ func OpenBuilderByPath(store storage.Store, path string) (*Builder, error) {
 		return false
 	}
 	for _, container := range containers {
-		buildstate, err := store.GetMetadata(container.ID)
+		cdir, err := store.GetContainerDirectory(container.ID)
+		if err != nil {
+			return nil, err
+		}
+		buildstate, err := ioutil.ReadFile(filepath.Join(cdir, stateFile))
 		if err != nil {
 			return nil, err
 		}
