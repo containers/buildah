@@ -14,6 +14,20 @@ load helpers
 	buildah delete --name=$cid
 }
 
+@test "by-name" {
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine --name=alpine-working-image-for-test)
+	root=$(buildah mount --name=alpine-working-image-for-test)
+	buildah unmount --name=alpine-working-image-for-test
+	buildah delete --name=alpine-working-image-for-test
+}
+
+@test "by-root" {
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
+	root=$(buildah mount --name=$cid)
+	buildah unmount --root=$root
+	buildah delete --root=$root
+}
+
 @test "commit" {
 	createrandom ${TESTDIR}/randomfile
 	createrandom ${TESTDIR}/other-randomfile
