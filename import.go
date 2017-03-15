@@ -12,6 +12,7 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 	config := []byte{}
 	name := ""
 	image := ""
+	imageName := ""
 
 	if options.Container == "" {
 		return nil, fmt.Errorf("container name must be specified")
@@ -42,6 +43,12 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 		if err != nil {
 			return nil, fmt.Errorf("error reading image manifest: %v", err)
 		}
+		image = c.ImageID
+		if img, err := store.GetImage(image); err == nil {
+			if len(img.Names) > 0 {
+				imageName = img.Names[0]
+			}
+		}
 	}
 
 	name = options.Container
@@ -49,7 +56,8 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 	builder := &Builder{
 		store:       store,
 		Type:        containerType,
-		FromImage:   image,
+		FromImage:   imageName,
+		FromImageID: image,
 		Config:      config,
 		Manifest:    manifest,
 		Container:   name,

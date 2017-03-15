@@ -32,6 +32,9 @@ type Builder struct {
 	// FromImage is the name of the source image which was used to create
 	// the container, if one was used.  It should not be modified.
 	FromImage string `json:"image,omitempty"`
+	// FromImageID is the ID of the source image which was used to create
+	// the container, if one was used.  It should not be modified.
+	FromImageID string `json:"image-id"`
 	// Config is the source image's configuration.  It should not be
 	// modified.
 	Config []byte `json:"config,omitempty"`

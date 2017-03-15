@@ -47,6 +47,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 
 	systemContext := getSystemContext(options.SignaturePolicyPath)
 
+	imageID := ""
 	if image != "" {
 		if options.PullAlways {
 			err := pullImage(store, options, systemContext)
@@ -76,7 +77,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		if err != nil {
 			return nil, fmt.Errorf("no such image %q: %v", image, err)
 		}
-		image = img.ID
+		imageID = img.ID
 		src, err := ref.NewImage(systemContext)
 		if err != nil {
 			return nil, fmt.Errorf("error instantiating image: %v", err)
@@ -93,7 +94,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	}
 
 	coptions := storage.ContainerOptions{}
-	container, err := store.CreateContainer("", []string{name}, image, "", "", &coptions)
+	container, err := store.CreateContainer("", []string{name}, imageID, "", "", &coptions)
 	if err != nil {
 		return nil, fmt.Errorf("error creating container: %v", err)
 	}
@@ -110,6 +111,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		store:       store,
 		Type:        containerType,
 		FromImage:   image,
+		FromImageID: imageID,
 		Config:      config,
 		Manifest:    manifest,
 		Container:   name,
