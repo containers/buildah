@@ -15,6 +15,5 @@ The buildah package provides a command line tool which can be used to
 
 Future goals include:
 * docs
-* CI tests
-* refactoring the CLI tool's logic into a library that the CLI tool will wrap
-* additional CLI commands (run, copy, add, build?)
+* more CI tests
+* additional CLI commands (build?)
