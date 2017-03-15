@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/containers/storage/pkg/ioutils"
@@ -214,6 +215,32 @@ func OpenBuilderByPath(store storage.Store, path string) (*Builder, error) {
 		}
 	}
 	return nil, storage.ErrContainerUnknown
+}
+
+// OpenAllBuilders loads all containers which have a state file that we use in
+// their data directory, typically so that they can be listed.
+func OpenAllBuilders(store storage.Store) (builders []*Builder, err error) {
+	containers, err := store.Containers()
+	if err != nil {
+		return nil, err
+	}
+	for _, container := range containers {
+		cdir, err := store.GetContainerDirectory(container.ID)
+		if err != nil {
+			return nil, err
+		}
+		buildstate, err := ioutil.ReadFile(filepath.Join(cdir, stateFile))
+		if err != nil && os.IsNotExist(err) {
+			continue
+		}
+		b := &Builder{}
+		err = json.Unmarshal([]byte(buildstate), &b)
+		if err == nil && b.Type == containerType {
+			b.store = store
+			builders = append(builders, b)
+		}
+	}
+	return builders, nil
 }
 
 // Save saves the builder's current state to the build container's metadata.
