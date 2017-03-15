@@ -56,3 +56,7 @@ func openBuilder(store storage.Store, name, root, link string) (builder *buildah
 	}
 	return builder, nil
 }
+
+func openBuilders(store storage.Store) (builders []*buildah.Builder, err error) {
+	return buildah.OpenAllBuilders(store)
+}

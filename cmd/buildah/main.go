@@ -66,6 +66,14 @@ func main() {
 			Action:      fromCmd,
 		},
 		{
+			Name:        "list",
+			Aliases:     []string{"l"},
+			Usage:       "list working containers and their base images",
+			Description: "lists working containers and their base images",
+			Flags:       listFlags,
+			Action:      listCmd,
+		},
+		{
 			Name:        "mount",
 			Aliases:     []string{"m"},
 			Usage:       "mount and create a symbolic link to a working container's filesystem root",
