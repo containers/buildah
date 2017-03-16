@@ -6,7 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/mattn/go-shellwords"
-	"github.com/nalind/buildah"
+	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
 

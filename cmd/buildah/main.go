@@ -5,7 +5,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/reexec"
-	"github.com/nalind/buildah"
+	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
 

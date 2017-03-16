@@ -5,7 +5,7 @@ import (
 
 	"github.com/containers/image/transports"
 	"github.com/containers/storage/pkg/archive"
-	"github.com/nalind/buildah"
+	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
 

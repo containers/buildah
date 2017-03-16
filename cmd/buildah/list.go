@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/nalind/buildah"
+	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
 
