@@ -13,7 +13,7 @@ var (
 	commitFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name of the working container",
+			Usage: "name or ID of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
