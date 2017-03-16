@@ -134,5 +134,6 @@ func main() {
 			Action:      deleteCmd,
 		},
 	}
+	app.EnableBashCompletion = true
 	app.Run(os.Args)
 }
