@@ -10,10 +10,10 @@ clean:
 	$(RM) buildah
 
 # For vendoring to work right, the checkout directory must be such that out top
-# level is at $GOPATH/src/github.com/nalind/buildah.
+# level is at $GOPATH/src/github.com/projectatomic/buildah.
 .PHONY: gopath
 gopath:
-	test $(shell pwd) = $(shell cd ../../../../src/github.com/nalind/buildah ; pwd)
+	test $(shell pwd) = $(shell cd ../../../../src/github.com/projectatomic/buildah ; pwd)
 
 # We use https://github.com/lk4d4/vndr to manage dependencies.
 .PHONY: deps

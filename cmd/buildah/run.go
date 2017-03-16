@@ -7,7 +7,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/nalind/buildah"
+	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
 

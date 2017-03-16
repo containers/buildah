@@ -6,7 +6,7 @@ import (
 
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage/storage"
-	"github.com/nalind/buildah"
+	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
 
