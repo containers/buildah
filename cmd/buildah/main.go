@@ -69,7 +69,6 @@ func main() {
 	app.Commands = []cli.Command{
 		{
 			Name:        "from",
-			Aliases:     []string{"f"},
 			Usage:       "create a working container based on an image",
 			Description: "creates a working container based on an image",
 			Flags:       fromFlags,
@@ -77,7 +76,6 @@ func main() {
 		},
 		{
 			Name:        "list",
-			Aliases:     []string{"l"},
 			Usage:       "list working containers and their base images",
 			Description: "lists working containers and their base images",
 			Flags:       listFlags,
@@ -85,7 +83,6 @@ func main() {
 		},
 		{
 			Name:        "mount",
-			Aliases:     []string{"m"},
 			Usage:       "mount and create a symbolic link to a working container's filesystem root",
 			Description: "mounts and creates a symbolic link to a working container's filesystem root",
 			Flags:       mountFlags,
@@ -93,7 +90,7 @@ func main() {
 		},
 		{
 			Name:        "umount",
-			Aliases:     []string{"u", "unmount"},
+			Aliases:     []string{"unmount"},
 			Usage:       "unmount and remove a symbolic link to a working container's filesystem root",
 			Description: "unmounts and removes a symbolic link to a working container's filesystem root",
 			Flags:       umountFlags,
@@ -129,7 +126,6 @@ func main() {
 		},
 		{
 			Name:        "commit",
-			Aliases:     []string{"c"},
 			Usage:       "create an image from a working container",
 			Description: "creates an image from a working container",
 			Flags:       commitFlags,
@@ -137,7 +133,6 @@ func main() {
 		},
 		{
 			Name:        "delete",
-			Aliases:     []string{"d"},
 			Usage:       "delete a working container",
 			Description: "deletes a working container",
 			Flags:       deleteFlags,
