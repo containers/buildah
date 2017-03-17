@@ -10,15 +10,15 @@ var (
 	umountFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name or ID of the working container",
+			Usage: "name or `ID` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
-			Usage: "root directory of the working container",
+			Usage: "root `directory` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "a symlink to the root directory of the working container",
+			Usage: "`pathname` of a symlink to the root directory of the working container",
 		},
 	}
 )

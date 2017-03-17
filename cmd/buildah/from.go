@@ -18,11 +18,11 @@ var (
 	fromFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "set a name for the working container",
+			Usage: "set a `name` for the working container",
 		},
 		cli.StringFlag{
 			Name:  "image",
-			Usage: "name of the starting image",
+			Usage: "name of the starting `image`",
 		},
 		cli.BoolFlag{
 			Name:  "pull",
@@ -30,16 +30,16 @@ var (
 		},
 		cli.BoolFlag{
 			Name:  "pull-always",
-			Usage: "pull the image, even if a version is present",
+			Usage: "pull the image even if one with the same name is already present",
 		},
 		cli.StringFlag{
 			Name:  "registry",
-			Usage: "prefix to prepend to the image name in order to pull the image",
+			Usage: "`prefix` to prepend to the image name in order to pull the image",
 			Value: DefaultRegistry,
 		},
 		cli.StringFlag{
 			Name:  "signature-policy",
-			Usage: "signature policy path",
+			Usage: "`pathname` of signature policy file (not usually used)",
 		},
 		cli.BoolFlag{
 			Name:  "mount",
@@ -47,7 +47,7 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "name of a symlink to create to the root directory of the container",
+			Usage: "`pathname` of a symlink to create to the root directory of the container",
 		},
 	}
 )

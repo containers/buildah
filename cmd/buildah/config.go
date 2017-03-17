@@ -20,56 +20,56 @@ var (
 	configurationFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "author",
-			Usage: "image author contact information",
+			Usage: "image author contact `information`",
 		},
 		cli.StringFlag{
 			Name:  "created-by",
-			Usage: "description of how the image was created",
+			Usage: "`description` of how the image was created",
 			Value: DefaultCreatedBy,
 		},
 		cli.StringFlag{
 			Name:  "arch",
-			Usage: "image target architecture",
+			Usage: "image target `architecture`",
 		},
 		cli.StringFlag{
 			Name:  "os",
-			Usage: "image target operating system",
+			Usage: "image target operating `system`",
 		},
 		cli.StringFlag{
 			Name:  "user",
-			Usage: "user to run containers based on image as",
+			Usage: "`user` to run containers based on image as",
 		},
 		cli.StringSliceFlag{
 			Name:  "port",
-			Usage: "port to expose when running containers based on image",
+			Usage: "`port` to expose when running containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "env",
-			Usage: "environment variable to set when running containers based on image",
+			Usage: "environment `variable` to set when running containers based on image",
 		},
 		cli.StringFlag{
 			Name:  "entrypoint",
-			Usage: "entry point for containers based on image",
+			Usage: "`entry-point` for containers based on image",
 		},
 		cli.StringFlag{
 			Name:  "cmd",
-			Usage: "command for containers based on image",
+			Usage: "`command` for containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "volume",
-			Usage: "volume to create for containers based on image",
+			Usage: "`volume` to create for containers based on image",
 		},
 		cli.StringFlag{
 			Name:  "workingdir",
-			Usage: "initial working directory for containers based on image",
+			Usage: "initial working `directory` for containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "label",
-			Usage: "image configuration label e.g. label=value",
+			Usage: "image configuration `label` e.g. label=value",
 		},
 		cli.StringSliceFlag{
 			Name:  "annotation",
-			Usage: "image annotation e.g. annotation=value",
+			Usage: "image `annotation` e.g. annotation=value",
 		},
 	}
 	runConfigurationFlags = []cli.Flag{

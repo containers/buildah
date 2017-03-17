@@ -10,15 +10,15 @@ var (
 	mountFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name or ID of the working container",
+			Usage: "name or `ID` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
-			Usage: "a previous root directory of the working container",
+			Usage: "a previous root `directory` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "name of a symlink to create",
+			Usage: "`pathname` of a symlink to create to the root directory of the container",
 		},
 	}
 )
