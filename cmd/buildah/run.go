@@ -38,6 +38,7 @@ var (
 )
 
 func runCmd(c *cli.Context) error {
+	args := c.Args()
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
@@ -62,7 +63,11 @@ func runCmd(c *cli.Context) error {
 		runtime = c.String("runtime")
 	}
 	if name == "" && root == "" && link == "" {
-		return fmt.Errorf("either --name or --root or --link, or some combination, must be specified")
+		if len(args) == 0 {
+			return fmt.Errorf("either a container name or --root or --link, or some combination, must be specified")
+		}
+		name = args[0]
+		args = args.Tail()
 	}
 
 	store, err := getStore(c)
@@ -84,9 +89,9 @@ func runCmd(c *cli.Context) error {
 		Runtime:  runtime,
 		Args:     flags,
 	}
-	runerr := builder.Run(c.Args(), options)
+	runerr := builder.Run(args, options)
 	if runerr != nil {
-		logrus.Debugf("error running %v in container: %v", c.Args(), runerr)
+		logrus.Debugf("error running %v in container: %v", args, runerr)
 	}
 	if ee, ok := runerr.(*exec.ExitError); ok {
 		if w, ok := ee.Sys().(syscall.WaitStatus); ok {

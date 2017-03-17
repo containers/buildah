@@ -29,6 +29,7 @@ var (
 )
 
 func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
+	args := c.Args()
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
@@ -49,7 +50,11 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 		dest = c.String("dest")
 	}
 	if name == "" && root == "" && link == "" {
-		return fmt.Errorf("either --name or --root or --link, or some combination, must be specified")
+		if len(args) == 0 {
+			return fmt.Errorf("either a container name or --root or --link, or some combination, must be specified")
+		}
+		name = args[0]
+		args = args.Tail()
 	}
 
 	store, err := getStore(c)
@@ -62,7 +67,7 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 		return fmt.Errorf("error reading build container %q: %v", name, err)
 	}
 
-	err = builder.Add(dest, extractLocalArchives, c.Args()...)
+	err = builder.Add(dest, extractLocalArchives, args...)
 	if err != nil {
 		return fmt.Errorf("error adding content to container: %v", err)
 	}

@@ -39,6 +39,7 @@ var (
 )
 
 func commitCmd(c *cli.Context) error {
+	args := c.Args()
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
@@ -63,11 +64,19 @@ func commitCmd(c *cli.Context) error {
 	if !c.IsSet("do-not-compress") || !c.Bool("do-not-compress") {
 		compress = archive.Gzip
 	}
-	if output == "" {
-		return fmt.Errorf("the --output flag must be specified")
-	}
 	if name == "" && root == "" && link == "" {
-		return fmt.Errorf("either --name or --root or --link, or some combination, must be specified")
+		if len(args) == 0 {
+			return fmt.Errorf("either a container name or --root or --link, or some combination, must be specified")
+		}
+		name = args[0]
+		args = args.Tail()
+	}
+	if output == "" {
+		if len(args) == 0 {
+			return fmt.Errorf("an image name or the --output flag must be specified")
+		}
+		output = args[0]
+		args = args.Tail()
 	}
 
 	store, err := getStore(c)

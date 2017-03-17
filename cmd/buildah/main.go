@@ -73,6 +73,7 @@ func main() {
 			Description: "creates a working container based on an image",
 			Flags:       fromFlags,
 			Action:      fromCmd,
+			ArgsUsage:   "IMAGE [CONTAINER-NAME]",
 		},
 		{
 			Name:        "list",
@@ -80,21 +81,24 @@ func main() {
 			Description: "lists working containers and their base images",
 			Flags:       listFlags,
 			Action:      listCmd,
+			ArgsUsage:   " ",
 		},
 		{
 			Name:        "mount",
-			Usage:       "mount and create a symbolic link to a working container's filesystem root",
-			Description: "mounts and creates a symbolic link to a working container's filesystem root",
+			Usage:       "mount a working container's filesystem root",
+			Description: "mounts a working container's filesystem root",
 			Flags:       mountFlags,
 			Action:      mountCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID",
 		},
 		{
 			Name:        "umount",
 			Aliases:     []string{"unmount"},
-			Usage:       "unmount and remove a symbolic link to a working container's filesystem root",
-			Description: "unmounts and removes a symbolic link to a working container's filesystem root",
+			Usage:       "unmount a working container's filesystem root",
+			Description: "unmounts a working container's filesystem root",
 			Flags:       umountFlags,
 			Action:      umountCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID",
 		},
 		{
 			Name:        "add",
@@ -102,6 +106,7 @@ func main() {
 			Description: "add content to the container's filesystem",
 			Flags:       addFlags,
 			Action:      addCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID [[FILE | DIRECTORY | URL] ...]",
 		},
 		{
 			Name:        "copy",
@@ -109,6 +114,7 @@ func main() {
 			Description: "copy content into the container's filesystem",
 			Flags:       copyFlags,
 			Action:      copyCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID [[FILE | DIRECTORY | URL] ...]",
 		},
 		{
 			Name:        "run",
@@ -116,6 +122,7 @@ func main() {
 			Description: "runs a command using the container's root filesystem",
 			Flags:       runFlags,
 			Action:      runCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID COMMAND [ARGS [...]]",
 		},
 		{
 			Name:        "config",
@@ -123,6 +130,7 @@ func main() {
 			Description: "updates a working container's image configuration settings",
 			Flags:       configFlags,
 			Action:      configCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID",
 		},
 		{
 			Name:        "commit",
@@ -130,6 +138,7 @@ func main() {
 			Description: "creates an image from a working container",
 			Flags:       commitFlags,
 			Action:      commitCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID IMAGE",
 		},
 		{
 			Name:        "delete",
@@ -137,6 +146,7 @@ func main() {
 			Description: "deletes a working container",
 			Flags:       deleteFlags,
 			Action:      deleteCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID",
 		},
 	}
 	app.Run(os.Args)

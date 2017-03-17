@@ -53,11 +53,16 @@ var (
 )
 
 func fromCmd(c *cli.Context) error {
+	args := c.Args()
 	image := ""
 	if c.IsSet("image") {
 		image = c.String("image")
 	} else {
-		return fmt.Errorf("an image name (or \"scratch\") must be specified")
+		if len(args) == 0 {
+			return fmt.Errorf("an image name (or \"scratch\") must be specified")
+		}
+		image = args[0]
+		args = args.Tail()
 	}
 	registry := DefaultRegistry
 	if c.IsSet("registry") {
@@ -74,6 +79,11 @@ func fromCmd(c *cli.Context) error {
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
+	} else {
+		if len(args) > 0 {
+			name = args[0]
+			args = args.Tail()
+		}
 	}
 	mount := false
 	if c.IsSet("mount") {

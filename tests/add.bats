@@ -63,11 +63,16 @@ load helpers
 	dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/tarball3/tarball3.random1
 	dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/tarball3/tarball3.random2
 	tar -c -C ${TESTDIR} -j -f ${TESTDIR}/tarball3.tar.bz2 tarball3
+	mkdir ${TESTDIR}/tarball4
+	dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/tarball4/tarball4.random1
+	dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/tarball4/tarball4.random2
+	tar -c -C ${TESTDIR} -j -f ${TESTDIR}/tarball4.tar.bz2 tarball4
 	# Add the files to the working directory, which should extract them all.
 	buildah config --workingdir=/ --name=$cid
 	buildah add --name=$cid ${TESTDIR}/tarball1.tar
 	buildah add --name=$cid ${TESTDIR}/tarball2.tar.gz
 	buildah add --name=$cid ${TESTDIR}/tarball3.tar.bz2
+	buildah add        $cid ${TESTDIR}/tarball4.tar.bz2
 	buildah unmount --name=$cid
 	buildah commit --signature-policy ${TESTSDIR}/policy.json --name=$cid --output=containers-storage:new-image
 	buildah delete --name=$cid
@@ -86,5 +91,9 @@ load helpers
 	cmp ${TESTDIR}/tarball3/tarball3.random1 $newroot/tarball3/tarball3.random1
 	test -s $newroot/tarball3/tarball3.random2
 	cmp ${TESTDIR}/tarball3/tarball3.random2 $newroot/tarball3/tarball3.random2
+	test -s $newroot/tarball4/tarball4.random1
+	cmp ${TESTDIR}/tarball4/tarball4.random1 $newroot/tarball4/tarball4.random1
+	test -s $newroot/tarball4/tarball4.random2
+	cmp ${TESTDIR}/tarball4/tarball4.random2 $newroot/tarball4/tarball4.random2
 	buildah delete --name=$newcid
 }

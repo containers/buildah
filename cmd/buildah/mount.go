@@ -24,6 +24,7 @@ var (
 )
 
 func mountCmd(c *cli.Context) error {
+	args := c.Args()
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
@@ -39,8 +40,12 @@ func mountCmd(c *cli.Context) error {
 			return fmt.Errorf("link location can not be empty")
 		}
 	}
-	if name == "" && root == "" {
-		return fmt.Errorf("either --name or --root, or both, must be specified")
+	if name == "" && root == "" && link == "" {
+		if len(args) == 0 {
+			return fmt.Errorf("either a container name or --root or --link, or some combination, must be specified")
+		}
+		name = args[0]
+		args = args.Tail()
 	}
 
 	store, err := getStore(c)
