@@ -107,14 +107,14 @@ func main() {
 			Name:        "run",
 			Usage:       "run a command inside of the container",
 			Description: "runs a command using the container's root filesystem",
-			Flags:       append(runFlags, runConfigurationFlags...),
+			Flags:       runFlags,
 			Action:      runCmd,
 		},
 		{
 			Name:        "config",
 			Usage:       "update image configuration settings",
 			Description: "updates a working container's image configuration settings",
-			Flags:       append(configFlags, configurationFlags...),
+			Flags:       configFlags,
 			Action:      configCmd,
 		},
 		{
@@ -122,7 +122,7 @@ func main() {
 			Aliases:     []string{"c"},
 			Usage:       "create an image from a working container",
 			Description: "creates an image from a working container",
-			Flags:       append(commitFlags, configurationFlags...),
+			Flags:       commitFlags,
 			Action:      commitCmd,
 		},
 		{

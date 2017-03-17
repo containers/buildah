@@ -17,7 +17,19 @@ const (
 )
 
 var (
-	configurationFlags = []cli.Flag{
+	configFlags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "name",
+			Usage: "name or ID of the working container",
+		},
+		cli.StringFlag{
+			Name:  "root",
+			Usage: "root directory of the working container",
+		},
+		cli.StringFlag{
+			Name:  "link",
+			Usage: "symlink to the root directory of the working container",
+		},
 		cli.StringFlag{
 			Name:  "author",
 			Usage: "image author contact `information`",
@@ -70,46 +82,6 @@ var (
 		cli.StringSliceFlag{
 			Name:  "annotation",
 			Usage: "image `annotation` e.g. annotation=value",
-		},
-	}
-	runConfigurationFlags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "user",
-			Usage: "user to run containers based on image as",
-		},
-		cli.StringSliceFlag{
-			Name:  "port",
-			Usage: "port to expose when running containers based on image",
-		},
-		cli.StringSliceFlag{
-			Name:  "env",
-			Usage: "environment variable to set when running containers based on image",
-		},
-		cli.StringSliceFlag{
-			Name:  "volume",
-			Usage: "volume to create for containers based on image",
-		},
-		cli.StringFlag{
-			Name:  "workingdir",
-			Usage: "initial working directory for containers based on image",
-		},
-		cli.StringFlag{
-			Name:  "hostname",
-			Usage: "hostname to set for the command",
-		},
-	}
-	configFlags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "name",
-			Usage: "name or ID of the working container",
-		},
-		cli.StringFlag{
-			Name:  "root",
-			Usage: "root directory of the working container",
-		},
-		cli.StringFlag{
-			Name:  "link",
-			Usage: "symlink to the root directory of the working container",
 		},
 	}
 )

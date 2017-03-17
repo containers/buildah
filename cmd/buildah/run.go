@@ -75,7 +75,6 @@ func runCmd(c *cli.Context) error {
 		return fmt.Errorf("error reading build container %q: %v", name, err)
 	}
 
-	updateConfig(builder, c)
 	hostname := ""
 	if c.IsSet("hostname") {
 		hostname = c.String("hostname")

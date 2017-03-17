@@ -89,7 +89,6 @@ func commitCmd(c *cli.Context) error {
 		Compression:         compress,
 		SignaturePolicyPath: signaturePolicy,
 	}
-	updateConfig(builder, c)
 	err = builder.Commit(dest, options)
 	if err != nil {
 		return fmt.Errorf("error committing container to %q: %v", output, err)
