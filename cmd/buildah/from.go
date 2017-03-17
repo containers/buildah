@@ -24,7 +24,7 @@ var (
 			Name:  "image",
 			Usage: "name of the starting `image`",
 		},
-		cli.BoolFlag{
+		cli.BoolTFlag{
 			Name:  "pull",
 			Usage: "pull the image if not present",
 		},
@@ -63,9 +63,9 @@ func fromCmd(c *cli.Context) error {
 	if c.IsSet("registry") {
 		registry = c.String("registry")
 	}
-	pull := false
+	pull := true
 	if c.IsSet("pull") {
-		pull = c.Bool("pull")
+		pull = c.BoolT("pull")
 	}
 	pullAlways := false
 	if c.IsSet("pull-always") {
