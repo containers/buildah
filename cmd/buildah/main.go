@@ -5,11 +5,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/reexec"
+	"github.com/containers/storage/storage"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
 
 func main() {
+	var defaultStoreDriverOptions *cli.StringSlice
 	if reexec.Init() {
 		return
 	}
@@ -17,22 +19,30 @@ func main() {
 	app := cli.NewApp()
 	app.Name = buildah.Package
 	app.Usage = "an image builder"
+	if len(storage.DefaultStoreOptions.GraphDriverOptions) > 0 {
+		var optionSlice cli.StringSlice = storage.DefaultStoreOptions.GraphDriverOptions[:]
+		defaultStoreDriverOptions = &optionSlice
+	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "root",
 			Usage: "storage root dir",
+			Value: storage.DefaultStoreOptions.GraphRoot,
 		},
 		cli.StringFlag{
 			Name:  "runroot",
 			Usage: "storage state dir",
+			Value: storage.DefaultStoreOptions.RunRoot,
 		},
 		cli.StringFlag{
 			Name:  "storage-driver",
 			Usage: "storage driver",
+			Value: storage.DefaultStoreOptions.GraphDriverName,
 		},
 		cli.StringSliceFlag{
 			Name:  "storage-option",
 			Usage: "storage driver option",
+			Value: defaultStoreDriverOptions,
 		},
 		cli.BoolFlag{
 			Name:  "debug",
