@@ -1,0 +1,574 @@
+#!/bin/bash
+#
+# bash completion file for buildah command
+#
+# This script provides completion of:
+#  - commands and their options
+#  - filepaths
+#
+# To enable the completions either:
+#  - place this file in /usr/share/bash-completion/completions
+#  or
+#  - copy this file to e.g. ~/.buildah-completion.sh and add the line
+#    below to your .bashrc after bash completion features are loaded
+#    . ~/.buildah-completion.sh
+#
+# Configuration:
+#
+
+# __buildah_to_alternatives transforms a multiline list of strings into a single line
+# string with the words separated by `|`.
+# This is used to prepare arguments to __buildah_pos_first_nonflag().
+__buildah_to_alternatives() {
+    local parts=( $1 )
+    local IFS='|'
+    echo "${parts[*]}"
+}
+
+# __buildah_to_extglob transforms a multiline list of options into an extglob pattern
+# suitable for use in case statements.
+__buildah_to_extglob() {
+    local extglob=$( __buildah_to_alternatives "$1" )
+    echo "@($extglob)"
+}
+
+# __buildah_pos_first_nonflag finds the position of the first word that is neither
+# option nor an option's argument. If there are options that require arguments,
+# you should pass a glob describing those options, e.g. "--option1|-o|--option2"
+# Use this function to restrict completions to exact positions after the argument list.
+__buildah_pos_first_nonflag() {
+  local argument_flags=$1
+
+  local counter=$((${subcommand_pos:-${command_pos}} + 1))
+  while [ $counter -le $cword ]; do
+    if [ -n "$argument_flags" ] && eval "case '${words[$counter]}' in $argument_flags) true ;; *) false ;; esac"; then
+      (( counter++ ))
+      # eat "=" in case of --option=arg syntax
+      [ "${words[$counter]}" = "=" ] && (( counter++ ))
+    else
+      case "${words[$counter]}" in
+        -*)
+          ;;
+        *)
+          break
+          ;;
+      esac
+    fi
+
+    # Bash splits words at "=", retaining "=" as a word, examples:
+    # "--debug=false" => 3 words, "--log-opt syslog-facility=daemon" => 4 words
+    while [ "${words[$counter + 1]}" = "=" ] ; do
+      counter=$(( counter + 2))
+    done
+
+    (( counter++ ))
+  done
+
+  echo $counter
+}
+
+# Note for developers:
+# Please arrange options sorted alphabetically by long name with the short
+# options immediately following their corresponding long form.
+# This order should be applied to lists, alternatives and code blocks.
+
+__buildah_previous_extglob_setting=$(shopt -p extglob)
+shopt -s extglob
+
+__buildah_list_containers() {
+    COMPREPLY=($(compgen -W "$(buildah containers -q)" -- $cur))
+}
+
+__buildah_list_images() {
+    COMPREPLY=($(compgen -W "$(buildah images -q)" -- $cur))
+}
+
+__buildah_pos_first_nonflag() {
+    local argument_flags=$1
+
+    local counter=$((${subcommand_pos:-${command_pos}} + 1))
+    while [ $counter -le $cword ]; do
+        if [ -n "$argument_flags" ] && eval "case '${words[$counter]}' in $argument_flags) true ;; *) false ;; esac"; then
+            ((counter++))
+        else
+            case "${words[$counter]}" in
+                -*) ;;
+                *)
+                    break
+                    ;;
+            esac
+        fi
+        ((counter++))
+    done
+
+    echo $counter
+}
+
+# Transforms a multiline list of strings into a single line string
+# with the words separated by "|".
+# This is used to prepare arguments to __buildah_pos_first_nonflag().
+__buildah_to_alternatives() {
+    local parts=($1)
+    local IFS='|'
+    echo "${parts[*]}"
+}
+
+# Transforms a multiline list of options into an extglob pattern
+# suitable for use in case statements.
+__buildah_to_extglob() {
+    local extglob=$(__buildah_to_alternatives "$1")
+    echo "@($extglob)"
+}
+
+# Subcommand processing.
+# Locates the first occurrence of any of the subcommands contained in the
+# first argument. In case of a match, calls the corresponding completion
+# function and returns 0.
+# If no match is found, 1 is returned. The calling function can then
+# continue processing its completion.
+#
+# TODO if the preceding command has options that accept arguments and an
+# argument is equal ot one of the subcommands, this is falsely detected as
+# a match.
+__buildah_subcommands() {
+	  local subcommands="$1"
+
+	  local counter=$(($command_pos + 1))
+	  while [ $counter -lt $cword ]; do
+		    case "${words[$counter]}" in
+			      $(__buildah_to_extglob "$subcommands") )
+subcommand_pos=$counter
+local subcommand=${words[$counter]}
+local completions_func=_buildah_${command}_${subcommand}
+declare -F $completions_func >/dev/null && $completions_func
+return 0
+;;
+esac
+(( counter++ ))
+done
+return 1
+}
+
+ # suppress trailing whitespace
+ __buildah_nospace() {
+     # compopt is not available in ancient bash versions
+     type compopt &>/dev/null && compopt -o nospace
+ }
+
+
+ # global options that may appear after the buildah command
+ _buildah_buildah() {
+     local boolean_options="
+         --debug
+         --help -h
+         --version -v
+         "
+     local options_with_args="
+         --root
+         --runroot
+         --storage-driver
+         --storage-option
+         "
+
+     case "$prev" in
+         --root | --runroot)
+             case "$cur" in
+                 *:*) ;; # TODO somehow do _filedir for stuff inside the image, if it's already specified (which is also somewhat difficult to determine)
+                 '')
+                     COMPREPLY=($(compgen -W '/' -- "$cur"))
+                     __buildah_nospace
+                     ;;
+                 *)
+                     _filedir
+                     __buildah_nospace
+                     ;;
+             esac
+             return
+             ;;
+         --storage-driver)
+             COMPREPLY=($(compgen -W 'devicemapper overlay2' -- "$cur"))
+             return
+             ;;
+         $(__buildah_to_extglob "$options_with_args"))
+ return
+ ;;
+ esac
+
+ case "$cur" in
+     -*)
+         COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+         ;;
+     *)
+         local counter=$(__buildah_pos_first_nonflag $(__buildah_to_extglob "$options_with_args"))
+         if [ $cword -eq $counter ]; then
+             COMPREPLY=($(compgen -W "${commands[*]} help" -- "$cur"))
+         fi
+         ;;
+ esac
+}
+
+ _buildah_rmi() {
+     local boolean_options="
+     --help
+     -h
+  "
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+         *)
+             __buildah_list_images
+             ;;
+     esac
+ }
+
+ _buildah_rm() {
+     local boolean_options="
+     --help
+     -h
+  "
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+         *)
+             __buildah_list_containers
+             ;;
+     esac
+ }
+
+ _buildah_help() {
+     local counter=$(__buildah_pos_first_nonflag)
+     if [ $cword -eq $counter ]; then
+         COMPREPLY=($(compgen -W "${commands[*]}" -- "$cur"))
+     fi
+ }
+
+ _buildah_config() {
+     local boolean_options="
+     --help
+     -h
+  "
+
+     local options_with_args="
+       --annotation
+       --arch
+       --author
+       --cmd
+       --created-by
+       --entrypoint
+       --env
+       -e
+       --label
+       -l
+       --os
+       --port
+       -p
+       --user
+       -u
+       --volume
+       -v
+       --workingdir
+   "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_commit() {
+     local boolean_options="
+          --help
+          -h
+          --disable-compression
+  "
+
+     local options_with_args="
+          --signature-policy
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$prev" in
+         --signature-policy)
+             case "$cur" in
+                 *:*) ;; # TODO somehow do _filedir for stuff inside the image, if it's already specified (which is also somewhat difficult to determine)
+                 '')
+                     COMPREPLY=($(compgen -W '/' -- "$cur"))
+                     __buildah_nospace
+                     ;;
+                 *)
+                     _filedir
+                     __buildah_nospace
+                     ;;
+             esac
+             return
+             ;;
+
+         $(__buildah_to_extglob "$options_with_args"))
+ return
+ ;;
+ esac
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+
+ _buildah_run() {
+     local boolean_options="
+     --help
+     -h
+  "
+
+     local options_with_args="
+     --runtime
+     --runtime-flag
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$prev" in
+         --runtime)
+             COMPREPLY=($(compgen -W 'runc runv' -- "$cur"))
+             ;;
+         $(__buildah_to_extglob "$options_with_args"))
+ return
+ ;;
+ esac
+
+ case "$cur" in
+     -*)
+         COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+         ;;
+ esac
+}
+
+ _buildah_copy() {
+     local boolean_options="
+     --help
+     -h
+  "
+
+     local options_with_args="
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_add() {
+     local boolean_options="
+           --help
+           -h
+    "
+
+     local options_with_args="
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_umount() {
+     _buildah_umount $@
+ }
+
+ _buildah_umount() {
+     local boolean_options="
+     --help
+     -h
+  "
+
+     local options_with_args="
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_mount() {
+     local boolean_options="
+     --help
+     -h
+  "
+
+     local options_with_args="
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_containers() {
+     local boolean_options="
+     --help
+     -h
+     --quiet
+     -q
+     --noheading
+     -n
+     --no-truncate
+  "
+
+     local options_with_args="
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_images() {
+     local boolean_options="
+     --help
+     -h
+     --quiet
+     -q
+     --noheading
+     -n
+     --no-truncate
+  "
+
+     local options_with_args="
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_from() {
+     local boolean_options="
+     --help
+     -h
+     --pull
+     --pull-always
+     --mount
+  "
+
+     local options_with_args="
+     --name
+     --registry
+     --signature-policy
+  "
+
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+         *)
+             __buildah_list_containers
+             ;;
+     esac
+ }
+
+ _buildah() {
+   local previous_extglob_setting=$(shopt -p extglob)
+   shopt -s extglob
+
+   local commands=(
+       add
+       commit
+       config
+       containers
+       copy
+       from
+       images
+       mount
+       rm
+       rmi
+       run
+       umount
+       unmount
+   )
+
+   # These options are valid as global options for all client commands
+   # and valid as command options for `buildah daemon`
+   local global_boolean_options="
+         --debug
+   "
+
+   local global_options_with_args="
+         --root
+         --runroot
+         --storage-driver
+         --storage-option
+   "
+
+   COMPREPLY=()
+   local cur prev words cword
+   _get_comp_words_by_ref -n : cur prev words cword
+
+   local command='buildah' command_pos=0 subcommand_pos
+   local counter=1
+   while [ $counter -lt $cword ]; do
+       case "${words[$counter]}" in
+           $(__buildah_to_extglob "$global_options_with_args") )
+ (( counter++ ))
+ ;;
+ -*)
+ ;;
+ =)
+ (( counter++ ))
+ ;;
+ *)
+     command="${words[$counter]}"
+     command_pos=$counter
+     break
+     ;;
+ esac
+ (( counter++ ))
+done
+
+ local binary="${words[0]}"
+
+ local completions_func=_buildah_${command}
+ declare -F $completions_func >/dev/null && $completions_func
+
+ eval "$previous_extglob_setting"
+ return 0
+ }
+
+ eval "$__buildah_previous_extglob_setting"
+ unset __buildah_previous_extglob_setting
+
+ complete -F _buildah buildah
