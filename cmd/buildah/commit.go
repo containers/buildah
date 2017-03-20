@@ -24,7 +24,7 @@ var (
 			Usage: "`pathname` of a symbolic link to the root directory of the working container",
 		},
 		cli.BoolFlag{
-			Name:  "do-not-compress",
+			Name:  "disable-compression",
 			Usage: "don't compress layers",
 		},
 		cli.StringFlag{
@@ -62,7 +62,7 @@ func commitCmd(c *cli.Context) error {
 		signaturePolicy = c.String("signature-policy")
 	}
 	compress := archive.Uncompressed
-	if !c.IsSet("do-not-compress") || !c.Bool("do-not-compress") {
+	if !c.IsSet("disable-compression") || !c.Bool("disable-compression") {
 		compress = archive.Gzip
 	}
 	if name == "" && root == "" && link == "" {
