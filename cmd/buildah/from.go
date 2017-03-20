@@ -22,7 +22,7 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "image",
-			Usage: "name of the starting `image`",
+			Usage: fmt.Sprintf("name of the starting `image`, or %q", buildah.BaseImageFakeName),
 		},
 		cli.BoolTFlag{
 			Name:  "pull",
