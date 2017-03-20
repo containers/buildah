@@ -10,17 +10,18 @@ var (
 	deleteFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name or `ID` of the working container",
+			Usage: "`name or ID` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
-			Usage: "root `directory` of the working container",
+			Usage: "`root directory` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "`pathname` of a symlink to the root directory of the working container",
+			Usage: "`pathname` of a symbolic link to the root directory of the working container",
 		},
 	}
+	deleteDescription = "Deletes a working container, unmounting it if necessary"
 )
 
 func deleteCmd(c *cli.Context) error {
@@ -57,7 +58,7 @@ func deleteCmd(c *cli.Context) error {
 
 	err = builder.Delete()
 	if err != nil {
-		return fmt.Errorf("error deleting container: %v", err)
+		return fmt.Errorf("error deleting container %q: %v", builder.Container, err)
 	}
 
 	return nil

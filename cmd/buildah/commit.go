@@ -13,7 +13,7 @@ var (
 	commitFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name or `ID` of the working container",
+			Usage: "`name or ID` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
@@ -21,7 +21,7 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "`pathname` of a symlink to the root directory of the working container",
+			Usage: "`pathname` of a symbolic link to the root directory of the working container",
 		},
 		cli.BoolFlag{
 			Name:  "do-not-compress",
@@ -36,6 +36,7 @@ var (
 			Usage: "`pathname` of signature policy file (not usually used)",
 		},
 	}
+	commitDescription = "Writes a new image using the container's read-write layer and, if it is based\n   on an image, the layers of that image"
 )
 
 func commitCmd(c *cli.Context) error {
@@ -100,7 +101,7 @@ func commitCmd(c *cli.Context) error {
 	}
 	err = builder.Commit(dest, options)
 	if err != nil {
-		return fmt.Errorf("error committing container to %q: %v", output, err)
+		return fmt.Errorf("error committing container %q to %q: %v", builder.Container, output, err)
 	}
 
 	return nil

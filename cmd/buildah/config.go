@@ -20,15 +20,15 @@ var (
 	configFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name or ID of the working container",
+			Usage: "`name or ID` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
-			Usage: "root directory of the working container",
+			Usage: "root `directory` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "symlink to the root directory of the working container",
+			Usage: "`pathname` of a symbolic link to the root directory of the working container",
 		},
 		cli.StringFlag{
 			Name:  "author",
@@ -41,11 +41,11 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "arch",
-			Usage: "image target `architecture`",
+			Usage: "`architecture` of the target image",
 		},
 		cli.StringFlag{
 			Name:  "os",
-			Usage: "image target operating `system`",
+			Usage: "`operating system` of the target image",
 		},
 		cli.StringFlag{
 			Name:  "user",
@@ -57,11 +57,11 @@ var (
 		},
 		cli.StringSliceFlag{
 			Name:  "env",
-			Usage: "environment `variable` to set when running containers based on image",
+			Usage: "`environment variable` to set when running containers based on image",
 		},
 		cli.StringFlag{
 			Name:  "entrypoint",
-			Usage: "`entry-point` for containers based on image",
+			Usage: "`entry point` for containers based on image",
 		},
 		cli.StringFlag{
 			Name:  "cmd",
@@ -73,7 +73,7 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "workingdir",
-			Usage: "initial working `directory` for containers based on image",
+			Usage: "working `directory` for containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "label",
@@ -81,9 +81,10 @@ var (
 		},
 		cli.StringSliceFlag{
 			Name:  "annotation",
-			Usage: "image `annotation` e.g. annotation=value",
+			Usage: "`annotation` e.g. annotation=value, for the target image",
 		},
 	}
+	configDescription = "Modifies the configuration values which will be saved to the image"
 )
 
 func updateConfig(builder *buildah.Builder, c *cli.Context) {

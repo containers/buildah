@@ -10,17 +10,18 @@ var (
 	mountFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name or `ID` of the working container",
+			Usage: "`name or ID` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
-			Usage: "a previous root `directory` of the working container",
+			Usage: "a location where the working container's root `directory` was previously mounted",
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "`pathname` of a symlink to create to the root directory of the container",
+			Usage: "`pathname` of a symbolic link to create to the root directory of the container",
 		},
 	}
+	mountDescription = "Mounts a working container's root filesystem for manipulation"
 )
 
 func mountCmd(c *cli.Context) error {
@@ -60,13 +61,13 @@ func mountCmd(c *cli.Context) error {
 
 	mountPoint, err := builder.Mount("")
 	if err != nil {
-		return fmt.Errorf("error mounting container: %v", err)
+		return fmt.Errorf("error mounting container %q: %v", builder.Container, err)
 	}
 
 	if link != "" {
 		err = builder.Link(link)
 		if err != nil {
-			return fmt.Errorf("error creating symlink to %q: %v", mountPoint, err)
+			return fmt.Errorf("error creating symbolic link to %q: %v", mountPoint, err)
 		}
 	}
 

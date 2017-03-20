@@ -15,7 +15,7 @@ var (
 	runFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name or `ID` of the working container",
+			Usage: "`name or ID` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
@@ -23,7 +23,7 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "`pathname` of a symlink to the root directory of the working container",
+			Usage: "`pathname` of a symbolic link to the root directory of the working container",
 		},
 		cli.StringFlag{
 			Name:  "runtime",
@@ -35,6 +35,7 @@ var (
 			Usage: "add global flags for the container runtime",
 		},
 	}
+	runDescription = "Runs a specified command using the container's root filesystem as a root\n   filesystem, using configuration settings inherited from the container's\n   image or as specified using previous calls to the config command"
 )
 
 func runCmd(c *cli.Context) error {
@@ -91,7 +92,7 @@ func runCmd(c *cli.Context) error {
 	}
 	runerr := builder.Run(args, options)
 	if runerr != nil {
-		logrus.Debugf("error running %v in container: %v", args, runerr)
+		logrus.Debugf("error running %v in container %q: %v", args, builder.Container, runerr)
 	}
 	if ee, ok := runerr.(*exec.ExitError); ok {
 		if w, ok := ee.Sys().(syscall.WaitStatus); ok {

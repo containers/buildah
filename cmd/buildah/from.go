@@ -18,7 +18,7 @@ var (
 	fromFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "set a `name` for the working container",
+			Usage: "`name` for the working container",
 		},
 		cli.StringFlag{
 			Name:  "image",
@@ -47,9 +47,10 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "`pathname` of a symlink to create to the root directory of the container",
+			Usage: "`pathname` of a symbolic link to create to the root directory of the container",
 		},
 	}
+	fromDescription = "Creates a new working container, either from scratch or using a specified\n   image as a starting point"
 )
 
 func fromCmd(c *cli.Context) error {
