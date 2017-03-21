@@ -255,11 +255,12 @@ func (i *containerImageRef) Transport() types.ImageTransport {
 	return is.Transport
 }
 
-func (i *containerImageSource) Close() {
+func (i *containerImageSource) Close() error {
 	err := os.RemoveAll(i.path)
 	if err != nil {
 		logrus.Errorf("error removing %q: %v", i.path, err)
 	}
+	return err
 }
 
 func (i *containerImageSource) Reference() types.ImageReference {
