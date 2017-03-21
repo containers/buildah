@@ -7,12 +7,13 @@ import (
 	"github.com/Sirupsen/logrus"
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage/storage"
+	"github.com/openshift/imagebuilder"
 )
 
 const (
 	// BaseImageFakeName is the "name" of a source image which we interpret
 	// as "no image".
-	BaseImageFakeName = "scratch"
+	BaseImageFakeName = imagebuilder.NoBaseImageSpecifier
 )
 
 func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
