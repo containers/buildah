@@ -110,7 +110,7 @@ type ImageSource interface {
 	// (not as the image itself, or its underlying storage, claims).  This can be used e.g. to determine which public keys are trusted for this image.
 	Reference() ImageReference
 	// Close removes resources associated with an initialized ImageSource, if any.
-	Close()
+	Close() error
 	// GetManifest returns the image's manifest along with its MIME type (which may be empty when it can't be determined but the manifest is available).
 	// It may use a remote (= slow) service.
 	GetManifest() ([]byte, string, error)
@@ -138,7 +138,7 @@ type ImageDestination interface {
 	// e.g. it should use the public hostname instead of the result of resolving CNAMEs or following redirects.
 	Reference() ImageReference
 	// Close removes resources associated with an initialized ImageDestination, if any.
-	Close()
+	Close() error
 
 	// SupportedManifestMIMETypes tells which manifest mime types the destination supports
 	// If an empty slice or nil it's returned, then any mime type can be tried to upload
@@ -184,7 +184,7 @@ type UnparsedImage interface {
 	// (not as the image itself, or its underlying storage, claims).  This can be used e.g. to determine which public keys are trusted for this image.
 	Reference() ImageReference
 	// Close removes resources associated with an initialized UnparsedImage, if any.
-	Close()
+	Close() error
 	// Manifest is like ImageSource.GetManifest, but the result is cached; it is OK to call this however often you need.
 	Manifest() ([]byte, string, error)
 	// Signatures is like ImageSource.GetSignatures, but the result is cached; it is OK to call this however often you need.
@@ -292,6 +292,13 @@ type SystemContext struct {
 	// Note that this field is used mainly to integrate containers/image into projectatomic/docker
 	// in order to not break any existing docker's integration tests.
 	DockerDisableV1Ping bool
+}
+
+// ProgressProperties is used to pass information from the copy code to a monitor which
+// can use the real-time information to produce output or react to changes.
+type ProgressProperties struct {
+	Artifact BlobInfo
+	Offset   uint64
 }
 
 var (

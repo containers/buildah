@@ -48,6 +48,7 @@ func (p *Parser) Parse(line string) ([]string, error) {
 	backtick := ""
 
 	pos := -1
+	got := false
 
 loop:
 	for i, r := range line {
@@ -70,12 +71,13 @@ loop:
 			if singleQuoted || doubleQuoted || backQuote {
 				buf += string(r)
 				backtick += string(r)
-			} else if buf != "" {
+			} else if got {
 				if p.ParseEnv {
 					buf = replaceEnv(buf)
 				}
 				args = append(args, buf)
 				buf = ""
+				got = false
 			}
 			continue
 		}
@@ -115,13 +117,14 @@ loop:
 			}
 		}
 
+		got = true
 		buf += string(r)
 		if backQuote {
 			backtick += string(r)
 		}
 	}
 
-	if buf != "" {
+	if got {
 		if p.ParseEnv {
 			buf = replaceEnv(buf)
 		}

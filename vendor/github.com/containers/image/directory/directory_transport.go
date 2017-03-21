@@ -10,9 +10,14 @@ import (
 	"github.com/containers/image/directory/explicitfilepath"
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/image"
+	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	"github.com/opencontainers/go-digest"
 )
+
+func init() {
+	transports.Register(Transport)
+}
 
 // Transport is an ImageTransport for directory paths.
 var Transport = dirTransport{}

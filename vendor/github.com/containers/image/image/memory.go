@@ -32,7 +32,8 @@ func (i *memoryImage) Reference() types.ImageReference {
 }
 
 // Close removes resources associated with an initialized UnparsedImage, if any.
-func (i *memoryImage) Close() {
+func (i *memoryImage) Close() error {
+	return nil
 }
 
 // Size returns the size of the image as stored, if known, or -1 if not.

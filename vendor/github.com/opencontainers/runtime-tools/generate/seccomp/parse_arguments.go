@@ -9,8 +9,8 @@ import (
 
 // parseArguments takes a list of arguments (delimArgs). It parses and fills out
 // the argument information and returns a slice of arg structs
-func parseArguments(delimArgs []string) ([]rspec.LinuxSeccompArg, error) {
-	nilArgSlice := []rspec.LinuxSeccompArg{}
+func parseArguments(delimArgs []string) ([]rspec.Arg, error) {
+	nilArgSlice := []rspec.Arg{}
 	numberOfArgs := len(delimArgs)
 
 	// No parameters passed with syscall
@@ -40,14 +40,14 @@ func parseArguments(delimArgs []string) ([]rspec.LinuxSeccompArg, error) {
 			return nilArgSlice, err
 		}
 
-		argStruct := rspec.LinuxSeccompArg{
+		argStruct := rspec.Arg{
 			Index:    uint(syscallIndex),
 			Value:    syscallValue,
 			ValueTwo: syscallValueTwo,
 			Op:       syscallOp,
 		}
 
-		argSlice := []rspec.LinuxSeccompArg{}
+		argSlice := []rspec.Arg{}
 		argSlice = append(argSlice, argStruct)
 		return argSlice, nil
 	}
@@ -55,8 +55,8 @@ func parseArguments(delimArgs []string) ([]rspec.LinuxSeccompArg, error) {
 	return nilArgSlice, fmt.Errorf("incorrect number of arguments passed with syscall: %d", numberOfArgs)
 }
 
-func parseOperator(operator string) (rspec.LinuxSeccompOperator, error) {
-	operators := map[string]rspec.LinuxSeccompOperator{
+func parseOperator(operator string) (rspec.Operator, error) {
+	operators := map[string]rspec.Operator{
 		"NE": rspec.OpNotEqual,
 		"LT": rspec.OpLessThan,
 		"LE": rspec.OpLessEqual,

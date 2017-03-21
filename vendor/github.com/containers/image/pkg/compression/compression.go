@@ -1,4 +1,4 @@
-package copy
+package compression
 
 import (
 	"bytes"
@@ -11,32 +11,37 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// decompressorFunc, given a compressed stream, returns the decompressed stream.
-type decompressorFunc func(io.Reader) (io.Reader, error)
+// DecompressorFunc returns the decompressed stream, given a compressed stream.
+type DecompressorFunc func(io.Reader) (io.Reader, error)
 
-func gzipDecompressor(r io.Reader) (io.Reader, error) {
+// GzipDecompressor is a DecompressorFunc for the gzip compression algorithm.
+func GzipDecompressor(r io.Reader) (io.Reader, error) {
 	return gzip.NewReader(r)
 }
-func bzip2Decompressor(r io.Reader) (io.Reader, error) {
+
+// Bzip2Decompressor is a DecompressorFunc for the bzip2 compression algorithm.
+func Bzip2Decompressor(r io.Reader) (io.Reader, error) {
 	return bzip2.NewReader(r), nil
 }
-func xzDecompressor(r io.Reader) (io.Reader, error) {
+
+// XzDecompressor is a DecompressorFunc for the xz compression algorithm.
+func XzDecompressor(r io.Reader) (io.Reader, error) {
 	return nil, errors.New("Decompressing xz streams is not supported")
 }
 
-// compressionAlgos is an internal implementation detail of detectCompression
+// compressionAlgos is an internal implementation detail of DetectCompression
 var compressionAlgos = map[string]struct {
 	prefix       []byte
-	decompressor decompressorFunc
+	decompressor DecompressorFunc
 }{
-	"gzip":  {[]byte{0x1F, 0x8B, 0x08}, gzipDecompressor},                 // gzip (RFC 1952)
-	"bzip2": {[]byte{0x42, 0x5A, 0x68}, bzip2Decompressor},                // bzip2 (decompress.c:BZ2_decompress)
-	"xz":    {[]byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00}, xzDecompressor}, // xz (/usr/share/doc/xz/xz-file-format.txt)
+	"gzip":  {[]byte{0x1F, 0x8B, 0x08}, GzipDecompressor},                 // gzip (RFC 1952)
+	"bzip2": {[]byte{0x42, 0x5A, 0x68}, Bzip2Decompressor},                // bzip2 (decompress.c:BZ2_decompress)
+	"xz":    {[]byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00}, XzDecompressor}, // xz (/usr/share/doc/xz/xz-file-format.txt)
 }
 
-// detectCompression returns a decompressorFunc if the input is recognized as a compressed format, nil otherwise.
+// DetectCompression returns a DecompressorFunc if the input is recognized as a compressed format, nil otherwise.
 // Because it consumes the start of input, other consumers must use the returned io.Reader instead to also read from the beginning.
-func detectCompression(input io.Reader) (decompressorFunc, io.Reader, error) {
+func DetectCompression(input io.Reader) (DecompressorFunc, io.Reader, error) {
 	buffer := [8]byte{}
 
 	n, err := io.ReadAtLeast(input, buffer[:], len(buffer))
@@ -46,7 +51,7 @@ func detectCompression(input io.Reader) (decompressorFunc, io.Reader, error) {
 		return nil, nil, err
 	}
 
-	var decompressor decompressorFunc
+	var decompressor DecompressorFunc
 	for name, algo := range compressionAlgos {
 		if bytes.HasPrefix(buffer[:n], algo.prefix) {
 			logrus.Debugf("Detected compression format %s", name)

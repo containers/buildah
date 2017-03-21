@@ -118,10 +118,12 @@ func (s storageImageDestination) Reference() types.ImageReference {
 	return s.imageRef
 }
 
-func (s storageImageSource) Close() {
+func (s storageImageSource) Close() error {
+	return nil
 }
 
-func (s storageImageDestination) Close() {
+func (s storageImageDestination) Close() error {
+	return nil
 }
 
 func (s storageImageDestination) ShouldCompressLayers() bool {

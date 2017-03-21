@@ -65,7 +65,8 @@ func (s *dockerImageSource) Reference() types.ImageReference {
 }
 
 // Close removes resources associated with an initialized ImageSource, if any.
-func (s *dockerImageSource) Close() {
+func (s *dockerImageSource) Close() error {
+	return nil
 }
 
 // simplifyContentType drops parameters from a HTTP media type (see https://tools.ietf.org/html/rfc7231#section-3.1.1.1)

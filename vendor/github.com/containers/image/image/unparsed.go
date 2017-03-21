@@ -36,8 +36,8 @@ func (i *UnparsedImage) Reference() types.ImageReference {
 }
 
 // Close removes resources associated with an initialized UnparsedImage, if any.
-func (i *UnparsedImage) Close() {
-	i.src.Close()
+func (i *UnparsedImage) Close() error {
+	return i.src.Close()
 }
 
 // Manifest is like ImageSource.GetManifest, but the result is cached; it is OK to call this however often you need.

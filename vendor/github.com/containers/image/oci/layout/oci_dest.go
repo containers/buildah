@@ -31,7 +31,8 @@ func (d *ociImageDestination) Reference() types.ImageReference {
 }
 
 // Close removes resources associated with an initialized ImageDestination, if any.
-func (d *ociImageDestination) Close() {
+func (d *ociImageDestination) Close() error {
+	return nil
 }
 
 func (d *ociImageDestination) SupportedManifestMIMETypes() []string {

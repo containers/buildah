@@ -2,7 +2,6 @@ package pb
 
 import (
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -17,6 +16,13 @@ const (
 	U_DURATION
 )
 
+const (
+	KiB = 1024
+	MiB = 1048576
+	GiB = 1073741824
+	TiB = 1099511627776
+)
+
 func Format(i int64) *formatter {
 	return &formatter{n: i}
 }
@@ -26,11 +32,6 @@ type formatter struct {
 	unit   Units
 	width  int
 	perSec bool
-}
-
-func (f *formatter) Value(n int64) *formatter {
-	f.n = n
-	return f
 }
 
 func (f *formatter) To(unit Units) *formatter {
@@ -53,12 +54,7 @@ func (f *formatter) String() (out string) {
 	case U_BYTES:
 		out = formatBytes(f.n)
 	case U_DURATION:
-		d := time.Duration(f.n)
-		if d > time.Hour*24 {
-			out = fmt.Sprintf("%dd", d/24/time.Hour)
-			d -= (d / time.Hour / 24) * (time.Hour * 24)
-		}
-		out = fmt.Sprintf("%s%v", out, d)
+		out = formatDuration(f.n)
 	default:
 		out = fmt.Sprintf(fmt.Sprintf("%%%dd", f.width), f.n)
 	}
@@ -68,20 +64,29 @@ func (f *formatter) String() (out string) {
 	return
 }
 
-// Convert bytes to human readable string. Like a 2 MB, 64.2 KB, 52 B
+// Convert bytes to human readable string. Like a 2 MiB, 64.2 KiB, 52 B
 func formatBytes(i int64) (result string) {
 	switch {
-	case i > (1024 * 1024 * 1024 * 1024):
-		result = fmt.Sprintf("%.02f TB", float64(i)/1024/1024/1024/1024)
-	case i > (1024 * 1024 * 1024):
-		result = fmt.Sprintf("%.02f GB", float64(i)/1024/1024/1024)
-	case i > (1024 * 1024):
-		result = fmt.Sprintf("%.02f MB", float64(i)/1024/1024)
-	case i > 1024:
-		result = fmt.Sprintf("%.02f KB", float64(i)/1024)
+	case i >= TiB:
+		result = fmt.Sprintf("%.02f TiB", float64(i)/TiB)
+	case i >= GiB:
+		result = fmt.Sprintf("%.02f GiB", float64(i)/GiB)
+	case i >= MiB:
+		result = fmt.Sprintf("%.02f MiB", float64(i)/MiB)
+	case i >= KiB:
+		result = fmt.Sprintf("%.02f KiB", float64(i)/KiB)
 	default:
 		result = fmt.Sprintf("%d B", i)
 	}
-	result = strings.Trim(result, " ")
+	return
+}
+
+func formatDuration(n int64) (result string) {
+	d := time.Duration(n)
+	if d > time.Hour*24 {
+		result = fmt.Sprintf("%dd", d/24/time.Hour)
+		d -= (d / time.Hour / 24) * (time.Hour * 24)
+	}
+	result = fmt.Sprintf("%s%v", result, d)
 	return
 }

@@ -10,6 +10,7 @@ import (
 	"path"
 
 	"github.com/containers/image/manifest"
+	"github.com/containers/image/pkg/compression"
 	"github.com/containers/image/types"
 	"github.com/docker/docker/client"
 	"github.com/opencontainers/go-digest"
@@ -91,8 +92,8 @@ func (s *daemonImageSource) Reference() types.ImageReference {
 }
 
 // Close removes resources associated with an initialized ImageSource, if any.
-func (s *daemonImageSource) Close() {
-	_ = os.Remove(s.tarCopyPath)
+func (s *daemonImageSource) Close() error {
+	return os.Remove(s.tarCopyPath)
 }
 
 // tarReadCloser is a way to close the backing file of a tar.Reader when the user no longer needs the tar component.
@@ -334,6 +335,18 @@ func (s *daemonImageSource) GetTargetManifest(digest digest.Digest) ([]byte, str
 	return nil, "", errors.Errorf(`Manifest lists are not supported by "docker-daemon:"`)
 }
 
+type readCloseWrapper struct {
+	io.Reader
+	closeFunc func() error
+}
+
+func (r readCloseWrapper) Close() error {
+	if r.closeFunc != nil {
+		return r.closeFunc()
+	}
+	return nil
+}
+
 // GetBlob returns a stream for the specified blob, and the blob’s size (or -1 if unknown).
 func (s *daemonImageSource) GetBlob(info types.BlobInfo) (io.ReadCloser, int64, error) {
 	if err := s.ensureCachedDataIsPresent(); err != nil {
@@ -349,7 +362,37 @@ func (s *daemonImageSource) GetBlob(info types.BlobInfo) (io.ReadCloser, int64, 
 		if err != nil {
 			return nil, 0, err
 		}
-		return stream, li.size, nil
+
+		// In order to handle the fact that digests != diffIDs (and thus that a
+		// caller which is trying to verify the blob will run into problems),
+		// we need to decompress blobs. This is a bit ugly, but it's a
+		// consequence of making everything addressable by their DiffID rather
+		// than by their digest...
+		//
+		// In particular, because the v2s2 manifest being generated uses
+		// DiffIDs, any caller of GetBlob is going to be asking for DiffIDs of
+		// layers not their _actual_ digest. The result is that copy/... will
+		// be verifing a "digest" which is not the actual layer's digest (but
+		// is instead the DiffID).
+
+		decompressFunc, reader, err := compression.DetectCompression(stream)
+		if err != nil {
+			return nil, 0, errors.Wrapf(err, "Detecting compression in blob %s", info.Digest)
+		}
+
+		if decompressFunc != nil {
+			reader, err = decompressFunc(reader)
+			if err != nil {
+				return nil, 0, errors.Wrapf(err, "Decompressing blob %s stream", info.Digest)
+			}
+		}
+
+		newStream := readCloseWrapper{
+			Reader:    reader,
+			closeFunc: stream.Close,
+		}
+
+		return newStream, li.size, nil
 	}
 
 	return nil, 0, errors.Errorf("Unknown blob %s", info.Digest)

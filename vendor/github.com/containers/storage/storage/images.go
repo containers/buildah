@@ -142,6 +142,9 @@ func (r *imageStore) Load() error {
 
 func (r *imageStore) Save() error {
 	rpath := r.imagespath()
+	if err := os.MkdirAll(filepath.Dir(rpath), 0700); err != nil {
+		return err
+	}
 	jdata, err := json.Marshal(&r.images)
 	if err != nil {
 		return err
