@@ -149,5 +149,9 @@ func main() {
 			ArgsUsage:   "CONTAINER-NAME-OR-ID",
 		},
 	}
-	app.Run(os.Args)
+	err := app.Run(os.Args)
+	if err != nil {
+		logrus.Errorf("%v", err)
+		os.Exit(1)
+	}
 }
