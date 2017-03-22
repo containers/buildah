@@ -13,8 +13,9 @@ var (
 			Usage: "`name or ID` of the working container",
 		},
 		cli.StringFlag{
-			Name:  "root",
-			Usage: "`root directory` of the working container",
+			Name:   "root",
+			Usage:  "root `directory` of the working container",
+			EnvVar: "BUILDAHROOT",
 		},
 		cli.StringFlag{
 			Name:  "link",
@@ -30,10 +31,7 @@ func deleteCmd(c *cli.Context) error {
 	if c.IsSet("name") {
 		name = c.String("name")
 	}
-	root := ""
-	if c.IsSet("root") {
-		root = c.String("root")
-	}
+	root := c.String("root")
 	link := ""
 	if c.IsSet("link") {
 		link = c.String("link")
