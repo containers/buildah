@@ -17,101 +17,74 @@ const (
 )
 
 var (
-	configurationFlags = []cli.Flag{
+	configFlags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "name",
+			Usage: "`name or ID` of the working container",
+		},
+		cli.StringFlag{
+			Name:  "root",
+			Usage: "root `directory` of the working container",
+		},
+		cli.StringFlag{
+			Name:  "link",
+			Usage: "`pathname` of a symbolic link to the root directory of the working container",
+		},
 		cli.StringFlag{
 			Name:  "author",
-			Usage: "image author contact information",
+			Usage: "image author contact `information`",
 		},
 		cli.StringFlag{
 			Name:  "created-by",
-			Usage: "description of how the image was created",
+			Usage: "`description` of how the image was created",
 			Value: DefaultCreatedBy,
 		},
 		cli.StringFlag{
 			Name:  "arch",
-			Usage: "image target architecture",
+			Usage: "`architecture` of the target image",
 		},
 		cli.StringFlag{
 			Name:  "os",
-			Usage: "image target operating system",
+			Usage: "`operating system` of the target image",
 		},
 		cli.StringFlag{
 			Name:  "user",
-			Usage: "user to run containers based on image as",
+			Usage: "`user` to run containers based on image as",
 		},
 		cli.StringSliceFlag{
 			Name:  "port",
-			Usage: "port to expose when running containers based on image",
+			Usage: "`port` to expose when running containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "env",
-			Usage: "environment variable to set when running containers based on image",
+			Usage: "`environment variable` to set when running containers based on image",
 		},
 		cli.StringFlag{
 			Name:  "entrypoint",
-			Usage: "entry point for containers based on image",
+			Usage: "`entry point` for containers based on image",
 		},
 		cli.StringFlag{
 			Name:  "cmd",
-			Usage: "command for containers based on image",
+			Usage: "`command` for containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "volume",
-			Usage: "volume to create for containers based on image",
+			Usage: "`volume` to create for containers based on image",
 		},
 		cli.StringFlag{
 			Name:  "workingdir",
-			Usage: "initial working directory for containers based on image",
+			Usage: "working `directory` for containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "label",
-			Usage: "image configuration label e.g. label=value",
+			Usage: "image configuration `label` e.g. label=value",
 		},
 		cli.StringSliceFlag{
 			Name:  "annotation",
-			Usage: "image annotation e.g. annotation=value",
+			Usage: "`annotation` e.g. annotation=value, for the target image",
 		},
 	}
-	runConfigurationFlags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "user",
-			Usage: "user to run containers based on image as",
-		},
-		cli.StringSliceFlag{
-			Name:  "port",
-			Usage: "port to expose when running containers based on image",
-		},
-		cli.StringSliceFlag{
-			Name:  "env",
-			Usage: "environment variable to set when running containers based on image",
-		},
-		cli.StringSliceFlag{
-			Name:  "volume",
-			Usage: "volume to create for containers based on image",
-		},
-		cli.StringFlag{
-			Name:  "workingdir",
-			Usage: "initial working directory for containers based on image",
-		},
-		cli.StringFlag{
-			Name:  "hostname",
-			Usage: "hostname to set for the command",
-		},
-	}
-	configFlags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "name",
-			Usage: "name or ID of the working container",
-		},
-		cli.StringFlag{
-			Name:  "root",
-			Usage: "root directory of the working container",
-		},
-		cli.StringFlag{
-			Name:  "link",
-			Usage: "symlink to the root directory of the working container",
-		},
-	}
+	configDescription = "Modifies the configuration values which will be saved to the image"
 )
 
 func updateConfig(builder *buildah.Builder, c *cli.Context) {
@@ -196,6 +169,7 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 }
 
 func configCmd(c *cli.Context) error {
+	args := c.Args()
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
@@ -209,7 +183,11 @@ func configCmd(c *cli.Context) error {
 		link = c.String("link")
 	}
 	if name == "" && root == "" && link == "" {
-		return fmt.Errorf("either --name or --root or --link, or some combination, must be specified")
+		if len(args) == 0 {
+			return fmt.Errorf("either a container name or --root or --link, or some combination, must be specified")
+		}
+		name = args[0]
+		args = args.Tail()
 	}
 
 	store, err := getStore(c)

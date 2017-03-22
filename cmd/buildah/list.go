@@ -14,6 +14,7 @@ var (
 			Usage: "omit column headings",
 		},
 	}
+	listDescription = "Lists containers which appear to be " + buildah.Package + " working containers, their\n   names and IDs, and the names and IDs of the images from which they were\n   initialized"
 )
 
 func listCmd(c *cli.Context) error {

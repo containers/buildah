@@ -13,32 +13,34 @@ var (
 	commitFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name or ID of the working container",
+			Usage: "`name or ID` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
-			Usage: "root directory of the working container",
+			Usage: "root `directory` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "symlink to the root directory of the working container",
+			Usage: "`pathname` of a symbolic link to the root directory of the working container",
 		},
 		cli.BoolFlag{
-			Name:  "do-not-compress",
+			Name:  "disable-compression",
 			Usage: "don't compress layers",
 		},
 		cli.StringFlag{
 			Name:  "output",
-			Usage: "image to create",
+			Usage: "`name` of output image to write",
 		},
 		cli.StringFlag{
 			Name:  "signature-policy",
-			Usage: "signature policy path",
+			Usage: "`pathname` of signature policy file (not usually used)",
 		},
 	}
+	commitDescription = "Writes a new image using the container's read-write layer and, if it is based\n   on an image, the layers of that image"
 )
 
 func commitCmd(c *cli.Context) error {
+	args := c.Args()
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
@@ -60,14 +62,22 @@ func commitCmd(c *cli.Context) error {
 		signaturePolicy = c.String("signature-policy")
 	}
 	compress := archive.Uncompressed
-	if !c.IsSet("do-not-compress") || !c.Bool("do-not-compress") {
+	if !c.IsSet("disable-compression") || !c.Bool("disable-compression") {
 		compress = archive.Gzip
 	}
-	if output == "" {
-		return fmt.Errorf("the --output flag must be specified")
-	}
 	if name == "" && root == "" && link == "" {
-		return fmt.Errorf("either --name or --root or --link, or some combination, must be specified")
+		if len(args) == 0 {
+			return fmt.Errorf("either a container name or --root or --link, or some combination, must be specified")
+		}
+		name = args[0]
+		args = args.Tail()
+	}
+	if output == "" {
+		if len(args) == 0 {
+			return fmt.Errorf("an image name or the --output flag must be specified")
+		}
+		output = args[0]
+		args = args.Tail()
 	}
 
 	store, err := getStore(c)
@@ -89,10 +99,9 @@ func commitCmd(c *cli.Context) error {
 		Compression:         compress,
 		SignaturePolicyPath: signaturePolicy,
 	}
-	updateConfig(builder, c)
 	err = builder.Commit(dest, options)
 	if err != nil {
-		return fmt.Errorf("error committing container to %q: %v", output, err)
+		return fmt.Errorf("error committing container %q to %q: %v", builder.Container, output, err)
 	}
 
 	return nil

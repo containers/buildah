@@ -10,20 +10,22 @@ var (
 	umountFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name or ID of the working container",
+			Usage: "`name or ID` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
-			Usage: "root directory of the working container",
+			Usage: "root `directory` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "a symlink to the root directory of the working container",
+			Usage: "`pathname` of a symbolic link to the root directory of the working container",
 		},
 	}
+	umountDescription = "Unmounts a working container's root filesystem"
 )
 
 func umountCmd(c *cli.Context) error {
+	args := c.Args()
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
@@ -40,7 +42,11 @@ func umountCmd(c *cli.Context) error {
 		}
 	}
 	if name == "" && root == "" && link == "" {
-		return fmt.Errorf("either --name or --root or --link, or some combination, must be specified")
+		if len(args) == 0 {
+			return fmt.Errorf("either a container name or --root or --link, or some combination, must be specified")
+		}
+		name = args[0]
+		args = args.Tail()
 	}
 
 	store, err := getStore(c)
@@ -55,7 +61,7 @@ func umountCmd(c *cli.Context) error {
 
 	err = builder.Unmount()
 	if err != nil {
-		return fmt.Errorf("error unmounting container: %v", err)
+		return fmt.Errorf("error unmounting container %q: %v", builder.Container, err)
 	}
 
 	return nil

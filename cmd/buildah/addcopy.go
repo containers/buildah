@@ -10,25 +10,28 @@ var (
 	addFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name or ID of the working container",
+			Usage: "`name or ID` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
-			Usage: "root directory of the working container",
+			Usage: "root `directory` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "a symlink to the root directory of the working container",
+			Usage: "`pathname` of a symbolic link to the root directory of the working container",
 		},
 		cli.StringFlag{
 			Name:  "dest",
-			Usage: "destination directory in the working container's filesystem",
+			Usage: "destination `directory` (if absolute) or subdirectory of the working directory (if relative) in the working container's filesystem",
 		},
 	}
-	copyFlags = addFlags
+	copyFlags       = addFlags
+	addDescription  = "Adds the contents of a file, URL, or directory to a container's working\n   directory.  If a local file appears to be an archive, its contents are\n   extracted and added instead of the archive file itself."
+	copyDescription = "Copies the contents of a file, URL, or directory into a container's working\n   directory"
 )
 
 func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
+	args := c.Args()
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
@@ -49,7 +52,11 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 		dest = c.String("dest")
 	}
 	if name == "" && root == "" && link == "" {
-		return fmt.Errorf("either --name or --root or --link, or some combination, must be specified")
+		if len(args) == 0 {
+			return fmt.Errorf("either a container name or --root or --link, or some combination, must be specified")
+		}
+		name = args[0]
+		args = args.Tail()
 	}
 
 	store, err := getStore(c)
@@ -62,9 +69,9 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 		return fmt.Errorf("error reading build container %q: %v", name, err)
 	}
 
-	err = builder.Add(dest, extractLocalArchives, c.Args()...)
+	err = builder.Add(dest, extractLocalArchives, args...)
 	if err != nil {
-		return fmt.Errorf("error adding content to container: %v", err)
+		return fmt.Errorf("error adding content to container %q: %v", builder.Container, err)
 	}
 
 	return nil

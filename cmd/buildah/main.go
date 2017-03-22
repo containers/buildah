@@ -5,11 +5,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/reexec"
+	"github.com/containers/storage/storage"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
 
 func main() {
+	var defaultStoreDriverOptions *cli.StringSlice
 	if reexec.Init() {
 		return
 	}
@@ -17,22 +19,30 @@ func main() {
 	app := cli.NewApp()
 	app.Name = buildah.Package
 	app.Usage = "an image builder"
+	if len(storage.DefaultStoreOptions.GraphDriverOptions) > 0 {
+		var optionSlice cli.StringSlice = storage.DefaultStoreOptions.GraphDriverOptions[:]
+		defaultStoreDriverOptions = &optionSlice
+	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "root",
 			Usage: "storage root dir",
+			Value: storage.DefaultStoreOptions.GraphRoot,
 		},
 		cli.StringFlag{
 			Name:  "runroot",
 			Usage: "storage state dir",
+			Value: storage.DefaultStoreOptions.RunRoot,
 		},
 		cli.StringFlag{
 			Name:  "storage-driver",
 			Usage: "storage driver",
+			Value: storage.DefaultStoreOptions.GraphDriverName,
 		},
 		cli.StringSliceFlag{
 			Name:  "storage-option",
 			Usage: "storage driver option",
+			Value: defaultStoreDriverOptions,
 		},
 		cli.BoolFlag{
 			Name:  "debug",
@@ -59,79 +69,84 @@ func main() {
 	app.Commands = []cli.Command{
 		{
 			Name:        "from",
-			Aliases:     []string{"f"},
-			Usage:       "create a working container based on an image",
-			Description: "creates a working container based on an image",
+			Usage:       "Create a working container based on an image",
+			Description: fromDescription,
 			Flags:       fromFlags,
 			Action:      fromCmd,
+			ArgsUsage:   "IMAGE [CONTAINER-NAME]",
 		},
 		{
 			Name:        "list",
-			Aliases:     []string{"l"},
-			Usage:       "list working containers and their base images",
-			Description: "lists working containers and their base images",
+			Usage:       "List working containers and their base images",
+			Description: listDescription,
 			Flags:       listFlags,
 			Action:      listCmd,
+			ArgsUsage:   " ",
 		},
 		{
 			Name:        "mount",
-			Aliases:     []string{"m"},
-			Usage:       "mount and create a symbolic link to a working container's filesystem root",
-			Description: "mounts and creates a symbolic link to a working container's filesystem root",
+			Usage:       "Mount a working container's filesystem root",
+			Description: mountDescription,
 			Flags:       mountFlags,
 			Action:      mountCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID",
 		},
 		{
 			Name:        "umount",
-			Aliases:     []string{"u", "unmount"},
-			Usage:       "unmount and remove a symbolic link to a working container's filesystem root",
-			Description: "unmounts and removes a symbolic link to a working container's filesystem root",
+			Aliases:     []string{"unmount"},
+			Usage:       "Unmount a working container's filesystem root",
+			Description: umountDescription,
 			Flags:       umountFlags,
 			Action:      umountCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID",
 		},
 		{
 			Name:        "add",
-			Usage:       "add content to the container",
-			Description: "add content to the container's filesystem",
+			Usage:       "Add content to the container",
+			Description: addDescription,
 			Flags:       addFlags,
 			Action:      addCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID [[FILE | DIRECTORY | URL] ...]",
 		},
 		{
 			Name:        "copy",
-			Usage:       "copy content into the container",
-			Description: "copy content into the container's filesystem",
+			Usage:       "Copy content into the container",
+			Description: copyDescription,
 			Flags:       copyFlags,
 			Action:      copyCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID [[FILE | DIRECTORY | URL] ...]",
 		},
 		{
 			Name:        "run",
-			Usage:       "run a command inside of the container",
-			Description: "runs a command using the container's root filesystem",
-			Flags:       append(runFlags, runConfigurationFlags...),
+			Usage:       "Run a command inside of the container",
+			Description: runDescription,
+			Flags:       runFlags,
 			Action:      runCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID COMMAND [ARGS [...]]",
 		},
 		{
 			Name:        "config",
-			Usage:       "update image configuration settings",
-			Description: "updates a working container's image configuration settings",
-			Flags:       append(configFlags, configurationFlags...),
+			Usage:       "Update image configuration settings",
+			Description: configDescription,
+			Flags:       configFlags,
 			Action:      configCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID",
 		},
 		{
 			Name:        "commit",
-			Aliases:     []string{"c"},
-			Usage:       "create an image from a working container",
-			Description: "creates an image from a working container",
-			Flags:       append(commitFlags, configurationFlags...),
+			Usage:       "Create an image from a working container",
+			Description: commitDescription,
+			Flags:       commitFlags,
 			Action:      commitCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID IMAGE",
 		},
 		{
 			Name:        "delete",
-			Aliases:     []string{"d"},
-			Usage:       "delete a working container",
-			Description: "deletes a working container",
+			Usage:       "Delete a working container",
+			Description: deleteDescription,
 			Flags:       deleteFlags,
 			Action:      deleteCmd,
+			ArgsUsage:   "CONTAINER-NAME-OR-ID",
 		},
 	}
 	app.Run(os.Args)

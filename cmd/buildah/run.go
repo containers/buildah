@@ -15,19 +15,19 @@ var (
 	runFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "name",
-			Usage: "name or ID of the working container",
+			Usage: "`name or ID` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "root",
-			Usage: "root directory of the working container",
+			Usage: "root `directory` of the working container",
 		},
 		cli.StringFlag{
 			Name:  "link",
-			Usage: "symlink to the root directory of the working container",
+			Usage: "`pathname` of a symbolic link to the root directory of the working container",
 		},
 		cli.StringFlag{
 			Name:  "runtime",
-			Usage: "use an alternate runtime",
+			Usage: "`path` to an alternate runtime",
 			Value: buildah.DefaultRuntime,
 		},
 		cli.StringSliceFlag{
@@ -35,9 +35,11 @@ var (
 			Usage: "add global flags for the container runtime",
 		},
 	}
+	runDescription = "Runs a specified command using the container's root filesystem as a root\n   filesystem, using configuration settings inherited from the container's\n   image or as specified using previous calls to the config command"
 )
 
 func runCmd(c *cli.Context) error {
+	args := c.Args()
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
@@ -62,7 +64,11 @@ func runCmd(c *cli.Context) error {
 		runtime = c.String("runtime")
 	}
 	if name == "" && root == "" && link == "" {
-		return fmt.Errorf("either --name or --root or --link, or some combination, must be specified")
+		if len(args) == 0 {
+			return fmt.Errorf("either a container name or --root or --link, or some combination, must be specified")
+		}
+		name = args[0]
+		args = args.Tail()
 	}
 
 	store, err := getStore(c)
@@ -75,7 +81,6 @@ func runCmd(c *cli.Context) error {
 		return fmt.Errorf("error reading build container %q: %v", name, err)
 	}
 
-	updateConfig(builder, c)
 	hostname := ""
 	if c.IsSet("hostname") {
 		hostname = c.String("hostname")
@@ -85,9 +90,9 @@ func runCmd(c *cli.Context) error {
 		Runtime:  runtime,
 		Args:     flags,
 	}
-	runerr := builder.Run(c.Args(), options)
+	runerr := builder.Run(args, options)
 	if runerr != nil {
-		logrus.Debugf("error running %v in container: %v", c.Args(), runerr)
+		logrus.Debugf("error running %v in container %q: %v", args, builder.Container, runerr)
 	}
 	if ee, ok := runerr.(*exec.ExitError); ok {
 		if w, ok := ee.Sys().(syscall.WaitStatus); ok {
