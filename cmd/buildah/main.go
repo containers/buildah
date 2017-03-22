@@ -149,5 +149,6 @@ func main() {
 			ArgsUsage:   "CONTAINER-NAME-OR-ID",
 		},
 	}
+	app.EnableBashCompletion = true
 	app.Run(os.Args)
 }
