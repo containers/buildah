@@ -8,7 +8,7 @@ load helpers
 	fi
 	createrandom ${TESTDIR}/randomfile
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
-	root=$(buildah mount --name=$cid)
+	root=$(buildah mount $cid)
 	buildah config --name=$cid --workingdir /tmp
 	run buildah --debug=false run --name=$cid pwd
 	output=$(echo "$output" | tr -d '\r')
@@ -21,6 +21,6 @@ load helpers
 	buildah run        $cid cp /tmp/randomfile /tmp/other-randomfile
 	test -s $root/tmp/other-randomfile
 	cmp ${TESTDIR}/randomfile $root/tmp/other-randomfile
-	buildah unmount --name=$cid
+	buildah unmount $cid
 	buildah delete --name=$cid
 }

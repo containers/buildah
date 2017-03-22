@@ -7,7 +7,7 @@ load helpers
 	createrandom ${TESTDIR}/other-randomfile
 
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
-	root=$(buildah mount --name=$cid)
+	root=$(buildah mount $cid)
 	mkdir $root/subdir $root/other-subdir
 	# Copy a file to the working directory
 	buildah config --workingdir=/ --name=$cid
@@ -21,12 +21,12 @@ load helpers
 	# Copy a file to a different working directory
 	buildah config --workingdir=/cwd --name=$cid
 	buildah add --name=$cid ${TESTDIR}/randomfile
-	buildah unmount --name=$cid
+	buildah unmount $cid
 	buildah commit --signature-policy ${TESTSDIR}/policy.json --name=$cid --output=containers-storage:new-image
 	buildah delete --name=$cid
 
 	newcid=$(buildah from --image new-image)
-	newroot=$(buildah mount --name=$newcid)
+	newroot=$(buildah mount $newcid)
 	test -s $newroot/randomfile
 	cmp ${TESTDIR}/randomfile $newroot/randomfile
 	test -s $newroot/subdir/randomfile
@@ -51,7 +51,7 @@ load helpers
 	createrandom ${TESTDIR}/other-randomfile
 
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
-	root=$(buildah mount --name=$cid)
+	root=$(buildah mount $cid)
 	dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/random1
 	dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/random2
 	tar -c -C ${TESTDIR}    -f ${TESTDIR}/tarball1.tar random1 random2
@@ -73,12 +73,12 @@ load helpers
 	buildah add --name=$cid ${TESTDIR}/tarball2.tar.gz
 	buildah add --name=$cid ${TESTDIR}/tarball3.tar.bz2
 	buildah add        $cid ${TESTDIR}/tarball4.tar.bz2
-	buildah unmount --name=$cid
+	buildah unmount $cid
 	buildah commit --signature-policy ${TESTSDIR}/policy.json --name=$cid --output=containers-storage:new-image
 	buildah delete --name=$cid
 
 	newcid=$(buildah from --image new-image)
-	newroot=$(buildah mount --name=$newcid)
+	newroot=$(buildah mount $newcid)
 	test -s $newroot/random1
 	cmp ${TESTDIR}/random1 $newroot/random1
 	test -s $newroot/random2

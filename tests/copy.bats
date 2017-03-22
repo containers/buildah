@@ -7,16 +7,16 @@ load helpers
 	createrandom ${TESTDIR}/other-randomfile
 
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
-	root=$(buildah mount --name=$cid)
+	root=$(buildah mount $cid)
 	buildah config --name=$cid --workingdir /
 	buildah copy --name=$cid ${TESTDIR}/randomfile
 	buildah copy        $cid ${TESTDIR}/other-randomfile
-	buildah unmount --name=$cid
+	buildah unmount $cid
 	buildah commit --signature-policy ${TESTSDIR}/policy.json --name=$cid --output=containers-storage:new-image
 	buildah delete --name=$cid
 
 	newcid=$(buildah from --image new-image)
-	newroot=$(buildah mount --name=$newcid)
+	newroot=$(buildah mount $newcid)
 	test -s $newroot/randomfile
 	cmp ${TESTDIR}/randomfile $newroot/randomfile
 	test -s $newroot/other-randomfile
