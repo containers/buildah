@@ -16,8 +16,11 @@ load helpers
 	buildah add --name=$cid --dest=/subdir ${TESTDIR}/randomfile
 	# Copy a file two files to a specific subdirectory
 	buildah add --name=$cid --dest=/other-subdir ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile
-	# Copy a file two files to a specific location, created as a subdirectory
-	buildah add --name=$cid --dest=/notthereyet-subdir ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile
+	# Copy a file two files to a specific location, which fails because it's not a directory.
+	run buildah add --name=$cid --dest=/notthereyet-subdir ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile
+	[ $status -ne 0 ]
+	run buildah add --name=$cid --dest=/randomfile ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile
+	[ $status -ne 0 ]
 	# Copy a file to a different working directory
 	buildah config --workingdir=/cwd --name=$cid
 	buildah add --name=$cid ${TESTDIR}/randomfile
@@ -35,11 +38,6 @@ load helpers
 	cmp ${TESTDIR}/randomfile $newroot/other-subdir/randomfile
 	test -s $newroot/other-subdir/other-randomfile
 	cmp ${TESTDIR}/other-randomfile $newroot/other-subdir/other-randomfile
-	test -d $newroot/notthereyet-subdir
-	test -s $newroot/notthereyet-subdir/randomfile
-	cmp ${TESTDIR}/randomfile $newroot/notthereyet-subdir/randomfile
-	test -s $newroot/notthereyet-subdir/other-randomfile
-	cmp ${TESTDIR}/other-randomfile $newroot/notthereyet-subdir/other-randomfile
 	test -d $newroot/cwd
 	test -s $newroot/cwd/randomfile
 	cmp ${TESTDIR}/randomfile $newroot/cwd/randomfile

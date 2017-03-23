@@ -55,12 +55,20 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 		}
 		dest = filepath.Join(dest, b.Workdir, destination)
 	}
-	// Make sure the destination is usable.
-	if fi, err := os.Stat(dest); err == nil && !fi.Mode().IsDir() {
-		return fmt.Errorf("%q already exists, but is not a subdirectory)", dest)
+	// Make sure the destination's parent directory is usable.
+	if fi, err := os.Stat(filepath.Dir(dest)); err == nil && !fi.Mode().IsDir() {
+		return fmt.Errorf("%q already exists, but is not a subdirectory)", filepath.Dir(dest))
 	}
-	if err := os.MkdirAll(dest, 0755); err != nil {
-		return fmt.Errorf("error ensuring directory %q exists: %v)", dest, err)
+	// Now look at the destination itself.
+	destfi, err := os.Stat(dest)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("couldn't determine what %q is: %v)", dest, err)
+		}
+		destfi = nil
+	}
+	if len(source) > 1 && (destfi == nil || !destfi.Mode().IsDir()) {
+		return fmt.Errorf("destination %q is not a directory", dest)
 	}
 	for _, src := range source {
 		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
@@ -71,22 +79,28 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 			if err != nil {
 				return fmt.Errorf("error parsing URL %q: %v", src, err)
 			}
-			d := filepath.Join(dest, path.Base(url.Path))
+			d := dest
+			if destfi != nil && destfi.Mode().IsDir() {
+				d = filepath.Join(dest, path.Base(url.Path))
+			}
 			if err := addUrl(d, src); err != nil {
 				return err
 			}
 			continue
 		}
-		fi, err := os.Stat(src)
+		srcfi, err := os.Stat(src)
 		if err != nil {
 			return fmt.Errorf("error reading %q: %v", src, err)
 		}
-		if fi.Mode().IsDir() {
-			// The source is a directory, so we're creating a
-			// subdirectory of the destination.  Create it first,
-			// so that we'll notice if it exists and isn't a
-			// subdirectory.
-			d := filepath.Join(dest, filepath.Base(src))
+		if srcfi.Mode().IsDir() {
+			// The source is a directory, so we're either creating
+			// the destination or a subdirectory of the
+			// destination.  Try to create it first, so that we can
+			// detect if there's already something there.
+			d := dest
+			if destfi != nil && destfi.Mode().IsDir() {
+				d = filepath.Join(dest, filepath.Base(src))
+			}
 			if err := os.MkdirAll(d, 0755); err != nil {
 				return fmt.Errorf("error ensuring directory %q exists: %v)", dest, err)
 			}
@@ -100,7 +114,10 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 			// This source is a file, and either it's not an
 			// archive, or we don't care whether or not it's an
 			// archive.
-			d := filepath.Join(dest, filepath.Base(src))
+			d := dest
+			if destfi != nil && destfi.Mode().IsDir() {
+				d = filepath.Join(dest, filepath.Base(src))
+			}
 			// Copy the file, preserving attributes.
 			logrus.Debugf("copying %q to %q", src, d)
 			if err := chrootarchive.CopyFileWithTar(src, d); err != nil {
