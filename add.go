@@ -40,13 +40,20 @@ func addUrl(destination, srcurl string) error {
 	return nil
 }
 
-// Add copies contents into the container's root filesystem, optionally
-// extracting contents of local files that look like non-empty archives.
+// Add copies the contents of the specified sources into the container's root
+// filesystem, optionally extracting contents of local files that look like
+// non-empty archives.
 func (b *Builder) Add(destination string, extract bool, source ...string) error {
-	if b.MountPoint == "" {
-		return fmt.Errorf("build container is not mounted")
+	mountPoint, err := b.Mount("")
+	if err != nil {
+		return err
 	}
-	dest := b.MountPoint
+	defer func() {
+		if err2 := b.Unmount(); err2 != nil {
+			logrus.Errorf("error unmounting container: %v", err2)
+		}
+	}()
+	dest := mountPoint
 	if destination != "" && filepath.IsAbs(destination) {
 		dest = filepath.Join(dest, destination)
 	} else {
