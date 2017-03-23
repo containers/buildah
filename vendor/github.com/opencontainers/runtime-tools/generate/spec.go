@@ -34,41 +34,41 @@ func (g *Generator) initSpecLinuxSysctl() {
 func (g *Generator) initSpecLinuxSeccomp() {
 	g.initSpecLinux()
 	if g.spec.Linux.Seccomp == nil {
-		g.spec.Linux.Seccomp = &rspec.LinuxSeccomp{}
+		g.spec.Linux.Seccomp = &rspec.Seccomp{}
 	}
 }
 
 func (g *Generator) initSpecLinuxResources() {
 	g.initSpecLinux()
 	if g.spec.Linux.Resources == nil {
-		g.spec.Linux.Resources = &rspec.LinuxResources{}
+		g.spec.Linux.Resources = &rspec.Resources{}
 	}
 }
 
 func (g *Generator) initSpecLinuxResourcesCPU() {
 	g.initSpecLinuxResources()
 	if g.spec.Linux.Resources.CPU == nil {
-		g.spec.Linux.Resources.CPU = &rspec.LinuxCPU{}
+		g.spec.Linux.Resources.CPU = &rspec.CPU{}
 	}
 }
 
 func (g *Generator) initSpecLinuxResourcesMemory() {
 	g.initSpecLinuxResources()
 	if g.spec.Linux.Resources.Memory == nil {
-		g.spec.Linux.Resources.Memory = &rspec.LinuxMemory{}
+		g.spec.Linux.Resources.Memory = &rspec.Memory{}
 	}
 }
 
 func (g *Generator) initSpecLinuxResourcesNetwork() {
 	g.initSpecLinuxResources()
 	if g.spec.Linux.Resources.Network == nil {
-		g.spec.Linux.Resources.Network = &rspec.LinuxNetwork{}
+		g.spec.Linux.Resources.Network = &rspec.Network{}
 	}
 }
 
 func (g *Generator) initSpecLinuxResourcesPids() {
 	g.initSpecLinuxResources()
 	if g.spec.Linux.Resources.Pids == nil {
-		g.spec.Linux.Resources.Pids = &rspec.LinuxPids{}
+		g.spec.Linux.Resources.Pids = &rspec.Pids{}
 	}
 }

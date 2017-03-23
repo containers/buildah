@@ -59,7 +59,8 @@ func (d *dockerImageDestination) Reference() types.ImageReference {
 }
 
 // Close removes resources associated with an initialized ImageDestination, if any.
-func (d *dockerImageDestination) Close() {
+func (d *dockerImageDestination) Close() error {
+	return nil
 }
 
 func (d *dockerImageDestination) SupportedManifestMIMETypes() []string {
@@ -99,27 +100,14 @@ func (c *sizeCounter) Write(p []byte) (n int, err error) {
 // If stream.Read() at any time, ESPECIALLY at end of input, returns an error, PutBlob MUST 1) fail, and 2) delete any data stored so far.
 func (d *dockerImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobInfo) (types.BlobInfo, error) {
 	if inputInfo.Digest.String() != "" {
-		checkURL := fmt.Sprintf(blobsURL, reference.Path(d.ref.ref), inputInfo.Digest.String())
-
-		logrus.Debugf("Checking %s", checkURL)
-		res, err := d.c.makeRequest("HEAD", checkURL, nil, nil)
-		if err != nil {
+		haveBlob, size, err := d.HasBlob(inputInfo)
+		if err != nil && err != types.ErrBlobNotFound {
 			return types.BlobInfo{}, err
 		}
-		defer res.Body.Close()
-		switch res.StatusCode {
-		case http.StatusOK:
-			logrus.Debugf("... already exists, not uploading")
-			return types.BlobInfo{Digest: inputInfo.Digest, Size: getBlobSize(res)}, nil
-		case http.StatusUnauthorized:
-			logrus.Debugf("... not authorized")
-			return types.BlobInfo{}, errors.Errorf("not authorized to read from destination repository %s", reference.Path(d.ref.ref))
-		case http.StatusNotFound:
-			// noop
-		default:
-			return types.BlobInfo{}, errors.Errorf("failed to read from destination repository %s: %v", reference.Path(d.ref.ref), http.StatusText(res.StatusCode))
+		// Now err == nil || err == types.ErrBlobNotFound
+		if err == nil && haveBlob {
+			return types.BlobInfo{Digest: inputInfo.Digest, Size: size}, nil
 		}
-		logrus.Debugf("... failed, status %d", res.StatusCode)
 	}
 
 	// FIXME? Chunked upload, progress reporting, etc.
@@ -198,10 +186,8 @@ func (d *dockerImageDestination) HasBlob(info types.BlobInfo) (bool, int64, erro
 		logrus.Debugf("... not present")
 		return false, -1, types.ErrBlobNotFound
 	default:
-		logrus.Errorf("failed to read from destination repository %s: %v", reference.Path(d.ref.ref), http.StatusText(res.StatusCode))
+		return false, -1, errors.Errorf("failed to read from destination repository %s: %v", reference.Path(d.ref.ref), http.StatusText(res.StatusCode))
 	}
-	logrus.Debugf("... failed, status %d, ignoring", res.StatusCode)
-	return false, -1, types.ErrBlobNotFound
 }
 
 func (d *dockerImageDestination) ReapplyBlob(info types.BlobInfo) (types.BlobInfo, error) {

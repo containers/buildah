@@ -8,7 +8,7 @@ import (
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/signature"
 	is "github.com/containers/image/storage"
-	"github.com/containers/image/transports"
+	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/storage"
 )
@@ -21,9 +21,9 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 		spec = options.Registry + spec
 	}
 
-	srcRef, err := transports.ParseImageName(name)
+	srcRef, err := alltransports.ParseImageName(name)
 	if err != nil {
-		srcRef2, err2 := transports.ParseImageName(spec)
+		srcRef2, err2 := alltransports.ParseImageName(spec)
 		if err2 != nil {
 			return fmt.Errorf("error parsing image name %q: %v", spec, err2)
 		}

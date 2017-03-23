@@ -8,9 +8,14 @@ import (
 	"github.com/containers/image/docker/policyconfiguration"
 	"github.com/containers/image/docker/reference"
 	genericImage "github.com/containers/image/image"
+	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	"github.com/pkg/errors"
 )
+
+func init() {
+	transports.Register(Transport)
+}
 
 // Transport is an ImageTransport for OpenShift registry-hosted images.
 var Transport = openshiftTransport{}

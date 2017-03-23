@@ -13,7 +13,7 @@ import (
 )
 
 // Current version
-const Version = "1.0.6"
+const Version = "1.0.10"
 
 const (
 	// Default refresh rate - 200ms
@@ -173,7 +173,7 @@ func (pb *ProgressBar) Postfix(postfix string) *ProgressBar {
 // Example: bar.Format("[\x00=\x00>\x00-\x00]") // \x00 is the delimiter
 func (pb *ProgressBar) Format(format string) *ProgressBar {
 	var formatEntries []string
-	if len(format) == 5 {
+	if utf8.RuneCountInString(format) == 5 {
 		formatEntries = strings.Split(format, "")
 	} else {
 		formatEntries = strings.Split(format, "\x00")
@@ -364,8 +364,8 @@ func (pb *ProgressBar) write(current int64) {
 
 	// check len
 	out = pb.prefix + countersBox + barBox + percentBox + speedBox + timeLeftBox + pb.postfix
-	if escapeAwareRuneCountInString(out) < width {
-		end = strings.Repeat(" ", width-utf8.RuneCountInString(out))
+	if cl := escapeAwareRuneCountInString(out); cl < width {
+		end = strings.Repeat(" ", width-cl)
 	}
 
 	// and print!

@@ -93,7 +93,7 @@ func DefaultSpec() specs.Spec {
 			"/proc/sys",
 			"/proc/sysrq-trigger",
 		},
-		Namespaces: []specs.LinuxNamespace{
+		Namespaces: []specs.Namespace{
 			{Type: "mount"},
 			{Type: "network"},
 			{Type: "uts"},
@@ -104,61 +104,61 @@ func DefaultSpec() specs.Spec {
 		// null, zero, full, random, urandom, tty, console, and ptmx.
 		// ptmx is a bind-mount or symlink of the container's ptmx.
 		// See also: https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#default-devices
-		Devices: []specs.LinuxDevice{},
-		Resources: &specs.LinuxResources{
-			Devices: []specs.LinuxDeviceCgroup{
+		Devices: []specs.Device{},
+		Resources: &specs.Resources{
+			Devices: []specs.DeviceCgroup{
 				{
 					Allow:  false,
-					Access: "rwm",
+					Access: sPtr("rwm"),
 				},
 				{
 					Allow:  true,
-					Type:   "c",
+					Type:   sPtr("c"),
 					Major:  iPtr(1),
 					Minor:  iPtr(5),
-					Access: "rwm",
+					Access: sPtr("rwm"),
 				},
 				{
 					Allow:  true,
-					Type:   "c",
+					Type:   sPtr("c"),
 					Major:  iPtr(1),
 					Minor:  iPtr(3),
-					Access: "rwm",
+					Access: sPtr("rwm"),
 				},
 				{
 					Allow:  true,
-					Type:   "c",
+					Type:   sPtr("c"),
 					Major:  iPtr(1),
 					Minor:  iPtr(9),
-					Access: "rwm",
+					Access: sPtr("rwm"),
 				},
 				{
 					Allow:  true,
-					Type:   "c",
+					Type:   sPtr("c"),
 					Major:  iPtr(1),
 					Minor:  iPtr(8),
-					Access: "rwm",
+					Access: sPtr("rwm"),
 				},
 				{
 					Allow:  true,
-					Type:   "c",
+					Type:   sPtr("c"),
 					Major:  iPtr(5),
 					Minor:  iPtr(0),
-					Access: "rwm",
+					Access: sPtr("rwm"),
 				},
 				{
 					Allow:  true,
-					Type:   "c",
+					Type:   sPtr("c"),
 					Major:  iPtr(5),
 					Minor:  iPtr(1),
-					Access: "rwm",
+					Access: sPtr("rwm"),
 				},
 				{
 					Allow:  false,
-					Type:   "c",
+					Type:   sPtr("c"),
 					Major:  iPtr(10),
 					Minor:  iPtr(229),
-					Access: "rwm",
+					Access: sPtr("rwm"),
 				},
 			},
 		},

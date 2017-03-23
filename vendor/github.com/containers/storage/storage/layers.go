@@ -252,11 +252,17 @@ func (r *layerStore) Load() error {
 
 func (r *layerStore) Save() error {
 	rpath := r.layerspath()
+	if err := os.MkdirAll(filepath.Dir(rpath), 0700); err != nil {
+		return err
+	}
 	jldata, err := json.Marshal(&r.layers)
 	if err != nil {
 		return err
 	}
 	mpath := r.mountspath()
+	if err := os.MkdirAll(filepath.Dir(mpath), 0700); err != nil {
+		return err
+	}
 	mounts := []layerMountPoint{}
 	for _, layer := range r.layers {
 		if layer.MountPoint != "" && layer.MountCount > 0 {
@@ -846,6 +852,9 @@ func (r *layerStore) ApplyDiff(to string, diff archive.Reader) (size int64, err 
 	size, err = r.driver.ApplyDiff(layer.ID, layer.Parent, payload)
 	compressor.Close()
 	if err == nil {
+		if err := os.MkdirAll(filepath.Dir(r.tspath(layer.ID)), 0700); err != nil {
+			return -1, err
+		}
 		if err := ioutils.AtomicWriteFile(r.tspath(layer.ID), tsdata.Bytes(), 0600); err != nil {
 			return -1, err
 		}

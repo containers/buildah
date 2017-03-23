@@ -28,7 +28,8 @@ func (s *dirImageSource) Reference() types.ImageReference {
 }
 
 // Close removes resources associated with an initialized ImageSource, if any.
-func (s *dirImageSource) Close() {
+func (s *dirImageSource) Close() error {
+	return nil
 }
 
 // GetManifest returns the image's manifest along with its MIME type (which may be empty when it can't be determined but the manifest is available).

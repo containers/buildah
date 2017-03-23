@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -27,7 +26,8 @@ func (s *ociImageSource) Reference() types.ImageReference {
 }
 
 // Close removes resources associated with an initialized ImageSource, if any.
-func (s *ociImageSource) Close() {
+func (s *ociImageSource) Close() error {
+	return nil
 }
 
 // GetManifest returns the image's manifest along with its MIME type (which may be empty when it can't be determined but the manifest is available).
@@ -54,7 +54,7 @@ func (s *ociImageSource) GetManifest() ([]byte, string, error) {
 		return nil, "", err
 	}
 
-	return m, manifest.GuessMIMEType(m), nil
+	return m, desc.MediaType, nil
 }
 
 func (s *ociImageSource) GetTargetManifest(digest digest.Digest) ([]byte, string, error) {
@@ -68,7 +68,11 @@ func (s *ociImageSource) GetTargetManifest(digest digest.Digest) ([]byte, string
 		return nil, "", err
 	}
 
-	return m, manifest.GuessMIMEType(m), nil
+	// XXX: GetTargetManifest means that we don't have the context of what
+	//      mediaType the manifest has. In OCI this means that we don't know
+	//      what reference it came from, so we just *assume* that its
+	//      MediaTypeImageManifest.
+	return m, imgspecv1.MediaTypeImageManifest, nil
 }
 
 // GetBlob returns a stream for the specified blob, and the blob's size.

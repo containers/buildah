@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/containers/image/transports"
+	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
@@ -89,7 +89,7 @@ func commitCmd(c *cli.Context) error {
 		return fmt.Errorf("error reading build container %q: %v", name, err)
 	}
 
-	dest, err := transports.ParseImageName(output)
+	dest, err := alltransports.ParseImageName(output)
 	if err != nil {
 		return fmt.Errorf("error parsing target image name %q: %v", output, err)
 	}

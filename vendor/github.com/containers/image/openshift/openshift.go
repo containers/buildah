@@ -191,11 +191,15 @@ func (s *openshiftImageSource) Reference() types.ImageReference {
 }
 
 // Close removes resources associated with an initialized ImageSource, if any.
-func (s *openshiftImageSource) Close() {
+func (s *openshiftImageSource) Close() error {
 	if s.docker != nil {
-		s.docker.Close()
+		err := s.docker.Close()
 		s.docker = nil
+
+		return err
 	}
+
+	return nil
 }
 
 func (s *openshiftImageSource) GetTargetManifest(digest digest.Digest) ([]byte, string, error) {
@@ -329,8 +333,8 @@ func (d *openshiftImageDestination) Reference() types.ImageReference {
 }
 
 // Close removes resources associated with an initialized ImageDestination, if any.
-func (d *openshiftImageDestination) Close() {
-	d.docker.Close()
+func (d *openshiftImageDestination) Close() error {
+	return d.docker.Close()
 }
 
 func (d *openshiftImageDestination) SupportedManifestMIMETypes() []string {

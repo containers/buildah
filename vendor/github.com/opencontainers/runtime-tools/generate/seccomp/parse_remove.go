@@ -10,7 +10,7 @@ import (
 
 // RemoveAction takes the argument string that was passed with the --remove flag,
 // parses it, and updates the Seccomp config accordingly
-func RemoveAction(arguments string, config *rspec.LinuxSeccomp) error {
+func RemoveAction(arguments string, config *rspec.Seccomp) error {
 	if config == nil {
 		return fmt.Errorf("Cannot remove action from nil Seccomp pointer")
 	}
@@ -33,17 +33,17 @@ func RemoveAction(arguments string, config *rspec.LinuxSeccomp) error {
 }
 
 // RemoveAllSeccompRules removes all seccomp syscall rules
-func RemoveAllSeccompRules(config *rspec.LinuxSeccomp) error {
+func RemoveAllSeccompRules(config *rspec.Seccomp) error {
 	if config == nil {
 		return fmt.Errorf("Cannot remove action from nil Seccomp pointer")
 	}
-	newSyscallSlice := []rspec.LinuxSyscall{}
+	newSyscallSlice := []rspec.Syscall{}
 	config.Syscalls = newSyscallSlice
 	return nil
 }
 
 // RemoveAllMatchingRules will remove any syscall rules that match the specified action
-func RemoveAllMatchingRules(config *rspec.LinuxSeccomp, action string) error {
+func RemoveAllMatchingRules(config *rspec.Seccomp, action string) error {
 	if config == nil {
 		return fmt.Errorf("Cannot remove action from nil Seccomp pointer")
 	}

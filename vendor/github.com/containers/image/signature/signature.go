@@ -120,78 +120,69 @@ func (s *untrustedSignature) UnmarshalJSON(data []byte) error {
 // strictUnmarshalJSON is UnmarshalJSON, except that it may return the internal jsonFormatError error type.
 // Splitting it into a separate function allows us to do the jsonFormatError → InvalidSignatureError in a single place, the caller.
 func (s *untrustedSignature) strictUnmarshalJSON(data []byte) error {
-	var untyped interface{}
-	if err := json.Unmarshal(data, &untyped); err != nil {
-		return err
-	}
-	o, ok := untyped.(map[string]interface{})
-	if !ok {
-		return InvalidSignatureError{msg: "Invalid signature format"}
-	}
-	if err := validateExactMapKeys(o, "critical", "optional"); err != nil {
+	var critical, optional json.RawMessage
+	if err := paranoidUnmarshalJSONObjectExactFields(data, map[string]interface{}{
+		"critical": &critical,
+		"optional": &optional,
+	}); err != nil {
 		return err
 	}
 
-	c, err := mapField(o, "critical")
-	if err != nil {
-		return err
-	}
-	if err := validateExactMapKeys(c, "type", "image", "identity"); err != nil {
-		return err
-	}
-
-	optional, err := mapField(o, "optional")
-	if err != nil {
-		return err
-	}
-	if _, ok := optional["creator"]; ok {
-		creatorID, err := stringField(optional, "creator")
-		if err != nil {
-			return err
+	var creatorID string
+	var timestamp float64
+	var gotCreatorID, gotTimestamp = false, false
+	if err := paranoidUnmarshalJSONObject(optional, func(key string) interface{} {
+		switch key {
+		case "creator":
+			gotCreatorID = true
+			return &creatorID
+		case "timestamp":
+			gotTimestamp = true
+			return &timestamp
+		default:
+			var ignore interface{}
+			return &ignore
 		}
+	}); err != nil {
+		return err
+	}
+	if gotCreatorID {
 		s.UntrustedCreatorID = &creatorID
 	}
-	if _, ok := optional["timestamp"]; ok {
-		timestamp, err := int64Field(optional, "timestamp")
-		if err != nil {
-			return err
+	if gotTimestamp {
+		intTimestamp := int64(timestamp)
+		if float64(intTimestamp) != timestamp {
+			return InvalidSignatureError{msg: "Field optional.timestamp is not is not an integer"}
 		}
-		s.UntrustedTimestamp = &timestamp
+		s.UntrustedTimestamp = &intTimestamp
 	}
 
-	t, err := stringField(c, "type")
-	if err != nil {
+	var t string
+	var image, identity json.RawMessage
+	if err := paranoidUnmarshalJSONObjectExactFields(critical, map[string]interface{}{
+		"type":     &t,
+		"image":    &image,
+		"identity": &identity,
+	}); err != nil {
 		return err
 	}
 	if t != signatureType {
 		return InvalidSignatureError{msg: fmt.Sprintf("Unrecognized signature type %s", t)}
 	}
 
-	image, err := mapField(c, "image")
-	if err != nil {
-		return err
-	}
-	if err := validateExactMapKeys(image, "docker-manifest-digest"); err != nil {
-		return err
-	}
-	digestString, err := stringField(image, "docker-manifest-digest")
-	if err != nil {
+	var digestString string
+	if err := paranoidUnmarshalJSONObjectExactFields(image, map[string]interface{}{
+		"docker-manifest-digest": &digestString,
+	}); err != nil {
 		return err
 	}
 	s.UntrustedDockerManifestDigest = digest.Digest(digestString)
 
-	identity, err := mapField(c, "identity")
-	if err != nil {
+	if err := paranoidUnmarshalJSONObjectExactFields(identity, map[string]interface{}{
+		"docker-reference": &s.UntrustedDockerReference,
+	}); err != nil {
 		return err
 	}
-	if err := validateExactMapKeys(identity, "docker-reference"); err != nil {
-		return err
-	}
-	reference, err := stringField(identity, "docker-reference")
-	if err != nil {
-		return err
-	}
-	s.UntrustedDockerReference = reference
 
 	return nil
 }

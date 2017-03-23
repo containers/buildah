@@ -151,6 +151,9 @@ func (r *containerStore) Load() error {
 
 func (r *containerStore) Save() error {
 	rpath := r.containerspath()
+	if err := os.MkdirAll(filepath.Dir(rpath), 0700); err != nil {
+		return err
+	}
 	jdata, err := json.Marshal(&r.containers)
 	if err != nil {
 		return err

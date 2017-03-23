@@ -2171,8 +2171,8 @@ func makeBigDataBaseName(key string) string {
 }
 
 func init() {
-	DefaultStoreOptions.RunRoot = "/var/run/containers"
-	DefaultStoreOptions.GraphRoot = "/var/lib/containers"
+	DefaultStoreOptions.RunRoot = "/var/run/containers/storage"
+	DefaultStoreOptions.GraphRoot = "/var/lib/containers/storage"
 	DefaultStoreOptions.GraphDriverName = os.Getenv("STORAGE_DRIVER")
 	DefaultStoreOptions.GraphDriverOptions = strings.Split(os.Getenv("STORAGE_OPTS"), ",")
 	if len(DefaultStoreOptions.GraphDriverOptions) == 1 && DefaultStoreOptions.GraphDriverOptions[0] == "" {

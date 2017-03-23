@@ -9,11 +9,16 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/docker/reference"
+	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/storage"
 	"github.com/opencontainers/go-digest"
 	ddigest "github.com/opencontainers/go-digest"
 )
+
+func init() {
+	transports.Register(Transport)
+}
 
 var (
 	// Transport is an ImageTransport that uses either a default
