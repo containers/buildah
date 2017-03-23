@@ -4,16 +4,16 @@ load helpers
 
 @test "from" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  buildah delete $cid
+  buildah rm $cid
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json         alpine)
-  buildah delete $cid
+  buildah rm $cid
   cid=$(buildah from alpine --pull --signature-policy ${TESTSDIR}/policy.json --name i-love-naming-things)
-  buildah delete i-love-naming-things
+  buildah rm i-love-naming-things
 }
 
 @test "from-defaultpull" {
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
-  buildah delete $cid
+  buildah rm $cid
 }
 
 @test "from-nopull" {
@@ -28,21 +28,21 @@ load helpers
   root=$(buildah mount $cid)
   touch $root/foobar
   buildah unmount $cid
-  buildah delete $cid
+  buildah rm $cid
 }
 
 @test "by-name" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --name alpine-working-image-for-test alpine)
   root=$(buildah mount alpine-working-image-for-test)
   buildah unmount alpine-working-image-for-test
-  buildah delete alpine-working-image-for-test
+  buildah rm alpine-working-image-for-test
 }
 
 @test "by-root" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   root=$(buildah mount $cid)
   buildah unmount $cid
-  buildah delete $cid
+  buildah rm $cid
 }
 
 @test "commit" {
@@ -54,7 +54,7 @@ load helpers
   cp ${TESTDIR}/randomfile $root/randomfile
   buildah unmount $cid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
-  buildah delete $cid
+  buildah rm $cid
 
   newcid=$(buildah from new-image)
   newroot=$(buildah mount $newcid)
@@ -68,7 +68,7 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:another-new-image
   buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:yet-another-new-image
   buildah unmount $newcid
-  buildah delete $newcid
+  buildah rm $newcid
 
   othernewcid=$(buildah from other-new-image)
   othernewroot=$(buildah mount $othernewcid)
@@ -76,7 +76,7 @@ load helpers
   cmp ${TESTDIR}/randomfile $othernewroot/randomfile
   test -s $othernewroot/other-randomfile
   cmp ${TESTDIR}/other-randomfile $othernewroot/other-randomfile
-  buildah delete $othernewcid
+  buildah rm $othernewcid
 
   anothernewcid=$(buildah from another-new-image)
   anothernewroot=$(buildah mount $anothernewcid)
@@ -84,7 +84,7 @@ load helpers
   cmp ${TESTDIR}/randomfile $anothernewroot/randomfile
   test -s $anothernewroot/other-randomfile
   cmp ${TESTDIR}/other-randomfile $anothernewroot/other-randomfile
-  buildah delete $anothernewcid
+  buildah rm $anothernewcid
 
   yetanothernewcid=$(buildah from yet-another-new-image)
   yetanothernewroot=$(buildah mount $yetanothernewcid)
@@ -92,5 +92,5 @@ load helpers
   cmp ${TESTDIR}/randomfile $yetanothernewroot/randomfile
   test -s $yetanothernewroot/other-randomfile
   cmp ${TESTDIR}/other-randomfile $yetanothernewroot/other-randomfile
-  buildah delete $yetanothernewcid
+  buildah rm $yetanothernewcid
 }
