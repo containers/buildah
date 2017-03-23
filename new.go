@@ -2,6 +2,7 @@ package buildah
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	is "github.com/containers/image/storage"
@@ -28,7 +29,20 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		name = options.Container
 	} else {
 		if image != "" {
-			name = image + "-" + name
+			prefix := image
+			s := strings.Split(prefix, "/")
+			if len(s) > 0 {
+				prefix = s[len(s)-1]
+			}
+			s = strings.Split(prefix, ":")
+			if len(s) > 0 {
+				prefix = s[0]
+			}
+			s = strings.Split(prefix, "@")
+			if len(s) > 0 {
+				prefix = s[0]
+			}
+			name = prefix + "-" + name
 		}
 	}
 	if name != "" {
