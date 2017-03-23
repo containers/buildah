@@ -108,6 +108,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if spec.Process.Cwd == "" {
 		spec.Process.Cwd = DefaultWorkingDir
 	}
+	if err := os.MkdirAll(filepath.Join(mountPoint, b.Workdir), 0755); err != nil {
+		return fmt.Errorf("error ensuring working directory %q exists: %v)", b.Workdir, err)
+	}
 	mounts := options.Mounts
 	for _, specMount := range spec.Mounts {
 		override := false

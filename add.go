@@ -50,6 +50,9 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 	if destination != "" && filepath.IsAbs(destination) {
 		dest = filepath.Join(dest, destination)
 	} else {
+		if err := os.MkdirAll(filepath.Join(dest, b.Workdir), 0755); err != nil {
+			return fmt.Errorf("error ensuring directory %q exists: %v)", b.Workdir, err)
+		}
 		dest = filepath.Join(dest, b.Workdir, destination)
 	}
 	// Make sure the destination is usable.
