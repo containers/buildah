@@ -117,7 +117,6 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		Container:   name,
 		ContainerID: container.ID,
 		Mounts:      []string{},
-		Links:       []string{},
 		Annotations: map[string]string{},
 		Env:         []string{},
 		Cmd:         []string{},
@@ -132,12 +131,6 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		_, err = builder.Mount("")
 		if err != nil {
 			return nil, fmt.Errorf("error mounting build container: %v", err)
-		}
-		if options.Link != "" {
-			err = builder.Link(options.Link)
-			if err != nil {
-				return nil, fmt.Errorf("error crerating link to build container root: %v", err)
-			}
 		}
 	}
 
