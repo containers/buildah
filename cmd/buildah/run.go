@@ -14,10 +14,6 @@ import (
 var (
 	runFlags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "name",
-			Usage: "`name or ID` of the working container",
-		},
-		cli.StringFlag{
 			Name:   "root",
 			Usage:  "root `directory` of the working container",
 			EnvVar: "BUILDAHROOT",
@@ -41,10 +37,11 @@ var (
 
 func runCmd(c *cli.Context) error {
 	args := c.Args()
-	name := ""
-	if c.IsSet("name") {
-		name = c.String("name")
+	if len(args) == 0 {
+		return fmt.Errorf("either a container name or --root or --link, or some combination, must be specified")
 	}
+	name := args[0]
+	args = args.Tail()
 
 	root := c.String("root")
 	link := ""
@@ -58,16 +55,6 @@ func runCmd(c *cli.Context) error {
 	flags := []string{}
 	if c.IsSet("runtime-flag") {
 		flags = c.StringSlice("runtime-flag")
-	}
-	if c.IsSet("runtime") {
-		runtime = c.String("runtime")
-	}
-	if name == "" && root == "" && link == "" {
-		if len(args) == 0 {
-			return fmt.Errorf("either a container name or --root or --link, or some combination, must be specified")
-		}
-		name = args[0]
-		args = args.Tail()
 	}
 
 	store, err := getStore(c)

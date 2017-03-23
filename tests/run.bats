@@ -10,7 +10,7 @@ load helpers
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
 	root=$(buildah mount --name=$cid)
 	buildah config --name=$cid --workingdir /tmp
-	run buildah --debug=false run --name=$cid pwd
+	run buildah --debug=false run $cid pwd
 	output=$(echo "$output" | tr -d '\r')
 	[ "$output" = /tmp ]
 	buildah config --name=$cid --workingdir /root
@@ -22,5 +22,5 @@ load helpers
 	test -s $root/tmp/other-randomfile
 	cmp ${TESTDIR}/randomfile $root/tmp/other-randomfile
 	buildah unmount --name=$cid
-	buildah delete --name=$cid
+	buildah delete $cid
 }
