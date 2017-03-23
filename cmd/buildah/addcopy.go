@@ -9,10 +9,6 @@ import (
 var (
 	addFlags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "name",
-			Usage: "`name or ID` of the working container",
-		},
-		cli.StringFlag{
 			Name:   "root",
 			Usage:  "root `directory` of working container, Default: EnvVar(BUILDAHROOT)",
 			EnvVar: "BUILDAHROOT",
@@ -29,10 +25,12 @@ var (
 
 func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 	args := c.Args()
-	name := ""
-	if c.IsSet("name") {
-		name = c.String("name")
+	if len(args) == 0 {
+		return fmt.Errorf("either a container name or --root, or some combination, must be specified")
 	}
+	name := args[0]
+	args = args.Tail()
+
 	root := c.String("root")
 	dest := ""
 	if c.IsSet("dest") {

@@ -19,10 +19,6 @@ const (
 var (
 	configFlags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "name",
-			Usage: "`name or ID` of the working container",
-		},
-		cli.StringFlag{
 			Name:   "root",
 			Usage:  "root `directory` of the working container",
 			EnvVar: "BUILDAHROOT",
@@ -167,19 +163,13 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 
 func configCmd(c *cli.Context) error {
 	args := c.Args()
-	name := ""
-	if c.IsSet("name") {
-		name = c.String("name")
+	if len(args) == 0 {
+		return fmt.Errorf("either a container name or --root, or some combination, must be specified")
 	}
-	root := c.String("root")
-	if name == "" && root == "" {
-		if len(args) == 0 {
-			return fmt.Errorf("either a container name or --root, or some combination, must be specified")
-		}
-		name = args[0]
-		args = args.Tail()
-	}
+	name := args[0]
+	args = args.Tail()
 
+	root := c.String("root")
 	store, err := getStore(c)
 	if err != nil {
 		return err
