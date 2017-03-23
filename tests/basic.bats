@@ -3,7 +3,7 @@
 load helpers
 
 @test "from" {
-	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	buildah delete $cid
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json         alpine)
 	buildah delete $cid
@@ -12,17 +12,17 @@ load helpers
 }
 
 @test "from-defaultpull" {
-	cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json --image alpine)
+	cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
 	buildah delete        $cid
 }
 
 @test "from-nopull" {
-	run buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json --image alpine
+	run buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	[ "$status" -eq 1 ]
 }
 
 @test "mount" {
-	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	root=$(buildah mount $cid)
 	buildah unmount $cid
 	root=$(buildah mount        $cid)
@@ -31,14 +31,14 @@ load helpers
 }
 
 @test "by-name" {
-	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine alpine-working-image-for-test)
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine alpine-working-image-for-test)
 	root=$(buildah mount alpine-working-image-for-test)
 	buildah unmount alpine-working-image-for-test
 	buildah delete alpine-working-image-for-test
 }
 
 @test "by-root" {
-	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	root=$(buildah mount $cid)
 	buildah unmount --root=$root $cid
 	buildah delete --root=$root $cid
@@ -48,14 +48,14 @@ load helpers
 	createrandom ${TESTDIR}/randomfile
 	createrandom ${TESTDIR}/other-randomfile
 
-	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	root=$(buildah mount $cid)
 	cp ${TESTDIR}/randomfile $root/randomfile
 	buildah unmount $cid
 	buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
 	buildah delete $cid
 
-	newcid=$(buildah from --image new-image)
+	newcid=$(buildah from new-image)
 	newroot=$(buildah mount $newcid)
 	test -s $newroot/randomfile
 	cmp ${TESTDIR}/randomfile $newroot/randomfile
@@ -69,7 +69,7 @@ load helpers
 	buildah unmount $newcid
 	buildah delete $newcid
 
-	othernewcid=$(buildah from --image other-new-image)
+	othernewcid=$(buildah from other-new-image)
 	othernewroot=$(buildah mount $othernewcid)
 	test -s $othernewroot/randomfile
 	cmp ${TESTDIR}/randomfile $othernewroot/randomfile
@@ -77,7 +77,7 @@ load helpers
 	cmp ${TESTDIR}/other-randomfile $othernewroot/other-randomfile
 	buildah delete $othernewcid
 
-	anothernewcid=$(buildah from --image another-new-image)
+	anothernewcid=$(buildah from another-new-image)
 	anothernewroot=$(buildah mount $anothernewcid)
 	test -s $anothernewroot/randomfile
 	cmp ${TESTDIR}/randomfile $anothernewroot/randomfile
@@ -85,7 +85,7 @@ load helpers
 	cmp ${TESTDIR}/other-randomfile $anothernewroot/other-randomfile
 	buildah delete $anothernewcid
 
-	yetanothernewcid=$(buildah from --image yet-another-new-image)
+	yetanothernewcid=$(buildah from yet-another-new-image)
 	yetanothernewroot=$(buildah mount $yetanothernewcid)
 	test -s $yetanothernewroot/randomfile
 	cmp ${TESTDIR}/randomfile $yetanothernewroot/randomfile
