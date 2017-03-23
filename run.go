@@ -113,6 +113,22 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return fmt.Errorf("error ensuring working directory %q exists: %v)", b.Workdir, err)
 	}
 	mounts := options.Mounts
+	boundMounts := []specs.Mount{}
+	for _, boundFile := range []string{"/etc/hosts", "/etc/resolv.conf"} {
+		for _, mount := range mounts {
+			if mount.Destination == boundFile {
+				// Already have an override for it, so skip this one.
+				continue
+			}
+		}
+		boundMount := specs.Mount{
+			Source:      boundFile,
+			Destination: boundFile,
+			Type:        "bind",
+			Options:     []string{"rbind", "ro"},
+		}
+		boundMounts = append(boundMounts, boundMount)
+	}
 	for _, specMount := range spec.Mounts {
 		override := false
 		for _, mount := range mounts {
@@ -125,7 +141,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			mounts = append(mounts, specMount)
 		}
 	}
-	spec.Mounts = mounts
+	spec.Mounts = append(mounts, boundMounts...)
 	specbytes, err := json.Marshal(spec)
 	if err != nil {
 		return err
