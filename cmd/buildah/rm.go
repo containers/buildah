@@ -7,17 +7,18 @@ import (
 )
 
 var (
-	deleteDescription = "Deletes working container(s), unmounting them if necessary"
-	deleteCommand     = cli.Command{
-		Name:        "delete",
-		Usage:       "Deletes working container(s)",
-		Description: deleteDescription,
-		Action:      deleteCmd,
+	rmDescription = "Removes one or more working containers, unmounting them if necessary"
+	rmCommand     = cli.Command{
+		Name:        "rm",
+		Aliases:     []string{"delete"},
+		Usage:       "Remove one or more working containers",
+		Description: rmDescription,
+		Action:      rmCmd,
 		ArgsUsage:   "CONTAINER-NAME-OR-ID [...]",
 	}
 )
 
-func deleteCmd(c *cli.Context) error {
+func rmCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
 		return fmt.Errorf("container ID must be specified")
@@ -35,7 +36,7 @@ func deleteCmd(c *cli.Context) error {
 
 		err = builder.Delete()
 		if err != nil {
-			return fmt.Errorf("error deleting container %q: %v", builder.Container, err)
+			return fmt.Errorf("error removing container %q: %v", builder.Container, err)
 		}
 	}
 

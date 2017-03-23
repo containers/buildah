@@ -73,12 +73,14 @@ func main() {
 		commitCommand,
 		configCommand,
 		copyCommand,
-		deleteCommand,
+		rmCommand,
 		fromCommand,
-		listCommand,
+		containersCommand,
 		mountCommand,
 		runCommand,
 		umountCommand,
+		imagesCommand,
+		rmiCommand,
 	}
 	err := app.Run(os.Args)
 	if err != nil {

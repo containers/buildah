@@ -33,7 +33,7 @@ read
 : "[1m Unmount our working container and delete it [0m"
 read
 buildah umount "$container1"
-buildah delete "$container1"
+buildah rm "$container1"
 read
 : "[1m Now try it with ocid not running! [0m"
 read
@@ -65,7 +65,7 @@ read
 : "[1m Unmount our new working container and delete it [0m"
 read
 buildah umount "$container2"
-buildah delete "$container2"
+buildah rm "$container2"
 read
 : "[1m Verify that our new new image is there[0m"
 read

@@ -22,5 +22,5 @@ load helpers
 	test -s $root/tmp/other-randomfile
 	cmp ${TESTDIR}/randomfile $root/tmp/other-randomfile
 	buildah unmount $cid
-	buildah delete $cid
+	buildah rm $cid
 }

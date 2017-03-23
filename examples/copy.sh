@@ -101,4 +101,4 @@ read
 : "[1m Clean up, because I ran this like fifty times while testing [0m"
 read
 echo '[buildah delete $container1]'
-buildah delete $container1
+buildah rm $container1

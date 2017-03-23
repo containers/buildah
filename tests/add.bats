@@ -26,7 +26,7 @@ load helpers
   buildah add $cid ${TESTDIR}/randomfile
   buildah unmount $cid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
-  buildah delete $cid
+  buildah rm $cid
 
   newcid=$(buildah from new-image)
   newroot=$(buildah mount $newcid)
@@ -41,7 +41,7 @@ load helpers
   test -d $newroot/cwd
   test -s $newroot/cwd/randomfile
   cmp ${TESTDIR}/randomfile $newroot/cwd/randomfile
-  buildah delete $newcid
+  buildah rm $newcid
 }
 
 @test "add-local-archive" {
@@ -73,7 +73,7 @@ load helpers
   buildah add $cid ${TESTDIR}/tarball4.tar.bz2
   buildah unmount $cid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
-  buildah delete $cid
+  buildah rm $cid
 
   newcid=$(buildah from new-image)
   newroot=$(buildah mount $newcid)
@@ -93,5 +93,5 @@ load helpers
   cmp ${TESTDIR}/tarball4/tarball4.random1 $newroot/tarball4/tarball4.random1
   test -s $newroot/tarball4/tarball4.random2
   cmp ${TESTDIR}/tarball4/tarball4.random2 $newroot/tarball4/tarball4.random2
-  buildah delete $newcid
+  buildah rm $newcid
 }
