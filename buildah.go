@@ -51,10 +51,6 @@ type Builder struct {
 	// Mounts is a list of places where the container's root filesystem has
 	// been mounted.  It should not be modified.
 	Mounts []string `json:"mounts,omitempty"`
-	// Links is a list of symbolic links to the currently-mounted container
-	// root filesystem.  They will be removed when the container is
-	// unmounted.  It should not be modified.
-	Links []string `json:"links,omitempty"`
 
 	// Annotations is a set of key-value pairs which is stored in the
 	// image's manifest.
@@ -117,9 +113,6 @@ type BuilderOptions struct {
 	// Mount signals to NewBuilder() that the container should be mounted
 	// immediately.
 	Mount bool
-	// Link specifies a location for a symbolic link which should be
-	// created if the container is mounted immediately.
-	Link string
 	// SignaturePolicyPath specifies an override location for the signature
 	// policy which should be used for verifying the new image as it is
 	// being written.  Except in specific circumstances, no value should be
@@ -173,9 +166,8 @@ func OpenBuilder(store storage.Store, container string) (*Builder, error) {
 	return b, nil
 }
 
-// OpenBuilderByPath loads information about a build container given either a
-// path to the container's root filesystem or a the path of a symbolic link
-// which points to it.
+// OpenBuilderByPath loads information about a build container given a
+// path to the container's root filesystem
 func OpenBuilderByPath(store storage.Store, path string) (*Builder, error) {
 	containers, err := store.Containers()
 	if err != nil {
@@ -191,11 +183,6 @@ func OpenBuilderByPath(store storage.Store, path string) (*Builder, error) {
 		}
 		for _, m := range b.Mounts {
 			if m == path {
-				return true
-			}
-		}
-		for _, l := range b.Links {
-			if l == path {
 				return true
 			}
 		}
