@@ -32,7 +32,7 @@ func getStore(c *cli.Context) (storage.Store, error) {
 	return store, err
 }
 
-func openBuilder(store storage.Store, name, root, link string) (builder *buildah.Builder, err error) {
+func openBuilder(store storage.Store, name, root string) (builder *buildah.Builder, err error) {
 	if name != "" {
 		builder, err = buildah.OpenBuilder(store, name)
 		if os.IsNotExist(err) {
@@ -44,9 +44,6 @@ func openBuilder(store storage.Store, name, root, link string) (builder *buildah
 	}
 	if root != "" {
 		builder, err = buildah.OpenBuilderByPath(store, root)
-	}
-	if link != "" {
-		builder, err = buildah.OpenBuilderByPath(store, link)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error reading build container: %v", err)

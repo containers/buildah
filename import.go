@@ -63,7 +63,6 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 		Container:   name,
 		ContainerID: c.ID,
 		Mounts:      []string{},
-		Links:       []string{},
 		Annotations: map[string]string{},
 		Env:         []string{},
 		Cmd:         []string{},
