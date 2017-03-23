@@ -104,6 +104,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}()
 	g.SetRootPath(mountPoint)
 	g.SetProcessTerminal(true)
+	g.RemoveLinuxNamespace("network")
 	spec := g.Spec()
 	if spec.Process.Cwd == "" {
 		spec.Process.Cwd = DefaultWorkingDir
