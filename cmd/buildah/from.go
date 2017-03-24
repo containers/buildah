@@ -20,10 +20,6 @@ var (
 			Name:  "name",
 			Usage: "`name` for the working container",
 		},
-		cli.StringFlag{
-			Name:  "image",
-			Usage: fmt.Sprintf("name of the starting `image`, or %q", buildah.BaseImageFakeName),
-		},
 		cli.BoolTFlag{
 			Name:  "pull",
 			Usage: "pull the image if not present",
@@ -51,16 +47,11 @@ var (
 
 func fromCmd(c *cli.Context) error {
 	args := c.Args()
-	image := ""
-	if c.IsSet("image") {
-		image = c.String("image")
-	} else {
-		if len(args) == 0 {
-			return fmt.Errorf("an image name (or \"scratch\") must be specified")
-		}
-		image = args[0]
-		args = args.Tail()
+	if len(args) == 0 {
+		return fmt.Errorf("an image name (or \"scratch\") must be specified")
 	}
+	image := args[0]
+	args = args.Tail()
 	registry := DefaultRegistry
 	if c.IsSet("registry") {
 		registry = c.String("registry")
