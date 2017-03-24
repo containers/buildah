@@ -13,13 +13,13 @@ load helpers
   buildah config --workingdir=/ $cid
   buildah add $cid ${TESTDIR}/randomfile
   # Copy a file to a specific subdirectory
-  buildah add --dest=/subdir $cid ${TESTDIR}/randomfile
+  buildah add $cid ${TESTDIR}/randomfile /subdir
   # Copy a file two files to a specific subdirectory
-  buildah add --dest=/other-subdir $cid ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile
+  buildah add $cid ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile /other-subdir
   # Copy a file two files to a specific location, which fails because it's not a directory.
-  run buildah add --dest=/notthereyet-subdir ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile $cid
+  run buildah add ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile $cid /notthereyet-subdir
   [ $status -ne 0 ]
-  run buildah add --dest=/randomfile ${TESTDIR}/randomfile $cid ${TESTDIR}/other-randomfile
+  run buildah add ${TESTDIR}/randomfile $cid ${TESTDIR}/other-randomfile /randomfile
   [ $status -ne 0 ]
   # Copy a file to a different working directory
   buildah config --workingdir=/cwd $cid
