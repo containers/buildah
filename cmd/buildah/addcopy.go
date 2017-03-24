@@ -9,15 +9,6 @@ import (
 var (
 	addFlags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "name",
-			Usage: "`name or ID` of the working container",
-		},
-		cli.StringFlag{
-			Name:   "root",
-			Usage:  "root `directory` of working container, Default: EnvVar(BUILDAHROOT)",
-			EnvVar: "BUILDAHROOT",
-		},
-		cli.StringFlag{
 			Name:  "dest",
 			Usage: "destination `directory` (if absolute) or subdirectory of the working directory (if relative) in the working container's filesystem",
 		},
@@ -29,21 +20,15 @@ var (
 
 func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 	args := c.Args()
-	name := ""
-	if c.IsSet("name") {
-		name = c.String("name")
+	if len(args) == 0 {
+		return fmt.Errorf("container ID must be specified")
 	}
-	root := c.String("root")
+	name := args[0]
+	args = args.Tail()
+
 	dest := ""
 	if c.IsSet("dest") {
 		dest = c.String("dest")
-	}
-	if name == "" && root == "" {
-		if len(args) == 0 {
-			return fmt.Errorf("either a container name or --root, or some combination, must be specified")
-		}
-		name = args[0]
-		args = args.Tail()
 	}
 
 	store, err := getStore(c)
@@ -51,7 +36,7 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 		return err
 	}
 
-	builder, err := openBuilder(store, name, root)
+	builder, err := openBuilder(store, name)
 	if err != nil {
 		return fmt.Errorf("error reading build container %q: %v", name, err)
 	}
