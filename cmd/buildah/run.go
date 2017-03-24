@@ -14,15 +14,6 @@ import (
 var (
 	runFlags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "name",
-			Usage: "`name or ID` of the working container",
-		},
-		cli.StringFlag{
-			Name:   "root",
-			Usage:  "root `directory` of the working container",
-			EnvVar: "BUILDAHROOT",
-		},
-		cli.StringFlag{
 			Name:  "runtime",
 			Usage: "`path` to an alternate runtime",
 			Value: buildah.DefaultRuntime,
@@ -37,12 +28,12 @@ var (
 
 func runCmd(c *cli.Context) error {
 	args := c.Args()
-	name := ""
-	if c.IsSet("name") {
-		name = c.String("name")
+	if len(args) == 0 {
+		return fmt.Errorf("container ID must be specified")
 	}
+	name := args[0]
+	args = args.Tail()
 
-	root := c.String("root")
 	runtime := ""
 	if c.IsSet("runtime") {
 		runtime = c.String("runtime")
@@ -54,20 +45,13 @@ func runCmd(c *cli.Context) error {
 	if c.IsSet("runtime") {
 		runtime = c.String("runtime")
 	}
-	if name == "" && root == "" {
-		if len(args) == 0 {
-			return fmt.Errorf("either a container name or --root, or some combination, must be specified")
-		}
-		name = args[0]
-		args = args.Tail()
-	}
 
 	store, err := getStore(c)
 	if err != nil {
 		return err
 	}
 
-	builder, err := openBuilder(store, name, root)
+	builder, err := openBuilder(store, name)
 	if err != nil {
 		return fmt.Errorf("error reading build container %q: %v", name, err)
 	}
