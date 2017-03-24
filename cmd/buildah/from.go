@@ -45,10 +45,6 @@ var (
 			Name:  "mount",
 			Usage: "mount the working container",
 		},
-		cli.StringFlag{
-			Name:  "link",
-			Usage: "`pathname` of a symbolic link to create to the root directory of the container",
-		},
 	}
 	fromDescription = "Creates a new working container, either from scratch or using a specified\n   image as a starting point"
 )
@@ -90,13 +86,6 @@ func fromCmd(c *cli.Context) error {
 	if c.IsSet("mount") {
 		mount = c.Bool("mount")
 	}
-	link := ""
-	if c.IsSet("link") {
-		link = c.String("link")
-		if link == "" {
-			return fmt.Errorf("link location can not be empty")
-		}
-	}
 	signaturePolicy := ""
 	if c.IsSet("signature-policy") {
 		signaturePolicy = c.String("signature-policy")
@@ -113,7 +102,6 @@ func fromCmd(c *cli.Context) error {
 		PullIfMissing:       pull,
 		PullAlways:          pullAlways,
 		Mount:               mount,
-		Link:                link,
 		Registry:            registry,
 		SignaturePolicyPath: signaturePolicy,
 	}
