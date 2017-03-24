@@ -31,7 +31,10 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 	}
 
 	if ref := srcRef.DockerReference(); ref != nil {
-		name = reference.Domain(ref) + "/" + reference.Path(ref)
+		name = srcRef.DockerReference().Name()
+		if tagged, ok := srcRef.DockerReference().(reference.NamedTagged); ok {
+			name = name + ":" + tagged.Tag()
+		}
 	}
 
 	destRef, err := is.Transport.ParseStoreReference(store, name)
