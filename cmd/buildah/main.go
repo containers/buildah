@@ -59,11 +59,13 @@ func main() {
 		return nil
 	}
 	app.After = func(c *cli.Context) error {
-		store, err := getStore(c)
-		if err != nil {
-			return err
+		if needToShutdownStore {
+			store, err := getStore(c)
+			if err != nil {
+				return err
+			}
+			store.Shutdown(false)
 		}
-		store.Shutdown(false)
 		return nil
 	}
 	app.Commands = []cli.Command{
