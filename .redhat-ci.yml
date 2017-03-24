@@ -1,0 +1,12 @@
+branches:
+  - master
+  - auto
+  - try
+
+host:
+  distro: fedora/25/atomic
+
+required: true
+
+tests:
+  - docker run --privileged -v $PWD:/code fedora:25 /code/.redhat-ci.sh
