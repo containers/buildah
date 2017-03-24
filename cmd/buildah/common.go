@@ -10,6 +10,8 @@ import (
 	"github.com/urfave/cli"
 )
 
+var needToShutdownStore = false
+
 func getStore(c *cli.Context) (storage.Store, error) {
 	options := storage.DefaultStoreOptions
 	if c.GlobalIsSet("root") || c.GlobalIsSet("runroot") {
@@ -29,6 +31,7 @@ func getStore(c *cli.Context) (storage.Store, error) {
 	if store != nil {
 		is.Transport.SetStore(store)
 	}
+	needToShutdownStore = true
 	return store, err
 }
 
