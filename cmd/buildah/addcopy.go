@@ -7,13 +7,6 @@ import (
 )
 
 var (
-	addFlags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "dest",
-			Usage: "destination `directory` (if absolute) or subdirectory of the working directory (if relative) in the working container's filesystem",
-		},
-	}
-	copyFlags       = addFlags
 	addDescription  = "Adds the contents of a file, URL, or directory to a container's working\n   directory.  If a local file appears to be an archive, its contents are\n   extracted and added instead of the archive file itself."
 	copyDescription = "Copies the contents of a file, URL, or directory into a container's working\n   directory"
 )
@@ -26,9 +19,12 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 	name := args[0]
 	args = args.Tail()
 
+	// If list is greater then one, the last item is the destination
 	dest := ""
-	if c.IsSet("dest") {
-		dest = c.String("dest")
+	size := len(args)
+	if size > 1 {
+		dest = args[size-1]
+		args = args[:size-1]
 	}
 
 	store, err := getStore(c)

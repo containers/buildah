@@ -2,9 +2,31 @@
 
 load helpers
 
+@test "copy-local-multiple" {
+  createrandom ${TESTDIR}/randomfile
+  createrandom ${TESTDIR}/other-randomfile
+  createrandom ${TESTDIR}/third-randomfile
+
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
+  root=$(buildah mount $cid)
+  buildah config --workingdir / $cid
+  buildah copy $cid ${TESTDIR}/randomfile
+  run buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
+  [ "$status" -eq 1 ]
+  buildah delete $cid
+
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
+  root=$(buildah mount $cid)
+  buildah config --workingdir / $cid
+  buildah copy $cid ${TESTDIR}/randomfile
+  buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile /etc
+  buildah delete $cid
+}
+
 @test "copy-local-plain" {
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
+  createrandom ${TESTDIR}/third-randomfile
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
   root=$(buildah mount $cid)
