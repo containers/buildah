@@ -14,8 +14,8 @@ container1=`buildah from --image ${1:-ubuntu}`
 read
 : "[1m Mount that working container, and capture the mountpoint [0m"
 read
-echo '[mountpoint1=`buildah mount --name $container1`]'
-mountpoint1=`buildah mount --name $container1`
+echo '[mountpoint1=`buildah mount $container1`]'
+mountpoint1=`buildah mount $container1`
 read
 : "[1m Add a file to the container [0m"
 read
@@ -24,7 +24,7 @@ echo yay > $mountpoint1/file-in-root
 read
 : "[1m Produce an image from the container [0m"
 read
-buildah commit --name "$container1" --output containers-storage:${2:-first-new-image}
+buildah commit "$container1" --output containers-storage:${2:-first-new-image}
 read
 : "[1m Verify that our new image is there [0m"
 read
@@ -32,8 +32,8 @@ ocic image list
 read
 : "[1m Unmount our working container and delete it [0m"
 read
-buildah umount --name "$container1"
-buildah delete --name "$container1"
+buildah umount "$container1"
+buildah delete "$container1"
 read
 : "[1m Now try it with ocid not running! [0m"
 read
@@ -46,8 +46,8 @@ container2=`buildah from --image=${2:-first-new-image}`
 read
 : "[1m Mount that new working container, and capture the mountpoint [0m"
 read
-echo '[mountpoint2=`buildah mount --name $container2`]'
-mountpoint2=`buildah mount --name $container2`
+echo '[mountpoint2=`buildah mount $container2`]'
+mountpoint2=`buildah mount $container2`
 read
 : "[1m That file we added to the image is there, right? [0m"
 read
@@ -60,12 +60,12 @@ echo yay > $mountpoint2/another-file-in-root
 read
 : "[1m Produce an image from the new container[0m"
 read
-buildah commit --name "$container2" --output containers-storage:${3:-second-new-image}
+buildah commit "$container2" --output containers-storage:${3:-second-new-image}
 read
 : "[1m Unmount our new working container and delete it [0m"
 read
-buildah umount --name "$container2"
-buildah delete --name "$container2"
+buildah umount "$container2"
+buildah delete "$container2"
 read
 : "[1m Verify that our new new image is there[0m"
 read
