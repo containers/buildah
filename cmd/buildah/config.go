@@ -36,15 +36,15 @@ var (
 			Usage: "`operating system` of the target image",
 		},
 		cli.StringFlag{
-			Name:  "user",
+			Name:  "user, u",
 			Usage: "`user` to run containers based on image as",
 		},
 		cli.StringSliceFlag{
-			Name:  "port",
+			Name:  "port, p",
 			Usage: "`port` to expose when running containers based on image",
 		},
 		cli.StringSliceFlag{
-			Name:  "env",
+			Name:  "env, e",
 			Usage: "`environment variable` to set when running containers based on image",
 		},
 		cli.StringFlag{
@@ -56,7 +56,7 @@ var (
 			Usage: "`command` for containers based on image",
 		},
 		cli.StringSliceFlag{
-			Name:  "volume",
+			Name:  "volume, v",
 			Usage: "`volume` to create for containers based on image",
 		},
 		cli.StringFlag{
@@ -64,11 +64,11 @@ var (
 			Usage: "working `directory` for containers based on image",
 		},
 		cli.StringSliceFlag{
-			Name:  "label",
+			Name:  "label, l",
 			Usage: "image configuration `label` e.g. label=value",
 		},
 		cli.StringSliceFlag{
-			Name:  "annotation",
+			Name:  "annotation, a",
 			Usage: "`annotation` e.g. annotation=value, for the target image",
 		},
 	}
