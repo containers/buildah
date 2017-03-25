@@ -140,10 +140,10 @@ func main() {
 		},
 		{
 			Name:        "delete",
-			Usage:       "Delete a working container",
+			Usage:       "Delete working container(s)",
 			Description: deleteDescription,
 			Action:      deleteCmd,
-			ArgsUsage:   "CONTAINER-NAME-OR-ID",
+			ArgsUsage:   "CONTAINER-NAME-OR-ID [...]",
 		},
 	}
 	err := app.Run(os.Args)
