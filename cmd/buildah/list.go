@@ -11,7 +11,7 @@ var (
 	// TODO implement
 	listFlags = []cli.Flag{
 		cli.BoolFlag{
-			Name:  "quiet",
+			Name:  "quiet, q",
 			Usage: "omit column headings",
 		},
 	}
