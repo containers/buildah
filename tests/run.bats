@@ -7,7 +7,7 @@ load helpers
 		skip
 	fi
 	createrandom ${TESTDIR}/randomfile
-	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	root=$(buildah mount $cid)
 	buildah config $cid --workingdir /tmp
 	run buildah --debug=false run $cid pwd
