@@ -33,6 +33,18 @@ type RunOptions struct {
 	Args []string
 	// Mounts are additional mount points which we want to provide.
 	Mounts []specs.Mount
+	// Env is additional environment variables to set.
+	Env []string
+	// User is the user as whom to run the command.
+	User string
+	// WorkingDir is an override for the working directory.
+	WorkingDir string
+	// Cmd is an override for the configured default command.
+	Cmd []string
+	// Entrypoint is an override for the configured entry point.
+	Entrypoint []string
+	// NetworkDisabled puts the container into its own network namespace.
+	NetworkDisabled bool
 }
 
 func getExportOptions() generate.ExportOptions {
@@ -41,6 +53,7 @@ func getExportOptions() generate.ExportOptions {
 
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
+	var user specs.User
 	path, err := ioutil.TempDir(os.TempDir(), Package)
 	if err != nil {
 		return err
@@ -57,7 +70,11 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if err != nil {
 		return err
 	}
-	user, err := getUser(image.Config.User)
+	if options.User != "" {
+		user, err = getUser(options.User)
+	} else {
+		user, err = getUser(image.Config.User)
+	}
 	if err != nil {
 		return err
 	}
@@ -71,7 +88,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 	g.SetProcessUID(user.UID)
 	g.SetProcessGID(user.GID)
-	for _, envSpec := range image.Config.Env {
+	for _, envSpec := range append(image.Config.Env, options.Env...) {
 		env := strings.SplitN(envSpec, "=", 2)
 		if len(env) > 1 {
 			g.AddProcessEnv(env[0], env[1])
@@ -79,12 +96,18 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 	if len(command) > 0 {
 		g.SetProcessArgs(command)
+	} else if len(options.Cmd) != 0 {
+		g.SetProcessArgs(options.Cmd)
 	} else if len(image.Config.Cmd) != 0 {
 		g.SetProcessArgs(image.Config.Cmd)
+	} else if len(options.Entrypoint) != 0 {
+		g.SetProcessArgs(options.Entrypoint)
 	} else if len(image.Config.Entrypoint) != 0 {
 		g.SetProcessArgs(image.Config.Entrypoint)
 	}
-	if image.Config.WorkingDir != "" {
+	if options.WorkingDir != "" {
+		g.SetProcessCwd(options.WorkingDir)
+	} else if image.Config.WorkingDir != "" {
 		g.SetProcessCwd(image.Config.WorkingDir)
 	}
 	if options.Hostname != "" {
@@ -104,7 +127,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}()
 	g.SetRootPath(mountPoint)
 	g.SetProcessTerminal(true)
-	g.RemoveLinuxNamespace("network")
+	if !options.NetworkDisabled {
+		g.RemoveLinuxNamespace("network")
+	}
 	spec := g.Spec()
 	if spec.Process.Cwd == "" {
 		spec.Process.Cwd = DefaultWorkingDir
