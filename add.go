@@ -62,6 +62,14 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 		}
 		dest = filepath.Join(dest, b.Workdir, destination)
 	}
+	// If the destination was explicitly marked as a directory by ending it
+	// with a '/', create it so that we can be sure that it's a directory,
+	// and any files we're copying will be placed in the directory.
+	if len(destination) > 0 && destination[len(destination)-1] == os.PathSeparator {
+		if err := os.MkdirAll(dest, 0755); err != nil {
+			return fmt.Errorf("error ensuring directory %q exists: %v)", dest, err)
+		}
+	}
 	// Make sure the destination's parent directory is usable.
 	if fi, err := os.Stat(filepath.Dir(dest)); err == nil && !fi.Mode().IsDir() {
 		return fmt.Errorf("%q already exists, but is not a subdirectory)", filepath.Dir(dest))
