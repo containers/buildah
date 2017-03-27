@@ -66,3 +66,23 @@ load helpers
   cmp ${TESTDIR}/subdir/other-randomfile $root/other-subdir/other-randomfile
   buildah rm $cid
 }
+
+@test "copy-local-force-directory" {
+  createrandom ${TESTDIR}/randomfile
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah config --workingdir / $cid
+  buildah copy $cid ${TESTDIR}/randomfile /randomfile
+  root=$(buildah mount $cid)
+  test -s $root/randomfile
+  cmp ${TESTDIR}/randomfile $root/randomfile
+  buildah rm $cid
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah config --workingdir / $cid
+  buildah copy $cid ${TESTDIR}/randomfile /randomsubdir/
+  root=$(buildah mount $cid)
+  test -s $root/randomsubdir/randomfile
+  cmp ${TESTDIR}/randomfile $root/randomsubdir/randomfile
+  buildah rm $cid
+}
