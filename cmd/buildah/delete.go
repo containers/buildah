@@ -8,6 +8,13 @@ import (
 
 var (
 	deleteDescription = "Deletes working container(s), unmounting them if necessary"
+	deleteCommand     = cli.Command{
+		Name:        "delete",
+		Usage:       "Deletes working container(s)",
+		Description: deleteDescription,
+		Action:      deleteCmd,
+		ArgsUsage:   "CONTAINER-NAME-OR-ID [...]",
+	}
 )
 
 func deleteCmd(c *cli.Context) error {

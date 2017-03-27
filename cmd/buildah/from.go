@@ -47,6 +47,15 @@ var (
 		},
 	}
 	fromDescription = "Creates a new working container, either from scratch or using a specified\n   image as a starting point"
+
+	fromCommand = cli.Command{
+		Name:        "from",
+		Usage:       "Create a working container based on an image",
+		Description: fromDescription,
+		Flags:       fromFlags,
+		Action:      fromCmd,
+		ArgsUsage:   "IMAGE [CONTAINER-NAME]",
+	}
 )
 
 func fromCmd(c *cli.Context) error {

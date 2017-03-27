@@ -73,6 +73,14 @@ var (
 		},
 	}
 	configDescription = "Modifies the configuration values which will be saved to the image"
+	configCommand     = cli.Command{
+		Name:        "config",
+		Usage:       "Update image configuration settings",
+		Description: configDescription,
+		Flags:       configFlags,
+		Action:      configCmd,
+		ArgsUsage:   "CONTAINER-NAME-OR-ID",
+	}
 )
 
 func updateConfig(builder *buildah.Builder, c *cli.Context) {
