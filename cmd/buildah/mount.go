@@ -8,6 +8,13 @@ import (
 
 var (
 	mountDescription = "Mounts a working container's root filesystem for manipulation"
+	mountCommand     = cli.Command{
+		Name:        "mount",
+		Usage:       "Mount a working container's root filesystem",
+		Description: mountDescription,
+		Action:      mountCmd,
+		ArgsUsage:   "CONTAINER-NAME-OR-ID",
+	}
 )
 
 func mountCmd(c *cli.Context) error {

@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	// TODO implement
 	listFlags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "quiet",
@@ -15,6 +16,15 @@ var (
 		},
 	}
 	listDescription = "Lists containers which appear to be " + buildah.Package + " working containers, their\n   names and IDs, and the names and IDs of the images from which they were\n   initialized"
+
+	listCommand = cli.Command{
+		Name:        "list",
+		Usage:       "List working containers and their base images",
+		Description: listDescription,
+		Flags:       listFlags,
+		Action:      listCmd,
+		ArgsUsage:   " ",
+	}
 )
 
 func listCmd(c *cli.Context) error {
