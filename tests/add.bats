@@ -6,7 +6,7 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   root=$(buildah mount $cid)
   mkdir $root/subdir $root/other-subdir
   # Copy a file to the working directory
@@ -28,7 +28,7 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   buildah delete $cid
 
-  newcid=$(buildah from --image new-image)
+  newcid=$(buildah from new-image)
   newroot=$(buildah mount $newcid)
   test -s $newroot/randomfile
   cmp ${TESTDIR}/randomfile $newroot/randomfile
@@ -48,7 +48,7 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --image alpine)
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   root=$(buildah mount $cid)
   dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/random1
   dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/random2
@@ -75,7 +75,7 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   buildah delete $cid
 
-  newcid=$(buildah from --image new-image)
+  newcid=$(buildah from new-image)
   newroot=$(buildah mount $newcid)
   test -s $newroot/random1
   cmp ${TESTDIR}/random1 $newroot/random1

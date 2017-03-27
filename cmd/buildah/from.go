@@ -20,10 +20,6 @@ var (
 			Name:  "name",
 			Usage: "`name` for the working container",
 		},
-		cli.StringFlag{
-			Name:  "image",
-			Usage: fmt.Sprintf("name of the starting `image`, or %q", buildah.BaseImageFakeName),
-		},
 		cli.BoolTFlag{
 			Name:  "pull",
 			Usage: "pull the image if not present",
@@ -54,22 +50,21 @@ var (
 		Description: fromDescription,
 		Flags:       fromFlags,
 		Action:      fromCmd,
-		ArgsUsage:   "IMAGE [CONTAINER-NAME]",
+		ArgsUsage:   "IMAGE",
 	}
 )
 
 func fromCmd(c *cli.Context) error {
+
 	args := c.Args()
-	image := ""
-	if c.IsSet("image") {
-		image = c.String("image")
-	} else {
-		if len(args) == 0 {
-			return fmt.Errorf("an image name (or \"scratch\") must be specified")
-		}
-		image = args[0]
-		args = args.Tail()
+	if len(args) == 0 {
+		return fmt.Errorf("an image name (or \"scratch\") must be specified")
 	}
+	if len(args) > 1 {
+		return fmt.Errorf("too many arguments specified")
+	}
+	image := args[0]
+
 	registry := DefaultRegistry
 	if c.IsSet("registry") {
 		registry = c.String("registry")
@@ -85,11 +80,6 @@ func fromCmd(c *cli.Context) error {
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
-	} else {
-		if len(args) > 0 {
-			name = args[0]
-			args = args.Tail()
-		}
 	}
 	mount := false
 	if c.IsSet("mount") {
