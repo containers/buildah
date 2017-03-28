@@ -28,7 +28,7 @@ import (
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/parsers"
 	"github.com/docker/go-units"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 func init() {

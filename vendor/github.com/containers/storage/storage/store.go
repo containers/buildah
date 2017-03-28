@@ -749,19 +749,25 @@ func (s *store) CreateContainer(id string, names []string, image, layer, metadat
 		id = stringid.GenerateRandomID()
 	}
 
-	cimage, err := ristore.Get(image)
-	if err != nil {
-		return nil, err
+	imageTopLayer := ""
+	imageID := ""
+	if image != "" {
+		cimage, err := ristore.Get(image)
+		if err != nil {
+			return nil, err
+		}
+		if cimage == nil {
+			return nil, ErrImageUnknown
+		}
+		imageTopLayer = cimage.TopLayer
+		imageID = cimage.ID
 	}
-	if cimage == nil {
-		return nil, ErrImageUnknown
-	}
-	clayer, err := rlstore.Create(layer, cimage.TopLayer, nil, "", nil, true)
+	clayer, err := rlstore.Create(layer, imageTopLayer, nil, "", nil, true)
 	if err != nil {
 		return nil, err
 	}
 	layer = clayer.ID
-	container, err := rcstore.Create(id, names, cimage.ID, layer, metadata)
+	container, err := rcstore.Create(id, names, imageID, layer, metadata)
 	if err != nil || container == nil {
 		rlstore.Delete(layer)
 	}

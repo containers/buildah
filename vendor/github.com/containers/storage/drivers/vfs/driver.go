@@ -9,7 +9,7 @@ import (
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/idtools"
 
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 var (

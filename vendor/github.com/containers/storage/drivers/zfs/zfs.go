@@ -19,7 +19,7 @@ import (
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 type zfsOptions struct {

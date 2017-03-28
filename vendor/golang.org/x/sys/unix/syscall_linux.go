@@ -881,6 +881,10 @@ func PtracePeekData(pid int, addr uintptr, out []byte) (count int, err error) {
 	return ptracePeek(PTRACE_PEEKDATA, pid, addr, out)
 }
 
+func PtracePeekUser(pid int, addr uintptr, out []byte) (count int, err error) {
+	return ptracePeek(PTRACE_PEEKUSR, pid, addr, out)
+}
+
 func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (count int, err error) {
 	// As for ptracePeek, we need to align our accesses to deal
 	// with the possibility of straddling an invalid page.

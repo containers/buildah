@@ -31,7 +31,7 @@ import (
 	"github.com/containers/storage/storageversion"
 	"github.com/docker/go-units"
 
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 var (
@@ -2569,7 +2569,7 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 			devices.metaDataLoopbackSize = size
 		case "dm.fs":
 			if val != "ext4" && val != "xfs" {
-				return nil, fmt.Errorf("devmapper: Unsupported filesystem %s\n", val)
+				return nil, fmt.Errorf("devmapper: Unsupported filesystem %s", val)
 			}
 			devices.filesystem = val
 		case "dm.mkfsarg":
@@ -2631,9 +2631,9 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 			devices.minFreeSpacePercent = uint32(minFreeSpacePercent)
 		default:
 			if nthOption > len(defaults) {
-				return nil, fmt.Errorf("devmapper: Unknown option %s\n", key)
+				return nil, fmt.Errorf("devmapper: Unknown option %s", key)
 			}
-			logrus.Errorf("devmapper: Unknown option %s, ignoring\n", key)
+			logrus.Errorf("devmapper: Unknown option %s, ignoring", key)
 		}
 		settings[key] = val
 	}
