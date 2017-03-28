@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/archive"
@@ -29,12 +30,23 @@ func addUrl(destination, srcurl string) error {
 	if err != nil {
 		return fmt.Errorf("error creating %q: %v", destination, err)
 	}
+	if last := resp.Header.Get("Last-Modified"); last != "" {
+		if mtime, err := time.Parse(time.RFC1123, last); err != nil {
+			logrus.Debugf("error parsing Last-Modified time %q: %v", last, err)
+		} else {
+			defer func() {
+				if err := os.Chtimes(destination, time.Now(), mtime); err != nil {
+					logrus.Debugf("error setting mtime to Last-Modified time %q: %v", last, err)
+				}
+			}()
+		}
+	}
 	defer f.Close()
 	n, err := io.Copy(f, resp.Body)
 	if resp.ContentLength >= 0 && n != resp.ContentLength {
 		return fmt.Errorf("error reading contents for %q: wrong length (%d != %d)", destination, n, resp.ContentLength)
 	}
-	if err := f.Chmod(0755); err != nil {
+	if err := f.Chmod(0600); err != nil {
 		return fmt.Errorf("error setting permissions on %q: %v", destination, err)
 	}
 	return nil

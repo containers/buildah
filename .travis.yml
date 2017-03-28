@@ -11,4 +11,4 @@ before_install:
     - sudo apt-get -qq install bats btrfs-tools libdevmapper-dev libgpgme11-dev
 script:
     - make
-    - cd tests; sudo ./test_runner.sh
+    - cd tests; sudo PATH="$PATH" ./test_runner.sh
