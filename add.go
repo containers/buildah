@@ -58,7 +58,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 		dest = filepath.Join(dest, destination)
 	} else {
 		if err := os.MkdirAll(filepath.Join(dest, b.Workdir), 0755); err != nil {
-			return fmt.Errorf("error ensuring directory %q exists: %v)", b.Workdir, err)
+			return fmt.Errorf("error ensuring directory %q exists: %v)", filepath.Join(dest, b.Workdir), err)
 		}
 		dest = filepath.Join(dest, b.Workdir, destination)
 	}
@@ -80,8 +80,10 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 	for _, src := range source {
 		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
 			// We assume that source is a file, and we're copying
-			// it to the destination.  Compute a filename and save
-			// the contents.
+			// it to the destination.  If the destination is
+			// already a directory, create a file inside of it.
+			// Otherwise, the destination is the file to which
+			// we'll save the contents.
 			url, err := url.Parse(src)
 			if err != nil {
 				return fmt.Errorf("error parsing URL %q: %v", src, err)
@@ -100,16 +102,13 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 			return fmt.Errorf("error reading %q: %v", src, err)
 		}
 		if srcfi.Mode().IsDir() {
-			// The source is a directory, so we're either creating
-			// the destination or a subdirectory of the
-			// destination.  Try to create it first, so that we can
-			// detect if there's already something there.
+			// The source is a directory, so copy the contents of
+			// the source directory into the target directory.  Try
+			// to create it first, so that if there's a problem,
+			// we'll discover why that won't work.
 			d := dest
-			if destfi != nil && destfi.Mode().IsDir() {
-				d = filepath.Join(dest, filepath.Base(src))
-			}
 			if err := os.MkdirAll(d, 0755); err != nil {
-				return fmt.Errorf("error ensuring directory %q exists: %v)", dest, err)
+				return fmt.Errorf("error ensuring directory %q exists: %v)", d, err)
 			}
 			logrus.Debugf("copying %q to %q", src+string(os.PathSeparator)+"*", d+string(os.PathSeparator)+"*")
 			if err := chrootarchive.CopyWithTar(src, d); err != nil {
