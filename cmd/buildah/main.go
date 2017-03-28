@@ -81,6 +81,7 @@ func main() {
 		umountCommand,
 		imagesCommand,
 		rmiCommand,
+		budCommand,
 	}
 	err := app.Run(os.Args)
 	if err != nil {

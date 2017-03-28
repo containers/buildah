@@ -133,3 +133,15 @@ func (b *Builder) updatedConfig() []byte {
 	}
 	return updatedImageConfig
 }
+
+// UpdatedEnv returns the environment list from the source image, with the
+// builder's own list appended to it.
+func (b *Builder) UpdatedEnv() []string {
+	config := b.updatedConfig()
+	image := ociv1.Image{}
+	if err := json.Unmarshal(config, &image); err != nil {
+		logrus.Errorf("error parsing updated image information")
+		return []string{}
+	}
+	return append(image.Config.Env, b.Env...)
+}

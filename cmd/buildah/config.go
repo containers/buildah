@@ -99,7 +99,7 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 	if c.IsSet("user") {
 		builder.User = c.String("user")
 	}
-	if c.IsSet("port") {
+	if c.IsSet("port") || c.IsSet("p") {
 		if builder.Expose == nil {
 			builder.Expose = make(map[string]interface{})
 		}
@@ -133,7 +133,7 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 			builder.Volumes = append(builder.Volumes, volSpec...)
 		}
 	}
-	if c.IsSet("label") {
+	if c.IsSet("label") || c.IsSet("l") {
 		if builder.Labels == nil {
 			builder.Labels = make(map[string]string)
 		}
@@ -149,7 +149,7 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 	if c.IsSet("workingdir") {
 		builder.Workdir = c.String("workingdir")
 	}
-	if c.IsSet("annotation") {
+	if c.IsSet("annotation") || c.IsSet("a") {
 		if builder.Annotations == nil {
 			builder.Annotations = make(map[string]string)
 		}
