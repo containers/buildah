@@ -1,4 +1,7 @@
 AUTOTAGS := $(shell ./btrfs_tag.sh) $(shell ./libdm_tag.sh)
+PREFIX := $(DESTDIR)/usr/local
+BINDIR := $(PREFIX)/sbin
+BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
 
 all: buildah
 
@@ -19,3 +22,11 @@ gopath:
 .PHONY: deps
 deps: gopath
 	env GOPATH=$(shell cd ../../../.. ; pwd) vndr
+
+install:
+	install -D -m0755 buildah $(BINDIR)/buildah
+
+.PHONY: install.completions
+install.completions:
+	install -d -m 755 ${BASHINSTALLDIR}
+	install -m 644 -D contrib/completions/bash/buildah ${BASHINSTALLDIR}
