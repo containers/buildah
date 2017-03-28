@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/containers/image/storage"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/projectatomic/buildah"
@@ -66,7 +67,11 @@ func commitCmd(c *cli.Context) error {
 
 	dest, err := alltransports.ParseImageName(image)
 	if err != nil {
-		return fmt.Errorf("error parsing target image name %q: %v", image, err)
+		dest2, err2 := storage.Transport.ParseStoreReference(store, image)
+		if err2 != nil {
+			return fmt.Errorf("error parsing target image name %q: %v", image, err)
+		}
+		dest = dest2
 	}
 
 	options := buildah.CommitOptions{
