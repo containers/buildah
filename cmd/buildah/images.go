@@ -16,6 +16,10 @@ var (
 			Name:  "noheading, n",
 			Usage: "do not print column headings",
 		},
+		cli.BoolFlag{
+			Name:  "notruncate",
+			Usage: "do not truncate output",
+		},
 	}
 	imagesDescription = "Lists locally stored images."
 	imagesCommand     = cli.Command{
@@ -42,14 +46,21 @@ func imagesCmd(c *cli.Context) error {
 	if c.IsSet("noheading") {
 		noheading = c.Bool("noheading")
 	}
-
+	truncate := true
+	if c.IsSet("notruncate") {
+		truncate = !c.Bool("notruncate")
+	}
 	images, err := store.Images()
 	if err != nil {
 		return fmt.Errorf("error reading images: %v", err)
 	}
 
 	if len(images) > 0 && !noheading && !quiet {
-		fmt.Printf("%-64s %s\n", "IMAGE ID", "IMAGE NAME")
+		if truncate {
+			fmt.Printf("%-12s %s\n", "IMAGE ID", "IMAGE NAME")
+		} else {
+			fmt.Printf("%-64s %s\n", "IMAGE ID", "IMAGE NAME")
+		}
 	}
 	for _, image := range images {
 		if quiet {
@@ -60,7 +71,11 @@ func imagesCmd(c *cli.Context) error {
 				names = image.Names
 			}
 			for _, name := range names {
-				fmt.Printf("%-64s %s\n", image.ID, name)
+				if truncate {
+					fmt.Printf("%-12.12s %s\n", image.ID, name)
+				} else {
+					fmt.Printf("%-64s %s\n", image.ID, name)
+				}
 			}
 		}
 	}
