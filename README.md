@@ -56,4 +56,4 @@ Then to install buildah follow the steps in this example:
 **Future goals include:**
 * docs
 * more CI tests
-* additional CLI commands (build?)
+* additional CLI commands (?)

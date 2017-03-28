@@ -6,7 +6,7 @@ BUILDFLAGS := -tags "$(AUTOTAGS) $(TAGS)"
 
 all: buildah docs
 
-buildah: *.go cmd/buildah/*.go
+buildah: *.go imagebuildah/*.go cmd/buildah/*.go
 	go build -o buildah $(BUILDFLAGS) ./cmd/buildah
 
 .PHONY: clean
