@@ -45,3 +45,24 @@ load helpers
   cmp ${TESTDIR}/other-randomfile $newroot/other-randomfile
   buildah rm $newcid
 }
+
+@test "copy-local-subdirectory" {
+  mkdir -p ${TESTDIR}/subdir
+  createrandom ${TESTDIR}/subdir/randomfile
+  createrandom ${TESTDIR}/subdir/other-randomfile
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah config --workingdir /container-subdir $cid
+  buildah copy $cid ${TESTDIR}/subdir
+  root=$(buildah mount $cid)
+  test -s $root/container-subdir/randomfile
+  cmp ${TESTDIR}/subdir/randomfile $root/container-subdir/randomfile
+  test -s $root/container-subdir/other-randomfile
+  cmp ${TESTDIR}/subdir/other-randomfile $root/container-subdir/other-randomfile
+  buildah copy $cid ${TESTDIR}/subdir /other-subdir
+  test -s $root/other-subdir/randomfile
+  cmp ${TESTDIR}/subdir/randomfile $root/other-subdir/randomfile
+  test -s $root/other-subdir/other-randomfile
+  cmp ${TESTDIR}/subdir/other-randomfile $root/other-subdir/other-randomfile
+  buildah rm $cid
+}
