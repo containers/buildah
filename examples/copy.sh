@@ -13,8 +13,8 @@ ocic image list
 read
 : "[1m Create a working container, and capture its name [0m"
 read
-echo '[container1=`buildah from --pull --image ${1:-alpine}`]'
-container1=`buildah from --pull --image ${1:-alpine}`
+echo '[container1=`buildah from ${1:-alpine}`]'
+container1=`buildah from ${1:-alpine}`
 read
 : "[1m Mount that working container, and capture the mountpoint [0m"
 read

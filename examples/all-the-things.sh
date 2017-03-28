@@ -9,8 +9,8 @@ ocic image list
 read
 : "[1m Create a working container, and capture its name [0m"
 read
-echo '[container1=`buildah from --image ${1:-ubuntu}`]'
-container1=`buildah from --image ${1:-ubuntu}`
+echo '[container1=`buildah from ${1:-ubuntu}`]'
+container1=`buildah from ${1:-ubuntu}`
 read
 : "[1m Mount that working container, and capture the mountpoint [0m"
 read
@@ -24,7 +24,7 @@ echo yay > $mountpoint1/file-in-root
 read
 : "[1m Produce an image from the container [0m"
 read
-buildah commit "$container1" --output containers-storage:${2:-first-new-image}
+buildah commit "$container1" containers-storage:${2:-first-new-image}
 read
 : "[1m Verify that our new image is there [0m"
 read
@@ -41,8 +41,8 @@ systemctl stop ocid
 read
 : "[1m You know what?  Go ahead and use that image we just created, and capture its name [0m"
 read
-echo '[container2=`buildah from --image=${2:-first-new-image}`]'
-container2=`buildah from --image=${2:-first-new-image}`
+echo '[container2=`buildah from ${2:-first-new-image}`]'
+container2=`buildah from ${2:-first-new-image}`
 read
 : "[1m Mount that new working container, and capture the mountpoint [0m"
 read
@@ -60,7 +60,7 @@ echo yay > $mountpoint2/another-file-in-root
 read
 : "[1m Produce an image from the new container[0m"
 read
-buildah commit "$container2" --output containers-storage:${3:-second-new-image}
+buildah commit "$container2" containers-storage:${3:-second-new-image}
 read
 : "[1m Unmount our new working container and delete it [0m"
 read
