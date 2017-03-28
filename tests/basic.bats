@@ -67,6 +67,7 @@ load helpers
   [ "$status" -eq 1 ]
   buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:another-new-image
   buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid yet-another-new-image
+  buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:gratuitous-new-image
   buildah unmount $newcid
   buildah rm $newcid
 
@@ -92,5 +93,16 @@ load helpers
   cmp ${TESTDIR}/randomfile $yetanothernewroot/randomfile
   test -s $yetanothernewroot/other-randomfile
   cmp ${TESTDIR}/other-randomfile $yetanothernewroot/other-randomfile
-  buildah rm $yetanothernewcid
+  buildah delete $yetanothernewcid
+
+  buildah rmi containers-storage:other-new-image
+  buildah rmi another-new-image
+  run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
+  [ "$output" != "" ]
+  for id in $output ; do
+    buildah rmi $id
+  done
+  run buildah --debug=false images -q
+  [ "$output" == "" ]
 }
