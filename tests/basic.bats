@@ -5,7 +5,7 @@ load helpers
 @test "from" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm $cid
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json         alpine)
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah rm $cid
   cid=$(buildah from alpine --pull --signature-policy ${TESTSDIR}/policy.json --name i-love-naming-things)
   buildah rm i-love-naming-things
@@ -16,13 +16,20 @@ load helpers
   buildah rm $cid
 }
 
+@test "from-scratch" {
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah rm $cid
+  cid=$(buildah from --pull=true  --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah rm $cid
+}
+
 @test "from-nopull" {
   run buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   [ "$status" -eq 1 ]
 }
 
 @test "mount" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
   root=$(buildah mount $cid)
   buildah unmount $cid
   root=$(buildah mount $cid)
@@ -32,24 +39,17 @@ load helpers
 }
 
 @test "by-name" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --name alpine-working-image-for-test alpine)
-  root=$(buildah mount alpine-working-image-for-test)
-  buildah unmount alpine-working-image-for-test
-  buildah rm alpine-working-image-for-test
-}
-
-@test "by-root" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  root=$(buildah mount $cid)
-  buildah unmount $cid
-  buildah rm $cid
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --name scratch-working-image-for-test scratch)
+  root=$(buildah mount scratch-working-image-for-test)
+  buildah unmount scratch-working-image-for-test
+  buildah rm scratch-working-image-for-test
 }
 
 @test "commit" {
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
   root=$(buildah mount $cid)
   cp ${TESTDIR}/randomfile $root/randomfile
   buildah unmount $cid

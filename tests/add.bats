@@ -6,7 +6,7 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   root=$(buildah mount $cid)
   mkdir $root/subdir $root/other-subdir
   # Copy a file to the working directory
@@ -48,7 +48,7 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   root=$(buildah mount $cid)
   dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/random1
   dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/random2
