@@ -11,7 +11,27 @@ function setup() {
 	REPO=${TESTDIR}/root
 }
 
+function starthttpd() {
+	pushd ${2:-${BATS_TMPDIR}} > /dev/null
+	cp ${TESTSDIR}/serve.go .
+	go build serve.go
+	HTTP_SERVER_PORT=$((RANDOM+32768))
+	./serve ${HTTP_SERVER_PORT} ${1:-${BATS_TMPDIR}} &
+	HTTP_SERVER_PID=$!
+	popd > /dev/null
+}
+
+function stophttpd() {
+	if test -n "$HTTP_SERVER_PID" ; then
+		kill -HUP ${HTTP_SERVER_PID}
+		unset HTTP_SERVER_PID
+		unset HTTP_SERVER_PORT
+	fi
+	true
+}
+
 function teardown() {
+	stophttpd
 	rm -fr ${TESTDIR}
 }
 

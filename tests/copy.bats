@@ -86,3 +86,21 @@ load helpers
   cmp ${TESTDIR}/randomfile $root/randomsubdir/randomfile
   buildah rm $cid
 }
+
+@test "copy-url-mtime" {
+  createrandom ${TESTDIR}/randomfile
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah config --workingdir / $cid
+  starthttpd ${TESTDIR}
+  buildah copy $cid http://0.0.0.0:${HTTP_SERVER_PORT}/randomfile /urlfile
+  stophttpd
+  root=$(buildah mount $cid)
+  test -s $root/urlfile
+  cmp ${TESTDIR}/randomfile $root/urlfile
+  run test -nt ${TESTDIR}/randomfile $root/urlfile
+  [ "$status" -ne 0 ]
+  run test -ot ${TESTDIR}/randomfile $root/urlfile
+  [ "$status" -ne 0 ]
+  buildah rm $cid
+}
