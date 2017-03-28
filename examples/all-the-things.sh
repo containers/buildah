@@ -60,7 +60,7 @@ echo yay > $mountpoint2/another-file-in-root
 read
 : "[1m Produce an image from the new container[0m"
 read
-buildah commit "$container2" containers-storage:${3:-second-new-image}
+buildah commit "$container2" ${3:-second-new-image}
 read
 : "[1m Unmount our new working container and delete it [0m"
 read

@@ -66,7 +66,7 @@ load helpers
   run buildah commit $newcid --signature-policy ${TESTSDIR}/policy.json containers-storage:rejected-new-image
   [ "$status" -eq 1 ]
   buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:another-new-image
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:yet-another-new-image
+  buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid yet-another-new-image
   buildah unmount $newcid
   buildah delete $newcid
 
