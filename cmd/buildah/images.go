@@ -10,7 +10,7 @@ var (
 	imagesFlags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "quiet, q",
-			Usage: "display only container IDs",
+			Usage: "display only image IDs",
 		},
 		cli.BoolFlag{
 			Name:  "noheading, n",
