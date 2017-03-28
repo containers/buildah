@@ -15,6 +15,7 @@ dnf install -y \
   device-mapper-devel \
   gpgme-devel \
   libassuan-devel \
+  git \
   bzip2
 
 make -C $GOSRC
