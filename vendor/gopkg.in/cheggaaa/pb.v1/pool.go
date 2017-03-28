@@ -3,6 +3,7 @@
 package pb
 
 import (
+	"io"
 	"sync"
 	"time"
 )
@@ -19,6 +20,7 @@ func StartPool(pbs ...*ProgressBar) (pool *Pool, err error) {
 }
 
 type Pool struct {
+	Output      io.Writer
 	RefreshRate time.Duration
 	bars        []*ProgressBar
 	quit        chan int

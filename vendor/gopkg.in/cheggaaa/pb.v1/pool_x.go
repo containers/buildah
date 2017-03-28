@@ -17,6 +17,11 @@ func (p *Pool) print(first bool) bool {
 		bar.Update()
 		out += fmt.Sprintf("\r%s\n", bar.String())
 	}
-	fmt.Print(out)
+	if p.Output != nil {
+		fmt.Fprint(p.Output, out)
+	} else {
+		fmt.Print(out)
+	}
+
 	return isFinished
 }

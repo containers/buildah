@@ -45,8 +45,8 @@ import (
 	mountpk "github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/stringid"
 
-	"github.com/opencontainers/runc/libcontainer/label"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 var (
