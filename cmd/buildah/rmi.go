@@ -20,7 +20,7 @@ var (
 func rmiCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("container ID must be specified")
+		return fmt.Errorf("image ID must be specified")
 	}
 
 	store, err := getStore(c)
