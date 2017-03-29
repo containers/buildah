@@ -12,7 +12,7 @@ function setup() {
 }
 
 function starthttpd() {
-	pushd ${2:-${BATS_TMPDIR}} > /dev/null
+	pushd ${2:-${TESTDIR}} > /dev/null
 	cp ${TESTSDIR}/serve.go .
 	go build serve.go
 	HTTP_SERVER_PORT=$((RANDOM+32768))
