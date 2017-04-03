@@ -24,8 +24,14 @@ const (
 )
 
 const (
+	// DefaultTerminal indicates that this Run invocation should be
+	// connected to a pseudoterminal if we're connected to a terminal.
 	DefaultTerminal = iota
+	// WithoutTerminal indicates that this Run invocation should NOT be
+	// connected to a pseudoterminal.
 	WithoutTerminal
+	// WithTerminal indicates that this Run invocation should be connected
+	// to a pseudoterminal.
 	WithTerminal
 )
 
