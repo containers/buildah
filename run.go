@@ -65,10 +65,6 @@ type RunOptions struct {
 	Terminal int
 }
 
-func getExportOptions() generate.ExportOptions {
-	return generate.ExportOptions{}
-}
-
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
 	var user specs.User
@@ -143,7 +139,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		g.SetProcessTerminal(false)
 	}
 	if !options.NetworkDisabled {
-		g.RemoveLinuxNamespace("network")
+		if err = g.RemoveLinuxNamespace("network"); err != nil {
+			return fmt.Errorf("error removing network namespace for run: %v)", err)
+		}
 	}
 	if options.User != "" {
 		user, err = getUser(mountPoint, options.User)
@@ -159,7 +157,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if spec.Process.Cwd == "" {
 		spec.Process.Cwd = DefaultWorkingDir
 	}
-	if err := os.MkdirAll(filepath.Join(mountPoint, b.Workdir), 0755); err != nil {
+	if err = os.MkdirAll(filepath.Join(mountPoint, b.Workdir), 0755); err != nil {
 		return fmt.Errorf("error ensuring working directory %q exists: %v)", b.Workdir, err)
 	}
 	mounts := options.Mounts

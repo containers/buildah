@@ -108,8 +108,8 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 		}
 	}
 	if c.IsSet("env") {
-		for _, envSpec := range c.StringSlice("env") {
-			builder.Env = append(builder.Env, envSpec)
+		if envSpec := c.StringSlice("env"); len(envSpec) > 0 {
+			builder.Env = append(builder.Env, envSpec...)
 		}
 	}
 	if c.IsSet("entrypoint") {
@@ -129,8 +129,8 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 		}
 	}
 	if c.IsSet("volume") {
-		for _, volSpec := range c.StringSlice("volume") {
-			builder.Volumes = append(builder.Volumes, volSpec)
+		if volSpec := c.StringSlice("volume"); len(volSpec) > 0 {
+			builder.Volumes = append(builder.Volumes, volSpec...)
 		}
 	}
 	if c.IsSet("label") {

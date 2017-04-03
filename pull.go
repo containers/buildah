@@ -69,9 +69,5 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 
 	names := append(destImage.Names, options.FromImage, name)
 	err = store.SetNames(destImage.ID, names)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }

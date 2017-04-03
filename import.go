@@ -10,7 +10,6 @@ import (
 func importBuilder(store storage.Store, options ImportOptions) (*Builder, error) {
 	manifest := []byte{}
 	config := []byte{}
-	name := ""
 	image := ""
 	imageName := ""
 
@@ -26,13 +25,13 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 	systemContext := getSystemContext(options.SignaturePolicyPath)
 
 	if c.ImageID != "" {
-		ref, err := is.Transport.ParseStoreReference(store, "@"+c.ImageID)
-		if err != nil {
-			return nil, fmt.Errorf("no such image %q: %v", "@"+c.ImageID, err)
+		ref, err2 := is.Transport.ParseStoreReference(store, "@"+c.ImageID)
+		if err2 != nil {
+			return nil, fmt.Errorf("no such image %q: %v", "@"+c.ImageID, err2)
 		}
-		src, err := ref.NewImage(systemContext)
-		if err != nil {
-			return nil, fmt.Errorf("error instantiating image: %v", err)
+		src, err3 := ref.NewImage(systemContext)
+		if err3 != nil {
+			return nil, fmt.Errorf("error instantiating image: %v", err3)
 		}
 		defer src.Close()
 		config, err = src.ConfigBlob()
@@ -44,14 +43,14 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 			return nil, fmt.Errorf("error reading image manifest: %v", err)
 		}
 		image = c.ImageID
-		if img, err := store.GetImage(image); err == nil {
+		if img, err4 := store.GetImage(image); err4 == nil {
 			if len(img.Names) > 0 {
 				imageName = img.Names[0]
 			}
 		}
 	}
 
-	name = options.Container
+	name := options.Container
 
 	builder := &Builder{
 		store:       store,

@@ -31,18 +31,21 @@ func addURL(destination, srcurl string) error {
 		return fmt.Errorf("error creating %q: %v", destination, err)
 	}
 	if last := resp.Header.Get("Last-Modified"); last != "" {
-		if mtime, err := time.Parse(time.RFC1123, last); err != nil {
-			logrus.Debugf("error parsing Last-Modified time %q: %v", last, err)
+		if mtime, err2 := time.Parse(time.RFC1123, last); err2 != nil {
+			logrus.Debugf("error parsing Last-Modified time %q: %v", last, err2)
 		} else {
 			defer func() {
-				if err := os.Chtimes(destination, time.Now(), mtime); err != nil {
-					logrus.Debugf("error setting mtime to Last-Modified time %q: %v", last, err)
+				if err3 := os.Chtimes(destination, time.Now(), mtime); err3 != nil {
+					logrus.Debugf("error setting mtime to Last-Modified time %q: %v", last, err3)
 				}
 			}()
 		}
 	}
 	defer f.Close()
 	n, err := io.Copy(f, resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading contents for %q: %v", destination, err)
+	}
 	if resp.ContentLength >= 0 && n != resp.ContentLength {
 		return fmt.Errorf("error reading contents for %q: wrong length (%d != %d)", destination, n, resp.ContentLength)
 	}
@@ -69,7 +72,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 	if destination != "" && filepath.IsAbs(destination) {
 		dest = filepath.Join(dest, destination)
 	} else {
-		if err := os.MkdirAll(filepath.Join(dest, b.Workdir), 0755); err != nil {
+		if err = os.MkdirAll(filepath.Join(dest, b.Workdir), 0755); err != nil {
 			return fmt.Errorf("error ensuring directory %q exists: %v)", filepath.Join(dest, b.Workdir), err)
 		}
 		dest = filepath.Join(dest, b.Workdir, destination)
@@ -78,12 +81,12 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 	// with a '/', create it so that we can be sure that it's a directory,
 	// and any files we're copying will be placed in the directory.
 	if len(destination) > 0 && destination[len(destination)-1] == os.PathSeparator {
-		if err := os.MkdirAll(dest, 0755); err != nil {
+		if err = os.MkdirAll(dest, 0755); err != nil {
 			return fmt.Errorf("error ensuring directory %q exists: %v)", dest, err)
 		}
 	}
 	// Make sure the destination's parent directory is usable.
-	if fi, err := os.Stat(filepath.Dir(dest)); err == nil && !fi.Mode().IsDir() {
+	if destpfi, err2 := os.Stat(filepath.Dir(dest)); err2 == nil && !destpfi.Mode().IsDir() {
 		return fmt.Errorf("%q already exists, but is not a subdirectory)", filepath.Dir(dest))
 	}
 	// Now look at the destination itself.

@@ -102,9 +102,7 @@ func (b *Builder) updatedConfig() []byte {
 		image.Config.WorkingDir = b.Workdir
 	}
 	if len(b.Env) > 0 {
-		for _, envSpec := range b.Env {
-			image.Config.Env = append(image.Config.Env, envSpec)
-		}
+		image.Config.Env = append(image.Config.Env, b.Env...)
 	}
 	if len(b.Cmd) > 0 {
 		image.Config.Cmd = b.Cmd
