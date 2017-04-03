@@ -16,10 +16,10 @@ import (
 	"github.com/containers/storage/pkg/chrootarchive"
 )
 
-// addUrl copies the contents of the source URL to the destination.  This is
+// addURL copies the contents of the source URL to the destination.  This is
 // its own function so that deferred closes happen after we're done pulling
 // down each item of potentially many.
-func addUrl(destination, srcurl string) error {
+func addURL(destination, srcurl string) error {
 	logrus.Debugf("saving %q to %q", srcurl, destination)
 	resp, err := http.Get(srcurl)
 	if err != nil {
@@ -112,7 +112,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 			if destfi != nil && destfi.Mode().IsDir() {
 				d = filepath.Join(dest, path.Base(url.Path))
 			}
-			if err := addUrl(d, src); err != nil {
+			if err := addURL(d, src); err != nil {
 				return err
 			}
 			continue

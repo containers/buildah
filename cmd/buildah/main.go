@@ -20,7 +20,8 @@ func main() {
 	app.Name = buildah.Package
 	app.Usage = "an image builder"
 	if len(storage.DefaultStoreOptions.GraphDriverOptions) > 0 {
-		var optionSlice cli.StringSlice = storage.DefaultStoreOptions.GraphDriverOptions[:]
+		var optionSlice cli.StringSlice
+		optionSlice = storage.DefaultStoreOptions.GraphDriverOptions[:]
 		defaultStoreDriverOptions = &optionSlice
 	}
 	app.Flags = []cli.Flag{
