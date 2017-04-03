@@ -8,7 +8,7 @@ sudo: required
 before_install:
     - sudo add-apt-repository -y ppa:duggan/bats
     - sudo apt-get -qq update
-    - sudo apt-get -qq install bats btrfs-tools libdevmapper-dev libgpgme11-dev
+    - sudo apt-get -qq install bats btrfs-tools git libdevmapper-dev libgpgme11-dev
 script:
-    - make
+    - make install.tools all validate
     - cd tests; sudo PATH="$PATH" ./test_runner.sh
