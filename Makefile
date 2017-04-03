@@ -2,11 +2,12 @@ AUTOTAGS := $(shell ./btrfs_tag.sh) $(shell ./libdm_tag.sh)
 PREFIX := $(DESTDIR)/usr/local
 BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
+BUILDFLAGS := -tags "$(AUTOTAGS) $(TAGS)"
 
 all: buildah install.tools docs
 
 buildah: *.go cmd/buildah/*.go
-	go build -o buildah -tags "$(AUTOTAGS) $(TAGS)" ./cmd/buildah
+	go build -o buildah $(BUILDFLAGS) ./cmd/buildah
 
 .PHONY: clean
 clean:
@@ -27,6 +28,18 @@ gopath:
 .PHONY: deps
 deps: gopath
 	env GOPATH=$(shell cd ../../../.. ; pwd) vndr
+
+.PHONY: validate
+validate:
+	@./tests/validate/gofmt.sh
+	@./tests/validate/git-validation.sh
+	@./tests/validate/gometalinter.sh . cmd/buildah
+
+.PHONY: install.tools
+install.tools:
+	go get -u $(BUILDFLAGS) github.com/vbatts/git-validation
+	go get -u $(BUILDFLAGS) gopkg.in/alecthomas/gometalinter.v1
+	gometalinter.v1 -i
 
 install:
 	install -D -m0755 buildah $(BINDIR)/buildah
