@@ -155,7 +155,7 @@ func OpenBuilder(store storage.Store, container string) (*Builder, error) {
 		return nil, err
 	}
 	b := &Builder{}
-	err = json.Unmarshal([]byte(buildstate), &b)
+	err = json.Unmarshal(buildstate, &b)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func OpenBuilderByPath(store storage.Store, path string) (*Builder, error) {
 			return nil, err
 		}
 		b := &Builder{}
-		err = json.Unmarshal([]byte(buildstate), &b)
+		err = json.Unmarshal(buildstate, &b)
 		if err == nil && b.Type == containerType && builderMatchesPath(b, abs) {
 			b.store = store
 			return b, nil
@@ -224,7 +224,7 @@ func OpenAllBuilders(store storage.Store) (builders []*Builder, err error) {
 			continue
 		}
 		b := &Builder{}
-		err = json.Unmarshal([]byte(buildstate), &b)
+		err = json.Unmarshal(buildstate, &b)
 		if err == nil && b.Type == containerType {
 			b.store = store
 			builders = append(builders, b)

@@ -44,11 +44,11 @@ func rmiCmd(c *cli.Context) error {
 			// it and check if it corresponds to an image that
 			// actually exists.
 			if ref2, err2 := alltransports.ParseImageName(id); err2 == nil {
-				if img, err2 := ref2.NewImage(nil); err2 == nil {
+				if img, err3 := ref2.NewImage(nil); err3 == nil {
 					img.Close()
 					ref = ref2
 				} else {
-					logrus.Debugf("error confirming presence of image %q: %v", transports.ImageName(ref2), err2)
+					logrus.Debugf("error confirming presence of image %q: %v", transports.ImageName(ref2), err3)
 				}
 			} else {
 				logrus.Debugf("error parsing %q as an image reference: %v", id, err2)
@@ -59,11 +59,11 @@ func rmiCmd(c *cli.Context) error {
 				// if it corresponds to an image that actually
 				// exists.
 				if ref2, err2 := storage.Transport.ParseStoreReference(store, id); err2 == nil {
-					if img, err2 := ref2.NewImage(nil); err2 == nil {
+					if img, err3 := ref2.NewImage(nil); err3 == nil {
 						img.Close()
 						ref = ref2
 					} else {
-						logrus.Debugf("error confirming presence of image %q: %v", transports.ImageName(ref2), err2)
+						logrus.Debugf("error confirming presence of image %q: %v", transports.ImageName(ref2), err3)
 					}
 				} else {
 					logrus.Debugf("error parsing %q as a store reference: %v", id, err2)
@@ -78,11 +78,11 @@ func rmiCmd(c *cli.Context) error {
 				// the ID directly above, but it can't hurt,
 				// either.
 				if ref2, err2 := storage.Transport.ParseStoreReference(store, "@"+id); err2 == nil {
-					if img, err2 := ref2.NewImage(nil); err2 == nil {
+					if img, err3 := ref2.NewImage(nil); err3 == nil {
 						img.Close()
 						ref = ref2
 					} else {
-						logrus.Debugf("error confirming presence of image %q: %v", transports.ImageName(ref2), err2)
+						logrus.Debugf("error confirming presence of image %q: %v", transports.ImageName(ref2), err3)
 					}
 				} else {
 					logrus.Debugf("error parsing %q as an image reference: %v", "@"+id, err2)

@@ -40,7 +40,7 @@ func fopenContainerFile(rootdir, filename string) (C.pFILE, error) {
 		return nil, fmt.Errorf("lstat(%q): %v", ctrfile, err)
 	}
 	if st.Dev != lst.Dev || st.Ino != lst.Ino {
-		return nil, fmt.Errorf("%q is not a regular file")
+		return nil, fmt.Errorf("%q is not a regular file", ctrfile)
 	}
 	return f, nil
 }

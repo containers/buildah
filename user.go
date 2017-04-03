@@ -27,7 +27,7 @@ func getUser(rootdir, userspec string) (specs.User, error) {
 	if uerr == nil && groupspec == "" {
 		// We parsed the user name as a number, and there's no group
 		// component, so we need to look up the user's primary GID.
-		name := ""
+		var name string
 		name, gid64, gerr = lookupGroupForUIDInContainer(rootdir, uid64)
 		if gerr == nil {
 			userspec = name

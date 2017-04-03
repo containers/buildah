@@ -120,7 +120,6 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 
 	image.RootFS.Type = "layers"
 	image.RootFS.DiffIDs = []string{}
-	lastLayerDiffID := ""
 
 	for _, layerID := range layers {
 		rc, err := i.store.Diff("", layerID)
@@ -182,7 +181,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 			Size:      size,
 		}
 		manifest.Layers = append(manifest.Layers, layerDescriptor)
-		lastLayerDiffID = destHasher.Digest().String()
+		lastLayerDiffID := destHasher.Digest().String()
 		image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, lastLayerDiffID)
 	}
 
