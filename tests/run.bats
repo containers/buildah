@@ -11,11 +11,9 @@ load helpers
 	root=$(buildah mount $cid)
 	buildah config $cid --workingdir /tmp
 	run buildah --debug=false run $cid pwd
-	output=$(echo "$output" | tr -d '\r')
 	[ "$output" = /tmp ]
 	buildah config $cid --workingdir /root
 	run buildah --debug=false run        $cid pwd
-	output=$(echo "$output" | tr -d '\r')
 	[ "$output" = /root ]
 	cp ${TESTDIR}/randomfile $root/tmp/
 	buildah run        $cid cp /tmp/randomfile /tmp/other-randomfile
