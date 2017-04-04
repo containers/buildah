@@ -82,14 +82,6 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if err != nil {
 		return err
 	}
-	if options.User != "" {
-		user, err = getUser(options.User)
-	} else {
-		user, err = getUser(image.Config.User)
-	}
-	if err != nil {
-		return err
-	}
 	g := generate.New()
 
 	if image.OS != "" {
@@ -98,8 +90,6 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if image.Architecture != "" {
 		g.SetPlatformArch(image.Architecture)
 	}
-	g.SetProcessUID(user.UID)
-	g.SetProcessGID(user.GID)
 	for _, envSpec := range append(image.Config.Env, options.Env...) {
 		env := strings.SplitN(envSpec, "=", 2)
 		if len(env) > 1 {
@@ -149,6 +139,16 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if !options.NetworkDisabled {
 		g.RemoveLinuxNamespace("network")
 	}
+	if options.User != "" {
+		user, err = getUser(mountPoint, options.User)
+	} else {
+		user, err = getUser(mountPoint, image.Config.User)
+	}
+	if err != nil {
+		return err
+	}
+	g.SetProcessUID(user.UID)
+	g.SetProcessGID(user.GID)
 	spec := g.Spec()
 	if spec.Process.Cwd == "" {
 		spec.Process.Cwd = DefaultWorkingDir
