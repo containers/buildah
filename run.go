@@ -23,6 +23,12 @@ const (
 	DefaultRuntime = "runc"
 )
 
+const (
+	DefaultTerminal = iota
+	WithoutTerminal
+	WithTerminal
+)
+
 // RunOptions can be used to alter how a command is run in the container.
 type RunOptions struct {
 	// Hostname is the hostname we set for the running container.
@@ -45,6 +51,12 @@ type RunOptions struct {
 	Entrypoint []string
 	// NetworkDisabled puts the container into its own network namespace.
 	NetworkDisabled bool
+	// Terminal provides a way to specify whether or not the command should
+	// be run with a pseudoterminal.  By default (DefaultTerminal), a
+	// terminal is used if os.Stdout is connected to a terminal, but that
+	// decision can be overridden by specifying either WithTerminal or
+	// WithoutTerminal.
+	Terminal int
 }
 
 func getExportOptions() generate.ExportOptions {
@@ -126,7 +138,14 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		}
 	}()
 	g.SetRootPath(mountPoint)
-	g.SetProcessTerminal(true)
+	switch options.Terminal {
+	case DefaultTerminal:
+		g.SetProcessTerminal(logrus.IsTerminal(os.Stdout))
+	case WithTerminal:
+		g.SetProcessTerminal(true)
+	case WithoutTerminal:
+		g.SetProcessTerminal(false)
+	}
 	if !options.NetworkDisabled {
 		g.RemoveLinuxNamespace("network")
 	}
