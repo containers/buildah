@@ -77,6 +77,15 @@ func budCmd(c *cli.Context) error {
 	if c.IsSet("pull-always") {
 		pull = c.Bool("pull-always")
 	}
+
+	pullPolicy := imagebuildah.PullNever
+	if pull {
+		pullPolicy = imagebuildah.PullIfMissing
+	}
+	if pullAlways {
+		pullPolicy = imagebuildah.PullAlways
+	}
+
 	signaturePolicy := ""
 	if c.IsSet("signature-policy") {
 		signaturePolicy = c.String("signature-policy")
@@ -162,8 +171,7 @@ func budCmd(c *cli.Context) error {
 
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:    contextDir,
-		PullIfMissing:       pull,
-		PullAlways:          pullAlways,
+		PullPolicy:          pullPolicy,
 		Registry:            registry,
 		Compression:         archive.Gzip,
 		Quiet:               quiet,

@@ -19,6 +19,21 @@ const (
 	stateFile     = Package + ".json"
 )
 
+const (
+	// PullIfMissing is one of the values that BuilderOptions.PullPolicy
+	// can take, signalling that the source image should be pulled from a
+	// registry if a local copy of it is not already present.
+	PullIfMissing = iota
+	// PullAlways is one of the values that BuilderOptions.PullPolicy can
+	// take, signalling that a fresh, possibly updated, copy of the image
+	// should be pulled from a registry before the build proceeds.
+	PullAlways
+	// PullNever is one of the values that BuilderOptions.PullPolicy can
+	// take, signalling that the source image should not be pulled from a
+	// registry if a local copy of it is not already present.
+	PullNever
+)
+
 // Builder objects are used to represent containers which are being used to
 // build images.  They also carry potential updates which will be applied to
 // the image's configuration when the container's contents are used to build an
@@ -100,12 +115,10 @@ type BuilderOptions struct {
 	FromImage string
 	// Container is a desired name for the build container.
 	Container string
-	// PullIfMissing signals to NewBuilder() that it should pull the image
-	// if it is not present in the local Store.
-	PullIfMissing bool
-	// PullAlways signals to NewBuilder() that it should pull the source
-	// image before creating the container.
-	PullAlways bool
+	// PullPolicy decides whether or not we should pull the image that
+	// we're using as a base image.  It should be PullIfMissing,
+	// PullAlways, or PullNever.
+	PullPolicy int
 	// Registry is a value which is prepended to the image's name, if it
 	// needs to be pulled and the image name alone can not be resolved to a
 	// reference to a source image.
