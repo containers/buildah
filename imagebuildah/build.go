@@ -23,17 +23,20 @@ import (
 	"github.com/projectatomic/buildah"
 )
 
+const (
+	PullIfMissing = buildah.PullIfMissing
+	PullAlways    = buildah.PullAlways
+	PullNever     = buildah.PullNever
+)
+
 // BuildOptions can be used to alter how an image is built.
 type BuildOptions struct {
 	// ContextDirectory is the default source location for COPY and ADD
 	// commands.
 	ContextDirectory string
-	// PullIfMissing signals to NewBuilder() that it should pull the image
-	// if it is not present in the local Store.
-	PullIfMissing bool
-	// PullAlways signals to NewBuilder() that it should pull the source
-	// image before creating the container.
-	PullAlways bool
+	// PullPolicy controls whether or not we pull images.  It should be one
+	// of PullIfMissing, PullAlways, or PullNever.
+	PullPolicy int
 	// Registry is a value which is prepended to the image's name, if it
 	// needs to be pulled and the image name alone can not be resolved to a
 	// reference to a source image.
@@ -72,8 +75,7 @@ type Executor struct {
 	store                          storage.Store
 	contextDir                     string
 	builder                        *buildah.Builder
-	pullIfMissing                  bool
-	pullAlways                     bool
+	pullPolicy                     int
 	registry                       string
 	ignoreUnrecognizedInstructions bool
 	counter                        int
@@ -332,8 +334,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 	exec := Executor{
 		store:                          store,
 		contextDir:                     options.ContextDirectory,
-		pullIfMissing:                  options.PullIfMissing,
-		pullAlways:                     options.PullAlways,
+		pullPolicy:                     options.PullPolicy,
 		registry:                       options.Registry,
 		ignoreUnrecognizedInstructions: options.IgnoreUnrecognizedInstructions,
 		quiet:               options.Quiet,
@@ -366,8 +367,7 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node) error {
 	b.counter++
 	builderOptions := buildah.BuilderOptions{
 		FromImage:           from,
-		PullIfMissing:       b.pullIfMissing,
-		PullAlways:          b.pullAlways,
+		PullPolicy:          b.pullPolicy,
 		Registry:            b.registry,
 		SignaturePolicyPath: b.signaturePolicyPath,
 	}

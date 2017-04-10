@@ -77,6 +77,15 @@ func fromCmd(c *cli.Context) error {
 	if c.IsSet("pull-always") {
 		pull = c.Bool("pull-always")
 	}
+
+	pullPolicy := buildah.PullNever
+	if pull {
+		pullPolicy = buildah.PullIfMissing
+	}
+	if pullAlways {
+		pullPolicy = buildah.PullAlways
+	}
+
 	name := ""
 	if c.IsSet("name") {
 		name = c.String("name")
@@ -98,8 +107,7 @@ func fromCmd(c *cli.Context) error {
 	options := buildah.BuilderOptions{
 		FromImage:           image,
 		Container:           name,
-		PullIfMissing:       pull,
-		PullAlways:          pullAlways,
+		PullPolicy:          pullPolicy,
 		Mount:               mount,
 		Registry:            registry,
 		SignaturePolicyPath: signaturePolicy,
