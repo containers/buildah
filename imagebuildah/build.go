@@ -70,6 +70,9 @@ type BuildOptions struct {
 	Args map[string]string
 	// Name of the image to write to.
 	Output string
+	// Additional tags to add to the image that we write, if we know of a
+	// way to add them.
+	AdditionalTags []string
 	// Log is a callback that will print a progress message.  If no value
 	// is supplied, the message will be sent to Err (or os.Stderr, if Err
 	// is nil) by default.
@@ -101,6 +104,7 @@ type Executor struct {
 	transientMounts                []Mount
 	compression                    archive.Compression
 	output                         string
+	additionalTags                 []string
 	log                            func(format string, args ...interface{})
 	out                            io.Writer
 	err                            io.Writer
@@ -376,6 +380,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		transientMounts:     options.TransientMounts,
 		compression:         options.Compression,
 		output:              options.Output,
+		additionalTags:      options.AdditionalTags,
 		signaturePolicyPath: options.SignaturePolicyPath,
 		systemContext:       makeSystemContext(options.SignaturePolicyPath),
 		volumeCache:         make(map[string]string),
@@ -520,6 +525,7 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 	options := buildah.CommitOptions{
 		Compression:         b.compression,
 		SignaturePolicyPath: b.signaturePolicyPath,
+		AdditionalTags:      b.additionalTags,
 	}
 	return b.builder.Commit(imageRef, options)
 }

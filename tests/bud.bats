@@ -168,3 +168,20 @@ load helpers
   run buildah --debug=false images -q
   [ "$output" = "" ]
 }
+
+@test "bud-additional-tags" {
+  target=scratch-image
+  target2=another-scratch-image
+  target3=so-many-scratch-images
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -t ${target2} -t ${target3} ${TESTSDIR}/bud/from-scratch
+  run buildah --debug=false images
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  cid=$(buildah from library/${target2})
+  buildah rm ${cid}
+  cid=$(buildah from ${target3}:latest)
+  buildah rm ${cid}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  [ "$output" = "" ]
+}
