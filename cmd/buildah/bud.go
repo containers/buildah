@@ -47,7 +47,7 @@ var (
 			Name:  "runtime-flag",
 			Usage: "add global flags for the container runtime",
 		},
-		cli.StringFlag{
+		cli.StringSliceFlag{
 			Name:  "tag, t",
 			Usage: "`tag` to apply to the built image",
 		},
@@ -70,8 +70,13 @@ var (
 
 func budCmd(c *cli.Context) error {
 	output := ""
-	if c.IsSet("tag") {
-		output = c.String("tag")
+	tags := []string{}
+	if c.IsSet("tag") || c.IsSet("t") {
+		tags = c.StringSlice("tag")
+		if len(tags) > 0 {
+			output = tags[0]
+			tags = tags[1:]
+		}
 	}
 	registry := DefaultRegistry
 	if c.IsSet("registry") {
@@ -194,6 +199,7 @@ func budCmd(c *cli.Context) error {
 		SignaturePolicyPath: signaturePolicy,
 		Args:                args,
 		Output:              output,
+		AdditionalTags:      tags,
 		Runtime:             runtime,
 		RuntimeArgs:         runtimeFlags,
 	}
