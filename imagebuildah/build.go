@@ -61,6 +61,14 @@ type BuildOptions struct {
 	Args map[string]string
 	// Name of the image to write to.
 	Output string
+	// Log is a callback that will print a progress message.  If no value
+	// is supplied, the message will be sent to Err (or os.Stderr, if Err
+	// is nil) by default.
+	Log func(format string, args ...interface{})
+	// Out is a place where non-error log messages are sent.
+	Out io.Writer
+	// Err is a place where error log messages should be sent.
+	Err io.Writer
 	// SignaturePolicyPath specifies an override location for the signature
 	// policy which should be used for verifying the new image as it is
 	// being written.  Except in specific circumstances, no value should be
@@ -78,13 +86,15 @@ type Executor struct {
 	pullPolicy                     int
 	registry                       string
 	ignoreUnrecognizedInstructions bool
-	counter                        int
 	quiet                          bool
 	runtime                        string
 	runtimeArgs                    []string
 	transientMounts                []specs.Mount
 	compression                    archive.Compression
 	output                         string
+	log                            func(format string, args ...interface{})
+	out                            io.Writer
+	err                            io.Writer
 	signaturePolicyPath            string
 	systemContext                  *types.SystemContext
 	mountPoint                     string
@@ -347,6 +357,24 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		systemContext:       makeSystemContext(options.SignaturePolicyPath),
 		volumeCache:         make(map[string]string),
 		volumeCacheInfo:     make(map[string]os.FileInfo),
+		log:                 options.Log,
+		out:                 options.Out,
+		err:                 options.Err,
+	}
+	if exec.err == nil {
+		exec.err = os.Stderr
+	}
+	if exec.out == nil {
+		exec.out = os.Stdout
+	}
+	if exec.log == nil {
+		stepCounter := 0
+		exec.log = func(format string, args ...interface{}) {
+			stepCounter++
+			prefix := fmt.Sprintf("STEP %d: ", stepCounter)
+			suffix := "\n"
+			fmt.Fprintf(exec.err, prefix+format+suffix, args...)
+		}
 	}
 	return &exec, nil
 }
@@ -360,11 +388,9 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node) error {
 		return fmt.Errorf("error determining starting point for build: %v", err)
 	}
 	logrus.Debugf("FROM %#v", from)
-	b.counter = 1
 	if !b.quiet {
-		fmt.Fprintf(os.Stderr, "STEP %d: FROM %s\n", b.counter, from)
+		b.log("FROM %s", from)
 	}
-	b.counter++
 	builderOptions := buildah.BuilderOptions{
 		FromImage:           from,
 		PullPolicy:          b.pullPolicy,
@@ -420,9 +446,8 @@ func (b *Executor) Execute(ib *imagebuilder.Builder, node *parser.Node) error {
 		}
 		logrus.Debugf("Parsed Step: %+v", *step)
 		if !b.quiet {
-			fmt.Fprintf(os.Stderr, "STEP %d: %s\n", b.counter, step.Original)
+			b.log("%s", step.Original)
 		}
-		b.counter++
 		requiresStart := false
 		if i < len(node.Children)-1 {
 			requiresStart = ib.RequiresStart(&parser.Node{Children: node.Children[i+1:]})
@@ -455,15 +480,14 @@ func (b *Executor) Commit(ib *imagebuilder.Builder, node *parser.Node) (err erro
 		logName := transports.ImageName(imageRef)
 		logrus.Debugf("COMMIT %q", logName)
 		if !b.quiet {
-			fmt.Fprintf(os.Stderr, "STEP %d: COMMIT %s\n", b.counter, logName)
+			b.log("COMMIT %s", logName)
 		}
 	} else {
 		logrus.Debugf("COMMIT")
 		if !b.quiet {
-			fmt.Fprintf(os.Stderr, "STEP %d: COMMIT\n", b.counter)
+			b.log("COMMIT")
 		}
 	}
-	b.counter++
 	if err != nil {
 		return err
 	}
