@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/containers/storage/pkg/archive"
-	"github.com/projectatomic/buildah"
 	"github.com/projectatomic/buildah/imagebuildah"
 	"github.com/urfave/cli"
 )
@@ -43,7 +41,7 @@ var (
 		cli.StringFlag{
 			Name:  "runtime",
 			Usage: "`path` to an alternate runtime",
-			Value: buildah.DefaultRuntime,
+			Value: imagebuildah.DefaultRuntime,
 		},
 		cli.StringSliceFlag{
 			Name:  "runtime-flag",
@@ -191,7 +189,7 @@ func budCmd(c *cli.Context) error {
 		ContextDirectory:    contextDir,
 		PullPolicy:          pullPolicy,
 		Registry:            registry,
-		Compression:         archive.Gzip,
+		Compression:         imagebuildah.Gzip,
 		Quiet:               quiet,
 		SignaturePolicyPath: signaturePolicy,
 		Args:                args,

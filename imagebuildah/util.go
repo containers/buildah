@@ -11,6 +11,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/chrootarchive"
+	"github.com/projectatomic/buildah"
 )
 
 func cloneToDirectory(url, dir string) error {
@@ -84,4 +85,11 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 		logrus.Debugf("error removing temporary directory %q: %v", name, err2)
 	}
 	return "", "", fmt.Errorf("unreachable code reached")
+}
+
+// InitReexec is a wrapper for buildah.InitReexec().  It should be called at
+// the start of main(), and if it returns true, main() should return
+// immediately.
+func InitReexec() bool {
+	return buildah.InitReexec()
 }

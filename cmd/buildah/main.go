@@ -4,7 +4,6 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/storage"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
@@ -12,7 +11,7 @@ import (
 
 func main() {
 	var defaultStoreDriverOptions *cli.StringSlice
-	if reexec.Init() {
+	if buildah.InitReexec() {
 		return
 	}
 
