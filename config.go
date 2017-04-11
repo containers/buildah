@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	docker "github.com/docker/docker/image"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/projectatomic/buildah/docker"
 )
 
 func copyDockerImageConfig(dimage *docker.Image) (ociv1.Image, error) {
