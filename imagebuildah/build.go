@@ -462,7 +462,7 @@ func (b *Executor) Execute(ib *imagebuilder.Builder, node *parser.Node) error {
 
 // Commit writes the container's contents to an image, using a passed-in tag as
 // the name if there is one, generating a unique ID-based one otherwise.
-func (b *Executor) Commit(ib *imagebuilder.Builder, node *parser.Node) (err error) {
+func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 	var imageRef types.ImageReference
 	if b.output != "" {
 		imageRef, err = alltransports.ParseImageName(b.output)
@@ -514,7 +514,7 @@ func (b *Executor) Build(ib *imagebuilder.Builder, node []*parser.Node) (err err
 			return err
 		}
 	}
-	if err = b.Commit(ib, first); err != nil {
+	if err = b.Commit(ib); err != nil {
 		return err
 	}
 	return nil
