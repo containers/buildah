@@ -4,7 +4,7 @@ BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
 BUILDFLAGS := -tags "$(AUTOTAGS) $(TAGS)"
 
-all: buildah install.tools docs
+all: buildah docs
 
 buildah: *.go cmd/buildah/*.go
 	go build -o buildah $(BUILDFLAGS) ./cmd/buildah
@@ -16,7 +16,7 @@ clean:
 
 .PHONY: docs
 docs: ## build the docs on the host
-	$(MAKE) -C docs docs
+	$(MAKE) -C docs
 
 # For vendoring to work right, the checkout directory must be such that our top
 # level is at $GOPATH/src/github.com/projectatomic/buildah.
@@ -37,22 +37,15 @@ validate:
 
 .PHONY: install.tools
 install.tools:
+	go get -u $(BUILDFLAGS) github.com/cpuguy83/go-md2man
 	go get -u $(BUILDFLAGS) github.com/vbatts/git-validation
 	go get -u $(BUILDFLAGS) gopkg.in/alecthomas/gometalinter.v1
 	gometalinter.v1 -i
 
+.PHONY: install
 install:
 	install -D -m0755 buildah $(BINDIR)/buildah
 	$(MAKE) -C docs install
-
-
-.PHONY: install.tools
-
-install.tools: .install.md2man
-
-.install.md2man:
-	go get github.com/cpuguy83/go-md2man
-
 
 .PHONY: install.completions
 install.completions:
