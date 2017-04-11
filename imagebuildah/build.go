@@ -379,13 +379,16 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 	return &exec, nil
 }
 
-// Prepare creates a working container based on the first FROM instruction we
-// can find in the parsed tree.
-func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node) error {
-	from, err := ib.From(node)
-	if err != nil {
-		logrus.Debugf("Prepare(node.Children=%#v)", node.Children)
-		return fmt.Errorf("error determining starting point for build: %v", err)
+// Prepare creates a working container based on specified image, or if one
+// isn't specified, the first FROM instruction we can find in the parsed tree.
+func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from string) error {
+	if from == "" {
+		base, err := ib.From(node)
+		if err != nil {
+			logrus.Debugf("Prepare(node.Children=%#v)", node.Children)
+			return fmt.Errorf("error determining starting point for build: %v", err)
+		}
+		from = base
 	}
 	logrus.Debugf("FROM %#v", from)
 	if !b.quiet {
@@ -505,7 +508,12 @@ func (b *Executor) Build(ib *imagebuilder.Builder, node []*parser.Node) (err err
 		return fmt.Errorf("error building: no build instructions")
 	}
 	first := node[0]
-	if err = b.Prepare(ib, first); err != nil {
+	from, err := ib.From(first)
+	if err != nil {
+		logrus.Debugf("Build(first.Children=%#v)", first.Children)
+		return fmt.Errorf("error determining starting point for build: %v", err)
+	}
+	if err = b.Prepare(ib, first, from); err != nil {
 		return err
 	}
 	defer b.Delete()
