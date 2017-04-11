@@ -24,10 +24,19 @@ import (
 )
 
 const (
-	PullIfMissing = buildah.PullIfMissing
-	PullAlways    = buildah.PullAlways
-	PullNever     = buildah.PullNever
+	PullIfMissing  = buildah.PullIfMissing
+	PullAlways     = buildah.PullAlways
+	PullNever      = buildah.PullNever
+	DefaultRuntime = buildah.DefaultRuntime
+
+	Gzip         = archive.Gzip
+	Bzip2        = archive.Bzip2
+	Xz           = archive.Xz
+	Uncompressed = archive.Uncompressed
 )
+
+// Mount is a mountpoint for the build container.
+type Mount specs.Mount
 
 // BuildOptions can be used to alter how an image is built.
 type BuildOptions struct {
@@ -52,7 +61,7 @@ type BuildOptions struct {
 	// RuntimeArgs adds global arguments for the runtime.
 	RuntimeArgs []string
 	// TransientMounts is a list of mounts that won't be kept in the image.
-	TransientMounts []specs.Mount
+	TransientMounts []Mount
 	// Compression specifies the type of compression which is applied to
 	// layer blobs.  The default is to not use compression, but
 	// archive.Gzip is recommended.
@@ -89,7 +98,7 @@ type Executor struct {
 	quiet                          bool
 	runtime                        string
 	runtimeArgs                    []string
-	transientMounts                []specs.Mount
+	transientMounts                []Mount
 	compression                    archive.Compression
 	output                         string
 	log                            func(format string, args ...interface{})
@@ -292,6 +301,20 @@ func (b *Executor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
 	return nil
 }
 
+func convertMounts(mounts []Mount) []specs.Mount {
+	specmounts := []specs.Mount{}
+	for _, m := range mounts {
+		s := specs.Mount{
+			Destination: m.Destination,
+			Type:        m.Type,
+			Source:      m.Source,
+			Options:     m.Options,
+		}
+		specmounts = append(specmounts, s)
+	}
+	return specmounts
+}
+
 // Run executes a RUN instruction using the working container as a root
 // directory.
 func (b *Executor) Run(run imagebuilder.Run, config docker.Config) error {
@@ -303,7 +326,7 @@ func (b *Executor) Run(run imagebuilder.Run, config docker.Config) error {
 		Hostname:        config.Hostname,
 		Runtime:         b.runtime,
 		Args:            b.runtimeArgs,
-		Mounts:          b.transientMounts,
+		Mounts:          convertMounts(b.transientMounts),
 		Env:             config.Env,
 		User:            config.User,
 		WorkingDir:      config.WorkingDir,
