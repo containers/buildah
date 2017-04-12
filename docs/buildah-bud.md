@@ -55,8 +55,8 @@ resulting image's configuration.
 
 **--runtime** *path*
 
-The *path* to an alternate runtime, which will be used to run commands
-specified by the **RUN** instruction.
+The *path* to an alternate OCI-compatible runtime, which will be used to run
+commands specified by the **RUN** instruction.
 
 **--runtime-flag** *flag*
 
