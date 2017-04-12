@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/archive"
+	"github.com/projectatomic/buildah"
 	"github.com/projectatomic/buildah/imagebuildah"
 	"github.com/urfave/cli"
 )
@@ -38,6 +39,15 @@ var (
 		cli.StringSliceFlag{
 			Name:  "build-arg",
 			Usage: "`argument=value` to supply to the builder",
+		},
+		cli.StringFlag{
+			Name:  "runtime",
+			Usage: "`path` to an alternate runtime",
+			Value: buildah.DefaultRuntime,
+		},
+		cli.StringSliceFlag{
+			Name:  "runtime-flag",
+			Usage: "add global flags for the container runtime",
 		},
 		cli.StringFlag{
 			Name:  "tag, t",
@@ -76,6 +86,14 @@ func budCmd(c *cli.Context) error {
 	pullAlways := false
 	if c.IsSet("pull-always") {
 		pull = c.Bool("pull-always")
+	}
+	runtimeFlags := []string{}
+	if c.IsSet("runtime-flag") {
+		runtimeFlags = c.StringSlice("runtime-flag")
+	}
+	runtime := ""
+	if c.IsSet("runtime") {
+		runtime = c.String("runtime")
 	}
 
 	pullPolicy := imagebuildah.PullNever
@@ -178,6 +196,8 @@ func budCmd(c *cli.Context) error {
 		SignaturePolicyPath: signaturePolicy,
 		Args:                args,
 		Output:              output,
+		Runtime:             runtime,
+		RuntimeArgs:         runtimeFlags,
 	}
 
 	return imagebuildah.BuildDockerfiles(store, options, dockerfiles...)

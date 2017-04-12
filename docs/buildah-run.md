@@ -16,7 +16,7 @@ the *buildah config* command.
 
 **--runtime** *path*
 
-The *path* to an alternate runtime.
+The *path* to an alternate OCI-compatible runtime.
 
 **--runtime-flag** *flag*
 
