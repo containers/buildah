@@ -168,6 +168,13 @@ load helpers
 	run buildah --debug=false run -- $cid id -g
 	[ "$output" = $testgroupid ]
 
+	ln -vsf /etc/passwd $root/etc/passwd
+	buildah config $cid -u ${testuser}:${testgroup}
+	run buildah --debug=false run -- $cid id -u
+	echo "$output"
+	[ "$status" -ne 0 ]
+	[[ "$output" =~ "unknown user" ]]
+
 	buildah unmount $cid
 	buildah rm $cid
 }
