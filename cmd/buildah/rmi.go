@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/storage"
@@ -33,6 +34,7 @@ func rmiCmd(c *cli.Context) error {
 		return err
 	}
 
+	var e error
 	for _, id := range args {
 		// If it's an exact name or ID match with the underlying
 		// storage library's information about the image, then it's
@@ -92,11 +94,15 @@ func rmiCmd(c *cli.Context) error {
 				err = ref.DeleteImage(nil)
 			}
 		}
+		if e == nil {
+			e = err
+		}
 		if err != nil {
-			return fmt.Errorf("error removing image %q: %v", id, err)
+			fmt.Fprintf(os.Stderr, "error removing image %q: %v\n", id, err)
+			continue
 		}
 		fmt.Printf("%s\n", id)
 	}
 
-	return nil
+	return e
 }
