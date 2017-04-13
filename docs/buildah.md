@@ -1,18 +1,17 @@
-## buildah "March 2017"
+## buildah "1" "March 2017" "buildah"
 
 ## NAME
-buildah - A command line tool to facilitate working with containers and their images. 
-
+buildah - A command line tool to facilitate working with containers and using them to build images.
 
 ## DESCRIPTION
 The buildah package provides a command line tool which can be used to:
 
     * Create a working container, either from scratch or using an image as a starting point.
-    * Mount the working container's root filesystem for manipulation.
-    * Unmount the working container's root filesystem.
-    * Use the updated contents of the container's root filesystem as a filesystem layer to create a new image.
-    * Delete a working container or it's image.
- 
+    * Mount a working container's root filesystem for manipulation.
+    * Unmount a working container's root filesystem.
+    * Use the updated contents of a container's root filesystem as a filesystem layer to create a new image.
+    * Delete a working container or an image.
+
 ## SEE ALSO
 | Command               | Description |
 | --------------------- | --------------------------------------------------- |

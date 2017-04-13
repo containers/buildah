@@ -1,19 +1,19 @@
-## buildah-rm "March 2017"
+## buildah-rm "1" "March 2017" "buildah"
 
 ## NAME
-buildah rm - Removes one or more working containers. 
-
+buildah rm - Removes one or more working containers.
 
 ## SYNOPSIS
-**buildah** **rm** **containerID(s)** 
+**buildah** **rm** **containerID [...]**
 
 ## DESCRIPTION
-Removes a working container or containers unmounting them if necessary.  Multiple containers are space separated.  If multiple containers are passed to this command and the removal fails on one, the containers following that container will not be removed. 
+Removes one or more working containers, unmounting them if necessary.
 
 ## EXAMPLE
-**buildah delete containerID **
-**buildah delete containerID1 containerID2 containerID3 **
+
+buildah rm containerID
+
+buildah rm containerID1 containerID2 containerID3
 
 ## SEE ALSO
 buildah(1)
-
