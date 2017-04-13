@@ -323,6 +323,47 @@ return 1
      esac
  }
 
+ _buildah_bud() {
+     local boolean_options="
+     --help
+     -h
+     --pull
+     --pull-always
+  "
+
+     local options_with_args="
+     --registry
+     --signature-policy
+     --runtime
+     --runtime-flag
+     --tag
+     -t
+     --file
+     -f
+     --build-arg
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$prev" in
+         --runtime)
+             COMPREPLY=($(compgen -W 'runc runv' -- "$cur"))
+             ;;
+         $(__buildah_to_extglob "$options_with_args"))
+ return
+ ;;
+ esac
+
+ case "$cur" in
+     -*)
+         COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+         ;;
+ esac
+}
+
+ _buildah_build_using_dockerfile() {
+	 _buildah_bud "$@"
+}
 
  _buildah_run() {
      local boolean_options="
@@ -437,7 +478,7 @@ return 1
      -q
      --noheading
      -n
-     --no-truncate
+     --notruncate
   "
 
      local options_with_args="
@@ -460,7 +501,7 @@ return 1
      -q
      --noheading
      -n
-     --no-truncate
+     --notruncate
   "
 
      local options_with_args="
@@ -507,6 +548,8 @@ return 1
 
    local commands=(
        add
+       bud
+       build-using-dockerfile
        commit
        config
        containers
@@ -561,7 +604,7 @@ done
 
  local binary="${words[0]}"
 
- local completions_func=_buildah_${command}
+ local completions_func=_buildah_${command/-/_}
  declare -F $completions_func >/dev/null && $completions_func
 
  eval "$previous_extglob_setting"
