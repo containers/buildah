@@ -17,6 +17,7 @@ The buildah package provides a command line tool which can be used to:
 | Command               | Description |
 | --------------------- | --------------------------------------------------- |
 | buildah-add(1)        | Add the contents of a file, URL, or a directory to the container. |
+| buildah-bud(1)        | Build an image using instructions from Dockerfiles. |
 | buildah-commit(1)     | Create an image from a working container. |
 | buildah-config(1)     | Update image configuration settings. |
 | buildah-containers(1) | List the working containers and their base images. |
