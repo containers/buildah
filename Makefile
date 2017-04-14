@@ -1,5 +1,5 @@
 AUTOTAGS := $(shell ./btrfs_tag.sh) $(shell ./libdm_tag.sh)
-PREFIX := $(DESTDIR)/usr/local
+PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
 BUILDFLAGS := -tags "$(AUTOTAGS) $(TAGS)"
@@ -44,10 +44,9 @@ install.tools:
 
 .PHONY: install
 install:
-	install -D -m0755 buildah $(BINDIR)/buildah
+	install -D -m0755 buildah $(DESTDIR)/$(BINDIR)/buildah
 	$(MAKE) -C docs install
 
 .PHONY: install.completions
 install.completions:
-	install -d -m 755 ${BASHINSTALLDIR}
-	install -m 644 -D contrib/completions/bash/buildah ${BASHINSTALLDIR}
+	install -m 644 -D contrib/completions/bash/buildah $(DESTDIR)/${BASHINSTALLDIR}/buildah
