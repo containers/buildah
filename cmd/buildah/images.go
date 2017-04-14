@@ -65,17 +65,17 @@ func imagesCmd(c *cli.Context) error {
 	for _, image := range images {
 		if quiet {
 			fmt.Printf("%s\n", image.ID)
-		} else {
-			names := []string{""}
-			if len(image.Names) > 0 {
-				names = image.Names
-			}
-			for _, name := range names {
-				if truncate {
-					fmt.Printf("%-12.12s %s\n", image.ID, name)
-				} else {
-					fmt.Printf("%-64s %s\n", image.ID, name)
-				}
+			continue
+		}
+		names := []string{""}
+		if len(image.Names) > 0 {
+			names = image.Names
+		}
+		for _, name := range names {
+			if truncate {
+				fmt.Printf("%-12.12s %s\n", image.ID, name)
+			} else {
+				fmt.Printf("%-64s %s\n", image.ID, name)
 			}
 		}
 	}
