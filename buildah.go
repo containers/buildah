@@ -14,7 +14,9 @@ import (
 const (
 	// Package is the name of this package, used in help output and to
 	// identify working containers.
-	Package       = "buildah"
+	Package = "buildah"
+	// Version for the Package
+	Version       = "0.0.1"
 	containerType = Package + " 0.0.0"
 	stateFile     = Package + ".json"
 )

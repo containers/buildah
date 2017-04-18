@@ -17,6 +17,7 @@ func main() {
 
 	app := cli.NewApp()
 	app.Name = buildah.Package
+	app.Version = buildah.Version
 	app.Usage = "an image builder"
 	if len(storage.DefaultStoreOptions.GraphDriverOptions) > 0 {
 		var optionSlice cli.StringSlice = storage.DefaultStoreOptions.GraphDriverOptions[:]
