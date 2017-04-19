@@ -4,8 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/containers/storage/pkg/stringid"
 )
@@ -51,7 +52,7 @@ func GetLockfile(path string) (Locker, error) {
 	if locker, ok := lockfiles[filepath.Clean(path)]; ok {
 		return locker, nil
 	}
-	fd, err := syscall.Open(filepath.Clean(path), os.O_RDWR|os.O_CREATE, syscall.S_IRUSR|syscall.S_IWUSR)
+	fd, err := unix.Open(filepath.Clean(path), os.O_RDWR|os.O_CREATE, unix.S_IRUSR|unix.S_IWUSR)
 	if err != nil {
 		return nil, err
 	}
@@ -61,28 +62,28 @@ func GetLockfile(path string) (Locker, error) {
 }
 
 func (l *lockfile) Lock() {
-	lk := syscall.Flock_t{
-		Type:   syscall.F_WRLCK,
+	lk := unix.Flock_t{
+		Type:   unix.F_WRLCK,
 		Whence: int16(os.SEEK_SET),
 		Start:  0,
 		Len:    0,
 		Pid:    int32(os.Getpid()),
 	}
 	l.mu.Lock()
-	for syscall.FcntlFlock(l.fd, syscall.F_SETLKW, &lk) != nil {
+	for unix.FcntlFlock(l.fd, unix.F_SETLKW, &lk) != nil {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
 
 func (l *lockfile) Unlock() {
-	lk := syscall.Flock_t{
-		Type:   syscall.F_UNLCK,
+	lk := unix.Flock_t{
+		Type:   unix.F_UNLCK,
 		Whence: int16(os.SEEK_SET),
 		Start:  0,
 		Len:    0,
 		Pid:    int32(os.Getpid()),
 	}
-	for syscall.FcntlFlock(l.fd, syscall.F_SETLKW, &lk) != nil {
+	for unix.FcntlFlock(l.fd, unix.F_SETLKW, &lk) != nil {
 		time.Sleep(10 * time.Millisecond)
 	}
 	l.mu.Unlock()
@@ -91,18 +92,18 @@ func (l *lockfile) Unlock() {
 func (l *lockfile) Touch() error {
 	l.lw = stringid.GenerateRandomID()
 	id := []byte(l.lw)
-	_, err := syscall.Seek(int(l.fd), 0, os.SEEK_SET)
+	_, err := unix.Seek(int(l.fd), 0, os.SEEK_SET)
 	if err != nil {
 		return err
 	}
-	n, err := syscall.Write(int(l.fd), id)
+	n, err := unix.Write(int(l.fd), id)
 	if err != nil {
 		return err
 	}
 	if n != len(id) {
-		return syscall.ENOSPC
+		return unix.ENOSPC
 	}
-	err = syscall.Fsync(int(l.fd))
+	err = unix.Fsync(int(l.fd))
 	if err != nil {
 		return err
 	}
@@ -111,16 +112,16 @@ func (l *lockfile) Touch() error {
 
 func (l *lockfile) Modified() (bool, error) {
 	id := []byte(l.lw)
-	_, err := syscall.Seek(int(l.fd), 0, os.SEEK_SET)
+	_, err := unix.Seek(int(l.fd), 0, os.SEEK_SET)
 	if err != nil {
 		return true, err
 	}
-	n, err := syscall.Read(int(l.fd), id)
+	n, err := unix.Read(int(l.fd), id)
 	if err != nil {
 		return true, err
 	}
 	if n != len(id) {
-		return true, syscall.ENOSPC
+		return true, unix.ENOSPC
 	}
 	lw := l.lw
 	l.lw = string(id)
@@ -128,11 +129,11 @@ func (l *lockfile) Modified() (bool, error) {
 }
 
 func (l *lockfile) TouchedSince(when time.Time) bool {
-	st := syscall.Stat_t{}
-	err := syscall.Fstat(int(l.fd), &st)
+	st := unix.Stat_t{}
+	err := unix.Fstat(int(l.fd), &st)
 	if err != nil {
 		return true
 	}
-	touched := time.Unix(st.Mtim.Unix())
+	touched := time.Unix(statTMtimeUnix(st))
 	return when.Before(touched)
 }

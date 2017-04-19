@@ -10,6 +10,7 @@ import (
 
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/stringid"
+	"github.com/containers/storage/pkg/truncindex"
 )
 
 var (
@@ -88,6 +89,7 @@ type imageStore struct {
 	lockfile Locker
 	dir      string
 	images   []Image
+	idindex  *truncindex.TruncIndex
 	byid     map[string]*Image
 	byname   map[string]*Image
 }
@@ -116,11 +118,13 @@ func (r *imageStore) Load() error {
 		return err
 	}
 	images := []Image{}
+	idlist := []string{}
 	ids := make(map[string]*Image)
 	names := make(map[string]*Image)
 	if err = json.Unmarshal(data, &images); len(data) == 0 || err == nil {
 		for n, image := range images {
 			ids[image.ID] = &images[n]
+			idlist = append(idlist, image.ID)
 			for _, name := range image.Names {
 				if conflict, ok := names[name]; ok {
 					r.removeName(conflict, name)
@@ -131,6 +135,7 @@ func (r *imageStore) Load() error {
 		}
 	}
 	r.images = images
+	r.idindex = truncindex.NewTruncIndex(idlist)
 	r.byid = ids
 	r.byname = names
 	if needSave {
@@ -175,26 +180,32 @@ func newImageStore(dir string) (ImageStore, error) {
 	return &istore, nil
 }
 
-func (r *imageStore) ClearFlag(id string, flag string) error {
-	if image, ok := r.byname[id]; ok {
-		id = image.ID
+func (r *imageStore) lookup(id string) (*Image, bool) {
+	if image, ok := r.byid[id]; ok {
+		return image, ok
+	} else if image, ok := r.byname[id]; ok {
+		return image, ok
+	} else if longid, err := r.idindex.Get(id); err == nil {
+		image, ok := r.byid[longid]
+		return image, ok
 	}
-	if _, ok := r.byid[id]; !ok {
+	return nil, false
+}
+
+func (r *imageStore) ClearFlag(id string, flag string) error {
+	image, ok := r.lookup(id)
+	if !ok {
 		return ErrImageUnknown
 	}
-	image := r.byid[id]
 	delete(image.Flags, flag)
 	return r.Save()
 }
 
 func (r *imageStore) SetFlag(id string, flag string, value interface{}) error {
-	if image, ok := r.byname[id]; ok {
-		id = image.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	image, ok := r.lookup(id)
+	if !ok {
 		return ErrImageUnknown
 	}
-	image := r.byid[id]
 	image.Flags[flag] = value
 	return r.Save()
 }
@@ -228,6 +239,7 @@ func (r *imageStore) Create(id string, names []string, layer, metadata string) (
 		}
 		r.images = append(r.images, newImage)
 		image = &r.images[len(r.images)-1]
+		r.idindex.Add(id)
 		r.byid[id] = image
 		for _, name := range names {
 			r.byname[name] = image
@@ -238,20 +250,14 @@ func (r *imageStore) Create(id string, names []string, layer, metadata string) (
 }
 
 func (r *imageStore) GetMetadata(id string) (string, error) {
-	if image, ok := r.byname[id]; ok {
-		id = image.ID
-	}
-	if image, ok := r.byid[id]; ok {
+	if image, ok := r.lookup(id); ok {
 		return image.Metadata, nil
 	}
 	return "", ErrImageUnknown
 }
 
 func (r *imageStore) SetMetadata(id, metadata string) error {
-	if image, ok := r.byname[id]; ok {
-		id = image.ID
-	}
-	if image, ok := r.byid[id]; ok {
+	if image, ok := r.lookup(id); ok {
 		image.Metadata = metadata
 		return r.Save()
 	}
@@ -259,20 +265,11 @@ func (r *imageStore) SetMetadata(id, metadata string) error {
 }
 
 func (r *imageStore) removeName(image *Image, name string) {
-	newNames := []string{}
-	for _, oldName := range image.Names {
-		if oldName != name {
-			newNames = append(newNames, oldName)
-		}
-	}
-	image.Names = newNames
+	image.Names = stringSliceWithoutValue(image.Names, name)
 }
 
 func (r *imageStore) SetNames(id string, names []string) error {
-	if image, ok := r.byname[id]; ok {
-		id = image.ID
-	}
-	if image, ok := r.byid[id]; ok {
+	if image, ok := r.lookup(id); ok {
 		for _, name := range image.Names {
 			delete(r.byname, name)
 		}
@@ -289,125 +286,103 @@ func (r *imageStore) SetNames(id string, names []string) error {
 }
 
 func (r *imageStore) Delete(id string) error {
-	if image, ok := r.byname[id]; ok {
-		id = image.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	image, ok := r.lookup(id)
+	if !ok {
 		return ErrImageUnknown
 	}
-	if image, ok := r.byid[id]; ok {
-		newImages := []Image{}
-		for _, candidate := range r.images {
-			if candidate.ID != id {
-				newImages = append(newImages, candidate)
-			}
+	id = image.ID
+	newImages := []Image{}
+	for _, candidate := range r.images {
+		if candidate.ID != id {
+			newImages = append(newImages, candidate)
 		}
-		delete(r.byid, image.ID)
-		for _, name := range image.Names {
-			delete(r.byname, name)
-		}
-		r.images = newImages
-		if err := r.Save(); err != nil {
-			return err
-		}
-		if err := os.RemoveAll(r.datadir(id)); err != nil {
-			return err
-		}
+	}
+	delete(r.byid, id)
+	r.idindex.Delete(id)
+	for _, name := range image.Names {
+		delete(r.byname, name)
+	}
+	r.images = newImages
+	if err := r.Save(); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(r.datadir(id)); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (r *imageStore) Get(id string) (*Image, error) {
-	if image, ok := r.byname[id]; ok {
-		return image, nil
-	}
-	if image, ok := r.byid[id]; ok {
+	if image, ok := r.lookup(id); ok {
 		return image, nil
 	}
 	return nil, ErrImageUnknown
 }
 
 func (r *imageStore) Lookup(name string) (id string, err error) {
-	image, ok := r.byname[name]
-	if !ok {
-		image, ok = r.byid[name]
-		if !ok {
-			return "", ErrImageUnknown
-		}
+	if image, ok := r.lookup(name); ok {
+		return image.ID, nil
 	}
-	return image.ID, nil
+	return "", ErrImageUnknown
 }
 
 func (r *imageStore) Exists(id string) bool {
-	if _, ok := r.byname[id]; ok {
-		return true
-	}
-	if _, ok := r.byid[id]; ok {
-		return true
-	}
-	return false
+	_, ok := r.lookup(id)
+	return ok
 }
 
 func (r *imageStore) GetBigData(id, key string) ([]byte, error) {
-	if img, ok := r.byname[id]; ok {
-		id = img.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	image, ok := r.lookup(id)
+	if !ok {
 		return nil, ErrImageUnknown
 	}
-	return ioutil.ReadFile(r.datapath(id, key))
+	return ioutil.ReadFile(r.datapath(image.ID, key))
 }
 
 func (r *imageStore) GetBigDataSize(id, key string) (int64, error) {
-	if img, ok := r.byname[id]; ok {
-		id = img.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	image, ok := r.lookup(id)
+	if !ok {
 		return -1, ErrImageUnknown
 	}
-	if size, ok := r.byid[id].BigDataSizes[key]; ok {
+	if size, ok := image.BigDataSizes[key]; ok {
 		return size, nil
 	}
 	return -1, ErrSizeUnknown
 }
 
 func (r *imageStore) GetBigDataNames(id string) ([]string, error) {
-	if img, ok := r.byname[id]; ok {
-		id = img.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	image, ok := r.lookup(id)
+	if !ok {
 		return nil, ErrImageUnknown
 	}
-	return r.byid[id].BigDataNames, nil
+	return image.BigDataNames, nil
 }
 
 func (r *imageStore) SetBigData(id, key string, data []byte) error {
-	if img, ok := r.byname[id]; ok {
-		id = img.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	image, ok := r.lookup(id)
+	if !ok {
 		return ErrImageUnknown
 	}
-	if err := os.MkdirAll(r.datadir(id), 0700); err != nil {
+	if err := os.MkdirAll(r.datadir(image.ID), 0700); err != nil {
 		return err
 	}
-	err := ioutils.AtomicWriteFile(r.datapath(id, key), data, 0600)
+	err := ioutils.AtomicWriteFile(r.datapath(image.ID, key), data, 0600)
 	if err == nil {
 		add := true
 		save := false
-		oldSize, ok := r.byid[id].BigDataSizes[key]
-		r.byid[id].BigDataSizes[key] = int64(len(data))
-		if !ok || oldSize != r.byid[id].BigDataSizes[key] {
+		oldSize, ok := image.BigDataSizes[key]
+		image.BigDataSizes[key] = int64(len(data))
+		if !ok || oldSize != image.BigDataSizes[key] {
 			save = true
 		}
-		for _, name := range r.byid[id].BigDataNames {
+		for _, name := range image.BigDataNames {
 			if name == key {
 				add = false
 				break
 			}
 		}
 		if add {
-			r.byid[id].BigDataNames = append(r.byid[id].BigDataNames, key)
+			image.BigDataNames = append(image.BigDataNames, key)
 			save = true
 		}
 		if save {
