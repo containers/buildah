@@ -235,6 +235,11 @@ func Image(policyContext *signature.PolicyContext, destRef, srcRef types.ImageRe
 		if err != nil {
 			return errors.Wrap(err, "Error initializing GPG")
 		}
+		defer mech.Close()
+		if err := mech.SupportsSigning(); err != nil {
+			return errors.Wrap(err, "Signing not supported")
+		}
+
 		dockerReference := dest.Reference().DockerReference()
 		if dockerReference == nil {
 			return errors.Errorf("Cannot determine canonical Docker reference for destination %s", transports.ImageName(dest.Reference()))
@@ -349,7 +354,7 @@ type diffIDResult struct {
 func (ic *imageCopier) copyLayer(srcInfo types.BlobInfo) (types.BlobInfo, digest.Digest, error) {
 	// Check if we already have a blob with this digest
 	haveBlob, extantBlobSize, err := ic.dest.HasBlob(srcInfo)
-	if err != nil && err != types.ErrBlobNotFound {
+	if err != nil {
 		return types.BlobInfo{}, "", errors.Wrapf(err, "Error checking for blob %s at destination", srcInfo.Digest)
 	}
 	// If we already have a cached diffID for this blob, we don't need to compute it

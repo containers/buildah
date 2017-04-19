@@ -252,10 +252,11 @@ func verifyAndExtractSignature(mech SigningMechanism, unverifiedSignature []byte
 // (including things like “✅ Verified by $authority”)
 func GetUntrustedSignatureInformationWithoutVerifying(untrustedSignatureBytes []byte) (*UntrustedSignatureInformation, error) {
 	// NOTE: This should eventualy do format autodetection.
-	mech, err := NewGPGSigningMechanism()
+	mech, _, err := NewEphemeralGPGSigningMechanism([]byte{})
 	if err != nil {
 		return nil, err
 	}
+	defer mech.Close()
 
 	untrustedContents, shortKeyIdentifier, err := mech.UntrustedSignatureContents(untrustedSignatureBytes)
 	if err != nil {

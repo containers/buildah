@@ -40,8 +40,8 @@ func (i *Image) SourceRefFullName() string {
 
 // GetRepositoryTags list all tags available in the repository. Note that this has no connection with the tag(s) used for this specific image, if any.
 func (i *Image) GetRepositoryTags() ([]string, error) {
-	url := fmt.Sprintf(tagsURL, reference.Path(i.src.ref.ref))
-	res, err := i.src.c.makeRequest("GET", url, nil, nil)
+	path := fmt.Sprintf(tagsPath, reference.Path(i.src.ref.ref))
+	res, err := i.src.c.makeRequest("GET", path, nil, nil)
 	if err != nil {
 		return nil, err
 	}

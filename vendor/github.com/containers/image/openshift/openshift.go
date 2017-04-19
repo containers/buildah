@@ -371,6 +371,10 @@ func (d *openshiftImageDestination) PutBlob(stream io.Reader, inputInfo types.Bl
 	return d.docker.PutBlob(stream, inputInfo)
 }
 
+// HasBlob returns true iff the image destination already contains a blob with the matching digest which can be reapplied using ReapplyBlob.
+// Unlike PutBlob, the digest can not be empty.  If HasBlob returns true, the size of the blob must also be returned.
+// If the destination does not contain the blob, or it is unknown, HasBlob ordinarily returns (false, -1, nil);
+// it returns a non-nil error only on an unexpected failure.
 func (d *openshiftImageDestination) HasBlob(info types.BlobInfo) (bool, int64, error) {
 	return d.docker.HasBlob(info)
 }

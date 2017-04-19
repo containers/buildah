@@ -81,6 +81,21 @@ func (m *manifestOCI1) ConfigBlob() ([]byte, error) {
 	return m.configBlob, nil
 }
 
+// OCIConfig returns the image configuration as per OCI v1 image-spec. Information about
+// layers in the resulting configuration isn't guaranteed to be returned to due how
+// old image manifests work (docker v2s1 especially).
+func (m *manifestOCI1) OCIConfig() (*imgspecv1.Image, error) {
+	cb, err := m.ConfigBlob()
+	if err != nil {
+		return nil, err
+	}
+	configOCI := &imgspecv1.Image{}
+	if err := json.Unmarshal(cb, configOCI); err != nil {
+		return nil, err
+	}
+	return configOCI, nil
+}
+
 // LayerInfos returns a list of BlobInfos of layers referenced by this image, in order (the root layer first, and then successive layered layers).
 // The Digest field is guaranteed to be provided; Size may be -1.
 // WARNING: The list may contain duplicates, and they are semantically relevant.

@@ -2,6 +2,8 @@ package docker
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -70,7 +72,17 @@ func (d *dockerImageDestination) SupportedManifestMIMETypes() []string {
 // SupportsSignatures returns an error (to be displayed to the user) if the destination certainly can't store signatures.
 // Note: It is still possible for PutSignatures to fail if SupportsSignatures returns nil.
 func (d *dockerImageDestination) SupportsSignatures() error {
-	return errors.Errorf("Pushing signatures to a Docker Registry is not supported")
+	if err := d.c.detectProperties(); err != nil {
+		return err
+	}
+	switch {
+	case d.c.signatureBase != nil:
+		return nil
+	case d.c.supportsSignatures:
+		return nil
+	default:
+		return errors.Errorf("X-Registry-Supports-Signatures extension not supported, and lookaside is not configured")
+	}
 }
 
 // ShouldCompressLayers returns true iff it is desirable to compress layer blobs written to this destination.
@@ -101,26 +113,25 @@ func (c *sizeCounter) Write(p []byte) (n int, err error) {
 func (d *dockerImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobInfo) (types.BlobInfo, error) {
 	if inputInfo.Digest.String() != "" {
 		haveBlob, size, err := d.HasBlob(inputInfo)
-		if err != nil && err != types.ErrBlobNotFound {
+		if err != nil {
 			return types.BlobInfo{}, err
 		}
-		// Now err == nil || err == types.ErrBlobNotFound
-		if err == nil && haveBlob {
+		if haveBlob {
 			return types.BlobInfo{Digest: inputInfo.Digest, Size: size}, nil
 		}
 	}
 
 	// FIXME? Chunked upload, progress reporting, etc.
-	uploadURL := fmt.Sprintf(blobUploadURL, reference.Path(d.ref.ref))
-	logrus.Debugf("Uploading %s", uploadURL)
-	res, err := d.c.makeRequest("POST", uploadURL, nil, nil)
+	uploadPath := fmt.Sprintf(blobUploadPath, reference.Path(d.ref.ref))
+	logrus.Debugf("Uploading %s", uploadPath)
+	res, err := d.c.makeRequest("POST", uploadPath, nil, nil)
 	if err != nil {
 		return types.BlobInfo{}, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusAccepted {
 		logrus.Debugf("Error initiating layer upload, response %#v", *res)
-		return types.BlobInfo{}, errors.Errorf("Error initiating layer upload to %s, status %d", uploadURL, res.StatusCode)
+		return types.BlobInfo{}, errors.Errorf("Error initiating layer upload to %s, status %d", uploadPath, res.StatusCode)
 	}
 	uploadLocation, err := res.Location()
 	if err != nil {
@@ -163,14 +174,18 @@ func (d *dockerImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobI
 	return types.BlobInfo{Digest: computedDigest, Size: sizeCounter.size}, nil
 }
 
+// HasBlob returns true iff the image destination already contains a blob with the matching digest which can be reapplied using ReapplyBlob.
+// Unlike PutBlob, the digest can not be empty.  If HasBlob returns true, the size of the blob must also be returned.
+// If the destination does not contain the blob, or it is unknown, HasBlob ordinarily returns (false, -1, nil);
+// it returns a non-nil error only on an unexpected failure.
 func (d *dockerImageDestination) HasBlob(info types.BlobInfo) (bool, int64, error) {
 	if info.Digest == "" {
 		return false, -1, errors.Errorf(`"Can not check for a blob with unknown digest`)
 	}
-	checkURL := fmt.Sprintf(blobsURL, reference.Path(d.ref.ref), info.Digest.String())
+	checkPath := fmt.Sprintf(blobsPath, reference.Path(d.ref.ref), info.Digest.String())
 
-	logrus.Debugf("Checking %s", checkURL)
-	res, err := d.c.makeRequest("HEAD", checkURL, nil, nil)
+	logrus.Debugf("Checking %s", checkPath)
+	res, err := d.c.makeRequest("HEAD", checkPath, nil, nil)
 	if err != nil {
 		return false, -1, err
 	}
@@ -184,7 +199,7 @@ func (d *dockerImageDestination) HasBlob(info types.BlobInfo) (bool, int64, erro
 		return false, -1, errors.Errorf("not authorized to read from destination repository %s", reference.Path(d.ref.ref))
 	case http.StatusNotFound:
 		logrus.Debugf("... not present")
-		return false, -1, types.ErrBlobNotFound
+		return false, -1, nil
 	default:
 		return false, -1, errors.Errorf("failed to read from destination repository %s: %v", reference.Path(d.ref.ref), http.StatusText(res.StatusCode))
 	}
@@ -205,14 +220,14 @@ func (d *dockerImageDestination) PutManifest(m []byte) error {
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf(manifestURL, reference.Path(d.ref.ref), refTail)
+	path := fmt.Sprintf(manifestPath, reference.Path(d.ref.ref), refTail)
 
 	headers := map[string][]string{}
 	mimeType := manifest.GuessMIMEType(m)
 	if mimeType != "" {
 		headers["Content-Type"] = []string{mimeType}
 	}
-	res, err := d.c.makeRequest("PUT", url, headers, bytes.NewReader(m))
+	res, err := d.c.makeRequest("PUT", path, headers, bytes.NewReader(m))
 	if err != nil {
 		return err
 	}
@@ -223,12 +238,32 @@ func (d *dockerImageDestination) PutManifest(m []byte) error {
 			logrus.Debugf("Error body %s", string(body))
 		}
 		logrus.Debugf("Error uploading manifest, status %d, %#v", res.StatusCode, res)
-		return errors.Errorf("Error uploading manifest to %s, status %d", url, res.StatusCode)
+		return errors.Errorf("Error uploading manifest to %s, status %d", path, res.StatusCode)
 	}
 	return nil
 }
 
 func (d *dockerImageDestination) PutSignatures(signatures [][]byte) error {
+	// Do not fail if we don’t really need to support signatures.
+	if len(signatures) == 0 {
+		return nil
+	}
+	if err := d.c.detectProperties(); err != nil {
+		return err
+	}
+	switch {
+	case d.c.signatureBase != nil:
+		return d.putSignaturesToLookaside(signatures)
+	case d.c.supportsSignatures:
+		return d.putSignaturesToAPIExtension(signatures)
+	default:
+		return errors.Errorf("X-Registry-Supports-Signatures extension not supported, and lookaside is not configured")
+	}
+}
+
+// putSignaturesToLookaside implements PutSignatures() from the lookaside location configured in s.c.signatureBase,
+// which is not nil.
+func (d *dockerImageDestination) putSignaturesToLookaside(signatures [][]byte) error {
 	// FIXME? This overwrites files one at a time, definitely not atomic.
 	// A failure when updating signatures with a reordered copy could lose some of them.
 
@@ -236,15 +271,13 @@ func (d *dockerImageDestination) PutSignatures(signatures [][]byte) error {
 	if len(signatures) == 0 {
 		return nil
 	}
-	if d.c.signatureBase == nil {
-		return errors.Errorf("Pushing signatures to a Docker Registry is not supported, and there is no applicable signature storage configured")
-	}
 
 	if d.manifestDigest.String() == "" {
 		// This shouldn’t happen, ImageDestination users are required to call PutManifest before PutSignatures
 		return errors.Errorf("Unknown manifest digest, can't add signatures")
 	}
 
+	// NOTE: Keep this in sync with docs/signature-protocols.md!
 	for i, signature := range signatures {
 		url := signatureStorageURL(d.c.signatureBase, d.manifestDigest, i)
 		if url == nil {
@@ -278,6 +311,7 @@ func (d *dockerImageDestination) PutSignatures(signatures [][]byte) error {
 }
 
 // putOneSignature stores one signature to url.
+// NOTE: Keep this in sync with docs/signature-protocols.md!
 func (d *dockerImageDestination) putOneSignature(url *url.URL, signature []byte) error {
 	switch url.Scheme {
 	case "file":
@@ -301,6 +335,7 @@ func (d *dockerImageDestination) putOneSignature(url *url.URL, signature []byte)
 
 // deleteOneSignature deletes a signature from url, if it exists.
 // If it successfully determines that the signature does not exist, returns (true, nil)
+// NOTE: Keep this in sync with docs/signature-protocols.md!
 func (c *dockerClient) deleteOneSignature(url *url.URL) (missing bool, err error) {
 	switch url.Scheme {
 	case "file":
@@ -316,6 +351,82 @@ func (c *dockerClient) deleteOneSignature(url *url.URL) (missing bool, err error
 	default:
 		return false, errors.Errorf("Unsupported scheme when deleting signature from %s", url.String())
 	}
+}
+
+// putSignaturesToAPIExtension implements PutSignatures() using the X-Registry-Supports-Signatures API extension.
+func (d *dockerImageDestination) putSignaturesToAPIExtension(signatures [][]byte) error {
+	// Skip dealing with the manifest digest, or reading the old state, if not necessary.
+	if len(signatures) == 0 {
+		return nil
+	}
+
+	if d.manifestDigest.String() == "" {
+		// This shouldn’t happen, ImageDestination users are required to call PutManifest before PutSignatures
+		return errors.Errorf("Unknown manifest digest, can't add signatures")
+	}
+
+	// Because image signatures are a shared resource in Atomic Registry, the default upload
+	// always adds signatures.  Eventually we should also allow removing signatures,
+	// but the X-Registry-Supports-Signatures API extension does not support that yet.
+
+	existingSignatures, err := d.c.getExtensionsSignatures(d.ref, d.manifestDigest)
+	if err != nil {
+		return err
+	}
+	existingSigNames := map[string]struct{}{}
+	for _, sig := range existingSignatures.Signatures {
+		existingSigNames[sig.Name] = struct{}{}
+	}
+
+sigExists:
+	for _, newSig := range signatures {
+		for _, existingSig := range existingSignatures.Signatures {
+			if existingSig.Version == extensionSignatureSchemaVersion && existingSig.Type == extensionSignatureTypeAtomic && bytes.Equal(existingSig.Content, newSig) {
+				continue sigExists
+			}
+		}
+
+		// The API expect us to invent a new unique name. This is racy, but hopefully good enough.
+		var signatureName string
+		for {
+			randBytes := make([]byte, 16)
+			n, err := rand.Read(randBytes)
+			if err != nil || n != 16 {
+				return errors.Wrapf(err, "Error generating random signature len %d", n)
+			}
+			signatureName = fmt.Sprintf("%s@%032x", d.manifestDigest.String(), randBytes)
+			if _, ok := existingSigNames[signatureName]; !ok {
+				break
+			}
+		}
+		sig := extensionSignature{
+			Version: extensionSignatureSchemaVersion,
+			Name:    signatureName,
+			Type:    extensionSignatureTypeAtomic,
+			Content: newSig,
+		}
+		body, err := json.Marshal(sig)
+		if err != nil {
+			return err
+		}
+
+		path := fmt.Sprintf(extensionsSignaturePath, reference.Path(d.ref.ref), d.manifestDigest.String())
+		res, err := d.c.makeRequest("PUT", path, nil, bytes.NewReader(body))
+		if err != nil {
+			return err
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusCreated {
+			body, err := ioutil.ReadAll(res.Body)
+			if err == nil {
+				logrus.Debugf("Error body %s", string(body))
+			}
+			logrus.Debugf("Error uploading signature, status %d, %#v", res.StatusCode, res)
+			return errors.Errorf("Error uploading signature to %s, status %d", path, res.StatusCode)
+		}
+	}
+
+	return nil
 }
 
 // Commit marks the process of storing the image as successful and asks for the image to be persisted.

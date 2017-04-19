@@ -10,6 +10,7 @@ import (
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
 	"github.com/opencontainers/go-digest"
+	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -110,6 +111,17 @@ func (m *manifestSchema1) ConfigInfo() types.BlobInfo {
 // The result is cached; it is OK to call this however often you need.
 func (m *manifestSchema1) ConfigBlob() ([]byte, error) {
 	return nil, nil
+}
+
+// OCIConfig returns the image configuration as per OCI v1 image-spec. Information about
+// layers in the resulting configuration isn't guaranteed to be returned to due how
+// old image manifests work (docker v2s1 especially).
+func (m *manifestSchema1) OCIConfig() (*imgspecv1.Image, error) {
+	v2s2, err := m.convertToManifestSchema2(nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return v2s2.OCIConfig()
 }
 
 // LayerInfos returns a list of BlobInfos of layers referenced by this image, in order (the root layer first, and then successive layered layers).
@@ -243,10 +255,10 @@ func (m *manifestSchema1) convertToManifestSchema2(uploadedLayerInfos []types.Bl
 	if len(m.History) != len(m.FSLayers) {
 		return nil, errors.Errorf("Inconsistent schema 1 manifest: %d history entries, %d fsLayers entries", len(m.History), len(m.FSLayers))
 	}
-	if len(uploadedLayerInfos) != len(m.FSLayers) {
+	if uploadedLayerInfos != nil && len(uploadedLayerInfos) != len(m.FSLayers) {
 		return nil, errors.Errorf("Internal error: uploaded %d blobs, but schema1 manifest has %d fsLayers", len(uploadedLayerInfos), len(m.FSLayers))
 	}
-	if len(layerDiffIDs) != len(m.FSLayers) {
+	if layerDiffIDs != nil && len(layerDiffIDs) != len(m.FSLayers) {
 		return nil, errors.Errorf("Internal error: collected %d DiffID values, but schema1 manifest has %d fsLayers", len(layerDiffIDs), len(m.FSLayers))
 	}
 
@@ -273,12 +285,20 @@ func (m *manifestSchema1) convertToManifestSchema2(uploadedLayerInfos []types.Bl
 		}
 
 		if !v1compat.ThrowAway {
+			var size int64
+			if uploadedLayerInfos != nil {
+				size = uploadedLayerInfos[v2Index].Size
+			}
+			var d digest.Digest
+			if layerDiffIDs != nil {
+				d = layerDiffIDs[v2Index]
+			}
 			layers = append(layers, descriptor{
 				MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
-				Size:      uploadedLayerInfos[v2Index].Size,
+				Size:      size,
 				Digest:    m.FSLayers[v1Index].BlobSum,
 			})
-			rootFS.DiffIDs = append(rootFS.DiffIDs, layerDiffIDs[v2Index])
+			rootFS.DiffIDs = append(rootFS.DiffIDs, d)
 		}
 	}
 	configJSON, err := configJSONFromV1Config([]byte(m.History[0].V1Compatibility), rootFS, history)

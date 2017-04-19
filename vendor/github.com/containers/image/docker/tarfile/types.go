@@ -1,4 +1,4 @@
-package daemon
+package tarfile
 
 import "github.com/opencontainers/go-digest"
 
@@ -43,7 +43,7 @@ type schema2Manifest struct {
 
 // Based on github.com/docker/docker/image/image.go
 // MOST CONTENT OMITTED AS UNNECESSARY
-type dockerImage struct {
+type image struct {
 	RootFS *rootFS `json:"rootfs,omitempty"`
 }
 
