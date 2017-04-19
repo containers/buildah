@@ -18,8 +18,10 @@ import (
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/pkg/homedir"
+	"github.com/docker/distribution/registry/client"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
@@ -32,19 +34,37 @@ const (
 	dockerCfgFileName = "config.json"
 	dockerCfgObsolete = ".dockercfg"
 
-	baseURL       = "%s://%s/v2/"
-	baseURLV1     = "%s://%s/v1/_ping"
-	tagsURL       = "%s/tags/list"
-	manifestURL   = "%s/manifests/%s"
-	blobsURL      = "%s/blobs/%s"
-	blobUploadURL = "%s/blobs/uploads/"
+	resolvedPingV2URL       = "%s://%s/v2/"
+	resolvedPingV1URL       = "%s://%s/v1/_ping"
+	tagsPath                = "/v2/%s/tags/list"
+	manifestPath            = "/v2/%s/manifests/%s"
+	blobsPath               = "/v2/%s/blobs/%s"
+	blobUploadPath          = "/v2/%s/blobs/uploads/"
+	extensionsSignaturePath = "/extensions/v2/%s/signatures/%s"
 
 	minimumTokenLifetimeSeconds = 60
+
+	extensionSignatureSchemaVersion = 2        // extensionSignature.Version
+	extensionSignatureTypeAtomic    = "atomic" // extensionSignature.Type
 )
 
 // ErrV1NotSupported is returned when we're trying to talk to a
 // docker V1 registry.
 var ErrV1NotSupported = errors.New("can't talk to a V1 docker registry")
+
+// extensionSignature and extensionSignatureList come from github.com/openshift/origin/pkg/dockerregistry/server/signaturedispatcher.go:
+// signature represents a Docker image signature.
+type extensionSignature struct {
+	Version int    `json:"schemaVersion"` // Version specifies the schema version
+	Name    string `json:"name"`          // Name must be in "sha256:<digest>@signatureName" format
+	Type    string `json:"type"`          // Type is optional, of not set it will be defaulted to "AtomicImageV1"
+	Content []byte `json:"content"`       // Content contains the signature
+}
+
+// signatureList represents list of Docker image signatures.
+type extensionSignatureList struct {
+	Signatures []extensionSignature `json:"signatures"`
+}
 
 type bearerToken struct {
 	Token     string    `json:"token"`
@@ -54,15 +74,20 @@ type bearerToken struct {
 
 // dockerClient is configuration for dealing with a single Docker registry.
 type dockerClient struct {
-	ctx             *types.SystemContext
-	registry        string
-	username        string
-	password        string
-	scheme          string // Cache of a value returned by a successful ping() if not empty
-	client          *http.Client
-	signatureBase   signatureStorageBase
-	challenges      []challenge
-	scope           authScope
+	// The following members are set by newDockerClient and do not change afterwards.
+	ctx           *types.SystemContext
+	registry      string
+	username      string
+	password      string
+	client        *http.Client
+	signatureBase signatureStorageBase
+	scope         authScope
+	// The following members are detected registry properties:
+	// They are set after a successful detectProperties(), and never change afterwards.
+	scheme             string // Empty value also used to indicate detectProperties() has not yet succeeded.
+	challenges         []challenge
+	supportsSignatures bool
+	// The following members are private state for setupRequestAuth, both are valid if token != nil.
 	token           *bearerToken
 	tokenExpiration time.Time
 }
@@ -209,15 +234,13 @@ func newDockerClient(ctx *types.SystemContext, ref dockerReference, write bool, 
 }
 
 // makeRequest creates and executes a http.Request with the specified parameters, adding authentication and TLS options for the Docker client.
-// url is NOT an absolute URL, but a path relative to the /v2/ top-level API path.  The host name and schema is taken from the client or autodetected.
-func (c *dockerClient) makeRequest(method, url string, headers map[string][]string, stream io.Reader) (*http.Response, error) {
-	if c.scheme == "" {
-		if err := c.ping(); err != nil {
-			return nil, err
-		}
+// The host name and schema is taken from the client or autodetected, and the path is relative to it, i.e. the path usually starts with /v2/.
+func (c *dockerClient) makeRequest(method, path string, headers map[string][]string, stream io.Reader) (*http.Response, error) {
+	if err := c.detectProperties(); err != nil {
+		return nil, err
 	}
 
-	url = fmt.Sprintf(baseURL, c.scheme, c.registry) + url
+	url := fmt.Sprintf("%s://%s%s", c.scheme, c.registry, path)
 	return c.makeRequestToResolvedURL(method, url, headers, stream, -1, true)
 }
 
@@ -398,21 +421,28 @@ func getAuth(ctx *types.SystemContext, registry string) (string, string, error) 
 	return "", "", nil
 }
 
-func (c *dockerClient) ping() error {
+// detectProperties detects various properties of the registry.
+// See the dockerClient documentation for members which are affected by this.
+func (c *dockerClient) detectProperties() error {
+	if c.scheme != "" {
+		return nil
+	}
+
 	ping := func(scheme string) error {
-		url := fmt.Sprintf(baseURL, scheme, c.registry)
+		url := fmt.Sprintf(resolvedPingV2URL, scheme, c.registry)
 		resp, err := c.makeRequestToResolvedURL("GET", url, nil, nil, -1, true)
 		logrus.Debugf("Ping %s err %#v", url, err)
 		if err != nil {
 			return err
 		}
 		defer resp.Body.Close()
-		logrus.Debugf("Ping %s status %d", scheme+"://"+c.registry+"/v2/", resp.StatusCode)
+		logrus.Debugf("Ping %s status %d", url, resp.StatusCode)
 		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusUnauthorized {
 			return errors.Errorf("error pinging repository, response code %d", resp.StatusCode)
 		}
 		c.challenges = parseAuthHeader(resp.Header)
 		c.scheme = scheme
+		c.supportsSignatures = resp.Header.Get("X-Registry-Supports-Signatures") == "1"
 		return nil
 	}
 	err := ping("https")
@@ -426,14 +456,14 @@ func (c *dockerClient) ping() error {
 		}
 		// best effort to understand if we're talking to a V1 registry
 		pingV1 := func(scheme string) bool {
-			url := fmt.Sprintf(baseURLV1, scheme, c.registry)
+			url := fmt.Sprintf(resolvedPingV1URL, scheme, c.registry)
 			resp, err := c.makeRequestToResolvedURL("GET", url, nil, nil, -1, true)
 			logrus.Debugf("Ping %s err %#v", url, err)
 			if err != nil {
 				return false
 			}
 			defer resp.Body.Close()
-			logrus.Debugf("Ping %s status %d", scheme+"://"+c.registry+"/v1/_ping", resp.StatusCode)
+			logrus.Debugf("Ping %s status %d", url, resp.StatusCode)
 			if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusUnauthorized {
 				return false
 			}
@@ -448,6 +478,30 @@ func (c *dockerClient) ping() error {
 		}
 	}
 	return err
+}
+
+// getExtensionsSignatures returns signatures from the X-Registry-Supports-Signatures API extension,
+// using the original data structures.
+func (c *dockerClient) getExtensionsSignatures(ref dockerReference, manifestDigest digest.Digest) (*extensionSignatureList, error) {
+	path := fmt.Sprintf(extensionsSignaturePath, reference.Path(ref.ref), manifestDigest)
+	res, err := c.makeRequest("GET", path, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return nil, client.HandleErrorResponse(res)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var parsedBody extensionSignatureList
+	if err := json.Unmarshal(body, &parsedBody); err != nil {
+		return nil, errors.Wrapf(err, "Error decoding signature list")
+	}
+	return &parsedBody, nil
 }
 
 func getDefaultConfigDir(confPath string) string {

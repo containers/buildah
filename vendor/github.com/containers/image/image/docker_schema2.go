@@ -78,6 +78,24 @@ func (m *manifestSchema2) ConfigInfo() types.BlobInfo {
 	return types.BlobInfo{Digest: m.ConfigDescriptor.Digest, Size: m.ConfigDescriptor.Size}
 }
 
+// OCIConfig returns the image configuration as per OCI v1 image-spec. Information about
+// layers in the resulting configuration isn't guaranteed to be returned to due how
+// old image manifests work (docker v2s1 especially).
+func (m *manifestSchema2) OCIConfig() (*imgspecv1.Image, error) {
+	configBlob, err := m.ConfigBlob()
+	if err != nil {
+		return nil, err
+	}
+	// docker v2s2 and OCI v1 are mostly compatible but v2s2 contains more fields
+	// than OCI v1. This unmarshal makes sure we drop docker v2s2
+	// fields that aren't needed in OCI v1.
+	configOCI := &imgspecv1.Image{}
+	if err := json.Unmarshal(configBlob, configOCI); err != nil {
+		return nil, err
+	}
+	return configOCI, nil
+}
+
 // ConfigBlob returns the blob described by ConfigInfo, iff ConfigInfo().Digest != ""; nil otherwise.
 // The result is cached; it is OK to call this however often you need.
 func (m *manifestSchema2) ConfigBlob() ([]byte, error) {
@@ -177,15 +195,8 @@ func (m *manifestSchema2) UpdatedImage(options types.ManifestUpdateOptions) (typ
 }
 
 func (m *manifestSchema2) convertToManifestOCI1() (types.Image, error) {
-	configBlob, err := m.ConfigBlob()
+	configOCI, err := m.OCIConfig()
 	if err != nil {
-		return nil, err
-	}
-	// docker v2s2 and OCI v1 are mostly compatible but v2s2 contains more fields
-	// than OCI v1. This unmarshal, then re-marshal makes sure we drop docker v2s2
-	// fields that aren't needed in OCI v1.
-	configOCI := &imgspecv1.Image{}
-	if err := json.Unmarshal(configBlob, configOCI); err != nil {
 		return nil, err
 	}
 	configOCIBytes, err := json.Marshal(configOCI)

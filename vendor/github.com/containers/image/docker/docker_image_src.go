@@ -93,10 +93,10 @@ func (s *dockerImageSource) GetManifest() ([]byte, string, error) {
 }
 
 func (s *dockerImageSource) fetchManifest(tagOrDigest string) ([]byte, string, error) {
-	url := fmt.Sprintf(manifestURL, reference.Path(s.ref.ref), tagOrDigest)
+	path := fmt.Sprintf(manifestPath, reference.Path(s.ref.ref), tagOrDigest)
 	headers := make(map[string][]string)
 	headers["Accept"] = s.requestedManifestMIMETypes
-	res, err := s.c.makeRequest("GET", url, headers, nil)
+	res, err := s.c.makeRequest("GET", path, headers, nil)
 	if err != nil {
 		return nil, "", err
 	}
@@ -179,9 +179,9 @@ func (s *dockerImageSource) GetBlob(info types.BlobInfo) (io.ReadCloser, int64, 
 		return s.getExternalBlob(info.URLs)
 	}
 
-	url := fmt.Sprintf(blobsURL, reference.Path(s.ref.ref), info.Digest.String())
-	logrus.Debugf("Downloading %s", url)
-	res, err := s.c.makeRequest("GET", url, nil, nil)
+	path := fmt.Sprintf(blobsPath, reference.Path(s.ref.ref), info.Digest.String())
+	logrus.Debugf("Downloading %s", path)
+	res, err := s.c.makeRequest("GET", path, nil, nil)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -193,10 +193,22 @@ func (s *dockerImageSource) GetBlob(info types.BlobInfo) (io.ReadCloser, int64, 
 }
 
 func (s *dockerImageSource) GetSignatures() ([][]byte, error) {
-	if s.c.signatureBase == nil { // Skip dealing with the manifest digest if not necessary.
+	if err := s.c.detectProperties(); err != nil {
+		return nil, err
+	}
+	switch {
+	case s.c.signatureBase != nil:
+		return s.getSignaturesFromLookaside()
+	case s.c.supportsSignatures:
+		return s.getSignaturesFromAPIExtension()
+	default:
 		return [][]byte{}, nil
 	}
+}
 
+// getSignaturesFromLookaside implements GetSignatures() from the lookaside location configured in s.c.signatureBase,
+// which is not nil.
+func (s *dockerImageSource) getSignaturesFromLookaside() ([][]byte, error) {
 	if err := s.ensureManifestIsLoaded(); err != nil {
 		return nil, err
 	}
@@ -205,6 +217,7 @@ func (s *dockerImageSource) GetSignatures() ([][]byte, error) {
 		return nil, err
 	}
 
+	// NOTE: Keep this in sync with docs/signature-protocols.md!
 	signatures := [][]byte{}
 	for i := 0; ; i++ {
 		url := signatureStorageURL(s.c.signatureBase, manifestDigest, i)
@@ -225,6 +238,7 @@ func (s *dockerImageSource) GetSignatures() ([][]byte, error) {
 
 // getOneSignature downloads one signature from url.
 // If it successfully determines that the signature does not exist, returns with missing set to true and error set to nil.
+// NOTE: Keep this in sync with docs/signature-protocols.md!
 func (s *dockerImageSource) getOneSignature(url *url.URL) (signature []byte, missing bool, err error) {
 	switch url.Scheme {
 	case "file":
@@ -261,6 +275,30 @@ func (s *dockerImageSource) getOneSignature(url *url.URL) (signature []byte, mis
 	}
 }
 
+// getSignaturesFromAPIExtension implements GetSignatures() using the X-Registry-Supports-Signatures API extension.
+func (s *dockerImageSource) getSignaturesFromAPIExtension() ([][]byte, error) {
+	if err := s.ensureManifestIsLoaded(); err != nil {
+		return nil, err
+	}
+	manifestDigest, err := manifest.Digest(s.cachedManifest)
+	if err != nil {
+		return nil, err
+	}
+
+	parsedBody, err := s.c.getExtensionsSignatures(s.ref, manifestDigest)
+	if err != nil {
+		return nil, err
+	}
+
+	var sigs [][]byte
+	for _, sig := range parsedBody.Signatures {
+		if sig.Version == extensionSignatureSchemaVersion && sig.Type == extensionSignatureTypeAtomic {
+			sigs = append(sigs, sig.Content)
+		}
+	}
+	return sigs, nil
+}
+
 // deleteImage deletes the named image from the registry, if supported.
 func deleteImage(ctx *types.SystemContext, ref dockerReference) error {
 	c, err := newDockerClient(ctx, ref, true, "push")
@@ -277,8 +315,8 @@ func deleteImage(ctx *types.SystemContext, ref dockerReference) error {
 	if err != nil {
 		return err
 	}
-	getURL := fmt.Sprintf(manifestURL, reference.Path(ref.ref), refTail)
-	get, err := c.makeRequest("GET", getURL, headers, nil)
+	getPath := fmt.Sprintf(manifestPath, reference.Path(ref.ref), refTail)
+	get, err := c.makeRequest("GET", getPath, headers, nil)
 	if err != nil {
 		return err
 	}
@@ -296,11 +334,11 @@ func deleteImage(ctx *types.SystemContext, ref dockerReference) error {
 	}
 
 	digest := get.Header.Get("Docker-Content-Digest")
-	deleteURL := fmt.Sprintf(manifestURL, reference.Path(ref.ref), digest)
+	deletePath := fmt.Sprintf(manifestPath, reference.Path(ref.ref), digest)
 
 	// When retrieving the digest from a registry >= 2.3 use the following header:
 	//   "Accept": "application/vnd.docker.distribution.manifest.v2+json"
-	delete, err := c.makeRequest("DELETE", deleteURL, headers, nil)
+	delete, err := c.makeRequest("DELETE", deletePath, headers, nil)
 	if err != nil {
 		return err
 	}
@@ -311,7 +349,7 @@ func deleteImage(ctx *types.SystemContext, ref dockerReference) error {
 		return err
 	}
 	if delete.StatusCode != http.StatusAccepted {
-		return errors.Errorf("Failed to delete %v: %s (%v)", deleteURL, string(body), delete.Status)
+		return errors.Errorf("Failed to delete %v: %s (%v)", deletePath, string(body), delete.Status)
 	}
 
 	if c.signatureBase != nil {

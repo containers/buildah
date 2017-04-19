@@ -5,7 +5,6 @@ package signature
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -42,20 +41,11 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(image types.UnparsedImage, sig [
 	}
 
 	// FIXME: move this to per-context initialization
-	dir, err := ioutil.TempDir("", "skopeo-signedBy-")
+	mech, trustedIdentities, err := NewEphemeralGPGSigningMechanism(data)
 	if err != nil {
 		return sarRejected, nil, err
 	}
-	defer os.RemoveAll(dir)
-	mech, err := newGPGSigningMechanismInDirectory(dir)
-	if err != nil {
-		return sarRejected, nil, err
-	}
-
-	trustedIdentities, err := mech.ImportKeysFromBytes(data)
-	if err != nil {
-		return sarRejected, nil, err
-	}
+	defer mech.Close()
 	if len(trustedIdentities) == 0 {
 		return sarRejected, nil, PolicyRequirementError("No public keys imported")
 	}

@@ -112,6 +112,10 @@ func (d *ociImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobInfo
 	return types.BlobInfo{Digest: computedDigest, Size: size}, nil
 }
 
+// HasBlob returns true iff the image destination already contains a blob with the matching digest which can be reapplied using ReapplyBlob.
+// Unlike PutBlob, the digest can not be empty.  If HasBlob returns true, the size of the blob must also be returned.
+// If the destination does not contain the blob, or it is unknown, HasBlob ordinarily returns (false, -1, nil);
+// it returns a non-nil error only on an unexpected failure.
 func (d *ociImageDestination) HasBlob(info types.BlobInfo) (bool, int64, error) {
 	if info.Digest == "" {
 		return false, -1, errors.Errorf(`"Can not check for a blob with unknown digest`)
@@ -122,7 +126,7 @@ func (d *ociImageDestination) HasBlob(info types.BlobInfo) (bool, int64, error) 
 	}
 	finfo, err := os.Stat(blobPath)
 	if err != nil && os.IsNotExist(err) {
-		return false, -1, types.ErrBlobNotFound
+		return false, -1, nil
 	}
 	if err != nil {
 		return false, -1, err

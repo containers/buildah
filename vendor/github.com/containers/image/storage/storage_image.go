@@ -290,6 +290,10 @@ func (s *storageImageDestination) PutBlob(stream io.Reader, blobinfo types.BlobI
 	return s.putBlob(stream, blobinfo, true)
 }
 
+// HasBlob returns true iff the image destination already contains a blob with the matching digest which can be reapplied using ReapplyBlob.
+// Unlike PutBlob, the digest can not be empty.  If HasBlob returns true, the size of the blob must also be returned.
+// If the destination does not contain the blob, or it is unknown, HasBlob ordinarily returns (false, -1, nil);
+// it returns a non-nil error only on an unexpected failure.
 func (s *storageImageDestination) HasBlob(blobinfo types.BlobInfo) (bool, int64, error) {
 	if blobinfo.Digest == "" {
 		return false, -1, errors.Errorf(`"Can not check for a blob with unknown digest`)
@@ -299,7 +303,7 @@ func (s *storageImageDestination) HasBlob(blobinfo types.BlobInfo) (bool, int64,
 			return true, blob.Size, nil
 		}
 	}
-	return false, -1, types.ErrBlobNotFound
+	return false, -1, nil
 }
 
 func (s *storageImageDestination) ReapplyBlob(blobinfo types.BlobInfo) (types.BlobInfo, error) {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/containers/image/docker/reference"
 	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
+	"github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageTransport is a top-level namespace for ways to to store/load an image.
@@ -160,7 +160,10 @@ type ImageDestination interface {
 	// to any other readers for download using the supplied digest.
 	// If stream.Read() at any time, ESPECIALLY at end of input, returns an error, PutBlob MUST 1) fail, and 2) delete any data stored so far.
 	PutBlob(stream io.Reader, inputInfo BlobInfo) (BlobInfo, error)
-	// HasBlob returns true iff the image destination already contains a blob with the matching digest which can be reapplied using ReapplyBlob.  Unlike PutBlob, the digest can not be empty.  If HasBlob returns true, the size of the blob must also be returned.  A false result will often be accompanied by an ErrBlobNotFound error.
+	// HasBlob returns true iff the image destination already contains a blob with the matching digest which can be reapplied using ReapplyBlob.
+	// Unlike PutBlob, the digest can not be empty.  If HasBlob returns true, the size of the blob must also be returned.
+	// If the destination does not contain the blob, or it is unknown, HasBlob ordinarily returns (false, -1, nil);
+	// it returns a non-nil error only on an unexpected failure.
 	HasBlob(info BlobInfo) (bool, int64, error)
 	// ReapplyBlob informs the image destination that a blob for which HasBlob previously returned true would have been passed to PutBlob if it had returned false.  Like HasBlob and unlike PutBlob, the digest can not be empty.  If the blob is a filesystem layer, this signifies that the changes it describes need to be applied again when composing a filesystem tree.
 	ReapplyBlob(info BlobInfo) (BlobInfo, error)
@@ -202,6 +205,10 @@ type Image interface {
 	// ConfigBlob returns the blob described by ConfigInfo, iff ConfigInfo().Digest != ""; nil otherwise.
 	// The result is cached; it is OK to call this however often you need.
 	ConfigBlob() ([]byte, error)
+	// OCIConfig returns the image configuration as per OCI v1 image-spec. Information about
+	// layers in the resulting configuration isn't guaranteed to be returned to due how
+	// old image manifests work (docker v2s1 especially).
+	OCIConfig() (*v1.Image, error)
 	// LayerInfos returns a list of BlobInfos of layers referenced by this image, in order (the root layer first, and then successive layered layers).
 	// The Digest field is guaranteed to be provided; Size may be -1.
 	// WARNING: The list may contain duplicates, and they are semantically relevant.
@@ -300,8 +307,3 @@ type ProgressProperties struct {
 	Artifact BlobInfo
 	Offset   uint64
 }
-
-var (
-	// ErrBlobNotFound can be returned by an ImageDestination's HasBlob() method
-	ErrBlobNotFound = errors.New("no such blob present")
-)
