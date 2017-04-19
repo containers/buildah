@@ -29,11 +29,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/hashicorp/go-cleanhttp"
+	"github.com/moby/moby/opts"
+	"github.com/moby/moby/pkg/homedir"
+	"github.com/moby/moby/pkg/jsonmessage"
+	"github.com/moby/moby/pkg/stdcopy"
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
 )
@@ -58,6 +58,7 @@ var (
 	apiVersion112, _ = NewAPIVersion("1.12")
 	apiVersion119, _ = NewAPIVersion("1.19")
 	apiVersion124, _ = NewAPIVersion("1.24")
+	apiVersion125, _ = NewAPIVersion("1.25")
 )
 
 // APIVersion is an internal representation of a version of the Remote API.
@@ -257,7 +258,7 @@ func NewVersionedTLSClient(endpoint string, cert, key, ca, apiVersionString stri
 // NewClientFromEnv returns a Client instance ready for communication created from
 // Docker's default logic for the environment variables DOCKER_HOST, DOCKER_TLS_VERIFY, and DOCKER_CERT_PATH.
 //
-// See https://github.com/docker/docker/blob/1f963af697e8df3a78217f6fdbf67b8123a7db94/docker/docker.go#L68.
+// See https://github.com/moby/moby/blob/1f963af697e8df3a78217f6fdbf67b8123a7db94/docker/docker.go#L68.
 // See https://github.com/docker/compose/blob/81707ef1ad94403789166d2fe042c8a718a4c748/compose/cli/docker_client.py#L7.
 func NewClientFromEnv() (*Client, error) {
 	client, err := NewVersionedClientFromEnv("")
@@ -272,7 +273,7 @@ func NewClientFromEnv() (*Client, error) {
 // Docker's default logic for the environment variables DOCKER_HOST, DOCKER_TLS_VERIFY, and DOCKER_CERT_PATH,
 // and using a specific remote API version.
 //
-// See https://github.com/docker/docker/blob/1f963af697e8df3a78217f6fdbf67b8123a7db94/docker/docker.go#L68.
+// See https://github.com/moby/moby/blob/1f963af697e8df3a78217f6fdbf67b8123a7db94/docker/docker.go#L68.
 // See https://github.com/docker/compose/blob/81707ef1ad94403789166d2fe042c8a718a4c748/compose/cli/docker_client.py#L7.
 func NewVersionedClientFromEnv(apiVersionString string) (*Client, error) {
 	dockerEnv, err := getDockerEnv()
