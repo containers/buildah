@@ -40,22 +40,6 @@ var (
 		"RLIMIT_SIGPENDING",
 		"RLIMIT_STACK",
 	}
-	defaultCaps = []string{
-		"CAP_CHOWN",
-		"CAP_DAC_OVERRIDE",
-		"CAP_FSETID",
-		"CAP_FOWNER",
-		"CAP_MKNOD",
-		"CAP_NET_RAW",
-		"CAP_SETGID",
-		"CAP_SETUID",
-		"CAP_SETFCAP",
-		"CAP_SETPCAP",
-		"CAP_NET_BIND_SERVICE",
-		"CAP_SYS_CHROOT",
-		"CAP_KILL",
-		"CAP_AUDIT_WRITE",
-	}
 )
 
 // Validator represents a validator for runtime bundle
@@ -115,17 +99,34 @@ func (v *Validator) CheckAll() (msgs []string) {
 func (v *Validator) CheckRootfsPath() (msgs []string) {
 	logrus.Debugf("check rootfs path")
 
+	absBundlePath, err := filepath.Abs(v.bundlePath)
+	if err != nil {
+		msgs = append(msgs, fmt.Sprintf("unable to convert %q to an absolute path", v.bundlePath))
+	}
+
 	var rootfsPath string
+	var absRootPath string
 	if filepath.IsAbs(v.spec.Root.Path) {
 		rootfsPath = v.spec.Root.Path
+		absRootPath = filepath.Clean(rootfsPath)
 	} else {
+		var err error
 		rootfsPath = filepath.Join(v.bundlePath, v.spec.Root.Path)
+		absRootPath, err = filepath.Abs(rootfsPath)
+		if err != nil {
+			msgs = append(msgs, fmt.Sprintf("unable to convert %q to an absolute path", rootfsPath))
+		}
 	}
 
 	if fi, err := os.Stat(rootfsPath); err != nil {
 		msgs = append(msgs, fmt.Sprintf("Cannot find the root path %q", rootfsPath))
 	} else if !fi.IsDir() {
 		msgs = append(msgs, fmt.Sprintf("The root path %q is not a directory.", rootfsPath))
+	}
+
+	rootParent := filepath.Dir(absRootPath)
+	if absRootPath == string(filepath.Separator) || rootParent != absBundlePath {
+		msgs = append(msgs, fmt.Sprintf("root.path is %q, but it MUST be a child of %q", v.spec.Root.Path, absBundlePath))
 	}
 
 	return
@@ -183,9 +184,11 @@ func (v *Validator) CheckPlatform() (msgs []string) {
 func (v *Validator) CheckHooks() (msgs []string) {
 	logrus.Debugf("check hooks")
 
-	msgs = append(msgs, checkEventHooks("pre-start", v.spec.Hooks.Prestart, v.HostSpecific)...)
-	msgs = append(msgs, checkEventHooks("post-start", v.spec.Hooks.Poststart, v.HostSpecific)...)
-	msgs = append(msgs, checkEventHooks("post-stop", v.spec.Hooks.Poststop, v.HostSpecific)...)
+	if v.spec.Hooks != nil {
+		msgs = append(msgs, checkEventHooks("pre-start", v.spec.Hooks.Prestart, v.HostSpecific)...)
+		msgs = append(msgs, checkEventHooks("post-start", v.spec.Hooks.Poststart, v.HostSpecific)...)
+		msgs = append(msgs, checkEventHooks("post-stop", v.spec.Hooks.Poststop, v.HostSpecific)...)
+	}
 
 	return
 }
@@ -256,28 +259,71 @@ func (v *Validator) CheckProcess() (msgs []string) {
 		}
 	}
 
-	for _, capability := range process.Capabilities {
-		if err := CapValid(capability, v.HostSpecific); err != nil {
-			msgs = append(msgs, fmt.Sprintf("capability %q is not valid, man capabilities(7)", capability))
+	msgs = append(msgs, v.CheckCapablities()...)
+	msgs = append(msgs, v.CheckRlimits()...)
+
+	if v.spec.Platform.OS == "linux" {
+
+		if len(process.ApparmorProfile) > 0 {
+			profilePath := filepath.Join(v.bundlePath, v.spec.Root.Path, "/etc/apparmor.d", process.ApparmorProfile)
+			_, err := os.Stat(profilePath)
+			if err != nil {
+				msgs = append(msgs, err.Error())
+			}
 		}
 	}
 
-	for index, rlimit := range process.Rlimits {
-		if err := rlimitValid(rlimit); err != nil {
-			msgs = append(msgs, err.Error())
+	return
+}
+
+func (v *Validator) CheckCapablities() (msgs []string) {
+	process := v.spec.Process
+	if v.spec.Platform.OS == "linux" {
+		var caps []string
+
+		for _, cap := range process.Capabilities.Bounding {
+			caps = append(caps, cap)
 		}
+		for _, cap := range process.Capabilities.Effective {
+			caps = append(caps, cap)
+		}
+		for _, cap := range process.Capabilities.Inheritable {
+			caps = append(caps, cap)
+		}
+		for _, cap := range process.Capabilities.Permitted {
+			caps = append(caps, cap)
+		}
+		for _, cap := range process.Capabilities.Ambient {
+			caps = append(caps, cap)
+		}
+
+		for _, capability := range caps {
+			if err := CapValid(capability, v.HostSpecific); err != nil {
+				msgs = append(msgs, fmt.Sprintf("capability %q is not valid, man capabilities(7)", capability))
+			}
+		}
+	} else {
+		logrus.Warnf("process.capabilities validation not yet implemented for OS %q", v.spec.Platform.OS)
+	}
+
+	return
+}
+
+func (v *Validator) CheckRlimits() (msgs []string) {
+	process := v.spec.Process
+	for index, rlimit := range process.Rlimits {
 		for i := index + 1; i < len(process.Rlimits); i++ {
 			if process.Rlimits[index].Type == process.Rlimits[i].Type {
 				msgs = append(msgs, fmt.Sprintf("rlimit can not contain the same type %q.", process.Rlimits[index].Type))
 			}
 		}
-	}
 
-	if len(process.ApparmorProfile) > 0 {
-		profilePath := filepath.Join(v.bundlePath, v.spec.Root.Path, "/etc/apparmor.d", process.ApparmorProfile)
-		_, err := os.Stat(profilePath)
-		if err != nil {
-			msgs = append(msgs, err.Error())
+		if v.spec.Platform.OS == "linux" {
+			if err := rlimitValid(rlimit); err != nil {
+				msgs = append(msgs, err.Error())
+			}
+		} else {
+			logrus.Warnf("process.rlimits validation not yet implemented for OS %q", v.spec.Platform.OS)
 		}
 	}
 
@@ -350,6 +396,7 @@ func (v *Validator) CheckMounts() (msgs []string) {
 	return
 }
 
+// CheckOS checks v.spec.Platform.OS
 func (v *Validator) CheckOS() (msgs []string) {
 	logrus.Debugf("check os")
 
@@ -365,6 +412,12 @@ func (v *Validator) CheckOS() (msgs []string) {
 		}
 	}
 
+	if v.spec.Platform.OS != "windows" {
+		if v.spec.Windows != nil {
+			msgs = append(msgs, fmt.Sprintf("'windows' MUST NOT be set when platform.os is %q", v.spec.Platform.OS))
+		}
+	}
+
 	return
 }
 
@@ -372,31 +425,38 @@ func (v *Validator) CheckOS() (msgs []string) {
 func (v *Validator) CheckLinux() (msgs []string) {
 	logrus.Debugf("check linux")
 
-	utsExists := false
-	ipcExists := false
-	mountExists := false
-	netExists := false
-	userExists := false
-
-	for index := 0; index < len(v.spec.Linux.Namespaces); index++ {
-		if !namespaceValid(v.spec.Linux.Namespaces[index]) {
-			msgs = append(msgs, fmt.Sprintf("namespace %v is invalid.", v.spec.Linux.Namespaces[index]))
-		} else if len(v.spec.Linux.Namespaces[index].Path) == 0 {
-			if v.spec.Linux.Namespaces[index].Type == rspec.UTSNamespace {
-				utsExists = true
-			} else if v.spec.Linux.Namespaces[index].Type == rspec.IPCNamespace {
-				ipcExists = true
-			} else if v.spec.Linux.Namespaces[index].Type == rspec.NetworkNamespace {
-				netExists = true
-			} else if v.spec.Linux.Namespaces[index].Type == rspec.MountNamespace {
-				mountExists = true
-			} else if v.spec.Linux.Namespaces[index].Type == rspec.UserNamespace {
-				userExists = true
-			}
-		}
+	var typeList = map[rspec.LinuxNamespaceType]struct {
+		num      int
+		newExist bool
+	}{
+		rspec.PIDNamespace:     {0, false},
+		rspec.NetworkNamespace: {0, false},
+		rspec.MountNamespace:   {0, false},
+		rspec.IPCNamespace:     {0, false},
+		rspec.UTSNamespace:     {0, false},
+		rspec.UserNamespace:    {0, false},
+		rspec.CgroupNamespace:  {0, false},
 	}
 
-	if (len(v.spec.Linux.UIDMappings) > 0 || len(v.spec.Linux.GIDMappings) > 0) && !userExists {
+	for index := 0; index < len(v.spec.Linux.Namespaces); index++ {
+		ns := v.spec.Linux.Namespaces[index]
+		if !namespaceValid(ns) {
+			msgs = append(msgs, fmt.Sprintf("namespace %v is invalid.", ns))
+		}
+
+		tmpItem := typeList[ns.Type]
+		tmpItem.num = tmpItem.num + 1
+		if tmpItem.num > 1 {
+			msgs = append(msgs, fmt.Sprintf("duplicated namespace %q", ns.Type))
+		}
+
+		if len(ns.Path) == 0 {
+			tmpItem.newExist = true
+		}
+		typeList[ns.Type] = tmpItem
+	}
+
+	if (len(v.spec.Linux.UIDMappings) > 0 || len(v.spec.Linux.GIDMappings) > 0) && !typeList[rspec.UserNamespace].newExist {
 		msgs = append(msgs, "UID/GID mappings requires a new User namespace to be specified as well")
 	} else if len(v.spec.Linux.UIDMappings) > 5 {
 		msgs = append(msgs, "Only 5 UID mappings are allowed (linux kernel restriction).")
@@ -405,17 +465,17 @@ func (v *Validator) CheckLinux() (msgs []string) {
 	}
 
 	for k := range v.spec.Linux.Sysctl {
-		if strings.HasPrefix(k, "net.") && !netExists {
+		if strings.HasPrefix(k, "net.") && !typeList[rspec.NetworkNamespace].newExist {
 			msgs = append(msgs, fmt.Sprintf("Sysctl %v requires a new Network namespace to be specified as well", k))
 		}
 		if strings.HasPrefix(k, "fs.mqueue.") {
-			if !mountExists || !ipcExists {
+			if !typeList[rspec.MountNamespace].newExist || !typeList[rspec.IPCNamespace].newExist {
 				msgs = append(msgs, fmt.Sprintf("Sysctl %v requires a new IPC namespace and Mount namespace to be specified as well", k))
 			}
 		}
 	}
 
-	if v.spec.Platform.OS == "linux" && !utsExists && v.spec.Hostname != "" {
+	if v.spec.Platform.OS == "linux" && !typeList[rspec.UTSNamespace].newExist && v.spec.Hostname != "" {
 		msgs = append(msgs, fmt.Sprintf("On Linux, hostname requires a new UTS namespace to be specified as well"))
 	}
 
@@ -530,6 +590,8 @@ func (v *Validator) CheckSeccomp() (msgs []string) {
 		case rspec.ArchPPC64LE:
 		case rspec.ArchS390:
 		case rspec.ArchS390X:
+		case rspec.ArchPARISC:
+		case rspec.ArchPARISC64:
 		default:
 			msgs = append(msgs, fmt.Sprintf("seccomp architecture %q is invalid", s.Architectures[index]))
 		}
@@ -588,7 +650,7 @@ func envValid(env string) bool {
 	return true
 }
 
-func rlimitValid(rlimit rspec.Rlimit) error {
+func rlimitValid(rlimit rspec.LinuxRlimit) error {
 	if rlimit.Hard < rlimit.Soft {
 		return fmt.Errorf("hard limit of rlimit %s should not be less than soft limit", rlimit.Type)
 	}
@@ -600,7 +662,7 @@ func rlimitValid(rlimit rspec.Rlimit) error {
 	return fmt.Errorf("rlimit type %q is invalid", rlimit.Type)
 }
 
-func namespaceValid(ns rspec.Namespace) bool {
+func namespaceValid(ns rspec.LinuxNamespace) bool {
 	switch ns.Type {
 	case rspec.PIDNamespace:
 	case rspec.NetworkNamespace:
@@ -620,15 +682,10 @@ func namespaceValid(ns rspec.Namespace) bool {
 	return true
 }
 
-func deviceValid(d rspec.Device) bool {
+func deviceValid(d rspec.LinuxDevice) bool {
 	switch d.Type {
-	case "b":
-	case "c":
-	case "u":
-		if d.Major <= 0 {
-			return false
-		}
-		if d.Minor <= 0 {
+	case "b", "c", "u":
+		if d.Major <= 0 || d.Minor <= 0 {
 			return false
 		}
 	case "p":
@@ -641,7 +698,7 @@ func deviceValid(d rspec.Device) bool {
 	return true
 }
 
-func seccompActionValid(secc rspec.Action) bool {
+func seccompActionValid(secc rspec.LinuxSeccompAction) bool {
 	switch secc {
 	case "":
 	case rspec.ActKill:
@@ -655,7 +712,7 @@ func seccompActionValid(secc rspec.Action) bool {
 	return true
 }
 
-func syscallValid(s rspec.Syscall) bool {
+func syscallValid(s rspec.LinuxSyscall) bool {
 	if !seccompActionValid(s.Action) {
 		return false
 	}

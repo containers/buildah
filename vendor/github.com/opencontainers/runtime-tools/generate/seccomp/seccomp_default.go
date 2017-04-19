@@ -32,851 +32,333 @@ func arches() []rspec.Arch {
 }
 
 // DefaultProfile defines the whitelist for the default seccomp profile.
-func DefaultProfile(rs *specs.Spec) *rspec.Seccomp {
+func DefaultProfile(rs *specs.Spec) *rspec.LinuxSeccomp {
 
-	syscalls := []rspec.Syscall{
-		{
-			Name:   "accept",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "accept4",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "access",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "alarm",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "bind",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "brk",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "capget",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "capset",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "chdir",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "chmod",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "chown",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "chown32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-
-		{
-			Name:   "clock_getres",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "clock_gettime",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "clock_nanosleep",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "close",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "connect",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "copy_file_range",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "creat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "dup",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "dup2",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "dup3",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "epoll_create",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "epoll_create1",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "epoll_ctl",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "epoll_ctl_old",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "epoll_pwait",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "epoll_wait",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "epoll_wait_old",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "eventfd",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "eventfd2",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "execve",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "execveat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "exit",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "exit_group",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "faccessat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fadvise64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fadvise64_64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fallocate",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fanotify_mark",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fchdir",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fchmod",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fchmodat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fchown",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fchown32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fchownat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fcntl",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fcntl64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fdatasync",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fgetxattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "flistxattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "flock",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fork",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fremovexattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fsetxattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fstat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fstat64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fstatat64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fstatfs",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fstatfs64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "fsync",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "ftruncate",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "ftruncate64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "futex",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "futimesat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getcpu",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getcwd",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getdents",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getdents64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getegid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getegid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "geteuid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "geteuid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getgid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getgid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getgroups",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getgroups32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getitimer",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getpeername",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getpgid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getpgrp",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getpid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getppid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getpriority",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getrandom",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getresgid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getresgid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getresuid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getresuid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getrlimit",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "get_robust_list",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getrusage",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getsid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getsockname",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getsockopt",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "get_thread_area",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "gettid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "gettimeofday",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getuid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getuid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "getxattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "inotify_add_watch",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "inotify_init",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "inotify_init1",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "inotify_rm_watch",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "io_cancel",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "ioctl",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "io_destroy",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "io_getevents",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "ioprio_get",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "ioprio_set",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "io_setup",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "io_submit",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "ipc",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "kill",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "lchown",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "lchown32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "lgetxattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "link",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "linkat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "listen",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "listxattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "llistxattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "_llseek",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "lremovexattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "lseek",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "lsetxattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "lstat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "lstat64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "madvise",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "memfd_create",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mincore",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mkdir",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mkdirat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mknod",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mknodat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mlock",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mlock2",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mlockall",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mmap",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mmap2",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mprotect",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mq_getsetattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mq_notify",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mq_open",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mq_timedreceive",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mq_timedsend",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mq_unlink",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "mremap",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "msgctl",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "msgget",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "msgrcv",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "msgsnd",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "msync",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "munlock",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "munlockall",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "munmap",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "nanosleep",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "newfstatat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "_newselect",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "open",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "openat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "pause",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "personality",
-			Action: rspec.ActAllow,
-			Args: []rspec.Arg{
+	syscalls := []rspec.LinuxSyscall{
+		{
+			Names: []string{
+				"accept",
+				"accept4",
+				"access",
+				"alarm",
+				"bind",
+				"brk",
+				"capget",
+				"capset",
+				"chdir",
+				"chmod",
+				"chown",
+				"chown32",
+				"clock_getres",
+				"clock_gettime",
+				"clock_nanosleep",
+				"close",
+				"connect",
+				"copy_file_range",
+				"creat",
+				"dup",
+				"dup2",
+				"dup3",
+				"epoll_create",
+				"epoll_create1",
+				"epoll_ctl",
+				"epoll_ctl_old",
+				"epoll_pwait",
+				"epoll_wait",
+				"epoll_wait_old",
+				"eventfd",
+				"eventfd2",
+				"execve",
+				"execveat",
+				"exit",
+				"exit_group",
+				"faccessat",
+				"fadvise64",
+				"fadvise64_64",
+				"fallocate",
+				"fanotify_mark",
+				"fchdir",
+				"fchmod",
+				"fchmodat",
+				"fchown",
+				"fchown32",
+				"fchownat",
+				"fcntl",
+				"fcntl64",
+				"fdatasync",
+				"fgetxattr",
+				"flistxattr",
+				"flock",
+				"fork",
+				"fremovexattr",
+				"fsetxattr",
+				"fstat",
+				"fstat64",
+				"fstatat64",
+				"fstatfs",
+				"fstatfs64",
+				"fsync",
+				"ftruncate",
+				"ftruncate64",
+				"futex",
+				"futimesat",
+				"getcpu",
+				"getcwd",
+				"getdents",
+				"getdents64",
+				"getegid",
+				"getegid32",
+				"geteuid",
+				"geteuid32",
+				"getgid",
+				"getgid32",
+				"getgroups",
+				"getgroups32",
+				"getitimer",
+				"getpeername",
+				"getpgid",
+				"getpgrp",
+				"getpid",
+				"getppid",
+				"getpriority",
+				"getrandom",
+				"getresgid",
+				"getresgid32",
+				"getresuid",
+				"getresuid32",
+				"getrlimit",
+				"get_robust_list",
+				"getrusage",
+				"getsid",
+				"getsockname",
+				"getsockopt",
+				"get_thread_area",
+				"gettid",
+				"gettimeofday",
+				"getuid",
+				"getuid32",
+				"getxattr",
+				"inotify_add_watch",
+				"inotify_init",
+				"inotify_init1",
+				"inotify_rm_watch",
+				"io_cancel",
+				"ioctl",
+				"io_destroy",
+				"io_getevents",
+				"ioprio_get",
+				"ioprio_set",
+				"io_setup",
+				"io_submit",
+				"ipc",
+				"kill",
+				"lchown",
+				"lchown32",
+				"lgetxattr",
+				"link",
+				"linkat",
+				"listen",
+				"listxattr",
+				"llistxattr",
+				"_llseek",
+				"lremovexattr",
+				"lseek",
+				"lsetxattr",
+				"lstat",
+				"lstat64",
+				"madvise",
+				"memfd_create",
+				"mincore",
+				"mkdir",
+				"mkdirat",
+				"mknod",
+				"mknodat",
+				"mlock",
+				"mlock2",
+				"mlockall",
+				"mmap",
+				"mmap2",
+				"mprotect",
+				"mq_getsetattr",
+				"mq_notify",
+				"mq_open",
+				"mq_timedreceive",
+				"mq_timedsend",
+				"mq_unlink",
+				"mremap",
+				"msgctl",
+				"msgget",
+				"msgrcv",
+				"msgsnd",
+				"msync",
+				"munlock",
+				"munlockall",
+				"munmap",
+				"nanosleep",
+				"newfstatat",
+				"_newselect",
+				"open",
+				"openat",
+				"pause",
+				"pipe",
+				"pipe2",
+				"poll",
+				"ppoll",
+				"prctl",
+				"pread64",
+				"preadv",
+				"prlimit64",
+				"pselect6",
+				"pwrite64",
+				"pwritev",
+				"read",
+				"readahead",
+				"readlink",
+				"readlinkat",
+				"readv",
+				"recv",
+				"recvfrom",
+				"recvmmsg",
+				"recvmsg",
+				"remap_file_pages",
+				"removexattr",
+				"rename",
+				"renameat",
+				"renameat2",
+				"restart_syscall",
+				"rmdir",
+				"rt_sigaction",
+				"rt_sigpending",
+				"rt_sigprocmask",
+				"rt_sigqueueinfo",
+				"rt_sigreturn",
+				"rt_sigsuspend",
+				"rt_sigtimedwait",
+				"rt_tgsigqueueinfo",
+				"sched_getaffinity",
+				"sched_getattr",
+				"sched_getparam",
+				"sched_get_priority_max",
+				"sched_get_priority_min",
+				"sched_getscheduler",
+				"sched_rr_get_interval",
+				"sched_setaffinity",
+				"sched_setattr",
+				"sched_setparam",
+				"sched_setscheduler",
+				"sched_yield",
+				"seccomp",
+				"select",
+				"semctl",
+				"semget",
+				"semop",
+				"semtimedop",
+				"send",
+				"sendfile",
+				"sendfile64",
+				"sendmmsg",
+				"sendmsg",
+				"sendto",
+				"setfsgid",
+				"setfsgid32",
+				"setfsuid",
+				"setfsuid32",
+				"setgid",
+				"setgid32",
+				"setgroups",
+				"setgroups32",
+				"setitimer",
+				"setpgid",
+				"setpriority",
+				"setregid",
+				"setregid32",
+				"setresgid",
+				"setresgid32",
+				"setresuid",
+				"setresuid32",
+				"setreuid",
+				"setreuid32",
+				"setrlimit",
+				"set_robust_list",
+				"setsid",
+				"setsockopt",
+				"set_thread_area",
+				"set_tid_address",
+				"setuid",
+				"setuid32",
+				"setxattr",
+				"shmat",
+				"shmctl",
+				"shmdt",
+				"shmget",
+				"shutdown",
+				"sigaltstack",
+				"signalfd",
+				"signalfd4",
+				"sigreturn",
+				"socket",
+				"socketcall",
+				"socketpair",
+				"splice",
+				"stat",
+				"stat64",
+				"statfs",
+				"statfs64",
+				"symlink",
+				"symlinkat",
+				"sync",
+				"sync_file_range",
+				"syncfs",
+				"sysinfo",
+				"syslog",
+				"tee",
+				"tgkill",
+				"time",
+				"timer_create",
+				"timer_delete",
+				"timerfd_create",
+				"timerfd_gettime",
+				"timerfd_settime",
+				"timer_getoverrun",
+				"timer_gettime",
+				"timer_settime",
+				"times",
+				"tkill",
+				"truncate",
+				"truncate64",
+				"ugetrlimit",
+				"umask",
+				"uname",
+				"unlink",
+				"unlinkat",
+				"utime",
+				"utimensat",
+				"utimes",
+				"vfork",
+				"vmsplice",
+				"wait4",
+				"waitid",
+				"waitpid",
+				"write",
+				"writev",
+			},
+			Action: rspec.ActAllow,
+			Args:   []rspec.LinuxSeccompArg{},
+		},
+		{
+			Names:  []string{"personality"},
+			Action: rspec.ActAllow,
+			Args: []rspec.LinuxSeccompArg{
 				{
 					Index: 0,
 					Value: 0x0,
 					Op:    rspec.OpEqualTo,
 				},
-			},
-		},
-		{
-			Name:   "personality",
-			Action: rspec.ActAllow,
-			Args: []rspec.Arg{
 				{
 					Index: 0,
 					Value: 0x0008,
 					Op:    rspec.OpEqualTo,
 				},
-			},
-		},
-		{
-			Name:   "personality",
-			Action: rspec.ActAllow,
-			Args: []rspec.Arg{
 				{
 					Index: 0,
 					Value: 0xffffffff,
@@ -884,914 +366,152 @@ func DefaultProfile(rs *specs.Spec) *rspec.Seccomp {
 				},
 			},
 		},
-		{
-			Name:   "pipe",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "pipe2",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "poll",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "ppoll",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "prctl",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "pread64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "preadv",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "prlimit64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "pselect6",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "pwrite64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "pwritev",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "read",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "readahead",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "readlink",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "readlinkat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "readv",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "recv",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "recvfrom",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "recvmmsg",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "recvmsg",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "remap_file_pages",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "removexattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "rename",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "renameat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "renameat2",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "restart_syscall",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "rmdir",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "rt_sigaction",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "rt_sigpending",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "rt_sigprocmask",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "rt_sigqueueinfo",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "rt_sigreturn",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "rt_sigsuspend",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "rt_sigtimedwait",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "rt_tgsigqueueinfo",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_getaffinity",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_getattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_getparam",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_get_priority_max",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_get_priority_min",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_getscheduler",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_rr_get_interval",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_setaffinity",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_setattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_setparam",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_setscheduler",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sched_yield",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "seccomp",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "select",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "semctl",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "semget",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "semop",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "semtimedop",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "send",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sendfile",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sendfile64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sendmmsg",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sendmsg",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sendto",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setfsgid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setfsgid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setfsuid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setfsuid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setgid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setgid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setgroups",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setgroups32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setitimer",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setpgid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setpriority",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setregid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setregid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setresgid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setresgid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setresuid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setresuid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setreuid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setreuid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setrlimit",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "set_robust_list",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setsid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setsockopt",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "set_thread_area",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "set_tid_address",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setuid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setuid32",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "setxattr",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "shmat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "shmctl",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "shmdt",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "shmget",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "shutdown",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sigaltstack",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "signalfd",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "signalfd4",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sigreturn",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "socket",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "socketcall",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "socketpair",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "splice",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "stat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "stat64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "statfs",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "statfs64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "symlink",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "symlinkat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sync",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sync_file_range",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "syncfs",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "sysinfo",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "syslog",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "tee",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "tgkill",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "time",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "timer_create",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "timer_delete",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "timerfd_create",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "timerfd_gettime",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "timerfd_settime",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "timer_getoverrun",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "timer_gettime",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "timer_settime",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "times",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "tkill",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "truncate",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "truncate64",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "ugetrlimit",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "umask",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "uname",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "unlink",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "unlinkat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "utime",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "utimensat",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "utimes",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "vfork",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "vmsplice",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "wait4",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "waitid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "waitpid",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "write",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
-		{
-			Name:   "writev",
-			Action: rspec.ActAllow,
-			Args:   []rspec.Arg{},
-		},
 	}
 	var sysCloneFlagsIndex uint
 
 	capSysAdmin := false
 	var cap string
+	var caps []string
 
-	for _, cap = range rs.Process.Capabilities {
+	for _, cap = range rs.Process.Capabilities.Bounding {
+		caps = append(caps, cap)
+	}
+	for _, cap = range rs.Process.Capabilities.Effective {
+		caps = append(caps, cap)
+	}
+	for _, cap = range rs.Process.Capabilities.Inheritable {
+		caps = append(caps, cap)
+	}
+	for _, cap = range rs.Process.Capabilities.Permitted {
+		caps = append(caps, cap)
+	}
+	for _, cap = range rs.Process.Capabilities.Ambient {
+		caps = append(caps, cap)
+	}
+
+	for _, cap = range caps {
 		switch cap {
 		case "CAP_DAC_READ_SEARCH":
-			syscalls = append(syscalls, []rspec.Syscall{
+			syscalls = append(syscalls, []rspec.LinuxSyscall{
 				{
-					Name:   "open_by_handle_at",
+					Names:  []string{"open_by_handle_at"},
 					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
+					Args:   []rspec.LinuxSeccompArg{},
 				},
 			}...)
 		case "CAP_SYS_ADMIN":
 			capSysAdmin = true
-			syscalls = append(syscalls, []rspec.Syscall{
+			syscalls = append(syscalls, []rspec.LinuxSyscall{
 				{
-					Name:   "bpf",
+					Names: []string{
+						"bpf",
+						"clone",
+						"fanotify_init",
+						"lookup_dcookie",
+						"mount",
+						"name_to_handle_at",
+						"perf_event_open",
+						"setdomainname",
+						"sethostname",
+						"setns",
+						"umount",
+						"umount2",
+						"unshare",
+					},
 					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "clone",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "fanotify_init",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "lookup_dcookie",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "mount",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "name_to_handle_at",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "perf_event_open",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "setdomainname",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "sethostname",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "setns",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "umount",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "umount2",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "unshare",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
+					Args:   []rspec.LinuxSeccompArg{},
 				},
 			}...)
 		case "CAP_SYS_BOOT":
-			syscalls = append(syscalls, []rspec.Syscall{
+			syscalls = append(syscalls, []rspec.LinuxSyscall{
 				{
-					Name:   "reboot",
+					Names:  []string{"reboot"},
 					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
+					Args:   []rspec.LinuxSeccompArg{},
 				},
 			}...)
 		case "CAP_SYS_CHROOT":
-			syscalls = append(syscalls, []rspec.Syscall{
+			syscalls = append(syscalls, []rspec.LinuxSyscall{
 				{
-					Name:   "chroot",
+					Names:  []string{"chroot"},
 					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
+					Args:   []rspec.LinuxSeccompArg{},
 				},
 			}...)
 		case "CAP_SYS_MODULE":
-			syscalls = append(syscalls, []rspec.Syscall{
+			syscalls = append(syscalls, []rspec.LinuxSyscall{
 				{
-					Name:   "delete_module",
+					Names: []string{
+						"delete_module",
+						"init_module",
+						"finit_module",
+						"query_module",
+					},
 					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "init_module",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "finit_module",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "query_module",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
+					Args:   []rspec.LinuxSeccompArg{},
 				},
 			}...)
 		case "CAP_SYS_PACCT":
-			syscalls = append(syscalls, []rspec.Syscall{
+			syscalls = append(syscalls, []rspec.LinuxSyscall{
 				{
-					Name:   "acct",
+					Names:  []string{"acct"},
 					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
+					Args:   []rspec.LinuxSeccompArg{},
 				},
 			}...)
 		case "CAP_SYS_PTRACE":
-			syscalls = append(syscalls, []rspec.Syscall{
+			syscalls = append(syscalls, []rspec.LinuxSyscall{
 				{
-					Name:   "kcmp",
+					Names: []string{
+						"kcmp",
+						"process_vm_readv",
+						"process_vm_writev",
+						"ptrace",
+					},
 					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "process_vm_readv",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "process_vm_writev",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "ptrace",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
+					Args:   []rspec.LinuxSeccompArg{},
 				},
 			}...)
 		case "CAP_SYS_RAWIO":
-			syscalls = append(syscalls, []rspec.Syscall{
+			syscalls = append(syscalls, []rspec.LinuxSyscall{
 				{
-					Name:   "iopl",
+					Names: []string{
+						"iopl",
+						"ioperm",
+					},
 					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "ioperm",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
+					Args:   []rspec.LinuxSeccompArg{},
 				},
 			}...)
 		case "CAP_SYS_TIME":
-			syscalls = append(syscalls, []rspec.Syscall{
+			syscalls = append(syscalls, []rspec.LinuxSyscall{
 				{
-					Name:   "settimeofday",
+					Names: []string{
+						"settimeofday",
+						"stime",
+						"adjtimex",
+					},
 					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "stime",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
-				},
-				{
-					Name:   "adjtimex",
-					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
+					Args:   []rspec.LinuxSeccompArg{},
 				},
 			}...)
 		case "CAP_SYS_TTY_CONFIG":
-			syscalls = append(syscalls, []rspec.Syscall{
+			syscalls = append(syscalls, []rspec.LinuxSyscall{
 				{
-					Name:   "vhangup",
+					Names:  []string{"vhangup"},
 					Action: rspec.ActAllow,
-					Args:   []rspec.Arg{},
+					Args:   []rspec.LinuxSeccompArg{},
 				},
 			}...)
 		}
 	}
 
 	if !capSysAdmin {
-		syscalls = append(syscalls, []rspec.Syscall{
+		syscalls = append(syscalls, []rspec.LinuxSyscall{
 			{
-				Name:   "clone",
+				Names:  []string{"clone"},
 				Action: rspec.ActAllow,
-				Args: []rspec.Arg{
+				Args: []rspec.LinuxSeccompArg{
 					{
 						Index:    sysCloneFlagsIndex,
 						Value:    syscall.CLONE_NEWNS | syscall.CLONE_NEWUTS | syscall.CLONE_NEWIPC | syscall.CLONE_NEWUSER | syscall.CLONE_NEWPID | syscall.CLONE_NEWNET,
@@ -1807,62 +527,50 @@ func DefaultProfile(rs *specs.Spec) *rspec.Seccomp {
 	arch := runtime.GOARCH
 	switch arch {
 	case "arm", "arm64":
-		syscalls = append(syscalls, []rspec.Syscall{
+		syscalls = append(syscalls, []rspec.LinuxSyscall{
 			{
-				Name:   "breakpoint",
+				Names: []string{
+					"breakpoint",
+					"cacheflush",
+					"set_tls",
+				},
 				Action: rspec.ActAllow,
-				Args:   []rspec.Arg{},
-			},
-			{
-				Name:   "cacheflush",
-				Action: rspec.ActAllow,
-				Args:   []rspec.Arg{},
-			},
-			{
-				Name:   "set_tls",
-				Action: rspec.ActAllow,
-				Args:   []rspec.Arg{},
+				Args:   []rspec.LinuxSeccompArg{},
 			},
 		}...)
 	case "amd64", "x32":
-		syscalls = append(syscalls, []rspec.Syscall{
+		syscalls = append(syscalls, []rspec.LinuxSyscall{
 			{
-				Name:   "arch_prctl",
+				Names:  []string{"arch_prctl"},
 				Action: rspec.ActAllow,
-				Args:   []rspec.Arg{},
+				Args:   []rspec.LinuxSeccompArg{},
 			},
 		}...)
 		fallthrough
 	case "x86":
-		syscalls = append(syscalls, []rspec.Syscall{
+		syscalls = append(syscalls, []rspec.LinuxSyscall{
 			{
-				Name:   "modify_ldt",
+				Names:  []string{"modify_ldt"},
 				Action: rspec.ActAllow,
-				Args:   []rspec.Arg{},
+				Args:   []rspec.LinuxSeccompArg{},
 			},
 		}...)
 	case "s390", "s390x":
-		syscalls = append(syscalls, []rspec.Syscall{
+		syscalls = append(syscalls, []rspec.LinuxSyscall{
 			{
-				Name:   "s390_pci_mmio_read",
+				Names: []string{
+					"s390_pci_mmio_read",
+					"s390_pci_mmio_write",
+					"s390_runtime_instr",
+				},
 				Action: rspec.ActAllow,
-				Args:   []rspec.Arg{},
-			},
-			{
-				Name:   "s390_pci_mmio_write",
-				Action: rspec.ActAllow,
-				Args:   []rspec.Arg{},
-			},
-			{
-				Name:   "s390_runtime_instr",
-				Action: rspec.ActAllow,
-				Args:   []rspec.Arg{},
+				Args:   []rspec.LinuxSeccompArg{},
 			},
 		}...)
 		/* Flags parameter of the clone syscall is the 2nd on s390 */
 	}
 
-	return &rspec.Seccomp{
+	return &rspec.LinuxSeccomp{
 		DefaultAction: rspec.ActErrno,
 		Architectures: arches(),
 		Syscalls:      syscalls,

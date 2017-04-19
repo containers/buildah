@@ -20,7 +20,7 @@ type SyscallOpts struct {
 
 // ParseSyscallFlag takes a SyscallOpts struct and the seccomp configuration
 // and sets the new syscall rule accordingly
-func ParseSyscallFlag(args SyscallOpts, config *rspec.Seccomp) error {
+func ParseSyscallFlag(args SyscallOpts, config *rspec.LinuxSeccomp) error {
 	var arguments []string
 	if args.Index != "" && args.Value != "" && args.ValueTwo != "" && args.Operator != "" {
 		arguments = []string{args.Action, args.Syscall, args.Index, args.Value,
@@ -34,7 +34,7 @@ func ParseSyscallFlag(args SyscallOpts, config *rspec.Seccomp) error {
 		return fmt.Errorf("default action already set as %s", action)
 	}
 
-	var newSyscall rspec.Syscall
+	var newSyscall rspec.LinuxSyscall
 	numOfArgs := len(arguments)
 	if numOfArgs == 6 || numOfArgs == 2 {
 		argStruct, err := parseArguments(arguments[1:])
@@ -67,7 +67,7 @@ func ParseSyscallFlag(args SyscallOpts, config *rspec.Seccomp) error {
 	return nil
 }
 
-var actions = map[string]rspec.Action{
+var actions = map[string]rspec.LinuxSeccompAction{
 	"allow": rspec.ActAllow,
 	"errno": rspec.ActErrno,
 	"kill":  rspec.ActKill,
@@ -76,7 +76,7 @@ var actions = map[string]rspec.Action{
 }
 
 // Take passed action, return the SCMP_ACT_<ACTION> version of it
-func parseAction(action string) (rspec.Action, error) {
+func parseAction(action string) (rspec.LinuxSeccompAction, error) {
 	a, ok := actions[action]
 	if !ok {
 		return "", fmt.Errorf("unrecognized action: %s", action)
@@ -86,7 +86,7 @@ func parseAction(action string) (rspec.Action, error) {
 
 // ParseDefaultAction sets the default action of the seccomp configuration
 // and then removes any rules that were already specified with this action
-func ParseDefaultAction(action string, config *rspec.Seccomp) error {
+func ParseDefaultAction(action string, config *rspec.LinuxSeccomp) error {
 	if action == "" {
 		return nil
 	}
@@ -104,7 +104,7 @@ func ParseDefaultAction(action string, config *rspec.Seccomp) error {
 }
 
 // ParseDefaultActionForce simply sets the default action of the seccomp configuration
-func ParseDefaultActionForce(action string, config *rspec.Seccomp) error {
+func ParseDefaultActionForce(action string, config *rspec.LinuxSeccomp) error {
 	if action == "" {
 		return nil
 	}
@@ -117,9 +117,9 @@ func ParseDefaultActionForce(action string, config *rspec.Seccomp) error {
 	return nil
 }
 
-func newSyscallStruct(name string, action rspec.Action, args []rspec.Arg) rspec.Syscall {
-	syscallStruct := rspec.Syscall{
-		Name:   name,
+func newSyscallStruct(name string, action rspec.LinuxSeccompAction, args []rspec.LinuxSeccompArg) rspec.LinuxSyscall {
+	syscallStruct := rspec.LinuxSyscall{
+		Names:  []string{name},
 		Action: action,
 		Args:   args,
 	}

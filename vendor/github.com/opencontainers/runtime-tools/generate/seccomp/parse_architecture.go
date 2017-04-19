@@ -8,7 +8,7 @@ import (
 
 // ParseArchitectureFlag takes the raw string passed with the --arch flag, parses it
 // and updates the Seccomp config accordingly
-func ParseArchitectureFlag(architectureArg string, config *rspec.Seccomp) error {
+func ParseArchitectureFlag(architectureArg string, config *rspec.LinuxSeccomp) error {
 	correctedArch, err := parseArch(architectureArg)
 	if err != nil {
 		return err
@@ -39,6 +39,8 @@ func parseArch(arch string) (rspec.Arch, error) {
 		"mipsel":      rspec.ArchMIPSEL,
 		"mipsel64":    rspec.ArchMIPSEL64,
 		"mipsel64n32": rspec.ArchMIPSEL64N32,
+		"parisc":      rspec.ArchPARISC,
+		"parisc64":    rspec.ArchPARISC64,
 		"ppc":         rspec.ArchPPC,
 		"ppc64":       rspec.ArchPPC64,
 		"ppc64le":     rspec.ArchPPC64LE,
