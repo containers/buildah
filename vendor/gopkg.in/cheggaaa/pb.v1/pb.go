@@ -13,7 +13,7 @@ import (
 )
 
 // Current version
-const Version = "1.0.11"
+const Version = "1.0.13"
 
 const (
 	// Default refresh rate - 200ms
@@ -48,7 +48,6 @@ func New64(total int64) *ProgressBar {
 		ManualUpdate:  false,
 		finish:        make(chan struct{}),
 		currentValue:  -1,
-		mu:            new(sync.Mutex),
 	}
 	return pb.Format(FORMAT)
 }
@@ -97,7 +96,7 @@ type ProgressBar struct {
 
 	prefix, postfix string
 
-	mu        *sync.Mutex
+	mu        sync.Mutex
 	lastPrint string
 
 	BarStart string
@@ -112,7 +111,7 @@ type ProgressBar struct {
 // Start print
 func (pb *ProgressBar) Start() *ProgressBar {
 	pb.startTime = time.Now()
-	pb.startValue = pb.current
+	pb.startValue = atomic.LoadInt64(&pb.current)
 	if pb.Total == 0 {
 		pb.ShowTimeLeft = false
 		pb.ShowPercent = false
@@ -222,6 +221,8 @@ func (pb *ProgressBar) Finish() {
 	pb.finishOnce.Do(func() {
 		close(pb.finish)
 		pb.write(atomic.LoadInt64(&pb.current))
+		pb.mu.Lock()
+		defer pb.mu.Unlock()
 		switch {
 		case pb.Output != nil:
 			fmt.Fprintln(pb.Output)
@@ -230,6 +231,13 @@ func (pb *ProgressBar) Finish() {
 		}
 		pb.isFinish = true
 	})
+}
+
+// IsFinished return boolean
+func (pb *ProgressBar) IsFinished() bool {
+	pb.mu.Lock()
+	defer pb.mu.Unlock()
+	return pb.isFinish
 }
 
 // End print and write string 'str'
@@ -371,9 +379,10 @@ func (pb *ProgressBar) write(current int64) {
 	// and print!
 	pb.mu.Lock()
 	pb.lastPrint = out + end
+	isFinish := pb.isFinish
 	pb.mu.Unlock()
 	switch {
-	case pb.isFinish:
+	case isFinish:
 		return
 	case pb.Output != nil:
 		fmt.Fprint(pb.Output, "\r"+out+end)
@@ -420,7 +429,10 @@ func (pb *ProgressBar) Update() {
 	}
 }
 
+// String return the last bar print
 func (pb *ProgressBar) String() string {
+	pb.mu.Lock()
+	defer pb.mu.Unlock()
 	return pb.lastPrint
 }
 
