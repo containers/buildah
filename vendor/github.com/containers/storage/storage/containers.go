@@ -10,6 +10,7 @@ import (
 
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/stringid"
+	"github.com/containers/storage/pkg/truncindex"
 )
 
 var (
@@ -93,6 +94,7 @@ type containerStore struct {
 	lockfile   Locker
 	dir        string
 	containers []Container
+	idindex    *truncindex.TruncIndex
 	byid       map[string]*Container
 	bylayer    map[string]*Container
 	byname     map[string]*Container
@@ -123,10 +125,12 @@ func (r *containerStore) Load() error {
 	}
 	containers := []Container{}
 	layers := make(map[string]*Container)
+	idlist := []string{}
 	ids := make(map[string]*Container)
 	names := make(map[string]*Container)
 	if err = json.Unmarshal(data, &containers); len(data) == 0 || err == nil {
 		for n, container := range containers {
+			idlist = append(idlist, container.ID)
 			ids[container.ID] = &containers[n]
 			layers[container.LayerID] = &containers[n]
 			for _, name := range container.Names {
@@ -139,6 +143,7 @@ func (r *containerStore) Load() error {
 		}
 	}
 	r.containers = containers
+	r.idindex = truncindex.NewTruncIndex(idlist)
 	r.byid = ids
 	r.bylayer = layers
 	r.byname = names
@@ -185,30 +190,35 @@ func newContainerStore(dir string) (ContainerStore, error) {
 	return &cstore, nil
 }
 
-func (r *containerStore) ClearFlag(id string, flag string) error {
-	if container, ok := r.byname[id]; ok {
-		id = container.ID
+func (r *containerStore) lookup(id string) (*Container, bool) {
+	if container, ok := r.byid[id]; ok {
+		return container, ok
+	} else if container, ok := r.byname[id]; ok {
+		return container, ok
 	} else if container, ok := r.bylayer[id]; ok {
-		id = container.ID
+		return container, ok
+	} else if longid, err := r.idindex.Get(id); err == nil {
+		if container, ok := r.byid[longid]; ok {
+			return container, ok
+		}
 	}
-	if _, ok := r.byid[id]; !ok {
+	return nil, false
+}
+
+func (r *containerStore) ClearFlag(id string, flag string) error {
+	container, ok := r.lookup(id)
+	if !ok {
 		return ErrContainerUnknown
 	}
-	container := r.byid[id]
 	delete(container.Flags, flag)
 	return r.Save()
 }
 
 func (r *containerStore) SetFlag(id string, flag string, value interface{}) error {
-	if container, ok := r.byname[id]; ok {
-		id = container.ID
-	} else if container, ok := r.bylayer[id]; ok {
-		id = container.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	container, ok := r.lookup(id)
+	if !ok {
 		return ErrContainerUnknown
 	}
-	container := r.byid[id]
 	container.Flags[flag] = value
 	return r.Save()
 }
@@ -244,6 +254,7 @@ func (r *containerStore) Create(id string, names []string, image, layer, metadat
 		r.containers = append(r.containers, newContainer)
 		container = &r.containers[len(r.containers)-1]
 		r.byid[id] = container
+		r.idindex.Add(id)
 		r.bylayer[layer] = container
 		for _, name := range names {
 			r.byname[name] = container
@@ -254,24 +265,14 @@ func (r *containerStore) Create(id string, names []string, image, layer, metadat
 }
 
 func (r *containerStore) GetMetadata(id string) (string, error) {
-	if container, ok := r.byname[id]; ok {
-		id = container.ID
-	} else if container, ok := r.bylayer[id]; ok {
-		id = container.ID
-	}
-	if container, ok := r.byid[id]; ok {
+	if container, ok := r.lookup(id); ok {
 		return container.Metadata, nil
 	}
 	return "", ErrContainerUnknown
 }
 
 func (r *containerStore) SetMetadata(id, metadata string) error {
-	if container, ok := r.byname[id]; ok {
-		id = container.ID
-	} else if container, ok := r.bylayer[id]; ok {
-		id = container.ID
-	}
-	if container, ok := r.byid[id]; ok {
+	if container, ok := r.lookup(id); ok {
 		container.Metadata = metadata
 		return r.Save()
 	}
@@ -279,22 +280,11 @@ func (r *containerStore) SetMetadata(id, metadata string) error {
 }
 
 func (r *containerStore) removeName(container *Container, name string) {
-	newNames := []string{}
-	for _, oldName := range container.Names {
-		if oldName != name {
-			newNames = append(newNames, oldName)
-		}
-	}
-	container.Names = newNames
+	container.Names = stringSliceWithoutValue(container.Names, name)
 }
 
 func (r *containerStore) SetNames(id string, names []string) error {
-	if container, ok := r.byname[id]; ok {
-		id = container.ID
-	} else if container, ok := r.bylayer[id]; ok {
-		id = container.ID
-	}
-	if container, ok := r.byid[id]; ok {
+	if container, ok := r.lookup(id); ok {
 		for _, name := range container.Names {
 			delete(r.byname, name)
 		}
@@ -311,133 +301,104 @@ func (r *containerStore) SetNames(id string, names []string) error {
 }
 
 func (r *containerStore) Delete(id string) error {
-	if container, ok := r.byname[id]; ok {
-		id = container.ID
-	} else if container, ok := r.bylayer[id]; ok {
-		id = container.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	container, ok := r.lookup(id)
+	if !ok {
 		return ErrContainerUnknown
 	}
-	if container, ok := r.byid[id]; ok {
-		newContainers := []Container{}
-		for _, candidate := range r.containers {
-			if candidate.ID != id {
-				newContainers = append(newContainers, candidate)
-			}
+	id = container.ID
+	newContainers := []Container{}
+	for _, candidate := range r.containers {
+		if candidate.ID != id {
+			newContainers = append(newContainers, candidate)
 		}
-		delete(r.byid, container.ID)
-		delete(r.bylayer, container.LayerID)
-		for _, name := range container.Names {
-			delete(r.byname, name)
-		}
-		r.containers = newContainers
-		if err := r.Save(); err != nil {
-			return err
-		}
-		if err := os.RemoveAll(r.datadir(id)); err != nil {
-			return err
-		}
+	}
+	delete(r.byid, id)
+	r.idindex.Delete(id)
+	delete(r.bylayer, container.LayerID)
+	for _, name := range container.Names {
+		delete(r.byname, name)
+	}
+	r.containers = newContainers
+	if err := r.Save(); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(r.datadir(id)); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (r *containerStore) Get(id string) (*Container, error) {
-	if c, ok := r.byname[id]; ok {
-		return c, nil
-	} else if c, ok := r.bylayer[id]; ok {
-		return c, nil
-	}
-	if c, ok := r.byid[id]; ok {
-		return c, nil
+	if container, ok := r.lookup(id); ok {
+		return container, nil
 	}
 	return nil, ErrContainerUnknown
 }
 
 func (r *containerStore) Lookup(name string) (id string, err error) {
-	container, ok := r.byname[name]
-	if !ok {
-		container, ok = r.byid[name]
-		if !ok {
-			return "", ErrContainerUnknown
-		}
+	if container, ok := r.lookup(name); ok {
+		return container.ID, nil
 	}
-	return container.ID, nil
+	return "", ErrContainerUnknown
 }
 
 func (r *containerStore) Exists(id string) bool {
-	if _, ok := r.byname[id]; ok {
-		return true
-	}
-	if _, ok := r.bylayer[id]; ok {
-		return true
-	}
-	if _, ok := r.byid[id]; ok {
-		return true
-	}
-	return false
+	_, ok := r.lookup(id)
+	return ok
 }
 
 func (r *containerStore) GetBigData(id, key string) ([]byte, error) {
-	if img, ok := r.byname[id]; ok {
-		id = img.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	c, ok := r.lookup(id)
+	if !ok {
 		return nil, ErrContainerUnknown
 	}
-	return ioutil.ReadFile(r.datapath(id, key))
+	return ioutil.ReadFile(r.datapath(c.ID, key))
 }
 
 func (r *containerStore) GetBigDataSize(id, key string) (int64, error) {
-	if img, ok := r.byname[id]; ok {
-		id = img.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	c, ok := r.lookup(id)
+	if !ok {
 		return -1, ErrContainerUnknown
 	}
-	if size, ok := r.byid[id].BigDataSizes[key]; ok {
+	if size, ok := c.BigDataSizes[key]; ok {
 		return size, nil
 	}
 	return -1, ErrSizeUnknown
 }
 
 func (r *containerStore) GetBigDataNames(id string) ([]string, error) {
-	if img, ok := r.byname[id]; ok {
-		id = img.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	c, ok := r.lookup(id)
+	if !ok {
 		return nil, ErrContainerUnknown
 	}
-	return r.byid[id].BigDataNames, nil
+	return c.BigDataNames, nil
 }
 
 func (r *containerStore) SetBigData(id, key string, data []byte) error {
-	if img, ok := r.byname[id]; ok {
-		id = img.ID
-	}
-	if _, ok := r.byid[id]; !ok {
+	c, ok := r.lookup(id)
+	if !ok {
 		return ErrContainerUnknown
 	}
-	if err := os.MkdirAll(r.datadir(id), 0700); err != nil {
+	if err := os.MkdirAll(r.datadir(c.ID), 0700); err != nil {
 		return err
 	}
-	err := ioutils.AtomicWriteFile(r.datapath(id, key), data, 0600)
+	err := ioutils.AtomicWriteFile(r.datapath(c.ID, key), data, 0600)
 	if err == nil {
 		save := false
-		oldSize, ok := r.byid[id].BigDataSizes[key]
-		r.byid[id].BigDataSizes[key] = int64(len(data))
-		if !ok || oldSize != r.byid[id].BigDataSizes[key] {
+		oldSize, ok := c.BigDataSizes[key]
+		c.BigDataSizes[key] = int64(len(data))
+		if !ok || oldSize != c.BigDataSizes[key] {
 			save = true
 		}
 		add := true
-		for _, name := range r.byid[id].BigDataNames {
+		for _, name := range c.BigDataNames {
 			if name == key {
 				add = false
 				break
 			}
 		}
 		if add {
-			r.byid[id].BigDataNames = append(r.byid[id].BigDataNames, key)
+			c.BigDataNames = append(c.BigDataNames, key)
 			save = true
 		}
 		if save {
