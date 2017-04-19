@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/moby/moby/api/types/swarm"
 	"golang.org/x/net/context"
 )
 
@@ -91,6 +91,7 @@ func (c *Client) RemoveService(opts RemoveServiceOptions) error {
 //
 // See https://goo.gl/wu3MmS for more details.
 type UpdateServiceOptions struct {
+	Auth AuthConfiguration `qs:"-"`
 	swarm.ServiceSpec
 	Context context.Context
 	Version uint64
@@ -100,9 +101,14 @@ type UpdateServiceOptions struct {
 //
 // See https://goo.gl/wu3MmS for more details.
 func (c *Client) UpdateService(id string, opts UpdateServiceOptions) error {
+	headers, err := headersWithAuth(opts.Auth)
+	if err != nil {
+		return err
+	}
 	params := make(url.Values)
 	params.Set("version", strconv.FormatUint(opts.Version, 10))
 	resp, err := c.do("POST", "/services/"+id+"/update?"+params.Encode(), doOptions{
+		headers:   headers,
 		data:      opts.ServiceSpec,
 		forceJSON: true,
 		context:   opts.Context,
