@@ -53,7 +53,23 @@ Then to install buildah follow the steps in this example:
   ./buildah --help
 ```
 
+## Commands
+| Command               | Description |
+| --------------------- | --------------------------------------------------- |
+| buildah-add(1)        | Add the contents of a file, URL, or a directory to the container. |
+| buildah-bud(1)        | Build an image using instructions from Dockerfiles. |
+| buildah-commit(1)     | Create an image from a working container. |
+| buildah-config(1)     | Update image configuration settings. |
+| buildah-containers(1) | List the working containers and their base images. |
+| buildah-copy(1)       | Copies the contents of a file, URL, or directory into a container's working directory. |
+| buildah-from(1)       | Creates a new working container, either from scratch or using a specified image as a starting point. |
+| buildah-images(1)     | List images in local storage. |
+| buildah-mount(1)      | Mount the working container's root filesystem. |
+| buildah-rm(1)         | Removes one or more working containers. |
+| buildah-rmi(1)        | Removes one or more images. |
+| buildah-run(1)        | Run a command inside of the container. |
+| buildah-umount(1)     | Unmount a working container's root file system. |
+
 **Future goals include:**
-* docs
 * more CI tests
 * additional CLI commands (?)
