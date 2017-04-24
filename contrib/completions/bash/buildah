@@ -522,7 +522,6 @@ return 1
      -h
      --pull
      --pull-always
-     --mount
   "
 
      local options_with_args="

@@ -37,10 +37,6 @@ var (
 			Name:  "signature-policy",
 			Usage: "`pathname` of signature policy file (not usually used)",
 		},
-		cli.BoolFlag{
-			Name:  "mount",
-			Usage: "mount the working container",
-		},
 	}
 	fromDescription = "Creates a new working container, either from scratch or using a specified\n   image as a starting point"
 
@@ -90,10 +86,6 @@ func fromCmd(c *cli.Context) error {
 	if c.IsSet("name") {
 		name = c.String("name")
 	}
-	mount := false
-	if c.IsSet("mount") {
-		mount = c.Bool("mount")
-	}
 	signaturePolicy := ""
 	if c.IsSet("signature-policy") {
 		signaturePolicy = c.String("signature-policy")
@@ -108,7 +100,6 @@ func fromCmd(c *cli.Context) error {
 		FromImage:           image,
 		Container:           name,
 		PullPolicy:          pullPolicy,
-		Mount:               mount,
 		Registry:            registry,
 		SignaturePolicyPath: signaturePolicy,
 	}
@@ -119,9 +110,5 @@ func fromCmd(c *cli.Context) error {
 	}
 
 	fmt.Printf("%s\n", builder.Container)
-	if options.Mount {
-		fmt.Printf("%s\n", builder.MountPoint)
-	}
-
 	return builder.Save()
 }
