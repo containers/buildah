@@ -15,10 +15,6 @@ The container ID of the container that was created.  On error, -1 is returned an
 
 ## OPTIONS
 
-**--mount**
-
-Mount the working container printing the mount point upon successful completion.
-
 **--name** *name*
 
 A *name* for the working container
@@ -46,7 +42,9 @@ option be used, as the default behavior of using the system-wide default policy
 
 ## EXAMPLE
 
-buildah from imagename --pull --registry "myregistry://" --mount
+buildah from imagename --pull --registry "myregistry://"
+
+buildah from myregistry://imagename --pull
 
 buildah from imagename --signature-policy /etc/containers/policy.json
 
