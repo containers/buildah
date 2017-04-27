@@ -3,6 +3,6 @@
 package register
 
 import (
-	// register the overlay2 graphdriver
-	_ "github.com/containers/storage/drivers/overlay2"
+	// register the overlay graphdriver
+	_ "github.com/containers/storage/drivers/overlay"
 )

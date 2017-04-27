@@ -1,6 +1,6 @@
 // +build linux
 
-package overlay2
+package overlay
 
 import (
 	"bufio"
@@ -61,10 +61,9 @@ var (
 // that mounts do not fail due to length.
 
 const (
-	driverName = "overlay2"
-	linkDir    = "l"
-	lowerFile  = "lower"
-	maxDepth   = 128
+	linkDir   = "l"
+	lowerFile = "lower"
+	maxDepth  = 128
 
 	// idLength represents the number of random characters
 	// which can be used to create the unique link identifer
@@ -78,6 +77,7 @@ const (
 
 // Driver contains information about the home directory and the list of active mounts that are created using this driver.
 type Driver struct {
+	name    string
 	home    string
 	uidMaps []idtools.IDMap
 	gidMaps []idtools.IDMap
@@ -87,13 +87,13 @@ type Driver struct {
 var backingFs = "<unknown>"
 
 func init() {
-	graphdriver.Register(driverName, Init)
+	graphdriver.Register("overlay", InitAsOverlay)
+	graphdriver.Register("overlay2", InitAsOverlay2)
 }
 
-// Init returns the a native diff driver for overlay filesystem.
-// If overlay filesystem is not supported on the host, graphdriver.ErrNotSupported is returned as error.
-// If a overlay filesystem is not supported over a existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
-func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+// InitWithName returns the a naive diff driver for the overlay filesystem,
+// which returns the passed-in name when asked which driver it is.
+func InitWithName(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	opts, err := parseOptions(options)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		if !opts.overrideKernelCheck {
 			return nil, graphdriver.ErrNotSupported
 		}
-		logrus.Warnf("Using pre-4.0.0 kernel for overlay2, mount failures may require kernel update")
+		logrus.Warnf("Using pre-4.0.0 kernel for overlay, mount failures may require kernel update")
 	}
 
 	fsMagic, err := graphdriver.GetFSMagic(home)
@@ -126,7 +126,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	// check if they are running over btrfs, aufs, zfs, overlay, or ecryptfs
 	switch fsMagic {
 	case graphdriver.FsMagicBtrfs, graphdriver.FsMagicAufs, graphdriver.FsMagicZfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicEcryptfs:
-		logrus.Errorf("'overlay2' is not supported over %s", backingFs)
+		logrus.Errorf("'overlay' is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
 	}
 
@@ -144,6 +144,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	d := &Driver{
+		name:    name,
 		home:    home,
 		uidMaps: uidMaps,
 		gidMaps: gidMaps,
@@ -151,6 +152,20 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	return d, nil
+}
+
+// InitAsOverlay returns the a naive diff driver for overlay filesystem.
+// If overlay filesystem is not supported on the host, graphdriver.ErrNotSupported is returned as error.
+// If a overlay filesystem is not supported over a existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
+func InitAsOverlay(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+	return InitWithName("overlay", home, options, uidMaps, gidMaps)
+}
+
+// InitAsOverlay2 returns the a naive diff driver for overlay filesystem.
+// If overlay filesystem is not supported on the host, graphdriver.ErrNotSupported is returned as error.
+// If a overlay filesystem is not supported over a existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
+func InitAsOverlay2(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+	return InitWithName("overlay2", home, options, uidMaps, gidMaps)
 }
 
 type overlayOptions struct {
@@ -166,13 +181,13 @@ func parseOptions(options []string) (*overlayOptions, error) {
 		}
 		key = strings.ToLower(key)
 		switch key {
-		case "overlay2.override_kernel_check":
+		case "overlay.override_kernel_check", "overlay2.override_kernel_check":
 			o.overrideKernelCheck, err = strconv.ParseBool(val)
 			if err != nil {
 				return nil, err
 			}
 		default:
-			return nil, fmt.Errorf("overlay2: Unknown option %s", key)
+			return nil, fmt.Errorf("overlay: Unknown option %s", key)
 		}
 	}
 	return o, nil
@@ -200,7 +215,7 @@ func supportsOverlay() error {
 }
 
 func (d *Driver) String() string {
-	return driverName
+	return d.name
 }
 
 // Status returns current driver information in a two dimensional string array.
