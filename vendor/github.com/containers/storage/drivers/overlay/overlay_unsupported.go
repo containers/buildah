@@ -1,3 +1,3 @@
 // +build !linux
 
-package overlay2
+package overlay
