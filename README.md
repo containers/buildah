@@ -25,7 +25,8 @@ Prior to installing buildah, install the following packages on your linux distro
 * libassuan-devel 
 * git 
 * bzip2
-* go-md2man 
+* go-md2man
+* skopeo-containers
 
 In Fedora, you can use this command:
 
@@ -40,7 +41,8 @@ In Fedora, you can use this command:
     libassuan-devel \ 
     git \ 
     bzip2 \
-    go-md2man
+    go-md2man \
+    skopeo-containers
 ```
 
 Then to install buildah follow the steps in this example: 
@@ -53,7 +55,7 @@ Then to install buildah follow the steps in this example:
   cd ./src/github.com/projectatomic/buildah 
   make 
   make install
-  ./buildah --help
+  buildah --help
 ```
 
 ## Commands
