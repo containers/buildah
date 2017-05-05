@@ -25,6 +25,7 @@ Prior to installing buildah, install the following packages on your linux distro
 * libassuan-devel 
 * git 
 * bzip2
+* go-md2man 
 
 In Fedora, you can use this command:
 
@@ -38,7 +39,8 @@ In Fedora, you can use this command:
     gpgme-devel \ 
     libassuan-devel \ 
     git \ 
-    bzip2 
+    bzip2 \
+    go-md2man
 ```
 
 Then to install buildah follow the steps in this example: 
