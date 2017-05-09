@@ -55,19 +55,5 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 	logrus.Debugf("copying %q to %q", spec, name)
 
 	err = copy.Image(policyContext, destRef, srcRef, getCopyOptions())
-	if err != nil {
-		return err
-	}
-
-	// Go find the image, and attach the requested name to it, so that we
-	// can more easily find it later, even if the destination reference
-	// looks different.
-	destImage, err := is.Transport.GetStoreImage(store, destRef)
-	if err != nil {
-		return err
-	}
-
-	names := append(destImage.Names, options.FromImage, name)
-	err = store.SetNames(destImage.ID, names)
 	return err
 }
