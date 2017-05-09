@@ -67,6 +67,12 @@ Adds global flags for the container rutime.
 Specifies the name which will be assigned to the resulting image if the build
 process completes successfully.
 
+**--quiet**
+
+Suppress output messages which indicate which instruction is being processed,
+and of progress when pulling images from a registry, and when writing the
+output image.
+
 ## EXAMPLE
 
 buildah bud .

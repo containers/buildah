@@ -87,6 +87,10 @@ type BuildOptions struct {
 	// specified, indicating that the shared, system-wide default policy
 	// should be used.
 	SignaturePolicyPath string
+	// ReportWriter is an io.Writer which will be used to report the
+	// progress of the (possible) pulling of the source image and the
+	// writing of the new image.
+	ReportWriter io.Writer
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor
@@ -115,6 +119,7 @@ type Executor struct {
 	volumes                        imagebuilder.VolumeSet
 	volumeCache                    map[string]string
 	volumeCacheInfo                map[string]os.FileInfo
+	reportWriter                   io.Writer
 }
 
 func makeSystemContext(signaturePolicyPath string) *types.SystemContext {
@@ -388,6 +393,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		log:                 options.Log,
 		out:                 options.Out,
 		err:                 options.Err,
+		reportWriter:        options.ReportWriter,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -427,6 +433,7 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 		PullPolicy:          b.pullPolicy,
 		Registry:            b.registry,
 		SignaturePolicyPath: b.signaturePolicyPath,
+		ReportWriter:        b.reportWriter,
 	}
 	builder, err := buildah.NewBuilder(b.store, builderOptions)
 	if err != nil {
@@ -526,6 +533,7 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 		Compression:         b.compression,
 		SignaturePolicyPath: b.signaturePolicyPath,
 		AdditionalTags:      b.additionalTags,
+		ReportWriter:        b.reportWriter,
 	}
 	return b.builder.Commit(imageRef, options)
 }

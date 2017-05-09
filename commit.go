@@ -2,6 +2,7 @@ package buildah
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/containers/image/copy"
 	"github.com/containers/image/docker/reference"
@@ -27,6 +28,9 @@ type CommitOptions struct {
 	// the transport to which we're writing the image gives us a way to add
 	// them.
 	AdditionalTags []string
+	// ReportWriter is an io.Writer which will be used to log the writing
+	// of the new image.
+	ReportWriter io.Writer
 }
 
 func expandTags(tags []string) ([]string, error) {
@@ -62,7 +66,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	if err != nil {
 		return err
 	}
-	err = copy.Image(policyContext, dest, src, getCopyOptions())
+	err = copy.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter))
 	switch dest.Transport().Name() {
 	case storage.Transport.Name():
 		tags, err := expandTags(options.AdditionalTags)

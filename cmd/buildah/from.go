@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
@@ -36,6 +37,10 @@ var (
 		cli.StringFlag{
 			Name:  "signature-policy",
 			Usage: "`pathname` of signature policy file (not usually used)",
+		},
+		cli.BoolFlag{
+			Name:  "quiet, q",
+			Usage: "don't output progress information when pulling images",
 		},
 	}
 	fromDescription = "Creates a new working container, either from scratch or using a specified\n   image as a starting point"
@@ -91,6 +96,11 @@ func fromCmd(c *cli.Context) error {
 		signaturePolicy = c.String("signature-policy")
 	}
 
+	quiet := false
+	if c.IsSet("quiet") {
+		quiet = c.Bool("quiet")
+	}
+
 	store, err := getStore(c)
 	if err != nil {
 		return err
@@ -102,6 +112,9 @@ func fromCmd(c *cli.Context) error {
 		PullPolicy:          pullPolicy,
 		Registry:            registry,
 		SignaturePolicyPath: signaturePolicy,
+	}
+	if !quiet {
+		options.ReportWriter = os.Stderr
 	}
 
 	builder, err := buildah.NewBuilder(store, options)
