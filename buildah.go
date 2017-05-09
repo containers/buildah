@@ -3,6 +3,7 @@ package buildah
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -134,6 +135,9 @@ type BuilderOptions struct {
 	// specified, indicating that the shared, system-wide default policy
 	// should be used.
 	SignaturePolicyPath string
+	// ReportWriter is an io.Writer which will be used to log the reading
+	// of the source image from a registry, if we end up pulling the image.
+	ReportWriter io.Writer
 }
 
 // ImportOptions are used to initialize a Builder.

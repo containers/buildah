@@ -287,6 +287,8 @@ return 1
           --help
           -h
           --disable-compression
+          --quiet
+          -q
   "
 
      local options_with_args="
@@ -329,6 +331,8 @@ return 1
      -h
      --pull
      --pull-always
+     --quiet
+     -q
   "
 
      local options_with_args="
@@ -522,6 +526,8 @@ return 1
      -h
      --pull
      --pull-always
+     --quiet
+     -q
   "
 
      local options_with_args="

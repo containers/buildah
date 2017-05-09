@@ -15,7 +15,7 @@ var (
 	budFlags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "quiet, q",
-			Usage: "refrain from announcing build instructions",
+			Usage: "refrain from announcing build instructions and image read/write progress",
 		},
 		cli.StringFlag{
 			Name:  "registry",
@@ -202,6 +202,9 @@ func budCmd(c *cli.Context) error {
 		AdditionalTags:      tags,
 		Runtime:             runtime,
 		RuntimeArgs:         runtimeFlags,
+	}
+	if !quiet {
+		options.ReportWriter = os.Stderr
 	}
 
 	return imagebuildah.BuildDockerfiles(store, options, dockerfiles...)

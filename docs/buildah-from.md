@@ -40,6 +40,10 @@ Pathname of a signature policy file to use.  It is not recommended that this
 option be used, as the default behavior of using the system-wide default policy
 (frequently */etc/containers/policy.json*) is most often preferred.
 
+**--quiet**
+
+If an image needs to be pulled from the registry, suppress progress output.
+
 ## EXAMPLE
 
 buildah from imagename --pull --registry "myregistry://"

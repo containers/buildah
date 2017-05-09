@@ -1,12 +1,16 @@
 package buildah
 
 import (
+	"io"
+
 	"github.com/containers/image/copy"
 	"github.com/containers/image/types"
 )
 
-func getCopyOptions() *copy.Options {
-	return &copy.Options{}
+func getCopyOptions(reportWriter io.Writer) *copy.Options {
+	return &copy.Options{
+		ReportWriter: reportWriter,
+	}
 }
 
 func getSystemContext(signaturePolicyPath string) *types.SystemContext {

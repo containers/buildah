@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/containers/image/storage"
 	"github.com/containers/image/transports/alltransports"
@@ -19,6 +20,10 @@ var (
 		cli.StringFlag{
 			Name:  "signature-policy",
 			Usage: "`pathname` of signature policy file (not usually used)",
+		},
+		cli.BoolFlag{
+			Name:  "quiet, q",
+			Usage: "don't output progress information when writing images",
 		},
 	}
 	commitDescription = "Writes a new image using the container's read-write layer and, if it is based\n   on an image, the layers of that image"
@@ -55,6 +60,10 @@ func commitCmd(c *cli.Context) error {
 	if !c.IsSet("disable-compression") || !c.Bool("disable-compression") {
 		compress = archive.Gzip
 	}
+	quiet := false
+	if c.IsSet("quiet") {
+		quiet = c.Bool("quiet")
+	}
 	store, err := getStore(c)
 	if err != nil {
 		return err
@@ -77,6 +86,9 @@ func commitCmd(c *cli.Context) error {
 	options := buildah.CommitOptions{
 		Compression:         compress,
 		SignaturePolicyPath: signaturePolicy,
+	}
+	if !quiet {
+		options.ReportWriter = os.Stderr
 	}
 	err = builder.Commit(dest, options)
 	if err != nil {
