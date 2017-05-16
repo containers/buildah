@@ -2,9 +2,11 @@ package buildah
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	digest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -117,6 +119,58 @@ func makeDockerV2S2Image(oimage *ociv1.Image) (docker.V2Image, error) {
 	return image, nil
 }
 
+// makeDockerV2S1Image builds the best docker image structure we can from the
+// contents of the V2S1 image structure.
+func makeDockerV2S1Image(manifest docker.V2S1Manifest) (docker.V2Image, error) {
+	// Treat the most recent (first) item in the history as a description of the image.
+	if len(manifest.History) == 0 {
+		return docker.V2Image{}, fmt.Errorf("error parsing image configuration from manifest")
+	}
+	dimage := docker.V2Image{}
+	err := json.Unmarshal([]byte(manifest.History[0].V1Compatibility), &dimage)
+	if err != nil {
+		return docker.V2Image{}, err
+	}
+	if dimage.DockerVersion == "" {
+		return docker.V2Image{}, fmt.Errorf("error parsing image configuration from history")
+	}
+	// The DiffID list is intended to contain the sums of _uncompressed_ blobs, and these are most
+	// likely compressed, so leave the list empty to avoid potential confusion later on.  We can
+	// construct a list with the correct values when we prep layers for pushing, so we don't lose.
+	// information by leaving this part undone.
+	rootFS := &docker.V2S2RootFS{
+		Type:    docker.TypeLayers,
+		DiffIDs: []digest.Digest{},
+	}
+	// Build a filesystem history.
+	history := []docker.V2S2History{}
+	for i := range manifest.History {
+		h := docker.V2S2History{
+			Created:    time.Now().UTC(),
+			Author:     "",
+			CreatedBy:  "",
+			Comment:    "",
+			EmptyLayer: false,
+		}
+		dcompat := docker.V1Compatibility{}
+		if err2 := json.Unmarshal([]byte(manifest.History[i].V1Compatibility), &dcompat); err2 == nil {
+			h.Created = dcompat.Created.UTC()
+			h.Author = dcompat.Author
+			h.Comment = dcompat.Comment
+			if len(dcompat.ContainerConfig.Cmd) > 0 {
+				h.CreatedBy = fmt.Sprintf("%v", dcompat.ContainerConfig.Cmd)
+			}
+			h.EmptyLayer = dcompat.ThrowAway
+		}
+		// Prepend this layer to the list, because a v2s1 format manifest's list is in reverse order
+		// compared to v2s2, which lists earlier layers before later ones.
+		history = append([]docker.V2S2History{h}, history...)
+	}
+	dimage.RootFS = rootFS
+	dimage.History = history
+	return dimage, nil
+}
+
 func (b *Builder) initConfig() {
 	image := ociv1.Image{}
 	dimage := docker.V2Image{}
@@ -130,6 +184,18 @@ func (b *Builder) initConfig() {
 			if err := json.Unmarshal(b.Config, &image); err != nil {
 				if dimage, err = makeDockerV2S2Image(&image); err != nil {
 					dimage = docker.V2Image{}
+				}
+			}
+		}
+		b.OCIv1 = image
+		b.Docker = dimage
+	} else {
+		// Try to dig out the image configuration from the manifest.
+		manifest := docker.V2S1Manifest{}
+		if err := json.Unmarshal(b.Manifest, &manifest); err == nil && manifest.SchemaVersion == 1 {
+			if dimage, err = makeDockerV2S1Image(manifest); err == nil {
+				if image, err = makeOCIv1Image(&dimage); err != nil {
+					image = ociv1.Image{}
 				}
 			}
 		}
@@ -152,6 +218,7 @@ func (b *Builder) fixupConfig() {
 		b.Docker.ContainerConfig = *b.Docker.Config
 	}
 	b.Docker.Config = &b.Docker.ContainerConfig
+	b.Docker.DockerVersion = ""
 	if b.FromImageID != "" {
 		if d, err := digest.Parse(b.FromImageID); err == nil {
 			b.Docker.Parent = docker.ID(d)
