@@ -2,29 +2,36 @@ package buildah
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"runtime"
-	"time"
+	"strings"
 
-	"github.com/Sirupsen/logrus"
+	digest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/projectatomic/buildah/docker"
 )
 
-func copyDockerImageConfig(dimage *docker.Image) (ociv1.Image, error) {
+// makeOCIv1Image builds the best OCIv1 image structure we can from the
+// contents of the docker image structure.
+func makeOCIv1Image(dimage *docker.Image) (ociv1.Image, error) {
+	config := dimage.Config
+	if config == nil {
+		config = &dimage.ContainerConfig
+	}
 	image := ociv1.Image{
 		Created:      dimage.Created.UTC(),
 		Author:       dimage.Author,
 		Architecture: dimage.Architecture,
 		OS:           dimage.OS,
 		Config: ociv1.ImageConfig{
-			User:         dimage.Config.User,
+			User:         config.User,
 			ExposedPorts: map[string]struct{}{},
-			Env:          dimage.Config.Env,
-			Entrypoint:   dimage.Config.Entrypoint,
-			Cmd:          dimage.Config.Cmd,
-			Volumes:      dimage.Config.Volumes,
-			WorkingDir:   dimage.Config.WorkingDir,
-			Labels:       dimage.Config.Labels,
+			Env:          config.Env,
+			Entrypoint:   config.Entrypoint,
+			Cmd:          config.Cmd,
+			Volumes:      config.Volumes,
+			WorkingDir:   config.WorkingDir,
+			Labels:       config.Labels,
 		},
 		RootFS: ociv1.RootFS{
 			Type:    "",
@@ -32,7 +39,7 @@ func copyDockerImageConfig(dimage *docker.Image) (ociv1.Image, error) {
 		},
 		History: []ociv1.History{},
 	}
-	for port, what := range dimage.Config.ExposedPorts {
+	for port, what := range config.ExposedPorts {
 		image.Config.ExposedPorts[string(port)] = what
 	}
 	RootFS := docker.RootFS{}
@@ -46,9 +53,8 @@ func copyDockerImageConfig(dimage *docker.Image) (ociv1.Image, error) {
 		}
 	}
 	for _, history := range dimage.History {
-		created := history.Created.UTC()
 		ohistory := ociv1.History{
-			Created:    created,
+			Created:    history.Created.UTC(),
 			CreatedBy:  history.CreatedBy,
 			Author:     history.Author,
 			Comment:    history.Comment,
@@ -59,89 +65,402 @@ func copyDockerImageConfig(dimage *docker.Image) (ociv1.Image, error) {
 	return image, nil
 }
 
-func (b *Builder) updatedConfig() []byte {
+// makeDockerV2S2Image builds the best docker image structure we can from the
+// contents of the OCI image structure.
+func makeDockerV2S2Image(oimage *ociv1.Image) (docker.Image, error) {
+	image := docker.Image{
+		V1Image: docker.V1Image{Created: oimage.Created.UTC(),
+			Author:       oimage.Author,
+			Architecture: oimage.Architecture,
+			OS:           oimage.OS,
+			ContainerConfig: docker.Config{
+				User:         oimage.Config.User,
+				ExposedPorts: docker.PortSet{},
+				Env:          oimage.Config.Env,
+				Entrypoint:   oimage.Config.Entrypoint,
+				Cmd:          oimage.Config.Cmd,
+				Volumes:      oimage.Config.Volumes,
+				WorkingDir:   oimage.Config.WorkingDir,
+				Labels:       oimage.Config.Labels,
+			},
+		},
+		RootFS: &docker.RootFS{
+			Type:    "",
+			DiffIDs: []digest.Digest{},
+		},
+		History: []docker.History{},
+	}
+	for port, what := range oimage.Config.ExposedPorts {
+		image.ContainerConfig.ExposedPorts[docker.Port(port)] = what
+	}
+	if oimage.RootFS.Type == docker.TypeLayers {
+		image.RootFS.Type = docker.TypeLayers
+		for _, id := range oimage.RootFS.DiffIDs {
+			d, err := digest.Parse(id)
+			if err != nil {
+				return docker.Image{}, err
+			}
+			image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, d)
+		}
+	}
+	for _, history := range oimage.History {
+		dhistory := docker.History{
+			Created:    history.Created.UTC(),
+			CreatedBy:  history.CreatedBy,
+			Author:     history.Author,
+			Comment:    history.Comment,
+			EmptyLayer: history.EmptyLayer,
+		}
+		image.History = append(image.History, dhistory)
+	}
+	image.Config = &image.ContainerConfig
+	return image, nil
+}
+
+func (b *Builder) initConfig() {
 	image := ociv1.Image{}
 	dimage := docker.Image{}
 	if len(b.Config) > 0 {
 		// Try to parse the image configuration. If we fail start over from scratch.
 		if err := json.Unmarshal(b.Config, &dimage); err == nil && dimage.DockerVersion != "" {
-			if image, err = copyDockerImageConfig(&dimage); err != nil {
+			if image, err = makeOCIv1Image(&dimage); err != nil {
 				image = ociv1.Image{}
 			}
 		} else {
 			if err := json.Unmarshal(b.Config, &image); err != nil {
-				image = ociv1.Image{}
+				if dimage, err = makeDockerV2S2Image(&image); err != nil {
+					dimage = docker.Image{}
+				}
 			}
 		}
+		b.OCIv1 = image
+		b.Docker = dimage
 	}
-	image.Created = time.Now().UTC()
-	if image.Architecture == "" {
-		image.Architecture = runtime.GOARCH
-	}
-	if image.OS == "" {
-		image.OS = runtime.GOOS
-	}
-	if b.Architecture != "" {
-		image.Architecture = b.Architecture
-	}
-	if b.OS != "" {
-		image.OS = b.OS
-	}
-	if b.Maintainer != "" {
-		image.Author = b.Maintainer
-	}
-	if b.User != "" {
-		image.Config.User = b.User
-	}
-	if len(b.Volumes) > 0 {
-		for _, volSpec := range b.Volumes {
-			image.Config.Volumes[volSpec] = struct{}{}
-		}
-	}
-	if b.Workdir != "" {
-		image.Config.WorkingDir = b.Workdir
-	}
-	if len(b.Env) > 0 {
-		image.Config.Env = append(image.Config.Env, b.Env...)
-	}
-	if len(b.Cmd) > 0 {
-		image.Config.Cmd = b.Cmd
-	}
-	if len(b.Entrypoint) > 0 {
-		image.Config.Entrypoint = b.Entrypoint
-	}
-	if len(b.Expose) > 0 {
-		if image.Config.ExposedPorts == nil {
-			image.Config.ExposedPorts = make(map[string]struct{})
-		}
-		for k := range b.Expose {
-			image.Config.ExposedPorts[k] = struct{}{}
-		}
-	}
-	if len(b.Labels) > 0 {
-		if image.Config.Labels == nil {
-			image.Config.Labels = make(map[string]string)
-		}
-		for k, v := range b.Labels {
-			image.Config.Labels[k] = v
-		}
-	}
-	updatedImageConfig, err := json.Marshal(&image)
-	if err != nil {
-		logrus.Errorf("error exporting updated image configuration, using original configuration")
-		return b.Config
-	}
-	return updatedImageConfig
+	b.fixupConfig()
 }
 
-// UpdatedEnv returns the environment list from the source image, with the
-// builder's own list appended to it.
-func (b *Builder) UpdatedEnv() []string {
-	config := b.updatedConfig()
-	image := ociv1.Image{}
-	if err := json.Unmarshal(config, &image); err != nil {
-		logrus.Errorf("error parsing updated image information")
-		return []string{}
+func (b *Builder) fixupConfig() {
+	if b.Docker.Config != nil {
+		// Prefer image-level settings over those from the container it was built from.
+		b.Docker.ContainerConfig = *b.Docker.Config
 	}
-	return append(image.Config.Env, b.Env...)
+	b.Docker.Config = &b.Docker.ContainerConfig
+	if b.FromImageID != "" {
+		if d, err := digest.Parse(b.FromImageID); err == nil {
+			b.Docker.Parent = docker.ID(d)
+		} else {
+			b.Docker.Parent = docker.ID(digest.NewDigestFromHex(digest.Canonical.String(), b.FromImageID))
+		}
+	}
+	if b.FromImage != "" {
+		b.Docker.Config.Image = b.FromImage
+	}
+	if b.OS() == "" {
+		b.SetOS(runtime.GOOS)
+	}
+	if b.Architecture() == "" {
+		b.SetArchitecture(runtime.GOARCH)
+	}
+	if b.WorkDir() == "" {
+		b.SetWorkDir(string(filepath.Separator))
+	}
+}
+
+// Annotations returns a set of key-value pairs from the image's manifest.
+func (b *Builder) Annotations() map[string]string {
+	return copyStringStringMap(b.ImageAnnotations)
+}
+
+// SetAnnotation adds or overwrites a key's value from the image's manifest.
+func (b *Builder) SetAnnotation(key, value string) {
+	b.ImageAnnotations[key] = value
+}
+
+// UnsetAnnotation removes a key and its value from the image's manifest, if
+// it's present.
+func (b *Builder) UnsetAnnotation(key string) {
+	delete(b.ImageAnnotations, key)
+}
+
+// ClearAnnotations removes all keys and their values from the image's
+// manifest.
+func (b *Builder) ClearAnnotations() {
+	b.ImageAnnotations = map[string]string{}
+}
+
+// CreatedBy returns a description of how this image was built.
+func (b *Builder) CreatedBy() string {
+	return b.ImageCreatedBy
+}
+
+// SetCreatedBy sets the description of how this image was built.
+func (b *Builder) SetCreatedBy(how string) {
+	b.ImageCreatedBy = how
+}
+
+// OS returns a name of the OS on which the container, or a container built
+// using an image built from this container, is intended to be run.
+func (b *Builder) OS() string {
+	return b.OCIv1.OS
+}
+
+// SetOS sets the name of the OS on which the container, or a container built
+// using an image built from this container, is intended to be run.
+func (b *Builder) SetOS(os string) {
+	b.OCIv1.OS = os
+	b.Docker.OS = os
+}
+
+// Architecture returns a name of the architecture on which the container, or a
+// container built using an image built from this container, is intended to be
+// run.
+func (b *Builder) Architecture() string {
+	return b.OCIv1.Architecture
+}
+
+// SetArchitecture sets the name of the architecture on which the container, or
+// a container built using an image built from this container, is intended to
+// be run.
+func (b *Builder) SetArchitecture(arch string) {
+	b.OCIv1.Architecture = arch
+	b.Docker.Architecture = arch
+}
+
+// Maintainer returns contact information for the person who built the image.
+func (b *Builder) Maintainer() string {
+	return b.OCIv1.Author
+}
+
+// SetMaintainer sets contact information for the person who built the image.
+func (b *Builder) SetMaintainer(who string) {
+	b.OCIv1.Author = who
+	b.Docker.Author = who
+}
+
+// User returns information about the user as whom the container, or a
+// container built using an image built from this container, should be run.
+func (b *Builder) User() string {
+	return b.OCIv1.Config.User
+}
+
+// SetUser sets information about the user as whom the container, or a
+// container built using an image built from this container, should be run.
+// Acceptable forms are a user name or ID, optionally followed by a colon and a
+// group name or ID.
+func (b *Builder) SetUser(spec string) {
+	b.OCIv1.Config.User = spec
+	b.Docker.Config.User = spec
+}
+
+// WorkDir returns the default working directory for running commands in the
+// container, or in a container built using an image built from this container.
+func (b *Builder) WorkDir() string {
+	return b.OCIv1.Config.WorkingDir
+}
+
+// SetWorkDir sets the location of the default working directory for running
+// commands in the container, or in a container built using an image built from
+// this container.
+func (b *Builder) SetWorkDir(there string) {
+	b.OCIv1.Config.WorkingDir = there
+	b.Docker.Config.WorkingDir = there
+}
+
+// Env returns a list of key-value pairs to be set when running commands in the
+// container, or in a container built using an image built from this container.
+func (b *Builder) Env() []string {
+	return copyStringSlice(b.OCIv1.Config.Env)
+}
+
+// SetEnv adds or overwrites a value to the set of environment strings which
+// should be set when running commands in the container, or in a container
+// built using an image built from this container.
+func (b *Builder) SetEnv(k string, v string) {
+	reset := func(s *[]string) {
+		n := []string{}
+		for i := range *s {
+			if !strings.HasPrefix((*s)[i], k+"=") {
+				n = append(n, (*s)[i])
+			}
+		}
+		n = append(n, k+"="+v)
+		*s = n
+	}
+	reset(&b.OCIv1.Config.Env)
+	reset(&b.Docker.Config.Env)
+}
+
+// UnsetEnv removes a value from the set of environment strings which should be
+// set when running commands in this container, or in a container built using
+// an image built from this container.
+func (b *Builder) UnsetEnv(k string) {
+	unset := func(s *[]string) {
+		n := []string{}
+		for i := range *s {
+			if !strings.HasPrefix((*s)[i], k+"=") {
+				n = append(n, (*s)[i])
+			}
+		}
+		*s = n
+	}
+	unset(&b.OCIv1.Config.Env)
+	unset(&b.Docker.Config.Env)
+}
+
+// ClearEnv removes all values from the set of environment strings which should
+// be set when running commands in this container, or in a container built
+// using an image built from this container.
+func (b *Builder) ClearEnv() {
+	b.OCIv1.Config.Env = []string{}
+	b.Docker.Config.Env = []string{}
+}
+
+// Cmd returns the default command, or command parameters if an Entrypoint is
+// set, to use when running a container built from an image built from this
+// container.
+func (b *Builder) Cmd() []string {
+	return copyStringSlice(b.OCIv1.Config.Cmd)
+}
+
+// SetCmd sets the default command, or command parameters if an Entrypoint is
+// set, to use when running a container built from an image built from this
+// container.
+func (b *Builder) SetCmd(cmd []string) {
+	b.OCIv1.Config.Cmd = copyStringSlice(cmd)
+	b.Docker.Config.Cmd = copyStringSlice(cmd)
+}
+
+// Entrypoint returns the command to be run for containers built from images
+// built from this container.
+func (b *Builder) Entrypoint() []string {
+	return copyStringSlice(b.OCIv1.Config.Entrypoint)
+}
+
+// SetEntrypoint sets the command to be run for in containers built from images
+// built from this container.
+func (b *Builder) SetEntrypoint(ep []string) {
+	b.OCIv1.Config.Entrypoint = copyStringSlice(ep)
+	b.Docker.Config.Entrypoint = copyStringSlice(ep)
+}
+
+// Labels returns a set of key-value pairs from the image's runtime
+// configuration.
+func (b *Builder) Labels() map[string]string {
+	return copyStringStringMap(b.OCIv1.Config.Labels)
+}
+
+// SetLabel adds or overwrites a key's value from the image's runtime
+// configuration.
+func (b *Builder) SetLabel(k string, v string) {
+	b.OCIv1.Config.Labels[k] = v
+	b.Docker.Config.Labels[k] = v
+}
+
+// UnsetLabel removes a key and its value from the image's runtime
+// configuration, if it's present.
+func (b *Builder) UnsetLabel(k string) {
+	delete(b.OCIv1.Config.Labels, k)
+	delete(b.Docker.Config.Labels, k)
+}
+
+// ClearLabels removes all keys and their values from the image's runtime
+// configuration.
+func (b *Builder) ClearLabels() {
+	b.OCIv1.Config.Labels = map[string]string{}
+	b.Docker.Config.Labels = map[string]string{}
+}
+
+// Ports returns the set of ports which should be exposed when a container
+// based on an image built from this container is run.
+func (b *Builder) Ports() []string {
+	p := []string{}
+	for k := range b.OCIv1.Config.ExposedPorts {
+		p = append(p, k)
+	}
+	return p
+}
+
+// SetPort adds or overwrites an exported port in the set of ports which should
+// be exposed when a container based on an image built from this container is
+// run.
+func (b *Builder) SetPort(p string) {
+	b.OCIv1.Config.ExposedPorts[p] = struct{}{}
+	b.Docker.Config.ExposedPorts[docker.Port(p)] = struct{}{}
+}
+
+// UnsetPort removes an exposed port from the set of ports which should be
+// exposed when a container based on an image built from this container is run.
+func (b *Builder) UnsetPort(p string) {
+	delete(b.OCIv1.Config.ExposedPorts, p)
+	delete(b.Docker.Config.ExposedPorts, docker.Port(p))
+}
+
+// ClearPorts empties the set of ports which should be exposed when a container
+// based on an image built from this container is run.
+func (b *Builder) ClearPorts() {
+	b.OCIv1.Config.ExposedPorts = map[string]struct{}{}
+	b.Docker.Config.ExposedPorts = docker.PortSet{}
+}
+
+// Volumes returns a list of filesystem locations which should be mounted from
+// outside of the container when a container built from an image built from
+// this container is run.
+func (b *Builder) Volumes() []string {
+	v := []string{}
+	for k := range b.OCIv1.Config.Volumes {
+		v = append(v, k)
+	}
+	return v
+}
+
+// AddVolume adds a location to the image's list of locations which should be
+// mounted from outside of the container when a container based on an image
+// built from this container is run.
+func (b *Builder) AddVolume(v string) {
+	b.OCIv1.Config.Volumes[v] = struct{}{}
+	b.Docker.Config.Volumes[v] = struct{}{}
+}
+
+// RemoveVolume removes a location from the list of locations which should be
+// mounted from outside of the container when a container based on an image
+// built from this container is run.
+func (b *Builder) RemoveVolume(v string) {
+	delete(b.OCIv1.Config.Volumes, v)
+	delete(b.Docker.Config.Volumes, v)
+}
+
+// ClearVolumes removes all locations from the image's list of locations which
+// should be mounted from outside of the container when a container based on an
+// image built from this container is run.
+func (b *Builder) ClearVolumes() {
+	b.OCIv1.Config.Volumes = map[string]struct{}{}
+	b.Docker.Config.Volumes = map[string]struct{}{}
+}
+
+// Hostname returns the hostname which will be set in the container and in
+// containers built using images built from the container.
+func (b *Builder) Hostname() string {
+	return b.Docker.Config.Hostname
+}
+
+// SetHostname sets the hostname which will be set in the container and in
+// containers built using images built from the container.
+// Note: this setting is not present in the OCIv1 image format, so it is
+// discarded when writing images using OCIv1 formats.
+func (b *Builder) SetHostname(name string) {
+	b.Docker.Config.Hostname = name
+}
+
+// Domainname returns the domainname which will be set in the container and in
+// containers built using images built from the container.
+func (b *Builder) Domainname() string {
+	return b.Docker.Config.Domainname
+}
+
+// SetDomainname sets the domainname which will be set in the container and in
+// containers built using images built from the container.
+// Note: this setting is not present in the OCIv1 image format, so it is
+// discarded when writing images using OCIv1 formats.
+func (b *Builder) SetDomainname(name string) {
+	b.Docker.Config.Domainname = name
 }

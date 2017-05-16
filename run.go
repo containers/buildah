@@ -11,7 +11,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/ioutils"
-	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 )
@@ -78,21 +77,15 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			logrus.Errorf("error removing %q: %v", path, err2)
 		}
 	}()
-	config := b.updatedConfig()
-	image := v1.Image{}
-	err = json.Unmarshal(config, &image)
-	if err != nil {
-		return err
-	}
 	g := generate.New()
 
-	if image.OS != "" {
-		g.SetPlatformOS(image.OS)
+	if b.OS() != "" {
+		g.SetPlatformOS(b.OS())
 	}
-	if image.Architecture != "" {
-		g.SetPlatformArch(image.Architecture)
+	if b.Architecture() != "" {
+		g.SetPlatformArch(b.Architecture())
 	}
-	for _, envSpec := range append(image.Config.Env, options.Env...) {
+	for _, envSpec := range append(b.Env(), options.Env...) {
 		env := strings.SplitN(envSpec, "=", 2)
 		if len(env) > 1 {
 			g.AddProcessEnv(env[0], env[1])
@@ -102,22 +95,22 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		g.SetProcessArgs(command)
 	} else if len(options.Cmd) != 0 {
 		g.SetProcessArgs(options.Cmd)
-	} else if len(image.Config.Cmd) != 0 {
-		g.SetProcessArgs(image.Config.Cmd)
+	} else if len(b.Cmd()) != 0 {
+		g.SetProcessArgs(b.Cmd())
 	} else if len(options.Entrypoint) != 0 {
 		g.SetProcessArgs(options.Entrypoint)
-	} else if len(image.Config.Entrypoint) != 0 {
-		g.SetProcessArgs(image.Config.Entrypoint)
+	} else if len(b.Entrypoint()) != 0 {
+		g.SetProcessArgs(b.Entrypoint())
 	}
 	if options.WorkingDir != "" {
 		g.SetProcessCwd(options.WorkingDir)
-	} else if image.Config.WorkingDir != "" {
-		g.SetProcessCwd(image.Config.WorkingDir)
+	} else if b.WorkDir() != "" {
+		g.SetProcessCwd(b.WorkDir())
 	}
 	if options.Hostname != "" {
 		g.SetHostname(options.Hostname)
 	}
-	for volume := range image.Config.Volumes {
+	for _, volume := range b.Volumes() {
 		g.AddTmpfsMount(volume, nil)
 	}
 	mountPoint, err := b.Mount("")
@@ -146,7 +139,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if options.User != "" {
 		user, err = getUser(mountPoint, options.User)
 	} else {
-		user, err = getUser(mountPoint, image.Config.User)
+		user, err = getUser(mountPoint, b.User())
 	}
 	if err != nil {
 		return err
@@ -157,8 +150,8 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if spec.Process.Cwd == "" {
 		spec.Process.Cwd = DefaultWorkingDir
 	}
-	if err = os.MkdirAll(filepath.Join(mountPoint, b.Workdir), 0755); err != nil {
-		return fmt.Errorf("error ensuring working directory %q exists: %v)", b.Workdir, err)
+	if err = os.MkdirAll(filepath.Join(mountPoint, b.WorkDir()), 0755); err != nil {
+		return fmt.Errorf("error ensuring working directory %q exists: %v)", b.WorkDir(), err)
 	}
 	mounts := options.Mounts
 	boundMounts := []specs.Mount{}

@@ -72,10 +72,10 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 	if destination != "" && filepath.IsAbs(destination) {
 		dest = filepath.Join(dest, destination)
 	} else {
-		if err = os.MkdirAll(filepath.Join(dest, b.Workdir), 0755); err != nil {
-			return fmt.Errorf("error ensuring directory %q exists: %v)", filepath.Join(dest, b.Workdir), err)
+		if err = os.MkdirAll(filepath.Join(dest, b.WorkDir()), 0755); err != nil {
+			return fmt.Errorf("error ensuring directory %q exists: %v)", filepath.Join(dest, b.WorkDir()), err)
 		}
-		dest = filepath.Join(dest, b.Workdir, destination)
+		dest = filepath.Join(dest, b.WorkDir(), destination)
 	}
 	// If the destination was explicitly marked as a directory by ending it
 	// with a '/', create it so that we can be sure that it's a directory,

@@ -321,14 +321,18 @@ func (b *Builder) makeContainerImageRef(compress archive.Compression) (types.Ima
 			name = nil
 		}
 	}
+	config, err := json.Marshal(&b.OCIv1)
+	if err != nil {
+		return nil, err
+	}
 	ref := &containerImageRef{
 		store:       b.store,
 		container:   container,
 		compression: compress,
 		name:        name,
-		config:      b.updatedConfig(),
-		createdBy:   b.CreatedBy,
-		annotations: b.Annotations,
+		config:      config,
+		createdBy:   b.CreatedBy(),
+		annotations: b.Annotations(),
 	}
 	return ref, nil
 }

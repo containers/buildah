@@ -85,31 +85,33 @@ var (
 
 func updateConfig(builder *buildah.Builder, c *cli.Context) {
 	if c.IsSet("author") {
-		builder.Maintainer = c.String("author")
+		builder.SetMaintainer(c.String("author"))
 	}
 	if c.IsSet("created-by") {
-		builder.CreatedBy = c.String("created-by")
+		builder.SetCreatedBy(c.String("created-by"))
 	}
 	if c.IsSet("arch") {
-		builder.Architecture = c.String("arch")
+		builder.SetArchitecture(c.String("arch"))
 	}
 	if c.IsSet("os") {
-		builder.OS = c.String("os")
+		builder.SetOS(c.String("os"))
 	}
 	if c.IsSet("user") {
-		builder.User = c.String("user")
+		builder.SetUser(c.String("user"))
 	}
 	if c.IsSet("port") || c.IsSet("p") {
-		if builder.Expose == nil {
-			builder.Expose = make(map[string]interface{})
-		}
 		for _, portSpec := range c.StringSlice("port") {
-			builder.Expose[portSpec] = struct{}{}
+			builder.SetPort(portSpec)
 		}
 	}
-	if c.IsSet("env") {
-		if envSpec := c.StringSlice("env"); len(envSpec) > 0 {
-			builder.Env = append(builder.Env, envSpec...)
+	if c.IsSet("env") || c.IsSet("e") {
+		for _, envSpec := range c.StringSlice("env") {
+			env := strings.SplitN(envSpec, "=", 2)
+			if len(env) > 1 {
+				builder.SetEnv(env[0], env[1])
+			} else {
+				builder.UnsetEnv(env[0])
+			}
 		}
 	}
 	if c.IsSet("entrypoint") {
@@ -117,7 +119,7 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 		if err != nil {
 			logrus.Errorf("error parsing --entrypoint %q: %v", c.String("entrypoint"), err)
 		} else {
-			builder.Entrypoint = entrypointSpec
+			builder.SetEntrypoint(entrypointSpec)
 		}
 	}
 	if c.IsSet("cmd") {
@@ -125,40 +127,36 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 		if err != nil {
 			logrus.Errorf("error parsing --cmd %q: %v", c.String("cmd"), err)
 		} else {
-			builder.Cmd = cmdSpec
+			builder.SetCmd(cmdSpec)
 		}
 	}
 	if c.IsSet("volume") {
 		if volSpec := c.StringSlice("volume"); len(volSpec) > 0 {
-			builder.Volumes = append(builder.Volumes, volSpec...)
+			for _, spec := range volSpec {
+				builder.AddVolume(spec)
+			}
 		}
 	}
 	if c.IsSet("label") || c.IsSet("l") {
-		if builder.Labels == nil {
-			builder.Labels = make(map[string]string)
-		}
 		for _, labelSpec := range c.StringSlice("label") {
 			label := strings.SplitN(labelSpec, "=", 2)
 			if len(label) > 1 {
-				builder.Labels[label[0]] = label[1]
+				builder.SetLabel(label[0], label[1])
 			} else {
-				delete(builder.Labels, label[0])
+				builder.UnsetLabel(label[0])
 			}
 		}
 	}
 	if c.IsSet("workingdir") {
-		builder.Workdir = c.String("workingdir")
+		builder.SetWorkDir(c.String("workingdir"))
 	}
 	if c.IsSet("annotation") || c.IsSet("a") {
-		if builder.Annotations == nil {
-			builder.Annotations = make(map[string]string)
-		}
 		for _, annotationSpec := range c.StringSlice("annotation") {
 			annotation := strings.SplitN(annotationSpec, "=", 2)
 			if len(annotation) > 1 {
-				builder.Annotations[annotation[0]] = annotation[1]
+				builder.SetAnnotation(annotation[0], annotation[1])
 			} else {
-				delete(builder.Annotations, annotation[0])
+				builder.UnsetAnnotation(annotation[0])
 			}
 		}
 	}

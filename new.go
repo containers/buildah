@@ -123,23 +123,17 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	}()
 
 	builder := &Builder{
-		store:       store,
-		Type:        containerType,
-		FromImage:   image,
-		FromImageID: imageID,
-		Config:      config,
-		Manifest:    manifest,
-		Container:   name,
-		ContainerID: container.ID,
-		Mounts:      []string{},
-		Annotations: map[string]string{},
-		Env:         []string{},
-		Cmd:         []string{},
-		Entrypoint:  []string{},
-		Expose:      map[string]interface{}{},
-		Labels:      map[string]string{},
-		Volumes:     []string{},
-		Arg:         map[string]string{},
+		store:            store,
+		Type:             containerType,
+		FromImage:        image,
+		FromImageID:      imageID,
+		Config:           config,
+		Manifest:         manifest,
+		Container:        name,
+		ContainerID:      container.ID,
+		Mounts:           []string{},
+		ImageAnnotations: map[string]string{},
+		ImageCreatedBy:   "",
 	}
 
 	if options.Mount {
@@ -149,6 +143,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		}
 	}
 
+	builder.initConfig()
 	err = builder.Save()
 	if err != nil {
 		return nil, fmt.Errorf("error saving builder state: %v", err)
