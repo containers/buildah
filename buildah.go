@@ -10,6 +10,8 @@ import (
 
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/ioutils"
+	"github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/projectatomic/buildah/docker"
 )
 
 const (
@@ -18,7 +20,7 @@ const (
 	Package = "buildah"
 	// Version for the Package
 	Version       = "0.0.1"
-	containerType = Package + " 0.0.0"
+	containerType = Package + " 0.0.1"
 	stateFile     = Package + ".json"
 )
 
@@ -70,46 +72,18 @@ type Builder struct {
 	// been mounted.  It should not be modified.
 	Mounts []string `json:"mounts,omitempty"`
 
-	// Annotations is a set of key-value pairs which is stored in the
+	// ImageAnnotations is a set of key-value pairs which is stored in the
 	// image's manifest.
-	Annotations map[string]string `json:"annotations,omitempty"`
+	ImageAnnotations map[string]string `json:"annotations,omitempty"`
+	// ImageCreatedBy is a description of how this container was built.
+	ImageCreatedBy string `json:"created-by,omitempty"`
 
-	// CreatedBy is a description of how this container was built.
-	CreatedBy string `json:"created-by,omitempty"`
-	// OS is the operating system for which binaries in the image are
-	// built.  The default is the current OS.
-	OS string `json:"os,omitempty"`
-	// Architecture is the type of processor for which binaries in the
-	// image are built.  The default is the current architecture.
-	Architecture string `json:"arch,omitempty"`
-	// Maintainer is the point of contact for this container.
-	Maintainer string `json:"maintainer,omitempty"`
-	// User is the user as whom commands are run in the container.
-	User string `json:"user,omitempty"`
-	// Workdir is the default working directory for commands started in the
-	// container.
-	Workdir string `json:"workingdir,omitempty"`
-	// Env is a list of environment variables to set for the container, in
-	// the form NAME=VALUE.
-	Env []string `json:"env,omitempty"`
-	// Cmd sets a default command to run in containers based on the image.
-	Cmd []string `json:"cmd,omitempty"`
-	// Entrypoint is an entry point for containers based on the image.
-	Entrypoint []string `json:"entrypoint,omitempty"`
-	// Expose is a map keyed by specifications of ports to expose when a
-	// container based on the image is run.
-	Expose map[string]interface{} `json:"expose,omitempty"`
-	// Labels is a set of key-value pairs which is stored in the
-	// image's configuration.
-	Labels map[string]string `json:"labels,omitempty"`
-	// Volumes is a list of data volumes which will be created in
-	// containers based on the image.
-	Volumes []string `json:"volumes,omitempty"`
-	// Arg is a set of build-time variables.
-	Arg map[string]string `json:"arg,omitempty"`
+	// Image metadata and runtime settings, in multiple formats.
+	OCIv1  v1.Image     `json:"ociv1,omitempty"`
+	Docker docker.Image `json:"docker,omitempty"`
 }
 
-// BuilderOptions are used to initialize a Builder.
+// BuilderOptions are used to initialize a new Builder.
 type BuilderOptions struct {
 	// FromImage is the name of the image which should be used as the
 	// starting point for the container.  It can be set to an empty value
@@ -140,7 +114,8 @@ type BuilderOptions struct {
 	ReportWriter io.Writer
 }
 
-// ImportOptions are used to initialize a Builder.
+// ImportOptions are used to initialize a Builder from an existing container
+// which was created elsewhere.
 type ImportOptions struct {
 	// Container is the name of the build container.
 	Container string
@@ -182,6 +157,7 @@ func OpenBuilder(store storage.Store, container string) (*Builder, error) {
 		return nil, fmt.Errorf("container is not a %s container", Package)
 	}
 	b.store = store
+	b.fixupConfig()
 	return b, nil
 }
 
@@ -220,6 +196,7 @@ func OpenBuilderByPath(store storage.Store, path string) (*Builder, error) {
 		err = json.Unmarshal(buildstate, &b)
 		if err == nil && b.Type == containerType && builderMatchesPath(b, abs) {
 			b.store = store
+			b.fixupConfig()
 			return b, nil
 		}
 	}
@@ -246,6 +223,7 @@ func OpenAllBuilders(store storage.Store) (builders []*Builder, err error) {
 		err = json.Unmarshal(buildstate, &b)
 		if err == nil && b.Type == containerType {
 			b.store = store
+			b.fixupConfig()
 			builders = append(builders, b)
 		}
 	}

@@ -53,25 +53,20 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 	name := options.Container
 
 	builder := &Builder{
-		store:       store,
-		Type:        containerType,
-		FromImage:   imageName,
-		FromImageID: image,
-		Config:      config,
-		Manifest:    manifest,
-		Container:   name,
-		ContainerID: c.ID,
-		Mounts:      []string{},
-		Annotations: map[string]string{},
-		Env:         []string{},
-		Cmd:         []string{},
-		Entrypoint:  []string{},
-		Expose:      map[string]interface{}{},
-		Labels:      map[string]string{},
-		Volumes:     []string{},
-		Arg:         map[string]string{},
+		store:            store,
+		Type:             containerType,
+		FromImage:        imageName,
+		FromImageID:      image,
+		Config:           config,
+		Manifest:         manifest,
+		Container:        name,
+		ContainerID:      c.ID,
+		Mounts:           []string{},
+		ImageAnnotations: map[string]string{},
+		ImageCreatedBy:   "",
 	}
 
+	builder.initConfig()
 	err = builder.Save()
 	if err != nil {
 		return nil, fmt.Errorf("error saving builder state: %v", err)

@@ -439,11 +439,13 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 	if err != nil {
 		return fmt.Errorf("error creating build container: %v", err)
 	}
+	dConfig := docker.Config{
+		Env:   builder.Env(),
+		Image: from,
+	}
 	dImage := docker.Image{
-		Config: &docker.Config{
-			Env:   builder.UpdatedEnv(),
-			Image: from,
-		},
+		Config:          &dConfig,
+		ContainerConfig: dConfig,
 	}
 	err = ib.FromImage(&dImage, node)
 	if err != nil {
