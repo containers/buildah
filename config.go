@@ -13,7 +13,7 @@ import (
 
 // makeOCIv1Image builds the best OCIv1 image structure we can from the
 // contents of the docker image structure.
-func makeOCIv1Image(dimage *docker.Image) (ociv1.Image, error) {
+func makeOCIv1Image(dimage *docker.V2Image) (ociv1.Image, error) {
 	config := dimage.Config
 	if config == nil {
 		config = &dimage.ContainerConfig
@@ -42,7 +42,7 @@ func makeOCIv1Image(dimage *docker.Image) (ociv1.Image, error) {
 	for port, what := range config.ExposedPorts {
 		image.Config.ExposedPorts[string(port)] = what
 	}
-	RootFS := docker.RootFS{}
+	RootFS := docker.V2S2RootFS{}
 	if dimage.RootFS != nil {
 		RootFS = *dimage.RootFS
 	}
@@ -67,8 +67,8 @@ func makeOCIv1Image(dimage *docker.Image) (ociv1.Image, error) {
 
 // makeDockerV2S2Image builds the best docker image structure we can from the
 // contents of the OCI image structure.
-func makeDockerV2S2Image(oimage *ociv1.Image) (docker.Image, error) {
-	image := docker.Image{
+func makeDockerV2S2Image(oimage *ociv1.Image) (docker.V2Image, error) {
+	image := docker.V2Image{
 		V1Image: docker.V1Image{Created: oimage.Created.UTC(),
 			Author:       oimage.Author,
 			Architecture: oimage.Architecture,
@@ -84,11 +84,11 @@ func makeDockerV2S2Image(oimage *ociv1.Image) (docker.Image, error) {
 				Labels:       oimage.Config.Labels,
 			},
 		},
-		RootFS: &docker.RootFS{
+		RootFS: &docker.V2S2RootFS{
 			Type:    "",
 			DiffIDs: []digest.Digest{},
 		},
-		History: []docker.History{},
+		History: []docker.V2S2History{},
 	}
 	for port, what := range oimage.Config.ExposedPorts {
 		image.ContainerConfig.ExposedPorts[docker.Port(port)] = what
@@ -98,13 +98,13 @@ func makeDockerV2S2Image(oimage *ociv1.Image) (docker.Image, error) {
 		for _, id := range oimage.RootFS.DiffIDs {
 			d, err := digest.Parse(id)
 			if err != nil {
-				return docker.Image{}, err
+				return docker.V2Image{}, err
 			}
 			image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, d)
 		}
 	}
 	for _, history := range oimage.History {
-		dhistory := docker.History{
+		dhistory := docker.V2S2History{
 			Created:    history.Created.UTC(),
 			CreatedBy:  history.CreatedBy,
 			Author:     history.Author,
@@ -119,7 +119,7 @@ func makeDockerV2S2Image(oimage *ociv1.Image) (docker.Image, error) {
 
 func (b *Builder) initConfig() {
 	image := ociv1.Image{}
-	dimage := docker.Image{}
+	dimage := docker.V2Image{}
 	if len(b.Config) > 0 {
 		// Try to parse the image configuration. If we fail start over from scratch.
 		if err := json.Unmarshal(b.Config, &dimage); err == nil && dimage.DockerVersion != "" {
@@ -129,7 +129,7 @@ func (b *Builder) initConfig() {
 		} else {
 			if err := json.Unmarshal(b.Config, &image); err != nil {
 				if dimage, err = makeDockerV2S2Image(&image); err != nil {
-					dimage = docker.Image{}
+					dimage = docker.V2Image{}
 				}
 			}
 		}
