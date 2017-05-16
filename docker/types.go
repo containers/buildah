@@ -14,18 +14,30 @@ import (
 // github.com/moby/moby/image/rootfs.go
 const TypeLayers = "layers"
 
+// github.com/docker/distribution/manifest/schema2/manifest.go
+const V2S2MediaTypeManifest = "application/vnd.docker.distribution.manifest.v2+json"
+
+// github.com/docker/distribution/manifest/schema2/manifest.go
+const V2S2MediaTypeImageConfig = "application/vnd.docker.container.image.v1+json"
+
+// github.com/docker/distribution/manifest/schema2/manifest.go
+const V2S2MediaTypeLayer = "application/vnd.docker.image.rootfs.diff.tar.gzip"
+
+// github.com/docker/distribution/manifest/schema2/manifest.go
+const V2S2MediaTypeUncompressedLayer = "application/vnd.docker.image.rootfs.diff.tar"
+
 // github.com/moby/moby/image/rootfs.go
 // RootFS describes images root filesystem
 // This is currently a placeholder that only supports layers. In the future
 // this can be made into an interface that supports different implementations.
-type RootFS struct {
+type V2S2RootFS struct {
 	Type    string          `json:"type"`
 	DiffIDs []digest.Digest `json:"diff_ids,omitempty"`
 }
 
 // github.com/moby/moby/image/image.go
 // History stores build commands that were used to create an image
-type History struct {
+type V2S2History struct {
 	// Created is the timestamp at which the image was created
 	Created time.Time `json:"created"`
 	// Author is the name of the author that was specified when committing the image
@@ -108,6 +120,22 @@ type Config struct {
 	Shell           strslice.StrSlice   `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
 }
 
+// github.com/docker/distribution/manifest/schema1/config_builder.go
+// For non-top-level layers, create fake V1Compatibility strings that
+// fit the format and don't collide with anything else, but don't
+// result in runnable images on their own.
+type V1Compatibility struct {
+	ID              string    `json:"id"`
+	Parent          string    `json:"parent,omitempty"`
+	Comment         string    `json:"comment,omitempty"`
+	Created         time.Time `json:"created"`
+	ContainerConfig struct {
+		Cmd []string
+	} `json:"container_config,omitempty"`
+	Author    string `json:"author,omitempty"`
+	ThrowAway bool   `json:"throwaway,omitempty"`
+}
+
 // github.com/moby/moby/image/image.go
 // V1Image stores the V1 image configuration.
 type V1Image struct {
@@ -139,13 +167,13 @@ type V1Image struct {
 
 // github.com/moby/moby/image/image.go
 // Image stores the image configuration
-type Image struct {
+type V2Image struct {
 	V1Image
-	Parent     ID        `json:"parent,omitempty"`
-	RootFS     *RootFS   `json:"rootfs,omitempty"`
-	History    []History `json:"history,omitempty"`
-	OSVersion  string    `json:"os.version,omitempty"`
-	OSFeatures []string  `json:"os.features,omitempty"`
+	Parent     ID            `json:"parent,omitempty"`
+	RootFS     *V2S2RootFS   `json:"rootfs,omitempty"`
+	History    []V2S2History `json:"history,omitempty"`
+	OSVersion  string        `json:"os.version,omitempty"`
+	OSFeatures []string      `json:"os.features,omitempty"`
 
 	// rawJSON caches the immutable JSON associated with this image.
 	rawJSON []byte
@@ -153,4 +181,91 @@ type Image struct {
 	// computedID is the ID computed from the hash of the image config.
 	// Not to be confused with the legacy V1 ID in V1Image.
 	computedID ID
+}
+
+// github.com/docker/distribution/manifest/versioned.go
+// Versioned provides a struct with the manifest schemaVersion and mediaType.
+// Incoming content with unknown schema version can be decoded against this
+// struct to check the version.
+type V2Versioned struct {
+	// SchemaVersion is the image manifest schema that this image follows
+	SchemaVersion int `json:"schemaVersion"`
+
+	// MediaType is the media type of this schema.
+	MediaType string `json:"mediaType,omitempty"`
+}
+
+// github.com/docker/distribution/manifest/schema1/manifest.go
+// FSLayer is a container struct for BlobSums defined in an image manifest
+type V2S1FSLayer struct {
+	// BlobSum is the tarsum of the referenced filesystem image layer
+	BlobSum digest.Digest `json:"blobSum"`
+}
+
+// github.com/docker/distribution/manifest/schema1/manifest.go
+// History stores unstructured v1 compatibility information
+type V2S1History struct {
+	// V1Compatibility is the raw v1 compatibility information
+	V1Compatibility string `json:"v1Compatibility"`
+}
+
+// github.com/docker/distribution/manifest/schema1/manifest.go
+// Manifest provides the base accessible fields for working with V2 image
+// format in the registry.
+type V2S1Manifest struct {
+	V2Versioned
+
+	// Name is the name of the image's repository
+	Name string `json:"name"`
+
+	// Tag is the tag of the image specified by this manifest
+	Tag string `json:"tag"`
+
+	// Architecture is the host architecture on which this image is intended to
+	// run
+	Architecture string `json:"architecture"`
+
+	// FSLayers is a list of filesystem layer blobSums contained in this image
+	FSLayers []V2S1FSLayer `json:"fsLayers"`
+
+	// History is a list of unstructured historical data for v1 compatibility
+	History []V2S1History `json:"history"`
+}
+
+// github.com/docker/distribution/blobs.go
+// Descriptor describes targeted content. Used in conjunction with a blob
+// store, a descriptor can be used to fetch, store and target any kind of
+// blob. The struct also describes the wire protocol format. Fields should
+// only be added but never changed.
+type V2S2Descriptor struct {
+	// MediaType describe the type of the content. All text based formats are
+	// encoded as utf-8.
+	MediaType string `json:"mediaType,omitempty"`
+
+	// Size in bytes of content.
+	Size int64 `json:"size,omitempty"`
+
+	// Digest uniquely identifies the content. A byte stream can be verified
+	// against against this digest.
+	Digest digest.Digest `json:"digest,omitempty"`
+
+	// URLs contains the source URLs of this content.
+	URLs []string `json:"urls,omitempty"`
+
+	// NOTE: Before adding a field here, please ensure that all
+	// other options have been exhausted. Much of the type relationships
+	// depend on the simplicity of this type.
+}
+
+// github.com/docker/distribution/manifest/schema2/manifest.go
+// Manifest defines a schema2 manifest.
+type V2S2Manifest struct {
+	V2Versioned
+
+	// Config references the image configuration as a blob.
+	Config V2S2Descriptor `json:"config"`
+
+	// Layers lists descriptors for the layers referenced by the
+	// configuration.
+	Layers []V2S2Descriptor `json:"layers"`
 }
