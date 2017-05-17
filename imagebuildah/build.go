@@ -13,9 +13,9 @@ import (
 	"github.com/containers/image/transports"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
+	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/stringid"
-	"github.com/containers/storage/storage"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -150,7 +150,7 @@ func (b *Executor) Preserve(path string) error {
 	}
 	// Figure out where the cache for this volume would be stored.
 	b.preserved++
-	cacheDir, err := b.store.GetContainerDirectory(b.builder.ContainerID)
+	cacheDir, err := b.store.ContainerDirectory(b.builder.ContainerID)
 	if err != nil {
 		return fmt.Errorf("unable to locate temporary directory for container")
 	}

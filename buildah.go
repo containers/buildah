@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/ioutils"
-	"github.com/containers/storage/storage"
 )
 
 const (
@@ -165,7 +165,7 @@ func ImportBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 
 // OpenBuilder loads information about a build container given its name or ID.
 func OpenBuilder(store storage.Store, container string) (*Builder, error) {
-	cdir, err := store.GetContainerDirectory(container)
+	cdir, err := store.ContainerDirectory(container)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func OpenBuilderByPath(store storage.Store, path string) (*Builder, error) {
 		return false
 	}
 	for _, container := range containers {
-		cdir, err := store.GetContainerDirectory(container.ID)
+		cdir, err := store.ContainerDirectory(container.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -234,7 +234,7 @@ func OpenAllBuilders(store storage.Store) (builders []*Builder, err error) {
 		return nil, err
 	}
 	for _, container := range containers {
-		cdir, err := store.GetContainerDirectory(container.ID)
+		cdir, err := store.ContainerDirectory(container.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -260,7 +260,7 @@ func (b *Builder) Save() error {
 	if err != nil {
 		return err
 	}
-	cdir, err := b.store.GetContainerDirectory(b.ContainerID)
+	cdir, err := b.store.ContainerDirectory(b.ContainerID)
 	if err != nil {
 		return err
 	}

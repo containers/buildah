@@ -6,7 +6,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/types"
-	"github.com/containers/storage/storage"
+	"github.com/containers/storage"
 	"github.com/pkg/errors"
 )
 
@@ -37,7 +37,7 @@ func newReference(transport storageTransport, reference, id string, name referen
 // one present with the same name or ID, and return the image.
 func (s *storageReference) resolveImage() (*storage.Image, error) {
 	if s.id == "" {
-		image, err := s.transport.store.GetImage(s.reference)
+		image, err := s.transport.store.Image(s.reference)
 		if image != nil && err == nil {
 			s.id = image.ID
 		}
@@ -46,7 +46,7 @@ func (s *storageReference) resolveImage() (*storage.Image, error) {
 		logrus.Errorf("reference %q does not resolve to an image ID", s.StringWithinTransport())
 		return nil, ErrNoSuchImage
 	}
-	img, err := s.transport.store.GetImage(s.id)
+	img, err := s.transport.store.Image(s.id)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error reading image %q", s.id)
 	}
@@ -83,7 +83,7 @@ func (s storageReference) DockerReference() reference.Named {
 // disambiguate between images which may be present in multiple stores and
 // share only their names.
 func (s storageReference) StringWithinTransport() string {
-	storeSpec := "[" + s.transport.store.GetGraphDriverName() + "@" + s.transport.store.GetGraphRoot() + "]"
+	storeSpec := "[" + s.transport.store.GraphDriverName() + "@" + s.transport.store.GraphRoot() + "]"
 	if s.name == nil {
 		return storeSpec + "@" + s.id
 	}
@@ -102,8 +102,8 @@ func (s storageReference) PolicyConfigurationIdentity() string {
 // graph root, in case we're using multiple drivers in the same directory for
 // some reason.
 func (s storageReference) PolicyConfigurationNamespaces() []string {
-	storeSpec := "[" + s.transport.store.GetGraphDriverName() + "@" + s.transport.store.GetGraphRoot() + "]"
-	driverlessStoreSpec := "[" + s.transport.store.GetGraphRoot() + "]"
+	storeSpec := "[" + s.transport.store.GraphDriverName() + "@" + s.transport.store.GraphRoot() + "]"
+	driverlessStoreSpec := "[" + s.transport.store.GraphRoot() + "]"
 	namespaces := []string{}
 	if s.name != nil {
 		if s.id != "" {

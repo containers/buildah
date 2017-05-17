@@ -21,8 +21,8 @@ const (
 	// MediaTypeImageManifest specifies the media type for an image manifest.
 	MediaTypeImageManifest = "application/vnd.oci.image.manifest.v1+json"
 
-	// MediaTypeImageManifestList specifies the media type for an image manifest list.
-	MediaTypeImageManifestList = "application/vnd.oci.image.manifest.list.v1+json"
+	// MediaTypeImageIndex specifies the media type for an image index.
+	MediaTypeImageIndex = "application/vnd.oci.image.index.v1+json"
 
 	// MediaTypeImageLayer is the media type used for layers referenced by the manifest.
 	MediaTypeImageLayer = "application/vnd.oci.image.layer.v1.tar"

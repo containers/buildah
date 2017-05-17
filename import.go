@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	is "github.com/containers/image/storage"
-	"github.com/containers/storage/storage"
+	"github.com/containers/storage"
 )
 
 func importBuilder(store storage.Store, options ImportOptions) (*Builder, error) {
@@ -17,7 +17,7 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 		return nil, fmt.Errorf("container name must be specified")
 	}
 
-	c, err := store.GetContainer(options.Container)
+	c, err := store.Container(options.Container)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 			return nil, fmt.Errorf("error reading image manifest: %v", err)
 		}
 		image = c.ImageID
-		if img, err4 := store.GetImage(image); err4 == nil {
+		if img, err4 := store.Image(image); err4 == nil {
 			if len(img.Names) > 0 {
 				imageName = img.Names[0]
 			}

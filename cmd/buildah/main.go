@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/containers/storage/storage"
+	"github.com/containers/storage"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )

@@ -135,6 +135,27 @@ func (m *manifestSchema1) LayerInfos() []types.BlobInfo {
 	return layers
 }
 
+// EmbeddedDockerReferenceConflicts whether a Docker reference embedded in the manifest, if any, conflicts with destination ref.
+// It returns false if the manifest does not embed a Docker reference.
+// (This embedding unfortunately happens for Docker schema1, please do not add support for this in any new formats.)
+func (m *manifestSchema1) EmbeddedDockerReferenceConflicts(ref reference.Named) bool {
+	// This is a bit convoluted: We can’t just have a "get embedded docker reference" method
+	// and have the “does it conflict” logic in the generic copy code, because the manifest does not actually
+	// embed a full docker/distribution reference, but only the repo name and tag (without the host name).
+	// So we would have to provide a “return repo without host name, and tag” getter for the generic code,
+	// which would be very awkward.  Instead, we do the matching here in schema1-specific code, and all the
+	// generic copy code needs to know about is reference.Named and that a manifest may need updating
+	// for some destinations.
+	name := reference.Path(ref)
+	var tag string
+	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
+		tag = tagged.Tag()
+	} else {
+		tag = ""
+	}
+	return m.Name != name || m.Tag != tag
+}
+
 func (m *manifestSchema1) imageInspectInfo() (*types.ImageInspectInfo, error) {
 	v1 := &v1Image{}
 	if err := json.Unmarshal([]byte(m.History[0].V1Compatibility), v1); err != nil {
@@ -171,6 +192,14 @@ func (m *manifestSchema1) UpdatedImage(options types.ManifestUpdateOptions) (typ
 			// but (docker pull) ignores them in favor of computing DiffIDs from uncompressed data, except verifying the child->parent links and uniqueness.
 			// So, we don't bother recomputing the IDs in m.History.V1Compatibility.
 			copy.FSLayers[(len(options.LayerInfos)-1)-i].BlobSum = info.Digest
+		}
+	}
+	if options.EmbeddedDockerReference != nil {
+		copy.Name = reference.Path(options.EmbeddedDockerReference)
+		if tagged, isTagged := options.EmbeddedDockerReference.(reference.NamedTagged); isTagged {
+			copy.Tag = tagged.Tag()
+		} else {
+			copy.Tag = ""
 		}
 	}
 

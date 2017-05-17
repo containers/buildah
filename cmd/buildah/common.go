@@ -5,7 +5,7 @@ import (
 	"os"
 
 	is "github.com/containers/image/storage"
-	"github.com/containers/storage/storage"
+	"github.com/containers/storage"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )

@@ -13,9 +13,9 @@ import (
 	"github.com/containers/image/image"
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
+	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/ioutils"
-	"github.com/containers/storage/storage"
 	ddigest "github.com/opencontainers/go-digest"
 )
 
@@ -138,9 +138,9 @@ func (s *storageImageDestination) putBlob(stream io.Reader, blobinfo types.BlobI
 		Size:   -1,
 	}
 	// Try to read an initial snippet of the blob.
-	header := make([]byte, 10240)
-	n, err := stream.Read(header)
-	if err != nil && err != io.EOF {
+	buf := [archive.HeaderSize]byte{}
+	n, err := io.ReadAtLeast(stream, buf[:], len(buf))
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 		return errorBlobInfo, err
 	}
 	// Set up to read the whole blob (the initial snippet, plus the rest)
@@ -154,9 +154,9 @@ func (s *storageImageDestination) putBlob(stream io.Reader, blobinfo types.BlobI
 	}
 	hash := ""
 	counter := ioutils.NewWriteCounter(hasher.Hash())
-	defragmented := io.MultiReader(bytes.NewBuffer(header[:n]), stream)
+	defragmented := io.MultiReader(bytes.NewBuffer(buf[:n]), stream)
 	multi := io.TeeReader(defragmented, counter)
-	if (n > 0) && archive.IsArchive(header[:n]) {
+	if (n > 0) && archive.IsArchive(buf[:n]) {
 		// It's a filesystem layer.  If it's not the first one in the
 		// image, we assume that the most recently added layer is its
 		// parent.
@@ -307,7 +307,7 @@ func (s *storageImageDestination) ReapplyBlob(blobinfo types.BlobInfo) (types.Bl
 		return types.BlobInfo{}, err
 	}
 	if layerList, ok := s.Layers[blobinfo.Digest]; !ok || len(layerList) < 1 {
-		b, err := s.imageRef.transport.store.GetImageBigData(s.ID, blobinfo.Digest.String())
+		b, err := s.imageRef.transport.store.ImageBigData(s.ID, blobinfo.Digest.String())
 		if err != nil {
 			return types.BlobInfo{}, err
 		}
@@ -335,7 +335,7 @@ func (s *storageImageDestination) Commit() error {
 			logrus.Debugf("error creating image: %q", err)
 			return errors.Wrapf(err, "error creating image %q", s.ID)
 		}
-		img, err = s.imageRef.transport.store.GetImage(s.ID)
+		img, err = s.imageRef.transport.store.Image(s.ID)
 		if err != nil {
 			return errors.Wrapf(err, "error reading image %q", s.ID)
 		}
@@ -420,6 +420,10 @@ func (s *storageImageDestination) SupportedManifestMIMETypes() []string {
 	return nil
 }
 
+// PutManifest writes manifest to the destination.
+// FIXME? This should also receive a MIME type if known, to differentiate between schema versions.
+// If the destination is in principle available, refuses this manifest type (e.g. it does not recognize the schema),
+// but may accept a different manifest type, the returned error must be an ManifestTypeRejectedError.
 func (s *storageImageDestination) PutManifest(manifest []byte) error {
 	s.Manifest = make([]byte, len(manifest))
 	copy(s.Manifest, manifest)
@@ -464,7 +468,7 @@ func (s *storageImageSource) getBlobAndLayerID(info types.BlobInfo) (rc io.ReadC
 		return nil, -1, "", err
 	}
 	if layerList, ok := s.Layers[info.Digest]; !ok || len(layerList) < 1 {
-		b, err := s.imageRef.transport.store.GetImageBigData(s.ID, info.Digest.String())
+		b, err := s.imageRef.transport.store.ImageBigData(s.ID, info.Digest.String())
 		if err != nil {
 			return nil, -1, "", err
 		}
@@ -488,7 +492,7 @@ func (s *storageImageSource) getBlobAndLayerID(info types.BlobInfo) (rc io.ReadC
 }
 
 func diffLayer(store storage.Store, layerID string) (rc io.ReadCloser, n int64, err error) {
-	layer, err := store.GetLayer(layerID)
+	layer, err := store.Layer(layerID)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -513,7 +517,7 @@ func diffLayer(store storage.Store, layerID string) (rc io.ReadCloser, n int64, 
 }
 
 func (s *storageImageSource) GetManifest() (manifestBlob []byte, MIMEType string, err error) {
-	manifestBlob, err = s.imageRef.transport.store.GetImageBigData(s.ID, "manifest")
+	manifestBlob, err = s.imageRef.transport.store.ImageBigData(s.ID, "manifest")
 	return manifestBlob, manifest.GuessMIMEType(manifestBlob), err
 }
 
@@ -523,7 +527,7 @@ func (s *storageImageSource) GetTargetManifest(digest ddigest.Digest) (manifestB
 
 func (s *storageImageSource) GetSignatures() (signatures [][]byte, err error) {
 	var offset int
-	signature, err := s.imageRef.transport.store.GetImageBigData(s.ID, "signatures")
+	signature, err := s.imageRef.transport.store.ImageBigData(s.ID, "signatures")
 	if err != nil {
 		return nil, err
 	}
@@ -545,7 +549,7 @@ func (s *storageImageSource) getSize() (int64, error) {
 		return -1, errors.Wrapf(err, "error reading image %q", s.imageRef.id)
 	}
 	for _, name := range names {
-		bigSize, err := s.imageRef.transport.store.GetImageBigDataSize(s.imageRef.id, name)
+		bigSize, err := s.imageRef.transport.store.ImageBigDataSize(s.imageRef.id, name)
 		if err != nil {
 			return -1, errors.Wrapf(err, "error reading data blob size %q for %q", name, s.imageRef.id)
 		}
@@ -556,7 +560,7 @@ func (s *storageImageSource) getSize() (int64, error) {
 	}
 	for _, layerList := range s.Layers {
 		for _, layerID := range layerList {
-			layer, err := s.imageRef.transport.store.GetLayer(layerID)
+			layer, err := s.imageRef.transport.store.Layer(layerID)
 			if err != nil {
 				return -1, err
 			}

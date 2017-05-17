@@ -6,7 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	is "github.com/containers/image/storage"
-	"github.com/containers/storage/storage"
+	"github.com/containers/storage"
 	"github.com/openshift/imagebuilder"
 )
 
@@ -51,7 +51,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		suffix := 1
 		tmpName := name
 		for err != storage.ErrContainerUnknown {
-			_, err = store.GetContainer(tmpName)
+			_, err = store.Container(tmpName)
 			if err == nil {
 				suffix++
 				tmpName = fmt.Sprintf("%s-%d", name, suffix)

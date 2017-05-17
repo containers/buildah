@@ -1,7 +1,9 @@
 package layout
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -12,6 +14,7 @@ import (
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	"github.com/opencontainers/go-digest"
+	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -176,8 +179,41 @@ func (ref ociReference) PolicyConfigurationNamespaces() []string {
 // NOTE: If any kind of signature verification should happen, build an UnparsedImage from the value returned by NewImageSource,
 // verify that UnparsedImage, and convert it into a real Image via image.FromUnparsedImage.
 func (ref ociReference) NewImage(ctx *types.SystemContext) (types.Image, error) {
-	src := newImageSource(ref)
+	src, err := newImageSource(ref)
+	if err != nil {
+		return nil, err
+	}
 	return image.FromSource(src)
+}
+
+func (ref ociReference) getManifestDescriptor() (imgspecv1.ManifestDescriptor, error) {
+	indexJSON, err := os.Open(ref.indexPath())
+	if err != nil {
+		return imgspecv1.ManifestDescriptor{}, err
+	}
+	defer indexJSON.Close()
+	index := imgspecv1.ImageIndex{}
+	if err := json.NewDecoder(indexJSON).Decode(&index); err != nil {
+		return imgspecv1.ManifestDescriptor{}, err
+	}
+	var d *imgspecv1.ManifestDescriptor
+	for _, md := range index.Manifests {
+		if md.MediaType != imgspecv1.MediaTypeImageManifest {
+			continue
+		}
+		refName, ok := md.Annotations["org.opencontainers.ref.name"]
+		if !ok {
+			continue
+		}
+		if refName == ref.tag {
+			d = &md
+			break
+		}
+	}
+	if d == nil {
+		return imgspecv1.ManifestDescriptor{}, fmt.Errorf("no descriptor found for reference %q", ref.tag)
+	}
+	return *d, nil
 }
 
 // NewImageSource returns a types.ImageSource for this reference,
@@ -185,7 +221,7 @@ func (ref ociReference) NewImage(ctx *types.SystemContext) (types.Image, error) 
 // nil requestedManifestMIMETypes means manifest.DefaultRequestedManifestMIMETypes.
 // The caller must call .Close() on the returned ImageSource.
 func (ref ociReference) NewImageSource(ctx *types.SystemContext, requestedManifestMIMETypes []string) (types.ImageSource, error) {
-	return newImageSource(ref), nil
+	return newImageSource(ref)
 }
 
 // NewImageDestination returns a types.ImageDestination for this reference.
@@ -199,9 +235,14 @@ func (ref ociReference) DeleteImage(ctx *types.SystemContext) error {
 	return errors.Errorf("Deleting images not implemented for oci: images")
 }
 
-// ociLayoutPathPath returns a path for the oci-layout within a directory using OCI conventions.
+// ociLayoutPath returns a path for the oci-layout within a directory using OCI conventions.
 func (ref ociReference) ociLayoutPath() string {
 	return filepath.Join(ref.dir, "oci-layout")
+}
+
+// indexPath returns a path for the index.json within a directory using OCI conventions.
+func (ref ociReference) indexPath() string {
+	return filepath.Join(ref.dir, "index.json")
 }
 
 // blobPath returns a path for a blob within a directory using OCI image-layout conventions.
@@ -210,9 +251,4 @@ func (ref ociReference) blobPath(digest digest.Digest) (string, error) {
 		return "", errors.Wrapf(err, "unexpected digest reference %s", digest)
 	}
 	return filepath.Join(ref.dir, "blobs", digest.Algorithm().String(), digest.Hex()), nil
-}
-
-// descriptorPath returns a path for the manifest within a directory using OCI conventions.
-func (ref ociReference) descriptorPath(digest string) string {
-	return filepath.Join(ref.dir, "refs", digest)
 }

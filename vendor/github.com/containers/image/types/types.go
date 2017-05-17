@@ -167,14 +167,27 @@ type ImageDestination interface {
 	HasBlob(info BlobInfo) (bool, int64, error)
 	// ReapplyBlob informs the image destination that a blob for which HasBlob previously returned true would have been passed to PutBlob if it had returned false.  Like HasBlob and unlike PutBlob, the digest can not be empty.  If the blob is a filesystem layer, this signifies that the changes it describes need to be applied again when composing a filesystem tree.
 	ReapplyBlob(info BlobInfo) (BlobInfo, error)
+	// PutManifest writes manifest to the destination.
 	// FIXME? This should also receive a MIME type if known, to differentiate between schema versions.
-	PutManifest([]byte) error
+	// If the destination is in principle available, refuses this manifest type (e.g. it does not recognize the schema),
+	// but may accept a different manifest type, the returned error must be an ManifestTypeRejectedError.
+	PutManifest(manifest []byte) error
 	PutSignatures(signatures [][]byte) error
 	// Commit marks the process of storing the image as successful and asks for the image to be persisted.
 	// WARNING: This does not have any transactional semantics:
 	// - Uploaded data MAY be visible to others before Commit() is called
 	// - Uploaded data MAY be removed or MAY remain around if Close() is called without Commit() (i.e. rollback is allowed but not guaranteed)
 	Commit() error
+}
+
+// ManifestTypeRejectedError is returned by ImageDestination.PutManifest if the destination is in principle available,
+// refuses specifically this manifest type, but may accept a different manifest type.
+type ManifestTypeRejectedError struct { // We only use a struct to allow a type assertion, without limiting the contents of the error otherwise.
+	Err error
+}
+
+func (e ManifestTypeRejectedError) Error() string {
+	return e.Err.Error()
 }
 
 // UnparsedImage is an Image-to-be; until it is verified and accepted, it only caries its identity and caches manifest and signature blobs.
@@ -213,6 +226,10 @@ type Image interface {
 	// The Digest field is guaranteed to be provided; Size may be -1.
 	// WARNING: The list may contain duplicates, and they are semantically relevant.
 	LayerInfos() []BlobInfo
+	// EmbeddedDockerReferenceConflicts whether a Docker reference embedded in the manifest, if any, conflicts with destination ref.
+	// It returns false if the manifest does not embed a Docker reference.
+	// (This embedding unfortunately happens for Docker schema1, please do not add support for this in any new formats.)
+	EmbeddedDockerReferenceConflicts(ref reference.Named) bool
 	// Inspect returns various information for (skopeo inspect) parsed from the manifest and configuration.
 	Inspect() (*ImageInspectInfo, error)
 	// UpdatedImageNeedsLayerDiffIDs returns true iff UpdatedImage(options) needs InformationOnly.LayerDiffIDs.
@@ -232,8 +249,9 @@ type Image interface {
 
 // ManifestUpdateOptions is a way to pass named optional arguments to Image.UpdatedManifest
 type ManifestUpdateOptions struct {
-	LayerInfos       []BlobInfo // Complete BlobInfos (size+digest+urls) which should replace the originals, in order (the root layer first, and then successive layered layers)
-	ManifestMIMEType string
+	LayerInfos              []BlobInfo // Complete BlobInfos (size+digest+urls) which should replace the originals, in order (the root layer first, and then successive layered layers)
+	EmbeddedDockerReference reference.Named
+	ManifestMIMEType        string
 	// The values below are NOT requests to modify the image; they provide optional context which may or may not be used.
 	InformationOnly ManifestUpdateInformation
 }
