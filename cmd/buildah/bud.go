@@ -47,6 +47,10 @@ var (
 			Name:  "runtime-flag",
 			Usage: "add global flags for the container runtime",
 		},
+		cli.StringFlag{
+			Name:  "format",
+			Usage: "`format` of the built image's manifest and metadata",
+		},
 		cli.StringSliceFlag{
 			Name:  "tag, t",
 			Usage: "`tag` to apply to the built image",
@@ -130,6 +134,17 @@ func budCmd(c *cli.Context) error {
 	if c.IsSet("file") || c.IsSet("f") {
 		dockerfiles = c.StringSlice("file")
 	}
+	format := "oci"
+	if c.IsSet("format") {
+		format = strings.ToLower(c.String("format"))
+	}
+	if strings.HasPrefix(format, "oci") {
+		format = imagebuildah.OCIv1ImageFormat
+	} else if strings.HasPrefix(format, "docker") {
+		format = imagebuildah.Dockerv2ImageFormat
+	} else {
+		return fmt.Errorf("unrecognized image type %q", format)
+	}
 	contextDir := ""
 	cliArgs := c.Args()
 	if len(cliArgs) > 0 {
@@ -202,6 +217,7 @@ func budCmd(c *cli.Context) error {
 		AdditionalTags:      tags,
 		Runtime:             runtime,
 		RuntimeArgs:         runtimeFlags,
+		OutputFormat:        format,
 	}
 	if !quiet {
 		options.ReportWriter = os.Stderr

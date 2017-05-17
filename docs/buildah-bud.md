@@ -67,6 +67,12 @@ Adds global flags for the container rutime.
 Specifies the name which will be assigned to the resulting image if the build
 process completes successfully.
 
+**--format**
+
+Control the format for the built image's manifest and configuration data.
+Recognized formats include *oci* (OCI image-spec v1.0, the default) and
+*docker* (version 2, using schema format 2 for the manifest).
+
 **--quiet**
 
 Suppress output messages which indicate which instruction is being processed,
