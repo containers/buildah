@@ -1,12 +1,14 @@
 package buildah
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/copy"
 	"github.com/containers/image/signature"
 	"github.com/containers/image/storage"
+	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/projectatomic/buildah/util"
@@ -47,22 +49,22 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	}
 	src, err := b.makeContainerImageRef(options.Compression)
 	if err != nil {
-		return err
+		return fmt.Errorf("error recomputing layer digests and building metadata: %v", err)
 	}
 	err = copy.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter))
 	if err != nil {
-		return err
+		return fmt.Errorf("error copying layers and metadata: %v", err)
 	}
 	if len(options.AdditionalTags) > 0 {
 		switch dest.Transport().Name() {
 		case storage.Transport.Name():
 			img, err := storage.Transport.GetStoreImage(b.store, dest)
 			if err != nil {
-				return err
+				return fmt.Errorf("error locating just-written image %q: %v", transports.ImageName(dest), err)
 			}
 			err = util.AddImageNames(b.store, img, options.AdditionalTags)
 			if err != nil {
-				return err
+				return fmt.Errorf("error setting image names to %v: %v", append(img.Names, options.AdditionalTags...), err)
 			}
 		default:
 			logrus.Warnf("don't know how to add tags to images stored in %q transport", dest.Transport().Name())
