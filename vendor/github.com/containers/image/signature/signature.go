@@ -1,5 +1,7 @@
 // Note: Consider the API unstable until the code supports at least three different image formats or transports.
 
+// NOTE: Keep this in sync with docs/atomic-signature.md and docs/atomic-signature-embedded.json!
+
 package signature
 
 import (

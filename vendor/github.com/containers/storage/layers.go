@@ -163,7 +163,6 @@ type layerStore struct {
 	idindex  *truncindex.TruncIndex
 	byid     map[string]*Layer
 	byname   map[string]*Layer
-	byparent map[string][]*Layer
 	bymount  map[string]*Layer
 }
 
@@ -231,7 +230,6 @@ func (r *layerStore) Load() error {
 	r.idindex = truncindex.NewTruncIndex(idlist)
 	r.byid = ids
 	r.byname = names
-	r.byparent = parents
 	r.bymount = mounts
 	err = nil
 	// Last step: try to remove anything that a previous user of this
@@ -309,7 +307,6 @@ func newLayerStore(rundir string, layerdir string, driver drivers.Driver) (Layer
 		byid:     make(map[string]*Layer),
 		bymount:  make(map[string]*Layer),
 		byname:   make(map[string]*Layer),
-		byparent: make(map[string][]*Layer),
 	}
 	if err := rlstore.Load(); err != nil {
 		return nil, err
@@ -399,12 +396,6 @@ func (r *layerStore) Put(id, parent string, names []string, mountLabel string, o
 		r.byid[id] = layer
 		for _, name := range names {
 			r.byname[name] = layer
-		}
-		if pslice, ok := r.byparent[parent]; ok {
-			pslice = append(pslice, layer)
-			r.byparent[parent] = pslice
-		} else {
-			r.byparent[parent] = []*Layer{layer}
 		}
 		for flag, value := range flags {
 			layer.Flags[flag] = value
@@ -520,7 +511,7 @@ func (r *layerStore) SetNames(id string, names []string) error {
 	return ErrLayerUnknown
 }
 
-func (r *layerStore) GetMetadata(id string) (string, error) {
+func (r *layerStore) Metadata(id string) (string, error) {
 	if layer, ok := r.lookup(id); ok {
 		return layer.Metadata, nil
 	}
@@ -553,23 +544,8 @@ func (r *layerStore) Delete(id string) error {
 	err := r.driver.Remove(id)
 	if err == nil {
 		os.Remove(r.tspath(id))
-		pslice := r.byparent[layer.Parent]
-		newPslice := []*Layer{}
-		for _, candidate := range pslice {
-			if candidate.ID != id {
-				newPslice = append(newPslice, candidate)
-			}
-		}
 		delete(r.byid, id)
 		r.idindex.Delete(id)
-		if len(newPslice) > 0 {
-			r.byparent[layer.Parent] = newPslice
-		} else {
-			delete(r.byparent, layer.Parent)
-		}
-		for _, name := range layer.Names {
-			delete(r.byname, name)
-		}
 		if layer.MountPoint != "" {
 			delete(r.bymount, layer.MountPoint)
 		}
@@ -619,11 +595,12 @@ func (r *layerStore) Wipe() error {
 	return nil
 }
 
-func (r *layerStore) findParentAndLayer(from, to string) (fromID string, toID string, fromLayer *Layer, toLayer *Layer, err error) {
+func (r *layerStore) findParentAndLayer(from, to string) (fromID string, toID string, toLayer *Layer, err error) {
 	var ok bool
+	var fromLayer *Layer
 	toLayer, ok = r.lookup(to)
 	if !ok {
-		return "", "", nil, nil, ErrLayerUnknown
+		return "", "", nil, ErrLayerUnknown
 	}
 	to = toLayer.ID
 	if from == "" {
@@ -631,19 +608,20 @@ func (r *layerStore) findParentAndLayer(from, to string) (fromID string, toID st
 	}
 	if from != "" {
 		fromLayer, ok = r.lookup(from)
-		if !ok {
+		if ok {
+			from = fromLayer.ID
+		} else {
 			fromLayer, ok = r.lookup(toLayer.Parent)
-			if !ok {
-				return "", "", nil, nil, ErrParentUnknown
+			if ok {
+				from = fromLayer.ID
 			}
 		}
-		from = fromLayer.ID
 	}
-	return from, to, fromLayer, toLayer, nil
+	return from, to, toLayer, nil
 }
 
 func (r *layerStore) Changes(from, to string) ([]archive.Change, error) {
-	from, to, _, _, err := r.findParentAndLayer(from, to)
+	from, to, _, err := r.findParentAndLayer(from, to)
 	if err != nil {
 		return nil, ErrLayerUnknown
 	}
@@ -682,7 +660,7 @@ func (r *layerStore) newFileGetter(id string) (drivers.FileGetCloser, error) {
 func (r *layerStore) Diff(from, to string) (io.ReadCloser, error) {
 	var metadata storage.Unpacker
 
-	from, to, _, toLayer, err := r.findParentAndLayer(from, to)
+	from, to, toLayer, err := r.findParentAndLayer(from, to)
 	if err != nil {
 		return nil, ErrLayerUnknown
 	}
@@ -772,7 +750,7 @@ func (r *layerStore) Diff(from, to string) (io.ReadCloser, error) {
 }
 
 func (r *layerStore) DiffSize(from, to string) (size int64, err error) {
-	from, to, _, _, err = r.findParentAndLayer(from, to)
+	from, to, _, err = r.findParentAndLayer(from, to)
 	if err != nil {
 		return -1, ErrLayerUnknown
 	}

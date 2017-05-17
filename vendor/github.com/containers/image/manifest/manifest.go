@@ -54,7 +54,7 @@ func GuessMIMEType(manifest []byte) string {
 	}
 
 	switch meta.MediaType {
-	case DockerV2Schema2MediaType, DockerV2ListMediaType, imgspecv1.MediaTypeImageManifest, imgspecv1.MediaTypeImageManifestList: // A recognized type.
+	case DockerV2Schema2MediaType, DockerV2ListMediaType: // A recognized type.
 		return meta.MediaType
 	}
 	// this is the only way the function can return DockerV2Schema1MediaType, and recognizing that is essential for stripping the JWS signatures = computing the correct manifest digest.
@@ -64,7 +64,31 @@ func GuessMIMEType(manifest []byte) string {
 			return DockerV2Schema1SignedMediaType
 		}
 		return DockerV2Schema1MediaType
-	case 2: // Really should not happen, meta.MediaType should have been set. But given the data, this is our best guess.
+	case 2:
+		// best effort to understand if this is an OCI image since mediaType
+		// isn't in the manifest for OCI anymore
+		// for docker v2s2 meta.MediaType should have been set. But given the data, this is our best guess.
+		ociMan := struct {
+			Config struct {
+				MediaType string `json:"mediaType"`
+			} `json:"config"`
+			Layers []imgspecv1.Descriptor `json:"layers"`
+		}{}
+		if err := json.Unmarshal(manifest, &ociMan); err != nil {
+			return ""
+		}
+		if ociMan.Config.MediaType == imgspecv1.MediaTypeImageConfig && len(ociMan.Layers) != 0 {
+			return imgspecv1.MediaTypeImageManifest
+		}
+		ociIndex := struct {
+			Manifests []imgspecv1.Descriptor `json:"manifests"`
+		}{}
+		if err := json.Unmarshal(manifest, &ociIndex); err != nil {
+			return ""
+		}
+		if len(ociIndex.Manifests) != 0 && ociIndex.Manifests[0].MediaType == imgspecv1.MediaTypeImageManifest {
+			return imgspecv1.MediaTypeImageIndex
+		}
 		return DockerV2Schema2MediaType
 	}
 	return ""

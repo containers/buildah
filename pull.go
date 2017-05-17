@@ -10,7 +10,7 @@ import (
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
-	"github.com/containers/storage/storage"
+	"github.com/containers/storage"
 )
 
 func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemContext) error {

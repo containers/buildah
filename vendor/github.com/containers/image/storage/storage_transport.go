@@ -10,7 +10,7 @@ import (
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
-	"github.com/containers/storage/storage"
+	"github.com/containers/storage"
 	"github.com/opencontainers/go-digest"
 	ddigest "github.com/opencontainers/go-digest"
 )
@@ -110,7 +110,7 @@ func (s storageTransport) ParseStoreReference(store storage.Store, ref string) (
 		// recognize.
 		return nil, ErrInvalidReference
 	}
-	storeSpec := "[" + store.GetGraphDriverName() + "@" + store.GetGraphRoot() + "]"
+	storeSpec := "[" + store.GraphDriverName() + "@" + store.GraphRoot() + "]"
 	id := ""
 	if sum.Validate() == nil {
 		id = sum.Hex()
@@ -205,14 +205,14 @@ func (s storageTransport) GetStoreImage(store storage.Store, ref types.ImageRefe
 	if dref == nil {
 		if sref, ok := ref.(*storageReference); ok {
 			if sref.id != "" {
-				if img, err := store.GetImage(sref.id); err == nil {
+				if img, err := store.Image(sref.id); err == nil {
 					return img, nil
 				}
 			}
 		}
 		return nil, ErrInvalidReference
 	}
-	return store.GetImage(verboseName(dref))
+	return store.Image(verboseName(dref))
 }
 
 func (s *storageTransport) GetImage(ref types.ImageReference) (*storage.Image, error) {

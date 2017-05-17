@@ -15,9 +15,9 @@ import (
 	"github.com/containers/image/image"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
+	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/ioutils"
-	"github.com/containers/storage/storage"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
 	"github.com/opencontainers/image-spec/specs-go/v1"
@@ -67,7 +67,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 	}
 	layers := []string{}
 	layerID := i.container.LayerID
-	layer, err := i.store.GetLayer(layerID)
+	layer, err := i.store.Layer(layerID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read layer %q: %v", layerID, err)
 	}
@@ -78,7 +78,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 			err = nil
 			break
 		}
-		layer, err = i.store.GetLayer(layerID)
+		layer, err = i.store.Layer(layerID)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read layer %q: %v", layerID, err)
 		}
@@ -311,7 +311,7 @@ func (i *containerImageSource) GetBlob(blob types.BlobInfo) (reader io.ReadClose
 
 func (b *Builder) makeContainerImageRef(compress archive.Compression) (types.ImageReference, error) {
 	var name reference.Named
-	container, err := b.store.GetContainer(b.ContainerID)
+	container, err := b.store.Container(b.ContainerID)
 	if err != nil {
 		return nil, err
 	}

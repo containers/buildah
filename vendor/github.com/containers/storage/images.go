@@ -249,7 +249,7 @@ func (r *imageStore) Create(id string, names []string, layer, metadata string) (
 	return image, err
 }
 
-func (r *imageStore) GetMetadata(id string) (string, error) {
+func (r *imageStore) Metadata(id string) (string, error) {
 	if image, ok := r.lookup(id); ok {
 		return image.Metadata, nil
 	}
@@ -331,7 +331,7 @@ func (r *imageStore) Exists(id string) bool {
 	return ok
 }
 
-func (r *imageStore) GetBigData(id, key string) ([]byte, error) {
+func (r *imageStore) BigData(id, key string) ([]byte, error) {
 	image, ok := r.lookup(id)
 	if !ok {
 		return nil, ErrImageUnknown
@@ -339,7 +339,7 @@ func (r *imageStore) GetBigData(id, key string) ([]byte, error) {
 	return ioutil.ReadFile(r.datapath(image.ID, key))
 }
 
-func (r *imageStore) GetBigDataSize(id, key string) (int64, error) {
+func (r *imageStore) BigDataSize(id, key string) (int64, error) {
 	image, ok := r.lookup(id)
 	if !ok {
 		return -1, ErrImageUnknown
@@ -350,7 +350,7 @@ func (r *imageStore) GetBigDataSize(id, key string) (int64, error) {
 	return -1, ErrSizeUnknown
 }
 
-func (r *imageStore) GetBigDataNames(id string) ([]string, error) {
+func (r *imageStore) BigDataNames(id string) ([]string, error) {
 	image, ok := r.lookup(id)
 	if !ok {
 		return nil, ErrImageUnknown

@@ -30,4 +30,7 @@ type Descriptor struct {
 
 	// URLs specifies a list of URLs from which this object MAY be downloaded
 	URLs []string `json:"urls,omitempty"`
+
+	// Annotations contains arbitrary metadata relating to the targeted content.
+	Annotations map[string]string `json:"annotations,omitempty"`
 }

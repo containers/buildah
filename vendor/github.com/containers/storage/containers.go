@@ -264,7 +264,7 @@ func (r *containerStore) Create(id string, names []string, image, layer, metadat
 	return container, err
 }
 
-func (r *containerStore) GetMetadata(id string) (string, error) {
+func (r *containerStore) Metadata(id string) (string, error) {
 	if container, ok := r.lookup(id); ok {
 		return container.Metadata, nil
 	}
@@ -347,7 +347,7 @@ func (r *containerStore) Exists(id string) bool {
 	return ok
 }
 
-func (r *containerStore) GetBigData(id, key string) ([]byte, error) {
+func (r *containerStore) BigData(id, key string) ([]byte, error) {
 	c, ok := r.lookup(id)
 	if !ok {
 		return nil, ErrContainerUnknown
@@ -355,7 +355,7 @@ func (r *containerStore) GetBigData(id, key string) ([]byte, error) {
 	return ioutil.ReadFile(r.datapath(c.ID, key))
 }
 
-func (r *containerStore) GetBigDataSize(id, key string) (int64, error) {
+func (r *containerStore) BigDataSize(id, key string) (int64, error) {
 	c, ok := r.lookup(id)
 	if !ok {
 		return -1, ErrContainerUnknown
@@ -366,7 +366,7 @@ func (r *containerStore) GetBigDataSize(id, key string) (int64, error) {
 	return -1, ErrSizeUnknown
 }
 
-func (r *containerStore) GetBigDataNames(id string) ([]string, error) {
+func (r *containerStore) BigDataNames(id string) ([]string, error) {
 	c, ok := r.lookup(id)
 	if !ok {
 		return nil, ErrContainerUnknown
