@@ -16,6 +16,9 @@ import (
 
 // CommitOptions can be used to alter how an image is committed.
 type CommitOptions struct {
+	// PreferredManifestType is the preferred type of image manifest.  The
+	// image configuration format will be of a compatible type.
+	PreferredManifestType string
 	// Compression specifies the type of compression which is applied to
 	// layer blobs.  The default is to not use compression, but
 	// archive.Gzip is recommended.
@@ -47,7 +50,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	if err != nil {
 		return err
 	}
-	src, err := b.makeContainerImageRef(options.Compression)
+	src, err := b.makeContainerImageRef(options.PreferredManifestType, options.Compression)
 	if err != nil {
 		return fmt.Errorf("error recomputing layer digests and building metadata: %v", err)
 	}

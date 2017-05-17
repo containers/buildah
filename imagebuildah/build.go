@@ -24,10 +24,12 @@ import (
 )
 
 const (
-	PullIfMissing  = buildah.PullIfMissing
-	PullAlways     = buildah.PullAlways
-	PullNever      = buildah.PullNever
-	DefaultRuntime = buildah.DefaultRuntime
+	PullIfMissing       = buildah.PullIfMissing
+	PullAlways          = buildah.PullAlways
+	PullNever           = buildah.PullNever
+	DefaultRuntime      = buildah.DefaultRuntime
+	OCIv1ImageFormat    = buildah.OCIv1ImageManifest
+	Dockerv2ImageFormat = buildah.Dockerv2ImageManifest
 
 	Gzip         = archive.Gzip
 	Bzip2        = archive.Bzip2
@@ -91,6 +93,10 @@ type BuildOptions struct {
 	// progress of the (possible) pulling of the source image and the
 	// writing of the new image.
 	ReportWriter io.Writer
+	// OutputFormat is the format of the output image's manifest and
+	// configuration data.
+	// Accepted values are OCIv1ImageFormat and Dockerv2ImageFormat.
+	OutputFormat string
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor

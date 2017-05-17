@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/containers/image/storage"
 	"github.com/containers/image/transports/alltransports"
@@ -20,6 +21,10 @@ var (
 		cli.StringFlag{
 			Name:  "signature-policy",
 			Usage: "`pathname` of signature policy file (not usually used)",
+		},
+		cli.StringFlag{
+			Name:  "format, f",
+			Usage: "`format` of the image manifest and metadata",
 		},
 		cli.BoolFlag{
 			Name:  "quiet, q",
@@ -64,6 +69,17 @@ func commitCmd(c *cli.Context) error {
 	if c.IsSet("quiet") {
 		quiet = c.Bool("quiet")
 	}
+	format := "oci"
+	if c.IsSet("format") {
+		format = c.String("format")
+	}
+	if strings.HasPrefix(strings.ToLower(format), "oci") {
+		format = buildah.OCIv1ImageManifest
+	} else if strings.HasPrefix(strings.ToLower(format), "docker") {
+		format = buildah.Dockerv2ImageManifest
+	} else {
+		return fmt.Errorf("unrecognized image type %q", format)
+	}
 	store, err := getStore(c)
 	if err != nil {
 		return err
@@ -84,8 +100,9 @@ func commitCmd(c *cli.Context) error {
 	}
 
 	options := buildah.CommitOptions{
-		Compression:         compress,
-		SignaturePolicyPath: signaturePolicy,
+		PreferredManifestType: format,
+		Compression:           compress,
+		SignaturePolicyPath:   signaturePolicy,
 	}
 	if !quiet {
 		options.ReportWriter = os.Stderr

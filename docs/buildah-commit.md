@@ -27,6 +27,12 @@ option be used, as the default behavior of using the system-wide default policy
 
 When writing the output image, suppress progress output.
 
+**--format**
+
+Control the format for the image manifest and configuration data.  Recognized
+formats include *oci* (OCI image-spec v1.0, the default) and *docker* (version
+2, using schema format 2 for the manifest).
+
 ## EXAMPLE
 
 buildah commit containerID

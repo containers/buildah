@@ -24,15 +24,27 @@ import (
 	"github.com/projectatomic/buildah/docker"
 )
 
+const (
+	// OCIv1ImageManifest is the MIME type of an OCIv1 image manifest,
+	// suitable for specifying as a value of the PreferredManifestType
+	// member of a CommitOptions structure.  It is also the default.
+	OCIv1ImageManifest = v1.MediaTypeImageManifest
+	// Dockerv2ImageManifest is the MIME type of a Docker v2s2 image
+	// manifest, suitable for specifying as a value of the
+	// PreferredManifestType member of a CommitOptions structure.
+	Dockerv2ImageManifest = docker.V2S2MediaTypeManifest
+)
+
 type containerImageRef struct {
-	store       storage.Store
-	container   *storage.Container
-	compression archive.Compression
-	name        reference.Named
-	oconfig     []byte
-	dconfig     []byte
-	createdBy   string
-	annotations map[string]string
+	store                 storage.Store
+	container             *storage.Container
+	compression           archive.Compression
+	name                  reference.Named
+	oconfig               []byte
+	dconfig               []byte
+	createdBy             string
+	annotations           map[string]string
+	preferredManifestType string
 }
 
 type containerImageSource struct {
@@ -57,16 +69,25 @@ func (i *containerImageRef) NewImage(sc *types.SystemContext) (types.Image, erro
 
 func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestTypes []string) (src types.ImageSource, err error) {
 	manifestType := ""
-	// Look for a supported format in the acceptable list.
+	// If we have a preferred format, and it's in the acceptable list, select that one.
 	for _, mt := range manifestTypes {
-		if mt == v1.MediaTypeImageManifest {
+		if mt == i.preferredManifestType {
 			manifestType = mt
 			break
 		}
-		if mt == docker.V2S2MediaTypeManifest {
-			manifestType = mt
-			break
+	}
+	// Look for a supported format in the acceptable list.
+	if manifestType == "" {
+		for _, mt := range manifestTypes {
+			if mt == v1.MediaTypeImageManifest || mt == docker.V2S2MediaTypeManifest {
+				manifestType = mt
+				break
+			}
 		}
+	}
+	// If we don't support any of the passed-in formats, try to select our preferred one.
+	if manifestType == "" {
+		manifestType = i.preferredManifestType
 	}
 	// If it's not a format we support, return an error.
 	if manifestType != v1.MediaTypeImageManifest && manifestType != docker.V2S2MediaTypeManifest {
@@ -381,8 +402,11 @@ func (i *containerImageSource) GetBlob(blob types.BlobInfo) (reader io.ReadClose
 	return ioutils.NewReadCloserWrapper(layerFile, closer), size, nil
 }
 
-func (b *Builder) makeContainerImageRef(compress archive.Compression) (types.ImageReference, error) {
+func (b *Builder) makeContainerImageRef(manifestType string, compress archive.Compression) (types.ImageReference, error) {
 	var name reference.Named
+	if manifestType == "" {
+		manifestType = OCIv1ImageManifest
+	}
 	container, err := b.store.Container(b.ContainerID)
 	if err != nil {
 		return nil, err
@@ -402,14 +426,15 @@ func (b *Builder) makeContainerImageRef(compress archive.Compression) (types.Ima
 		return nil, err
 	}
 	ref := &containerImageRef{
-		store:       b.store,
-		container:   container,
-		compression: compress,
-		name:        name,
-		oconfig:     oconfig,
-		dconfig:     dconfig,
-		createdBy:   b.CreatedBy(),
-		annotations: b.Annotations(),
+		store:                 b.store,
+		container:             container,
+		compression:           compress,
+		name:                  name,
+		oconfig:               oconfig,
+		dconfig:               dconfig,
+		createdBy:             b.CreatedBy(),
+		annotations:           b.Annotations(),
+		preferredManifestType: manifestType,
 	}
 	return ref, nil
 }

@@ -293,6 +293,8 @@ return 1
 
      local options_with_args="
           --signature-policy
+          --format
+          -f
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -345,6 +347,7 @@ return 1
      --file
      -f
      --build-arg
+     --format
   "
 
      local all_options="$options_with_args $boolean_options"
