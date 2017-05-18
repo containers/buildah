@@ -127,6 +127,18 @@ type ImportOptions struct {
 	SignaturePolicyPath string
 }
 
+// ImportFromImageOptions are used to initialize a Builder from an image.
+type ImportFromImageOptions struct {
+	// Image is the name or ID of the image we'd like to examine.
+	Image string
+	// SignaturePolicyPath specifies an override location for the signature
+	// policy which should be used for verifying the new image as it is
+	// being written.  Except in specific circumstances, no value should be
+	// specified, indicating that the shared, system-wide default policy
+	// should be used.
+	SignaturePolicyPath string
+}
+
 // NewBuilder creates a new build container.
 func NewBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	return newBuilder(store, options)
@@ -136,6 +148,13 @@ func NewBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 // container.
 func ImportBuilder(store storage.Store, options ImportOptions) (*Builder, error) {
 	return importBuilder(store, options)
+}
+
+// ImportBuilderFromImage creates a new builder configuration using an image.
+// The returned object can be modified and examined, but it can not be saved
+// or committed because it is not associated with a working container.
+func ImportBuilderFromImage(store storage.Store, options ImportFromImageOptions) (*Builder, error) {
+	return importBuilderFromImage(store, options)
 }
 
 // OpenBuilder loads information about a build container given its name or ID.
