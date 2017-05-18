@@ -520,6 +520,23 @@ return 1
      esac
  }
 
+ _buildah_inspect() {
+     local options_with_args="
+       --format
+       -f
+       --type
+       -t
+     "
+
+     local all_options="$options_with_args"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
  _buildah_from() {
      local boolean_options="
      --help
@@ -561,6 +578,7 @@ return 1
        copy
        from
        images
+       inspect
        mount
        rm
        rmi

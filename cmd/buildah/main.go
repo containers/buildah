@@ -82,6 +82,7 @@ func main() {
 		imagesCommand,
 		rmiCommand,
 		budCommand,
+		inspectCommand,
 	}
 	err := app.Run(os.Args)
 	if err != nil {
