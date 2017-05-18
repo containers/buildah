@@ -439,14 +439,40 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 	if err != nil {
 		return fmt.Errorf("error creating build container: %v", err)
 	}
+	volumes := map[string]struct{}{}
+	for _, v := range builder.Volumes() {
+		volumes[v] = struct{}{}
+	}
 	dConfig := docker.Config{
-		Env:   builder.Env(),
-		Image: from,
+		Hostname:   builder.Hostname(),
+		Domainname: builder.Domainname(),
+		User:       builder.User(),
+		Env:        builder.Env(),
+		Cmd:        builder.Cmd(),
+		Image:      from,
+		Volumes:    volumes,
+		WorkingDir: builder.WorkDir(),
+		Entrypoint: builder.Entrypoint(),
+		Labels:     builder.Labels(),
+	}
+	var rootfs *docker.RootFS
+	if builder.Docker.RootFS != nil {
+		rootfs = &docker.RootFS{
+			Type: builder.Docker.RootFS.Type,
+		}
+		for _, id := range builder.Docker.RootFS.DiffIDs {
+			rootfs.Layers = append(rootfs.Layers, id.String())
+		}
 	}
 	dImage := docker.Image{
-		Config:          &dConfig,
+		Parent:          builder.FromImage,
 		ContainerConfig: dConfig,
+		Container:       builder.Container,
+		Author:          builder.Maintainer(),
+		Architecture:    builder.Architecture(),
+		RootFS:          rootfs,
 	}
+	dImage.Config = &dImage.ContainerConfig
 	err = ib.FromImage(&dImage, node)
 	if err != nil {
 		if err2 := builder.Delete(); err2 != nil {
@@ -518,6 +544,30 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 	}
 	if err != nil {
 		return fmt.Errorf("error parsing reference for image to be written: %v", err)
+	}
+	config := ib.Config()
+	b.builder.SetHostname(config.Hostname)
+	b.builder.SetDomainname(config.Domainname)
+	b.builder.SetUser(config.User)
+	b.builder.ClearPorts()
+	for p := range config.ExposedPorts {
+		b.builder.SetPort(string(p))
+	}
+	b.builder.ClearEnv()
+	for _, envSpec := range config.Env {
+		spec := strings.SplitN(envSpec, "=", 2)
+		b.builder.SetEnv(spec[0], spec[1])
+	}
+	b.builder.SetCmd(config.Cmd)
+	b.builder.ClearVolumes()
+	for v := range config.Volumes {
+		b.builder.AddVolume(v)
+	}
+	b.builder.SetWorkDir(config.WorkingDir)
+	b.builder.SetEntrypoint(config.Entrypoint)
+	b.builder.ClearLabels()
+	for k, v := range config.Labels {
+		b.builder.SetLabel(k, v)
 	}
 	if imageRef != nil {
 		logName := transports.ImageName(imageRef)
