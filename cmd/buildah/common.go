@@ -57,3 +57,17 @@ func openBuilder(store storage.Store, name string) (builder *buildah.Builder, er
 func openBuilders(store storage.Store) (builders []*buildah.Builder, err error) {
 	return buildah.OpenAllBuilders(store)
 }
+
+func openImage(store storage.Store, name string) (builder *buildah.Builder, err error) {
+	options := buildah.ImportFromImageOptions{
+		Image: name,
+	}
+	builder, err = buildah.ImportBuilderFromImage(store, options)
+	if err != nil {
+		return nil, fmt.Errorf("error reading image: %v", err)
+	}
+	if builder == nil {
+		return nil, fmt.Errorf("error mocking up build configuration")
+	}
+	return builder, nil
+}
