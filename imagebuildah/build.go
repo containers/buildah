@@ -516,6 +516,9 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 	} else {
 		imageRef, err = is.Transport.ParseStoreReference(b.store, "@"+stringid.GenerateRandomID())
 	}
+	if err != nil {
+		return fmt.Errorf("error parsing reference for image to be written: %v", err)
+	}
 	if imageRef != nil {
 		logName := transports.ImageName(imageRef)
 		logrus.Debugf("COMMIT %q", logName)
@@ -527,9 +530,6 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 		if !b.quiet {
 			b.log("COMMIT")
 		}
-	}
-	if err != nil {
-		return err
 	}
 	options := buildah.CommitOptions{
 		Compression:         b.compression,
