@@ -11,10 +11,10 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
-// github.com/docker/docker/image/rootfs.go
+// github.com/moby/moby/image/rootfs.go
 const TypeLayers = "layers"
 
-// github.com/docker/docker/image/rootfs.go
+// github.com/moby/moby/image/rootfs.go
 // RootFS describes images root filesystem
 // This is currently a placeholder that only supports layers. In the future
 // this can be made into an interface that supports different implementations.
@@ -23,7 +23,7 @@ type RootFS struct {
 	DiffIDs []digest.Digest `json:"diff_ids,omitempty"`
 }
 
-// github.com/docker/docker/image/image.go
+// github.com/moby/moby/image/image.go
 // History stores build commands that were used to create an image
 type History struct {
 	// Created is the timestamp at which the image was created
@@ -40,11 +40,11 @@ type History struct {
 	EmptyLayer bool `json:"empty_layer,omitempty"`
 }
 
-// github.com/docker/docker/image/image.go
+// github.com/moby/moby/image/image.go
 // ID is the content-addressable ID of an image.
 type ID digest.Digest
 
-// github.com/docker/docker/api/types/container/config.go
+// github.com/moby/moby/api/types/container/config.go
 // HealthConfig holds configuration settings for the HEALTHCHECK feature.
 type HealthConfig struct {
 	// Test is the test to perform to check that the container is healthy.
@@ -73,7 +73,7 @@ type PortSet map[Port]struct{}
 // Port is a string containing port number and protocol in the format "80/tcp"
 type Port string
 
-// github.com/docker/docker/api/types/container/config.go
+// github.com/moby/moby/api/types/container/config.go
 // Config contains the configuration data about a container.
 // It should hold only portable information about the container.
 // Here, "portable" means "independent from the host we are running on".
@@ -108,7 +108,7 @@ type Config struct {
 	Shell           strslice.StrSlice   `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
 }
 
-// github.com/docker/docker/image/image.go
+// github.com/moby/moby/image/image.go
 // V1Image stores the V1 image configuration.
 type V1Image struct {
 	// ID is a unique 64 character identifier of the image
@@ -137,7 +137,7 @@ type V1Image struct {
 	Size int64 `json:",omitempty"`
 }
 
-// github.com/docker/docker/image/image.go
+// github.com/moby/moby/image/image.go
 // Image stores the image configuration
 type Image struct {
 	V1Image
