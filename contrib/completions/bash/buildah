@@ -537,6 +537,19 @@ return 1
      esac
  }
 
+ _buildah_tag() {
+     local options_with_args="
+     "
+
+     local all_options="$options_with_args"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
  _buildah_from() {
      local boolean_options="
      --help
@@ -583,6 +596,7 @@ return 1
        rm
        rmi
        run
+       tag
        umount
        unmount
    )

@@ -83,6 +83,7 @@ func main() {
 		rmiCommand,
 		budCommand,
 		inspectCommand,
+		tagCommand,
 	}
 	err := app.Run(os.Args)
 	if err != nil {
