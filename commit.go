@@ -1,15 +1,15 @@
 package buildah
 
 import (
-	"fmt"
 	"io"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/copy"
-	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/signature"
 	"github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/pkg/archive"
+	"github.com/projectatomic/buildah/util"
 )
 
 // CommitOptions can be used to alter how an image is committed.
@@ -33,23 +33,6 @@ type CommitOptions struct {
 	ReportWriter io.Writer
 }
 
-func expandTags(tags []string) ([]string, error) {
-	expanded := []string{}
-	for _, tag := range tags {
-		name, err := reference.ParseNormalizedNamed(tag)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing tag %q: %v", tag, err)
-		}
-		name = reference.TagNameOnly(name)
-		tag = ""
-		if tagged, ok := name.(reference.NamedTagged); ok {
-			tag = ":" + tagged.Tag()
-		}
-		expanded = append(expanded, name.Name()+tag)
-	}
-	return expanded, nil
-}
-
 // Commit writes the contents of the container, along with its updated
 // configuration, to a new image in the specified location, and if we know how,
 // add any additional tags that were specified.
@@ -67,20 +50,23 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 		return err
 	}
 	err = copy.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter))
-	switch dest.Transport().Name() {
-	case storage.Transport.Name():
-		tags, err := expandTags(options.AdditionalTags)
-		if err != nil {
-			return err
-		}
-		img, err := storage.Transport.GetStoreImage(b.store, dest)
-		if err != nil {
-			return err
-		}
-		err = b.store.SetNames(img.ID, append(img.Names, tags...))
-		if err != nil {
-			return fmt.Errorf("error setting image names to %v: %v", append(img.Names, tags...), err)
+	if err != nil {
+		return err
+	}
+	if len(options.AdditionalTags) > 0 {
+		switch dest.Transport().Name() {
+		case storage.Transport.Name():
+			img, err := storage.Transport.GetStoreImage(b.store, dest)
+			if err != nil {
+				return err
+			}
+			err = util.AddImageNames(b.store, img, options.AdditionalTags)
+			if err != nil {
+				return err
+			}
+		default:
+			logrus.Warnf("don't know how to add tags to images stored in %q transport", dest.Transport().Name())
 		}
 	}
-	return err
+	return nil
 }
