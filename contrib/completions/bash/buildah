@@ -167,7 +167,7 @@ return 1
          --root
          --runroot
          --storage-driver
-         --storage-option
+         --storage-opt
          "
 
      case "$prev" in
@@ -611,7 +611,7 @@ return 1
          --root
          --runroot
          --storage-driver
-         --storage-option
+         --storage-opt
    "
 
    COMPREPLY=()

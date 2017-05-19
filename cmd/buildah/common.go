@@ -21,8 +21,8 @@ func getStore(c *cli.Context) (storage.Store, error) {
 	if c.GlobalIsSet("storage-driver") {
 		options.GraphDriverName = c.GlobalString("storage-driver")
 	}
-	if c.GlobalIsSet("storage-options") {
-		opts := c.GlobalStringSlice("storage-options")
+	if c.GlobalIsSet("storage-opt") {
+		opts := c.GlobalStringSlice("storage-opt")
 		if len(opts) > 0 {
 			options.GraphDriverOptions = opts
 		}

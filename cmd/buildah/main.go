@@ -40,7 +40,7 @@ func main() {
 			Value: storage.DefaultStoreOptions.GraphDriverName,
 		},
 		cli.StringSliceFlag{
-			Name:  "storage-option",
+			Name:  "storage-opt",
 			Usage: "storage driver option",
 			Value: defaultStoreDriverOptions,
 		},
@@ -70,19 +70,19 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		addCommand,
+		budCommand,
 		commitCommand,
 		configCommand,
-		copyCommand,
-		rmCommand,
-		fromCommand,
 		containersCommand,
+		copyCommand,
+		fromCommand,
+		imagesCommand,
+		inspectCommand,
 		mountCommand,
+		rmCommand,
+		rmiCommand,
 		runCommand,
 		umountCommand,
-		imagesCommand,
-		rmiCommand,
-		budCommand,
-		inspectCommand,
 		tagCommand,
 	}
 	err := app.Run(os.Args)
