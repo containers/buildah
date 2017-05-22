@@ -17,7 +17,7 @@ The buildah package provides a command line tool which can be used to
 
 Prior to installing buildah, install the following packages on your linux distro:
 * make
-* golang
+* golang (Requires version 1.8.1 or higher.)
 * bats
 * btrfs-progs-devel 
 * device-mapper-devel 
@@ -69,10 +69,12 @@ Then to install buildah follow the steps in this example:
 | buildah-copy(1)       | Copies the contents of a file, URL, or directory into a container's working directory. |
 | buildah-from(1)       | Creates a new working container, either from scratch or using a specified image as a starting point. |
 | buildah-images(1)     | List images in local storage. |
+| buildah-inspect(1)    | Inspects the configuration of a container or image. |
 | buildah-mount(1)      | Mount the working container's root filesystem. |
 | buildah-rm(1)         | Removes one or more working containers. |
 | buildah-rmi(1)        | Removes one or more images. |
 | buildah-run(1)        | Run a command inside of the container. |
+| buildah-tag(1)        | Add an additional name to a local image. |
 | buildah-umount(1)     | Unmount a working container's root file system. |
 
 **Future goals include:**
