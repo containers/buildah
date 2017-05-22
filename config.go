@@ -352,7 +352,13 @@ func (b *Builder) Labels() map[string]string {
 // SetLabel adds or overwrites a key's value from the image's runtime
 // configuration.
 func (b *Builder) SetLabel(k string, v string) {
+	if b.OCIv1.Config.Labels == nil {
+		b.OCIv1.Config.Labels = map[string]string{}
+	}
 	b.OCIv1.Config.Labels[k] = v
+	if b.Docker.Config.Labels == nil {
+		b.Docker.Config.Labels = map[string]string{}
+	}
 	b.Docker.Config.Labels[k] = v
 }
 
@@ -384,7 +390,13 @@ func (b *Builder) Ports() []string {
 // be exposed when a container based on an image built from this container is
 // run.
 func (b *Builder) SetPort(p string) {
+	if b.OCIv1.Config.ExposedPorts == nil {
+		b.OCIv1.Config.ExposedPorts = map[string]struct{}{}
+	}
 	b.OCIv1.Config.ExposedPorts[p] = struct{}{}
+	if b.Docker.Config.ExposedPorts == nil {
+		b.Docker.Config.ExposedPorts = make(docker.PortSet)
+	}
 	b.Docker.Config.ExposedPorts[docker.Port(p)] = struct{}{}
 }
 
@@ -417,7 +429,13 @@ func (b *Builder) Volumes() []string {
 // mounted from outside of the container when a container based on an image
 // built from this container is run.
 func (b *Builder) AddVolume(v string) {
+	if b.OCIv1.Config.Volumes == nil {
+		b.OCIv1.Config.Volumes = map[string]struct{}{}
+	}
 	b.OCIv1.Config.Volumes[v] = struct{}{}
+	if b.Docker.Config.Volumes == nil {
+		b.Docker.Config.Volumes = map[string]struct{}{}
+	}
 	b.Docker.Config.Volumes[v] = struct{}{}
 }
 
