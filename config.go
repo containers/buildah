@@ -136,6 +136,13 @@ func (b *Builder) initConfig() {
 		b.OCIv1 = image
 		b.Docker = dimage
 	}
+	if len(b.Manifest) > 0 {
+		// Attempt to recover format-specific data from the manifest.
+		v1Manifest := ociv1.Manifest{}
+		if json.Unmarshal(b.Manifest, &v1Manifest) == nil {
+			b.ImageAnnotations = v1Manifest.Annotations
+		}
+	}
 	b.fixupConfig()
 }
 
@@ -172,7 +179,12 @@ func (b *Builder) Annotations() map[string]string {
 }
 
 // SetAnnotation adds or overwrites a key's value from the image's manifest.
+// Note: this setting is not present in the Docker v2 image format, so it is
+// discarded when writing images using Docker v2 formats.
 func (b *Builder) SetAnnotation(key, value string) {
+	if b.ImageAnnotations == nil {
+		b.ImageAnnotations = map[string]string{}
+	}
 	b.ImageAnnotations[key] = value
 }
 
