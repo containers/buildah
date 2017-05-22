@@ -11,6 +11,10 @@ function setup() {
 	REPO=${TESTDIR}/root
 }
 
+function buildimgtype() {
+	go build -tags "$(${TESTSDIR}/../btrfs_tag.sh; ${TESTSDIR}/../libdm_tag.sh)" -o imgtype ${TESTSDIR}/imgtype.go
+}
+
 function starthttpd() {
 	pushd ${2:-${TESTDIR}} > /dev/null
 	cp ${TESTSDIR}/serve.go .
@@ -41,4 +45,8 @@ function createrandom() {
 
 function buildah() {
 	${BUILDAH_BINARY} --debug --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver vfs "$@"
+}
+
+function imgtype() {
+        ./imgtype -root ${TESTDIR}/root -runroot ${TESTDIR}/runroot -storage-driver vfs "$@"
 }
