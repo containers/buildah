@@ -86,7 +86,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 		}
 	}
 	// Make sure the destination's parent directory is usable.
-	if destpfi, err2 := os.Stat(filepath.Dir(dest)); err2 == nil && !destpfi.Mode().IsDir() {
+	if destpfi, err2 := os.Stat(filepath.Dir(dest)); err2 == nil && !destpfi.IsDir() {
 		return fmt.Errorf("%q already exists, but is not a subdirectory)", filepath.Dir(dest))
 	}
 	// Now look at the destination itself.
@@ -97,7 +97,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 		}
 		destfi = nil
 	}
-	if len(source) > 1 && (destfi == nil || !destfi.Mode().IsDir()) {
+	if len(source) > 1 && (destfi == nil || !destfi.IsDir()) {
 		return fmt.Errorf("destination %q is not a directory", dest)
 	}
 	for _, src := range source {
@@ -112,7 +112,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 				return fmt.Errorf("error parsing URL %q: %v", src, err)
 			}
 			d := dest
-			if destfi != nil && destfi.Mode().IsDir() {
+			if destfi != nil && destfi.IsDir() {
 				d = filepath.Join(dest, path.Base(url.Path))
 			}
 			if err := addURL(d, src); err != nil {
@@ -124,7 +124,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 		if err != nil {
 			return fmt.Errorf("error reading %q: %v", src, err)
 		}
-		if srcfi.Mode().IsDir() {
+		if srcfi.IsDir() {
 			// The source is a directory, so copy the contents of
 			// the source directory into the target directory.  Try
 			// to create it first, so that if there's a problem,
@@ -144,7 +144,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 			// archive, or we don't care whether or not it's an
 			// archive.
 			d := dest
-			if destfi != nil && destfi.Mode().IsDir() {
+			if destfi != nil && destfi.IsDir() {
 				d = filepath.Join(dest, filepath.Base(src))
 			}
 			// Copy the file, preserving attributes.
