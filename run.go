@@ -64,6 +64,58 @@ type RunOptions struct {
 	Terminal int
 }
 
+func setupMounts(spec *specs.Spec, optionMounts []specs.Mount, bindFiles []string, volumes []string) error {
+	// The passed-in mounts matter the most to us.
+	mounts := make([]specs.Mount, len(optionMounts))
+	copy(mounts, optionMounts)
+	haveMount := func(destination string) bool {
+		for _, mount := range mounts {
+			if mount.Destination == destination {
+				// Already have something to mount there.
+				return true
+			}
+		}
+		return false
+	}
+	// Add mounts from the generated list, unless they conflict.
+	for _, specMount := range spec.Mounts {
+		if haveMount(specMount.Destination) {
+			// Already have something to mount there, so skip this one.
+			continue
+		}
+		mounts = append(mounts, specMount)
+	}
+	// Add bind mounts for important files, unless they conflict.
+	for _, boundFile := range bindFiles {
+		if haveMount(boundFile) {
+			// Already have something to mount there, so skip this one.
+			continue
+		}
+		mounts = append(mounts, specs.Mount{
+			Source:      boundFile,
+			Destination: boundFile,
+			Type:        "bind",
+			Options:     []string{"rbind", "ro"},
+		})
+	}
+	// Add tmpfs filesystems at volume locations, unless we already have something there.
+	for _, volume := range volumes {
+		if haveMount(volume) {
+			// Already mounting something there, no need for a tmpfs.
+			continue
+		}
+		// Mount a tmpfs there.
+		mounts = append(mounts, specs.Mount{
+			Source:      "tmpfs",
+			Destination: volume,
+			Type:        "tmpfs",
+		})
+	}
+	// Set the list in the spec.
+	spec.Mounts = mounts
+	return nil
+}
+
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
 	var user specs.User
@@ -112,9 +164,6 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	} else if b.Hostname() != "" {
 		g.SetHostname(b.Hostname())
 	}
-	for _, volume := range b.Volumes() {
-		g.AddTmpfsMount(volume, nil)
-	}
 	mountPoint, err := b.Mount("")
 	if err != nil {
 		return err
@@ -155,36 +204,12 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if err = os.MkdirAll(filepath.Join(mountPoint, b.WorkDir()), 0755); err != nil {
 		return fmt.Errorf("error ensuring working directory %q exists: %v)", b.WorkDir(), err)
 	}
-	mounts := options.Mounts
-	boundMounts := []specs.Mount{}
-	for _, boundFile := range []string{"/etc/hosts", "/etc/resolv.conf"} {
-		for _, mount := range mounts {
-			if mount.Destination == boundFile {
-				// Already have an override for it, so skip this one.
-				continue
-			}
-		}
-		boundMount := specs.Mount{
-			Source:      boundFile,
-			Destination: boundFile,
-			Type:        "bind",
-			Options:     []string{"rbind", "ro"},
-		}
-		boundMounts = append(boundMounts, boundMount)
+
+	bindFiles := []string{"/etc/hosts", "/etc/resolv.conf"}
+	err = setupMounts(spec, options.Mounts, bindFiles, b.Volumes())
+	if err != nil {
+		return fmt.Errorf("error resolving mountpoints for container: %v)", err)
 	}
-	for _, specMount := range spec.Mounts {
-		override := false
-		for _, mount := range mounts {
-			if specMount.Destination == mount.Destination {
-				// Already have an override for it, so skip this one.
-				override = true
-			}
-		}
-		if !override {
-			mounts = append(mounts, specMount)
-		}
-	}
-	spec.Mounts = append(mounts, boundMounts...)
 	specbytes, err := json.Marshal(spec)
 	if err != nil {
 		return err
