@@ -109,6 +109,8 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 	if options.Hostname != "" {
 		g.SetHostname(options.Hostname)
+	} else if b.Hostname() != "" {
+		g.SetHostname(b.Hostname())
 	}
 	for _, volume := range b.Volumes() {
 		g.AddTmpfsMount(volume, nil)
