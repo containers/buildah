@@ -131,7 +131,6 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		Manifest:         manifest,
 		Container:        name,
 		ContainerID:      container.ID,
-		Mounts:           []string{},
 		ImageAnnotations: map[string]string{},
 		ImageCreatedBy:   "",
 	}

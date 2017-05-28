@@ -47,7 +47,6 @@ func importBuilderDataFromImage(store storage.Store, systemContext *types.System
 		Manifest:         manifest,
 		Container:        containerName,
 		ContainerID:      containerID,
-		Mounts:           []string{},
 		ImageAnnotations: map[string]string{},
 		ImageCreatedBy:   "",
 	}
