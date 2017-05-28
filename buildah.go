@@ -68,9 +68,6 @@ type Builder struct {
 	// MountPoint is the last location where the container's root
 	// filesystem was mounted.  It should not be modified.
 	MountPoint string `json:"mountpoint,omitempty"`
-	// Mounts is a list of places where the container's root filesystem has
-	// been mounted.  It should not be modified.
-	Mounts []string `json:"mounts,omitempty"`
 
 	// ImageAnnotations is a set of key-value pairs which is stored in the
 	// image's manifest.
@@ -192,15 +189,7 @@ func OpenBuilderByPath(store storage.Store, path string) (*Builder, error) {
 		return nil, err
 	}
 	builderMatchesPath := func(b *Builder, path string) bool {
-		if b.MountPoint == path {
-			return true
-		}
-		for _, m := range b.Mounts {
-			if m == path {
-				return true
-			}
-		}
-		return false
+		return (b.MountPoint == path)
 	}
 	for _, container := range containers {
 		cdir, err := store.ContainerDirectory(container.ID)
