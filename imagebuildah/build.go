@@ -114,6 +114,7 @@ type Executor struct {
 	transientMounts                []Mount
 	compression                    archive.Compression
 	output                         string
+	outputFormat                   string
 	additionalTags                 []string
 	log                            func(format string, args ...interface{})
 	out                            io.Writer
@@ -391,6 +392,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		transientMounts:     options.TransientMounts,
 		compression:         options.Compression,
 		output:              options.Output,
+		outputFormat:        options.OutputFormat,
 		additionalTags:      options.AdditionalTags,
 		signaturePolicyPath: options.SignaturePolicyPath,
 		systemContext:       makeSystemContext(options.SignaturePolicyPath),
@@ -588,10 +590,11 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 		}
 	}
 	options := buildah.CommitOptions{
-		Compression:         b.compression,
-		SignaturePolicyPath: b.signaturePolicyPath,
-		AdditionalTags:      b.additionalTags,
-		ReportWriter:        b.reportWriter,
+		Compression:           b.compression,
+		SignaturePolicyPath:   b.signaturePolicyPath,
+		AdditionalTags:        b.additionalTags,
+		ReportWriter:          b.reportWriter,
+		PreferredManifestType: b.outputFormat,
 	}
 	return b.builder.Commit(imageRef, options)
 }

@@ -18,3 +18,19 @@ load helpers
   run imgtype -expected-manifest-type application/vnd.oci.image.manifest.v1+json scratch-image-docker
   [ "$status" -ne 0 ]
 }
+
+@test "bud-formats" {
+  buildimgtype
+  buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t scratch-image-default -f bud/from-scratch/Dockerfile
+  buildah build-using-dockerfile --format dockerv2 --signature-policy ${TESTSDIR}/policy.json -t scratch-image-docker -f bud/from-scratch/Dockerfile
+  buildah build-using-dockerfile --format ociv1 --signature-policy ${TESTSDIR}/policy.json -t scratch-image-oci -f bud/from-scratch/Dockerfile
+  imgtype -expected-manifest-type application/vnd.oci.image.manifest.v1+json scratch-image-default
+  imgtype -expected-manifest-type application/vnd.oci.image.manifest.v1+json scratch-image-oci
+  imgtype -expected-manifest-type application/vnd.docker.distribution.manifest.v2+json scratch-image-docker
+  run imgtype -expected-manifest-type application/vnd.docker.distribution.manifest.v2+json scratch-image-default
+  [ "$status" -ne 0 ]
+  run imgtype -expected-manifest-type application/vnd.docker.distribution.manifest.v2+json scratch-image-oci
+  [ "$status" -ne 0 ]
+  run imgtype -expected-manifest-type application/vnd.oci.image.manifest.v1+json scratch-image-docker
+  [ "$status" -ne 0 ]
+}
