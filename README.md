@@ -33,15 +33,15 @@ Prior to installing buildah, install the following packages on your linux distro
 In Fedora, you can use this command:
 
 ```
- dnf -y install \ 
-    make \ 
-    golang \ 
-    bats \ 
-    btrfs-progs-devel \ 
-    device-mapper-devel \ 
-    gpgme-devel \ 
-    libassuan-devel \ 
-    git \ 
+ dnf -y install \
+    make \
+    golang \
+    bats \
+    btrfs-progs-devel \
+    device-mapper-devel \
+    gpgme-devel \
+    libassuan-devel \
+    git \
     bzip2 \
     go-md2man \
     skopeo-containers
