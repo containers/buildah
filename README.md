@@ -1,5 +1,5 @@
-buildah - a tool which facilites building OCI container images
-==============================================================
+buildah - a tool which facilitates building OCI container images
+================================================================
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/projectatomic/buildah)](https://goreportcard.com/report/github.com/projectatomic/buildah)
 [![Travis](https://travis-ci.org/projectatomic/buildah.svg?branch=master)](https://travis-ci.org/projectatomic/buildah)
