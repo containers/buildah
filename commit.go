@@ -8,9 +8,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	cp "github.com/containers/image/copy"
 	"github.com/containers/image/signature"
-	"github.com/containers/image/storage"
+	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
+	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/stringid"
 	"github.com/opencontainers/go-digest"
@@ -56,6 +57,25 @@ type CommitOptions struct {
 	HistoryTimestamp *time.Time
 }
 
+// PushOptions can be used to alter how an image is copied somewhere.
+type PushOptions struct {
+	// Compression specifies the type of compression which is applied to
+	// layer blobs.  The default is to not use compression, but
+	// archive.Gzip is recommended.
+	Compression archive.Compression
+	// SignaturePolicyPath specifies an override location for the signature
+	// policy which should be used for verifying the new image as it is
+	// being written.  Except in specific circumstances, no value should be
+	// specified, indicating that the shared, system-wide default policy
+	// should be used.
+	SignaturePolicyPath string
+	// ReportWriter is an io.Writer which will be used to log the writing
+	// of the new image.
+	ReportWriter io.Writer
+	// Store is the local storage store which holds the source image.
+	Store storage.Store
+}
+
 // shallowCopy copies the most recent layer, the configuration, and the manifest from one image to another.
 // For local storage, which doesn't care about histories and the manifest's contents, that's sufficient, but
 // almost any other destination has higher expectations.
@@ -72,7 +92,7 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 	}
 	// Make a temporary image reference.
 	tmpName := stringid.GenerateRandomID() + "-tmp-" + Package + "-commit"
-	tmpRef, err := storage.Transport.ParseStoreReference(b.store, tmpName)
+	tmpRef, err := is.Transport.ParseStoreReference(b.store, tmpName)
 	if err != nil {
 		return err
 	}
@@ -131,7 +151,7 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 		return errors.Wrapf(err, "error committing new image %q", transports.ImageName(dest))
 	}
 	// Locate the temporary image in the lower-level API.  Read its item names.
-	tmpImg, err := storage.Transport.GetStoreImage(b.store, tmpRef)
+	tmpImg, err := is.Transport.GetStoreImage(b.store, tmpRef)
 	if err != nil {
 		return errors.Wrapf(err, "error locating temporary image %q", transports.ImageName(dest))
 	}
@@ -222,11 +242,11 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 		return err
 	}
 	// Check if we're keeping everything in local storage.  If so, we can take certain shortcuts.
-	_, destIsStorage := dest.Transport().(storage.StoreTransport)
+	_, destIsStorage := dest.Transport().(is.StoreTransport)
 	exporting := !destIsStorage
 	src, err := b.makeContainerImageRef(options.PreferredManifestType, exporting, options.Compression, options.HistoryTimestamp)
 	if err != nil {
-		return errors.Wrapf(err, "error recomputing layer digests and building metadata")
+		return errors.Wrapf(err, "error computing layer digests and building metadata")
 	}
 	if exporting {
 		// Copy everything.
@@ -243,8 +263,8 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	}
 	if len(options.AdditionalTags) > 0 {
 		switch dest.Transport().Name() {
-		case storage.Transport.Name():
-			img, err := storage.Transport.GetStoreImage(b.store, dest)
+		case is.Transport.Name():
+			img, err := is.Transport.GetStoreImage(b.store, dest)
 			if err != nil {
 				return errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
@@ -256,6 +276,50 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 		default:
 			logrus.Warnf("don't know how to add tags to images stored in %q transport", dest.Transport().Name())
 		}
+	}
+	return nil
+}
+
+// Push copies the contents of the image to a new location.
+func Push(image string, dest types.ImageReference, options PushOptions) error {
+	systemContext := getSystemContext(options.SignaturePolicyPath)
+	policy, err := signature.DefaultPolicy(systemContext)
+	if err != nil {
+		return err
+	}
+	policyContext, err := signature.NewPolicyContext(policy)
+	if err != nil {
+		return err
+	}
+	importOptions := ImportFromImageOptions{
+		Image:               image,
+		SignaturePolicyPath: options.SignaturePolicyPath,
+	}
+	builder, err := importBuilderFromImage(options.Store, importOptions)
+	if err != nil {
+		return errors.Wrap(err, "error importing builder information from image")
+	}
+	// Look up the image name and its layer.
+	ref, err := is.Transport.ParseStoreReference(options.Store, image)
+	if err != nil {
+		return errors.Wrapf(err, "error parsing reference to image %q", image)
+	}
+	img, err := is.Transport.GetStoreImage(options.Store, ref)
+	if err != nil {
+		return errors.Wrapf(err, "error locating image %q", image)
+	}
+	// Give the image we're producing the same ancestors as its source image.
+	builder.FromImage = builder.Docker.ContainerConfig.Image
+	builder.FromImageID = string(builder.Docker.Parent)
+	// Prep the layers and manifest for export.
+	src, err := builder.makeImageImageRef(options.Compression, img.Names, img.TopLayer, nil)
+	if err != nil {
+		return errors.Wrapf(err, "error recomputing layer digests and building metadata")
+	}
+	// Copy everything.
+	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter))
+	if err != nil {
+		return errors.Wrapf(err, "error copying layers and metadata")
 	}
 	return nil
 }

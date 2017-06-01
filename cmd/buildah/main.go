@@ -82,6 +82,7 @@ func main() {
 		imagesCommand,
 		inspectCommand,
 		mountCommand,
+		pushCommand,
 		rmCommand,
 		rmiCommand,
 		runCommand,
