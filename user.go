@@ -1,12 +1,12 @@
 package buildah
 
 import (
-	"fmt"
 	"os/user"
 	"strconv"
 	"strings"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 )
 
 func getUser(rootdir, userspec string) (specs.User, error) {
@@ -70,9 +70,9 @@ func getUser(rootdir, userspec string) (specs.User, error) {
 		return u, nil
 	}
 
-	err := fmt.Errorf("%v determining run uid", uerr)
+	err := errors.Wrapf(uerr, "error determining run uid")
 	if uerr == nil {
-		err = fmt.Errorf("%v determining run gid", gerr)
+		err = errors.Wrapf(gerr, "error determining run gid")
 	}
 	return specs.User{}, err
 }

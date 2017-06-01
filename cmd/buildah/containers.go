@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
@@ -54,7 +55,7 @@ func containersCmd(c *cli.Context) error {
 
 	builders, err := openBuilders(store)
 	if err != nil {
-		return fmt.Errorf("error reading build containers: %v", err)
+		return errors.Wrapf(err, "error reading build containers")
 	}
 	if len(builders) > 0 && !noheading && !quiet {
 		if truncate {

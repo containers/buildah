@@ -21,6 +21,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
 	"github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/docker"
 )
 
@@ -98,7 +99,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 	layerID := i.container.LayerID
 	layer, err := i.store.Layer(layerID)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read layer %q: %v", layerID, err)
+		return nil, errors.Wrapf(err, "unable to read layer %q", layerID)
 	}
 	for layer != nil {
 		layers = append(append([]string{}, layerID), layers...)
@@ -109,7 +110,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		}
 		layer, err = i.store.Layer(layerID)
 		if err != nil {
-			return nil, fmt.Errorf("unable to read layer %q: %v", layerID, err)
+			return nil, errors.Wrapf(err, "unable to read layer %q", layerID)
 		}
 	}
 	logrus.Debugf("layer list: %q", layers)
@@ -171,19 +172,19 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 	for _, layerID := range layers {
 		rc, err := i.store.Diff("", layerID)
 		if err != nil {
-			return nil, fmt.Errorf("error extracting layer %q: %v", layerID, err)
+			return nil, errors.Wrapf(err, "error extracting layer %q", layerID)
 		}
 		defer rc.Close()
 		uncompressed, err := archive.DecompressStream(rc)
 		if err != nil {
-			return nil, fmt.Errorf("error decompressing layer %q: %v", layerID, err)
+			return nil, errors.Wrapf(err, "error decompressing layer %q", layerID)
 		}
 		defer uncompressed.Close()
 		srcHasher := digest.Canonical.Digester()
 		reader := io.TeeReader(uncompressed, srcHasher.Hash())
 		layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
-			return nil, fmt.Errorf("error opening file for layer %q: %v", layerID, err)
+			return nil, errors.Wrapf(err, "error opening file for layer %q", layerID)
 		}
 		destHasher := digest.Canonical.Digester()
 		counter := ioutils.NewWriteCounter(layerFile)
@@ -204,11 +205,11 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		}
 		compressor, err := archive.CompressStream(multiWriter, i.compression)
 		if err != nil {
-			return nil, fmt.Errorf("error compressing layer %q: %v", layerID, err)
+			return nil, errors.Wrapf(err, "error compressing layer %q", layerID)
 		}
 		size, err := io.Copy(compressor, reader)
 		if err != nil {
-			return nil, fmt.Errorf("error storing layer %q to file: %v", layerID, err)
+			return nil, errors.Wrapf(err, "error storing layer %q to file", layerID)
 		}
 		compressor.Close()
 		layerFile.Close()
@@ -222,7 +223,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		logrus.Debugf("layer %q size is %d bytes", layerID, size)
 		err = os.Rename(filepath.Join(path, "layer"), filepath.Join(path, destHasher.Digest().String()))
 		if err != nil {
-			return nil, fmt.Errorf("error storing layer %q to file: %v", layerID, err)
+			return nil, errors.Wrapf(err, "error storing layer %q to file", layerID)
 		}
 		olayerDescriptor := v1.Descriptor{
 			MediaType: omediaType,

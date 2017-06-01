@@ -1,11 +1,10 @@
 package util
 
 import (
-	"fmt"
-
 	"github.com/containers/image/docker/reference"
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
+	"github.com/pkg/errors"
 )
 
 // ExpandTags takes unqualified names, parses them as image names, and returns
@@ -15,7 +14,7 @@ func ExpandTags(tags []string) ([]string, error) {
 	for _, tag := range tags {
 		name, err := reference.ParseNormalizedNamed(tag)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing tag %q: %v", tag, err)
+			return nil, errors.Wrapf(err, "error parsing tag %q", tag)
 		}
 		name = reference.TagNameOnly(name)
 		tag = ""
@@ -31,11 +30,11 @@ func ExpandTags(tags []string) ([]string, error) {
 func FindImage(store storage.Store, image string) (*storage.Image, error) {
 	ref, err := is.Transport.ParseStoreReference(store, image)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing reference to image %q: %v", image, err)
+		return nil, errors.Wrapf(err, "error parsing reference to image %q", image)
 	}
 	img, err := is.Transport.GetStoreImage(store, ref)
 	if err != nil {
-		return nil, fmt.Errorf("unable to locate image: %v", err)
+		return nil, errors.Wrapf(err, "unable to locate image")
 	}
 	return img, nil
 }
@@ -48,7 +47,7 @@ func AddImageNames(store storage.Store, image *storage.Image, addNames []string)
 	}
 	err = store.SetNames(image.ID, append(image.Names, names...))
 	if err != nil {
-		return fmt.Errorf("error adding names (%v) to image %q: %v", names, image.ID, err)
+		return errors.Wrapf(err, "error adding names (%v) to image %q", names, image.ID)
 	}
 	return nil
 }

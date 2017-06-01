@@ -1,8 +1,6 @@
 package buildah
 
 import (
-	"fmt"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/copy"
 	"github.com/containers/image/docker/reference"
@@ -11,6 +9,7 @@ import (
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
+	"github.com/pkg/errors"
 )
 
 func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemContext) error {
@@ -25,7 +24,7 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 	if err != nil {
 		srcRef2, err2 := alltransports.ParseImageName(spec)
 		if err2 != nil {
-			return fmt.Errorf("error parsing image name %q: %v", spec, err2)
+			return errors.Wrapf(err2, "error parsing image name %q", spec)
 		}
 		srcRef = srcRef2
 	}
@@ -39,7 +38,7 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 
 	destRef, err := is.Transport.ParseStoreReference(store, name)
 	if err != nil {
-		return fmt.Errorf("error parsing full image name %q: %v", name, err)
+		return errors.Wrapf(err, "error parsing full image name %q", name)
 	}
 
 	policy, err := signature.DefaultPolicy(sc)

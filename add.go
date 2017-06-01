@@ -14,6 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/chrootarchive"
+	"github.com/pkg/errors"
 )
 
 // addURL copies the contents of the source URL to the destination.  This is
@@ -23,12 +24,12 @@ func addURL(destination, srcurl string) error {
 	logrus.Debugf("saving %q to %q", srcurl, destination)
 	resp, err := http.Get(srcurl)
 	if err != nil {
-		return fmt.Errorf("error getting %q: %v", srcurl, err)
+		return errors.Wrapf(err, "error getting %q", srcurl)
 	}
 	defer resp.Body.Close()
 	f, err := os.Create(destination)
 	if err != nil {
-		return fmt.Errorf("error creating %q: %v", destination, err)
+		return errors.Wrapf(err, "error creating %q", destination)
 	}
 	if last := resp.Header.Get("Last-Modified"); last != "" {
 		if mtime, err2 := time.Parse(time.RFC1123, last); err2 != nil {
@@ -44,13 +45,13 @@ func addURL(destination, srcurl string) error {
 	defer f.Close()
 	n, err := io.Copy(f, resp.Body)
 	if err != nil {
-		return fmt.Errorf("error reading contents for %q: %v", destination, err)
+		return errors.Wrapf(err, "error reading contents for %q", destination)
 	}
 	if resp.ContentLength >= 0 && n != resp.ContentLength {
 		return fmt.Errorf("error reading contents for %q: wrong length (%d != %d)", destination, n, resp.ContentLength)
 	}
 	if err := f.Chmod(0600); err != nil {
-		return fmt.Errorf("error setting permissions on %q: %v", destination, err)
+		return errors.Wrapf(err, "error setting permissions on %q", destination)
 	}
 	return nil
 }
@@ -73,7 +74,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 		dest = filepath.Join(dest, destination)
 	} else {
 		if err = os.MkdirAll(filepath.Join(dest, b.WorkDir()), 0755); err != nil {
-			return fmt.Errorf("error ensuring directory %q exists: %v)", filepath.Join(dest, b.WorkDir()), err)
+			return errors.Wrapf(err, "error ensuring directory %q exists)", filepath.Join(dest, b.WorkDir()))
 		}
 		dest = filepath.Join(dest, b.WorkDir(), destination)
 	}
@@ -82,7 +83,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 	// and any files we're copying will be placed in the directory.
 	if len(destination) > 0 && destination[len(destination)-1] == os.PathSeparator {
 		if err = os.MkdirAll(dest, 0755); err != nil {
-			return fmt.Errorf("error ensuring directory %q exists: %v)", dest, err)
+			return errors.Wrapf(err, "error ensuring directory %q exists", dest)
 		}
 	}
 	// Make sure the destination's parent directory is usable.
@@ -93,7 +94,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 	destfi, err := os.Stat(dest)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return fmt.Errorf("couldn't determine what %q is: %v)", dest, err)
+			return errors.Wrapf(err, "couldn't determine what %q is", dest)
 		}
 		destfi = nil
 	}
@@ -109,7 +110,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 			// we'll save the contents.
 			url, err := url.Parse(src)
 			if err != nil {
-				return fmt.Errorf("error parsing URL %q: %v", src, err)
+				return errors.Wrapf(err, "error parsing URL %q", src)
 			}
 			d := dest
 			if destfi != nil && destfi.IsDir() {
@@ -122,7 +123,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 		}
 		srcfi, err := os.Stat(src)
 		if err != nil {
-			return fmt.Errorf("error reading %q: %v", src, err)
+			return errors.Wrapf(err, "error reading %q", src)
 		}
 		if srcfi.IsDir() {
 			// The source is a directory, so copy the contents of
@@ -131,11 +132,11 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 			// we'll discover why that won't work.
 			d := dest
 			if err := os.MkdirAll(d, 0755); err != nil {
-				return fmt.Errorf("error ensuring directory %q exists: %v)", d, err)
+				return errors.Wrapf(err, "error ensuring directory %q exists", d)
 			}
 			logrus.Debugf("copying %q to %q", src+string(os.PathSeparator)+"*", d+string(os.PathSeparator)+"*")
 			if err := chrootarchive.CopyWithTar(src, d); err != nil {
-				return fmt.Errorf("error copying %q to %q: %v", src, d, err)
+				return errors.Wrapf(err, "error copying %q to %q", src, d)
 			}
 			continue
 		}
@@ -150,14 +151,14 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 			// Copy the file, preserving attributes.
 			logrus.Debugf("copying %q to %q", src, d)
 			if err := chrootarchive.CopyFileWithTar(src, d); err != nil {
-				return fmt.Errorf("error copying %q to %q: %v", src, d, err)
+				return errors.Wrapf(err, "error copying %q to %q", src, d)
 			}
 			continue
 		}
 		// We're extracting an archive into the destination directory.
 		logrus.Debugf("extracting contents of %q into %q", src, dest)
 		if err := chrootarchive.UntarPath(src, dest); err != nil {
-			return fmt.Errorf("error extracting %q into %q: %v", src, dest, err)
+			return errors.Wrapf(err, "error extracting %q into %q", src, dest)
 		}
 	}
 	return nil

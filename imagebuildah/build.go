@@ -20,6 +20,7 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/openshift/imagebuilder"
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 )
 
@@ -200,7 +201,7 @@ func (b *Executor) Preserve(path string) error {
 		archivedPath := filepath.Join(b.mountPoint, cachedPath)
 		logrus.Debugf("no longer need cache of %q in %q", archivedPath, b.volumeCache[cachedPath])
 		if err := os.Remove(b.volumeCache[cachedPath]); err != nil {
-			return fmt.Errorf("error removing %q: %v", b.volumeCache[cachedPath], err)
+			return errors.Wrapf(err, "error removing %q", b.volumeCache[cachedPath])
 		}
 		delete(b.volumeCache, cachedPath)
 	}
@@ -218,7 +219,7 @@ func (b *Executor) volumeCacheInvalidate(path string) error {
 	}
 	for _, cachedPath := range invalidated {
 		if err := os.Remove(b.volumeCache[cachedPath]); err != nil {
-			return fmt.Errorf("error removing volume cache %q: %v", b.volumeCache[cachedPath], err)
+			return errors.Wrapf(err, "error removing volume cache %q", b.volumeCache[cachedPath])
 		}
 		archivedPath := filepath.Join(b.mountPoint, cachedPath)
 		logrus.Debugf("invalidated volume cache for %q from %q", archivedPath, b.volumeCache[cachedPath])
@@ -238,22 +239,22 @@ func (b *Executor) volumeCacheSave() error {
 			continue
 		}
 		if !os.IsNotExist(err) {
-			return fmt.Errorf("error checking for cache of %q in %q: %v", archivedPath, cacheFile, err)
+			return errors.Wrapf(err, "error checking for cache of %q in %q", archivedPath, cacheFile)
 		}
 		logrus.Debugf("caching contents of volume %q in %q", archivedPath, cacheFile)
 		cache, err := os.Create(cacheFile)
 		if err != nil {
-			return fmt.Errorf("error creating archive at %q: %v", cacheFile, err)
+			return errors.Wrapf(err, "error creating archive at %q", cacheFile)
 		}
 		defer cache.Close()
 		rc, err := archive.Tar(archivedPath, archive.Uncompressed)
 		if err != nil {
-			return fmt.Errorf("error archiving %q: %v", archivedPath, err)
+			return errors.Wrapf(err, "error archiving %q", archivedPath)
 		}
 		defer rc.Close()
 		_, err = io.Copy(cache, rc)
 		if err != nil {
-			return fmt.Errorf("error archiving %q to %q: %v", archivedPath, cacheFile, err)
+			return errors.Wrapf(err, "error archiving %q to %q", archivedPath, cacheFile)
 		}
 	}
 	return nil
@@ -266,28 +267,28 @@ func (b *Executor) volumeCacheRestore() error {
 		logrus.Debugf("restoring contents of volume %q from %q", archivedPath, cacheFile)
 		cache, err := os.Open(cacheFile)
 		if err != nil {
-			return fmt.Errorf("error opening archive at %q: %v", cacheFile, err)
+			return errors.Wrapf(err, "error opening archive at %q", cacheFile)
 		}
 		defer cache.Close()
 		if err := os.RemoveAll(archivedPath); err != nil {
-			return fmt.Errorf("error clearing volume path %q: %v", archivedPath, err)
+			return errors.Wrapf(err, "error clearing volume path %q", archivedPath)
 		}
 		if err := os.MkdirAll(archivedPath, 0700); err != nil {
-			return fmt.Errorf("error recreating volume path %q: %v", archivedPath, err)
+			return errors.Wrapf(err, "error recreating volume path %q", archivedPath)
 		}
 		err = archive.Untar(cache, archivedPath, nil)
 		if err != nil {
-			return fmt.Errorf("error extracting archive at %q: %v", archivedPath, err)
+			return errors.Wrapf(err, "error extracting archive at %q", archivedPath)
 		}
 		if st, ok := b.volumeCacheInfo[cachedPath]; ok {
 			if err := os.Chmod(archivedPath, st.Mode()); err != nil {
-				return fmt.Errorf("error restoring permissions on %q: %v", archivedPath, err)
+				return errors.Wrapf(err, "error restoring permissions on %q", archivedPath)
 			}
 			if err := os.Chown(archivedPath, 0, 0); err != nil {
-				return fmt.Errorf("error setting ownership on %q: %v", archivedPath, err)
+				return errors.Wrapf(err, "error setting ownership on %q", archivedPath)
 			}
 			if err := os.Chtimes(archivedPath, st.ModTime(), st.ModTime()); err != nil {
-				return fmt.Errorf("error restoring datestamps on %q: %v", archivedPath, err)
+				return errors.Wrapf(err, "error restoring datestamps on %q", archivedPath)
 			}
 		}
 	}
@@ -428,7 +429,7 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 		base, err := ib.From(node)
 		if err != nil {
 			logrus.Debugf("Prepare(node.Children=%#v)", node.Children)
-			return fmt.Errorf("error determining starting point for build: %v", err)
+			return errors.Wrapf(err, "error determining starting point for build")
 		}
 		from = base
 	}
@@ -445,7 +446,7 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 	}
 	builder, err := buildah.NewBuilder(b.store, builderOptions)
 	if err != nil {
-		return fmt.Errorf("error creating build container: %v", err)
+		return errors.Wrapf(err, "error creating build container")
 	}
 	volumes := map[string]struct{}{}
 	for _, v := range builder.Volumes() {
@@ -486,14 +487,14 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 		if err2 := builder.Delete(); err2 != nil {
 			logrus.Debugf("error deleting container which we failed to update: %v", err2)
 		}
-		return fmt.Errorf("error updating build context: %v", err)
+		return errors.Wrapf(err, "error updating build context")
 	}
 	mountPoint, err := builder.Mount("")
 	if err != nil {
 		if err2 := builder.Delete(); err2 != nil {
 			logrus.Debugf("error deleting container which we failed to mount: %v", err2)
 		}
-		return fmt.Errorf("error mounting new container: %v", err)
+		return errors.Wrapf(err, "error mounting new container")
 	}
 	b.mountPoint = mountPoint
 	b.builder = builder
@@ -516,7 +517,7 @@ func (b *Executor) Execute(ib *imagebuilder.Builder, node *parser.Node) error {
 	for i, node := range node.Children {
 		step := ib.Step()
 		if err := step.Resolve(node); err != nil {
-			return fmt.Errorf("error resolving step %+v: %v", *node, err)
+			return errors.Wrapf(err, "error resolving step %+v", *node)
 		}
 		logrus.Debugf("Parsed Step: %+v", *step)
 		if !b.quiet {
@@ -528,7 +529,7 @@ func (b *Executor) Execute(ib *imagebuilder.Builder, node *parser.Node) error {
 		}
 		err := ib.Run(step, b, requiresStart)
 		if err != nil {
-			return fmt.Errorf("error building at step %+v: %v", *step, err)
+			return errors.Wrapf(err, "error building at step %+v", *step)
 		}
 	}
 	return nil
@@ -551,7 +552,7 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 		imageRef, err = is.Transport.ParseStoreReference(b.store, "@"+stringid.GenerateRandomID())
 	}
 	if err != nil {
-		return fmt.Errorf("error parsing reference for image to be written: %v", err)
+		return errors.Wrapf(err, "error parsing reference for image to be written")
 	}
 	config := ib.Config()
 	b.builder.SetHostname(config.Hostname)
@@ -603,13 +604,13 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 // over each of the one or more parsed Dockerfiles.
 func (b *Executor) Build(ib *imagebuilder.Builder, node []*parser.Node) (err error) {
 	if len(node) == 0 {
-		return fmt.Errorf("error building: no build instructions")
+		return errors.Wrapf(err, "error building: no build instructions")
 	}
 	first := node[0]
 	from, err := ib.From(first)
 	if err != nil {
 		logrus.Debugf("Build(first.Children=%#v)", first.Children)
-		return fmt.Errorf("error determining starting point for build: %v", err)
+		return errors.Wrapf(err, "error determining starting point for build")
 	}
 	if err = b.Prepare(ib, first, from); err != nil {
 		return err
@@ -637,17 +638,17 @@ func BuildReadClosers(store storage.Store, options BuildOptions, dockerfile ...i
 	}
 	builder, parsed, err := imagebuilder.NewBuilderForReader(mainFile, options.Args)
 	if err != nil {
-		return fmt.Errorf("error creating builder: %v", err)
+		return errors.Wrapf(err, "error creating builder")
 	}
 	exec, err := NewExecutor(store, options)
 	if err != nil {
-		return fmt.Errorf("error creating build executor: %v", err)
+		return errors.Wrapf(err, "error creating build executor")
 	}
 	nodes := []*parser.Node{parsed}
 	for _, extra := range extraFiles {
 		_, parsed, err := imagebuilder.NewBuilderForReader(extra, options.Args)
 		if err != nil {
-			return fmt.Errorf("error parsing dockerfile: %v", err)
+			return errors.Wrapf(err, "error parsing dockerfile")
 		}
 		nodes = append(nodes, parsed)
 	}
@@ -668,7 +669,7 @@ func BuildDockerfiles(store storage.Store, options BuildOptions, dockerfile ...s
 			logrus.Debugf("reading remote Dockerfile %q", dfile)
 			resp, err := http.Get(dfile)
 			if err != nil {
-				return fmt.Errorf("error getting %q: %v", dfile, err)
+				return errors.Wrapf(err, "error getting %q", dfile)
 			}
 			if resp.ContentLength == 0 {
 				resp.Body.Close()
@@ -683,23 +684,23 @@ func BuildDockerfiles(store storage.Store, options BuildOptions, dockerfile ...s
 			logrus.Debugf("reading local Dockerfile %q", dfile)
 			contents, err := os.Open(dfile)
 			if err != nil {
-				return fmt.Errorf("error reading %q: %v", dfile, err)
+				return errors.Wrapf(err, "error reading %q", dfile)
 			}
 			dinfo, err := contents.Stat()
 			if err != nil {
 				contents.Close()
-				return fmt.Errorf("error reading info about %q: %v", dfile, err)
+				return errors.Wrapf(err, "error reading info about %q", dfile)
 			}
 			if dinfo.Size() == 0 {
 				contents.Close()
-				return fmt.Errorf("no contents in %q: %v", dfile, err)
+				return errors.Wrapf(err, "no contents in %q", dfile)
 			}
 			rc = contents
 		}
 		dockerfiles = append(dockerfiles, rc)
 	}
 	if err := BuildReadClosers(store, options, dockerfiles...); err != nil {
-		return fmt.Errorf("error building: %v", err)
+		return errors.Wrapf(err, "error building")
 	}
 	return nil
 }

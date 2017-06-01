@@ -1,7 +1,6 @@
 package buildah
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/Sirupsen/logrus"
@@ -11,6 +10,7 @@ import (
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/pkg/archive"
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/util"
 )
 
@@ -52,22 +52,22 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	}
 	src, err := b.makeContainerImageRef(options.PreferredManifestType, options.Compression)
 	if err != nil {
-		return fmt.Errorf("error recomputing layer digests and building metadata: %v", err)
+		return errors.Wrapf(err, "error recomputing layer digests and building metadata")
 	}
 	err = copy.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter))
 	if err != nil {
-		return fmt.Errorf("error copying layers and metadata: %v", err)
+		return errors.Wrapf(err, "error copying layers and metadata")
 	}
 	if len(options.AdditionalTags) > 0 {
 		switch dest.Transport().Name() {
 		case storage.Transport.Name():
 			img, err := storage.Transport.GetStoreImage(b.store, dest)
 			if err != nil {
-				return fmt.Errorf("error locating just-written image %q: %v", transports.ImageName(dest), err)
+				return errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
 			err = util.AddImageNames(b.store, img, options.AdditionalTags)
 			if err != nil {
-				return fmt.Errorf("error setting image names to %v: %v", append(img.Names, options.AdditionalTags...), err)
+				return errors.Wrapf(err, "error setting image names to %v", append(img.Names, options.AdditionalTags...))
 			}
 		default:
 			logrus.Warnf("don't know how to add tags to images stored in %q transport", dest.Transport().Name())

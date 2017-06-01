@@ -6,6 +6,7 @@ import (
 
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
@@ -46,7 +47,7 @@ func openBuilder(store storage.Store, name string) (builder *buildah.Builder, er
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error reading build container: %v", err)
+		return nil, errors.Wrapf(err, "error reading build container")
 	}
 	if builder == nil {
 		return nil, fmt.Errorf("error finding build container")
@@ -64,7 +65,7 @@ func openImage(store storage.Store, name string) (builder *buildah.Builder, err 
 	}
 	builder, err = buildah.ImportBuilderFromImage(store, options)
 	if err != nil {
-		return nil, fmt.Errorf("error reading image: %v", err)
+		return nil, errors.Wrapf(err, "error reading image")
 	}
 	if builder == nil {
 		return nil, fmt.Errorf("error mocking up build configuration")
