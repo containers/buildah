@@ -2,7 +2,6 @@ package buildah
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -13,6 +12,7 @@ import (
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -184,7 +184,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 	if !options.NetworkDisabled {
 		if err = g.RemoveLinuxNamespace("network"); err != nil {
-			return fmt.Errorf("error removing network namespace for run: %v)", err)
+			return errors.Wrapf(err, "error removing network namespace for run")
 		}
 	}
 	if options.User != "" {
@@ -202,13 +202,13 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		spec.Process.Cwd = DefaultWorkingDir
 	}
 	if err = os.MkdirAll(filepath.Join(mountPoint, b.WorkDir()), 0755); err != nil {
-		return fmt.Errorf("error ensuring working directory %q exists: %v)", b.WorkDir(), err)
+		return errors.Wrapf(err, "error ensuring working directory %q exists", b.WorkDir())
 	}
 
 	bindFiles := []string{"/etc/hosts", "/etc/resolv.conf"}
 	err = setupMounts(spec, options.Mounts, bindFiles, b.Volumes())
 	if err != nil {
-		return fmt.Errorf("error resolving mountpoints for container: %v)", err)
+		return errors.Wrapf(err, "error resolving mountpoints for container")
 	}
 	specbytes, err := json.Marshal(spec)
 	if err != nil {
@@ -216,7 +216,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 	err = ioutils.AtomicWriteFile(filepath.Join(path, "config.json"), specbytes, 0600)
 	if err != nil {
-		return fmt.Errorf("error storing runtime configuration: %v", err)
+		return errors.Wrapf(err, "error storing runtime configuration")
 	}
 	logrus.Debugf("config = %v", string(specbytes))
 	runtime := options.Runtime

@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
@@ -61,7 +62,7 @@ func runCmd(c *cli.Context) error {
 
 	builder, err := openBuilder(store, name)
 	if err != nil {
-		return fmt.Errorf("error reading build container %q: %v", name, err)
+		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
 	hostname := ""

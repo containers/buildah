@@ -8,6 +8,7 @@ import (
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
 	"github.com/openshift/imagebuilder"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -67,51 +68,51 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		if options.PullPolicy == PullAlways {
 			err := pullImage(store, options, systemContext)
 			if err != nil {
-				return nil, fmt.Errorf("error pulling image %q: %v", image, err)
+				return nil, errors.Wrapf(err, "error pulling image %q", image)
 			}
 		}
 		ref, err := is.Transport.ParseStoreReference(store, image)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing reference to image %q: %v", image, err)
+			return nil, errors.Wrapf(err, "error parsing reference to image %q", image)
 		}
 		img, err = is.Transport.GetStoreImage(store, ref)
 		if err != nil {
 			if err == storage.ErrImageUnknown && options.PullPolicy != PullIfMissing {
-				return nil, fmt.Errorf("no such image %q: %v", image, err)
+				return nil, errors.Wrapf(err, "no such image %q", image)
 			}
 			err = pullImage(store, options, systemContext)
 			if err != nil {
-				return nil, fmt.Errorf("error pulling image %q: %v", image, err)
+				return nil, errors.Wrapf(err, "error pulling image %q", image)
 			}
 			ref, err = is.Transport.ParseStoreReference(store, image)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing reference to image %q: %v", image, err)
+				return nil, errors.Wrapf(err, "error parsing reference to image %q", image)
 			}
 			img, err = is.Transport.GetStoreImage(store, ref)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("no such image %q: %v", image, err)
+			return nil, errors.Wrapf(err, "no such image %q", image)
 		}
 		imageID = img.ID
 		src, err := ref.NewImage(systemContext)
 		if err != nil {
-			return nil, fmt.Errorf("error instantiating image: %v", err)
+			return nil, errors.Wrapf(err, "error instantiating image")
 		}
 		defer src.Close()
 		config, err = src.ConfigBlob()
 		if err != nil {
-			return nil, fmt.Errorf("error reading image configuration: %v", err)
+			return nil, errors.Wrapf(err, "error reading image configuration")
 		}
 		manifest, _, err = src.Manifest()
 		if err != nil {
-			return nil, fmt.Errorf("error reading image manifest: %v", err)
+			return nil, errors.Wrapf(err, "error reading image manifest")
 		}
 	}
 
 	coptions := storage.ContainerOptions{}
 	container, err := store.CreateContainer("", []string{name}, imageID, "", "", &coptions)
 	if err != nil {
-		return nil, fmt.Errorf("error creating container: %v", err)
+		return nil, errors.Wrapf(err, "error creating container")
 	}
 
 	defer func() {
@@ -138,14 +139,14 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	if options.Mount {
 		_, err = builder.Mount("")
 		if err != nil {
-			return nil, fmt.Errorf("error mounting build container: %v", err)
+			return nil, errors.Wrapf(err, "error mounting build container")
 		}
 	}
 
 	builder.initConfig()
 	err = builder.Save()
 	if err != nil {
-		return nil, fmt.Errorf("error saving builder state: %v", err)
+		return nil, errors.Wrapf(err, "error saving builder state")
 	}
 
 	return builder, nil

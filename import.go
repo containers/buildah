@@ -6,6 +6,7 @@ import (
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
+	"github.com/pkg/errors"
 )
 
 func importBuilderDataFromImage(store storage.Store, systemContext *types.SystemContext, imageID, containerName, containerID string) (*Builder, error) {
@@ -16,20 +17,20 @@ func importBuilderDataFromImage(store storage.Store, systemContext *types.System
 	if imageID != "" {
 		ref, err := is.Transport.ParseStoreReference(store, "@"+imageID)
 		if err != nil {
-			return nil, fmt.Errorf("no such image %q: %v", "@"+imageID, err)
+			return nil, errors.Wrapf(err, "no such image %q", "@"+imageID)
 		}
 		src, err2 := ref.NewImage(systemContext)
 		if err2 != nil {
-			return nil, fmt.Errorf("error instantiating image: %v", err2)
+			return nil, errors.Wrapf(err2, "error instantiating image")
 		}
 		defer src.Close()
 		config, err = src.ConfigBlob()
 		if err != nil {
-			return nil, fmt.Errorf("error reading image configuration: %v", err)
+			return nil, errors.Wrapf(err, "error reading image configuration")
 		}
 		manifest, _, err = src.Manifest()
 		if err != nil {
-			return nil, fmt.Errorf("error reading image manifest: %v", err)
+			return nil, errors.Wrapf(err, "error reading image manifest")
 		}
 		if img, err3 := store.Image(imageID); err3 == nil {
 			if len(img.Names) > 0 {
@@ -75,7 +76,7 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 
 	err = builder.Save()
 	if err != nil {
-		return nil, fmt.Errorf("error saving builder state: %v", err)
+		return nil, errors.Wrapf(err, "error saving builder state")
 	}
 
 	return builder, nil
@@ -88,11 +89,11 @@ func importBuilderFromImage(store storage.Store, options ImportFromImageOptions)
 
 	ref, err := is.Transport.ParseStoreReference(store, options.Image)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing reference to image %q: %v", options.Image, err)
+		return nil, errors.Wrapf(err, "error parsing reference to image %q", options.Image)
 	}
 	img, err := is.Transport.GetStoreImage(store, ref)
 	if err != nil {
-		return nil, fmt.Errorf("unable to locate image: %v", err)
+		return nil, errors.Wrapf(err, "unable to locate image")
 	}
 
 	systemContext := getSystemContext(options.SignaturePolicyPath)

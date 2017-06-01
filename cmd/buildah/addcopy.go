@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
@@ -50,12 +51,12 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 
 	builder, err := openBuilder(store, name)
 	if err != nil {
-		return fmt.Errorf("error reading build container %q: %v", name, err)
+		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
 	err = builder.Add(dest, extractLocalArchives, args...)
 	if err != nil {
-		return fmt.Errorf("error adding content to container %q: %v", builder.Container, err)
+		return errors.Wrapf(err, "error adding content to container %q", builder.Container)
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
@@ -34,12 +35,12 @@ func umountCmd(c *cli.Context) error {
 
 	builder, err := openBuilder(store, name)
 	if err != nil {
-		return fmt.Errorf("error reading build container %q: %v", name, err)
+		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
 	err = builder.Unmount()
 	if err != nil {
-		return fmt.Errorf("error unmounting container %q: %v", builder.Container, err)
+		return errors.Wrapf(err, "error unmounting container %q", builder.Container)
 	}
 
 	return nil

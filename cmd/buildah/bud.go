@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/imagebuildah"
 	"github.com/urfave/cli"
 )
@@ -151,7 +152,7 @@ func budCmd(c *cli.Context) error {
 		// The context directory could be a URL.  Try to handle that.
 		tempDir, subDir, err := imagebuildah.TempDirForURL("", "buildah", cliArgs[0])
 		if err != nil {
-			return fmt.Errorf("error prepping temporary context directory: %v", err)
+			return errors.Wrapf(err, "error prepping temporary context directory")
 		}
 		if tempDir != "" {
 			// We had to download it to a temporary directory.
@@ -166,7 +167,7 @@ func budCmd(c *cli.Context) error {
 			// Nope, it was local.  Use it as is.
 			absDir, err := filepath.Abs(cliArgs[0])
 			if err != nil {
-				return fmt.Errorf("error determining path to directory %q: %v", cliArgs[0], err)
+				return errors.Wrapf(err, "error determining path to directory %q", cliArgs[0])
 			}
 			contextDir = absDir
 		}
@@ -183,12 +184,12 @@ func budCmd(c *cli.Context) error {
 			}
 			absFile, err := filepath.Abs(dockerfiles[i])
 			if err != nil {
-				return fmt.Errorf("error determining path to file %q: %v", dockerfiles[i], err)
+				return errors.Wrapf(err, "error determining path to file %q", dockerfiles[i])
 			}
 			contextDir = filepath.Dir(absFile)
 			dockerfiles[i], err = filepath.Rel(contextDir, absFile)
 			if err != nil {
-				return fmt.Errorf("error determining path to file %q: %v", dockerfiles[i], err)
+				return errors.Wrapf(err, "error determining path to file %q", dockerfiles[i])
 			}
 			break
 		}

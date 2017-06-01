@@ -8,6 +8,7 @@ import (
 	"github.com/containers/image/storage"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/storage/pkg/archive"
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
@@ -87,14 +88,14 @@ func commitCmd(c *cli.Context) error {
 
 	builder, err := openBuilder(store, name)
 	if err != nil {
-		return fmt.Errorf("error reading build container %q: %v", name, err)
+		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
 	dest, err := alltransports.ParseImageName(image)
 	if err != nil {
 		dest2, err2 := storage.Transport.ParseStoreReference(store, image)
 		if err2 != nil {
-			return fmt.Errorf("error parsing target image name %q: %v", image, err)
+			return errors.Wrapf(err, "error parsing target image name %q", image)
 		}
 		dest = dest2
 	}
@@ -109,7 +110,7 @@ func commitCmd(c *cli.Context) error {
 	}
 	err = builder.Commit(dest, options)
 	if err != nil {
-		return fmt.Errorf("error committing container %q to %q: %v", builder.Container, image, err)
+		return errors.Wrapf(err, "error committing container %q to %q", builder.Container, image)
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
@@ -29,11 +30,11 @@ func tagCmd(c *cli.Context) error {
 	}
 	img, err := util.FindImage(store, args[0])
 	if err != nil {
-		return fmt.Errorf("error finding local image %q: %v", args[0], err)
+		return errors.Wrapf(err, "error finding local image %q", args[0])
 	}
 	err = util.AddImageNames(store, img, args[1:])
 	if err != nil {
-		return fmt.Errorf("error adding names %v to image %q: %v", args[1:], args[0], err)
+		return errors.Wrapf(err, "error adding names %v to image %q", args[1:], args[0])
 	}
 	return nil
 }

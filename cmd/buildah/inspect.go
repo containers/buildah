@@ -6,6 +6,7 @@ import (
 	"os"
 	"text/template"
 
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
@@ -81,12 +82,12 @@ func inspectCmd(c *cli.Context) error {
 	case inspectTypeContainer:
 		builder, err = openBuilder(store, name)
 		if err != nil {
-			return fmt.Errorf("error reading build container %q: %v", name, err)
+			return errors.Wrapf(err, "error reading build container %q", name)
 		}
 	case inspectTypeImage:
 		builder, err = openImage(store, name)
 		if err != nil {
-			return fmt.Errorf("error reading image %q: %v", name, err)
+			return errors.Wrapf(err, "error reading image %q", name)
 		}
 	}
 
@@ -96,7 +97,7 @@ func inspectCmd(c *cli.Context) error {
 
 	b, err := json.MarshalIndent(builder, "", "    ")
 	if err != nil {
-		return fmt.Errorf("error encoding build container as json: %v", err)
+		return errors.Wrapf(err, "error encoding build container as json")
 	}
 	_, err = fmt.Println(string(b))
 	return err

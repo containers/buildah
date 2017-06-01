@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
@@ -52,7 +53,7 @@ func imagesCmd(c *cli.Context) error {
 	}
 	images, err := store.Images()
 	if err != nil {
-		return fmt.Errorf("error reading images: %v", err)
+		return errors.Wrapf(err, "error reading images")
 	}
 
 	if len(images) > 0 && !noheading && !quiet {

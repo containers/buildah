@@ -11,6 +11,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/chrootarchive"
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 )
 
@@ -27,7 +28,7 @@ func downloadToDirectory(url, dir string) error {
 	logrus.Debugf("extracting %q to %q", url, dir)
 	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("error getting %q: %v", url, err)
+		return errors.Wrapf(err, "error getting %q", url)
 	}
 	defer resp.Body.Close()
 	if resp.ContentLength == 0 {
@@ -52,7 +53,7 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 	}
 	name, err = ioutil.TempDir(dir, prefix)
 	if err != nil {
-		return "", "", fmt.Errorf("error creating temporary directory for %q: %v", url, err)
+		return "", "", errors.Wrapf(err, "error creating temporary directory for %q", url)
 	}
 	if strings.HasPrefix(url, "git://") {
 		err = cloneToDirectory(url, name)

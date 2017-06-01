@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
@@ -25,7 +26,6 @@ var (
 )
 
 func mountCmd(c *cli.Context) error {
-	var name string
 	args := c.Args()
 	if len(args) > 1 {
 		return fmt.Errorf("too many arguments specified")
@@ -41,21 +41,20 @@ func mountCmd(c *cli.Context) error {
 	}
 
 	if len(args) == 1 {
-		name = args[0]
-
+		name := args[0]
 		builder, err := openBuilder(store, name)
 		if err != nil {
-			return fmt.Errorf("error reading build container %q: %v", name, err)
+			return errors.Wrapf(err, "error reading build container %q", name)
 		}
 		mountPoint, err := builder.Mount("")
 		if err != nil {
-			return fmt.Errorf("error mounting container %q: %v", builder.Container, err)
+			return errors.Wrapf(err, "error mounting %q container %q", name, builder.Container)
 		}
 		fmt.Printf("%s\n", mountPoint)
 	} else {
 		builders, err := openBuilders(store)
 		if err != nil {
-			return fmt.Errorf("error reading build containers: %v", err)
+			return errors.Wrapf(err, "error reading build containers")
 		}
 		for _, builder := range builders {
 			if builder.MountPoint == "" {

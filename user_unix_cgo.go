@@ -19,6 +19,8 @@ import (
 	"sync"
 	"syscall"
 	"unsafe"
+
+	"github.com/pkg/errors"
 )
 
 func fopenContainerFile(rootdir, filename string) (C.pFILE, error) {
@@ -31,13 +33,13 @@ func fopenContainerFile(rootdir, filename string) (C.pFILE, error) {
 	defer C.free(unsafe.Pointer(mode))
 	f, err := C.fopen(cctrfile, mode)
 	if f == nil || err != nil {
-		return nil, fmt.Errorf("error opening %q: %v", ctrfile, err)
+		return nil, errors.Wrapf(err, "error opening %q", ctrfile)
 	}
 	if err = syscall.Fstat(int(C.fileno(f)), &st); err != nil {
-		return nil, fmt.Errorf("fstat(%q): %v", ctrfile, err)
+		return nil, errors.Wrapf(err, "fstat(%q)", ctrfile)
 	}
 	if err = syscall.Lstat(ctrfile, &lst); err != nil {
-		return nil, fmt.Errorf("lstat(%q): %v", ctrfile, err)
+		return nil, errors.Wrapf(err, "lstat(%q)", ctrfile)
 	}
 	if st.Dev != lst.Dev || st.Ino != lst.Ino {
 		return nil, fmt.Errorf("%q is not a regular file", ctrfile)
