@@ -60,6 +60,10 @@ Then to install buildah follow the steps in this example:
   buildah --help
 ```
 
+buildah uses `runc` to run commands when `buildah run` is used, or when `buildah build-using-dockerfile`
+encounters a `RUN` instruction, so you'll also need to build and install a compatible version of
+[runc](https://github.com/opencontainers/runc) for buildah to call for those cases.
+
 ## Commands
 | Command               | Description |
 | --------------------- | --------------------------------------------------- |
