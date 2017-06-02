@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage"
+	ispecs "github.com/opencontainers/image-spec/specs-go"
+	rspecs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
@@ -17,7 +20,7 @@ func main() {
 
 	app := cli.NewApp()
 	app.Name = buildah.Package
-	app.Version = buildah.Version
+	app.Version = fmt.Sprintf("%s (image-spec %s, runtime-spec %s)", buildah.Version, ispecs.Version, rspecs.Version)
 	app.Usage = "an image builder"
 	if len(storage.DefaultStoreOptions.GraphDriverOptions) > 0 {
 		var optionSlice cli.StringSlice = storage.DefaultStoreOptions.GraphDriverOptions[:]
