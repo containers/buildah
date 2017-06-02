@@ -46,10 +46,10 @@ func inspectCmd(c *cli.Context) error {
 
 	args := c.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("container or image name must be specified")
+		return errors.Errorf("container or image name must be specified")
 	}
 	if len(args) > 1 {
-		return fmt.Errorf("too many arguments specified")
+		return errors.Errorf("too many arguments specified")
 	}
 
 	itemType := inspectTypeContainer
@@ -60,7 +60,7 @@ func inspectCmd(c *cli.Context) error {
 	case inspectTypeContainer:
 	case inspectTypeImage:
 	default:
-		return fmt.Errorf("the only recognized types are %q and %q", inspectTypeContainer, inspectTypeImage)
+		return errors.Errorf("the only recognized types are %q and %q", inspectTypeContainer, inspectTypeImage)
 	}
 
 	format := defaultFormat

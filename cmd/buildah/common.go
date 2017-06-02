@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	is "github.com/containers/image/storage"
@@ -50,7 +49,7 @@ func openBuilder(store storage.Store, name string) (builder *buildah.Builder, er
 		return nil, errors.Wrapf(err, "error reading build container")
 	}
 	if builder == nil {
-		return nil, fmt.Errorf("error finding build container")
+		return nil, errors.Errorf("error finding build container")
 	}
 	return builder, nil
 }
@@ -68,7 +67,7 @@ func openImage(store storage.Store, name string) (builder *buildah.Builder, err 
 		return nil, errors.Wrapf(err, "error reading image")
 	}
 	if builder == nil {
-		return nil, fmt.Errorf("error mocking up build configuration")
+		return nil, errors.Errorf("error mocking up build configuration")
 	}
 	return builder, nil
 }

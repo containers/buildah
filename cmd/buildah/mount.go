@@ -28,7 +28,7 @@ var (
 func mountCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) > 1 {
-		return fmt.Errorf("too many arguments specified")
+		return errors.Errorf("too many arguments specified")
 	}
 
 	store, err := getStore(c)

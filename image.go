@@ -3,7 +3,6 @@ package buildah
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -92,7 +91,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 	}
 	// If it's not a format we support, return an error.
 	if manifestType != v1.MediaTypeImageManifest && manifestType != docker.V2S2MediaTypeManifest {
-		return nil, fmt.Errorf("no supported manifest types (attempted to use %q, only know %q and %q)",
+		return nil, errors.Errorf("no supported manifest types (attempted to use %q, only know %q and %q)",
 			manifestType, v1.MediaTypeImageManifest, docker.V2S2MediaTypeManifest)
 	}
 	layers := []string{}
@@ -215,7 +214,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		layerFile.Close()
 		if i.compression == archive.Uncompressed {
 			if size != counter.Count {
-				return nil, fmt.Errorf("error storing layer %q to file: inconsistent layer size (copied %d, wrote %d)", layerID, size, counter.Count)
+				return nil, errors.Errorf("error storing layer %q to file: inconsistent layer size (copied %d, wrote %d)", layerID, size, counter.Count)
 			}
 		} else {
 			size = counter.Count
@@ -317,7 +316,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 }
 
 func (i *containerImageRef) NewImageDestination(sc *types.SystemContext) (types.ImageDestination, error) {
-	return nil, fmt.Errorf("can't write to a container")
+	return nil, errors.Errorf("can't write to a container")
 }
 
 func (i *containerImageRef) DockerReference() reference.Named {
@@ -365,7 +364,7 @@ func (i *containerImageSource) GetSignatures() ([][]byte, error) {
 }
 
 func (i *containerImageSource) GetTargetManifest(digest digest.Digest) ([]byte, string, error) {
-	return []byte{}, "", fmt.Errorf("TODO")
+	return []byte{}, "", errors.Errorf("TODO")
 }
 
 func (i *containerImageSource) GetManifest() ([]byte, string, error) {

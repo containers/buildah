@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -144,7 +143,7 @@ func budCmd(c *cli.Context) error {
 	} else if strings.HasPrefix(format, "docker") {
 		format = imagebuildah.Dockerv2ImageFormat
 	} else {
-		return fmt.Errorf("unrecognized image type %q", format)
+		return errors.Errorf("unrecognized image type %q", format)
 	}
 	contextDir := ""
 	cliArgs := c.Args()
@@ -195,7 +194,7 @@ func budCmd(c *cli.Context) error {
 		}
 	}
 	if contextDir == "" {
-		return fmt.Errorf("no context directory specified, and no dockerfile specified")
+		return errors.Errorf("no context directory specified, and no dockerfile specified")
 	}
 	if len(dockerfiles) == 0 {
 		dockerfiles = append(dockerfiles, filepath.Join(contextDir, "Dockerfile"))

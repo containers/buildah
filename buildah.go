@@ -2,7 +2,6 @@ package buildah
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/docker"
 )
 
@@ -170,7 +170,7 @@ func OpenBuilder(store storage.Store, container string) (*Builder, error) {
 		return nil, err
 	}
 	if b.Type != containerType {
-		return nil, fmt.Errorf("container is not a %s container", Package)
+		return nil, errors.Errorf("container is not a %s container", Package)
 	}
 	b.store = store
 	b.fixupConfig()

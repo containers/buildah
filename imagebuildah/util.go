@@ -32,7 +32,7 @@ func downloadToDirectory(url, dir string) error {
 	}
 	defer resp.Body.Close()
 	if resp.ContentLength == 0 {
-		return fmt.Errorf("no contents in %q", url)
+		return errors.Errorf("no contents in %q", url)
 	}
 	return chrootarchive.Untar(resp.Body, dir, nil)
 }
@@ -85,7 +85,7 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 	if err2 := os.Remove(name); err2 != nil {
 		logrus.Debugf("error removing temporary directory %q: %v", name, err2)
 	}
-	return "", "", fmt.Errorf("unreachable code reached")
+	return "", "", errors.Errorf("unreachable code reached")
 }
 
 // InitReexec is a wrapper for buildah.InitReexec().  It should be called at

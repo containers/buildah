@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -46,15 +45,15 @@ var (
 func commitCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("container ID must be specified")
+		return errors.Errorf("container ID must be specified")
 	}
 	name := args[0]
 	args = args.Tail()
 	if len(args) == 0 {
-		return fmt.Errorf("an image name must be specified")
+		return errors.Errorf("an image name must be specified")
 	}
 	if len(args) > 1 {
-		return fmt.Errorf("too many arguments specified")
+		return errors.Errorf("too many arguments specified")
 	}
 	image := args[0]
 
@@ -79,7 +78,7 @@ func commitCmd(c *cli.Context) error {
 	} else if strings.HasPrefix(strings.ToLower(format), "docker") {
 		format = buildah.Dockerv2ImageManifest
 	} else {
-		return fmt.Errorf("unrecognized image type %q", format)
+		return errors.Errorf("unrecognized image type %q", format)
 	}
 	store, err := getStore(c)
 	if err != nil {

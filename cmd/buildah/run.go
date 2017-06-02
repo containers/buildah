@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"syscall"
@@ -38,7 +37,7 @@ var (
 func runCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("container ID must be specified")
+		return errors.Errorf("container ID must be specified")
 	}
 	name := args[0]
 	args = args.Tail()

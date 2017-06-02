@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
@@ -22,7 +23,7 @@ var (
 func rmCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("container ID must be specified")
+		return errors.Errorf("container ID must be specified")
 	}
 	store, err := getStore(c)
 	if err != nil {

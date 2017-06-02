@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
@@ -22,7 +20,7 @@ var (
 func tagCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) < 2 {
-		return fmt.Errorf("image name and at least one new name must be specified")
+		return errors.Errorf("image name and at least one new name must be specified")
 	}
 	store, err := getStore(c)
 	if err != nil {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -166,10 +165,10 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 func configCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("container ID must be specified")
+		return errors.Errorf("container ID must be specified")
 	}
 	if len(args) > 1 {
-		return fmt.Errorf("too many arguments specified")
+		return errors.Errorf("too many arguments specified")
 	}
 	name := args[0]
 
