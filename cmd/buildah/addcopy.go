@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
@@ -31,7 +29,7 @@ var (
 func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 	args := c.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("container ID must be specified")
+		return errors.Errorf("container ID must be specified")
 	}
 	name := args[0]
 	args = args.Tail()

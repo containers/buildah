@@ -9,6 +9,7 @@ import (
 	"github.com/containers/image/transports"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
+	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
@@ -26,7 +27,7 @@ var (
 func rmiCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("image name or ID must be specified")
+		return errors.Errorf("image name or ID must be specified")
 	}
 
 	store, err := getStore(c)

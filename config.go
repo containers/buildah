@@ -10,6 +10,7 @@ import (
 
 	digest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/docker"
 )
 
@@ -124,7 +125,7 @@ func makeDockerV2S2Image(oimage *ociv1.Image) (docker.V2Image, error) {
 func makeDockerV2S1Image(manifest docker.V2S1Manifest) (docker.V2Image, error) {
 	// Treat the most recent (first) item in the history as a description of the image.
 	if len(manifest.History) == 0 {
-		return docker.V2Image{}, fmt.Errorf("error parsing image configuration from manifest")
+		return docker.V2Image{}, errors.Errorf("error parsing image configuration from manifest")
 	}
 	dimage := docker.V2Image{}
 	err := json.Unmarshal([]byte(manifest.History[0].V1Compatibility), &dimage)
@@ -132,7 +133,7 @@ func makeDockerV2S1Image(manifest docker.V2S1Manifest) (docker.V2Image, error) {
 		return docker.V2Image{}, err
 	}
 	if dimage.DockerVersion == "" {
-		return docker.V2Image{}, fmt.Errorf("error parsing image configuration from history")
+		return docker.V2Image{}, errors.Errorf("error parsing image configuration from history")
 	}
 	// The DiffID list is intended to contain the sums of _uncompressed_ blobs, and these are most
 	// likely compressed, so leave the list empty to avoid potential confusion later on.  We can

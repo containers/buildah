@@ -160,7 +160,7 @@ func (b *Executor) Preserve(path string) error {
 	b.preserved++
 	cacheDir, err := b.store.ContainerDirectory(b.builder.ContainerID)
 	if err != nil {
-		return fmt.Errorf("unable to locate temporary directory for container")
+		return errors.Errorf("unable to locate temporary directory for container")
 	}
 	cacheFile := filepath.Join(cacheDir, fmt.Sprintf("volume%d.tar", b.preserved))
 	// Save info about the top level of the location that we'll be archiving.
@@ -174,7 +174,7 @@ func (b *Executor) Preserve(path string) error {
 	if !b.volumes.Add(path) {
 		// This path is not a subdirectory of a volume path that we're
 		// already preserving, so adding it to the list should work.
-		return fmt.Errorf("error adding %q to the volume cache", path)
+		return errors.Errorf("error adding %q to the volume cache", path)
 	}
 	b.volumeCache[path] = cacheFile
 	// Now prune cache files for volumes that are now supplanted by this one.
@@ -337,7 +337,7 @@ func convertMounts(mounts []Mount) []specs.Mount {
 func (b *Executor) Run(run imagebuilder.Run, config docker.Config) error {
 	logrus.Debugf("RUN %#v, %#v", run, config)
 	if b.builder == nil {
-		return fmt.Errorf("no build container available")
+		return errors.Errorf("no build container available")
 	}
 	options := buildah.RunOptions{
 		Hostname:        config.Hostname,
@@ -376,7 +376,7 @@ func (b *Executor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 		return nil
 	}
 	logrus.Errorf("+(UNIMPLEMENTED?) %#v", step)
-	return fmt.Errorf("Unrecognized instruction: %#v", step)
+	return errors.Errorf("Unrecognized instruction: %#v", step)
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
@@ -661,7 +661,7 @@ func BuildReadClosers(store storage.Store, options BuildOptions, dockerfile ...i
 func BuildDockerfiles(store storage.Store, options BuildOptions, dockerfile ...string) error {
 	var dockerfiles []io.ReadCloser
 	if len(dockerfile) == 0 {
-		return fmt.Errorf("error building: no dockerfiles specified")
+		return errors.Errorf("error building: no dockerfiles specified")
 	}
 	for _, dfile := range dockerfile {
 		var rc io.ReadCloser
@@ -673,7 +673,7 @@ func BuildDockerfiles(store storage.Store, options BuildOptions, dockerfile ...s
 			}
 			if resp.ContentLength == 0 {
 				resp.Body.Close()
-				return fmt.Errorf("no contents in %q", dfile)
+				return errors.Errorf("no contents in %q", dfile)
 			}
 			rc = resp.Body
 		} else {

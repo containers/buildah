@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
@@ -21,10 +19,10 @@ var (
 func umountCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("container ID must be specified")
+		return errors.Errorf("container ID must be specified")
 	}
 	if len(args) > 1 {
-		return fmt.Errorf("too many arguments specified")
+		return errors.Errorf("too many arguments specified")
 	}
 	name := args[0]
 

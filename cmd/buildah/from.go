@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
@@ -59,10 +60,10 @@ func fromCmd(c *cli.Context) error {
 
 	args := c.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("an image name (or \"scratch\") must be specified")
+		return errors.Errorf("an image name (or \"scratch\") must be specified")
 	}
 	if len(args) > 1 {
-		return fmt.Errorf("too many arguments specified")
+		return errors.Errorf("too many arguments specified")
 	}
 	image := args[0]
 

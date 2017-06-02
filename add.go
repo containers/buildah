@@ -1,7 +1,6 @@
 package buildah
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -48,7 +47,7 @@ func addURL(destination, srcurl string) error {
 		return errors.Wrapf(err, "error reading contents for %q", destination)
 	}
 	if resp.ContentLength >= 0 && n != resp.ContentLength {
-		return fmt.Errorf("error reading contents for %q: wrong length (%d != %d)", destination, n, resp.ContentLength)
+		return errors.Errorf("error reading contents for %q: wrong length (%d != %d)", destination, n, resp.ContentLength)
 	}
 	if err := f.Chmod(0600); err != nil {
 		return errors.Wrapf(err, "error setting permissions on %q", destination)
@@ -88,7 +87,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 	}
 	// Make sure the destination's parent directory is usable.
 	if destpfi, err2 := os.Stat(filepath.Dir(dest)); err2 == nil && !destpfi.IsDir() {
-		return fmt.Errorf("%q already exists, but is not a subdirectory)", filepath.Dir(dest))
+		return errors.Errorf("%q already exists, but is not a subdirectory)", filepath.Dir(dest))
 	}
 	// Now look at the destination itself.
 	destfi, err := os.Stat(dest)
@@ -99,7 +98,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 		destfi = nil
 	}
 	if len(source) > 1 && (destfi == nil || !destfi.IsDir()) {
-		return fmt.Errorf("destination %q is not a directory", dest)
+		return errors.Errorf("destination %q is not a directory", dest)
 	}
 	for _, src := range source {
 		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
