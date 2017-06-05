@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/containers/image/copy"
+	cp "github.com/containers/image/copy"
 	"github.com/containers/image/signature"
 	"github.com/containers/image/storage"
 	"github.com/containers/image/transports"
@@ -54,7 +54,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	if err != nil {
 		return errors.Wrapf(err, "error recomputing layer digests and building metadata")
 	}
-	err = copy.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter))
+	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter))
 	if err != nil {
 		return errors.Wrapf(err, "error copying layers and metadata")
 	}

@@ -3,12 +3,12 @@ package buildah
 import (
 	"io"
 
-	"github.com/containers/image/copy"
+	cp "github.com/containers/image/copy"
 	"github.com/containers/image/types"
 )
 
-func getCopyOptions(reportWriter io.Writer) *copy.Options {
-	return &copy.Options{
+func getCopyOptions(reportWriter io.Writer) *cp.Options {
+	return &cp.Options{
 		ReportWriter: reportWriter,
 	}
 }
