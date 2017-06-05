@@ -2,7 +2,7 @@ package buildah
 
 import (
 	"github.com/Sirupsen/logrus"
-	"github.com/containers/image/copy"
+	cp "github.com/containers/image/copy"
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/signature"
 	is "github.com/containers/image/storage"
@@ -53,6 +53,6 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 
 	logrus.Debugf("copying %q to %q", spec, name)
 
-	err = copy.Image(policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter))
+	err = cp.Image(policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter))
 	return err
 }
