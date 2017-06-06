@@ -460,7 +460,7 @@ func (i *containerImageSource) GetBlob(blob types.BlobInfo) (reader io.ReadClose
 	return ioutils.NewReadCloserWrapper(layerFile, closer), size, nil
 }
 
-func (b *Builder) makeImageRef(manifestType string, exporting, addHistory bool, compress archive.Compression, names []string, layerID string) (types.ImageReference, error) {
+func (b *Builder) makeImageRef(manifestType string, exporting, addHistory bool, compress archive.Compression, names []string, layerID string, historyTimestamp *time.Time) (types.ImageReference, error) {
 	var name reference.Named
 	if len(names) > 0 {
 		if parsed, err := reference.ParseNamed(names[0]); err == nil {
@@ -478,6 +478,10 @@ func (b *Builder) makeImageRef(manifestType string, exporting, addHistory bool, 
 	if err != nil {
 		return nil, errors.Wrapf(err, "error encoding docker-format image configuration")
 	}
+	created := time.Now().UTC()
+	if historyTimestamp != nil {
+		created = historyTimestamp.UTC()
+	}
 	ref := &containerImageRef{
 		store:                 b.store,
 		compression:           compress,
@@ -487,7 +491,7 @@ func (b *Builder) makeImageRef(manifestType string, exporting, addHistory bool, 
 		addHistory:            addHistory,
 		oconfig:               oconfig,
 		dconfig:               dconfig,
-		created:               time.Now().UTC(),
+		created:               created,
 		createdBy:             b.CreatedBy(),
 		annotations:           b.Annotations(),
 		preferredManifestType: manifestType,
@@ -496,7 +500,7 @@ func (b *Builder) makeImageRef(manifestType string, exporting, addHistory bool, 
 	return ref, nil
 }
 
-func (b *Builder) makeContainerImageRef(manifestType string, exporting bool, compress archive.Compression) (types.ImageReference, error) {
+func (b *Builder) makeContainerImageRef(manifestType string, exporting bool, compress archive.Compression, historyTimestamp *time.Time) (types.ImageReference, error) {
 	if manifestType == "" {
 		manifestType = OCIv1ImageManifest
 	}
@@ -504,9 +508,9 @@ func (b *Builder) makeContainerImageRef(manifestType string, exporting bool, com
 	if err != nil {
 		return nil, errors.Wrapf(err, "error locating container %q", b.ContainerID)
 	}
-	return b.makeImageRef(manifestType, exporting, true, compress, container.Names, container.LayerID)
+	return b.makeImageRef(manifestType, exporting, true, compress, container.Names, container.LayerID, historyTimestamp)
 }
 
-func (b *Builder) makeImageImageRef(compress archive.Compression, names []string, layerID string) (types.ImageReference, error) {
-	return b.makeImageRef(manifest.GuessMIMEType(b.Manifest), true, false, compress, names, layerID)
+func (b *Builder) makeImageImageRef(compress archive.Compression, names []string, layerID string, historyTimestamp *time.Time) (types.ImageReference, error) {
+	return b.makeImageRef(manifest.GuessMIMEType(b.Manifest), true, false, compress, names, layerID, historyTimestamp)
 }

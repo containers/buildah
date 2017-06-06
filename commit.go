@@ -3,6 +3,7 @@ package buildah
 import (
 	"bytes"
 	"io"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	cp "github.com/containers/image/copy"
@@ -50,6 +51,9 @@ type CommitOptions struct {
 	// ReportWriter is an io.Writer which will be used to log the writing
 	// of the new image.
 	ReportWriter io.Writer
+	// HistoryTimestamp is the timestamp used when creating new items in the
+	// image's history.  If unset, the current time will be used.
+	HistoryTimestamp *time.Time
 }
 
 // shallowCopy copies the most recent layer, the configuration, and the manifest from one image to another.
@@ -220,7 +224,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	// Check if we're keeping everything in local storage.  If so, we can take certain shortcuts.
 	_, destIsStorage := dest.Transport().(storage.StoreTransport)
 	exporting := !destIsStorage
-	src, err := b.makeContainerImageRef(options.PreferredManifestType, exporting, options.Compression)
+	src, err := b.makeContainerImageRef(options.PreferredManifestType, exporting, options.Compression, options.HistoryTimestamp)
 	if err != nil {
 		return errors.Wrapf(err, "error recomputing layer digests and building metadata")
 	}

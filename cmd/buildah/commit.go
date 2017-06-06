@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"strings"
+	"time"
 
 	"github.com/containers/image/storage"
 	"github.com/containers/image/transports/alltransports"
@@ -15,7 +16,7 @@ import (
 var (
 	commitFlags = []cli.Flag{
 		cli.BoolFlag{
-			Name:  "disable-compression",
+			Name:  "disable-compression, D",
 			Usage: "don't compress layers",
 		},
 		cli.StringFlag{
@@ -25,6 +26,11 @@ var (
 		cli.StringFlag{
 			Name:  "format, f",
 			Usage: "`format` of the image manifest and metadata",
+		},
+		cli.StringFlag{
+			Name:   "reference-time",
+			Usage:  "set the timestamp on the image to match the named `file`",
+			Hidden: true,
 		},
 		cli.BoolFlag{
 			Name:  "quiet, q",
@@ -73,6 +79,15 @@ func commitCmd(c *cli.Context) error {
 	if c.IsSet("format") {
 		format = c.String("format")
 	}
+	timestamp := time.Now().UTC()
+	if c.IsSet("reference-time") {
+		referenceFile := c.String("reference-time")
+		finfo, err := os.Stat(referenceFile)
+		if err != nil {
+			return errors.Wrapf(err, "error reading timestamp of file %q", referenceFile)
+		}
+		timestamp = finfo.ModTime().UTC()
+	}
 	if strings.HasPrefix(strings.ToLower(format), "oci") {
 		format = buildah.OCIv1ImageManifest
 	} else if strings.HasPrefix(strings.ToLower(format), "docker") {
@@ -103,6 +118,7 @@ func commitCmd(c *cli.Context) error {
 		PreferredManifestType: format,
 		Compression:           compress,
 		SignaturePolicyPath:   signaturePolicy,
+		HistoryTimestamp:      &timestamp,
 	}
 	if !quiet {
 		options.ReportWriter = os.Stderr
