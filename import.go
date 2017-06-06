@@ -4,7 +4,9 @@ import (
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	"github.com/projectatomic/buildah/docker"
 	"github.com/projectatomic/buildah/util"
 )
 
@@ -71,6 +73,17 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 	builder, err := importBuilderDataFromImage(store, systemContext, c.ImageID, options.Container, c.ID)
 	if err != nil {
 		return nil, err
+	}
+
+	if builder.FromImageID != "" {
+		if d, err2 := digest.Parse(builder.FromImageID); err2 == nil {
+			builder.Docker.Parent = docker.ID(d)
+		} else {
+			builder.Docker.Parent = docker.ID(digest.NewDigestFromHex(digest.Canonical.String(), builder.FromImageID))
+		}
+	}
+	if builder.FromImage != "" {
+		builder.Docker.ContainerConfig.Image = builder.FromImage
 	}
 
 	err = builder.Save()
