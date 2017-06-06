@@ -295,6 +295,7 @@ return 1
           --signature-policy
           --format
           -f
+	  --reference-time
   "
 
      local all_options="$options_with_args $boolean_options"

@@ -33,6 +33,11 @@ Control the format for the image manifest and configuration data.  Recognized
 formats include *oci* (OCI image-spec v1.0, the default) and *docker* (version
 2, using schema format 2 for the manifest).
 
+**--reference-time**
+
+Sets the creation date in the image to match the last-modified time of the
+specified file.  This option is mainly present for use in buildah's self-tests.
+
 ## EXAMPLE
 
 buildah commit containerID
