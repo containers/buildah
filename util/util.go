@@ -34,6 +34,13 @@ func FindImage(store storage.Store, image string) (*storage.Image, error) {
 	}
 	img, err := is.Transport.GetStoreImage(store, ref)
 	if err != nil {
+		img2, err2 := store.Image(image)
+		if err2 == nil {
+			img = img2
+			err = nil
+		}
+	}
+	if err != nil {
 		return nil, errors.Wrapf(err, "unable to locate image")
 	}
 	return img, nil
