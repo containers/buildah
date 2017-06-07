@@ -58,8 +58,8 @@ func (d *Driver) Status() [][2]string {
 	return nil
 }
 
-// GetMetadata is used for implementing the graphdriver.ProtoDriver interface. VFS does not currently have any meta data.
-func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+// Metadata is used for implementing the graphdriver.ProtoDriver interface. VFS does not currently have any meta data.
+func (d *Driver) Metadata(id string) (map[string]string, error) {
 	return nil, nil
 }
 
@@ -142,4 +142,10 @@ func (d *Driver) Put(id string) error {
 func (d *Driver) Exists(id string) bool {
 	_, err := os.Stat(d.dir(id))
 	return err == nil
+}
+
+// AdditionalImageStores returns additional image stores supported by the driver
+func (d *Driver) AdditionalImageStores() []string {
+	var imageStores []string
+	return imageStores
 }

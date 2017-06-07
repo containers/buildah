@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -82,6 +83,7 @@ type Driver struct {
 	uidMaps []idtools.IDMap
 	gidMaps []idtools.IDMap
 	ctr     *graphdriver.RefCounter
+	opts    *overlayOptions
 }
 
 var backingFs = "<unknown>"
@@ -149,6 +151,7 @@ func InitWithName(name, home string, options []string, uidMaps, gidMaps []idtool
 		uidMaps: uidMaps,
 		gidMaps: gidMaps,
 		ctr:     graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
+		opts:    opts,
 	}
 
 	return d, nil
@@ -170,6 +173,7 @@ func InitAsOverlay2(home string, options []string, uidMaps, gidMaps []idtools.ID
 
 type overlayOptions struct {
 	overrideKernelCheck bool
+	imageStores         []string
 }
 
 func parseOptions(options []string) (*overlayOptions, error) {
@@ -185,6 +189,22 @@ func parseOptions(options []string) (*overlayOptions, error) {
 			o.overrideKernelCheck, err = strconv.ParseBool(val)
 			if err != nil {
 				return nil, err
+			}
+		case "overlay.imagestore":
+			// Additional read only image stores to use for lower paths
+			for _, store := range strings.Split(val, ",") {
+				store = filepath.Clean(store)
+				if !filepath.IsAbs(store) {
+					return nil, fmt.Errorf("overlay: image path %q is not absolute.  Can not be relative", store)
+				}
+				st, err := os.Stat(store)
+				if err != nil {
+					return nil, fmt.Errorf("overlay: Can't stat imageStore dir %s: %v", store, err)
+				}
+				if !st.IsDir() {
+					return nil, fmt.Errorf("overlay: image path %q must be a directory", store)
+				}
+				o.imageStores = append(o.imageStores, store)
 			}
 		default:
 			return nil, fmt.Errorf("overlay: Unknown option %s", key)
@@ -226,9 +246,9 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
-// GetMetadata returns meta data about the overlay driver such as
+// Metadata returns meta data about the overlay driver such as
 // LowerDir, UpperDir, WorkDir and MergeDir used to store data.
-func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+func (d *Driver) Metadata(id string) (map[string]string, error) {
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
 		return nil, err
@@ -357,8 +377,18 @@ func (d *Driver) getLower(parent string) (string, error) {
 	return strings.Join(lowers, ":"), nil
 }
 
-func (d *Driver) dir(id string) string {
-	return path.Join(d.home, id)
+func (d *Driver) dir(val string) string {
+	newpath := path.Join(d.home, val)
+	if _, err := os.Stat(newpath); err != nil {
+		for _, p := range d.AdditionalImageStores() {
+			l := path.Join(p, d.name, val)
+			_, err = os.Stat(l)
+			if err == nil {
+				return l
+			}
+		}
+	}
+	return newpath
 }
 
 func (d *Driver) getLowerDirs(id string) ([]string, error) {
@@ -366,11 +396,12 @@ func (d *Driver) getLowerDirs(id string) ([]string, error) {
 	lowers, err := ioutil.ReadFile(path.Join(d.dir(id), lowerFile))
 	if err == nil {
 		for _, s := range strings.Split(string(lowers), ":") {
-			lp, err := os.Readlink(path.Join(d.home, s))
+			lower := d.dir(s)
+			lp, err := os.Readlink(lower)
 			if err != nil {
 				return nil, err
 			}
-			lowersArray = append(lowersArray, path.Clean(path.Join(d.home, "link", lp)))
+			lowersArray = append(lowersArray, path.Clean(d.dir(path.Join("link", lp))))
 		}
 	} else if !os.IsNotExist(err) {
 		return nil, err
@@ -411,6 +442,31 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 		return "", err
 	}
 
+	newlowers := ""
+	for _, l := range strings.Split(string(lowers), ":") {
+		lower := ""
+		newpath := path.Join(d.home, l)
+		if _, err := os.Stat(newpath); err != nil {
+			for _, p := range d.AdditionalImageStores() {
+				lower = path.Join(p, d.name, l)
+				if _, err2 := os.Stat(lower); err2 == nil {
+					break
+				}
+				lower = ""
+			}
+			if lower == "" {
+				return "", fmt.Errorf("Can't stat lower layer %q: %v", newpath, err)
+			}
+		} else {
+			lower = l
+		}
+		if newlowers == "" {
+			newlowers = lower
+		} else {
+			newlowers = newlowers + ":" + lower
+		}
+	}
+
 	mergedDir := path.Join(dir, "merged")
 	if count := d.ctr.Increment(mergedDir); count > 1 {
 		return mergedDir, nil
@@ -424,7 +480,7 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 	}()
 
 	workDir := path.Join(dir, "work")
-	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", string(lowers), path.Join(id, "diff"), path.Join(id, "work"))
+	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", newlowers, path.Join(id, "diff"), path.Join(id, "work"))
 	mountLabel = label.FormatMountLabel(opts, mountLabel)
 	if len(mountLabel) > syscall.Getpagesize() {
 		return "", fmt.Errorf("cannot mount layer, mount label too large %d", len(mountLabel))
@@ -526,4 +582,9 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 	}
 
 	return archive.OverlayChanges(layers, diffPath)
+}
+
+// AdditionalImageStores returns additional image stores supported by the driver
+func (d *Driver) AdditionalImageStores() []string {
+	return d.opts.imageStores
 }
