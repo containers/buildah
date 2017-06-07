@@ -28,13 +28,20 @@ func ExpandTags(tags []string) ([]string, error) {
 
 // FindImage locates the locally-stored image which corresponds to a given name.
 func FindImage(store storage.Store, image string) (*storage.Image, error) {
+	var img *storage.Image
 	ref, err := is.Transport.ParseStoreReference(store, image)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error parsing reference to image %q", image)
+	if err == nil {
+		img, err = is.Transport.GetStoreImage(store, ref)
 	}
-	img, err := is.Transport.GetStoreImage(store, ref)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to locate image")
+		img2, err2 := store.Image(image)
+		if err2 != nil {
+			if ref == nil {
+				return nil, errors.Wrapf(err, "error parsing reference to image %q", image)
+			}
+			return nil, errors.Wrapf(err, "unable to locate image %q", image)
+		}
+		img = img2
 	}
 	return img, nil
 }
