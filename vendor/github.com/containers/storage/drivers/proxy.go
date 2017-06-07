@@ -144,12 +144,12 @@ func (d *graphDriverProxy) Status() [][2]string {
 	return ret.Status
 }
 
-func (d *graphDriverProxy) GetMetadata(id string) (map[string]string, error) {
+func (d *graphDriverProxy) Metadata(id string) (map[string]string, error) {
 	args := &graphDriverRequest{
 		ID: id,
 	}
 	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.GetMetadata", args, &ret); err != nil {
+	if err := d.client.Call("GraphDriver.Metadata", args, &ret); err != nil {
 		return nil, err
 	}
 	if ret.Err != "" {

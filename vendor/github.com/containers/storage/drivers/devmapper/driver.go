@@ -94,8 +94,8 @@ func (d *Driver) Status() [][2]string {
 	return status
 }
 
-// GetMetadata returns a map of information about the device.
-func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+// Metadata returns a map of information about the device.
+func (d *Driver) Metadata(id string) (map[string]string, error) {
 	m, err := d.DeviceSet.exportDeviceMetadata(id)
 
 	if err != nil {
@@ -223,4 +223,10 @@ func (d *Driver) Put(id string) error {
 // Exists checks to see if the device exists.
 func (d *Driver) Exists(id string) bool {
 	return d.DeviceSet.HasDevice(id)
+}
+
+// AdditionalImageStores returns additional image stores supported by the driver
+func (d *Driver) AdditionalImageStores() []string {
+	var imageStores []string
+	return imageStores
 }
