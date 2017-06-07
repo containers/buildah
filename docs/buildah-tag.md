@@ -12,6 +12,7 @@ Adds additional names to locally-stored images.
 ## EXAMPLE
 
 buildah tag imageName firstNewName
+
 buildah tag imageName firstNewName SecondNewName
 
 ## SEE ALSO
