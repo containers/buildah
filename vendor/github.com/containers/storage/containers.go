@@ -440,6 +440,10 @@ func (r *containerStore) Modified() (bool, error) {
 	return r.lockfile.Modified()
 }
 
+func (r *containerStore) IsReadWrite() bool {
+	return r.lockfile.IsReadWrite()
+}
+
 func (r *containerStore) TouchedSince(when time.Time) bool {
 	return r.lockfile.TouchedSince(when)
 }
