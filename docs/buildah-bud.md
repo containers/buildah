@@ -82,9 +82,13 @@ output image.
 ## EXAMPLE
 
 buildah bud .
+
 buildah bud -f Dockerfile.simple .
+
 buildah bud -f Dockerfile.simple -f Dockerfile.notsosimple
+
 buildah bud -t imageName .
+
 buildah bud -t imageName -f Dockerfile.simple
 
 ## SEE ALSO
