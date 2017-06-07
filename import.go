@@ -5,6 +5,7 @@ import (
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
+	"github.com/projectatomic/buildah/util"
 )
 
 func importBuilderDataFromImage(store storage.Store, systemContext *types.SystemContext, imageID, containerName, containerID string) (*Builder, error) {
@@ -85,20 +86,16 @@ func importBuilderFromImage(store storage.Store, options ImportFromImageOptions)
 		return nil, errors.Errorf("image name must be specified")
 	}
 
-	ref, err := is.Transport.ParseStoreReference(store, options.Image)
+	img, err := util.FindImage(store, options.Image)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error parsing reference to image %q", options.Image)
-	}
-	img, err := is.Transport.GetStoreImage(store, ref)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to locate image")
+		return nil, errors.Wrapf(err, "error locating image %q for importing settings", options.Image)
 	}
 
 	systemContext := getSystemContext(options.SignaturePolicyPath)
 
 	builder, err := importBuilderDataFromImage(store, systemContext, img.ID, "", "")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "error importing build settings from image %q", options.Image)
 	}
 
 	return builder, nil
