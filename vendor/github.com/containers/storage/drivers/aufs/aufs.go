@@ -185,8 +185,8 @@ func (a *Driver) Status() [][2]string {
 	}
 }
 
-// GetMetadata not implemented
-func (a *Driver) GetMetadata(id string) (map[string]string, error) {
+// Metadata not implemented
+func (a *Driver) Metadata(id string) (map[string]string, error) {
 	return nil, nil
 }
 
@@ -370,6 +370,12 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 		UIDMaps:         a.uidMaps,
 		GIDMaps:         a.gidMaps,
 	})
+}
+
+// AdditionalImageStores returns additional image stores supported by the driver
+func (a *Driver) AdditionalImageStores() []string {
+	var imageStores []string
+	return imageStores
 }
 
 type fileGetNilCloser struct {
