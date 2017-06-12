@@ -437,7 +437,7 @@ return 1
      esac
  }
 
- _buildah_umount() {
+ _buildah_unmount() {
      _buildah_umount $@
  }
 
