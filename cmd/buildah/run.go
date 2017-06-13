@@ -3,9 +3,11 @@ package main
 import (
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
@@ -21,6 +23,10 @@ var (
 		cli.StringSliceFlag{
 			Name:  "runtime-flag",
 			Usage: "add global flags for the container runtime",
+		},
+		cli.StringSliceFlag{
+			Name:  "volume, v",
+			Usage: "bind mount a host location into the container while running the command",
 		},
 	}
 	runDescription = "Runs a specified command using the container's root filesystem as a root\n   filesystem, using configuration settings inherited from the container's\n   image or as specified using previous calls to the config command"
@@ -50,8 +56,9 @@ func runCmd(c *cli.Context) error {
 	if c.IsSet("runtime-flag") {
 		flags = c.StringSlice("runtime-flag")
 	}
-	if c.IsSet("runtime") {
-		runtime = c.String("runtime")
+	volumes := []string{}
+	if c.IsSet("v") || c.IsSet("volume") {
+		volumes = c.StringSlice("volume")
 	}
 
 	store, err := getStore(c)
@@ -72,6 +79,23 @@ func runCmd(c *cli.Context) error {
 		Hostname: hostname,
 		Runtime:  runtime,
 		Args:     flags,
+	}
+	for _, volumeSpec := range volumes {
+		volSpec := strings.Split(volumeSpec, ":")
+		if len(volSpec) >= 2 {
+			mountOptions := "bind"
+			if len(volSpec) >= 3 {
+				mountOptions = mountOptions + "," + volSpec[2]
+			}
+			mountOpts := strings.Split(mountOptions, ",")
+			mount := specs.Mount{
+				Source:      volSpec[0],
+				Destination: volSpec[1],
+				Type:        "bind",
+				Options:     mountOpts,
+			}
+			options.Mounts = append(options.Mounts, mount)
+		}
 	}
 	runerr := builder.Run(args, options)
 	if runerr != nil {

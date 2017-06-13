@@ -22,6 +22,10 @@ The *path* to an alternate OCI-compatible runtime.
 
 Adds global flags for the container rutime.
 
+**--volume, -v** *source*:*destination*:*flags*
+
+Bind mount a location from the host into the container for its lifetime.
+
 ## EXAMPLE
 
 buildah run containerID 'ps -auxw'

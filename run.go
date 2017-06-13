@@ -64,7 +64,7 @@ type RunOptions struct {
 	Terminal int
 }
 
-func setupMounts(spec *specs.Spec, optionMounts []specs.Mount, bindFiles []string, volumes []string) error {
+func setupMounts(spec *specs.Spec, optionMounts []specs.Mount, bindFiles, volumes []string) error {
 	// The passed-in mounts matter the most to us.
 	mounts := make([]specs.Mount, len(optionMounts))
 	copy(mounts, optionMounts)
