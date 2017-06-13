@@ -381,6 +381,8 @@ return 1
      local options_with_args="
      --runtime
      --runtime-flag
+     --volume
+     -v
   "
 
      local all_options="$options_with_args $boolean_options"
