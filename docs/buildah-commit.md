@@ -13,7 +13,7 @@ specified, an ID is assigned, but no name is assigned to the image.
 
 ## OPTIONS
 
-**--disable-compression**
+**--disable-compression, -D**
 
 Don't compress filesystem layers when building the image.
 

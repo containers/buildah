@@ -220,15 +220,12 @@ func (b *Builder) fixupConfig() {
 	}
 	b.Docker.Config = &b.Docker.ContainerConfig
 	b.Docker.DockerVersion = ""
-	if b.FromImageID != "" {
-		if d, err := digest.Parse(b.FromImageID); err == nil {
-			b.Docker.Parent = docker.ID(d)
-		} else {
-			b.Docker.Parent = docker.ID(digest.NewDigestFromHex(digest.Canonical.String(), b.FromImageID))
-		}
+	now := time.Now().UTC()
+	if b.Docker.Created.IsZero() {
+		b.Docker.Created = now
 	}
-	if b.FromImage != "" {
-		b.Docker.Config.Image = b.FromImage
+	if b.OCIv1.Created.IsZero() {
+		b.OCIv1.Created = now
 	}
 	if b.OS() == "" {
 		b.SetOS(runtime.GOOS)

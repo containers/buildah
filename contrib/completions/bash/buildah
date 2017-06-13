@@ -287,6 +287,7 @@ return 1
           --help
           -h
           --disable-compression
+          -D
           --quiet
           -q
   "
@@ -461,6 +462,50 @@ return 1
      esac
  }
 
+ _buildah_push() {
+     local boolean_options="
+          --help
+          -h
+          --disable-compression
+          -D
+          --quiet
+          -q
+  "
+
+     local options_with_args="
+          --signature-policy
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$prev" in
+         --signature-policy)
+             case "$cur" in
+                 *:*) ;; # TODO somehow do _filedir for stuff inside the image, if it's already specified (which is also somewhat difficult to determine)
+                 '')
+                     COMPREPLY=($(compgen -W '/' -- "$cur"))
+                     __buildah_nospace
+                     ;;
+                 *)
+                     _filedir
+                     __buildah_nospace
+                     ;;
+             esac
+             return
+             ;;
+
+         $(__buildah_to_extglob "$options_with_args"))
+ return
+ ;;
+ esac
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
  _buildah_mount() {
      local boolean_options="
      --help
@@ -599,6 +644,7 @@ return 1
        images
        inspect
        mount
+       push
        rm
        rmi
        run
@@ -608,7 +654,6 @@ return 1
    )
 
    # These options are valid as global options for all client commands
-   # and valid as command options for `buildah daemon`
    local global_boolean_options="
          --debug
    "
