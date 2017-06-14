@@ -25,7 +25,7 @@
 %global shortcommit    %(c=%{commit}; echo ${c:0:7})
 
 Name:           buildah
-Version:        0.0.1
+Version:        0.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -68,7 +68,6 @@ mv vendor src
 
 export GOPATH=$(pwd)/_build:$(pwd):%{gopath}
 make all
-
 
 %install
 export GOPATH=$(pwd)/_build:$(pwd):%{gopath}
