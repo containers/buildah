@@ -4,7 +4,7 @@ buildah - a tool which facilitates building OCI container images
 [![Go Report Card](https://goreportcard.com/badge/github.com/projectatomic/buildah)](https://goreportcard.com/report/github.com/projectatomic/buildah)
 [![Travis](https://travis-ci.org/projectatomic/buildah.svg?branch=master)](https://travis-ci.org/projectatomic/buildah)
 
-Note: this package is in alpha.
+Note: this package is in alpha, but is close to being feature-complete.
 
 The buildah package provides a command line tool which can be used to
 * create a working container, either from scratch or using an image as a starting point

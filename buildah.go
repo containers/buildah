@@ -19,7 +19,7 @@ const (
 	// identify working containers.
 	Package = "buildah"
 	// Version for the Package
-	Version       = "0.0.1"
+	Version       = "0.1"
 	containerType = Package + " 0.0.1"
 	stateFile     = Package + ".json"
 )
