@@ -86,8 +86,8 @@ func main() {
 		rmCommand,
 		rmiCommand,
 		runCommand,
-		umountCommand,
 		tagCommand,
+		umountCommand,
 	}
 	err := app.Run(os.Args)
 	if err != nil {
