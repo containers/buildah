@@ -19,9 +19,17 @@ const (
 	// identify working containers.
 	Package = "buildah"
 	// Version for the Package
-	Version       = "0.1"
+	Version = "0.1"
+	// The value we use to identify what type of information, currently a
+	// serialized Builder structure, we are using as per-container state.
+	// This should only be changed when we make incompatible changes to
+	// that data structure, as it's used to distinguish containers which
+	// are "ours" from ones that aren't.
 	containerType = Package + " 0.0.1"
-	stateFile     = Package + ".json"
+	// The file in the per-container directory which we use to store our
+	// per-container state.  If it isn't there, then the container isn't
+	// one of our build containers.
+	stateFile = Package + ".json"
 )
 
 const (
