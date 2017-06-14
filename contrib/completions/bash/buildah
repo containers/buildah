@@ -534,6 +534,8 @@ return 1
      --noheading
      -n
      --notruncate
+     -a
+     --all
   "
 
      local options_with_args="

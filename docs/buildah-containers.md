@@ -24,6 +24,11 @@ Do not truncate IDs in output.
 
 Displays only the container IDs.
 
+**--all, -a**
+
+List information about all containers, including those which were not created
+by and are not being used by buildah.
+
 ## EXAMPLE
 
 buildah containers

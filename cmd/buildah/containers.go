@@ -22,6 +22,10 @@ var (
 			Name:  "notruncate",
 			Usage: "do not truncate output",
 		},
+		cli.BoolFlag{
+			Name:  "all, a",
+			Usage: "also list non-buildah containers",
+		},
 	}
 	containersDescription = "Lists containers which appear to be " + buildah.Package + " working containers, their\n   names and IDs, and the names and IDs of the images from which they were\n   initialized"
 	containersCommand     = cli.Command{
@@ -52,30 +56,74 @@ func containersCmd(c *cli.Context) error {
 	if c.IsSet("notruncate") {
 		truncate = !c.Bool("notruncate")
 	}
+	all := false
+	if c.IsSet("all") {
+		all = c.Bool("all")
+	}
+
+	list := func(n int, containerID, imageID, image, container string, isBuilder bool) {
+		if n == 0 && !noheading && !quiet {
+			if truncate {
+				fmt.Printf("%-12s  %-8s %-12s %-32s %s\n", "CONTAINER ID", "BUILDER", "IMAGE ID", "IMAGE NAME", "CONTAINER NAME")
+			} else {
+				fmt.Printf("%-64s %-8s %-64s %-32s %s\n", "CONTAINER ID", "BUILDER", "IMAGE ID", "IMAGE NAME", "CONTAINER NAME")
+			}
+		}
+		if quiet {
+			fmt.Printf("%s\n", containerID)
+		} else {
+			isBuilderValue := ""
+			if isBuilder {
+				isBuilderValue = "   *"
+			}
+			if truncate {
+				fmt.Printf("%-12.12s  %-8s %-12.12s %-32s %s\n", containerID, isBuilderValue, imageID, image, container)
+			} else {
+				fmt.Printf("%-64s %-8s %-64s %-32s %s\n", containerID, isBuilderValue, imageID, image, container)
+			}
+		}
+	}
+	seenImages := make(map[string]string)
+	imageNameForID := func(id string) string {
+		if id == "" {
+			return buildah.BaseImageFakeName
+		}
+		imageName, ok := seenImages[id]
+		if ok {
+			return imageName
+		}
+		img, err := store.Image(id)
+		if err == nil && len(img.Names) > 0 {
+			seenImages[id] = img.Names[0]
+		}
+		return seenImages[id]
+	}
 
 	builders, err := openBuilders(store)
 	if err != nil {
 		return errors.Wrapf(err, "error reading build containers")
 	}
-	if len(builders) > 0 && !noheading && !quiet {
-		if truncate {
-			fmt.Printf("%-12s %-12s %-10s %s\n", "CONTAINER ID", "IMAGE ID", "IMAGE NAME", "CONTAINER NAME")
-		} else {
-			fmt.Printf("%-64s %-64s %-10s %s\n", "CONTAINER ID", "IMAGE ID", "IMAGE NAME", "CONTAINER NAME")
+	if !all {
+		for i, builder := range builders {
+			image := imageNameForID(builder.FromImageID)
+			list(i, builder.ContainerID, builder.FromImageID, image, builder.Container, true)
 		}
-	}
-	for _, builder := range builders {
-		if builder.FromImage == "" {
-			builder.FromImage = buildah.BaseImageFakeName
+	} else {
+		builderMap := make(map[string]struct{})
+		for _, builder := range builders {
+			builderMap[builder.ContainerID] = struct{}{}
 		}
-		if quiet {
-			fmt.Printf("%s\n", builder.ContainerID)
-		} else {
-			if truncate {
-				fmt.Printf("%-12.12s %-12.12s %-10s %s\n", builder.ContainerID, builder.FromImageID, builder.FromImage, builder.Container)
-			} else {
-				fmt.Printf("%-64s %-64s %-10s %s\n", builder.ContainerID, builder.FromImageID, builder.FromImage, builder.Container)
+		containers, err2 := store.Containers()
+		if err2 != nil {
+			return errors.Wrapf(err2, "error reading list of all containers")
+		}
+		for i, container := range containers {
+			name := ""
+			if len(container.Names) > 0 {
+				name = container.Names[0]
 			}
+			_, ours := builderMap[container.ID]
+			list(i, container.ID, container.ImageID, imageNameForID(container.ImageID), name, ours)
 		}
 	}
 
