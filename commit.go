@@ -13,7 +13,6 @@ import (
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
-	"github.com/containers/storage/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/util"
@@ -82,38 +81,23 @@ type PushOptions struct {
 // We assume that "dest" is a reference to a local image (specifically, a containers/image/storage.storageReference),
 // and will fail if it isn't.
 func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReference, systemContext *types.SystemContext) error {
+	var names []string
 	// Read the target image name.
-	if dest.DockerReference() == nil {
-		return errors.New("can't write to an unnamed image")
+	if dest.DockerReference() != nil {
+		names = []string{dest.DockerReference().String()}
 	}
-	names, err := util.ExpandTags([]string{dest.DockerReference().String()})
-	if err != nil {
-		return err
-	}
-	// Make a temporary image reference.
-	tmpName := stringid.GenerateRandomID() + "-tmp-" + Package + "-commit"
-	tmpRef, err := is.Transport.ParseStoreReference(b.store, tmpName)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err2 := tmpRef.DeleteImage(systemContext); err2 != nil {
-			logrus.Debugf("error deleting temporary image %q: %v", tmpName, err2)
-		}
-	}()
-	// Open the source for reading and a temporary image for writing.
+	// Open the source for reading and the new image for writing.
 	srcImage, err := src.NewImage(systemContext)
 	if err != nil {
 		return errors.Wrapf(err, "error reading configuration to write to image %q", transports.ImageName(dest))
 	}
 	defer srcImage.Close()
-	tmpImage, err := tmpRef.NewImageDestination(systemContext)
+	destImage, err := dest.NewImageDestination(systemContext)
 	if err != nil {
-		return errors.Wrapf(err, "error opening temporary copy of image %q for writing", transports.ImageName(dest))
+		return errors.Wrapf(err, "error opening image %q for writing", transports.ImageName(dest))
 	}
-	defer tmpImage.Close()
 	// Write an empty filesystem layer, because the image layer requires at least one.
-	_, err = tmpImage.PutBlob(bytes.NewReader(gzippedEmptyLayer), types.BlobInfo{Size: int64(len(gzippedEmptyLayer))})
+	_, err = destImage.PutBlob(bytes.NewReader(gzippedEmptyLayer), types.BlobInfo{Size: int64(len(gzippedEmptyLayer))})
 	if err != nil {
 		return errors.Wrapf(err, "error writing dummy layer for image %q", transports.ImageName(dest))
 	}
@@ -126,12 +110,12 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 		return errors.Errorf("error reading new configuration for image %q: it's empty", transports.ImageName(dest))
 	}
 	logrus.Debugf("read configuration blob %q", string(config))
-	// Write the configuration to the temporary image.
+	// Write the configuration to the new image.
 	configBlobInfo := types.BlobInfo{
 		Digest: digest.Canonical.FromBytes(config),
 		Size:   int64(len(config)),
 	}
-	_, err = tmpImage.PutBlob(bytes.NewReader(config), configBlobInfo)
+	_, err = destImage.PutBlob(bytes.NewReader(config), configBlobInfo)
 	if err != nil && len(config) > 0 {
 		return errors.Wrapf(err, "error writing image configuration for temporary copy of %q", transports.ImageName(dest))
 	}
@@ -140,24 +124,42 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 	if err != nil {
 		return errors.Wrapf(err, "error reading new manifest for image %q", transports.ImageName(dest))
 	}
-	// Write the manifest to the temporary image.
-	err = tmpImage.PutManifest(manifest)
+	// Write the manifest to the new image.
+	err = destImage.PutManifest(manifest)
 	if err != nil {
-		return errors.Wrapf(err, "error writing new manifest to temporary copy of image %q", transports.ImageName(dest))
+		return errors.Wrapf(err, "error writing new manifest to image %q", transports.ImageName(dest))
 	}
-	// Save the temporary image.
-	err = tmpImage.Commit()
+	// Save the new image.
+	err = destImage.Commit()
 	if err != nil {
 		return errors.Wrapf(err, "error committing new image %q", transports.ImageName(dest))
 	}
-	// Locate the temporary image in the lower-level API.  Read its item names.
-	tmpImg, err := is.Transport.GetStoreImage(b.store, tmpRef)
+	err = destImage.Close()
 	if err != nil {
-		return errors.Wrapf(err, "error locating temporary image %q", transports.ImageName(dest))
+		return errors.Wrapf(err, "error closing new image %q", transports.ImageName(dest))
 	}
-	items, err := b.store.ListImageBigData(tmpImg.ID)
+	// Locate the new image in the lower-level API.  Extract its items.
+	destImg, err := is.Transport.GetStoreImage(b.store, dest)
 	if err != nil {
-		return errors.Wrapf(err, "error reading list of named data for image %q", tmpImg.ID)
+		return errors.Wrapf(err, "error locating new image %q", transports.ImageName(dest))
+	}
+	items, err := b.store.ListImageBigData(destImg.ID)
+	if err != nil {
+		return errors.Wrapf(err, "error reading list of named data for image %q", destImg.ID)
+	}
+	bigdata := make(map[string][]byte)
+	for _, itemName := range items {
+		var data []byte
+		data, err = b.store.ImageBigData(destImg.ID, itemName)
+		if err != nil {
+			return errors.Wrapf(err, "error reading named data %q for image %q", itemName, destImg.ID)
+		}
+		bigdata[itemName] = data
+	}
+	// Delete the image so that we can recreate it.
+	_, err = b.store.DeleteImage(destImg.ID, true)
+	if err != nil {
+		return errors.Wrapf(err, "error deleting image %q for rewriting", destImg.ID)
 	}
 	// Look up the container's read-write layer.
 	container, err := b.store.Container(b.ContainerID)
@@ -176,7 +178,7 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 	// Extract the read-write layer's contents.
 	layerDiff, err := b.store.Diff(parentLayer, container.LayerID)
 	if err != nil {
-		return errors.Wrapf(err, "error reading layer from source image %q", transports.ImageName(src))
+		return errors.Wrapf(err, "error reading layer %q from source image %q", container.LayerID, transports.ImageName(src))
 	}
 	defer layerDiff.Close()
 	// Write a copy of the layer for the new image to reference.
@@ -184,8 +186,8 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 	if err != nil {
 		return errors.Wrapf(err, "error creating new read-only layer from container %q", b.ContainerID)
 	}
-	// Create a low-level image record that uses the new layer.
-	image, err := b.store.CreateImage("", []string{}, layer.ID, "", nil)
+	// Create a low-level image record that uses the new layer, discarding the old metadata.
+	image, err := b.store.CreateImage(destImg.ID, []string{}, layer.ID, "{}", nil)
 	if err != nil {
 		err2 := b.store.DeleteLayer(layer.ID)
 		if err2 != nil {
@@ -193,7 +195,7 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 		}
 		return errors.Wrapf(err, "error creating new low-level image %q", transports.ImageName(dest))
 	}
-	logrus.Debugf("created image ID %q", image.ID)
+	logrus.Debugf("(re-)created image ID %q using layer %q", image.ID, layer.ID)
 	defer func() {
 		if err != nil {
 			_, err2 := b.store.DeleteImage(image.ID, true)
@@ -202,30 +204,22 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 			}
 		}
 	}()
-	// Copy the configuration and manifest, which are big data items, along with whatever else is there.
-	for _, item := range items {
-		var data []byte
-		data, err = b.store.ImageBigData(tmpImg.ID, item)
+	// Store the configuration and manifest, which are big data items, along with whatever else is there.
+	for itemName, data := range bigdata {
+		err = b.store.SetImageBigData(image.ID, itemName, data)
 		if err != nil {
-			return errors.Wrapf(err, "error copying data item %q", item)
+			return errors.Wrapf(err, "error saving data item %q", itemName)
 		}
-		err = b.store.SetImageBigData(image.ID, item, data)
+		logrus.Debugf("saved data item %q to %q", itemName, image.ID)
+	}
+	// Add the target name(s) to the new image.
+	if len(names) > 0 {
+		err = util.AddImageNames(b.store, image, names)
 		if err != nil {
-			return errors.Wrapf(err, "error copying data item %q", item)
+			return errors.Wrapf(err, "error assigning names %v to new image", names)
 		}
-		logrus.Debugf("copied data item %q to %q", item, image.ID)
+		logrus.Debugf("assigned names %v to image %q", names, image.ID)
 	}
-	// Set low-level metadata in the new image so that the image library will accept it as a real image.
-	err = b.store.SetMetadata(image.ID, "{}")
-	if err != nil {
-		return errors.Wrapf(err, "error assigning metadata to new image %q", transports.ImageName(dest))
-	}
-	// Move the target name(s) from the temporary image to the new image.
-	err = util.AddImageNames(b.store, image, names)
-	if err != nil {
-		return errors.Wrapf(err, "error assigning names %v to new image", names)
-	}
-	logrus.Debugf("assigned names %v to image %q", names, image.ID)
 	return nil
 }
 
