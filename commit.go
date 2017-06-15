@@ -82,13 +82,14 @@ type PushOptions struct {
 // We assume that "dest" is a reference to a local image (specifically, a containers/image/storage.storageReference),
 // and will fail if it isn't.
 func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReference, systemContext *types.SystemContext) error {
+	var names []string
 	// Read the target image name.
-	if dest.DockerReference() == nil {
-		return errors.New("can't write to an unnamed image")
-	}
-	names, err := util.ExpandTags([]string{dest.DockerReference().String()})
-	if err != nil {
-		return err
+	if dest.DockerReference() != nil {
+		expandedNames, err := util.ExpandTags([]string{dest.DockerReference().String()})
+		if err != nil {
+			return errors.Wrapf(err, "error expanding name %v", dest.DockerReference().String())
+		}
+		names = expandedNames
 	}
 	// Make a temporary image reference.
 	tmpName := stringid.GenerateRandomID() + "-tmp-" + Package + "-commit"
@@ -220,12 +221,14 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 	if err != nil {
 		return errors.Wrapf(err, "error assigning metadata to new image %q", transports.ImageName(dest))
 	}
-	// Move the target name(s) from the temporary image to the new image.
-	err = util.AddImageNames(b.store, image, names)
-	if err != nil {
-		return errors.Wrapf(err, "error assigning names %v to new image", names)
+	if len(names) > 0 {
+		// Move the target name(s) from the temporary image to the new image.
+		err = util.AddImageNames(b.store, image, names)
+		if err != nil {
+			return errors.Wrapf(err, "error assigning names %v to new image", names)
+		}
+		logrus.Debugf("assigned names %v to image %q", names, image.ID)
 	}
-	logrus.Debugf("assigned names %v to image %q", names, image.ID)
 	return nil
 }
 
