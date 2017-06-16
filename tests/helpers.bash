@@ -2,13 +2,13 @@
 
 BUILDAH_BINARY=${BUILDAH_BINARY:-$(dirname ${BASH_SOURCE})/../buildah}
 TESTSDIR=${TESTSDIR:-$(dirname ${BASH_SOURCE})}
+STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 
 function setup() {
 	suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | base64 | tr +/ _.)
 	TESTDIR=${BATS_TMPDIR}/tmp.${suffix}
 	rm -fr ${TESTDIR}
 	mkdir -p ${TESTDIR}/{root,runroot}
-	REPO=${TESTDIR}/root
 }
 
 function buildimgtype() {
@@ -44,9 +44,9 @@ function createrandom() {
 }
 
 function buildah() {
-	${BUILDAH_BINARY} --debug --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver vfs "$@"
+	${BUILDAH_BINARY} --debug --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
 }
 
 function imgtype() {
-        ./imgtype -root ${TESTDIR}/root -runroot ${TESTDIR}/runroot -storage-driver vfs "$@"
+        ./imgtype -root ${TESTDIR}/root -runroot ${TESTDIR}/runroot -storage-driver ${STORAGE_DRIVER} "$@"
 }
