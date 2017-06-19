@@ -24,7 +24,7 @@ echo yay > $mountpoint1/file-in-root
 read
 : "[1m Produce an image from the container [0m"
 read
-buildah commit "$container1" containers-storage:${2:-first-new-image}
+buildah commit "$container1" ${2:-first-new-image}
 read
 : "[1m Verify that our new image is there [0m"
 read
