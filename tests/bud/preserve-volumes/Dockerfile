@@ -14,3 +14,9 @@ VOLUME /vol/subvol
 RUN dd if=/dev/zero bs=512 count=1 of=/vol/anothervolfile
 # Which means that in the image we're about to commit, /vol/anothervolfile
 # shouldn't exist, either.
+
+# ADD files which should persist.
+ADD Dockerfile /vol/Dockerfile
+RUN stat /vol/Dockerfile
+ADD Dockerfile /vol/Dockerfile2
+RUN stat /vol/Dockerfile2

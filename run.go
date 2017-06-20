@@ -9,7 +9,9 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/ioutils"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/pkg/errors"
@@ -64,7 +66,7 @@ type RunOptions struct {
 	Terminal int
 }
 
-func setupMounts(spec *specs.Spec, optionMounts []specs.Mount, bindFiles, volumes []string) error {
+func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles, volumes []string) error {
 	// The passed-in mounts matter the most to us.
 	mounts := make([]specs.Mount, len(optionMounts))
 	copy(mounts, optionMounts)
@@ -98,17 +100,37 @@ func setupMounts(spec *specs.Spec, optionMounts []specs.Mount, bindFiles, volume
 			Options:     []string{"rbind", "ro"},
 		})
 	}
-	// Add tmpfs filesystems at volume locations, unless we already have something there.
+	// Add temporary copies of the contents of volume locations at the
+	// volume locations, unless we already have something there.
 	for _, volume := range volumes {
 		if haveMount(volume) {
-			// Already mounting something there, no need for a tmpfs.
+			// Already mounting something there, no need to bother.
 			continue
 		}
-		// Mount a tmpfs there.
+		cdir, err := b.store.ContainerDirectory(b.ContainerID)
+		if err != nil {
+			return errors.Wrapf(err, "error determining work directory for container %q", b.ContainerID)
+		}
+		subdir := digest.Canonical.FromString(volume).Hex()
+		volumePath := filepath.Join(cdir, "buildah-volumes", subdir)
+		logrus.Debugf("using %q for volume at %q", volumePath, volume)
+		// If we need to, initialize the volume path's initial contents.
+		if _, err = os.Stat(volumePath); os.IsNotExist(err) {
+			if err = os.MkdirAll(volumePath, 0755); err != nil {
+				return errors.Wrapf(err, "error creating directory %q for volume %q in container %q", volumePath, volume, b.ContainerID)
+			}
+			srcPath := filepath.Join(mountPoint, volume)
+			if err = archive.CopyWithTar(srcPath, volumePath); err != nil {
+				return errors.Wrapf(err, "error populating directory %q for volume %q in container %q using contents of %q", volumePath, volume, b.ContainerID, srcPath)
+			}
+
+		}
+		// Add the bind mount.
 		mounts = append(mounts, specs.Mount{
-			Source:      "tmpfs",
+			Source:      volumePath,
 			Destination: volume,
-			Type:        "tmpfs",
+			Type:        "bind",
+			Options:     []string{"bind"},
 		})
 	}
 	// Set the list in the spec.
@@ -206,7 +228,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 
 	bindFiles := []string{"/etc/hosts", "/etc/resolv.conf"}
-	err = setupMounts(spec, options.Mounts, bindFiles, b.Volumes())
+	err = b.setupMounts(mountPoint, spec, options.Mounts, bindFiles, b.Volumes())
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container")
 	}
