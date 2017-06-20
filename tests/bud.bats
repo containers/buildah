@@ -81,6 +81,8 @@ load helpers
   run test -s $root/vol/subvol/subvolfile
   [ "$status" -ne 0 ]
   test -s $root/vol/volfile
+  test -s $root/vol/Dockerfile
+  test -s $root/vol/Dockerfile2
   run test -s $root/vol/anothervolfile
   [ "$status" -ne 0 ]
   buildah rm ${cid}
@@ -180,6 +182,25 @@ load helpers
   cid=$(buildah from library/${target2})
   buildah rm ${cid}
   cid=$(buildah from ${target3}:latest)
+  buildah rm ${cid}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  [ "$output" = "" ]
+}
+
+@test "bud-volume-perms" {
+  # This Dockerfile needs us to be able to handle a working RUN instruction.
+  if ! which runc ; then
+    skip
+  fi
+  target=volume-image
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/volume-perms
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  run test -s $root/vol/subvol/subvolfile
+  [ "$status" -ne 0 ]
+  run stat -c %f $root/vol/subvol
+  [ "$output" = 41ed ]
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
