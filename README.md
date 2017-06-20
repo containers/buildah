@@ -28,6 +28,7 @@ Prior to installing buildah, install the following packages on your linux distro
 * git 
 * bzip2
 * go-md2man
+* runc
 * skopeo-containers
 
 In Fedora, you can use this command:
@@ -44,6 +45,7 @@ In Fedora, you can use this command:
     git \
     bzip2 \
     go-md2man \
+    runc \
     skopeo-containers
 ```
 
