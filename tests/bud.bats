@@ -183,7 +183,7 @@ load helpers
   buildah rm ${cid}
   cid=$(buildah from ${target3}:latest)
   buildah rm ${cid}
-  buildah rmi $(buildah --debug=false images -q)
+  buildah rmi -f $(buildah --debug=false images -q)
   run buildah --debug=false images -q
   [ "$output" = "" ]
 }
