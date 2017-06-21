@@ -14,17 +14,28 @@ Displays locally stored images, their names, and their IDs.
 **--json**
 Display the output in JSON format.
 
+**--digests**
+
+Show image digests
+
+**--filter, -f=[]**
+
+Filter output based on conditions provided (default [])
+
+**--format="TEMPLATE"**
+
+Pretty-print images using a Go template.  Will override --quiet
+
 **--noheading, -n**
 
 Omit the table headings from the listing of images.
 
-**--notruncate**
+**no-trunc**
 
 Do not truncate output.
 
 **--quiet, -q**
 
-Lists only the image IDs.
 
 ## EXAMPLE
 

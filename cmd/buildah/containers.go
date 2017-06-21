@@ -114,8 +114,8 @@ func containersCmd(c *cli.Context) error {
 		if ok {
 			return imageName
 		}
-		img, err := store.Image(id)
-		if err == nil && len(img.Names) > 0 {
+		img, err2 := store.Image(id)
+		if err2 == nil && len(img.Names) > 0 {
 			seenImages[id] = img.Names[0]
 		}
 		return seenImages[id]
