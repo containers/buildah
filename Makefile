@@ -4,10 +4,15 @@ BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
 BUILDFLAGS := -tags "$(AUTOTAGS) $(TAGS)"
 
+GIT_COMMIT := $(shell git rev-parse --short HEAD)
+BUILD_INFO := $(shell date +%s)
+
+LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_INFO}'
+
 all: buildah docs
 
 buildah: *.go imagebuildah/*.go cmd/buildah/*.go docker/*.go util/*.go
-	go build -o buildah $(BUILDFLAGS) ./cmd/buildah
+	go build $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
 
 .PHONY: clean
 clean:
