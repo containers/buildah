@@ -153,7 +153,15 @@ func (b *Executor) Preserve(path string) error {
 	logrus.Debugf("PRESERVE %q", path)
 	if b.volumes.Covers(path) {
 		// This path is already a subdirectory of a volume path that
-		// we're already preserving, so there's nothing new to be done.
+		// we're already preserving, so there's nothing new to be done
+		// except ensure that it exists.
+		archivedPath := filepath.Join(b.mountPoint, path)
+		if err := os.MkdirAll(archivedPath, 0755); err != nil {
+			return errors.Wrapf(err, "error ensuring volume path %q exists", archivedPath)
+		}
+		if err := b.volumeCacheInvalidate(path); err != nil {
+			return errors.Wrapf(err, "error ensuring volume path %q is preserved", archivedPath)
+		}
 		return nil
 	}
 	// Figure out where the cache for this volume would be stored.
@@ -166,9 +174,15 @@ func (b *Executor) Preserve(path string) error {
 	// Save info about the top level of the location that we'll be archiving.
 	archivedPath := filepath.Join(b.mountPoint, path)
 	st, err := os.Stat(archivedPath)
+	if os.IsNotExist(err) {
+		if err = os.MkdirAll(archivedPath, 0755); err != nil {
+			return errors.Wrapf(err, "error ensuring volume path %q exists", archivedPath)
+		}
+		st, err = os.Stat(archivedPath)
+	}
 	if err != nil {
 		logrus.Debugf("error reading info about %q: %v", archivedPath, err)
-		return err
+		return errors.Wrapf(err, "error reading info about volume path %q", archivedPath)
 	}
 	b.volumeCacheInfo[path] = st
 	if !b.volumes.Add(path) {
@@ -241,6 +255,9 @@ func (b *Executor) volumeCacheSave() error {
 		if !os.IsNotExist(err) {
 			return errors.Wrapf(err, "error checking for cache of %q in %q", archivedPath, cacheFile)
 		}
+		if err := os.MkdirAll(archivedPath, 0755); err != nil {
+			return errors.Wrapf(err, "error ensuring volume path %q exists", archivedPath)
+		}
 		logrus.Debugf("caching contents of volume %q in %q", archivedPath, cacheFile)
 		cache, err := os.Create(cacheFile)
 		if err != nil {
@@ -273,7 +290,7 @@ func (b *Executor) volumeCacheRestore() error {
 		if err := os.RemoveAll(archivedPath); err != nil {
 			return errors.Wrapf(err, "error clearing volume path %q", archivedPath)
 		}
-		if err := os.MkdirAll(archivedPath, 0700); err != nil {
+		if err := os.MkdirAll(archivedPath, 0755); err != nil {
 			return errors.Wrapf(err, "error recreating volume path %q", archivedPath)
 		}
 		err = archive.Untar(cache, archivedPath, nil)
