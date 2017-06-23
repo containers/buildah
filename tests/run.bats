@@ -23,6 +23,41 @@ load helpers
 	buildah rm $cid
 }
 
+@test "run-cmd" {
+	if ! which runc ; then
+		skip
+	fi
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	buildah config $cid --workingdir /tmp
+
+	buildah config $cid --entrypoint ""
+	buildah config $cid --cmd pwd
+	run buildah --debug=false run $cid
+	[ "$output" = /tmp ]
+
+	buildah config $cid --entrypoint echo
+	run buildah --debug=false run $cid
+	[ "$output" = pwd ]
+
+	buildah config $cid --cmd ""
+	run buildah --debug=false run $cid
+	[ "$output" = "" ]
+
+	buildah config $cid --entrypoint ""
+	run buildah --debug=false run $cid echo that-other-thing
+	[ "$output" = that-other-thing ]
+
+	buildah config $cid --cmd echo
+	run buildah --debug=false run $cid echo that-other-thing
+	[ "$output" = that-other-thing ]
+
+	buildah config $cid --entrypoint echo
+	run buildah --debug=false run $cid echo that-other-thing
+	[ "$output" = that-other-thing ]
+
+	buildah rm $cid
+}
+
 @test "run-user" {
 	if ! which runc ; then
 		skip
