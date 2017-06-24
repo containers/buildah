@@ -3,9 +3,15 @@ package main
 import (
 	"fmt"
 
+	"encoding/json"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
+
+type jsonImage struct {
+	ID    string   `json:"id"`
+	Names []string `json:"names"`
+}
 
 var (
 	imagesFlags = []cli.Flag{
@@ -20,6 +26,10 @@ var (
 		cli.BoolFlag{
 			Name:  "notruncate",
 			Usage: "do not truncate output",
+		},
+		cli.BoolFlag{
+			Name:  "json",
+			Usage: "output in JSON format",
 		},
 	}
 	imagesDescription = "Lists locally stored images."
@@ -39,6 +49,11 @@ func imagesCmd(c *cli.Context) error {
 		return err
 	}
 
+	images, err := store.Images()
+	if err != nil {
+		return errors.Wrapf(err, "error reading images")
+	}
+
 	quiet := false
 	if c.IsSet("quiet") {
 		quiet = c.Bool("quiet")
@@ -51,11 +66,18 @@ func imagesCmd(c *cli.Context) error {
 	if c.IsSet("notruncate") {
 		truncate = !c.Bool("notruncate")
 	}
-	images, err := store.Images()
-	if err != nil {
-		return errors.Wrapf(err, "error reading images")
+	if c.IsSet("json") {
+		JSONImages := []jsonImage{}
+		for _, image := range images {
+			JSONImages = append(JSONImages, jsonImage{ID: image.ID, Names: image.Names})
+		}
+		data, err := json.MarshalIndent(JSONImages, "", "    ")
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s\n", data)
+		return nil
 	}
-
 	if len(images) > 0 && !noheading && !quiet {
 		if truncate {
 			fmt.Printf("%-12s %s\n", "IMAGE ID", "IMAGE NAME")
