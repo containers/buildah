@@ -11,6 +11,9 @@ Displays locally stored images, their names, and their IDs.
 
 ## OPTIONS
 
+**--json**
+Display the output in JSON format.
+
 **--noheading, -n**
 
 Omit the table headings from the listing of images.
@@ -26,6 +29,8 @@ Lists only the image IDs.
 ## EXAMPLE
 
 buildah images
+
+buildah images --json
 
 buildah images --quiet
 
