@@ -16,10 +16,15 @@ import (
 )
 
 func main() {
+	if buildah.InitReexec() {
+		return
+	}
+
 	expectedManifestType := ""
 	expectedConfigType := ""
 
 	storeOptions := storage.DefaultStoreOptions
+	debug := flag.Bool("debug", false, "turn on debug logging")
 	root := flag.String("root", storeOptions.GraphRoot, "storage root directory")
 	runroot := flag.String("runroot", storeOptions.RunRoot, "storage runtime directory")
 	driver := flag.String("storage-driver", storeOptions.GraphDriverName, "storage driver")
@@ -29,6 +34,10 @@ func main() {
 	showm := flag.Bool("show-manifest", false, "output the manifest JSON")
 	showc := flag.Bool("show-config", false, "output the configuration JSON")
 	flag.Parse()
+	logrus.SetLevel(logrus.ErrorLevel)
+	if debug != nil && *debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 	switch *mtype {
 	case buildah.OCIv1ImageManifest:
 		expectedManifestType = *mtype
@@ -82,17 +91,6 @@ func main() {
 			logrus.Fatalf("error parsing reference %q: %v", image, err)
 		}
 
-		src, err := ref.NewImageSource(systemContext, []string{expectedManifestType})
-		if err != nil {
-			logrus.Fatalf("error opening source image %q: %v", image, err)
-		}
-		defer src.Close()
-
-		manifest, manifestType, err := src.GetManifest()
-		if err != nil {
-			logrus.Fatalf("error reading manifest from %q: %v", image, err)
-		}
-
 		img, err := ref.NewImage(systemContext)
 		if err != nil {
 			logrus.Fatalf("error opening image %q: %v", image, err)
@@ -102,6 +100,11 @@ func main() {
 		config, err := img.ConfigBlob()
 		if err != nil {
 			logrus.Fatalf("error reading configuration from %q: %v", image, err)
+		}
+
+		manifest, manifestType, err := img.Manifest()
+		if err != nil {
+			logrus.Fatalf("error reading manifest from %q: %v", image, err)
 		}
 
 		switch expectedManifestType {
