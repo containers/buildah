@@ -529,6 +529,7 @@ return 1
      local boolean_options="
      --help
      -h
+     --json
      --quiet
      -q
      --noheading

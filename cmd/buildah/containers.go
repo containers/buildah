@@ -1,12 +1,21 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
+
+type jsonContainer struct {
+	ID            string `json:"id"`
+	Builder       bool   `json:"builder"`
+	ImageID       string `json:"imageid"`
+	ImageName     string `json:"imagename"`
+	ContainerName string `json:"containername"`
+}
 
 var (
 	containersFlags = []cli.Flag{
@@ -25,6 +34,10 @@ var (
 		cli.BoolFlag{
 			Name:  "all, a",
 			Usage: "also list non-buildah containers",
+		},
+		cli.BoolFlag{
+			Name:  "json",
+			Usage: "output in JSON format",
 		},
 	}
 	containersDescription = "Lists containers which appear to be " + buildah.Package + " working containers, their\n   names and IDs, and the names and IDs of the images from which they were\n   initialized"
@@ -60,8 +73,17 @@ func containersCmd(c *cli.Context) error {
 	if c.IsSet("all") {
 		all = c.Bool("all")
 	}
+	jsonOut := false
+	JSONContainers := []jsonContainer{}
+	if c.IsSet("json") {
+		jsonOut = c.Bool("json")
+	}
 
 	list := func(n int, containerID, imageID, image, container string, isBuilder bool) {
+		if jsonOut {
+			JSONContainers = append(JSONContainers, jsonContainer{ID: containerID, Builder: isBuilder, ImageID: imageID, ImageName: image, ContainerName: container})
+			return
+		}
 		if n == 0 && !noheading && !quiet {
 			if truncate {
 				fmt.Printf("%-12s  %-8s %-12s %-32s %s\n", "CONTAINER ID", "BUILDER", "IMAGE ID", "IMAGE NAME", "CONTAINER NAME")
@@ -125,6 +147,13 @@ func containersCmd(c *cli.Context) error {
 			_, ours := builderMap[container.ID]
 			list(i, container.ID, container.ImageID, imageNameForID(container.ImageID), name, ours)
 		}
+	}
+	if jsonOut {
+		data, err := json.MarshalIndent(JSONContainers, "", "    ")
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s\n", data)
 	}
 
 	return nil
