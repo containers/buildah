@@ -12,6 +12,10 @@ IDs, and the names and IDs of the images from which they were initialized.
 
 ## OPTIONS
 
+**--json**
+
+Output in JSON format.
+
 **--noheading, -n**
 
 Omit the table headings from the listing of containers.
@@ -36,6 +40,8 @@ buildah containers
 buildah containers --quiet
 
 buildah containers -q --noheading --notruncate
+
+buildah containers --json
 
 ## SEE ALSO
 buildah(1)
