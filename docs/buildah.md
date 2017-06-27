@@ -58,6 +58,7 @@ Print the version
 | buildah-config(1)     | Update image configuration settings.                                                                 |
 | buildah-containers(1) | List the working containers and their base images.                                                   |
 | buildah-copy(1)       | Copies the contents of a file, URL, or directory into a container's working directory.               |
+| buildah-export(1)     | Export the contents of a container's filesystem as a tar archive                                     |
 | buildah-from(1)       | Creates a new working container, either from scratch or using a specified image as a starting point. |
 | buildah-images(1)     | List images in local storage.                                                                        |
 | buildah-inspect(1)    | Inspects the configuration of a container or image                                                   |
