@@ -67,24 +67,24 @@ encounters a `RUN` instruction, so you'll also need to build and install a compa
 [runc](https://github.com/opencontainers/runc) for buildah to call for those cases.
 
 ## Commands
-| Command               | Description |
-| --------------------- | --------------------------------------------------- |
-| buildah-add(1)        | Add the contents of a file, URL, or a directory to the container. |
-| buildah-bud(1)        | Build an image using instructions from Dockerfiles. |
-| buildah-commit(1)     | Create an image from a working container. |
-| buildah-config(1)     | Update image configuration settings. |
-| buildah-containers(1) | List the working containers and their base images. |
-| buildah-copy(1)       | Copies the contents of a file, URL, or directory into a container's working directory. |
-| buildah-from(1)       | Creates a new working container, either from scratch or using a specified image as a starting point. |
-| buildah-images(1)     | List images in local storage. |
-| buildah-inspect(1)    | Inspects the configuration of a container or image. |
-| buildah-mount(1)      | Mount the working container's root filesystem. |
-| buildah-push(1)       | Copies an image from local storage. |
-| buildah-rm(1)         | Removes one or more working containers. |
-| buildah-rmi(1)        | Removes one or more images. |
-| buildah-run(1)        | Run a command inside of the container. |
-| buildah-tag(1)        | Add an additional name to a local image. |
-| buildah-umount(1)     | Unmount a working container's root file system. |
+| Command                                              | Description                                                                                          |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [buildah-add(1)](/docs/buildah-add.md)               | Add the contents of a file, URL, or a directory to the container.                                    |
+| [buildah-bud(1)](/docs/buildah-bud.md)               | Build an image using instructions from Dockerfiles.                                                  |
+| [buildah-commit(1)](/docs/buildah-commit.md)         | Create an image from a working container.                                                            |
+| [buildah-config(1)](/docs/buildah-config.md)         | Update image configuration settings.                                                                 |
+| [buildah-containers(1)](/docs/buildah-containers.md) | List the working containers and their base images.                                                   |
+| [buildah-copy(1)](/docs/buildah-copy.md)             | Copies the contents of a file, URL, or directory into a container's working directory.               |
+| [buildah-from(1)](/docs/buildah-from.md)             | Creates a new working container, either from scratch or using a specified image as a starting point. |
+| [buildah-images(1)](/docs/buildah-images.md)         | List images in local storage.                                                                        |
+| [buildah-inspect(1)](/docs/buildah-inspect.md)       | Inspects the configuration of a container or image.                                                  |
+| [buildah-mount(1)](/docs/buildah-mount.md)           | Mount the working container's root filesystem.                                                       |
+| [buildah-push(1)](/docs/buildah-push.md)             | Copies an image from local storage.                                                                  |
+| [buildah-rm(1)](/docs/buildah-rm.md)                 | Removes one or more working containers.                                                              |
+| [buildah-rmi(1)](/docs/buildah-rmi.md)               | Removes one or more images.                                                                          |
+| [buildah-run(1)](/docs/buildah-run.md)               | Run a command inside of the container.                                                               |
+| [buildah-tag(1)](/docs/buildah-tag.md)               | Add an additional name to a local image.                                                             |
+| [buildah-umount(1)](/docs/buildah-umount.md)         | Unmount a working container's root file system.                                                      |
 
 **Future goals include:**
 * more CI tests
