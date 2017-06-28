@@ -21,8 +21,9 @@ func makeOCIv1Image(dimage *docker.V2Image) (ociv1.Image, error) {
 	if config == nil {
 		config = &dimage.ContainerConfig
 	}
+	dcreated := dimage.Created.UTC()
 	image := ociv1.Image{
-		Created:      dimage.Created.UTC(),
+		Created:      &dcreated,
 		Author:       dimage.Author,
 		Architecture: dimage.Architecture,
 		OS:           dimage.OS,
@@ -38,7 +39,7 @@ func makeOCIv1Image(dimage *docker.V2Image) (ociv1.Image, error) {
 		},
 		RootFS: ociv1.RootFS{
 			Type:    "",
-			DiffIDs: []string{},
+			DiffIDs: []digest.Digest{},
 		},
 		History: []ociv1.History{},
 	}
@@ -51,13 +52,12 @@ func makeOCIv1Image(dimage *docker.V2Image) (ociv1.Image, error) {
 	}
 	if RootFS.Type == docker.TypeLayers {
 		image.RootFS.Type = docker.TypeLayers
-		for _, id := range RootFS.DiffIDs {
-			image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, id.String())
-		}
+		image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, RootFS.DiffIDs...)
 	}
 	for _, history := range dimage.History {
+		hcreated := history.Created.UTC()
 		ohistory := ociv1.History{
-			Created:    history.Created.UTC(),
+			Created:    &hcreated,
 			CreatedBy:  history.CreatedBy,
 			Author:     history.Author,
 			Comment:    history.Comment,
@@ -98,13 +98,7 @@ func makeDockerV2S2Image(oimage *ociv1.Image) (docker.V2Image, error) {
 	}
 	if oimage.RootFS.Type == docker.TypeLayers {
 		image.RootFS.Type = docker.TypeLayers
-		for _, id := range oimage.RootFS.DiffIDs {
-			d, err := digest.Parse(id)
-			if err != nil {
-				return docker.V2Image{}, err
-			}
-			image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, d)
-		}
+		image.RootFS.DiffIDs = append(image.RootFS.DiffIDs, oimage.RootFS.DiffIDs...)
 	}
 	for _, history := range oimage.History {
 		dhistory := docker.V2S2History{
@@ -224,8 +218,8 @@ func (b *Builder) fixupConfig() {
 	if b.Docker.Created.IsZero() {
 		b.Docker.Created = now
 	}
-	if b.OCIv1.Created.IsZero() {
-		b.OCIv1.Created = now
+	if b.OCIv1.Created == nil || b.OCIv1.Created.IsZero() {
+		b.OCIv1.Created = &now
 	}
 	if b.OS() == "" {
 		b.SetOS(runtime.GOOS)

@@ -172,7 +172,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 	}
 
 	oimage.RootFS.Type = docker.TypeLayers
-	oimage.RootFS.DiffIDs = []string{}
+	oimage.RootFS.DiffIDs = []digest.Digest{}
 	dimage.RootFS = &docker.V2S2RootFS{}
 	dimage.RootFS.Type = docker.TypeLayers
 	dimage.RootFS.DiffIDs = []digest.Digest{}
@@ -215,12 +215,12 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 			dmanifest.Layers = append(dmanifest.Layers, dlayerDescriptor)
 			// Add a note about the diffID, which should be uncompressed digest of the blob, but
 			// just use the layer ID here.
-			oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, fakeLayerDigest.String())
+			oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, fakeLayerDigest)
 			dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, fakeLayerDigest)
 			continue
 		}
 		// Start reading the layer.
-		rc, err := i.store.Diff("", layerID)
+		rc, err := i.store.Diff("", layerID, nil)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error extracting layer %q", layerID)
 		}
@@ -283,14 +283,14 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestType
 		}
 		dmanifest.Layers = append(dmanifest.Layers, dlayerDescriptor)
 		// Add a note about the diffID, which is always an uncompressed value.
-		oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, srcHasher.Digest().String())
+		oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, srcHasher.Digest())
 		dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, srcHasher.Digest())
 	}
 
 	if i.addHistory {
 		// Build history notes in the image configurations.
 		onews := v1.History{
-			Created:    i.created,
+			Created:    &i.created,
 			CreatedBy:  i.createdBy,
 			Author:     oimage.Author,
 			EmptyLayer: false,
