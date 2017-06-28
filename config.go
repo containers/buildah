@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mattn/go-shellwords"
 	digest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -267,6 +268,16 @@ func (b *Builder) CreatedBy() string {
 // SetCreatedBy sets the description of how this image was built.
 func (b *Builder) SetCreatedBy(how string) {
 	b.ImageCreatedBy = how
+}
+
+// Message returns the commit message
+func (b *Builder) Message() string {
+	return b.ImageMessage
+}
+
+// SetMessage sets the commit message
+func (b *Builder) SetMessage(message string) {
+	b.ImageMessage = message
 }
 
 // OS returns a name of the OS on which the container, or a container built
@@ -552,4 +563,67 @@ func (b *Builder) Domainname() string {
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetDomainname(name string) {
 	b.Docker.Config.Domainname = name
+}
+
+// ChangeConfig Translates the Dockerfile syntax commands and then saves into the buildah struct
+func (b *Builder) ChangeConfig(option string) error {
+	opt := strings.SplitN(option, " ", 2)
+	if len(opt) != 2 {
+		return fmt.Errorf("Change option %q must be separated by ' '", option)
+	}
+	switch strings.ToUpper(opt[0]) {
+	case "ANNOTATION":
+		annotation := strings.SplitN(opt[1], "=", 2)
+		if len(annotation) > 1 {
+			b.SetAnnotation(annotation[0], annotation[1])
+		} else {
+			b.UnsetAnnotation(annotation[0])
+		}
+	case "ARCH":
+		b.SetArchitecture(opt[1])
+	case "CMD":
+		cmdSpec, err := shellwords.Parse(opt[1])
+		if err != nil {
+			return fmt.Errorf("error parsing --cmd %q: %v", opt[1], err)
+		}
+		b.SetCmd(cmdSpec)
+	case "CREATED-BY":
+		b.SetCreatedBy(opt[1])
+	case "ENTRYPOINT":
+		entrypointSpec, err := shellwords.Parse(opt[1])
+		if err != nil {
+			return fmt.Errorf("error parsing --entrypoint %q: %v", opt[1], err)
+		}
+		b.SetEntrypoint(entrypointSpec)
+	case "ENV":
+		env := strings.SplitN(opt[1], "=", 2)
+		if len(env) == 1 {
+			env = strings.SplitN(opt[1], " ", 2)
+		}
+		if len(env) > 1 {
+			b.SetEnv(env[0], env[1])
+		} else {
+			b.UnsetEnv(env[0])
+		}
+	case "EXPOSE":
+		b.SetPort(opt[1])
+	case "LABEL":
+		label := strings.SplitN(opt[1], "=", 2)
+		if len(label) > 1 {
+			b.SetLabel(label[0], label[1])
+		} else {
+			b.UnsetLabel(label[0])
+		}
+	case "MAINTAINER":
+		b.SetMaintainer(opt[1])
+	case "OS":
+		b.SetOS(opt[1])
+	case "USER":
+		b.SetUser(opt[1])
+	case "WORKDIR":
+		b.SetWorkDir(opt[1])
+	case "VOLUME":
+		b.AddVolume(opt[1])
+	}
+	return nil
 }

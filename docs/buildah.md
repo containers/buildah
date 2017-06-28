@@ -61,6 +61,7 @@ Print the version
 | buildah-export(1)     | Export the contents of a container's filesystem as a tar archive                                     |
 | buildah-from(1)       | Creates a new working container, either from scratch or using a specified image as a starting point. |
 | buildah-images(1)     | List images in local storage.                                                                        |
+| buildah-import(1)     | Create an empty filesystem image and import the contents of the tarball. |
 | buildah-inspect(1)    | Inspects the configuration of a container or image                                                   |
 | buildah-mount(1)      | Mount the working container's root filesystem.                                                       |
 | buildah-rm(1)         | Removes one or more working containers.                                                              |

@@ -15,6 +15,10 @@ import (
 
 var (
 	commitFlags = []cli.Flag{
+		cli.StringSliceFlag{
+			Name:  "change, c",
+			Usage: "Apply specified Dockerfile instructions while importing the image",
+		},
 		cli.BoolFlag{
 			Name:  "disable-compression, D",
 			Usage: "don't compress layers",
@@ -26,6 +30,10 @@ var (
 		cli.StringFlag{
 			Name:  "format, f",
 			Usage: "`format` of the image manifest and metadata",
+		},
+		cli.StringFlag{
+			Name:  "message, m",
+			Usage: "Set commit message for imported image",
 		},
 		cli.StringFlag{
 			Name:   "reference-time",
@@ -123,6 +131,17 @@ func commitCmd(c *cli.Context) error {
 	if !quiet {
 		options.ReportWriter = os.Stderr
 	}
+
+	if c.IsSet("message") {
+		builder.SetMessage(c.String("message"))
+	}
+
+	for _, c := range c.StringSlice("change") {
+		if err = builder.ChangeConfig(c); err != nil {
+			return err
+		}
+	}
+
 	err = builder.Commit(dest, options)
 	if err != nil {
 		return errors.Wrapf(err, "error committing container %q to %q", builder.Container, image)

@@ -83,6 +83,9 @@ type Builder struct {
 	// ImageCreatedBy is a description of how this container was built.
 	ImageCreatedBy string `json:"created-by,omitempty"`
 
+	// ImageMessage is the commit message of an image
+	ImageMessage string `json:"message,omitempty"`
+
 	// Image metadata and runtime settings, in multiple formats.
 	OCIv1  v1.Image       `json:"ociv1,omitempty"`
 	Docker docker.V2Image `json:"docker,omitempty"`

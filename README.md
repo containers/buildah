@@ -82,6 +82,7 @@ encounters a `RUN` instruction, so you'll also need to build and install a compa
 | [buildah-export(1)](/docs/buildah-export.md)         | Export the contents of a container's filesystem as a tar archive                                     |
 | [buildah-from(1)](/docs/buildah-from.md)             | Creates a new working container, either from scratch or using a specified image as a starting point. |
 | [buildah-images(1)](/docs/buildah-images.md)         | List images in local storage.                                                                        |
+[buildah-import(1)](/docs/buildah-import.md)         | Create an empty filesystem image and import the contents of the tarball.|
 | [buildah-inspect(1)](/docs/buildah-inspect.md)       | Inspects the configuration of a container or image.                                                  |
 | [buildah-mount(1)](/docs/buildah-mount.md)           | Mount the working container's root filesystem.                                                       |
 | [buildah-push(1)](/docs/buildah-push.md)             | Copies an image from local storage.                                                                  |

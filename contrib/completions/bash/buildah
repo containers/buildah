@@ -296,6 +296,56 @@ return 1
           --signature-policy
           --format
           -f
+          --change
+          -c
+          --message
+          -m
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$prev" in
+         --signature-policy)
+             case "$cur" in
+                 *:*) ;; # TODO somehow do _filedir for stuff inside the image, if it's already specified (which is also somewhat difficult to determine)
+                 '')
+                     COMPREPLY=($(compgen -W '/' -- "$cur"))
+                     __buildah_nospace
+                     ;;
+                 *)
+                     _filedir
+                     __buildah_nospace
+                     ;;
+             esac
+             return
+             ;;
+
+         $(__buildah_to_extglob "$options_with_args"))
+ return
+ ;;
+ esac
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_import() {
+     local boolean_options="
+          --help
+          -h
+          --disable-compression
+          -D
+  "
+
+     local options_with_args="
+          --signature-policy
+          --change
+          -c
+          --message
+          -m
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -669,6 +719,7 @@ return 1
        export
        from
        images
+       import
        inspect
        mount
        push

@@ -81,6 +81,7 @@ func main() {
 		exportCommand,
 		fromCommand,
 		imagesCommand,
+		importCommand,
 		inspectCommand,
 		mountCommand,
 		pushCommand,
