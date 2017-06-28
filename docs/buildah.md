@@ -67,3 +67,5 @@ Print the version
 | buildah-run(1)        | Run a command inside of the container.                                                               |
 | buildah-tag(1)        | Add an additional name to a local image.                                                             |
 | buildah-umount(1)     | Unmount a working container's root file system.                                                      |
+| buildah-version(1)    | Display the Buildah Version Information
+                                               |
