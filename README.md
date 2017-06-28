@@ -21,13 +21,15 @@ Prior to installing buildah, install the following packages on your linux distro
 * make
 * golang (Requires version 1.8.1 or higher.)
 * bats
-* btrfs-progs-devel 
-* device-mapper-devel 
-* gpgme-devel 
-* libassuan-devel 
-* git 
+* btrfs-progs-devel
 * bzip2
+* device-mapper-devel
+* git
 * go-md2man
+* gpgme-devel
+* glib2-devel
+* libassuan-devel
+* ostree-devel
 * runc
 * skopeo-containers
 
@@ -40,8 +42,10 @@ In Fedora, you can use this command:
     bats \
     btrfs-progs-devel \
     device-mapper-devel \
+    glib2-devel \
     gpgme-devel \
     libassuan-devel \
+    ostree-devel \
     git \
     bzip2 \
     go-md2man \
@@ -49,15 +53,15 @@ In Fedora, you can use this command:
     skopeo-containers
 ```
 
-Then to install buildah follow the steps in this example: 
+Then to install buildah follow the steps in this example:
 
 ```
   mkdir ~/buildah
   cd ~/buildah
-  export GOPATH=`pwd` 
-  git clone https://github.com/projectatomic/buildah ./src/github.com/projectatomic/buildah 
-  cd ./src/github.com/projectatomic/buildah 
-  make 
+  export GOPATH=`pwd`
+  git clone https://github.com/projectatomic/buildah ./src/github.com/projectatomic/buildah
+  cd ./src/github.com/projectatomic/buildah
+  make
   make install
   buildah --help
 ```

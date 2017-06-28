@@ -41,6 +41,8 @@ BuildRequires:  gpgme-devel
 BuildRequires:  device-mapper-devel
 BuildRequires:  btrfs-progs-devel
 BuildRequires:  libassuan-devel
+BuildRequires:  glib2-devel
+BuildRequires:  ostree-devel
 Requires:       runc >= 1.0.0-6
 Requires:       skopeo-containers
 Provides:       %{repo} = %{version}-%{release}

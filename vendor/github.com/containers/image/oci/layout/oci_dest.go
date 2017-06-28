@@ -19,12 +19,12 @@ import (
 
 type ociImageDestination struct {
 	ref   ociReference
-	index imgspecv1.ImageIndex
+	index imgspecv1.Index
 }
 
 // newImageDestination returns an ImageDestination for writing to an existing directory.
 func newImageDestination(ref ociReference) types.ImageDestination {
-	index := imgspecv1.ImageIndex{
+	index := imgspecv1.Index{
 		Versioned: imgspec.Versioned{
 			SchemaVersion: 2,
 		},
@@ -63,6 +63,11 @@ func (d *ociImageDestination) ShouldCompressLayers() bool {
 // AcceptsForeignLayerURLs returns false iff foreign layers in manifest should be actually
 // uploaded to the image destination, true otherwise.
 func (d *ociImageDestination) AcceptsForeignLayerURLs() bool {
+	return false
+}
+
+// MustMatchRuntimeOS returns true iff the destination can store only images targeted for the current runtime OS. False otherwise.
+func (d *ociImageDestination) MustMatchRuntimeOS() bool {
 	return false
 }
 
@@ -173,15 +178,13 @@ func (d *ociImageDestination) PutManifest(m []byte) error {
 	}
 
 	annotations := make(map[string]string)
-	annotations["org.opencontainers.ref.name"] = d.ref.tag
+	annotations["org.opencontainers.image.ref.name"] = d.ref.tag
 	desc.Annotations = annotations
-	d.index.Manifests = append(d.index.Manifests, imgspecv1.ManifestDescriptor{
-		Descriptor: desc,
-		Platform: imgspecv1.Platform{
-			Architecture: runtime.GOARCH,
-			OS:           runtime.GOOS,
-		},
-	})
+	desc.Platform = &imgspecv1.Platform{
+		Architecture: runtime.GOARCH,
+		OS:           runtime.GOOS,
+	}
+	d.index.Manifests = append(d.index.Manifests, desc)
 
 	return nil
 }

@@ -34,6 +34,8 @@ const (
 	dockerCfgFileName = "config.json"
 	dockerCfgObsolete = ".dockercfg"
 
+	systemPerHostCertDirPath = "/etc/docker/certs.d"
+
 	resolvedPingV2URL       = "%s://%s/v2/"
 	resolvedPingV1URL       = "%s://%s/v1/_ping"
 	tagsPath                = "/v2/%s/tags/list"
@@ -129,12 +131,29 @@ func newTransport() *http.Transport {
 	return tr
 }
 
-func setupCertificates(dir string, tlsc *tls.Config) error {
-	if dir == "" {
-		return nil
+// dockerCertDir returns a path to a directory to be consumed by setupCertificates() depending on ctx and hostPort.
+func dockerCertDir(ctx *types.SystemContext, hostPort string) string {
+	if ctx != nil && ctx.DockerCertPath != "" {
+		return ctx.DockerCertPath
 	}
+	var hostCertDir string
+	if ctx != nil && ctx.DockerPerHostCertDirPath != "" {
+		hostCertDir = ctx.DockerPerHostCertDirPath
+	} else if ctx != nil && ctx.RootForImplicitAbsolutePaths != "" {
+		hostCertDir = filepath.Join(ctx.RootForImplicitAbsolutePaths, systemPerHostCertDirPath)
+	} else {
+		hostCertDir = systemPerHostCertDirPath
+	}
+	return filepath.Join(hostCertDir, hostPort)
+}
+
+func setupCertificates(dir string, tlsc *tls.Config) error {
+	logrus.Debugf("Looking for TLS certificates and private keys in %s", dir)
 	fs, err := ioutil.ReadDir(dir)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -146,7 +165,7 @@ func setupCertificates(dir string, tlsc *tls.Config) error {
 				return errors.Wrap(err, "unable to get system cert pool")
 			}
 			tlsc.RootCAs = systemPool
-			logrus.Debugf("crt: %s", fullPath)
+			logrus.Debugf(" crt: %s", fullPath)
 			data, err := ioutil.ReadFile(fullPath)
 			if err != nil {
 				return err
@@ -156,7 +175,7 @@ func setupCertificates(dir string, tlsc *tls.Config) error {
 		if strings.HasSuffix(f.Name(), ".cert") {
 			certName := f.Name()
 			keyName := certName[:len(certName)-5] + ".key"
-			logrus.Debugf("cert: %s", fullPath)
+			logrus.Debugf(" cert: %s", fullPath)
 			if !hasFile(fs, keyName) {
 				return errors.Errorf("missing key %s for client certificate %s. Note that CA certificates should use the extension .crt", keyName, certName)
 			}
@@ -169,7 +188,7 @@ func setupCertificates(dir string, tlsc *tls.Config) error {
 		if strings.HasSuffix(f.Name(), ".key") {
 			keyName := f.Name()
 			certName := keyName[:len(keyName)-4] + ".cert"
-			logrus.Debugf("key: %s", fullPath)
+			logrus.Debugf(" key: %s", fullPath)
 			if !hasFile(fs, certName) {
 				return errors.Errorf("missing client certificate %s for key %s", certName, keyName)
 			}
@@ -199,18 +218,18 @@ func newDockerClient(ctx *types.SystemContext, ref dockerReference, write bool, 
 		return nil, err
 	}
 	tr := newTransport()
-	if ctx != nil && (ctx.DockerCertPath != "" || ctx.DockerInsecureSkipTLSVerify) {
-		tlsc := &tls.Config{}
-
-		if err := setupCertificates(ctx.DockerCertPath, tlsc); err != nil {
-			return nil, err
-		}
-
-		tlsc.InsecureSkipVerify = ctx.DockerInsecureSkipTLSVerify
-		tr.TLSClientConfig = tlsc
+	tr.TLSClientConfig = serverDefault()
+	// It is undefined whether the host[:port] string for dockerHostname should be dockerHostname or dockerRegistry,
+	// because docker/docker does not read the certs.d subdirectory at all in that case.  We use the user-visible
+	// dockerHostname here, because it is more symmetrical to read the configuration in that case as well, and because
+	// generally the UI hides the existence of the different dockerRegistry.  But note that this behavior is
+	// undocumented and may change if docker/docker changes.
+	certDir := dockerCertDir(ctx, reference.Domain(ref.ref))
+	if err := setupCertificates(certDir, tr.TLSClientConfig); err != nil {
+		return nil, err
 	}
-	if tr.TLSClientConfig == nil {
-		tr.TLSClientConfig = serverDefault()
+	if ctx != nil && ctx.DockerInsecureSkipTLSVerify {
+		tr.TLSClientConfig.InsecureSkipVerify = true
 	}
 	client := &http.Client{Transport: tr}
 

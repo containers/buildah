@@ -176,7 +176,7 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 		parentLayer = img.TopLayer
 	}
 	// Extract the read-write layer's contents.
-	layerDiff, err := b.store.Diff(parentLayer, container.LayerID)
+	layerDiff, err := b.store.Diff(parentLayer, container.LayerID, nil)
 	if err != nil {
 		return errors.Wrapf(err, "error reading layer %q from source image %q", container.LayerID, transports.ImageName(src))
 	}

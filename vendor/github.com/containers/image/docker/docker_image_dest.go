@@ -99,6 +99,11 @@ func (d *dockerImageDestination) AcceptsForeignLayerURLs() bool {
 	return true
 }
 
+// MustMatchRuntimeOS returns true iff the destination can store only images targeted for the current runtime OS. False otherwise.
+func (d *dockerImageDestination) MustMatchRuntimeOS() bool {
+	return false
+}
+
 // sizeCounter is an io.Writer which only counts the total size of its input.
 type sizeCounter struct{ size int64 }
 

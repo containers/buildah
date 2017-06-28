@@ -20,6 +20,7 @@ import (
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/stringid"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
@@ -298,14 +299,26 @@ type Store interface {
 	DiffSize(from, to string) (int64, error)
 
 	// Diff returns the tarstream which would specify the changes returned by
-	// Changes.
-	Diff(from, to string) (io.ReadCloser, error)
+	// Changes.  If options are passed in, they can override default behaviors.
+	Diff(from, to string, options *DiffOptions) (io.ReadCloser, error)
 
 	// ApplyDiff applies a tarstream to a layer.  Information about the tarstream
 	// is cached with the layer.  Typically, a layer which is populated using a
 	// tarstream will be expected to not be modified in any other way, either
 	// before or after the diff is applied.
 	ApplyDiff(to string, diff archive.Reader) (int64, error)
+
+	// LayersByCompressedDigest returns a slice of the layers with the
+	// specified compressed digest value recorded for them.
+	LayersByCompressedDigest(d digest.Digest) ([]Layer, error)
+
+	// LayersByUncompressedDigest returns a slice of the layers with the
+	// specified uncompressed digest value recorded for them.
+	LayersByUncompressedDigest(d digest.Digest) ([]Layer, error)
+
+	// LayerSize returns a cached approximation of the layer's size, or -1
+	// if we don't have a value on hand.
+	LayerSize(id string) (int64, error)
 
 	// Layers returns a list of the currently known layers.
 	Layers() ([]Layer, error)
@@ -422,6 +435,9 @@ type Store interface {
 
 // ImageOptions is used for passing options to a Store's CreateImage() method.
 type ImageOptions struct {
+	// CreationDate, if not zero, will override the default behavior of marking the image as having been
+	// created when CreateImage() was called, recording CreationDate instead.
+	CreationDate time.Time
 }
 
 // ContainerOptions is used for passing options to a Store's CreateContainer() method.
@@ -793,7 +809,13 @@ func (s *store) CreateImage(id string, names []string, layer, metadata string, o
 	if modified, err := ristore.Modified(); modified || err != nil {
 		ristore.Load()
 	}
-	return ristore.Create(id, names, layer, metadata)
+
+	creationDate := time.Now().UTC()
+	if options != nil {
+		creationDate = options.CreationDate
+	}
+
+	return ristore.Create(id, names, layer, metadata, creationDate)
 }
 
 func (s *store) CreateContainer(id string, names []string, image, layer, metadata string, options *ContainerOptions) (*Container, error) {
@@ -1747,7 +1769,7 @@ func (s *store) DiffSize(from, to string) (int64, error) {
 	return -1, ErrLayerUnknown
 }
 
-func (s *store) Diff(from, to string) (io.ReadCloser, error) {
+func (s *store) Diff(from, to string, options *DiffOptions) (io.ReadCloser, error) {
 	rlstore, err := s.LayerStore()
 	if err != nil {
 		return nil, err
@@ -1764,7 +1786,7 @@ func (s *store) Diff(from, to string) (io.ReadCloser, error) {
 			rlstore.Load()
 		}
 		if rlstore.Exists(to) {
-			return rlstore.Diff(from, to)
+			return rlstore.Diff(from, to, options)
 		}
 	}
 	return nil, ErrLayerUnknown
@@ -1782,6 +1804,65 @@ func (s *store) ApplyDiff(to string, diff archive.Reader) (int64, error) {
 	}
 	if rlstore.Exists(to) {
 		return rlstore.ApplyDiff(to, diff)
+	}
+	return -1, ErrLayerUnknown
+}
+
+func (s *store) layersByMappedDigest(m func(ROLayerStore, digest.Digest) ([]Layer, error), d digest.Digest) ([]Layer, error) {
+	var layers []Layer
+	rlstore, err := s.LayerStore()
+	if err != nil {
+		return nil, err
+	}
+
+	stores, err := s.ROLayerStores()
+	if err != nil {
+		return nil, err
+	}
+	stores = append([]ROLayerStore{rlstore}, stores...)
+
+	for _, rlstore := range stores {
+		rlstore.Lock()
+		defer rlstore.Unlock()
+		if modified, err := rlstore.Modified(); modified || err != nil {
+			rlstore.Load()
+		}
+		slayers, err := m(rlstore, d)
+		if err != nil {
+			return nil, err
+		}
+		layers = append(layers, slayers...)
+	}
+	return layers, nil
+}
+
+func (s *store) LayersByCompressedDigest(d digest.Digest) ([]Layer, error) {
+	return s.layersByMappedDigest(func(r ROLayerStore, d digest.Digest) ([]Layer, error) { return r.LayersByCompressedDigest(d) }, d)
+}
+
+func (s *store) LayersByUncompressedDigest(d digest.Digest) ([]Layer, error) {
+	return s.layersByMappedDigest(func(r ROLayerStore, d digest.Digest) ([]Layer, error) { return r.LayersByUncompressedDigest(d) }, d)
+}
+
+func (s *store) LayerSize(id string) (int64, error) {
+	lstore, err := s.LayerStore()
+	if err != nil {
+		return -1, err
+	}
+	lstores, err := s.ROLayerStores()
+	if err != nil {
+		return -1, err
+	}
+	lstores = append([]ROLayerStore{lstore}, lstores...)
+	for _, rlstore := range lstores {
+		rlstore.Lock()
+		defer rlstore.Unlock()
+		if modified, err := rlstore.Modified(); modified || err != nil {
+			rlstore.Load()
+		}
+		if rlstore.Exists(id) {
+			return rlstore.Size(id)
+		}
 	}
 	return -1, ErrLayerUnknown
 }

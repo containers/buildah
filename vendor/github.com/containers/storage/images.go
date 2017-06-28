@@ -46,6 +46,12 @@ type Image struct {
 	// that has been stored, if they're known.
 	BigDataSizes map[string]int64 `json:"big-data-sizes,omitempty"`
 
+	// Created is the datestamp for when this image was created.  Older
+	// versions of the library did not track this information, so callers
+	// will likely want to use the IsZero() method to verify that a value
+	// is set before using it.
+	Created time.Time `json:"created,omitempty"`
+
 	Flags map[string]interface{} `json:"flags,omitempty"`
 }
 
@@ -80,7 +86,7 @@ type ImageStore interface {
 	// Create creates an image that has a specified ID (or a random one) and
 	// optional names, using the specified layer as its topmost (hopefully
 	// read-only) layer.  That layer can be referenced by multiple images.
-	Create(id string, names []string, layer, metadata string) (*Image, error)
+	Create(id string, names []string, layer, metadata string, created time.Time) (*Image, error)
 
 	// SetNames replaces the list of names associated with an image with the
 	// supplied values.
@@ -254,7 +260,7 @@ func (r *imageStore) SetFlag(id string, flag string, value interface{}) error {
 	return r.Save()
 }
 
-func (r *imageStore) Create(id string, names []string, layer, metadata string) (image *Image, err error) {
+func (r *imageStore) Create(id string, names []string, layer, metadata string, created time.Time) (image *Image, err error) {
 	if !r.IsReadWrite() {
 		return nil, errors.Wrapf(ErrStoreIsReadOnly, "not allowed to create new images at %q", r.imagespath())
 	}
@@ -274,6 +280,9 @@ func (r *imageStore) Create(id string, names []string, layer, metadata string) (
 			return nil, ErrDuplicateName
 		}
 	}
+	if created.IsZero() {
+		created = time.Now().UTC()
+	}
 	if err == nil {
 		image = &Image{
 			ID:           id,
@@ -282,6 +291,7 @@ func (r *imageStore) Create(id string, names []string, layer, metadata string) (
 			Metadata:     metadata,
 			BigDataNames: []string{},
 			BigDataSizes: make(map[string]int64),
+			Created:      created,
 			Flags:        make(map[string]interface{}),
 		}
 		r.images = append(r.images, image)
@@ -346,10 +356,10 @@ func (r *imageStore) Delete(id string) error {
 		return ErrImageUnknown
 	}
 	id = image.ID
-	newImages := []*Image{}
-	for _, candidate := range r.images {
-		if candidate.ID != id {
-			newImages = append(newImages, candidate)
+	toDeleteIndex := -1
+	for i, candidate := range r.images {
+		if candidate.ID == id {
+			toDeleteIndex = i
 		}
 	}
 	delete(r.byid, id)
@@ -357,7 +367,14 @@ func (r *imageStore) Delete(id string) error {
 	for _, name := range image.Names {
 		delete(r.byname, name)
 	}
-	r.images = newImages
+	if toDeleteIndex != -1 {
+		// delete the image at toDeleteIndex
+		if toDeleteIndex == len(r.images)-1 {
+			r.images = r.images[:len(r.images)-1]
+		} else {
+			r.images = append(r.images[:toDeleteIndex], r.images[toDeleteIndex+1:]...)
+		}
+	}
 	if err := r.Save(); err != nil {
 		return err
 	}

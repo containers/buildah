@@ -78,6 +78,11 @@ func imageLoadGoroutine(ctx context.Context, c *client.Client, reader *io.PipeRe
 	defer resp.Body.Close()
 }
 
+// MustMatchRuntimeOS returns true iff the destination can store only images targeted for the current runtime OS. False otherwise.
+func (d *daemonImageDestination) MustMatchRuntimeOS() bool {
+	return true
+}
+
 // Close removes resources associated with an initialized ImageDestination, if any.
 func (d *daemonImageDestination) Close() error {
 	if !d.committed {

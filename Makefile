@@ -9,10 +9,13 @@ BUILD_INFO := $(shell date +%s)
 
 LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_INFO}'
 
-all: buildah docs
+all: buildah imgtype docs
 
 buildah: *.go imagebuildah/*.go cmd/buildah/*.go docker/*.go util/*.go
 	go build $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
+
+imgtype: *.go docker/*.go util/*.go tests/imgtype.go
+	go build $(LDFLAGS) -o imgtype $(BUILDFLAGS) ./tests/imgtype.go
 
 .PHONY: clean
 clean:
