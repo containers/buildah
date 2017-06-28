@@ -210,12 +210,12 @@ func storageImageID(store storage.Store, id string) (types.ImageReference, error
 	if img, err := store.Image(id); err == nil && img != nil {
 		imageID = img.ID
 	}
-	if ref, err := is.Transport.ParseStoreReference(store, "@"+imageID); err == nil {
+	if ref, err := is.Transport.ParseStoreReference(store, imageID); err == nil {
 		if img, err2 := ref.NewImage(nil); err2 == nil {
 			img.Close()
 			return ref, nil
 		}
 		return nil, errors.Wrapf(err, "error confirming presence of storage image reference %q", transports.ImageName(ref))
 	}
-	return nil, errors.Wrapf(err, "error parsing %q as a storage image reference: %v", "@"+id)
+	return nil, errors.Wrapf(err, "error parsing %q as a storage image reference: %v", id)
 }

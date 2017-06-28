@@ -16,9 +16,9 @@ func importBuilderDataFromImage(store storage.Store, systemContext *types.System
 	imageName := ""
 
 	if imageID != "" {
-		ref, err := is.Transport.ParseStoreReference(store, "@"+imageID)
+		ref, err := is.Transport.ParseStoreReference(store, imageID)
 		if err != nil {
-			return nil, errors.Wrapf(err, "no such image %q", "@"+imageID)
+			return nil, errors.Wrapf(err, "no such image %q", imageID)
 		}
 		src, err2 := ref.NewImage(systemContext)
 		if err2 != nil {
@@ -68,7 +68,7 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 		return nil, err
 	}
 
-	systemContext := getSystemContext(options.SignaturePolicyPath)
+	systemContext := getSystemContext(&types.SystemContext{}, options.SignaturePolicyPath)
 
 	builder, err := importBuilderDataFromImage(store, systemContext, c.ImageID, options.Container, c.ID)
 	if err != nil {
@@ -95,21 +95,27 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 }
 
 func importBuilderFromImage(store storage.Store, options ImportFromImageOptions) (*Builder, error) {
+	var img *storage.Image
+	var err error
+
 	if options.Image == "" {
 		return nil, errors.Errorf("image name must be specified")
 	}
 
-	img, err := util.FindImage(store, options.Image)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error locating image %q for importing settings", options.Image)
+	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
+
+	for _, image := range util.ResolveName(options.Image, "", systemContext, store) {
+		img, err = util.FindImage(store, image)
+		if err != nil {
+			continue
+		}
+
+		builder, err2 := importBuilderDataFromImage(store, systemContext, img.ID, "", "")
+		if err2 != nil {
+			return nil, errors.Wrapf(err2, "error importing build settings from image %q", options.Image)
+		}
+
+		return builder, nil
 	}
-
-	systemContext := getSystemContext(options.SignaturePolicyPath)
-
-	builder, err := importBuilderDataFromImage(store, systemContext, img.ID, "", "")
-	if err != nil {
-		return nil, errors.Wrapf(err, "error importing build settings from image %q", options.Image)
-	}
-
-	return builder, nil
+	return nil, errors.Wrapf(err, "error locating image %q for importing settings", options.Image)
 }

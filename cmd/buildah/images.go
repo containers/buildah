@@ -178,7 +178,7 @@ func setFilterDate(store storage.Store, images []storage.Image, imgName string) 
 		for _, name := range image.Names {
 			if matchesReference(name, imgName) {
 				// Set the date to this image
-				ref, err := is.Transport.ParseStoreReference(store, "@"+image.ID)
+				ref, err := is.Transport.ParseStoreReference(store, image.ID)
 				if err != nil {
 					return time.Time{}, fmt.Errorf("error parsing reference to image %q: %v", image.ID, err)
 				}
@@ -290,7 +290,7 @@ func matchesDangling(name string, dangling string) bool {
 }
 
 func matchesLabel(image storage.Image, store storage.Store, label string) bool {
-	storeRef, err := is.Transport.ParseStoreReference(store, "@"+image.ID)
+	storeRef, err := is.Transport.ParseStoreReference(store, image.ID)
 	if err != nil {
 		return false
 	}
