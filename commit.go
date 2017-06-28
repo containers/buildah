@@ -180,7 +180,7 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 // configuration, to a new image in the specified location, and if we know how,
 // add any additional tags that were specified.
 func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error {
-	policy, err := signature.DefaultPolicy(getSystemContext(options.SignaturePolicyPath))
+	policy, err := signature.DefaultPolicy(getSystemContext(options.SystemContext, options.SignaturePolicyPath))
 	if err != nil {
 		return errors.Wrapf(err, "error obtaining default signature policy")
 	}
@@ -190,7 +190,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	}
 	defer func() {
 		if err2 := policyContext.Destroy(); err2 != nil {
-			logrus.Debugf("error destroying signature polcy context: %v", err2)
+			logrus.Debugf("error destroying signature policy context: %v", err2)
 		}
 	}()
 	// Check if we're keeping everything in local storage.  If so, we can take certain shortcuts.
@@ -208,7 +208,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 		}
 	} else {
 		// Copy only the most recent layer, the configuration, and the manifest.
-		err = b.shallowCopy(dest, src, getSystemContext(options.SignaturePolicyPath), options.Compression)
+		err = b.shallowCopy(dest, src, getSystemContext(options.SystemContext, options.SignaturePolicyPath), options.Compression)
 		if err != nil {
 			return errors.Wrapf(err, "error copying layer and metadata")
 		}
@@ -234,7 +234,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 
 // Push copies the contents of the image to a new location.
 func Push(image string, dest types.ImageReference, options PushOptions) error {
-	systemContext := getSystemContext(options.SignaturePolicyPath)
+	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
 	policy, err := signature.DefaultPolicy(systemContext)
 	if err != nil {
 		return errors.Wrapf(err, "error obtaining default signature policy")
@@ -246,11 +246,7 @@ func Push(image string, dest types.ImageReference, options PushOptions) error {
 	// Look up the image.
 	src, err := is.Transport.ParseStoreReference(options.Store, image)
 	if err != nil {
-		src2, err2 := is.Transport.ParseStoreReference(options.Store, "@"+image)
-		if err2 != nil {
-			return errors.Wrapf(err, "error parsing reference to image %q", image)
-		}
-		src = src2
+		return errors.Wrapf(err, "error parsing reference to image %q", image)
 	}
 	// Copy everything.
 	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext, options.ManifestType))

@@ -65,9 +65,10 @@ func openBuilders(store storage.Store) (builders []*buildah.Builder, err error) 
 	return buildah.OpenAllBuilders(store)
 }
 
-func openImage(store storage.Store, name string) (builder *buildah.Builder, err error) {
+func openImage(sc *types.SystemContext, store storage.Store, name string) (builder *buildah.Builder, err error) {
 	options := buildah.ImportFromImageOptions{
-		Image: name,
+		Image:         name,
+		SystemContext: sc,
 	}
 	builder, err = buildah.ImportBuilderFromImage(store, options)
 	if err != nil {
@@ -82,7 +83,7 @@ func openImage(store storage.Store, name string) (builder *buildah.Builder, err 
 func getDateAndDigestAndSize(image storage.Image, store storage.Store) (time.Time, string, int64, error) {
 	created := time.Time{}
 	is.Transport.SetStore(store)
-	storeRef, err := is.Transport.ParseStoreReference(store, "@"+image.ID)
+	storeRef, err := is.Transport.ParseStoreReference(store, image.ID)
 	if err != nil {
 		return created, "", -1, err
 	}
@@ -135,6 +136,12 @@ func systemContextFromOptions(c *cli.Context) (*types.SystemContext, error) {
 	}
 	if c.IsSet("authfile") {
 		ctx.AuthFilePath = c.String("authfile")
+	}
+	if c.GlobalIsSet("registries-conf") {
+		ctx.SystemRegistriesConfPath = c.GlobalString("registries-conf")
+	}
+	if c.GlobalIsSet("registries-conf-dir") {
+		ctx.RegistriesDirPath = c.GlobalString("registries-conf-dir")
 	}
 	return ctx, nil
 }

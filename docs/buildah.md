@@ -24,11 +24,27 @@ Print debugging information
 
 **--default-mounts-file**
 
-path to default mounts file (default path: "/usr/share/containers/mounts.conf")
+Path to default mounts file (default path: "/usr/share/containers/mounts.conf")
 
 **--help, -h**
 
 Show help
+
+**--registries-conf** *path*
+
+Pathname of the configuration file which specifies which registries should be
+consulted when completing image names which do not include a registry or domain
+portion.  It is not recommended that this option be used, as the default
+behavior of using the system-wide configuration
+(*/etc/containers/registries.conf*) is most often preferred.
+
+**--registries-conf-dir** *path*
+
+Pathname of the directory which contains configuration snippets which specify
+registries which should be consulted when completing image names which do not
+include a registry or domain portion.  It is not recommended that this option
+be used, as the default behavior of using the system-wide configuration
+(*/etc/containers/registries.d*) is most often preferred.
 
 **--root** **value**
 

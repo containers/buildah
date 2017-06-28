@@ -159,6 +159,10 @@ type ImportFromImageOptions struct {
 	// specified, indicating that the shared, system-wide default policy
 	// should be used.
 	SignaturePolicyPath string
+	// github.com/containers/image/types SystemContext to hold information
+	// about which registries we should check for completing image names
+	// that don't include a domain portion.
+	SystemContext *types.SystemContext
 }
 
 // NewBuilder creates a new build container.
