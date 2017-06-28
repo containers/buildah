@@ -3,7 +3,6 @@
 load helpers
 
 @test "write-formats" {
-  buildimgtype
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-default
   buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
@@ -20,7 +19,6 @@ load helpers
 }
 
 @test "bud-formats" {
-  buildimgtype
   buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t scratch-image-default -f bud/from-scratch/Dockerfile
   buildah build-using-dockerfile --format dockerv2 --signature-policy ${TESTSDIR}/policy.json -t scratch-image-docker -f bud/from-scratch/Dockerfile
   buildah build-using-dockerfile --format ociv1 --signature-policy ${TESTSDIR}/policy.json -t scratch-image-oci -f bud/from-scratch/Dockerfile

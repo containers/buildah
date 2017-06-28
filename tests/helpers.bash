@@ -1,6 +1,7 @@
 #!/bin/bash
 
 BUILDAH_BINARY=${BUILDAH_BINARY:-$(dirname ${BASH_SOURCE})/../buildah}
+IMGTYPE_BINARY=${IMGTYPE_BINARY:-$(dirname ${BASH_SOURCE})/../imgtype}
 TESTSDIR=${TESTSDIR:-$(dirname ${BASH_SOURCE})}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 
@@ -9,10 +10,6 @@ function setup() {
 	TESTDIR=${BATS_TMPDIR}/tmp.${suffix}
 	rm -fr ${TESTDIR}
 	mkdir -p ${TESTDIR}/{root,runroot}
-}
-
-function buildimgtype() {
-	go build -tags "$(${TESTSDIR}/../btrfs_tag.sh; ${TESTSDIR}/../libdm_tag.sh)" -o imgtype ${TESTSDIR}/imgtype.go
 }
 
 function starthttpd() {
@@ -48,5 +45,5 @@ function buildah() {
 }
 
 function imgtype() {
-        ./imgtype -root ${TESTDIR}/root -runroot ${TESTDIR}/runroot -storage-driver ${STORAGE_DRIVER} "$@"
+        ${IMGTYPE_BINARY} -root ${TESTDIR}/root -runroot ${TESTDIR}/runroot -storage-driver ${STORAGE_DRIVER} "$@"
 }
