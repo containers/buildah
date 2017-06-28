@@ -78,6 +78,7 @@ func main() {
 		configCommand,
 		containersCommand,
 		copyCommand,
+		exportCommand,
 		fromCommand,
 		imagesCommand,
 		inspectCommand,
