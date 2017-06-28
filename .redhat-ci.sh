@@ -14,10 +14,12 @@ dnf install -y \
   device-mapper-devel \
   findutils \
   git \
+  glib2-devel \
   golang \
   gpgme-devel \
   libassuan-devel \
   make \
+  ostree-devel \
   which
 
 # Red Hat CI adds a merge commit, for testing, which fails the

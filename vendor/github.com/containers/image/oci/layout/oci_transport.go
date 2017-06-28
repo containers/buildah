@@ -186,22 +186,22 @@ func (ref ociReference) NewImage(ctx *types.SystemContext) (types.Image, error) 
 	return image.FromSource(src)
 }
 
-func (ref ociReference) getManifestDescriptor() (imgspecv1.ManifestDescriptor, error) {
+func (ref ociReference) getManifestDescriptor() (imgspecv1.Descriptor, error) {
 	indexJSON, err := os.Open(ref.indexPath())
 	if err != nil {
-		return imgspecv1.ManifestDescriptor{}, err
+		return imgspecv1.Descriptor{}, err
 	}
 	defer indexJSON.Close()
-	index := imgspecv1.ImageIndex{}
+	index := imgspecv1.Index{}
 	if err := json.NewDecoder(indexJSON).Decode(&index); err != nil {
-		return imgspecv1.ManifestDescriptor{}, err
+		return imgspecv1.Descriptor{}, err
 	}
-	var d *imgspecv1.ManifestDescriptor
+	var d *imgspecv1.Descriptor
 	for _, md := range index.Manifests {
 		if md.MediaType != imgspecv1.MediaTypeImageManifest {
 			continue
 		}
-		refName, ok := md.Annotations["org.opencontainers.ref.name"]
+		refName, ok := md.Annotations["org.opencontainers.image.ref.name"]
 		if !ok {
 			continue
 		}
@@ -211,7 +211,7 @@ func (ref ociReference) getManifestDescriptor() (imgspecv1.ManifestDescriptor, e
 		}
 	}
 	if d == nil {
-		return imgspecv1.ManifestDescriptor{}, fmt.Errorf("no descriptor found for reference %q", ref.tag)
+		return imgspecv1.Descriptor{}, fmt.Errorf("no descriptor found for reference %q", ref.tag)
 	}
 	return *d, nil
 }

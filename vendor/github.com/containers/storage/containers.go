@@ -50,6 +50,12 @@ type Container struct {
 	// that has been stored, if they're known.
 	BigDataSizes map[string]int64 `json:"big-data-sizes,omitempty"`
 
+	// Created is the datestamp for when this container was created.  Older
+	// versions of the library did not track this information, so callers
+	// will likely want to use the IsZero() method to verify that a value
+	// is set before using it.
+	Created time.Time `json:"created,omitempty"`
+
 	Flags map[string]interface{} `json:"flags,omitempty"`
 }
 
@@ -253,6 +259,7 @@ func (r *containerStore) Create(id string, names []string, image, layer, metadat
 			Metadata:     metadata,
 			BigDataNames: []string{},
 			BigDataSizes: make(map[string]int64),
+			Created:      time.Now().UTC(),
 			Flags:        make(map[string]interface{}),
 		}
 		r.containers = append(r.containers, container)
@@ -309,10 +316,11 @@ func (r *containerStore) Delete(id string) error {
 		return ErrContainerUnknown
 	}
 	id = container.ID
-	newContainers := []*Container{}
-	for _, candidate := range r.containers {
-		if candidate.ID != id {
-			newContainers = append(newContainers, candidate)
+	toDeleteIndex := -1
+	for i, candidate := range r.containers {
+		if candidate.ID == id {
+			toDeleteIndex = i
+			break
 		}
 	}
 	delete(r.byid, id)
@@ -321,7 +329,14 @@ func (r *containerStore) Delete(id string) error {
 	for _, name := range container.Names {
 		delete(r.byname, name)
 	}
-	r.containers = newContainers
+	if toDeleteIndex != -1 {
+		// delete the container at toDeleteIndex
+		if toDeleteIndex == len(r.containers)-1 {
+			r.containers = r.containers[:len(r.containers)-1]
+		} else {
+			r.containers = append(r.containers[:toDeleteIndex], r.containers[toDeleteIndex+1:]...)
+		}
+	}
 	if err := r.Save(); err != nil {
 		return err
 	}
