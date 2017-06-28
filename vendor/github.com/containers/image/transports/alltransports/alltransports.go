@@ -12,7 +12,7 @@ import (
 	_ "github.com/containers/image/docker/daemon"
 	_ "github.com/containers/image/oci/layout"
 	_ "github.com/containers/image/openshift"
-	_ "github.com/containers/image/ostree"
+	// The ostree transport is registered by ostree*.go
 	_ "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"

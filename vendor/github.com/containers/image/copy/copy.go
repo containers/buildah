@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"reflect"
+	"runtime"
 	"strings"
 	"time"
 
@@ -157,6 +158,10 @@ func Image(policyContext *signature.PolicyContext, destRef, srcRef types.ImageRe
 		}
 	}()
 
+	if err := checkImageDestinationForCurrentRuntimeOS(src, dest); err != nil {
+		return err
+	}
+
 	if src.IsMultiImage() {
 		return errors.Errorf("can not copy %s: manifest contains multiple images", transports.ImageName(srcRef))
 	}
@@ -274,6 +279,22 @@ func Image(policyContext *signature.PolicyContext, destRef, srcRef types.ImageRe
 		return errors.Wrap(err, "Error committing the finished image")
 	}
 
+	return nil
+}
+
+func checkImageDestinationForCurrentRuntimeOS(src types.Image, dest types.ImageDestination) error {
+	if dest.MustMatchRuntimeOS() {
+		c, err := src.OCIConfig()
+		if err != nil {
+			return errors.Wrapf(err, "Error parsing image configuration")
+		}
+		osErr := fmt.Errorf("image operating system %q cannot be used on %q", c.OS, runtime.GOOS)
+		if runtime.GOOS == "windows" && c.OS == "linux" {
+			return osErr
+		} else if runtime.GOOS != "windows" && c.OS == "windows" {
+			return osErr
+		}
+	}
 	return nil
 }
 

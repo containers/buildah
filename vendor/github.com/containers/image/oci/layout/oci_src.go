@@ -12,7 +12,7 @@ import (
 
 type ociImageSource struct {
 	ref        ociReference
-	descriptor imgspecv1.ManifestDescriptor
+	descriptor imgspecv1.Descriptor
 }
 
 // newImageSource returns an ImageSource for reading from an existing directory.

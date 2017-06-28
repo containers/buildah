@@ -416,8 +416,15 @@ func (s *storageImageDestination) Commit() error {
 	return nil
 }
 
+var manifestMIMETypes = []string{
+	// TODO(runcom): we'll add OCI as part of another PR here
+	manifest.DockerV2Schema2MediaType,
+	manifest.DockerV2Schema1SignedMediaType,
+	manifest.DockerV2Schema1MediaType,
+}
+
 func (s *storageImageDestination) SupportedManifestMIMETypes() []string {
-	return nil
+	return manifestMIMETypes
 }
 
 // PutManifest writes manifest to the destination.
@@ -440,6 +447,11 @@ func (s *storageImageDestination) SupportsSignatures() error {
 // uploaded to the image destination, true otherwise.
 func (s *storageImageDestination) AcceptsForeignLayerURLs() bool {
 	return false
+}
+
+// MustMatchRuntimeOS returns true iff the destination can store only images targeted for the current runtime OS. False otherwise.
+func (s *storageImageDestination) MustMatchRuntimeOS() bool {
+	return true
 }
 
 func (s *storageImageDestination) PutSignatures(signatures [][]byte) error {
@@ -509,7 +521,7 @@ func diffLayer(store storage.Store, layerID string) (rc io.ReadCloser, n int64, 
 	} else {
 		n = layerMeta.CompressedSize
 	}
-	diff, err := store.Diff("", layer.ID)
+	diff, err := store.Diff("", layer.ID, nil)
 	if err != nil {
 		return nil, -1, err
 	}
