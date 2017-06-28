@@ -1,0 +1,17 @@
+Source: buildah
+Section: devel
+Priority: optional
+Maintainer: Lokesh Mandvekar <lsm5@fedoraproject.org>
+Build-Depends: debhelper (>=9), rsync, libassuan-dev,
+    golang, libglib2.0-dev, go-md2man, dh-golang,
+    golang-github-azure-go-ansiterm-dev,
+    libdevmapper-dev, libgpgme-dev, btrfs-progs
+Standards-Version: 3.9.6
+Homepage: https://github.com/projectatomic/buildah.git
+#Vcs-Git: git://anonscm.debian.org/collab-maint/cri-o.git
+#Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/cri-o.git
+
+Package: buildah
+Architecture: all
+Depends: ${misc:Depends}
+Description: OCI-based implementation of Kubernetes Container Runtime Interface.

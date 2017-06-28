@@ -1,0 +1,47 @@
+buildah (0.1-1ppa8) zesty; urgency=medium
+
+  * s/libdevmapper-deb/libdevmapper-dev
+
+ -- Lokesh Mandvekar <lsm5@fedoraproject.org>  Tue, 27 Jun 2017 09:55:07 -0400
+
+buildah (0.1-1ppa7) zesty; urgency=medium
+
+  * add libgpgme-dev, libdevmapper-dev and btrfs-progs to deps
+
+ -- Lokesh Mandvekar <lsm5@fedoraproject.org>  Tue, 27 Jun 2017 09:43:01 -0400
+
+buildah (0.1-1ppa6) zesty; urgency=medium
+
+  * add dh-golang to build depends
+
+ -- Lokesh Mandvekar <lsm5@fedoraproject.org>  Tue, 27 Jun 2017 09:32:12 -0400
+
+buildah (0.1-1ppa5) zesty; urgency=medium
+
+  * remvoe git from build dependencies
+
+ -- Lokesh Mandvekar <lsm5@fedoraproject.org>  Tue, 27 Jun 2017 09:21:57 -0400
+
+buildah (0.1-1ppa4) zesty; urgency=medium
+
+  * make sure tarball is unmodified from the one in ppa2
+
+ -- Lokesh Mandvekar <lsm5@fedoraproject.org>  Tue, 27 Jun 2017 09:12:45 -0400
+
+buildah (0.1-1ppa3) zesty; urgency=medium
+
+  * add git to build dep (this is probably not optimal but gets the job done)
+
+ -- Lokesh Mandvekar <lsm5@fedoraproject.org>  Mon, 26 Jun 2017 23:06:49 -0400
+
+buildah (0.1-1ppa2) zesty; urgency=medium
+
+  * update Section field in debian/control
+
+ -- Lokesh Mandvekar <lsm5@fedoraproject.org>  Mon, 26 Jun 2017 11:06:40 -0400
+
+buildah (0.1-1ppa1) zesty; urgency=medium
+
+  * Initial package
+
+ -- Lokesh Mandvekar <lsm5@fedoraproject.org>  Sun, 25 Jun 2017 23:06:49 -0400
