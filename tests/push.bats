@@ -8,11 +8,15 @@ load helpers
     cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json ${source})
     for format in "" docker oci ; do
       mkdir -p ${TESTDIR}/committed${format:+.${format}}
-      buildah commit ${format:+--format ${format}} --reference-time ${TESTDIR}/reference-time-file --signature-policy ${TESTSDIR}/policy.json "$cid" scratch-image${format:+-${format}}
-      buildah commit ${format:+--format ${format}} --reference-time ${TESTDIR}/reference-time-file --signature-policy ${TESTSDIR}/policy.json "$cid" dir:${TESTDIR}/committed${format:+.${format}}
+      # Force no compression to generate what we push.
+      buildah commit -D ${format:+--format ${format}} --reference-time ${TESTDIR}/reference-time-file --signature-policy ${TESTSDIR}/policy.json "$cid" scratch-image${format:+-${format}}
+      buildah commit -D ${format:+--format ${format}} --reference-time ${TESTDIR}/reference-time-file --signature-policy ${TESTSDIR}/policy.json "$cid" dir:${TESTDIR}/committed${format:+.${format}}
       mkdir -p ${TESTDIR}/pushed${format:+.${format}}
       buildah push --signature-policy ${TESTSDIR}/policy.json scratch-image${format:+-${format}} dir:${TESTDIR}/pushed${format:+.${format}}
-      diff -u ${TESTDIR}/committed${format:+.${format}}/manifest.json ${TESTDIR}/pushed${format:+.${format}}/manifest.json
+      # Reencode the manifest to lose variations due to different encoders or definitions of structures.
+      imgtype -expected-manifest-type "*" -rebuild-manifest -show-manifest dir:${TESTDIR}/committed${format:+.${format}} > ${TESTDIR}/manifest.committed${format:+.${format}}
+      imgtype -expected-manifest-type "*" -rebuild-manifest -show-manifest dir:${TESTDIR}/pushed${format:+.${format}} > ${TESTDIR}/manifest.pushed${format:+.${format}}
+      diff -u ${TESTDIR}/manifest.committed${format:+.${format}} ${TESTDIR}/manifest.pushed${format:+.${format}}
       [ "$output" = "" ]
     done
     buildah rm "$cid"
