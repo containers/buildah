@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -16,10 +17,15 @@ import (
 )
 
 func main() {
+	if buildah.InitReexec() {
+		return
+	}
+
 	expectedManifestType := ""
 	expectedConfigType := ""
 
 	storeOptions := storage.DefaultStoreOptions
+	debug := flag.Bool("debug", false, "turn on debug logging")
 	root := flag.String("root", storeOptions.GraphRoot, "storage root directory")
 	runroot := flag.String("runroot", storeOptions.RunRoot, "storage runtime directory")
 	driver := flag.String("storage-driver", storeOptions.GraphDriverName, "storage driver")
@@ -29,6 +35,10 @@ func main() {
 	showm := flag.Bool("show-manifest", false, "output the manifest JSON")
 	showc := flag.Bool("show-config", false, "output the configuration JSON")
 	flag.Parse()
+	logrus.SetLevel(logrus.ErrorLevel)
+	if debug != nil && *debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 	switch *mtype {
 	case buildah.OCIv1ImageManifest:
 		expectedManifestType = *mtype
@@ -40,8 +50,9 @@ func main() {
 		expectedManifestType = ""
 		expectedConfigType = ""
 	default:
-		logrus.Fatalf("unknown -expected-manifest-type value, expected either %q or %q or %q",
+		logrus.Errorf("unknown -expected-manifest-type value, expected either %q or %q or %q",
 			buildah.OCIv1ImageManifest, buildah.Dockerv2ImageManifest, "*")
+		return
 	}
 	if root != nil {
 		storeOptions.GraphRoot = *root
@@ -65,10 +76,17 @@ func main() {
 	}
 	store, err := storage.GetStore(storeOptions)
 	if err != nil {
-		logrus.Fatalf("error opening storage: %v", err)
+		logrus.Errorf("error opening storage: %v", err)
+		return
 	}
-	defer store.Shutdown(false)
 
+	errors := false
+	defer func() {
+		store.Shutdown(false)
+		if errors {
+			os.Exit(1)
+		}
+	}()
 	for _, image := range args {
 		oImage := v1.Image{}
 		dImage := docker.V2Image{}
@@ -79,60 +97,74 @@ func main() {
 
 		ref, err := is.Transport.ParseStoreReference(store, image)
 		if err != nil {
-			logrus.Fatalf("error parsing reference %q: %v", image, err)
-		}
-
-		src, err := ref.NewImageSource(systemContext, []string{expectedManifestType})
-		if err != nil {
-			logrus.Fatalf("error opening source image %q: %v", image, err)
-		}
-		defer src.Close()
-
-		manifest, manifestType, err := src.GetManifest()
-		if err != nil {
-			logrus.Fatalf("error reading manifest from %q: %v", image, err)
+			logrus.Errorf("error parsing reference %q: %v", image, err)
+			errors = true
+			continue
 		}
 
 		img, err := ref.NewImage(systemContext)
 		if err != nil {
-			logrus.Fatalf("error opening image %q: %v", image, err)
+			logrus.Errorf("error opening image %q: %v", image, err)
+			errors = true
+			continue
 		}
 		defer img.Close()
 
 		config, err := img.ConfigBlob()
 		if err != nil {
-			logrus.Fatalf("error reading configuration from %q: %v", image, err)
+			logrus.Errorf("error reading configuration from %q: %v", image, err)
+			errors = true
+			continue
+		}
+
+		manifest, manifestType, err := img.Manifest()
+		if err != nil {
+			logrus.Errorf("error reading manifest from %q: %v", image, err)
+			errors = true
+			continue
 		}
 
 		switch expectedManifestType {
 		case buildah.OCIv1ImageManifest:
 			err = json.Unmarshal(manifest, &oManifest)
 			if err != nil {
-				logrus.Fatalf("error parsing manifest from %q: %v", image, err)
+				logrus.Errorf("error parsing manifest from %q: %v", image, err)
+				errors = true
+				continue
 			}
 			err = json.Unmarshal(config, &oImage)
 			if err != nil {
-				logrus.Fatalf("error parsing config from %q: %v", image, err)
+				logrus.Errorf("error parsing config from %q: %v", image, err)
+				errors = true
+				continue
 			}
 			manifestType = v1.MediaTypeImageManifest
 			configType = oManifest.Config.MediaType
 		case buildah.Dockerv2ImageManifest:
 			err = json.Unmarshal(manifest, &dManifest)
 			if err != nil {
-				logrus.Fatalf("error parsing manifest from %q: %v", image, err)
+				logrus.Errorf("error parsing manifest from %q: %v", image, err)
+				errors = true
+				continue
 			}
 			err = json.Unmarshal(config, &dImage)
 			if err != nil {
-				logrus.Fatalf("error parsing config from %q: %v", image, err)
+				logrus.Errorf("error parsing config from %q: %v", image, err)
+				errors = true
+				continue
 			}
 			manifestType = dManifest.MediaType
 			configType = dManifest.Config.MediaType
 		}
 		if expectedManifestType != "" && manifestType != expectedManifestType {
-			logrus.Fatalf("expected manifest type %q in %q, got %q", expectedManifestType, image, manifestType)
+			logrus.Errorf("expected manifest type %q in %q, got %q", expectedManifestType, image, manifestType)
+			errors = true
+			continue
 		}
 		if expectedConfigType != "" && configType != expectedConfigType {
-			logrus.Fatalf("expected config type %q in %q, got %q", expectedConfigType, image, configType)
+			logrus.Errorf("expected config type %q in %q, got %q", expectedConfigType, image, configType)
+			errors = true
+			continue
 		}
 		if showm != nil && *showm {
 			fmt.Println(string(manifest))
