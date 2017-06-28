@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"syscall"
 	"time"
 
 	cp "github.com/containers/image/copy"
@@ -17,17 +18,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
-)
-
-var (
-	// gzippedEmptyLayer is a gzip-compressed version of an empty tar file (just 1024 zero bytes).  This
-	// comes from github.com/docker/distribution/manifest/schema1/config_builder.go by way of
-	// github.com/containers/image/image/docker_schema2.go; there is a non-zero embedded timestamp; we could
-	// zero that, but that would just waste storage space in registries, so let’s use the same values.
-	gzippedEmptyLayer = []byte{
-		31, 139, 8, 0, 0, 9, 110, 136, 0, 255, 98, 24, 5, 163, 96, 20, 140, 88,
-		0, 8, 0, 0, 255, 255, 46, 175, 181, 239, 0, 4, 0, 0,
-	}
 )
 
 // CommitOptions can be used to alter how an image is committed.
@@ -90,7 +80,7 @@ type PushOptions struct {
 // almost any other destination has higher expectations.
 // We assume that "dest" is a reference to a local image (specifically, a containers/image/storage.storageReference),
 // and will fail if it isn't.
-func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReference, systemContext *types.SystemContext) error {
+func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReference, systemContext *types.SystemContext, compression archive.Compression) error {
 	var names []string
 	// Read the target image name.
 	if dest.DockerReference() != nil {
@@ -106,10 +96,34 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 	if err != nil {
 		return errors.Wrapf(err, "error opening image %q for writing", transports.ImageName(dest))
 	}
-	// Write an empty filesystem layer, because the image layer requires at least one.
-	_, err = destImage.PutBlob(bytes.NewReader(gzippedEmptyLayer), types.BlobInfo{Size: int64(len(gzippedEmptyLayer))})
+	// Look up the container's read-write layer.
+	container, err := b.store.Container(b.ContainerID)
 	if err != nil {
-		return errors.Wrapf(err, "error writing dummy layer for image %q", transports.ImageName(dest))
+		return errors.Wrapf(err, "error reading information about working container %q", b.ContainerID)
+	}
+	// Extract the read-write layer's contents, using whatever compression the container image used to
+	// calculate the blob sum in the manifest.
+	switch compression {
+	case archive.Gzip:
+		logrus.Debugf("extracting layer %q with gzip", container.LayerID)
+	case archive.Bzip2:
+		// Until the image specs define a media type for bzip2-compressed layers, even if we know
+		// how to decompress them, we can't try to compress layers with bzip2.
+		return errors.Wrapf(syscall.ENOTSUP, "media type for bzip2-compressed layers is not defined")
+	default:
+		logrus.Debugf("extracting layer %q with unknown compressor(?)", container.LayerID)
+	}
+	diffOptions := &storage.DiffOptions{
+		Compression: &compression,
+	}
+	layerDiff, err := b.store.Diff("", container.LayerID, diffOptions)
+	if err != nil {
+		return errors.Wrapf(err, "error reading layer %q from source image %q", container.LayerID, transports.ImageName(src))
+	}
+	defer layerDiff.Close()
+	// Write a copy of the layer as a blob, for the new image to reference.
+	if _, err = destImage.PutBlob(layerDiff, types.BlobInfo{Digest: "", Size: -1}); err != nil {
+		return errors.Wrapf(err, "error creating new read-only layer from container %q", b.ContainerID)
 	}
 	// Read the newly-generated configuration blob.
 	config, err := srcImage.ConfigBlob()
@@ -125,11 +139,10 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 		Digest: digest.Canonical.FromBytes(config),
 		Size:   int64(len(config)),
 	}
-	_, err = destImage.PutBlob(bytes.NewReader(config), configBlobInfo)
-	if err != nil && len(config) > 0 {
+	if _, err = destImage.PutBlob(bytes.NewReader(config), configBlobInfo); err != nil {
 		return errors.Wrapf(err, "error writing image configuration for temporary copy of %q", transports.ImageName(dest))
 	}
-	// Read the newly-generated, mostly fake, manifest.
+	// Read the newly-generated manifest, which already contains a layer entry for the read-write layer.
 	manifest, _, err := srcImage.Manifest()
 	if err != nil {
 		return errors.Wrapf(err, "error reading new manifest for image %q", transports.ImageName(dest))
@@ -148,79 +161,9 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 	if err != nil {
 		return errors.Wrapf(err, "error closing new image %q", transports.ImageName(dest))
 	}
-	// Locate the new image in the lower-level API.  Extract its items.
-	destImg, err := is.Transport.GetStoreImage(b.store, dest)
+	image, err := is.Transport.GetStoreImage(b.store, dest)
 	if err != nil {
-		return errors.Wrapf(err, "error locating new image %q", transports.ImageName(dest))
-	}
-	items, err := b.store.ListImageBigData(destImg.ID)
-	if err != nil {
-		return errors.Wrapf(err, "error reading list of named data for image %q", destImg.ID)
-	}
-	bigdata := make(map[string][]byte)
-	for _, itemName := range items {
-		var data []byte
-		data, err = b.store.ImageBigData(destImg.ID, itemName)
-		if err != nil {
-			return errors.Wrapf(err, "error reading named data %q for image %q", itemName, destImg.ID)
-		}
-		bigdata[itemName] = data
-	}
-	// Delete the image so that we can recreate it.
-	_, err = b.store.DeleteImage(destImg.ID, true)
-	if err != nil {
-		return errors.Wrapf(err, "error deleting image %q for rewriting", destImg.ID)
-	}
-	// Look up the container's read-write layer.
-	container, err := b.store.Container(b.ContainerID)
-	if err != nil {
-		return errors.Wrapf(err, "error reading information about working container %q", b.ContainerID)
-	}
-	parentLayer := ""
-	// Look up the container's source image's layer, if there is a source image.
-	if container.ImageID != "" {
-		img, err2 := b.store.Image(container.ImageID)
-		if err2 != nil {
-			return errors.Wrapf(err2, "error reading information about working container %q's source image", b.ContainerID)
-		}
-		parentLayer = img.TopLayer
-	}
-	// Extract the read-write layer's contents.
-	layerDiff, err := b.store.Diff(parentLayer, container.LayerID, nil)
-	if err != nil {
-		return errors.Wrapf(err, "error reading layer %q from source image %q", container.LayerID, transports.ImageName(src))
-	}
-	defer layerDiff.Close()
-	// Write a copy of the layer for the new image to reference.
-	layer, _, err := b.store.PutLayer("", parentLayer, []string{}, "", false, layerDiff)
-	if err != nil {
-		return errors.Wrapf(err, "error creating new read-only layer from container %q", b.ContainerID)
-	}
-	// Create a low-level image record that uses the new layer, discarding the old metadata.
-	image, err := b.store.CreateImage(destImg.ID, []string{}, layer.ID, "{}", nil)
-	if err != nil {
-		err2 := b.store.DeleteLayer(layer.ID)
-		if err2 != nil {
-			logrus.Debugf("error removing layer %q: %v", layer, err2)
-		}
-		return errors.Wrapf(err, "error creating new low-level image %q", transports.ImageName(dest))
-	}
-	logrus.Debugf("(re-)created image ID %q using layer %q", image.ID, layer.ID)
-	defer func() {
-		if err != nil {
-			_, err2 := b.store.DeleteImage(image.ID, true)
-			if err2 != nil {
-				logrus.Debugf("error removing image %q: %v", image.ID, err2)
-			}
-		}
-	}()
-	// Store the configuration and manifest, which are big data items, along with whatever else is there.
-	for itemName, data := range bigdata {
-		err = b.store.SetImageBigData(image.ID, itemName, data)
-		if err != nil {
-			return errors.Wrapf(err, "error saving data item %q", itemName)
-		}
-		logrus.Debugf("saved data item %q to %q", itemName, image.ID)
+		return errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 	}
 	// Add the target name(s) to the new image.
 	if len(names) > 0 {
@@ -253,7 +196,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	// Check if we're keeping everything in local storage.  If so, we can take certain shortcuts.
 	_, destIsStorage := dest.Transport().(is.StoreTransport)
 	exporting := !destIsStorage
-	src, err := b.makeContainerImageRef(options.PreferredManifestType, exporting, options.Compression, options.HistoryTimestamp)
+	src, err := b.makeImageRef(options.PreferredManifestType, exporting, options.Compression, options.HistoryTimestamp)
 	if err != nil {
 		return errors.Wrapf(err, "error computing layer digests and building metadata")
 	}
@@ -265,7 +208,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 		}
 	} else {
 		// Copy only the most recent layer, the configuration, and the manifest.
-		err = b.shallowCopy(dest, src, getSystemContext(options.SignaturePolicyPath))
+		err = b.shallowCopy(dest, src, getSystemContext(options.SignaturePolicyPath), options.Compression)
 		if err != nil {
 			return errors.Wrapf(err, "error copying layer and metadata")
 		}
@@ -300,35 +243,14 @@ func Push(image string, dest types.ImageReference, options PushOptions) error {
 	if err != nil {
 		return errors.Wrapf(err, "error creating new signature policy context")
 	}
-	defer func() {
-		if err2 := policyContext.Destroy(); err2 != nil {
-			logrus.Debugf("error destroying signature polcy context: %v", err2)
+	// Look up the image.
+	src, err := is.Transport.ParseStoreReference(options.Store, image)
+	if err != nil {
+		src2, err2 := is.Transport.ParseStoreReference(options.Store, "@"+image)
+		if err2 != nil {
+			return errors.Wrapf(err, "error parsing reference to image %q", image)
 		}
-	}()
-	importOptions := ImportFromImageOptions{
-		Image:               image,
-		SignaturePolicyPath: options.SignaturePolicyPath,
-	}
-	builder, err := importBuilderFromImage(options.Store, importOptions)
-	if err != nil {
-		return errors.Wrap(err, "error importing builder information from image")
-	}
-	// Look up the image name and its layer.
-	ref, err := is.Transport.ParseStoreReference(options.Store, builder.FromImage)
-	if err != nil {
-		return errors.Wrapf(err, "error parsing reference to image %q", image)
-	}
-	img, err := is.Transport.GetStoreImage(options.Store, ref)
-	if err != nil {
-		return errors.Wrapf(err, "error locating image %q", image)
-	}
-	// Give the image we're producing the same ancestors as its source image.
-	builder.FromImage = builder.Docker.ContainerConfig.Image
-	builder.FromImageID = string(builder.Docker.Parent)
-	// Prep the layers and manifest for export.
-	src, err := builder.makeImageImageRef(options.Compression, img.Names, img.TopLayer, nil)
-	if err != nil {
-		return errors.Wrapf(err, "error recomputing layer digests and building metadata")
+		src = src2
 	}
 	// Copy everything.
 	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext, options.ManifestType))

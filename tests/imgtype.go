@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	is "github.com/containers/image/storage"
+	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/opencontainers/image-spec/specs-go/v1"
@@ -33,7 +34,9 @@ func main() {
 	policy := flag.String("signature-policy", "", "signature policy file")
 	mtype := flag.String("expected-manifest-type", buildah.OCIv1ImageManifest, "expected manifest type")
 	showm := flag.Bool("show-manifest", false, "output the manifest JSON")
+	rebuildm := flag.Bool("rebuild-manifest", false, "rebuild the manifest JSON")
 	showc := flag.Bool("show-config", false, "output the configuration JSON")
+	rebuildc := flag.Bool("rebuild-config", false, "rebuild the configuration JSON")
 	flag.Parse()
 	logrus.SetLevel(logrus.ErrorLevel)
 	if debug != nil && *debug {
@@ -79,6 +82,7 @@ func main() {
 		logrus.Errorf("error opening storage: %v", err)
 		return
 	}
+	is.Transport.SetStore(store)
 
 	errors := false
 	defer func() {
@@ -88,6 +92,7 @@ func main() {
 		}
 	}()
 	for _, image := range args {
+		var ref types.ImageReference
 		oImage := v1.Image{}
 		dImage := docker.V2Image{}
 		oManifest := v1.Manifest{}
@@ -97,9 +102,13 @@ func main() {
 
 		ref, err := is.Transport.ParseStoreReference(store, image)
 		if err != nil {
-			logrus.Errorf("error parsing reference %q: %v", image, err)
-			errors = true
-			continue
+			ref2, err2 := alltransports.ParseImageName(image)
+			if err2 != nil {
+				logrus.Errorf("error parsing reference %q: %v", image, err)
+				errors = true
+				continue
+			}
+			ref = ref2
 		}
 
 		img, err := ref.NewImage(systemContext)
@@ -160,6 +169,66 @@ func main() {
 			logrus.Errorf("expected manifest type %q in %q, got %q", expectedManifestType, image, manifestType)
 			errors = true
 			continue
+		}
+		switch manifestType {
+		case buildah.OCIv1ImageManifest:
+			if rebuildm != nil && *rebuildm {
+				err = json.Unmarshal(manifest, &oManifest)
+				if err != nil {
+					logrus.Errorf("error parsing manifest from %q: %v", image, err)
+					errors = true
+					continue
+				}
+				manifest, err = json.Marshal(oManifest)
+				if err != nil {
+					logrus.Errorf("error rebuilding manifest from %q: %v", image, err)
+					errors = true
+					continue
+				}
+			}
+			if rebuildc != nil && *rebuildc {
+				err = json.Unmarshal(config, &oImage)
+				if err != nil {
+					logrus.Errorf("error parsing config from %q: %v", image, err)
+					errors = true
+					continue
+				}
+				config, err = json.Marshal(oImage)
+				if err != nil {
+					logrus.Errorf("error rebuilding config from %q: %v", image, err)
+					errors = true
+					continue
+				}
+			}
+		case buildah.Dockerv2ImageManifest:
+			if rebuildm != nil && *rebuildm {
+				err = json.Unmarshal(manifest, &dManifest)
+				if err != nil {
+					logrus.Errorf("error parsing manifest from %q: %v", image, err)
+					errors = true
+					continue
+				}
+				manifest, err = json.Marshal(dManifest)
+				if err != nil {
+					logrus.Errorf("error rebuilding manifest from %q: %v", image, err)
+					errors = true
+					continue
+				}
+			}
+			if rebuildc != nil && *rebuildc {
+				err = json.Unmarshal(config, &dImage)
+				if err != nil {
+					logrus.Errorf("error parsing config from %q: %v", image, err)
+					errors = true
+					continue
+				}
+				config, err = json.Marshal(dImage)
+				if err != nil {
+					logrus.Errorf("error rebuilding config from %q: %v", image, err)
+					errors = true
+					continue
+				}
+			}
 		}
 		if expectedConfigType != "" && configType != expectedConfigType {
 			logrus.Errorf("expected config type %q in %q, got %q", expectedConfigType, image, configType)
