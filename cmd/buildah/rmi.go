@@ -78,7 +78,7 @@ func rmiCmd(c *cli.Context) error {
 				if err2 != nil {
 					return err
 				}
-				fmt.Printf("untagged: %s", name)
+				fmt.Printf("untagged: %s\n", name)
 			}
 
 			if len(image.Names) > 0 {
