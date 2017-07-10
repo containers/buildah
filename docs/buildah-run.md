@@ -14,6 +14,13 @@ the *buildah config* command.
 
 ## OPTIONS
 
+**--tty**
+
+By default a pseudo-TTY is allocated only when buildah's standard input is
+attached to a pseudo-TTY. Setting the `--tty` option to `true` will cause a
+pseudo-TTY to be allocated inside the container. Setting the `--tty` option to
+`false` will prevent the pseudo-TTY from being allocated.
+
 **--runtime** *path*
 
 The *path* to an alternate OCI-compatible runtime.

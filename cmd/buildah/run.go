@@ -28,6 +28,10 @@ var (
 			Name:  "volume, v",
 			Usage: "bind mount a host location into the container while running the command",
 		},
+		cli.BoolFlag{
+			Name:  "tty",
+			Usage: "allocate a pseudo-TTY in the container",
+		},
 	}
 	runDescription = "Runs a specified command using the container's root filesystem as a root\n   filesystem, using configuration settings inherited from the container's\n   image or as specified using previous calls to the config command"
 	runCommand     = cli.Command{
@@ -80,6 +84,15 @@ func runCmd(c *cli.Context) error {
 		Runtime:  runtime,
 		Args:     flags,
 	}
+
+	if c.IsSet("tty") {
+		if c.Bool("tty") {
+			options.Terminal = buildah.WithTerminal
+		} else {
+			options.Terminal = buildah.WithoutTerminal
+		}
+	}
+
 	for _, volumeSpec := range volumes {
 		volSpec := strings.Split(volumeSpec, ":")
 		if len(volSpec) >= 2 {
