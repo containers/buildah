@@ -297,7 +297,7 @@ func matchesDangling(name string, dangling string) bool {
 func matchesLabel(image storage.Image, store storage.Store, label string) bool {
 	storeRef, err := is.Transport.ParseStoreReference(store, "@"+image.ID)
 	if err != nil {
-
+		return false
 	}
 	img, err := storeRef.NewImage(nil)
 	if err != nil {
