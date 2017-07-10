@@ -190,11 +190,7 @@ func setFilterDate(images []storage.Image, imgName string) (time.Time, error) {
 		for _, name := range image.Names {
 			if matchesReference(name, imgName) {
 				// Set the date to this image
-				im, err := parseMetadata(image)
-				if err != nil {
-					return time.Time{}, errors.Wrapf(err, "could not get creation date for image %q", imgName)
-				}
-				date := im.CreatedTime
+				date := image.Created
 				return date, nil
 			}
 		}
@@ -222,7 +218,7 @@ func outputImages(images []storage.Image, format string, store storage.Store, fi
 		if err != nil {
 			fmt.Println(err)
 		}
-		createdTime := imageMetadata.CreatedTime.Format("Jan 2, 2006 15:04")
+		createdTime := image.Created.Format("Jan 2, 2006 15:04")
 		digest := ""
 		if len(imageMetadata.Blobs) > 0 {
 			digest = string(imageMetadata.Blobs[0].Digest)
@@ -327,11 +323,7 @@ func matchesLabel(image storage.Image, store storage.Store, label string) bool {
 // Returns true if the image was created since the filter image.  Returns
 // false otherwise
 func matchesBeforeImage(image storage.Image, name string, params *filterParams) bool {
-	im, err := parseMetadata(image)
-	if err != nil {
-		return false
-	}
-	if im.CreatedTime.Before(params.beforeDate) {
+	if image.Created.IsZero() || image.Created.Before(params.beforeDate) {
 		return true
 	}
 	return false
@@ -340,11 +332,7 @@ func matchesBeforeImage(image storage.Image, name string, params *filterParams) 
 // Returns true if the image was created since the filter image.  Returns
 // false otherwise
 func matchesSinceImage(image storage.Image, name string, params *filterParams) bool {
-	im, err := parseMetadata(image)
-	if err != nil {
-		return false
-	}
-	if im.CreatedTime.After(params.sinceDate) {
+	if image.Created.IsZero() || image.Created.After(params.sinceDate) {
 		return true
 	}
 	return false
