@@ -20,7 +20,9 @@ The *path* to an alternate OCI-compatible runtime.
 
 **--runtime-flag** *flag*
 
-Adds global flags for the container rutime.
+Adds global flags for the container runtime. To list the supported flags, please
+consult manpages of your selected container runtime (`runc` is the default
+runtime, the manpage to consult is `runc(8)`)
 
 **--volume, -v** *source*:*destination*:*flags*
 
