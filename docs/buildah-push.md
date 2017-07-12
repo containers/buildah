@@ -34,5 +34,7 @@ buildah push imageID oci-layout:/path/to/layout
 
 buildah push imageID docker://registry/repository:tag
 
+buildah push imageID docker-daemon:repository:tag
+
 ## SEE ALSO
 buildah(1)
