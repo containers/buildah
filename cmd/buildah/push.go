@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"strings"
 
+	"github.com/containers/image/transports"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/pkg/errors"
@@ -25,14 +28,24 @@ var (
 			Usage: "don't output progress information when pushing images",
 		},
 	}
-	pushDescription = "Pushes an image to a specified location."
-	pushCommand     = cli.Command{
+	pushDescription = fmt.Sprintf(`
+   Pushes an image to a specified location.
+
+   The Image "DESTINATION" uses a "transport":"details" format.
+
+   Supported transports:
+   %s
+
+   See buildah-push(1) section "DESTINATION" for the expected format
+`, strings.Join(transports.ListNames(), ", "))
+
+	pushCommand = cli.Command{
 		Name:        "push",
-		Usage:       "Push an image to a specified location",
+		Usage:       "Push an image to a specified destination",
 		Description: pushDescription,
 		Flags:       pushFlags,
 		Action:      pushCmd,
-		ArgsUsage:   "IMAGE [TRANSPORT:]IMAGE",
+		ArgsUsage:   "IMAGE DESTINATION",
 	}
 )
 
