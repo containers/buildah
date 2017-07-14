@@ -33,11 +33,15 @@ Control the format for the image manifest and configuration data.  Recognized
 formats include *oci* (OCI image-spec v1.0, the default) and *docker* (version
 2, using schema format 2 for the manifest).
 
+**--rm**
+Remove the container and its content after committing it to an image.
+Default leaves the container and its content in place.
+
 ## EXAMPLE
 
 buildah commit containerID
 
-buildah commit containerID newImageName
+buildah commit --rm containerID newImageName
 
 buildah commit --disable-compression --signature-policy '/etc/containers/policy.json' containerID
 

@@ -290,6 +290,7 @@ return 1
           -D
           --quiet
           -q
+          --rm
   "
 
      local options_with_args="
