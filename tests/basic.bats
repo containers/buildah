@@ -95,6 +95,12 @@ load helpers
   cmp ${TESTDIR}/other-randomfile $yetanothernewroot/other-randomfile
   buildah delete $yetanothernewcid
 
+  newcid=$(buildah from new-image)
+  buildah commit --rm --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:remove-container-image
+  run buildah mount $newcid
+  [ "$status" -ne 0 ]
+
+  buildah rmi remove-container-image
   buildah rmi containers-storage:other-new-image
   buildah rmi another-new-image
   run buildah --debug=false images -q
