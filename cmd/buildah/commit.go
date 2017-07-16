@@ -36,6 +36,10 @@ var (
 			Name:  "quiet, q",
 			Usage: "don't output progress information when writing images",
 		},
+		cli.BoolFlag{
+			Name:  "rm",
+			Usage: "remove the container and its content after committing it to an image. Default leaves the container and its content in place.",
+		},
 	}
 	commitDescription = "Writes a new image using the container's read-write layer and, if it is based\n   on an image, the layers of that image"
 	commitCommand     = cli.Command{
@@ -128,5 +132,8 @@ func commitCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error committing container %q to %q", builder.Container, image)
 	}
 
+	if c.Bool("rm") {
+		return builder.Delete()
+	}
 	return nil
 }
