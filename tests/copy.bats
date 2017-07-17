@@ -21,6 +21,13 @@ load helpers
   buildah copy $cid ${TESTDIR}/randomfile
   buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile /etc
   buildah rm $cid
+
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  root=$(buildah mount $cid)
+  buildah config --workingdir / $cid
+  buildah copy $cid "${TESTDIR}/*randomfile" /etc
+  (cd ${TESTDIR}; for i in *randomfile; do cmp $i ${root}/etc/$i; done)
+  buildah rm $cid
 }
 
 @test "copy-local-plain" {
