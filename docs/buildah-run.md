@@ -1,3 +1,4 @@
+
 ## buildah-run "1" "March 2017" "buildah"
 
 ## NAME
@@ -35,11 +36,14 @@ runtime, the manpage to consult is `runc(8)`)
 
 Bind mount a location from the host into the container for its lifetime.
 
+NOTE: End parsing of options with the `--` option, so that you can pass other 
+options to the command inside of the container
+
 ## EXAMPLE
 
-buildah run containerID 'ps -auxw'
+buildah run containerID -- ps -auxw
 
-buildah run containerID --runtime-flag --no-new-keyring 'ps -auxw'
+buildah run containerID --runtime-flag --no-new-keyring -- ps -auxw
 
 ## SEE ALSO
 buildah(1)
