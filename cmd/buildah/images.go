@@ -133,14 +133,6 @@ func imagesCmd(c *cli.Context) error {
 		fmt.Printf("%s\n", data)
 		return nil
 	}
-	if len(images) > 0 && !noheading && !quiet {
-		if truncate {
-			fmt.Printf("%-12s %s\n", "IMAGE ID", "IMAGE NAME")
-		} else {
-			fmt.Printf("%-64s %s\n", "IMAGE ID", "IMAGE NAME")
-		}
-	}
-
 	var params *filterParams
 	if c.IsSet("filter") {
 		params, err = parseFilter(images, c.String("filter"))
