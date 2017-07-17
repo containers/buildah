@@ -51,6 +51,9 @@ func runCmd(c *cli.Context) error {
 	}
 	name := args[0]
 	args = args.Tail()
+	if len(args) > 0 && args[0] == "--" {
+		args = args[1:]
+	}
 
 	runtime := ""
 	if c.IsSet("runtime") {
