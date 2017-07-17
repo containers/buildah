@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -120,44 +121,54 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 			}
 			continue
 		}
-		srcfi, err := os.Stat(src)
+
+		glob, err := filepath.Glob(src)
 		if err != nil {
-			return errors.Wrapf(err, "error reading %q", src)
+			return errors.Wrapf(err, "invalid glob %q", src)
 		}
-		if srcfi.IsDir() {
-			// The source is a directory, so copy the contents of
-			// the source directory into the target directory.  Try
-			// to create it first, so that if there's a problem,
-			// we'll discover why that won't work.
-			d := dest
-			if err := os.MkdirAll(d, 0755); err != nil {
-				return errors.Wrapf(err, "error ensuring directory %q exists", d)
-			}
-			logrus.Debugf("copying %q to %q", src+string(os.PathSeparator)+"*", d+string(os.PathSeparator)+"*")
-			if err := chrootarchive.CopyWithTar(src, d); err != nil {
-				return errors.Wrapf(err, "error copying %q to %q", src, d)
-			}
-			continue
+		if len(glob) == 0 {
+			return errors.Wrapf(syscall.ENOENT, "no files found matching %q", src)
 		}
-		if !extract || !archive.IsArchivePath(src) {
-			// This source is a file, and either it's not an
-			// archive, or we don't care whether or not it's an
-			// archive.
-			d := dest
-			if destfi != nil && destfi.IsDir() {
-				d = filepath.Join(dest, filepath.Base(src))
+		for _, gsrc := range glob {
+			srcfi, err := os.Stat(gsrc)
+			if err != nil {
+				return errors.Wrapf(err, "error reading %q", gsrc)
 			}
-			// Copy the file, preserving attributes.
-			logrus.Debugf("copying %q to %q", src, d)
-			if err := chrootarchive.CopyFileWithTar(src, d); err != nil {
-				return errors.Wrapf(err, "error copying %q to %q", src, d)
+			if srcfi.IsDir() {
+				// The source is a directory, so copy the contents of
+				// the source directory into the target directory.  Try
+				// to create it first, so that if there's a problem,
+				// we'll discover why that won't work.
+				d := dest
+				if err := os.MkdirAll(d, 0755); err != nil {
+					return errors.Wrapf(err, "error ensuring directory %q exists", d)
+				}
+				logrus.Debugf("copying %q to %q", gsrc+string(os.PathSeparator)+"*", d+string(os.PathSeparator)+"*")
+				if err := chrootarchive.CopyWithTar(gsrc, d); err != nil {
+					return errors.Wrapf(err, "error copying %q to %q", gsrc, d)
+				}
+				continue
 			}
-			continue
-		}
-		// We're extracting an archive into the destination directory.
-		logrus.Debugf("extracting contents of %q into %q", src, dest)
-		if err := chrootarchive.UntarPath(src, dest); err != nil {
-			return errors.Wrapf(err, "error extracting %q into %q", src, dest)
+			if !extract || !archive.IsArchivePath(gsrc) {
+				// This source is a file, and either it's not an
+				// archive, or we don't care whether or not it's an
+				// archive.
+				d := dest
+				if destfi != nil && destfi.IsDir() {
+					d = filepath.Join(dest, filepath.Base(gsrc))
+				}
+				// Copy the file, preserving attributes.
+				logrus.Debugf("copying %q to %q", gsrc, d)
+				if err := chrootarchive.CopyFileWithTar(gsrc, d); err != nil {
+					return errors.Wrapf(err, "error copying %q to %q", gsrc, d)
+				}
+				continue
+			}
+			// We're extracting an archive into the destination directory.
+			logrus.Debugf("extracting contents of %q into %q", gsrc, dest)
+			if err := chrootarchive.UntarPath(gsrc, dest); err != nil {
+				return errors.Wrapf(err, "error extracting %q into %q", gsrc, dest)
+			}
 		}
 	}
 	return nil

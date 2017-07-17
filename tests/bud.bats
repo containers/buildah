@@ -206,3 +206,16 @@ load helpers
   run buildah --debug=false images -q
   [ "$output" = "" ]
 }
+
+@test "bud-from-glob" {
+  target=alpine-image
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile2.glob ${TESTSDIR}/bud/from-multiple-files
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  cmp $root/Dockerfile1.alpine ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.alpine
+  cmp $root/Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
+  buildah rm ${cid}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  [ "$output" = "" ]
+}
