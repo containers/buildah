@@ -19,6 +19,17 @@ load helpers
 	buildah run        $cid cp /tmp/randomfile /tmp/other-randomfile
 	test -s $root/tmp/other-randomfile
 	cmp ${TESTDIR}/randomfile $root/tmp/other-randomfile
+	run buildah run $cid echo -n test
+	[ $status != 0 ]
+	run buildah run $cid echo -- -n test
+	[ $status != 0 ]
+	run buildah run $cid -- echo -n -- test
+	[ "$output" = "-- test" ]
+	run buildah run $cid -- echo -- -n test --
+	[ "$output" = "-- -n -- test --" ]
+	run buildah run $cid -- echo -n "test"
+	[ "$output" = "test" ]
+
 	buildah unmount $cid
 	buildah rm $cid
 }
