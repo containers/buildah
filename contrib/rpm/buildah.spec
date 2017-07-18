@@ -21,11 +21,11 @@
 # https://github.com/projectatomic/buildah
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 %global import_path     %{provider_prefix}
-%global commit         a0a5333b94264d1fb1e072d63bcb98f9e2981b49
+%global commit         REPLACEWITHCOMMITID
 %global shortcommit    %(c=%{commit}; echo ${c:0:7})
 
 Name:           buildah
-Version:        0.1
+Version:        0.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -87,5 +87,24 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Tue Jul 18 2017 Dan Walsh <dwalsh@redhat.com> 0.2.0-1
+-   buildah run: Add support for -- ending options parsing 
+-   buildah Add/Copy support for glob syntax
+-   buildah commit: Add flag to remove containers on commit
+-   buildah push: Improve man page and help information
+-   buildah run: add a way to disable PTY allocation
+-   Buildah docs: clarify --runtime-flag of run command
+-   Update to match newer storage and image-spec APIs
+-   Update containers/storage and containers/image versions
+-   buildah export: add support
+-   buildah images: update commands
+-   buildah images: Add JSON output option
+-   buildah rmi: update commands
+-   buildah containers: Add JSON output option
+-   buildah version: add command
+-   buildah run: Handle run without an explicit command correctly
+-   Ensure volume points get created, and with perms
+-   buildah containers: Add a -a/--all option 
+
 * Fri Apr 14 2017 Dan Walsh <dwalsh@redhat.com> 0.0.1-1.git7a0a5333
 - First package for Fedora
