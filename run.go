@@ -153,12 +153,6 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}()
 	g := generate.New()
 
-	if b.OS() != "" {
-		g.SetPlatformOS(b.OS())
-	}
-	if b.Architecture() != "" {
-		g.SetPlatformArch(b.Architecture())
-	}
 	for _, envSpec := range append(b.Env(), options.Env...) {
 		env := strings.SplitN(envSpec, "=", 2)
 		if len(env) > 1 {
