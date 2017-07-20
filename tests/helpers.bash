@@ -4,6 +4,7 @@ BUILDAH_BINARY=${BUILDAH_BINARY:-$(dirname ${BASH_SOURCE})/../buildah}
 IMGTYPE_BINARY=${IMGTYPE_BINARY:-$(dirname ${BASH_SOURCE})/../imgtype}
 TESTSDIR=${TESTSDIR:-$(dirname ${BASH_SOURCE})}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
+PATH=$(dirname ${BASH_SOURCE})/..:${PATH}
 
 function setup() {
 	suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | base64 | tr +/ _.)
