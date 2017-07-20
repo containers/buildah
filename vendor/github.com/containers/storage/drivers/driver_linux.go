@@ -53,7 +53,7 @@ const (
 var (
 	// Slice of drivers that should be used in an order
 	priority = []string{
-		"overlay2",
+		"overlay",
 		"devicemapper",
 		"aufs",
 		"btrfs",

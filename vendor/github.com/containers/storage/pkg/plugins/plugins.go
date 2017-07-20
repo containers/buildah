@@ -3,10 +3,11 @@
 //
 // Storage discovers plugins by looking for them in the plugin directory whenever
 // a user or container tries to use one by name. UNIX domain socket files must
-// be located under /run/oci-storage/plugins, whereas spec files can be located
-// either under /etc/oci-storage/plugins or /usr/lib/oci-storage/plugins. This
-// is handled by the Registry interface, which lets you list all plugins or get
-// a plugin by its name if it exists.
+// be located under /run/containers/storage/plugins, whereas spec files can be
+// located either under /etc/containers/storage/plugins or
+// /usr/lib/containers/storage/plugins. This is handled by the Registry
+// interface, which lets you list all plugins or get a plugin by its name if it
+// exists.
 //
 // The plugins need to implement an HTTP server and bind this to the UNIX socket
 // or the address specified in the spec files.

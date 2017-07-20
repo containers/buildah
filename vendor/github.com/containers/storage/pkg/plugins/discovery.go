@@ -15,8 +15,8 @@ import (
 var (
 	// ErrNotFound plugin not found
 	ErrNotFound = errors.New("plugin not found")
-	socketsPath = "/run/oci-storage/plugins"
-	specsPaths  = []string{"/etc/oci-storage/plugins", "/usr/lib/oci-storage/plugins"}
+	socketsPath = "/run/containers/storage/plugins"
+	specsPaths  = []string{"/etc/containers/storage/plugins", "/usr/lib/containers/storage/plugins"}
 )
 
 // localRegistry defines a registry that is local (using unix socket).
