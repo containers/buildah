@@ -70,7 +70,9 @@ func (s *storageReference) resolveImage() (*storage.Image, error) {
 // to build this reference object.
 func (s storageReference) Transport() types.ImageTransport {
 	return &storageTransport{
-		store: s.transport.store,
+		store:         s.transport.store,
+		defaultUIDMap: s.transport.defaultUIDMap,
+		defaultGIDMap: s.transport.defaultGIDMap,
 	}
 }
 
@@ -83,7 +85,12 @@ func (s storageReference) DockerReference() reference.Named {
 // disambiguate between images which may be present in multiple stores and
 // share only their names.
 func (s storageReference) StringWithinTransport() string {
-	storeSpec := "[" + s.transport.store.GraphDriverName() + "@" + s.transport.store.GraphRoot() + "]"
+	optionsList := ""
+	options := s.transport.store.GraphOptions()
+	if len(options) > 0 {
+		optionsList = ":" + strings.Join(options, ",")
+	}
+	storeSpec := "[" + s.transport.store.GraphDriverName() + "@" + s.transport.store.GraphRoot() + "+" + s.transport.store.RunRoot() + optionsList + "]"
 	if s.name == nil {
 		return storeSpec + "@" + s.id
 	}
@@ -94,7 +101,14 @@ func (s storageReference) StringWithinTransport() string {
 }
 
 func (s storageReference) PolicyConfigurationIdentity() string {
-	return s.StringWithinTransport()
+	storeSpec := "[" + s.transport.store.GraphDriverName() + "@" + s.transport.store.GraphRoot() + "]"
+	if s.name == nil {
+		return storeSpec + "@" + s.id
+	}
+	if s.id == "" {
+		return storeSpec + s.reference
+	}
+	return storeSpec + s.reference + "@" + s.id
 }
 
 // Also accept policy that's tied to the combination of the graph root and

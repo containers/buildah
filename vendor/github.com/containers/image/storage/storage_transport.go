@@ -11,6 +11,7 @@ import (
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/idtools"
 	"github.com/opencontainers/go-digest"
 	ddigest "github.com/opencontainers/go-digest"
 )
@@ -46,10 +47,20 @@ type StoreTransport interface {
 	// ParseStoreReference parses a reference, overriding any store
 	// specification that it may contain.
 	ParseStoreReference(store storage.Store, reference string) (*storageReference, error)
+	// SetDefaultUIDMap sets the default UID map to use when opening stores.
+	SetDefaultUIDMap(idmap []idtools.IDMap)
+	// SetDefaultGIDMap sets the default GID map to use when opening stores.
+	SetDefaultGIDMap(idmap []idtools.IDMap)
+	// DefaultUIDMap returns the default UID map used when opening stores.
+	DefaultUIDMap() []idtools.IDMap
+	// DefaultGIDMap returns the default GID map used when opening stores.
+	DefaultGIDMap() []idtools.IDMap
 }
 
 type storageTransport struct {
-	store storage.Store
+	store         storage.Store
+	defaultUIDMap []idtools.IDMap
+	defaultGIDMap []idtools.IDMap
 }
 
 func (s *storageTransport) Name() string {
@@ -64,6 +75,26 @@ func (s *storageTransport) Name() string {
 // SetStore does not affect previously parsed references.
 func (s *storageTransport) SetStore(store storage.Store) {
 	s.store = store
+}
+
+// SetDefaultUIDMap sets the default UID map to use when opening stores.
+func (s *storageTransport) SetDefaultUIDMap(idmap []idtools.IDMap) {
+	s.defaultUIDMap = idmap
+}
+
+// SetDefaultGIDMap sets the default GID map to use when opening stores.
+func (s *storageTransport) SetDefaultGIDMap(idmap []idtools.IDMap) {
+	s.defaultGIDMap = idmap
+}
+
+// DefaultUIDMap returns the default UID map used when opening stores.
+func (s *storageTransport) DefaultUIDMap() []idtools.IDMap {
+	return s.defaultUIDMap
+}
+
+// DefaultGIDMap returns the default GID map used when opening stores.
+func (s *storageTransport) DefaultGIDMap() []idtools.IDMap {
+	return s.defaultGIDMap
 }
 
 // ParseStoreReference takes a name or an ID, tries to figure out which it is
@@ -110,7 +141,12 @@ func (s storageTransport) ParseStoreReference(store storage.Store, ref string) (
 		// recognize.
 		return nil, ErrInvalidReference
 	}
-	storeSpec := "[" + store.GraphDriverName() + "@" + store.GraphRoot() + "]"
+	optionsList := ""
+	options := store.GraphOptions()
+	if len(options) > 0 {
+		optionsList = ":" + strings.Join(options, ",")
+	}
+	storeSpec := "[" + store.GraphDriverName() + "@" + store.GraphRoot() + "+" + store.RunRoot() + optionsList + "]"
 	id := ""
 	if sum.Validate() == nil {
 		id = sum.Hex()
@@ -127,14 +163,17 @@ func (s storageTransport) ParseStoreReference(store storage.Store, ref string) (
 	} else {
 		logrus.Debugf("parsed reference into %q", storeSpec+refname+"@"+id)
 	}
-	return newReference(storageTransport{store: store}, refname, id, name), nil
+	return newReference(storageTransport{store: store, defaultUIDMap: s.defaultUIDMap, defaultGIDMap: s.defaultGIDMap}, refname, id, name), nil
 }
 
 func (s *storageTransport) GetStore() (storage.Store, error) {
 	// Return the transport's previously-set store.  If we don't have one
 	// of those, initialize one now.
 	if s.store == nil {
-		store, err := storage.GetStore(storage.DefaultStoreOptions)
+		options := storage.DefaultStoreOptions
+		options.UIDMap = s.defaultUIDMap
+		options.GIDMap = s.defaultGIDMap
+		store, err := storage.GetStore(options)
 		if err != nil {
 			return nil, err
 		}
@@ -145,15 +184,11 @@ func (s *storageTransport) GetStore() (storage.Store, error) {
 
 // ParseReference takes a name and/or an ID ("_name_"/"@_id_"/"_name_@_id_"),
 // possibly prefixed with a store specifier in the form "[_graphroot_]" or
-// "[_driver_@_graphroot_]", tries to figure out which it is, and returns it in
-// a reference object.  If the _graphroot_ is a location other than the default,
-// it needs to have been previously opened using storage.GetStore(), so that it
-// can figure out which run root goes with the graph root.
+// "[_driver_@_graphroot_]" or "[_driver_@_graphroot_+_runroot_]" or
+// "[_driver_@_graphroot_:_options_]" or "[_driver_@_graphroot_+_runroot_:_options_]",
+// tries to figure out which it is, and returns it in a reference object.
 func (s *storageTransport) ParseReference(reference string) (types.ImageReference, error) {
-	store, err := s.GetStore()
-	if err != nil {
-		return nil, err
-	}
+	var store storage.Store
 	// Check if there's a store location prefix.  If there is, then it
 	// needs to match a store that was previously initialized using
 	// storage.GetStore(), or be enough to let the storage library fill out
@@ -165,37 +200,65 @@ func (s *storageTransport) ParseReference(reference string) (types.ImageReferenc
 		}
 		storeSpec := reference[1:closeIndex]
 		reference = reference[closeIndex+1:]
-		storeInfo := strings.SplitN(storeSpec, "@", 2)
-		if len(storeInfo) == 1 && storeInfo[0] != "" {
-			// One component: the graph root.
-			if !filepath.IsAbs(storeInfo[0]) {
-				return nil, ErrPathNotAbsolute
+		// Peel off a "driver@" from the start.
+		driverInfo := ""
+		driverSplit := strings.SplitN(storeSpec, "@", 2)
+		if len(driverSplit) != 2 {
+			if storeSpec == "" {
+				return nil, ErrInvalidReference
 			}
-			store2, err := storage.GetStore(storage.StoreOptions{
-				GraphRoot: storeInfo[0],
-			})
-			if err != nil {
-				return nil, err
-			}
-			store = store2
-		} else if len(storeInfo) == 2 && storeInfo[0] != "" && storeInfo[1] != "" {
-			// Two components: the driver type and the graph root.
-			if !filepath.IsAbs(storeInfo[1]) {
-				return nil, ErrPathNotAbsolute
-			}
-			store2, err := storage.GetStore(storage.StoreOptions{
-				GraphDriverName: storeInfo[0],
-				GraphRoot:       storeInfo[1],
-			})
-			if err != nil {
-				return nil, err
-			}
-			store = store2
 		} else {
-			// Anything else: store specified in a form we don't
-			// recognize.
-			return nil, ErrInvalidReference
+			driverInfo = driverSplit[0]
+			if driverInfo == "" {
+				return nil, ErrInvalidReference
+			}
+			storeSpec = driverSplit[1]
+			if storeSpec == "" {
+				return nil, ErrInvalidReference
+			}
 		}
+		// Peel off a ":options" from the end.
+		var options []string
+		optionsSplit := strings.SplitN(storeSpec, ":", 2)
+		if len(optionsSplit) == 2 {
+			options = strings.Split(optionsSplit[1], ",")
+			storeSpec = optionsSplit[0]
+		}
+		// Peel off a "+runroot" from the new end.
+		runRootInfo := ""
+		runRootSplit := strings.SplitN(storeSpec, "+", 2)
+		if len(runRootSplit) == 2 {
+			runRootInfo = runRootSplit[1]
+			storeSpec = runRootSplit[0]
+		}
+		// The rest is our graph root.
+		rootInfo := storeSpec
+		// Check that any paths are absolute paths.
+		if rootInfo != "" && !filepath.IsAbs(rootInfo) {
+			return nil, ErrPathNotAbsolute
+		}
+		if runRootInfo != "" && !filepath.IsAbs(runRootInfo) {
+			return nil, ErrPathNotAbsolute
+		}
+		store2, err := storage.GetStore(storage.StoreOptions{
+			GraphDriverName:    driverInfo,
+			GraphRoot:          rootInfo,
+			RunRoot:            runRootInfo,
+			GraphDriverOptions: options,
+			UIDMap:             s.defaultUIDMap,
+			GIDMap:             s.defaultGIDMap,
+		})
+		if err != nil {
+			return nil, err
+		}
+		store = store2
+	} else {
+		// We didn't have a store spec, so use the default.
+		store2, err := s.GetStore()
+		if err != nil {
+			return nil, err
+		}
+		store = store2
 	}
 	return s.ParseStoreReference(store, reference)
 }
@@ -250,7 +313,7 @@ func (s storageTransport) ValidatePolicyConfigurationScope(scope string) error {
 			return ErrPathNotAbsolute
 		}
 	} else {
-		// Anything else: store specified in a form we don't
+		// Anything else: scope specified in a form we don't
 		// recognize.
 		return ErrInvalidReference
 	}

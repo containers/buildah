@@ -16,7 +16,7 @@ type platformSpec struct {
 	OSVersion    string   `json:"os.version,omitempty"`
 	OSFeatures   []string `json:"os.features,omitempty"`
 	Variant      string   `json:"variant,omitempty"`
-	Features     []string `json:"features,omitempty"`
+	Features     []string `json:"features,omitempty"` // removed in OCI
 }
 
 // A manifestDescriptor references a platform-specific manifest.
