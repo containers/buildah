@@ -20,7 +20,7 @@ import (
 type Source struct {
 	tarPath string
 	// The following data is only available after ensureCachedDataIsPresent() succeeds
-	tarManifest       *manifestItem // nil if not available yet.
+	tarManifest       *ManifestItem // nil if not available yet.
 	configBytes       []byte
 	configDigest      digest.Digest
 	orderedDiffIDList []diffID
@@ -145,23 +145,28 @@ func (s *Source) ensureCachedDataIsPresent() error {
 		return err
 	}
 
+	// Check to make sure length is 1
+	if len(tarManifest) != 1 {
+		return errors.Errorf("Unexpected tar manifest.json: expected 1 item, got %d", len(tarManifest))
+	}
+
 	// Read and parse config.
-	configBytes, err := s.readTarComponent(tarManifest.Config)
+	configBytes, err := s.readTarComponent(tarManifest[0].Config)
 	if err != nil {
 		return err
 	}
 	var parsedConfig image // Most fields ommitted, we only care about layer DiffIDs.
 	if err := json.Unmarshal(configBytes, &parsedConfig); err != nil {
-		return errors.Wrapf(err, "Error decoding tar config %s", tarManifest.Config)
+		return errors.Wrapf(err, "Error decoding tar config %s", tarManifest[0].Config)
 	}
 
-	knownLayers, err := s.prepareLayerData(tarManifest, &parsedConfig)
+	knownLayers, err := s.prepareLayerData(&tarManifest[0], &parsedConfig)
 	if err != nil {
 		return err
 	}
 
 	// Success; commit.
-	s.tarManifest = tarManifest
+	s.tarManifest = &tarManifest[0]
 	s.configBytes = configBytes
 	s.configDigest = digest.FromBytes(configBytes)
 	s.orderedDiffIDList = parsedConfig.RootFS.DiffIDs
@@ -170,23 +175,25 @@ func (s *Source) ensureCachedDataIsPresent() error {
 }
 
 // loadTarManifest loads and decodes the manifest.json.
-func (s *Source) loadTarManifest() (*manifestItem, error) {
+func (s *Source) loadTarManifest() ([]ManifestItem, error) {
 	// FIXME? Do we need to deal with the legacy format?
 	bytes, err := s.readTarComponent(manifestFileName)
 	if err != nil {
 		return nil, err
 	}
-	var items []manifestItem
+	var items []ManifestItem
 	if err := json.Unmarshal(bytes, &items); err != nil {
 		return nil, errors.Wrap(err, "Error decoding tar manifest.json")
 	}
-	if len(items) != 1 {
-		return nil, errors.Errorf("Unexpected tar manifest.json: expected 1 item, got %d", len(items))
-	}
-	return &items[0], nil
+	return items, nil
 }
 
-func (s *Source) prepareLayerData(tarManifest *manifestItem, parsedConfig *image) (map[diffID]*layerInfo, error) {
+// LoadTarManifest loads and decodes the manifest.json
+func (s *Source) LoadTarManifest() ([]ManifestItem, error) {
+	return s.loadTarManifest()
+}
+
+func (s *Source) prepareLayerData(tarManifest *ManifestItem, parsedConfig *image) (map[diffID]*layerInfo, error) {
 	// Collect layer data available in manifest and config.
 	if len(tarManifest.Layers) != len(parsedConfig.RootFS.DiffIDs) {
 		return nil, errors.Errorf("Inconsistent layer count: %d in manifest, %d in config", len(tarManifest.Layers), len(parsedConfig.RootFS.DiffIDs))
