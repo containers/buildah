@@ -6,31 +6,61 @@ load helpers
 	if ! which runc ; then
 		skip
 	fi
+	runc --version
 	createrandom ${TESTDIR}/randomfile
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	root=$(buildah mount $cid)
 	buildah config $cid --workingdir /tmp
 	run buildah --debug=false run $cid pwd
+	[ "$status" -eq 0 ]
 	[ "$output" = /tmp ]
 	buildah config $cid --workingdir /root
 	run buildah --debug=false run        $cid pwd
+	[ "$status" -eq 0 ]
 	[ "$output" = /root ]
 	cp ${TESTDIR}/randomfile $root/tmp/
 	buildah run        $cid cp /tmp/randomfile /tmp/other-randomfile
 	test -s $root/tmp/other-randomfile
 	cmp ${TESTDIR}/randomfile $root/tmp/other-randomfile
-	run buildah run $cid echo -n test
-	[ $status != 0 ]
-	run buildah run $cid echo -- -n test
-	[ $status != 0 ]
-	run buildah run $cid -- echo -n -- test
-	[ "$output" = "-- test" ]
-	run buildah run $cid -- echo -- -n test --
-	[ "$output" = "-- -n -- test --" ]
-	run buildah run $cid -- echo -n "test"
-	[ "$output" = "test" ]
 
 	buildah unmount $cid
+	buildah rm $cid
+}
+
+@test "run--args" {
+	if ! which runc ; then
+		skip
+	fi
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+
+	# This should fail, because buildah run doesn't have a -n flag.
+	run buildah --debug=false run $cid echo -n test
+	[ "$status" -ne 0 ]
+
+	# This should succeed, because buildah run stops caring at the --, which is preserved as part of the command.
+	run buildah --debug=false run $cid echo -- -n test
+	[ "$status" -eq 0 ]
+	echo :"$output":
+	[ "$output" = "-- -n test" ]
+
+	# This should succeed, because buildah run stops caring at the --, which is not part of the command.
+	run buildah --debug=false run $cid -- echo -n -- test
+	[ "$status" -eq 0 ]
+	echo :"$output":
+	[ "$output" = "-- test" ]
+
+	# This should succeed, because buildah run stops caring at the --.
+	run buildah --debug=false run $cid -- echo -- -n test --
+	[ "$status" -eq 0 ]
+	echo :"$output":
+	[ "$output" = "-- -n test --" ]
+
+	# This should succeed, because buildah run stops caring at the --.
+	run buildah --debug=false run $cid -- echo -n "test"
+	[ "$status" -eq 0 ]
+	echo :"$output":
+	[ "$output" = "test" ]
+
 	buildah rm $cid
 }
 
