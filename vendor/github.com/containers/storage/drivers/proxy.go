@@ -3,10 +3,10 @@
 package graphdriver
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/containers/storage/pkg/archive"
+	"github.com/pkg/errors"
 )
 
 type graphDriverProxy struct {

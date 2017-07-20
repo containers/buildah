@@ -4,7 +4,6 @@ package overlay
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -27,6 +26,7 @@ import (
 	"github.com/containers/storage/pkg/parsers/kernel"
 
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -102,7 +102,7 @@ func InitWithName(name, home string, options []string, uidMaps, gidMaps []idtool
 	}
 
 	if err := supportsOverlay(); err != nil {
-		return nil, graphdriver.ErrNotSupported
+		return nil, errors.Wrap(graphdriver.ErrNotSupported, "kernel does not support overlay fs")
 	}
 
 	// require kernel 4.0.0 to ensure multiple lower dirs are supported
@@ -112,7 +112,7 @@ func InitWithName(name, home string, options []string, uidMaps, gidMaps []idtool
 	}
 	if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: 4, Major: 0, Minor: 0}) < 0 {
 		if !opts.overrideKernelCheck {
-			return nil, graphdriver.ErrNotSupported
+			return nil, errors.Wrap(graphdriver.ErrNotSupported, "kernel too old to provide multiple lowers feature for overlay")
 		}
 		logrus.Warnf("Using pre-4.0.0 kernel for overlay, mount failures may require kernel update")
 	}
@@ -129,7 +129,7 @@ func InitWithName(name, home string, options []string, uidMaps, gidMaps []idtool
 	switch fsMagic {
 	case graphdriver.FsMagicBtrfs, graphdriver.FsMagicAufs, graphdriver.FsMagicZfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicEcryptfs:
 		logrus.Errorf("'overlay' is not supported over %s", backingFs)
-		return nil, graphdriver.ErrIncompatibleFS
+		return nil, errors.Wrapf(graphdriver.ErrIncompatibleFS, "'overlay' is not supported over %s", backingFs)
 	}
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
@@ -231,7 +231,7 @@ func supportsOverlay() error {
 		}
 	}
 	logrus.Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
-	return graphdriver.ErrNotSupported
+	return errors.Wrap(graphdriver.ErrNotSupported, "'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
 }
 
 func (d *Driver) String() string {

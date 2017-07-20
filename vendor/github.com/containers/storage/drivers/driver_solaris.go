@@ -20,6 +20,7 @@ import (
 	"unsafe"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -56,7 +57,7 @@ func Mounted(fsType FsMagic, mountPath string) (bool, error) {
 		(buf.f_basetype[3] != 0) {
 		log.Debugf("[zfs] no zfs dataset found for rootdir '%s'", mountPath)
 		C.free(unsafe.Pointer(buf))
-		return false, ErrPrerequisites
+		return false, errors.Wrapf(graphdriver.ErrPrerequisites, "no zfs dataset found for rootdir '%s'", mountPath)
 	}
 
 	C.free(unsafe.Pointer(buf))

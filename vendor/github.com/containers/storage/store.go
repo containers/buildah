@@ -183,34 +183,48 @@ type Store interface {
 	// by the Store.
 	GraphDriver() (drivers.Driver, error)
 
-	// LayerStore obtains and returns a handle to the writeable layer store object used by
-	// the Store.
+	// LayerStore obtains and returns a handle to the writeable layer store
+	// object used by the Store.  Accessing this store directly will bypass
+	// locking and synchronization, so use it with care.
 	LayerStore() (LayerStore, error)
 
-	// ROLayerStore obtains additional read/only layer store objects used by
-	// the Store.
+	// ROLayerStore obtains additional read/only layer store objects used
+	// by the Store.  Accessing these stores directly will bypass locking
+	// and synchronization, so use them with care.
 	ROLayerStores() ([]ROLayerStore, error)
 
-	// ImageStore obtains and returns a handle to the writable image store object used by
-	// the Store.
+	// ImageStore obtains and returns a handle to the writable image store
+	// object used by the Store.  Accessing this store directly will bypass
+	// locking and synchronization, so use it with care.
 	ImageStore() (ImageStore, error)
 
-	// ROImageStores obtains additional read/only image store objects used by
-	// the Store.
+	// ROImageStores obtains additional read/only image store objects used
+	// by the Store.  Accessing these stores directly will bypass locking
+	// and synchronization, so use them with care.
 	ROImageStores() ([]ROImageStore, error)
 
-	// ContainerStore obtains and returns a handle to the container store object
-	// used by the Store.
+	// ContainerStore obtains and returns a handle to the container store
+	// object used by the Store.  Accessing this store directly will bypass
+	// locking and synchronization, so use it with care.
 	ContainerStore() (ContainerStore, error)
 
-	// CreateLayer creates a new layer in the underlying storage driver, optionally
-	// having the specified ID (one will be assigned if none is specified), with
-	// the specified layer (or no layer) as its parent, and with optional names.
-	// (The writeable flag is ignored.)
+	// CreateLayer creates a new layer in the underlying storage driver,
+	// optionally having the specified ID (one will be assigned if none is
+	// specified), with the specified layer (or no layer) as its parent,
+	// and with optional names.  (The writeable flag is ignored.)
 	CreateLayer(id, parent string, names []string, mountLabel string, writeable bool) (*Layer, error)
 
-	// PutLayer combines the functions of CreateLayer and ApplyDiff, marking the
-	// layer for automatic removal if applying the diff fails for any reason.
+	// PutLayer combines the functions of CreateLayer and ApplyDiff,
+	// marking the layer for automatic removal if applying the diff fails
+	// for any reason.
+	//
+	// Note that we do some of this work in a child process.  The calling
+	// process's main() function needs to import our pkg/reexec package and
+	// should begin with something like this in order to allow us to
+	// properly start that child process:
+	//   if reexec.Init {
+	//       return
+	//   }
 	PutLayer(id, parent string, names []string, mountLabel string, writeable bool, diff archive.Reader) (*Layer, int64, error)
 
 	// CreateImage creates a new image, optionally with the specified ID
@@ -221,37 +235,39 @@ type Store interface {
 	// convenience of its caller.
 	CreateImage(id string, names []string, layer, metadata string, options *ImageOptions) (*Image, error)
 
-	// CreateContainer creates a new container, optionally with the specified ID
-	// (one will be assigned if none is specified), with optional names,
-	// using the specified image's top layer as the basis for the
-	// container's layer, and assigning the specified ID to that layer (one
-	// will be created if none is specified).  A container is a layer which
-	// is associated with additional bookkeeping information which the
-	// library stores for the convenience of its caller.
+	// CreateContainer creates a new container, optionally with the
+	// specified ID (one will be assigned if none is specified), with
+	// optional names, using the specified image's top layer as the basis
+	// for the container's layer, and assigning the specified ID to that
+	// layer (one will be created if none is specified).  A container is a
+	// layer which is associated with additional bookkeeping information
+	// which the library stores for the convenience of its caller.
 	CreateContainer(id string, names []string, image, layer, metadata string, options *ContainerOptions) (*Container, error)
 
-	// Metadata retrieves the metadata which is associated with a layer, image,
-	// or container (whichever the passed-in ID refers to).
+	// Metadata retrieves the metadata which is associated with a layer,
+	// image, or container (whichever the passed-in ID refers to).
 	Metadata(id string) (string, error)
 
-	// SetMetadata updates the metadata which is associated with a layer, image, or
-	// container (whichever the passed-in ID refers to) to match the specified
-	// value.  The metadata value can be retrieved at any time using Metadata,
-	// or using Layer, Image, or Container and reading the object directly.
+	// SetMetadata updates the metadata which is associated with a layer,
+	// image, or container (whichever the passed-in ID refers to) to match
+	// the specified value.  The metadata value can be retrieved at any
+	// time using Metadata, or using Layer, Image, or Container and reading
+	// the object directly.
 	SetMetadata(id, metadata string) error
 
 	// Exists checks if there is a layer, image, or container which has the
 	// passed-in ID or name.
 	Exists(id string) bool
 
-	// Status asks for a status report, in the form of key-value pairs, from the
-	// underlying storage driver.  The contents vary from driver to driver.
+	// Status asks for a status report, in the form of key-value pairs,
+	// from the underlying storage driver.  The contents vary from driver
+	// to driver.
 	Status() ([][2]string, error)
 
-	// Delete removes the layer, image, or container which has the passed-in ID or
-	// name.  Note that no safety checks are performed, so this can leave images
-	// with references to layers which do not exist, and layers with references to
-	// parents which no longer exist.
+	// Delete removes the layer, image, or container which has the
+	// passed-in ID or name.  Note that no safety checks are performed, so
+	// this can leave images with references to layers which do not exist,
+	// and layers with references to parents which no longer exist.
 	Delete(id string) error
 
 	// DeleteLayer attempts to remove the specified layer.  If the layer is the
@@ -271,41 +287,59 @@ type Store interface {
 	// but the list of layers which would be removed is still returned.
 	DeleteImage(id string, commit bool) (layers []string, err error)
 
-	// DeleteContainer removes the specified container and its layer.  If there is
-	// no matching container, or if the container exists but its layer does not, an
-	// error will be returned.
+	// DeleteContainer removes the specified container and its layer.  If
+	// there is no matching container, or if the container exists but its
+	// layer does not, an error will be returned.
 	DeleteContainer(id string) error
 
 	// Wipe removes all known layers, images, and containers.
 	Wipe() error
 
-	// Mount attempts to mount a layer, image, or container for access, and returns
-	// the pathname if it succeeds.
+	// Mount attempts to mount a layer, image, or container for access, and
+	// returns the pathname if it succeeds.
+	//
+	// Note that we do some of this work in a child process.  The calling
+	// process's main() function needs to import our pkg/reexec package and
+	// should begin with something like this in order to allow us to
+	// properly start that child process:
+	//   if reexec.Init {
+	//       return
+	//   }
 	Mount(id, mountLabel string) (string, error)
 
 	// Unmount attempts to unmount a layer, image, or container, given an ID, a
 	// name, or a mount path.
 	Unmount(id string) error
 
-	// Changes returns a summary of the changes which would need to be made to one
-	// layer to make its contents the same as a second layer.  If the first layer
-	// is not specified, the second layer's parent is assumed.  Each Change
-	// structure contains a Path relative to the layer's root directory, and a Kind
-	// which is either ChangeAdd, ChangeModify, or ChangeDelete.
+	// Changes returns a summary of the changes which would need to be made
+	// to one layer to make its contents the same as a second layer.  If
+	// the first layer is not specified, the second layer's parent is
+	// assumed.  Each Change structure contains a Path relative to the
+	// layer's root directory, and a Kind which is either ChangeAdd,
+	// ChangeModify, or ChangeDelete.
 	Changes(from, to string) ([]archive.Change, error)
 
-	// DiffSize returns a count of the size of the tarstream which would specify
-	// the changes returned by Changes.
+	// DiffSize returns a count of the size of the tarstream which would
+	// specify the changes returned by Changes.
 	DiffSize(from, to string) (int64, error)
 
-	// Diff returns the tarstream which would specify the changes returned by
-	// Changes.  If options are passed in, they can override default behaviors.
+	// Diff returns the tarstream which would specify the changes returned
+	// by Changes.  If options are passed in, they can override default
+	// behaviors.
 	Diff(from, to string, options *DiffOptions) (io.ReadCloser, error)
 
-	// ApplyDiff applies a tarstream to a layer.  Information about the tarstream
-	// is cached with the layer.  Typically, a layer which is populated using a
-	// tarstream will be expected to not be modified in any other way, either
-	// before or after the diff is applied.
+	// ApplyDiff applies a tarstream to a layer.  Information about the
+	// tarstream is cached with the layer.  Typically, a layer which is
+	// populated using a tarstream will be expected to not be modified in
+	// any other way, either before or after the diff is applied.
+	//
+	// Note that we do some of this work in a child process.  The calling
+	// process's main() function needs to import our pkg/reexec package and
+	// should begin with something like this in order to allow us to
+	// properly start that child process:
+	//   if reexec.Init {
+	//       return
+	//   }
 	ApplyDiff(to string, diff archive.Reader) (int64, error)
 
 	// LayersByCompressedDigest returns a slice of the layers with the
@@ -335,12 +369,12 @@ type Store interface {
 	// SetNames changes the list of names for a layer, image, or container.
 	SetNames(id string, names []string) error
 
-	// ListImageBigData retrieves a list of the (possibly large) chunks of named
-	// data associated with an image.
+	// ListImageBigData retrieves a list of the (possibly large) chunks of
+	// named data associated with an image.
 	ListImageBigData(id string) ([]string, error)
 
-	// ImageBigData retrieves a (possibly large) chunk of named data associated
-	// with an image.
+	// ImageBigData retrieves a (possibly large) chunk of named data
+	// associated with an image.
 	ImageBigData(id, key string) ([]byte, error)
 
 	// ImageBigDataSize retrieves the size of a (possibly large) chunk
