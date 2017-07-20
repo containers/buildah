@@ -13,7 +13,8 @@ const (
 	// legacyRepositoriesFileName = "repositories"
 )
 
-type manifestItem struct {
+// ManifestItem is an element of the array stored in the top-level manifest.json file.
+type ManifestItem struct {
 	Config       string
 	RepoTags     []string
 	Layers       []string

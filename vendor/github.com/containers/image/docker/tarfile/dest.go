@@ -181,7 +181,7 @@ func (d *Destination) PutManifest(m []byte) error {
 		layerPaths = append(layerPaths, l.Digest.String())
 	}
 
-	items := []manifestItem{{
+	items := []ManifestItem{{
 		Config:       man.Config.Digest.String(),
 		RepoTags:     []string{d.repoTag},
 		Layers:       layerPaths,
