@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/opencontainers/image-spec/specs-go/v1"
@@ -122,6 +123,9 @@ type BuilderOptions struct {
 	// ReportWriter is an io.Writer which will be used to log the reading
 	// of the source image from a registry, if we end up pulling the image.
 	ReportWriter io.Writer
+	// github.com/containers/image/types SystemContext to hold credentials
+	// and other authentication/authorization information.
+	SystemContext *types.SystemContext
 }
 
 // ImportOptions are used to initialize a Builder from an existing container

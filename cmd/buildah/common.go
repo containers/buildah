@@ -2,9 +2,12 @@ package main
 
 import (
 	"os"
+	"strings"
+	"syscall"
 	"time"
 
 	is "github.com/containers/image/storage"
+	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -107,4 +110,51 @@ func getDateAndDigestAndSize(image storage.Image, store storage.Store) (time.Tim
 		err = inspectErr
 	}
 	return created, manifestDigest, imgSize, err
+}
+
+// systemContextFromOptions returns a SystemContext populated with values
+// per the input parameters provided by the caller for the use in authentication.
+func systemContextFromOptions(c *cli.Context) (*types.SystemContext, error) {
+	ctx := &types.SystemContext{
+		DockerCertPath: c.String("cert-dir"),
+	}
+	if c.IsSet("tls-verify") {
+		ctx.DockerInsecureSkipTLSVerify = !c.BoolT("tls-verify")
+	}
+	if c.IsSet("creds") {
+		var err error
+		ctx.DockerAuthConfig, err = getDockerAuth(c.String("creds"))
+		if err != nil {
+			return nil, err
+		}
+	}
+	if c.IsSet("signature-policy") {
+		ctx.SignaturePolicyPath = c.String("signature-policy")
+	}
+	return ctx, nil
+}
+
+func parseCreds(creds string) (string, string, error) {
+	if creds == "" {
+		return "", "", errors.Wrapf(syscall.EINVAL, "credentials can't be empty")
+	}
+	up := strings.SplitN(creds, ":", 2)
+	if len(up) == 1 {
+		return up[0], "", nil
+	}
+	if up[0] == "" {
+		return "", "", errors.Wrapf(syscall.EINVAL, "username can't be empty")
+	}
+	return up[0], up[1], nil
+}
+
+func getDockerAuth(creds string) (*types.DockerAuthConfig, error) {
+	username, password, err := parseCreds(creds)
+	if err != nil {
+		return nil, err
+	}
+	return &types.DockerAuthConfig{
+		Username: username,
+		Password: password,
+	}, nil
 }

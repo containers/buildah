@@ -618,9 +618,12 @@ return 1
   "
 
      local options_with_args="
+     --cert-dir
+     --creds
      --name
      --transport
      --signature-policy
+     --tls-verify
   "
 
 

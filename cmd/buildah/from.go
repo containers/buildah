@@ -36,6 +36,20 @@ var (
 			Value: DefaultTransport,
 		},
 		cli.StringFlag{
+			Name:  "cert-dir",
+			Value: "",
+			Usage: "use certificates at the specified path to access the registry",
+		},
+		cli.StringFlag{
+			Name:  "creds",
+			Value: "",
+			Usage: "use `username[:password]` for accessing the registry",
+		},
+		cli.StringFlag{
+			Name:  "tls-verify",
+			Usage: "Require HTTPS and verify certificates when accessing the registry",
+		},
+		cli.StringFlag{
 			Name:  "signature-policy",
 			Usage: "`pathname` of signature policy file (not usually used)",
 		},
@@ -65,12 +79,18 @@ func fromCmd(c *cli.Context) error {
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
-	image := args[0]
 
+	image := args[0]
 	transport := DefaultTransport
 	if c.IsSet("transport") {
 		transport = c.String("transport")
 	}
+
+	systemContext, err := systemContextFromOptions(c)
+	if err != nil {
+		return errors.Errorf("error building system context [%v]", err)
+	}
+
 	pull := true
 	if c.IsSet("pull") {
 		pull = c.BoolT("pull")
@@ -113,6 +133,7 @@ func fromCmd(c *cli.Context) error {
 		PullPolicy:          pullPolicy,
 		Transport:           transport,
 		SignaturePolicyPath: signaturePolicy,
+		SystemContext:       systemContext,
 	}
 	if !quiet {
 		options.ReportWriter = os.Stderr

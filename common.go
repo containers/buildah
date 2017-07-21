@@ -7,9 +7,11 @@ import (
 	"github.com/containers/image/types"
 )
 
-func getCopyOptions(reportWriter io.Writer) *cp.Options {
+func getCopyOptions(reportWriter io.Writer, sourceSystemContext *types.SystemContext, destinationSystemContext *types.SystemContext) *cp.Options {
 	return &cp.Options{
-		ReportWriter: reportWriter,
+		ReportWriter:   reportWriter,
+		SourceCtx:      sourceSystemContext,
+		DestinationCtx: destinationSystemContext,
 	}
 }
 

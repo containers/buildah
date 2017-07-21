@@ -249,7 +249,8 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	}
 	if exporting {
 		// Copy everything.
-		err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter))
+		// TODO: add credsContext
+		err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, nil))
 		if err != nil {
 			return errors.Wrapf(err, "error copying layers and metadata")
 		}
@@ -321,7 +322,8 @@ func Push(image string, dest types.ImageReference, options PushOptions) error {
 		return errors.Wrapf(err, "error recomputing layer digests and building metadata")
 	}
 	// Copy everything.
-	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter))
+	// TODO: add credsContext
+	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, nil))
 	if err != nil {
 		return errors.Wrapf(err, "error copying layers and metadata")
 	}
