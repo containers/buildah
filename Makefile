@@ -1,4 +1,5 @@
 AUTOTAGS := $(shell ./btrfs_tag.sh) $(shell ./libdm_tag.sh)
+TAGS := seccomp
 PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
@@ -6,6 +7,9 @@ BUILDFLAGS := -tags "$(AUTOTAGS) $(TAGS)"
 
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 BUILD_INFO := $(shell date +%s)
+
+RUNC_COMMIT := c5ec25487693612aed95673800863e134785f946
+LIBSECCOMP_COMMIT := release-2.3
 
 LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_INFO}'
 
@@ -50,6 +54,19 @@ install.tools:
 	go get -u $(BUILDFLAGS) github.com/vbatts/git-validation
 	go get -u $(BUILDFLAGS) gopkg.in/alecthomas/gometalinter.v1
 	gometalinter.v1 -i
+
+.PHONY: runc
+runc: gopath
+	rm -rf ../../opencontainers/runc
+	git clone https://github.com/opencontainers/runc ../../opencontainers/runc
+	cd ../../opencontainers/runc && git checkout $(RUNC_COMMIT) && go build -tags "$(AUTOTAGS) $(TAGS)"
+	ln -sf ../../opencontainers/runc/runc
+
+.PHONY: install.libseccomp.sudo
+install.libseccomp.sudo: gopath
+	rm -rf ../../seccomp/libseccomp
+	git clone https://github.com/seccomp/libseccomp ../../seccomp/libseccomp
+	cd ../../seccomp/libseccomp && git checkout $(LIBSECCOMP_COMMIT) && ./autogen.sh && ./configure --prefix=/usr && make all && sudo make install
 
 .PHONY: install
 install:
