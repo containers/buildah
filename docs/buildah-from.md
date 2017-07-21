@@ -15,6 +15,14 @@ The container ID of the container that was created.  On error, -1 is returned an
 
 ## OPTIONS
 
+**--cert-dir** *path*
+
+Use certificates at *path* (*.crt, *.cert, *.key) to connect to the registry
+
+**--creds** *creds*
+
+The username and password to use to authenticate with the registry if required.
+
 **--name** *name*
 
 A *name* for the working container
@@ -41,6 +49,10 @@ Pathname of a signature policy file to use.  It is not recommended that this
 option be used, as the default behavior of using the system-wide default policy
 (frequently */etc/containers/policy.json*) is most often preferred.
 
+**--tls-verify** *bool-value*
+
+Require HTTPS and verify certificates when talking to container registries (defaults to true)
+
 **--quiet**
 
 If an image needs to be pulled from the registry, suppress progress output.
@@ -54,6 +66,8 @@ buildah from docker://myregistry.example.com/imagename --pull
 buildah from imagename --signature-policy /etc/containers/policy.json
 
 buildah from imagename --pull-always --transport "docker://myregistry.example.com/" --name "mycontainer"
+
+buildah from myregistry/myrepository/imagename:imagetag --creds=myusername:mypassword
 
 ## SEE ALSO
 buildah(1)

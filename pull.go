@@ -109,6 +109,6 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 
 	logrus.Debugf("copying %q to %q", spec, name)
 
-	err = cp.Image(policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter))
+	err = cp.Image(policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter, options.SystemContext, nil))
 	return destRef, err
 }

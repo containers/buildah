@@ -20,6 +20,11 @@ var (
 			Usage: "don't compress layers",
 		},
 		cli.StringFlag{
+			Name:  "creds",
+			Value: "",
+			Usage: "use `username[:password]` for accessing the registry",
+		},
+		cli.StringFlag{
 			Name:  "signature-policy",
 			Usage: "`pathname` of signature policy file (not usually used)",
 		},
