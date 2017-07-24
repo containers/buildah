@@ -96,7 +96,6 @@ func parseMetadata(image storage.Image) (imageMetadata, error) {
 }
 
 func getSize(image storage.Image, store storage.Store) (int64, error) {
-
 	is.Transport.SetStore(store)
 	storeRef, err := is.Transport.ParseStoreReference(store, "@"+image.ID)
 	if err != nil {
@@ -106,6 +105,7 @@ func getSize(image storage.Image, store storage.Store) (int64, error) {
 	if err != nil {
 		return -1, err
 	}
+	defer img.Close()
 	imgSize, err := img.Size()
 	if err != nil {
 		return -1, err

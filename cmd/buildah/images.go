@@ -303,6 +303,7 @@ func matchesLabel(image storage.Image, store storage.Store, label string) bool {
 	if err != nil {
 		return false
 	}
+	defer img.Close()
 	info, err := img.Inspect()
 	if err != nil {
 		return false
