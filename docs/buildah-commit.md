@@ -13,9 +13,16 @@ specified, an ID is assigned, but no name is assigned to the image.
 
 ## OPTIONS
 
+**-c**, **--change**=[]
+   Apply specified Dockerfile instructions while committing the image
+   Supported Dockerfile instructions: `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
+
 **--disable-compression, -D**
 
 Don't compress filesystem layers when building the image.
+
+**-m**, **--message**=""
+   Set commit message for container image
 
 **--signature-policy**
 
