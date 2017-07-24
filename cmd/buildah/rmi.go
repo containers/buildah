@@ -122,11 +122,6 @@ func getImage(id string, store storage.Store) (*storage.Image, error) {
 }
 
 func untagImage(imgArg string, image *storage.Image, store storage.Store) (string, error) {
-	// Remove name from image.Names and set the new name in the ImageStore
-	imgStore, err := store.ImageStore()
-	if err != nil {
-		return "", errors.Wrap(err, "could not untag image")
-	}
 	newNames := []string{}
 	removedName := ""
 	for _, name := range image.Names {
@@ -136,23 +131,17 @@ func untagImage(imgArg string, image *storage.Image, store storage.Store) (strin
 		}
 		newNames = append(newNames, name)
 	}
-	imgStore.SetNames(image.ID, newNames)
-	err = imgStore.Save()
-	return removedName, err
+	if removedName != "" {
+		if err := store.SetNames(image.ID, newNames); err != nil {
+			return "", errors.Wrapf(err, "error removing name %q from image %q", removedName, image.ID)
+		}
+	}
+	return removedName, nil
 }
 
 func removeImage(image *storage.Image, store storage.Store) (string, error) {
-	imgStore, err := store.ImageStore()
-	if err != nil {
-		return "", errors.Wrapf(err, "could not open image store")
-	}
-	err = imgStore.Delete(image.ID)
-	if err != nil {
-		return "", errors.Wrapf(err, "could not remove image")
-	}
-	err = imgStore.Save()
-	if err != nil {
-		return "", errors.Wrapf(err, "could not save image store")
+	if _, err := store.DeleteImage(image.ID, true); err != nil {
+		return "", errors.Wrapf(err, "could not remove image %q", image.ID)
 	}
 	return image.ID, nil
 }
@@ -160,12 +149,7 @@ func removeImage(image *storage.Image, store storage.Store) (string, error) {
 // Returns a list of running containers associated with the given ImageReference
 func runningContainers(image *storage.Image, store storage.Store) ([]string, error) {
 	ctrIDs := []string{}
-	ctrStore, err := store.ContainerStore()
-	if err != nil {
-		return nil, err
-	}
-
-	containers, err := ctrStore.Containers()
+	containers, err := store.Containers()
 	if err != nil {
 		return nil, err
 	}
@@ -178,12 +162,8 @@ func runningContainers(image *storage.Image, store storage.Store) ([]string, err
 }
 
 func removeContainers(ctrIDs []string, store storage.Store) error {
-	ctrStore, err := store.ContainerStore()
-	if err != nil {
-		return err
-	}
 	for _, ctrID := range ctrIDs {
-		if err = ctrStore.Delete(ctrID); err != nil {
+		if err := store.DeleteContainer(ctrID); err != nil {
 			return errors.Wrapf(err, "could not remove container %q", ctrID)
 		}
 	}
