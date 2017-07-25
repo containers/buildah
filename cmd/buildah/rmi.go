@@ -31,7 +31,6 @@ var (
 )
 
 func rmiCmd(c *cli.Context) error {
-
 	force := false
 	if c.IsSet("force") {
 		force = c.Bool("force")
@@ -61,7 +60,7 @@ func rmiCmd(c *cli.Context) error {
 				if force {
 					removeContainers(ctrIDs, store)
 				} else {
-					for ctrID := range ctrIDs {
+					for _, ctrID := range ctrIDs {
 						return fmt.Errorf("Could not remove image %q (must force) - container %q is using its reference image", id, ctrID)
 					}
 				}
@@ -76,7 +75,7 @@ func rmiCmd(c *cli.Context) error {
 			} else {
 				name, err2 := untagImage(id, image, store)
 				if err2 != nil {
-					return err
+					return errors.Wrapf(err, "error removing tag %q from image %q", id, image.ID)
 				}
 				fmt.Printf("untagged: %s\n", name)
 			}
@@ -86,7 +85,7 @@ func rmiCmd(c *cli.Context) error {
 			}
 			id, err := removeImage(image, store)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "error removing image %q", image.ID)
 			}
 			fmt.Printf("%s\n", id)
 		}
@@ -114,7 +113,7 @@ func getImage(id string, store storage.Store) (*storage.Image, error) {
 	if ref != nil {
 		image, err2 := is.Transport.GetStoreImage(store, ref)
 		if err2 != nil {
-			return nil, err2
+			return nil, errors.Wrapf(err2, "error reading image using reference %q", transports.ImageName(ref))
 		}
 		return image, nil
 	}
@@ -173,46 +172,46 @@ func removeContainers(ctrIDs []string, store storage.Store) error {
 // If it's looks like a proper image reference, parse it and check if it
 // corresponds to an image that actually exists.
 func properImageRef(id string) (types.ImageReference, error) {
-	var ref types.ImageReference
 	var err error
-	if ref, err = alltransports.ParseImageName(id); err == nil {
+	if ref, err := alltransports.ParseImageName(id); err == nil {
 		if img, err2 := ref.NewImage(nil); err2 == nil {
 			img.Close()
 			return ref, nil
 		}
-		return nil, fmt.Errorf("error confirming presence of image reference %q: %v", transports.ImageName(ref), err)
+		return nil, errors.Wrapf(err, "error confirming presence of image reference %q", transports.ImageName(ref))
 	}
-	return nil, fmt.Errorf("error parsing %q as an image reference: %v", id, err)
+	return nil, errors.Wrapf(err, "error parsing %q as an image reference", id)
 }
 
 // If it's looks like an image reference that's relative to our storage, parse
 // it and check if it corresponds to an image that actually exists.
 func storageImageRef(store storage.Store, id string) (types.ImageReference, error) {
-	var ref types.ImageReference
 	var err error
-	if ref, err = is.Transport.ParseStoreReference(store, id); err == nil {
+	if ref, err := is.Transport.ParseStoreReference(store, id); err == nil {
 		if img, err2 := ref.NewImage(nil); err2 == nil {
 			img.Close()
 			return ref, nil
 		}
-		return nil, fmt.Errorf("error confirming presence of storage image reference %q: %v", transports.ImageName(ref), err)
+		return nil, errors.Wrapf(err, "error confirming presence of storage image reference %q", transports.ImageName(ref))
 	}
-	return nil, fmt.Errorf("error parsing %q as a storage image reference: %v", id, err)
+	return nil, errors.Wrapf(err, "error parsing %q as a storage image reference", id)
 }
 
-// If it might be an ID that's relative to our storage, parse it and check if it
-// corresponds to an image that actually exists.  This _should_ be redundant,
-// since we already tried deleting the image using the ID directly above, but it
-// can't hurt either.
+// If it might be an ID that's relative to our storage, truncated or not, so
+// parse it and check if it corresponds to an image that we have stored
+// locally.
 func storageImageID(store storage.Store, id string) (types.ImageReference, error) {
-	var ref types.ImageReference
 	var err error
-	if ref, err = is.Transport.ParseStoreReference(store, "@"+id); err == nil {
+	imageID := id
+	if img, err := store.Image(id); err == nil && img != nil {
+		imageID = img.ID
+	}
+	if ref, err := is.Transport.ParseStoreReference(store, "@"+imageID); err == nil {
 		if img, err2 := ref.NewImage(nil); err2 == nil {
 			img.Close()
 			return ref, nil
 		}
-		return nil, fmt.Errorf("error confirming presence of storage image reference %q: %v", transports.ImageName(ref), err)
+		return nil, errors.Wrapf(err, "error confirming presence of storage image reference %q", transports.ImageName(ref))
 	}
-	return nil, fmt.Errorf("error parsing %q as a storage image reference: %v", "@"+id, err)
+	return nil, errors.Wrapf(err, "error parsing %q as a storage image reference: %v", "@"+id)
 }

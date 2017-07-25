@@ -350,8 +350,8 @@ func matchesSinceImage(image storage.Image, name string, params *filterParams) b
 	return false
 }
 
-func matchesID(id, argID string) bool {
-	return strings.HasPrefix(argID, id)
+func matchesID(imageID, argID string) bool {
+	return strings.HasPrefix(imageID, argID)
 }
 
 func matchesReference(name, argName string) bool {
