@@ -69,7 +69,7 @@ popd
 mv vendor src
 
 export GOPATH=$(pwd)/_build:$(pwd):%{gopath}
-make all
+make all GIT_COMMIT=%{shortcommit}
 
 %install
 export GOPATH=$(pwd)/_build:$(pwd):%{gopath}
