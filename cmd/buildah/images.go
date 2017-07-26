@@ -9,6 +9,7 @@ import (
 
 	"encoding/json"
 
+	"github.com/Sirupsen/logrus"
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
@@ -214,16 +215,15 @@ func outputHeader(truncate, digests bool) {
 
 func outputImages(images []storage.Image, format string, store storage.Store, filters *filterParams, argName string, hasTemplate, truncate, digests, quiet bool) error {
 	for _, image := range images {
-		imageMetadata, err := parseMetadata(image)
-		if err != nil {
-			fmt.Println(err)
+		createdTime := image.Created
+
+		inspectedTime, digest, size, _ := getDateAndDigestAndSize(image, store)
+		if !inspectedTime.IsZero() {
+			if createdTime != inspectedTime {
+				logrus.Debugf("image record and configuration disagree on the image's creation time for %q, using the one from the configuration", image)
+				createdTime = inspectedTime
+			}
 		}
-		createdTime := image.Created.Format("Jan 2, 2006 15:04")
-		digest := ""
-		if len(imageMetadata.Blobs) > 0 {
-			digest = string(imageMetadata.Blobs[0].Digest)
-		}
-		size, _ := getSize(image, store)
 
 		names := []string{""}
 		if len(image.Names) > 0 {
@@ -246,12 +246,11 @@ func outputImages(images []storage.Image, format string, store storage.Store, fi
 				ID:        image.ID,
 				Name:      name,
 				Digest:    digest,
-				CreatedAt: createdTime,
+				CreatedAt: createdTime.Format("Jan 2, 2006 15:04"),
 				Size:      formattedSize(size),
 			}
 			if hasTemplate {
-				err = outputUsingTemplate(format, params)
-				if err != nil {
+				if err := outputUsingTemplate(format, params); err != nil {
 					return err
 				}
 				continue
