@@ -21,6 +21,12 @@ buildah: *.go imagebuildah/*.go cmd/buildah/*.go docker/*.go util/*.go
 imgtype: *.go docker/*.go util/*.go tests/imgtype.go
 	go build $(LDFLAGS) -o imgtype $(BUILDFLAGS) ./tests/imgtype.go
 
+test-unit:
+	cd tests && ./unit-tests.sh
+
+test-integration:
+	cd tests && ./test_runner.sh
+
 .PHONY: clean
 clean:
 	$(RM) buildah imgtype

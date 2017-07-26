@@ -12,4 +12,5 @@ before_install:
     - sudo apt-get -qq remove libseccomp2
 script:
     - make install.tools install.libseccomp.sudo all runc validate TAGS="containers_image_ostree_stub apparmor seccomp"
+    - cd tests; sudo PATH="$PATH" GOPATH="$GOPATH" ./unit-tests.sh
     - cd tests; sudo PATH="$PATH" ./test_runner.sh
