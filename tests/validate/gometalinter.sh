@@ -8,6 +8,7 @@ if ! which gometalinter.v1 > /dev/null 2> /dev/null ; then
 	exit 1
 fi
 exec gometalinter.v1 \
+	--enable-gc \
 	--exclude='error return value not checked.*(Close|Log|Print).*\(errcheck\)$' \
 	--exclude='.*_test\.go:.*error return value not checked.*\(errcheck\)$' \
 	--exclude='duplicate of.*_test.go.*\(dupl\)$' \
