@@ -1,13 +1,13 @@
 package graphdriver
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/vbatts/tar-split/tar/storage"
 
 	"github.com/containers/storage/pkg/archive"
@@ -144,7 +144,7 @@ func GetDriver(name, home string, options []string, uidMaps, gidMaps []idtools.I
 		return pluginDriver, nil
 	}
 	logrus.Errorf("Failed to GetDriver graph %s %s", name, home)
-	return nil, ErrNotSupported
+	return nil, errors.Wrapf(ErrNotSupported, "failed to GetDriver graph %s %s", name, home)
 }
 
 // getBuiltinDriver initializes and returns the registered driver, but does not try to load from plugins
@@ -153,7 +153,7 @@ func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []id
 		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
 	}
 	logrus.Errorf("Failed to built-in GetDriver graph %s %s", name, home)
-	return nil, ErrNotSupported
+	return nil, errors.Wrapf(ErrNotSupported, "failed to built-in GetDriver graph %s %s", name, home)
 }
 
 // New creates the driver and initializes it at the specified root.
@@ -228,7 +228,8 @@ func New(root string, name string, options []string, uidMaps, gidMaps []idtools.
 // isDriverNotSupported returns true if the error initializing
 // the graph driver is a non-supported error.
 func isDriverNotSupported(err error) bool {
-	return err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS
+	cause := errors.Cause(err)
+	return cause == ErrNotSupported || cause == ErrPrerequisites || cause == ErrIncompatibleFS
 }
 
 // scanPriorDrivers returns an un-ordered scan of directories of prior storage drivers

@@ -815,7 +815,7 @@ func (r *layerStore) Diff(from, to string, options *DiffOptions) (io.ReadCloser,
 	if err != nil {
 		return nil, ErrLayerUnknown
 	}
-	// Default to applying the type of encryption that we noted was used
+	// Default to applying the type of compression that we noted was used
 	// for the layerdiff when it was applied.
 	compression := toLayer.CompressionType
 	// If a particular compression type (or no compression) was selected,
@@ -823,33 +823,49 @@ func (r *layerStore) Diff(from, to string, options *DiffOptions) (io.ReadCloser,
 	if options != nil && options.Compression != nil {
 		compression = *options.Compression
 	}
+	maybeCompressReadCloser := func(rc io.ReadCloser) (io.ReadCloser, error) {
+		// Depending on whether or not compression is desired, return either the
+		// passed-in ReadCloser, or a new one that provides its readers with a
+		// compressed version of the data that the original would have provided
+		// to its readers.
+		if compression == archive.Uncompressed {
+			return rc, nil
+		}
+		preader, pwriter := io.Pipe()
+		compressor, err := archive.CompressStream(pwriter, compression)
+		if err != nil {
+			rc.Close()
+			pwriter.Close()
+			preader.Close()
+			return nil, err
+		}
+		go func() {
+			defer pwriter.Close()
+			defer compressor.Close()
+			defer rc.Close()
+			io.Copy(compressor, rc)
+		}()
+		return preader, nil
+	}
+
 	if from != toLayer.Parent {
 		diff, err := r.driver.Diff(to, from)
-		if err == nil && (compression != archive.Uncompressed) {
-			preader, pwriter := io.Pipe()
-			compressor, err := archive.CompressStream(pwriter, compression)
-			if err != nil {
-				diff.Close()
-				pwriter.Close()
-				return nil, err
-			}
-			go func() {
-				io.Copy(compressor, diff)
-				diff.Close()
-				compressor.Close()
-				pwriter.Close()
-			}()
-			diff = preader
+		if err != nil {
+			return nil, err
 		}
-		return diff, err
+		return maybeCompressReadCloser(diff)
 	}
 
 	tsfile, err := os.Open(r.tspath(to))
 	if err != nil {
-		if os.IsNotExist(err) {
-			return r.driver.Diff(to, from)
+		if !os.IsNotExist(err) {
+			return nil, err
 		}
-		return nil, err
+		diff, err := r.driver.Diff(to, from)
+		if err != nil {
+			return nil, err
+		}
+		return maybeCompressReadCloser(diff)
 	}
 	defer tsfile.Close()
 
@@ -871,33 +887,16 @@ func (r *layerStore) Diff(from, to string, options *DiffOptions) (io.ReadCloser,
 		return nil, err
 	}
 
-	var stream io.ReadCloser
-	if compression != archive.Uncompressed {
-		preader, pwriter := io.Pipe()
-		compressor, err := archive.CompressStream(pwriter, compression)
-		if err != nil {
-			fgetter.Close()
-			pwriter.Close()
-			preader.Close()
-			return nil, err
-		}
-		go func() {
-			asm.WriteOutputTarStream(fgetter, metadata, compressor)
-			compressor.Close()
-			pwriter.Close()
-		}()
-		stream = preader
-	} else {
-		stream = asm.NewOutputTarStream(fgetter, metadata)
-	}
-	return ioutils.NewReadCloserWrapper(stream, func() error {
-		err1 := stream.Close()
+	tarstream := asm.NewOutputTarStream(fgetter, metadata)
+	rc := ioutils.NewReadCloserWrapper(tarstream, func() error {
+		err1 := tarstream.Close()
 		err2 := fgetter.Close()
 		if err2 == nil {
 			return err1
 		}
 		return err2
-	}), nil
+	})
+	return maybeCompressReadCloser(rc)
 }
 
 func (r *layerStore) DiffSize(from, to string) (size int64, err error) {

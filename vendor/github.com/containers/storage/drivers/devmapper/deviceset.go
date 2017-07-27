@@ -5,7 +5,6 @@ package devmapper
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -31,6 +30,7 @@ import (
 	"github.com/docker/go-units"
 
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -1474,7 +1474,7 @@ func determineDriverCapabilities(version string) error {
 	versionSplit := strings.Split(version, ".")
 	major, err := strconv.Atoi(versionSplit[0])
 	if err != nil {
-		return graphdriver.ErrNotSupported
+		return errors.Wrapf(graphdriver.ErrNotSupported, "unable to parse driver major version %q as a number", versionSplit[0])
 	}
 
 	if major > 4 {
@@ -1488,7 +1488,7 @@ func determineDriverCapabilities(version string) error {
 
 	minor, err := strconv.Atoi(versionSplit[1])
 	if err != nil {
-		return graphdriver.ErrNotSupported
+		return errors.Wrapf(graphdriver.ErrNotSupported, "unable to parse driver minor version %q as a number", versionSplit[1])
 	}
 
 	/*
@@ -1655,11 +1655,11 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	version, err := devicemapper.GetDriverVersion()
 	if err != nil {
 		// Can't even get driver version, assume not supported
-		return graphdriver.ErrNotSupported
+		return errors.Wrap(graphdriver.ErrNotSupported, "unable to determine version of device mapper")
 	}
 
 	if err := determineDriverCapabilities(version); err != nil {
-		return graphdriver.ErrNotSupported
+		return errors.Wrap(graphdriver.ErrNotSupported, "unable to determine device mapper driver capabilities")
 	}
 
 	if err := devices.enableDeferredRemovalDeletion(); err != nil {
@@ -1732,6 +1732,15 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 			dataFile     *os.File
 			metadataFile *os.File
 		)
+
+		fsMagic, err := graphdriver.GetFSMagic(devices.loopbackDir())
+		if err != nil {
+			return err
+		}
+		switch fsMagic {
+		case graphdriver.FsMagicAufs:
+			return errors.Errorf("devmapper: Loopback devices can not be created on AUFS filesystems")
+		}
 
 		if devices.dataDevice == "" {
 			// Make sure the sparse images exist in <root>/devicemapper/data
@@ -1959,7 +1968,7 @@ func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) erro
 		// If syncDelete is true, we want to return error. If deferred
 		// deletion is not enabled, we return an error. If error is
 		// something other then EBUSY, return an error.
-		if syncDelete || !devices.deferredDelete || err != devicemapper.ErrBusy {
+		if syncDelete || !devices.deferredDelete || errors.Cause(err) != devicemapper.ErrBusy {
 			logrus.Debugf("devmapper: Error deleting device: %s", err)
 			return err
 		}
@@ -2114,7 +2123,7 @@ func (devices *DeviceSet) removeDevice(devname string) error {
 		if err == nil {
 			break
 		}
-		if err != devicemapper.ErrBusy {
+		if errors.Cause(err) != devicemapper.ErrBusy {
 			return err
 		}
 
@@ -2149,12 +2158,12 @@ func (devices *DeviceSet) cancelDeferredRemoval(info *devInfo) error {
 			break
 		}
 
-		if err == devicemapper.ErrEnxio {
+		if errors.Cause(err) == devicemapper.ErrEnxio {
 			// Device is probably already gone. Return success.
 			return nil
 		}
 
-		if err != devicemapper.ErrBusy {
+		if errors.Cause(err) != devicemapper.ErrBusy {
 			return err
 		}
 

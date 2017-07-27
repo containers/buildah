@@ -38,7 +38,15 @@ func getNextFreeLoopbackIndex() (int, error) {
 	return index, err
 }
 
-func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.File, err error) {
+func openNextAvailableLoopback(index int, sparseName string, sparseFile *os.File) (loopFile *os.File, err error) {
+	// Read information about the loopback file.
+	var st syscall.Stat_t
+	err = syscall.Fstat(int(sparseFile.Fd()), &st)
+	if err != nil {
+		logrus.Errorf("Error reading information about loopback file %s: %v", sparseName, err)
+		return nil, ErrAttachLoopbackDevice
+	}
+
 	// Start looking for a free /dev/loop
 	for {
 		target := fmt.Sprintf("/dev/loop%d", index)
@@ -77,6 +85,18 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 			// Otherwise, we keep going with the loop
 			continue
 		}
+
+		// Check if the loopback driver and underlying filesystem agree on the loopback file's
+		// device and inode numbers.
+		dev, ino, err := getLoopbackBackingFile(loopFile)
+		if err != nil {
+			logrus.Errorf("Error getting loopback backing file: %s", err)
+			return nil, ErrGetLoopbackBackingFile
+		}
+		if dev != st.Dev || ino != st.Ino {
+			logrus.Errorf("Loopback device and filesystem disagree on device/inode for %q: %#x(%d):%#x(%d) vs %#x(%d):%#x(%d)", sparseName, dev, dev, ino, ino, st.Dev, st.Dev, st.Ino, st.Ino)
+		}
+
 		// In case of success, we finished. Break the loop.
 		break
 	}
@@ -110,7 +130,7 @@ func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 	}
 	defer sparseFile.Close()
 
-	loopFile, err := openNextAvailableLoopback(startIndex, sparseFile)
+	loopFile, err := openNextAvailableLoopback(startIndex, sparseName, sparseFile)
 	if err != nil {
 		return nil, err
 	}
