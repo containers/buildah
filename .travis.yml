@@ -3,13 +3,14 @@ go:
     - 1.7
     - 1.8
     - tip
-dist: trusty
+dist: xenial
 sudo: required
 before_install:
     - sudo add-apt-repository -y ppa:duggan/bats
+    - sudo add-apt-repository -y ppa:alexlarsson/flatpak
     - sudo apt-get -qq update
-    - sudo apt-get -qq install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libselinux1-dev
+    - sudo apt-get -qq install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libostree-dev libselinux1-dev
     - sudo apt-get -qq remove libseccomp2
 script:
-    - make install.tools install.libseccomp.sudo all runc validate TAGS="containers_image_ostree_stub apparmor seccomp"
+    - make install.tools install.libseccomp.sudo all runc validate TAGS="apparmor seccomp"
     - cd tests; sudo PATH="$PATH" ./test_runner.sh
