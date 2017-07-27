@@ -3,7 +3,7 @@ go:
     - 1.7
     - 1.8
     - tip
-dist: trusty
+dist: xenial
 sudo: required
 before_install:
     - sudo add-apt-repository -y ppa:duggan/bats
