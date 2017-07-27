@@ -24,7 +24,7 @@ dnf install -y \
   ostree-devel \
   which
 
-# Red Hat CI adds a merge commit, for testing, which fails the
+# PAPR adds a merge commit, for testing, which fails the
 # short-commit-subject validation test, so tell git-validate.sh to only check
 # up to, but not including, the merge commit.
 export GITVALIDATE_TIP=$(cd $GOSRC; git log -2 --pretty='%H' | tail -n 1)
