@@ -6,6 +6,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	is "github.com/containers/image/storage"
+	"github.com/containers/image/transports"
+	"github.com/containers/image/transports/alltransports"
+	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/openshift/imagebuilder"
 	"github.com/pkg/errors"
@@ -18,18 +21,88 @@ const (
 )
 
 func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
+	var err error
+	var ref types.ImageReference
 	var img *storage.Image
 	manifest := []byte{}
 	config := []byte{}
 
-	name := "working-container"
 	if options.FromImage == BaseImageFakeName {
 		options.FromImage = ""
 	}
 	image := options.FromImage
+
+	systemContext := getSystemContext(options.SignaturePolicyPath)
+
+	imageID := ""
+	if image != "" {
+		if options.PullPolicy == PullAlways {
+			pulledReference, err2 := pullImage(store, options, systemContext)
+			if err2 != nil {
+				return nil, errors.Wrapf(err2, "error pulling image %q", image)
+			}
+			ref = pulledReference
+		}
+		if ref == nil {
+			srcRef, err2 := alltransports.ParseImageName(image)
+			if err2 != nil {
+				srcRef2, err3 := alltransports.ParseImageName(options.Registry + image)
+				if err3 != nil {
+					return nil, errors.Wrapf(err3, "error parsing image name %q", options.Registry+image)
+				}
+				srcRef = srcRef2
+			}
+
+			destImage, err2 := localImageNameForReference(store, srcRef)
+			if err2 != nil {
+				return nil, errors.Wrapf(err2, "error computing local image name for %q", transports.ImageName(srcRef))
+			}
+			if destImage == "" {
+				return nil, errors.Errorf("error computing local image name for %q", transports.ImageName(srcRef))
+			}
+
+			ref, err = is.Transport.ParseStoreReference(store, destImage)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error parsing reference to image %q", destImage)
+			}
+
+			image = destImage
+		}
+		img, err = is.Transport.GetStoreImage(store, ref)
+		if err != nil {
+			if errors.Cause(err) == storage.ErrImageUnknown && options.PullPolicy != PullIfMissing {
+				return nil, errors.Wrapf(err, "no such image %q", transports.ImageName(ref))
+			}
+			ref, err = pullImage(store, options, systemContext)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error pulling image %q", transports.ImageName(ref))
+			}
+			img, err = is.Transport.GetStoreImage(store, ref)
+		}
+		if err != nil {
+			return nil, errors.Wrapf(err, "no such image %q", transports.ImageName(ref))
+		}
+		imageID = img.ID
+		src, err := ref.NewImage(systemContext)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error instantiating image for %q", transports.ImageName(ref))
+		}
+		defer src.Close()
+		config, err = src.ConfigBlob()
+		if err != nil {
+			return nil, errors.Wrapf(err, "error reading image configuration for %q", transports.ImageName(ref))
+		}
+		manifest, _, err = src.Manifest()
+		if err != nil {
+			return nil, errors.Wrapf(err, "error reading image manifest for %q", transports.ImageName(ref))
+		}
+	}
+
+	name := "working-container"
 	if options.Container != "" {
 		name = options.Container
 	} else {
+		var err2 error
 		if image != "" {
 			prefix := image
 			s := strings.Split(prefix, "/")
@@ -46,69 +119,17 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 			}
 			name = prefix + "-" + name
 		}
-	}
-	if name != "" {
-		var err error
 		suffix := 1
 		tmpName := name
-		for err != storage.ErrContainerUnknown {
-			_, err = store.Container(tmpName)
-			if err == nil {
+		for errors.Cause(err2) != storage.ErrContainerUnknown {
+			_, err2 = store.Container(tmpName)
+			if err2 == nil {
 				suffix++
 				tmpName = fmt.Sprintf("%s-%d", name, suffix)
 			}
 		}
 		name = tmpName
 	}
-
-	systemContext := getSystemContext(options.SignaturePolicyPath)
-
-	imageID := ""
-	if image != "" {
-		if options.PullPolicy == PullAlways {
-			err := pullImage(store, options, systemContext)
-			if err != nil {
-				return nil, errors.Wrapf(err, "error pulling image %q", image)
-			}
-		}
-		ref, err := is.Transport.ParseStoreReference(store, image)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error parsing reference to image %q", image)
-		}
-		img, err = is.Transport.GetStoreImage(store, ref)
-		if err != nil {
-			if err == storage.ErrImageUnknown && options.PullPolicy != PullIfMissing {
-				return nil, errors.Wrapf(err, "no such image %q", image)
-			}
-			err = pullImage(store, options, systemContext)
-			if err != nil {
-				return nil, errors.Wrapf(err, "error pulling image %q", image)
-			}
-			ref, err = is.Transport.ParseStoreReference(store, image)
-			if err != nil {
-				return nil, errors.Wrapf(err, "error parsing reference to image %q", image)
-			}
-			img, err = is.Transport.GetStoreImage(store, ref)
-		}
-		if err != nil {
-			return nil, errors.Wrapf(err, "no such image %q", image)
-		}
-		imageID = img.ID
-		src, err := ref.NewImage(systemContext)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error instantiating image")
-		}
-		defer src.Close()
-		config, err = src.ConfigBlob()
-		if err != nil {
-			return nil, errors.Wrapf(err, "error reading image configuration")
-		}
-		manifest, _, err = src.Manifest()
-		if err != nil {
-			return nil, errors.Wrapf(err, "error reading image manifest")
-		}
-	}
-
 	coptions := storage.ContainerOptions{}
 	container, err := store.CreateContainer("", []string{name}, imageID, "", "", &coptions)
 	if err != nil {
