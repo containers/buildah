@@ -101,7 +101,13 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 		return nil, errors.Wrapf(err, "error creating new signature policy context")
 	}
 
-	logrus.Debugf("copying %q to %q", transports.ImageName(srcRef), transports.ImageName(destRef))
+	defer func() {
+		if err2 := policyContext.Destroy(); err2 != nil {
+			logrus.Debugf("error destroying signature polcy context: %v", err2)
+		}
+	}()
+
+	logrus.Debugf("copying %q to %q", spec, name)
 
 	err = cp.Image(policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter))
 	return destRef, err
