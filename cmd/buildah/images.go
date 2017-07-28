@@ -9,6 +9,7 @@ import (
 
 	"encoding/json"
 
+	"github.com/Sirupsen/logrus"
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
@@ -190,11 +191,7 @@ func setFilterDate(images []storage.Image, imgName string) (time.Time, error) {
 		for _, name := range image.Names {
 			if matchesReference(name, imgName) {
 				// Set the date to this image
-				im, err := parseMetadata(image)
-				if err != nil {
-					return time.Time{}, errors.Wrapf(err, "could not get creation date for image %q", imgName)
-				}
-				date := im.CreatedTime
+				date := image.Created
 				return date, nil
 			}
 		}
@@ -218,16 +215,15 @@ func outputHeader(truncate, digests bool) {
 
 func outputImages(images []storage.Image, format string, store storage.Store, filters *filterParams, argName string, hasTemplate, truncate, digests, quiet bool) error {
 	for _, image := range images {
-		imageMetadata, err := parseMetadata(image)
-		if err != nil {
-			fmt.Println(err)
+		createdTime := image.Created
+
+		inspectedTime, digest, size, _ := getDateAndDigestAndSize(image, store)
+		if !inspectedTime.IsZero() {
+			if createdTime != inspectedTime {
+				logrus.Debugf("image record and configuration disagree on the image's creation time for %q, using the one from the configuration", image)
+				createdTime = inspectedTime
+			}
 		}
-		createdTime := imageMetadata.CreatedTime.Format("Jan 2, 2006 15:04")
-		digest := ""
-		if len(imageMetadata.Blobs) > 0 {
-			digest = string(imageMetadata.Blobs[0].Digest)
-		}
-		size, _ := getSize(image, store)
 
 		names := []string{""}
 		if len(image.Names) > 0 {
@@ -250,12 +246,11 @@ func outputImages(images []storage.Image, format string, store storage.Store, fi
 				ID:        image.ID,
 				Name:      name,
 				Digest:    digest,
-				CreatedAt: createdTime,
+				CreatedAt: createdTime.Format("Jan 2, 2006 15:04"),
 				Size:      formattedSize(size),
 			}
 			if hasTemplate {
-				err = outputUsingTemplate(format, params)
-				if err != nil {
+				if err := outputUsingTemplate(format, params); err != nil {
 					return err
 				}
 				continue
@@ -327,11 +322,7 @@ func matchesLabel(image storage.Image, store storage.Store, label string) bool {
 // Returns true if the image was created since the filter image.  Returns
 // false otherwise
 func matchesBeforeImage(image storage.Image, name string, params *filterParams) bool {
-	im, err := parseMetadata(image)
-	if err != nil {
-		return false
-	}
-	if im.CreatedTime.Before(params.beforeDate) {
+	if image.Created.IsZero() || image.Created.Before(params.beforeDate) {
 		return true
 	}
 	return false
@@ -340,11 +331,7 @@ func matchesBeforeImage(image storage.Image, name string, params *filterParams) 
 // Returns true if the image was created since the filter image.  Returns
 // false otherwise
 func matchesSinceImage(image storage.Image, name string, params *filterParams) bool {
-	im, err := parseMetadata(image)
-	if err != nil {
-		return false
-	}
-	if im.CreatedTime.After(params.sinceDate) {
+	if image.Created.IsZero() || image.Created.After(params.sinceDate) {
 		return true
 	}
 	return false
