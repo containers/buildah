@@ -12,15 +12,17 @@ Displays locally stored images, their names, and their IDs.
 ## OPTIONS
 
 **--json**
+
 Display the output in JSON format.
 
 **--digests**
 
-Show image digests
+Show the image digests.
 
 **--filter, -f=[]**
 
-Filter output based on conditions provided (default [])
+Filter output based on conditions provided (default []).  Valid
+keywords are 'dangling', 'label', 'before' and 'since'.
 
 **--format="TEMPLATE"**
 
@@ -36,6 +38,7 @@ Do not truncate output.
 
 **--quiet, -q**
 
+Displays only the image IDs.
 
 ## EXAMPLE
 
@@ -46,6 +49,8 @@ buildah images --json
 buildah images --quiet
 
 buildah images -q --noheading --notruncate
+
+buildah images --filter dangling=true
 
 ## SEE ALSO
 buildah(1)
