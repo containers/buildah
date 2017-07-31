@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	// DefaultRegistry is a prefix that we apply to an image name if we
+	// DefaultTransport is a prefix that we apply to an image name if we
 	// can't find one in the local Store, in order to generate a source
 	// reference for the image that we can then copy to the local Store.
-	DefaultRegistry = "docker://"
+	DefaultTransport = "docker://"
 )
 
 var (
@@ -31,9 +31,9 @@ var (
 			Usage: "pull the image even if one with the same name is already present",
 		},
 		cli.StringFlag{
-			Name:  "registry",
+			Name:  "transport",
 			Usage: "`prefix` to prepend to the image name in order to pull the image",
-			Value: DefaultRegistry,
+			Value: DefaultTransport,
 		},
 		cli.StringFlag{
 			Name:  "signature-policy",
@@ -67,9 +67,9 @@ func fromCmd(c *cli.Context) error {
 	}
 	image := args[0]
 
-	registry := DefaultRegistry
-	if c.IsSet("registry") {
-		registry = c.String("registry")
+	transport := DefaultTransport
+	if c.IsSet("transport") {
+		transport = c.String("transport")
 	}
 	pull := true
 	if c.IsSet("pull") {
@@ -111,7 +111,7 @@ func fromCmd(c *cli.Context) error {
 		FromImage:           image,
 		Container:           name,
 		PullPolicy:          pullPolicy,
-		Registry:            registry,
+		Transport:           transport,
 		SignaturePolicyPath: signaturePolicy,
 	}
 	if !quiet {

@@ -51,8 +51,13 @@ type BuildOptions struct {
 	PullPolicy int
 	// Registry is a value which is prepended to the image's name, if it
 	// needs to be pulled and the image name alone can not be resolved to a
-	// reference to a source image.
+	// reference to a source image.  No separator is implicitly added.
 	Registry string
+	// Transport is a value which is prepended to the image's name, if it
+	// needs to be pulled and the image name alone, or the image name and
+	// the registry together, can not be resolved to a reference to a
+	// source image.  No separator is implicitly added.
+	Transport string
 	// IgnoreUnrecognizedInstructions tells us to just log instructions we
 	// don't recognize, and try to keep going.
 	IgnoreUnrecognizedInstructions bool
@@ -108,6 +113,7 @@ type Executor struct {
 	builder                        *buildah.Builder
 	pullPolicy                     int
 	registry                       string
+	transport                      string
 	ignoreUnrecognizedInstructions bool
 	quiet                          bool
 	runtime                        string
@@ -403,6 +409,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		contextDir:                     options.ContextDirectory,
 		pullPolicy:                     options.PullPolicy,
 		registry:                       options.Registry,
+		transport:                      options.Transport,
 		ignoreUnrecognizedInstructions: options.IgnoreUnrecognizedInstructions,
 		quiet:               options.Quiet,
 		runtime:             options.Runtime,
@@ -458,6 +465,7 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 		FromImage:           from,
 		PullPolicy:          b.pullPolicy,
 		Registry:            b.registry,
+		Transport:           b.transport,
 		SignaturePolicyPath: b.signaturePolicyPath,
 		ReportWriter:        b.reportWriter,
 	}

@@ -29,10 +29,11 @@ Defaults to *true*.
 
 Pull the image even if a version of the image is already present.
 
-**--registry** *registry*
+**--transport** *transport*
 
-A prefix to prepend to the image name in order to pull the image.  Default
-value is "docker://"
+A prefix to prepend to the image name in order to pull the image.  The default
+value is "docker://".  Note that no separator is implicitly added when the
+values are combined.
 
 **--signature-policy** *signaturepolicy*
 
@@ -46,13 +47,13 @@ If an image needs to be pulled from the registry, suppress progress output.
 
 ## EXAMPLE
 
-buildah from imagename --pull --registry "myregistry://"
+buildah from imagename --pull --transport "docker://myregistry.example.com/"
 
-buildah from myregistry://imagename --pull
+buildah from docker://myregistry.example.com/imagename --pull
 
 buildah from imagename --signature-policy /etc/containers/policy.json
 
-buildah from imagename --pull-always --registry "myregistry://" --name "mycontainer"
+buildah from imagename --pull-always --transport "docker://myregistry.example.com/" --name "mycontainer"
 
 ## SEE ALSO
 buildah(1)

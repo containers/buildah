@@ -60,12 +60,20 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 	if options.Registry != "" {
 		spec = options.Registry + spec
 	}
+	spec2 := spec
+	if options.Transport != "" {
+		spec2 = options.Transport + spec
+	}
 
 	srcRef, err := alltransports.ParseImageName(name)
 	if err != nil {
 		srcRef2, err2 := alltransports.ParseImageName(spec)
 		if err2 != nil {
-			return nil, errors.Wrapf(err2, "error parsing image name %q", spec)
+			srcRef3, err3 := alltransports.ParseImageName(spec2)
+			if err3 != nil {
+				return nil, errors.Wrapf(err3, "error parsing image name %q", spec2)
+			}
+			srcRef2 = srcRef3
 		}
 		srcRef = srcRef2
 	}
@@ -93,7 +101,7 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 		return nil, errors.Wrapf(err, "error creating new signature policy context")
 	}
 
-	logrus.Debugf("copying %q to %q", spec, name)
+	logrus.Debugf("copying %q to %q", transports.ImageName(srcRef), transports.ImageName(destRef))
 
 	err = cp.Image(policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter))
 	return destRef, err
