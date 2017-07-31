@@ -35,10 +35,11 @@ Defaults to *true*.
 
 Pull the image even if a version of the image is already present.
 
-**--registry** *registry*
+**--transport** *transport*
 
-A prefix to prepend to the image name in order to pull the image.  Default
-value is "docker://"
+A prefix to prepend to the image name in order to pull the image.  The default
+value is "docker://".  Note that no separator is implicitly added when the
+values are combined.
 
 **--signature-policy** *signaturepolicy*
 

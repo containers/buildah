@@ -48,7 +48,11 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 			if err2 != nil {
 				srcRef2, err3 := alltransports.ParseImageName(options.Registry + image)
 				if err3 != nil {
-					return nil, errors.Wrapf(err3, "error parsing image name %q", options.Registry+image)
+					srcRef3, err4 := alltransports.ParseImageName(options.Transport + options.Registry + image)
+					if err4 != nil {
+						return nil, errors.Wrapf(err4, "error parsing image name %q", options.Transport+options.Registry+image)
+					}
+					srcRef2 = srcRef3
 				}
 				srcRef = srcRef2
 			}
