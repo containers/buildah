@@ -20,9 +20,6 @@ Image stored in local container/storage
 
  Multiple transports are supported:
 
-  **atomic:**_hostname_**/**_namespace_**/**_stream_**:**_tag_
-  An image served by an OpenShift(Atomic) Registry server. The current OpenShift project and OpenShift Registry instance are by default read from `$HOME/.kube/config`, which is set e.g. using `(oc login)`.
-
   **dir:**_path_
   An existing local directory _path_ storing the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
 
@@ -74,10 +71,6 @@ This example extracts the imageID image to a container registry named registry.e
 This example extracts the imageID image and puts into the local docker container store
 
  `# buildah push imageID docker-daemon:image:tag`
-
-This example extracts the imageID image and pushes it to an OpenShift(Atomic) registry
-
- `# buildah push imageID atomic:registry.example.com/company/image:tag`
 
 ## SEE ALSO
 buildah(1)
