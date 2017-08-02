@@ -7,7 +7,7 @@ STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/..:${PATH}
 
 function setup() {
-	suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | base64 | tr +/ _.)
+	suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | base64 | tr +/ABCDEFGHIJKLMNOPQRSTUVWXYZ _.abcdefghijklmnopqrstuvwxyz)
 	TESTDIR=${BATS_TMPDIR}/tmp.${suffix}
 	rm -fr ${TESTDIR}
 	mkdir -p ${TESTDIR}/{root,runroot}

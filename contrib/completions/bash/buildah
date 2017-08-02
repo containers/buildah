@@ -340,7 +340,7 @@ return 1
   "
 
      local options_with_args="
-     --registry
+     --transport
      --signature-policy
      --runtime
      --runtime-flag
@@ -619,7 +619,7 @@ return 1
 
      local options_with_args="
      --name
-     --registry
+     --transport
      --signature-policy
   "
 

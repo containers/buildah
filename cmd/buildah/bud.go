@@ -18,9 +18,9 @@ var (
 			Usage: "refrain from announcing build instructions and image read/write progress",
 		},
 		cli.StringFlag{
-			Name:  "registry",
+			Name:  "transport",
 			Usage: "prefix to prepend to the image name in order to pull the image",
-			Value: DefaultRegistry,
+			Value: DefaultTransport,
 		},
 		cli.BoolTFlag{
 			Name:  "pull",
@@ -82,9 +82,9 @@ func budCmd(c *cli.Context) error {
 			tags = tags[1:]
 		}
 	}
-	registry := DefaultRegistry
-	if c.IsSet("registry") {
-		registry = c.String("registry")
+	transport := DefaultTransport
+	if c.IsSet("transport") {
+		transport = c.String("transport")
 	}
 	pull := true
 	if c.IsSet("pull") {
@@ -208,7 +208,7 @@ func budCmd(c *cli.Context) error {
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:    contextDir,
 		PullPolicy:          pullPolicy,
-		Registry:            registry,
+		Transport:           transport,
 		Compression:         imagebuildah.Gzip,
 		Quiet:               quiet,
 		SignaturePolicyPath: signaturePolicy,
