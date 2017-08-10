@@ -219,8 +219,8 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if spec.Process.Cwd == "" {
 		spec.Process.Cwd = DefaultWorkingDir
 	}
-	if err = os.MkdirAll(filepath.Join(mountPoint, b.WorkDir()), 0755); err != nil {
-		return errors.Wrapf(err, "error ensuring working directory %q exists", b.WorkDir())
+	if err = os.MkdirAll(filepath.Join(mountPoint, spec.Process.Cwd), 0755); err != nil {
+		return errors.Wrapf(err, "error ensuring working directory %q exists", spec.Process.Cwd)
 	}
 
 	bindFiles := []string{"/etc/hosts", "/etc/resolv.conf"}
