@@ -229,12 +229,17 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error {
 	policy, err := signature.DefaultPolicy(getSystemContext(options.SignaturePolicyPath))
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error obtaining default signature policy")
 	}
 	policyContext, err := signature.NewPolicyContext(policy)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error creating new signature policy context")
 	}
+	defer func() {
+		if err2 := policyContext.Destroy(); err2 != nil {
+			logrus.Debugf("error destroying signature polcy context: %v", err2)
+		}
+	}()
 	// Check if we're keeping everything in local storage.  If so, we can take certain shortcuts.
 	_, destIsStorage := dest.Transport().(is.StoreTransport)
 	exporting := !destIsStorage
@@ -279,12 +284,17 @@ func Push(image string, dest types.ImageReference, options PushOptions) error {
 	systemContext := getSystemContext(options.SignaturePolicyPath)
 	policy, err := signature.DefaultPolicy(systemContext)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error obtaining default signature policy")
 	}
 	policyContext, err := signature.NewPolicyContext(policy)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error creating new signature policy context")
 	}
+	defer func() {
+		if err2 := policyContext.Destroy(); err2 != nil {
+			logrus.Debugf("error destroying signature polcy context: %v", err2)
+		}
+	}()
 	importOptions := ImportFromImageOptions{
 		Image:               image,
 		SignaturePolicyPath: options.SignaturePolicyPath,
