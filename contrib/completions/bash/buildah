@@ -644,18 +644,6 @@ return 1
      "
 }
 
- _buildah_export() {
-     local boolean_options="
-     --help
-     -h
-     "
-
-     local options_with_args="
-     -o
-     --output
-     "
-}
-
  _buildah() {
    local previous_extglob_setting=$(shopt -p extglob)
    shopt -s extglob
@@ -668,7 +656,6 @@ return 1
        config
        containers
        copy
-       export
        from
        images
        inspect

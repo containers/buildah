@@ -79,7 +79,6 @@ encounters a `RUN` instruction, so you'll also need to build and install a compa
 | [buildah-config(1)](/docs/buildah-config.md)         | Update image configuration settings.                                                                 |
 | [buildah-containers(1)](/docs/buildah-containers.md) | List the working containers and their base images.                                                   |
 | [buildah-copy(1)](/docs/buildah-copy.md)             | Copies the contents of a file, URL, or directory into a container's working directory.               |
-| [buildah-export(1)](/docs/buildah-export.md)         | Export the contents of a container's filesystem as a tar archive                                     |
 | [buildah-from(1)](/docs/buildah-from.md)             | Creates a new working container, either from scratch or using a specified image as a starting point. |
 | [buildah-images(1)](/docs/buildah-images.md)         | List images in local storage.                                                                        |
 | [buildah-inspect(1)](/docs/buildah-inspect.md)       | Inspects the configuration of a container or image.                                                  |
