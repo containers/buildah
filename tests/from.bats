@@ -34,3 +34,81 @@ load helpers
   buildah rmi ${elsewhere}
   [ "$cid" = `basename ${elsewhere}`-working-container ]
 }
+
+@test "from-authenticate-cert" {
+
+  mkdir -p ${TESTDIR}/auth
+  # Create certifcate via openssl
+  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ${TESTDIR}/auth/domain.key -x509 -days 2 -out ${TESTDIR}/auth/domain.crt -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=localhost"
+  # Skopeo and buildah both require *.cert file
+  cp ${TESTDIR}/auth/domain.crt ${TESTDIR}/auth/domain.cert
+
+  # Create a private registry that uses certificate and creds file
+#  docker run -d -p 5000:5000 --name registry -v ${TESTDIR}/auth:${TESTDIR}/auth:Z -e REGISTRY_HTTP_TLS_CERTIFICATE=${TESTDIR}/auth/domain.crt -e REGISTRY_HTTP_TLS_KEY=${TESTDIR}/auth/domain.key registry:2
+
+  # When more buildah auth is in place convert the below.
+#  docker pull alpine
+#  docker tag alpine localhost:5000/my-alpine
+#  docker push localhost:5000/my-alpine
+
+#  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth)
+#  buildah rm $ctrid
+#  buildah rmi -f $(buildah --debug=false images -q)
+
+  # This should work
+#  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true)
+
+  rm -rf ${TESTDIR}/auth
+
+  # This should fail
+  run ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true)
+  [ "$status" -ne 0 ]
+
+  # Clean up
+#  docker rm -f $(docker ps --all -q)
+#  docker rmi -f localhost:5000/my-alpine
+#  docker rmi -f $(docker images -q)
+#  buildah rm $ctrid
+#  buildah rmi -f $(buildah --debug=false images -q)
+}
+
+@test "from-authenticate-cert-and-creds" {
+
+  mkdir -p  ${TESTDIR}/auth
+  # Create creds and store in ${TESTDIR}/auth/htpasswd
+#  docker run --entrypoint htpasswd registry:2 -Bbn testuser testpassword > ${TESTDIR}/auth/htpasswd
+  # Create certifcate via openssl
+  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ${TESTDIR}/auth/domain.key -x509 -days 2 -out ${TESTDIR}/auth/domain.crt -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=localhost"
+  # Skopeo and buildah both require *.cert file
+  cp ${TESTDIR}/auth/domain.crt ${TESTDIR}/auth/domain.cert
+
+  # Create a private registry that uses certificate and creds file
+#  docker run -d -p 5000:5000 --name registry -v ${TESTDIR}/auth:${TESTDIR}/auth:Z -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=${TESTDIR}/auth/htpasswd -e REGISTRY_HTTP_TLS_CERTIFICATE=${TESTDIR}/auth/domain.crt -e REGISTRY_HTTP_TLS_KEY=${TESTDIR}/auth/domain.key registry:2
+
+  # When more buildah auth is in place convert the below.
+#  docker pull alpine
+#  docker login localhost:5000 --username testuser --password testpassword
+#  docker tag alpine localhost:5000/my-alpine
+#  docker push localhost:5000/my-alpine
+
+#  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth)
+#  buildah rm $ctrid
+#  buildah rmi -f $(buildah --debug=false images -q)
+
+#  docker logout localhost:5000
+
+  # This should fail
+  run ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true)
+  [ "$status" -ne 0 ]
+
+  # This should work
+#  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true --creds=testuser:testpassword)
+
+  # Clean up
+  rm -rf ${TESTDIR}/auth
+#  docker rm -f $(docker ps --all -q)
+#  docker rmi -f localhost:5000/my-alpine
+#  docker rmi -f $(docker images -q)
+#  buildah rm $ctrid
+#  buildah rmi -f $(buildah --debug=false images -q)
+}
