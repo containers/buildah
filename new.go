@@ -18,6 +18,11 @@ const (
 	// BaseImageFakeName is the "name" of a source image which we interpret
 	// as "no image".
 	BaseImageFakeName = imagebuilder.NoBaseImageSpecifier
+
+	// DefaultTransport is a prefix that we apply to an image name if we
+	// can't find one in the local Store, in order to generate a source
+	// reference for the image that we can then copy to the local Store.
+	DefaultTransport = "docker://"
 )
 
 func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
@@ -31,6 +36,10 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		options.FromImage = ""
 	}
 	image := options.FromImage
+
+	if options.Transport == "" {
+		options.Transport = DefaultTransport
+	}
 
 	systemContext := getSystemContext(options.SignaturePolicyPath)
 

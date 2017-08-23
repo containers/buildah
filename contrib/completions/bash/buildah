@@ -340,7 +340,6 @@ return 1
   "
 
      local options_with_args="
-     --transport
      --signature-policy
      --runtime
      --runtime-flag
@@ -621,7 +620,6 @@ return 1
      --cert-dir
      --creds
      --name
-     --transport
      --signature-policy
      --tls-verify
   "

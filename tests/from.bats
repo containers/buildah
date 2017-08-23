@@ -24,12 +24,12 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
   buildah rm $cid
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --transport dir: ${elsewhere})
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
   buildah rmi ${elsewhere}
   [ "$cid" = elsewhere-img-working-container ]
 
-  cid=$(buildah from --pull-always --signature-policy ${TESTSDIR}/policy.json --transport dir: ${elsewhere})
+  cid=$(buildah from --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
   buildah rmi ${elsewhere}
   [ "$cid" = `basename ${elsewhere}`-working-container ]
