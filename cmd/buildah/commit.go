@@ -20,9 +20,18 @@ var (
 			Usage: "don't compress layers",
 		},
 		cli.StringFlag{
+			Name:  "cert-dir",
+			Value: "",
+			Usage: "use certificates at the specified path to access the registry",
+		},
+		cli.StringFlag{
 			Name:  "creds",
 			Value: "",
 			Usage: "use `username[:password]` for accessing the registry",
+		},
+		cli.BoolTFlag{
+			Name:  "tls-verify",
+			Usage: "Require HTTPS and verify certificates when accessing the registry",
 		},
 		cli.StringFlag{
 			Name:  "signature-policy",
@@ -123,11 +132,17 @@ func commitCmd(c *cli.Context) error {
 		dest = dest2
 	}
 
+	systemContext, err := systemContextFromOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error building system context")
+	}
+
 	options := buildah.CommitOptions{
 		PreferredManifestType: format,
 		Compression:           compress,
 		SignaturePolicyPath:   signaturePolicy,
 		HistoryTimestamp:      &timestamp,
+		SystemContext:         systemContext,
 	}
 	if !quiet {
 		options.ReportWriter = os.Stderr

@@ -291,9 +291,12 @@ return 1
           --quiet
           -q
           --rm
+          --tls-verify
   "
 
      local options_with_args="
+          --cert-dir
+          --creds
           --signature-policy
           --format
           -f
@@ -471,9 +474,12 @@ return 1
           -D
           --quiet
           -q
+          --tls-verify
   "
 
      local options_with_args="
+          --cert-dir
+          --creds
           --signature-policy
   "
 
@@ -614,6 +620,7 @@ return 1
      --pull-always
      --quiet
      -q
+     --tls-verify
   "
 
      local options_with_args="
@@ -621,7 +628,6 @@ return 1
      --creds
      --name
      --signature-policy
-     --tls-verify
   "
 
 
