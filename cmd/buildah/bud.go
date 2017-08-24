@@ -17,11 +17,6 @@ var (
 			Name:  "quiet, q",
 			Usage: "refrain from announcing build instructions and image read/write progress",
 		},
-		cli.StringFlag{
-			Name:  "transport",
-			Usage: "prefix to prepend to the image name in order to pull the image",
-			Value: DefaultTransport,
-		},
 		cli.BoolTFlag{
 			Name:  "pull",
 			Usage: "pull the image if not present",
@@ -81,10 +76,6 @@ func budCmd(c *cli.Context) error {
 			output = tags[0]
 			tags = tags[1:]
 		}
-	}
-	transport := DefaultTransport
-	if c.IsSet("transport") {
-		transport = c.String("transport")
 	}
 	pull := true
 	if c.IsSet("pull") {
@@ -208,7 +199,6 @@ func budCmd(c *cli.Context) error {
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:    contextDir,
 		PullPolicy:          pullPolicy,
-		Transport:           transport,
 		Compression:         imagebuildah.Gzip,
 		Quiet:               quiet,
 		SignaturePolicyPath: signaturePolicy,

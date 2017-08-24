@@ -9,13 +9,6 @@ import (
 	"github.com/urfave/cli"
 )
 
-const (
-	// DefaultTransport is a prefix that we apply to an image name if we
-	// can't find one in the local Store, in order to generate a source
-	// reference for the image that we can then copy to the local Store.
-	DefaultTransport = "docker://"
-)
-
 var (
 	fromFlags = []cli.Flag{
 		cli.StringFlag{
@@ -29,11 +22,6 @@ var (
 		cli.BoolFlag{
 			Name:  "pull-always",
 			Usage: "pull the image even if one with the same name is already present",
-		},
-		cli.StringFlag{
-			Name:  "transport",
-			Usage: "`prefix` to prepend to the image name in order to pull the image",
-			Value: DefaultTransport,
 		},
 		cli.StringFlag{
 			Name:  "cert-dir",
@@ -81,10 +69,6 @@ func fromCmd(c *cli.Context) error {
 	}
 
 	image := args[0]
-	transport := DefaultTransport
-	if c.IsSet("transport") {
-		transport = c.String("transport")
-	}
 
 	systemContext, err := systemContextFromOptions(c)
 	if err != nil {
@@ -131,7 +115,6 @@ func fromCmd(c *cli.Context) error {
 		FromImage:           image,
 		Container:           name,
 		PullPolicy:          pullPolicy,
-		Transport:           transport,
 		SignaturePolicyPath: signaturePolicy,
 		SystemContext:       systemContext,
 	}

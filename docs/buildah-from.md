@@ -8,7 +8,28 @@ buildah from - Creates a new working container, either from scratch or using a s
 
 ## DESCRIPTION
 Creates a working container based upon the specified image name.  If the
-supplied image name is "scratch" a new empty container is created.
+supplied image name is "scratch" a new empty container is created. Image names
+uses a "transport":"details" format.
+
+Multiple transports are supported:
+
+  **dir:**_path_
+  An existing local directory _path_ retrieving the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
+
+  **docker://**_docker-reference_ (Default)
+  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$HOME/.docker/config.json`, which is set e.g. using `(docker login)`.
+
+  **docker-archive:**_path_
+  An image is retrieved as a `docker load` formatted file.
+
+  **docker-daemon:**_docker-reference_
+  An image _docker-reference_ stored in the docker daemon internal storage.  _docker-reference_ must contain either a tag or a digest.  Alternatively, when reading images, the format can also be docker-daemon:algo:digest (an image ID).
+
+  **oci:**_path_**:**_tag_
+  An image _tag_ in a directory compliant with "Open Container Image Layout Specification" at _path_.
+
+  **ostree:**_image_[**@**_/absolute/repo/path_]
+  An image in local OSTree repository.  _/absolute/repo/path_ defaults to _/ostree/repo_.
 
 ## RETURN VALUE
 The container ID of the container that was created.  On error, -1 is returned and errno is returned.
@@ -37,12 +58,6 @@ Defaults to *true*.
 
 Pull the image even if a version of the image is already present.
 
-**--transport** *transport*
-
-A prefix to prepend to the image name in order to pull the image.  The default
-value is "docker://".  Note that no separator is implicitly added when the
-values are combined.
-
 **--signature-policy** *signaturepolicy*
 
 Pathname of a signature policy file to use.  It is not recommended that this
@@ -59,13 +74,13 @@ If an image needs to be pulled from the registry, suppress progress output.
 
 ## EXAMPLE
 
-buildah from imagename --pull --transport "docker://myregistry.example.com/"
+buildah from imagename --pull
 
 buildah from docker://myregistry.example.com/imagename --pull
 
 buildah from imagename --signature-policy /etc/containers/policy.json
 
-buildah from imagename --pull-always --transport "docker://myregistry.example.com/" --name "mycontainer"
+buildah from docker://myregistry.example.com/imagename --pull-always --name "mycontainer"
 
 buildah from myregistry/myrepository/imagename:imagetag --creds=myusername:mypassword
 
