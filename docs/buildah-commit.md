@@ -13,6 +13,14 @@ specified, an ID is assigned, but no name is assigned to the image.
 
 ## OPTIONS
 
+**--cert-dir** *path*
+
+Use certificates at *path* (*.crt, *.cert, *.key) to connect to the registry
+
+**--creds** *creds*
+
+The username[:password] to use to authenticate with the registry if required.
+
 **--disable-compression, -D**
 
 Don't compress filesystem layers when building the image.
@@ -22,6 +30,10 @@ Don't compress filesystem layers when building the image.
 Pathname of a signature policy file to use.  It is not recommended that this
 option be used, as the default behavior of using the system-wide default policy
 (frequently */etc/containers/policy.json*) is most often preferred.
+
+**--tls-verify** *bool-value*
+
+Require HTTPS and verify certificates when talking to container registries (defaults to true)
 
 **--quiet**
 
@@ -39,13 +51,24 @@ Default leaves the container and its content in place.
 
 ## EXAMPLE
 
-buildah commit containerID
+This example saves an image based on the container.
+ `buildah commit containerID`
 
-buildah commit --rm containerID newImageName
+This example saves an image named newImageName based on the container.
+ `buildah commit --rm containerID newImageName`
 
-buildah commit --disable-compression --signature-policy '/etc/containers/policy.json' containerID
 
-buildah commit --disable-compression --signature-policy '/etc/containers/policy.json' containerID newImageName
+This example saves an image based on the container disabling compression.
+ `buildah commit --disable-compression containerID`
+
+This example saves an image named newImageName based on the container disabling compression.
+ `buildah commit --disable-compression containerID newImageName`
+
+This example commits the container to the image on the local registry while turning off tls verification.
+ `buildah commit --tls-verify=false containerID docker://localhost:5000/imageId`
+
+This example commits the container to the image on the local registry using credentials and certificates for authentication.
+ `buildah commit --cert-dir ~/auth  --tls-verify=true --creds=username:password containerID docker://localhost:5000/imageId`
 
 ## SEE ALSO
 buildah(1)

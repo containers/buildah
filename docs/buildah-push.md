@@ -40,6 +40,14 @@ Image stored in local container/storage
 
 ## OPTIONS
 
+**--cert-dir** *path*
+
+Use certificates at *path* (*.crt, *.cert, *.key) to connect to the registry
+
+**--creds** *creds*
+
+The username[:password] to use to authenticate with the registry if required.
+
 **--disable-compression, -D**
 
 Don't compress copies of filesystem layers which will be pushed.
@@ -49,6 +57,10 @@ Don't compress copies of filesystem layers which will be pushed.
 Pathname of a signature policy file to use.  It is not recommended that this
 option be used, as the default behavior of using the system-wide default policy
 (frequently */etc/containers/policy.json*) is most often preferred.
+
+**--tls-verify** *bool-value*
+
+Require HTTPS and verify certificates when talking to container registries (defaults to true)
 
 **--quiet**
 
@@ -64,13 +76,19 @@ This example extracts the imageID image to a local directory in oci format.
 
  `# buildah push imageID oci:/path/to/layout`
 
-This example extracts the imageID image to a container registry named registry.example.com
+This example extracts the imageID image to a container registry named registry.example.com.
 
  `# buildah push imageID docker://registry.example.com/repository:tag`
 
-This example extracts the imageID image and puts into the local docker container store
+This example extracts the imageID image and puts into the local docker container store.
 
  `# buildah push imageID docker-daemon:image:tag`
+
+This example extracts the imageID image and puts it into the registry on the localhost while turning off tls verification.
+ `# buildah push --tls-verify=false imageID docker://localhost:5000/my-imageID`
+
+This example extracts the imageID image and puts it into the registry on the localhost using credentials and certificates for authentication.
+ `# buildah push --cert-dir ~/auth --tls-verify=true --creds=username:password imageID docker://localhost:5000/my-imageID`
 
 ## SEE ALSO
 buildah(1)

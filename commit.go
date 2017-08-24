@@ -54,6 +54,9 @@ type CommitOptions struct {
 	// HistoryTimestamp is the timestamp used when creating new items in the
 	// image's history.  If unset, the current time will be used.
 	HistoryTimestamp *time.Time
+	// github.com/containers/image/types SystemContext to hold credentials
+	// and other authentication/authorization information.
+	SystemContext *types.SystemContext
 }
 
 // PushOptions can be used to alter how an image is copied somewhere.
@@ -73,6 +76,9 @@ type PushOptions struct {
 	ReportWriter io.Writer
 	// Store is the local storage store which holds the source image.
 	Store storage.Store
+	// github.com/containers/image/types SystemContext to hold credentials
+	// and other authentication/authorization information.
+	SystemContext *types.SystemContext
 }
 
 // shallowCopy copies the most recent layer, the configuration, and the manifest from one image to another.
@@ -249,8 +255,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	}
 	if exporting {
 		// Copy everything.
-		// TODO: add credsContext
-		err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, nil))
+		err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext))
 		if err != nil {
 			return errors.Wrapf(err, "error copying layers and metadata")
 		}
@@ -322,8 +327,7 @@ func Push(image string, dest types.ImageReference, options PushOptions) error {
 		return errors.Wrapf(err, "error recomputing layer digests and building metadata")
 	}
 	// Copy everything.
-	// TODO: add credsContext
-	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, nil))
+	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext))
 	if err != nil {
 		return errors.Wrapf(err, "error copying layers and metadata")
 	}

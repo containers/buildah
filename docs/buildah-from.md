@@ -42,7 +42,7 @@ Use certificates at *path* (*.crt, *.cert, *.key) to connect to the registry
 
 **--creds** *creds*
 
-The username and password to use to authenticate with the registry if required.
+The username[:password] to use to authenticate with the registry if required.
 
 **--name** *name*
 
@@ -82,7 +82,9 @@ buildah from imagename --signature-policy /etc/containers/policy.json
 
 buildah from docker://myregistry.example.com/imagename --pull-always --name "mycontainer"
 
-buildah from myregistry/myrepository/imagename:imagetag --creds=myusername:mypassword
+buildah from myregistry/myrepository/imagename:imagetag --tls-verify=false
+
+buildah from myregistry/myrepository/imagename:imagetag --creds=myusername:mypassword --cert-dir ~/auth
 
 ## SEE ALSO
 buildah(1)
