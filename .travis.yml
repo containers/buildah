@@ -13,5 +13,5 @@ before_install:
     - sudo apt-get -qq install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libselinux1-dev
     - sudo apt-get -qq remove libseccomp2
 script:
-    - make install.tools install.libseccomp.sudo all runc validate TAGS="containers_image_ostree_stub apparmor seccomp"
+    - make install.tools install.libseccomp.sudo all runc validate TAGS="apparmor seccomp"
     - cd tests; sudo PATH="$PATH" ./test_runner.sh
