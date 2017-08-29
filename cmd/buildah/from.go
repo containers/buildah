@@ -33,7 +33,7 @@ var (
 			Value: "",
 			Usage: "use `username[:password]` for accessing the registry",
 		},
-		cli.StringFlag{
+		cli.BoolTFlag{
 			Name:  "tls-verify",
 			Usage: "Require HTTPS and verify certificates when accessing the registry",
 		},
@@ -72,7 +72,7 @@ func fromCmd(c *cli.Context) error {
 
 	systemContext, err := systemContextFromOptions(c)
 	if err != nil {
-		return errors.Errorf("error building system context [%v]", err)
+		return errors.Wrapf(err, "error building system context")
 	}
 
 	pull := true
