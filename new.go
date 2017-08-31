@@ -86,10 +86,11 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 			if errors.Cause(err) == storage.ErrImageUnknown && options.PullPolicy != PullIfMissing {
 				return nil, errors.Wrapf(err, "no such image %q", transports.ImageName(ref))
 			}
-			ref, err = pullImage(store, options, systemContext)
-			if err != nil {
-				return nil, errors.Wrapf(err, "error pulling image %q", transports.ImageName(ref))
+			ref2, err2 := pullImage(store, options, systemContext)
+			if err2 != nil {
+				return nil, errors.Wrapf(err2, "error pulling image %q", image)
 			}
+			ref = ref2
 			img, err = is.Transport.GetStoreImage(store, ref)
 		}
 		if err != nil {
