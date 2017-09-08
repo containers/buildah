@@ -53,7 +53,8 @@ In Fedora, you can use this command:
     skopeo-containers
 ```
 
-Then to install buildah follow the steps in this example:
+Then to install buildah on Fedora follow the steps in this example:
+
 
 ```
   mkdir ~/buildah
@@ -66,6 +67,29 @@ Then to install buildah follow the steps in this example:
   buildah --help
 ```
 
+In Ubuntu/Debian, you can use this command:
+
+```
+  apt-get -y install software-properties-common
+  add-apt-repository -y ppa:alexlarsson/flatpak
+  add-apt-repository -y ppa:gophers/archive
+  apt-add-repository -y ppa:projectatomic/ppa
+  apt-get -y -qq update
+  apt-get -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libostree-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
+  apt-get -y install golang-1.8
+```
+Then to install buildah on Ubuntu/Debian follow the steps in this example:
+
+```
+  mkdir ~/buildah
+  cd ~/buildah
+  export GOPATH=`pwd`
+  git clone https://github.com/projectatomic/buildah ./src/github.com/projectatomic/buildah
+  cd ./src/github.com/projectatomic/buildah
+  PATH=/usr/lib/go-1.8/bin:$PATH make runc all TAGS="apparmor seccomp"
+  make install
+  buildah --help
+```
 buildah uses `runc` to run commands when `buildah run` is used, or when `buildah build-using-dockerfile`
 encounters a `RUN` instruction, so you'll also need to build and install a compatible version of
 [runc](https://github.com/opencontainers/runc) for buildah to call for those cases.
