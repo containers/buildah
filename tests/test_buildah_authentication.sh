@@ -8,7 +8,8 @@
 ########
 # Create creds and store in /root/auth/htpasswd
 ########
-docker run --entrypoint htpasswd registry:2 -Bbn testuser testpassword > /root/auth/htpasswd
+registry=$(buildah from registry:2)
+buildah run $registry -- htpasswd -Bbn testuser testpassword > /root/auth/htpasswd
 
 ########
 # Create certificate via openssl
@@ -93,12 +94,12 @@ docker logout localhost:5000
 buildah push --cert-dir /root/auth --tls-verify=true alpine docker://localhost:5000/my-alpine
 
 ########
-# Push using creds and certs, this should work.
+# Push using creds, certs and no transport, this should work.
 ########
-buildah push --cert-dir ~/auth --tls-verify=true --creds=testuser:testpassword alpine docker://localhost:5000/my-alpine
+buildah push --cert-dir ~/auth --tls-verify=true --creds=testuser:testpassword alpine localhost:5000/my-alpine
 
 ########
-# This should fail, no creds anywhere, only the certificate
+# No creds anywhere, only the certificate, this should fail.
 ########
 buildah from localhost:5000/my-alpine --cert-dir /root/auth  --tls-verify=true
 
