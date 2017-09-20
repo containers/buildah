@@ -67,7 +67,7 @@ Then to install buildah on Fedora follow the steps in this example:
   buildah --help
 ```
 
-In Ubuntu/Debian, you can use this command:
+In Ubuntu zesty and xenial, you can use this command:
 
 ```
   apt-get -y install software-properties-common
@@ -78,7 +78,7 @@ In Ubuntu/Debian, you can use this command:
   apt-get -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libostree-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
   apt-get -y install golang-1.8
 ```
-Then to install buildah on Ubuntu/Debian follow the steps in this example:
+Then to install buildah on Ubuntu follow the steps in this example:
 
 ```
   mkdir ~/buildah
