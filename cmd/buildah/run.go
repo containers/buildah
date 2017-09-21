@@ -16,6 +16,10 @@ import (
 var (
 	runFlags = []cli.Flag{
 		cli.StringFlag{
+			Name:  "hostname",
+			Usage: "Set the hostname inside of the container",
+		},
+		cli.StringFlag{
 			Name:  "runtime",
 			Usage: "`path` to an alternate runtime",
 			Value: buildah.DefaultRuntime,
@@ -24,13 +28,13 @@ var (
 			Name:  "runtime-flag",
 			Usage: "add global flags for the container runtime",
 		},
-		cli.StringSliceFlag{
-			Name:  "volume, v",
-			Usage: "bind mount a host location into the container while running the command",
-		},
 		cli.BoolFlag{
 			Name:  "tty",
 			Usage: "allocate a pseudo-TTY in the container",
+		},
+		cli.StringSliceFlag{
+			Name:  "volume, v",
+			Usage: "bind mount a host location into the container while running the command",
 		},
 	}
 	runDescription = "Runs a specified command using the container's root filesystem as a root\n   filesystem, using configuration settings inherited from the container's\n   image or as specified using previous calls to the config command"
@@ -78,12 +82,8 @@ func runCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
-	hostname := ""
-	if c.IsSet("hostname") {
-		hostname = c.String("hostname")
-	}
 	options := buildah.RunOptions{
-		Hostname: hostname,
+		Hostname: c.String("hostname"),
 		Runtime:  runtime,
 		Args:     flags,
 	}

@@ -15,12 +15,8 @@ the *buildah config* command.
 
 ## OPTIONS
 
-**--tty**
-
-By default a pseudo-TTY is allocated only when buildah's standard input is
-attached to a pseudo-TTY. Setting the `--tty` option to `true` will cause a
-pseudo-TTY to be allocated inside the container. Setting the `--tty` option to
-`false` will prevent the pseudo-TTY from being allocated.
+**--hostname**
+Set the hostname inside of the running container.
 
 **--runtime** *path*
 
@@ -32,6 +28,13 @@ Adds global flags for the container runtime. To list the supported flags, please
 consult manpages of your selected container runtime (`runc` is the default
 runtime, the manpage to consult is `runc(8)`)
 
+**--tty**
+
+By default a pseudo-TTY is allocated only when buildah's standard input is
+attached to a pseudo-TTY. Setting the `--tty` option to `true` will cause a
+pseudo-TTY to be allocated inside the container. Setting the `--tty` option to
+`false` will prevent the pseudo-TTY from being allocated.
+
 **--volume, -v** *source*:*destination*:*flags*
 
 Bind mount a location from the host into the container for its lifetime.
@@ -42,6 +45,8 @@ options to the command inside of the container
 ## EXAMPLE
 
 buildah run containerID -- ps -auxw
+
+buildah run containerID --hostname myhost -- ps -auxw
 
 buildah run containerID --runtime-flag --no-new-keyring -- ps -auxw
 
