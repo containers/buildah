@@ -52,6 +52,10 @@ The username[:password] to use to authenticate with the registry if required.
 
 Don't compress copies of filesystem layers which will be pushed.
 
+**--quiet**
+
+When writing the output image, suppress progress output.
+
 **--signature-policy**
 
 Pathname of a signature policy file to use.  It is not recommended that this
@@ -61,10 +65,6 @@ option be used, as the default behavior of using the system-wide default policy
 **--tls-verify** *bool-value*
 
 Require HTTPS and verify certificates when talking to container registries (defaults to true)
-
-**--quiet**
-
-When writing the output image, suppress progress output.
 
 ## EXAMPLE
 
