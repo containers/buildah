@@ -15,10 +15,6 @@ import (
 
 var (
 	pushFlags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "disable-compression, D",
-			Usage: "don't compress layers",
-		},
 		cli.StringFlag{
 			Name:  "cert-dir",
 			Value: "",
@@ -29,17 +25,21 @@ var (
 			Value: "",
 			Usage: "use `username[:password]` for accessing the registry",
 		},
-		cli.BoolTFlag{
-			Name:  "tls-verify",
-			Usage: "Require HTTPS and verify certificates when accessing the registry",
+		cli.BoolFlag{
+			Name:  "disable-compression, D",
+			Usage: "don't compress layers",
+		},
+		cli.BoolFlag{
+			Name:  "quiet, q",
+			Usage: "don't output progress information when pushing images",
 		},
 		cli.StringFlag{
 			Name:  "signature-policy",
 			Usage: "`pathname` of signature policy file (not usually used)",
 		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "don't output progress information when pushing images",
+		cli.BoolTFlag{
+			Name:  "tls-verify",
+			Usage: "Require HTTPS and verify certificates when accessing the registry",
 		},
 	}
 	pushDescription = fmt.Sprintf(`
@@ -71,17 +71,9 @@ func pushCmd(c *cli.Context) error {
 	src := args[0]
 	destSpec := args[1]
 
-	signaturePolicy := ""
-	if c.IsSet("signature-policy") {
-		signaturePolicy = c.String("signature-policy")
-	}
-	compress := archive.Uncompressed
-	if !c.IsSet("disable-compression") || !c.Bool("disable-compression") {
-		compress = archive.Gzip
-	}
-	quiet := false
-	if c.IsSet("quiet") {
-		quiet = c.Bool("quiet")
+	compress := archive.Gzip
+	if c.Bool("disable-compression") {
+		compress = archive.Uncompressed
 	}
 
 	store, err := getStore(c)
@@ -111,11 +103,11 @@ func pushCmd(c *cli.Context) error {
 
 	options := buildah.PushOptions{
 		Compression:         compress,
-		SignaturePolicyPath: signaturePolicy,
+		SignaturePolicyPath: c.String("signature-policy"),
 		Store:               store,
 		SystemContext:       systemContext,
 	}
-	if !quiet {
+	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
 	}
 
