@@ -58,6 +58,10 @@ Defaults to *true*.
 
 Pull the image even if a version of the image is already present.
 
+**--quiet**
+
+If an image needs to be pulled from the registry, suppress progress output.
+
 **--signature-policy** *signaturepolicy*
 
 Pathname of a signature policy file to use.  It is not recommended that this
@@ -67,10 +71,6 @@ option be used, as the default behavior of using the system-wide default policy
 **--tls-verify** *bool-value*
 
 Require HTTPS and verify certificates when talking to container registries (defaults to true)
-
-**--quiet**
-
-If an image needs to be pulled from the registry, suppress progress output.
 
 ## EXAMPLE
 

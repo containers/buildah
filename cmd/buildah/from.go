@@ -12,18 +12,6 @@ import (
 var (
 	fromFlags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "name",
-			Usage: "`name` for the working container",
-		},
-		cli.BoolTFlag{
-			Name:  "pull",
-			Usage: "pull the image if not present",
-		},
-		cli.BoolFlag{
-			Name:  "pull-always",
-			Usage: "pull the image even if one with the same name is already present",
-		},
-		cli.StringFlag{
 			Name:  "cert-dir",
 			Value: "",
 			Usage: "use certificates at the specified path to access the registry",
@@ -33,17 +21,29 @@ var (
 			Value: "",
 			Usage: "use `username[:password]` for accessing the registry",
 		},
+		cli.StringFlag{
+			Name:  "name",
+			Usage: "`name` for the working container",
+		},
 		cli.BoolTFlag{
-			Name:  "tls-verify",
-			Usage: "Require HTTPS and verify certificates when accessing the registry",
+			Name:  "pull",
+			Usage: "pull the image if not present",
+		},
+		cli.BoolFlag{
+			Name:  "pull-always",
+			Usage: "pull the image even if named image is present in store (supersedes pull option)",
+		},
+		cli.BoolFlag{
+			Name:  "quiet, q",
+			Usage: "don't output progress information when pulling images",
 		},
 		cli.StringFlag{
 			Name:  "signature-policy",
 			Usage: "`pathname` of signature policy file (not usually used)",
 		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "don't output progress information when pulling images",
+		cli.BoolTFlag{
+			Name:  "tls-verify",
+			Usage: "Require HTTPS and verify certificates when accessing the registry",
 		},
 	}
 	fromDescription = "Creates a new working container, either from scratch or using a specified\n   image as a starting point"
@@ -68,43 +68,20 @@ func fromCmd(c *cli.Context) error {
 		return errors.Errorf("too many arguments specified")
 	}
 
-	image := args[0]
-
 	systemContext, err := systemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	pull := true
-	if c.IsSet("pull") {
-		pull = c.BoolT("pull")
-	}
-	pullAlways := false
-	if c.IsSet("pull-always") {
-		pull = c.Bool("pull-always")
-	}
-
 	pullPolicy := buildah.PullNever
-	if pull {
+	if c.BoolT("pull") {
 		pullPolicy = buildah.PullIfMissing
 	}
-	if pullAlways {
+	if c.Bool("pull-always") {
 		pullPolicy = buildah.PullAlways
 	}
 
-	name := ""
-	if c.IsSet("name") {
-		name = c.String("name")
-	}
-	signaturePolicy := ""
-	if c.IsSet("signature-policy") {
-		signaturePolicy = c.String("signature-policy")
-	}
-
-	quiet := false
-	if c.IsSet("quiet") {
-		quiet = c.Bool("quiet")
-	}
+	signaturePolicy := c.String("signature-policy")
 
 	store, err := getStore(c)
 	if err != nil {
@@ -112,13 +89,13 @@ func fromCmd(c *cli.Context) error {
 	}
 
 	options := buildah.BuilderOptions{
-		FromImage:           image,
-		Container:           name,
+		FromImage:           args[0],
+		Container:           c.String("name"),
 		PullPolicy:          pullPolicy,
 		SignaturePolicyPath: signaturePolicy,
 		SystemContext:       systemContext,
 	}
-	if !quiet {
+	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
 	}
 
