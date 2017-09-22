@@ -18,58 +18,58 @@ const (
 
 var (
 	configFlags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "author",
-			Usage: "image author contact `information`",
-		},
-		cli.StringFlag{
-			Name:  "created-by",
-			Usage: "`description` of how the image was created",
-			Value: DefaultCreatedBy,
+		cli.StringSliceFlag{
+			Name:  "annotation, a",
+			Usage: "add `annotation` e.g. annotation=value, for the target image",
 		},
 		cli.StringFlag{
 			Name:  "arch",
-			Usage: "`architecture` of the target image",
+			Usage: "set `architecture` of the target image",
 		},
 		cli.StringFlag{
-			Name:  "os",
-			Usage: "`operating system` of the target image",
-		},
-		cli.StringFlag{
-			Name:  "user, u",
-			Usage: "`user` to run containers based on image as",
-		},
-		cli.StringSliceFlag{
-			Name:  "port, p",
-			Usage: "`port` to expose when running containers based on image",
-		},
-		cli.StringSliceFlag{
-			Name:  "env, e",
-			Usage: "`environment variable` to set when running containers based on image",
-		},
-		cli.StringFlag{
-			Name:  "entrypoint",
-			Usage: "`entry point` for containers based on image",
+			Name:  "author",
+			Usage: "set image author contact `information`",
 		},
 		cli.StringFlag{
 			Name:  "cmd",
-			Usage: "`command` for containers based on image",
-		},
-		cli.StringSliceFlag{
-			Name:  "volume, v",
-			Usage: "`volume` to create for containers based on image",
+			Usage: "sets the default `command` to run for containers based on the image",
 		},
 		cli.StringFlag{
-			Name:  "workingdir",
-			Usage: "working `directory` for containers based on image",
+			Name:  "created-by",
+			Usage: "add `description` of how the image was created",
+			Value: DefaultCreatedBy,
+		},
+		cli.StringFlag{
+			Name:  "entrypoint",
+			Usage: "set `entry point` for containers based on image",
+		},
+		cli.StringSliceFlag{
+			Name:  "env, e",
+			Usage: "add `environment variable` to be set when running containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "label, l",
-			Usage: "image configuration `label` e.g. label=value",
+			Usage: "add image configuration `label` e.g. label=value",
+		},
+		cli.StringFlag{
+			Name:  "os",
+			Usage: "set `operating system` of the target image",
 		},
 		cli.StringSliceFlag{
-			Name:  "annotation, a",
-			Usage: "`annotation` e.g. annotation=value, for the target image",
+			Name:  "port, p",
+			Usage: "add `port` to expose when running containers based on image",
+		},
+		cli.StringFlag{
+			Name:  "user, u",
+			Usage: "set default `user` to run inside containers based on image",
+		},
+		cli.StringSliceFlag{
+			Name:  "volume, v",
+			Usage: "add default `volume` path to be created for containers based on image",
+		},
+		cli.StringFlag{
+			Name:  "workingdir",
+			Usage: "set working `directory` for containers based on image",
 		},
 	}
 	configDescription = "Modifies the configuration values which will be saved to the image"
