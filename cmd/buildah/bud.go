@@ -13,9 +13,17 @@ import (
 
 var (
 	budFlags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "refrain from announcing build instructions and image read/write progress",
+		cli.StringSliceFlag{
+			Name:  "build-arg",
+			Usage: "`argument=value` to supply to the builder",
+		},
+		cli.StringSliceFlag{
+			Name:  "file, f",
+			Usage: "`pathname or URL` of a Dockerfile",
+		},
+		cli.StringFlag{
+			Name:  "format",
+			Usage: "`format` of the built image's manifest and metadata",
 		},
 		cli.BoolTFlag{
 			Name:  "pull",
@@ -25,13 +33,9 @@ var (
 			Name:  "pull-always",
 			Usage: "pull the image, even if a version is present",
 		},
-		cli.StringFlag{
-			Name:  "signature-policy",
-			Usage: "`pathname` of signature policy file (not usually used)",
-		},
-		cli.StringSliceFlag{
-			Name:  "build-arg",
-			Usage: "`argument=value` to supply to the builder",
+		cli.BoolFlag{
+			Name:  "quiet, q",
+			Usage: "refrain from announcing build instructions and image read/write progress",
 		},
 		cli.StringFlag{
 			Name:  "runtime",
@@ -43,18 +47,15 @@ var (
 			Usage: "add global flags for the container runtime",
 		},
 		cli.StringFlag{
-			Name:  "format",
-			Usage: "`format` of the built image's manifest and metadata",
+			Name:  "signature-policy",
+			Usage: "`pathname` of signature policy file (not usually used)",
 		},
 		cli.StringSliceFlag{
 			Name:  "tag, t",
 			Usage: "`tag` to apply to the built image",
 		},
-		cli.StringSliceFlag{
-			Name:  "file, f",
-			Usage: "`pathname or URL` of a Dockerfile",
-		},
 	}
+
 	budDescription = "Builds an OCI image using instructions in one or more Dockerfiles."
 	budCommand     = cli.Command{
 		Name:        "build-using-dockerfile",
@@ -77,35 +78,14 @@ func budCmd(c *cli.Context) error {
 			tags = tags[1:]
 		}
 	}
-	pull := true
-	if c.IsSet("pull") {
-		pull = c.BoolT("pull")
-	}
-	pullAlways := false
-	if c.IsSet("pull-always") {
-		pull = c.Bool("pull-always")
-	}
-	runtimeFlags := []string{}
-	if c.IsSet("runtime-flag") {
-		runtimeFlags = c.StringSlice("runtime-flag")
-	}
-	runtime := ""
-	if c.IsSet("runtime") {
-		runtime = c.String("runtime")
-	}
-
 	pullPolicy := imagebuildah.PullNever
-	if pull {
+	if c.BoolT("pull") {
 		pullPolicy = imagebuildah.PullIfMissing
 	}
-	if pullAlways {
+	if c.Bool("pull-always") {
 		pullPolicy = imagebuildah.PullAlways
 	}
 
-	signaturePolicy := ""
-	if c.IsSet("signature-policy") {
-		signaturePolicy = c.String("signature-policy")
-	}
 	args := make(map[string]string)
 	if c.IsSet("build-arg") {
 		for _, arg := range c.StringSlice("build-arg") {
@@ -117,14 +97,8 @@ func budCmd(c *cli.Context) error {
 			}
 		}
 	}
-	quiet := false
-	if c.IsSet("quiet") {
-		quiet = c.Bool("quiet")
-	}
-	dockerfiles := []string{}
-	if c.IsSet("file") || c.IsSet("f") {
-		dockerfiles = c.StringSlice("file")
-	}
+
+	dockerfiles := c.StringSlice("file")
 	format := "oci"
 	if c.IsSet("format") {
 		format = strings.ToLower(c.String("format"))
@@ -200,16 +174,16 @@ func budCmd(c *cli.Context) error {
 		ContextDirectory:    contextDir,
 		PullPolicy:          pullPolicy,
 		Compression:         imagebuildah.Gzip,
-		Quiet:               quiet,
-		SignaturePolicyPath: signaturePolicy,
+		Quiet:               c.Bool("quiet"),
+		SignaturePolicyPath: c.String("signature-policy"),
 		Args:                args,
 		Output:              output,
 		AdditionalTags:      tags,
-		Runtime:             runtime,
-		RuntimeArgs:         runtimeFlags,
+		Runtime:             c.String("runtime"),
+		RuntimeArgs:         c.StringSlice("runtime-flag"),
 		OutputFormat:        format,
 	}
-	if !quiet {
+	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
 	}
 
