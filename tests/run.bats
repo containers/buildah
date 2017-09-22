@@ -171,3 +171,23 @@ load helpers
 	buildah unmount $cid
 	buildah rm $cid
 }
+
+@test "run --hostname" {
+	if ! which runc ; then
+		skip
+	fi
+	runc --version
+	createrandom ${TESTDIR}/randomfile
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json fedora)
+	root=$(buildah mount $cid)
+	run buildah --debug=false run  -- $cid dnf -y install hostname
+	[ "$status" -eq 0 ]
+	run buildah --debug=false run $cid hostname
+	[ "$status" -eq 0 ]
+	[ "$output" != "foobar" ]
+	run buildah --debug=false run --hostname foobar $cid hostname
+	[ "$status" -eq 0 ]
+	[ "$output" = "foobar" ]
+	buildah unmount $cid
+	buildah rm $cid
+}

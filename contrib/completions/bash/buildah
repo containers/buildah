@@ -384,6 +384,7 @@ return 1
   "
 
      local options_with_args="
+     --hostname
      --runtime
      --runtime-flag
      --volume
