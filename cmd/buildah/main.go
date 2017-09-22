@@ -27,6 +27,10 @@ func main() {
 		defaultStoreDriverOptions = &optionSlice
 	}
 	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: "print debugging information",
+		},
 		cli.StringFlag{
 			Name:  "root",
 			Usage: "storage root dir",
@@ -47,17 +51,11 @@ func main() {
 			Usage: "storage driver option",
 			Value: defaultStoreDriverOptions,
 		},
-		cli.BoolFlag{
-			Name:  "debug",
-			Usage: "print debugging information",
-		},
 	}
 	app.Before = func(c *cli.Context) error {
 		logrus.SetLevel(logrus.ErrorLevel)
-		if c.GlobalIsSet("debug") {
-			if c.GlobalBool("debug") {
-				logrus.SetLevel(logrus.DebugLevel)
-			}
+		if c.GlobalBool("debug") {
+			logrus.SetLevel(logrus.DebugLevel)
 		}
 		return nil
 	}
