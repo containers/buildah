@@ -22,12 +22,13 @@ ID: {{.ContainerID}}
 var (
 	inspectFlags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "type, t",
-			Usage: "look at the item of the specified `type` (container or image) and name",
-		},
-		cli.StringFlag{
 			Name:  "format, f",
 			Usage: "use `format` as a Go template to format the output",
+		},
+		cli.StringFlag{
+			Name:  "type, t",
+			Usage: "look at the item of the specified `type` (container or image) and name",
+			Value: inspectTypeContainer,
 		},
 	}
 	inspectDescription = "Inspects a build container's or built image's configuration."
@@ -52,22 +53,9 @@ func inspectCmd(c *cli.Context) error {
 		return errors.Errorf("too many arguments specified")
 	}
 
-	itemType := inspectTypeContainer
-	if c.IsSet("type") {
-		itemType = c.String("type")
-	}
-	switch itemType {
-	case inspectTypeContainer:
-	case inspectTypeImage:
-	default:
-		return errors.Errorf("the only recognized types are %q and %q", inspectTypeContainer, inspectTypeImage)
-	}
-
 	format := defaultFormat
-	if c.IsSet("format") {
-		if c.String("format") != "" {
-			format = c.String("format")
-		}
+	if c.String("format") != "" {
+		format = c.String("format")
 	}
 	t := template.Must(template.New("format").Parse(format))
 
@@ -78,7 +66,7 @@ func inspectCmd(c *cli.Context) error {
 		return err
 	}
 
-	switch itemType {
+	switch c.String("type") {
 	case inspectTypeContainer:
 		builder, err = openBuilder(store, name)
 		if err != nil {
@@ -89,6 +77,8 @@ func inspectCmd(c *cli.Context) error {
 		if err != nil {
 			return errors.Wrapf(err, "error reading image %q", name)
 		}
+	default:
+		return errors.Errorf("the only recognized types are %q and %q", inspectTypeContainer, inspectTypeImage)
 	}
 
 	if c.IsSet("format") {
