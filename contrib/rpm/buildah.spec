@@ -25,7 +25,7 @@
 %global shortcommit    %(c=%{commit}; echo ${c:0:7})
 
 Name:           buildah
-Version:        0.3
+Version:        0.4
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -87,6 +87,27 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Fri Sep 22 2017 Dan Walsh <dwalsh@redhat.com> 0.4-1.git9cbccf88c
+-   Add default transport to push if not provided
+-   Avoid trying to print a nil ImageReference
+-   Add authentication to commit and push
+-   Add information on buildah from man page on transports
+-   Remove --transport flag
+-   Run: do not complain about missing volume locations
+-   Add credentials to buildah from
+-   Remove export command
+-   Run(): create the right working directory
+-   Improve "from" behavior with unnamed references
+-   Avoid parsing image metadata for dates and layers
+-   Read the image's creation date from public API
+-   Bump containers/storage and containers/image
+-   Don't panic if an image's ID can't be parsed
+-   Turn on --enable-gc when running gometalinter
+-   rmi: handle truncated image IDs
+
+* Thu Jul 20 2017 Dan Walsh <dwalsh@redhat.com> 0.3.0-1
+- Bump for inclusion of OCI 1.0 Runtime and Image Spec
+
 * Tue Jul 18 2017 Dan Walsh <dwalsh@redhat.com> 0.2.0-1
 -   buildah run: Add support for -- ending options parsing 
 -   buildah Add/Copy support for glob syntax
