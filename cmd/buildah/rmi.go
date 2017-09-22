@@ -31,10 +31,7 @@ var (
 )
 
 func rmiCmd(c *cli.Context) error {
-	force := false
-	if c.IsSet("force") {
-		force = c.Bool("force")
-	}
+	force := c.Bool("force")
 
 	args := c.Args()
 	if len(args) == 0 {
