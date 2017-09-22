@@ -12,6 +12,11 @@ IDs, and the names and IDs of the images from which they were initialized.
 
 ## OPTIONS
 
+**--all, -a**
+
+List information about all containers, including those which were not created
+by and are not being used by buildah.
+
 **--json**
 
 Output in JSON format.
@@ -27,11 +32,6 @@ Do not truncate IDs in output.
 **--quiet, -q**
 
 Displays only the container IDs.
-
-**--all, -a**
-
-List information about all containers, including those which were not created
-by and are not being used by buildah.
 
 ## EXAMPLE
 
