@@ -59,19 +59,6 @@ func runCmd(c *cli.Context) error {
 		args = args[1:]
 	}
 
-	runtime := ""
-	if c.IsSet("runtime") {
-		runtime = c.String("runtime")
-	}
-	flags := []string{}
-	if c.IsSet("runtime-flag") {
-		flags = c.StringSlice("runtime-flag")
-	}
-	volumes := []string{}
-	if c.IsSet("v") || c.IsSet("volume") {
-		volumes = c.StringSlice("volume")
-	}
-
 	store, err := getStore(c)
 	if err != nil {
 		return err
@@ -84,19 +71,17 @@ func runCmd(c *cli.Context) error {
 
 	options := buildah.RunOptions{
 		Hostname: c.String("hostname"),
-		Runtime:  runtime,
-		Args:     flags,
+		Runtime:  c.String("runtime"),
+		Args:     c.StringSlice("runtime-flag"),
 	}
 
-	if c.IsSet("tty") {
-		if c.Bool("tty") {
-			options.Terminal = buildah.WithTerminal
-		} else {
-			options.Terminal = buildah.WithoutTerminal
-		}
+	if c.Bool("tty") {
+		options.Terminal = buildah.WithTerminal
+	} else {
+		options.Terminal = buildah.WithoutTerminal
 	}
 
-	for _, volumeSpec := range volumes {
+	for _, volumeSpec := range c.StringSlice("volume") {
 		volSpec := strings.Split(volumeSpec, ":")
 		if len(volSpec) >= 2 {
 			mountOptions := "bind"
