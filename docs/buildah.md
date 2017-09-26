@@ -18,6 +18,14 @@ The buildah package provides a command line tool which can be used to:
 
 ## OPTIONS
 
+**--debug**
+
+Print debugging information
+
+**--help, -h**
+
+Show help
+
 **--root** **value**
 
 Storage root dir (default: "/var/lib/containers/storage")
@@ -33,14 +41,6 @@ Storage driver
 **--storage-opt** **value**
 
 Storage driver option
-
-**--debug**
-
-Print debugging information
-
-**--help, -h**
-
-Show help
 
 **--version, -v**
 

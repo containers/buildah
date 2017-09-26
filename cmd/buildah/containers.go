@@ -20,8 +20,12 @@ type jsonContainer struct {
 var (
 	containersFlags = []cli.Flag{
 		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "display only container IDs",
+			Name:  "all, a",
+			Usage: "also list non-buildah containers",
+		},
+		cli.BoolFlag{
+			Name:  "json",
+			Usage: "output in JSON format",
 		},
 		cli.BoolFlag{
 			Name:  "noheading, n",
@@ -32,12 +36,8 @@ var (
 			Usage: "do not truncate output",
 		},
 		cli.BoolFlag{
-			Name:  "all, a",
-			Usage: "also list non-buildah containers",
-		},
-		cli.BoolFlag{
-			Name:  "json",
-			Usage: "output in JSON format",
+			Name:  "quiet, q",
+			Usage: "display only container IDs",
 		},
 	}
 	containersDescription = "Lists containers which appear to be " + buildah.Package + " working containers, their\n   names and IDs, and the names and IDs of the images from which they were\n   initialized"
@@ -57,34 +57,18 @@ func containersCmd(c *cli.Context) error {
 		return err
 	}
 
-	quiet := false
-	if c.IsSet("quiet") {
-		quiet = c.Bool("quiet")
-	}
-	noheading := false
-	if c.IsSet("noheading") {
-		noheading = c.Bool("noheading")
-	}
-	truncate := true
-	if c.IsSet("notruncate") {
-		truncate = !c.Bool("notruncate")
-	}
-	all := false
-	if c.IsSet("all") {
-		all = c.Bool("all")
-	}
-	jsonOut := false
+	quiet := c.Bool("quiet")
+	truncate := !c.Bool("notruncate")
 	JSONContainers := []jsonContainer{}
-	if c.IsSet("json") {
-		jsonOut = c.Bool("json")
-	}
+	jsonOut := c.Bool("json")
 
 	list := func(n int, containerID, imageID, image, container string, isBuilder bool) {
 		if jsonOut {
 			JSONContainers = append(JSONContainers, jsonContainer{ID: containerID, Builder: isBuilder, ImageID: imageID, ImageName: image, ContainerName: container})
 			return
 		}
-		if n == 0 && !noheading && !quiet {
+
+		if n == 0 && !c.Bool("noheading") && !quiet {
 			if truncate {
 				fmt.Printf("%-12s  %-8s %-12s %-32s %s\n", "CONTAINER ID", "BUILDER", "IMAGE ID", "IMAGE NAME", "CONTAINER NAME")
 			} else {
@@ -125,7 +109,7 @@ func containersCmd(c *cli.Context) error {
 	if err != nil {
 		return errors.Wrapf(err, "error reading build containers")
 	}
-	if !all {
+	if !c.Bool("all") {
 		for i, builder := range builders {
 			image := imageNameForID(builder.FromImageID)
 			list(i, builder.ContainerID, builder.FromImageID, image, builder.Container, true)

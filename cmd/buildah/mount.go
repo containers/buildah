@@ -35,10 +35,7 @@ func mountCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	truncate := true
-	if c.IsSet("notruncate") {
-		truncate = !c.Bool("notruncate")
-	}
+	truncate := !c.Bool("notruncate")
 
 	if len(args) == 1 {
 		name := args[0]

@@ -14,6 +14,13 @@ to a temporary location.
 
 ## OPTIONS
 
+**--build-arg** *arg=value*
+
+Specifies a build argument and its value, which will be interpolated in
+instructions read from the Dockerfiles in the same way that environment
+variables are, but which will not be added to environment variable list in the
+resulting image's configuration.
+
 **-f, --file** *Dockerfile*
 
 Specifies a Dockerfile which contains instructions for building the image,
@@ -25,6 +32,12 @@ If a build context is not specified, and at least one Dockerfile is a
 local file, the directory in which it resides will be used as the build
 context.
 
+**--format**
+
+Control the format for the built image's manifest and configuration data.
+Recognized formats include *oci* (OCI image-spec v1.0, the default) and
+*docker* (version 2, using schema format 2 for the manifest).
+
 **--pull**
 
 Pull the image if it is not present.  If this flag is disabled (with
@@ -35,18 +48,11 @@ Defaults to *true*.
 
 Pull the image even if a version of the image is already present.
 
-**--signature-policy** *signaturepolicy*
+**--quiet**
 
-Pathname of a signature policy file to use.  It is not recommended that this
-option be used, as the default behavior of using the system-wide default policy
-(frequently */etc/containers/policy.json*) is most often preferred.
-
-**--build-arg** *arg=value*
-
-Specifies a build argument and its value, which will be interpolated in
-instructions read from the Dockerfiles in the same way that environment
-variables are, but which will not be added to environment variable list in the
-resulting image's configuration.
+Suppress output messages which indicate which instruction is being processed,
+and of progress when pulling images from a registry, and when writing the
+output image.
 
 **--runtime** *path*
 
@@ -57,22 +63,16 @@ commands specified by the **RUN** instruction.
 
 Adds global flags for the container rutime.
 
+**--signature-policy** *signaturepolicy*
+
+Pathname of a signature policy file to use.  It is not recommended that this
+option be used, as the default behavior of using the system-wide default policy
+(frequently */etc/containers/policy.json*) is most often preferred.
+
 **-t, --tag** *imageName*
 
 Specifies the name which will be assigned to the resulting image if the build
 process completes successfully.
-
-**--format**
-
-Control the format for the built image's manifest and configuration data.
-Recognized formats include *oci* (OCI image-spec v1.0, the default) and
-*docker* (version 2, using schema format 2 for the manifest).
-
-**--quiet**
-
-Suppress output messages which indicate which instruction is being processed,
-and of progress when pulling images from a registry, and when writing the
-output image.
 
 ## EXAMPLE
 

@@ -11,10 +11,6 @@ Displays locally stored images, their names, and their IDs.
 
 ## OPTIONS
 
-**--json**
-
-Display the output in JSON format.
-
 **--digests**
 
 Show the image digests.
@@ -27,6 +23,10 @@ keywords are 'dangling', 'label', 'before' and 'since'.
 **--format="TEMPLATE"**
 
 Pretty-print images using a Go template.  Will override --quiet
+
+**--json**
+
+Display the output in JSON format.
 
 **--noheading, -n**
 

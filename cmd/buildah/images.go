@@ -42,8 +42,20 @@ type filterParams struct {
 var (
 	imagesFlags = []cli.Flag{
 		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "display only image IDs",
+			Name:  "digests",
+			Usage: "show digests",
+		},
+		cli.StringFlag{
+			Name:  "filter, f",
+			Usage: "filter output based on conditions provided",
+		},
+		cli.StringFlag{
+			Name:  "format",
+			Usage: "pretty-print images using a Go template. will override --quiet",
+		},
+		cli.BoolFlag{
+			Name:  "json",
+			Usage: "output in JSON format",
 		},
 		cli.BoolFlag{
 			Name:  "noheading, n",
@@ -54,20 +66,8 @@ var (
 			Usage: "do not truncate output",
 		},
 		cli.BoolFlag{
-			Name:  "json",
-			Usage: "output in JSON format",
-		},
-		cli.BoolFlag{
-			Name:  "digests",
-			Usage: "show digests",
-		},
-		cli.StringFlag{
-			Name:  "format",
-			Usage: "pretty-print images using a Go template. will override --quiet",
-		},
-		cli.StringFlag{
-			Name:  "filter, f",
-			Usage: "filter output based on conditions provided (default [])",
+			Name:  "quiet, q",
+			Usage: "display only image IDs",
 		},
 	}
 
@@ -93,28 +93,10 @@ func imagesCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error reading images")
 	}
 
-	quiet := false
-	if c.IsSet("quiet") {
-		quiet = c.Bool("quiet")
-	}
-	noheading := false
-	if c.IsSet("noheading") {
-		noheading = c.Bool("noheading")
-	}
-	truncate := true
-	if c.IsSet("no-trunc") {
-		truncate = !c.Bool("no-trunc")
-	}
-	digests := false
-	if c.IsSet("digests") {
-		digests = c.Bool("digests")
-	}
-	formatString := ""
-	hasTemplate := false
-	if c.IsSet("format") {
-		formatString = c.String("format")
-		hasTemplate = true
-	}
+	quiet := c.Bool("quiet")
+	truncate := !c.Bool("no-trunc")
+	digests := c.Bool("digests")
+	hasTemplate := c.IsSet("format")
 
 	name := ""
 	if len(c.Args()) == 1 {
@@ -144,11 +126,11 @@ func imagesCmd(c *cli.Context) error {
 		params = nil
 	}
 
-	if len(images) > 0 && !noheading && !quiet && !hasTemplate {
+	if len(images) > 0 && !c.Bool("noheading") && !quiet && !hasTemplate {
 		outputHeader(truncate, digests)
 	}
 
-	return outputImages(images, formatString, store, params, name, hasTemplate, truncate, digests, quiet)
+	return outputImages(images, c.String("format"), store, params, name, hasTemplate, truncate, digests, quiet)
 }
 
 func parseFilter(images []storage.Image, filter string) (*filterParams, error) {

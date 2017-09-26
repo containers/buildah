@@ -25,6 +25,21 @@ The username[:password] to use to authenticate with the registry if required.
 
 Don't compress filesystem layers when building the image.
 
+
+**--format**
+
+Control the format for the image manifest and configuration data.  Recognized
+formats include *oci* (OCI image-spec v1.0, the default) and *docker* (version
+2, using schema format 2 for the manifest).
+
+**--quiet**
+
+When writing the output image, suppress progress output.
+
+**--rm**
+Remove the container and its content after committing it to an image.
+Default leaves the container and its content in place.
+
 **--signature-policy**
 
 Pathname of a signature policy file to use.  It is not recommended that this
@@ -34,20 +49,6 @@ option be used, as the default behavior of using the system-wide default policy
 **--tls-verify** *bool-value*
 
 Require HTTPS and verify certificates when talking to container registries (defaults to true)
-
-**--quiet**
-
-When writing the output image, suppress progress output.
-
-**--format**
-
-Control the format for the image manifest and configuration data.  Recognized
-formats include *oci* (OCI image-spec v1.0, the default) and *docker* (version
-2, using schema format 2 for the manifest).
-
-**--rm**
-Remove the container and its content after committing it to an image.
-Default leaves the container and its content in place.
 
 ## EXAMPLE
 

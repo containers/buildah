@@ -15,10 +15,6 @@ import (
 
 var (
 	commitFlags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "disable-compression, D",
-			Usage: "don't compress layers",
-		},
 		cli.StringFlag{
 			Name:  "cert-dir",
 			Value: "",
@@ -29,17 +25,18 @@ var (
 			Value: "",
 			Usage: "use `username[:password]` for accessing the registry",
 		},
-		cli.BoolTFlag{
-			Name:  "tls-verify",
-			Usage: "Require HTTPS and verify certificates when accessing the registry",
-		},
-		cli.StringFlag{
-			Name:  "signature-policy",
-			Usage: "`pathname` of signature policy file (not usually used)",
+		cli.BoolFlag{
+			Name:  "disable-compression, D",
+			Usage: "don't compress layers",
 		},
 		cli.StringFlag{
 			Name:  "format, f",
 			Usage: "`format` of the image manifest and metadata",
+			Value: "oci",
+		},
+		cli.BoolFlag{
+			Name:  "quiet, q",
+			Usage: "don't output progress information when writing images",
 		},
 		cli.StringFlag{
 			Name:   "reference-time",
@@ -47,12 +44,16 @@ var (
 			Hidden: true,
 		},
 		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "don't output progress information when writing images",
-		},
-		cli.BoolFlag{
 			Name:  "rm",
 			Usage: "remove the container and its content after committing it to an image. Default leaves the container and its content in place.",
+		},
+		cli.StringFlag{
+			Name:  "signature-policy",
+			Usage: "`pathname` of signature policy file (not usually used)",
+		},
+		cli.BoolTFlag{
+			Name:  "tls-verify",
+			Usage: "Require HTTPS and verify certificates when accessing the registry",
 		},
 	}
 	commitDescription = "Writes a new image using the container's read-write layer and, if it is based\n   on an image, the layers of that image"
@@ -81,21 +82,9 @@ func commitCmd(c *cli.Context) error {
 	}
 	image := args[0]
 
-	signaturePolicy := ""
-	if c.IsSet("signature-policy") {
-		signaturePolicy = c.String("signature-policy")
-	}
-	compress := archive.Uncompressed
-	if !c.IsSet("disable-compression") || !c.Bool("disable-compression") {
-		compress = archive.Gzip
-	}
-	quiet := false
-	if c.IsSet("quiet") {
-		quiet = c.Bool("quiet")
-	}
-	format := "oci"
-	if c.IsSet("format") {
-		format = c.String("format")
+	compress := archive.Gzip
+	if c.Bool("disable-compression") {
+		compress = archive.Uncompressed
 	}
 	timestamp := time.Now().UTC()
 	if c.IsSet("reference-time") {
@@ -106,6 +95,8 @@ func commitCmd(c *cli.Context) error {
 		}
 		timestamp = finfo.ModTime().UTC()
 	}
+
+	format := c.String("format")
 	if strings.HasPrefix(strings.ToLower(format), "oci") {
 		format = buildah.OCIv1ImageManifest
 	} else if strings.HasPrefix(strings.ToLower(format), "docker") {
@@ -140,11 +131,11 @@ func commitCmd(c *cli.Context) error {
 	options := buildah.CommitOptions{
 		PreferredManifestType: format,
 		Compression:           compress,
-		SignaturePolicyPath:   signaturePolicy,
+		SignaturePolicyPath:   c.String("signature-policy"),
 		HistoryTimestamp:      &timestamp,
 		SystemContext:         systemContext,
 	}
-	if !quiet {
+	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
 	}
 	err = builder.Commit(dest, options)
