@@ -13,6 +13,8 @@ import (
 )
 
 func main() {
+	debug := false
+
 	var defaultStoreDriverOptions *cli.StringSlice
 	if buildah.InitReexec() {
 		return
@@ -55,6 +57,7 @@ func main() {
 	app.Before = func(c *cli.Context) error {
 		logrus.SetLevel(logrus.ErrorLevel)
 		if c.GlobalBool("debug") {
+			debug = true
 			logrus.SetLevel(logrus.DebugLevel)
 		}
 		return nil
@@ -90,7 +93,11 @@ func main() {
 	}
 	err := app.Run(os.Args)
 	if err != nil {
-		logrus.Errorf("%v", err)
-		os.Exit(1)
+		if debug {
+			logrus.Errorf(err.Error())
+		} else {
+			fmt.Fprintln(os.Stderr, err.Error())
+		}
+		cli.OsExiter(1)
 	}
 }
