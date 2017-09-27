@@ -52,6 +52,9 @@ func inspectCmd(c *cli.Context) error {
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
+	if err := validateFlags(c, inspectFlags); err != nil {
+		return err
+	}
 
 	format := defaultFormat
 	if c.String("format") != "" {

@@ -83,6 +83,9 @@ var (
 )
 
 func imagesCmd(c *cli.Context) error {
+	if err := validateFlags(c, imagesFlags); err != nil {
+		return err
+	}
 	store, err := getStore(c)
 	if err != nil {
 		return err

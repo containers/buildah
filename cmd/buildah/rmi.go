@@ -37,6 +37,9 @@ func rmiCmd(c *cli.Context) error {
 	if len(args) == 0 {
 		return errors.Errorf("image name or ID must be specified")
 	}
+	if err := validateFlags(c, rmiFlags); err != nil {
+		return err
+	}
 
 	store, err := getStore(c)
 	if err != nil {

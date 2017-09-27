@@ -81,6 +81,9 @@ func commitCmd(c *cli.Context) error {
 		return errors.Errorf("too many arguments specified")
 	}
 	image := args[0]
+	if err := validateFlags(c, commitFlags); err != nil {
+		return err
+	}
 
 	compress := archive.Gzip
 	if c.Bool("disable-compression") {

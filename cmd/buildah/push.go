@@ -68,6 +68,9 @@ func pushCmd(c *cli.Context) error {
 	if len(args) < 2 {
 		return errors.New("source and destination image IDs must be specified")
 	}
+	if err := validateFlags(c, pushFlags); err != nil {
+		return err
+	}
 	src := args[0]
 	destSpec := args[1]
 
