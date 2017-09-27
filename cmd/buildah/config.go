@@ -171,6 +171,9 @@ func configCmd(c *cli.Context) error {
 		return errors.Errorf("too many arguments specified")
 	}
 	name := args[0]
+	if err := validateFlags(c, configFlags); err != nil {
+		return err
+	}
 
 	store, err := getStore(c)
 	if err != nil {

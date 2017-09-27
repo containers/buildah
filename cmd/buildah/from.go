@@ -67,6 +67,9 @@ func fromCmd(c *cli.Context) error {
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
+	if err := validateFlags(c, fromFlags); err != nil {
+		return err
+	}
 
 	systemContext, err := systemContextFromOptions(c)
 	if err != nil {

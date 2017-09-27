@@ -52,6 +52,9 @@ var (
 )
 
 func containersCmd(c *cli.Context) error {
+	if err := validateFlags(c, containersFlags); err != nil {
+		return err
+	}
 	store, err := getStore(c)
 	if err != nil {
 		return err

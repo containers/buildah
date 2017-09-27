@@ -30,6 +30,9 @@ func mountCmd(c *cli.Context) error {
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
+	if err := validateFlags(c, mountFlags); err != nil {
+		return err
+	}
 
 	store, err := getStore(c)
 	if err != nil {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"reflect"
 	"strings"
 	"syscall"
 	"time"
@@ -157,4 +158,35 @@ func getDockerAuth(creds string) (*types.DockerAuthConfig, error) {
 		Username: username,
 		Password: password,
 	}, nil
+}
+
+// validateFlags searches for StringFlags or StringSlice flags that never had
+// a value set.  This commonly occurs when the CLI mistakently takes the next
+// option and uses it as a value.
+func validateFlags(c *cli.Context, flags []cli.Flag) error {
+	for _, flag := range flags {
+		switch reflect.TypeOf(flag).String() {
+		case "cli.StringSliceFlag":
+			{
+				f := flag.(cli.StringSliceFlag)
+				name := strings.Split(f.Name, ",")
+				val := c.StringSlice(name[0])
+				for _, v := range val {
+					if v != "" && v[0] == '-' {
+						return errors.Errorf("option --%s requires a value", name[0])
+					}
+				}
+			}
+		case "cli.StringFlag":
+			{
+				f := flag.(cli.StringFlag)
+				name := strings.Split(f.Name, ",")
+				val := c.String(name[0])
+				if val != "" && val[0] == '-' {
+					return errors.Errorf("option --%s requires a value", name[0])
+				}
+			}
+		}
+	}
+	return nil
 }

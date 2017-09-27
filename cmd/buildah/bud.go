@@ -164,6 +164,9 @@ func budCmd(c *cli.Context) error {
 	if len(dockerfiles) == 0 {
 		dockerfiles = append(dockerfiles, filepath.Join(contextDir, "Dockerfile"))
 	}
+	if err := validateFlags(c, budFlags); err != nil {
+		return err
+	}
 
 	store, err := getStore(c)
 	if err != nil {

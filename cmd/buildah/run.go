@@ -54,6 +54,10 @@ func runCmd(c *cli.Context) error {
 		return errors.Errorf("container ID must be specified")
 	}
 	name := args[0]
+	if err := validateFlags(c, runFlags); err != nil {
+		return err
+	}
+
 	args = args.Tail()
 	if len(args) > 0 && args[0] == "--" {
 		args = args[1:]
