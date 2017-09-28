@@ -15,6 +15,8 @@ The buildah package provides a command line tool which can be used to
 * use the updated contents of a container's root filesystem as a filesystem layer to create a new image
 * delete a working container or an image
 
+**[Changelog](CHANGELOG.md)**
+
 **Installation notes**
 
 Prior to installing buildah, install the following packages on your linux distro:
