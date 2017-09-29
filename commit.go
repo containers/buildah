@@ -2,6 +2,7 @@ package buildah
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"time"
 
@@ -330,6 +331,9 @@ func Push(image string, dest types.ImageReference, options PushOptions) error {
 	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext))
 	if err != nil {
 		return errors.Wrapf(err, "error copying layers and metadata")
+	}
+	if options.ReportWriter != nil {
+		fmt.Fprintf(options.ReportWriter, "\n")
 	}
 	return nil
 }
