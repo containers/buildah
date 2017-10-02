@@ -4,6 +4,7 @@ PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
 BUILDFLAGS := -tags "$(AUTOTAGS) $(TAGS)"
+GO := go
 
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 BUILD_INFO := $(shell date +%s)
@@ -16,10 +17,10 @@ LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_I
 all: buildah imgtype docs
 
 buildah: *.go imagebuildah/*.go cmd/buildah/*.go docker/*.go util/*.go
-	go build $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
+	$(GO) build $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
 
 imgtype: *.go docker/*.go util/*.go tests/imgtype.go
-	go build $(LDFLAGS) -o imgtype $(BUILDFLAGS) ./tests/imgtype.go
+	$(GO) build $(LDFLAGS) -o imgtype $(BUILDFLAGS) ./tests/imgtype.go
 
 .PHONY: clean
 clean:
@@ -50,16 +51,16 @@ validate:
 
 .PHONY: install.tools
 install.tools:
-	go get -u $(BUILDFLAGS) github.com/cpuguy83/go-md2man
-	go get -u $(BUILDFLAGS) github.com/vbatts/git-validation
-	go get -u $(BUILDFLAGS) gopkg.in/alecthomas/gometalinter.v1
+	$(GO) get -u $(BUILDFLAGS) github.com/cpuguy83/go-md2man
+	$(GO) get -u $(BUILDFLAGS) github.com/vbatts/git-validation
+	$(GO) get -u $(BUILDFLAGS) gopkg.in/alecthomas/gometalinter.v1
 	gometalinter.v1 -i
 
 .PHONY: runc
 runc: gopath
 	rm -rf ../../opencontainers/runc
 	git clone https://github.com/opencontainers/runc ../../opencontainers/runc
-	cd ../../opencontainers/runc && git checkout $(RUNC_COMMIT) && go build -tags "$(AUTOTAGS) $(TAGS)"
+	cd ../../opencontainers/runc && git checkout $(RUNC_COMMIT) && $(GO) build -tags "$(AUTOTAGS) $(TAGS)"
 	ln -sf ../../opencontainers/runc/runc
 
 .PHONY: install.libseccomp.sudo
