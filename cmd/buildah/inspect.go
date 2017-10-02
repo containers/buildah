@@ -73,7 +73,13 @@ func inspectCmd(c *cli.Context) error {
 	case inspectTypeContainer:
 		builder, err = openBuilder(store, name)
 		if err != nil {
-			return errors.Wrapf(err, "error reading build container %q", name)
+			if c.IsSet("type") {
+				return errors.Wrapf(err, "error reading build container %q", name)
+			}
+			builder, err = openImage(store, name)
+			if err != nil {
+				return errors.Wrapf(err, "error reading build object %q", name)
+			}
 		}
 	case inspectTypeImage:
 		builder, err = openImage(store, name)
