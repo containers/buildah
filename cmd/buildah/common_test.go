@@ -1,15 +1,29 @@
 package main
 
 import (
+	"flag"
+	"os"
 	"os/user"
 	"testing"
 
-	"flag"
-
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
+	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
+
+var (
+	signaturePolicyPath = ""
+)
+
+func TestMain(m *testing.M) {
+	flag.StringVar(&signaturePolicyPath, "signature-policy", "", "pathname of signature policy file (not usually used)")
+	flag.Parse()
+	if buildah.InitReexec() {
+		return
+	}
+	os.Exit(m.Run())
+}
 
 func TestGetStore(t *testing.T) {
 	// Make sure the tests are running as root
@@ -60,16 +74,19 @@ func failTestIfNotRoot(t *testing.T) {
 	}
 }
 
-func pullTestImage(imageName string) error {
-	set := flag.NewFlagSet("test", 0)
-	set.Bool("pull", true, "pull the image if not present")
-	globalSet := flag.NewFlagSet("globaltest", 0)
-	globalCtx := cli.NewContext(nil, globalSet, nil)
-	command := cli.Command{Name: "imagesCommand"}
-	c := cli.NewContext(nil, set, globalCtx)
-	c.Command = command
-	c.Set("pull", "true")
-	c.Args = append(c.Args, imageName)
+func pullTestImage(t *testing.T, imageName string) error {
+	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := buildah.BuilderOptions{
+		FromImage:           imageName,
+		SignaturePolicyPath: signaturePolicyPath,
+	}
 
-	return fromCommand(c)
+	b, err := buildah.NewBuilder(store, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b.Delete()
 }

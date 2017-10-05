@@ -344,7 +344,7 @@ func TestParseFilterAllParams(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
@@ -352,7 +352,7 @@ func TestParseFilterAllParams(t *testing.T) {
 	label := "dangling=true,label=a=b,before=busybox:latest,since=busybox:latest,reference=abcdef"
 	params, err := parseFilter(images, label)
 	if err != nil {
-		t.Fatalf("error parsing filter")
+		t.Fatalf("error parsing filter: %v", err)
 	}
 
 	expectedParams := &filterParams{dangling: "true", label: "a=b", beforeImage: "busybox:latest", sinceImage: "busybox:latest", referencePattern: "abcdef"}
@@ -376,7 +376,7 @@ func TestParseFilterInvalidDangling(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
@@ -403,7 +403,7 @@ func TestParseFilterInvalidBefore(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
@@ -430,7 +430,7 @@ func TestParseFilterInvalidSince(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
@@ -457,7 +457,7 @@ func TestParseFilterInvalidFilter(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}

@@ -10,7 +10,7 @@ import (
 
 func TestProperImageRefTrue(t *testing.T) {
 	// Pull an image so we know we have it
-	err := pullTestImage("busybox:latest")
+	err := pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove")
 	}
@@ -25,7 +25,7 @@ func TestProperImageRefTrue(t *testing.T) {
 
 func TestProperImageRefFalse(t *testing.T) {
 	// Pull an image so we know we have it
-	err := pullTestImage("busybox:latest")
+	err := pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatal("could not pull image to remove")
 	}
@@ -49,7 +49,7 @@ func TestStorageImageRefTrue(t *testing.T) {
 		t.Fatalf("could not get store: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestStorageImageRefFalse(t *testing.T) {
 		t.Fatalf("could not get store: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestStorageImageIDTrue(t *testing.T) {
 		t.Fatalf("could not get store: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
