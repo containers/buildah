@@ -344,18 +344,40 @@ func TestParseFilterAllParams(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage(t, "busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	label := "dangling=true,label=a=b,before=busybox:latest,since=busybox:latest,reference=abcdef"
-	params, err := parseFilter(images, label)
+	params, err := parseFilter(store, images, label)
 	if err != nil {
 		t.Fatalf("error parsing filter: %v", err)
 	}
 
-	expectedParams := &filterParams{dangling: "true", label: "a=b", beforeImage: "busybox:latest", sinceImage: "busybox:latest", referencePattern: "abcdef"}
+	ref, err := is.Transport.ParseStoreReference(store, "busybox:latest")
+	if err != nil {
+		t.Fatalf("error parsing store reference: %v", err)
+	}
+	img, err := ref.NewImage(nil)
+	if err != nil {
+		t.Fatalf("error reading image from store: %v", err)
+	}
+	defer img.Close()
+	inspect, err := img.Inspect()
+	if err != nil {
+		t.Fatalf("error inspecting image in store: %v", err)
+	}
+
+	expectedParams := &filterParams{
+		dangling:         "true",
+		label:            "a=b",
+		beforeImage:      "busybox:latest",
+		beforeDate:       inspect.Created,
+		sinceImage:       "busybox:latest",
+		sinceDate:        inspect.Created,
+		referencePattern: "abcdef",
+	}
 	if *params != *expectedParams {
 		t.Errorf("filter did not return expected result\n\tExpected: %v\n\tReceived: %v", expectedParams, params)
 	}
@@ -376,13 +398,13 @@ func TestParseFilterInvalidDangling(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage(t, "busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	label := "dangling=NO,label=a=b,before=busybox:latest,since=busybox:latest,reference=abcdef"
-	_, err = parseFilter(images, label)
+	_, err = parseFilter(store, images, label)
 	if err == nil || err.Error() != "invalid filter: 'dangling=[NO]'" {
 		t.Fatalf("expected error parsing filter")
 	}
@@ -403,13 +425,13 @@ func TestParseFilterInvalidBefore(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage(t, "busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	label := "dangling=false,label=a=b,before=:,since=busybox:latest,reference=abcdef"
-	_, err = parseFilter(images, label)
+	_, err = parseFilter(store, images, label)
 	if err == nil || !strings.Contains(err.Error(), "no such id") {
 		t.Fatalf("expected error parsing filter")
 	}
@@ -430,13 +452,13 @@ func TestParseFilterInvalidSince(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage(t, "busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	label := "dangling=false,label=a=b,before=busybox:latest,since=:,reference=abcdef"
-	_, err = parseFilter(images, label)
+	_, err = parseFilter(store, images, label)
 	if err == nil || !strings.Contains(err.Error(), "no such id") {
 		t.Fatalf("expected error parsing filter")
 	}
@@ -457,13 +479,13 @@ func TestParseFilterInvalidFilter(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage(t, "busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	label := "foo=bar"
-	_, err = parseFilter(images, label)
+	_, err = parseFilter(store, images, label)
 	if err == nil || err.Error() != "invalid filter: 'foo'" {
 		t.Fatalf("expected error parsing filter")
 	}

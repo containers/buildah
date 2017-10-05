@@ -74,7 +74,7 @@ func failTestIfNotRoot(t *testing.T) {
 	}
 }
 
-func pullTestImage(t *testing.T, imageName string) error {
+func pullTestImage(t *testing.T, imageName string) (string, error) {
 	store, err := storage.GetStore(storage.DefaultStoreOptions)
 	if err != nil {
 		t.Fatal(err)
@@ -88,5 +88,10 @@ func pullTestImage(t *testing.T, imageName string) error {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return b.Delete()
+	id := b.FromImageID
+	err = b.Delete()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id, nil
 }
