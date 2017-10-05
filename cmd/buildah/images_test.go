@@ -62,7 +62,7 @@ func TestFormatStringOutput(t *testing.T) {
 	output := captureOutput(func() {
 		outputUsingFormatString(true, true, params)
 	})
-	expectedOutput := fmt.Sprintf("%-12.12s %-40s %-64s %-22s %s\n", params.ID, params.Name, params.Digest, params.CreatedAt, params.Size)
+	expectedOutput := fmt.Sprintf("%-20.12s %-56s %-64s %-22s %s\n", params.ID, params.Name, params.Digest, params.CreatedAt, params.Size)
 	if output != expectedOutput {
 		t.Errorf("Error outputting using format string:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
 	}
@@ -89,7 +89,7 @@ func TestOutputHeader(t *testing.T) {
 	output := captureOutput(func() {
 		outputHeader(true, false)
 	})
-	expectedOutput := fmt.Sprintf("%-12s %-40s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "CREATED AT", "SIZE")
+	expectedOutput := fmt.Sprintf("%-20s %-56s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "CREATED AT", "SIZE")
 	if output != expectedOutput {
 		t.Errorf("Error outputting header:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
 	}
@@ -97,7 +97,7 @@ func TestOutputHeader(t *testing.T) {
 	output = captureOutput(func() {
 		outputHeader(true, true)
 	})
-	expectedOutput = fmt.Sprintf("%-12s %-40s %-64s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "DIGEST", "CREATED AT", "SIZE")
+	expectedOutput = fmt.Sprintf("%-20s %-56s %-64s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "DIGEST", "CREATED AT", "SIZE")
 	if output != expectedOutput {
 		t.Errorf("Error outputting header:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
 	}
@@ -105,7 +105,7 @@ func TestOutputHeader(t *testing.T) {
 	output = captureOutput(func() {
 		outputHeader(false, false)
 	})
-	expectedOutput = fmt.Sprintf("%-64s %-40s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "CREATED AT", "SIZE")
+	expectedOutput = fmt.Sprintf("%-64s %-56s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "CREATED AT", "SIZE")
 	if output != expectedOutput {
 		t.Errorf("Error outputting header:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
 	}
