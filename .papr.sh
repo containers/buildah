@@ -15,6 +15,7 @@ dnf install -y \
   findutils \
   git \
   glib2-devel \
+  gnupg \
   golang \
   gpgme-devel \
   libassuan-devel \
@@ -28,5 +29,4 @@ dnf install -y \
 # short-commit-subject validation test, so tell git-validate.sh to only check
 # up to, but not including, the merge commit.
 export GITVALIDATE_TIP=$(cd $GOSRC; git log -2 --pretty='%H' | tail -n 1)
-make -C $GOSRC install.tools runc all validate TAGS="seccomp"
-$GOSRC/tests/test_runner.sh
+make -C $GOSRC install.tools runc all validate test-unit test-integration TAGS="seccomp"
