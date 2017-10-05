@@ -54,6 +54,12 @@ func TestGetSize(t *testing.T) {
 		is.Transport.SetStore(store)
 	}
 
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
+	}
+
 	images, err := store.Images()
 	if err != nil {
 		t.Fatalf("Error reading images: %v", err)

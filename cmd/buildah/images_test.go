@@ -175,6 +175,12 @@ func TestOutputImagesQuietTruncated(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
+	}
+
 	// Tests quiet and truncated output
 	output, err := captureOutputWithError(func() error {
 		return outputImages(images[:1], "", store, nil, "", false, true, false, true)
@@ -196,6 +202,12 @@ func TestOutputImagesQuietNotTruncated(t *testing.T) {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	images, err := store.Images()
@@ -226,6 +238,12 @@ func TestOutputImagesFormatString(t *testing.T) {
 		is.Transport.SetStore(store)
 	}
 
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
+	}
+
 	images, err := store.Images()
 	if err != nil {
 		t.Fatalf("Error reading images: %v", err)
@@ -252,6 +270,12 @@ func TestOutputImagesFormatTemplate(t *testing.T) {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	images, err := store.Images()
@@ -282,6 +306,12 @@ func TestOutputImagesArgNoMatch(t *testing.T) {
 		is.Transport.SetStore(store)
 	}
 
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
+	}
+
 	images, err := store.Images()
 	if err != nil {
 		t.Fatalf("Error reading images: %v", err)
@@ -310,6 +340,16 @@ func TestOutputMultipleImages(t *testing.T) {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+
+	// Pull two images so that we know we have at least two
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
+	}
+	_, err = pullTestImage(t, "alpine:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	images, err := store.Images()
@@ -529,6 +569,13 @@ func TestMatchesBeforeImageTrue(t *testing.T) {
 	} else if store != nil {
 		is.Transport.SetStore(store)
 	}
+
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
+	}
+
 	images, err := store.Images()
 	if err != nil {
 		t.Fatalf("Error reading images: %v", err)
@@ -552,6 +599,11 @@ func TestMatchesBeforeImageFalse(t *testing.T) {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 	images, err := store.Images()
 	if err != nil {
@@ -578,6 +630,11 @@ func TestMatchesSinceeImageTrue(t *testing.T) {
 	} else if store != nil {
 		is.Transport.SetStore(store)
 	}
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
+	}
 	images, err := store.Images()
 	if err != nil {
 		t.Fatalf("Error reading images: %v", err)
@@ -601,6 +658,11 @@ func TestMatchesSinceImageFalse(t *testing.T) {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 	images, err := store.Images()
 	if err != nil {
