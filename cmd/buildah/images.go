@@ -210,7 +210,7 @@ func outputImages(images []storage.Image, format string, store storage.Store, fi
 			}
 		}
 
-		names := []string{""}
+		names := []string{}
 		if len(image.Names) > 0 {
 			names = image.Names
 		} else {
