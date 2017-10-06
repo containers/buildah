@@ -10,6 +10,6 @@ required: true
 
 tests:
   # mount yum repos to inherit injected mirrors from PAPR
-  - docker run --privileged -v /etc/yum.repos.d:/etc/yum.repos.d.host:ro
+  - docker run --net=host --privileged -v /etc/yum.repos.d:/etc/yum.repos.d.host:ro
     -v $PWD:/code registry.fedoraproject.org/fedora:26 sh -c
     "cp -fv /etc/yum.repos.d{.host/*.repo,} && /code/.papr.sh"
