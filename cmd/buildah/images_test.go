@@ -163,7 +163,7 @@ func TestOutputImagesQuietTruncated(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -197,7 +197,7 @@ func TestOutputImagesQuietNotTruncated(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -231,7 +231,7 @@ func TestOutputImagesFormatString(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -265,7 +265,7 @@ func TestOutputImagesFormatTemplate(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -299,7 +299,7 @@ func TestOutputImagesArgNoMatch(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -335,7 +335,7 @@ func TestOutputMultipleImages(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -373,7 +373,7 @@ func TestParseFilterAllParams(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -427,7 +427,7 @@ func TestParseFilterInvalidDangling(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -454,7 +454,7 @@ func TestParseFilterInvalidBefore(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -481,7 +481,7 @@ func TestParseFilterInvalidSince(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -508,7 +508,7 @@ func TestParseFilterInvalidFilter(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -563,7 +563,7 @@ func TestMatchesBeforeImageTrue(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -594,7 +594,7 @@ func TestMatchesBeforeImageFalse(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -624,7 +624,7 @@ func TestMatchesSinceeImageTrue(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -653,7 +653,7 @@ func TestMatchesSinceImageFalse(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {

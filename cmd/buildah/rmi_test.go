@@ -40,8 +40,7 @@ func TestStorageImageRefTrue(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	options := storage.DefaultStoreOptions
-	store, err := storage.GetStore(options)
+	store, err := storage.GetStore(storeOptions)
 	if store != nil {
 		is.Transport.SetStore(store)
 	}
@@ -65,8 +64,7 @@ func TestStorageImageRefFalse(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	options := storage.DefaultStoreOptions
-	store, err := storage.GetStore(options)
+	store, err := storage.GetStore(storeOptions)
 	if store != nil {
 		is.Transport.SetStore(store)
 	}
@@ -88,8 +86,7 @@ func TestStorageImageIDTrue(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	options := storage.DefaultStoreOptions
-	store, err := storage.GetStore(options)
+	store, err := storage.GetStore(storeOptions)
 	if store != nil {
 		is.Transport.SetStore(store)
 	}
@@ -126,8 +123,7 @@ func TestStorageImageIDFalse(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	options := storage.DefaultStoreOptions
-	store, err := storage.GetStore(options)
+	store, err := storage.GetStore(storeOptions)
 	if store != nil {
 		is.Transport.SetStore(store)
 	}
