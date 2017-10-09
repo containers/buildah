@@ -1,15 +1,44 @@
 package main
 
 import (
+	"flag"
+	"os"
 	"os/user"
 	"testing"
 
-	"flag"
-
+	"github.com/Sirupsen/logrus"
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
+	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
+
+var (
+	signaturePolicyPath = ""
+	storeOptions        = storage.DefaultStoreOptions
+)
+
+func TestMain(m *testing.M) {
+	flag.StringVar(&signaturePolicyPath, "signature-policy", "", "pathname of signature policy file (not usually used)")
+	options := storage.StoreOptions{}
+	debug := false
+	flag.StringVar(&options.GraphRoot, "root", "", "storage root dir")
+	flag.StringVar(&options.RunRoot, "runroot", "", "storage state dir")
+	flag.StringVar(&options.GraphDriverName, "storage-driver", "", "storage driver")
+	flag.BoolVar(&debug, "debug", false, "turn on debug logging")
+	flag.Parse()
+	if options.GraphRoot != "" || options.RunRoot != "" || options.GraphDriverName != "" {
+		storeOptions = options
+	}
+	if buildah.InitReexec() {
+		return
+	}
+	logrus.SetLevel(logrus.ErrorLevel)
+	if debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
+	os.Exit(m.Run())
+}
 
 func TestGetStore(t *testing.T) {
 	// Make sure the tests are running as root
@@ -17,9 +46,14 @@ func TestGetStore(t *testing.T) {
 
 	set := flag.NewFlagSet("test", 0)
 	globalSet := flag.NewFlagSet("test", 0)
-	globalSet.String("root", "", "path to the root directory in which data, including images,  is stored")
+	globalSet.String("root", "", "path to the directory in which data, including images, is stored")
+	globalSet.String("runroot", "", "path to the directory in which state is stored")
+	globalSet.String("storage-driver", "", "storage driver")
 	globalCtx := cli.NewContext(nil, globalSet, nil)
-	command := cli.Command{Name: "imagesCommand"}
+	globalCtx.GlobalSet("root", storeOptions.GraphRoot)
+	globalCtx.GlobalSet("runroot", storeOptions.RunRoot)
+	globalCtx.GlobalSet("storage-driver", storeOptions.GraphDriverName)
+	command := cli.Command{Name: "TestGetStore"}
 	c := cli.NewContext(nil, set, globalCtx)
 	c.Command = command
 
@@ -33,11 +67,17 @@ func TestGetSize(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	images, err := store.Images()
@@ -60,16 +100,24 @@ func failTestIfNotRoot(t *testing.T) {
 	}
 }
 
-func pullTestImage(imageName string) error {
-	set := flag.NewFlagSet("test", 0)
-	set.Bool("pull", true, "pull the image if not present")
-	globalSet := flag.NewFlagSet("globaltest", 0)
-	globalCtx := cli.NewContext(nil, globalSet, nil)
-	command := cli.Command{Name: "imagesCommand"}
-	c := cli.NewContext(nil, set, globalCtx)
-	c.Command = command
-	c.Set("pull", "true")
-	c.Args = append(c.Args, imageName)
+func pullTestImage(t *testing.T, imageName string) (string, error) {
+	store, err := storage.GetStore(storeOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := buildah.BuilderOptions{
+		FromImage:           imageName,
+		SignaturePolicyPath: signaturePolicyPath,
+	}
 
-	return fromCommand(c)
+	b, err := buildah.NewBuilder(store, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := b.FromImageID
+	err = b.Delete()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id, nil
 }

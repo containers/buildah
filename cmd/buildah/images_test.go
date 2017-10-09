@@ -62,7 +62,7 @@ func TestFormatStringOutput(t *testing.T) {
 	output := captureOutput(func() {
 		outputUsingFormatString(true, true, params)
 	})
-	expectedOutput := fmt.Sprintf("%-12.12s %-40s %-64s %-22s %s\n", params.ID, params.Name, params.Digest, params.CreatedAt, params.Size)
+	expectedOutput := fmt.Sprintf("%-20.12s %-56s %-64s %-22s %s\n", params.ID, params.Name, params.Digest, params.CreatedAt, params.Size)
 	if output != expectedOutput {
 		t.Errorf("Error outputting using format string:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
 	}
@@ -89,7 +89,7 @@ func TestOutputHeader(t *testing.T) {
 	output := captureOutput(func() {
 		outputHeader(true, false)
 	})
-	expectedOutput := fmt.Sprintf("%-12s %-40s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "CREATED AT", "SIZE")
+	expectedOutput := fmt.Sprintf("%-20s %-56s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "CREATED AT", "SIZE")
 	if output != expectedOutput {
 		t.Errorf("Error outputting header:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
 	}
@@ -97,7 +97,7 @@ func TestOutputHeader(t *testing.T) {
 	output = captureOutput(func() {
 		outputHeader(true, true)
 	})
-	expectedOutput = fmt.Sprintf("%-12s %-40s %-64s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "DIGEST", "CREATED AT", "SIZE")
+	expectedOutput = fmt.Sprintf("%-20s %-56s %-64s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "DIGEST", "CREATED AT", "SIZE")
 	if output != expectedOutput {
 		t.Errorf("Error outputting header:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
 	}
@@ -105,7 +105,7 @@ func TestOutputHeader(t *testing.T) {
 	output = captureOutput(func() {
 		outputHeader(false, false)
 	})
-	expectedOutput = fmt.Sprintf("%-64s %-40s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "CREATED AT", "SIZE")
+	expectedOutput = fmt.Sprintf("%-64s %-56s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "CREATED AT", "SIZE")
 	if output != expectedOutput {
 		t.Errorf("Error outputting header:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
 	}
@@ -163,7 +163,7 @@ func TestOutputImagesQuietTruncated(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -173,6 +173,12 @@ func TestOutputImagesQuietTruncated(t *testing.T) {
 	images, err := store.Images()
 	if err != nil {
 		t.Fatalf("Error reading images: %v", err)
+	}
+
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	// Tests quiet and truncated output
@@ -191,11 +197,17 @@ func TestOutputImagesQuietNotTruncated(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	images, err := store.Images()
@@ -219,11 +231,17 @@ func TestOutputImagesFormatString(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	images, err := store.Images()
@@ -247,11 +265,17 @@ func TestOutputImagesFormatTemplate(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	images, err := store.Images()
@@ -275,11 +299,17 @@ func TestOutputImagesArgNoMatch(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	images, err := store.Images()
@@ -305,11 +335,21 @@ func TestOutputMultipleImages(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+
+	// Pull two images so that we know we have at least two
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
+	}
+	_, err = pullTestImage(t, "alpine:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	images, err := store.Images()
@@ -333,7 +373,7 @@ func TestParseFilterAllParams(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -344,18 +384,40 @@ func TestParseFilterAllParams(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	label := "dangling=true,label=a=b,before=busybox:latest,since=busybox:latest,reference=abcdef"
-	params, err := parseFilter(images, label)
+	params, err := parseFilter(store, images, label)
 	if err != nil {
-		t.Fatalf("error parsing filter")
+		t.Fatalf("error parsing filter: %v", err)
 	}
 
-	expectedParams := &filterParams{dangling: "true", label: "a=b", beforeImage: "busybox:latest", sinceImage: "busybox:latest", referencePattern: "abcdef"}
+	ref, err := is.Transport.ParseStoreReference(store, "busybox:latest")
+	if err != nil {
+		t.Fatalf("error parsing store reference: %v", err)
+	}
+	img, err := ref.NewImage(nil)
+	if err != nil {
+		t.Fatalf("error reading image from store: %v", err)
+	}
+	defer img.Close()
+	inspect, err := img.Inspect()
+	if err != nil {
+		t.Fatalf("error inspecting image in store: %v", err)
+	}
+
+	expectedParams := &filterParams{
+		dangling:         "true",
+		label:            "a=b",
+		beforeImage:      "busybox:latest",
+		beforeDate:       inspect.Created,
+		sinceImage:       "busybox:latest",
+		sinceDate:        inspect.Created,
+		referencePattern: "abcdef",
+	}
 	if *params != *expectedParams {
 		t.Errorf("filter did not return expected result\n\tExpected: %v\n\tReceived: %v", expectedParams, params)
 	}
@@ -365,7 +427,7 @@ func TestParseFilterInvalidDangling(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -376,13 +438,13 @@ func TestParseFilterInvalidDangling(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	label := "dangling=NO,label=a=b,before=busybox:latest,since=busybox:latest,reference=abcdef"
-	_, err = parseFilter(images, label)
+	_, err = parseFilter(store, images, label)
 	if err == nil || err.Error() != "invalid filter: 'dangling=[NO]'" {
 		t.Fatalf("expected error parsing filter")
 	}
@@ -392,7 +454,7 @@ func TestParseFilterInvalidBefore(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -403,13 +465,13 @@ func TestParseFilterInvalidBefore(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	label := "dangling=false,label=a=b,before=:,since=busybox:latest,reference=abcdef"
-	_, err = parseFilter(images, label)
+	_, err = parseFilter(store, images, label)
 	if err == nil || !strings.Contains(err.Error(), "no such id") {
 		t.Fatalf("expected error parsing filter")
 	}
@@ -419,7 +481,7 @@ func TestParseFilterInvalidSince(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -430,13 +492,13 @@ func TestParseFilterInvalidSince(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	label := "dangling=false,label=a=b,before=busybox:latest,since=:,reference=abcdef"
-	_, err = parseFilter(images, label)
+	_, err = parseFilter(store, images, label)
 	if err == nil || !strings.Contains(err.Error(), "no such id") {
 		t.Fatalf("expected error parsing filter")
 	}
@@ -446,7 +508,7 @@ func TestParseFilterInvalidFilter(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
@@ -457,13 +519,13 @@ func TestParseFilterInvalidFilter(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
 
 	label := "foo=bar"
-	_, err = parseFilter(images, label)
+	_, err = parseFilter(store, images, label)
 	if err == nil || err.Error() != "invalid filter: 'foo'" {
 		t.Fatalf("expected error parsing filter")
 	}
@@ -501,12 +563,19 @@ func TestMatchesBeforeImageTrue(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
 	}
+
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
+	}
+
 	images, err := store.Images()
 	if err != nil {
 		t.Fatalf("Error reading images: %v", err)
@@ -525,11 +594,16 @@ func TestMatchesBeforeImageFalse(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 	images, err := store.Images()
 	if err != nil {
@@ -550,11 +624,16 @@ func TestMatchesSinceeImageTrue(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 	images, err := store.Images()
 	if err != nil {
@@ -574,11 +653,16 @@ func TestMatchesSinceImageFalse(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	store, err := storage.GetStore(storage.DefaultStoreOptions)
+	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
 	} else if store != nil {
 		is.Transport.SetStore(store)
+	}
+	// Pull an image so that we know we have at least one
+	_, err = pullTestImage(t, "busybox:latest")
+	if err != nil {
+		t.Fatalf("could not pull image to remove: %v", err)
 	}
 	images, err := store.Images()
 	if err != nil {

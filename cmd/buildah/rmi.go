@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/Sirupsen/logrus"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/transports/alltransports"
@@ -58,7 +59,10 @@ func rmiCmd(c *cli.Context) error {
 			}
 			if len(ctrIDs) > 0 && len(image.Names) <= 1 {
 				if force {
-					removeContainers(ctrIDs, store)
+					err = removeContainers(ctrIDs, store)
+					if err != nil {
+						return errors.Wrapf(err, "error removing containers %v for image %q", ctrIDs, id)
+					}
 				} else {
 					for _, ctrID := range ctrIDs {
 						return fmt.Errorf("Could not remove image %q (must force) - container %q is using its reference image", id, ctrID)
@@ -98,16 +102,16 @@ func getImage(id string, store storage.Store) (*storage.Image, error) {
 	var ref types.ImageReference
 	ref, err := properImageRef(id)
 	if err != nil {
-		//logrus.Debug(err)
+		logrus.Debug(err)
 	}
 	if ref == nil {
 		if ref, err = storageImageRef(store, id); err != nil {
-			//logrus.Debug(err)
+			logrus.Debug(err)
 		}
 	}
 	if ref == nil {
 		if ref, err = storageImageID(store, id); err != nil {
-			//logrus.Debug(err)
+			logrus.Debug(err)
 		}
 	}
 	if ref != nil {

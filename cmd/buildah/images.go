@@ -121,7 +121,7 @@ func imagesCmd(c *cli.Context) error {
 	}
 	var params *filterParams
 	if c.IsSet("filter") {
-		params, err = parseFilter(images, c.String("filter"))
+		params, err = parseFilter(store, images, c.String("filter"))
 		if err != nil {
 			return errors.Wrapf(err, "error parsing filter")
 		}
@@ -136,7 +136,7 @@ func imagesCmd(c *cli.Context) error {
 	return outputImages(images, c.String("format"), store, params, name, hasTemplate, truncate, digests, quiet)
 }
 
-func parseFilter(images []storage.Image, filter string) (*filterParams, error) {
+func parseFilter(store storage.Store, images []storage.Image, filter string) (*filterParams, error) {
 	params := new(filterParams)
 	filterStrings := strings.Split(filter, ",")
 	for _, param := range filterStrings {
@@ -151,17 +151,19 @@ func parseFilter(images []storage.Image, filter string) (*filterParams, error) {
 		case "label":
 			params.label = pair[1]
 		case "before":
-			beforeDate, err := setFilterDate(images, pair[1])
+			beforeDate, err := setFilterDate(store, images, pair[1])
 			if err != nil {
 				return nil, fmt.Errorf("no such id: %s", pair[0])
 			}
 			params.beforeDate = beforeDate
+			params.beforeImage = pair[1]
 		case "since":
-			sinceDate, err := setFilterDate(images, pair[1])
+			sinceDate, err := setFilterDate(store, images, pair[1])
 			if err != nil {
 				return nil, fmt.Errorf("no such id: %s", pair[0])
 			}
 			params.sinceDate = sinceDate
+			params.sinceImage = pair[1]
 		case "reference":
 			params.referencePattern = pair[1]
 		default:
@@ -171,12 +173,25 @@ func parseFilter(images []storage.Image, filter string) (*filterParams, error) {
 	return params, nil
 }
 
-func setFilterDate(images []storage.Image, imgName string) (time.Time, error) {
+func setFilterDate(store storage.Store, images []storage.Image, imgName string) (time.Time, error) {
 	for _, image := range images {
 		for _, name := range image.Names {
 			if matchesReference(name, imgName) {
 				// Set the date to this image
-				date := image.Created
+				ref, err := is.Transport.ParseStoreReference(store, "@"+image.ID)
+				if err != nil {
+					return time.Time{}, fmt.Errorf("error parsing reference to image %q: %v", image.ID, err)
+				}
+				img, err := ref.NewImage(nil)
+				if err != nil {
+					return time.Time{}, fmt.Errorf("error reading image %q: %v", image.ID, err)
+				}
+				defer img.Close()
+				inspect, err := img.Inspect()
+				if err != nil {
+					return time.Time{}, fmt.Errorf("error inspecting image %q: %v", image.ID, err)
+				}
+				date := inspect.Created
 				return date, nil
 			}
 		}

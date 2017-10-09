@@ -77,3 +77,13 @@ install:
 .PHONY: install.completions
 install.completions:
 	install -m 644 -D contrib/completions/bash/buildah $(DESTDIR)/${BASHINSTALLDIR}/buildah
+
+.PHONY: test-integration
+test-integration:
+	cd tests; ./test_runner.sh
+
+.PHONY: test-unit
+test-unit:
+	tmp=$(shell mktemp -d) ; \
+	mkdir -p $$tmp/root $$tmp/runroot; \
+	$(GO) test -v -tags "$(AUTOTAGS) $(TAGS)" ./cmd/buildah -args -root $$tmp/root -runroot $$tmp/runroot -storage-driver vfs -signature-policy $(shell pwd)/tests/policy.json

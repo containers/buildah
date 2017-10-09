@@ -10,7 +10,7 @@ import (
 
 func TestProperImageRefTrue(t *testing.T) {
 	// Pull an image so we know we have it
-	err := pullTestImage("busybox:latest")
+	_, err := pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove")
 	}
@@ -25,7 +25,7 @@ func TestProperImageRefTrue(t *testing.T) {
 
 func TestProperImageRefFalse(t *testing.T) {
 	// Pull an image so we know we have it
-	err := pullTestImage("busybox:latest")
+	_, err := pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatal("could not pull image to remove")
 	}
@@ -40,8 +40,7 @@ func TestStorageImageRefTrue(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	options := storage.DefaultStoreOptions
-	store, err := storage.GetStore(options)
+	store, err := storage.GetStore(storeOptions)
 	if store != nil {
 		is.Transport.SetStore(store)
 	}
@@ -49,7 +48,7 @@ func TestStorageImageRefTrue(t *testing.T) {
 		t.Fatalf("could not get store: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
@@ -65,8 +64,7 @@ func TestStorageImageRefFalse(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	options := storage.DefaultStoreOptions
-	store, err := storage.GetStore(options)
+	store, err := storage.GetStore(storeOptions)
 	if store != nil {
 		is.Transport.SetStore(store)
 	}
@@ -74,7 +72,7 @@ func TestStorageImageRefFalse(t *testing.T) {
 		t.Fatalf("could not get store: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
@@ -88,8 +86,7 @@ func TestStorageImageIDTrue(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	options := storage.DefaultStoreOptions
-	store, err := storage.GetStore(options)
+	store, err := storage.GetStore(storeOptions)
 	if store != nil {
 		is.Transport.SetStore(store)
 	}
@@ -97,7 +94,7 @@ func TestStorageImageIDTrue(t *testing.T) {
 		t.Fatalf("could not get store: %v", err)
 	}
 	// Pull an image so we know we have it
-	err = pullTestImage("busybox:latest")
+	_, err = pullTestImage(t, "busybox:latest")
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
@@ -126,8 +123,7 @@ func TestStorageImageIDFalse(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	options := storage.DefaultStoreOptions
-	store, err := storage.GetStore(options)
+	store, err := storage.GetStore(storeOptions)
 	if store != nil {
 		is.Transport.SetStore(store)
 	}
