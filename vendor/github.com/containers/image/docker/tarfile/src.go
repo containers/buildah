@@ -3,6 +3,7 @@ package tarfile
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -354,6 +355,6 @@ func (s *Source) GetBlob(info types.BlobInfo) (io.ReadCloser, int64, error) {
 }
 
 // GetSignatures returns the image's signatures.  It may use a remote (= slow) service.
-func (s *Source) GetSignatures() ([][]byte, error) {
+func (s *Source) GetSignatures(ctx context.Context) ([][]byte, error) {
 	return [][]byte{}, nil
 }

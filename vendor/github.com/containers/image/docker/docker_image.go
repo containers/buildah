@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,7 +23,7 @@ type Image struct {
 // a client to the registry hosting the given image.
 // The caller must call .Close() on the returned Image.
 func newImage(ctx *types.SystemContext, ref dockerReference) (types.Image, error) {
-	s, err := newImageSource(ctx, ref, nil)
+	s, err := newImageSource(ctx, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,8 @@ func (i *Image) SourceRefFullName() string {
 // GetRepositoryTags list all tags available in the repository. Note that this has no connection with the tag(s) used for this specific image, if any.
 func (i *Image) GetRepositoryTags() ([]string, error) {
 	path := fmt.Sprintf(tagsPath, reference.Path(i.src.ref.ref))
-	res, err := i.src.c.makeRequest("GET", path, nil, nil)
+	// FIXME: Pass the context.Context
+	res, err := i.src.c.makeRequest(context.TODO(), "GET", path, nil, nil)
 	if err != nil {
 		return nil, err
 	}

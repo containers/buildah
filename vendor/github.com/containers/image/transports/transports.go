@@ -71,13 +71,19 @@ func ImageName(ref types.ImageReference) string {
 	return ref.Transport().Name() + ":" + ref.StringWithinTransport()
 }
 
-// ListNames returns a list of transport names
+// ListNames returns a list of non deprecated transport names.
+// Deprecated transports can be used, but are not presented to users.
 func ListNames() []string {
 	kt.mu.Lock()
 	defer kt.mu.Unlock()
+	deprecated := map[string]bool{
+		"atomic": true,
+	}
 	var names []string
 	for _, transport := range kt.transports {
-		names = append(names, transport.Name())
+		if !deprecated[transport.Name()] {
+			names = append(names, transport.Name())
+		}
 	}
 	sort.Strings(names)
 	return names

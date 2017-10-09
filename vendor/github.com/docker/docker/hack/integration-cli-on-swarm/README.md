@@ -38,6 +38,8 @@ Following environment variables are known to work in this step:
  - `BUILDFLAGS`
  - `DOCKER_INCREMENTAL_BINARY`
 
+Note: during the transition into Moby Project, you might need to create a symbolic link `$GOPATH/src/github.com/docker/docker` to `$GOPATH/src/github.com/moby/moby`. 
+
 ### Step 2: Execute tests
 
     $ ./hack/integration-cli-on-swarm/integration-cli-on-swarm -replicas 40 -push-worker-image YOUR_REGISTRY.EXAMPLE.COM/integration-cli-worker:latest 
@@ -64,3 +66,4 @@ Flags for debugging IT on Swarm itself:
  - `-rand-seed N`: the random seed. This flag is useful for deterministic replaying. By default(0), the timestamp is used.
  - `-filters-file FILE`: the file contains `-check.f` strings. By default, the file is automatically generated.
  - `-dry-run`: skip the actual workload
+ - `keep-executor`: do not auto-remove executor containers, which is used for running privileged programs on Swarm

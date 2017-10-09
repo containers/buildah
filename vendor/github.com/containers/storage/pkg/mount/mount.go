@@ -1,7 +1,11 @@
 package mount
 
 import (
+	"sort"
+	"strings"
 	"time"
+
+	"github.com/containers/storage/pkg/fileutils"
 )
 
 // GetMounts retrieves a list of mounts for the current running process.
@@ -17,6 +21,10 @@ func Mounted(mountpoint string) (bool, error) {
 		return false, err
 	}
 
+	mountpoint, err = fileutils.ReadSymlinkedDirectory(mountpoint)
+	if err != nil {
+		return false, err
+	}
 	// Search the table for the mountpoint
 	for _, e := range entries {
 		if e.Mountpoint == mountpoint {
@@ -46,18 +54,42 @@ func Mount(device, target, mType, options string) error {
 // flags.go for supported option flags.
 func ForceMount(device, target, mType, options string) error {
 	flag, data := parseOptions(options)
-	if err := mount(device, target, mType, uintptr(flag), data); err != nil {
-		return err
-	}
-	return nil
+	return mount(device, target, mType, uintptr(flag), data)
 }
 
-// Unmount will unmount the target filesystem, so long as it is mounted.
+// Unmount lazily unmounts a filesystem on supported platforms, otherwise
+// does a normal unmount.
 func Unmount(target string) error {
 	if mounted, err := Mounted(target); err != nil || !mounted {
 		return err
 	}
 	return ForceUnmount(target)
+}
+
+// RecursiveUnmount unmounts the target and all mounts underneath, starting with
+// the deepsest mount first.
+func RecursiveUnmount(target string) error {
+	mounts, err := GetMounts()
+	if err != nil {
+		return err
+	}
+
+	// Make the deepest mount be first
+	sort.Sort(sort.Reverse(byMountpoint(mounts)))
+
+	for i, m := range mounts {
+		if !strings.HasPrefix(m.Mountpoint, target) {
+			continue
+		}
+		if err := Unmount(m.Mountpoint); err != nil && i == len(mounts)-1 {
+			if mounted, err := Mounted(m.Mountpoint); err != nil || mounted {
+				return err
+			}
+			// Ignore errors for submounts and continue trying to unmount others
+			// The final unmount should fail if there ane any submounts remaining
+		}
+	}
+	return nil
 }
 
 // ForceUnmount will force an unmount of the target filesystem, regardless if
@@ -70,5 +102,5 @@ func ForceUnmount(target string) (err error) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return
+	return nil
 }

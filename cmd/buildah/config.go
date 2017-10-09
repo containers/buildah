@@ -3,10 +3,10 @@ package main
 import (
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 

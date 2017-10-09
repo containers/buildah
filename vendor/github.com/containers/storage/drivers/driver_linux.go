@@ -4,9 +4,9 @@ package graphdriver
 
 import (
 	"path/filepath"
-	"syscall"
 
 	"github.com/containers/storage/pkg/mount"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -66,13 +66,14 @@ var (
 		FsMagicAufs:        "aufs",
 		FsMagicBtrfs:       "btrfs",
 		FsMagicCramfs:      "cramfs",
+		FsMagicEcryptfs:    "ecryptfs",
 		FsMagicExtfs:       "extfs",
 		FsMagicF2fs:        "f2fs",
 		FsMagicGPFS:        "gpfs",
 		FsMagicJffs2Fs:     "jffs2",
 		FsMagicJfs:         "jfs",
 		FsMagicNfsFs:       "nfs",
-		FsMagicOverlay:     "overlay",
+		FsMagicOverlay:     "overlayfs",
 		FsMagicRAMFs:       "ramfs",
 		FsMagicReiserFs:    "reiserfs",
 		FsMagicSmbFs:       "smb",
@@ -87,14 +88,14 @@ var (
 
 // GetFSMagic returns the filesystem id given the path.
 func GetFSMagic(rootpath string) (FsMagic, error) {
-	var buf syscall.Statfs_t
-	if err := syscall.Statfs(filepath.Dir(rootpath), &buf); err != nil {
+	var buf unix.Statfs_t
+	if err := unix.Statfs(filepath.Dir(rootpath), &buf); err != nil {
 		return 0, err
 	}
 	return FsMagic(buf.Type), nil
 }
 
-// NewFsChecker returns a checker configured for the provied FsMagic
+// NewFsChecker returns a checker configured for the provided FsMagic
 func NewFsChecker(t FsMagic) Checker {
 	return &fsChecker{
 		t: t,
@@ -126,8 +127,8 @@ func (c *defaultChecker) IsMounted(path string) bool {
 
 // Mounted checks if the given path is mounted as the fs type
 func Mounted(fsType FsMagic, mountPath string) (bool, error) {
-	var buf syscall.Statfs_t
-	if err := syscall.Statfs(mountPath, &buf); err != nil {
+	var buf unix.Statfs_t
+	if err := unix.Statfs(mountPath, &buf); err != nil {
 		return false, err
 	}
 	return FsMagic(buf.Type) == fsType, nil

@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/imagebuildah"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 

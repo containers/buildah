@@ -1,3 +1,5 @@
+// +build !containers_image_ostree_stub
+
 package ostree
 
 import (
@@ -44,6 +46,7 @@ type ostreeImageDestination struct {
 	schema     manifestSchema
 	tmpDirPath string
 	blobs      map[string]*blobToImport
+	digest     digest.Digest
 }
 
 // newImageDestination returns an ImageDestination for writing to an existing ostree.
@@ -52,7 +55,7 @@ func newImageDestination(ref ostreeReference, tmpDirPath string) (types.ImageDes
 	if err := ensureDirectoryExists(tmpDirPath); err != nil {
 		return nil, err
 	}
-	return &ostreeImageDestination{ref, "", manifestSchema{}, tmpDirPath, map[string]*blobToImport{}}, nil
+	return &ostreeImageDestination{ref, "", manifestSchema{}, tmpDirPath, map[string]*blobToImport{}, ""}, nil
 }
 
 // Reference returns the reference used to set up this destination.  Note that this should directly correspond to user's intent,
@@ -151,7 +154,7 @@ func fixFiles(dir string, usermode bool) error {
 			if err != nil {
 				return err
 			}
-		} else if usermode && (info.Mode().IsRegular() || (info.Mode()&os.ModeSymlink) != 0) {
+		} else if usermode && (info.Mode().IsRegular()) {
 			if err := os.Chmod(fullpath, info.Mode()|0600); err != nil {
 				return err
 			}
@@ -236,10 +239,10 @@ func (d *ostreeImageDestination) ReapplyBlob(info types.BlobInfo) (types.BlobInf
 // FIXME? This should also receive a MIME type if known, to differentiate between schema versions.
 // If the destination is in principle available, refuses this manifest type (e.g. it does not recognize the schema),
 // but may accept a different manifest type, the returned error must be an ManifestTypeRejectedError.
-func (d *ostreeImageDestination) PutManifest(manifest []byte) error {
-	d.manifest = string(manifest)
+func (d *ostreeImageDestination) PutManifest(manifestBlob []byte) error {
+	d.manifest = string(manifestBlob)
 
-	if err := json.Unmarshal(manifest, &d.schema); err != nil {
+	if err := json.Unmarshal(manifestBlob, &d.schema); err != nil {
 		return err
 	}
 
@@ -248,7 +251,13 @@ func (d *ostreeImageDestination) PutManifest(manifest []byte) error {
 		return err
 	}
 
-	return ioutil.WriteFile(manifestPath, manifest, 0644)
+	digest, err := manifest.Digest(manifestBlob)
+	if err != nil {
+		return err
+	}
+	d.digest = digest
+
+	return ioutil.WriteFile(manifestPath, manifestBlob, 0644)
 }
 
 func (d *ostreeImageDestination) PutSignatures(signatures [][]byte) error {
@@ -302,7 +311,7 @@ func (d *ostreeImageDestination) Commit() error {
 
 	manifestPath := filepath.Join(d.tmpDirPath, "manifest")
 
-	metadata := []string{fmt.Sprintf("docker.manifest=%s", string(d.manifest))}
+	metadata := []string{fmt.Sprintf("docker.manifest=%s", string(d.manifest)), fmt.Sprintf("docker.digest=%s", string(d.digest))}
 	err = d.ostreeCommit(repo, fmt.Sprintf("ociimage/%s", d.ref.branchName), manifestPath, metadata)
 
 	_, err = repo.CommitTransaction()

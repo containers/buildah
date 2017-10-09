@@ -3,6 +3,7 @@
 package signature
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -90,7 +91,8 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(image types.UnparsedImage, sig [
 }
 
 func (pr *prSignedBy) isRunningImageAllowed(image types.UnparsedImage) (bool, error) {
-	sigs, err := image.Signatures()
+	// FIXME: pass context.Context
+	sigs, err := image.Signatures(context.TODO())
 	if err != nil {
 		return false, err
 	}

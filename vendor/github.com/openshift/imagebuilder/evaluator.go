@@ -11,11 +11,11 @@ import (
 
 // ParseDockerfile parses the provided stream as a canonical Dockerfile
 func ParseDockerfile(r io.Reader) (*parser.Node, error) {
-	d := &parser.Directive{}
-	if err := parser.SetEscapeToken(parser.DefaultEscapeToken, d); err != nil {
+	result, err := parser.Parse(r)
+	if err != nil {
 		return nil, err
 	}
-	return parser.Parse(r, d)
+	return result.AST, nil
 }
 
 // Environment variable interpolation will happen on these statements only.

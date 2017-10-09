@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/ioutils"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -120,7 +120,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 				return errors.Wrapf(err, "error creating directory %q for volume %q in container %q", volumePath, volume, b.ContainerID)
 			}
 			srcPath := filepath.Join(mountPoint, volume)
-			if err = archive.CopyWithTar(srcPath, volumePath); err != nil && !os.IsNotExist(err) {
+			if err = copyFileWithTar(srcPath, volumePath); err != nil && !os.IsNotExist(err) {
 				return errors.Wrapf(err, "error populating directory %q for volume %q in container %q using contents of %q", volumePath, volume, b.ContainerID, srcPath)
 			}
 
@@ -194,7 +194,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	g.SetRootPath(mountPoint)
 	switch options.Terminal {
 	case DefaultTerminal:
-		g.SetProcessTerminal(logrus.IsTerminal(os.Stdout))
+		g.SetProcessTerminal(terminal.IsTerminal(int(os.Stdout.Fd())))
 	case WithTerminal:
 		g.SetProcessTerminal(true)
 	case WithoutTerminal:

@@ -1,28 +1,29 @@
 package docker
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/docker/reference"
+	"github.com/containers/image/pkg/tlsclientconfig"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/docker/distribution/registry/client"
-	"github.com/docker/go-connections/sockets"
+	helperclient "github.com/docker/docker-credential-helpers/client"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -111,27 +112,7 @@ func serverDefault() *tls.Config {
 	}
 }
 
-func newTransport() *http.Transport {
-	direct := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-		DualStack: true,
-	}
-	tr := &http.Transport{
-		Proxy:               http.ProxyFromEnvironment,
-		Dial:                direct.Dial,
-		TLSHandshakeTimeout: 10 * time.Second,
-		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
-		DisableKeepAlives: true,
-	}
-	proxyDialer, err := sockets.DialerFromEnvironment(direct)
-	if err == nil {
-		tr.Dial = proxyDialer.Dial
-	}
-	return tr
-}
-
-// dockerCertDir returns a path to a directory to be consumed by setupCertificates() depending on ctx and hostPort.
+// dockerCertDir returns a path to a directory to be consumed by tlsclientconfig.SetupCertificates() depending on ctx and hostPort.
 func dockerCertDir(ctx *types.SystemContext, hostPort string) string {
 	if ctx != nil && ctx.DockerCertPath != "" {
 		return ctx.DockerCertPath
@@ -147,65 +128,6 @@ func dockerCertDir(ctx *types.SystemContext, hostPort string) string {
 	return filepath.Join(hostCertDir, hostPort)
 }
 
-func setupCertificates(dir string, tlsc *tls.Config) error {
-	logrus.Debugf("Looking for TLS certificates and private keys in %s", dir)
-	fs, err := ioutil.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-
-	for _, f := range fs {
-		fullPath := filepath.Join(dir, f.Name())
-		if strings.HasSuffix(f.Name(), ".crt") {
-			systemPool, err := tlsconfig.SystemCertPool()
-			if err != nil {
-				return errors.Wrap(err, "unable to get system cert pool")
-			}
-			tlsc.RootCAs = systemPool
-			logrus.Debugf(" crt: %s", fullPath)
-			data, err := ioutil.ReadFile(fullPath)
-			if err != nil {
-				return err
-			}
-			tlsc.RootCAs.AppendCertsFromPEM(data)
-		}
-		if strings.HasSuffix(f.Name(), ".cert") {
-			certName := f.Name()
-			keyName := certName[:len(certName)-5] + ".key"
-			logrus.Debugf(" cert: %s", fullPath)
-			if !hasFile(fs, keyName) {
-				return errors.Errorf("missing key %s for client certificate %s. Note that CA certificates should use the extension .crt", keyName, certName)
-			}
-			cert, err := tls.LoadX509KeyPair(filepath.Join(dir, certName), filepath.Join(dir, keyName))
-			if err != nil {
-				return err
-			}
-			tlsc.Certificates = append(tlsc.Certificates, cert)
-		}
-		if strings.HasSuffix(f.Name(), ".key") {
-			keyName := f.Name()
-			certName := keyName[:len(keyName)-4] + ".cert"
-			logrus.Debugf(" key: %s", fullPath)
-			if !hasFile(fs, certName) {
-				return errors.Errorf("missing client certificate %s for key %s", certName, keyName)
-			}
-		}
-	}
-	return nil
-}
-
-func hasFile(files []os.FileInfo, name string) bool {
-	for _, f := range files {
-		if f.Name() == name {
-			return true
-		}
-	}
-	return false
-}
-
 // newDockerClient returns a new dockerClient instance for refHostname (a host a specified in the Docker image reference, not canonicalized to dockerRegistry)
 // “write” specifies whether the client will be used for "write" access (in particular passed to lookaside.go:toplevelFromSection)
 func newDockerClient(ctx *types.SystemContext, ref dockerReference, write bool, actions string) (*dockerClient, error) {
@@ -217,7 +139,7 @@ func newDockerClient(ctx *types.SystemContext, ref dockerReference, write bool, 
 	if err != nil {
 		return nil, err
 	}
-	tr := newTransport()
+	tr := tlsclientconfig.NewTransport()
 	tr.TLSClientConfig = serverDefault()
 	// It is undefined whether the host[:port] string for dockerHostname should be dockerHostname or dockerRegistry,
 	// because docker/docker does not read the certs.d subdirectory at all in that case.  We use the user-visible
@@ -225,7 +147,7 @@ func newDockerClient(ctx *types.SystemContext, ref dockerReference, write bool, 
 	// generally the UI hides the existence of the different dockerRegistry.  But note that this behavior is
 	// undocumented and may change if docker/docker changes.
 	certDir := dockerCertDir(ctx, reference.Domain(ref.ref))
-	if err := setupCertificates(certDir, tr.TLSClientConfig); err != nil {
+	if err := tlsclientconfig.SetupCertificates(certDir, tr.TLSClientConfig); err != nil {
 		return nil, err
 	}
 	if ctx != nil && ctx.DockerInsecureSkipTLSVerify {
@@ -254,24 +176,25 @@ func newDockerClient(ctx *types.SystemContext, ref dockerReference, write bool, 
 
 // makeRequest creates and executes a http.Request with the specified parameters, adding authentication and TLS options for the Docker client.
 // The host name and schema is taken from the client or autodetected, and the path is relative to it, i.e. the path usually starts with /v2/.
-func (c *dockerClient) makeRequest(method, path string, headers map[string][]string, stream io.Reader) (*http.Response, error) {
-	if err := c.detectProperties(); err != nil {
+func (c *dockerClient) makeRequest(ctx context.Context, method, path string, headers map[string][]string, stream io.Reader) (*http.Response, error) {
+	if err := c.detectProperties(ctx); err != nil {
 		return nil, err
 	}
 
 	url := fmt.Sprintf("%s://%s%s", c.scheme, c.registry, path)
-	return c.makeRequestToResolvedURL(method, url, headers, stream, -1, true)
+	return c.makeRequestToResolvedURL(ctx, method, url, headers, stream, -1, true)
 }
 
 // makeRequestToResolvedURL creates and executes a http.Request with the specified parameters, adding authentication and TLS options for the Docker client.
 // streamLen, if not -1, specifies the length of the data expected on stream.
 // makeRequest should generally be preferred.
 // TODO(runcom): too many arguments here, use a struct
-func (c *dockerClient) makeRequestToResolvedURL(method, url string, headers map[string][]string, stream io.Reader, streamLen int64, sendAuth bool) (*http.Response, error) {
+func (c *dockerClient) makeRequestToResolvedURL(ctx context.Context, method, url string, headers map[string][]string, stream io.Reader, streamLen int64, sendAuth bool) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, stream)
 	if err != nil {
 		return nil, err
 	}
+	req = req.WithContext(ctx)
 	if streamLen != -1 { // Do not blindly overwrite if streamLen == -1, http.NewRequest above can figure out the length of bytes.Reader and similar objects without us having to compute it.
 		req.ContentLength = streamLen
 	}
@@ -323,7 +246,7 @@ func (c *dockerClient) setupRequestAuth(req *http.Request) error {
 				}
 				service, _ := challenge.Parameters["service"] // Will be "" if not present
 				scope := fmt.Sprintf("repository:%s:%s", c.scope.remoteName, c.scope.actions)
-				token, err := c.getBearerToken(realm, service, scope)
+				token, err := c.getBearerToken(req.Context(), realm, service, scope)
 				if err != nil {
 					return err
 				}
@@ -340,11 +263,12 @@ func (c *dockerClient) setupRequestAuth(req *http.Request) error {
 	return nil
 }
 
-func (c *dockerClient) getBearerToken(realm, service, scope string) (*bearerToken, error) {
+func (c *dockerClient) getBearerToken(ctx context.Context, realm, service, scope string) (*bearerToken, error) {
 	authReq, err := http.NewRequest("GET", realm, nil)
 	if err != nil {
 		return nil, err
 	}
+	authReq = authReq.WithContext(ctx)
 	getParams := authReq.URL.Query()
 	if service != "" {
 		getParams.Add("service", service)
@@ -356,7 +280,7 @@ func (c *dockerClient) getBearerToken(realm, service, scope string) (*bearerToke
 	if c.username != "" && c.password != "" {
 		authReq.SetBasicAuth(c.username, c.password)
 	}
-	tr := newTransport()
+	tr := tlsclientconfig.NewTransport()
 	// TODO(runcom): insecure for now to contact the external token service
 	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	client := &http.Client{Transport: tr}
@@ -428,7 +352,12 @@ func getAuth(ctx *types.SystemContext, registry string) (string, string, error) 
 		return "", "", errors.Wrap(err, dockerCfgPath)
 	}
 
-	// I'm feeling lucky
+	// First try cred helpers. They should always be normalized.
+	if ch, exists := dockerAuth.CredHelpers[registry]; exists {
+		return getAuthFromCredHelper(ch, registry)
+	}
+
+	// I'm feeling lucky.
 	if c, exists := dockerAuth.AuthConfigs[registry]; exists {
 		return decodeDockerAuth(c.Auth)
 	}
@@ -447,14 +376,14 @@ func getAuth(ctx *types.SystemContext, registry string) (string, string, error) 
 
 // detectProperties detects various properties of the registry.
 // See the dockerClient documentation for members which are affected by this.
-func (c *dockerClient) detectProperties() error {
+func (c *dockerClient) detectProperties(ctx context.Context) error {
 	if c.scheme != "" {
 		return nil
 	}
 
 	ping := func(scheme string) error {
 		url := fmt.Sprintf(resolvedPingV2URL, scheme, c.registry)
-		resp, err := c.makeRequestToResolvedURL("GET", url, nil, nil, -1, true)
+		resp, err := c.makeRequestToResolvedURL(ctx, "GET", url, nil, nil, -1, true)
 		logrus.Debugf("Ping %s err %#v", url, err)
 		if err != nil {
 			return err
@@ -481,7 +410,7 @@ func (c *dockerClient) detectProperties() error {
 		// best effort to understand if we're talking to a V1 registry
 		pingV1 := func(scheme string) bool {
 			url := fmt.Sprintf(resolvedPingV1URL, scheme, c.registry)
-			resp, err := c.makeRequestToResolvedURL("GET", url, nil, nil, -1, true)
+			resp, err := c.makeRequestToResolvedURL(ctx, "GET", url, nil, nil, -1, true)
 			logrus.Debugf("Ping %s err %#v", url, err)
 			if err != nil {
 				return false
@@ -506,9 +435,9 @@ func (c *dockerClient) detectProperties() error {
 
 // getExtensionsSignatures returns signatures from the X-Registry-Supports-Signatures API extension,
 // using the original data structures.
-func (c *dockerClient) getExtensionsSignatures(ref dockerReference, manifestDigest digest.Digest) (*extensionSignatureList, error) {
+func (c *dockerClient) getExtensionsSignatures(ctx context.Context, ref dockerReference, manifestDigest digest.Digest) (*extensionSignatureList, error) {
 	path := fmt.Sprintf(extensionsSignaturePath, reference.Path(ref.ref), manifestDigest)
-	res, err := c.makeRequest("GET", path, nil, nil)
+	res, err := c.makeRequest(ctx, "GET", path, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -538,6 +467,18 @@ type dockerAuthConfig struct {
 
 type dockerConfigFile struct {
 	AuthConfigs map[string]dockerAuthConfig `json:"auths"`
+	CredHelpers map[string]string           `json:"credHelpers,omitempty"`
+}
+
+func getAuthFromCredHelper(credHelper, registry string) (string, string, error) {
+	helperName := fmt.Sprintf("docker-credential-%s", credHelper)
+	p := helperclient.NewShellProgramFunc(helperName)
+	creds, err := helperclient.Get(p, registry)
+	if err != nil {
+		return "", "", err
+	}
+
+	return creds.Username, creds.Secret, nil
 }
 
 func decodeDockerAuth(s string) (string, string, error) {

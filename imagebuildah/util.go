@@ -9,10 +9,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/sirupsen/logrus"
 )
 
 func cloneToDirectory(url, dir string) error {

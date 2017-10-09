@@ -130,19 +130,17 @@ func (ref openshiftReference) PolicyConfigurationNamespaces() []string {
 // NOTE: If any kind of signature verification should happen, build an UnparsedImage from the value returned by NewImageSource,
 // verify that UnparsedImage, and convert it into a real Image via image.FromUnparsedImage.
 func (ref openshiftReference) NewImage(ctx *types.SystemContext) (types.Image, error) {
-	src, err := newImageSource(ctx, ref, nil)
+	src, err := newImageSource(ctx, ref)
 	if err != nil {
 		return nil, err
 	}
 	return genericImage.FromSource(src)
 }
 
-// NewImageSource returns a types.ImageSource for this reference,
-// asking the backend to use a manifest from requestedManifestMIMETypes if possible.
-// nil requestedManifestMIMETypes means manifest.DefaultRequestedManifestMIMETypes.
+// NewImageSource returns a types.ImageSource for this reference.
 // The caller must call .Close() on the returned ImageSource.
-func (ref openshiftReference) NewImageSource(ctx *types.SystemContext, requestedManifestMIMETypes []string) (types.ImageSource, error) {
-	return newImageSource(ctx, ref, requestedManifestMIMETypes)
+func (ref openshiftReference) NewImageSource(ctx *types.SystemContext) (types.ImageSource, error) {
+	return newImageSource(ctx, ref)
 }
 
 // NewImageDestination returns a types.ImageDestination for this reference.

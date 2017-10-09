@@ -2,6 +2,7 @@ package buildah
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -9,7 +10,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/image"
 	"github.com/containers/image/manifest"
@@ -23,6 +23,7 @@ import (
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/docker"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -68,32 +69,16 @@ type containerImageSource struct {
 }
 
 func (i *containerImageRef) NewImage(sc *types.SystemContext) (types.Image, error) {
-	src, err := i.NewImageSource(sc, nil)
+	src, err := i.NewImageSource(sc)
 	if err != nil {
 		return nil, err
 	}
 	return image.FromSource(src)
 }
 
-func selectManifestType(preferred string, acceptable, supported []string) string {
-	selected := preferred
-	for _, accept := range acceptable {
-		if preferred == accept {
-			return preferred
-		}
-		for _, support := range supported {
-			if accept == support {
-				selected = accept
-			}
-		}
-	}
-	return selected
-}
-
-func (i *containerImageRef) NewImageSource(sc *types.SystemContext, manifestTypes []string) (src types.ImageSource, err error) {
+func (i *containerImageRef) NewImageSource(sc *types.SystemContext) (src types.ImageSource, err error) {
 	// Decide which type of manifest and configuration output we're going to provide.
-	supportedManifestTypes := []string{v1.MediaTypeImageManifest, docker.V2S2MediaTypeManifest}
-	manifestType := selectManifestType(i.preferredManifestType, manifestTypes, supportedManifestTypes)
+	manifestType := i.preferredManifestType
 	// If it's not a format we support, return an error.
 	if manifestType != v1.MediaTypeImageManifest && manifestType != docker.V2S2MediaTypeManifest {
 		return nil, errors.Errorf("no supported manifest types (attempted to use %q, only know %q and %q)",
@@ -417,7 +402,7 @@ func (i *containerImageSource) Reference() types.ImageReference {
 	return i.ref
 }
 
-func (i *containerImageSource) GetSignatures() ([][]byte, error) {
+func (i *containerImageSource) GetSignatures(ctx context.Context) ([][]byte, error) {
 	return nil, nil
 }
 

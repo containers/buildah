@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/image"
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
@@ -17,6 +17,7 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/ioutils"
 	ddigest "github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -537,7 +538,7 @@ func (s *storageImageSource) GetTargetManifest(digest ddigest.Digest) (manifestB
 	return nil, "", ErrNoManifestLists
 }
 
-func (s *storageImageSource) GetSignatures() (signatures [][]byte, err error) {
+func (s *storageImageSource) GetSignatures(ctx context.Context) (signatures [][]byte, err error) {
 	var offset int
 	signature, err := s.imageRef.transport.store.ImageBigData(s.ID, "signatures")
 	if err != nil {

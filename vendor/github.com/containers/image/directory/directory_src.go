@@ -1,6 +1,7 @@
 package directory
 
 import (
+	"context"
 	"io"
 	"io/ioutil"
 	"os"
@@ -59,7 +60,7 @@ func (s *dirImageSource) GetBlob(info types.BlobInfo) (io.ReadCloser, int64, err
 	return r, fi.Size(), nil
 }
 
-func (s *dirImageSource) GetSignatures() ([][]byte, error) {
+func (s *dirImageSource) GetSignatures(ctx context.Context) ([][]byte, error) {
 	signatures := [][]byte{}
 	for i := 0; ; i++ {
 		signature, err := ioutil.ReadFile(s.ref.signaturePath(i))

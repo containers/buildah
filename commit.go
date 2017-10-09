@@ -6,7 +6,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	cp "github.com/containers/image/copy"
 	"github.com/containers/image/signature"
 	is "github.com/containers/image/storage"
@@ -17,6 +16,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/util"
+	"github.com/sirupsen/logrus"
 )
 
 var (

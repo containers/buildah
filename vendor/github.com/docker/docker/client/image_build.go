@@ -95,6 +95,7 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	query.Set("cgroupparent", options.CgroupParent)
 	query.Set("shmsize", strconv.FormatInt(options.ShmSize, 10))
 	query.Set("dockerfile", options.Dockerfile)
+	query.Set("target", options.Target)
 
 	ulimitsJSON, err := json.Marshal(options.Ulimits)
 	if err != nil {
@@ -119,6 +120,9 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 		return query, err
 	}
 	query.Set("cachefrom", string(cacheFromJSON))
+	if options.SessionID != "" {
+		query.Set("session", options.SessionID)
+	}
 
 	return query, nil
 }

@@ -27,13 +27,6 @@ const (
 	compressionFlag = "diff-compression"
 )
 
-var (
-	// ErrParentUnknown indicates that we didn't record the ID of the parent of the specified layer
-	ErrParentUnknown = errors.New("parent of layer not known")
-	// ErrLayerUnknown indicates that there was no layer with the specified name or ID
-	ErrLayerUnknown = errors.New("layer not known")
-)
-
 // A Layer is a record of a copy-on-write layer that's stored by the lower
 // level graph driver.
 type Layer struct {
@@ -191,7 +184,7 @@ type LayerStore interface {
 	CreateWithFlags(id, parent string, names []string, mountLabel string, options map[string]string, writeable bool, flags map[string]interface{}) (layer *Layer, err error)
 
 	// Put combines the functions of CreateWithFlags and ApplyDiff.
-	Put(id, parent string, names []string, mountLabel string, options map[string]string, writeable bool, flags map[string]interface{}, diff archive.Reader) (*Layer, int64, error)
+	Put(id, parent string, names []string, mountLabel string, options map[string]string, writeable bool, flags map[string]interface{}, diff io.Reader) (*Layer, int64, error)
 
 	// SetNames replaces the list of names associated with a layer with the
 	// supplied values.
@@ -213,7 +206,7 @@ type LayerStore interface {
 
 	// ApplyDiff reads a tarstream which was created by a previous call to Diff and
 	// applies its changes to a specified layer.
-	ApplyDiff(to string, diff archive.Reader) (int64, error)
+	ApplyDiff(to string, diff io.Reader) (int64, error)
 }
 
 type layerStore struct {
@@ -261,6 +254,7 @@ func (r *layerStore) Load() error {
 	compressedsums := make(map[digest.Digest][]string)
 	uncompressedsums := make(map[digest.Digest][]string)
 	if err = json.Unmarshal(data, &layers); len(data) == 0 || err == nil {
+		idlist = make([]string, 0, len(layers))
 		for n, layer := range layers {
 			ids[layer.ID] = layers[n]
 			idlist = append(idlist, layer.ID)
@@ -280,7 +274,7 @@ func (r *layerStore) Load() error {
 		}
 	}
 	if shouldSave && !r.IsReadWrite() {
-		return errors.New("layer store assigns the same name to multiple layers")
+		return ErrDuplicateLayerNames
 	}
 	mpath := r.mountspath()
 	data, err = ioutil.ReadFile(mpath)
@@ -312,6 +306,9 @@ func (r *layerStore) Load() error {
 	// actually delete.
 	if r.IsReadWrite() {
 		for _, layer := range r.layers {
+			if layer.Flags == nil {
+				layer.Flags = make(map[string]interface{})
+			}
 			if cleanup, ok := layer.Flags[incompleteFlag]; ok {
 				if b, ok := cleanup.(bool); ok && b {
 					err = r.Delete(layer.ID)
@@ -345,7 +342,7 @@ func (r *layerStore) Save() error {
 	if err := os.MkdirAll(filepath.Dir(mpath), 0700); err != nil {
 		return err
 	}
-	mounts := []layerMountPoint{}
+	mounts := make([]layerMountPoint, 0, len(r.layers))
 	for _, layer := range r.layers {
 		if layer.MountPoint != "" && layer.MountCount > 0 {
 			mounts = append(mounts, layerMountPoint{
@@ -462,6 +459,9 @@ func (r *layerStore) SetFlag(id string, flag string, value interface{}) error {
 	if !ok {
 		return ErrLayerUnknown
 	}
+	if layer.Flags == nil {
+		layer.Flags = make(map[string]interface{})
+	}
 	layer.Flags[flag] = value
 	return r.Save()
 }
@@ -470,7 +470,7 @@ func (r *layerStore) Status() ([][2]string, error) {
 	return r.driver.Status(), nil
 }
 
-func (r *layerStore) Put(id, parent string, names []string, mountLabel string, options map[string]string, writeable bool, flags map[string]interface{}, diff archive.Reader) (layer *Layer, size int64, err error) {
+func (r *layerStore) Put(id, parent string, names []string, mountLabel string, options map[string]string, writeable bool, flags map[string]interface{}, diff io.Reader) (layer *Layer, size int64, err error) {
 	if !r.IsReadWrite() {
 		return nil, -1, errors.Wrapf(ErrStoreIsReadOnly, "not allowed to create new layers at %q", r.layerspath())
 	}
@@ -497,15 +497,20 @@ func (r *layerStore) Put(id, parent string, names []string, mountLabel string, o
 	if _, idInUse := r.byid[id]; idInUse {
 		return nil, -1, ErrDuplicateID
 	}
+	names = dedupeNames(names)
 	for _, name := range names {
 		if _, nameInUse := r.byname[name]; nameInUse {
 			return nil, -1, ErrDuplicateName
 		}
 	}
+	opts := drivers.CreateOpts{
+		MountLabel: mountLabel,
+		StorageOpt: options,
+	}
 	if writeable {
-		err = r.driver.CreateReadWrite(id, parent, mountLabel, options)
+		err = r.driver.CreateReadWrite(id, parent, &opts)
 	} else {
-		err = r.driver.Create(id, parent, mountLabel, options)
+		err = r.driver.Create(id, parent, &opts)
 	}
 	if err == nil {
 		layer = &Layer{
@@ -629,6 +634,7 @@ func (r *layerStore) SetNames(id string, names []string) error {
 	if !r.IsReadWrite() {
 		return errors.Wrapf(ErrStoreIsReadOnly, "not allowed to change layer name assignments at %q", r.layerspath())
 	}
+	names = dedupeNames(names)
 	if layer, ok := r.lookup(id); ok {
 		for _, name := range layer.Names {
 			delete(r.byname, name)
@@ -734,7 +740,7 @@ func (r *layerStore) Wipe() error {
 	if !r.IsReadWrite() {
 		return errors.Wrapf(ErrStoreIsReadOnly, "not allowed to delete layers at %q", r.layerspath())
 	}
-	ids := []string{}
+	ids := make([]string, 0, len(r.byid))
 	for id := range r.byid {
 		ids = append(ids, id)
 	}
@@ -907,7 +913,7 @@ func (r *layerStore) DiffSize(from, to string) (size int64, err error) {
 	return r.driver.DiffSize(to, from)
 }
 
-func (r *layerStore) ApplyDiff(to string, diff archive.Reader) (size int64, err error) {
+func (r *layerStore) ApplyDiff(to string, diff io.Reader) (size int64, err error) {
 	if !r.IsReadWrite() {
 		return -1, errors.Wrapf(ErrStoreIsReadOnly, "not allowed to modify layer contents at %q", r.layerspath())
 	}

@@ -3,16 +3,16 @@ package zfs
 import (
 	"fmt"
 	"strings"
-	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/drivers"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 func checkRootdirFs(rootdir string) error {
-	var buf syscall.Statfs_t
-	if err := syscall.Statfs(rootdir, &buf); err != nil {
+	var buf unix.Statfs_t
+	if err := unix.Statfs(rootdir, &buf); err != nil {
 		return fmt.Errorf("Failed to access '%s': %s", rootdir, err)
 	}
 

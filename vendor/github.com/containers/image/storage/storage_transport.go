@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
@@ -14,6 +13,7 @@ import (
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/opencontainers/go-digest"
 	ddigest "github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 )
 
 func init() {

@@ -1,3 +1,5 @@
+// +build !containers_image_ostree_stub
+
 package ostree
 
 import (
@@ -82,24 +84,15 @@ func NewReference(image string, repo string) (types.ImageReference, error) {
 	// image is not _really_ in a containers/image/docker/reference format;
 	// as far as the libOSTree ociimage/* namespace is concerned, it is more or
 	// less an arbitrary string with an implied tag.
-	// We use the reference.* parsers basically for the default tag name in
-	// reference.TagNameOnly, and incidentally for some character set and length
-	// restrictions.
-	var ostreeImage reference.Named
-	s := strings.SplitN(image, ":", 2)
-
-	named, err := reference.WithName(s[0])
+	// Parse the image using reference.ParseNormalizedNamed so that we can
+	// check whether the images has a tag specified and we can add ":latest" if needed
+	ostreeImage, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(s) == 1 {
-		ostreeImage = reference.TagNameOnly(named)
-	} else {
-		ostreeImage, err = reference.WithTag(named, s[1])
-		if err != nil {
-			return nil, err
-		}
+	if reference.IsNameOnly(ostreeImage) {
+		image = image + ":latest"
 	}
 
 	resolved, err := explicitfilepath.ResolvePathToFullyExplicit(repo)
@@ -121,8 +114,8 @@ func NewReference(image string, repo string) (types.ImageReference, error) {
 	}
 
 	return ostreeReference{
-		image:      ostreeImage.String(),
-		branchName: encodeOStreeRef(ostreeImage.String()),
+		image:      image,
+		branchName: encodeOStreeRef(image),
 		repo:       resolved,
 	}, nil
 }
@@ -183,11 +176,9 @@ func (ref ostreeReference) NewImage(ctx *types.SystemContext) (types.Image, erro
 	return nil, errors.New("Reading ostree: images is currently not supported")
 }
 
-// NewImageSource returns a types.ImageSource for this reference,
-// asking the backend to use a manifest from requestedManifestMIMETypes if possible.
-// nil requestedManifestMIMETypes means manifest.DefaultRequestedManifestMIMETypes.
+// NewImageSource returns a types.ImageSource for this reference.
 // The caller must call .Close() on the returned ImageSource.
-func (ref ostreeReference) NewImageSource(ctx *types.SystemContext, requestedManifestMIMETypes []string) (types.ImageSource, error) {
+func (ref ostreeReference) NewImageSource(ctx *types.SystemContext) (types.ImageSource, error) {
 	return nil, errors.New("Reading ostree: images is currently not supported")
 }
 
