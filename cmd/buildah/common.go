@@ -165,6 +165,11 @@ func getDockerAuth(creds string) (*types.DockerAuthConfig, error) {
 // a value set.  This commonly occurs when the CLI mistakenly takes the next
 // option and uses it as a value.
 func validateFlags(c *cli.Context, flags []cli.Flag) error {
+	re, err := regexp.Compile("^-.+")
+	if err != nil {
+		return errors.Wrap(err, "compiling regex failed")
+	}
+
 	for _, flag := range flags {
 		switch reflect.TypeOf(flag).String() {
 		case "cli.StringSliceFlag":
@@ -173,7 +178,7 @@ func validateFlags(c *cli.Context, flags []cli.Flag) error {
 				name := strings.Split(f.Name, ",")
 				val := c.StringSlice(name[0])
 				for _, v := range val {
-					if ok, _ := regexp.MatchString("^-.+", v); ok {
+					if ok := re.MatchString(v); ok {
 						return errors.Errorf("option --%s requires a value", name[0])
 					}
 				}
@@ -183,7 +188,7 @@ func validateFlags(c *cli.Context, flags []cli.Flag) error {
 				f := flag.(cli.StringFlag)
 				name := strings.Split(f.Name, ",")
 				val := c.String(name[0])
-				if ok, _ := regexp.MatchString("^-.+", val); ok {
+				if ok := re.MatchString(val); ok {
 					return errors.Errorf("option --%s requires a value", name[0])
 				}
 			}

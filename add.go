@@ -11,10 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/containers/storage/pkg/archive"
-	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // addURL copies the contents of the source URL to the destination.  This is
@@ -144,7 +143,7 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 					return errors.Wrapf(err, "error ensuring directory %q exists", d)
 				}
 				logrus.Debugf("copying %q to %q", gsrc+string(os.PathSeparator)+"*", d+string(os.PathSeparator)+"*")
-				if err := chrootarchive.CopyWithTar(gsrc, d); err != nil {
+				if err := copyWithTar(gsrc, d); err != nil {
 					return errors.Wrapf(err, "error copying %q to %q", gsrc, d)
 				}
 				continue
@@ -159,14 +158,14 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 				}
 				// Copy the file, preserving attributes.
 				logrus.Debugf("copying %q to %q", gsrc, d)
-				if err := chrootarchive.CopyFileWithTar(gsrc, d); err != nil {
+				if err := copyFileWithTar(gsrc, d); err != nil {
 					return errors.Wrapf(err, "error copying %q to %q", gsrc, d)
 				}
 				continue
 			}
 			// We're extracting an archive into the destination directory.
 			logrus.Debugf("extracting contents of %q into %q", gsrc, dest)
-			if err := chrootarchive.UntarPath(gsrc, dest); err != nil {
+			if err := untarPath(gsrc, dest); err != nil {
 				return errors.Wrapf(err, "error extracting %q into %q", gsrc, dest)
 			}
 		}

@@ -3,7 +3,6 @@ package buildah
 import (
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	cp "github.com/containers/image/copy"
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/signature"
@@ -13,6 +12,7 @@ import (
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 func localImageNameForReference(store storage.Store, srcRef types.ImageReference) (string, error) {

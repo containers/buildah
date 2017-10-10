@@ -20,26 +20,25 @@ import (
 	"strings"
 	"unsafe"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/containers/storage/drivers"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 func checkRootdirFs(rootdir string) error {
 
 	cs := C.CString(filepath.Dir(rootdir))
+	defer C.free(unsafe.Pointer(cs))
 	buf := C.getstatfs(cs)
+	defer C.free(unsafe.Pointer(buf))
 
 	// on Solaris buf.f_basetype contains ['z', 'f', 's', 0 ... ]
 	if (buf.f_basetype[0] != 122) || (buf.f_basetype[1] != 102) || (buf.f_basetype[2] != 115) ||
 		(buf.f_basetype[3] != 0) {
-		log.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
-		C.free(unsafe.Pointer(buf))
+		logrus.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
 		return errors.Wrapf(graphdriver.ErrPrerequisites, "no zfs dataset found for rootdir '%s'", rootdir)
 	}
 
-	C.free(unsafe.Pointer(buf))
-	C.free(unsafe.Pointer(cs))
 	return nil
 }
 

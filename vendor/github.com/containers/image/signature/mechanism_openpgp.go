@@ -132,11 +132,17 @@ func (m *openpgpSigningMechanism) Verify(unverifiedSignature []byte) (contents [
 	if md.SignedBy == nil {
 		return nil, "", InvalidSignatureError{msg: fmt.Sprintf("Invalid GPG signature: %#v", md.Signature)}
 	}
-	if md.Signature.SigLifetimeSecs != nil {
-		expiry := md.Signature.CreationTime.Add(time.Duration(*md.Signature.SigLifetimeSecs) * time.Second)
-		if time.Now().After(expiry) {
-			return nil, "", InvalidSignatureError{msg: fmt.Sprintf("Signature expired on %s", expiry)}
+	if md.Signature != nil {
+		if md.Signature.SigLifetimeSecs != nil {
+			expiry := md.Signature.CreationTime.Add(time.Duration(*md.Signature.SigLifetimeSecs) * time.Second)
+			if time.Now().After(expiry) {
+				return nil, "", InvalidSignatureError{msg: fmt.Sprintf("Signature expired on %s", expiry)}
+			}
 		}
+	} else if md.SignatureV3 == nil {
+		// Coverage: If md.SignedBy != nil, the final md.UnverifiedBody.Read() either sets one of md.Signature or md.SignatureV3,
+		// or sets md.SignatureError.
+		return nil, "", InvalidSignatureError{msg: "Unexpected openpgp.MessageDetails: neither Signature nor SignatureV3 is set"}
 	}
 
 	// Uppercase the fingerprint to be compatible with gpgme

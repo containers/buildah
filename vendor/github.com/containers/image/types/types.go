@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"io"
 	"time"
 
@@ -77,11 +78,9 @@ type ImageReference interface {
 	// NOTE: If any kind of signature verification should happen, build an UnparsedImage from the value returned by NewImageSource,
 	// verify that UnparsedImage, and convert it into a real Image via image.FromUnparsedImage.
 	NewImage(ctx *SystemContext) (Image, error)
-	// NewImageSource returns a types.ImageSource for this reference,
-	// asking the backend to use a manifest from requestedManifestMIMETypes if possible.
-	// nil requestedManifestMIMETypes means manifest.DefaultRequestedManifestMIMETypes.
+	// NewImageSource returns a types.ImageSource for this reference.
 	// The caller must call .Close() on the returned ImageSource.
-	NewImageSource(ctx *SystemContext, requestedManifestMIMETypes []string) (ImageSource, error)
+	NewImageSource(ctx *SystemContext) (ImageSource, error)
 	// NewImageDestination returns a types.ImageDestination for this reference.
 	// The caller must call .Close() on the returned ImageDestination.
 	NewImageDestination(ctx *SystemContext) (ImageDestination, error)
@@ -93,9 +92,10 @@ type ImageReference interface {
 // BlobInfo collects known information about a blob (layer/config).
 // In some situations, some fields may be unknown, in others they may be mandatory; documenting an “unknown” value here does not override that.
 type BlobInfo struct {
-	Digest digest.Digest // "" if unknown.
-	Size   int64         // -1 if unknown
-	URLs   []string
+	Digest      digest.Digest // "" if unknown.
+	Size        int64         // -1 if unknown
+	URLs        []string
+	Annotations map[string]string
 }
 
 // ImageSource is a service, possibly remote (= slow), to download components of a single image.
@@ -121,7 +121,7 @@ type ImageSource interface {
 	// The Digest field in BlobInfo is guaranteed to be provided; Size may be -1.
 	GetBlob(BlobInfo) (io.ReadCloser, int64, error)
 	// GetSignatures returns the image's signatures.  It may use a remote (= slow) service.
-	GetSignatures() ([][]byte, error)
+	GetSignatures(context.Context) ([][]byte, error)
 }
 
 // ImageDestination is a service, possibly remote (= slow), to store components of a single image.
@@ -204,7 +204,7 @@ type UnparsedImage interface {
 	// Manifest is like ImageSource.GetManifest, but the result is cached; it is OK to call this however often you need.
 	Manifest() ([]byte, string, error)
 	// Signatures is like ImageSource.GetSignatures, but the result is cached; it is OK to call this however often you need.
-	Signatures() ([][]byte, error)
+	Signatures(ctx context.Context) ([][]byte, error)
 }
 
 // Image is the primary API for inspecting properties of images.
@@ -302,6 +302,16 @@ type SystemContext struct {
 	SignaturePolicyPath string
 	// If not "", overrides the system's default path for registries.d (Docker signature storage configuration)
 	RegistriesDirPath string
+	// Path to the system-wide registries configuration file
+	SystemRegistriesConfPath string
+
+	// === OCI.Transport overrides ===
+	// If not "", a directory containing a CA certificate (ending with ".crt"),
+	// a client certificate (ending with ".cert") and a client ceritificate key
+	// (ending with ".key") used when downloading OCI image layers.
+	OCICertPath string
+	// Allow downloading OCI image layers over HTTP, or HTTPS with failed TLS verification. Note that this does not affect other TLS connections.
+	OCIInsecureSkipTLSVerify bool
 
 	// === docker.Transport overrides ===
 	// If not "", a directory containing a CA certificate (ending with ".crt"),

@@ -6,10 +6,10 @@ import (
 	"os/user"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
 	"github.com/projectatomic/buildah"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 

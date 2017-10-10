@@ -6,10 +6,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 

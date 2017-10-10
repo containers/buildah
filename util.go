@@ -1,7 +1,15 @@
 package buildah
 
 import (
+	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/reexec"
+)
+
+var (
+	// CopyWithTar defines the copy method to use.
+	copyWithTar     = chrootarchive.NewArchiver(nil).CopyWithTar
+	copyFileWithTar = chrootarchive.NewArchiver(nil).CopyFileWithTar
+	untarPath       = chrootarchive.NewArchiver(nil).UntarPath
 )
 
 // InitReexec is a wrapper for reexec.Init().  It should be called at

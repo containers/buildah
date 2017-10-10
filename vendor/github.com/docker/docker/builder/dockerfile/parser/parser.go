@@ -7,10 +7,14 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"runtime"
+	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/docker/docker/builder/dockerfile/command"
+	"github.com/docker/docker/pkg/system"
+	"github.com/pkg/errors"
 )
 
 // Node is a structure used to represent a parse tree.
@@ -33,36 +37,148 @@ type Node struct {
 	Original   string          // original line used before parsing
 	Flags      []string        // only top Node should have this set
 	StartLine  int             // the line in the original dockerfile where the node begins
-	EndLine    int             // the line in the original dockerfile where the node ends
+	endLine    int             // the line in the original dockerfile where the node ends
 }
+
+// Dump dumps the AST defined by `node` as a list of sexps.
+// Returns a string suitable for printing.
+func (node *Node) Dump() string {
+	str := ""
+	str += node.Value
+
+	if len(node.Flags) > 0 {
+		str += fmt.Sprintf(" %q", node.Flags)
+	}
+
+	for _, n := range node.Children {
+		str += "(" + n.Dump() + ")\n"
+	}
+
+	for n := node.Next; n != nil; n = n.Next {
+		if len(n.Children) > 0 {
+			str += " " + n.Dump()
+		} else {
+			str += " " + strconv.Quote(n.Value)
+		}
+	}
+
+	return strings.TrimSpace(str)
+}
+
+func (node *Node) lines(start, end int) {
+	node.StartLine = start
+	node.endLine = end
+}
+
+// AddChild adds a new child node, and updates line information
+func (node *Node) AddChild(child *Node, startLine, endLine int) {
+	child.lines(startLine, endLine)
+	if node.StartLine < 0 {
+		node.StartLine = startLine
+	}
+	node.endLine = endLine
+	node.Children = append(node.Children, child)
+}
+
+var (
+	dispatch             map[string]func(string, *Directive) (*Node, map[string]bool, error)
+	tokenWhitespace      = regexp.MustCompile(`[\t\v\f\r ]+`)
+	tokenEscapeCommand   = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
+	tokenPlatformCommand = regexp.MustCompile(`^#[ \t]*platform[ \t]*=[ \t]*(?P<platform>.*)$`)
+	tokenComment         = regexp.MustCompile(`^#.*$`)
+)
+
+// DefaultEscapeToken is the default escape token
+const DefaultEscapeToken = '\\'
+
+// defaultPlatformToken is the platform assumed for the build if not explicitly provided
+var defaultPlatformToken = runtime.GOOS
 
 // Directive is the structure used during a build run to hold the state of
 // parsing directives.
 type Directive struct {
-	EscapeToken           rune           // Current escape token
-	LineContinuationRegex *regexp.Regexp // Current line continuation regex
-	LookingForDirectives  bool           // Whether we are currently looking for directives
-	EscapeSeen            bool           // Whether the escape directive has been seen
+	escapeToken           rune           // Current escape token
+	platformToken         string         // Current platform token
+	lineContinuationRegex *regexp.Regexp // Current line continuation regex
+	processingComplete    bool           // Whether we are done looking for directives
+	escapeSeen            bool           // Whether the escape directive has been seen
+	platformSeen          bool           // Whether the platform directive has been seen
 }
 
-var (
-	dispatch           map[string]func(string, *Directive) (*Node, map[string]bool, error)
-	tokenWhitespace    = regexp.MustCompile(`[\t\v\f\r ]+`)
-	tokenEscapeCommand = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
-	tokenComment       = regexp.MustCompile(`^#.*$`)
-)
-
-// DefaultEscapeToken is the default escape token
-const DefaultEscapeToken = "\\"
-
-// SetEscapeToken sets the default token for escaping characters in a Dockerfile.
-func SetEscapeToken(s string, d *Directive) error {
+// setEscapeToken sets the default token for escaping characters in a Dockerfile.
+func (d *Directive) setEscapeToken(s string) error {
 	if s != "`" && s != "\\" {
 		return fmt.Errorf("invalid ESCAPE '%s'. Must be ` or \\", s)
 	}
-	d.EscapeToken = rune(s[0])
-	d.LineContinuationRegex = regexp.MustCompile(`\` + s + `[ \t]*$`)
+	d.escapeToken = rune(s[0])
+	d.lineContinuationRegex = regexp.MustCompile(`\` + s + `[ \t]*$`)
 	return nil
+}
+
+// setPlatformToken sets the default platform for pulling images in a Dockerfile.
+func (d *Directive) setPlatformToken(s string) error {
+	s = strings.ToLower(s)
+	valid := []string{runtime.GOOS}
+	if system.LCOWSupported() {
+		valid = append(valid, "linux")
+	}
+	for _, item := range valid {
+		if s == item {
+			d.platformToken = s
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid PLATFORM '%s'. Must be one of %v", s, valid)
+}
+
+// possibleParserDirective looks for one or more parser directives '# escapeToken=<char>' and
+// '# platform=<string>'. Parser directives must precede any builder instruction
+// or other comments, and cannot be repeated.
+func (d *Directive) possibleParserDirective(line string) error {
+	if d.processingComplete {
+		return nil
+	}
+
+	tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
+	if len(tecMatch) != 0 {
+		for i, n := range tokenEscapeCommand.SubexpNames() {
+			if n == "escapechar" {
+				if d.escapeSeen == true {
+					return errors.New("only one escape parser directive can be used")
+				}
+				d.escapeSeen = true
+				return d.setEscapeToken(tecMatch[i])
+			}
+		}
+	}
+
+	// TODO @jhowardmsft LCOW Support: Eventually this check can be removed,
+	// but only recognise a platform token if running in LCOW mode.
+	if system.LCOWSupported() {
+		tpcMatch := tokenPlatformCommand.FindStringSubmatch(strings.ToLower(line))
+		if len(tpcMatch) != 0 {
+			for i, n := range tokenPlatformCommand.SubexpNames() {
+				if n == "platform" {
+					if d.platformSeen == true {
+						return errors.New("only one platform parser directive can be used")
+					}
+					d.platformSeen = true
+					return d.setPlatformToken(tpcMatch[i])
+				}
+			}
+		}
+	}
+
+	d.processingComplete = true
+	return nil
+}
+
+// NewDefaultDirective returns a new Directive with the default escapeToken token
+func NewDefaultDirective() *Directive {
+	directive := Directive{}
+	directive.setEscapeToken(string(DefaultEscapeToken))
+	directive.setPlatformToken(defaultPlatformToken)
+	return &directive
 }
 
 func init() {
@@ -80,7 +196,7 @@ func init() {
 		command.Entrypoint:  parseMaybeJSON,
 		command.Env:         parseEnv,
 		command.Expose:      parseStringsWhitespaceDelimited,
-		command.From:        parseString,
+		command.From:        parseStringsWhitespaceDelimited,
 		command.Healthcheck: parseHealthConfig,
 		command.Label:       parseLabel,
 		command.Maintainer:  parseString,
@@ -94,128 +210,146 @@ func init() {
 	}
 }
 
-// ParseLine parses a line and returns the remainder.
-func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error) {
-	// Handle the parser directive '# escape=<char>. Parser directives must precede
-	// any builder instruction or other comments, and cannot be repeated.
-	if d.LookingForDirectives {
-		tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
-		if len(tecMatch) > 0 {
-			if d.EscapeSeen == true {
-				return "", nil, fmt.Errorf("only one escape parser directive can be used")
-			}
-			for i, n := range tokenEscapeCommand.SubexpNames() {
-				if n == "escapechar" {
-					if err := SetEscapeToken(tecMatch[i], d); err != nil {
-						return "", nil, err
-					}
-					d.EscapeSeen = true
-					return "", nil, nil
-				}
-			}
-		}
-	}
-
-	d.LookingForDirectives = false
-
-	if line = stripComments(line); line == "" {
-		return "", nil, nil
-	}
-
-	if !ignoreCont && d.LineContinuationRegex.MatchString(line) {
-		line = d.LineContinuationRegex.ReplaceAllString(line, "")
-		return line, nil, nil
-	}
-
+// newNodeFromLine splits the line into parts, and dispatches to a function
+// based on the command and command arguments. A Node is created from the
+// result of the dispatch.
+func newNodeFromLine(line string, directive *Directive) (*Node, error) {
 	cmd, flags, args, err := splitCommand(line)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	node := &Node{}
-	node.Value = cmd
-
-	sexp, attrs, err := fullDispatch(cmd, args, d)
+	fn := dispatch[cmd]
+	// Ignore invalid Dockerfile instructions
+	if fn == nil {
+		fn = parseIgnore
+	}
+	next, attrs, err := fn(args, directive)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	node.Next = sexp
-	node.Attributes = attrs
-	node.Original = line
-	node.Flags = flags
-
-	return "", node, nil
+	return &Node{
+		Value:      cmd,
+		Original:   line,
+		Flags:      flags,
+		Next:       next,
+		Attributes: attrs,
+	}, nil
 }
 
-// Parse is the main parse routine.
-// It handles an io.ReadWriteCloser and returns the root of the AST.
-func Parse(rwc io.Reader, d *Directive) (*Node, error) {
-	currentLine := 0
-	root := &Node{}
-	root.StartLine = -1
-	scanner := bufio.NewScanner(rwc)
+// Result is the result of parsing a Dockerfile
+type Result struct {
+	AST         *Node
+	EscapeToken rune
+	Platform    string
+	Warnings    []string
+}
 
-	utf8bom := []byte{0xEF, 0xBB, 0xBF}
+// PrintWarnings to the writer
+func (r *Result) PrintWarnings(out io.Writer) {
+	if len(r.Warnings) == 0 {
+		return
+	}
+	fmt.Fprintf(out, strings.Join(r.Warnings, "\n")+"\n")
+}
+
+// Parse reads lines from a Reader, parses the lines into an AST and returns
+// the AST and escape token
+func Parse(rwc io.Reader) (*Result, error) {
+	d := NewDefaultDirective()
+	currentLine := 0
+	root := &Node{StartLine: -1}
+	scanner := bufio.NewScanner(rwc)
+	warnings := []string{}
+
+	var err error
 	for scanner.Scan() {
-		scannedBytes := scanner.Bytes()
-		// We trim UTF8 BOM
+		bytesRead := scanner.Bytes()
 		if currentLine == 0 {
-			scannedBytes = bytes.TrimPrefix(scannedBytes, utf8bom)
+			// First line, strip the byte-order-marker if present
+			bytesRead = bytes.TrimPrefix(bytesRead, utf8bom)
 		}
-		scannedLine := strings.TrimLeftFunc(string(scannedBytes), unicode.IsSpace)
-		currentLine++
-		line, child, err := ParseLine(scannedLine, d, false)
+		bytesRead, err = processLine(d, bytesRead, true)
 		if err != nil {
 			return nil, err
 		}
+		currentLine++
+
 		startLine := currentLine
-
-		if line != "" && child == nil {
-			for scanner.Scan() {
-				newline := scanner.Text()
-				currentLine++
-
-				if stripComments(strings.TrimSpace(newline)) == "" {
-					continue
-				}
-
-				line, child, err = ParseLine(line+newline, d, false)
-				if err != nil {
-					return nil, err
-				}
-
-				if child != nil {
-					break
-				}
-			}
-			if child == nil && line != "" {
-				// When we call ParseLine we'll pass in 'true' for
-				// the ignoreCont param if we're at the EOF. This will
-				// prevent the func from returning immediately w/o
-				// parsing the line thinking that there's more input
-				// to come.
-
-				_, child, err = ParseLine(line, d, scanner.Err() == nil)
-				if err != nil {
-					return nil, err
-				}
-			}
+		line, isEndOfLine := trimContinuationCharacter(string(bytesRead), d)
+		if isEndOfLine && line == "" {
+			continue
 		}
 
-		if child != nil {
-			// Update the line information for the current child.
-			child.StartLine = startLine
-			child.EndLine = currentLine
-			// Update the line information for the root. The starting line of the root is always the
-			// starting line of the first child and the ending line is the ending line of the last child.
-			if root.StartLine < 0 {
-				root.StartLine = currentLine
+		var hasEmptyContinuationLine bool
+		for !isEndOfLine && scanner.Scan() {
+			bytesRead, err := processLine(d, scanner.Bytes(), false)
+			if err != nil {
+				return nil, err
 			}
-			root.EndLine = currentLine
-			root.Children = append(root.Children, child)
+			currentLine++
+
+			if isEmptyContinuationLine(bytesRead) {
+				hasEmptyContinuationLine = true
+				continue
+			}
+
+			continuationLine := string(bytesRead)
+			continuationLine, isEndOfLine = trimContinuationCharacter(continuationLine, d)
+			line += continuationLine
 		}
+
+		if hasEmptyContinuationLine {
+			warning := "[WARNING]: Empty continuation line found in:\n    " + line
+			warnings = append(warnings, warning)
+		}
+
+		child, err := newNodeFromLine(line, d)
+		if err != nil {
+			return nil, err
+		}
+		root.AddChild(child, startLine, currentLine)
 	}
 
-	return root, nil
+	if len(warnings) > 0 {
+		warnings = append(warnings, "[WARNING]: Empty continuation lines will become errors in a future release.")
+	}
+	return &Result{
+		AST:         root,
+		Warnings:    warnings,
+		EscapeToken: d.escapeToken,
+		Platform:    d.platformToken,
+	}, nil
+}
+
+func trimComments(src []byte) []byte {
+	return tokenComment.ReplaceAll(src, []byte{})
+}
+
+func trimWhitespace(src []byte) []byte {
+	return bytes.TrimLeftFunc(src, unicode.IsSpace)
+}
+
+func isEmptyContinuationLine(line []byte) bool {
+	return len(trimComments(trimWhitespace(line))) == 0
+}
+
+var utf8bom = []byte{0xEF, 0xBB, 0xBF}
+
+func trimContinuationCharacter(line string, d *Directive) (string, bool) {
+	if d.lineContinuationRegex.MatchString(line) {
+		line = d.lineContinuationRegex.ReplaceAllString(line, "")
+		return line, false
+	}
+	return line, true
+}
+
+// TODO: remove stripLeftWhitespace after deprecation period. It seems silly
+// to preserve whitespace on continuation lines. Why is that done?
+func processLine(d *Directive, token []byte, stripLeftWhitespace bool) ([]byte, error) {
+	if stripLeftWhitespace {
+		token = trimWhitespace(token)
+	}
+	return trimComments(token), d.possibleParserDirective(string(token))
 }

@@ -2,7 +2,7 @@
 
 package aufs
 
-import "github.com/pkg/errors"
+import "errors"
 
 // MsRemount declared to specify a non-linux system mount.
 const MsRemount = 0

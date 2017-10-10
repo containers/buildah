@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/transports/alltransports"
@@ -22,6 +21,7 @@ import (
 	"github.com/openshift/imagebuilder"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/sirupsen/logrus"
 )
 
 const (
