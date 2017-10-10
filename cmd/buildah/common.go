@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -161,7 +162,7 @@ func getDockerAuth(creds string) (*types.DockerAuthConfig, error) {
 }
 
 // validateFlags searches for StringFlags or StringSlice flags that never had
-// a value set.  This commonly occurs when the CLI mistakently takes the next
+// a value set.  This commonly occurs when the CLI mistakenly takes the next
 // option and uses it as a value.
 func validateFlags(c *cli.Context, flags []cli.Flag) error {
 	for _, flag := range flags {
@@ -172,7 +173,7 @@ func validateFlags(c *cli.Context, flags []cli.Flag) error {
 				name := strings.Split(f.Name, ",")
 				val := c.StringSlice(name[0])
 				for _, v := range val {
-					if v != "" && v[0] == '-' {
+					if ok, _ := regexp.MatchString("^-.+", v); ok {
 						return errors.Errorf("option --%s requires a value", name[0])
 					}
 				}
@@ -182,7 +183,7 @@ func validateFlags(c *cli.Context, flags []cli.Flag) error {
 				f := flag.(cli.StringFlag)
 				name := strings.Split(f.Name, ",")
 				val := c.String(name[0])
-				if val != "" && val[0] == '-' {
+				if ok, _ := regexp.MatchString("^-.+", val); ok {
 					return errors.Errorf("option --%s requires a value", name[0])
 				}
 			}
