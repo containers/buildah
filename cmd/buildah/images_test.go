@@ -97,7 +97,7 @@ func TestOutputHeader(t *testing.T) {
 	output = captureOutput(func() {
 		outputHeader(true, true)
 	})
-	expectedOutput = fmt.Sprintf("%-20s %-56s %-64s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "DIGEST", "CREATED AT", "SIZE")
+	expectedOutput = fmt.Sprintf("%-20s %-56s %-71s %-22s %s\n", "IMAGE ID", "IMAGE NAME", "DIGEST", "CREATED AT", "SIZE")
 	if output != expectedOutput {
 		t.Errorf("Error outputting header:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
 	}
