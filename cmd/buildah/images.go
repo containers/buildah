@@ -207,7 +207,7 @@ func outputHeader(truncate, digests bool) {
 	}
 
 	if digests {
-		fmt.Printf("%-64s ", "DIGEST")
+		fmt.Printf("%-71s ", "DIGEST")
 	}
 
 	fmt.Printf("%-22s %s\n", "CREATED AT", "SIZE")
