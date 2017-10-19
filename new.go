@@ -159,16 +159,17 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	}()
 
 	builder := &Builder{
-		store:            store,
-		Type:             containerType,
-		FromImage:        image,
-		FromImageID:      imageID,
-		Config:           config,
-		Manifest:         manifest,
-		Container:        name,
-		ContainerID:      container.ID,
-		ImageAnnotations: map[string]string{},
-		ImageCreatedBy:   "",
+		store:                 store,
+		Type:                  containerType,
+		FromImage:             image,
+		FromImageID:           imageID,
+		Config:                config,
+		Manifest:              manifest,
+		Container:             name,
+		ContainerID:           container.ID,
+		ImageAnnotations:      map[string]string{},
+		ImageCreatedBy:        "",
+		DefaultMountsFilePath: options.DefaultMountsFilePath,
 	}
 
 	if options.Mount {

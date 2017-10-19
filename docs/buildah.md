@@ -22,6 +22,10 @@ The buildah package provides a command line tool which can be used to:
 
 Print debugging information
 
+**--default-mounts-file**
+
+path to default mounts file (default path: "usr/share/containers/mounts.conf")
+
 **--help, -h**
 
 Show help

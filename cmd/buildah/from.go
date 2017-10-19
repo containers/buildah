@@ -92,11 +92,12 @@ func fromCmd(c *cli.Context) error {
 	}
 
 	options := buildah.BuilderOptions{
-		FromImage:           args[0],
-		Container:           c.String("name"),
-		PullPolicy:          pullPolicy,
-		SignaturePolicyPath: signaturePolicy,
-		SystemContext:       systemContext,
+		FromImage:             args[0],
+		Container:             c.String("name"),
+		PullPolicy:            pullPolicy,
+		SignaturePolicyPath:   signaturePolicy,
+		SystemContext:         systemContext,
+		DefaultMountsFilePath: c.GlobalString("default-mounts-file"),
 	}
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
