@@ -9,6 +9,8 @@ import (
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/openshift/imagebuilder"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -25,8 +27,35 @@ const (
 	DefaultTransport = "docker://"
 )
 
+func reserveSELinuxLabels(store storage.Store, id string) error {
+	if selinux.GetEnabled() {
+		containers, err := store.Containers()
+		if err != nil {
+			return err
+		}
+
+		for _, c := range containers {
+			if id == c.ID {
+				continue
+			} else {
+				b, err := OpenBuilder(store, c.ID)
+				if err != nil {
+					if err == storage.ErrContainerUnknown {
+						continue
+					}
+					return err
+				}
+				// Prevent containers from using same MCS Label
+				if err := label.ReserveLabel(b.ProcessLabel); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
-	var err error
 	var ref types.ImageReference
 	var img *storage.Image
 	manifest := []byte{}
@@ -45,6 +74,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 
 	imageID := ""
 	if image != "" {
+		var err error
 		if options.PullPolicy == PullAlways {
 			pulledReference, err2 := pullImage(store, options, systemContext)
 			if err2 != nil {
@@ -158,6 +188,14 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		}
 	}()
 
+	if err := reserveSELinuxLabels(store, container.ID); err != nil {
+		return nil, err
+	}
+	processLabel, mountLabel, err := label.InitLabels(nil)
+	if err != nil {
+		return nil, err
+	}
+
 	builder := &Builder{
 		store:            store,
 		Type:             containerType,
@@ -169,10 +207,12 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		ContainerID:      container.ID,
 		ImageAnnotations: map[string]string{},
 		ImageCreatedBy:   "",
+		ProcessLabel:     processLabel,
+		MountLabel:       mountLabel,
 	}
 
 	if options.Mount {
-		_, err = builder.Mount("")
+		_, err = builder.Mount(mountLabel)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error mounting build container")
 		}
