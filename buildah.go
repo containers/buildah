@@ -77,6 +77,10 @@ type Builder struct {
 	// MountPoint is the last location where the container's root
 	// filesystem was mounted.  It should not be modified.
 	MountPoint string `json:"mountpoint,omitempty"`
+	// ProcessLabel is the SELinux process label associated with the container
+	ProcessLabel string `json:"process-label,omitempty"`
+	// MountLabel is the SELinux mount label associated with the container
+	MountLabel string `json:"mount-label,omitempty"`
 
 	// ImageAnnotations is a set of key-value pairs which is stored in the
 	// image's manifest.
