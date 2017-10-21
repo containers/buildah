@@ -95,6 +95,8 @@ type BuildOptions struct {
 	// specified, indicating that the shared, system-wide default policy
 	// should be used.
 	SignaturePolicyPath string
+	// SkipTLSVerify denotes whether TLS verification should not be used.
+	SkipTLSVerify bool
 	// ReportWriter is an io.Writer which will be used to report the
 	// progress of the (possible) pulling of the source image and the
 	// writing of the new image.
@@ -136,11 +138,12 @@ type Executor struct {
 	reportWriter                   io.Writer
 }
 
-func makeSystemContext(signaturePolicyPath string) *types.SystemContext {
+func makeSystemContext(signaturePolicyPath string, skipTLSVerify bool) *types.SystemContext {
 	sc := &types.SystemContext{}
 	if signaturePolicyPath != "" {
 		sc.SignaturePolicyPath = signaturePolicyPath
 	}
+	sc.DockerInsecureSkipTLSVerify = skipTLSVerify
 	return sc
 }
 
@@ -420,7 +423,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		outputFormat:        options.OutputFormat,
 		additionalTags:      options.AdditionalTags,
 		signaturePolicyPath: options.SignaturePolicyPath,
-		systemContext:       makeSystemContext(options.SignaturePolicyPath),
+		systemContext:       makeSystemContext(options.SignaturePolicyPath, options.SkipTLSVerify),
 		volumeCache:         make(map[string]string),
 		volumeCacheInfo:     make(map[string]os.FileInfo),
 		log:                 options.Log,

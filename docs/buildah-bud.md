@@ -74,6 +74,10 @@ option be used, as the default behavior of using the system-wide default policy
 Specifies the name which will be assigned to the resulting image if the build
 process completes successfully.
 
+**--tls-verify** *bool-value*
+
+Require HTTPS and verify certificates when talking to container registries (defaults to true)
+
 ## EXAMPLE
 
 buildah bud .
@@ -84,7 +88,9 @@ buildah bud -f Dockerfile.simple -f Dockerfile.notsosimple
 
 buildah bud -t imageName .
 
-buildah bud -t imageName -f Dockerfile.simple
+buildah bud --tls-verify=true -t imageName -f Dockerfile.simple
+
+buildah bud --tls-verify=false -t imageName .
 
 ## SEE ALSO
 buildah(1)
