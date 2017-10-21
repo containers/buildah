@@ -32,7 +32,7 @@ Prior to installing buildah, install the following packages on your linux distro
 * glib2-devel
 * libassuan-devel
 * ostree-devel
-* runc
+* runc (Requires version 1.0 RC4 or higher.)
 * skopeo-containers
 
 In Fedora, you can use this command:
