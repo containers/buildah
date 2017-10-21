@@ -340,6 +340,7 @@ return 1
      --pull-always
      --quiet
      -q
+     --tls-verify
   "
 
      local options_with_args="
