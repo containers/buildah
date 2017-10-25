@@ -1,4 +1,6 @@
-[buildah](https://www.youtube.com/embed/YVk5NgSiUw8) - a tool which facilitates building OCI container images
+![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah.svg)
+
+# [Buildah](https://www.youtube.com/embed/YVk5NgSiUw8) - a tool which facilitates building OCI container images
 ================================================================
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/projectatomic/buildah)](https://goreportcard.com/report/github.com/projectatomic/buildah)
@@ -6,7 +8,7 @@
 
 Note: this package is in alpha, but is close to being feature-complete.
 
-The buildah package provides a command line tool which can be used to
+The Buildah package provides a command line tool which can be used to
 * create a working container, either from scratch or using an image as a starting point
 * create an image, either from a working container or via the instructions in a Dockerfile
 * images can be built in either the OCI image format or the traditional upstream docker image format
@@ -19,7 +21,7 @@ The buildah package provides a command line tool which can be used to
 
 **Installation notes**
 
-Prior to installing buildah, install the following packages on your linux distro:
+Prior to installing Buildah, install the following packages on your linux distro:
 * make
 * golang (Requires version 1.8.1 or higher.)
 * bats
@@ -55,7 +57,7 @@ In Fedora, you can use this command:
     skopeo-containers
 ```
 
-Then to install buildah on Fedora follow the steps in this example:
+Then to install Buildah on Fedora follow the steps in this example:
 
 
 ```
@@ -80,7 +82,7 @@ In Ubuntu zesty and xenial, you can use this command:
   apt-get -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libostree-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
   apt-get -y install golang-1.8
 ```
-Then to install buildah on Ubuntu follow the steps in this example:
+Then to install Buildah on Ubuntu follow the steps in this example:
 
 ```
   mkdir ~/buildah
@@ -92,9 +94,9 @@ Then to install buildah on Ubuntu follow the steps in this example:
   make install
   buildah --help
 ```
-buildah uses `runc` to run commands when `buildah run` is used, or when `buildah build-using-dockerfile`
+Buildah uses `runc` to run commands when `buildah run` is used, or when `buildah build-using-dockerfile`
 encounters a `RUN` instruction, so you'll also need to build and install a compatible version of
-[runc](https://github.com/opencontainers/runc) for buildah to call for those cases.
+[runc](https://github.com/opencontainers/runc) for Buildah to call for those cases.
 
 ## Commands
 | Command                                              | Description                                                                                          |
