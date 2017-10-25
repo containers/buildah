@@ -14,6 +14,7 @@ import (
 
 type daemonImageDestination struct {
 	ref                  daemonReference
+	mustMatchRuntimeOS   bool
 	*tarfile.Destination // Implements most of types.ImageDestination
 	// For talking to imageLoadGoroutine
 	goroutineCancel context.CancelFunc
@@ -33,6 +34,11 @@ func newImageDestination(ctx *types.SystemContext, ref daemonReference) (types.I
 		return nil, errors.Errorf("Invalid destination docker-daemon:%s: a destination must be a name:tag", ref.StringWithinTransport())
 	}
 
+	var mustMatchRuntimeOS = true
+	if ctx != nil && ctx.DockerDaemonHost != client.DefaultDockerHost {
+		mustMatchRuntimeOS = false
+	}
+
 	c, err := newDockerClient(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error initializing docker engine client")
@@ -46,12 +52,13 @@ func newImageDestination(ctx *types.SystemContext, ref daemonReference) (types.I
 	go imageLoadGoroutine(goroutineContext, c, reader, statusChannel)
 
 	return &daemonImageDestination{
-		ref:             ref,
-		Destination:     tarfile.NewDestination(writer, namedTaggedRef),
-		goroutineCancel: goroutineCancel,
-		statusChannel:   statusChannel,
-		writer:          writer,
-		committed:       false,
+		ref:                ref,
+		mustMatchRuntimeOS: mustMatchRuntimeOS,
+		Destination:        tarfile.NewDestination(writer, namedTaggedRef),
+		goroutineCancel:    goroutineCancel,
+		statusChannel:      statusChannel,
+		writer:             writer,
+		committed:          false,
 	}, nil
 }
 
@@ -80,7 +87,7 @@ func imageLoadGoroutine(ctx context.Context, c *client.Client, reader *io.PipeRe
 
 // MustMatchRuntimeOS returns true iff the destination can store only images targeted for the current runtime OS. False otherwise.
 func (d *daemonImageDestination) MustMatchRuntimeOS() bool {
-	return true
+	return d.mustMatchRuntimeOS
 }
 
 // Close removes resources associated with an initialized ImageDestination, if any.
