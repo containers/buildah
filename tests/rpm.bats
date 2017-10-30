@@ -8,7 +8,7 @@ load helpers
 	fi
 
 	# Build a container to use for building the binaries.
-	image=fedora:26
+	image=registry.fedoraproject.org/fedora:26
 	cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
 	root=$(buildah --debug=false mount $cid)
 	commit=$(git log --format=%H -n 1)
@@ -27,7 +27,7 @@ load helpers
 	buildah --debug=false run $cid -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
 
 	# Build a second new container.
-	cid2=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json fedora:26)
+	cid2=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json registry.fedoraproject.org/fedora:26)
 	root2=$(buildah --debug=false mount $cid2)
 
 	# Copy the binary packages from the first container to the second one, and build a list of
