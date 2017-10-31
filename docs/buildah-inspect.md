@@ -7,7 +7,7 @@ buildah inspect - Display information about working containers or images.
 **buildah** **inspect** [*options* [...] --] **ID**
 
 ## DESCRIPTION
-Prints the low-level information on buildah object(s) (e.g. container, images) identified by name or ID. By default, this will render all results in a
+Prints the low-level information on Buildah object(s) (e.g. container, images) identified by name or ID. By default, this will render all results in a
 JSON array. If the container and image have the same name, this will return container JSON for unspecified type. If a format is specified, 
 the given template will be executed for each result.
 
@@ -19,7 +19,7 @@ Use *template* as a Go template when formatting the output.
 
 Users of this option should be familiar with the [*text/template*
 package](https://golang.org/pkg/text/template/) in the Go standard library, and
-of internals of buildah's implementation.
+of internals of Buildah's implementation.
 
 **--type** *container* | *image*
 

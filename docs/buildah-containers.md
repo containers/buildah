@@ -7,7 +7,7 @@ buildah containers - List the working containers and their base images.
 **buildah** **containers** [*options* [...]]
 
 ## DESCRIPTION
-Lists containers which appear to be buildah working containers, their names and
+Lists containers which appear to be Buildah working containers, their names and
 IDs, and the names and IDs of the images from which they were initialized.
 
 ## OPTIONS
@@ -15,7 +15,7 @@ IDs, and the names and IDs of the images from which they were initialized.
 **--all, -a**
 
 List information about all containers, including those which were not created
-by and are not being used by buildah.
+by and are not being used by Buildah.
 
 **--json**
 

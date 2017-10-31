@@ -1,4 +1,4 @@
-## buildah-version "1" "June 2017" "buildah"
+## buildah-version "1" "June 2017" "Buildah"
 
 ## NAME
 buildah version - Display the Buildah Version Information.

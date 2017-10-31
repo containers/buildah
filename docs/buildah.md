@@ -1,14 +1,14 @@
 ## buildah "1" "March 2017" "buildah"
 
 ## NAME
-buildah - A command line tool to facilitate working with containers and using them to build images.
+Buildah - A command line tool to facilitate working with containers and using them to build images.
 
 ## SYNOPSIS
 buildah [OPTIONS] COMMAND [ARG...]
 
 
 ## DESCRIPTION
-The buildah package provides a command line tool which can be used to:
+The Buildah package provides a command line tool which can be used to:
 
     * Create a working container, either from scratch or using an image as a starting point.
     * Mount a working container's root filesystem for manipulation.
