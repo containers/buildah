@@ -1,7 +1,7 @@
 # Buildah Tutorial 1
 ## Building OCI container images
 
-The purpose of this tutorial is to demonstrate how Buildah can be used to build container images compliant with the [Open Container Initiative](https://www.opencontainers.org/) (OCI) [image specification](https://github.com/opencontainers/image-spec). Images can be built from existing images, from scratch, and using Dockerfiles. OCI images built using the Buildah command line tool (CLI) and the underlying OCI based technologies (e.g. [containers/image](https://github.com/containers/image) and [containers/storage](https://github.com/containers/storage)) are portable and can therefore run in a docker environment.
+The purpose of this tutorial is to demonstrate how Buildah can be used to build container images compliant with the [Open Container Initiative](https://www.opencontainers.org/) (OCI) [image specification](https://github.com/opencontainers/image-spec). Images can be built from existing images, from scratch, and using Dockerfiles. OCI images built using the Buildah command line tool (CLI) and the underlying OCI based technologies (e.g. [containers/image](https://github.com/containers/image) and [containers/storage](https://github.com/containers/storage)) are portable and can therefore run in a Docker environment.
 
 In brief the `containers/image` project provides mechanisms to copy, push, pull, inspect and sign container images. The `containers/storage` project provides mechanisms for storing filesystem layers, container images, and containers. Buildah is a CLI that takes advantage of these underlying projects and therefore allows you to build, move, and manage container images and containers.  
 
@@ -29,9 +29,9 @@ What can we do with this new container? Let's try running bash:
 
     buildah run $container bash
     
-Notice we get a new shell prompt because we are running a bash shell inside of the container. It should be noted that `buildah run` is not intended for running production containers. It is for helping debug during the build process. 
+Notice we get a new shell prompt because we are running a bash shell inside of the container. It should be noted that `buildah run` is primarily intended for helping debug during the build process. A runtime like runc or a container interface like [CRI-O](https://github.com/kubernetes-incubator/cri-o) is more suited for starting containers in production.
 
-Let's try running something else:
+Be sure to `exit` out of the container and let's try running something else:
 
     buildah run $container java
 
@@ -41,11 +41,11 @@ Oops. Java is not installed. A message containing something like the following w
     
 Lets try installing it using:
     
-    buildah run $container -- dnf install java
+    buildah run $container -- dnf -y install java
 
-The `--` syntax basically tells Buildah: there are no more `buildah run` command options after this point. The options after this point or for inside the containers shell. It is required if the command we specify includes command line options which are not meant for Buildah. 
+The `--` syntax basically tells Buildah: there are no more `buildah run` command options after this point. The options after this point are for inside the containers shell. It is required if the command we specify includes command line options which are not meant for Buildah. 
 
-Now running `buildah run $container java` will show that Java has been installed. It will return the `Usage`:
+Now running `buildah run $container java` will show that Java has been installed. It will return the standard Java `Usage` output.
 
 ## Building a container from scratch
 
@@ -59,11 +59,17 @@ You can see this new empty container by running:
 
     buildah containers
   
-Its container name is working-container by default. And it's stored in the `$newcontainer` variable. Notice the image name (IMAGE NAME) is "scratch". This just indicates that there is no real image yet. i.e. It is containers/storage but there is no representation in containers/image. So when we run:
+You should see output similar to the following:
+
+    CONTAINER ID  BUILDER  IMAGE ID     IMAGE NAME                       CONTAINER NAME
+    82af3b9a9488     *     3d85fcda5754 docker.io/library/fedora:latest  fedora-working-container
+    ac8fa6be0f0a     *                  scratch                          working-container
+
+Its container name is working-container by default and it's stored in the `$newcontainer` variable. Notice the image name (IMAGE NAME) is "scratch". This just indicates that there is no real image yet. i.e. It is containers/storage but there is no representation in containers/image. So when we run:
 
     buildah images
   
-We don't see the image listed. There is no image. It is an empty container.
+We don't see the image listed. There is no corresponding scratch image. It is an empty container.
 
 So does this container actually do anything? Let's see.
 
@@ -73,7 +79,7 @@ Nope. This really is empty. The package installer `dnf` is not even inside this 
 
     scratchmnt=$(buildah mount $newcontainer)
     
-By echoing `$scratchmnt` we can see the path for the [overlay image](https://wiki.archlinux.org/index.php/Overlay_filesystem), which gives you a link directly to the root file system.,
+By echoing `$scratchmnt` we can see the path for the [overlay image](https://wiki.archlinux.org/index.php/Overlay_filesystem), which gives you a link directly to the root file system of the container.
 
     # echo $scratchmnt
     /var/lib/containers/storage/overlay/b78d0e11957d15b5d1fe776293bd40a36c28825fb6cf76f407b4d0a95b2a200d/diff  
@@ -88,9 +94,10 @@ Let's try it out (showing the prompt in this example to demonstrate the differen
 
     # buildah run $newcontainer bash
     bash-4.4# cd /usr/bin
+    bash-4.4# ls
     bash-4.4# exit
 
-Notice we have a `/usr/bin` directory in the newcontianer's image layer. Let's first copy a simple file from our host into the container.. Create a file called runecho.sh contains the following:
+Notice we have a `/usr/bin` directory in the newcontainer's image layer. Let's first copy a simple file from our host into the container. Create a file called runecho.sh which contains the following:
 
     #!/bin/bash
     for i in `seq 0 9`;
@@ -140,20 +147,28 @@ And you can see there is a new image called `fedora-bashecho:latest`. You can in
 
     buildah inspect --type=image fedora-bashecho
 
-Later when you want to create a new container or containers from this image, you simply need need to do `buildah from fedora-bashecho`. This will create a duplicate copy of this image for you.
+Later when you want to create a new container or containers from this image, you simply need need to do `buildah from fedora-bashecho`. This will create a new containers based on this image for you. 
+
+Now that you have the new image you can remove the scratch container called working-container:
+
+    buildah rm $newcontainer
+
+or
+
+    buildah rm working-container
 
 ## OCI images built using Buildah are portable
 
-Let's test if this new OCI image is really portable to another OCI technology like docker. First you shouuld install docker and start it. Notice that Docker requires a daemon process (that's quite big) in order to run any client commands. Buildah has no daemon requirement.
+Let's test if this new OCI image is really portable to another OCI technology like Docker. First you should install Docker and start it. Notice that Docker requires a daemon process (that's quite big) in order to run any client commands. Buildah has no daemon requirement.
 
     dnf -y install docker
     systemctl start docker
     
-Let's copy that image from where containers/storage stores it to where the docker daemon stores its images, so that we can run it using docker. We can achieve this using `buildah push`. This copies the image to docker's repository area which is located under `/var/lib/docker`. Docker's repository is managed by the docker daemon. This needs to be explicitly stated by telling Buildah to push to the docker repository protocol using `docker-daemon:`.
+Let's copy that image from where containers/storage stores it to where the Docker daemon stores its images, so that we can run it using Docker. We can achieve this using `buildah push`. This copies the image to Docker's repository area which is located under `/var/lib/docker`. Docker's repository is managed by the Docker daemon. This needs to be explicitly stated by telling Buildah to push to the Docker repository protocol using `docker-daemon:`.
 
     buildah push fedora-bashecho docker-daemon:fedora-bashecho:latest
 
-Under the covers, the containers/image library calls into the containers/storage library to read the image's contents, and sends them to the local docker daemon. This can take a little while. And usually you won't need to do this. If you're using `buildah` you are probably not using docker. This is just for demo purposes. Let's try it:
+Under the covers, the containers/image library calls into the containers/storage library to read the image's contents, and sends them to the local Docker daemon. This can take a little while. And usually you won't need to do this. If you're using `buildah` you are probably not using Docker. This is just for demo purposes. Let's try it:
 
     docker run fedora-bashecho 
     This is a new container from ipbabble [ 0 ]
@@ -173,13 +188,13 @@ OCI container images built with `buildah` are completely standard as expected. S
 
 ## Using Dockerfiles with Buildah
 
-What if you have been using docker for a while and have some existing Dockerfiles. Not a problem. `buildah` can build images using a Dockerfile. The `build-using-dockerfile`, or `bud` for short, takes a Dockefile as input and produces an OCI image.
+What if you have been using Docker for a while and have some existing Dockerfiles. Not a problem. Buildah can build images using a Dockerfile. The `build-using-dockerfile`, or `bud` for short, takes a Dockerfile as input and produces an OCI image.
 
 Find one of your Dockerfiles or create a file called Dockerfile. Use the following example or some variation if you'd like:
 
     # Base on the Fedora
     FROM fedora:latest
-    MAINTAINER W Henry email ipbabble@gmail.com
+    MAINTAINER  ipbabble email buildahboy@redhat.com # not a real email
 
     # Update image and install httpd
     RUN echo "Updating all fedora packages"; dnf -y update; dnf -y clean all
@@ -191,15 +206,15 @@ Find one of your Dockerfiles or create a file called Dockerfile. Use the followi
     # Run the httpd
     CMD ["/usr/sbin/httpd", "-DFOREGROUND"]
 
-Now run `buildah bud` with the name of the Dockerfile and the image name (fedora-httpd):
+Now run `buildah bud` with the name of the Dockerfile and the name to be given to the created image (e.g. fedora-httpd):
 
     buildah bud -f Dockerfile -t fedora-httpd
 
-or, because `buildah bud` defaults to Dockerfile:
+or, because `buildah bud` defaults to Dockerfile (note the period at the end of the example):
 
-    buildah bud -t fedora-httpd
+    buildah bud -t fedora-httpd .
 
-You will see all the steps of the Dockerfile executing. Afterwards `buildah images` will show you the new image. Now we need to create the container and test it with `buildah run` :
+You will see all the steps of the Dockerfile executing. Afterwards `buildah images` will show you the new image. Now we need to create the container using `buildah from` and test it with `buildah run`:
 
     httpcontainer=$(buildah from fedora-httpd)
     buildah run $httpcontainer
@@ -208,7 +223,7 @@ While that container is running, in another shell run:
 
     curl localhost
     
-You will see the standard apache webpage.
+You will see the standard Apache webpage.
 
 Why not try and modify the Dockerfile. Do not install httpd, but instead ADD the runecho.sh file and have it run as the CMD. 
 
