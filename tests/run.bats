@@ -114,6 +114,7 @@ load helpers
 	testuser=jimbo
 	testgroup=jimbogroup
 	testuid=$RANDOM
+	testotheruid=$RANDOM
 	testgid=$RANDOM
 	testgroupid=$RANDOM
 	echo "$testuser:x:$testuid:$testgid:Jimbo Jenkins:/home/$testuser:/bin/sh" >> $root/etc/passwd
@@ -153,6 +154,20 @@ load helpers
 	[ "$output" = $testuid ]
 	run buildah --debug=false run -- $cid id -g
 	[ "$output" = $testgroupid ]
+
+	buildah config $cid -u ${testotheruid}:${testgroup}
+	buildah run -- $cid id
+	run buildah --debug=false run -- $cid id -u
+	[ "$output" = $testotheruid ]
+	run buildah --debug=false run -- $cid id -g
+	[ "$output" = $testgroupid ]
+
+	buildah config $cid -u ${testotheruid}
+	buildah run -- $cid id
+	run buildah --debug=false run -- $cid id -u
+	[ "$output" = $testotheruid ]
+	run buildah --debug=false run -- $cid id -g
+	[ "$output" = 0 ]
 
 	buildah config $cid -u ${testuser}:${testgroupid}
 	buildah run -- $cid id
