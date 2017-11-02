@@ -26,7 +26,6 @@ const (
 )
 
 func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
-	var err error
 	var ref types.ImageReference
 	var img *storage.Image
 	manifest := []byte{}
@@ -45,6 +44,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 
 	imageID := ""
 	if image != "" {
+		var err error
 		if options.PullPolicy == PullAlways {
 			pulledReference, err2 := pullImage(store, options, systemContext)
 			if err2 != nil {
