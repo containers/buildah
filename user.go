@@ -26,21 +26,32 @@ func getUser(rootdir, userspec string) (specs.User, error) {
 	uid64, uerr := strconv.ParseUint(userspec, 10, 32)
 	if uerr == nil && groupspec == "" {
 		// We parsed the user name as a number, and there's no group
-		// component, so we need to look up the user's primary GID.
+		// component, so try to look up the primary GID of the user who
+		// has this UID.
 		var name string
 		name, gid64, gerr = lookupGroupForUIDInContainer(rootdir, uid64)
 		if gerr == nil {
 			userspec = name
+		} else {
+			// Leave userspec alone, but swallow the error and just
+			// use GID 0.
+			gid64 = 0
+			gerr = nil
 		}
 	}
 	if uerr != nil {
+		// The user ID couldn't be parsed as a number, so try to look
+		// up the user's UID and primary GID.
 		uid64, gid64, uerr = lookupUserInContainer(rootdir, userspec)
 		gerr = uerr
 	}
 
 	if groupspec != "" {
+		// We have a group name or number, so parse it.
 		gid64, gerr = strconv.ParseUint(groupspec, 10, 32)
 		if gerr != nil {
+			// The group couldn't be parsed as a number, so look up
+			// the group's GID.
 			gid64, gerr = lookupGroupInContainer(rootdir, groupspec)
 		}
 	}
