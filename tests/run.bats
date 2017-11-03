@@ -112,6 +112,7 @@ load helpers
 	root=$(buildah mount $cid)
 
 	testuser=jimbo
+	testbogususer=nosuchuser
 	testgroup=jimbogroup
 	testuid=$RANDOM
 	testotheruid=$RANDOM
@@ -182,6 +183,12 @@ load helpers
 	[ "$output" = $testuid ]
 	run buildah --debug=false run -- $cid id -g
 	[ "$output" = $testgroupid ]
+
+	buildah config $cid -u ${testbogususer}
+	run buildah --debug=false run -- $cid id -u
+	[ "$status" -ne 0 ]
+	run buildah --debug=false run -- $cid id -g
+	[ "$status" -ne 0 ]
 
 	ln -vsf /etc/passwd $root/etc/passwd
 	buildah config $cid -u ${testuser}:${testgroup}
