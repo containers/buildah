@@ -1,4 +1,4 @@
-// +build !cgo !linux
+// +build !linux
 
 package buildah
 
