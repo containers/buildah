@@ -158,6 +158,11 @@ func NewBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	return newBuilder(store, options)
 }
 
+// pull selected image and return its reference
+func PullImage(store storage.Store, options BuilderOptions, sc *types.SystemContext) (types.ImageReference, error) {
+	return pullImage(store, options, sc)
+}
+
 // ImportBuilder creates a new build configuration using an already-present
 // container.
 func ImportBuilder(store storage.Store, options ImportOptions) (*Builder, error) {
