@@ -9,6 +9,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -24,6 +25,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 
   target=alpine-image
@@ -37,6 +39,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -52,6 +55,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 
   target=alpine-image
@@ -65,6 +69,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -88,6 +93,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -100,6 +106,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -112,6 +119,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -124,6 +132,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -136,6 +145,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -155,6 +165,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -168,6 +179,7 @@ load helpers
   buildah --debug=false images -q
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -177,6 +189,7 @@ load helpers
   target3=so-many-scratch-images
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -t ${target2} -t ${target3} ${TESTSDIR}/bud/from-scratch
   run buildah --debug=false images
+  [ "$status" -eq 0 ]
   cid=$(buildah from ${target})
   buildah rm ${cid}
   cid=$(buildah from library/${target2})
@@ -185,6 +198,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi -f $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -200,10 +214,12 @@ load helpers
   run test -s $root/vol/subvol/subvolfile
   [ "$status" -ne 0 ]
   run stat -c %f $root/vol/subvol
+  [ "$status" -eq 0 ]
   [ "$output" = 41ed ]
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
 
@@ -217,5 +233,6 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
