@@ -21,6 +21,7 @@ dnf install -y \
   libassuan-devel \
   libseccomp-devel \
   libselinux-devel \
+  libselinux-utils \
   make \
   ostree-devel \
   which

@@ -182,7 +182,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	} else if b.Hostname() != "" {
 		g.SetHostname(b.Hostname())
 	}
-	mountPoint, err := b.Mount("")
+	g.SetProcessSelinuxLabel(b.ProcessLabel)
+	g.SetLinuxMountLabel(b.MountLabel)
+	mountPoint, err := b.Mount(b.MountLabel)
 	if err != nil {
 		return err
 	}
