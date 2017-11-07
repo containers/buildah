@@ -1,10 +1,21 @@
 language: go
-go:
+dist: trusty
+sudo: required
+go: 
     - 1.7
     - 1.8
     - 1.9.x
-dist: trusty
-sudo: required
+    - tip
+
+matrix:
+  # If the latest unstable development version of go fails, that's OK.
+  allow_failures:
+    - go: tip
+
+  # Don't hold on the tip tests to finish.  Mark tests green if the
+  # stable versions pass.
+  fast_finish: true
+
 services:
     - docker
 before_install:
