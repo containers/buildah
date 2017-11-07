@@ -54,6 +54,10 @@ var (
 			Name:  "tag, t",
 			Usage: "`tag` to apply to the built image",
 		},
+		cli.BoolTFlag{
+			Name:  "tls-verify",
+			Usage: "Require HTTPS and verify certificates when accessing the registry",
+		},
 	}
 
 	budDescription = "Builds an OCI image using instructions in one or more Dockerfiles."
@@ -179,6 +183,7 @@ func budCmd(c *cli.Context) error {
 		Compression:         imagebuildah.Gzip,
 		Quiet:               c.Bool("quiet"),
 		SignaturePolicyPath: c.String("signature-policy"),
+		SkipTLSVerify:       !c.Bool("tls-verify"),
 		Args:                args,
 		Output:              output,
 		AdditionalTags:      tags,
