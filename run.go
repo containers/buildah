@@ -100,6 +100,26 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 			Options:     []string{"rbind", "ro"},
 		})
 	}
+
+	cdir, err := b.store.ContainerDirectory(b.ContainerID)
+	if err != nil {
+		return errors.Wrapf(err, "error determining work directory for container %q", b.ContainerID)
+	}
+
+	// Add secrets mounts
+	mountsFiles := []string{OverrideMountsFile, b.DefaultMountsFilePath}
+	for _, file := range mountsFiles {
+		secretMounts, err := secretMounts(file, b.MountLabel, cdir)
+		if err != nil {
+			logrus.Warn("error mounting secrets, skipping...")
+		}
+		for _, mount := range secretMounts {
+			if haveMount(mount.Destination) {
+				continue
+			}
+			mounts = append(mounts, mount)
+		}
+	}
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
 	for _, volume := range volumes {
@@ -107,13 +127,8 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 			// Already mounting something there, no need to bother.
 			continue
 		}
-		cdir, err := b.store.ContainerDirectory(b.ContainerID)
-		if err != nil {
-			return errors.Wrapf(err, "error determining work directory for container %q", b.ContainerID)
-		}
 		subdir := digest.Canonical.FromString(volume).Hex()
 		volumePath := filepath.Join(cdir, "buildah-volumes", subdir)
-		logrus.Debugf("using %q for volume at %q", volumePath, volume)
 		// If we need to, initialize the volume path's initial contents.
 		if _, err = os.Stat(volumePath); os.IsNotExist(err) {
 			if err = os.MkdirAll(volumePath, 0755); err != nil {

@@ -197,18 +197,19 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	}
 
 	builder := &Builder{
-		store:            store,
-		Type:             containerType,
-		FromImage:        image,
-		FromImageID:      imageID,
-		Config:           config,
-		Manifest:         manifest,
-		Container:        name,
-		ContainerID:      container.ID,
-		ImageAnnotations: map[string]string{},
-		ImageCreatedBy:   "",
-		ProcessLabel:     processLabel,
-		MountLabel:       mountLabel,
+		store:                 store,
+		Type:                  containerType,
+		FromImage:             image,
+		FromImageID:           imageID,
+		Config:                config,
+		Manifest:              manifest,
+		Container:             name,
+		ContainerID:           container.ID,
+		ImageAnnotations:      map[string]string{},
+		ImageCreatedBy:        "",
+		ProcessLabel:          processLabel,
+		MountLabel:            mountLabel,
+		DefaultMountsFilePath: options.DefaultMountsFilePath,
 	}
 
 	if options.Mount {
