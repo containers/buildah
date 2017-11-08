@@ -20,7 +20,7 @@ const (
 	// identify working containers.
 	Package = "buildah"
 	// Version for the Package
-	Version = "0.4"
+	Version = "0.5"
 	// The value we use to identify what type of information, currently a
 	// serialized Builder structure, we are using as per-container state.
 	// This should only be changed when we make incompatible changes to
