@@ -25,7 +25,7 @@
 %global shortcommit    %(c=%{commit}; echo ${c:0:7})
 
 Name:           buildah
-Version:        0.4
+Version:        0.5
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -87,6 +87,18 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Tue Nov 07 2017 Dan Walsh <dwalsh@redhat.com> 0.5-1
+-  Add secrets patch to buildah
+-  Add proper SELinux labeling to buildah run
+-  Add tls-verify to bud command
+-  Make filtering by date use the image's date
+-  images: don't list unnamed images twice
+-  Fix timeout issue
+-  Add further tty verbiage to buildah run
+-  Make inspect try an image on failure if type not specified
+-  Add support for `buildah run --hostname`
+-  Tons of bug fixes and code cleanup
+
 * Fri Sep 22 2017 Dan Walsh <dwalsh@redhat.com> 0.4-1.git9cbccf88c
 -   Add default transport to push if not provided
 -   Avoid trying to print a nil ImageReference

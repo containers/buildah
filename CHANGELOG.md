@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5 - 2017-11-07
+    Add secrets patch to buildah
+    Add proper SELinux labeling to buildah run
+    Add tls-verify to bud command
+    Make filtering by date use the image's date
+    images: don't list unnamed images twice
+    Fix timeout issue
+    Add further tty verbiage to buildah run
+    Make inspect try an image on failure if type not specified
+    Add support for `buildah run --hostname`
+    Tons of bug fixes and code cleanup
+
 ## 0.4 - 2017-09-22
 ### Added
     Update buildah spec file to match new version
