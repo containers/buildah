@@ -553,3 +553,8 @@ func (b *Builder) Domainname() string {
 func (b *Builder) SetDomainname(name string) {
 	b.Docker.Config.Domainname = name
 }
+
+// SetDefaultMountsFilePath sets the mounts file path for testing purposes
+func (b *Builder) SetDefaultMountsFilePath(path string) {
+	b.DefaultMountsFilePath = path
+}

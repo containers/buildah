@@ -53,6 +53,11 @@ func main() {
 			Usage: "storage driver option",
 			Value: defaultStoreDriverOptions,
 		},
+		cli.StringFlag{
+			Name:  "default-mounts-file",
+			Usage: "path to default mounts file",
+			Value: buildah.DefaultMountsFile,
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		logrus.SetLevel(logrus.ErrorLevel)

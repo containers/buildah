@@ -91,6 +91,8 @@ type Builder struct {
 	// Image metadata and runtime settings, in multiple formats.
 	OCIv1  v1.Image       `json:"ociv1,omitempty"`
 	Docker docker.V2Image `json:"docker,omitempty"`
+	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
+	DefaultMountsFilePath string `json:"defaultMountsFilePath,omitempty"`
 }
 
 // BuilderOptions are used to initialize a new Builder.
@@ -130,6 +132,8 @@ type BuilderOptions struct {
 	// github.com/containers/image/types SystemContext to hold credentials
 	// and other authentication/authorization information.
 	SystemContext *types.SystemContext
+	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
+	DefaultMountsFilePath string
 }
 
 // ImportOptions are used to initialize a Builder from an existing container
