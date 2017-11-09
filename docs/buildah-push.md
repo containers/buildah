@@ -52,6 +52,10 @@ The username[:password] to use to authenticate with the registry if required.
 
 Don't compress copies of filesystem layers which will be pushed.
 
+**--format, -f**
+
+Manifest Type (oci, v2s1, or v2s2) to use when saving image to directory using the 'dir:' transport (default is manifest type of source)
+
 **--quiet**
 
 When writing the output image, suppress progress output.
