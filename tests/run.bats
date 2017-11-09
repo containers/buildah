@@ -177,12 +177,7 @@ load helpers
 		skip
 	fi
 	runc --version
-	createrandom ${TESTDIR}/randomfile
-	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json fedora)
-	root=$(buildah mount $cid)
-	run buildah --debug=false run  -- $cid dnf -y install hostname
-	echo "$output"
-	[ "$status" -eq 0 ]
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run buildah --debug=false run $cid hostname
 	echo "$output"
 	[ "$status" -eq 0 ]
@@ -191,6 +186,5 @@ load helpers
 	echo "$output"
 	[ "$status" -eq 0 ]
 	[ "$output" = "foobar" ]
-	buildah unmount $cid
 	buildah rm $cid
 }
