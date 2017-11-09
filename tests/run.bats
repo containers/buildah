@@ -74,26 +74,32 @@ load helpers
 	buildah config $cid --entrypoint ""
 	buildah config $cid --cmd pwd
 	run buildah --debug=false run $cid
+	[ "$status" -eq 0 ]
 	[ "$output" = /tmp ]
 
 	buildah config $cid --entrypoint echo
 	run buildah --debug=false run $cid
+	[ "$status" -eq 0 ]
 	[ "$output" = pwd ]
 
 	buildah config $cid --cmd ""
 	run buildah --debug=false run $cid
+	[ "$status" -eq 0 ]
 	[ "$output" = "" ]
 
 	buildah config $cid --entrypoint ""
 	run buildah --debug=false run $cid echo that-other-thing
+	[ "$status" -eq 0 ]
 	[ "$output" = that-other-thing ]
 
 	buildah config $cid --cmd echo
 	run buildah --debug=false run $cid echo that-other-thing
+	[ "$status" -eq 0 ]
 	[ "$output" = that-other-thing ]
 
 	buildah config $cid --entrypoint echo
 	run buildah --debug=false run $cid echo that-other-thing
+	[ "$status" -eq 0 ]
 	[ "$output" = that-other-thing ]
 
 	buildah rm $cid
@@ -112,8 +118,10 @@ load helpers
 	root=$(buildah mount $cid)
 
 	testuser=jimbo
+	testbogususer=nosuchuser
 	testgroup=jimbogroup
 	testuid=$RANDOM
+	testotheruid=$RANDOM
 	testgid=$RANDOM
 	testgroupid=$RANDOM
 	echo "$testuser:x:$testuid:$testgid:Jimbo Jenkins:/home/$testuser:/bin/sh" >> $root/etc/passwd
@@ -122,51 +130,98 @@ load helpers
 	buildah config $cid -u ""
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
+	[ "$status" -eq 0 ]
 	[ "$output" = 0 ]
 	run buildah --debug=false run -- $cid id -g
+	[ "$status" -eq 0 ]
 	[ "$output" = 0 ]
 
 	buildah config $cid -u ${testuser}
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
+	[ "$status" -eq 0 ]
 	[ "$output" = $testuid ]
 	run buildah --debug=false run -- $cid id -g
+	[ "$status" -eq 0 ]
 	[ "$output" = $testgid ]
 
 	buildah config $cid -u ${testuid}
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
+	[ "$status" -eq 0 ]
 	[ "$output" = $testuid ]
 	run buildah --debug=false run -- $cid id -g
+	[ "$status" -eq 0 ]
 	[ "$output" = $testgid ]
 
 	buildah config $cid -u ${testuser}:${testgroup}
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
+	[ "$status" -eq 0 ]
 	[ "$output" = $testuid ]
 	run buildah --debug=false run -- $cid id -g
+	[ "$status" -eq 0 ]
 	[ "$output" = $testgroupid ]
 
 	buildah config $cid -u ${testuid}:${testgroup}
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
+	[ "$status" -eq 0 ]
 	[ "$output" = $testuid ]
 	run buildah --debug=false run -- $cid id -g
+	[ "$status" -eq 0 ]
 	[ "$output" = $testgroupid ]
+
+	buildah config $cid -u ${testotheruid}:${testgroup}
+	buildah run -- $cid id
+	run buildah --debug=false run -- $cid id -u
+	[ "$status" -eq 0 ]
+	[ "$output" = $testotheruid ]
+	run buildah --debug=false run -- $cid id -g
+	[ "$status" -eq 0 ]
+	[ "$output" = $testgroupid ]
+
+	buildah config $cid -u ${testotheruid}
+	buildah run -- $cid id
+	run buildah --debug=false run -- $cid id -u
+	[ "$status" -eq 0 ]
+	[ "$output" = $testotheruid ]
+	run buildah --debug=false run -- $cid id -g
+	[ "$status" -eq 0 ]
+	[ "$output" = 0 ]
 
 	buildah config $cid -u ${testuser}:${testgroupid}
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
+	[ "$status" -eq 0 ]
 	[ "$output" = $testuid ]
 	run buildah --debug=false run -- $cid id -g
+	[ "$status" -eq 0 ]
 	[ "$output" = $testgroupid ]
 
 	buildah config $cid -u ${testuid}:${testgroupid}
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
+	[ "$status" -eq 0 ]
 	[ "$output" = $testuid ]
 	run buildah --debug=false run -- $cid id -g
+	[ "$status" -eq 0 ]
 	[ "$output" = $testgroupid ]
+
+	buildah config $cid -u ${testbogususer}
+	run buildah --debug=false run -- $cid id -u
+	[ "$status" -ne 0 ]
+	[[ "$output" =~ "unknown user" ]]
+	run buildah --debug=false run -- $cid id -g
+	[ "$status" -ne 0 ]
+	[[ "$output" =~ "unknown user" ]]
+
+	ln -vsf /etc/passwd $root/etc/passwd
+	buildah config $cid -u ${testuser}:${testgroup}
+	run buildah --debug=false run -- $cid id -u
+	echo "$output"
+	[ "$status" -ne 0 ]
+	[[ "$output" =~ "unknown user" ]]
 
 	buildah unmount $cid
 	buildah rm $cid

@@ -110,5 +110,6 @@ load helpers
     buildah rmi $id
   done
   run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
   [ "$output" == "" ]
 }
