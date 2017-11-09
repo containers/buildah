@@ -157,13 +157,16 @@ func (m *manifestSchema2) imageInspectInfo() (*types.ImageInspectInfo, error) {
 	if err := json.Unmarshal(config, v1); err != nil {
 		return nil, err
 	}
-	return &types.ImageInspectInfo{
+	i := &types.ImageInspectInfo{
 		DockerVersion: v1.DockerVersion,
 		Created:       v1.Created,
-		Labels:        v1.Config.Labels,
 		Architecture:  v1.Architecture,
 		Os:            v1.OS,
-	}, nil
+	}
+	if v1.Config != nil {
+		i.Labels = v1.Config.Labels
+	}
+	return i, nil
 }
 
 // UpdatedImageNeedsLayerDiffIDs returns true iff UpdatedImage(options) needs InformationOnly.LayerDiffIDs.

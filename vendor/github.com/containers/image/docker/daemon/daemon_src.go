@@ -7,7 +7,6 @@ import (
 
 	"github.com/containers/image/docker/tarfile"
 	"github.com/containers/image/types"
-	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -35,7 +34,7 @@ type layerInfo struct {
 // is the config, and that the following len(RootFS) files are the layers, but that feels
 // way too brittle.)
 func newImageSource(ctx *types.SystemContext, ref daemonReference) (types.ImageSource, error) {
-	c, err := client.NewClient(client.DefaultDockerHost, "1.22", nil, nil) // FIXME: overridable host
+	c, err := newDockerClient(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error initializing docker engine client")
 	}

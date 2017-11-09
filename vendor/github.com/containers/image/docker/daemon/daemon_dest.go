@@ -24,7 +24,7 @@ type daemonImageDestination struct {
 }
 
 // newImageDestination returns a types.ImageDestination for the specified image reference.
-func newImageDestination(systemCtx *types.SystemContext, ref daemonReference) (types.ImageDestination, error) {
+func newImageDestination(ctx *types.SystemContext, ref daemonReference) (types.ImageDestination, error) {
 	if ref.ref == nil {
 		return nil, errors.Errorf("Invalid destination docker-daemon:%s: a destination must be a name:tag", ref.StringWithinTransport())
 	}
@@ -33,7 +33,7 @@ func newImageDestination(systemCtx *types.SystemContext, ref daemonReference) (t
 		return nil, errors.Errorf("Invalid destination docker-daemon:%s: a destination must be a name:tag", ref.StringWithinTransport())
 	}
 
-	c, err := client.NewClient(client.DefaultDockerHost, "1.22", nil, nil) // FIXME: overridable host
+	c, err := newDockerClient(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error initializing docker engine client")
 	}
@@ -42,8 +42,8 @@ func newImageDestination(systemCtx *types.SystemContext, ref daemonReference) (t
 	// Commit() may never be called, so we may never read from this channel; so, make this buffered to allow imageLoadGoroutine to write status and terminate even if we never read it.
 	statusChannel := make(chan error, 1)
 
-	ctx, goroutineCancel := context.WithCancel(context.Background())
-	go imageLoadGoroutine(ctx, c, reader, statusChannel)
+	goroutineContext, goroutineCancel := context.WithCancel(context.Background())
+	go imageLoadGoroutine(goroutineContext, c, reader, statusChannel)
 
 	return &daemonImageDestination{
 		ref:             ref,

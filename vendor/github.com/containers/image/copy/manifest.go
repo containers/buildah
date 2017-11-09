@@ -41,10 +41,14 @@ func (os *orderedSet) append(s string) {
 // Note that the conversion will only happen later, through src.UpdatedImage
 // Returns the preferred manifest MIME type (whether we are converting to it or using it unmodified),
 // and a list of other possible alternatives, in order.
-func determineManifestConversion(manifestUpdates *types.ManifestUpdateOptions, src types.Image, destSupportedManifestMIMETypes []string, canModifyManifest bool) (string, []string, error) {
+func determineManifestConversion(manifestUpdates *types.ManifestUpdateOptions, src types.Image, destSupportedManifestMIMETypes []string, canModifyManifest bool, forceManifestMIMEType string) (string, []string, error) {
 	_, srcType, err := src.Manifest()
 	if err != nil { // This should have been cached?!
 		return "", nil, errors.Wrap(err, "Error reading manifest")
+	}
+
+	if forceManifestMIMEType != "" {
+		destSupportedManifestMIMETypes = []string{forceManifestMIMEType}
 	}
 
 	if len(destSupportedManifestMIMETypes) == 0 {

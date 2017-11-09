@@ -109,7 +109,7 @@ func (m *manifestOCI1) OCIConfig() (*imgspecv1.Image, error) {
 func (m *manifestOCI1) LayerInfos() []types.BlobInfo {
 	blobs := []types.BlobInfo{}
 	for _, layer := range m.LayersDescriptors {
-		blobs = append(blobs, types.BlobInfo{Digest: layer.Digest, Size: layer.Size, Annotations: layer.Annotations, URLs: layer.URLs})
+		blobs = append(blobs, types.BlobInfo{Digest: layer.Digest, Size: layer.Size, Annotations: layer.Annotations, URLs: layer.URLs, MediaType: layer.MediaType})
 	}
 	return blobs
 }
@@ -130,13 +130,16 @@ func (m *manifestOCI1) imageInspectInfo() (*types.ImageInspectInfo, error) {
 	if err := json.Unmarshal(config, v1); err != nil {
 		return nil, err
 	}
-	return &types.ImageInspectInfo{
+	i := &types.ImageInspectInfo{
 		DockerVersion: v1.DockerVersion,
 		Created:       v1.Created,
-		Labels:        v1.Config.Labels,
 		Architecture:  v1.Architecture,
 		Os:            v1.OS,
-	}, nil
+	}
+	if v1.Config != nil {
+		i.Labels = v1.Config.Labels
+	}
+	return i, nil
 }
 
 // UpdatedImageNeedsLayerDiffIDs returns true iff UpdatedImage(options) needs InformationOnly.LayerDiffIDs.

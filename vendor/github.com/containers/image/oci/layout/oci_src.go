@@ -17,9 +17,10 @@ import (
 )
 
 type ociImageSource struct {
-	ref        ociReference
-	descriptor imgspecv1.Descriptor
-	client     *http.Client
+	ref           ociReference
+	descriptor    imgspecv1.Descriptor
+	client        *http.Client
+	sharedBlobDir string
 }
 
 // newImageSource returns an ImageSource for reading from an existing directory.
@@ -40,7 +41,12 @@ func newImageSource(ctx *types.SystemContext, ref ociReference) (types.ImageSour
 	if err != nil {
 		return nil, err
 	}
-	return &ociImageSource{ref: ref, descriptor: descriptor, client: client}, nil
+	d := &ociImageSource{ref: ref, descriptor: descriptor, client: client}
+	if ctx != nil {
+		// TODO(jonboulle): check dir existence?
+		d.sharedBlobDir = ctx.OCISharedBlobDirPath
+	}
+	return d, nil
 }
 
 // Reference returns the reference used to set up this source.
@@ -56,7 +62,7 @@ func (s *ociImageSource) Close() error {
 // GetManifest returns the image's manifest along with its MIME type (which may be empty when it can't be determined but the manifest is available).
 // It may use a remote (= slow) service.
 func (s *ociImageSource) GetManifest() ([]byte, string, error) {
-	manifestPath, err := s.ref.blobPath(digest.Digest(s.descriptor.Digest))
+	manifestPath, err := s.ref.blobPath(digest.Digest(s.descriptor.Digest), s.sharedBlobDir)
 	if err != nil {
 		return nil, "", err
 	}
@@ -69,7 +75,7 @@ func (s *ociImageSource) GetManifest() ([]byte, string, error) {
 }
 
 func (s *ociImageSource) GetTargetManifest(digest digest.Digest) ([]byte, string, error) {
-	manifestPath, err := s.ref.blobPath(digest)
+	manifestPath, err := s.ref.blobPath(digest, s.sharedBlobDir)
 	if err != nil {
 		return nil, "", err
 	}
@@ -92,7 +98,7 @@ func (s *ociImageSource) GetBlob(info types.BlobInfo) (io.ReadCloser, int64, err
 		return s.getExternalBlob(info.URLs)
 	}
 
-	path, err := s.ref.blobPath(info.Digest)
+	path, err := s.ref.blobPath(info.Digest, s.sharedBlobDir)
 	if err != nil {
 		return nil, 0, err
 	}
