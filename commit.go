@@ -80,6 +80,9 @@ type PushOptions struct {
 	// github.com/containers/image/types SystemContext to hold credentials
 	// and other authentication/authorization information.
 	SystemContext *types.SystemContext
+	// ManifestType is the format to use when saving the imge using the 'dir' transport
+	// possible options are oci, v2s1, and v2s2
+	ManifestType string
 }
 
 // shallowCopy copies the most recent layer, the configuration, and the manifest from one image to another.
@@ -256,7 +259,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	}
 	if exporting {
 		// Copy everything.
-		err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext))
+		err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext, ""))
 		if err != nil {
 			return errors.Wrapf(err, "error copying layers and metadata")
 		}
@@ -328,7 +331,7 @@ func Push(image string, dest types.ImageReference, options PushOptions) error {
 		return errors.Wrapf(err, "error recomputing layer digests and building metadata")
 	}
 	// Copy everything.
-	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext))
+	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext, options.ManifestType))
 	if err != nil {
 		return errors.Wrapf(err, "error copying layers and metadata")
 	}

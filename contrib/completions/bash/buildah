@@ -483,6 +483,8 @@ return 1
      local options_with_args="
           --cert-dir
           --creds
+          --format
+          -f
           --signature-policy
   "
 
