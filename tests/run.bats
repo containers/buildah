@@ -181,11 +181,14 @@ load helpers
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json fedora)
 	root=$(buildah mount $cid)
 	run buildah --debug=false run  -- $cid dnf -y install hostname
+	echo "$output"
 	[ "$status" -eq 0 ]
 	run buildah --debug=false run $cid hostname
+	echo "$output"
 	[ "$status" -eq 0 ]
 	[ "$output" != "foobar" ]
 	run buildah --debug=false run --hostname foobar $cid hostname
+	echo "$output"
 	[ "$status" -eq 0 ]
 	[ "$output" = "foobar" ]
 	buildah unmount $cid
