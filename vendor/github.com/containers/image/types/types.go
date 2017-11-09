@@ -96,6 +96,7 @@ type BlobInfo struct {
 	Size        int64         // -1 if unknown
 	URLs        []string
 	Annotations map[string]string
+	MediaType   string
 }
 
 // ImageSource is a service, possibly remote (= slow), to download components of a single image.
@@ -118,7 +119,7 @@ type ImageSource interface {
 	// out of a manifest list.
 	GetTargetManifest(digest digest.Digest) ([]byte, string, error)
 	// GetBlob returns a stream for the specified blob, and the blob’s size (or -1 if unknown).
-	// The Digest field in BlobInfo is guaranteed to be provided; Size may be -1.
+	// The Digest field in BlobInfo is guaranteed to be provided, Size may be -1 and MediaType may be optionally provided.
 	GetBlob(BlobInfo) (io.ReadCloser, int64, error)
 	// GetSignatures returns the image's signatures.  It may use a remote (= slow) service.
 	GetSignatures(context.Context) ([][]byte, error)
@@ -153,9 +154,10 @@ type ImageDestination interface {
 	AcceptsForeignLayerURLs() bool
 	// MustMatchRuntimeOS returns true iff the destination can store only images targeted for the current runtime OS. False otherwise.
 	MustMatchRuntimeOS() bool
-	// PutBlob writes contents of stream and returns data representing the result (with all data filled in).
+	// PutBlob writes contents of stream and returns data representing the result.
 	// inputInfo.Digest can be optionally provided if known; it is not mandatory for the implementation to verify it.
 	// inputInfo.Size is the expected length of stream, if known.
+	// inputInfo.MediaType describes the blob format, if known.
 	// WARNING: The contents of stream are being verified on the fly.  Until stream.Read() returns io.EOF, the contents of the data SHOULD NOT be available
 	// to any other readers for download using the supplied digest.
 	// If stream.Read() at any time, ESPECIALLY at end of input, returns an error, PutBlob MUST 1) fail, and 2) delete any data stored so far.
@@ -215,7 +217,7 @@ type Image interface {
 	// ConfigInfo returns a complete BlobInfo for the separate config object, or a BlobInfo{Digest:""} if there isn't a separate object.
 	// Note that the config object may not exist in the underlying storage in the return value of UpdatedImage! Use ConfigBlob() below.
 	ConfigInfo() BlobInfo
-	// ConfigBlob returns the blob described by ConfigInfo, iff ConfigInfo().Digest != ""; nil otherwise.
+	// ConfigBlob returns the blob described by ConfigInfo, if ConfigInfo().Digest != ""; nil otherwise.
 	// The result is cached; it is OK to call this however often you need.
 	ConfigBlob() ([]byte, error)
 	// OCIConfig returns the image configuration as per OCI v1 image-spec. Information about
@@ -223,7 +225,7 @@ type Image interface {
 	// old image manifests work (docker v2s1 especially).
 	OCIConfig() (*v1.Image, error)
 	// LayerInfos returns a list of BlobInfos of layers referenced by this image, in order (the root layer first, and then successive layered layers).
-	// The Digest field is guaranteed to be provided; Size may be -1.
+	// The Digest field is guaranteed to be provided, Size may be -1 and MediaType may be optionally provided.
 	// WARNING: The list may contain duplicates, and they are semantically relevant.
 	LayerInfos() []BlobInfo
 	// EmbeddedDockerReferenceConflicts whether a Docker reference embedded in the manifest, if any, conflicts with destination ref.
@@ -249,7 +251,7 @@ type Image interface {
 
 // ManifestUpdateOptions is a way to pass named optional arguments to Image.UpdatedManifest
 type ManifestUpdateOptions struct {
-	LayerInfos              []BlobInfo // Complete BlobInfos (size+digest+urls) which should replace the originals, in order (the root layer first, and then successive layered layers)
+	LayerInfos              []BlobInfo // Complete BlobInfos (size+digest+urls+annotations) which should replace the originals, in order (the root layer first, and then successive layered layers). BlobInfos' MediaType fields are ignored.
 	EmbeddedDockerReference reference.Named
 	ManifestMIMEType        string
 	// The values below are NOT requests to modify the image; they provide optional context which may or may not be used.
@@ -283,7 +285,7 @@ type DockerAuthConfig struct {
 	Password string
 }
 
-// SystemContext allows parametrizing access to implicitly-accessed resources,
+// SystemContext allows parameterizing access to implicitly-accessed resources,
 // like configuration files in /etc and users' login state in their home directory.
 // Various components can share the same field only if their semantics is exactly
 // the same; if in doubt, add a new field.
@@ -304,6 +306,8 @@ type SystemContext struct {
 	RegistriesDirPath string
 	// Path to the system-wide registries configuration file
 	SystemRegistriesConfPath string
+	// If not "", overrides the default path for the authentication file
+	AuthFilePath string
 
 	// === OCI.Transport overrides ===
 	// If not "", a directory containing a CA certificate (ending with ".crt"),
@@ -312,6 +316,8 @@ type SystemContext struct {
 	OCICertPath string
 	// Allow downloading OCI image layers over HTTP, or HTTPS with failed TLS verification. Note that this does not affect other TLS connections.
 	OCIInsecureSkipTLSVerify bool
+	// If not "", use a shared directory for storing blobs rather than within OCI layouts
+	OCISharedBlobDirPath string
 
 	// === docker.Transport overrides ===
 	// If not "", a directory containing a CA certificate (ending with ".crt"),
@@ -320,8 +326,9 @@ type SystemContext struct {
 	DockerCertPath string
 	// If not "", overrides the system’s default path for a directory containing host[:port] subdirectories with the same structure as DockerCertPath above.
 	// Ignored if DockerCertPath is non-empty.
-	DockerPerHostCertDirPath    string
-	DockerInsecureSkipTLSVerify bool // Allow contacting docker registries over HTTP, or HTTPS with failed TLS verification. Note that this does not affect other TLS connections.
+	DockerPerHostCertDirPath string
+	// Allow contacting docker registries over HTTP, or HTTPS with failed TLS verification. Note that this does not affect other TLS connections.
+	DockerInsecureSkipTLSVerify bool
 	// if nil, the library tries to parse ~/.docker/config.json to retrieve credentials
 	DockerAuthConfig *DockerAuthConfig
 	// if not "", an User-Agent header is added to each request when contacting a registry.
@@ -332,6 +339,20 @@ type SystemContext struct {
 	DockerDisableV1Ping bool
 	// Directory to use for OSTree temporary files
 	OSTreeTmpDirPath string
+
+	// === docker/daemon.Transport overrides ===
+	// A directory containing a CA certificate (ending with ".crt"),
+	// a client certificate (ending with ".cert") and a client certificate key
+	// (ending with ".key") used when talking to a Docker daemon.
+	DockerDaemonCertPath string
+	// The hostname or IP to the Docker daemon. If not set (aka ""), client.DefaultDockerHost is assumed.
+	DockerDaemonHost string
+	// Used to skip TLS verification, off by default. To take effect DockerDaemonCertPath needs to be specified as well.
+	DockerDaemonInsecureSkipTLSVerify bool
+
+	// === dir.Transport overrides ===
+	// DirForceCompress compresses the image layers if set to true
+	DirForceCompress bool
 }
 
 // ProgressProperties is used to pass information from the copy code to a monitor which

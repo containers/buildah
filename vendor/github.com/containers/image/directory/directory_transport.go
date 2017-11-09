@@ -152,7 +152,11 @@ func (ref dirReference) NewImageSource(ctx *types.SystemContext) (types.ImageSou
 // NewImageDestination returns a types.ImageDestination for this reference.
 // The caller must call .Close() on the returned ImageDestination.
 func (ref dirReference) NewImageDestination(ctx *types.SystemContext) (types.ImageDestination, error) {
-	return newImageDestination(ref), nil
+	compress := false
+	if ctx != nil {
+		compress = ctx.DirForceCompress
+	}
+	return newImageDestination(ref, compress)
 }
 
 // DeleteImage deletes the named image from the registry, if supported.
@@ -174,4 +178,9 @@ func (ref dirReference) layerPath(digest digest.Digest) string {
 // signaturePath returns a path for a signature within a directory using our conventions.
 func (ref dirReference) signaturePath(index int) string {
 	return filepath.Join(ref.path, fmt.Sprintf("signature-%d", index+1))
+}
+
+// versionPath returns a path for the version file within a directory using our conventions.
+func (ref dirReference) versionPath() string {
+	return filepath.Join(ref.path, "version")
 }
