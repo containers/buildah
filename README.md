@@ -71,6 +71,30 @@ Then to install Buildah on Fedora follow the steps in this example:
   buildah --help
 ```
 
+In RHEL 7, ensure that you are subscribed to `rhel-7-server-rpms`,
+`rhel-7-server-extras-rpms`, and `rhel-7-server-optional-rpms`, then
+run this command:
+
+```
+ yum -y install \
+    make \
+    golang \
+    bats \
+    btrfs-progs-devel \
+    device-mapper-devel \
+    glib2-devel \
+    gpgme-devel \
+    libassuan-devel \
+    ostree-devel \
+    git \
+    bzip2 \
+    go-md2man \
+    runc \
+    skopeo-containers
+```
+
+The build steps for Buildah on RHEL are the same as Fedora, above.
+
 In Ubuntu zesty and xenial, you can use this command:
 
 ```
