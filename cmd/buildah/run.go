@@ -79,10 +79,12 @@ func runCmd(c *cli.Context) error {
 		Args:     c.StringSlice("runtime-flag"),
 	}
 
-	if c.Bool("tty") {
-		options.Terminal = buildah.WithTerminal
-	} else {
-		options.Terminal = buildah.WithoutTerminal
+	if c.IsSet("tty") {
+		if c.Bool("tty") {
+			options.Terminal = buildah.WithTerminal
+		} else {
+			options.Terminal = buildah.WithoutTerminal
+		}
 	}
 
 	for _, volumeSpec := range c.StringSlice("volume") {
