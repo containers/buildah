@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	pb "gopkg.in/cheggaaa/pb.v1"
-
 	"github.com/containers/image/image"
 	"github.com/containers/image/pkg/compression"
 	"github.com/containers/image/signature"
@@ -22,6 +20,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	pb "gopkg.in/cheggaaa/pb.v1"
 )
 
 type digestingReader struct {
@@ -95,6 +94,8 @@ type Options struct {
 	DestinationCtx   *types.SystemContext
 	ProgressInterval time.Duration                 // time to wait between reports to signal the progress channel
 	Progress         chan types.ProgressProperties // Reported to when ProgressInterval has arrived for a single artifact+offset.
+	// manifest MIME type of image set by user. "" is default and means use the autodetection to the the manifest MIME type
+	ForceManifestMIMEType string
 }
 
 // Image copies image from srcRef to destRef, using policyContext to validate
@@ -193,7 +194,7 @@ func Image(policyContext *signature.PolicyContext, destRef, srcRef types.ImageRe
 
 	// We compute preferredManifestMIMEType only to show it in error messages.
 	// Without having to add this context in an error message, we would be happy enough to know only that no conversion is needed.
-	preferredManifestMIMEType, otherManifestMIMETypeCandidates, err := determineManifestConversion(&manifestUpdates, src, dest.SupportedManifestMIMETypes(), canModifyManifest)
+	preferredManifestMIMEType, otherManifestMIMETypeCandidates, err := determineManifestConversion(&manifestUpdates, src, dest.SupportedManifestMIMETypes(), canModifyManifest, options.ForceManifestMIMEType)
 	if err != nil {
 		return err
 	}

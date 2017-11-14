@@ -106,7 +106,6 @@ func (d *ociArchiveImageDestination) Commit() error {
 	src := d.tempDirRef.tempDirectory
 	// path to save tarred up file
 	dst := d.ref.resolvedFile
-
 	return tarDirectory(src, dst)
 }
 

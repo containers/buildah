@@ -189,14 +189,25 @@ func (ref ociReference) NewImage(ctx *types.SystemContext) (types.Image, error) 
 	return image.FromSource(src)
 }
 
-func (ref ociReference) getManifestDescriptor() (imgspecv1.Descriptor, error) {
+// getIndex returns a pointer to the index references by this ociReference. If an error occurs opening an index nil is returned together
+// with an error.
+func (ref ociReference) getIndex() (*imgspecv1.Index, error) {
 	indexJSON, err := os.Open(ref.indexPath())
 	if err != nil {
-		return imgspecv1.Descriptor{}, err
+		return nil, err
 	}
 	defer indexJSON.Close()
-	index := imgspecv1.Index{}
-	if err := json.NewDecoder(indexJSON).Decode(&index); err != nil {
+
+	index := &imgspecv1.Index{}
+	if err := json.NewDecoder(indexJSON).Decode(index); err != nil {
+		return nil, err
+	}
+	return index, nil
+}
+
+func (ref ociReference) getManifestDescriptor() (imgspecv1.Descriptor, error) {
+	index, err := ref.getIndex()
+	if err != nil {
 		return imgspecv1.Descriptor{}, err
 	}
 
@@ -250,7 +261,7 @@ func (ref ociReference) NewImageSource(ctx *types.SystemContext) (types.ImageSou
 // NewImageDestination returns a types.ImageDestination for this reference.
 // The caller must call .Close() on the returned ImageDestination.
 func (ref ociReference) NewImageDestination(ctx *types.SystemContext) (types.ImageDestination, error) {
-	return newImageDestination(ref)
+	return newImageDestination(ctx, ref)
 }
 
 // DeleteImage deletes the named image from the registry, if supported.
@@ -269,9 +280,13 @@ func (ref ociReference) indexPath() string {
 }
 
 // blobPath returns a path for a blob within a directory using OCI image-layout conventions.
-func (ref ociReference) blobPath(digest digest.Digest) (string, error) {
+func (ref ociReference) blobPath(digest digest.Digest, sharedBlobDir string) (string, error) {
 	if err := digest.Validate(); err != nil {
 		return "", errors.Wrapf(err, "unexpected digest reference %s", digest)
 	}
-	return filepath.Join(ref.dir, "blobs", digest.Algorithm().String(), digest.Hex()), nil
+	blobDir := filepath.Join(ref.dir, "blobs")
+	if sharedBlobDir != "" {
+		blobDir = sharedBlobDir
+	}
+	return filepath.Join(blobDir, digest.Algorithm().String(), digest.Hex()), nil
 }

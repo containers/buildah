@@ -5,9 +5,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/containers/image/manifest"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/storage/pkg/archive"
+	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
@@ -28,6 +30,10 @@ var (
 		cli.BoolFlag{
 			Name:  "disable-compression, D",
 			Usage: "don't compress layers",
+		},
+		cli.StringFlag{
+			Name:  "format, f",
+			Usage: "manifest type (oci, v2s1, or v2s2) to use when saving image using the 'dir:' transport (default is manifest type of source)",
 		},
 		cli.BoolFlag{
 			Name:  "quiet, q",
@@ -104,8 +110,23 @@ func pushCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
+	var manifestType string
+	if c.IsSet("format") {
+		switch c.String("format") {
+		case "oci":
+			manifestType = imgspecv1.MediaTypeImageManifest
+		case "v2s1":
+			manifestType = manifest.DockerV2Schema1SignedMediaType
+		case "v2s2", "docker":
+			manifestType = manifest.DockerV2Schema2MediaType
+		default:
+			return fmt.Errorf("unknown format %q. Choose on of the supported formats: 'oci', 'v2s1', or 'v2s2'", c.String("format"))
+		}
+	}
+
 	options := buildah.PushOptions{
 		Compression:         compress,
+		ManifestType:        manifestType,
 		SignaturePolicyPath: c.String("signature-policy"),
 		Store:               store,
 		SystemContext:       systemContext,

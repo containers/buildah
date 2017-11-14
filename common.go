@@ -7,11 +7,12 @@ import (
 	"github.com/containers/image/types"
 )
 
-func getCopyOptions(reportWriter io.Writer, sourceSystemContext *types.SystemContext, destinationSystemContext *types.SystemContext) *cp.Options {
+func getCopyOptions(reportWriter io.Writer, sourceSystemContext *types.SystemContext, destinationSystemContext *types.SystemContext, manifestType string) *cp.Options {
 	return &cp.Options{
-		ReportWriter:   reportWriter,
-		SourceCtx:      sourceSystemContext,
-		DestinationCtx: destinationSystemContext,
+		ReportWriter:          reportWriter,
+		SourceCtx:             sourceSystemContext,
+		DestinationCtx:        destinationSystemContext,
+		ForceManifestMIMEType: manifestType,
 	}
 }
 

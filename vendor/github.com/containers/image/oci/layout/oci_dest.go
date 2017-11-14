@@ -18,21 +18,47 @@ import (
 )
 
 type ociImageDestination struct {
-	ref   ociReference
-	index imgspecv1.Index
+	ref           ociReference
+	index         imgspecv1.Index
+	sharedBlobDir string
 }
 
 // newImageDestination returns an ImageDestination for writing to an existing directory.
-func newImageDestination(ref ociReference) (types.ImageDestination, error) {
+func newImageDestination(ctx *types.SystemContext, ref ociReference) (types.ImageDestination, error) {
 	if ref.image == "" {
 		return nil, errors.Errorf("cannot save image with empty image.ref.name")
 	}
-	index := imgspecv1.Index{
-		Versioned: imgspec.Versioned{
-			SchemaVersion: 2,
-		},
+
+	var index *imgspecv1.Index
+	if indexExists(ref) {
+		var err error
+		index, err = ref.getIndex()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		index = &imgspecv1.Index{
+			Versioned: imgspec.Versioned{
+				SchemaVersion: 2,
+			},
+		}
 	}
-	return &ociImageDestination{ref: ref, index: index}, nil
+
+	d := &ociImageDestination{ref: ref, index: *index}
+	if ctx != nil {
+		d.sharedBlobDir = ctx.OCISharedBlobDirPath
+	}
+
+	if err := ensureDirectoryExists(d.ref.dir); err != nil {
+		return nil, err
+	}
+	// Per the OCI image specification, layouts MUST have a "blobs" subdirectory,
+	// but it MAY be empty (e.g. if we never end up calling PutBlob)
+	// https://github.com/opencontainers/image-spec/blame/7c889fafd04a893f5c5f50b7ab9963d5d64e5242/image-layout.md#L19
+	if err := ensureDirectoryExists(filepath.Join(d.ref.dir, "blobs")); err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
 // Reference returns the reference used to set up this destination.  Note that this should directly correspond to user's intent,
@@ -81,9 +107,6 @@ func (d *ociImageDestination) MustMatchRuntimeOS() bool {
 // to any other readers for download using the supplied digest.
 // If stream.Read() at any time, ESPECIALLY at end of input, returns an error, PutBlob MUST 1) fail, and 2) delete any data stored so far.
 func (d *ociImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobInfo) (types.BlobInfo, error) {
-	if err := ensureDirectoryExists(d.ref.dir); err != nil {
-		return types.BlobInfo{}, err
-	}
 	blobFile, err := ioutil.TempFile(d.ref.dir, "oci-put-blob")
 	if err != nil {
 		return types.BlobInfo{}, err
@@ -114,7 +137,7 @@ func (d *ociImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobInfo
 		return types.BlobInfo{}, err
 	}
 
-	blobPath, err := d.ref.blobPath(computedDigest)
+	blobPath, err := d.ref.blobPath(computedDigest, d.sharedBlobDir)
 	if err != nil {
 		return types.BlobInfo{}, err
 	}
@@ -136,7 +159,7 @@ func (d *ociImageDestination) HasBlob(info types.BlobInfo) (bool, int64, error) 
 	if info.Digest == "" {
 		return false, -1, errors.Errorf(`"Can not check for a blob with unknown digest`)
 	}
-	blobPath, err := d.ref.blobPath(info.Digest)
+	blobPath, err := d.ref.blobPath(info.Digest, d.sharedBlobDir)
 	if err != nil {
 		return false, -1, err
 	}
@@ -169,7 +192,7 @@ func (d *ociImageDestination) PutManifest(m []byte) error {
 	desc.MediaType = imgspecv1.MediaTypeImageManifest
 	desc.Size = int64(len(m))
 
-	blobPath, err := d.ref.blobPath(digest)
+	blobPath, err := d.ref.blobPath(digest, d.sharedBlobDir)
 	if err != nil {
 		return err
 	}
@@ -191,23 +214,20 @@ func (d *ociImageDestination) PutManifest(m []byte) error {
 		Architecture: runtime.GOARCH,
 		OS:           runtime.GOOS,
 	}
-	d.index.Manifests = append(d.index.Manifests, desc)
+	d.addManifest(&desc)
 
 	return nil
 }
 
-func ensureDirectoryExists(path string) error {
-	if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
-		if err := os.MkdirAll(path, 0755); err != nil {
-			return err
+func (d *ociImageDestination) addManifest(desc *imgspecv1.Descriptor) {
+	for i, manifest := range d.index.Manifests {
+		if manifest.Annotations["org.opencontainers.image.ref.name"] == desc.Annotations["org.opencontainers.image.ref.name"] {
+			// TODO Should there first be a cleanup based on the descriptor we are going to replace?
+			d.index.Manifests[i] = *desc
+			return
 		}
 	}
-	return nil
-}
-
-// ensureParentDirectoryExists ensures the parent of the supplied path exists.
-func ensureParentDirectoryExists(path string) error {
-	return ensureDirectoryExists(filepath.Dir(path))
+	d.index.Manifests = append(d.index.Manifests, *desc)
 }
 
 func (d *ociImageDestination) PutSignatures(signatures [][]byte) error {
@@ -230,4 +250,31 @@ func (d *ociImageDestination) Commit() error {
 		return err
 	}
 	return ioutil.WriteFile(d.ref.indexPath(), indexJSON, 0644)
+}
+
+func ensureDirectoryExists(path string) error {
+	if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ensureParentDirectoryExists ensures the parent of the supplied path exists.
+func ensureParentDirectoryExists(path string) error {
+	return ensureDirectoryExists(filepath.Dir(path))
+}
+
+// indexExists checks whether the index location specified in the OCI reference exists.
+// The implementation is opinionated, since in case of unexpected errors false is returned
+func indexExists(ref ociReference) bool {
+	_, err := os.Stat(ref.indexPath())
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
 }

@@ -18,3 +18,23 @@ load helpers
     buildah rm "$cid"
   done
 }
+
+@test "push with manifest type conversion" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run buildah push --signature-policy ${TESTSDIR}/policy.json --format oci alpine dir:my-dir
+  echo "$output"
+  [ "$status" -eq 0 ]
+  manifest=$(cat my-dir/manifest.json)
+  run grep "application/vnd.oci.image.config.v1+json" <<< "$manifest"
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run buildah push --signature-policy ${TESTSDIR}/policy.json --format v2s2 alpine dir:my-dir
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run grep "application/vnd.docker.distribution.manifest.v2+json" my-dir/manifest.json
+  echo "$output"
+  [ "$status" -eq 0 ]
+  buildah rm "$cid"
+  buildah rmi alpine
+  rm -rf my-dir
+}

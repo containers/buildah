@@ -34,7 +34,7 @@ type dockerImageDestination struct {
 
 // newImageDestination creates a new ImageDestination for the specified image reference.
 func newImageDestination(ctx *types.SystemContext, ref dockerReference) (types.ImageDestination, error) {
-	c, err := newDockerClient(ctx, ref, true, "pull,push")
+	c, err := newDockerClientFromRef(ctx, ref, true, "pull,push")
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +236,7 @@ func (d *dockerImageDestination) PutManifest(m []byte) error {
 		return err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusCreated {
+	if !successStatus(res.StatusCode) {
 		err = errors.Wrapf(client.HandleErrorResponse(res), "Error uploading manifest to %s", path)
 		if isManifestInvalidError(errors.Cause(err)) {
 			err = types.ManifestTypeRejectedError{Err: err}
@@ -244,6 +244,12 @@ func (d *dockerImageDestination) PutManifest(m []byte) error {
 		return err
 	}
 	return nil
+}
+
+// successStatus returns true if the argument is a successful HTTP response
+// code (in the range 200 - 399 inclusive).
+func successStatus(status int) bool {
+	return status >= 200 && status <= 399
 }
 
 // isManifestInvalidError returns true iff err from client.HandleErrorReponse is a “manifest invalid” error.
