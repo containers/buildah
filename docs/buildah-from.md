@@ -17,7 +17,7 @@ Multiple transports are supported:
   An existing local directory _path_ retrieving the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
 
   **docker://**_docker-reference_ (Default)
-  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$HOME/.docker/config.json`, which is set e.g. using `(docker login)`.
+  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG_RUNTIME_DIR/containers/auth.json`, which is set e.g. using `(kpod login)`.
 
   **docker-archive:**_path_
   An image is retrieved as a `docker load` formatted file.
@@ -35,6 +35,11 @@ Multiple transports are supported:
 The container ID of the container that was created.  On error, -1 is returned and errno is returned.
 
 ## OPTIONS
+
+**--authfile** *path*
+
+Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json
+which is set using `kpod login`
 
 **--cert-dir** *path*
 
@@ -86,5 +91,7 @@ buildah from myregistry/myrepository/imagename:imagetag --tls-verify=false
 
 buildah from myregistry/myrepository/imagename:imagetag --creds=myusername:mypassword --cert-dir ~/auth
 
+buildah from myregistry/myrepository/imagename:imagetag --authfile=/tmp/auths/myauths.json
+
 ## SEE ALSO
-buildah(1)
+buildah(1) kpod-login(1)

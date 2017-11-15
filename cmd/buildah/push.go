@@ -18,6 +18,10 @@ import (
 var (
 	pushFlags = []cli.Flag{
 		cli.StringFlag{
+			Name:  "authfile",
+			Usage: "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json",
+		},
+		cli.StringFlag{
 			Name:  "cert-dir",
 			Value: "",
 			Usage: "use certificates at the specified path to access the registry",
@@ -45,7 +49,7 @@ var (
 		},
 		cli.BoolTFlag{
 			Name:  "tls-verify",
-			Usage: "Require HTTPS and verify certificates when accessing the registry",
+			Usage: "require HTTPS and verify certificates when accessing the registry",
 		},
 	}
 	pushDescription = fmt.Sprintf(`

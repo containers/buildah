@@ -14,6 +14,11 @@ to a temporary location.
 
 ## OPTIONS
 
+**--authfile** *path*
+
+Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json
+which is set using `kpod login`
+
 **--build-arg** *arg=value*
 
 Specifies a build argument and its value, which will be interpolated in
@@ -93,4 +98,4 @@ buildah bud --tls-verify=true -t imageName -f Dockerfile.simple
 buildah bud --tls-verify=false -t imageName .
 
 ## SEE ALSO
-buildah(1)
+buildah(1) kpod-login(1)

@@ -24,7 +24,7 @@ Image stored in local container/storage
   An existing local directory _path_ storing the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
 
   **docker://**_docker-reference_
-  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$HOME/.docker/config.json`, which is set e.g. using `(docker login)`.
+  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG_RUNTIME_DIR/containers/auth.json`, which is set e.g. using `(kpod login)`.
 
   **docker-archive:**_path_[**:**_docker-reference_]
   An image is stored in the `docker save` formatted file.  _docker-reference_ is only used when creating such a file, and it must not contain a digest.
@@ -39,6 +39,11 @@ Image stored in local container/storage
   An image in local OSTree repository.  _/absolute/repo/path_ defaults to _/ostree/repo_.
 
 ## OPTIONS
+
+**--authfile** *path*
+
+Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json
+which is set using `kpod login`
 
 **--cert-dir** *path*
 
@@ -84,6 +89,10 @@ This example extracts the imageID image to a container registry named registry.e
 
  `# buildah push imageID docker://registry.example.com/repository:tag`
 
+This example extracts the imageID image to a private container registry named registry.example.com with authentication from /tmp/auths/myauths.json.
+
+ `# buildah push --authfile /tmp/auths/myauths.json imageID docker://registry.example.com/repository:tag`
+
 This example extracts the imageID image and puts into the local docker container store.
 
  `# buildah push imageID docker-daemon:image:tag`
@@ -95,4 +104,4 @@ This example extracts the imageID image and puts it into the registry on the loc
  `# buildah push --cert-dir ~/auth --tls-verify=true --creds=username:password imageID docker://localhost:5000/my-imageID`
 
 ## SEE ALSO
-buildah(1)
+buildah(1) kpod-login(1)
