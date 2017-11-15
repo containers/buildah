@@ -25,7 +25,7 @@
 %global shortcommit    %(c=%{commit}; echo ${c:0:7})
 
 Name:           buildah
-Version:        0.5
+Version:        0.6
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -44,6 +44,7 @@ BuildRequires:  libassuan-devel
 BuildRequires:  glib2-devel
 BuildRequires:  ostree-devel
 Requires:       runc >= 1.0.0-6
+Requires:       container-selinux
 Requires:       skopeo-containers
 Provides:       %{repo} = %{version}-%{release}
 
@@ -87,6 +88,12 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Wed Nov 15 2017 Dan Walsh <dwalsh@redhat.com> 0.6-1
+- Adds support for converting manifest types when using the dir transport
+- Rework how we do UID resolution in images
+- Bump github.com/vbatts/tar-split
+- Set option.terminal appropriately in run
+
 * Tue Nov 07 2017 Dan Walsh <dwalsh@redhat.com> 0.5-1
 -  Add secrets patch to buildah
 -  Add proper SELinux labeling to buildah run
