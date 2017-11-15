@@ -13,6 +13,10 @@ import (
 
 var (
 	budFlags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "authfile",
+			Usage: "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json",
+		},
 		cli.StringSliceFlag{
 			Name:  "build-arg",
 			Usage: "`argument=value` to supply to the builder",
@@ -56,7 +60,7 @@ var (
 		},
 		cli.BoolTFlag{
 			Name:  "tls-verify",
-			Usage: "Require HTTPS and verify certificates when accessing the registry",
+			Usage: "require HTTPS and verify certificates when accessing the registry",
 		},
 	}
 
@@ -190,6 +194,7 @@ func budCmd(c *cli.Context) error {
 		Runtime:             c.String("runtime"),
 		RuntimeArgs:         c.StringSlice("runtime-flag"),
 		OutputFormat:        format,
+		AuthFilePath:        c.String("authfile"),
 	}
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr

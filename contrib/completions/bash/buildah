@@ -345,6 +345,7 @@ return 1
   "
 
      local options_with_args="
+     --authfile
      --signature-policy
      --runtime
      --runtime-flag
@@ -481,6 +482,7 @@ return 1
   "
 
      local options_with_args="
+          --authfile
           --cert-dir
           --creds
           --format
@@ -629,6 +631,7 @@ return 1
   "
 
      local options_with_args="
+     --authfile
      --cert-dir
      --creds
      --name

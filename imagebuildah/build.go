@@ -105,6 +105,7 @@ type BuildOptions struct {
 	// configuration data.
 	// Accepted values are OCIv1ImageFormat and Dockerv2ImageFormat.
 	OutputFormat string
+	AuthFilePath string
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor
@@ -138,10 +139,13 @@ type Executor struct {
 	reportWriter                   io.Writer
 }
 
-func makeSystemContext(signaturePolicyPath string, skipTLSVerify bool) *types.SystemContext {
+func makeSystemContext(signaturePolicyPath, authFilePath string, skipTLSVerify bool) *types.SystemContext {
 	sc := &types.SystemContext{}
 	if signaturePolicyPath != "" {
 		sc.SignaturePolicyPath = signaturePolicyPath
+	}
+	if authFilePath != "" {
+		sc.AuthFilePath = authFilePath
 	}
 	sc.DockerInsecureSkipTLSVerify = skipTLSVerify
 	return sc
@@ -423,7 +427,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		outputFormat:        options.OutputFormat,
 		additionalTags:      options.AdditionalTags,
 		signaturePolicyPath: options.SignaturePolicyPath,
-		systemContext:       makeSystemContext(options.SignaturePolicyPath, options.SkipTLSVerify),
+		systemContext:       makeSystemContext(options.SignaturePolicyPath, options.AuthFilePath, options.SkipTLSVerify),
 		volumeCache:         make(map[string]string),
 		volumeCacheInfo:     make(map[string]os.FileInfo),
 		log:                 options.Log,

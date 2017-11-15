@@ -133,6 +133,9 @@ func systemContextFromOptions(c *cli.Context) (*types.SystemContext, error) {
 	if c.IsSet("signature-policy") {
 		ctx.SignaturePolicyPath = c.String("signature-policy")
 	}
+	if c.IsSet("authfile") {
+		ctx.AuthFilePath = c.String("authfile")
+	}
 	return ctx, nil
 }
 
