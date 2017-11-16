@@ -25,7 +25,7 @@
 %global shortcommit    %(c=%{commit}; echo ${c:0:7})
 
 Name:           buildah
-Version:        0.6
+Version:        0.7
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -88,6 +88,10 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Nov 16 2017 Dan Walsh <dwalsh@redhat.com> 0.7-1
+- Ignore errors when trying to read containers buildah.json for loading SELinux reservations
+-     Use credentials from kpod login for buildah
+
 * Wed Nov 15 2017 Dan Walsh <dwalsh@redhat.com> 0.6-1
 - Adds support for converting manifest types when using the dir transport
 - Rework how we do UID resolution in images
