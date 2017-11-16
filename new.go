@@ -2,6 +2,7 @@ package buildah
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	is "github.com/containers/image/storage"
@@ -40,7 +41,9 @@ func reserveSELinuxLabels(store storage.Store, id string) error {
 			} else {
 				b, err := OpenBuilder(store, c.ID)
 				if err != nil {
-					if err == storage.ErrContainerUnknown {
+					if os.IsNotExist(err) {
+						// Ignore not exist errors since containers probably created by other tool
+						// TODO, we need to read other containers json data to reserve their SELinux labels
 						continue
 					}
 					return err
