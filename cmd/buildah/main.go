@@ -95,6 +95,7 @@ func main() {
 		tagCommand,
 		umountCommand,
 		versionCommand,
+		pullCommand,
 	}
 	err := app.Run(os.Args)
 	if err != nil {
