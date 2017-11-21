@@ -3,9 +3,11 @@
 # A script to be run at the command line with Buildah installed.
 # This should be run against a new kit to provide base level testing
 # on a freshly installed machine with no images or containers in 
-# play.
+# play.  This currently needs to be run as root.
 #
 # Commands based on the tutorial provided by William Henry.
+#
+# To run this command:
 #
 # /bin/bash -v test_buildah_baseline.sh 
 
@@ -14,7 +16,6 @@
 ########
 buildah images
 buildah containers
-
 
 ########
 # Create Fedora based container
@@ -76,7 +77,6 @@ echo $scratchmnt
 # Install Fedora 26 bash and coreutils
 ########
 dnf install --installroot $scratchmnt --release 26 bash coreutils --setopt install_weak_deps=false -y
-
 
 ########
 # Check /usr/bin on the new container
@@ -177,7 +177,7 @@ chmod +x $FILE
 buildah bud -f Dockerfile -t whale-says 
 
 ########
-# Create a httpcontainer
+# Create a whalesays container 
 ########
 whalesays=$(buildah from whale-says)
 
