@@ -16,8 +16,8 @@ to a temporary location.
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json
-which is set using `kpod login`
+Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `kpod login`.
+If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
 **--build-arg** *arg=value*
 
@@ -98,4 +98,4 @@ buildah bud --tls-verify=true -t imageName -f Dockerfile.simple
 buildah bud --tls-verify=false -t imageName .
 
 ## SEE ALSO
-buildah(1) kpod-login(1)
+buildah(1), kpod-login(1), docker-login(1)
