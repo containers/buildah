@@ -1,9 +1,17 @@
 #!/bin/bash
 # test_buildah_authentication
 # A script to be run at the command line with Buildah installed.
+# This currently needs to be run as root and Docker must be
+# installed on the system.
 # This will test the code and should be run with this command:
 #
 # /bin/bash -v test_buildah_authentication.sh
+
+########
+# System setup - dir for creds and start docker
+########
+mkdir -p /root/auth
+systemctl restart docker
 
 ########
 # Create creds and store in /root/auth/htpasswd
