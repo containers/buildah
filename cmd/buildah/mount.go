@@ -46,7 +46,7 @@ func mountCmd(c *cli.Context) error {
 		if err != nil {
 			return errors.Wrapf(err, "error reading build container %q", name)
 		}
-		mountPoint, err := builder.Mount("")
+		mountPoint, err := builder.Mount(builder.MountLabel)
 		if err != nil {
 			return errors.Wrapf(err, "error mounting %q container %q", name, builder.Container)
 		}
