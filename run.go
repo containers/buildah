@@ -208,6 +208,28 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			logrus.Errorf("error unmounting container: %v", err2)
 		}
 	}()
+	for _, mp := range []string{
+		"/proc/kcore",
+		"/proc/latency_stats",
+		"/proc/timer_list",
+		"/proc/timer_stats",
+		"/proc/sched_debug",
+		"/proc/scsi",
+		"/sys/firmware",
+	} {
+		g.AddLinuxMaskedPaths(mp)
+	}
+
+	for _, rp := range []string{
+		"/proc/asound",
+		"/proc/bus",
+		"/proc/fs",
+		"/proc/irq",
+		"/proc/sys",
+		"/proc/sysrq-trigger",
+	} {
+		g.AddLinuxReadonlyPaths(rp)
+	}
 	g.SetRootPath(mountPoint)
 	switch options.Terminal {
 	case DefaultTerminal:
