@@ -59,7 +59,7 @@ func addURL(destination, srcurl string) error {
 // filesystem, optionally extracting contents of local files that look like
 // non-empty archives.
 func (b *Builder) Add(destination string, extract bool, source ...string) error {
-	mountPoint, err := b.Mount("")
+	mountPoint, err := b.Mount(b.MountLabel)
 	if err != nil {
 		return err
 	}

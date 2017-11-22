@@ -521,7 +521,7 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 		}
 		return errors.Wrapf(err, "error updating build context")
 	}
-	mountPoint, err := builder.Mount("")
+	mountPoint, err := builder.Mount(builder.MountLabel)
 	if err != nil {
 		if err2 := builder.Delete(); err2 != nil {
 			logrus.Debugf("error deleting container which we failed to mount: %v", err2)
