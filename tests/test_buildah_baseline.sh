@@ -91,7 +91,7 @@ FILE=./runecho.sh
 #!/bin/bash
 for i in {1..9};
 do
-    echo "This is a new container from ipbabble [" $i "]"
+    echo "This is a new container from ipbabble [" \$i "]"
 done
 EOM
 chmod +x $FILE
@@ -125,12 +125,12 @@ buildah unmount $newcontainer
 buildah commit $newcontainer fedora-bashecho
 
 ########
-# Check the images there should be a fedora-basecho:latest image
+# Check the images there should be a fedora-bashecho:latest image
 ########
 buildah images
 
 ########
-# Inspect the fedora-baseecho image
+# Inspect the fedora-bashecho image
 ########
 buildah inspect --type=image fedora-bashecho
 
@@ -146,14 +146,14 @@ dnf -y install docker
 systemctl start docker
 
 ########
-# Push fedora-basecho to the Docker daemon 
+# Push fedora-bashecho to the Docker daemon 
 ########
 buildah push fedora-bashecho docker-daemon:fedora-bashecho:latest
 
 ########
 # Run fedora-bashecho from Docker
 ########
-docker run fedoara-baseecho
+docker run fedoara-bashecho
 
 ########
 # Time to remove Docker
