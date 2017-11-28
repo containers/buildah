@@ -23,6 +23,7 @@ dnf install -y \
   libselinux-devel \
   libselinux-utils \
   make \
+  openssl \
   ostree-devel \
   which
 

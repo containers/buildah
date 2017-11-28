@@ -12,6 +12,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
@@ -133,6 +134,9 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 		if _, err = os.Stat(volumePath); os.IsNotExist(err) {
 			if err = os.MkdirAll(volumePath, 0755); err != nil {
 				return errors.Wrapf(err, "error creating directory %q for volume %q in container %q", volumePath, volume, b.ContainerID)
+			}
+			if err = label.Relabel(volumePath, b.MountLabel, false); err != nil {
+				return errors.Wrapf(err, "error relabeling directory %q for volume %q in container %q", volumePath, volume, b.ContainerID)
 			}
 			srcPath := filepath.Join(mountPoint, volume)
 			if err = copyFileWithTar(srcPath, volumePath); err != nil && !os.IsNotExist(err) {
