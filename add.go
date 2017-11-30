@@ -12,9 +12,15 @@ import (
 	"time"
 
 	"github.com/containers/storage/pkg/archive"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
+
+//AddAndCopyOptions holds options for add and copy commands.
+type AddAndCopyOptions struct {
+	Chown string
+}
 
 // addURL copies the contents of the source URL to the destination.  This is
 // its own function so that deferred closes happen after we're done pulling
@@ -58,7 +64,7 @@ func addURL(destination, srcurl string) error {
 // Add copies the contents of the specified sources into the container's root
 // filesystem, optionally extracting contents of local files that look like
 // non-empty archives.
-func (b *Builder) Add(destination string, extract bool, source ...string) error {
+func (b *Builder) Add(destination string, extract bool, options AddAndCopyOptions, source ...string) error {
 	mountPoint, err := b.Mount(b.MountLabel)
 	if err != nil {
 		return err
@@ -100,6 +106,11 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 	if len(source) > 1 && (destfi == nil || !destfi.IsDir()) {
 		return errors.Errorf("destination %q is not a directory", dest)
 	}
+	// Find out which user (and group) the destination should belong to.
+	user, err := b.user(mountPoint, options)
+	if err != nil {
+		return err
+	}
 	for _, src := range source {
 		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
 			// We assume that source is a file, and we're copying
@@ -116,6 +127,9 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 				d = filepath.Join(dest, path.Base(url.Path))
 			}
 			if err := addURL(d, src); err != nil {
+				return err
+			}
+			if err := setOwner(d, user); err != nil {
 				return err
 			}
 			continue
@@ -146,6 +160,9 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 				if err := copyWithTar(gsrc, d); err != nil {
 					return errors.Wrapf(err, "error copying %q to %q", gsrc, d)
 				}
+				if err := setOwner(d, user); err != nil {
+					return err
+				}
 				continue
 			}
 			if !extract || !archive.IsArchivePath(gsrc) {
@@ -161,6 +178,9 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 				if err := copyFileWithTar(gsrc, d); err != nil {
 					return errors.Wrapf(err, "error copying %q to %q", gsrc, d)
 				}
+				if err := setOwner(d, user); err != nil {
+					return err
+				}
 				continue
 			}
 			// We're extracting an archive into the destination directory.
@@ -169,6 +189,39 @@ func (b *Builder) Add(destination string, extract bool, source ...string) error 
 				return errors.Wrapf(err, "error extracting %q into %q", gsrc, dest)
 			}
 		}
+	}
+	return nil
+}
+
+// user returns the user (and group) information which the destination should belong to.
+func (b *Builder) user(mountPoint string, options AddAndCopyOptions) (specs.User, error) {
+	if options.Chown != "" {
+		return getUser(mountPoint, options.Chown)
+	}
+	return getUser(mountPoint, b.User())
+}
+
+// setOwner sets the uid and gid owners of a given path.
+// If path is a directory, recursively changes the owner.
+func setOwner(path string, user specs.User) error {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return errors.Wrapf(err, "error reading %q", path)
+	}
+	if fi.IsDir() {
+		err2 := filepath.Walk(path, func(p string, info os.FileInfo, we error) error {
+			if err3 := os.Lchown(p, int(user.UID), int(user.GID)); err3 != nil {
+				return errors.Wrapf(err3, "error setting ownership of %q", p)
+			}
+			return nil
+		})
+		if err2 != nil {
+			return errors.Wrapf(err2, "error walking dir %q to set ownership", path)
+		}
+		return nil
+	}
+	if err := os.Lchown(path, int(user.UID), int(user.GID)); err != nil {
+		return errors.Wrapf(err, "error setting ownership of %q", path)
 	}
 	return nil
 }

@@ -341,7 +341,7 @@ func (b *Executor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
 				sources = append(sources, filepath.Join(b.contextDir, src))
 			}
 		}
-		if err := b.builder.Add(copy.Dest, copy.Download, sources...); err != nil {
+		if err := b.builder.Add(copy.Dest, copy.Download, buildah.AddAndCopyOptions{}, sources...); err != nil {
 			return err
 		}
 	}
