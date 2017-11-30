@@ -314,7 +314,7 @@ func Push(image string, dest types.ImageReference, options PushOptions) error {
 		return errors.Wrap(err, "error importing builder information from image")
 	}
 	// Look up the image name and its layer.
-	ref, err := is.Transport.ParseStoreReference(options.Store, image)
+	ref, err := is.Transport.ParseStoreReference(options.Store, builder.FromImage)
 	if err != nil {
 		return errors.Wrapf(err, "error parsing reference to image %q", image)
 	}

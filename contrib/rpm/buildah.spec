@@ -43,6 +43,7 @@ BuildRequires:  btrfs-progs-devel
 BuildRequires:  libassuan-devel
 BuildRequires:  glib2-devel
 BuildRequires:  ostree-devel
+BuildRequires:  make
 Requires:       runc >= 1.0.0-6
 Requires:       container-selinux
 Requires:       skopeo-containers
