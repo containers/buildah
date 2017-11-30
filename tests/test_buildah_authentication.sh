@@ -8,7 +8,7 @@
 # /bin/bash -v test_buildah_authentication.sh
 
 ########
-# System setup - dir for creds and start docker
+# System setup - Create dir for creds and start Docker
 ########
 mkdir -p /root/auth
 systemctl restart docker
