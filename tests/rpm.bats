@@ -8,7 +8,7 @@ load helpers
 	fi
 
 	# Build a container to use for building the binaries.
-	image=registry.fedoraproject.org/fedora:26
+	image=registry.fedoraproject.org/fedora:27
 	cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
 	root=$(buildah --debug=false mount $cid)
 	commit=$(git log --format=%H -n 1)
