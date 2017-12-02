@@ -38,3 +38,14 @@ load helpers
   buildah rmi alpine
   rm -rf my-dir
 }
+
+@test "push with imageid" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  imageid=$(buildah images -q)
+  run buildah push --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
+  echo "$output"
+  [ "$status" -eq 0 ]
+  buildah rm "$cid"
+  buildah rmi alpine
+  rm -rf my-dir
+}
