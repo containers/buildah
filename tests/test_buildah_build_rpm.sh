@@ -97,6 +97,12 @@ test $SHORTCOMMIT = $id
 test $bv = $rv
 
 ########
+# Clean up Buildah
+########
+buildah rm $(buildah containers -q)
+buildah rmi -f $(buildah --debug=false images -q)
+
+########
 # Kick off baseline testing against the installed Buildah 
 ########
 /bin/bash -v ${TESTSDIR}/test_buildah_baseline.sh

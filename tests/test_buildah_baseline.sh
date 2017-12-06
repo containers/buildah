@@ -74,9 +74,9 @@ scratchmnt=$(buildah mount $newcontainer)
 echo $scratchmnt
 
 ########
-# Install Fedora 26 bash and coreutils
+# Install Fedora 27 bash and coreutils
 ########
-dnf install --installroot $scratchmnt --release 26 bash coreutils --setopt install_weak_deps=false -y
+dnf install --installroot $scratchmnt --release 27 bash coreutils --setopt install_weak_deps=false -y
 
 ########
 # Check /usr/bin on the new container
@@ -107,7 +107,7 @@ buildah run $newcontainer
 # Add configuration information
 ########
 buildah config --created-by "ipbabble"  $newcontainer
-buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora26-bashecho $newcontainer
+buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora27-bashecho $newcontainer
 
 ########
 # Inspect the container, verifying above was put into it
@@ -153,7 +153,7 @@ buildah push fedora-bashecho docker-daemon:fedora-bashecho:latest
 ########
 # Run fedora-bashecho from Docker
 ########
-docker run fedoara-bashecho
+docker run fedora-bashecho
 
 ########
 # Time to remove Docker
