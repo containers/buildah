@@ -21,7 +21,7 @@ If you would like to see more details as to what is going on inside the registry
 
     # buildah --debug run $registry
 
-You can use `--debug` on any buildah command. 
+You can use `--debug` on any Buildah command. 
 
 The registry is running and is waiting for requests to process. Notice that this registry is a Docker registry that we pulled from Docker hub and we are running it for this example using `buildah run`. There is no Docker daemon running at this time.
 
@@ -99,7 +99,7 @@ And let's inspect that with Skopeo:
         ]
     }
 
-We can use buildah to pull down the image using the `buildah from` command. But before we do let's clean up our local containers-storage so that we don't have an existing fedora-bashecho - otherwise Buildah will know it already exists and not bother pulling it down.
+We can use Buildah to pull down the image using the `buildah from` command. But before we do let's clean up our local containers-storage so that we don't have an existing fedora-bashecho - otherwise Buildah will know it already exists and not bother pulling it down.
 
     #  buildah images 
     IMAGE ID             IMAGE NAME                                               CREATED AT             SIZE
