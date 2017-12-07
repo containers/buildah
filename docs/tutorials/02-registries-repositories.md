@@ -5,11 +5,11 @@ The purpose of this tutorial is to demonstrate how Buildah can be used to move O
 
 In the [first tutorial](https://github.com/projectatomic/buildah/blob/master/docs/tutorials/01-intro.md) we built an image from scratch that we called `fedora-bashecho` and we pushed it to a local Docker repository using the `docker-daemon` protocol. We are going to use the same image to push to a private Docker registry.
 
-First we must pull down a registry. As a shortcut we will save the container name, that is returned from the `buildah from` command, into a bash variable called `registry`. This is just like we did in Tutorial 1 :
+First we must pull down a registry. As a shortcut we will save the container name that is returned from the `buildah from` command, into a bash variable called `registry`. This is just like we did in Tutorial 1:
 
     # registry=$(buildah from registry)
 
-It is worth pointing out that the `from` command can also use other protocols beyond the default (and implicity assumed) order that first looks in local containers-storage (containers-storage:) and then looks in the Docker hub (docker:). So, for example, if you already had a registry container image in a local Docker registry then you could use the following:
+It is worth pointing out that the `from` command can also use other protocols beyond the default (and implicity assumed) order that first looks in local containers-storage (containers-storage:) and then looks in the Docker hub (docker:). For example, if you already had a registry container image in a local Docker registry then you could use the following:
 
     # registry=$(buildah from docker-daemon:registry:latest)
 
@@ -99,7 +99,7 @@ And let's inspect that with Skopeo:
         ]
     }
 
-We can use buildah to pull down the image using the `from`. But before we do let's clean up our local containers-storage so that we don't have an existing fedora-bashecho - otherwise Buildah will know it already exists and not bother pulling it down.
+We can use buildah to pull down the image using the `buildah from` command. But before we do let's clean up our local containers-storage so that we don't have an existing fedora-bashecho - otherwise Buildah will know it already exists and not bother pulling it down.
 
     #  buildah images 
     IMAGE ID             IMAGE NAME                                               CREATED AT             SIZE
@@ -118,7 +118,7 @@ Okay, so we don't have a fedora-bashecho anymore. Let's pull the image from Dock
 
 If you don't want to bother doing the remove image step (`rmi`) you can use the flag `--pull-always` to force the image to be pulled again and overwrite any corresponding local image.
 
-And check that image is in the local containers-storage:
+Now check that image is in the local containers-storage:
 
     # buildah images
     IMAGE ID             IMAGE NAME                                               CREATED AT             SIZE
