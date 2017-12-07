@@ -322,19 +322,13 @@ func matchesLabel(image storage.Image, store storage.Store, label string) bool {
 // Returns true if the image was created since the filter image.  Returns
 // false otherwise
 func matchesBeforeImage(image storage.Image, name string, params *filterParams) bool {
-	if image.Created.IsZero() || image.Created.Before(params.beforeDate) {
-		return true
-	}
-	return false
+	return image.Created.IsZero() || image.Created.Before(params.beforeDate)
 }
 
 // Returns true if the image was created since the filter image.  Returns
 // false otherwise
 func matchesSinceImage(image storage.Image, name string, params *filterParams) bool {
-	if image.Created.IsZero() || image.Created.After(params.sinceDate) {
-		return true
-	}
-	return false
+	return image.Created.IsZero() || image.Created.After(params.sinceDate)
 }
 
 func matchesID(imageID, argID string) bool {
