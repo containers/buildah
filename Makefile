@@ -78,6 +78,10 @@ install:
 install.completions:
 	install -m 644 -D contrib/completions/bash/buildah $(DESTDIR)/${BASHINSTALLDIR}/buildah
 
+.PHONY: install.runc
+install.runc:
+	install -m 755 ../../opencontainers/runc/runc $(DESTDIR)/$(BINDIR)/
+
 .PHONY: test-integration
 test-integration:
 	cd tests; ./test_runner.sh
