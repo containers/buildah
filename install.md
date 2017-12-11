@@ -16,6 +16,8 @@ Prior to installing Buildah, install the following packages on your linux distro
 * runc (Requires version 1.0 RC4 or higher.)
 * skopeo-containers
 
+## Fedora
+
 In Fedora, you can use this command:
 
 ```
@@ -50,7 +52,9 @@ Then to install Buildah on Fedora follow the steps in this example:
   buildah --help
 ```
 
-In RHEL 7, ensure that you are subscribed to `rhel-7-server-rpms`,
+## RHEL, CentOS
+
+In RHEL and CentOS 7, ensure that you are subscribed to `rhel-7-server-rpms`,
 `rhel-7-server-extras-rpms`, and `rhel-7-server-optional-rpms`, then
 run this command:
 
@@ -72,7 +76,9 @@ run this command:
     skopeo-containers
 ```
 
-The build steps for Buildah on RHEL are the same as Fedora, above.
+The build steps for Buildah on RHEL or CentOS are the same as Fedora, above.
+
+## Ubuntu
 
 In Ubuntu zesty and xenial, you can use this command:
 
