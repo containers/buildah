@@ -1,4 +1,4 @@
-![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah.svg)
+![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
 
 # [Buildah](https://www.youtube.com/embed/YVk5NgSiUw8) - a tool which facilitates building OCI container images
 ================================================================
