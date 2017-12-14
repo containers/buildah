@@ -112,8 +112,11 @@ func (d *ociImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobInfo
 		return types.BlobInfo{}, err
 	}
 	succeeded := false
+	explicitClosed := false
 	defer func() {
-		blobFile.Close()
+		if !explicitClosed {
+			blobFile.Close()
+		}
 		if !succeeded {
 			os.Remove(blobFile.Name())
 		}
@@ -133,8 +136,15 @@ func (d *ociImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobInfo
 	if err := blobFile.Sync(); err != nil {
 		return types.BlobInfo{}, err
 	}
-	if err := blobFile.Chmod(0644); err != nil {
-		return types.BlobInfo{}, err
+
+	// On POSIX systems, blobFile was created with mode 0600, so we need to make it readable.
+	// On Windows, the “permissions of newly created files” argument to syscall.Open is
+	// ignored and the file is already readable; besides, blobFile.Chmod, i.e. syscall.Fchmod,
+	// always fails on Windows.
+	if runtime.GOOS != "windows" {
+		if err := blobFile.Chmod(0644); err != nil {
+			return types.BlobInfo{}, err
+		}
 	}
 
 	blobPath, err := d.ref.blobPath(computedDigest, d.sharedBlobDir)
@@ -144,6 +154,10 @@ func (d *ociImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobInfo
 	if err := ensureParentDirectoryExists(blobPath); err != nil {
 		return types.BlobInfo{}, err
 	}
+
+	// need to explicitly close the file, since a rename won't otherwise not work on Windows
+	blobFile.Close()
+	explicitClosed = true
 	if err := os.Rename(blobFile.Name(), blobPath); err != nil {
 		return types.BlobInfo{}, err
 	}

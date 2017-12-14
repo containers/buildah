@@ -12,7 +12,6 @@ import (
 
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/image"
-	"github.com/containers/image/manifest"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
@@ -43,7 +42,6 @@ type containerImageRef struct {
 	name                  reference.Named
 	names                 []string
 	layerID               string
-	addHistory            bool
 	oconfig               []byte
 	dconfig               []byte
 	created               time.Time
@@ -59,7 +57,6 @@ type containerImageSource struct {
 	store        storage.Store
 	layerID      string
 	names        []string
-	addHistory   bool
 	compression  archive.Compression
 	config       []byte
 	configDigest digest.Digest
@@ -68,12 +65,12 @@ type containerImageSource struct {
 	exporting    bool
 }
 
-func (i *containerImageRef) NewImage(sc *types.SystemContext) (types.Image, error) {
+func (i *containerImageRef) NewImage(sc *types.SystemContext) (types.ImageCloser, error) {
 	src, err := i.NewImageSource(sc)
 	if err != nil {
 		return nil, err
 	}
-	return image.FromSource(src)
+	return image.FromSource(sc, src)
 }
 
 func (i *containerImageRef) NewImageSource(sc *types.SystemContext) (src types.ImageSource, err error) {
@@ -128,11 +125,14 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext) (src types.I
 	if err != nil {
 		return nil, err
 	}
+	created := i.created
+	oimage.Created = &created
 	dimage := docker.V2Image{}
 	err = json.Unmarshal(i.dconfig, &dimage)
 	if err != nil {
 		return nil, err
 	}
+	dimage.Created = created
 
 	// Start building manifests.
 	omanifest := v1.Manifest{
@@ -164,9 +164,39 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext) (src types.I
 
 	// Extract each layer and compute its digests, both compressed (if requested) and uncompressed.
 	for _, layerID := range layers {
+		// The default layer media type assumes no compression.
 		omediaType := v1.MediaTypeImageLayer
 		dmediaType := docker.V2S2MediaTypeUncompressedLayer
-		// Figure out which media type we want to call this.  Assume no compression.
+		// If we're not re-exporting the data, reuse the blobsum and diff IDs.
+		if !i.exporting && layerID != i.layerID {
+			layer, err2 := i.store.Layer(layerID)
+			if err2 != nil {
+				return nil, errors.Wrapf(err, "unable to locate layer %q", layerID)
+			}
+			if layer.UncompressedDigest == "" {
+				return nil, errors.Errorf("unable to look up size of layer %q", layerID)
+			}
+			layerBlobSum := layer.UncompressedDigest
+			layerBlobSize := layer.UncompressedSize
+			// Note this layer in the manifest, using the uncompressed blobsum.
+			olayerDescriptor := v1.Descriptor{
+				MediaType: omediaType,
+				Digest:    layerBlobSum,
+				Size:      layerBlobSize,
+			}
+			omanifest.Layers = append(omanifest.Layers, olayerDescriptor)
+			dlayerDescriptor := docker.V2S2Descriptor{
+				MediaType: dmediaType,
+				Digest:    layerBlobSum,
+				Size:      layerBlobSize,
+			}
+			dmanifest.Layers = append(dmanifest.Layers, dlayerDescriptor)
+			// Note this layer in the list of diffIDs, again using the uncompressed blobsum.
+			oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, layerBlobSum)
+			dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, layerBlobSum)
+			continue
+		}
+		// Figure out if we need to change the media type, in case we're using compression.
 		if i.compression != archive.Uncompressed {
 			switch i.compression {
 			case archive.Gzip:
@@ -181,46 +211,18 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext) (src types.I
 				logrus.Debugf("compressing layer %q with unknown compressor(?)", layerID)
 			}
 		}
-		// If we're not re-exporting the data, just fake up layer and diff IDs for the manifest.
-		if !i.exporting {
-			fakeLayerDigest := digest.NewDigestFromHex(digest.Canonical.String(), layerID)
-			// Add a note in the manifest about the layer.  The blobs should be identified by their
-			// possibly-compressed blob digests, but just use the layer IDs here.
-			olayerDescriptor := v1.Descriptor{
-				MediaType: omediaType,
-				Digest:    fakeLayerDigest,
-				Size:      -1,
-			}
-			omanifest.Layers = append(omanifest.Layers, olayerDescriptor)
-			dlayerDescriptor := docker.V2S2Descriptor{
-				MediaType: dmediaType,
-				Digest:    fakeLayerDigest,
-				Size:      -1,
-			}
-			dmanifest.Layers = append(dmanifest.Layers, dlayerDescriptor)
-			// Add a note about the diffID, which should be uncompressed digest of the blob, but
-			// just use the layer ID here.
-			oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, fakeLayerDigest)
-			dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, fakeLayerDigest)
-			continue
-		}
 		// Start reading the layer.
-		rc, err := i.store.Diff("", layerID, nil)
+		noCompression := archive.Uncompressed
+		diffOptions := &storage.DiffOptions{
+			Compression: &noCompression,
+		}
+		rc, err := i.store.Diff("", layerID, diffOptions)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error extracting layer %q", layerID)
 		}
 		defer rc.Close()
-		// Set up to decompress the layer, in case it's coming out compressed.  Due to implementation
-		// differences, the result may not match the digest the blob had when it was originally imported,
-		// so we have to recompute all of this anyway if we want to be sure the digests we use will be
-		// correct.
-		uncompressed, err := archive.DecompressStream(rc)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error decompressing layer %q", layerID)
-		}
-		defer uncompressed.Close()
 		srcHasher := digest.Canonical.Digester()
-		reader := io.TeeReader(uncompressed, srcHasher.Hash())
+		reader := io.TeeReader(rc, srcHasher.Hash())
 		// Set up to write the possibly-recompressed blob.
 		layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
@@ -229,7 +231,7 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext) (src types.I
 		destHasher := digest.Canonical.Digester()
 		counter := ioutils.NewWriteCounter(layerFile)
 		multiWriter := io.MultiWriter(counter, destHasher.Hash())
-		// Compress the layer, if we're compressing it.
+		// Compress the layer, if we're recompressing it.
 		writer, err := archive.CompressStream(multiWriter, i.compression)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error compressing layer %q", layerID)
@@ -267,28 +269,26 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext) (src types.I
 			Size:      size,
 		}
 		dmanifest.Layers = append(dmanifest.Layers, dlayerDescriptor)
-		// Add a note about the diffID, which is always an uncompressed value.
+		// Add a note about the diffID, which is always the layer's uncompressed digest.
 		oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, srcHasher.Digest())
 		dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, srcHasher.Digest())
 	}
 
-	if i.addHistory {
-		// Build history notes in the image configurations.
-		onews := v1.History{
-			Created:    &i.created,
-			CreatedBy:  i.createdBy,
-			Author:     oimage.Author,
-			EmptyLayer: false,
-		}
-		oimage.History = append(oimage.History, onews)
-		dnews := docker.V2S2History{
-			Created:    i.created,
-			CreatedBy:  i.createdBy,
-			Author:     dimage.Author,
-			EmptyLayer: false,
-		}
-		dimage.History = append(dimage.History, dnews)
+	// Build history notes in the image configurations.
+	onews := v1.History{
+		Created:    &i.created,
+		CreatedBy:  i.createdBy,
+		Author:     oimage.Author,
+		EmptyLayer: false,
 	}
+	oimage.History = append(oimage.History, onews)
+	dnews := docker.V2S2History{
+		Created:    i.created,
+		CreatedBy:  i.createdBy,
+		Author:     dimage.Author,
+		EmptyLayer: false,
+	}
+	dimage.History = append(dimage.History, dnews)
 
 	// Encode the image configuration blob.
 	oconfig, err := json.Marshal(&oimage)
@@ -347,7 +347,6 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext) (src types.I
 		store:        i.store,
 		layerID:      i.layerID,
 		names:        i.names,
-		addHistory:   i.addHistory,
 		compression:  i.compression,
 		config:       config,
 		configDigest: digest.Canonical.FromBytes(config),
@@ -402,16 +401,22 @@ func (i *containerImageSource) Reference() types.ImageReference {
 	return i.ref
 }
 
-func (i *containerImageSource) GetSignatures(ctx context.Context) ([][]byte, error) {
+func (i *containerImageSource) GetSignatures(ctx context.Context, instanceDigest *digest.Digest) ([][]byte, error) {
+	if instanceDigest != nil && *instanceDigest != digest.FromBytes(i.manifest) {
+		return nil, errors.Errorf("TODO")
+	}
 	return nil, nil
 }
 
-func (i *containerImageSource) GetTargetManifest(digest digest.Digest) ([]byte, string, error) {
-	return []byte{}, "", errors.Errorf("TODO")
+func (i *containerImageSource) GetManifest(instanceDigest *digest.Digest) ([]byte, string, error) {
+	if instanceDigest != nil && *instanceDigest != digest.FromBytes(i.manifest) {
+		return nil, "", errors.Errorf("TODO")
+	}
+	return i.manifest, i.manifestType, nil
 }
 
-func (i *containerImageSource) GetManifest() ([]byte, string, error) {
-	return i.manifest, i.manifestType, nil
+func (i *containerImageSource) LayerInfosForCopy() []types.BlobInfo {
+	return nil
 }
 
 func (i *containerImageSource) GetBlob(blob types.BlobInfo) (reader io.ReadCloser, size int64, err error) {
@@ -445,10 +450,14 @@ func (i *containerImageSource) GetBlob(blob types.BlobInfo) (reader io.ReadClose
 	return ioutils.NewReadCloserWrapper(layerFile, closer), size, nil
 }
 
-func (b *Builder) makeImageRef(manifestType string, exporting, addHistory bool, compress archive.Compression, names []string, layerID string, historyTimestamp *time.Time) (types.ImageReference, error) {
+func (b *Builder) makeImageRef(manifestType string, exporting bool, compress archive.Compression, historyTimestamp *time.Time) (types.ImageReference, error) {
 	var name reference.Named
-	if len(names) > 0 {
-		if parsed, err := reference.ParseNamed(names[0]); err == nil {
+	container, err := b.store.Container(b.ContainerID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error locating container %q", b.ContainerID)
+	}
+	if len(container.Names) > 0 {
+		if parsed, err2 := reference.ParseNamed(container.Names[0]); err2 == nil {
 			name = parsed
 		}
 	}
@@ -471,9 +480,8 @@ func (b *Builder) makeImageRef(manifestType string, exporting, addHistory bool, 
 		store:                 b.store,
 		compression:           compress,
 		name:                  name,
-		names:                 names,
-		layerID:               layerID,
-		addHistory:            addHistory,
+		names:                 container.Names,
+		layerID:               container.LayerID,
 		oconfig:               oconfig,
 		dconfig:               dconfig,
 		created:               created,
@@ -483,19 +491,4 @@ func (b *Builder) makeImageRef(manifestType string, exporting, addHistory bool, 
 		exporting:             exporting,
 	}
 	return ref, nil
-}
-
-func (b *Builder) makeContainerImageRef(manifestType string, exporting bool, compress archive.Compression, historyTimestamp *time.Time) (types.ImageReference, error) {
-	if manifestType == "" {
-		manifestType = OCIv1ImageManifest
-	}
-	container, err := b.store.Container(b.ContainerID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error locating container %q", b.ContainerID)
-	}
-	return b.makeImageRef(manifestType, exporting, true, compress, container.Names, container.LayerID, historyTimestamp)
-}
-
-func (b *Builder) makeImageImageRef(compress archive.Compression, names []string, layerID string, historyTimestamp *time.Time) (types.ImageReference, error) {
-	return b.makeImageRef(manifest.GuessMIMEType(b.Manifest), true, false, compress, names, layerID, historyTimestamp)
 }
