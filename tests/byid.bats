@@ -96,6 +96,29 @@ load helpers
     echo "$output"
     [ $status -eq 0 ]
 
+    # Use the image's complete ID to remove it.
     buildah rmi $iid
   done
+}
+
+@test "rmi-by-id" {
+  image=busybox
+
+  # Pull down the image, if we have to.
+  cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+  [ $? -eq 0 ]
+  [ $(wc -l <<< "$cid") -eq 1 ]
+  buildah rm $cid
+
+  # Get the image's ID.
+  run buildah --debug=false images -q $image
+  echo "$output"
+  [ $status -eq 0 ]
+  [ $(wc -l <<< "$output") -eq 1 ]
+  iid="$output"
+
+  # Use a truncated copy of the image's ID to remove it.
+  run buildah --debug=false rmi ${iid:0:6}
+  echo "$output"
+  [ $status -eq 0 ]
 }
