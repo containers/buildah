@@ -34,6 +34,14 @@ func main() {
 			Usage: "print debugging information",
 		},
 		cli.StringFlag{
+			Name:  "registries-conf",
+			Usage: "path to registries.conf file (not usually used)",
+		},
+		cli.StringFlag{
+			Name:  "registries-conf-dir",
+			Usage: "path to registries.conf.d directory (not usually used)",
+		},
+		cli.StringFlag{
 			Name:  "root",
 			Usage: "storage root dir",
 			Value: storage.DefaultStoreOptions.GraphRoot,

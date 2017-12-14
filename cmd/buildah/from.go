@@ -63,7 +63,6 @@ var (
 )
 
 func fromCmd(c *cli.Context) error {
-
 	args := c.Args()
 	if len(args) == 0 {
 		return errors.Errorf("an image name (or \"scratch\") must be specified")

@@ -14,6 +14,7 @@ import (
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/openshift/imagebuilder"
 	"github.com/pkg/errors"
+	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -26,6 +27,10 @@ const (
 	// can't find one in the local Store, in order to generate a source
 	// reference for the image that we can then copy to the local Store.
 	DefaultTransport = "docker://"
+
+	// minimumTruncatedIDLength is the minimum length of an identifier that
+	// we'll accept as possibly being a truncated image ID.
+	minimumTruncatedIDLength = 3
 )
 
 func reserveSELinuxLabels(store storage.Store, id string) error {
@@ -58,91 +63,150 @@ func reserveSELinuxLabels(store storage.Store, id string) error {
 	return nil
 }
 
+func pullAndFindImage(store storage.Store, imageName string, options BuilderOptions, sc *types.SystemContext) (*storage.Image, types.ImageReference, error) {
+	ref, err := pullImage(store, imageName, options, sc)
+	if err != nil {
+		logrus.Debugf("error pulling image %q: %v", imageName, err)
+		return nil, nil, err
+	}
+	img, err := is.Transport.GetStoreImage(store, ref)
+	if err != nil {
+		logrus.Debugf("error reading pulled image %q: %v", imageName, err)
+		return nil, nil, err
+	}
+	return img, ref, nil
+}
+
+func imageNamePrefix(imageName string) string {
+	prefix := imageName
+	s := strings.Split(imageName, "/")
+	if len(s) > 0 {
+		prefix = s[len(s)-1]
+	}
+	s = strings.Split(prefix, ":")
+	if len(s) > 0 {
+		prefix = s[0]
+	}
+	s = strings.Split(prefix, "@")
+	if len(s) > 0 {
+		prefix = s[0]
+	}
+	return prefix
+}
+
+func imageManifestAndConfig(ref types.ImageReference, systemContext *types.SystemContext) (manifest, config []byte, err error) {
+	if ref != nil {
+		src, err := ref.NewImage(systemContext)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "error instantiating image for %q", transports.ImageName(ref))
+		}
+		defer src.Close()
+		config, err := src.ConfigBlob()
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "error reading image configuration for %q", transports.ImageName(ref))
+		}
+		manifest, _, err := src.Manifest()
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "error reading image manifest for %q", transports.ImageName(ref))
+		}
+		return manifest, config, nil
+	}
+	return nil, nil, nil
+}
+
 func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	var ref types.ImageReference
 	var img *storage.Image
-	manifest := []byte{}
-	config := []byte{}
+	var err error
+	var manifest []byte
+	var config []byte
 
 	if options.FromImage == BaseImageFakeName {
 		options.FromImage = ""
 	}
-	image := options.FromImage
-
 	if options.Transport == "" {
 		options.Transport = DefaultTransport
 	}
 
-	systemContext := getSystemContext(options.SignaturePolicyPath)
+	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
 
-	imageID := ""
-	if image != "" {
-		var err error
+	for _, image := range util.ResolveName(options.FromImage, options.Registry, systemContext, store) {
+		if len(image) >= minimumTruncatedIDLength {
+			if img, err = store.Image(image); err == nil && img != nil && strings.HasPrefix(img.ID, image) {
+				if ref, err = is.Transport.ParseStoreReference(store, img.ID); err != nil {
+					return nil, errors.Wrapf(err, "error parsing reference to image %q", img.ID)
+				}
+				break
+			}
+		}
+
 		if options.PullPolicy == PullAlways {
-			pulledReference, err2 := pullImage(store, options, systemContext)
+			pulledImg, pulledReference, err2 := pullAndFindImage(store, image, options, systemContext)
 			if err2 != nil {
-				return nil, errors.Wrapf(err2, "error pulling image %q", image)
+				logrus.Debugf("error pulling and reading image %q: %v", image, err2)
+				continue
 			}
 			ref = pulledReference
+			img = pulledImg
+			break
 		}
-		if ref == nil {
-			srcRef, err2 := alltransports.ParseImageName(image)
-			if err2 != nil {
-				srcRef2, err3 := alltransports.ParseImageName(options.Registry + image)
-				if err3 != nil {
-					srcRef3, err4 := alltransports.ParseImageName(options.Transport + options.Registry + image)
-					if err4 != nil {
-						return nil, errors.Wrapf(err4, "error parsing image name %q", options.Transport+options.Registry+image)
-					}
-					srcRef2 = srcRef3
-				}
-				srcRef = srcRef2
-			}
 
-			destImage, err2 := localImageNameForReference(store, srcRef)
-			if err2 != nil {
-				return nil, errors.Wrapf(err2, "error computing local image name for %q", transports.ImageName(srcRef))
+		srcRef, err2 := alltransports.ParseImageName(image)
+		if err2 != nil {
+			if options.Transport == "" {
+				logrus.Debugf("error parsing image name %q: %v", image, err2)
+				continue
 			}
-			if destImage == "" {
-				return nil, errors.Errorf("error computing local image name for %q", transports.ImageName(srcRef))
+			srcRef2, err3 := alltransports.ParseImageName(options.Transport + image)
+			if err3 != nil {
+				logrus.Debugf("error parsing image name %q: %v", image, err2)
+				continue
 			}
+			srcRef = srcRef2
+		}
 
-			ref, err = is.Transport.ParseStoreReference(store, destImage)
-			if err != nil {
-				return nil, errors.Wrapf(err, "error parsing reference to image %q", destImage)
-			}
+		destImage, err2 := localImageNameForReference(store, srcRef)
+		if err2 != nil {
+			return nil, errors.Wrapf(err2, "error computing local image name for %q", transports.ImageName(srcRef))
+		}
+		if destImage == "" {
+			return nil, errors.Errorf("error computing local image name for %q", transports.ImageName(srcRef))
+		}
 
-			image = destImage
+		ref, err = is.Transport.ParseStoreReference(store, destImage)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error parsing reference to image %q", destImage)
 		}
 		img, err = is.Transport.GetStoreImage(store, ref)
 		if err != nil {
 			if errors.Cause(err) == storage.ErrImageUnknown && options.PullPolicy != PullIfMissing {
-				return nil, errors.Wrapf(err, "no such image %q", transports.ImageName(ref))
+				logrus.Debugf("no such image %q: %v", transports.ImageName(ref), err)
+				continue
 			}
-			ref2, err2 := pullImage(store, options, systemContext)
+			pulledImg, pulledReference, err2 := pullAndFindImage(store, image, options, systemContext)
 			if err2 != nil {
-				return nil, errors.Wrapf(err2, "error pulling image %q", image)
+				logrus.Debugf("error pulling and reading image %q: %v", image, err2)
+				continue
 			}
-			ref = ref2
-			img, err = is.Transport.GetStoreImage(store, ref)
+			ref = pulledReference
+			img = pulledImg
 		}
-		if err != nil {
-			return nil, errors.Wrapf(err, "no such image %q", transports.ImageName(ref))
+		break
+	}
+
+	if options.FromImage != "" && (ref == nil || img == nil) {
+		return nil, errors.Wrapf(storage.ErrImageUnknown, "no such image %q", options.FromImage)
+	}
+	image := options.FromImage
+	imageID := ""
+	if img != nil {
+		if len(img.Names) > 0 {
+			image = img.Names[0]
 		}
 		imageID = img.ID
-		src, err := ref.NewImage(systemContext)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error instantiating image for %q", transports.ImageName(ref))
-		}
-		defer src.Close()
-		config, err = src.ConfigBlob()
-		if err != nil {
-			return nil, errors.Wrapf(err, "error reading image configuration for %q", transports.ImageName(ref))
-		}
-		manifest, _, err = src.Manifest()
-		if err != nil {
-			return nil, errors.Wrapf(err, "error reading image manifest for %q", transports.ImageName(ref))
-		}
+	}
+	if manifest, config, err = imageManifestAndConfig(ref, systemContext); err != nil {
+		return nil, errors.Wrapf(err, "error reading data from image %q", transports.ImageName(ref))
 	}
 
 	name := "working-container"
@@ -151,20 +215,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	} else {
 		var err2 error
 		if image != "" {
-			prefix := image
-			s := strings.Split(prefix, "/")
-			if len(s) > 0 {
-				prefix = s[len(s)-1]
-			}
-			s = strings.Split(prefix, ":")
-			if len(s) > 0 {
-				prefix = s[0]
-			}
-			s = strings.Split(prefix, "@")
-			if len(s) > 0 {
-				prefix = s[0]
-			}
-			name = prefix + "-" + name
+			name = imageNamePrefix(image) + "-" + name
 		}
 		suffix := 1
 		tmpName := name
@@ -177,6 +228,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		}
 		name = tmpName
 	}
+
 	coptions := storage.ContainerOptions{}
 	container, err := store.CreateContainer("", []string{name}, imageID, "", "", &coptions)
 	if err != nil {
@@ -191,7 +243,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		}
 	}()
 
-	if err := reserveSELinuxLabels(store, container.ID); err != nil {
+	if err = reserveSELinuxLabels(store, container.ID); err != nil {
 		return nil, err
 	}
 	processLabel, mountLabel, err := label.InitLabels(nil)

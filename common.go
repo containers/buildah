@@ -16,8 +16,11 @@ func getCopyOptions(reportWriter io.Writer, sourceSystemContext *types.SystemCon
 	}
 }
 
-func getSystemContext(signaturePolicyPath string) *types.SystemContext {
+func getSystemContext(defaults *types.SystemContext, signaturePolicyPath string) *types.SystemContext {
 	sc := &types.SystemContext{}
+	if defaults != nil {
+		*sc = *defaults
+	}
 	if signaturePolicyPath != "" {
 		sc.SignaturePolicyPath = signaturePolicyPath
 	}

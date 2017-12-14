@@ -53,27 +53,17 @@ func localImageNameForReference(store storage.Store, srcRef types.ImageReference
 	return name, nil
 }
 
-func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemContext) (types.ImageReference, error) {
-	name := options.FromImage
-
-	spec := name
-	if options.Registry != "" {
-		spec = options.Registry + spec
-	}
-	spec2 := spec
-	if options.Transport != "" {
-		spec2 = options.Transport + spec
-	}
-
-	srcRef, err := alltransports.ParseImageName(name)
+func pullImage(store storage.Store, imageName string, options BuilderOptions, sc *types.SystemContext) (types.ImageReference, error) {
+	spec := imageName
+	srcRef, err := alltransports.ParseImageName(spec)
 	if err != nil {
+		if options.Transport == "" {
+			return nil, errors.Wrapf(err, "error parsing image name %q", spec)
+		}
+		spec = options.Transport + spec
 		srcRef2, err2 := alltransports.ParseImageName(spec)
 		if err2 != nil {
-			srcRef3, err3 := alltransports.ParseImageName(spec2)
-			if err3 != nil {
-				return nil, errors.Wrapf(err3, "error parsing image name %q", spec2)
-			}
-			srcRef2 = srcRef3
+			return nil, errors.Wrapf(err2, "error parsing image name %q", spec)
 		}
 		srcRef = srcRef2
 	}
@@ -91,6 +81,12 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 		return nil, errors.Wrapf(err, "error parsing image name %q", destName)
 	}
 
+	img, err := srcRef.NewImageSource(sc)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error initializing %q as an image source", spec)
+	}
+	img.Close()
+
 	policy, err := signature.DefaultPolicy(sc)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error obtaining default signature policy")
@@ -103,12 +99,15 @@ func pullImage(store storage.Store, options BuilderOptions, sc *types.SystemCont
 
 	defer func() {
 		if err2 := policyContext.Destroy(); err2 != nil {
-			logrus.Debugf("error destroying signature polcy context: %v", err2)
+			logrus.Debugf("error destroying signature policy context: %v", err2)
 		}
 	}()
 
-	logrus.Debugf("copying %q to %q", spec, name)
+	logrus.Debugf("copying %q to %q", spec, destName)
 
 	err = cp.Image(policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter, options.SystemContext, nil, ""))
-	return destRef, err
+	if err == nil {
+		return destRef, nil
+	}
+	return nil, err
 }

@@ -56,6 +56,11 @@ func inspectCmd(c *cli.Context) error {
 		return err
 	}
 
+	systemContext, err := systemContextFromOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error building system context")
+	}
+
 	format := defaultFormat
 	if c.String("format") != "" {
 		format = c.String("format")
@@ -76,13 +81,13 @@ func inspectCmd(c *cli.Context) error {
 			if c.IsSet("type") {
 				return errors.Wrapf(err, "error reading build container %q", name)
 			}
-			builder, err = openImage(store, name)
+			builder, err = openImage(systemContext, store, name)
 			if err != nil {
 				return errors.Wrapf(err, "error reading build object %q", name)
 			}
 		}
 	case inspectTypeImage:
-		builder, err = openImage(store, name)
+		builder, err = openImage(systemContext, store, name)
 		if err != nil {
 			return errors.Wrapf(err, "error reading image %q", name)
 		}
