@@ -1,3 +1,5 @@
+![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
+
 # Buildah Tutorial 2
 ## Using Buildah with container registries
 

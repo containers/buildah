@@ -1,3 +1,5 @@
+![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
+
 # Buildah Tutorial 1
 ## Building OCI container images
 
