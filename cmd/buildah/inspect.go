@@ -96,7 +96,7 @@ func inspectCmd(c *cli.Context) error {
 	}
 
 	if c.IsSet("format") {
-		return t.Execute(os.Stdout, builder)
+		return t.Execute(os.Stdout, buildah.GetBuildInfo(builder))
 	}
 
 	b, err := json.MarshalIndent(builder, "", "    ")

@@ -95,6 +95,46 @@ type Builder struct {
 	DefaultMountsFilePath string `json:"defaultMountsFilePath,omitempty"`
 }
 
+// BuilderInfo are used as objects to display container information
+type BuilderInfo struct {
+	Type                  string
+	FromImage             string
+	FromImageID           string
+	Config                string
+	Manifest              string
+	Container             string
+	ContainerID           string
+	MountPoint            string
+	ProcessLabel          string
+	MountLabel            string
+	ImageAnnotations      map[string]string
+	ImageCreatedBy        string
+	OCIv1                 v1.Image
+	Docker                docker.V2Image
+	DefaultMountsFilePath string
+}
+
+// GetBuildInfo gets a pointer to a Builder object and returns a BuilderInfo object from it.
+// This is used in the inspect command to display Manifest and Config as string and not []byte.
+func GetBuildInfo(b *Builder) BuilderInfo {
+	return BuilderInfo{
+		Type:                  b.Type,
+		FromImage:             b.FromImage,
+		FromImageID:           b.FromImageID,
+		Config:                string(b.Config),
+		Manifest:              string(b.Manifest),
+		Container:             b.Container,
+		ContainerID:           b.ContainerID,
+		MountPoint:            b.MountPoint,
+		ProcessLabel:          b.ProcessLabel,
+		ImageAnnotations:      b.ImageAnnotations,
+		ImageCreatedBy:        b.ImageCreatedBy,
+		OCIv1:                 b.OCIv1,
+		Docker:                b.Docker,
+		DefaultMountsFilePath: b.DefaultMountsFilePath,
+	}
+}
+
 // BuilderOptions are used to initialize a new Builder.
 type BuilderOptions struct {
 	// FromImage is the name of the image which should be used as the
