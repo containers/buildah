@@ -273,7 +273,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 
 	container, err := store.CreateContainer("", []string{name}, imageID, "", "", &coptions)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error creating container")
+		return nil, errors.Wrapf(err, "error creating container %s", name)
 	}
 
 	defer func() {

@@ -16,12 +16,13 @@ tests:
   - cat /etc/hostname
   - mkdir -p /home/travis/auth
   - openssl req -newkey rsa:4096 -nodes -sha256 -keyout /home/travis/auth/domain.key -x509 -days 2 -out /home/travis/auth/domain.crt -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=localhost"
-  - cp /home/travis/auth/domain.crt /home/travis/auth/domain.cert
+  - sudo cp /home/travis/auth/domain.crt /home/travis/auth/domain.cert
   - sudo mkdir -p /etc/docker/certs.d/docker.io/
-  - sudo cp /home/travis/auth/domain.crt /etc/docker/certs.d/docker.io/ca.crt
+#  - sudo cp /home/travis/auth/domain.crt /etc/docker/certs.d/docker.io/ca.crt
   - sudo mkdir -p /etc/docker/certs.d/localhost:5000/
   - sudo cp /home/travis/auth/domain.crt /etc/docker/certs.d/localhost:5000/ca.crt
   - sudo cp /home/travis/auth/domain.crt /etc/docker/certs.d/localhost:5000/domain.crt
+  - sudo cp /home/travis/auth/domain.key /etc/docker/certs.d/localhost:5000/client.key
   # Create the credentials file, then start up the Docker registry
   - podman run --entrypoint htpasswd registry:2 -Bbn testuser testpassword > /home/travis/auth/htpasswd
   - podman run -d -p 5000:5000 --name registry -v /home/travis/auth:/home/travis/auth:Z -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=/home/travis/auth/htpasswd -e REGISTRY_HTTP_TLS_CERTIFICATE=/home/travis/auth/domain.crt -e REGISTRY_HTTP_TLS_KEY=/home/travis/auth/domain.key registry:2
@@ -47,3 +48,5 @@ tests:
   - podman run --net=host --privileged -v /etc/yum.repos.d:/etc/yum.repos.d.host:ro
     -v $PWD:/code registry.fedoraproject.org/fedora:28 sh -c
     "cp -fv /etc/yum.repos.d{.host/*.repo,} && /code/.papr.sh"
+  - docker images
+  - docker ps --all

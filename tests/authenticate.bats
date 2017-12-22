@@ -6,19 +6,34 @@ load helpers
 
   buildah from --pull --name "alpine" --signature-policy ${TESTSDIR}/policy.json alpine
   run buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword alpine localhost:5000/my-alpine
-  echo "$output"
   [ "$status" -eq 0 ]
 
   # This should fail
-  run buildah push  --signature-policy ${TESTSDIR}/policy.json --tls-verify=true localhost:5000/my-alpine
+  run buildah from --pull-always --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds baduser:badpassword localhost:5000/my-alpine
+  echo "bad creds: $status"
+  echo "$output"
   [ "$status" -ne 0 ]
 
   # This should fail
-  run buildah from --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds baduser:badpassword localhost:5000/my-alpine
+  run buildah push  --signature-policy ${TESTSDIR}/policy.json --tls-verify=true alpine localhost:5000/my-alpine
+  echo "no creds: $status"
+  echo "$output"
   [ "$status" -ne 0 ]
 
   # This should work
-  run buildah from --name "my-alpine" --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword localhost:5000/my-alpine
+  run buildah from --pull-always --name "my-alpine" --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword localhost:5000/my-alpine
+  [ "$status" -eq 0 ]
+
+  # This should work with certificate
+  run buildah from --pull-always localhost:5000/my-alpine --name "my-alpine2" --signature-policy ${TESTSDIR}/policy.json --tls-verify=true --creds testuser:testpassword --cert-dir /home/travis/auth
+  result="$(ls -alF /home/travis/auth)" 
+  echo "output from = ${output}"
+  echo "result is: ${result}"
+  [ "$status" -eq 0 ]
+
+  # This should work with certificate
+  run buildah push alpine localhost:5000/my-alpine-new2 --signature-policy ${TESTSDIR}/policy.json --tls-verify=true --creds testuser:testpassword --cert-dir /home/travis/auth
+  echo "output push = ${output}"
   [ "$status" -eq 0 ]
 
   # Create Dockerfile for bud tests
@@ -40,7 +55,7 @@ EOM
   run buildah bud -f ./Dockerfile --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:testpassword .
   echo $status
   [ "$status" -eq 0 ]
-
+ 
   # Clean up
   rm -f ./Dockerfile
   buildah rm -a
