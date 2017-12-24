@@ -25,7 +25,7 @@
 %global shortcommit    %(c=%{commit}; echo ${c:0:7})
 
 Name:           buildah
-Version:        0.9
+Version:        0.10
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -89,6 +89,21 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Sat Dec 23 2017 Dan Walsh <dwalsh@redhat.com> 0.10-1
+- Display Config and Manifest as strings
+- Bump containers/image
+- Use configured registries to resolve image names
+- Update to work with newer image library
+- Add --chown option to add/copy commands
+
+* Sat Dec 2 2017 Dan Walsh <dwalsh@redhat.com> 0.9-1
+- Allow push to use the image id
+- Make sure builtin volumes have the correct label
+
+* Thu Nov 16 2017 Dan Walsh <dwalsh@redhat.com> 0.8-1
+- Buildah bud was failing on SELinux machines, this fixes this
+- Block access to certain kernel file systems inside of the container
+
 * Thu Nov 16 2017 Dan Walsh <dwalsh@redhat.com> 0.7-1
 - Ignore errors when trying to read containers buildah.json for loading SELinux reservations
 -     Use credentials from kpod login for buildah
@@ -98,6 +113,10 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Rework how we do UID resolution in images
 - Bump github.com/vbatts/tar-split
 - Set option.terminal appropriately in run
+
+* Wed Nov 08 2017 Dan Walsh <dwalsh@redhat.com> 0.5-2
+-  Bump github.com/vbatts/tar-split
+-  Fixes CVE That could allow a container image to cause a DOS
 
 * Tue Nov 07 2017 Dan Walsh <dwalsh@redhat.com> 0.5-1
 -  Add secrets patch to buildah
@@ -129,10 +148,19 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 -   Turn on --enable-gc when running gometalinter
 -   rmi: handle truncated image IDs
 
-* Thu Jul 20 2017 Dan Walsh <dwalsh@redhat.com> 0.3.0-1
+* Tue Aug 15 2017 Josh Boyer <jwboyer@redhat.com> - 0.3-5.gitb9b2a8a
+- Build for s390x as well
+
+* Wed Aug 02 2017 Fedora Release Engineering <releng@fedoraproject.org> - 0.3-4.gitb9b2a8a
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_27_Binutils_Mass_Rebuild
+
+* Wed Jul 26 2017 Fedora Release Engineering <releng@fedoraproject.org> - 0.3-3.gitb9b2a8a
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_27_Mass_Rebuild
+
+* Thu Jul 20 2017 Dan Walsh <dwalsh@redhat.com> 0.3-2.gitb9b2a8a7e
 - Bump for inclusion of OCI 1.0 Runtime and Image Spec
 
-* Tue Jul 18 2017 Dan Walsh <dwalsh@redhat.com> 0.2.0-1
+* Tue Jul 18 2017 Dan Walsh <dwalsh@redhat.com> 0.2.0-1.gitac2aad6
 -   buildah run: Add support for -- ending options parsing 
 -   buildah Add/Copy support for glob syntax
 -   buildah commit: Add flag to remove containers on commit
@@ -149,7 +177,11 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 -   buildah version: add command
 -   buildah run: Handle run without an explicit command correctly
 -   Ensure volume points get created, and with perms
--   buildah containers: Add a -a/--all option 
+-   buildah containers: Add a -a/--all option
+
+* Wed Jun 14 2017 Dan Walsh <dwalsh@redhat.com> 0.1.0-2.git597d2ab9
+- Release Candidate 1
+- All features have now been implemented.
 
 * Fri Apr 14 2017 Dan Walsh <dwalsh@redhat.com> 0.0.1-1.git7a0a5333
 - First package for Fedora
