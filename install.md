@@ -1,6 +1,28 @@
 # Installation Instructions
 
-Prior to installing Buildah, install the following packages on your linux distro:
+## System Requirements
+
+### Kernel Version Requirements
+To run Buildah on Red Hat Enterprise Linux or CentOS, version 7.4 or higher is required.
+On other Linux distributions Buildah requires a kernel version of 4.0 or
+higher in order to support the OverlayFS filesystem.  The kernel version can be checked
+with the 'uname -a' command.
+
+### runc Requirement
+
+Buildah uses `runc` to run commands when `buildah run` is used, or when `buildah build-using-dockerfile`
+encounters a `RUN` instruction, so you'll also need to build and install a compatible version of
+[runc](https://github.com/opencontainers/runc) for Buildah to call for those cases.  If Buildah is installed
+via a package manager such as yum, dnf or apt-get, runc will be installed as part of that process.
+
+## Package Installation
+
+Buildah is available on several software repositories and can be installed via a package manager such
+as yum, dnf or apt-get on a number of Linux distributions.
+
+## Installation from GitHub
+
+Prior to installing Buildah, install the following packages on your Linux distro:
 * make
 * golang (Requires version 1.8.1 or higher.)
 * bats
@@ -16,7 +38,7 @@ Prior to installing Buildah, install the following packages on your linux distro
 * runc (Requires version 1.0 RC4 or higher.)
 * skopeo-containers
 
-## Fedora
+### Fedora
 
 In Fedora, you can use this command:
 
@@ -52,7 +74,7 @@ Then to install Buildah on Fedora follow the steps in this example:
   buildah --help
 ```
 
-## RHEL, CentOS
+### RHEL, CentOS
 
 In RHEL and CentOS 7, ensure that you are subscribed to `rhel-7-server-rpms`,
 `rhel-7-server-extras-rpms`, and `rhel-7-server-optional-rpms`, then
@@ -78,9 +100,9 @@ run this command:
 
 The build steps for Buildah on RHEL or CentOS are the same as Fedora, above.
 
-## Ubuntu
+### Ubuntu
 
-In Ubuntu zesty and xenial, you can use this command:
+In Ubuntu zesty and xenial, you can use these commands:
 
 ```
   apt-get -y install software-properties-common
@@ -104,7 +126,7 @@ Then to install Buildah on Ubuntu follow the steps in this example:
   buildah --help
 ```
 
-## Debian
+### Debian
 
 To install the required dependencies, you can use those commands, tested under Debian GNU/Linux amd64 9.3 (stretch):
 
