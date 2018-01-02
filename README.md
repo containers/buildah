@@ -23,12 +23,6 @@ The Buildah package provides a command line tool which can be used to
 
 **[Tutorials](docs/tutorials/tutorials.md)**
 
-## runc Requirement
-
-Buildah uses `runc` to run commands when `buildah run` is used, or when `buildah build-using-dockerfile`
-encounters a `RUN` instruction, so you'll also need to build and install a compatible version of
-[runc](https://github.com/opencontainers/runc) for Buildah to call for those cases.
-
 ## Example 
 
 From [`./examples/lighttpd.sh`](examples/lighttpd.sh):
