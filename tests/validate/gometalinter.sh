@@ -11,6 +11,7 @@ exec gometalinter.v1 \
 	--enable-gc \
 	--exclude='error return value not checked.*(Close|Log|Print).*\(errcheck\)$' \
 	--exclude='.*_test\.go:.*error return value not checked.*\(errcheck\)$' \
+	--exclude='declaration of.*err.*shadows declaration.*\(vetshadow\)$'\
 	--exclude='duplicate of.*_test.go.*\(dupl\)$' \
 	--exclude='vendor\/.*' \
 	--disable=gotype \
