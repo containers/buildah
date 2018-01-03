@@ -1,6 +1,6 @@
 // +build !linux
 
-package buildah
+package chrootuser
 
 import (
 	"github.com/pkg/errors"
