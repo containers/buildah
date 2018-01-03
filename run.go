@@ -113,6 +113,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 		secretMounts, err := secretMounts(file, b.MountLabel, cdir)
 		if err != nil {
 			logrus.Warn("error mounting secrets, skipping...")
+			continue
 		}
 		for _, mount := range secretMounts {
 			if haveMount(mount.Destination) {
