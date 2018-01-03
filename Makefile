@@ -17,10 +17,10 @@ LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_I
 all: buildah imgtype docs
 
 buildah: *.go imagebuildah/*.go cmd/buildah/*.go docker/*.go util/*.go
-	$(GO) build $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
+	$(GO) build -i $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
 
 imgtype: *.go docker/*.go util/*.go tests/imgtype.go
-	$(GO) build $(LDFLAGS) -o imgtype $(BUILDFLAGS) ./tests/imgtype.go
+	$(GO) build -i $(LDFLAGS) -o imgtype $(BUILDFLAGS) ./tests/imgtype.go
 
 .PHONY: clean
 clean:
