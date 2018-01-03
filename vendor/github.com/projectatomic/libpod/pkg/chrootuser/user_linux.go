@@ -1,6 +1,6 @@
 // +build linux
 
-package buildah
+package chrootuser
 
 import (
 	"bufio"
@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	openChrootedCommand = Package + "-open"
+	openChrootedCommand = "chrootuser-open"
 )
 
 func init() {
