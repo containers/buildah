@@ -1,15 +1,18 @@
-package buildah
+package chrootuser
 
 import (
 	"os/user"
 	"strconv"
 	"strings"
 
-	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
 
-func getUser(rootdir, userspec string) (specs.User, error) {
+// GetUser will return the uid, gid of the user specified in the userspec
+// it will use the /etc/password and /etc/shadow files inside of the rootdir
+// to return this information.
+// userspace format [user | user:group | uid | uid:gid | user:gid | uid:group ]
+func GetUser(rootdir, userspec string) (uint32, uint32, error) {
 	var gid64 uint64
 	var gerr error = user.UnknownGroupError("error looking up group")
 
@@ -17,7 +20,7 @@ func getUser(rootdir, userspec string) (specs.User, error) {
 	userspec = spec[0]
 	groupspec := ""
 	if userspec == "" {
-		return specs.User{}, nil
+		return 0, 0, nil
 	}
 	if len(spec) > 1 {
 		groupspec = spec[1]
@@ -57,17 +60,12 @@ func getUser(rootdir, userspec string) (specs.User, error) {
 	}
 
 	if uerr == nil && gerr == nil {
-		u := specs.User{
-			UID:      uint32(uid64),
-			GID:      uint32(gid64),
-			Username: userspec,
-		}
-		return u, nil
+		return uint32(uid64), uint32(gid64), nil
 	}
 
 	err := errors.Wrapf(uerr, "error determining run uid")
 	if uerr == nil {
 		err = errors.Wrapf(gerr, "error determining run gid")
 	}
-	return specs.User{}, err
+	return 0, 0, err
 }

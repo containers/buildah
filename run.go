@@ -248,11 +248,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			return errors.Wrapf(err, "error removing network namespace for run")
 		}
 	}
-	if options.User != "" {
-		user, err = getUser(mountPoint, options.User)
-	} else {
-		user, err = getUser(mountPoint, b.User())
-	}
+	user, err = b.user(mountPoint, options.User)
 	if err != nil {
 		return err
 	}

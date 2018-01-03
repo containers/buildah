@@ -14,6 +14,7 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"github.com/projectatomic/libpod/pkg/chrootuser"
 	"github.com/sirupsen/logrus"
 )
 
@@ -107,7 +108,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 		return errors.Errorf("destination %q is not a directory", dest)
 	}
 	// Find out which user (and group) the destination should belong to.
-	user, err := b.user(mountPoint, options)
+	user, err := b.user(mountPoint, options.Chown)
 	if err != nil {
 		return err
 	}
@@ -194,11 +195,18 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 }
 
 // user returns the user (and group) information which the destination should belong to.
-func (b *Builder) user(mountPoint string, options AddAndCopyOptions) (specs.User, error) {
-	if options.Chown != "" {
-		return getUser(mountPoint, options.Chown)
+func (b *Builder) user(mountPoint string, userspec string) (specs.User, error) {
+	if userspec == "" {
+		userspec = b.User()
 	}
-	return getUser(mountPoint, b.User())
+
+	uid, gid, err := chrootuser.GetUser(mountPoint, userspec)
+	u := specs.User{
+		UID:      uid,
+		GID:      gid,
+		Username: userspec,
+	}
+	return u, err
 }
 
 // setOwner sets the uid and gid owners of a given path.
