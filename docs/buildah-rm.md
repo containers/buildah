@@ -9,11 +9,19 @@ buildah rm - Removes one or more working containers.
 ## DESCRIPTION
 Removes one or more working containers, unmounting them if necessary.
 
+## OPTIONS
+
+**--all, -a**
+
+All containers will be removed.
+
 ## EXAMPLE
 
 buildah rm containerID
 
 buildah rm containerID1 containerID2 containerID3
+
+buildah rm --all
 
 ## SEE ALSO
 buildah(1)
