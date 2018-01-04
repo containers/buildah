@@ -19,6 +19,10 @@ fromreftest() {
   fromreftest kubernetes/pause@sha256:f8cd50c5a287dd8c5f226cf69c60c737d34ed43726c14b8a746d9de2d23eda2b
 }
 
+@test "from-by-digest-s1-a-discarded-layer" {
+  fromreftest docker/whalesay@sha256:178598e51a26abbc958b8a2e48825c90bc22e641de3d31e18aaf55f3258ba93b
+}
+
 @test "from-by-tag-s1" {
   fromreftest kubernetes/pause:go
 }
