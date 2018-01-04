@@ -210,6 +210,8 @@ return 1
 
  _buildah_rmi() {
      local boolean_options="
+     --force
+     -f
      --help
      -h
   "
@@ -226,6 +228,8 @@ return 1
 
  _buildah_rm() {
      local boolean_options="
+     --all
+     -a
      --help
      -h
   "
