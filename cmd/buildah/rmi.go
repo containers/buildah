@@ -178,7 +178,7 @@ func removeContainers(ctrIDs []string, store storage.Store) error {
 func properImageRef(id string) (types.ImageReference, error) {
 	var err error
 	if ref, err := alltransports.ParseImageName(id); err == nil {
-		if img, err2 := ref.NewImage(nil); err2 == nil {
+		if img, err2 := ref.NewImageSource(nil); err2 == nil {
 			img.Close()
 			return ref, nil
 		}
@@ -192,7 +192,7 @@ func properImageRef(id string) (types.ImageReference, error) {
 func storageImageRef(store storage.Store, id string) (types.ImageReference, error) {
 	var err error
 	if ref, err := is.Transport.ParseStoreReference(store, id); err == nil {
-		if img, err2 := ref.NewImage(nil); err2 == nil {
+		if img, err2 := ref.NewImageSource(nil); err2 == nil {
 			img.Close()
 			return ref, nil
 		}
@@ -211,7 +211,7 @@ func storageImageID(store storage.Store, id string) (types.ImageReference, error
 		imageID = img.ID
 	}
 	if ref, err := is.Transport.ParseStoreReference(store, imageID); err == nil {
-		if img, err2 := ref.NewImage(nil); err2 == nil {
+		if img, err2 := ref.NewImageSource(nil); err2 == nil {
 			img.Close()
 			return ref, nil
 		}
