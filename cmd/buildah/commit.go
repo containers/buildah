@@ -8,6 +8,7 @@ import (
 	"github.com/containers/image/storage"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/storage/pkg/archive"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
@@ -143,7 +144,14 @@ func commitCmd(c *cli.Context) error {
 	}
 	err = builder.Commit(dest, options)
 	if err != nil {
-		return errors.Wrapf(err, "error committing container %q to %q", builder.Container, image)
+		switch nErr := errors.Cause(err).(type) {
+		case errcode.Errors:
+			return cli.NewMultiError([]error(nErr)...)
+		case errcode.Error:
+			return nErr
+		default:
+			return errors.Wrapf(err, "error committing container %q to %q", builder.Container, image)
+		}
 	}
 
 	if c.Bool("rm") {
