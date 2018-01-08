@@ -11,13 +11,21 @@ Removes one or more locally stored images.
 
 ## OPTIONS
 
+**--all, -a**
+
+All local images will be removed from the system that do not have containers using the image as a reference image.
+
 **--force, -f**
 
-Executing this command will stop all containers that are using the image and remove them from the system
+This option will cause Buildah to remove all containers that are using the image before removing the image from the system.
 
 ## EXAMPLE
 
 buildah rmi imageID
+
+buildah rmi --all
+
+buildah rmi --all --force
 
 buildah rmi --force imageID
 

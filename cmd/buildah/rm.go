@@ -13,7 +13,7 @@ var (
 	rmFlags       = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "all, a",
-			Usage: "Remove all containers",
+			Usage: "remove all containers",
 		},
 	}
 	rmCommand = cli.Command{

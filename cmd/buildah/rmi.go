@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
@@ -16,6 +17,10 @@ import (
 var (
 	rmiDescription = "removes one or more locally stored images."
 	rmiFlags       = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "all, a",
+			Usage: "remove all images",
+		},
 		cli.BoolFlag{
 			Name:  "force, f",
 			Usage: "force removal of the image",
@@ -33,11 +38,16 @@ var (
 
 func rmiCmd(c *cli.Context) error {
 	force := c.Bool("force")
+	removeAll := c.Bool("all")
 
 	args := c.Args()
-	if len(args) == 0 {
+	if len(args) == 0 && !removeAll {
 		return errors.Errorf("image name or ID must be specified")
 	}
+	if len(args) > 0 && removeAll {
+		return errors.Errorf("when using the --all switch, you may not pass any images names or IDs")
+	}
+
 	if err := validateFlags(c, rmiFlags); err != nil {
 		return err
 	}
@@ -47,26 +57,58 @@ func rmiCmd(c *cli.Context) error {
 		return err
 	}
 
-	for _, id := range args {
-		image, err := getImage(id, store)
+	imagesToDelete := args[:]
+	var lastError error
+
+	if removeAll {
+		images, err := store.Images()
 		if err != nil {
-			return errors.Wrapf(err, "could not get image %q", id)
+			return errors.Wrapf(err, "error reading images")
+		}
+		for _, image := range images {
+			imagesToDelete = append(imagesToDelete, image.ID)
+		}
+	}
+
+	for _, id := range imagesToDelete {
+		image, err := getImage(id, store)
+		if err != nil || image == nil {
+			if lastError != nil {
+				fmt.Fprintln(os.Stderr, lastError)
+			}
+			if err == nil {
+				err = errors.New("Image does not Exist")
+			}
+			lastError = errors.Wrapf(err, "could not get image %q", id)
+			continue
 		}
 		if image != nil {
 			ctrIDs, err := runningContainers(image, store)
 			if err != nil {
-				return errors.Wrapf(err, "error getting running containers for image %q", id)
+				if lastError != nil {
+					fmt.Fprintln(os.Stderr, lastError)
+				}
+				lastError = errors.Wrapf(err, "error getting running containers for image %q", id)
+				continue
 			}
 			if len(ctrIDs) > 0 && len(image.Names) <= 1 {
 				if force {
 					err = removeContainers(ctrIDs, store)
 					if err != nil {
-						return errors.Wrapf(err, "error removing containers %v for image %q", ctrIDs, id)
+						if lastError != nil {
+							fmt.Fprintln(os.Stderr, lastError)
+						}
+						lastError = errors.Wrapf(err, "error removing containers %v for image %q", ctrIDs, id)
+						continue
 					}
 				} else {
 					for _, ctrID := range ctrIDs {
-						return fmt.Errorf("Could not remove image %q (must force) - container %q is using its reference image", id, ctrID)
+						if lastError != nil {
+							fmt.Fprintln(os.Stderr, lastError)
+						}
+						lastError = errors.Wrapf(errors.New("Container Exists"), "Could not remove image %q (must force) - container %q is using its reference image", id, ctrID)
 					}
+					continue
 				}
 			}
 			// If the user supplied an ID, we cannot delete the image if it is referred to by multiple tags
@@ -79,7 +121,11 @@ func rmiCmd(c *cli.Context) error {
 			} else {
 				name, err2 := untagImage(id, image, store)
 				if err2 != nil {
-					return errors.Wrapf(err, "error removing tag %q from image %q", id, image.ID)
+					if lastError != nil {
+						fmt.Fprintln(os.Stderr, lastError)
+					}
+					lastError = errors.Wrapf(err2, "error removing tag %q from image %q", id, image.ID)
+					continue
 				}
 				fmt.Printf("untagged: %s\n", name)
 			}
@@ -89,12 +135,19 @@ func rmiCmd(c *cli.Context) error {
 			}
 			id, err := removeImage(image, store)
 			if err != nil {
-				return errors.Wrapf(err, "error removing image %q", image.ID)
+				if lastError != nil {
+					fmt.Fprintln(os.Stderr, lastError)
+				}
+				lastError = errors.Wrapf(err, "error removing image %q", image.ID)
+				continue
 			}
 			fmt.Printf("%s\n", id)
 		}
 	}
 
+	if lastError != nil {
+		fmt.Fprintln(os.Stderr, lastError)
+	}
 	return nil
 }
 
