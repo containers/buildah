@@ -139,23 +139,30 @@ func makeDockerV2S1Image(manifest docker.V2S1Manifest) (docker.V2Image, error) {
 	}
 	// Build a filesystem history.
 	history := []docker.V2S2History{}
+	lastID := ""
 	for i := range manifest.History {
-		h := docker.V2S2History{
-			Created:    time.Now().UTC(),
-			Author:     "",
-			CreatedBy:  "",
-			Comment:    "",
-			EmptyLayer: false,
-		}
+		// Decode the compatibility field.
 		dcompat := docker.V1Compatibility{}
-		if err2 := json.Unmarshal([]byte(manifest.History[i].V1Compatibility), &dcompat); err2 == nil {
-			h.Created = dcompat.Created.UTC()
-			h.Author = dcompat.Author
-			h.Comment = dcompat.Comment
-			if len(dcompat.ContainerConfig.Cmd) > 0 {
-				h.CreatedBy = fmt.Sprintf("%v", dcompat.ContainerConfig.Cmd)
-			}
-			h.EmptyLayer = dcompat.ThrowAway
+		if err = json.Unmarshal([]byte(manifest.History[i].V1Compatibility), &dcompat); err != nil {
+			return docker.V2Image{}, errors.Errorf("error parsing image compatibility data (%q) from history", manifest.History[i].V1Compatibility)
+		}
+		// Skip this history item if it shares the ID of the last one
+		// that we saw, since the image library will do the same.
+		if i > 0 && dcompat.ID == lastID {
+			continue
+		}
+		lastID = dcompat.ID
+		// Construct a new history item using the recovered information.
+		createdBy := ""
+		if len(dcompat.ContainerConfig.Cmd) > 0 {
+			createdBy = fmt.Sprintf("%s", strings.Join(dcompat.ContainerConfig.Cmd, " "))
+		}
+		h := docker.V2S2History{
+			Created:    dcompat.Created.UTC(),
+			Author:     dcompat.Author,
+			CreatedBy:  createdBy,
+			Comment:    dcompat.Comment,
+			EmptyLayer: dcompat.ThrowAway,
 		}
 		// Prepend this layer to the list, because a v2s1 format manifest's list is in reverse order
 		// compared to v2s2, which lists earlier layers before later ones.

@@ -73,6 +73,26 @@ func (i *containerImageRef) NewImage(sc *types.SystemContext) (types.ImageCloser
 	return image.FromSource(sc, src)
 }
 
+func expectedOCIDiffIDs(image v1.Image) int {
+	expected := 0
+	for _, history := range image.History {
+		if !history.EmptyLayer {
+			expected = expected + 1
+		}
+	}
+	return expected
+}
+
+func expectedDockerDiffIDs(image docker.V2Image) int {
+	expected := 0
+	for _, history := range image.History {
+		if !history.EmptyLayer {
+			expected = expected + 1
+		}
+	}
+	return expected
+}
+
 func (i *containerImageRef) NewImageSource(sc *types.SystemContext) (src types.ImageSource, err error) {
 	// Decide which type of manifest and configuration output we're going to provide.
 	manifestType := i.preferredManifestType
@@ -207,6 +227,10 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext) (src types.I
 				// Until the image specs define a media type for bzip2-compressed layers, even if we know
 				// how to decompress them, we can't try to compress layers with bzip2.
 				return nil, errors.New("media type for bzip2-compressed layers is not defined")
+			case archive.Xz:
+				// Until the image specs define a media type for xz-compressed layers, even if we know
+				// how to decompress them, we can't try to compress layers with xz.
+				return nil, errors.New("media type for xz-compressed layers is not defined")
 			default:
 				logrus.Debugf("compressing layer %q with unknown compressor(?)", layerID)
 			}
@@ -289,6 +313,17 @@ func (i *containerImageRef) NewImageSource(sc *types.SystemContext) (src types.I
 		EmptyLayer: false,
 	}
 	dimage.History = append(dimage.History, dnews)
+
+	// Sanity check that we didn't just create a mismatch between non-empty layers in the
+	// history and the number of diffIDs.
+	expectedDiffIDs := expectedOCIDiffIDs(oimage)
+	if len(oimage.RootFS.DiffIDs) != expectedDiffIDs {
+		return nil, errors.Errorf("internal error: history lists %d non-empty layers, but we have %d layers on disk", expectedDiffIDs, len(oimage.RootFS.DiffIDs))
+	}
+	expectedDiffIDs = expectedDockerDiffIDs(dimage)
+	if len(dimage.RootFS.DiffIDs) != expectedDiffIDs {
+		return nil, errors.Errorf("internal error: history lists %d non-empty layers, but we have %d layers on disk", expectedDiffIDs, len(dimage.RootFS.DiffIDs))
+	}
 
 	// Encode the image configuration blob.
 	oconfig, err := json.Marshal(&oimage)
