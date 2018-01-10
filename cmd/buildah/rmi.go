@@ -77,7 +77,7 @@ func rmiCmd(c *cli.Context) error {
 				fmt.Fprintln(os.Stderr, lastError)
 			}
 			if err == nil {
-				err = errors.New("Image does not Exist")
+				err = storage.ErrNotAnImage
 			}
 			lastError = errors.Wrapf(err, "could not get image %q", id)
 			continue
@@ -106,7 +106,7 @@ func rmiCmd(c *cli.Context) error {
 						if lastError != nil {
 							fmt.Fprintln(os.Stderr, lastError)
 						}
-						lastError = errors.Wrapf(errors.New("Container Exists"), "Could not remove image %q (must force) - container %q is using its reference image", id, ctrID)
+						lastError = errors.Wrapf(storage.ErrImageUsedByContainer, "Could not remove image %q (must force) - container %q is using its reference image", id, ctrID)
 					}
 					continue
 				}
