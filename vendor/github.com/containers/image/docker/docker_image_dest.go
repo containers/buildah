@@ -131,7 +131,7 @@ func (d *dockerImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobI
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusAccepted {
 		logrus.Debugf("Error initiating layer upload, response %#v", *res)
-		return types.BlobInfo{}, errors.Errorf("Error initiating layer upload to %s, status %d", uploadPath, res.StatusCode)
+		return types.BlobInfo{}, errors.Wrapf(client.HandleErrorResponse(res), "Error initiating layer upload to %s", uploadPath)
 	}
 	uploadLocation, err := res.Location()
 	if err != nil {
@@ -167,7 +167,7 @@ func (d *dockerImageDestination) PutBlob(stream io.Reader, inputInfo types.BlobI
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusCreated {
 		logrus.Debugf("Error uploading layer, response %#v", *res)
-		return types.BlobInfo{}, errors.Errorf("Error uploading layer to %s, status %d", uploadLocation, res.StatusCode)
+		return types.BlobInfo{}, errors.Wrapf(client.HandleErrorResponse(res), "Error uploading layer to %s", uploadLocation)
 	}
 
 	logrus.Debugf("Upload of layer %s complete", computedDigest)
@@ -447,7 +447,7 @@ sigExists:
 				logrus.Debugf("Error body %s", string(body))
 			}
 			logrus.Debugf("Error uploading signature, status %d, %#v", res.StatusCode, res)
-			return errors.Errorf("Error uploading signature to %s, status %d", path, res.StatusCode)
+			return errors.Wrapf(client.HandleErrorResponse(res), "Error uploading signature to %s", path)
 		}
 	}
 
