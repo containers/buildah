@@ -13,7 +13,7 @@ Removes one or more working containers, unmounting them if necessary.
 
 **--all, -a**
 
-All containers will be removed.
+All Buildah containers will be removed.  Buildah containers are denoted with an '*' in the 'BUILDER' column listed by the command 'buildah containers'.
 
 ## EXAMPLE
 
