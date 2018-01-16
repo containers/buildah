@@ -25,7 +25,7 @@
 %global shortcommit    %(c=%{commit}; echo ${c:0:7})
 
 Name:           buildah
-Version:        0.10
+Version:        0.11
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -89,6 +89,14 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Tue Jan 16 2018 Dan Walsh <dwalsh@redhat.com> 0.11-1
+- Add --all to remove containers
+- Add --all functionality to rmi
+- Show ctrid when doing rm -all
+- Ignore sequential duplicate layers when reading v2s1
+- Lots of minor bug fixes
+- Vendor in latest containers/image and containers/storage
+
 * Sat Dec 23 2017 Dan Walsh <dwalsh@redhat.com> 0.10-1
 - Display Config and Manifest as strings
 - Bump containers/image
