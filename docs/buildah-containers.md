@@ -15,7 +15,8 @@ IDs, and the names and IDs of the images from which they were initialized.
 **--all, -a**
 
 List information about all containers, including those which were not created
-by and are not being used by Buildah.  Containers created by Buildah are denoted with an '*' in the 'BUILDER' column.
+by and are not being used by Buildah.  Containers created by Buildah are
+denoted with an '*' in the 'BUILDER' column.
 
 **--json**
 
