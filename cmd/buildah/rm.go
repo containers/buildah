@@ -45,6 +45,7 @@ func rmCmd(c *cli.Context) error {
 		}
 
 		for _, builder := range builders {
+			id := builder.ContainerID
 			err = builder.Delete()
 			if e == nil {
 				e = err
@@ -53,6 +54,7 @@ func rmCmd(c *cli.Context) error {
 				fmt.Fprintf(os.Stderr, "error removing container %q: %v\n", builder.Container, err)
 				continue
 			}
+			fmt.Printf("%s\n", id)
 		}
 	} else {
 		for _, name := range args {
