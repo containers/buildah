@@ -77,6 +77,24 @@ func pullAndFindImage(store storage.Store, imageName string, options BuilderOpti
 	return img, ref, nil
 }
 
+func getImageName(name string, img *storage.Image) string {
+	imageName := name
+	if len(img.Names) > 0 {
+		imageName = img.Names[0]
+		// When the image used by the container is a tagged image
+		// the container name might be set to the original image instead of
+		// the image given in the "form" command line.
+		// This loop is supposed to fix this.
+		for _, n := range img.Names {
+			if strings.Contains(n, name) {
+				imageName = n
+				break
+			}
+		}
+	}
+	return imageName
+}
+
 func imageNamePrefix(imageName string) string {
 	prefix := imageName
 	s := strings.Split(imageName, "/")
@@ -200,9 +218,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	image := options.FromImage
 	imageID := ""
 	if img != nil {
-		if len(img.Names) > 0 {
-			image = img.Names[0]
-		}
+		image = getImageName(image, img)
 		imageID = img.ID
 	}
 	if manifest, config, err = imageManifestAndConfig(ref, systemContext); err != nil {
