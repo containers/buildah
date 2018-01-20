@@ -53,7 +53,7 @@ Defaults to *true*.
 
 Pull the image even if a version of the image is already present.
 
-**--quiet**
+**-q, --quiet**
 
 Suppress output messages which indicate which instruction is being processed,
 and of progress when pulling images from a registry, and when writing the

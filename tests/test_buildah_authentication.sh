@@ -102,9 +102,14 @@ docker logout localhost:5000
 buildah push --cert-dir /root/auth --tls-verify=true alpine docker://localhost:5000/my-alpine
 
 ########
-# Push using creds, certs and no transport, this should work.
+# Push using creds, certs and no transport (docker://), this should work.
 ########
 buildah push --cert-dir ~/auth --tls-verify=true --creds=testuser:testpassword alpine localhost:5000/my-alpine
+
+########
+# Push using a bad password , this should fail.
+########
+buildah push --cert-dir ~/auth --tls-verify=true --creds=testuser:badpassword alpine localhost:5000/my-alpine
 
 ########
 # No creds anywhere, only the certificate, this should fail.
@@ -112,7 +117,7 @@ buildah push --cert-dir ~/auth --tls-verify=true --creds=testuser:testpassword a
 buildah from localhost:5000/my-alpine --cert-dir /root/auth  --tls-verify=true
 
 ########
-# Log in with creds, this should work
+# From with creds and certs, this should work
 ########
 ctrid=$(buildah from localhost:5000/my-alpine --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpassword)
 
@@ -164,9 +169,14 @@ buildah commit --cert-dir /root/auth  --tls-verify=true alpine-working-container
 buildah commit --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpassword  alpine-working-container docker://localhost:5000/my-commit-alpine
 
 ########
+# Use bad password on from/pull, this should fail
+########
+buildah from localhost:5000/my-commit-alpine --pull-always --cert-dir /root/auth  --tls-verify=true --creds=testuser:badpassword
+
+########
 # Pull the new image that we just commited
 ########
-buildah from localhost:5000/my-commit-alpine --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpassword
+buildah from localhost:5000/my-commit-alpine --pull-always --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpassword
 
 ########
 # Show stuff
