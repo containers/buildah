@@ -253,7 +253,7 @@ func TestOutputImagesFormatString(t *testing.T) {
 	output, err := captureOutputWithError(func() error {
 		return outputImages(images[:1], "{{.ID}}", store, nil, "", true, true, false, false)
 	})
-	expectedOutput := fmt.Sprintf("%s", images[0].ID)
+	expectedOutput := images[0].ID
 	if err != nil {
 		t.Error("format string output produces error")
 	} else if strings.TrimSpace(output) != strings.TrimSpace(expectedOutput) {

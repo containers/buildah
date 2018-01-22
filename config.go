@@ -2,7 +2,6 @@ package buildah
 
 import (
 	"encoding/json"
-	"fmt"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -155,7 +154,7 @@ func makeDockerV2S1Image(manifest docker.V2S1Manifest) (docker.V2Image, error) {
 		// Construct a new history item using the recovered information.
 		createdBy := ""
 		if len(dcompat.ContainerConfig.Cmd) > 0 {
-			createdBy = fmt.Sprintf("%s", strings.Join(dcompat.ContainerConfig.Cmd, " "))
+			createdBy = strings.Join(dcompat.ContainerConfig.Cmd, " ")
 		}
 		h := docker.V2S2History{
 			Created:    dcompat.Created.UTC(),
