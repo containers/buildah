@@ -65,6 +65,8 @@ type RunOptions struct {
 	// decision can be overridden by specifying either WithTerminal or
 	// WithoutTerminal.
 	Terminal int
+	// Quiet tells the run to turn off output to stdout.
+	Quiet bool
 }
 
 func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles, volumes []string) error {
@@ -286,6 +288,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	cmd.Dir = mountPoint
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
+	if options.Quiet {
+		cmd.Stdout = nil
+	}
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	if err != nil {

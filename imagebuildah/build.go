@@ -380,6 +380,7 @@ func (b *Executor) Run(run imagebuilder.Run, config docker.Config) error {
 		Entrypoint:      config.Entrypoint,
 		Cmd:             config.Cmd,
 		NetworkDisabled: config.NetworkDisabled,
+		Quiet:           b.quiet,
 	}
 
 	args := run.Args
