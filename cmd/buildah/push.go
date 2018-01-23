@@ -12,6 +12,7 @@ import (
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
 
@@ -141,7 +142,10 @@ func pushCmd(c *cli.Context) error {
 
 	err = buildah.Push(src, dest, options)
 	if err != nil {
-		return errors.Wrapf(err, "error pushing image %q to %q", src, destSpec)
+		return util.GetFailureCause(
+			err,
+			errors.Wrapf(err, "error pushing image %q to %q", src, destSpec),
+		)
 	}
 
 	return nil
