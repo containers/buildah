@@ -1,6 +1,8 @@
 package util
 
 import (
+	"fmt"
+	"net/url"
 	"path"
 	"strings"
 
@@ -9,8 +11,10 @@ import (
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 )
 
 const (
@@ -151,4 +155,24 @@ func AddImageNames(store storage.Store, image *storage.Image, addNames []string)
 		return errors.Wrapf(err, "error adding names (%v) to image %q", names, image.ID)
 	}
 	return nil
+}
+
+// GetFailureCause checks the type of the error "err" and returns a new
+// error message that reflects the reason of the failure.
+// In case err type is not a familiar one the error "defaultError" is returned.
+func GetFailureCause(err, defaultError error) error {
+	switch nErr := errors.Cause(err).(type) {
+	case errcode.Errors:
+		return cli.NewMultiError([]error(nErr)...)
+	case errcode.Error, *url.Error:
+		return nErr
+	default:
+		// HACK: In case the error contains "not authorized" like in
+		//       https://github.com/containers/image/blob/master/docker/docker_image_dest.go#L193-L205
+		// TODO(bshuster): change "containers/images" to return "errcode" rather than "error".
+		if strings.Contains(nErr.Error(), "not authorized") {
+			return fmt.Errorf("unauthorized: authentication required")
+		}
+		return defaultError
+	}
 }

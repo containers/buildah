@@ -144,6 +144,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 			pulledImg, pulledReference, err2 := pullAndFindImage(store, image, options, systemContext)
 			if err2 != nil {
 				logrus.Debugf("error pulling and reading image %q: %v", image, err2)
+				err = err2
 				continue
 			}
 			ref = pulledReference
@@ -155,11 +156,13 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		if err2 != nil {
 			if options.Transport == "" {
 				logrus.Debugf("error parsing image name %q: %v", image, err2)
+				err = err2
 				continue
 			}
 			srcRef2, err3 := alltransports.ParseImageName(options.Transport + image)
 			if err3 != nil {
 				logrus.Debugf("error parsing image name %q: %v", image, err2)
+				err = err3
 				continue
 			}
 			srcRef = srcRef2
@@ -186,6 +189,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 			pulledImg, pulledReference, err2 := pullAndFindImage(store, image, options, systemContext)
 			if err2 != nil {
 				logrus.Debugf("error pulling and reading image %q: %v", image, err2)
+				err = err2
 				continue
 			}
 			ref = pulledReference
@@ -195,7 +199,10 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	}
 
 	if options.FromImage != "" && (ref == nil || img == nil) {
-		return nil, errors.Wrapf(storage.ErrImageUnknown, "no such image %q", options.FromImage)
+		// If options.FromImage is set but we ended up
+		// with nil in ref or in img then there was an error that
+		// we should return.
+		return nil, util.GetFailureCause(err, errors.Wrapf(storage.ErrImageUnknown, "no such image %q", options.FromImage))
 	}
 	image := options.FromImage
 	imageID := ""
