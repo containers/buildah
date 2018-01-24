@@ -12,12 +12,10 @@ load helpers
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
-  buildah rmi ${elsewhere}
   [ "$cid" = elsewhere-img-working-container ]
 
   cid=$(buildah from --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
-  buildah rmi ${elsewhere}
   [ "$cid" = `basename ${elsewhere}`-working-container ]
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
@@ -26,12 +24,10 @@ load helpers
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
-  buildah rmi ${elsewhere}
   [ "$cid" = elsewhere-img-working-container ]
 
   cid=$(buildah from --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
-  buildah rmi ${elsewhere}
   [ "$cid" = `basename ${elsewhere}`-working-container ]
 }
 
@@ -120,7 +116,8 @@ load helpers
   buildah tag scratch2 scratch3
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch3)
   [ "$cid" == scratch3-working-container ]
-  buildah rmi -f --all
+  buildah rm ${cid}
+  buildah rmi scratch2 scratch3
 
   # Github https://github.com/projectatomic/buildah/issues/396#issuecomment-360949396
   cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
@@ -128,6 +125,6 @@ load helpers
   buildah tag alpine alpine2
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json docker.io/alpine2)
   [ "$cid" == alpine2-working-container ]
-  buildah rmi -f --all
-
+  buildah rm ${cid}
+  buildah rmi alpine alpine2
 }

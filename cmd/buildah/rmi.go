@@ -157,10 +157,7 @@ func rmiCmd(c *cli.Context) error {
 		}
 	}
 
-	if lastError != nil {
-		fmt.Fprintln(os.Stderr, lastError)
-	}
-	return nil
+	return lastError
 }
 
 func getImage(id string, store storage.Store) (*storage.Image, error) {
