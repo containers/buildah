@@ -73,7 +73,6 @@ load helpers
 }
 
 @test "from-authenticate-cert-and-creds" {
-
   mkdir -p  ${TESTDIR}/auth
   # Create creds and store in ${TESTDIR}/auth/htpasswd
 #  docker run --entrypoint htpasswd registry:2 -Bbn testuser testpassword > ${TESTDIR}/auth/htpasswd
@@ -111,4 +110,15 @@ load helpers
 #  docker rmi -f $(docker images -q)
 #  buildah rm $ctrid
 #  buildah rmi -f $(buildah --debug=false images -q)
+}
+
+@test "from-tagged-image" {
+  # Github #396: Make sure the container name starts with the correct image even when it's tagged.
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" scratch2
+  buildah rm $cid
+  buildah tag scratch2 scratch3
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch3)
+  [ "$cid" == scratch3-working-container ]
+  buildah rmi -f --all
 }
