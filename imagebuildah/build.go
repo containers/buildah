@@ -95,8 +95,6 @@ type BuildOptions struct {
 	// specified, indicating that the shared, system-wide default policy
 	// should be used.
 	SignaturePolicyPath string
-	// SkipTLSVerify denotes whether TLS verification should not be used.
-	SkipTLSVerify bool
 	// ReportWriter is an io.Writer which will be used to report the
 	// progress of the (possible) pulling of the source image and the
 	// writing of the new image.
@@ -105,7 +103,8 @@ type BuildOptions struct {
 	// configuration data.
 	// Accepted values are OCIv1ImageFormat and Dockerv2ImageFormat.
 	OutputFormat string
-	AuthFilePath string
+	// SystemContext holds parameters used for authentication.
+	SystemContext *types.SystemContext
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor
@@ -137,18 +136,6 @@ type Executor struct {
 	volumeCache                    map[string]string
 	volumeCacheInfo                map[string]os.FileInfo
 	reportWriter                   io.Writer
-}
-
-func makeSystemContext(signaturePolicyPath, authFilePath string, skipTLSVerify bool) *types.SystemContext {
-	sc := &types.SystemContext{}
-	if signaturePolicyPath != "" {
-		sc.SignaturePolicyPath = signaturePolicyPath
-	}
-	if authFilePath != "" {
-		sc.AuthFilePath = authFilePath
-	}
-	sc.DockerInsecureSkipTLSVerify = skipTLSVerify
-	return sc
 }
 
 // Preserve informs the executor that from this point on, it needs to ensure
@@ -428,7 +415,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		outputFormat:        options.OutputFormat,
 		additionalTags:      options.AdditionalTags,
 		signaturePolicyPath: options.SignaturePolicyPath,
-		systemContext:       makeSystemContext(options.SignaturePolicyPath, options.AuthFilePath, options.SkipTLSVerify),
+		systemContext:       options.SystemContext,
 		volumeCache:         make(map[string]string),
 		volumeCacheInfo:     make(map[string]os.FileInfo),
 		log:                 options.Log,
@@ -476,6 +463,7 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 		Transport:           b.transport,
 		SignaturePolicyPath: b.signaturePolicyPath,
 		ReportWriter:        b.reportWriter,
+		SystemContext:       b.systemContext,
 	}
 	builder, err := buildah.NewBuilder(b.store, builderOptions)
 	if err != nil {

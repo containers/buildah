@@ -21,6 +21,16 @@ var (
 			Name:  "build-arg",
 			Usage: "`argument=value` to supply to the builder",
 		},
+		cli.StringFlag{
+			Name:  "cert-dir",
+			Value: "",
+			Usage: "use certificates at the specified path to access the registry",
+		},
+		cli.StringFlag{
+			Name:  "creds",
+			Value: "",
+			Usage: "use `[username[:password]]` for accessing the registry",
+		},
 		cli.StringSliceFlag{
 			Name:  "file, f",
 			Usage: "`pathname or URL` of a Dockerfile",
@@ -181,20 +191,24 @@ func budCmd(c *cli.Context) error {
 		return err
 	}
 
+	systemContext, err := systemContextFromOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error building system context")
+	}
+
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:    contextDir,
 		PullPolicy:          pullPolicy,
 		Compression:         imagebuildah.Gzip,
 		Quiet:               c.Bool("quiet"),
 		SignaturePolicyPath: c.String("signature-policy"),
-		SkipTLSVerify:       !c.Bool("tls-verify"),
 		Args:                args,
 		Output:              output,
 		AdditionalTags:      tags,
 		Runtime:             c.String("runtime"),
 		RuntimeArgs:         c.StringSlice("runtime-flag"),
 		OutputFormat:        format,
-		AuthFilePath:        c.String("authfile"),
+		SystemContext:       systemContext,
 	}
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
