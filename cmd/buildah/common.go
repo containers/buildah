@@ -1,11 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
-	"syscall"
 	"time"
 
 	is "github.com/containers/image/storage"
@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var needToShutdownStore = false
@@ -146,25 +147,35 @@ func systemContextFromOptions(c *cli.Context) (*types.SystemContext, error) {
 	return ctx, nil
 }
 
-func parseCreds(creds string) (string, string, error) {
+func parseCreds(creds string) (string, string) {
 	if creds == "" {
-		return "", "", errors.Wrapf(syscall.EINVAL, "credentials can't be empty")
+		return "", ""
 	}
 	up := strings.SplitN(creds, ":", 2)
 	if len(up) == 1 {
-		return up[0], "", nil
+		return up[0], ""
 	}
 	if up[0] == "" {
-		return "", "", errors.Wrapf(syscall.EINVAL, "username can't be empty")
+		return "", up[1]
 	}
-	return up[0], up[1], nil
+	return up[0], up[1]
 }
 
 func getDockerAuth(creds string) (*types.DockerAuthConfig, error) {
-	username, password, err := parseCreds(creds)
-	if err != nil {
-		return nil, err
+	username, password := parseCreds(creds)
+	if username == "" {
+		fmt.Print("Username: ")
+		fmt.Scanln(&username)
 	}
+	if password == "" {
+		fmt.Print("Password: ")
+		termPassword, err := terminal.ReadPassword(0)
+		if err != nil {
+			return nil, errors.Wrapf(err, "could not read password from terminal")
+		}
+		password = string(termPassword)
+	}
+
 	return &types.DockerAuthConfig{
 		Username: username,
 		Password: password,
