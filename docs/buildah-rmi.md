@@ -15,6 +15,10 @@ Removes one or more locally stored images.
 
 All local images will be removed from the system that do not have containers using the image as a reference image.
 
+**--prune, -p**
+
+All local images will be removed from the system that do not have a tag and do not have a child image pointing to them.
+
 **--force, -f**
 
 This option will cause Buildah to remove all containers that are using the image before removing the image from the system.
@@ -26,6 +30,8 @@ buildah rmi imageID
 buildah rmi --all
 
 buildah rmi --all --force
+
+buildah rmi --prune
 
 buildah rmi --force imageID
 

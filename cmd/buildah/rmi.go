@@ -22,6 +22,10 @@ var (
 			Usage: "remove all images",
 		},
 		cli.BoolFlag{
+			Name:  "prune, p",
+			Usage: "prune dangling images",
+		},
+		cli.BoolFlag{
 			Name:  "force, f",
 			Usage: "force removal of the image",
 		},
@@ -39,13 +43,17 @@ var (
 func rmiCmd(c *cli.Context) error {
 	force := c.Bool("force")
 	removeAll := c.Bool("all")
+	pruneDangling := c.Bool("prune")
 
 	args := c.Args()
-	if len(args) == 0 && !removeAll {
+	if len(args) == 0 && !removeAll && !pruneDangling {
 		return errors.Errorf("image name or ID must be specified")
 	}
 	if len(args) > 0 && removeAll {
 		return errors.Errorf("when using the --all switch, you may not pass any images names or IDs")
+	}
+	if removeAll && pruneDangling {
+		return errors.Errorf("when using the --all switch, you may not use --prune switch")
 	}
 
 	if err := validateFlags(c, rmiFlags); err != nil {
@@ -61,12 +69,16 @@ func rmiCmd(c *cli.Context) error {
 	var lastError error
 
 	if removeAll {
-		images, err := store.Images()
+		imagesToDelete, err = findAllImages(store)
 		if err != nil {
-			return errors.Wrapf(err, "error reading images")
+			return err
 		}
-		for _, image := range images {
-			imagesToDelete = append(imagesToDelete, image.ID)
+	}
+
+	if pruneDangling {
+		imagesToDelete, err = findDanglingImages(store)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -271,4 +283,36 @@ func storageImageID(store storage.Store, id string) (types.ImageReference, error
 		return nil, errors.Wrapf(err, "error confirming presence of storage image reference %q", transports.ImageName(ref))
 	}
 	return nil, errors.Wrapf(err, "error parsing %q as a storage image reference: %v", id)
+}
+
+// Returns a list of all existing images
+func findAllImages(store storage.Store) ([]string, error) {
+	imagesToDelete := []string{}
+
+	images, err := store.Images()
+	if err != nil {
+		return nil, errors.Wrapf(err, "error reading images")
+	}
+	for _, image := range images {
+		imagesToDelete = append(imagesToDelete, image.ID)
+	}
+
+	return imagesToDelete, nil
+}
+
+// Returns a list of all dangling images
+func findDanglingImages(store storage.Store) ([]string, error) {
+	imagesToDelete := []string{}
+
+	images, err := store.Images()
+	if err != nil {
+		return nil, errors.Wrapf(err, "error reading images")
+	}
+	for _, image := range images {
+		if len(image.Names) == 0 {
+			imagesToDelete = append(imagesToDelete, image.ID)
+		}
+	}
+
+	return imagesToDelete, nil
 }
