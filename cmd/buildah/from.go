@@ -23,7 +23,7 @@ var (
 		cli.StringFlag{
 			Name:  "creds",
 			Value: "",
-			Usage: "use `username[:password]` for accessing the registry",
+			Usage: "use `[username[:password]]` for accessing the registry",
 		},
 		cli.StringFlag{
 			Name:  "name",

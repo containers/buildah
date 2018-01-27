@@ -24,7 +24,7 @@ var (
 		cli.StringFlag{
 			Name:  "creds",
 			Value: "",
-			Usage: "use `username[:password]` for accessing the registry",
+			Usage: "use `[username[:password]]` for accessing the registry",
 		},
 		cli.BoolFlag{
 			Name:  "disable-compression, D",

@@ -97,7 +97,7 @@ buildah images
 docker logout localhost:5000
 
 ########
-# Push using only certs, this should fail.
+# Push using only certs, this should FAIL.
 ########
 buildah push --cert-dir /root/auth --tls-verify=true alpine docker://localhost:5000/my-alpine
 
@@ -107,12 +107,12 @@ buildah push --cert-dir /root/auth --tls-verify=true alpine docker://localhost:5
 buildah push --cert-dir ~/auth --tls-verify=true --creds=testuser:testpassword alpine localhost:5000/my-alpine
 
 ########
-# Push using a bad password , this should fail.
+# Push using a bad password , this should FAIL.
 ########
 buildah push --cert-dir ~/auth --tls-verify=true --creds=testuser:badpassword alpine localhost:5000/my-alpine
 
 ########
-# No creds anywhere, only the certificate, this should fail.
+# No creds anywhere, only the certificate, this should FAIL.
 ########
 buildah from localhost:5000/my-alpine --cert-dir /root/auth  --tls-verify=true
 
@@ -159,7 +159,7 @@ buildah images
 ########
 
 ########
-# No credentials, this should fail.
+# No credentials, this should FAIL.
 ########
 buildah commit --cert-dir /root/auth  --tls-verify=true alpine-working-container docker://localhost:5000/my-commit-alpine
 
@@ -169,7 +169,7 @@ buildah commit --cert-dir /root/auth  --tls-verify=true alpine-working-container
 buildah commit --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpassword  alpine-working-container docker://localhost:5000/my-commit-alpine
 
 ########
-# Use bad password on from/pull, this should fail
+# Use bad password on from/pull, this should FAIL
 ########
 buildah from localhost:5000/my-commit-alpine --pull-always --cert-dir /root/auth  --tls-verify=true --creds=testuser:badpassword
 
@@ -190,8 +190,47 @@ buildah containers
 buildah images
 
 ########
+# Create Dockerfile 
+########
+FILE=./Dockerfile
+/bin/cat <<EOM >$FILE
+FROM localhost:5000/my-commit-alpine
+EOM
+chmod +x $FILE
+
+########
+# Clean up Buildah
+########
+buildah rm --all
+buildah rmi -f $(buildah --debug=false images -q)
+
+########
+# Try Buildah bud with creds but no auth, this should FAIL 
+########
+buildah bud -f ./Dockerfile --tls-verify=true --creds=testuser:testpassword
+
+########
+# Try Buildah bud with creds and auth, this should work 
+########
+buildah bud -f ./Dockerfile --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpassword
+
+########
+# Show stuff
+########
+docker ps --all
+
+docker images
+
+buildah containers
+
+buildah images
+
+########
 # Clean up
 ########
+read -p "Press enter to continue and clean up all"
+
+rm -f ./Dockerfile
 rm -rf ${TESTDIR}/auth
 docker rm -f $(docker ps --all -q)
 docker rmi -f $(docker images -q)

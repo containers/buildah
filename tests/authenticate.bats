@@ -21,8 +21,28 @@ load helpers
   run buildah from localhost:5000/my-alpine --name "my-alpine" --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword
   [ "$status" -eq 0 ]
 
+  # Create Dockerfile for bud tests
+  FILE=./Dockerfile
+  /bin/cat <<EOM >$FILE
+FROM localhost:5000/my-alpine
+EOM
+  chmod +x $FILE
+  
+  # Remove containers and images before bud tests
+  buildah rm --all
+  buildah rmi -f --all
+
+  # bud test bad password should fail
+  run buildah bud -f ./Dockerfile --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:badpassword
+  [ "$status" -ne 0 ]
+
+  # bud test this should work
+  run buildah bud -f ./Dockerfile --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:testpassword
+  echo $status
+  [ "$status" -eq 0 ]
+
   # Clean up
-  buildah rm my-alpine
-  buildah rm alpine 
-  buildah rmi -f $(buildah --debug=false images -q)
+  rm -f ./Dockerfile
+  buildah rm -a
+  buildah rmi -f --all
 }
