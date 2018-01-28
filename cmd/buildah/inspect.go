@@ -2,13 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"text/template"
 
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -99,10 +99,10 @@ func inspectCmd(c *cli.Context) error {
 		return t.Execute(os.Stdout, buildah.GetBuildInfo(builder))
 	}
 
-	b, err := json.MarshalIndent(builder, "", "    ")
-	if err != nil {
-		return errors.Wrapf(err, "error encoding build container as json")
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "    ")
+	if terminal.IsTerminal(int(os.Stdout.Fd())) {
+		enc.SetEscapeHTML(false)
 	}
-	_, err = fmt.Println(string(b))
-	return err
+	return enc.Encode(builder)
 }
