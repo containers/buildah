@@ -26,3 +26,15 @@ load helpers
   [ "$status" -eq 0 ]
   [ "$output" != "" ]
 }
+
+@test "HTML escaped" {
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah config --label maintainer="Darth Vader <dvader@darkside.io>" ${cid}
+  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid darkside-image
+  buildah rm ${cid}
+  output=$(buildah inspect --type image darkside-image)
+  [ $(output | grep "u003" | wc -l) -eq 0 ]
+  output=$(buildah inspect --type image darkside-image | grep "u003" | wc -l)
+  [ "$output" -ne 0 ]
+  buildah rmi darkside-image
+}
