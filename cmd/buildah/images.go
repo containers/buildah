@@ -96,6 +96,10 @@ func imagesCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error reading images")
 	}
 
+	if c.IsSet("quiet") && c.IsSet("format") {
+		return errors.Errorf("quiet and format are mutually exclusive")
+	}
+
 	quiet := c.Bool("quiet")
 	truncate := !c.Bool("no-trunc")
 	digests := c.Bool("digests")
