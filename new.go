@@ -225,7 +225,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	image := options.FromImage
 	imageID := ""
 	if img != nil {
-		image = getImageName(image, img)
+		image = getImageName(imageNamePrefix(image), img)
 		imageID = img.ID
 	}
 	if manifest, config, err = imageManifestAndConfig(ref, systemContext); err != nil {

@@ -121,4 +121,13 @@ load helpers
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch3)
   [ "$cid" == scratch3-working-container ]
   buildah rmi -f --all
+
+  # Github https://github.com/projectatomic/buildah/issues/396#issuecomment-360949396
+  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah rm $cid
+  buildah tag alpine alpine2
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json docker.io/alpine2)
+  [ "$cid" == alpine2-working-container ]
+  buildah rmi -f --all
+
 }
