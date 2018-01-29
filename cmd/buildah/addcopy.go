@@ -47,7 +47,7 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 		return err
 	}
 
-	// If list is greater then one, the last item is the destination
+	// If list is greater than one, the last item is the destination
 	dest := ""
 	size := len(args)
 	if size > 1 {
