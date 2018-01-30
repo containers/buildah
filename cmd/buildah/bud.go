@@ -196,6 +196,11 @@ func budCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
+	runtimeFlags := []string{}
+	for _, arg := range c.StringSlice("runtime-flag") {
+		runtimeFlags = append(runtimeFlags, "--"+arg)
+	}
+
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:    contextDir,
 		PullPolicy:          pullPolicy,
@@ -206,7 +211,7 @@ func budCmd(c *cli.Context) error {
 		Output:              output,
 		AdditionalTags:      tags,
 		Runtime:             c.String("runtime"),
-		RuntimeArgs:         c.StringSlice("runtime-flag"),
+		RuntimeArgs:         runtimeFlags,
 		OutputFormat:        format,
 		SystemContext:       systemContext,
 	}
