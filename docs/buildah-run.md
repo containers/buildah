@@ -26,7 +26,9 @@ The *path* to an alternate OCI-compatible runtime.
 
 Adds global flags for the container runtime. To list the supported flags, please
 consult manpages of your selected container runtime (`runc` is the default
-runtime, the manpage to consult is `runc(8)`)
+runtime, the manpage to consult is `runc(8)`).
+Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
+to buildah run, the option given would be `--runtime-flag log-format=json`.
 
 **--tty**
 
@@ -49,7 +51,9 @@ buildah run containerID -- ps -auxw
 
 buildah run containerID --hostname myhost -- ps -auxw
 
-buildah run containerID --runtime-flag --no-new-keyring -- ps -auxw
+buildah run --runtime-flag log-format=json containerID /bin/bash
+
+buildah run --runtime-flag debug containerID /bin/bash
 
 buildah run --tty containerID /bin/bash
 

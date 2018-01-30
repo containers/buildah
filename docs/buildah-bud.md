@@ -66,7 +66,11 @@ commands specified by the **RUN** instruction.
 
 **--runtime-flag** *flag*
 
-Adds global flags for the container rutime.
+Adds global flags for the container rutime. To list the supported flags, please
+consult manpages of your selected container runtime (`runc` is the default
+runtime, the manpage to consult is `runc(8)`).
+Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
+to buildah bud, the option given would be `--runtime-flag log-format=json`.
 
 **--signature-policy** *signaturepolicy*
 
@@ -96,6 +100,10 @@ buildah bud -t imageName .
 buildah bud --tls-verify=true -t imageName -f Dockerfile.simple
 
 buildah bud --tls-verify=false -t imageName .
+
+buildah bud --runtime-flag log-format=json .
+
+buildah bud --runtime-flag debug .
 
 ## SEE ALSO
 buildah(1), kpod-login(1), docker-login(1)

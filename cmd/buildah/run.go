@@ -73,10 +73,15 @@ func runCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
+	runtimeFlags := []string{}
+	for _, arg := range c.StringSlice("runtime-flag") {
+		runtimeFlags = append(runtimeFlags, "--"+arg)
+	}
+
 	options := buildah.RunOptions{
 		Hostname: c.String("hostname"),
 		Runtime:  c.String("runtime"),
-		Args:     c.StringSlice("runtime-flag"),
+		Args:     runtimeFlags,
 	}
 
 	if c.IsSet("tty") {
