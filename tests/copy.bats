@@ -114,9 +114,12 @@ load helpers
 
 @test "copy --chown" {
   mkdir -p ${TESTDIR}/subdir
-  createrandom ${TESTDIR}/randomfile
+  mkdir -p ${TESTDIR}/other-subdir
   createrandom ${TESTDIR}/subdir/randomfile
   createrandom ${TESTDIR}/subdir/other-randomfile
+  createrandom ${TESTDIR}/randomfile
+  createrandom ${TESTDIR}/other-subdir/randomfile
+  createrandom ${TESTDIR}/other-subdir/other-randomfile
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   root=$(buildah mount $cid)
@@ -129,5 +132,8 @@ load helpers
   test $(stat -c "%U:%g" $root/randomfile2) = "root:1"
   test $(stat -c "%U" $root/randomfile3) = "nobody"
   (cd $root/subdir/; for i in *; do test $(stat -c "%U:%G" $i) = "nobody:root"; done)
+  buildah copy --chown root:root $cid ${TESTDIR}/other-subdir /subdir
+  (cd $root/subdir/; for i in *randomfile; do test $(stat -c "%U:%G" $i) = "root:root"; done)
+  test $(stat -c "%U:%G" $root/subdir) = "nobody:root"
   buildah rm $cid
 }
