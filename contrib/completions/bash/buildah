@@ -563,6 +563,9 @@ return 1
   "
 
      local options_with_args="
+     --filter
+     -f
+     --format
   "
 
      local all_options="$options_with_args $boolean_options"

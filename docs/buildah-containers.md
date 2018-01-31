@@ -18,6 +18,32 @@ List information about all containers, including those which were not created
 by and are not being used by Buildah.  Containers created by Buildah are
 denoted with an '*' in the 'BUILDER' column.
 
+**--filter, -f**
+
+Filter output based on conditions provided.
+
+Valid filters are listed below:
+
+| **Filter**      | **Description**                                                     |
+| --------------- | ------------------------------------------------------------------- |
+| id              | [ID] Container's ID                                                 |
+| name            | [Name] Container's name                                             |
+| ancestor        | [ImageName] Image or descendant used to create container            |
+
+**--format**
+
+Pretty-print containers using a Go template.
+
+Valid placeholders for the Go template are listed below:
+
+| **Placeholder** | **Description**                          |
+| --------------- | -----------------------------------------|
+| .ContainerID    | Container ID                             |
+| .Builder        | Whether container was created by buildah |
+| .ImageID        | Image ID                                 |
+| .ImageName      | Image name                               |
+| .ContainerName  | Container name                           |
+
 **--json**
 
 Output in JSON format.
@@ -73,6 +99,18 @@ buildah containers --json
         "containername": "busybox-working-container"
     }
 ]
+```
+
+buildah containers --format "{{.ContainerID}} {{.ContainerName}}"
+```
+3fbeaa87e583ee7a3e6787b2d3af961ef21946a0c01a08938e4f52d53cce4c04 myalpine-working-container
+fbfd3505376ee639c3ed50f9d32b78445cd59198a1dfcacf2e7958cda2516d5c ubuntu-working-container
+```
+
+buildah containers --filter ancestor=ubuntu
+```
+CONTAINER ID  BUILDER  IMAGE ID     IMAGE NAME                       CONTAINER NAME
+fbfd3505376e     *     0ff04b2e7b63 docker.io/library/ubuntu:latest  ubuntu-working-container
 ```
 
 ## SEE ALSO
