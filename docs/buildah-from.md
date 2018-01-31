@@ -17,7 +17,7 @@ Multiple transports are supported:
   An existing local directory _path_ retrieving the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
 
   **docker://**_docker-reference_ (Default)
-  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG_RUNTIME_DIR/containers/auth.json`, which is set using `(kpod login)`. If the authorization state is not found there, `$HOME/.docker/config.json` is checked, which is set using `(docker login)`.
+  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG_RUNTIME_DIR/containers/auth.json`, which is set using `(podman login)`. If the authorization state is not found there, `$HOME/.docker/config.json` is checked, which is set using `(docker login)`.
 
   **docker-archive:**_path_
   An image is retrieved as a `docker load` formatted file.
@@ -38,7 +38,7 @@ The container ID of the container that was created.  On error, -1 is returned an
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `kpod login`.
+Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
 **--cert-dir** *path*
@@ -96,4 +96,4 @@ buildah from myregistry/myrepository/imagename:imagetag --creds=myusername:mypas
 buildah from myregistry/myrepository/imagename:imagetag --authfile=/tmp/auths/myauths.json
 
 ## SEE ALSO
-buildah(1), kpod-login(1), docker-login(1)
+buildah(1), podman-login(1), docker-login(1)

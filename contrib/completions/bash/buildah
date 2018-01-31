@@ -302,6 +302,7 @@ return 1
   "
 
      local options_with_args="
+          --authfile
           --cert-dir
           --creds
           --signature-policy
@@ -352,15 +353,17 @@ return 1
 
      local options_with_args="
      --authfile
-     --signature-policy
-     --runtime
-     --runtime-flag
-     --tag
-     -t
+     --build-arg
+     --cert-dir
+     --creds
      --file
      -f
-     --build-arg
      --format
+     --runtime
+     --runtime-flag
+     --signature-policy
+     --tag
+     -t
   "
 
      local all_options="$options_with_args $boolean_options"
