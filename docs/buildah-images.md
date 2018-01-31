@@ -22,7 +22,7 @@ keywords are 'dangling', 'label', 'before' and 'since'.
 
 **--format="TEMPLATE"**
 
-Pretty-print images using a Go template.  Will override --quiet
+Pretty-print images using a Go template.
 
 **--json**
 
