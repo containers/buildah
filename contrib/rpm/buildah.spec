@@ -46,6 +46,7 @@ BuildRequires:  ostree-devel
 BuildRequires:  make
 Requires:       runc >= 1.0.0-6
 Requires:       container-selinux
+Requires:       ostree
 Requires:       skopeo-containers
 Provides:       %{repo} = %{version}-%{release}
 
