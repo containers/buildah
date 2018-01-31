@@ -17,6 +17,10 @@ import (
 var (
 	commitFlags = []cli.Flag{
 		cli.StringFlag{
+			Name:  "authfile",
+			Usage: "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json",
+		},
+		cli.StringFlag{
 			Name:  "cert-dir",
 			Value: "",
 			Usage: "use certificates at the specified path to access the registry",

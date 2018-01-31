@@ -13,6 +13,11 @@ specified, an ID is assigned, but no name is assigned to the image.
 
 ## OPTIONS
 
+**--authfile** *path*
+
+Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
+If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
+
 **--cert-dir** *path*
 
 Use certificates at *path* (*.crt, *.cert, *.key) to connect to the registry
@@ -72,6 +77,9 @@ This example commits the container to the image on the local registry while turn
 
 This example commits the container to the image on the local registry using credentials and certificates for authentication.
  `buildah commit --cert-dir ~/auth  --tls-verify=true --creds=username:password containerID docker://localhost:5000/imageId`
+
+This example commits the container to the image on the local registry using credentials from the /tmp/auths/myauths.json file and certificates for authentication.
+ `buildah commit --authfile /tmp/auths/myauths.json --cert-dir ~/auth  --tls-verify=true --creds=username:password containerID docker://localhost:5000/imageId`
 
 ## SEE ALSO
 buildah(1)
