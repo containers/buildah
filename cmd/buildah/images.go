@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 type jsonImage struct {
@@ -372,7 +373,9 @@ func outputUsingTemplate(format string, params imageOutputParams) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println()
+	if terminal.IsTerminal(int(os.Stdout.Fd())) {
+		fmt.Println()
+	}
 	return nil
 }
 
