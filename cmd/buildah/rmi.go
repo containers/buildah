@@ -27,7 +27,7 @@ var (
 		},
 		cli.BoolFlag{
 			Name:  "force, f",
-			Usage: "force removal of the image",
+			Usage: "force removal of the image and any containers using the image",
 		},
 	}
 	rmiCommand = cli.Command{
