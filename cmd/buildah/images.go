@@ -51,7 +51,7 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "format",
-			Usage: "pretty-print images using a Go template. will override --quiet",
+			Usage: "pretty-print images using a Go template",
 		},
 		cli.BoolFlag{
 			Name:  "json",
@@ -129,8 +129,6 @@ func imagesCmd(c *cli.Context) error {
 		if err != nil {
 			return errors.Wrapf(err, "error parsing filter")
 		}
-	} else {
-		params = nil
 	}
 
 	if len(images) > 0 && !c.Bool("noheading") && !quiet && !hasTemplate {
