@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"text/template"
 
@@ -96,7 +97,13 @@ func inspectCmd(c *cli.Context) error {
 	}
 
 	if c.IsSet("format") {
-		return t.Execute(os.Stdout, buildah.GetBuildInfo(builder))
+		if err := t.Execute(os.Stdout, buildah.GetBuildInfo(builder)); err != nil {
+			return err
+		}
+		if terminal.IsTerminal(int(os.Stdout.Fd())) {
+			fmt.Println()
+		}
+		return nil
 	}
 
 	enc := json.NewEncoder(os.Stdout)
