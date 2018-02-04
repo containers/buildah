@@ -11,15 +11,14 @@ load helpers
 }
 
 @test "remove multiple images" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
   cid3=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
-  buildah rmi alpine busybox
+  run buildah rmi alpine busybox
+  [ "$status" -eq 1 ]
   run buildah --debug=false images -q
   [ "$output" != "" ]
 
-  buildah rm $cid1 $cid2 $cid3
-  buildah rmi alpine busybox
+  buildah rmi -f alpine busybox
   run buildah --debug=false images -q
   [ "$output" == "" ]
 }
@@ -35,7 +34,8 @@ load helpers
   cid1=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
   cid3=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
-  buildah rmi --all
+  run buildah rmi --all
+  [ "$status" -eq 1 ]
   run buildah --debug=false images -q
   [ "$output" != "" ]
 
