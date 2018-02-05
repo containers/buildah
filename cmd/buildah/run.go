@@ -6,6 +6,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/docker/go-units"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
@@ -15,9 +16,45 @@ import (
 
 var (
 	runFlags = []cli.Flag{
+		cli.StringSliceFlag{
+			Name:  "add-host",
+			Usage: "Add a custom host-to-IP mapping (host:ip) (default [])",
+		},
+		cli.StringFlag{
+			Name:  "cgroup-parent",
+			Usage: "Optional parent cgroup for the container",
+		},
+		cli.Uint64Flag{
+			Name:  "cpu-period",
+			Usage: "Limit the CPU CFS (Completely Fair Scheduler) period",
+		},
+		cli.Int64Flag{
+			Name:  "cpu-quota",
+			Usage: "Limit the CPU CFS (Completely Fair Scheduler) quota",
+		},
+		cli.Uint64Flag{
+			Name:  "cpu-shares, c",
+			Usage: "CPU shares (relative weight)",
+		},
+		cli.StringFlag{
+			Name:  "cpuset-cpus",
+			Usage: "CPUs in which to allow execution (0-3, 0,1)",
+		},
+		cli.StringFlag{
+			Name:  "cpuset-mems",
+			Usage: "Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.",
+		},
 		cli.StringFlag{
 			Name:  "hostname",
 			Usage: "Set the hostname inside of the container",
+		},
+		cli.StringFlag{
+			Name:  "memory, m",
+			Usage: "Memory limit (format: <number>[<unit>], where unit = b, k, m or g)",
+		},
+		cli.StringFlag{
+			Name:  "memory-swap",
+			Usage: "Swap limit equal to memory plus swap: '-1' to enable unlimited swap",
 		},
 		cli.StringFlag{
 			Name:  "runtime",
@@ -28,9 +65,17 @@ var (
 			Name:  "runtime-flag",
 			Usage: "add global flags for the container runtime",
 		},
+		cli.StringSliceFlag{
+			Name:  "security-opt",
+			Usage: "Security Options (default [])",
+		},
 		cli.BoolFlag{
 			Name:  "tty",
 			Usage: "allocate a pseudo-TTY in the container",
+		},
+		cli.StringSliceFlag{
+			Name:  "ulimit",
+			Usage: "Ulimit options (default [])",
 		},
 		cli.StringSliceFlag{
 			Name:  "volume, v",
@@ -49,6 +94,7 @@ var (
 )
 
 func runCmd(c *cli.Context) error {
+	var memoryLimit, memorySwap int64
 	args := c.Args()
 	if len(args) == 0 {
 		return errors.Errorf("container ID must be specified")
@@ -72,6 +118,18 @@ func runCmd(c *cli.Context) error {
 	if err != nil {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
+	if c.String("memory") != "" {
+		memoryLimit, err = units.RAMInBytes(c.String("memory"))
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for memory")
+		}
+	}
+	if c.String("memory-swap") != "" {
+		memorySwap, err = units.RAMInBytes(c.String("memory-swap"))
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for memory-swap")
+		}
+	}
 
 	runtimeFlags := []string{}
 	for _, arg := range c.StringSlice("runtime-flag") {
@@ -79,9 +137,19 @@ func runCmd(c *cli.Context) error {
 	}
 
 	options := buildah.RunOptions{
-		Hostname: c.String("hostname"),
-		Runtime:  c.String("runtime"),
-		Args:     runtimeFlags,
+		Hostname:     c.String("hostname"),
+		Runtime:      c.String("runtime"),
+		Args:         runtimeFlags,
+		AddHost:      c.StringSlice("add-host"),
+		CPUShares:    c.Uint64("cpu-shares"),
+		CPUPeriod:    c.Uint64("cpu-period"),
+		CPUsetCPUs:   c.String("cpuset-cpus"),
+		CPUsetMems:   c.String("cpuset-mems"),
+		CPUQuota:     c.Int64("cpu-quota"),
+		Memory:       memoryLimit,
+		MemorySwap:   memorySwap,
+		SecurityOpts: c.StringSlice("security-opt"),
+		Ulimit:       c.StringSlice("ulimit"),
 	}
 
 	if c.IsSet("tty") {
