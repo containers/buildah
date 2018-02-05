@@ -575,6 +575,9 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 	if err != nil {
 		return errors.Wrapf(err, "error parsing reference for image to be written")
 	}
+	if ib.Author != "" {
+		b.builder.SetMaintainer(ib.Author)
+	}
 	config := ib.Config()
 	b.builder.SetHostname(config.Hostname)
 	b.builder.SetDomainname(config.Domainname)

@@ -236,3 +236,18 @@ load helpers
   [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
+
+@test "bud-maintainer" {
+  target=alpine-image
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/maintainer
+  run buildah --debug=false inspect --type=image --format '{{.Docker.Author}}' ${target}
+  [ "$status" -eq 0 ]
+  [ "$output" = kilroy ]
+  run buildah --debug=false inspect --type=image --format '{{.OCIv1.Author}}' ${target}
+  [ "$status" -eq 0 ]
+  [ "$output" = kilroy ]
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}
