@@ -251,3 +251,14 @@ load helpers
   [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
+
+@test "bud-unrecognized-instruction" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/unrecognized
+  [ "$status" -ne 0 ]
+  [[ "$output" =~ BOGUS ]]
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}
