@@ -2,6 +2,7 @@ package buildah
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -9,11 +10,13 @@ import (
 	"strings"
 
 	"github.com/containers/storage/pkg/ioutils"
+	"github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+	//	"github.com/projectatomic/libpod/libpod"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -67,6 +70,29 @@ type RunOptions struct {
 	Terminal int
 	// Quiet tells the run to turn off output to stdout.
 	Quiet bool
+	// AddHost is the list of hostnames to add to the resolv.conf
+	AddHost []string
+
+	//CgroupParent it the path to cgroups under which the cgroup for the container will be created.
+	CgroupParent string
+	//CPUPeriod limits the CPU CFS (Completely Fair Scheduler) period
+	CPUPeriod uint64
+	//CPUQuota limits the CPU CFS (Completely Fair Scheduler) quota
+	CPUQuota int64
+	//CPUShares (relative weight
+	CPUShares uint64
+	//CPUsetCPUs in which to allow execution (0-3, 0,1)
+	CPUsetCPUs string
+	//CPUsetMems memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+	CPUsetMems string
+	//Memory limit
+	Memory int64
+	//MemorySwap limit value equal to memory plus swap.
+	MemorySwap int64
+	//SecruityOpts modify the way container security is running
+	SecurityOpts []string
+	//Ulimit options
+	Ulimit []string
 }
 
 func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles, volumes []string) error {
@@ -160,6 +186,91 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 	return nil
 }
 
+func addRlimits(ulimit []string, g *generate.Generator) error {
+	var (
+		ul  *units.Ulimit
+		err error
+	)
+
+	for _, u := range ulimit {
+		if ul, err = units.ParseUlimit(u); err != nil {
+			return errors.Wrapf(err, "ulimit option %q requires name=SOFT:HARD, failed to be parsed", u)
+		}
+
+		g.AddProcessRlimits("RLIMIT_"+strings.ToUpper(ul.Name), uint64(ul.Hard), uint64(ul.Soft))
+	}
+	return nil
+}
+
+func parseSecurityOpt(securityOpts []string, g *generate.Generator) error {
+	var (
+		labelOpts []string
+		err       error
+		//		seccompProfilePath string
+	)
+
+	for _, opt := range securityOpts {
+		if opt == "no-new-privileges" {
+			g.SetProcessNoNewPrivileges(true)
+		} else {
+			con := strings.SplitN(opt, "=", 2)
+			if len(con) != 2 {
+				return fmt.Errorf("Invalid --security-opt 1: %q", opt)
+			}
+
+			switch con[0] {
+			case "label":
+				labelOpts = append(labelOpts, con[1])
+			case "apparmor":
+				g.SetProcessApparmorProfile(con[1])
+				/*
+					case "seccomp":
+						seccompProfilePath = con[1]
+				*/
+			default:
+				return fmt.Errorf("Invalid --security-opt 2: %q", opt)
+			}
+		}
+	}
+
+	/*
+		if seccompProfilePath == "" {
+			if _, err := os.Stat(libpod.SeccompOverridePath); err == nil {
+				seccompProfilePath = libpod.SeccompOverridePath
+			} else {
+				if !os.IsNotExist(err) {
+					return errors.Wrapf(err, "can't check if %q exists", libpod.SeccompOverridePath)
+				}
+				if _, err := os.Stat(libpod.SeccompDefaultPath); err != nil {
+					if !os.IsNotExist(err) {
+						return errors.Wrapf(err, "can't check if %q exists", libpod.SeccompDefaultPath)
+					}
+				} else {
+					seccompProfilePath = libpod.SeccompDefaultPath
+				}
+			}
+		}
+		if seccompProfilePath != "unconfined" {
+				seccompProfile, err := ioutil.ReadFile(seccompProfilePath)
+				if err != nil {
+					return errors.Wrapf(err, "opening seccomp profile (%s) failed", seccompProfilePath)
+				}
+				seccompConfig, err := seccomp.LoadProfile(string(seccompProfile), configSpec)
+				if err != nil {
+					return errors.Wrapf(err, "loading seccomp profile (%s) failed", seccompProfilePath)
+				}
+				configSpec.Linux.Seccomp = seccompConfig
+			}
+	*/
+	processLabel, mountLabel, err := label.InitLabels(labelOpts)
+	if err != nil {
+		return err
+	}
+	g.SetProcessSelinuxLabel(processLabel)
+	g.SetLinuxMountLabel(mountLabel)
+	return err
+}
+
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
 	var user specs.User
@@ -181,6 +292,29 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			g.AddProcessEnv(env[0], env[1])
 		}
 	}
+	if options.CPUPeriod != 0 {
+		g.SetLinuxResourcesCPUPeriod(options.CPUPeriod)
+	}
+	if options.CPUQuota != 0 {
+		g.SetLinuxResourcesCPUQuota(options.CPUQuota)
+	}
+	if options.CPUShares != 0 {
+		g.SetLinuxResourcesCPUShares(options.CPUShares)
+	}
+	if options.CPUsetCPUs != "" {
+		g.SetLinuxResourcesCPUCpus(options.CPUsetCPUs)
+	}
+	if options.CPUsetMems != "" {
+		g.SetLinuxResourcesCPUMems(options.CPUsetMems)
+	}
+	// RESOURCES - MEMORY
+	if options.Memory != 0 {
+		g.SetLinuxResourcesMemoryLimit(options.Memory)
+	}
+	if options.MemorySwap != 0 {
+		g.SetLinuxResourcesMemorySwap(options.MemorySwap)
+	}
+	addRlimits(options.Ulimit, &g)
 	if len(command) > 0 {
 		g.SetProcessArgs(command)
 	} else {
