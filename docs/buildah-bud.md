@@ -33,7 +33,8 @@ resulting image's configuration.
 
 **--cert-dir** *path*
 
-Use certificates at *path* (*.crt, *.cert, *.key) to connect to the registry
+Use certificates at *path* (*.crt, *.cert, *.key) to connect to the registry.
+Default certificates directory is _/etc/containers/certs.d_.
 
 **--cgroup-parent**=""
    Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.

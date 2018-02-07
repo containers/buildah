@@ -196,7 +196,7 @@ func (d *dockerImageDestination) HasBlob(info types.BlobInfo) (bool, int64, erro
 		return true, getBlobSize(res), nil
 	case http.StatusUnauthorized:
 		logrus.Debugf("... not authorized")
-		return false, -1, errors.Errorf("not authorized to read from destination repository %s", reference.Path(d.ref.ref))
+		return false, -1, client.HandleErrorResponse(res)
 	case http.StatusNotFound:
 		logrus.Debugf("... not present")
 		return false, -1, nil
