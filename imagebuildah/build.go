@@ -389,12 +389,23 @@ func (b *Executor) Run(run imagebuilder.Run, config docker.Config) error {
 // UnrecognizedInstruction is called when we encounter an instruction that the
 // imagebuilder parser didn't understand.
 func (b *Executor) UnrecognizedInstruction(step *imagebuilder.Step) error {
+	err_str := fmt.Sprintf("Build error: Unknown instruction: %q ", step.Command)
+	err := fmt.Sprintf(err_str+"%#v", step)
 	if b.ignoreUnrecognizedInstructions {
-		logrus.Debugf("+(UNIMPLEMENTED KEYWORD %q) %#v", step.Command, step)
+		logrus.Debugf(err)
 		return nil
 	}
-	logrus.Errorf("+(UNIMPLEMENTED KEYWORD %q?) %#v", step.Command, step)
-	return errors.Errorf("Unrecognized instruction %q: %#v", step.Command, step)
+
+	switch logrus.GetLevel() {
+	case logrus.ErrorLevel:
+		logrus.Errorf(err_str)
+	case logrus.DebugLevel:
+		logrus.Debugf(err)
+	default:
+		logrus.Errorf("+(UNHANDLED LOGLEVEL) %#v", step)
+	}
+
+	return errors.Errorf(err)
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
