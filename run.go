@@ -1,7 +1,9 @@
 package buildah
 
 import (
+	"bufio"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -9,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/containers/storage/pkg/ioutils"
+	"github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
@@ -67,6 +70,29 @@ type RunOptions struct {
 	Terminal int
 	// Quiet tells the run to turn off output to stdout.
 	Quiet bool
+	// AddHost is the list of hostnames to add to the resolv.conf
+	AddHost []string
+
+	//CgroupParent it the path to cgroups under which the cgroup for the container will be created.
+	CgroupParent string
+	//CPUPeriod limits the CPU CFS (Completely Fair Scheduler) period
+	CPUPeriod uint64
+	//CPUQuota limits the CPU CFS (Completely Fair Scheduler) quota
+	CPUQuota int64
+	//CPUShares (relative weight
+	CPUShares uint64
+	//CPUsetCPUs in which to allow execution (0-3, 0,1)
+	CPUsetCPUs string
+	//CPUsetMems memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+	CPUsetMems string
+	//Memory limit
+	Memory int64
+	//MemorySwap limit value equal to memory plus swap.
+	MemorySwap int64
+	//SecruityOpts modify the way container security is running
+	SecurityOpts []string
+	//Ulimit options
+	Ulimit []string
 }
 
 func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles, volumes []string) error {
@@ -160,6 +186,35 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 	return nil
 }
 
+func addRlimits(ulimit []string, g *generate.Generator) error {
+	var (
+		ul  *units.Ulimit
+		err error
+	)
+
+	for _, u := range ulimit {
+		if ul, err = units.ParseUlimit(u); err != nil {
+			return errors.Wrapf(err, "ulimit option %q requires name=SOFT:HARD, failed to be parsed", u)
+		}
+
+		g.AddProcessRlimits("RLIMIT_"+strings.ToUpper(ul.Name), uint64(ul.Hard), uint64(ul.Soft))
+	}
+	return nil
+}
+
+func addHostsToFile(hosts []string) error {
+	file, err := os.OpenFile("/etc/hosts", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	w := bufio.NewWriter(file)
+	for _, host := range hosts {
+		fmt.Fprintln(w, host)
+	}
+	return w.Flush()
+}
+
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
 	var user specs.User
@@ -181,6 +236,42 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			g.AddProcessEnv(env[0], env[1])
 		}
 	}
+
+	// RESOURCES - CPU
+	if options.CPUPeriod != 0 {
+		g.SetLinuxResourcesCPUPeriod(options.CPUPeriod)
+	}
+	if options.CPUQuota != 0 {
+		g.SetLinuxResourcesCPUQuota(options.CPUQuota)
+	}
+	if options.CPUShares != 0 {
+		g.SetLinuxResourcesCPUShares(options.CPUShares)
+	}
+	if options.CPUsetCPUs != "" {
+		g.SetLinuxResourcesCPUCpus(options.CPUsetCPUs)
+	}
+	if options.CPUsetMems != "" {
+		g.SetLinuxResourcesCPUMems(options.CPUsetMems)
+	}
+	// RESOURCES - MEMORY
+	if options.Memory != 0 {
+		g.SetLinuxResourcesMemoryLimit(options.Memory)
+	}
+	if options.MemorySwap != 0 {
+		g.SetLinuxResourcesMemorySwap(options.MemorySwap)
+	}
+
+	if options.CgroupParent != "" {
+		g.SetLinuxCgroupsPath(options.CgroupParent)
+	}
+
+	if err := addRlimits(options.Ulimit, &g); err != nil {
+		return err
+	}
+	if err := addHostsToFile(options.AddHost); err != nil {
+		return err
+	}
+
 	if len(command) > 0 {
 		g.SetProcessArgs(command)
 	} else {
@@ -264,6 +355,14 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if err = os.MkdirAll(filepath.Join(mountPoint, spec.Process.Cwd), 0755); err != nil {
 		return errors.Wrapf(err, "error ensuring working directory %q exists", spec.Process.Cwd)
 	}
+
+	cgroupMnt := specs.Mount{
+		Destination: "/sys/fs/cgroup",
+		Type:        "cgroup",
+		Source:      "cgroup",
+		Options:     []string{"nosuid", "noexec", "nodev", "relatime", "ro"},
+	}
+	g.AddMount(cgroupMnt)
 
 	bindFiles := []string{"/etc/hosts", "/etc/resolv.conf"}
 	err = b.setupMounts(mountPoint, spec, options.Mounts, bindFiles, b.Volumes())

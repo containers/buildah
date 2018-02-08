@@ -6,6 +6,7 @@ import (
 	"strings"
 	"syscall"
 
+	units "github.com/docker/go-units"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
@@ -93,6 +94,7 @@ var (
 )
 
 func runCmd(c *cli.Context) error {
+	var memoryLimit, memorySwap int64
 	args := c.Args()
 	if len(args) == 0 {
 		return errors.Errorf("container ID must be specified")
@@ -116,6 +118,25 @@ func runCmd(c *cli.Context) error {
 	if err != nil {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
+	if c.String("memory") != "" {
+		memoryLimit, err = units.RAMInBytes(c.String("memory"))
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for memory")
+		}
+	}
+	if c.String("memory-swap") != "" {
+		memorySwap, err = units.RAMInBytes(c.String("memory-swap"))
+		if err != nil {
+			return errors.Wrapf(err, "invalid value for memory-swap")
+		}
+	}
+	if len(c.StringSlice("add-host")) > 0 {
+		for _, host := range c.StringSlice("add-host") {
+			if err := validateExtraHost(host); err != nil {
+				return errors.Wrapf(err, "invalid value for add-host")
+			}
+		}
+	}
 
 	runtimeFlags := []string{}
 	for _, arg := range c.StringSlice("runtime-flag") {
@@ -123,9 +144,19 @@ func runCmd(c *cli.Context) error {
 	}
 
 	options := buildah.RunOptions{
-		Hostname: c.String("hostname"),
-		Runtime:  c.String("runtime"),
-		Args:     runtimeFlags,
+		Hostname:     c.String("hostname"),
+		Runtime:      c.String("runtime"),
+		Args:         runtimeFlags,
+		AddHost:      c.StringSlice("add-host"),
+		CPUShares:    c.Uint64("cpu-shares"),
+		CPUPeriod:    c.Uint64("cpu-period"),
+		CPUsetCPUs:   c.String("cpuset-cpus"),
+		CPUsetMems:   c.String("cpuset-mems"),
+		CPUQuota:     c.Int64("cpu-quota"),
+		Memory:       memoryLimit,
+		MemorySwap:   memorySwap,
+		SecurityOpts: c.StringSlice("security-opt"),
+		Ulimit:       c.StringSlice("ulimit"),
 	}
 
 	if c.IsSet("tty") {

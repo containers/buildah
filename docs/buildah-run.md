@@ -85,6 +85,26 @@ two memory nodes.
 **--hostname**
 Set the hostname inside of the running container.
 
+
+**-m**, **--memory**=""
+   Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
+
+   Allows you to constrain the memory available to a container. If the host
+supports swap memory, then the **-m** memory setting can be larger than physical
+RAM. If a limit of 0 is specified (not using **-m**), the container's memory is
+not limited. The actual limit may be rounded up to a multiple of the operating
+system's page size (the value would be very large, that's millions of trillions).
+
+**--memory-swap**="LIMIT"
+   A limit value equal to memory plus swap. Must be used with the  **-m**
+(**--memory**) flag. The swap `LIMIT` should always be larger than **-m**
+(**--memory**) value.  By default, the swap `LIMIT` will be set to double
+the value of --memory.
+
+   The format of `LIMIT` is `<number>[<unit>]`. Unit can be `b` (bytes),
+`k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you don't specify a
+unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
+
 **--runtime** *path*
 
 The *path* to an alternate OCI-compatible runtime.
@@ -97,6 +117,22 @@ runtime, the manpage to consult is `runc(8)`).
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah run, the option given would be `--runtime-flag log-format=json`.
 
+**--security-opt**=[]
+   Security Options
+
+    "label=user:USER"   : Set the label user for the container
+    "label=role:ROLE"   : Set the label role for the container
+    "label=type:TYPE"   : Set the label type for the container
+    "label=level:LEVEL" : Set the label level for the container
+    "label=disable"     : Turn off label confinement for the container
+    "no-new-privileges" : Disable container processes from gaining additional privileges
+
+    "seccomp=unconfined" : Turn off seccomp confinement for the container
+    "seccomp=profile.json :  White listed syscalls seccomp Json file to be used as a seccomp filter
+
+    "apparmor=unconfined" : Turn off apparmor confinement for the container
+    "apparmor=your-profile" : Set the apparmor confinement profile for the container
+
 **--tty**
 
 By default a pseudo-TTY is allocated only when buildah's standard input is
@@ -104,6 +140,9 @@ attached to a pseudo-TTY.  Setting the `--tty` option to `true` will cause a
 pseudo-TTY to be allocated inside the container connecting the user's "terminal"
 with the stdin and stdout stream of the container.  Setting the `--tty` option to
 `false` will prevent the pseudo-TTY from being allocated.
+
+**--ulimit**=[]
+    Ulimit options
 
 **--volume, -v** *source*:*destination*:*flags*
 

@@ -243,3 +243,58 @@ load helpers
 	[ "$output" = "foobar" ]
 	buildah rm $cid
 }
+
+@test "run cpu-period test" {
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+    run buildah run --cpu-period=5000 $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
+    echo $output
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "5000" ]]
+	buildah rm $cid
+}
+
+@test "run cpu-quota test" {
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+    run buildah run --cpu-quota=5000 $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
+    echo "$output"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ 5000 ]]
+	buildah rm $cid
+}
+
+@test "run cpu-shares test" {
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+    run buildah run --cpu-shares=2 $cid cat /sys/fs/cgroup/cpu/cpu.shares
+    echo "$output"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ 2 ]]
+	buildah rm $cid
+}
+
+@test "run cpuset-cpus test" {
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+    run buildah run --cpuset-cpus=0 $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
+    echo "$output"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ 0 ]]
+	buildah rm $cid
+}
+
+@test "run cpuset-mems test" {
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+    run buildah run --cpuset-mems=0 $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
+    echo "$output"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ 0 ]]
+	buildah rm $cid
+}
+
+@test "run memory test" {
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+    run buildah run --memory=40m $cid cat /sys/fs/cgroup/memory/memory.limit_in_bytes
+    echo $output
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ 41943040 ]]
+	buildah rm $cid
+}
+
