@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/pkg/errors"
@@ -27,7 +28,16 @@ var (
 	}
 )
 
+// writeError writes `lastError` into `w` if not nil and return the next error `err`
+func writeError(w io.Writer, err error, lastError error) error {
+	if lastError != nil {
+		fmt.Fprintln(w, lastError)
+	}
+	return err
+}
+
 func rmCmd(c *cli.Context) error {
+	delContainerErrStr := "error removing container"
 	args := c.Args()
 	if len(args) == 0 && !c.Bool("all") {
 		return errors.Errorf("container ID must be specified")
@@ -37,7 +47,7 @@ func rmCmd(c *cli.Context) error {
 		return err
 	}
 
-	var e error
+	var lastError error
 	if c.Bool("all") {
 		builders, err := openBuilders(store)
 		if err != nil {
@@ -46,12 +56,8 @@ func rmCmd(c *cli.Context) error {
 
 		for _, builder := range builders {
 			id := builder.ContainerID
-			err = builder.Delete()
-			if e == nil {
-				e = err
-			}
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error removing container %q: %v\n", builder.Container, err)
+			if err = builder.Delete(); err != nil {
+				lastError = writeError(os.Stderr, errors.Wrapf(err, "%s %q", delContainerErrStr, builder.Container), lastError)
 				continue
 			}
 			fmt.Printf("%s\n", id)
@@ -59,26 +65,18 @@ func rmCmd(c *cli.Context) error {
 	} else {
 		for _, name := range args {
 			builder, err := openBuilder(store, name)
-			if e == nil {
-				e = err
-			}
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error reading build container %q: %v\n", name, err)
+				lastError = writeError(os.Stderr, errors.Wrapf(err, "%s %q", delContainerErrStr, name), lastError)
 				continue
 			}
-
 			id := builder.ContainerID
-			err = builder.Delete()
-			if e == nil {
-				e = err
-			}
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error removing container %q: %v\n", builder.Container, err)
+			if err = builder.Delete(); err != nil {
+				lastError = writeError(os.Stderr, errors.Wrapf(err, "%s %q", delContainerErrStr, name), lastError)
 				continue
 			}
 			fmt.Printf("%s\n", id)
 		}
 
 	}
-	return e
+	return lastError
 }
