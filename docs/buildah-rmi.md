@@ -9,6 +9,11 @@ buildah rmi - Removes one or more images.
 ## DESCRIPTION
 Removes one or more locally stored images.
 
+## LIMITATIONS
+If the image was pushed to a directory path using the 'dir:' transport
+the rmi command can not remove the image.  Instead standard file system
+commands should be used.
+
 ## OPTIONS
 
 **--all, -a**
