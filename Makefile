@@ -51,12 +51,7 @@ validate:
 
 .PHONY: install.tools
 install.tools:
-	# $(GO) get -u $(BUILDFLAGS) github.com/cpuguy83/go-md2man
-	$(GO) get -u -d $(BUILDFLAGS) github.com/cpuguy83/go-md2man; \
-	cd $(GOPATH)/src/github.com/cpuguy83/go-md2man; \
-	git checkout 20f5889cbdc3c73dbd2862796665e7c465ade7d1; \
-	$(GO) install github.com/cpuguy83/go-md2man; \
-
+	$(GO) get -u $(BUILDFLAGS) github.com/cpuguy83/go-md2man
 	$(GO) get -u $(BUILDFLAGS) github.com/vbatts/git-validation
 	$(GO) get -u $(BUILDFLAGS) gopkg.in/alecthomas/gometalinter.v1
 	gometalinter.v1 -i
