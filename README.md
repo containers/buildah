@@ -28,7 +28,7 @@ The Buildah package provides a command line tool which can be used to
 From [`./examples/lighttpd.sh`](examples/lighttpd.sh):
 
 ```bash
-cat > lighttpd.sh <<EOF
+$ cat > lighttpd.sh <<EOF
 #!/bin/bash -x
 
 ctr1=`buildah from ${1:-fedora}`
@@ -48,8 +48,8 @@ buildah config $ctr1 --port 80
 buildah commit $ctr1 ${2:-$USER/lighttpd}
 EOF
 
-chmod +x lighttpd.sh
-./lighttpd.sh
+$ chmod +x lighttpd.sh
+$ sudo ./lighttpd.sh
 ```
 
 ## Commands
