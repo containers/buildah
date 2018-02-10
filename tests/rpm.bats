@@ -6,7 +6,7 @@ load helpers
 	if ! which runc ; then
 		skip
 	fi
-
+   
 	# Build a container to use for building the binaries.
 	image=registry.fedoraproject.org/fedora:27
 	cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
@@ -16,15 +16,18 @@ load helpers
 	mkdir -p ${root}/rpmbuild/{SOURCES,SPECS}
 
 	# Build the tarball.
-	(cd ..; git archive --format tar.gz --prefix=buildah-${commit}/ ${commit}) > ${root}/rpmbuild/SOURCES/buildah-${shortcommit}.tar.gz
+	#(cd ..; git archive --format tar.gz --prefix=buildah-${commit}/ ${commit}) > ${root}/rpmbuild/SOURCES/buildah-${shortcommit}.tar.gz
 
 	# Update the .spec file with the commit ID.
-	sed s:REPLACEWITHCOMMITID:${commit}:g ${TESTSDIR}/../contrib/rpm/buildah.spec > ${root}/rpmbuild/SPECS/buildah.spec
+	#sed s:REPLACEWITHCOMMITID:${commit}:g ${TESTSDIR}/../contrib/rpm/buildah.spec > ${root}/rpmbuild/SPECS/buildah.spec
 
 	# Install build dependencies and build binary packages.
 	buildah --debug=false run $cid -- dnf -y install 'dnf-command(builddep)' rpm-build
-	buildah --debug=false run $cid -- dnf -y builddep --spec rpmbuild/SPECS/buildah.spec
-	buildah --debug=false run $cid -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
+	run buildah --debug=false run $cid -- cd ../ && make -f .copr/Makefile
+    echo $output
+	buildah --debug=false run $cid -- dnf -y builddep ${TESTDIR}/../buildah-*.git.${shortcommit}.*.src.rpm
+	#buildah --debug=false run $cid -- dnf -y builddep --spec ${TESTSDIR}/../contrib/rpm/buildah.spec
+	buildah --debug=false run $cid -- rpmbuild --rebuild ${TESTDIR}/../buildah-*.git.${shortcommit}.*.src.rpm
 
 	# Build a second new container.
 	cid2=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json registry.fedoraproject.org/fedora:27)

@@ -1,12 +1,12 @@
 #!/usr/bin/make -f
 
-spec := contrib/rpm/buildah_copr.spec
+spec := contrib/rpm/buildah.spec
 outdir := $(CURDIR)
 tmpdir := build
 gitdir := $(PWD)/.git
 
 rev := $(shell sed 's/\(.......\).*/\1/' $(gitdir)/$$(sed -n '/^ref:/{s/.* //;p}' $(gitdir)/HEAD))
-date := $(shell date +%Y%m%d.%H%M)
+date := $(shell date +%Y%m%d)
 
 version := $(shell sed -n '/Version:/{s/.* //;p}' $(spec))
 release := $(date).git.$(rev)
