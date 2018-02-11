@@ -567,6 +567,8 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 			if err2 == nil {
 				imageRef = imageRef2
 				err = nil
+			} else {
+				err = err2
 			}
 		}
 	} else {
