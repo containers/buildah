@@ -25,7 +25,12 @@ dnf install -y \
   make \
   openssl \
   ostree-devel \
+  skopeo-containers \
   which
+
+
+# Install gomega
+go get github.com/onsi/gomega/...
 
 # PAPR adds a merge commit, for testing, which fails the
 # short-commit-subject validation test, so tell git-validate.sh to only check

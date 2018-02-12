@@ -53,6 +53,7 @@ validate:
 install.tools:
 	$(GO) get -u $(BUILDFLAGS) github.com/cpuguy83/go-md2man
 	$(GO) get -u $(BUILDFLAGS) github.com/vbatts/git-validation
+	$(GO) get -u $(BUILDFLAGS) github.com/onsi/ginkgo/ginkgo
 	$(GO) get -u $(BUILDFLAGS) gopkg.in/alecthomas/gometalinter.v1
 	gometalinter.v1 -i
 
@@ -84,6 +85,7 @@ install.runc:
 
 .PHONY: test-integration
 test-integration:
+	ginkgo -v tests/e2e/.
 	cd tests; ./test_runner.sh
 
 .PHONY: test-unit
