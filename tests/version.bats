@@ -9,6 +9,7 @@ load helpers
 }
 
 @test "buildah version up to date in .spec file" {
+    skip "cni doesnt version the same"
 	run buildah version
 	[ "$status" -eq 0 ]
 	bversion=$(echo "$output" | awk '/^Version:/ { print $NF }')
