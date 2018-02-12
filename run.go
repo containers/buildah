@@ -142,7 +142,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 				return errors.Wrapf(err, "error relabeling directory %q for volume %q in container %q", volumePath, volume, b.ContainerID)
 			}
 			srcPath := filepath.Join(mountPoint, volume)
-			if err = copyFileWithTar(srcPath, volumePath); err != nil && !os.IsNotExist(err) {
+			if err = copyWithTar(srcPath, volumePath); err != nil && !os.IsNotExist(err) {
 				return errors.Wrapf(err, "error populating directory %q for volume %q in container %q using contents of %q", volumePath, volume, b.ContainerID, srcPath)
 			}
 
