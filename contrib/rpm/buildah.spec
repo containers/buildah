@@ -89,6 +89,29 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Feb 12 2018 Dan Walsh <dwalsh@redhat.com> 0.12-1
+- Added handing for simpler error message for Unknown Dockerfile instructions.
+- Change default certs directory to /etc/containers/certs.dir
+- Vendor in latest containers/image
+- Vendor in latest containers/storage
+- build-using-dockerfile: set the 'author' field for MAINTAINER
+- Return exit code 1 when buildah-rmi fails
+- Trim the image reference to just its name before calling getImageName
+- Touch up rmi -f usage statement
+- Add --format and --filter to buildah containers
+- Add --prune,-p option to rmi command
+- Add authfile param to commit
+- Fix --runtime-flag for buildah run and bud
+- format should override quiet for images
+- Allow all auth params to work with bud
+- Do not overwrite directory permissions on --chown
+- Unescape HTML characters output into the terminal
+- Fix: setting the container name to the image
+- Prompt for un/pwd if not supplied with --creds
+- Make bud be really quiet
+- Return a better error message when failed to resolve an image
+- Update auth tests and fix bud man page
+
 * Tue Jan 16 2018 Dan Walsh <dwalsh@redhat.com> 0.11-1
 - Add --all to remove containers
 - Add --all functionality to rmi
