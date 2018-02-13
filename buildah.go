@@ -19,7 +19,8 @@ const (
 	// Package is the name of this package, used in help output and to
 	// identify working containers.
 	Package = "buildah"
-	// Version for the Package
+	// Version for the Package.  Bump version in contrib/rpm/buildah.spec
+	// too.
 	Version = "0.12"
 	// The value we use to identify what type of information, currently a
 	// serialized Builder structure, we are using as per-container state.
