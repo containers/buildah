@@ -94,6 +94,7 @@ type Builder struct {
 	Docker docker.V2Image `json:"docker,omitempty"`
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
 	DefaultMountsFilePath string `json:"defaultMountsFilePath,omitempty"`
+	CommonBuildOpts       *CommonBuildOptions
 }
 
 // BuilderInfo are used as objects to display container information
@@ -136,6 +137,34 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 	}
 }
 
+// CommonBuildOptions are reseources that can be defined by flags for both buildah from and bud
+type CommonBuildOptions struct {
+	// AddHost is the list of hostnames to add to the resolv.conf
+	AddHost []string
+	//CgroupParent it the path to cgroups under which the cgroup for the container will be created.
+	CgroupParent string
+	//CPUPeriod limits the CPU CFS (Completely Fair Scheduler) period
+	CPUPeriod uint64
+	//CPUQuota limits the CPU CFS (Completely Fair Scheduler) quota
+	CPUQuota int64
+	//CPUShares (relative weight
+	CPUShares uint64
+	//CPUSetCPUs in which to allow execution (0-3, 0,1)
+	CPUSetCPUs string
+	//CPUSetMems memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+	CPUSetMems string
+	//Memory limit
+	Memory int64
+	//MemorySwap limit value equal to memory plus swap.
+	MemorySwap int64
+	//SecruityOpts modify the way container security is running
+	LabelOpts          []string
+	SeccompProfilePath string
+	ApparmorProfile    string
+	//Ulimit options
+	Ulimit []string
+}
+
 // BuilderOptions are used to initialize a new Builder.
 type BuilderOptions struct {
 	// FromImage is the name of the image which should be used as the
@@ -175,6 +204,7 @@ type BuilderOptions struct {
 	SystemContext *types.SystemContext
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
 	DefaultMountsFilePath string
+	CommonBuildOpts       *CommonBuildOptions
 }
 
 // ImportOptions are used to initialize a Builder from an existing container

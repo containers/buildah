@@ -104,7 +104,8 @@ type BuildOptions struct {
 	// Accepted values are OCIv1ImageFormat and Dockerv2ImageFormat.
 	OutputFormat string
 	// SystemContext holds parameters used for authentication.
-	SystemContext *types.SystemContext
+	SystemContext   *types.SystemContext
+	CommonBuildOpts *buildah.CommonBuildOptions
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor
@@ -136,6 +137,7 @@ type Executor struct {
 	volumeCache                    map[string]string
 	volumeCacheInfo                map[string]os.FileInfo
 	reportWriter                   io.Writer
+	commonBuildOptions             *buildah.CommonBuildOptions
 }
 
 // Preserve informs the executor that from this point on, it needs to ensure
@@ -433,6 +435,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		out:                 options.Out,
 		err:                 options.Err,
 		reportWriter:        options.ReportWriter,
+		commonBuildOptions:  options.CommonBuildOpts,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -475,6 +478,7 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 		SignaturePolicyPath: b.signaturePolicyPath,
 		ReportWriter:        b.reportWriter,
 		SystemContext:       b.systemContext,
+		CommonBuildOpts:     b.commonBuildOptions,
 	}
 	builder, err := buildah.NewBuilder(b.store, builderOptions)
 	if err != nil {

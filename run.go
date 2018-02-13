@@ -1,7 +1,9 @@
 package buildah
 
 import (
+	"bufio"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -9,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/containers/storage/pkg/ioutils"
+	"github.com/docker/docker/profiles/seccomp"
+	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
@@ -67,6 +71,76 @@ type RunOptions struct {
 	Terminal int
 	// Quiet tells the run to turn off output to stdout.
 	Quiet bool
+}
+
+func addRlimits(ulimit []string, g *generate.Generator) error {
+	var (
+		ul  *units.Ulimit
+		err error
+	)
+
+	for _, u := range ulimit {
+		if ul, err = units.ParseUlimit(u); err != nil {
+			return errors.Wrapf(err, "ulimit option %q requires name=SOFT:HARD, failed to be parsed", u)
+		}
+
+		g.AddProcessRlimits("RLIMIT_"+strings.ToUpper(ul.Name), uint64(ul.Hard), uint64(ul.Soft))
+	}
+	return nil
+}
+
+func addHostsToFile(hosts []string) error {
+	file, err := os.OpenFile("/etc/hosts", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	w := bufio.NewWriter(file)
+	for _, host := range hosts {
+		fmt.Fprintln(w, host)
+	}
+	return w.Flush()
+}
+
+func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) error {
+	// RESOURCES - CPU
+	if commonOpts.CPUPeriod != 0 {
+		g.SetLinuxResourcesCPUPeriod(commonOpts.CPUPeriod)
+	}
+	if commonOpts.CPUQuota != 0 {
+		g.SetLinuxResourcesCPUQuota(commonOpts.CPUQuota)
+	}
+	if commonOpts.CPUShares != 0 {
+		g.SetLinuxResourcesCPUShares(commonOpts.CPUShares)
+	}
+	if commonOpts.CPUSetCPUs != "" {
+		g.SetLinuxResourcesCPUCpus(commonOpts.CPUSetCPUs)
+	}
+	if commonOpts.CPUSetMems != "" {
+		g.SetLinuxResourcesCPUMems(commonOpts.CPUSetMems)
+	}
+
+	// RESOURCES - MEMORY
+	if commonOpts.Memory != 0 {
+		g.SetLinuxResourcesMemoryLimit(commonOpts.Memory)
+	}
+	if commonOpts.MemorySwap != 0 {
+		g.SetLinuxResourcesMemorySwap(commonOpts.MemorySwap)
+	}
+
+	if commonOpts.CgroupParent != "" {
+		g.SetLinuxCgroupsPath(commonOpts.CgroupParent)
+	}
+
+	if err := addRlimits(commonOpts.Ulimit, g); err != nil {
+		return err
+	}
+	if err := addHostsToFile(commonOpts.AddHost); err != nil {
+		return err
+	}
+
+	logrus.Debugln("Resources:", commonOpts)
+	return nil
 }
 
 func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles, volumes []string) error {
@@ -181,6 +255,11 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			g.AddProcessEnv(env[0], env[1])
 		}
 	}
+
+	if err := addCommonOptsToSpec(b.CommonBuildOpts, &g); err != nil {
+		return err
+	}
+
 	if len(command) > 0 {
 		g.SetProcessArgs(command)
 	} else {
@@ -264,6 +343,38 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if err = os.MkdirAll(filepath.Join(mountPoint, spec.Process.Cwd), 0755); err != nil {
 		return errors.Wrapf(err, "error ensuring working directory %q exists", spec.Process.Cwd)
 	}
+
+	//Security Opts
+	g.SetProcessApparmorProfile(b.CommonBuildOpts.ApparmorProfile)
+
+	// HANDLE SECCOMP
+	if b.CommonBuildOpts.SeccompProfilePath != "unconfined" {
+		if b.CommonBuildOpts.SeccompProfilePath != "" {
+			seccompProfile, err := ioutil.ReadFile(b.CommonBuildOpts.SeccompProfilePath)
+			if err != nil {
+				return errors.Wrapf(err, "opening seccomp profile (%s) failed", b.CommonBuildOpts.SeccompProfilePath)
+			}
+			seccompConfig, err := seccomp.LoadProfile(string(seccompProfile), spec)
+			if err != nil {
+				return errors.Wrapf(err, "loading seccomp profile (%s) failed", b.CommonBuildOpts.SeccompProfilePath)
+			}
+			spec.Linux.Seccomp = seccompConfig
+		} else {
+			seccompConfig, err := seccomp.GetDefaultProfile(spec)
+			if err != nil {
+				return errors.Wrapf(err, "loading seccomp profile (%s) failed", b.CommonBuildOpts.SeccompProfilePath)
+			}
+			spec.Linux.Seccomp = seccompConfig
+		}
+	}
+
+	cgroupMnt := specs.Mount{
+		Destination: "/sys/fs/cgroup",
+		Type:        "cgroup",
+		Source:      "cgroup",
+		Options:     []string{"nosuid", "noexec", "nodev", "relatime", "ro"},
+	}
+	g.AddMount(cgroupMnt)
 
 	bindFiles := []string{"/etc/hosts", "/etc/resolv.conf"}
 	err = b.setupMounts(mountPoint, spec, options.Mounts, bindFiles, b.Volumes())

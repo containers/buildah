@@ -105,9 +105,13 @@ func pullTestImage(t *testing.T, imageName string) (string, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	commonOpts := &buildah.CommonBuildOptions{
+		LabelOpts: nil,
+	}
 	options := buildah.BuilderOptions{
 		FromImage:           imageName,
 		SignaturePolicyPath: signaturePolicyPath,
+		CommonBuildOpts:     commonOpts,
 	}
 
 	b, err := buildah.NewBuilder(store, options)

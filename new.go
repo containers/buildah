@@ -269,7 +269,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 	if err = reserveSELinuxLabels(store, container.ID); err != nil {
 		return nil, err
 	}
-	processLabel, mountLabel, err := label.InitLabels(nil)
+	processLabel, mountLabel, err := label.InitLabels(options.CommonBuildOpts.LabelOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -288,6 +288,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		ProcessLabel:          processLabel,
 		MountLabel:            mountLabel,
 		DefaultMountsFilePath: options.DefaultMountsFilePath,
+		CommonBuildOpts:       options.CommonBuildOpts,
 	}
 
 	if options.Mount {
