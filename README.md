@@ -21,7 +21,7 @@ The Buildah package provides a command line tool which can be used to
 
 **[Installation notes](install.md)**
 
-**[Tutorials](docs/tutorials/tutorials.md)**
+**[Tutorials](docs/tutorials/README.md)**
 
 ## Example 
 
