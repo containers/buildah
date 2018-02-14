@@ -18,6 +18,12 @@ buildah images
 buildah containers
 
 ########
+# Run ls in redis container, this should work 
+########
+ctrid=$(buildah from registry.access.redhat.com/rhscl/redis-32-rhel7)
+buildah run $ctrid ls /
+
+########
 # Create Fedora based container
 ########
 container=$(buildah from fedora)
@@ -189,5 +195,5 @@ buildah run $whalesays
 ########
 # Clean up Buildah
 ########
-buildah rm $(buildah containers -q)
-buildah rmi -f $(buildah --debug=false images -q)
+buildah rm --all
+buildah rmi --all
