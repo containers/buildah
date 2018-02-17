@@ -92,7 +92,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %changelog
 * Mon Feb 12 2018 Dan Walsh <dwalsh@redhat.com> 0.12-1
 - Added handing for simpler error message for Unknown Dockerfile instructions.
-- Change default certs directory to /etc/containers/certs.dir
+- Change default certs directory to /etc/containers/certs.d
 - Vendor in latest containers/image
 - Vendor in latest containers/storage
 - build-using-dockerfile: set the 'author' field for MAINTAINER
