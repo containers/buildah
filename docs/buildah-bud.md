@@ -77,7 +77,7 @@ commands specified by the **RUN** instruction.
 **--runtime-flag** *flag*
 
 Adds global flags for the container rutime. To list the supported flags, please
-consult manpages of your selected container runtime (`runc` is the default
+consult the manpages of the selected container runtime (`runc` is the default
 runtime, the manpage to consult is `runc(8)`).
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah bud, the option given would be `--runtime-flag log-format=json`.
@@ -95,7 +95,7 @@ process completes successfully.
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true)
+Require HTTPS and verify certificates when talking to container registries (defaults to true).
 
 ## EXAMPLE
 

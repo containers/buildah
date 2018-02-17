@@ -10,8 +10,8 @@ buildah run - Run a command inside of the container.
 Launches a container and runs the specified command in that container using the
 container's root filesystem as a root filesystem, using configuration settings
 inherited from the container's image or as specified using previous calls to
-the *buildah config* command.  If you execute *buildah run* and expect an
-interactive shell, you need to specify the --tty flag.
+the *buildah config* command.  To execute *buildah run* within an
+interactive shell, specify the --tty option.
 
 ## OPTIONS
 **--hostname**
@@ -24,7 +24,7 @@ The *path* to an alternate OCI-compatible runtime.
 **--runtime-flag** *flag*
 
 Adds global flags for the container runtime. To list the supported flags, please
-consult manpages of your selected container runtime (`runc` is the default
+consult the manpages of the selected container runtime (`runc` is the default
 runtime, the manpage to consult is `runc(8)`).
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah run, the option given would be `--runtime-flag log-format=json`.
@@ -41,8 +41,8 @@ with the stdin and stdout stream of the container.  Setting the `--tty` option t
 
 Bind mount a location from the host into the container for its lifetime.
 
-NOTE: End parsing of options with the `--` option, so that you can pass other 
-options to the command inside of the container
+NOTE: End parsing of options with the `--` option, so that other
+options can be passed to the command inside of the container.
 
 ## EXAMPLE
 
