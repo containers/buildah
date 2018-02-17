@@ -12,7 +12,7 @@ buildah mount - Mount a working container's root filesystem.
 Mounts the specified container's root file system in a location which can be
 accessed from the host, and returns its location.
 
-If you execute the command without any arguments, the tool will list all of the
+If the mount command is invoked without any arguments, the tool will list all of the
 currently mounted containers.
 
 ## RETURN VALUE
