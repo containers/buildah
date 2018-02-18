@@ -220,7 +220,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		// If options.FromImage is set but we ended up
 		// with nil in ref or in img then there was an error that
 		// we should return.
-		return nil, util.GetFailureCause(err, errors.Wrapf(storage.ErrImageUnknown, "no such image %q", options.FromImage))
+		return nil, util.GetFailureCause(err, errors.Wrapf(storage.ErrImageUnknown, "no such image %q in registry", options.FromImage))
 	}
 	image := options.FromImage
 	imageID := ""
