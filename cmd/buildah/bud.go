@@ -80,7 +80,7 @@ var (
 		Aliases:     []string{"bud"},
 		Usage:       "Build an image using instructions in a Dockerfile",
 		Description: budDescription,
-		Flags:       budFlags,
+		Flags:       append(budFlags, fromAndBudFlags...),
 		Action:      budCmd,
 		ArgsUsage:   "CONTEXT-DIRECTORY | URL",
 	}
@@ -201,6 +201,11 @@ func budCmd(c *cli.Context) error {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
+	commonOpts, err := parseCommonBuildOptions(c)
+	if err != nil {
+		return err
+	}
+
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:    contextDir,
 		PullPolicy:          pullPolicy,
@@ -214,7 +219,9 @@ func budCmd(c *cli.Context) error {
 		RuntimeArgs:         runtimeFlags,
 		OutputFormat:        format,
 		SystemContext:       systemContext,
+		CommonBuildOpts:     commonOpts,
 	}
+
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
 	}

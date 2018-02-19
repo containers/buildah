@@ -42,6 +42,7 @@ BuildRequires:  gpgme-devel
 BuildRequires:  device-mapper-devel
 BuildRequires:  btrfs-progs-devel
 BuildRequires:  libassuan-devel
+BuildRequires:  libseccomp-devel
 BuildRequires:  glib2-devel
 BuildRequires:  ostree-devel
 BuildRequires:  make

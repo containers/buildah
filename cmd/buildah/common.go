@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"reflect"
 	"regexp"
@@ -11,11 +12,19 @@ import (
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
+	units "github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
+)
+
+const (
+	// SeccompDefaultPath defines the default seccomp path
+	SeccompDefaultPath = "/usr/share/containers/seccomp.json"
+	// SeccompOverridePath if this exists it overrides the default seccomp path
+	SeccompOverridePath = "/etc/crio/seccomp.json"
 )
 
 var needToShutdownStore = false
@@ -216,4 +225,162 @@ func validateFlags(c *cli.Context, flags []cli.Flag) error {
 		}
 	}
 	return nil
+}
+
+var fromAndBudFlags = []cli.Flag{
+	cli.StringSliceFlag{
+		Name:  "add-host",
+		Usage: "add a custom host-to-IP mapping (host:ip) (default [])",
+	},
+	cli.StringFlag{
+		Name:  "cgroup-parent",
+		Usage: "optional parent cgroup for the container",
+	},
+	cli.Uint64Flag{
+		Name:  "cpu-period",
+		Usage: "limit the CPU CFS (Completely Fair Scheduler) period",
+	},
+	cli.Int64Flag{
+		Name:  "cpu-quota",
+		Usage: "limit the CPU CFS (Completely Fair Scheduler) quota",
+	},
+	cli.Uint64Flag{
+		Name:  "cpu-shares",
+		Usage: "CPU shares (relative weight)",
+	},
+	cli.StringFlag{
+		Name:  "cpuset-cpus",
+		Usage: "CPUs in which to allow execution (0-3, 0,1)",
+	},
+	cli.StringFlag{
+		Name:  "cpuset-mems",
+		Usage: "memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.",
+	},
+	cli.StringFlag{
+		Name:  "memory, m",
+		Usage: "memory limit (format: <number>[<unit>], where unit = b, k, m or g)",
+	},
+	cli.StringFlag{
+		Name:  "memory-swap",
+		Usage: "swap limit equal to memory plus swap: '-1' to enable unlimited swap",
+	},
+	cli.StringSliceFlag{
+		Name:  "security-opt",
+		Usage: "security Options (default [])",
+	},
+	cli.StringSliceFlag{
+		Name:  "ulimit",
+		Usage: "ulimit options (default [])",
+	},
+}
+
+func parseCommonBuildOptions(c *cli.Context) (*buildah.CommonBuildOptions, error) {
+	var (
+		memoryLimit int64
+		memorySwap  int64
+		err         error
+	)
+	if c.String("memory") != "" {
+		memoryLimit, err = units.RAMInBytes(c.String("memory"))
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid value for memory")
+		}
+	}
+	if c.String("memory-swap") != "" {
+		memorySwap, err = units.RAMInBytes(c.String("memory-swap"))
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid value for memory-swap")
+		}
+	}
+	if len(c.StringSlice("add-host")) > 0 {
+		for _, host := range c.StringSlice("add-host") {
+			if err := validateExtraHost(host); err != nil {
+				return nil, errors.Wrapf(err, "invalid value for add-host")
+			}
+		}
+	}
+
+	commonOpts := &buildah.CommonBuildOptions{
+		AddHost:      c.StringSlice("add-host"),
+		CgroupParent: c.String("cgroup-parent"),
+		CPUPeriod:    c.Uint64("cpu-period"),
+		CPUQuota:     c.Int64("cpu-quota"),
+		CPUSetCPUs:   c.String("cpuset-cpus"),
+		CPUSetMems:   c.String("cpuset-mems"),
+		CPUShares:    c.Uint64("cpu-shares"),
+		Memory:       memoryLimit,
+		MemorySwap:   memorySwap,
+		Ulimit:       c.StringSlice("ulimit"),
+	}
+	if err := parseSecurityOpts(c.StringSlice("security-opt"), commonOpts); err != nil {
+		return nil, err
+	}
+	return commonOpts, nil
+}
+
+func parseSecurityOpts(securityOpts []string, commonOpts *buildah.CommonBuildOptions) error {
+	for _, opt := range securityOpts {
+		if opt == "no-new-privileges" {
+			return errors.Errorf("no-new-privileges is not supported")
+		}
+		con := strings.SplitN(opt, "=", 2)
+		if len(con) != 2 {
+			return errors.Errorf("Invalid --security-opt 1: %q", opt)
+		}
+
+		switch con[0] {
+		case "label":
+			commonOpts.LabelOpts = append(commonOpts.LabelOpts, con[1])
+		case "apparmor":
+			commonOpts.ApparmorProfile = con[1]
+		case "seccomp":
+			commonOpts.SeccompProfilePath = con[1]
+		default:
+			return errors.Errorf("Invalid --security-opt 2: %q", opt)
+		}
+
+	}
+
+	if commonOpts.SeccompProfilePath == "" {
+		if _, err := os.Stat(SeccompOverridePath); err == nil {
+			commonOpts.SeccompProfilePath = SeccompOverridePath
+		} else {
+			if !os.IsNotExist(err) {
+				return errors.Wrapf(err, "can't check if %q exists", SeccompOverridePath)
+			}
+			if _, err := os.Stat(SeccompDefaultPath); err != nil {
+				if !os.IsNotExist(err) {
+					return errors.Wrapf(err, "can't check if %q exists", SeccompDefaultPath)
+				}
+			} else {
+				commonOpts.SeccompProfilePath = SeccompDefaultPath
+			}
+		}
+	}
+	return nil
+}
+
+// validateExtraHost validates that the specified string is a valid extrahost and returns it.
+// ExtraHost is in the form of name:ip where the ip has to be a valid ip (ipv4 or ipv6).
+// for add-host flag
+func validateExtraHost(val string) error {
+	// allow for IPv6 addresses in extra hosts by only splitting on first ":"
+	arr := strings.SplitN(val, ":", 2)
+	if len(arr) != 2 || len(arr[0]) == 0 {
+		return fmt.Errorf("bad format for add-host: %q", val)
+	}
+	if _, err := validateIPAddress(arr[1]); err != nil {
+		return fmt.Errorf("invalid IP address in add-host: %q", arr[1])
+	}
+	return nil
+}
+
+// validateIPAddress validates an Ip address.
+// for dns, ip, and ip6 flags also
+func validateIPAddress(val string) (string, error) {
+	var ip = net.ParseIP(strings.TrimSpace(val))
+	if ip != nil {
+		return ip.String(), nil
+	}
+	return "", fmt.Errorf("%s is not an ip address", val)
 }

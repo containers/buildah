@@ -56,7 +56,7 @@ var (
 		Name:        "from",
 		Usage:       "Create a working container based on an image",
 		Description: fromDescription,
-		Flags:       fromFlags,
+		Flags:       append(fromFlags, fromAndBudFlags...),
 		Action:      fromCmd,
 		ArgsUsage:   "IMAGE",
 	}
@@ -94,6 +94,11 @@ func fromCmd(c *cli.Context) error {
 		return err
 	}
 
+	commonOpts, err := parseCommonBuildOptions(c)
+	if err != nil {
+		return err
+	}
+
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
 		Container:             c.String("name"),
@@ -101,7 +106,9 @@ func fromCmd(c *cli.Context) error {
 		SignaturePolicyPath:   signaturePolicy,
 		SystemContext:         systemContext,
 		DefaultMountsFilePath: c.GlobalString("default-mounts-file"),
+		CommonBuildOpts:       commonOpts,
 	}
+
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
 	}
