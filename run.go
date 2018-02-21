@@ -90,6 +90,10 @@ func addRlimits(ulimit []string, g *generate.Generator) error {
 }
 
 func addHostsToFile(hosts []string) error {
+	if len(hosts) == 0 {
+		return nil
+	}
+
 	file, err := os.OpenFile("/etc/hosts", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		return err
