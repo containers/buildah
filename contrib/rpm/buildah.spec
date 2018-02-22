@@ -31,7 +31,7 @@ Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
-Source:         https://%{provider_prefix}/archive/%{commit}/%{repo}-%{shortcommit}.tar.gz
+Source0:        https://%{provider_prefix}/%{version}.tar.gz
 
 ExclusiveArch:  x86_64 aarch64 ppc64le
 # If go_compiler is not set to 1, there is no virtual provide. Use golang instead.
@@ -61,7 +61,7 @@ or
 * delete a working container or an image
 
 %prep
-%autosetup -Sgit -n %{name}-%{commit}
+%autosetup -Sgit
 
 %build
 mkdir _build

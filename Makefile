@@ -24,8 +24,9 @@ imgtype: *.go docker/*.go util/*.go tests/imgtype.go
 
 .PHONY: clean
 clean:
-	$(RM) buildah imgtype build
+	$(RM) buildah imgtype
 	$(MAKE) -C docs clean 
+	rm -fr build/
 
 .PHONY: docs
 docs: ## build the docs on the host
