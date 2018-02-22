@@ -161,8 +161,12 @@ type CommonBuildOptions struct {
 	LabelOpts          []string
 	SeccompProfilePath string
 	ApparmorProfile    string
+	//ShmSize is the shared memory size
+	ShmSize string
 	//Ulimit options
 	Ulimit []string
+	//Volumes to bind mount into the container
+	Volumes []string
 }
 
 // BuilderOptions are used to initialize a new Builder.
