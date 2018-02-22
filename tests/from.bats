@@ -182,3 +182,30 @@ load helpers
   [[ "$output" =~ 41943040 ]]
   buildah rm $cid
 }
+
+@test "from volume test" {
+  cid=$(buildah from --volume=${TESTDIR}:/myvol --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run buildah run $cid -- cat /proc/mounts
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ /myvol ]]
+  buildah rm $cid
+}
+
+@test "from volume ro test" {
+  cid=$(buildah from --volume=${TESTDIR}:/myvol:ro --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run buildah run $cid -- cat /proc/mounts
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ /myvol ]]
+  buildah rm $cid
+}
+
+@test "from shm-size test" {
+  cid=$(buildah from --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run buildah run $cid -- df -h
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ 80 ]]
+  buildah rm $cid
+}
