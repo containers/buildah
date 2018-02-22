@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        0.12
+Version:        0.13
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -91,6 +91,23 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Feb 22 2018 Dan Walsh <dwalsh@redhat.com> 0.13-1
+- Vendor in latest containers/storage
+-    This fixes a large SELinux bug.  
+- run: do not open /etc/hosts if not needed
+- Add the following flags to buildah bud and from
+            --add-host
+            --cgroup-parent
+            --cpu-period
+            --cpu-quota
+            --cpu-shares
+            --cpuset-cpus
+            --cpuset-mems
+            --memory
+            --memory-swap
+            --security-opt
+            --ulimit
+
 * Mon Feb 12 2018 Dan Walsh <dwalsh@redhat.com> 0.12-1
 - Added handing for simpler error message for Unknown Dockerfile instructions.
 - Change default certs directory to /etc/containers/certs.d
