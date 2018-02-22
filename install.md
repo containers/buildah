@@ -34,6 +34,7 @@ Prior to installing Buildah, install the following packages on your Linux distro
 * gpgme-devel
 * glib2-devel
 * libassuan-devel
+* libseccomp-devel
 * ostree-devel
 * runc (Requires version 1.0 RC4 or higher.)
 * skopeo-containers
@@ -52,6 +53,7 @@ In Fedora, you can use this command:
     glib2-devel \
     gpgme-devel \
     libassuan-devel \
+    libseccomp-devel \
     ostree-devel \
     git \
     bzip2 \
@@ -90,6 +92,7 @@ run this command:
     glib2-devel \
     gpgme-devel \
     libassuan-devel \
+    libseccomp-devel \
     ostree-devel \
     git \
     bzip2 \
