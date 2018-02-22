@@ -450,8 +450,8 @@ func (i *containerImageSource) GetManifest(instanceDigest *digest.Digest) ([]byt
 	return i.manifest, i.manifestType, nil
 }
 
-func (i *containerImageSource) LayerInfosForCopy() []types.BlobInfo {
-	return nil
+func (i *containerImageSource) LayerInfosForCopy() ([]types.BlobInfo, error) {
+	return nil, nil
 }
 
 func (i *containerImageSource) GetBlob(blob types.BlobInfo) (reader io.ReadCloser, size int64, err error) {
