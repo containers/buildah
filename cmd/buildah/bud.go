@@ -207,19 +207,20 @@ func budCmd(c *cli.Context) error {
 	}
 
 	options := imagebuildah.BuildOptions{
-		ContextDirectory:    contextDir,
-		PullPolicy:          pullPolicy,
-		Compression:         imagebuildah.Gzip,
-		Quiet:               c.Bool("quiet"),
-		SignaturePolicyPath: c.String("signature-policy"),
-		Args:                args,
-		Output:              output,
-		AdditionalTags:      tags,
-		Runtime:             c.String("runtime"),
-		RuntimeArgs:         runtimeFlags,
-		OutputFormat:        format,
-		SystemContext:       systemContext,
-		CommonBuildOpts:     commonOpts,
+		ContextDirectory:      contextDir,
+		PullPolicy:            pullPolicy,
+		Compression:           imagebuildah.Gzip,
+		Quiet:                 c.Bool("quiet"),
+		SignaturePolicyPath:   c.String("signature-policy"),
+		Args:                  args,
+		Output:                output,
+		AdditionalTags:        tags,
+		Runtime:               c.String("runtime"),
+		RuntimeArgs:           runtimeFlags,
+		OutputFormat:          format,
+		SystemContext:         systemContext,
+		CommonBuildOpts:       commonOpts,
+		DefaultMountsFilePath: c.GlobalString("default-mounts-file"),
 	}
 
 	if !c.Bool("quiet") {

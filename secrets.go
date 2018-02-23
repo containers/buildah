@@ -3,7 +3,6 @@ package buildah
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,12 +21,6 @@ var (
 	// "host_path:container_path" overriden by the user
 	OverrideMountsFile = "/etc/containers/mounts.conf"
 )
-
-// SecretData info
-type SecretData struct {
-	Name string
-	Data []byte
-}
 
 func getMounts(filePath string) []string {
 	file, err := os.Open(filePath)
@@ -48,67 +41,6 @@ func getMounts(filePath string) []string {
 	return mounts
 }
 
-// SaveTo saves secret data to given directory
-func (s SecretData) SaveTo(dir string) error {
-	path := filepath.Join(dir, s.Name)
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil && !os.IsExist(err) {
-		return err
-	}
-	return ioutil.WriteFile(path, s.Data, 0700)
-}
-
-func readAll(root, prefix string) ([]SecretData, error) {
-	path := filepath.Join(root, prefix)
-
-	data := []SecretData{}
-
-	files, err := ioutil.ReadDir(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return data, nil
-		}
-
-		return nil, err
-	}
-
-	for _, f := range files {
-		fileData, err := readFile(root, filepath.Join(prefix, f.Name()))
-		if err != nil {
-			// If the file did not exist, might be a dangling symlink
-			// Ignore the error
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, err
-		}
-		data = append(data, fileData...)
-	}
-
-	return data, nil
-}
-
-func readFile(root, name string) ([]SecretData, error) {
-	path := filepath.Join(root, name)
-
-	s, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-
-	if s.IsDir() {
-		dirData, err2 := readAll(root, name)
-		if err2 != nil {
-			return nil, err2
-		}
-		return dirData, nil
-	}
-	bytes, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return []SecretData{{Name: name, Data: bytes}}, nil
-}
-
 // getHostAndCtrDir separates the host:container paths
 func getMountsMap(path string) (string, string, error) {
 	arr := strings.SplitN(path, ":", 2)
@@ -116,15 +48,6 @@ func getMountsMap(path string) (string, string, error) {
 		return arr[0], arr[1], nil
 	}
 	return "", "", errors.Errorf("unable to get host and container dir")
-}
-
-func getHostSecretData(hostDir string) ([]SecretData, error) {
-	var allSecrets []SecretData
-	hostSecrets, err := readAll(hostDir, "")
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read secrets from %q", hostDir)
-	}
-	return append(allSecrets, hostSecrets...), nil
 }
 
 // secretMount copies the contents of host directory to container directory
@@ -157,16 +80,10 @@ func secretMounts(filePath, mountLabel, containerWorkingDir string) ([]rspec.Mou
 			return nil, err
 		}
 
-		data, err := getHostSecretData(hostDir)
-		if err != nil {
-			return nil, errors.Wrapf(err, "getting host secret data failed")
+		if err = copyWithTar(hostDir, ctrDirOnHost); err != nil && !os.IsNotExist(err) {
+			return nil, errors.Wrapf(err, "error getting host secret data")
 		}
-		for _, s := range data {
-			err = s.SaveTo(ctrDirOnHost)
-			if err != nil {
-				return nil, err
-			}
-		}
+
 		err = label.Relabel(ctrDirOnHost, mountLabel, false)
 		if err != nil {
 			return nil, errors.Wrap(err, "error applying correct labels")

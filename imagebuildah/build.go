@@ -106,6 +106,8 @@ type BuildOptions struct {
 	// SystemContext holds parameters used for authentication.
 	SystemContext   *types.SystemContext
 	CommonBuildOpts *buildah.CommonBuildOptions
+	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
+	DefaultMountsFilePath string
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor
@@ -138,6 +140,7 @@ type Executor struct {
 	volumeCacheInfo                map[string]os.FileInfo
 	reportWriter                   io.Writer
 	commonBuildOptions             *buildah.CommonBuildOptions
+	defaultMountsFilePath          string
 }
 
 // Preserve informs the executor that from this point on, it needs to ensure
@@ -419,23 +422,24 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		registry:                       options.Registry,
 		transport:                      options.Transport,
 		ignoreUnrecognizedInstructions: options.IgnoreUnrecognizedInstructions,
-		quiet:               options.Quiet,
-		runtime:             options.Runtime,
-		runtimeArgs:         options.RuntimeArgs,
-		transientMounts:     options.TransientMounts,
-		compression:         options.Compression,
-		output:              options.Output,
-		outputFormat:        options.OutputFormat,
-		additionalTags:      options.AdditionalTags,
-		signaturePolicyPath: options.SignaturePolicyPath,
-		systemContext:       options.SystemContext,
-		volumeCache:         make(map[string]string),
-		volumeCacheInfo:     make(map[string]os.FileInfo),
-		log:                 options.Log,
-		out:                 options.Out,
-		err:                 options.Err,
-		reportWriter:        options.ReportWriter,
-		commonBuildOptions:  options.CommonBuildOpts,
+		quiet:                 options.Quiet,
+		runtime:               options.Runtime,
+		runtimeArgs:           options.RuntimeArgs,
+		transientMounts:       options.TransientMounts,
+		compression:           options.Compression,
+		output:                options.Output,
+		outputFormat:          options.OutputFormat,
+		additionalTags:        options.AdditionalTags,
+		signaturePolicyPath:   options.SignaturePolicyPath,
+		systemContext:         options.SystemContext,
+		volumeCache:           make(map[string]string),
+		volumeCacheInfo:       make(map[string]os.FileInfo),
+		log:                   options.Log,
+		out:                   options.Out,
+		err:                   options.Err,
+		reportWriter:          options.ReportWriter,
+		commonBuildOptions:    options.CommonBuildOpts,
+		defaultMountsFilePath: options.DefaultMountsFilePath,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -471,14 +475,15 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 		b.log("FROM %s", from)
 	}
 	builderOptions := buildah.BuilderOptions{
-		FromImage:           from,
-		PullPolicy:          b.pullPolicy,
-		Registry:            b.registry,
-		Transport:           b.transport,
-		SignaturePolicyPath: b.signaturePolicyPath,
-		ReportWriter:        b.reportWriter,
-		SystemContext:       b.systemContext,
-		CommonBuildOpts:     b.commonBuildOptions,
+		FromImage:             from,
+		PullPolicy:            b.pullPolicy,
+		Registry:              b.registry,
+		Transport:             b.transport,
+		SignaturePolicyPath:   b.signaturePolicyPath,
+		ReportWriter:          b.reportWriter,
+		SystemContext:         b.systemContext,
+		CommonBuildOpts:       b.commonBuildOptions,
+		DefaultMountsFilePath: b.defaultMountsFilePath,
 	}
 	builder, err := buildah.NewBuilder(b.store, builderOptions)
 	if err != nil {
