@@ -103,6 +103,28 @@ run this command:
 
 The build steps for Buildah on RHEL or CentOS are the same as Fedora, above.
 
+
+### openSUSE
+
+Currently openSUSE Leap 15 offers `go1.8` , while openSUSE Tumbleweed has `go1.9`.
+`zypper in go1.X` should do the work, then run this command:
+
+```
+ zypper in make \
+    git \
+    golang \
+    runc \
+    bzip2 \
+    libgpgme-devel \
+    libseccomp-devel \
+    device-mapper-devel \
+    libbtrfs-devel \
+    go-md2man
+```
+
+The build steps for Buildah on SUSE / openSUSE are the same as Fedora, above.
+
+
 ### Ubuntu
 
 In Ubuntu zesty and xenial, you can use these commands:
