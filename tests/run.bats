@@ -10,11 +10,11 @@ load helpers
 	createrandom ${TESTDIR}/randomfile
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	root=$(buildah mount $cid)
-	buildah config $cid --workingdir /tmp
+	buildah config --workingdir /tmp $cid
 	run buildah --debug=false run $cid pwd
 	[ "$status" -eq 0 ]
 	[ "$output" = /tmp ]
-	buildah config $cid --workingdir /root
+	buildah config --workingdir /root $cid
 	run buildah --debug=false run        $cid pwd
 	[ "$status" -eq 0 ]
 	[ "$output" = /root ]
@@ -34,7 +34,7 @@ load helpers
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 
 	# This should fail, because buildah run doesn't have a -n flag.
-	run buildah --debug=false run $cid echo -n test
+	run buildah --debug=false run -n $cid echo test
 	[ "$status" -ne 0 ]
 
 	# This should succeed, because buildah run stops caring at the --, which is preserved as part of the command.
@@ -69,35 +69,35 @@ load helpers
 		skip
 	fi
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-	buildah config $cid --workingdir /tmp
+	buildah config --workingdir /tmp $cid
 
-	buildah config $cid --entrypoint ""
-	buildah config $cid --cmd pwd
+	buildah config --entrypoint "" $cid
+	buildah config --cmd pwd $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 0 ]
 	[ "$output" = /tmp ]
 
-	buildah config $cid --entrypoint echo
+	buildah config --entrypoint echo $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 0 ]
 	[ "$output" = pwd ]
 
-	buildah config $cid --cmd ""
+	buildah config --cmd "" $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 0 ]
 	[ "$output" = "" ]
 
-	buildah config $cid --entrypoint ""
+	buildah config --entrypoint "" $cid
 	run buildah --debug=false run $cid echo that-other-thing
 	[ "$status" -eq 0 ]
 	[ "$output" = that-other-thing ]
 
-	buildah config $cid --cmd echo
+	buildah config --cmd echo $cid
 	run buildah --debug=false run $cid echo that-other-thing
 	[ "$status" -eq 0 ]
 	[ "$output" = that-other-thing ]
 
-	buildah config $cid --entrypoint echo
+	buildah config --entrypoint echo $cid
 	run buildah --debug=false run $cid echo that-other-thing
 	[ "$status" -eq 0 ]
 	[ "$output" = that-other-thing ]
@@ -127,7 +127,7 @@ load helpers
 	echo "$testuser:x:$testuid:$testgid:Jimbo Jenkins:/home/$testuser:/bin/sh" >> $root/etc/passwd
 	echo "$testgroup:x:$testgroupid:" >> $root/etc/group
 
-	buildah config $cid -u ""
+	buildah config -u "" $cid
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
 	[ "$status" -eq 0 ]
@@ -136,7 +136,7 @@ load helpers
 	[ "$status" -eq 0 ]
 	[ "$output" = 0 ]
 
-	buildah config $cid -u ${testuser}
+	buildah config -u ${testuser} $cid
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
 	[ "$status" -eq 0 ]
@@ -145,7 +145,7 @@ load helpers
 	[ "$status" -eq 0 ]
 	[ "$output" = $testgid ]
 
-	buildah config $cid -u ${testuid}
+	buildah config -u ${testuid} $cid
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
 	[ "$status" -eq 0 ]
@@ -154,7 +154,7 @@ load helpers
 	[ "$status" -eq 0 ]
 	[ "$output" = $testgid ]
 
-	buildah config $cid -u ${testuser}:${testgroup}
+	buildah config -u ${testuser}:${testgroup} $cid
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
 	[ "$status" -eq 0 ]
@@ -163,7 +163,7 @@ load helpers
 	[ "$status" -eq 0 ]
 	[ "$output" = $testgroupid ]
 
-	buildah config $cid -u ${testuid}:${testgroup}
+	buildah config -u ${testuid}:${testgroup} $cid
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
 	[ "$status" -eq 0 ]
@@ -172,7 +172,7 @@ load helpers
 	[ "$status" -eq 0 ]
 	[ "$output" = $testgroupid ]
 
-	buildah config $cid -u ${testotheruid}:${testgroup}
+	buildah config -u ${testotheruid}:${testgroup} $cid
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
 	[ "$status" -eq 0 ]
@@ -181,7 +181,7 @@ load helpers
 	[ "$status" -eq 0 ]
 	[ "$output" = $testgroupid ]
 
-	buildah config $cid -u ${testotheruid}
+	buildah config -u ${testotheruid} $cid
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
 	[ "$status" -eq 0 ]
@@ -190,7 +190,7 @@ load helpers
 	[ "$status" -eq 0 ]
 	[ "$output" = 0 ]
 
-	buildah config $cid -u ${testuser}:${testgroupid}
+	buildah config -u ${testuser}:${testgroupid} $cid
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
 	[ "$status" -eq 0 ]
@@ -199,7 +199,7 @@ load helpers
 	[ "$status" -eq 0 ]
 	[ "$output" = $testgroupid ]
 
-	buildah config $cid -u ${testuid}:${testgroupid}
+	buildah config -u ${testuid}:${testgroupid} $cid
 	buildah run -- $cid id
 	run buildah --debug=false run -- $cid id -u
 	[ "$status" -eq 0 ]
@@ -208,7 +208,7 @@ load helpers
 	[ "$status" -eq 0 ]
 	[ "$output" = $testgroupid ]
 
-	buildah config $cid -u ${testbogususer}
+	buildah config -u ${testbogususer} $cid
 	run buildah --debug=false run -- $cid id -u
 	[ "$status" -ne 0 ]
 	[[ "$output" =~ "unknown user" ]]
@@ -217,7 +217,7 @@ load helpers
 	[[ "$output" =~ "unknown user" ]]
 
 	ln -vsf /etc/passwd $root/etc/passwd
-	buildah config $cid -u ${testuser}:${testgroup}
+	buildah config -u ${testuser}:${testgroup} $cid
 	run buildah --debug=false run -- $cid id -u
 	echo "$output"
 	[ "$status" -ne 0 ]

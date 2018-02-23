@@ -63,12 +63,13 @@ var (
 	}
 	commitDescription = "Writes a new image using the container's read-write layer and, if it is based\n   on an image, the layers of that image"
 	commitCommand     = cli.Command{
-		Name:        "commit",
-		Usage:       "Create an image from a working container",
-		Description: commitDescription,
-		Flags:       commitFlags,
-		Action:      commitCmd,
-		ArgsUsage:   "CONTAINER-NAME-OR-ID IMAGE",
+		Name:           "commit",
+		Usage:          "Create an image from a working container",
+		Description:    commitDescription,
+		Flags:          commitFlags,
+		Action:         commitCmd,
+		ArgsUsage:      "CONTAINER-NAME-OR-ID IMAGE",
+		SkipArgReorder: true,
 	}
 )
 
