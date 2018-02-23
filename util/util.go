@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"net/url"
 	"path"
 	"strings"
@@ -14,7 +13,6 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
 )
 
 const (
@@ -163,16 +161,10 @@ func AddImageNames(store storage.Store, image *storage.Image, addNames []string)
 func GetFailureCause(err, defaultError error) error {
 	switch nErr := errors.Cause(err).(type) {
 	case errcode.Errors:
-		return cli.NewMultiError([]error(nErr)...)
+		return err
 	case errcode.Error, *url.Error:
 		return nErr
 	default:
-		// HACK: In case the error contains "not authorized" like in
-		//       https://github.com/containers/image/blob/master/docker/docker_image_dest.go#L193-L205
-		// TODO(bshuster): change "containers/images" to return "errcode" rather than "error".
-		if strings.Contains(nErr.Error(), "not authorized") {
-			return fmt.Errorf("unauthorized: authentication required")
-		}
 		return defaultError
 	}
 }
