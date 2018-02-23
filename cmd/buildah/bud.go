@@ -76,13 +76,14 @@ var (
 
 	budDescription = "Builds an OCI image using instructions in one or more Dockerfiles."
 	budCommand     = cli.Command{
-		Name:        "build-using-dockerfile",
-		Aliases:     []string{"bud"},
-		Usage:       "Build an image using instructions in a Dockerfile",
-		Description: budDescription,
-		Flags:       append(budFlags, fromAndBudFlags...),
-		Action:      budCmd,
-		ArgsUsage:   "CONTEXT-DIRECTORY | URL",
+		Name:           "build-using-dockerfile",
+		Aliases:        []string{"bud"},
+		Usage:          "Build an image using instructions in a Dockerfile",
+		Description:    budDescription,
+		Flags:          append(budFlags, fromAndBudFlags...),
+		Action:         budCmd,
+		ArgsUsage:      "CONTEXT-DIRECTORY | URL",
+		SkipArgReorder: true,
 	}
 )
 

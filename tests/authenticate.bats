@@ -10,15 +10,15 @@ load helpers
   [ "$status" -eq 0 ]
 
   # This should fail
-  run buildah push localhost:5000/my-alpine --signature-policy ${TESTSDIR}/policy.json --tls-verify=true
+  run buildah push  --signature-policy ${TESTSDIR}/policy.json --tls-verify=true localhost:5000/my-alpine
   [ "$status" -ne 0 ]
 
   # This should fail
-  run buildah from localhost:5000/my-alpine --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds baduser:badpassword
+  run buildah from --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds baduser:badpassword localhost:5000/my-alpine
   [ "$status" -ne 0 ]
 
   # This should work
-  run buildah from localhost:5000/my-alpine --name "my-alpine" --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword
+  run buildah from --name "my-alpine" --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword localhost:5000/my-alpine
   [ "$status" -eq 0 ]
 
   # Create Dockerfile for bud tests
@@ -27,7 +27,7 @@ load helpers
 FROM localhost:5000/my-alpine
 EOM
   chmod +x $FILE
-  
+
   # Remove containers and images before bud tests
   buildah rm --all
   buildah rmi -f --all

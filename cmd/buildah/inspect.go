@@ -34,12 +34,13 @@ var (
 	}
 	inspectDescription = "Inspects a build container's or built image's configuration."
 	inspectCommand     = cli.Command{
-		Name:        "inspect",
-		Usage:       "Inspects the configuration of a container or image",
-		Description: inspectDescription,
-		Flags:       inspectFlags,
-		Action:      inspectCmd,
-		ArgsUsage:   "CONTAINER-OR-IMAGE",
+		Name:           "inspect",
+		Usage:          "Inspects the configuration of a container or image",
+		Description:    inspectDescription,
+		Flags:          inspectFlags,
+		Action:         inspectCmd,
+		ArgsUsage:      "CONTAINER-OR-IMAGE",
+		SkipArgReorder: true,
 	}
 )
 

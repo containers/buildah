@@ -65,12 +65,13 @@ var (
 `, strings.Join(transports.ListNames(), ", "))
 
 	pushCommand = cli.Command{
-		Name:        "push",
-		Usage:       "Push an image to a specified destination",
-		Description: pushDescription,
-		Flags:       pushFlags,
-		Action:      pushCmd,
-		ArgsUsage:   "IMAGE DESTINATION",
+		Name:           "push",
+		Usage:          "Push an image to a specified destination",
+		Description:    pushDescription,
+		Flags:          pushFlags,
+		Action:         pushCmd,
+		ArgsUsage:      "IMAGE DESTINATION",
+		SkipArgReorder: true,
 	}
 )
 

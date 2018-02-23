@@ -139,7 +139,7 @@ load helpers
 @test "bud-http-context-dir-with-Dockerfile-post" {
   starthttpd ${TESTSDIR}/bud/http-context-subdir
   target=scratch-image
-  buildah bud http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar --signature-policy ${TESTSDIR}/policy.json -t ${target} -f context/Dockerfile
+  buildah bud  --signature-policy ${TESTSDIR}/policy.json -t ${target} -f context/Dockerfile http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
   stophttpd
   cid=$(buildah from ${target})
   buildah rm ${cid}

@@ -31,12 +31,13 @@ var (
 		},
 	}
 	rmiCommand = cli.Command{
-		Name:        "rmi",
-		Usage:       "removes one or more images from local storage",
-		Description: rmiDescription,
-		Action:      rmiCmd,
-		ArgsUsage:   "IMAGE-NAME-OR-ID [...]",
-		Flags:       rmiFlags,
+		Name:           "rmi",
+		Usage:          "removes one or more images from local storage",
+		Description:    rmiDescription,
+		Action:         rmiCmd,
+		ArgsUsage:      "IMAGE-NAME-OR-ID [...]",
+		Flags:          rmiFlags,
+		SkipArgReorder: true,
 	}
 )
 
