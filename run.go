@@ -147,7 +147,7 @@ func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) 
 	return nil
 }
 
-func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles, volumes []string) error {
+func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles, builtinVolumes, volumeMounts []string, shmSize string) error {
 	// The passed-in mounts matter the most to us.
 	mounts := make([]specs.Mount, len(optionMounts))
 	copy(mounts, optionMounts)
@@ -162,6 +162,9 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 	}
 	// Add mounts from the generated list, unless they conflict.
 	for _, specMount := range spec.Mounts {
+		if specMount.Destination == "/dev/shm" {
+			specMount.Options = []string{"nosuid", "noexec", "nodev", "mode=1777", "size=" + shmSize}
+		}
 		if haveMount(specMount.Destination) {
 			// Already have something to mount there, so skip this one.
 			continue
@@ -204,7 +207,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 	}
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
-	for _, volume := range volumes {
+	for _, volume := range builtinVolumes {
 		if haveMount(volume) {
 			// Already mounting something there, no need to bother.
 			continue
@@ -231,6 +234,57 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 			Destination: volume,
 			Type:        "bind",
 			Options:     []string{"bind"},
+		})
+	}
+	// Bind mount volumes given by the user at execution
+	var options []string
+	for _, i := range volumeMounts {
+		spliti := strings.Split(i, ":")
+		if len(spliti) > 2 {
+			options = strings.Split(spliti[2], ",")
+		}
+		if haveMount(spliti[1]) {
+			continue
+		}
+		options = append(options, "rbind")
+		var foundrw, foundro, foundz, foundZ bool
+		var rootProp string
+		for _, opt := range options {
+			switch opt {
+			case "rw":
+				foundrw = true
+			case "ro":
+				foundro = true
+			case "z":
+				foundz = true
+			case "Z":
+				foundZ = true
+			case "private", "rprivate", "slave", "rslave", "shared", "rshared":
+				rootProp = opt
+			}
+		}
+		if !foundrw && !foundro {
+			options = append(options, "rw")
+		}
+		if foundz {
+			if err := label.Relabel(spliti[0], spec.Linux.MountLabel, true); err != nil {
+				return errors.Wrapf(err, "relabel failed %q", spliti[0])
+			}
+		}
+		if foundZ {
+			if err := label.Relabel(spliti[0], spec.Linux.MountLabel, false); err != nil {
+				return errors.Wrapf(err, "relabel failed %q", spliti[0])
+			}
+		}
+		if rootProp == "" {
+			options = append(options, "private")
+		}
+
+		mounts = append(mounts, specs.Mount{
+			Destination: spliti[1],
+			Type:        "bind",
+			Source:      spliti[0],
+			Options:     options,
 		})
 	}
 	// Set the list in the spec.
@@ -381,7 +435,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	g.AddMount(cgroupMnt)
 
 	bindFiles := []string{"/etc/hosts", "/etc/resolv.conf"}
-	err = b.setupMounts(mountPoint, spec, options.Mounts, bindFiles, b.Volumes())
+	err = b.setupMounts(mountPoint, spec, options.Mounts, bindFiles, b.Volumes(), b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize)
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container")
 	}
