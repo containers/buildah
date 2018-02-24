@@ -48,10 +48,11 @@ load helpers
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
-  cmp $root/Dockerfile1 ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch
+  run test -s $root/Dockerfile1
+  [ "$status" -ne 0 ]
   cmp $root/Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
   run test -s $root/etc/passwd
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 0 ]
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
@@ -62,7 +63,8 @@ load helpers
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.alpine -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
-  cmp $root/Dockerfile1 ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.alpine
+  run test -s $root/Dockerfile1
+  [ "$status" -ne 0 ]
   cmp $root/Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
   run test -s $root/etc/passwd
   [ "$status" -eq 0 ]
@@ -71,6 +73,44 @@ load helpers
   run buildah --debug=false images -q
   [ "$status" -eq 0 ]
   [ "$output" = "" ]
+}
+
+@test "bud-multi-stage-builds" {
+  target=multi-stage-index
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.index
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  cmp $root/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.index
+  run test -s $root/etc/passwd
+  [ "$status" -eq 0 ]
+  buildah rm ${cid}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  [ "$output" = "" ]
+
+  target=multi-stage-name
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.name
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  cmp $root/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.name
+  run test -s $root/etc/passwd
+  [ "$status" -ne 0 ]
+  buildah rm ${cid}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  [ "$output" = "" ]
+
+  target=multi-stage-mixed
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.mixed
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  cmp $root/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.name
+  cmp $root/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.index
+  buildah rm ${cid}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  [ "$output" = "" ]
+
 }
 
 @test "bud-preserve-subvolumes" {
