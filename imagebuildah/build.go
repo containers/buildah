@@ -113,6 +113,8 @@ type BuildOptions struct {
 // Executor is a buildah-based implementation of the imagebuilder.Executor
 // interface.
 type Executor struct {
+	name                           string
+	named                          map[string]*Executor
 	store                          storage.Store
 	contextDir                     string
 	builder                        *buildah.Builder
@@ -141,6 +143,18 @@ type Executor struct {
 	reportWriter                   io.Writer
 	commonBuildOptions             *buildah.CommonBuildOptions
 	defaultMountsFilePath          string
+}
+
+// withName creates a new child executor that will be used whenever a COPY statement uses --from=NAME.
+func (b *Executor) withName(name string) *Executor {
+	if b.named == nil {
+		b.named = make(map[string]*Executor)
+	}
+	copied := *b
+	copied.name = name
+	child := &copied
+	b.named[name] = child
+	return child
 }
 
 // Preserve informs the executor that from this point on, it needs to ensure
@@ -339,6 +353,12 @@ func (b *Executor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
 		for _, src := range copy.Src {
 			if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
 				sources = append(sources, src)
+			} else if len(copy.From) > 0 {
+				if other, ok := b.named[copy.From]; ok {
+					sources = append(sources, filepath.Join(other.mountPoint, src))
+				} else {
+					return errors.Errorf("the stage %q has not been built", copy.From)
+				}
 			} else {
 				sources = append(sources, filepath.Join(b.contextDir, src))
 			}
@@ -659,45 +679,64 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 }
 
 // Build takes care of the details of running Prepare/Execute/Commit/Delete
-// over each of the one or more parsed Dockerfiles.
-func (b *Executor) Build(ib *imagebuilder.Builder, node []*parser.Node) (err error) {
-	if len(node) == 0 {
-		return errors.Wrapf(err, "error building: no build instructions")
+// over each of the one or more parsed Dockerfiles and stages.
+func (b *Executor) Build(stages imagebuilder.Stages) error {
+	if len(stages) == 0 {
+		errors.New("error building: no stages to build")
 	}
-	first := node[0]
-	from, err := ib.From(first)
-	if err != nil {
-		logrus.Debugf("Build(first.Children=%#v)", first.Children)
-		return errors.Wrapf(err, "error determining starting point for build")
-	}
-	if err = b.Prepare(ib, first, from); err != nil {
-		return err
-	}
-	defer b.Delete()
-	for _, this := range node {
-		if err = b.Execute(ib, this); err != nil {
+	var stageExecutor *Executor
+	for _, stage := range stages {
+		stageExecutor = b.withName(stage.Name)
+		if err := stageExecutor.Prepare(stage.Builder, stage.Node, ""); err != nil {
+			return err
+		}
+		defer stageExecutor.Delete()
+		if err := stageExecutor.Execute(stage.Builder, stage.Node); err != nil {
 			return err
 		}
 	}
-	if err = b.Commit(ib); err != nil {
-		return err
+	return stageExecutor.Commit(stages[len(stages)-1].Builder)
+}
+
+// BuildReadClosers parses a set of one or more already-opened Dockerfiles,
+// creates a new Executor, and then runs Prepare/Execute/Commit/Delete over the
+// entire set of instructions.
+func BuildReadClosers(store storage.Store, options BuildOptions, dockerfiles ...io.ReadCloser) error {
+	defer func(dockerfiles ...io.ReadCloser) {
+		for _, d := range dockerfiles {
+			d.Close()
+		}
+	}()
+	mainNode, err := imagebuilder.ParseDockerfile(dockerfiles[0])
+	if err != nil {
+		return errors.Wrapf(err, "error parsing main Dockerfile")
 	}
-	return nil
+	for _, d := range dockerfiles[1:] {
+		additionalNode, err := imagebuilder.ParseDockerfile(d)
+		if err != nil {
+			return errors.Wrapf(err, "error parsing additional Dockerfile")
+		}
+		mainNode.Children = append(mainNode.Children, additionalNode.Children...)
+	}
+	exec, err := NewExecutor(store, options)
+	if err != nil {
+		return errors.Wrapf(err, "error creating build executor")
+	}
+	b := imagebuilder.NewBuilder(options.Args)
+	stages := imagebuilder.NewStages(mainNode, b)
+	return exec.Build(stages)
 }
 
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be
 // URLs), creates a new Executor, and then runs Prepare/Execute/Commit/Delete
 // over the entire set of instructions.
 func BuildDockerfiles(store storage.Store, options BuildOptions, dockerfile ...string) error {
+	var dockerfiles []io.ReadCloser
 	if len(dockerfile) == 0 {
 		return errors.Errorf("error building: no dockerfiles specified")
 	}
-	nodes := []*parser.Node{}
 	for _, dfile := range dockerfile {
-		var (
-			parsed *parser.Node
-			err    error
-		)
+		var rc io.ReadCloser
 		if strings.HasPrefix(dfile, "http://") || strings.HasPrefix(dfile, "https://") {
 			logrus.Debugf("reading remote Dockerfile %q", dfile)
 			resp, err := http.Get(dfile)
@@ -708,25 +747,32 @@ func BuildDockerfiles(store storage.Store, options BuildOptions, dockerfile ...s
 				resp.Body.Close()
 				return errors.Errorf("no contents in %q", dfile)
 			}
-			parsed, err = imagebuilder.ParseDockerfile(resp.Body)
-			resp.Body.Close()
+			rc = resp.Body
 		} else {
 			if !filepath.IsAbs(dfile) {
 				logrus.Debugf("resolving local Dockerfile %q", dfile)
 				dfile = filepath.Join(options.ContextDirectory, dfile)
 			}
 			logrus.Debugf("reading local Dockerfile %q", dfile)
-			parsed, err = imagebuilder.ParseFile(dfile)
+			contents, err := os.Open(dfile)
+			if err != nil {
+				return errors.Wrapf(err, "error reading %q", dfile)
+			}
+			dinfo, err := contents.Stat()
+			if err != nil {
+				contents.Close()
+				return errors.Wrapf(err, "error reading info about %q", dfile)
+			}
+			if dinfo.Size() == 0 {
+				contents.Close()
+				return errors.Wrapf(err, "no contents in %q", dfile)
+			}
+			rc = contents
 		}
-		if err != nil {
-			return errors.Wrapf(err, "unable to parse %s", dfile)
-		}
-		nodes = append(nodes, parsed)
+		dockerfiles = append(dockerfiles, rc)
 	}
-	builder := imagebuilder.NewBuilder(options.Args)
-	exec, err := NewExecutor(store, options)
-	if err != nil {
-		return errors.Wrapf(err, "error creating build executor")
+	if err := BuildReadClosers(store, options, dockerfiles...); err != nil {
+		return errors.Wrapf(err, "error building")
 	}
-	return exec.Build(builder, nodes)
+	return nil
 }
