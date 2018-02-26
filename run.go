@@ -107,10 +107,6 @@ func addHostsToFile(hosts []string) error {
 }
 
 func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) error {
-	if commonOpts == nil {
-		return nil
-	}
-
 	// RESOURCES - CPU
 	if commonOpts.CPUPeriod != 0 {
 		g.SetLinuxResourcesCPUPeriod(commonOpts.CPUPeriod)
@@ -316,6 +312,10 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		if len(env) > 1 {
 			g.AddProcessEnv(env[0], env[1])
 		}
+	}
+
+	if b.CommonBuildOpts == nil {
+		return errors.Errorf("Invalid format on container you must recreate the container")
 	}
 
 	if err := addCommonOptsToSpec(b.CommonBuildOpts, &g); err != nil {
