@@ -107,6 +107,10 @@ func addHostsToFile(hosts []string) error {
 }
 
 func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) error {
+	if commonOpts == nil {
+		return nil
+	}
+
 	// RESOURCES - CPU
 	if commonOpts.CPUPeriod != 0 {
 		g.SetLinuxResourcesCPUPeriod(commonOpts.CPUPeriod)
