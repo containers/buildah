@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        0.13
+Version:        0.14
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -91,6 +91,13 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Feb 26 2018 Dan Walsh <dwalsh@redhat.com> 0.14-1
+- If commonOpts do not exist, we should return rather then segfault
+- Display full error string instead of just status
+- Implement --volume and --shm-size for bud and from
+- Fix secrets patch for buildah bud
+- Fixes the naming issue of blobs and config for the dir transport by removing the .tar extension
+
 * Thu Feb 22 2018 Dan Walsh <dwalsh@redhat.com> 0.13-1
 - Vendor in latest containers/storage
 -    This fixes a large SELinux bug.  
