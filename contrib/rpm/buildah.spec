@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        0.14
+Version:        0.15
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -91,6 +91,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Tue Feb 27 2018 Dan Walsh <dwalsh@redhat.com> 0.15-1
+- Fix handling of buildah run command options
+
 * Mon Feb 26 2018 Dan Walsh <dwalsh@redhat.com> 0.14-1
 - If commonOpts do not exist, we should return rather then segfault
 - Display full error string instead of just status
