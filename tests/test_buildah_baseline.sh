@@ -23,6 +23,16 @@ buildah containers
 ctrid=$(buildah from registry.access.redhat.com/rhscl/redis-32-rhel7)
 buildah run $ctrid ls /
 
+
+########
+# Validate touch works after installing httpd, solved selinux
+# issue that should now work.
+########
+ctr=$(buildah from scratch)
+mnt=$(buildah mount $ctr)
+dnf -y install --installroot=$mnt --releasever=27 httpd
+buildah run $ctr touch /test
+
 ########
 # Create Fedora based container
 ########
