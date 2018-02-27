@@ -7,7 +7,7 @@ load helpers
   buildah rm $cid
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah rm $cid
-  cid=$(buildah from alpine --pull --signature-policy ${TESTSDIR}/policy.json --name i-love-naming-things)
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --name i-love-naming-things alpine)
   buildah rm i-love-naming-things
 }
 

@@ -7,12 +7,13 @@ import (
 
 var (
 	umountCommand = cli.Command{
-		Name:        "umount",
-		Aliases:     []string{"unmount"},
-		Usage:       "Unmount a working container's root filesystem",
-		Description: "Unmounts a working container's root filesystem",
-		Action:      umountCmd,
-		ArgsUsage:   "CONTAINER-NAME-OR-ID",
+		Name:           "umount",
+		Aliases:        []string{"unmount"},
+		Usage:          "Unmount a working container's root filesystem",
+		Description:    "Unmounts a working container's root filesystem",
+		Action:         umountCmd,
+		ArgsUsage:      "CONTAINER-NAME-OR-ID",
+		SkipArgReorder: true,
 	}
 )
 
