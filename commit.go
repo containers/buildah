@@ -1,20 +1,18 @@
 package buildah
 
 import (
-	"bytes"
 	"fmt"
 	"io"
-	"syscall"
 	"time"
 
 	cp "github.com/containers/image/copy"
+	"github.com/containers/image/manifest"
 	"github.com/containers/image/signature"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
-	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
@@ -80,14 +78,15 @@ type PushOptions struct {
 // almost any other destination has higher expectations.
 // We assume that "dest" is a reference to a local image (specifically, a containers/image/storage.storageReference),
 // and will fail if it isn't.
-func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReference, systemContext *types.SystemContext, compression archive.Compression) error {
+func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReference, systemContext *types.SystemContext) error {
 	var names []string
+	var layerDiff, config io.ReadCloser
 	// Read the target image name.
 	if dest.DockerReference() != nil {
 		names = []string{dest.DockerReference().String()}
 	}
 	// Open the source for reading and the new image for writing.
-	srcImage, err := src.NewImage(systemContext)
+	srcImage, err := src.NewImageSource(systemContext)
 	if err != nil {
 		return errors.Wrapf(err, "error reading configuration to write to image %q", transports.ImageName(dest))
 	}
@@ -96,59 +95,47 @@ func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReferenc
 	if err != nil {
 		return errors.Wrapf(err, "error opening image %q for writing", transports.ImageName(dest))
 	}
-	// Look up the container's read-write layer.
-	container, err := b.store.Container(b.ContainerID)
+	// Read the newly-generated manifest, which already contains a layer entry for the read-write layer.
+	manifestBlob, manifestType, err := srcImage.GetManifest(nil)
 	if err != nil {
-		return errors.Wrapf(err, "error reading information about working container %q", b.ContainerID)
+		return errors.Wrapf(err, "error reading the manifest we just generated")
 	}
-	// Extract the read-write layer's contents, using whatever compression the container image used to
-	// calculate the blob sum in the manifest.
-	switch compression {
-	case archive.Gzip:
-		logrus.Debugf("extracting layer %q with gzip", container.LayerID)
-	case archive.Bzip2:
-		// Until the image specs define a media type for bzip2-compressed layers, even if we know
-		// how to decompress them, we can't try to compress layers with bzip2.
-		return errors.Wrapf(syscall.ENOTSUP, "media type for bzip2-compressed layers is not defined")
-	default:
-		logrus.Debugf("extracting layer %q with unknown compressor(?)", container.LayerID)
-	}
-	diffOptions := &storage.DiffOptions{
-		Compression: &compression,
-	}
-	layerDiff, err := b.store.Diff("", container.LayerID, diffOptions)
+	m, err := manifest.FromBlob(manifestBlob, manifestType)
 	if err != nil {
-		return errors.Wrapf(err, "error reading layer %q from source image %q", container.LayerID, transports.ImageName(src))
+		return errors.Wrapf(err, "error parsing the manifest we just generated")
 	}
-	defer layerDiff.Close()
+	// Read the read-write layer blob.
+	layerInfos := m.LayerInfos()
+	if len(layerInfos) > 0 {
+		layerDiff, _, err = srcImage.GetBlob(layerInfos[len(layerInfos)-1])
+		if err != nil {
+			return errors.Wrapf(err, "error reading the container's layer")
+		}
+		defer layerDiff.Close()
+	}
 	// Write a copy of the layer as a blob, for the new image to reference.
-	if _, err = destImage.PutBlob(layerDiff, types.BlobInfo{Digest: "", Size: -1}); err != nil {
-		return errors.Wrapf(err, "error creating new read-only layer from container %q", b.ContainerID)
+	if layerDiff != nil {
+		if _, err = destImage.PutBlob(layerDiff, types.BlobInfo{Digest: "", Size: -1}); err != nil {
+			return errors.Wrapf(err, "error creating new read-only layer from container %q", b.ContainerID)
+		}
 	}
 	// Read the newly-generated configuration blob.
-	config, err := srcImage.ConfigBlob()
+	configInfo := m.ConfigInfo()
+	if configInfo.Size == 0 {
+		return errors.Wrapf(err, "error reading new configuration info for image %q", transports.ImageName(dest))
+	}
+	config, _, err = srcImage.GetBlob(configInfo)
 	if err != nil {
-		return errors.Wrapf(err, "error reading new configuration for image %q", transports.ImageName(dest))
+		return errors.Wrapf(err, "error reading the new configuration info for image %q", transports.ImageName(dest))
 	}
-	if len(config) == 0 {
-		return errors.Errorf("error reading new configuration for image %q: it's empty", transports.ImageName(dest))
-	}
-	logrus.Debugf("read configuration blob %q", string(config))
+	defer config.Close()
+	logrus.Debugf("read configuration blob %q", configInfo.Digest)
 	// Write the configuration to the new image.
-	configBlobInfo := types.BlobInfo{
-		Digest: digest.Canonical.FromBytes(config),
-		Size:   int64(len(config)),
-	}
-	if _, err = destImage.PutBlob(bytes.NewReader(config), configBlobInfo); err != nil {
+	if _, err = destImage.PutBlob(config, configInfo); err != nil {
 		return errors.Wrapf(err, "error writing image configuration for temporary copy of %q", transports.ImageName(dest))
 	}
-	// Read the newly-generated manifest, which already contains a layer entry for the read-write layer.
-	manifest, _, err := srcImage.Manifest()
-	if err != nil {
-		return errors.Wrapf(err, "error reading new manifest for image %q", transports.ImageName(dest))
-	}
 	// Write the manifest to the new image.
-	err = destImage.PutManifest(manifest)
+	err = destImage.PutManifest(manifestBlob)
 	if err != nil {
 		return errors.Wrapf(err, "error writing new manifest to image %q", transports.ImageName(dest))
 	}
@@ -208,7 +195,7 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 		}
 	} else {
 		// Copy only the most recent layer, the configuration, and the manifest.
-		err = b.shallowCopy(dest, src, getSystemContext(options.SystemContext, options.SignaturePolicyPath), options.Compression)
+		err = b.shallowCopy(dest, src, getSystemContext(options.SystemContext, options.SignaturePolicyPath))
 		if err != nil {
 			return errors.Wrapf(err, "error copying layer and metadata")
 		}
