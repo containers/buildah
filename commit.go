@@ -6,7 +6,6 @@ import (
 	"time"
 
 	cp "github.com/containers/image/copy"
-	"github.com/containers/image/manifest"
 	"github.com/containers/image/signature"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
@@ -73,96 +72,6 @@ type PushOptions struct {
 	ManifestType string
 }
 
-// shallowCopy copies the most recent layer, the configuration, and the manifest from one image to another.
-// For local storage, which doesn't care about histories and the manifest's contents, that's sufficient, but
-// almost any other destination has higher expectations.
-// We assume that "dest" is a reference to a local image (specifically, a containers/image/storage.storageReference),
-// and will fail if it isn't.
-func (b *Builder) shallowCopy(dest types.ImageReference, src types.ImageReference, systemContext *types.SystemContext) error {
-	var names []string
-	var layerDiff, config io.ReadCloser
-	// Read the target image name.
-	if dest.DockerReference() != nil {
-		names = []string{dest.DockerReference().String()}
-	}
-	// Open the source for reading and the new image for writing.
-	srcImage, err := src.NewImageSource(systemContext)
-	if err != nil {
-		return errors.Wrapf(err, "error reading configuration to write to image %q", transports.ImageName(dest))
-	}
-	defer srcImage.Close()
-	destImage, err := dest.NewImageDestination(systemContext)
-	if err != nil {
-		return errors.Wrapf(err, "error opening image %q for writing", transports.ImageName(dest))
-	}
-	// Read the newly-generated manifest, which already contains a layer entry for the read-write layer.
-	manifestBlob, manifestType, err := srcImage.GetManifest(nil)
-	if err != nil {
-		return errors.Wrapf(err, "error reading the manifest we just generated")
-	}
-	m, err := manifest.FromBlob(manifestBlob, manifestType)
-	if err != nil {
-		return errors.Wrapf(err, "error parsing the manifest we just generated")
-	}
-	// Read the read-write layer blob.
-	layerInfos := m.LayerInfos()
-	if len(layerInfos) > 0 {
-		layerDiff, _, err = srcImage.GetBlob(layerInfos[len(layerInfos)-1])
-		if err != nil {
-			return errors.Wrapf(err, "error reading the container's layer")
-		}
-		defer layerDiff.Close()
-	}
-	// Write a copy of the layer as a blob, for the new image to reference.
-	if layerDiff != nil {
-		if _, err = destImage.PutBlob(layerDiff, types.BlobInfo{Digest: "", Size: -1}); err != nil {
-			return errors.Wrapf(err, "error creating new read-only layer from container %q", b.ContainerID)
-		}
-	}
-	// Read the newly-generated configuration blob.
-	configInfo := m.ConfigInfo()
-	if configInfo.Size == 0 {
-		return errors.Wrapf(err, "error reading new configuration info for image %q", transports.ImageName(dest))
-	}
-	config, _, err = srcImage.GetBlob(configInfo)
-	if err != nil {
-		return errors.Wrapf(err, "error reading the new configuration info for image %q", transports.ImageName(dest))
-	}
-	defer config.Close()
-	logrus.Debugf("read configuration blob %q", configInfo.Digest)
-	// Write the configuration to the new image.
-	if _, err = destImage.PutBlob(config, configInfo); err != nil {
-		return errors.Wrapf(err, "error writing image configuration for temporary copy of %q", transports.ImageName(dest))
-	}
-	// Write the manifest to the new image.
-	err = destImage.PutManifest(manifestBlob)
-	if err != nil {
-		return errors.Wrapf(err, "error writing new manifest to image %q", transports.ImageName(dest))
-	}
-	// Save the new image.
-	err = destImage.Commit()
-	if err != nil {
-		return errors.Wrapf(err, "error committing new image %q", transports.ImageName(dest))
-	}
-	err = destImage.Close()
-	if err != nil {
-		return errors.Wrapf(err, "error closing new image %q", transports.ImageName(dest))
-	}
-	image, err := is.Transport.GetStoreImage(b.store, dest)
-	if err != nil {
-		return errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
-	}
-	// Add the target name(s) to the new image.
-	if len(names) > 0 {
-		err = util.AddImageNames(b.store, image, names)
-		if err != nil {
-			return errors.Wrapf(err, "error assigning names %v to new image", names)
-		}
-		logrus.Debugf("assigned names %v to image %q", names, image.ID)
-	}
-	return nil
-}
-
 // Commit writes the contents of the container, along with its updated
 // configuration, to a new image in the specified location, and if we know how,
 // add any additional tags that were specified.
@@ -187,18 +96,10 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 	if err != nil {
 		return errors.Wrapf(err, "error computing layer digests and building metadata")
 	}
-	if exporting {
-		// Copy everything.
-		err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext, ""))
-		if err != nil {
-			return errors.Wrapf(err, "error copying layers and metadata")
-		}
-	} else {
-		// Copy only the most recent layer, the configuration, and the manifest.
-		err = b.shallowCopy(dest, src, getSystemContext(options.SystemContext, options.SignaturePolicyPath))
-		if err != nil {
-			return errors.Wrapf(err, "error copying layer and metadata")
-		}
+	// "Copy" our image to where it needs to be.
+	err = cp.Image(policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext, ""))
+	if err != nil {
+		return errors.Wrapf(err, "error copying layers and metadata")
 	}
 	if len(options.AdditionalTags) > 0 {
 		switch dest.Transport().Name() {
