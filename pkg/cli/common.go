@@ -143,11 +143,11 @@ var (
 		},
 		cli.StringSliceFlag{
 			Name:  "security-opt",
-			Usage: "security Options (default [])",
+			Usage: "security options (default [])",
 		},
 		cli.StringFlag{
 			Name:  "shm-size",
-			Usage: "size of `/dev/shm`. The format is `<number><unit>`.",
+			Usage: "size of '/dev/shm'. The format is `<number><unit>`.",
 			Value: "65536k",
 		},
 		cli.StringSliceFlag{

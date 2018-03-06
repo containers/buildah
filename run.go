@@ -130,7 +130,7 @@ func addHostsToFile(hosts []string, filename string) error {
 }
 
 func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) error {
-	// RESOURCES - CPU
+	// Resources - CPU
 	if commonOpts.CPUPeriod != 0 {
 		g.SetLinuxResourcesCPUPeriod(commonOpts.CPUPeriod)
 	}
@@ -147,7 +147,7 @@ func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) 
 		g.SetLinuxResourcesCPUMems(commonOpts.CPUSetMems)
 	}
 
-	// RESOURCES - MEMORY
+	// Resources - Memory
 	if commonOpts.Memory != 0 {
 		g.SetLinuxResourcesMemoryLimit(commonOpts.Memory)
 	}
@@ -155,18 +155,21 @@ func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) 
 		g.SetLinuxResourcesMemorySwap(commonOpts.MemorySwap)
 	}
 
+	// cgroup membership
 	if commonOpts.CgroupParent != "" {
 		g.SetLinuxCgroupsPath(commonOpts.CgroupParent)
 	}
 
+	// Other process resource limits
 	if err := addRlimits(commonOpts.Ulimit, g); err != nil {
 		return err
 	}
+
 	if err := addHostsToFile(commonOpts.AddHost, "/etc/hosts"); err != nil {
 		return err
 	}
 
-	logrus.Debugln("Resources:", commonOpts)
+	logrus.Debugf("Resources: %#v", commonOpts)
 	return nil
 }
 
@@ -415,10 +418,10 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return errors.Wrapf(err, "error ensuring working directory %q exists", spec.Process.Cwd)
 	}
 
-	//Security Opts
+	// Set the apparmor profile name.
 	g.SetProcessApparmorProfile(b.CommonBuildOpts.ApparmorProfile)
 
-	// HANDLE SECCOMP
+	// Set the seccomp configuration using the specified profile name.
 	if b.CommonBuildOpts.SeccompProfilePath != "unconfined" {
 		if b.CommonBuildOpts.SeccompProfilePath != "" {
 			seccompProfile, err := ioutil.ReadFile(b.CommonBuildOpts.SeccompProfilePath)
