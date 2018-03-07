@@ -440,15 +440,15 @@ func (i *containerImageSource) Reference() types.ImageReference {
 }
 
 func (i *containerImageSource) GetSignatures(ctx context.Context, instanceDigest *digest.Digest) ([][]byte, error) {
-	if instanceDigest != nil && *instanceDigest != digest.FromBytes(i.manifest) {
-		return nil, errors.Errorf("TODO")
+	if instanceDigest != nil {
+		return nil, errors.Errorf("containerImageSource does not support manifest lists")
 	}
 	return nil, nil
 }
 
 func (i *containerImageSource) GetManifest(ctx context.Context, instanceDigest *digest.Digest) ([]byte, string, error) {
-	if instanceDigest != nil && *instanceDigest != digest.FromBytes(i.manifest) {
-		return nil, "", errors.Errorf("TODO")
+	if instanceDigest != nil {
+		return nil, "", errors.Errorf("containerImageSource does not support manifest lists")
 	}
 	return i.manifest, i.manifestType, nil
 }
