@@ -116,6 +116,11 @@ type Builder struct {
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format.
 	DefaultMountsFilePath string `json:"defaultMountsFilePath,omitempty"`
 
+	// NamespaceOptions controls how we set up the namespaces for processes that we run in the container.
+	NamespaceOptions NamespaceOptions
+	// ID mapping options to use when running processes in the container with non-host user namespaces.
+	IDMappingOptions IDMappingOptions
+
 	CommonBuildOpts *CommonBuildOptions
 }
 
@@ -136,6 +141,8 @@ type BuilderInfo struct {
 	OCIv1                 v1.Image
 	Docker                docker.V2Image
 	DefaultMountsFilePath string
+	NamespaceOptions      NamespaceOptions
+	IDMappingOptions      IDMappingOptions
 }
 
 // GetBuildInfo gets a pointer to a Builder object and returns a BuilderInfo object from it.
@@ -156,6 +163,8 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 		OCIv1:                 b.OCIv1,
 		Docker:                b.Docker,
 		DefaultMountsFilePath: b.DefaultMountsFilePath,
+		NamespaceOptions:      b.NamespaceOptions,
+		IDMappingOptions:      b.IDMappingOptions,
 	}
 }
 
@@ -250,7 +259,13 @@ type BuilderOptions struct {
 	// DefaultMountsFilePath is the file path holding the mounts to be
 	// mounted in "host-path:container-path" format
 	DefaultMountsFilePath string
-	CommonBuildOpts       *CommonBuildOptions
+	// NamespaceOptions controls how we set up namespaces for processes that
+	// we might need to run using the container's root filesystem.
+	NamespaceOptions NamespaceOptions
+	// ID mapping options to use if we're setting up our own user namespace.
+	IDMappingOptions *IDMappingOptions
+
+	CommonBuildOpts *CommonBuildOptions
 }
 
 // ImportOptions are used to initialize a Builder from an existing container
