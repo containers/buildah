@@ -278,6 +278,9 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	if err != nil {
 		return nil, err
 	}
+	uidmap, gidmap := convertStorageIDMaps(container.UIDMap, container.GIDMap)
+	namespaceOptions := DefaultNamespaceOptions()
+	namespaceOptions.AddOrReplace(options.NamespaceOptions...)
 
 	builder := &Builder{
 		store:                 store,
@@ -293,7 +296,14 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		ProcessLabel:          processLabel,
 		MountLabel:            mountLabel,
 		DefaultMountsFilePath: options.DefaultMountsFilePath,
-		CommonBuildOpts:       options.CommonBuildOpts,
+		NamespaceOptions:      namespaceOptions,
+		IDMappingOptions: IDMappingOptions{
+			HostUIDMapping: len(uidmap) == 0,
+			HostGIDMapping: len(uidmap) == 0,
+			UIDMap:         uidmap,
+			GIDMap:         gidmap,
+		},
+		CommonBuildOpts: options.CommonBuildOpts,
 	}
 
 	if options.Mount {

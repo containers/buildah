@@ -69,11 +69,40 @@ func (t TerminalPolicy) String() string {
 	return fmt.Sprintf("unrecognized terminal setting %d", t)
 }
 
+// NamespaceOption controls how we set up a namespace when launching processes.
+type NamespaceOption struct {
+	// Name specifies the type of namespace, typically matching one of the
+	// ...Namespace constants defined in
+	// github.com/opencontainers/runtime-spec/specs-go.
+	Name string
+	// Host is used to force our processes to use the host's namespace of
+	// this type.
+	Host bool
+	// Path is the path of the namespace to attach our process to, if Host
+	// is not set.  If Host is not set and Path is also empty, a new
+	// namespace will be created for the process that we're starting.
+	Path string
+}
+
+// NamespaceOptions provides some helper methods for a slice of NamespaceOption
+// structs.
+type NamespaceOptions []NamespaceOption
+
+// IDMappingOptions controls how we set up UID/GID mapping when we set up a
+// user namespace.
+type IDMappingOptions struct {
+	HostUIDMapping bool
+	HostGIDMapping bool
+	UIDMap         []specs.LinuxIDMapping
+	GIDMap         []specs.LinuxIDMapping
+}
+
 // RunOptions can be used to alter how a command is run in the container.
 type RunOptions struct {
 	// Hostname is the hostname we set for the running container.
 	Hostname string
-	// Runtime is the name of the command to run.  It should accept the same arguments that runc does.
+	// Runtime is the name of the command to run.  It should accept the same arguments
+	// that runc does, and produce similar output.
 	Runtime string
 	// Args adds global arguments for the runtime.
 	Args []string
@@ -91,8 +120,13 @@ type RunOptions struct {
 	Cmd []string
 	// Entrypoint is an override for the configured entry point.
 	Entrypoint []string
-	// NetworkDisabled puts the container into its own network namespace.
+	// NetworkDisabled skips configuration of network interfaces and routing
+	// when setting up a new network namespace (i.e., when not joining another's
+	// namespace and not just using the host's namespace), effectively leaving
+	// the process without a usable network.
 	NetworkDisabled bool
+	// NamespaceOptions controls how we set up the namespaces for the process.
+	NamespaceOptions NamespaceOptions
 	// Terminal provides a way to specify whether or not the command should
 	// be run with a pseudoterminal.  By default (DefaultTerminal), a
 	// terminal is used if os.Stdout is connected to a terminal, but that
@@ -101,6 +135,59 @@ type RunOptions struct {
 	Terminal TerminalPolicy
 	// Quiet tells the run to turn off output to stdout.
 	Quiet bool
+}
+
+// DefaultNamespaceOptions returns the default namespace settings from the
+// runtime-tools generator library.
+func DefaultNamespaceOptions() NamespaceOptions {
+	options := NamespaceOptions{
+		{Name: string(specs.CgroupNamespace), Host: true},
+		{Name: string(specs.IPCNamespace), Host: true},
+		{Name: string(specs.MountNamespace), Host: true},
+		{Name: string(specs.NetworkNamespace), Host: true},
+		{Name: string(specs.PIDNamespace), Host: true},
+		{Name: string(specs.UserNamespace), Host: true},
+		{Name: string(specs.UTSNamespace), Host: true},
+	}
+	g := generate.New()
+	spec := g.Spec()
+	if spec.Linux != nil {
+		for _, ns := range spec.Linux.Namespaces {
+			options.AddOrReplace(NamespaceOption{
+				Name: string(ns.Type),
+				Path: ns.Path,
+			})
+		}
+	}
+	return options
+}
+
+// Find the configuration for the namespace of the given type.  If there are
+// duplicates, find the _last_ one of the type, since we assume it was appended
+// more recently.
+func (n *NamespaceOptions) Find(namespace string) *NamespaceOption {
+	for i := range *n {
+		j := len(*n) - 1 - i
+		if (*n)[j].Name == namespace {
+			return &((*n)[j])
+		}
+	}
+	return nil
+}
+
+// AddOrReplace either adds or replaces the configuration for a given namespace.
+func (n *NamespaceOptions) AddOrReplace(options ...NamespaceOption) {
+nextOption:
+	for _, option := range options {
+		for i := range *n {
+			j := len(*n) - 1 - i
+			if (*n)[j].Name == option.Name {
+				(*n)[j] = option
+				continue nextOption
+			}
+		}
+		*n = append(*n, option)
+	}
 }
 
 func addRlimits(ulimit []string, g *generate.Generator) error {
@@ -213,7 +300,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 			Source:      src,
 			Destination: dest,
 			Type:        "bind",
-			Options:     []string{"rbind", "ro"},
+			Options:     []string{"rbind"},
 		})
 	}
 
@@ -222,10 +309,11 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 		return errors.Wrapf(err, "error determining work directory for container %q", b.ContainerID)
 	}
 
-	// Add secrets mounts
+	// Add secrets mounts, unless they conflict.
 	secretMounts := secrets.SecretMounts(b.MountLabel, cdir, b.DefaultMountsFilePath)
 	for _, mount := range secretMounts {
 		if haveMount(mount.Destination) {
+			// Already have something to mount there, so skip this one.
 			continue
 		}
 		mounts = append(mounts, mount)
@@ -340,6 +428,115 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string) (string, error) {
 	return cfile, nil
 }
 
+func setupMaskedPaths(g *generate.Generator) {
+	for _, mp := range []string{
+		"/proc/kcore",
+		"/proc/latency_stats",
+		"/proc/timer_list",
+		"/proc/timer_stats",
+		"/proc/sched_debug",
+		"/proc/scsi",
+		"/sys/firmware",
+	} {
+		g.AddLinuxMaskedPaths(mp)
+	}
+}
+
+func setupReadOnlyPaths(g *generate.Generator) {
+	for _, rp := range []string{
+		"/proc/asound",
+		"/proc/bus",
+		"/proc/fs",
+		"/proc/irq",
+		"/proc/sys",
+		"/proc/sysrq-trigger",
+	} {
+		g.AddLinuxReadonlyPaths(rp)
+	}
+}
+
+func setupSeccomp(spec *specs.Spec, seccompProfilePath string) error {
+	if seccompProfilePath != "unconfined" {
+		if seccompProfilePath != "" {
+			seccompProfile, err := ioutil.ReadFile(seccompProfilePath)
+			if err != nil {
+				return errors.Wrapf(err, "opening seccomp profile (%s) failed", seccompProfilePath)
+			}
+			seccompConfig, err := seccomp.LoadProfile(string(seccompProfile), spec)
+			if err != nil {
+				return errors.Wrapf(err, "loading seccomp profile (%s) failed", seccompProfilePath)
+			}
+			spec.Linux.Seccomp = seccompConfig
+		} else {
+			seccompConfig, err := seccomp.GetDefaultProfile(spec)
+			if err != nil {
+				return errors.Wrapf(err, "loading seccomp profile (%s) failed", seccompProfilePath)
+			}
+			spec.Linux.Seccomp = seccompConfig
+		}
+	}
+	return nil
+}
+
+func setupApparmor(spec *specs.Spec, apparmorProfile string) error {
+	spec.Process.ApparmorProfile = apparmorProfile
+	return nil
+}
+
+func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy) {
+	switch terminalPolicy {
+	case DefaultTerminal:
+		g.SetProcessTerminal(terminal.IsTerminal(int(os.Stdout.Fd())))
+	case WithTerminal:
+		g.SetProcessTerminal(true)
+	case WithoutTerminal:
+		g.SetProcessTerminal(false)
+	}
+}
+
+func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, idmapOptions IDMappingOptions, networkDisabled bool) error {
+	// Set namespace options in the container configuration.
+	for _, namespaceOption := range namespaceOptions {
+		if namespaceOption.Host {
+			if err := g.RemoveLinuxNamespace(namespaceOption.Name); err != nil {
+				return errors.Wrapf(err, "error removing %q namespace for run", namespaceOption.Name)
+			}
+		} else if err := g.AddOrReplaceLinuxNamespace(namespaceOption.Name, namespaceOption.Path); err != nil {
+			if namespaceOption.Path == "" {
+				return errors.Wrapf(err, "error adding new %q namespace for run", namespaceOption.Name)
+			}
+			return errors.Wrapf(err, "error adding %q namespace %q for run", namespaceOption.Name, namespaceOption.Path)
+		}
+	}
+	// If we've got mappings, we're going to have to create a user namespace.
+	if len(idmapOptions.UIDMap) > 0 || len(idmapOptions.GIDMap) > 0 {
+		if err := g.AddOrReplaceLinuxNamespace(specs.UserNamespace, ""); err != nil {
+			return errors.Wrapf(err, "error adding new %q namespace for run", string(specs.UserNamespace))
+		}
+		for _, m := range idmapOptions.UIDMap {
+			g.AddLinuxUIDMapping(m.HostID, m.ContainerID, m.Size)
+		}
+		for _, m := range idmapOptions.GIDMap {
+			g.AddLinuxGIDMapping(m.HostID, m.ContainerID, m.Size)
+		}
+		if !networkDisabled {
+			if err := g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, ""); err != nil {
+				return errors.Wrapf(err, "error adding new %q namespace for run", string(specs.NetworkNamespace))
+			}
+		}
+	} else {
+		if err := g.RemoveLinuxNamespace(specs.UserNamespace); err != nil {
+			return errors.Wrapf(err, "error removing %q namespace for run", string(specs.UserNamespace))
+		}
+		if !networkDisabled {
+			if err := g.RemoveLinuxNamespace(specs.NetworkNamespace); err != nil {
+				return errors.Wrapf(err, "error removing %q namespace for run", string(specs.NetworkNamespace))
+			}
+		}
+	}
+	return nil
+}
+
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
 	var user specs.User
@@ -353,7 +550,8 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			logrus.Errorf("error removing %q: %v", path, err2)
 		}
 	}()
-	g := generate.New()
+	gp := generate.New()
+	g := &gp
 
 	for _, envSpec := range append(b.Env(), options.Env...) {
 		env := strings.SplitN(envSpec, "=", 2)
@@ -366,7 +564,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return errors.Errorf("Invalid format on container you must recreate the container")
 	}
 
-	if err := addCommonOptsToSpec(b.CommonBuildOpts, &g); err != nil {
+	if err := addCommonOptsToSpec(b.CommonBuildOpts, g); err != nil {
 		return err
 	}
 
@@ -396,49 +594,30 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			logrus.Errorf("error unmounting container: %v", err2)
 		}
 	}()
-	for _, mp := range []string{
-		"/proc/kcore",
-		"/proc/latency_stats",
-		"/proc/timer_list",
-		"/proc/timer_stats",
-		"/proc/sched_debug",
-		"/proc/scsi",
-		"/sys/firmware",
-	} {
-		g.AddLinuxMaskedPaths(mp)
-	}
 
-	for _, rp := range []string{
-		"/proc/asound",
-		"/proc/bus",
-		"/proc/fs",
-		"/proc/irq",
-		"/proc/sys",
-		"/proc/sysrq-trigger",
-	} {
-		g.AddLinuxReadonlyPaths(rp)
-	}
+	setupMaskedPaths(g)
+	setupReadOnlyPaths(g)
+
 	g.SetRootPath(mountPoint)
-	switch options.Terminal {
-	case DefaultTerminal:
-		g.SetProcessTerminal(terminal.IsTerminal(int(os.Stdout.Fd())))
-	case WithTerminal:
-		g.SetProcessTerminal(true)
-	case WithoutTerminal:
-		g.SetProcessTerminal(false)
+
+	setupTerminal(g, options.Terminal)
+
+	namespaceOptions := DefaultNamespaceOptions()
+	namespaceOptions.AddOrReplace(b.NamespaceOptions...)
+	namespaceOptions.AddOrReplace(options.NamespaceOptions...)
+	if err = setupNamespaces(g, namespaceOptions, b.IDMappingOptions, options.NetworkDisabled); err != nil {
+		return err
 	}
-	if !options.NetworkDisabled {
-		if err = g.RemoveLinuxNamespace("network"); err != nil {
-			return errors.Wrapf(err, "error removing network namespace for run")
-		}
-	}
-	user, err = b.user(mountPoint, options.User)
-	if err != nil {
+	if user, err = b.user(mountPoint, options.User); err != nil {
 		return err
 	}
 	g.SetProcessUID(user.UID)
 	g.SetProcessGID(user.GID)
+
+	// Now grab the spec from the generator.  Set the generator to nil so that future contributors
+	// will quickly be able to tell that they're supposed to be modifying the spec directly from here.
 	spec := g.Spec()
+	g = nil
 	if spec.Process.Cwd == "" {
 		spec.Process.Cwd = DefaultWorkingDir
 	}
@@ -447,27 +626,13 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 
 	// Set the apparmor profile name.
-	g.SetProcessApparmorProfile(b.CommonBuildOpts.ApparmorProfile)
+	if err = setupApparmor(spec, b.CommonBuildOpts.ApparmorProfile); err != nil {
+		return err
+	}
 
 	// Set the seccomp configuration using the specified profile name.
-	if b.CommonBuildOpts.SeccompProfilePath != "unconfined" {
-		if b.CommonBuildOpts.SeccompProfilePath != "" {
-			seccompProfile, err := ioutil.ReadFile(b.CommonBuildOpts.SeccompProfilePath)
-			if err != nil {
-				return errors.Wrapf(err, "opening seccomp profile (%s) failed", b.CommonBuildOpts.SeccompProfilePath)
-			}
-			seccompConfig, err := seccomp.LoadProfile(string(seccompProfile), spec)
-			if err != nil {
-				return errors.Wrapf(err, "loading seccomp profile (%s) failed", b.CommonBuildOpts.SeccompProfilePath)
-			}
-			spec.Linux.Seccomp = seccompConfig
-		} else {
-			seccompConfig, err := seccomp.GetDefaultProfile(spec)
-			if err != nil {
-				return errors.Wrapf(err, "loading seccomp profile (%s) failed", b.CommonBuildOpts.SeccompProfilePath)
-			}
-			spec.Linux.Seccomp = seccompConfig
-		}
+	if err = setupSeccomp(spec, b.CommonBuildOpts.SeccompProfilePath); err != nil {
+		return err
 	}
 
 	cgroupMnt := specs.Mount{
@@ -476,7 +641,8 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		Source:      "cgroup",
 		Options:     []string{"nosuid", "noexec", "nodev", "relatime", "ro"},
 	}
-	g.AddMount(cgroupMnt)
+	spec.Mounts = append(spec.Mounts, cgroupMnt)
+
 	hostFile, err := b.addNetworkConfig(path, "/etc/hosts")
 	if err != nil {
 		return err
