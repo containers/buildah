@@ -1,3 +1,4 @@
+[![GoDoc](https://godoc.org/github.com/xeipuuv/gojsonschema?status.svg)](https://godoc.org/github.com/xeipuuv/gojsonschema)
 [![Build Status](https://travis-ci.org/xeipuuv/gojsonschema.svg)](https://travis-ci.org/xeipuuv/gojsonschema)
 
 # gojsonschema
@@ -189,11 +190,13 @@ Note: An error of RequiredType has an err.Type() return value of "required"
 
 **err.Value()**: *interface{}* Returns the value given
 
-**err.Context()**: *gojsonschema.jsonContext* Returns the context. This has a String() method that will print something like this: (root).firstName
+**err.Context()**: *gojsonschema.JsonContext* Returns the context. This has a String() method that will print something like this: (root).firstName
 
 **err.Field()**: *string* Returns the fieldname in the format firstName, or for embedded properties, person.firstName. This returns the same as the String() method on *err.Context()* but removes the (root). prefix.
 
 **err.Description()**: *string* The error description. This is based on the locale you are using. See the beginning of this section for overwriting the locale with a custom implementation.
+
+**err.DescriptionFormat()**: *string* The error description format. This is relevant if you are adding custom validation errors afterwards to the result.
 
 **err.Details()**: *gojsonschema.ErrorDetails* Returns a map[string]interface{} of additional error details specific to the error. For example, GTE errors will have a "min" value, LTE will have a "max" value. See errors.go for a full description of all the error details. Every error always contains a "field" key that holds the value of *err.Field()*
 
@@ -285,7 +288,56 @@ func (f ValidUserIdFormatChecker) IsFormat(input interface{}) bool {
 gojsonschema.FormatCheckers.Add("ValidUserId", ValidUserIdFormatChecker{})
 ````
 
+## Additional custom validation
+After the validation has run and you have the results, you may add additional
+errors using `Result.AddError`. This is useful to maintain the same format within the resultset instead
+of having to add special exceptions for your own errors. Below is an example.
 
+```go
+type AnswerInvalidError struct {
+    gojsonschema.ResultErrorFields
+}
+
+func newAnswerInvalidError(context *gojsonschema.JsonContext, value interface{}, details gojsonschema.ErrorDetails) *AnswerInvalidError {
+    err := AnswerInvalidError{}
+    err.SetContext(context)
+    err.SetType("custom_invalid_error")
+    // it is important to use SetDescriptionFormat() as this is used to call SetDescription() after it has been parsed
+    // using the description of err will be overridden by this.
+    err.SetDescriptionFormat("Answer to the Ultimate Question of Life, the Universe, and Everything is {{.answer}}")
+    err.SetValue(value)
+    err.SetDetails(details)
+
+    return &err
+}
+
+func main() {
+    // ...
+    schema, err := gojsonschema.NewSchema(schemaLoader)
+    result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+
+    if true { // some validation
+        jsonContext := gojsonschema.NewJsonContext("question", nil)
+        errDetail := gojsonschema.ErrorDetails{
+            "answer": 42,
+        }
+        result.AddError(
+            newAnswerInvalidError(
+                gojsonschema.NewJsonContext("answer", jsonContext),
+                52,
+                errDetail,
+            ),
+            errDetail,
+        )
+    }
+
+    return result, err
+
+}
+```
+
+This is especially useful if you want to add validation beyond what the
+json schema drafts can provide such business specific logic.
 
 ## Uses
 

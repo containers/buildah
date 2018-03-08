@@ -43,8 +43,10 @@ These projects use gogoprotobuf:
   - <a href="https://github.com/heroiclabs/nakama">nakama</a>
   - <a href="https://github.com/src-d/proteus">proteus</a>
   - <a href="https://github.com/go-graphite">carbonzipper stack</a>
-  - <a href="https://sendgrid.com/">SendGrid</a>
-  
+  - <a href="https://sendgrid.com/">sendgrid</a>
+  - <a href="https://github.com/zero-os/0-stor">zero-os/0-stor</a>
+  - <a href="https://github.com/spacemeshos/go-spacemesh">go-spacemesh</a>
+
 Please let us know if you are using gogoprotobuf by posting on our <a href="https://groups.google.com/forum/#!topic/gogoprotobuf/Brw76BxmFpQ">GoogleGroup</a>.
 
 ### Mentioned
@@ -52,6 +54,8 @@ Please let us know if you are using gogoprotobuf by posting on our <a href="http
   - <a href="http://www.slideshare.net/albertstrasheim/serialization-in-go">Cloudflare - go serialization talk - Albert Strasheim</a>
   - <a href="https://youtu.be/4xB46Xl9O9Q?t=557">GopherCon 2014 Writing High Performance Databases in Go by Ben Johnson</a>
   - <a href="https://github.com/alecthomas/go_serialization_benchmarks">alecthomas' go serialization benchmarks</a>
+  - <a href="http://agniva.me/go/2017/11/18/gogoproto.html">Go faster with gogoproto - Agniva De Sarker</a>
+  - <a href="https://www.youtube.com/watch?v=CY9T020HLP8">Evolution of protobuf (Gource Visualization) - Landon Wilkins</a> 
 
 ## Getting Started
 
@@ -64,10 +68,10 @@ After that you can choose:
 
 ### Installation
 
-To install it, you must first have Go (at least version 1.6.3) installed (see [http://golang.org/doc/install](http://golang.org/doc/install)).  Go 1.8.3 and 1.9 are continuously tested.
+To install it, you must first have Go (at least version 1.6.3) installed (see [http://golang.org/doc/install](http://golang.org/doc/install)). Latest patch versions of Go 1.8, 1.9 and 1.10 are continuously tested.
 
 Next, install the standard protocol buffer implementation from [https://github.com/google/protobuf](https://github.com/google/protobuf).
-Most versions from 2.3.1 should not give any problems, but 2.6.1, 3.0.2 and 3.4.0 are continuously tested.
+Most versions from 2.3.1 should not give any problems, but 2.6.1, 3.0.2 and 3.5.1 are continuously tested.
 
 ### Speed
 
@@ -98,7 +102,23 @@ Installing any of these binaries is easy.  Simply run:
     go get github.com/gogo/protobuf/{binary}
     go get github.com/gogo/protobuf/gogoproto
 
-These binaries allow you to using gogoprotobuf [extensions](https://github.com/gogo/protobuf/blob/master/extensions.md).
+These binaries allow you to use gogoprotobuf [extensions](https://github.com/gogo/protobuf/blob/master/extensions.md). You can also use your own binary.
+
+To generate the code, you also need to set the include path properly.
+
+    protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/gogo/protobuf/protobuf --{binary}_out=. myproto.proto
+
+To use proto files from "google/protobuf" you need to add additional args to protoc.
+
+    protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/gogo/protobuf/protobuf --{binary}_out=\
+    Mgoogle/protobuf/any.proto=github.com/gogo/protobuf/types,\
+    Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types,\
+    Mgoogle/protobuf/struct.proto=github.com/gogo/protobuf/types,\
+    Mgoogle/protobuf/timestamp.proto=github.com/gogo/protobuf/types,\
+    Mgoogle/protobuf/wrappers.proto=github.com/gogo/protobuf/types:. \
+    myproto.proto
+
+Note that in the protoc command, {binary} does not contain the initial prefix of "protoc-gen".
 
 ### Most Speed and most customization
 
@@ -120,3 +140,8 @@ It works the same as golang/protobuf, simply specify the plugin.
 Here is an example using gofast:
 
     protoc --gofast_out=plugins=grpc:. my.proto
+
+See [https://github.com/gogo/grpc-example](https://github.com/gogo/grpc-example) for an example of using gRPC with gogoprotobuf and the wider grpc-ecosystem.
+
+
+  
