@@ -145,10 +145,20 @@ type (
 	NumberLTError struct {
 		ResultErrorFields
 	}
+
+	// ConditionThenError. ErrorDetails: -
+	ConditionThenError struct {
+		ResultErrorFields
+	}
+
+	// ConditionElseError. ErrorDetails: -
+	ConditionElseError struct {
+		ResultErrorFields
+	}
 )
 
 // newError takes a ResultError type and sets the type, context, description, details, value, and field
-func newError(err ResultError, context *jsonContext, value interface{}, locale locale, details ErrorDetails) {
+func newError(err ResultError, context *JsonContext, value interface{}, locale locale, details ErrorDetails) {
 	var t string
 	var d string
 	switch err.(type) {
@@ -230,19 +240,26 @@ func newError(err ResultError, context *jsonContext, value interface{}, locale l
 	case *NumberLTError:
 		t = "number_lt"
 		d = locale.NumberLT()
+	case *ConditionThenError:
+		t = "condition_then"
+		d = locale.ConditionThen()
+	case *ConditionElseError:
+		t = "condition_else"
+		d = locale.ConditionElse()
 	}
 
 	err.SetType(t)
 	err.SetContext(context)
 	err.SetValue(value)
 	err.SetDetails(details)
+	err.SetDescriptionFormat(d)
 	details["field"] = err.Field()
 
 	if _, exists := details["context"]; !exists && context != nil {
 		details["context"] = context.String()
 	}
 
-	err.SetDescription(formatErrorDescription(d, details))
+	err.SetDescription(formatErrorDescription(err.DescriptionFormat(), details))
 }
 
 // formatErrorDescription takes a string in the default text/template

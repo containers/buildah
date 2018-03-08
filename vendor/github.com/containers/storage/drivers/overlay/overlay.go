@@ -84,6 +84,8 @@ type overlayOptions struct {
 	overrideKernelCheck bool
 	imageStores         []string
 	quota               quota.Quota
+	ostreeRepo          string
+	skipMountHome       bool
 }
 
 // Driver contains information about the home directory and the list of active mounts that are created using this driver.
@@ -98,6 +100,7 @@ type Driver struct {
 	naiveDiff     graphdriver.DiffDriver
 	supportsDType bool
 	locker        *locker.Locker
+	convert       map[string]bool
 }
 
 var (
@@ -154,8 +157,16 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, errors.Wrap(graphdriver.ErrNotSupported, "kernel does not support overlay fs")
 	}
 
-	if err := mount.MakePrivate(home); err != nil {
-		return nil, err
+	if !opts.skipMountHome {
+		if err := mount.MakePrivate(home); err != nil {
+			return nil, err
+		}
+	}
+
+	if opts.ostreeRepo != "" {
+		if err := createOSTreeRepository(opts.ostreeRepo, rootUID, rootGID); err != nil {
+			return nil, err
+		}
 	}
 
 	d := &Driver{
@@ -167,6 +178,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		supportsDType: supportsDType,
 		locker:        locker.New(),
 		options:       *opts,
+		convert:       make(map[string]bool),
 	}
 
 	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps)
@@ -226,6 +238,18 @@ func parseOptions(options []string) (*overlayOptions, error) {
 					return nil, fmt.Errorf("overlay: image path %q must be a directory", store)
 				}
 				o.imageStores = append(o.imageStores, store)
+			}
+		case "overlay2.ostree_repo", "overlay.ostree_repo", ".ostree_repo":
+			logrus.Debugf("overlay: ostree_repo=%s", val)
+			if !ostreeSupport() {
+				return nil, fmt.Errorf("overlay: ostree_repo specified but support for ostree is missing")
+			}
+			o.ostreeRepo = val
+		case "overlay2.skip_mount_home", "overlay.skip_mount_home", ".skip_mount_home":
+			logrus.Debugf("overlay: skip_mount_home=%s", val)
+			o.skipMountHome, err = strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
 			}
 		default:
 			return nil, fmt.Errorf("overlay: Unknown option %s", key)
@@ -374,6 +398,11 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 			return fmt.Errorf("--storage-opt size is only supported for ReadWrite Layers")
 		}
 	}
+
+	if d.options.ostreeRepo != "" {
+		d.convert[id] = true
+	}
+
 	return d.create(id, parent, opts)
 }
 
@@ -533,6 +562,14 @@ func (d *Driver) getLowerDirs(id string) ([]string, error) {
 func (d *Driver) Remove(id string) error {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
+
+	if d.options.ostreeRepo != "" {
+		err := deleteOSTree(d.options.ostreeRepo, id)
+		if err != nil {
+			return err
+		}
+	}
+
 	dir := d.dir(id)
 	lid, err := ioutil.ReadFile(path.Join(dir, "link"))
 	if err == nil {
@@ -712,6 +749,13 @@ func (d *Driver) ApplyDiff(id, parent, mountLabel string, diff io.Reader) (size 
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
 	}); err != nil {
 		return 0, err
+	}
+
+	_, convert := d.convert[id]
+	if convert {
+		if err := convertToOSTree(d.options.ostreeRepo, applyDir, id); err != nil {
+			return 0, err
+		}
 	}
 
 	return directory.Size(applyDir)

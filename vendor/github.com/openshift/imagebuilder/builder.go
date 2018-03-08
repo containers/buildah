@@ -3,12 +3,12 @@ package imagebuilder
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
@@ -19,6 +19,11 @@ import (
 
 // Copy defines a copy operation required on the container.
 type Copy struct {
+	// If true, this is a copy from the file system to the container. If false,
+	// the copy is from the context.
+	FromFS bool
+	// If set, this is a copy from the named stage or image to the container.
+	From     string
 	Src      []string
 	Dest     string
 	Download bool
@@ -46,7 +51,7 @@ func (logExecutor) Preserve(path string) error {
 
 func (logExecutor) Copy(excludes []string, copies ...Copy) error {
 	for _, c := range copies {
-		log.Printf("COPY %v -> %s (download:%t)", c.Src, c.Dest, c.Download)
+		log.Printf("COPY %v -> %s (from:%s download:%t)", c.Src, c.Dest, c.From, c.Download)
 	}
 	return nil
 }
@@ -134,6 +139,62 @@ var (
 	NoopExecutor = noopExecutor{}
 )
 
+type Stages []Stage
+
+func (stages Stages) ByTarget(target string) (Stages, bool) {
+	if len(target) == 0 {
+		return stages, true
+	}
+	for i, stage := range stages {
+		if stage.Name == target {
+			return stages[:i+1], true
+		}
+	}
+	return nil, false
+}
+
+type Stage struct {
+	Position int
+	Name     string
+	Builder  *Builder
+	Node     *parser.Node
+}
+
+func NewStages(node *parser.Node, b *Builder) Stages {
+	var stages Stages
+	for i, root := range SplitBy(node, command.From) {
+		name, _ := extractNameFromNode(root.Children[0])
+		if len(name) == 0 {
+			name = strconv.Itoa(i)
+		}
+		stages = append(stages, Stage{
+			Position: i,
+			Name:     name,
+			Builder: &Builder{
+				Args:        b.Args,
+				AllowedArgs: b.AllowedArgs,
+			},
+			Node: root,
+		})
+	}
+	return stages
+}
+
+func extractNameFromNode(node *parser.Node) (string, bool) {
+	if node.Value != command.From {
+		return "", false
+	}
+	n := node.Next
+	if n == nil || n.Next == nil {
+		return "", false
+	}
+	n = n.Next
+	if n.Value != "as" || n.Next == nil || len(n.Next.Value) == 0 {
+		return "", false
+	}
+	return n.Next.Value, true
+}
+
 type Builder struct {
 	RunConfig docker.Config
 
@@ -153,34 +214,24 @@ type Builder struct {
 	Warnings []string
 }
 
-func NewBuilder() *Builder {
-	args := make(map[string]bool)
+func NewBuilder(args map[string]string) *Builder {
+	allowed := make(map[string]bool)
 	for k, v := range builtinAllowedBuildArgs {
-		args[k] = v
+		allowed[k] = v
 	}
 	return &Builder{
-		Args:        make(map[string]string),
-		AllowedArgs: args,
+		Args:        args,
+		AllowedArgs: allowed,
 	}
 }
 
-func NewBuilderForReader(r io.Reader, args map[string]string) (*Builder, *parser.Node, error) {
-	b := NewBuilder()
-	b.Args = args
-	node, err := ParseDockerfile(r)
-	if err != nil {
-		return nil, nil, err
-	}
-	return b, node, err
-}
-
-func NewBuilderForFile(path string, args map[string]string) (*Builder, *parser.Node, error) {
+func ParseFile(path string) (*parser.Node, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer f.Close()
-	return NewBuilderForReader(f, args)
+	return ParseDockerfile(f)
 }
 
 // Step creates a new step from the current state.
@@ -351,6 +402,22 @@ func SplitChildren(node *parser.Node, value string) []*parser.Node {
 		}
 	}
 	node.Children = children
+	return split
+}
+
+func SplitBy(node *parser.Node, value string) []*parser.Node {
+	var split []*parser.Node
+	var current *parser.Node
+	for _, child := range node.Children {
+		if current == nil || child.Value == value {
+			copied := *node
+			current = &copied
+			current.Children = nil
+			current.Next = nil
+			split = append(split, current)
+		}
+		current.Children = append(current.Children, child)
+	}
 	return split
 }
 
