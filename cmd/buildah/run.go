@@ -20,6 +20,11 @@ var (
 			Usage: "set the hostname inside of the container",
 		},
 		cli.StringFlag{
+			Name:  "image-volume, builtin-volume",
+			Usage: "Tells buildah how to handle the builtin image volumes. The option is ignore",
+			Value: "ignore",
+		},
+		cli.StringFlag{
 			Name:  "runtime",
 			Usage: "`path` to an alternate runtime",
 			Value: buildah.DefaultRuntime,
@@ -84,6 +89,7 @@ func runCmd(c *cli.Context) error {
 	}
 
 	options := buildah.RunOptions{
+		BuiltInVolume: c.String("image-volume, builtin-volume"),
 		Hostname: c.String("hostname"),
 		Runtime:  c.String("runtime"),
 		Args:     runtimeFlags,

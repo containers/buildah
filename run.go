@@ -43,6 +43,8 @@ const (
 
 // RunOptions can be used to alter how a command is run in the container.
 type RunOptions struct {
+	// BuiltInVolume the setting for handling builtin image volumes.
+	BuiltInVolume string
 	// Hostname is the hostname we set for the running container.
 	Hostname string
 	// Runtime is the name of the command to run.  It should accept the same arguments that runc does.
@@ -147,7 +149,7 @@ func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) 
 	return nil
 }
 
-func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles, builtinVolumes, volumeMounts []string, shmSize string) error {
+func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles, builtinVolumes, volumeMounts []string, shmSize string, builtInVolume string) error {
 	// The passed-in mounts matter the most to us.
 	mounts := make([]specs.Mount, len(optionMounts))
 	copy(mounts, optionMounts)
@@ -205,36 +207,38 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 			mounts = append(mounts, mount)
 		}
 	}
-	// Add temporary copies of the contents of volume locations at the
-	// volume locations, unless we already have something there.
-	for _, volume := range builtinVolumes {
-		if haveMount(volume) {
-			// Already mounting something there, no need to bother.
-			continue
-		}
-		subdir := digest.Canonical.FromString(volume).Hex()
-		volumePath := filepath.Join(cdir, "buildah-volumes", subdir)
-		// If we need to, initialize the volume path's initial contents.
-		if _, err = os.Stat(volumePath); os.IsNotExist(err) {
-			if err = os.MkdirAll(volumePath, 0755); err != nil {
-				return errors.Wrapf(err, "error creating directory %q for volume %q in container %q", volumePath, volume, b.ContainerID)
+	if (builtInVolume != "ignore") {
+		// Add temporary copies of the contents of volume locations at the
+		// volume locations, unless we already have something there.
+		for _, volume := range builtinVolumes {
+			if haveMount(volume) {
+				// Already mounting something there, no need to bother.
+				continue
 			}
-			if err = label.Relabel(volumePath, b.MountLabel, false); err != nil {
-				return errors.Wrapf(err, "error relabeling directory %q for volume %q in container %q", volumePath, volume, b.ContainerID)
-			}
-			srcPath := filepath.Join(mountPoint, volume)
-			if err = copyWithTar(srcPath, volumePath); err != nil && !os.IsNotExist(err) {
-				return errors.Wrapf(err, "error populating directory %q for volume %q in container %q using contents of %q", volumePath, volume, b.ContainerID, srcPath)
-			}
+			subdir := digest.Canonical.FromString(volume).Hex()
+			volumePath := filepath.Join(cdir, "buildah-volumes", subdir)
+			// If we need to, initialize the volume path's initial contents.
+			if _, err = os.Stat(volumePath); os.IsNotExist(err) {
+				if err = os.MkdirAll(volumePath, 0755); err != nil {
+					return errors.Wrapf(err, "error creating directory %q for volume %q in container %q", volumePath, volume, b.ContainerID)
+				}
+				if err = label.Relabel(volumePath, b.MountLabel, false); err != nil {
+					return errors.Wrapf(err, "error relabeling directory %q for volume %q in container %q", volumePath, volume, b.ContainerID)
+				}
+				srcPath := filepath.Join(mountPoint, volume)
+				if err = copyWithTar(srcPath, volumePath); err != nil && !os.IsNotExist(err) {
+					return errors.Wrapf(err, "error populating directory %q for volume %q in container %q using contents of %q", volumePath, volume, b.ContainerID, srcPath)
+				}
 
+			}
+			// Add the bind mount.
+			mounts = append(mounts, specs.Mount{
+				Source:      volumePath,
+				Destination: volume,
+				Type:        "bind",
+				Options:     []string{"bind"},
+			})
 		}
-		// Add the bind mount.
-		mounts = append(mounts, specs.Mount{
-			Source:      volumePath,
-			Destination: volume,
-			Type:        "bind",
-			Options:     []string{"bind"},
-		})
 	}
 	// Bind mount volumes given by the user at execution
 	var options []string
@@ -439,7 +443,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	g.AddMount(cgroupMnt)
 
 	bindFiles := []string{"/etc/hosts", "/etc/resolv.conf"}
-	err = b.setupMounts(mountPoint, spec, options.Mounts, bindFiles, b.Volumes(), b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize)
+	err = b.setupMounts(mountPoint, spec, options.Mounts, bindFiles, b.Volumes(), b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, options.BuiltInVolume)
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container")
 	}
