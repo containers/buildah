@@ -112,6 +112,16 @@ func fromCmd(c *cli.Context) error {
 		}
 	}
 
+	namespaceOptions, err := parseNamespaceOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error parsing namespace-related options")
+	}
+	usernsOption, idmappingOptions, err := parseIDMappingOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error parsing ID mapping options")
+	}
+	namespaceOptions.AddOrReplace(usernsOption...)
+
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
 		Transport:             transport,
@@ -120,6 +130,8 @@ func fromCmd(c *cli.Context) error {
 		SignaturePolicyPath:   signaturePolicy,
 		SystemContext:         systemContext,
 		DefaultMountsFilePath: c.GlobalString("default-mounts-file"),
+		NamespaceOptions:      namespaceOptions,
+		IDMappingOptions:      idmappingOptions,
 		CommonBuildOpts:       commonOpts,
 	}
 

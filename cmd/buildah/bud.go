@@ -167,6 +167,16 @@ func budCmd(c *cli.Context) error {
 		logrus.Debugf("build caching not enabled so --rm flag has no effect")
 	}
 
+	namespaceOptions, err := parseNamespaceOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error parsing namespace-related options")
+	}
+	usernsOption, idmappingOptions, err := parseIDMappingOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error parsing ID mapping options")
+	}
+	namespaceOptions.AddOrReplace(usernsOption...)
+
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:      contextDir,
 		PullPolicy:            pullPolicy,
@@ -180,6 +190,8 @@ func budCmd(c *cli.Context) error {
 		RuntimeArgs:           runtimeFlags,
 		OutputFormat:          format,
 		SystemContext:         systemContext,
+		NamespaceOptions:      namespaceOptions,
+		IDMappingOptions:      idmappingOptions,
 		CommonBuildOpts:       commonOpts,
 		DefaultMountsFilePath: c.GlobalString("default-mounts-file"),
 		IIDFile:               c.String("iidfile"),

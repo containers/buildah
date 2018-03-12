@@ -107,8 +107,14 @@ type BuildOptions struct {
 	// Accepted values are OCIv1ImageFormat and Dockerv2ImageFormat.
 	OutputFormat string
 	// SystemContext holds parameters used for authentication.
-	SystemContext   *types.SystemContext
-	CommonBuildOpts *buildah.CommonBuildOptions
+	SystemContext *types.SystemContext
+	// NamespaceOptions controls how we set up namespaces processes that we
+	// might need when handling RUN instructions.
+	NamespaceOptions []buildah.NamespaceOption
+	// ID mapping options to use if we're setting up our own user namespace
+	// when handling RUN instructions.
+	IDMappingOptions *buildah.IDMappingOptions
+	CommonBuildOpts  *buildah.CommonBuildOptions
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
 	DefaultMountsFilePath string
 	// IIDFile tells the builder to write the image ID to the specified file
@@ -154,6 +160,8 @@ type Executor struct {
 	volumeCache                    map[string]string
 	volumeCacheInfo                map[string]os.FileInfo
 	reportWriter                   io.Writer
+	namespaceOptions               []buildah.NamespaceOption
+	idmappingOptions               *buildah.IDMappingOptions
 	commonBuildOptions             *buildah.CommonBuildOptions
 	defaultMountsFilePath          string
 	iidfile                        string
@@ -489,6 +497,8 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		out:                   options.Out,
 		err:                   options.Err,
 		reportWriter:          options.ReportWriter,
+		namespaceOptions:      options.NamespaceOptions,
+		idmappingOptions:      options.IDMappingOptions,
 		commonBuildOptions:    options.CommonBuildOpts,
 		defaultMountsFilePath: options.DefaultMountsFilePath,
 		iidfile:               options.IIDFile,
@@ -537,6 +547,8 @@ func (b *Executor) Prepare(ctx context.Context, ib *imagebuilder.Builder, node *
 		SignaturePolicyPath:   b.signaturePolicyPath,
 		ReportWriter:          b.reportWriter,
 		SystemContext:         b.systemContext,
+		NamespaceOptions:      b.namespaceOptions,
+		IDMappingOptions:      b.idmappingOptions,
 		CommonBuildOpts:       b.commonBuildOptions,
 		DefaultMountsFilePath: b.defaultMountsFilePath,
 	}

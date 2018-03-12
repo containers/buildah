@@ -104,7 +104,7 @@ Note: this setting is not present in the OCIv1 image format, so it is discarded 
 
 Set default *stop signal* for container. This signal will be sent when container is stopped, default is SIGINT.
 
-**--user** *user*
+**--user** *user*[:*group*]
 
 Set the default *user* to be used when running containers based on this image.
 The user can be specified as a user name

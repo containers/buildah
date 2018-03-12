@@ -13,13 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	// CopyWithTar defines the copy method to use.
-	copyWithTar     = chrootarchive.NewArchiver(nil).CopyWithTar
-	copyFileWithTar = chrootarchive.NewArchiver(nil).CopyFileWithTar
-	untarPath       = chrootarchive.NewArchiver(nil).UntarPath
-)
-
 // InitReexec is a wrapper for reexec.Init().  It should be called at
 // the start of main(), and if it returns true, main() should return
 // immediately.
@@ -59,6 +52,56 @@ func convertStorageIDMaps(UIDMap, GIDMap []idtools.IDMap) ([]rspec.LinuxIDMappin
 		})
 	}
 	return uidmap, gidmap
+}
+
+func convertRuntimeIDMaps(UIDMap, GIDMap []rspec.LinuxIDMapping) ([]idtools.IDMap, []idtools.IDMap) {
+	uidmap := make([]idtools.IDMap, 0, len(UIDMap))
+	gidmap := make([]idtools.IDMap, 0, len(GIDMap))
+	for _, m := range UIDMap {
+		uidmap = append(uidmap, idtools.IDMap{
+			HostID:      int(m.HostID),
+			ContainerID: int(m.ContainerID),
+			Size:        int(m.Size),
+		})
+	}
+	for _, m := range GIDMap {
+		gidmap = append(gidmap, idtools.IDMap{
+			HostID:      int(m.HostID),
+			ContainerID: int(m.ContainerID),
+			Size:        int(m.Size),
+		})
+	}
+	return uidmap, gidmap
+}
+
+// copyFileWithTar returns a function which copies a single file from outside
+// of any container into our working container, mapping permissions using the
+// container's ID maps, possibly overridden using the passed-in chownOpts
+func (b *Builder) copyFileWithTar(chownOpts *idtools.IDPair) func(src, dest string) error {
+	convertedUIDMap, convertedGIDMap := convertRuntimeIDMaps(b.IDMappingOptions.UIDMap, b.IDMappingOptions.GIDMap)
+	untarMappings := idtools.NewIDMappingsFromMaps(convertedUIDMap, convertedGIDMap)
+	archiver := chrootarchive.NewArchiverWithChown(nil, chownOpts, untarMappings)
+	return archiver.CopyFileWithTar
+}
+
+// copyWithTar returns a function which copies a directory tree from outside of
+// any container into our working container, mapping permissions using the
+// container's ID maps, possibly overridden using the passed-in chownOpts
+func (b *Builder) copyWithTar(chownOpts *idtools.IDPair) func(src, dest string) error {
+	convertedUIDMap, convertedGIDMap := convertRuntimeIDMaps(b.IDMappingOptions.UIDMap, b.IDMappingOptions.GIDMap)
+	untarMappings := idtools.NewIDMappingsFromMaps(convertedUIDMap, convertedGIDMap)
+	archiver := chrootarchive.NewArchiverWithChown(nil, chownOpts, untarMappings)
+	return archiver.CopyWithTar
+}
+
+// untarPath returns a function which extracts an archive in a specified
+// location into our working container, mapping permissions using the
+// container's ID maps, possibly overridden using the passed-in chownOpts
+func (b *Builder) untarPath(chownOpts *idtools.IDPair) func(src, dest string) error {
+	convertedUIDMap, convertedGIDMap := convertRuntimeIDMaps(b.IDMappingOptions.UIDMap, b.IDMappingOptions.GIDMap)
+	untarMappings := idtools.NewIDMappingsFromMaps(convertedUIDMap, convertedGIDMap)
+	archiver := chrootarchive.NewArchiverWithChown(nil, chownOpts, untarMappings)
+	return archiver.UntarPath
 }
 
 // getProcIDMappings reads mappings from the named node under /proc.
