@@ -381,10 +381,14 @@ return 1
      --file
      --format
      --iidfile
+     --ipc
      --label
      -m
      --memory
      --memory-swap
+     --net
+     --network
+     --pid
      --runtime
      --runtime-flag
      --security-opt
@@ -393,6 +397,12 @@ return 1
      -t
      --tag
      --ulimit
+     --userns
+     --userns-uid-map
+     --userns-gid-map
+     --userns-uid-map-user
+     --userns-gid-map-group
+     --uts
      --volume
      -v
   "
@@ -430,9 +440,15 @@ return 1
 
      local options_with_args="
      --hostname
+     --ipc
+     --net
+     --network
+     --pid
      --runtime
      --runtime-flag
      --security-opt
+     --user
+     --uts
      --volume
      -v
   "
@@ -694,14 +710,24 @@ return 1
      --cpuset-cpus
      --cpuset-mems
      --creds
+     --ipc
      -m
      --memory
      --memory-swap
      --name
+     --net
+     --network
+     --pid
      --signature-policy
      --security-opt
      --shm-size
      --ulimit
+     --userns
+     --userns-uid-map
+     --userns-gid-map
+     --userns-uid-map-user
+     --userns-gid-map-group
+     --uts
      --volume
   "
 

@@ -133,6 +133,22 @@ func imageManifestAndConfig(ctx context.Context, ref types.ImageReference, syste
 	return nil, nil, nil
 }
 
+func newContainerIDMappingOptions(idmapOptions *IDMappingOptions) storage.IDMappingOptions {
+	var options storage.IDMappingOptions
+	if idmapOptions != nil {
+		options.HostUIDMapping = idmapOptions.HostUIDMapping
+		options.HostGIDMapping = idmapOptions.HostGIDMapping
+		uidmap, gidmap := convertRuntimeIDMaps(idmapOptions.UIDMap, idmapOptions.GIDMap)
+		if len(uidmap) > 0 && len(gidmap) > 0 {
+			options.UIDMap = uidmap
+			options.GIDMap = gidmap
+		} else {
+			options.HostUIDMapping = true
+			options.HostGIDMapping = true
+		}
+	}
+	return options
+}
 func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions) (*Builder, error) {
 	var ref types.ImageReference
 	var img *storage.Image
@@ -258,6 +274,8 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	}
 
 	coptions := storage.ContainerOptions{}
+	coptions.IDMappingOptions = newContainerIDMappingOptions(options.IDMappingOptions)
+
 	container, err := store.CreateContainer("", []string{name}, imageID, "", "", &coptions)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error creating container")

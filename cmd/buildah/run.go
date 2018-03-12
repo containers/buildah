@@ -9,6 +9,7 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -31,7 +32,7 @@ var (
 		},
 		cli.StringSliceFlag{
 			Name:  "security-opt",
-			Usage: "security Options (default [])",
+			Usage: "security options (default [])",
 		},
 		cli.BoolFlag{
 			Name:  "t, tty, terminal",
@@ -47,7 +48,7 @@ var (
 		Name:           "run",
 		Usage:          "Run a command inside of the container",
 		Description:    runDescription,
-		Flags:          runFlags,
+		Flags:          append(append(runFlags, userFlags...), buildahcli.NamespaceFlags...),
 		Action:         runCmd,
 		ArgsUsage:      "CONTAINER-NAME-OR-ID COMMAND [ARGS [...]]",
 		SkipArgReorder: true,
@@ -88,10 +89,18 @@ func runCmd(c *cli.Context) error {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
+	user := parseUserOptions(c)
+	namespaceOptions, err := parseNamespaceOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error parsing namespace-related options")
+	}
+
 	options := buildah.RunOptions{
-		Hostname: c.String("hostname"),
-		Runtime:  c.String("runtime"),
-		Args:     runtimeFlags,
+		Hostname:         c.String("hostname"),
+		Runtime:          c.String("runtime"),
+		Args:             runtimeFlags,
+		User:             user,
+		NamespaceOptions: namespaceOptions,
 	}
 
 	if c.IsSet("tty") {

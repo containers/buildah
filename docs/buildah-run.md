@@ -17,6 +17,34 @@ interactive shell, specify the --tty option.
 **--hostname**
 Set the hostname inside of the running container.
 
+**--ipc** *how*
+
+Sets the configuration for the IPC namespaces for the container.
+The configured value can be "" (the empty string) or "container" to indicate
+that a new IPC namespace should be created, or it can be "host" to indicate
+that the IPC namespace in which `buildah` itself is being run should be reused,
+or it can be the path to an IPC namespace which is already in use by another
+process.
+
+**--net** *how*
+**--network** *how*
+
+Sets the configuration for the network namespace for the container.
+The configured value can be "" (the empty string) or "container" to indicate
+that a new network namespace should be created, or it can be "host" to indicate
+that the network namespace in which `buildah` itself is being run should be
+reused, or it can be the path to a network namespace which is already in use by
+another process.
+
+**--pid** *how*
+
+Sets the configuration for the PID namespace for the container.
+The configured value can be "" (the empty string) or "container" to indicate
+that a new PID namespace should be created, or it can be "host" to indicate
+that the PID namespace in which `buildah` itself is being run should be reused,
+or it can be the path to a PID namespace which is already in use by another
+process.
+
 **--runtime** *path*
 
 The *path* to an alternate OCI-compatible runtime.
@@ -36,6 +64,23 @@ attached to a pseudo-TTY.  Setting the `--tty` option to `true` will cause a
 pseudo-TTY to be allocated inside the container connecting the user's "terminal"
 with the stdin and stdout stream of the container.  Setting the `--tty` option to
 `false` will prevent the pseudo-TTY from being allocated.
+
+**--user** *user*[:*group*]
+
+Set the *user* to be used for running the command in the container.
+The user can be specified as a user name
+or UID, optionally followed by a group name or GID, separated by a colon (':').
+If names are used, the container should include entries for those names in its
+*/etc/passwd* and */etc/group* files.
+
+**--uts** *how*
+
+Sets the configuration for the UTS namespace for the container.
+The configured value can be "" (the empty string) or "container" to indicate
+that a new UTS namespace should be created, or it can be "host" to indicate
+that the UTS namespace in which `buildah` itself is being run should be reused,
+or it can be the path to a UTS namespace which is already in use by another
+process.
 
 **--volume, -v** *source*:*destination*:*options*
 
@@ -104,6 +149,7 @@ will convert /foo into a `shared` mount point.  The propagation properties of th
 mount can be changed directly. For instance if `/` is the source mount for
 `/foo`, then use `mount --make-shared /` to convert `/` into a `shared` mount.
 
+
 NOTE: End parsing of options with the `--` option, so that other
 options can be passed to the command inside of the container.
 
@@ -124,4 +170,4 @@ buildah run --tty=false containerID ls /
 buildah run --volume /path/on/host:/path/in/container:ro,z containerID sh
 
 ## SEE ALSO
-buildah(1)
+buildah(1), namespaces(7), pid\_namespaces(7)

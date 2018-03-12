@@ -8,13 +8,13 @@ buildah\-from - Creates a new working container, either from scratch or using a 
 
 ## DESCRIPTION
 Creates a working container based upon the specified image name.  If the
-supplied image name is "scratch" a new empty container is created. Image names
-uses a "transport":"details" format.
+supplied image name is "scratch" a new empty container is created.  Image names
+use a "transport":"details" format.
 
 Multiple transports are supported:
 
   **dir:**_path_
-  An existing local directory _path_ retrieving the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
+  An existing local directory _path_ containing the manifest, layer tarballs, and signatures in individual files. This is a non-standardized format, primarily useful for debugging or noninvasive image inspection.
 
   **docker://**_docker-reference_ (Default)
   An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG\_RUNTIME\_DIR/containers/auth.json`, which is set using `(podman login)`. If the authorization state is not found there, `$HOME/.docker/config.json` is checked, which is set using `(docker login)`.
@@ -24,7 +24,7 @@ Multiple transports are supported:
   An image is retrieved as a `docker load` formatted file.
 
   **docker-daemon:**_docker-reference_
-  An image _docker-reference_ stored in the docker daemon internal storage.  _docker-reference_ must contain either a tag or a digest.  Alternatively, when reading images, the format can also be docker-daemon:algo:digest (an image ID).
+  An image _docker-reference_ stored in the docker daemon's internal storage.  _docker-reference_ must include either a tag or a digest.  Alternatively, when reading images, the format can also be docker-daemon:algo:digest (an image ID).
 
   **oci-archive:**_path_**:**_tag_
   An image _tag_ in a directory compliant with "Open Container Image Layout Specification" at _path_.
@@ -50,8 +50,8 @@ If the authorization state is not found there, $HOME/.docker/config.json is chec
 
 **--cert-dir** *path*
 
-Use certificates at *path* (*.crt, *.cert, *.key) to connect to the registry.
-Default certificates directory is _/etc/containers/certs.d_.
+Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
+The default certificates directory is _/etc/containers/certs.d_.
 
 **--cgroup-parent**=""
 
@@ -126,6 +126,16 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
+**--ipc** *how*
+
+Sets the configuration for IPC namespaces when the container is subsequently
+used for `buildah run`.
+The configured value can be "" (the empty string) or "container" to indicate
+that a new IPC namespace should be created, or it can be "host" to indicate
+that the IPC namespace in which `buildah` itself is being run should be reused,
+or it can be the path to an IPC namespace which is already in use by
+another process.
+
 **--memory, -m**=""
 
 Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
@@ -150,6 +160,27 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 **--name** *name*
 
 A *name* for the working container
+
+**--net** *how*
+**--network** *how*
+
+Sets the configuration for network namespaces when the container is subsequently
+used for `buildah run`.
+The configured value can be "" (the empty string) or "container" to indicate
+that a new network namespace should be created, or it can be "host" to indicate
+that the network namespace in which `buildah` itself is being run should be
+reused, or it can be the path to a network namespace which is already in use by
+another process.
+
+**--pid** *how*
+
+Sets the configuration for PID namespaces when the container is subsequently
+used for `buildah run`.
+The configured value can be "" (the empty string) or "container" to indicate
+that a new PID namespace should be created, or it can be "host" to indicate
+that the PID namespace in which `buildah` itself is being run should be reused,
+or it can be the path to a PID namespace which is already in use by another
+process.
 
 **--pull**
 
@@ -218,6 +249,74 @@ include:
   "rttime": maximum amount of real-time execution between blocking syscalls
   "sigpending": maximum number of pending signals (ulimit -i)
   "stack": maximum stack size (ulimit -s)
+
+**--userns** *how*
+
+Sets the configuration for user namespaces when the container is subsequently
+used for `buildah run`.
+The configured value can be "" (the empty string) or "container" to indicate
+that a new user namespace should be created, it can be "host" to indicate that
+the user namespace in which `buildah` itself is being run should be reused, or
+it can be the path to an user namespace which is already in use by another
+process.
+
+**--userns-uid-map** *mapping*
+
+Directly specifies a UID mapping which should be used to set ownership, at the
+filesytem level, on the container's contents.
+Commands run using `buildah run` will default to being run in their own user
+namespaces, configured using the UID and GID maps.
+Entries in this map take the form of one or more triples of a starting
+in-container UID, a corresponding starting host-level UID, and the number of
+consecutive IDs which the map entry represents.
+If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-uid-map
+are specified, but --userns-gid-map is specified, the UID map will be set to
+use the same numeric values as the GID map.
+
+**--userns-gid-map** *mapping*
+
+Directly specifies a GID mapping which should be used to set ownership, at the
+filesytem level, on the container's contents.
+Commands run using `buildah run` will default to being run in their own user
+namespaces, configured using the UID and GID maps.
+Entries in this map take the form of one or more triples of a starting
+in-container GID, a corresponding starting host-level GID, and the number of
+consecutive IDs which the map entry represents.
+If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-gid-map
+are specified, but --userns-uid-map is specified, the GID map will be set to
+use the same numeric values as the UID map.
+
+**--userns-uid-map-user** *user*
+
+Specifies that a UID mapping which should be used to set ownership, at the
+filesytem level, on the container's contents, can be found in entries in the
+`/etc/subuid` file which correspond to the specified user.
+Commands run using `buildah run` will default to being run in their own user
+namespaces, configured using the UID and GID maps.
+If --userns-gid-map-group is specified, but --userns-uid-map-user is not
+specified, `buildah` will assume that the specified group name is also a
+suitable user name to use as the default setting for this option.
+
+**--userns-gid-map-group** *group*
+
+Specifies that a GID mapping which should be used to set ownership, at the
+filesytem level, on the container's contents, can be found in entries in the
+`/etc/subgid` file which correspond to the specified group.
+Commands run using `buildah run` will default to being run in their own user
+namespaces, configured using the UID and GID maps.
+If --userns-uid-map-user is specified, but --userns-gid-map-group is not
+specified, `buildah` will assume that the specified user name is also a
+suitable group name to use as the default setting for this option.
+
+**--uts** *how*
+
+Sets the configuration for UTS namespaces when the container is subsequently
+used for `buildah run`.
+The configured value can be "" (the empty string) or "container" to indicate
+that a new UTS namespace should be created, or it can be "host" to indicate
+that the UTS namespace in which `buildah` itself is being run should be reused,
+or it can be the path to a UTS namespace which is already in use by another
+process.
 
 **--volume, -v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
 
@@ -323,4 +422,4 @@ buildah from --volume /home/test:/myvol:ro,Z myregistry/myrepository/imagename:i
 registries.conf is the configuration file which specifies which registries should be consulted when completing image names which do not include a registry or domain portion.
 
 ## SEE ALSO
-buildah(1), podman-login(1), docker-login(1), policy.json(5), registries.conf(5)
+buildah(1), podman-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), policy.json(5), registries.conf(5), user\_namespaces(7)

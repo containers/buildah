@@ -112,6 +112,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	if len(source) > 1 && (destfi == nil || !destfi.IsDir()) {
 		return errors.Errorf("destination %q is not a directory", dest)
 	}
+	copyFileWithTar := b.copyFileWithTar(nil)
+	copyWithTar := b.copyWithTar(nil)
+	untarPath := b.untarPath(nil)
 	for _, src := range source {
 		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
 			// We assume that source is a file, and we're copying

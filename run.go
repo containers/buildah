@@ -321,6 +321,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
+	copyWithTar := b.copyWithTar(nil)
 	for _, volume := range builtinVolumes {
 		if haveMount(volume) {
 			// Already mounting something there, no need to bother.
@@ -408,20 +409,15 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 
 // addNetworkConfig copies files from host and sets them up to bind mount into container
 func (b *Builder) addNetworkConfig(rdir, hostPath string) (string, error) {
-	stat, err := os.Stat(hostPath)
-	if err != nil {
-		return "", errors.Wrapf(err, "stat %q failed", hostPath)
+	copyFileWithTar := b.copyFileWithTar(nil)
+
+	cfile := filepath.Join(rdir, filepath.Base(hostPath))
+
+	if err := copyFileWithTar(hostPath, cfile); err != nil {
+		return "", errors.Wrapf(err, "error copying %q for container %q", cfile, b.ContainerID)
 	}
 
-	buf, err := ioutil.ReadFile(hostPath)
-	if err != nil {
-		return "", errors.Wrapf(err, "opening %q failed", hostPath)
-	}
-	cfile := filepath.Join(rdir, filepath.Base(hostPath))
-	if err := ioutil.WriteFile(cfile, buf, stat.Mode()); err != nil {
-		return "", errors.Wrapf(err, "opening %q failed", cfile)
-	}
-	if err = label.Relabel(cfile, b.MountLabel, false); err != nil {
+	if err := label.Relabel(cfile, b.MountLabel, false); err != nil {
 		return "", errors.Wrapf(err, "error relabeling %q in container %q", cfile, b.ContainerID)
 	}
 
