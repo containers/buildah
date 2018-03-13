@@ -1,6 +1,6 @@
 ![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
 
-# [Buildah](https://www.youtube.com/embed/YVk5NgSiUw8) - a tool which facilitates building OCI container images
+# [Buildah](https://www.youtube.com/embed/YVk5NgSiUw8) - a tool that facilitates building OCI container images
 ================================================================
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/projectatomic/buildah)](https://goreportcard.com/report/github.com/projectatomic/buildah)
@@ -8,7 +8,7 @@
 
 Note: this package is in alpha, but is close to being feature-complete.
 
-The Buildah package provides a command line tool which can be used to
+The Buildah package provides a command line tool that can be used to
 * create a working container, either from scratch or using an image as a starting point
 * create an image, either from a working container or via the instructions in a Dockerfile
 * images can be built in either the OCI image format or the traditional upstream docker image format
