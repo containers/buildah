@@ -236,7 +236,7 @@ func (p *BuildAhTest) CreateArtifact(image string) error {
 // RestoreArtifact puts the cached image into our test store
 func (p *BuildAhTest) RestoreArtifact(image string) error {
 	storeOptions := sstorage.DefaultStoreOptions
-	storeOptions.GraphDriverName = "vfs"
+	storeOptions.GraphDriverName = "overlay"
 	//storeOptions.GraphDriverOptions = storageOptions
 	storeOptions.GraphRoot = p.Root
 	storeOptions.RunRoot = p.RunRoot

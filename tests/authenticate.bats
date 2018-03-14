@@ -6,15 +6,14 @@ load helpers
 
   buildah from --pull --name "alpine" --signature-policy ${TESTSDIR}/policy.json alpine
   run buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword alpine localhost:5000/my-alpine
-  echo "$output"
   [ "$status" -eq 0 ]
 
   # This should fail
-  run buildah push  --signature-policy ${TESTSDIR}/policy.json --tls-verify=true localhost:5000/my-alpine
+  run buildah from --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds baduser:badpassword localhost:5000/my-alpine
   [ "$status" -ne 0 ]
 
   # This should fail
-  run buildah from --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds baduser:badpassword localhost:5000/my-alpine
+  run buildah push  --signature-policy ${TESTSDIR}/policy.json --tls-verify=true alpine localhost:5000/my-alpine
   [ "$status" -ne 0 ]
 
   # This should work
