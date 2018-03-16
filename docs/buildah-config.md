@@ -65,6 +65,13 @@ its OS is kept, otherwise the host's OS's name is recorded.
 Specifies a *port* to expose when running containers based on any images which
 will be built using the specified container.
 
+**--shell** *shell*
+
+Specify the *shell* to run inside of the container image
+The shell instruction allows the default shell used for the shell form of commands to be overridden. The default shell for Linux containers is "/bin/sh -c".
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
+
 **--user** *user*
 
 Specify the *user* as whom containers based on images which will be built using
