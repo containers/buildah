@@ -309,8 +309,15 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 		return errors.Wrapf(err, "error determining work directory for container %q", b.ContainerID)
 	}
 
+	// Figure out which UID and GID to tell the secrets package to use
+	// for files that it creates.
+	rootUID, rootGID, err := getHostRootIDs(spec)
+	if err != nil {
+		return err
+	}
+
 	// Add secrets mounts, unless they conflict.
-	secretMounts := secrets.SecretMounts(b.MountLabel, cdir, b.DefaultMountsFilePath)
+	secretMounts := secrets.SecretMountsWithUIDGID(b.MountLabel, cdir, b.DefaultMountsFilePath, cdir, int(rootUID), int(rootGID))
 	for _, mount := range secretMounts {
 		if haveMount(mount.Destination) {
 			// Already have something to mount there, so skip this one.
@@ -828,8 +835,13 @@ func runUsingRuntime(options RunOptions, spec *specs.Spec, rootPath, bundlePath,
 			moreCreateArgs = func() []string { return []string{"--console-socket", socketPath} }
 		} else {
 			copyStdio = true
+			// Figure out who should own the pipes.
+			uid, gid, err := getHostRootIDs(spec)
+			if err != nil {
+				return 1, err
+			}
 			// Create stdio pipes.
-			if stdioPipe, err = runMakeStdioPipe(); err != nil {
+			if stdioPipe, err = runMakeStdioPipe(int(uid), int(gid)); err != nil {
 				return 1, err
 			}
 			// Set stdio to our pipes.
@@ -1242,13 +1254,22 @@ func runSetDeathSig(cmd *exec.Cmd) {
 }
 
 // Create pipes to use for relaying stdio.
-func runMakeStdioPipe() ([][]int, error) {
+func runMakeStdioPipe(uid, gid int) ([][]int, error) {
 	stdioPipe := make([][]int, 3)
 	for i := range stdioPipe {
 		stdioPipe[i] = make([]int, 2)
 		if err := unix.Pipe(stdioPipe[i]); err != nil {
 			return nil, errors.Wrapf(err, "error creating pipe for container FD %d", i)
 		}
+	}
+	if err := unix.Fchown(stdioPipe[unix.Stdin][0], uid, gid); err != nil {
+		return nil, errors.Wrapf(err, "error setting owner of stdin pipe descriptor")
+	}
+	if err := unix.Fchown(stdioPipe[unix.Stdout][1], uid, gid); err != nil {
+		return nil, errors.Wrapf(err, "error setting owner of stdout pipe descriptor")
+	}
+	if err := unix.Fchown(stdioPipe[unix.Stderr][1], uid, gid); err != nil {
+		return nil, errors.Wrapf(err, "error setting owner of stderr pipe descriptor")
 	}
 	return stdioPipe, nil
 }

@@ -2,10 +2,12 @@ package buildah
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/reexec"
@@ -104,6 +106,21 @@ func (b *Builder) untarPath(chownOpts *idtools.IDPair) func(src, dest string) er
 	return archiver.UntarPath
 }
 
+// tarPath returns a function which creates an archive of a specified
+// location in the container's filesystem, mapping permissions using the
+// container's ID maps
+func (b *Builder) tarPath() func(path string) (io.ReadCloser, error) {
+	convertedUIDMap, convertedGIDMap := convertRuntimeIDMaps(b.IDMappingOptions.UIDMap, b.IDMappingOptions.GIDMap)
+	tarMappings := idtools.NewIDMappingsFromMaps(convertedUIDMap, convertedGIDMap)
+	return func(path string) (io.ReadCloser, error) {
+		return archive.TarWithOptions(path, &archive.TarOptions{
+			Compression: archive.Uncompressed,
+			UIDMaps:     tarMappings.UIDs(),
+			GIDMaps:     tarMappings.GIDs(),
+		})
+	}
+}
+
 // getProcIDMappings reads mappings from the named node under /proc.
 func getProcIDMappings(path string) ([]rspec.LinuxIDMapping, error) {
 	var mappings []rspec.LinuxIDMapping
@@ -134,4 +151,43 @@ func getProcIDMappings(path string) ([]rspec.LinuxIDMapping, error) {
 		mappings = append(mappings, rspec.LinuxIDMapping{ContainerID: uint32(cid), HostID: uint32(hid), Size: uint32(size)})
 	}
 	return mappings, nil
+}
+
+// getHostIDs uses ID mappings to compute the host-level IDs that will
+// correspond to a UID/GID pair in the container.
+func getHostIDs(uidmap, gidmap []rspec.LinuxIDMapping, uid, gid uint32) (uint32, uint32, error) {
+	uidMapped := true
+	for _, m := range uidmap {
+		uidMapped = false
+		if uid >= m.ContainerID && uid < m.ContainerID+m.Size {
+			uid = (uid - m.ContainerID) + m.HostID
+			uidMapped = true
+			break
+		}
+	}
+	if !uidMapped {
+		return 0, 0, errors.Errorf("container uses ID mappings, but doesn't map UID %d", uid)
+	}
+	gidMapped := true
+	for _, m := range gidmap {
+		gidMapped = false
+		if gid >= m.ContainerID && gid < m.ContainerID+m.Size {
+			gid = (gid - m.ContainerID) + m.HostID
+			gidMapped = true
+			break
+		}
+	}
+	if !gidMapped {
+		return 0, 0, errors.Errorf("container uses ID mappings, but doesn't map GID %d", gid)
+	}
+	return uid, gid, nil
+}
+
+// getHostRootIDs uses ID mappings in spec to compute the host-level IDs that will
+// correspond to UID/GID 0/0 in the container.
+func getHostRootIDs(spec *rspec.Spec) (uint32, uint32, error) {
+	if spec.Linux == nil {
+		return 0, 0, nil
+	}
+	return getHostIDs(spec.Linux.UIDMappings, spec.Linux.GIDMappings, 0, 0)
 }
