@@ -58,6 +58,8 @@ type RunOptions struct {
 	User string
 	// WorkingDir is an override for the working directory.
 	WorkingDir string
+	// Shell is default shell to run in a container.
+	Shell string
 	// Cmd is an override for the configured default command.
 	Cmd []string
 	// Entrypoint is an override for the configured entry point.

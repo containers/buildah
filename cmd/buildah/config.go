@@ -60,6 +60,10 @@ var (
 			Usage: "add `port` to expose when running containers based on image",
 		},
 		cli.StringFlag{
+			Name:  "shell",
+			Usage: "add `shell` to run in containers",
+		},
+		cli.StringFlag{
 			Name:  "user, u",
 			Usage: "set default `user` to run inside containers based on image",
 		},
@@ -99,6 +103,14 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 	}
 	if c.IsSet("user") {
 		builder.SetUser(c.String("user"))
+	}
+	if c.IsSet("shell") {
+		shellSpec, err := shellwords.Parse(c.String("shell"))
+		if err != nil {
+			logrus.Errorf("error parsing --shell %q: %v", c.String("shell"), err)
+		} else {
+			builder.SetShell(shellSpec)
+		}
 	}
 	if c.IsSet("port") || c.IsSet("p") {
 		for _, portSpec := range c.StringSlice("port") {

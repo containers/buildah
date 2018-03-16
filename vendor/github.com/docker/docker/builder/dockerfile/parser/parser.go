@@ -143,7 +143,7 @@ func (d *Directive) possibleParserDirective(line string) error {
 	if len(tecMatch) != 0 {
 		for i, n := range tokenEscapeCommand.SubexpNames() {
 			if n == "escapechar" {
-				if d.escapeSeen == true {
+				if d.escapeSeen {
 					return errors.New("only one escape parser directive can be used")
 				}
 				d.escapeSeen = true
@@ -159,7 +159,7 @@ func (d *Directive) possibleParserDirective(line string) error {
 		if len(tpcMatch) != 0 {
 			for i, n := range tokenPlatformCommand.SubexpNames() {
 				if n == "platform" {
-					if d.platformSeen == true {
+					if d.platformSeen {
 						return errors.New("only one platform parser directive can be used")
 					}
 					d.platformSeen = true
@@ -290,6 +290,10 @@ func Parse(rwc io.Reader) (*Result, error) {
 			}
 			currentLine++
 
+			if isComment(scanner.Bytes()) {
+				// original line was a comment (processLine strips comments)
+				continue
+			}
 			if isEmptyContinuationLine(bytesRead) {
 				hasEmptyContinuationLine = true
 				continue
@@ -331,8 +335,12 @@ func trimWhitespace(src []byte) []byte {
 	return bytes.TrimLeftFunc(src, unicode.IsSpace)
 }
 
+func isComment(line []byte) bool {
+	return tokenComment.Match(trimWhitespace(line))
+}
+
 func isEmptyContinuationLine(line []byte) bool {
-	return len(trimComments(trimWhitespace(line))) == 0
+	return len(trimWhitespace(line)) == 0
 }
 
 var utf8bom = []byte{0xEF, 0xBB, 0xBF}

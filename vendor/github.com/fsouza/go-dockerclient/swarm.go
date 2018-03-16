@@ -5,14 +5,14 @@
 package docker
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
 
-	"github.com/moby/moby/api/types/swarm"
-	"golang.org/x/net/context"
+	"github.com/docker/docker/api/types/swarm"
 )
 
 var (

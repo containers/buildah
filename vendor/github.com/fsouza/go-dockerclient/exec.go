@@ -5,14 +5,14 @@
 package docker
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
-
-	"golang.org/x/net/context"
 )
 
 // Exec is the type representing a `docker exec` instance and containing the
@@ -29,6 +29,7 @@ type CreateExecOptions struct {
 	AttachStdout bool            `json:"AttachStdout,omitempty" yaml:"AttachStdout,omitempty" toml:"AttachStdout,omitempty"`
 	AttachStderr bool            `json:"AttachStderr,omitempty" yaml:"AttachStderr,omitempty" toml:"AttachStderr,omitempty"`
 	Tty          bool            `json:"Tty,omitempty" yaml:"Tty,omitempty" toml:"Tty,omitempty"`
+	Env          []string        `json:"Env,omitempty" yaml:"Env,omitempty" toml:"Env,omitempty"`
 	Cmd          []string        `json:"Cmd,omitempty" yaml:"Cmd,omitempty" toml:"Cmd,omitempty"`
 	Container    string          `json:"Container,omitempty" yaml:"Container,omitempty" toml:"Container,omitempty"`
 	User         string          `json:"User,omitempty" yaml:"User,omitempty" toml:"User,omitempty"`
@@ -41,6 +42,9 @@ type CreateExecOptions struct {
 //
 // See https://goo.gl/60TeBP for more details
 func (c *Client) CreateExec(opts CreateExecOptions) (*Exec, error) {
+	if len(opts.Env) > 0 && c.serverAPIVersion.LessThan(apiVersion125) {
+		return nil, errors.New("exec configuration Env is only supported in API#1.25 and above")
+	}
 	path := fmt.Sprintf("/containers/%s/exec", opts.Container)
 	resp, err := c.do("POST", path, doOptions{data: opts, context: opts.Context})
 	if err != nil {

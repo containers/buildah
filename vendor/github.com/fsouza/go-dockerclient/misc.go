@@ -9,7 +9,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/moby/moby/api/types/swarm"
+	"github.com/docker/docker/api/types/swarm"
 )
 
 // Version returns version information about the docker server.
@@ -68,6 +68,7 @@ type DockerInfo struct {
 	Architecture       string
 	IndexServerAddress string
 	RegistryConfig     *ServiceConfig
+	SecurityOptions    []string
 	NCPU               int
 	MemTotal           int64
 	DockerRootDir      string
@@ -79,6 +80,10 @@ type DockerInfo struct {
 	ServerVersion      string
 	ClusterStore       string
 	ClusterAdvertise   string
+	Isolation          string
+	InitBinary         string
+	DefaultRuntime     string
+	LiveRestoreEnabled bool
 	Swarm              swarm.Info
 }
 
