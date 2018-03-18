@@ -202,12 +202,17 @@ func validateFlags(c *cli.Context, flags []cli.Flag) error {
 		return errors.Wrap(err, "compiling regex failed")
 	}
 
+	// The --cmd flag can have a following command i.e. --cmd="--help".
+	// Let's skip this check just for the --cmd flag.
 	for _, flag := range flags {
 		switch reflect.TypeOf(flag).String() {
 		case "cli.StringSliceFlag":
 			{
 				f := flag.(cli.StringSliceFlag)
 				name := strings.Split(f.Name, ",")
+				if f.Name == "cmd" {
+					continue
+				}
 				val := c.StringSlice(name[0])
 				for _, v := range val {
 					if ok := re.MatchString(v); ok {
@@ -219,6 +224,9 @@ func validateFlags(c *cli.Context, flags []cli.Flag) error {
 			{
 				f := flag.(cli.StringFlag)
 				name := strings.Split(f.Name, ",")
+				if f.Name == "cmd" {
+					continue
+				}
 				val := c.String(name[0])
 				if ok := re.MatchString(val); ok {
 					return errors.Errorf("option --%s requires a value", name[0])
