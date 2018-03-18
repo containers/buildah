@@ -96,9 +96,9 @@ func inspectCmd(c *cli.Context) error {
 	default:
 		return errors.Errorf("the only recognized types are %q and %q", inspectTypeContainer, inspectTypeImage)
 	}
-
+	out := buildah.GetBuildInfo(builder)
 	if c.IsSet("format") {
-		if err := t.Execute(os.Stdout, buildah.GetBuildInfo(builder)); err != nil {
+		if err := t.Execute(os.Stdout, out); err != nil {
 			return err
 		}
 		if terminal.IsTerminal(int(os.Stdout.Fd())) {
@@ -112,5 +112,5 @@ func inspectCmd(c *cli.Context) error {
 	if terminal.IsTerminal(int(os.Stdout.Fd())) {
 		enc.SetEscapeHTML(false)
 	}
-	return enc.Encode(builder)
+	return enc.Encode(out)
 }
