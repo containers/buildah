@@ -129,6 +129,33 @@ load helpers
   buildah rmi alpine alpine2
 }
 
+@test "from the following transports: docker-archive, oci-archive, and dir" {
+  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah rm $cid
+  buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:docker-alp.tar:alpine
+  buildah push --signature-policy ${TESTSDIR}/policy.json alpine oci-archive:oci-alp.tar:alpine
+  buildah push --signature-policy ${TESTSDIR}/policy.json alpine dir:alp-dir
+  buildah rmi alpine
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json docker-archive:docker-alp.tar)
+  [ "$cid" == alpine-working-container ]
+  buildah rm ${cid}
+  buildah rmi alpine
+  rm -f docker-alp.tar
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json oci-archive:oci-alp.tar)
+  [ "$cid" == alpine-working-container ]
+  buildah rm ${cid}
+  buildah rmi alpine
+  rm -f oci-alp.tar
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json dir:alp-dir)
+  [ "$cid" == alp-dir-working-container ]
+  buildah rm ${cid}
+  buildah rmi alp-dir
+  rm -rf alp-dir
+}
+
 @test "from cpu-period test" {
   cid=$(buildah from --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us

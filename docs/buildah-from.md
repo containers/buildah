@@ -25,7 +25,7 @@ Multiple transports are supported:
   **docker-daemon:**_docker-reference_
   An image _docker-reference_ stored in the docker daemon internal storage.  _docker-reference_ must contain either a tag or a digest.  Alternatively, when reading images, the format can also be docker-daemon:algo:digest (an image ID).
 
-  **oci:**_path_**:**_tag_
+  **oci-archive:**_path_**:**_tag_
   An image _tag_ in a directory compliant with "Open Container Image Layout Specification" at _path_.
 
   **ostree:**_image_[**@**_/absolute/repo/path_]
@@ -271,6 +271,14 @@ mount can be changed directly. For instance if `/` is the source mount for
 buildah from imagename --pull
 
 buildah from docker://myregistry.example.com/imagename --pull
+
+buildah from docker-daemon:imagename:imagetag
+
+buildah from docker-archive:filename --name mycontainer
+
+buildah from oci-archive:filename
+
+buildah from dir:directoryname --name mycontainer
 
 buildah from imagename --signature-policy /etc/containers/policy.json
 

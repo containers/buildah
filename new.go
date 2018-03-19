@@ -177,7 +177,11 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 				err = err2
 				continue
 			}
-			srcRef2, err3 := alltransports.ParseImageName(options.Transport + image)
+			transport := options.Transport
+			if transport != DefaultTransport {
+				transport = transport + ":"
+			}
+			srcRef2, err3 := alltransports.ParseImageName(transport + image)
 			if err3 != nil {
 				logrus.Debugf("error parsing image name %q: %v", image, err2)
 				err = err3
@@ -186,7 +190,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 			srcRef = srcRef2
 		}
 
-		destImage, err2 := localImageNameForReference(store, srcRef)
+		destImage, err2 := localImageNameForReference(store, srcRef, options.FromImage)
 		if err2 != nil {
 			return nil, errors.Wrapf(err2, "error computing local image name for %q", transports.ImageName(srcRef))
 		}

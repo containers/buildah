@@ -5,9 +5,13 @@ import (
 	"path"
 	"strings"
 
+	"github.com/containers/image/directory"
+	dockerarchive "github.com/containers/image/docker/archive"
 	"github.com/containers/image/docker/reference"
+	ociarchive "github.com/containers/image/oci/archive"
 	"github.com/containers/image/pkg/sysregistries"
 	is "github.com/containers/image/storage"
+	"github.com/containers/image/tarball"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/docker/distribution/registry/api/errcode"
@@ -26,6 +30,25 @@ var (
 		"index.docker.io": "library",
 		"docker.io":       "library",
 	}
+	// Transports contains the possible transports used for images
+	Transports = map[string]string{
+		dockerarchive.Transport.Name(): "",
+		ociarchive.Transport.Name():    "",
+		directory.Transport.Name():     "",
+		tarball.Transport.Name():       "",
+	}
+	// DockerArchive is the transport we prepend to an image name
+	// when saving to docker-archive
+	DockerArchive = dockerarchive.Transport.Name()
+	// OCIArchive is the transport we prepend to an image name
+	// when saving to oci-archive
+	OCIArchive = ociarchive.Transport.Name()
+	// DirTransport is the transport for pushing and pulling
+	// images to and from a directory
+	DirTransport = directory.Transport.Name()
+	// TarballTransport is the transport for importing a tar archive
+	// and creating a filesystem image
+	TarballTransport = tarball.Transport.Name()
 )
 
 // ResolveName checks if name is a valid image name, and if that name doesn't include a domain
@@ -41,6 +64,14 @@ func ResolveName(name string, firstRegistry string, sc *types.SystemContext, sto
 			// It's a truncated version of the ID of an image that's present in local storage;
 			// we need to expand the ID.
 			return []string{img.ID}
+		}
+	}
+
+	// If the image is from a different transport
+	split := strings.SplitN(name, ":", 2)
+	if len(split) == 2 {
+		if _, ok := Transports[split[0]]; ok {
+			return []string{split[1]}
 		}
 	}
 
