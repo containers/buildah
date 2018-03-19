@@ -53,6 +53,7 @@ validate:
 install.tools:
 	$(GO) get -u $(BUILDFLAGS) github.com/cpuguy83/go-md2man
 	$(GO) get -u $(BUILDFLAGS) github.com/vbatts/git-validation
+	$(GO) get github.com/onsi/gomega/...
 	$(GO) get -u $(BUILDFLAGS) github.com/onsi/ginkgo/ginkgo
 	$(GO) get -u $(BUILDFLAGS) gopkg.in/alecthomas/gometalinter.v1
 	gometalinter.v1 -i
