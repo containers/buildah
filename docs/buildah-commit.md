@@ -1,4 +1,4 @@
-## buildah-commit "1" "March 2017" "buildah"
+# buildah-commit "1" "March 2017" "buildah"
 
 ## NAME
 buildah commit - Create an image from a working container.

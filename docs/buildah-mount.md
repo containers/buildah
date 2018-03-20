@@ -1,4 +1,4 @@
-## buildah-mount "1" "March 2017" "buildah"
+# buildah-mount "1" "March 2017" "buildah"
 
 ## NAME
 buildah mount - Mount a working container's root filesystem.

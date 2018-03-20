@@ -1,4 +1,4 @@
-## buildah-umount "1" "March 2017" "buildah"
+# buildah-umount "1" "March 2017" "buildah"
 
 ## NAME
 buildah umount - Unmount a working container's root file system.
