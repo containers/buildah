@@ -1,4 +1,4 @@
-## buildah-bud "1" "April 2017" "buildah"
+# buildah-bud "1" "April 2017" "buildah"
 
 ## NAME
 buildah bud - Build an image using instructions from Dockerfiles.

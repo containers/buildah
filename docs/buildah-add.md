@@ -1,4 +1,4 @@
-## buildah-add "1" "March 2017" "buildah"
+# buildah-add "1" "March 2017" "buildah"
 
 ## NAME
 buildah add - Add the contents of a file, URL, or a directory to a container.

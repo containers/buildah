@@ -1,4 +1,4 @@
-## buildah-tag "1" "May 2017" "buildah"
+# buildah-tag "1" "May 2017" "buildah"
 
 ## NAME
 buildah tag - Add additional names to local images.

@@ -1,4 +1,4 @@
-## buildah-copy "1" "March 2017" "buildah"
+# buildah-copy "1" "March 2017" "buildah"
 
 ## NAME
 buildah copy - Copies the contents of a file, URL, or directory into a container's working directory.
