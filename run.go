@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -89,21 +90,24 @@ func addRlimits(ulimit []string, g *generate.Generator) error {
 	return nil
 }
 
-func addHostsToFile(hosts []string) error {
+func addHosts(hosts []string, w io.Writer) error {
+	buf := bufio.NewWriter(w)
+	for _, host := range hosts {
+		fmt.Fprintln(buf, host)
+	}
+	return buf.Flush()
+}
+
+func addHostsToFile(hosts []string, filename string) error {
 	if len(hosts) == 0 {
 		return nil
 	}
-
-	file, err := os.OpenFile("/etc/hosts", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	w := bufio.NewWriter(file)
-	for _, host := range hosts {
-		fmt.Fprintln(w, host)
-	}
-	return w.Flush()
+	return addHosts(hosts, file)
 }
 
 func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) error {
@@ -139,7 +143,7 @@ func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) 
 	if err := addRlimits(commonOpts.Ulimit, g); err != nil {
 		return err
 	}
-	if err := addHostsToFile(commonOpts.AddHost); err != nil {
+	if err := addHostsToFile(commonOpts.AddHost, "/etc/hosts"); err != nil {
 		return err
 	}
 
