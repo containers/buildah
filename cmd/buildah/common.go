@@ -37,6 +37,8 @@ func getStore(c *cli.Context) (storage.Store, error) {
 	}
 	if c.GlobalIsSet("storage-driver") {
 		options.GraphDriverName = c.GlobalString("storage-driver")
+		// If any options setup in config, these should be dropped if user overrode the driver
+		options.GraphDriverOptions = []string{}
 	}
 	if c.GlobalIsSet("storage-opt") {
 		opts := c.GlobalStringSlice("storage-opt")

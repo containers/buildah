@@ -51,18 +51,22 @@ be used, as the default behavior of using the system-wide configuration
 **--root** **value**
 
 Storage root dir (default: "/var/lib/containers/storage")
+Default root dir is configured in /etc/containers/storage.conf
 
 **--runroot** **value**
 
 Storage state dir (default: "/var/run/containers/storage")
+Default state dir is configured in /etc/containers/storage.conf
 
 **--storage-driver** **value**
 
-Storage driver
+Storage driver.  Default Storage driver is configured in /etc/containers/storage.conf.  Overriding
+this option, will drop the storage-opt definitions was well from the storage.conf file.  User must
+specify additional options via the `--storage-opt` flag.
 
 **--storage-opt** **value**
 
-Storage driver option
+Storage driver option, Default Storage driver options are configured in /etc/containers/storage.conf
 
 **--version, -v**
 
@@ -73,7 +77,6 @@ Print the version
 
 | Command               | Description                                                                                          |
 | --------------------- | ---------------------------------------------------                                                  |
-|                       |                                                                                                      |
 | buildah-add(1)        | Add the contents of a file, URL, or a directory to the container.                                    |
 | buildah-bud(1)        | Build an image using instructions from Dockerfiles.                                                  |
 | buildah-commit(1)     | Create an image from a working container.                                                            |
@@ -89,5 +92,7 @@ Print the version
 | buildah-run(1)        | Run a command inside of the container.                                                               |
 | buildah-tag(1)        | Add an additional name to a local image.                                                             |
 | buildah-umount(1)     | Unmount a working container's root file system.                                                      |
-| buildah-version(1)    | Display the Buildah Version Information
-                                               |
+| buildah-version(1)    | Display the Buildah Version Information                                    |
+| storage.conf(5) | Syntax of Container Storage configuration file
+ |
+| |                                                  |
