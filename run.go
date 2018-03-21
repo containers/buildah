@@ -455,22 +455,28 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container")
 	}
+	return b.runUsingRuntime(options, spec, mountPoint, path, Package+"-"+filepath.Base(path))
+}
+
+func (b *Builder) runUsingRuntime(options RunOptions, spec *specs.Spec, rootfsPath, bundlePath, containerName string) (err error) {
 	specbytes, err := json.Marshal(spec)
 	if err != nil {
 		return err
 	}
-	err = ioutils.AtomicWriteFile(filepath.Join(path, "config.json"), specbytes, 0600)
-	if err != nil {
+	if err = ioutils.AtomicWriteFile(filepath.Join(bundlePath, "config.json"), specbytes, 0600); err != nil {
 		return errors.Wrapf(err, "error storing runtime configuration")
 	}
+
 	logrus.Debugf("config = %v", string(specbytes))
+
 	runtime := options.Runtime
 	if runtime == "" {
 		runtime = DefaultRuntime
 	}
-	args := append(options.Args, "run", "-b", path, Package+"-"+b.ContainerID)
+
+	args := append(options.Args, "run", "-b", bundlePath, containerName)
 	cmd := exec.Command(runtime, args...)
-	cmd.Dir = mountPoint
+	cmd.Dir = rootfsPath
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	if options.Quiet {
