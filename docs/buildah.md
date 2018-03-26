@@ -24,23 +24,6 @@ This tool needs to be run as the root user.
 
 Print debugging information
 
-**--default-mounts-file**
-
-Path to default mounts file (default path: "/usr/share/containers/mounts.conf").  Users can also create an additional conf file, `/etc/containers/mounts.conf`.
-
-The mounts.conf files specify volume mount directories that are automatically mounted inside containers when executing the `buildah run` or `buildah build-using-dockerfile` commands.  Container process can then use this content.  The volume mount content does not get committed to the final image.
-
-Usually these directories are used for passing secrets or credentials required by the package software to access remote package repositories.
-
-For example, a mounts.conf with the line "`/usr/share/rhel/secrets:/run/secrets`", the content of `/usr/share/rhel/secrets` directory is mounted on `/run/secrets` inside the container.  This mountpoint allows Red Hat Enterprise Linux subscriptions from the host to be used within the container.
-
-The format of the mounts.conf is the volume format /SRC:/DEST, one mount per line.
-Users can create an `/etc/containers/mounts.conf`, to specify their
-own special volumes to mount in the container. Buildah by default reads /usr/share/containers/mounts.conf and the /etc/containers/mounts.conf
-if it exists. Specifying the `--default-mounts-file` overrides both `default` mounts files.
-Note this is not a volume mount. The content of the volumes is copied into container storage, not
-bind mounted directly from the host.
-
 **--help, -h**
 
 Show help
@@ -109,8 +92,30 @@ Print the version
 | storage.conf(5) | Syntax of Container Storage configuration file |
 
 
+## Files
+
+**storage.conf** (`/etc/containers/storage.conf`)
+
+	storage.conf is the storage configuration file for all tools using containers/storage
+
+	The storage configuration file specifies all of the available container storage options for tools using shared container storage.
+
+**mounts.conf** (`/usr/share/containers/mounts.conf` and optionally `/etc/containers/mounts.conf`)
+
+    The mounts.conf files specify volume mount directories that are automatically mounted inside containers when executing the `buildah run` or `buildah build-using-dockerfile` commands.  Container process can then use this content.  The volume mount content does not get committed to the final image.
+
+    Usually these directories are used for passing secrets or credentials required by the package software to access remote package repositories.
+
+    For example, a mounts.conf with the line "`/usr/share/rhel/secrets:/run/secrets`", the content of `/usr/share/rhel/secrets` directory is mounted on `/run/secrets` inside the container.  This mountpoint allows Red Hat Enterprise Linux subscriptions from the host to be used within the container.
+
+    Note this is not a volume mount. The content of the volumes is copied into container storage, not bind mounted directly from the host.
+
+**registries.conf** (`/etc/containers/registries.conf`)
+
+	registries.conf is the configuration file which specifies which registries should be consulted when completing image names which do not include a registry or domain portion.
+
 ## SEE ALSO
-podman(1)
+podman(1), mounts.conf(5)
 
 ## HISTORY
 December 2017, Originally compiled by Tom Sweeney <tsweeney@redhat.com>

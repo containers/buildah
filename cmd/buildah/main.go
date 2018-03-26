@@ -62,9 +62,10 @@ func main() {
 			Value: defaultStoreDriverOptions,
 		},
 		cli.StringFlag{
-			Name:  "default-mounts-file",
-			Usage: "path to default mounts file",
-			Value: buildah.DefaultMountsFile,
+			Name:   "default-mounts-file",
+			Usage:  "path to default mounts file",
+			Value:  buildah.DefaultMountsFile,
+			Hidden: true,
 		},
 	}
 	app.Before = func(c *cli.Context) error {
