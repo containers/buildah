@@ -1,7 +1,6 @@
-TOM![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
+[buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
 
 # [Buildah](https://www.youtube.com/embed/YVk5NgSiUw8) - a tool that facilitates building OCI container images
-================================================================
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/projectatomic/buildah)](https://goreportcard.com/report/github.com/projectatomic/buildah)
 [![Travis](https://travis-ci.org/projectatomic/buildah.svg?branch=master)](https://travis-ci.org/projectatomic/buildah)
@@ -23,7 +22,7 @@ The Buildah package provides a command line tool that can be used to
 
 **[Tutorials](docs/tutorials/README.md)**
 
-## Example 
+## Example
 
 From [`./examples/lighttpd.sh`](examples/lighttpd.sh):
 
