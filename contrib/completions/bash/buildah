@@ -168,7 +168,6 @@ return 1
          --runroot
          --storage-driver
          --storage-opt
-         --default-mounts-file
          "
 
      case "$prev" in
