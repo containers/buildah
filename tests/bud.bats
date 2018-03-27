@@ -284,3 +284,75 @@ load helpers
   [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
+
+@test "bud with symlinks" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/symlink
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  run ls $root/data/log
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ test ]]
+  [[ "$output" =~ blah.txt ]]
+  run ls -al $root
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "test-log -> /data/log" ]]
+  [[ "$output" =~ "blah -> /test-log" ]]
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with symlinks to relative path" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.relative-symlink
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  run ls $root/log
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ test ]]
+  run ls -al $root
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "test-log -> ../log" ]]
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with multiple symlinks in a path" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.multiple-symlinks
+  echo $output
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  run ls $root/data/log
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ bin ]]
+  [[ "$output" =~ blah.txt ]]
+  run ls -al $root/myuser
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "log -> /test" ]]
+  run ls -al $root/test
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "bar -> /test-log" ]]
+  run ls -al $root/test-log
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "foo -> /data/log" ]]
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with multiple symlink pointing to itself" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.symlink-points-to-itself
+  [ "$status" -ne 0 ]
+}
