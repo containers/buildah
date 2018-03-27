@@ -268,27 +268,27 @@ mount can be changed directly. For instance if `/` is the source mount for
 
 ## EXAMPLE
 
-buildah from imagename --pull
+buildah from --pull imagename
 
-buildah from docker://myregistry.example.com/imagename --pull
+buildah from --pull docker://myregistry.example.com/imagename
 
 buildah from docker-daemon:imagename:imagetag
 
-buildah from docker-archive:filename --name mycontainer
+buildah from --name mycontainer docker-archive:filename
 
 buildah from oci-archive:filename
 
-buildah from dir:directoryname --name mycontainer
+buildah from --name mycontainer dir:directoryname
 
-buildah from imagename --signature-policy /etc/containers/policy.json
+buildah from --signature-policy /etc/containers/policy.json imagename
 
-buildah from docker://myregistry.example.com/imagename --pull-always --name "mycontainer"
+buildah from --pull-always --name "mycontainer" docker://myregistry.example.com/imagename 
 
-buildah from myregistry/myrepository/imagename:imagetag --tls-verify=false
+buildah from --tls-verify=false myregistry/myrepository/imagename:imagetag
 
-buildah from myregistry/myrepository/imagename:imagetag --creds=myusername:mypassword --cert-dir ~/auth
+buildah from --creds=myusername:mypassword --cert-dir ~/auth myregistry/myrepository/imagename:imagetag
 
-buildah from myregistry/myrepository/imagename:imagetag --authfile=/tmp/auths/myauths.json
+buildah from --authfile=/tmp/auths/myauths.json myregistry/myrepository/imagename:imagetag
 
 buildah from --memory 40m --cpu-shares 2 --cpuset-cpus 0,2 --security-opt label=level:s0:c100,c200 myregistry/myrepository/imagename:imagetag
 
