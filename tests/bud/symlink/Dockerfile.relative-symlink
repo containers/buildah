@@ -1,0 +1,4 @@
+FROM alpine
+RUN mkdir -p /data
+RUN ln -s ../log /test-log
+VOLUME [ "/test-log/test" ]

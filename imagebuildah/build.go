@@ -178,6 +178,16 @@ func (b *Executor) Preserve(path string) error {
 	cacheFile := filepath.Join(cacheDir, fmt.Sprintf("volume%d.tar", b.preserved))
 	// Save info about the top level of the location that we'll be archiving.
 	archivedPath := filepath.Join(b.mountPoint, path)
+
+	// Try and resolve the symlink (if one exists)
+	// Set archivedPath and path based on whether a symlink is found or not
+	if symLink, err := resolveSymLink(b.mountPoint, path); err == nil {
+		archivedPath = filepath.Join(b.mountPoint, symLink)
+		path = symLink
+	} else {
+		return errors.Wrapf(err, "error reading symbolic link to %q", path)
+	}
+
 	st, err := os.Stat(archivedPath)
 	if os.IsNotExist(err) {
 		if err = os.MkdirAll(archivedPath, 0755); err != nil {
