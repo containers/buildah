@@ -51,7 +51,7 @@ type BuildOptions struct {
 	ContextDirectory string
 	// PullPolicy controls whether or not we pull images.  It should be one
 	// of PullIfMissing, PullAlways, or PullNever.
-	PullPolicy int
+	PullPolicy buildah.PullPolicy
 	// Registry is a value which is prepended to the image's name, if it
 	// needs to be pulled and the image name alone can not be resolved to a
 	// reference to a source image.  No separator is implicitly added.
@@ -126,7 +126,7 @@ type Executor struct {
 	store                          storage.Store
 	contextDir                     string
 	builder                        *buildah.Builder
-	pullPolicy                     int
+	pullPolicy                     buildah.PullPolicy
 	registry                       string
 	transport                      string
 	ignoreUnrecognizedInstructions bool

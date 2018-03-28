@@ -3,6 +3,7 @@ package buildah
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -35,11 +36,14 @@ const (
 	stateFile = Package + ".json"
 )
 
+// PullPolicy takes the value PullIfMissing, PullAlways, or PullNever.
+type PullPolicy int
+
 const (
 	// PullIfMissing is one of the values that BuilderOptions.PullPolicy
 	// can take, signalling that the source image should be pulled from a
 	// registry if a local copy of it is not already present.
-	PullIfMissing = iota
+	PullIfMissing PullPolicy = iota
 	// PullAlways is one of the values that BuilderOptions.PullPolicy can
 	// take, signalling that a fresh, possibly updated, copy of the image
 	// should be pulled from a registry before the build proceeds.
@@ -49,6 +53,19 @@ const (
 	// registry if a local copy of it is not already present.
 	PullNever
 )
+
+// String converts a PullPolicy into a string.
+func (p PullPolicy) String() string {
+	switch p {
+	case PullIfMissing:
+		return "PullIfMissing"
+	case PullAlways:
+		return "PullAlways"
+	case PullNever:
+		return "PullNever"
+	}
+	return fmt.Sprintf("unrecognized policy %d", p)
+}
 
 // Builder objects are used to represent containers which are being used to
 // build images.  They also carry potential updates which will be applied to
@@ -184,7 +201,7 @@ type BuilderOptions struct {
 	// PullPolicy decides whether or not we should pull the image that
 	// we're using as a base image.  It should be PullIfMissing,
 	// PullAlways, or PullNever.
-	PullPolicy int
+	PullPolicy PullPolicy
 	// Registry is a value which is prepended to the image's name, if it
 	// needs to be pulled and the image name alone can not be resolved to a
 	// reference to a source image.  No separator is implicitly added.

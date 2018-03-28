@@ -31,10 +31,13 @@ const (
 	DefaultRuntime = "runc"
 )
 
+// TerminalPolicy takes the value DefaultTerminal, WithoutTerminal, or WithTerminal.
+type TerminalPolicy int
+
 const (
 	// DefaultTerminal indicates that this Run invocation should be
 	// connected to a pseudoterminal if we're connected to a terminal.
-	DefaultTerminal = iota
+	DefaultTerminal TerminalPolicy = iota
 	// WithoutTerminal indicates that this Run invocation should NOT be
 	// connected to a pseudoterminal.
 	WithoutTerminal
@@ -42,6 +45,19 @@ const (
 	// to a pseudoterminal.
 	WithTerminal
 )
+
+// String converts a TerminalPoliicy into a string.
+func (t TerminalPolicy) String() string {
+	switch t {
+	case DefaultTerminal:
+		return "DefaultTerminal"
+	case WithoutTerminal:
+		return "WithoutTerminal"
+	case WithTerminal:
+		return "WithTerminal"
+	}
+	return fmt.Sprintf("unrecognized terminal setting %d", t)
+}
 
 // RunOptions can be used to alter how a command is run in the container.
 type RunOptions struct {
@@ -72,7 +88,7 @@ type RunOptions struct {
 	// terminal is used if os.Stdout is connected to a terminal, but that
 	// decision can be overridden by specifying either WithTerminal or
 	// WithoutTerminal.
-	Terminal int
+	Terminal TerminalPolicy
 	// Quiet tells the run to turn off output to stdout.
 	Quiet bool
 }
