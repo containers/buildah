@@ -164,6 +164,8 @@ return 1
          --version -v
          "
      local options_with_args="
+         --registries-conf
+         --registries-conf-dir
          --root
          --runroot
          --storage-driver
@@ -211,6 +213,8 @@ return 1
      local boolean_options="
      --all
      -a
+     --prune
+     -p
      --force
      -f
      --help
@@ -260,6 +264,7 @@ return 1
 
      local options_with_args="
        --annotation
+       -a
        --arch
        --author
        --cmd
@@ -304,9 +309,9 @@ return 1
           --authfile
           --cert-dir
           --creds
-          --signature-policy
           --format
           -f
+          --signature-policy
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -365,17 +370,19 @@ return 1
      -f
      --file
      --format
-     --label
      -m
      --memory
      --memory-swap
      --runtime
      --runtime-flag
      --security-opt
+     --shm-size
      --signature-policy
      -t
      --tag
      --ulimit
+     --volume
+     -v
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -441,6 +448,7 @@ return 1
   "
 
      local options_with_args="
+     --chown
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -454,11 +462,12 @@ return 1
 
  _buildah_add() {
      local boolean_options="
-           --help
-           -h
+     --help
+     -h
     "
 
      local options_with_args="
+     -chown
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -592,6 +601,7 @@ return 1
 
  _buildah_images() {
      local boolean_options="
+     --digests
      --help
      -h
      --json
@@ -599,10 +609,14 @@ return 1
      -q
      --noheading
      -n
+     --no-trunc
      --notruncate
   "
 
      local options_with_args="
+     --filter
+     -f
+     --format
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -672,7 +686,9 @@ return 1
      --name
      --signature-policy
      --security-opt
+     --shm-size
      --ulimit
+     --volume
   "
 
 
@@ -708,6 +724,7 @@ return 1
        config
        containers
        copy
+       delete
        from
        images
        inspect
@@ -721,18 +738,6 @@ return 1
        unmount
        version
    )
-
-   # These options are valid as global options for all client commands
-   local global_boolean_options="
-         --debug
-   "
-
-   local global_options_with_args="
-         --root
-         --runroot
-         --storage-driver
-         --storage-opt
-   "
 
    COMPREPLY=()
    local cur prev words cword
