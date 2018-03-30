@@ -1,3 +1,5 @@
+![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
+
 # Contributing to Buildah
 
 We'd love to have you join the community! Below summarizes the processes

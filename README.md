@@ -20,6 +20,8 @@ The Buildah package provides a command line tool that can be used to
 
 **[Installation notes](install.md)**
 
+**[Troubleshooting Guide](troubleshooting.md)**
+
 **[Tutorials](docs/tutorials/README.md)**
 
 ## Example
