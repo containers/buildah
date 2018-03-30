@@ -7,7 +7,8 @@ buildah images - List images in local storage.
 **buildah** **images** [*options* [...]]
 
 ## DESCRIPTION
-Displays locally stored images, their names, and their IDs.
+Displays locally stored images, their names, sizes, created date and their IDs.
+The created date is displayed in the time locale of the local machine.
 
 ## OPTIONS
 

@@ -1,3 +1,5 @@
+![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
+
 # Changelog
 
 ## 0.5 - 2017-11-07

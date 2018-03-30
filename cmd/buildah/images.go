@@ -12,6 +12,7 @@ import (
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
+	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
@@ -228,6 +229,7 @@ func outputImages(images []storage.Image, format string, store storage.Store, fi
 				createdTime = inspectedTime
 			}
 		}
+		createdTime = util.GetLocalTime(createdTime)
 
 		names := []string{}
 		if len(image.Names) > 0 {

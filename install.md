@@ -1,3 +1,5 @@
+![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
+
 # Installation Instructions
 
 ## System Requirements
