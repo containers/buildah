@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/containers/image/directory"
 	dockerarchive "github.com/containers/image/docker/archive"
@@ -198,4 +199,13 @@ func GetFailureCause(err, defaultError error) error {
 	default:
 		return defaultError
 	}
+}
+
+// GetLocalTime discover the UTC offset and then add that to the
+// passed in time to arrive at the local time.
+func GetLocalTime(localTime time.Time) time.Time {
+	t := time.Now()
+	_, offset := t.Local().Zone()
+	localTime = localTime.Add(time.Second * time.Duration(offset))
+	return localTime
 }
