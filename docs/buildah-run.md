@@ -4,7 +4,7 @@
 buildah run - Run a command inside of the container.
 
 ## SYNOPSIS
-**buildah** **run** **containerID** [*options* [...] --] **command**
+**buildah** **run** [*options* [...] --] **containerID** **command**
 
 ## DESCRIPTION
 Launches a container and runs the specified command in that container using the
@@ -48,15 +48,15 @@ options can be passed to the command inside of the container.
 
 buildah run containerID -- ps -auxw
 
-buildah run containerID --hostname myhost -- ps -auxw
+buildah run --hostname myhost containerID -- ps -auxw
 
-buildah run containerID --runtime-flag log-format=json /bin/bash
+buildah run --runtime-flag log-format=json containerID /bin/bash
 
-buildah run containerID --runtime-flag debug /bin/bash
+buildah run --runtime-flag debug containerID /bin/bash
 
-buildah run containerID --tty /bin/bash
+buildah run --tty containerID /bin/bash
 
-buildah run containerID --tty=false ls /
+buildah run --tty=false containerID ls /
 
 ## SEE ALSO
 buildah(1)
