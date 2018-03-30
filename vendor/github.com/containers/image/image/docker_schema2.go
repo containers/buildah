@@ -130,7 +130,8 @@ func (m *manifestSchema2) EmbeddedDockerReferenceConflicts(ref reference.Named) 
 	return false
 }
 
-func (m *manifestSchema2) imageInspectInfo() (*types.ImageInspectInfo, error) {
+// Inspect returns various information for (skopeo inspect) parsed from the manifest and configuration.
+func (m *manifestSchema2) Inspect() (*types.ImageInspectInfo, error) {
 	getter := func(info types.BlobInfo) ([]byte, error) {
 		if info.Digest != m.ConfigInfo().Digest {
 			// Shouldn't ever happen
@@ -251,7 +252,7 @@ func (m *manifestSchema2) convertToManifestSchema1(dest types.ImageDestination) 
 		if historyEntry.EmptyLayer {
 			if !haveGzippedEmptyLayer {
 				logrus.Debugf("Uploading empty layer during conversion to schema 1")
-				info, err := dest.PutBlob(bytes.NewReader(gzippedEmptyLayer), types.BlobInfo{Digest: gzippedEmptyLayerDigest, Size: int64(len(gzippedEmptyLayer))})
+				info, err := dest.PutBlob(bytes.NewReader(gzippedEmptyLayer), types.BlobInfo{Digest: gzippedEmptyLayerDigest, Size: int64(len(gzippedEmptyLayer))}, false)
 				if err != nil {
 					return nil, errors.Wrap(err, "Error uploading empty layer")
 				}

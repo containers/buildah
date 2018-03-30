@@ -196,7 +196,7 @@ func setFilterDate(store storage.Store, images []storage.Image, imgName string) 
 				if err != nil {
 					return time.Time{}, fmt.Errorf("error inspecting image %q: %v", image.ID, err)
 				}
-				date := inspect.Created
+				date := *inspect.Created
 				return date, nil
 			}
 		}
