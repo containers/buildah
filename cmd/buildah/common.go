@@ -115,7 +115,7 @@ func getDateAndDigestAndSize(image storage.Image, store storage.Store) (time.Tim
 	}
 	inspectInfo, inspectErr := img.Inspect()
 	if inspectErr == nil && inspectInfo != nil {
-		created = inspectInfo.Created
+		created = *inspectInfo.Created
 	}
 	if sizeErr != nil {
 		err = sizeErr

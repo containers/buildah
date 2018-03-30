@@ -413,9 +413,9 @@ func TestParseFilterAllParams(t *testing.T) {
 		dangling:         "true",
 		label:            "a=b",
 		beforeImage:      "busybox:latest",
-		beforeDate:       inspect.Created,
+		beforeDate:       *inspect.Created,
 		sinceImage:       "busybox:latest",
-		sinceDate:        inspect.Created,
+		sinceDate:        *inspect.Created,
 		referencePattern: "abcdef",
 	}
 	if *params != *expectedParams {
