@@ -504,6 +504,7 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 		WorkingDir: builder.WorkDir(),
 		Entrypoint: builder.Entrypoint(),
 		Labels:     builder.Labels(),
+		Shell:      builder.Shell(),
 	}
 	var rootfs *docker.RootFS
 	if builder.Docker.RootFS != nil {
@@ -620,6 +621,7 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 	}
 	b.builder.SetWorkDir(config.WorkingDir)
 	b.builder.SetEntrypoint(config.Entrypoint)
+	b.builder.SetShell(config.Shell)
 	b.builder.ClearLabels()
 	for k, v := range config.Labels {
 		b.builder.SetLabel(k, v)
@@ -673,44 +675,19 @@ func (b *Executor) Build(ib *imagebuilder.Builder, node []*parser.Node) (err err
 	return nil
 }
 
-// BuildReadClosers parses a set of one or more already-opened Dockerfiles,
-// creates a new Executor, and then runs Prepare/Execute/Commit/Delete over the
-// entire set of instructions.
-func BuildReadClosers(store storage.Store, options BuildOptions, dockerfile ...io.ReadCloser) error {
-	mainFile := dockerfile[0]
-	extraFiles := dockerfile[1:]
-	for _, dfile := range dockerfile {
-		defer dfile.Close()
-	}
-	builder, parsed, err := imagebuilder.NewBuilderForReader(mainFile, options.Args)
-	if err != nil {
-		return errors.Wrapf(err, "error creating builder")
-	}
-	exec, err := NewExecutor(store, options)
-	if err != nil {
-		return errors.Wrapf(err, "error creating build executor")
-	}
-	nodes := []*parser.Node{parsed}
-	for _, extra := range extraFiles {
-		_, parsed, err := imagebuilder.NewBuilderForReader(extra, options.Args)
-		if err != nil {
-			return errors.Wrapf(err, "error parsing dockerfile")
-		}
-		nodes = append(nodes, parsed)
-	}
-	return exec.Build(builder, nodes)
-}
-
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be
 // URLs), creates a new Executor, and then runs Prepare/Execute/Commit/Delete
 // over the entire set of instructions.
 func BuildDockerfiles(store storage.Store, options BuildOptions, dockerfile ...string) error {
-	var dockerfiles []io.ReadCloser
 	if len(dockerfile) == 0 {
 		return errors.Errorf("error building: no dockerfiles specified")
 	}
+	nodes := []*parser.Node{}
 	for _, dfile := range dockerfile {
-		var rc io.ReadCloser
+		var (
+			parsed *parser.Node
+			err    error
+		)
 		if strings.HasPrefix(dfile, "http://") || strings.HasPrefix(dfile, "https://") {
 			logrus.Debugf("reading remote Dockerfile %q", dfile)
 			resp, err := http.Get(dfile)
@@ -721,32 +698,25 @@ func BuildDockerfiles(store storage.Store, options BuildOptions, dockerfile ...s
 				resp.Body.Close()
 				return errors.Errorf("no contents in %q", dfile)
 			}
-			rc = resp.Body
+			parsed, err = imagebuilder.ParseDockerfile(resp.Body)
+			resp.Body.Close()
 		} else {
 			if !filepath.IsAbs(dfile) {
 				logrus.Debugf("resolving local Dockerfile %q", dfile)
 				dfile = filepath.Join(options.ContextDirectory, dfile)
 			}
 			logrus.Debugf("reading local Dockerfile %q", dfile)
-			contents, err := os.Open(dfile)
-			if err != nil {
-				return errors.Wrapf(err, "error reading %q", dfile)
-			}
-			dinfo, err := contents.Stat()
-			if err != nil {
-				contents.Close()
-				return errors.Wrapf(err, "error reading info about %q", dfile)
-			}
-			if dinfo.Size() == 0 {
-				contents.Close()
-				return errors.Wrapf(err, "no contents in %q", dfile)
-			}
-			rc = contents
+			parsed, err = imagebuilder.ParseFile(dfile)
 		}
-		dockerfiles = append(dockerfiles, rc)
+		if err != nil {
+			return errors.Wrapf(err, "unable to parse %s", dfile)
+		}
+		nodes = append(nodes, parsed)
 	}
-	if err := BuildReadClosers(store, options, dockerfiles...); err != nil {
-		return errors.Wrapf(err, "error building")
+	builder := imagebuilder.NewBuilder(options.Args)
+	exec, err := NewExecutor(store, options)
+	if err != nil {
+		return errors.Wrapf(err, "error creating build executor")
 	}
-	return nil
+	return exec.Build(builder, nodes)
 }

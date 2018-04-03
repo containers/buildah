@@ -262,3 +262,25 @@ load helpers
   [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
+
+@test "bud-shell" {
+  target=alpine-image
+  buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/shell
+  run buildah --debug=false inspect --type=image --format '{{printf "%q" .Docker.Config.Shell}}' ${target}
+  echo $output
+  [ "$status" -eq 0 ]
+  [ "$output" = '["/bin/sh" "-c"]' ]
+  ctr=$(buildah from ${target})
+  run buildah --debug=false config --shell "/bin/bash -c" ${ctr}
+  echo $output
+  [ "$status" -eq 0 ]
+  run buildah --debug=false inspect --type=container --format '{{printf "%q" .Docker.Config.Shell}}' ${ctr}
+  echo $output
+  [ "$status" -eq 0 ]
+  [ "$output" = '["/bin/bash" "-c"]' ]
+  buildah rm ${ctr}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}
