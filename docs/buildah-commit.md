@@ -4,12 +4,11 @@
 buildah commit - Create an image from a working container.
 
 ## SYNOPSIS
-**buildah** **commit** [*options* [...]] **containerID** [**imageName**]
+**buildah** **commit** [*options* [...]] **containerID** **imageName**
 
 ## DESCRIPTION
 Writes a new image using the specified container's read-write layer and if it
-is based on an image, the layers of that image.  If an image name is not
-specified, an ID is assigned, but no name is assigned to the image.
+is based on an image, the layers of that image.
 
 ## OPTIONS
 
