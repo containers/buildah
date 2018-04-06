@@ -35,6 +35,9 @@ Image stored in local container/storage
   **oci:**_path_**:**_tag_
   An image _tag_ in a directory compliant with "Open Container Image Layout Specification" at _path_.
 
+  **oci-archive:**_path_**:**_tag_
+  An image _tag_ in a tar archive compliant with "Open Container Image Layout Specification" at _path_.
+
   **ostree:**_image_[**@**_/absolute/repo/path_]
   An image in local OSTree repository.  _/absolute/repo/path_ defaults to _/ostree/repo_.
 
@@ -86,7 +89,11 @@ This example extracts the imageID image to a local directory in docker format.
 
 This example extracts the imageID image to a local directory in oci format.
 
- `# buildah push imageID oci:/path/to/layout`
+ `# buildah push imageID oci:/path/to/layout:image:tag`
+
+This example extracts the imageID image to a tar archive in oci format.
+
+  `# buildah push imageID oci-archive:/path/to/archive:image:tag`
 
 This example extracts the imageID image to a container registry named registry.example.com.
 
