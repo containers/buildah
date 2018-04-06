@@ -22,7 +22,7 @@ var (
 		Description:    addDescription,
 		Flags:          addAndCopyFlags,
 		Action:         addCmd,
-		ArgsUsage:      "CONTAINER-NAME-OR-ID [[FILE | DIRECTORY | URL] ...] [DESTINATION]",
+		ArgsUsage:      "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [... [DESTINATION]]",
 		SkipArgReorder: true,
 	}
 
@@ -32,7 +32,7 @@ var (
 		Description:    copyDescription,
 		Flags:          addAndCopyFlags,
 		Action:         copyCmd,
-		ArgsUsage:      "CONTAINER-NAME-OR-ID [[FILE | DIRECTORY | URL] ...] [DESTINATION]",
+		ArgsUsage:      "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [... [DESTINATION]]",
 		SkipArgReorder: true,
 	}
 )
@@ -44,6 +44,9 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 	}
 	name := args[0]
 	args = args.Tail()
+	if len(args) == 0 {
+		return errors.Errorf("src must be specified")
+	}
 
 	if err := validateFlags(c, addAndCopyFlags); err != nil {
 		return err
