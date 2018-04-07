@@ -1,17 +1,19 @@
 # buildah-umount "1" "March 2017" "buildah"
 
 ## NAME
-buildah umount - Unmount a working container's root file system.
+buildah umount - Unmount the root file system on the specified working containers.
 
 ## SYNOPSIS
-**buildah** **umount** **containerID**
+**buildah** **umount** **containerID [...]**
 
 ## DESCRIPTION
-Unmounts the specified container's root file system.
+Unmounts the root file system on the specified working containers.
 
 ## EXAMPLE
 
 buildah umount containerID
+
+buildah umount containerID1 containerID2 containerID3
 
 ## SEE ALSO
 buildah(1)
