@@ -1,6 +1,8 @@
 package util
 
 import (
+	"fmt"
+	"io"
 	"net/url"
 	"path"
 	"strings"
@@ -208,4 +210,12 @@ func GetLocalTime(localTime time.Time) time.Time {
 	_, offset := t.Local().Zone()
 	localTime = localTime.Add(time.Second * time.Duration(offset))
 	return localTime
+}
+
+// WriteError writes `lastError` into `w` if not nil and return the next error `err`
+func WriteError(w io.Writer, err error, lastError error) error {
+	if lastError != nil {
+		fmt.Fprintln(w, lastError)
+	}
+	return err
 }
