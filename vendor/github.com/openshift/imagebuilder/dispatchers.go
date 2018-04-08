@@ -171,7 +171,7 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, flagArg
 func from(b *Builder, args []string, attributes map[string]bool, flagArgs []string, original string) error {
 	switch {
 	case len(args) == 1:
-	case len(args) == 3 && len(args[0]) > 0 && args[1] == "as" && len(args[2]) > 0:
+	case len(args) == 3 && len(args[0]) > 0 && strings.EqualFold(args[1], "as") && len(args[2]) > 0:
 
 	default:
 		return fmt.Errorf("FROM requires either one argument, or three: FROM <source> [as <name>]")

@@ -189,7 +189,7 @@ func extractNameFromNode(node *parser.Node) (string, bool) {
 		return "", false
 	}
 	n = n.Next
-	if n.Value != "as" || n.Next == nil || len(n.Next.Value) == 0 {
+	if !strings.EqualFold(n.Value, "as") || n.Next == nil || len(n.Next.Value) == 0 {
 		return "", false
 	}
 	return n.Next.Value, true
