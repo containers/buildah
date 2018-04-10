@@ -106,6 +106,7 @@ load helpers
   root=$(buildah mount ${cid})
   cmp $root/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.name
   cmp $root/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.index
+  cmp $root/Dockerfile.mixed ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.mixed
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run buildah --debug=false images -q
