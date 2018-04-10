@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	is "github.com/containers/image/storage"
@@ -113,6 +114,7 @@ type BuildOptions struct {
 // Executor is a buildah-based implementation of the imagebuilder.Executor
 // interface.
 type Executor struct {
+	index                          int
 	name                           string
 	named                          map[string]*Executor
 	store                          storage.Store
@@ -146,14 +148,18 @@ type Executor struct {
 }
 
 // withName creates a new child executor that will be used whenever a COPY statement uses --from=NAME.
-func (b *Executor) withName(name string) *Executor {
+func (b *Executor) withName(name string, index int) *Executor {
 	if b.named == nil {
 		b.named = make(map[string]*Executor)
 	}
 	copied := *b
+	copied.index = index
 	copied.name = name
 	child := &copied
 	b.named[name] = child
+	if idx := strconv.Itoa(index); idx != name {
+		b.named[idx] = child
+	}
 	return child
 }
 
@@ -354,7 +360,7 @@ func (b *Executor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
 			if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
 				sources = append(sources, src)
 			} else if len(copy.From) > 0 {
-				if other, ok := b.named[copy.From]; ok {
+				if other, ok := b.named[copy.From]; ok && other.index < b.index {
 					sources = append(sources, filepath.Join(other.mountPoint, src))
 				} else {
 					return errors.Errorf("the stage %q has not been built", copy.From)
@@ -686,7 +692,7 @@ func (b *Executor) Build(stages imagebuilder.Stages) error {
 	}
 	var stageExecutor *Executor
 	for _, stage := range stages {
-		stageExecutor = b.withName(stage.Name)
+		stageExecutor = b.withName(stage.Name, stage.Position)
 		if err := stageExecutor.Prepare(stage.Builder, stage.Node, ""); err != nil {
 			return err
 		}
@@ -701,8 +707,8 @@ func (b *Executor) Build(stages imagebuilder.Stages) error {
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be
 // URLs), creates a new Executor, and then runs Prepare/Execute/Commit/Delete
 // over the entire set of instructions.
-func BuildDockerfiles(store storage.Store, options BuildOptions, dockerfile ...string) error {
-	if len(dockerfile) == 0 {
+func BuildDockerfiles(store storage.Store, options BuildOptions, paths ...string) error {
+	if len(paths) == 0 {
 		return errors.Errorf("error building: no dockerfiles specified")
 	}
 	var dockerfiles []io.ReadCloser
@@ -711,7 +717,7 @@ func BuildDockerfiles(store storage.Store, options BuildOptions, dockerfile ...s
 			d.Close()
 		}
 	}(dockerfiles...)
-	for _, dfile := range dockerfile {
+	for _, dfile := range paths {
 		if strings.HasPrefix(dfile, "http://") || strings.HasPrefix(dfile, "https://") {
 			logrus.Debugf("reading remote Dockerfile %q", dfile)
 			resp, err := http.Get(dfile)
