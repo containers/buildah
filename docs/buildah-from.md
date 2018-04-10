@@ -32,7 +32,7 @@ Multiple transports are supported:
   An image in local OSTree repository.  _/absolute/repo/path_ defaults to _/ostree/repo_.
 
 ## RETURN VALUE
-The container ID of the container that was created.  On error, -1 is returned and errno is returned.
+The container ID of the container that was created.  On error, 1 is returned and errno is returned.
 
 ## OPTIONS
 

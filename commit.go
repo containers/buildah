@@ -117,6 +117,11 @@ func (b *Builder) Commit(dest types.ImageReference, options CommitOptions) error
 			logrus.Warnf("don't know how to add tags to images stored in %q transport", dest.Transport().Name())
 		}
 	}
+
+	img, err := is.Transport.GetStoreImage(b.store, dest)
+	if err == nil {
+		fmt.Printf("%s\n", img.ID)
+	}
 	return nil
 }
 
