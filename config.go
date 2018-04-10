@@ -579,3 +579,30 @@ func (b *Builder) SetDomainname(name string) {
 func (b *Builder) SetDefaultMountsFilePath(path string) {
 	b.DefaultMountsFilePath = path
 }
+
+// Comment returns the comment which will be set in the container and in
+// containers built using images built from the container
+func (b *Builder) Comment() string {
+	return b.Docker.Comment
+}
+
+// SetComment sets the Comment which will be set in the container and in
+// containers built using images built from the container.
+// Note: this setting is not present in the OCIv1 image format, so it is
+// discarded when writing images using OCIv1 formats.
+func (b *Builder) SetComment(comment string) {
+	b.Docker.Comment = comment
+}
+
+// StopSignal returns the signal which will be set in the container and in
+// containers built using images buiilt from the container
+func (b *Builder) StopSignal() string {
+	return b.Docker.Config.StopSignal
+}
+
+// SetStopSignal sets the signal which will be set in the container and in
+// containers built using images built from the container.
+func (b *Builder) SetStopSignal(stopSignal string) {
+	b.OCIv1.Config.StopSignal = stopSignal
+	b.Docker.Config.StopSignal = stopSignal
+}
