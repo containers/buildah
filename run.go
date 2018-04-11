@@ -328,19 +328,19 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return err
 	}
 
-        ep := b.Entrypoint()
-        if len(options.Entrypoint) > 0 {
-                ep = options.Entrypoint
-        }
-        if len(command) > 0 {
-                g.SetProcessArgs(append(ep, command...))
-        } else {
-                cmd := b.Cmd()
-                if len(options.Cmd) > 0 {
-                        cmd = options.Cmd
-                }
-                g.SetProcessArgs(append(ep, cmd...))
-        }
+	ep := b.Entrypoint()
+	if len(options.Entrypoint) > 0 {
+		ep = options.Entrypoint
+	}
+	if len(command) > 0 {
+		g.SetProcessArgs(append(ep, command...))
+	} else {
+		cmd := b.Cmd()
+		if len(options.Cmd) > 0 {
+			cmd = options.Cmd
+		}
+		g.SetProcessArgs(append(ep, cmd...))
+	}
 	if options.WorkingDir != "" {
 		g.SetProcessCwd(options.WorkingDir)
 	} else if b.WorkDir() != "" {
