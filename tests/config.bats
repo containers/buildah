@@ -17,6 +17,7 @@ load helpers
    --volume /VOLUME \
    --workingdir /tmp \
    --label LABEL=VALUE \
+   --stop-signal SIGINT \
    --annotation ANNOTATION=VALUE \
   $cid
 
@@ -74,6 +75,11 @@ load helpers
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Labels}}' scratch-image-docker | grep LABEL:VALUE
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Labels}}' scratch-image-oci | grep LABEL:VALUE
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Labels}}' scratch-image-oci | grep LABEL:VALUE
+
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.StopSignal}}' scratch-image-docker | grep SIGINT
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.StopSignal}}' scratch-image-docker | grep SIGINT
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.StopSignal}}' scratch-image-oci | grep SIGINT
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.StopSignal}}' scratch-image-oci | grep SIGINT
 
   # Annotations aren't part of the Docker v2 spec, so they're discarded when we save to Docker format.
   buildah --debug=false inspect --type=image --format '{{.ImageAnnotations}}' scratch-image-oci | grep ANNOTATION:VALUE

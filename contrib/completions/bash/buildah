@@ -278,6 +278,7 @@ return 1
        --port
        -p
        --shell
+       --stop-signal
        --user
        -u
        --volume

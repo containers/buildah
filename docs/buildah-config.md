@@ -72,6 +72,10 @@ The shell instruction allows the default shell used for the shell form of comman
 
 Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
 
+**--stop-signal** *signal*
+
+Set default *stop signal* for container. This signal will be sent when container is stopped, default is SIGINT.
+
 **--user** *user*
 
 Specify the *user* as whom containers based on images which will be built using
