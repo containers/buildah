@@ -541,6 +541,7 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 		Entrypoint: builder.Entrypoint(),
 		Labels:     builder.Labels(),
 		Shell:      builder.Shell(),
+		StopSignal: builder.StopSignal(),
 	}
 	var rootfs *docker.RootFS
 	if builder.Docker.RootFS != nil {
@@ -658,6 +659,7 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 	b.builder.SetWorkDir(config.WorkingDir)
 	b.builder.SetEntrypoint(config.Entrypoint)
 	b.builder.SetShell(config.Shell)
+	b.builder.SetStopSignal(config.StopSignal)
 	b.builder.ClearLabels()
 	for k, v := range config.Labels {
 		b.builder.SetLabel(k, v)

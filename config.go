@@ -35,6 +35,7 @@ func makeOCIv1Image(dimage *docker.V2Image) (ociv1.Image, error) {
 			Volumes:      config.Volumes,
 			WorkingDir:   config.WorkingDir,
 			Labels:       config.Labels,
+			StopSignal:   config.StopSignal,
 		},
 		RootFS: ociv1.RootFS{
 			Type:    "",
@@ -84,6 +85,7 @@ func makeDockerV2S2Image(oimage *ociv1.Image) (docker.V2Image, error) {
 				Volumes:      oimage.Config.Volumes,
 				WorkingDir:   oimage.Config.WorkingDir,
 				Labels:       oimage.Config.Labels,
+				StopSignal:   oimage.Config.StopSignal,
 			},
 		},
 		RootFS: &docker.V2S2RootFS{

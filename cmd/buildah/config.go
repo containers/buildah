@@ -64,6 +64,10 @@ var (
 			Usage: "add `shell` to run in containers",
 		},
 		cli.StringFlag{
+			Name:  "stop-signal",
+			Usage: "set `stop signal` for containers based on image",
+		},
+		cli.StringFlag{
 			Name:  "user, u",
 			Usage: "set default `user` to run inside containers based on image",
 		},
@@ -111,6 +115,9 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 		} else {
 			builder.SetShell(shellSpec)
 		}
+	}
+	if c.IsSet("stop-signal") {
+		builder.SetStopSignal(c.String("stop-signal"))
 	}
 	if c.IsSet("port") || c.IsSet("p") {
 		for _, portSpec := range c.StringSlice("port") {
