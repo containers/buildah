@@ -98,7 +98,7 @@ load helpers
 	[ "$output" = that-other-thing ]
 
 	buildah config --entrypoint echo $cid
-	run buildah --debug=false run $cid echo that-other-thing
+	run buildah --debug=false run $cid that-other-thing
 	[ "$status" -eq 0 ]
 	[ "$output" = that-other-thing ]
 
