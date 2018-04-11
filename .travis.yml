@@ -47,7 +47,7 @@ script:
     - docker images
     - ls -alF /home/travis/auth
     - docker pull alpine
-    - docker login localhost:5000 --username testuser --password testpassword
+    - echo testpassword | docker login localhost:5000 --username testuser --password-stdin
     - docker tag alpine localhost:5000/my-alpine
     - docker push localhost:5000/my-alpine
     - docker ps --all
