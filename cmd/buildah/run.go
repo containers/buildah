@@ -73,7 +73,7 @@ func runCmd(c *cli.Context) error {
 		return err
 	}
 
-	builder, err := openBuilder(store, name)
+	builder, err := openBuilder(getContext(), store, name)
 	if err != nil {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}

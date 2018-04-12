@@ -15,7 +15,7 @@ func TestProperImageRefTrue(t *testing.T) {
 		t.Fatalf("could not pull image to remove")
 	}
 	// This should match a url path
-	imgRef, err := properImageRef("docker://busybox:latest")
+	imgRef, err := properImageRef(getContext(), "docker://busybox:latest")
 	if err != nil {
 		t.Errorf("could not match image: %v", err)
 	} else if imgRef == nil {
@@ -30,7 +30,7 @@ func TestProperImageRefFalse(t *testing.T) {
 		t.Fatal("could not pull image to remove")
 	}
 	// This should match a url path
-	imgRef, _ := properImageRef("docker://:")
+	imgRef, _ := properImageRef(getContext(), "docker://:")
 	if imgRef != nil {
 		t.Error("should not have found an Image Reference")
 	}
@@ -52,7 +52,7 @@ func TestStorageImageRefTrue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
-	imgRef, err := storageImageRef(store, "busybox")
+	imgRef, err := storageImageRef(getContext(), store, "busybox")
 	if err != nil {
 		t.Errorf("could not match image: %v", err)
 	} else if imgRef == nil {
@@ -76,7 +76,7 @@ func TestStorageImageRefFalse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
-	imgRef, _ := storageImageRef(store, "")
+	imgRef, _ := storageImageRef(getContext(), store, "")
 	if imgRef != nil {
 		t.Error("should not have found an Image Reference")
 	}
@@ -104,14 +104,14 @@ func TestStorageImageIDTrue(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	id, err := captureOutputWithError(func() error {
-		return outputImages(images, "", store, nil, "busybox:latest", false, false, false, true)
+		return outputImages(getContext(), images, "", store, nil, "busybox:latest", false, false, false, true)
 	})
 	if err != nil {
 		t.Fatalf("Error getting id of image: %v", err)
 	}
 	id = strings.TrimSpace(id)
 
-	imgRef, err := storageImageID(store, id)
+	imgRef, err := storageImageID(getContext(), store, id)
 	if err != nil {
 		t.Errorf("could not match image: %v", err)
 	} else if imgRef == nil {
@@ -134,7 +134,7 @@ func TestStorageImageIDFalse(t *testing.T) {
 
 	id := ""
 
-	imgRef, _ := storageImageID(store, id)
+	imgRef, _ := storageImageID(getContext(), store, id)
 	if imgRef != nil {
 		t.Error("should not have returned Image Reference")
 	}

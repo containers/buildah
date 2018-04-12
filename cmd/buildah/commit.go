@@ -118,7 +118,9 @@ func commitCmd(c *cli.Context) error {
 		return err
 	}
 
-	builder, err := openBuilder(store, name)
+	ctx := getContext()
+
+	builder, err := openBuilder(ctx, store, name)
 	if err != nil {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
@@ -147,7 +149,7 @@ func commitCmd(c *cli.Context) error {
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
 	}
-	err = builder.Commit(dest, options)
+	err = builder.Commit(ctx, dest, options)
 	if err != nil {
 		return util.GetFailureCause(
 			err,

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -111,7 +112,8 @@ func main() {
 			ref = ref2
 		}
 
-		img, err := ref.NewImage(systemContext)
+		ctx := context.Background()
+		img, err := ref.NewImage(ctx, systemContext)
 		if err != nil {
 			logrus.Errorf("error opening image %q: %v", image, err)
 			errors = true
@@ -119,14 +121,14 @@ func main() {
 		}
 		defer img.Close()
 
-		config, err := img.ConfigBlob()
+		config, err := img.ConfigBlob(ctx)
 		if err != nil {
 			logrus.Errorf("error reading configuration from %q: %v", image, err)
 			errors = true
 			continue
 		}
 
-		manifest, manifestType, err := img.Manifest()
+		manifest, manifestType, err := img.Manifest(ctx)
 		if err != nil {
 			logrus.Errorf("error reading manifest from %q: %v", image, err)
 			errors = true

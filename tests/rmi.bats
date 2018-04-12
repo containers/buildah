@@ -7,6 +7,8 @@ load helpers
   buildah rm "$cid"
   buildah rmi alpine
   run buildah --debug=false images -q
+  echo "$output"
+  [ "$status" -eq 0 ]
   [ "$output" == "" ]
 }
 
@@ -20,6 +22,8 @@ load helpers
 
   buildah rmi -f alpine busybox
   run buildah --debug=false images -q
+  echo "$output"
+  [ "$status" -eq 0 ]
   [ "$output" == "" ]
 }
 

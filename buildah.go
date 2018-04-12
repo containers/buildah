@@ -1,6 +1,7 @@
 package buildah
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -241,21 +242,21 @@ type ImportFromImageOptions struct {
 }
 
 // NewBuilder creates a new build container.
-func NewBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
-	return newBuilder(store, options)
+func NewBuilder(ctx context.Context, store storage.Store, options BuilderOptions) (*Builder, error) {
+	return newBuilder(ctx, store, options)
 }
 
 // ImportBuilder creates a new build configuration using an already-present
 // container.
-func ImportBuilder(store storage.Store, options ImportOptions) (*Builder, error) {
-	return importBuilder(store, options)
+func ImportBuilder(ctx context.Context, store storage.Store, options ImportOptions) (*Builder, error) {
+	return importBuilder(ctx, store, options)
 }
 
 // ImportBuilderFromImage creates a new builder configuration using an image.
 // The returned object can be modified and examined, but it can not be saved
 // or committed because it is not associated with a working container.
-func ImportBuilderFromImage(store storage.Store, options ImportFromImageOptions) (*Builder, error) {
-	return importBuilderFromImage(store, options)
+func ImportBuilderFromImage(ctx context.Context, store storage.Store, options ImportFromImageOptions) (*Builder, error) {
+	return importBuilderFromImage(ctx, store, options)
 }
 
 // OpenBuilder loads information about a build container given its name or ID.
