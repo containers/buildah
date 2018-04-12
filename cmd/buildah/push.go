@@ -62,7 +62,7 @@ var (
    %s
 
    See buildah-push(1) section "DESTINATION" for the expected format
-`, strings.Join(transports.ListNames(), ", "))
+`, getListOfTransports())
 
 	pushCommand = cli.Command{
 		Name:           "push",
@@ -150,4 +150,11 @@ func pushCmd(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+// getListOfTransports gets the transports supported from the image library
+// and strips of the "tarball" transport from the string of transports returned
+func getListOfTransports() string {
+	allTransports := strings.Join(transports.ListNames(), ",")
+	return strings.Replace(allTransports, ",tarball", "", 1)
 }
