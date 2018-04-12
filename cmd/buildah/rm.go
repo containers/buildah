@@ -57,7 +57,7 @@ func rmCmd(c *cli.Context) error {
 		}
 	} else {
 		for _, name := range args {
-			builder, err := openBuilder(store, name)
+			builder, err := openBuilder(getContext(), store, name)
 			if err != nil {
 				lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "%s %q", delContainerErrStr, name), lastError)
 				continue

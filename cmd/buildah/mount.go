@@ -43,7 +43,7 @@ func mountCmd(c *cli.Context) error {
 
 	if len(args) == 1 {
 		name := args[0]
-		builder, err := openBuilder(store, name)
+		builder, err := openBuilder(getContext(), store, name)
 		if err != nil {
 			return errors.Wrapf(err, "error reading build container %q", name)
 		}

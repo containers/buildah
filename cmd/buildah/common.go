@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -54,14 +55,14 @@ func getStore(c *cli.Context) (storage.Store, error) {
 	return store, err
 }
 
-func openBuilder(store storage.Store, name string) (builder *buildah.Builder, err error) {
+func openBuilder(ctx context.Context, store storage.Store, name string) (builder *buildah.Builder, err error) {
 	if name != "" {
 		builder, err = buildah.OpenBuilder(store, name)
 		if os.IsNotExist(err) {
 			options := buildah.ImportOptions{
 				Container: name,
 			}
-			builder, err = buildah.ImportBuilder(store, options)
+			builder, err = buildah.ImportBuilder(ctx, store, options)
 		}
 	}
 	if err != nil {
@@ -77,12 +78,12 @@ func openBuilders(store storage.Store) (builders []*buildah.Builder, err error) 
 	return buildah.OpenAllBuilders(store)
 }
 
-func openImage(sc *types.SystemContext, store storage.Store, name string) (builder *buildah.Builder, err error) {
+func openImage(ctx context.Context, sc *types.SystemContext, store storage.Store, name string) (builder *buildah.Builder, err error) {
 	options := buildah.ImportFromImageOptions{
 		Image:         name,
 		SystemContext: sc,
 	}
-	builder, err = buildah.ImportBuilderFromImage(store, options)
+	builder, err = buildah.ImportBuilderFromImage(ctx, store, options)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error reading image")
 	}
@@ -92,14 +93,14 @@ func openImage(sc *types.SystemContext, store storage.Store, name string) (build
 	return builder, nil
 }
 
-func getDateAndDigestAndSize(image storage.Image, store storage.Store) (time.Time, string, int64, error) {
+func getDateAndDigestAndSize(ctx context.Context, image storage.Image, store storage.Store) (time.Time, string, int64, error) {
 	created := time.Time{}
 	is.Transport.SetStore(store)
 	storeRef, err := is.Transport.ParseStoreReference(store, image.ID)
 	if err != nil {
 		return created, "", -1, err
 	}
-	img, err := storeRef.NewImage(nil)
+	img, err := storeRef.NewImage(ctx, nil)
 	if err != nil {
 		return created, "", -1, err
 	}
@@ -108,12 +109,12 @@ func getDateAndDigestAndSize(image storage.Image, store storage.Store) (time.Tim
 	if sizeErr != nil {
 		imgSize = -1
 	}
-	manifest, _, manifestErr := img.Manifest()
+	manifest, _, manifestErr := img.Manifest(ctx)
 	manifestDigest := ""
 	if manifestErr == nil && len(manifest) > 0 {
 		manifestDigest = digest.Canonical.FromBytes(manifest).String()
 	}
-	inspectInfo, inspectErr := img.Inspect()
+	inspectInfo, inspectErr := img.Inspect(ctx)
 	if inspectErr == nil && inspectInfo != nil {
 		created = *inspectInfo.Created
 	}
@@ -191,6 +192,11 @@ func getDockerAuth(creds string) (*types.DockerAuthConfig, error) {
 		Username: username,
 		Password: password,
 	}, nil
+}
+
+// getContext returns a context.TODO
+func getContext() context.Context {
+	return context.TODO()
 }
 
 // validateFlags searches for StringFlags or StringSlice flags that never had

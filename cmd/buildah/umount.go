@@ -36,7 +36,7 @@ func umountCmd(c *cli.Context) error {
 	var lastError error
 	for _, name := range args {
 
-		builder, err := openBuilder(store, name)
+		builder, err := openBuilder(getContext(), store, name)
 		if err != nil {
 			lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "%s %s", umountContainerErrStr, name), lastError)
 			continue

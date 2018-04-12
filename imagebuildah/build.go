@@ -1,6 +1,7 @@
 package imagebuildah
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -430,8 +431,8 @@ func (b *Executor) Run(run imagebuilder.Run, config docker.Config) error {
 // UnrecognizedInstruction is called when we encounter an instruction that the
 // imagebuilder parser didn't understand.
 func (b *Executor) UnrecognizedInstruction(step *imagebuilder.Step) error {
-	err_str := fmt.Sprintf("Build error: Unknown instruction: %q ", step.Command)
-	err := fmt.Sprintf(err_str+"%#v", step)
+	errStr := fmt.Sprintf("Build error: Unknown instruction: %q ", step.Command)
+	err := fmt.Sprintf(errStr+"%#v", step)
 	if b.ignoreUnrecognizedInstructions {
 		logrus.Debugf(err)
 		return nil
@@ -439,7 +440,7 @@ func (b *Executor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 
 	switch logrus.GetLevel() {
 	case logrus.ErrorLevel:
-		logrus.Errorf(err_str)
+		logrus.Errorf(errStr)
 	case logrus.DebugLevel:
 		logrus.Debugf(err)
 	default:
@@ -497,7 +498,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 
 // Prepare creates a working container based on specified image, or if one
 // isn't specified, the first FROM instruction we can find in the parsed tree.
-func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from string) error {
+func (b *Executor) Prepare(ctx context.Context, ib *imagebuilder.Builder, node *parser.Node, from string) error {
 	if from == "" {
 		base, err := ib.From(node)
 		if err != nil {
@@ -521,7 +522,7 @@ func (b *Executor) Prepare(ib *imagebuilder.Builder, node *parser.Node, from str
 		CommonBuildOpts:       b.commonBuildOptions,
 		DefaultMountsFilePath: b.defaultMountsFilePath,
 	}
-	builder, err := buildah.NewBuilder(b.store, builderOptions)
+	builder, err := buildah.NewBuilder(ctx, b.store, builderOptions)
 	if err != nil {
 		return errors.Wrapf(err, "error creating build container")
 	}
@@ -616,7 +617,7 @@ func (b *Executor) Execute(ib *imagebuilder.Builder, node *parser.Node) error {
 
 // Commit writes the container's contents to an image, using a passed-in tag as
 // the name if there is one, generating a unique ID-based one otherwise.
-func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
+func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder) (err error) {
 	var imageRef types.ImageReference
 	if b.output != "" {
 		imageRef, err = alltransports.ParseImageName(b.output)
@@ -683,19 +684,19 @@ func (b *Executor) Commit(ib *imagebuilder.Builder) (err error) {
 		ReportWriter:          b.reportWriter,
 		PreferredManifestType: b.outputFormat,
 	}
-	return b.builder.Commit(imageRef, options)
+	return b.builder.Commit(ctx, imageRef, options)
 }
 
 // Build takes care of the details of running Prepare/Execute/Commit/Delete
 // over each of the one or more parsed Dockerfiles and stages.
-func (b *Executor) Build(stages imagebuilder.Stages) error {
+func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) error {
 	if len(stages) == 0 {
 		errors.New("error building: no stages to build")
 	}
 	var stageExecutor *Executor
 	for _, stage := range stages {
 		stageExecutor = b.withName(stage.Name, stage.Position)
-		if err := stageExecutor.Prepare(stage.Builder, stage.Node, ""); err != nil {
+		if err := stageExecutor.Prepare(ctx, stage.Builder, stage.Node, ""); err != nil {
 			return err
 		}
 		defer stageExecutor.Delete()
@@ -703,13 +704,13 @@ func (b *Executor) Build(stages imagebuilder.Stages) error {
 			return err
 		}
 	}
-	return stageExecutor.Commit(stages[len(stages)-1].Builder)
+	return stageExecutor.Commit(ctx, stages[len(stages)-1].Builder)
 }
 
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be
 // URLs), creates a new Executor, and then runs Prepare/Execute/Commit/Delete
 // over the entire set of instructions.
-func BuildDockerfiles(store storage.Store, options BuildOptions, paths ...string) error {
+func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOptions, paths ...string) error {
 	if len(paths) == 0 {
 		return errors.Errorf("error building: no dockerfiles specified")
 	}
@@ -770,5 +771,5 @@ func BuildDockerfiles(store storage.Store, options BuildOptions, paths ...string
 	}
 	b := imagebuilder.NewBuilder(options.Args)
 	stages := imagebuilder.NewStages(mainNode, b)
-	return exec.Build(stages)
+	return exec.Build(ctx, stages)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -107,6 +108,7 @@ func imagesCmd(c *cli.Context) error {
 	truncate := !c.Bool("no-trunc")
 	digests := c.Bool("digests")
 	hasTemplate := c.IsSet("format")
+	ctx := getContext()
 
 	name := ""
 	if len(c.Args()) == 1 {
@@ -128,7 +130,7 @@ func imagesCmd(c *cli.Context) error {
 	}
 	var params *filterParams
 	if c.IsSet("filter") {
-		params, err = parseFilter(store, images, c.String("filter"))
+		params, err = parseFilter(ctx, store, images, c.String("filter"))
 		if err != nil {
 			return errors.Wrapf(err, "error parsing filter")
 		}
@@ -138,10 +140,10 @@ func imagesCmd(c *cli.Context) error {
 		outputHeader(truncate, digests)
 	}
 
-	return outputImages(images, c.String("format"), store, params, name, hasTemplate, truncate, digests, quiet)
+	return outputImages(ctx, images, c.String("format"), store, params, name, hasTemplate, truncate, digests, quiet)
 }
 
-func parseFilter(store storage.Store, images []storage.Image, filter string) (*filterParams, error) {
+func parseFilter(ctx context.Context, store storage.Store, images []storage.Image, filter string) (*filterParams, error) {
 	params := new(filterParams)
 	filterStrings := strings.Split(filter, ",")
 	for _, param := range filterStrings {
@@ -156,14 +158,14 @@ func parseFilter(store storage.Store, images []storage.Image, filter string) (*f
 		case "label":
 			params.label = pair[1]
 		case "before":
-			beforeDate, err := setFilterDate(store, images, pair[1])
+			beforeDate, err := setFilterDate(ctx, store, images, pair[1])
 			if err != nil {
 				return nil, fmt.Errorf("no such id: %s", pair[0])
 			}
 			params.beforeDate = beforeDate
 			params.beforeImage = pair[1]
 		case "since":
-			sinceDate, err := setFilterDate(store, images, pair[1])
+			sinceDate, err := setFilterDate(ctx, store, images, pair[1])
 			if err != nil {
 				return nil, fmt.Errorf("no such id: %s", pair[0])
 			}
@@ -178,7 +180,7 @@ func parseFilter(store storage.Store, images []storage.Image, filter string) (*f
 	return params, nil
 }
 
-func setFilterDate(store storage.Store, images []storage.Image, imgName string) (time.Time, error) {
+func setFilterDate(ctx context.Context, store storage.Store, images []storage.Image, imgName string) (time.Time, error) {
 	for _, image := range images {
 		for _, name := range image.Names {
 			if matchesReference(name, imgName) {
@@ -187,12 +189,12 @@ func setFilterDate(store storage.Store, images []storage.Image, imgName string) 
 				if err != nil {
 					return time.Time{}, fmt.Errorf("error parsing reference to image %q: %v", image.ID, err)
 				}
-				img, err := ref.NewImage(nil)
+				img, err := ref.NewImage(ctx, nil)
 				if err != nil {
 					return time.Time{}, fmt.Errorf("error reading image %q: %v", image.ID, err)
 				}
 				defer img.Close()
-				inspect, err := img.Inspect()
+				inspect, err := img.Inspect(ctx)
 				if err != nil {
 					return time.Time{}, fmt.Errorf("error inspecting image %q: %v", image.ID, err)
 				}
@@ -218,11 +220,11 @@ func outputHeader(truncate, digests bool) {
 	fmt.Printf("%-22s %s\n", "CREATED AT", "SIZE")
 }
 
-func outputImages(images []storage.Image, format string, store storage.Store, filters *filterParams, argName string, hasTemplate, truncate, digests, quiet bool) error {
+func outputImages(ctx context.Context, images []storage.Image, format string, store storage.Store, filters *filterParams, argName string, hasTemplate, truncate, digests, quiet bool) error {
 	for _, image := range images {
 		createdTime := image.Created
 
-		inspectedTime, digest, size, _ := getDateAndDigestAndSize(image, store)
+		inspectedTime, digest, size, _ := getDateAndDigestAndSize(ctx, image, store)
 		if !inspectedTime.IsZero() {
 			if createdTime != inspectedTime {
 				logrus.Debugf("image record and configuration disagree on the image's creation time for %q, using the one from the configuration", image)
@@ -239,7 +241,7 @@ func outputImages(images []storage.Image, format string, store storage.Store, fi
 			names = append(names, "<none>")
 		}
 		for _, name := range names {
-			if !matchesFilter(image, store, name, filters) || !matchesReference(name, argName) {
+			if !matchesFilter(ctx, image, store, name, filters) || !matchesReference(name, argName) {
 				continue
 			}
 			if quiet {
@@ -268,13 +270,13 @@ func outputImages(images []storage.Image, format string, store storage.Store, fi
 	return nil
 }
 
-func matchesFilter(image storage.Image, store storage.Store, name string, params *filterParams) bool {
+func matchesFilter(ctx context.Context, image storage.Image, store storage.Store, name string, params *filterParams) bool {
 	if params == nil {
 		return true
 	}
 	if params.dangling != "" && !matchesDangling(name, params.dangling) {
 		return false
-	} else if params.label != "" && !matchesLabel(image, store, params.label) {
+	} else if params.label != "" && !matchesLabel(ctx, image, store, params.label) {
 		return false
 	} else if params.beforeImage != "" && !matchesBeforeImage(image, name, params) {
 		return false
@@ -295,17 +297,17 @@ func matchesDangling(name string, dangling string) bool {
 	return false
 }
 
-func matchesLabel(image storage.Image, store storage.Store, label string) bool {
+func matchesLabel(ctx context.Context, image storage.Image, store storage.Store, label string) bool {
 	storeRef, err := is.Transport.ParseStoreReference(store, image.ID)
 	if err != nil {
 		return false
 	}
-	img, err := storeRef.NewImage(nil)
+	img, err := storeRef.NewImage(ctx, nil)
 	if err != nil {
 		return false
 	}
 	defer img.Close()
-	info, err := img.Inspect()
+	info, err := img.Inspect(ctx)
 	if err != nil {
 		return false
 	}

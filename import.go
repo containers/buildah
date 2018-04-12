@@ -1,6 +1,8 @@
 package buildah
 
 import (
+	"context"
+
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
@@ -10,7 +12,7 @@ import (
 	"github.com/projectatomic/buildah/util"
 )
 
-func importBuilderDataFromImage(store storage.Store, systemContext *types.SystemContext, imageID, containerName, containerID string) (*Builder, error) {
+func importBuilderDataFromImage(ctx context.Context, store storage.Store, systemContext *types.SystemContext, imageID, containerName, containerID string) (*Builder, error) {
 	manifest := []byte{}
 	config := []byte{}
 	imageName := ""
@@ -20,16 +22,16 @@ func importBuilderDataFromImage(store storage.Store, systemContext *types.System
 		if err != nil {
 			return nil, errors.Wrapf(err, "no such image %q", imageID)
 		}
-		src, err2 := ref.NewImage(systemContext)
+		src, err2 := ref.NewImage(ctx, systemContext)
 		if err2 != nil {
 			return nil, errors.Wrapf(err2, "error instantiating image")
 		}
 		defer src.Close()
-		config, err = src.ConfigBlob()
+		config, err = src.ConfigBlob(ctx)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error reading image configuration")
 		}
-		manifest, _, err = src.Manifest()
+		manifest, _, err = src.Manifest(ctx)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error reading image manifest")
 		}
@@ -58,7 +60,7 @@ func importBuilderDataFromImage(store storage.Store, systemContext *types.System
 	return builder, nil
 }
 
-func importBuilder(store storage.Store, options ImportOptions) (*Builder, error) {
+func importBuilder(ctx context.Context, store storage.Store, options ImportOptions) (*Builder, error) {
 	if options.Container == "" {
 		return nil, errors.Errorf("container name must be specified")
 	}
@@ -70,7 +72,7 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 
 	systemContext := getSystemContext(&types.SystemContext{}, options.SignaturePolicyPath)
 
-	builder, err := importBuilderDataFromImage(store, systemContext, c.ImageID, options.Container, c.ID)
+	builder, err := importBuilderDataFromImage(ctx, store, systemContext, c.ImageID, options.Container, c.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +96,7 @@ func importBuilder(store storage.Store, options ImportOptions) (*Builder, error)
 	return builder, nil
 }
 
-func importBuilderFromImage(store storage.Store, options ImportFromImageOptions) (*Builder, error) {
+func importBuilderFromImage(ctx context.Context, store storage.Store, options ImportFromImageOptions) (*Builder, error) {
 	var img *storage.Image
 	var err error
 
@@ -110,7 +112,7 @@ func importBuilderFromImage(store storage.Store, options ImportFromImageOptions)
 			continue
 		}
 
-		builder, err2 := importBuilderDataFromImage(store, systemContext, img.ID, "", "")
+		builder, err2 := importBuilderDataFromImage(ctx, store, systemContext, img.ID, "", "")
 		if err2 != nil {
 			return nil, errors.Wrapf(err2, "error importing build settings from image %q", options.Image)
 		}

@@ -228,5 +228,5 @@ func budCmd(c *cli.Context) error {
 		options.ReportWriter = os.Stderr
 	}
 
-	return imagebuildah.BuildDockerfiles(store, options, dockerfiles...)
+	return imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)
 }

@@ -141,7 +141,7 @@ func pushCmd(c *cli.Context) error {
 		options.ReportWriter = os.Stderr
 	}
 
-	err = buildah.Push(src, dest, options)
+	err = buildah.Push(getContext(), src, dest, options)
 	if err != nil {
 		return util.GetFailureCause(
 			err,

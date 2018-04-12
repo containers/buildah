@@ -125,7 +125,7 @@ func fromCmd(c *cli.Context) error {
 		options.ReportWriter = os.Stderr
 	}
 
-	builder, err := buildah.NewBuilder(store, options)
+	builder, err := buildah.NewBuilder(getContext(), store, options)
 	if err != nil {
 		return err
 	}

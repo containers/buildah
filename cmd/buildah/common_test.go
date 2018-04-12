@@ -85,7 +85,7 @@ func TestGetSize(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 
-	_, _, _, err = getDateAndDigestAndSize(images[0], store)
+	_, _, _, err = getDateAndDigestAndSize(getContext(), images[0], store)
 	if err != nil {
 		t.Error(err)
 	}
@@ -114,7 +114,7 @@ func pullTestImage(t *testing.T, imageName string) (string, error) {
 		CommonBuildOpts:     commonOpts,
 	}
 
-	b, err := buildah.NewBuilder(store, options)
+	b, err := buildah.NewBuilder(getContext(), store, options)
 	if err != nil {
 		t.Fatal(err)
 	}
