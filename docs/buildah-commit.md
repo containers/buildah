@@ -10,6 +10,9 @@ buildah commit - Create an image from a working container.
 Writes a new image using the specified container's read-write layer and if it
 is based on an image, the layers of that image.
 
+## RETURN VALUE
+The image ID of the image that was created.  On error, 1 is returned and errno is returned.
+
 ## OPTIONS
 
 **--authfile** *path*
@@ -60,7 +63,7 @@ Require HTTPS and verify certificates when talking to container registries (defa
 ## EXAMPLE
 
 This example saves an image based on the container.
- `buildah commit containerID`
+ `buildah commit containerID newImageName`
 
 This example saves an image named newImageName based on the container.
  `buildah commit --rm containerID newImageName`
