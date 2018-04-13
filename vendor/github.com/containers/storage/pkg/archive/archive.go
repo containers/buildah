@@ -45,6 +45,10 @@ type (
 		// This format will be converted to the standard format on pack
 		// and from the standard format on unpack.
 		WhiteoutFormat WhiteoutFormat
+		// This is additional data to be used by the converter.  It will
+		// not survive a round trip through JSON, so it's primarily
+		// intended for generating archives (i.e., converting writes).
+		WhiteoutData interface{}
 		// When unpacking, specifies whether overwriting a directory with a
 		// non-directory is allowed and vice versa.
 		NoOverwriteDirNonDir bool
@@ -55,18 +59,21 @@ type (
 	}
 )
 
-// Archiver allows the reuse of most utility functions of this package
-// with a pluggable Untar function. Also, to facilitate the passing of
-// specific id mappings for untar, an archiver can be created with maps
-// which will then be passed to Untar operations
+// Archiver allows the reuse of most utility functions of this package with a
+// pluggable Untar function.  To facilitate the passing of specific id mappings
+// for untar, an archiver can be created with maps which will then be passed to
+// Untar operations.  If ChownOpts is set, its values are mapped using
+// UntarIDMappings before being used to create files and directories on disk.
 type Archiver struct {
-	Untar      func(io.Reader, string, *TarOptions) error
-	IDMappings *idtools.IDMappings
+	Untar           func(io.Reader, string, *TarOptions) error
+	TarIDMappings   *idtools.IDMappings
+	ChownOpts       *idtools.IDPair
+	UntarIDMappings *idtools.IDMappings
 }
 
 // NewDefaultArchiver returns a new Archiver without any IDMappings
 func NewDefaultArchiver() *Archiver {
-	return &Archiver{Untar: Untar, IDMappings: &idtools.IDMappings{}}
+	return &Archiver{Untar: Untar, TarIDMappings: &idtools.IDMappings{}, UntarIDMappings: &idtools.IDMappings{}}
 }
 
 // breakoutError is used to differentiate errors related to breaking out
@@ -702,7 +709,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			compressWriter,
 			options.ChownOpts,
 		)
-		ta.WhiteoutConverter = getWhiteoutConverter(options.WhiteoutFormat)
+		ta.WhiteoutConverter = getWhiteoutConverter(options.WhiteoutFormat, options.WhiteoutData)
 
 		defer func() {
 			// Make sure to check the error on Close.
@@ -860,7 +867,7 @@ func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) err
 	var dirs []*tar.Header
 	idMappings := idtools.NewIDMappingsFromMaps(options.UIDMaps, options.GIDMaps)
 	rootIDs := idMappings.RootPair()
-	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat)
+	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat, options.WhiteoutData)
 
 	// Iterate through the files in the archive.
 loop:
@@ -938,7 +945,7 @@ loop:
 		}
 		trBuf.Reset(tr)
 
-		if err := remapIDs(idMappings, hdr); err != nil {
+		if err := remapIDs(nil, idMappings, options.ChownOpts, hdr); err != nil {
 			return err
 		}
 
@@ -1019,14 +1026,28 @@ func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decomp
 // If either Tar or Untar fails, TarUntar aborts and returns the error.
 func (archiver *Archiver) TarUntar(src, dst string) error {
 	logrus.Debugf("TarUntar(%s %s)", src, dst)
-	archive, err := TarWithOptions(src, &TarOptions{Compression: Uncompressed})
+	tarMappings := archiver.TarIDMappings
+	if tarMappings == nil {
+		tarMappings = &idtools.IDMappings{}
+	}
+	options := &TarOptions{
+		UIDMaps:     tarMappings.UIDs(),
+		GIDMaps:     tarMappings.GIDs(),
+		Compression: Uncompressed,
+	}
+	archive, err := TarWithOptions(src, options)
 	if err != nil {
 		return err
 	}
 	defer archive.Close()
-	options := &TarOptions{
-		UIDMaps: archiver.IDMappings.UIDs(),
-		GIDMaps: archiver.IDMappings.GIDs(),
+	untarMappings := archiver.UntarIDMappings
+	if untarMappings == nil {
+		untarMappings = &idtools.IDMappings{}
+	}
+	options = &TarOptions{
+		UIDMaps:   untarMappings.UIDs(),
+		GIDMaps:   untarMappings.GIDs(),
+		ChownOpts: archiver.ChownOpts,
 	}
 	return archiver.Untar(archive, dst, options)
 }
@@ -1038,9 +1059,14 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 		return err
 	}
 	defer archive.Close()
+	untarMappings := archiver.UntarIDMappings
+	if untarMappings == nil {
+		untarMappings = &idtools.IDMappings{}
+	}
 	options := &TarOptions{
-		UIDMaps: archiver.IDMappings.UIDs(),
-		GIDMaps: archiver.IDMappings.GIDs(),
+		UIDMaps:   untarMappings.UIDs(),
+		GIDMaps:   untarMappings.GIDs(),
+		ChownOpts: archiver.ChownOpts,
 	}
 	return archiver.Untar(archive, dst, options)
 }
@@ -1061,7 +1087,10 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	// if this archiver is set up with ID mapping we need to create
 	// the new destination directory with the remapped root UID/GID pair
 	// as owner
-	rootIDs := archiver.IDMappings.RootPair()
+	rootIDs := archiver.UntarIDMappings.RootPair()
+	if archiver.ChownOpts != nil {
+		rootIDs = *archiver.ChownOpts
+	}
 	// Create dst, copy src's content into it
 	logrus.Debugf("Creating dest directory: %s", dst)
 	if err := idtools.MkdirAllAndChownNew(dst, 0755, rootIDs); err != nil {
@@ -1112,7 +1141,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		hdr.Name = filepath.Base(dst)
 		hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
 
-		if err := remapIDs(archiver.IDMappings, hdr); err != nil {
+		if err := remapIDs(archiver.TarIDMappings, archiver.UntarIDMappings, archiver.ChownOpts, hdr); err != nil {
 			return err
 		}
 
@@ -1139,10 +1168,29 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	return err
 }
 
-func remapIDs(idMappings *idtools.IDMappings, hdr *tar.Header) error {
-	ids, err := idMappings.ToHost(idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid})
+func remapIDs(readIDMappings, writeIDMappings *idtools.IDMappings, chownOpts *idtools.IDPair, hdr *tar.Header) (err error) {
+	var uid, gid int
+	if chownOpts != nil {
+		uid, gid = chownOpts.UID, chownOpts.GID
+	} else {
+		if readIDMappings != nil && !readIDMappings.Empty() {
+			uid, gid, err = readIDMappings.ToContainer(idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid})
+			if err != nil {
+				return err
+			}
+		} else {
+			uid, gid = hdr.Uid, hdr.Gid
+		}
+	}
+	ids := idtools.IDPair{UID: uid, GID: gid}
+	if writeIDMappings != nil && !writeIDMappings.Empty() {
+		ids, err = writeIDMappings.ToHost(ids)
+		if err != nil {
+			return err
+		}
+	}
 	hdr.Uid, hdr.Gid = ids.UID, ids.GID
-	return err
+	return nil
 }
 
 // cmdStream executes a command, and returns its stdout as a stream.

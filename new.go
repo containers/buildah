@@ -1,6 +1,7 @@
 package buildah
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -63,8 +64,8 @@ func reserveSELinuxLabels(store storage.Store, id string) error {
 	return nil
 }
 
-func pullAndFindImage(store storage.Store, imageName string, options BuilderOptions, sc *types.SystemContext) (*storage.Image, types.ImageReference, error) {
-	ref, err := pullImage(store, imageName, options, sc)
+func pullAndFindImage(ctx context.Context, store storage.Store, imageName string, options BuilderOptions, sc *types.SystemContext) (*storage.Image, types.ImageReference, error) {
+	ref, err := pullImage(ctx, store, imageName, options, sc)
 	if err != nil {
 		logrus.Debugf("error pulling image %q: %v", imageName, err)
 		return nil, nil, err
@@ -112,18 +113,18 @@ func imageNamePrefix(imageName string) string {
 	return prefix
 }
 
-func imageManifestAndConfig(ref types.ImageReference, systemContext *types.SystemContext) (manifest, config []byte, err error) {
+func imageManifestAndConfig(ctx context.Context, ref types.ImageReference, systemContext *types.SystemContext) (manifest, config []byte, err error) {
 	if ref != nil {
-		src, err := ref.NewImage(systemContext)
+		src, err := ref.NewImage(ctx, systemContext)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "error instantiating image for %q", transports.ImageName(ref))
 		}
 		defer src.Close()
-		config, err := src.ConfigBlob()
+		config, err := src.ConfigBlob(ctx)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "error reading image configuration for %q", transports.ImageName(ref))
 		}
-		manifest, _, err := src.Manifest()
+		manifest, _, err := src.Manifest(ctx)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "error reading image manifest for %q", transports.ImageName(ref))
 		}
@@ -132,7 +133,7 @@ func imageManifestAndConfig(ref types.ImageReference, systemContext *types.Syste
 	return nil, nil, nil
 }
 
-func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
+func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions) (*Builder, error) {
 	var ref types.ImageReference
 	var img *storage.Image
 	var err error
@@ -159,7 +160,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		}
 
 		if options.PullPolicy == PullAlways {
-			pulledImg, pulledReference, err2 := pullAndFindImage(store, image, options, systemContext)
+			pulledImg, pulledReference, err2 := pullAndFindImage(ctx, store, image, options, systemContext)
 			if err2 != nil {
 				logrus.Debugf("error pulling and reading image %q: %v", image, err2)
 				err = err2
@@ -190,7 +191,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 			srcRef = srcRef2
 		}
 
-		destImage, err2 := localImageNameForReference(store, srcRef, options.FromImage)
+		destImage, err2 := localImageNameForReference(ctx, store, srcRef, options.FromImage)
 		if err2 != nil {
 			return nil, errors.Wrapf(err2, "error computing local image name for %q", transports.ImageName(srcRef))
 		}
@@ -208,7 +209,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 				logrus.Debugf("no such image %q: %v", transports.ImageName(ref), err)
 				continue
 			}
-			pulledImg, pulledReference, err2 := pullAndFindImage(store, image, options, systemContext)
+			pulledImg, pulledReference, err2 := pullAndFindImage(ctx, store, image, options, systemContext)
 			if err2 != nil {
 				logrus.Debugf("error pulling and reading image %q: %v", image, err2)
 				err = err2
@@ -232,7 +233,7 @@ func newBuilder(store storage.Store, options BuilderOptions) (*Builder, error) {
 		image = getImageName(imageNamePrefix(image), img)
 		imageID = img.ID
 	}
-	if manifest, config, err = imageManifestAndConfig(ref, systemContext); err != nil {
+	if manifest, config, err = imageManifestAndConfig(ctx, ref, systemContext); err != nil {
 		return nil, errors.Wrapf(err, "error reading data from image %q", transports.ImageName(ref))
 	}
 

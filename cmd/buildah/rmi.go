@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -83,8 +84,10 @@ func rmiCmd(c *cli.Context) error {
 		}
 	}
 
+	ctx := getContext()
+
 	for _, id := range imagesToDelete {
-		image, err := getImage(id, store)
+		image, err := getImage(ctx, id, store)
 		if err != nil || image == nil {
 			if lastError != nil {
 				fmt.Fprintln(os.Stderr, lastError)
@@ -141,6 +144,13 @@ func rmiCmd(c *cli.Context) error {
 					continue
 				}
 				fmt.Printf("untagged: %s\n", name)
+
+				// Need to fetch the image state again after making changes to it i.e untag
+				// because only a copy of the image state is returned
+				image, err = getImage(ctx, image.ID, store)
+				if err != nil || image == nil {
+					return errors.Wrapf(err, "error getting image after untag %q", image.ID)
+				}
 			}
 
 			if len(image.Names) > 0 {
@@ -161,19 +171,19 @@ func rmiCmd(c *cli.Context) error {
 	return lastError
 }
 
-func getImage(id string, store storage.Store) (*storage.Image, error) {
+func getImage(ctx context.Context, id string, store storage.Store) (*storage.Image, error) {
 	var ref types.ImageReference
-	ref, err := properImageRef(id)
+	ref, err := properImageRef(ctx, id)
 	if err != nil {
 		logrus.Debug(err)
 	}
 	if ref == nil {
-		if ref, err = storageImageRef(store, id); err != nil {
+		if ref, err = storageImageRef(ctx, store, id); err != nil {
 			logrus.Debug(err)
 		}
 	}
 	if ref == nil {
-		if ref, err = storageImageID(store, id); err != nil {
+		if ref, err = storageImageID(ctx, store, id); err != nil {
 			logrus.Debug(err)
 		}
 	}
@@ -238,10 +248,10 @@ func removeContainers(ctrIDs []string, store storage.Store) error {
 
 // If it's looks like a proper image reference, parse it and check if it
 // corresponds to an image that actually exists.
-func properImageRef(id string) (types.ImageReference, error) {
+func properImageRef(ctx context.Context, id string) (types.ImageReference, error) {
 	var err error
 	if ref, err := alltransports.ParseImageName(id); err == nil {
-		if img, err2 := ref.NewImageSource(nil); err2 == nil {
+		if img, err2 := ref.NewImageSource(ctx, nil); err2 == nil {
 			img.Close()
 			return ref, nil
 		}
@@ -252,10 +262,10 @@ func properImageRef(id string) (types.ImageReference, error) {
 
 // If it's looks like an image reference that's relative to our storage, parse
 // it and check if it corresponds to an image that actually exists.
-func storageImageRef(store storage.Store, id string) (types.ImageReference, error) {
+func storageImageRef(ctx context.Context, store storage.Store, id string) (types.ImageReference, error) {
 	var err error
 	if ref, err := is.Transport.ParseStoreReference(store, id); err == nil {
-		if img, err2 := ref.NewImageSource(nil); err2 == nil {
+		if img, err2 := ref.NewImageSource(ctx, nil); err2 == nil {
 			img.Close()
 			return ref, nil
 		}
@@ -267,14 +277,14 @@ func storageImageRef(store storage.Store, id string) (types.ImageReference, erro
 // If it might be an ID that's relative to our storage, truncated or not, so
 // parse it and check if it corresponds to an image that we have stored
 // locally.
-func storageImageID(store storage.Store, id string) (types.ImageReference, error) {
+func storageImageID(ctx context.Context, store storage.Store, id string) (types.ImageReference, error) {
 	var err error
 	imageID := id
 	if img, err := store.Image(id); err == nil && img != nil {
 		imageID = img.ID
 	}
 	if ref, err := is.Transport.ParseStoreReference(store, imageID); err == nil {
-		if img, err2 := ref.NewImageSource(nil); err2 == nil {
+		if img, err2 := ref.NewImageSource(ctx, nil); err2 == nil {
 			img.Close()
 			return ref, nil
 		}

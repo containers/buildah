@@ -183,7 +183,7 @@ func TestOutputImagesQuietTruncated(t *testing.T) {
 
 	// Tests quiet and truncated output
 	output, err := captureOutputWithError(func() error {
-		return outputImages(images[:1], "", store, nil, "", false, true, false, true)
+		return outputImages(getContext(), images[:1], "", store, nil, "", false, true, false, true)
 	})
 	expectedOutput := fmt.Sprintf("%-64s\n", images[0].ID)
 	if err != nil {
@@ -217,7 +217,7 @@ func TestOutputImagesQuietNotTruncated(t *testing.T) {
 
 	// Tests quiet and non-truncated output
 	output, err := captureOutputWithError(func() error {
-		return outputImages(images[:1], "", store, nil, "", false, false, false, true)
+		return outputImages(getContext(), images[:1], "", store, nil, "", false, false, false, true)
 	})
 	expectedOutput := fmt.Sprintf("%-64s\n", images[0].ID)
 	if err != nil {
@@ -251,7 +251,7 @@ func TestOutputImagesFormatString(t *testing.T) {
 
 	// Tests output with format template
 	output, err := captureOutputWithError(func() error {
-		return outputImages(images[:1], "{{.ID}}", store, nil, "", true, true, false, false)
+		return outputImages(getContext(), images[:1], "{{.ID}}", store, nil, "", true, true, false, false)
 	})
 	expectedOutput := images[0].ID
 	if err != nil {
@@ -285,7 +285,7 @@ func TestOutputImagesFormatTemplate(t *testing.T) {
 
 	// Tests quiet and non-truncated output
 	output, err := captureOutputWithError(func() error {
-		return outputImages(images[:1], "", store, nil, "", false, false, false, true)
+		return outputImages(getContext(), images[:1], "", store, nil, "", false, false, false, true)
 	})
 	expectedOutput := fmt.Sprintf("%-64s\n", images[0].ID)
 	if err != nil {
@@ -321,7 +321,7 @@ func TestOutputImagesArgNoMatch(t *testing.T) {
 	// because all images in the repository must have a tag, and here the tag is an
 	// empty string
 	output, err := captureOutputWithError(func() error {
-		return outputImages(images[:1], "", store, nil, "foo:", false, true, false, false)
+		return outputImages(getContext(), images[:1], "", store, nil, "foo:", false, true, false, false)
 	})
 	expectedOutput := fmt.Sprintf("")
 	if err != nil {
@@ -359,7 +359,7 @@ func TestOutputMultipleImages(t *testing.T) {
 
 	// Tests quiet and truncated output
 	output, err := captureOutputWithError(func() error {
-		return outputImages(images[:2], "", store, nil, "", false, true, false, true)
+		return outputImages(getContext(), images[:2], "", store, nil, "", false, true, false, true)
 	})
 	expectedOutput := fmt.Sprintf("%-64s\n%-64s\n", images[0].ID, images[1].ID)
 	if err != nil {
@@ -390,7 +390,7 @@ func TestParseFilterAllParams(t *testing.T) {
 	}
 
 	label := "dangling=true,label=a=b,before=busybox:latest,since=busybox:latest,reference=abcdef"
-	params, err := parseFilter(store, images, label)
+	params, err := parseFilter(getContext(), store, images, label)
 	if err != nil {
 		t.Fatalf("error parsing filter: %v", err)
 	}
@@ -399,12 +399,12 @@ func TestParseFilterAllParams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error parsing store reference: %v", err)
 	}
-	img, err := ref.NewImage(nil)
+	img, err := ref.NewImage(getContext(), nil)
 	if err != nil {
 		t.Fatalf("error reading image from store: %v", err)
 	}
 	defer img.Close()
-	inspect, err := img.Inspect()
+	inspect, err := img.Inspect(getContext())
 	if err != nil {
 		t.Fatalf("error inspecting image in store: %v", err)
 	}
@@ -444,7 +444,7 @@ func TestParseFilterInvalidDangling(t *testing.T) {
 	}
 
 	label := "dangling=NO,label=a=b,before=busybox:latest,since=busybox:latest,reference=abcdef"
-	_, err = parseFilter(store, images, label)
+	_, err = parseFilter(getContext(), store, images, label)
 	if err == nil || err.Error() != "invalid filter: 'dangling=[NO]'" {
 		t.Fatalf("expected error parsing filter")
 	}
@@ -471,7 +471,7 @@ func TestParseFilterInvalidBefore(t *testing.T) {
 	}
 
 	label := "dangling=false,label=a=b,before=:,since=busybox:latest,reference=abcdef"
-	_, err = parseFilter(store, images, label)
+	_, err = parseFilter(getContext(), store, images, label)
 	if err == nil || !strings.Contains(err.Error(), "no such id") {
 		t.Fatalf("expected error parsing filter")
 	}
@@ -498,7 +498,7 @@ func TestParseFilterInvalidSince(t *testing.T) {
 	}
 
 	label := "dangling=false,label=a=b,before=busybox:latest,since=:,reference=abcdef"
-	_, err = parseFilter(store, images, label)
+	_, err = parseFilter(getContext(), store, images, label)
 	if err == nil || !strings.Contains(err.Error(), "no such id") {
 		t.Fatalf("expected error parsing filter")
 	}
@@ -525,7 +525,7 @@ func TestParseFilterInvalidFilter(t *testing.T) {
 	}
 
 	label := "foo=bar"
-	_, err = parseFilter(store, images, label)
+	_, err = parseFilter(getContext(), store, images, label)
 	if err == nil || err.Error() != "invalid filter: 'foo'" {
 		t.Fatalf("expected error parsing filter")
 	}

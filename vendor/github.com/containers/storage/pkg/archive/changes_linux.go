@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/system"
 	"golang.org/x/sys/unix"
 )
@@ -22,10 +23,12 @@ import (
 // directly. Eliminating stat calls in this way can save up to seconds on large
 // images.
 type walker struct {
-	dir1  string
-	dir2  string
-	root1 *FileInfo
-	root2 *FileInfo
+	dir1   string
+	dir2   string
+	root1  *FileInfo
+	root2  *FileInfo
+	idmap1 *idtools.IDMappings
+	idmap2 *idtools.IDMappings
 }
 
 // collectFileInfoForChanges returns a complete representation of the trees
@@ -34,12 +37,12 @@ type walker struct {
 // and dir2 will be pruned from the results. This method is *only* to be used
 // to generating a list of changes between the two directories, as it does not
 // reflect the full contents.
-func collectFileInfoForChanges(dir1, dir2 string) (*FileInfo, *FileInfo, error) {
+func collectFileInfoForChanges(dir1, dir2 string, idmap1, idmap2 *idtools.IDMappings) (*FileInfo, *FileInfo, error) {
 	w := &walker{
 		dir1:  dir1,
 		dir2:  dir2,
-		root1: newRootFileInfo(),
-		root2: newRootFileInfo(),
+		root1: newRootFileInfo(idmap1),
+		root2: newRootFileInfo(idmap2),
 	}
 
 	i1, err := os.Lstat(w.dir1)
@@ -69,9 +72,10 @@ func walkchunk(path string, fi os.FileInfo, dir string, root *FileInfo) error {
 		return fmt.Errorf("walkchunk: Unexpectedly no parent for %s", path)
 	}
 	info := &FileInfo{
-		name:     filepath.Base(path),
-		children: make(map[string]*FileInfo),
-		parent:   parent,
+		name:       filepath.Base(path),
+		children:   make(map[string]*FileInfo),
+		parent:     parent,
+		idMappings: root.idMappings,
 	}
 	cpath := filepath.Join(dir, path)
 	stat, err := system.FromStatT(fi.Sys().(*syscall.Stat_t))
@@ -288,26 +292,96 @@ func clen(n []byte) int {
 // OverlayChanges walks the path rw and determines changes for the files in the path,
 // with respect to the parent layers
 func OverlayChanges(layers []string, rw string) ([]Change, error) {
-	return changes(layers, rw, overlayDeletedFile, nil)
+	dc := func(root, path string, fi os.FileInfo) (string, error) {
+		return overlayDeletedFile(layers, root, path, fi)
+	}
+	return changes(layers, rw, dc, nil, overlayLowerContainsWhiteout)
 }
 
-func overlayDeletedFile(root, path string, fi os.FileInfo) (string, error) {
+func overlayLowerContainsWhiteout(root, path string) (bool, error) {
+	// Whiteout for a file or directory has the same name, but is for a character
+	// device with major/minor of 0/0.
+	stat, err := os.Stat(filepath.Join(root, path))
+	if err != nil && !os.IsNotExist(err) && !isENOTDIR(err) {
+		// Not sure what happened here.
+		return false, err
+	}
+	if err == nil && stat.Mode()&os.ModeCharDevice != 0 {
+		// Check if there's whiteout for the specified item in the specified layer.
+		s := stat.Sys().(*syscall.Stat_t)
+		if major(s.Rdev) == 0 && minor(s.Rdev) == 0 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func overlayDeletedFile(layers []string, root, path string, fi os.FileInfo) (string, error) {
+	// If it's a whiteout item, then a file or directory with that name is removed by this layer.
 	if fi.Mode()&os.ModeCharDevice != 0 {
 		s := fi.Sys().(*syscall.Stat_t)
 		if major(s.Rdev) == 0 && minor(s.Rdev) == 0 {
 			return path, nil
 		}
 	}
-	if fi.Mode()&os.ModeDir != 0 {
-		opaque, err := system.Lgetxattr(filepath.Join(root, path), "trusted.overlay.opaque")
-		if err != nil {
+	// After this we only need to pay attention to directories.
+	if !fi.IsDir() {
+		return "", nil
+	}
+	// If the directory isn't marked as opaque, then it's just a normal directory.
+	opaque, err := system.Lgetxattr(filepath.Join(root, path), "trusted.overlay.opaque")
+	if err != nil {
+		return "", err
+	}
+	if len(opaque) != 1 || opaque[0] != 'y' {
+		return "", err
+	}
+	// If there are no lower layers, then it can't have been deleted and recreated in this layer.
+	if len(layers) == 0 {
+		return "", err
+	}
+	// At this point, we have a directory that's opaque.  If it appears in one of the lower
+	// layers, then it was newly-created here, so it wasn't also deleted here.
+	for _, layer := range layers {
+		stat, err := os.Stat(filepath.Join(layer, path))
+		if err != nil && !os.IsNotExist(err) && !isENOTDIR(err) {
+			// Not sure what happened here.
 			return "", err
 		}
-		if len(opaque) == 1 && opaque[0] == 'y' {
+		if err == nil {
+			if stat.Mode()&os.ModeCharDevice != 0 {
+				// It's a whiteout for this directory, so it can't have been
+				// deleted in this layer.
+				s := stat.Sys().(*syscall.Stat_t)
+				if major(s.Rdev) == 0 && minor(s.Rdev) == 0 {
+					return "", nil
+				}
+			}
+			// It's not whiteout, so it was there in the older layer, so it has to be
+			// marked as deleted in this layer.
 			return path, nil
+		}
+		for dir := filepath.Dir(path); dir != "" && dir != string(os.PathSeparator); dir = filepath.Dir(dir) {
+			// Check for whiteout for a parent directory.
+			stat, err := os.Stat(filepath.Join(layer, dir))
+			if err != nil && !os.IsNotExist(err) && !isENOTDIR(err) {
+				// Not sure what happened here.
+				return "", err
+			}
+			if err == nil {
+				if stat.Mode()&os.ModeCharDevice != 0 {
+					// If it's whiteout for a parent directory, then the
+					// original directory wasn't inherited into the top layer.
+					s := stat.Sys().(*syscall.Stat_t)
+					if major(s.Rdev) == 0 && minor(s.Rdev) == 0 {
+						return "", nil
+					}
+				}
+			}
 		}
 	}
 
+	// We didn't find the same path in any older layers, so it was new in this one.
 	return "", nil
 
 }

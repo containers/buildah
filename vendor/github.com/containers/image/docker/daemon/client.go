@@ -15,10 +15,10 @@ const (
 )
 
 // NewDockerClient initializes a new API client based on the passed SystemContext.
-func newDockerClient(ctx *types.SystemContext) (*dockerclient.Client, error) {
+func newDockerClient(sys *types.SystemContext) (*dockerclient.Client, error) {
 	host := dockerclient.DefaultDockerHost
-	if ctx != nil && ctx.DockerDaemonHost != "" {
-		host = ctx.DockerDaemonHost
+	if sys != nil && sys.DockerDaemonHost != "" {
+		host = sys.DockerDaemonHost
 	}
 
 	// Sadly, unix:// sockets don't work transparently with dockerclient.NewClient.
@@ -27,32 +27,39 @@ func newDockerClient(ctx *types.SystemContext) (*dockerclient.Client, error) {
 	// regardless of the values in the *tls.Config), and we would have to call sockets.ConfigureTransport.
 	//
 	// We don't really want to configure anything for unix:// sockets, so just pass a nil *http.Client.
+	//
+	// Similarly, if we want to communicate over plain HTTP on a TCP socket, we also need to set
+	// TLSClientConfig to nil. This can be achieved by using the form `http://`
 	proto, _, _, err := dockerclient.ParseHost(host)
 	if err != nil {
 		return nil, err
 	}
 	var httpClient *http.Client
 	if proto != "unix" {
-		hc, err := tlsConfig(ctx)
-		if err != nil {
-			return nil, err
+		if proto == "http" {
+			httpClient = httpConfig()
+		} else {
+			hc, err := tlsConfig(sys)
+			if err != nil {
+				return nil, err
+			}
+			httpClient = hc
 		}
-		httpClient = hc
 	}
 
 	return dockerclient.NewClient(host, defaultAPIVersion, httpClient, nil)
 }
 
-func tlsConfig(ctx *types.SystemContext) (*http.Client, error) {
+func tlsConfig(sys *types.SystemContext) (*http.Client, error) {
 	options := tlsconfig.Options{}
-	if ctx != nil && ctx.DockerDaemonInsecureSkipTLSVerify {
+	if sys != nil && sys.DockerDaemonInsecureSkipTLSVerify {
 		options.InsecureSkipVerify = true
 	}
 
-	if ctx != nil && ctx.DockerDaemonCertPath != "" {
-		options.CAFile = filepath.Join(ctx.DockerDaemonCertPath, "ca.pem")
-		options.CertFile = filepath.Join(ctx.DockerDaemonCertPath, "cert.pem")
-		options.KeyFile = filepath.Join(ctx.DockerDaemonCertPath, "key.pem")
+	if sys != nil && sys.DockerDaemonCertPath != "" {
+		options.CAFile = filepath.Join(sys.DockerDaemonCertPath, "ca.pem")
+		options.CertFile = filepath.Join(sys.DockerDaemonCertPath, "cert.pem")
+		options.KeyFile = filepath.Join(sys.DockerDaemonCertPath, "key.pem")
 	}
 
 	tlsc, err := tlsconfig.Client(options)
@@ -66,4 +73,13 @@ func tlsConfig(ctx *types.SystemContext) (*http.Client, error) {
 		},
 		CheckRedirect: dockerclient.CheckRedirect,
 	}, nil
+}
+
+func httpConfig() *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: nil,
+		},
+		CheckRedirect: dockerclient.CheckRedirect,
+	}
 }

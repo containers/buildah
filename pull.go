@@ -1,6 +1,7 @@
 package buildah
 
 import (
+	"context"
 	"strings"
 
 	cp "github.com/containers/image/copy"
@@ -18,7 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func localImageNameForReference(store storage.Store, srcRef types.ImageReference, spec string) (string, error) {
+func localImageNameForReference(ctx context.Context, store storage.Store, srcRef types.ImageReference, spec string) (string, error) {
 	if srcRef == nil {
 		return "", errors.Errorf("reference to image is empty")
 	}
@@ -38,7 +39,7 @@ func localImageNameForReference(store storage.Store, srcRef types.ImageReference
 		// to pull the first image stored in the tar file
 		if len(manifest) == 0 {
 			// use the hex of the digest if no manifest is found
-			name, err = getImageDigest(srcRef, nil)
+			name, err = getImageDigest(ctx, srcRef, nil)
 			if err != nil {
 				return "", err
 			}
@@ -47,7 +48,7 @@ func localImageNameForReference(store storage.Store, srcRef types.ImageReference
 				name = manifest[0].RepoTags[0]
 			} else {
 				// If the input image has no repotags, we need to feed it a dest anyways
-				name, err = getImageDigest(srcRef, nil)
+				name, err = getImageDigest(ctx, srcRef, nil)
 				if err != nil {
 					return "", err
 				}
@@ -105,7 +106,7 @@ func localImageNameForReference(store storage.Store, srcRef types.ImageReference
 	return name, nil
 }
 
-func pullImage(store storage.Store, imageName string, options BuilderOptions, sc *types.SystemContext) (types.ImageReference, error) {
+func pullImage(ctx context.Context, store storage.Store, imageName string, options BuilderOptions, sc *types.SystemContext) (types.ImageReference, error) {
 	spec := imageName
 	srcRef, err := alltransports.ParseImageName(spec)
 	if err != nil {
@@ -124,7 +125,7 @@ func pullImage(store storage.Store, imageName string, options BuilderOptions, sc
 		srcRef = srcRef2
 	}
 
-	destName, err := localImageNameForReference(store, srcRef, spec)
+	destName, err := localImageNameForReference(ctx, store, srcRef, spec)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error computing local image name for %q", transports.ImageName(srcRef))
 	}
@@ -137,7 +138,7 @@ func pullImage(store storage.Store, imageName string, options BuilderOptions, sc
 		return nil, errors.Wrapf(err, "error parsing image name %q", destName)
 	}
 
-	img, err := srcRef.NewImageSource(sc)
+	img, err := srcRef.NewImageSource(ctx, sc)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error initializing %q as an image source", spec)
 	}
@@ -161,7 +162,7 @@ func pullImage(store storage.Store, imageName string, options BuilderOptions, sc
 
 	logrus.Debugf("copying %q to %q", spec, destName)
 
-	err = cp.Image(policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter, options.SystemContext, nil, ""))
+	err = cp.Image(ctx, policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter, options.SystemContext, nil, ""))
 	if err == nil {
 		return destRef, nil
 	}
@@ -170,8 +171,8 @@ func pullImage(store storage.Store, imageName string, options BuilderOptions, sc
 
 // getImageDigest creates an image object and uses the hex value of the digest as the image ID
 // for parsing the store reference
-func getImageDigest(src types.ImageReference, ctx *types.SystemContext) (string, error) {
-	newImg, err := src.NewImage(ctx)
+func getImageDigest(ctx context.Context, src types.ImageReference, sc *types.SystemContext) (string, error) {
+	newImg, err := src.NewImage(ctx, sc)
 	if err != nil {
 		return "", err
 	}
