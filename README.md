@@ -29,7 +29,7 @@ The Buildah package provides a command line tool that can be used to
 From [`./examples/lighttpd.sh`](examples/lighttpd.sh):
 
 ```bash
-$ cat > lighttpd.sh <<EOF
+$ cat > lighttpd.sh <<"EOF"
 #!/bin/bash -x
 
 ctr1=`buildah from ${1:-fedora}`
