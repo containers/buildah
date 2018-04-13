@@ -315,6 +315,9 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		MountLabel:            mountLabel,
 		DefaultMountsFilePath: options.DefaultMountsFilePath,
 		NamespaceOptions:      namespaceOptions,
+		ConfigureNetwork:      options.ConfigureNetwork,
+		CNIPluginPath:         options.CNIPluginPath,
+		CNIConfigDir:          options.CNIConfigDir,
 		IDMappingOptions: IDMappingOptions{
 			HostUIDMapping: len(uidmap) == 0,
 			HostGIDMapping: len(uidmap) == 0,

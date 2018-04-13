@@ -36,6 +36,15 @@ func copyStringSlice(s []string) []string {
 	return t
 }
 
+func stringInSlice(s string, slice []string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
 func convertStorageIDMaps(UIDMap, GIDMap []idtools.IDMap) ([]rspec.LinuxIDMapping, []rspec.LinuxIDMapping) {
 	uidmap := make([]rspec.LinuxIDMapping, 0, len(UIDMap))
 	gidmap := make([]rspec.LinuxIDMapping, 0, len(GIDMap))

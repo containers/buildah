@@ -17,6 +17,38 @@ encounters a `RUN` instruction, so you'll also need to build and install a compa
 [runc](https://github.com/opencontainers/runc) for Buildah to call for those cases.  If Buildah is installed
 via a package manager such as yum, dnf or apt-get, runc will be installed as part of that process.
 
+### CNI Requirement
+
+When Buildah uses `runc` to run commands, it defaults to running those commands
+in the host's network namespace.  If the command is being run in a separate
+user namespace, though, for example when ID mapping is used, then the command
+will also be run in a separate network namespace.
+
+A newly-created network namespace starts with no network interfaces, so
+commands which are run in that namespace are effectively disconnected from the
+network unless additional setup is done.  Buildah relies on the CNI
+[library](https://github.com/containernetworking/cni) and
+[plugins](https://github.com/containernetworking/plugins) to set up interfaces
+and routing for network namespaces.
+
+If Buildah is installed via a package manager such as yum, dnf or apt-get, a
+package containing CNI plugins may be available (in Fedora, the package is
+named `containernetworking-cni`).  If not, they will need to be installed,
+for example using:
+```
+  git clone https://github.com/containernetworking/plugins
+  ( cd ./plugins; ./build.sh )
+  mkdir -p /opt/cni/bin
+  install -v ./plugins/bin/* /opt/cni/bin
+```
+
+The CNI library needs to be configured so that it will know which plugins to
+call to set up namespaces.  Usually, this configuration takes the form of one
+or more configuration files in the `/etc/cni/net.d` directory.  A set of example
+configuration files is included in the
+[`docs/cni-examples`](https://github.com/projectatomic/buildah/tree/master/docs/cni-examples)
+directory of this source tree.
+
 ## Package Installation
 
 Buildah is available on several software repositories and can be installed via a package manager such
@@ -66,7 +98,6 @@ In Fedora, you can use this command:
 
 Then to install Buildah on Fedora follow the steps in this example:
 
-
 ```
   mkdir ~/buildah
   cd ~/buildah
@@ -80,8 +111,8 @@ Then to install Buildah on Fedora follow the steps in this example:
 
 ### RHEL, CentOS
 
-In RHEL and CentOS 7, ensure that you are subscribed to `rhel-7-server-rpms`,
-`rhel-7-server-extras-rpms`, and `rhel-7-server-optional-rpms`, then
+In RHEL and CentOS 7, ensure that you are subscribed to the `rhel-7-server-rpms`,
+`rhel-7-server-extras-rpms`, and `rhel-7-server-optional-rpms` repositories, then
 run this command:
 
 ```
@@ -103,7 +134,7 @@ run this command:
     skopeo-containers
 ```
 
-The build steps for Buildah on RHEL or CentOS are the same as Fedora, above.
+The build steps for Buildah on RHEL or CentOS are the same as for Fedora, above.
 
 
 ### openSUSE
@@ -124,7 +155,7 @@ Currently openSUSE Leap 15 offers `go1.8` , while openSUSE Tumbleweed has `go1.9
     go-md2man
 ```
 
-The build steps for Buildah on SUSE / openSUSE are the same as Fedora, above.
+The build steps for Buildah on SUSE / openSUSE are the same as for Fedora, above.
 
 
 ### Ubuntu

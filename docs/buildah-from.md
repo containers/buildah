@@ -57,6 +57,18 @@ The default certificates directory is _/etc/containers/certs.d_.
 
 Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
+**--cni-config-dir**=*directory*
+
+Location of CNI configuration files which will dictate which plugins will be
+used to configure network interfaces and routing when the container is
+subsequently used for `buildah run`, if processes to be started will be run in
+their own network namespaces, and networking is not disabled.
+
+**--cni-plugin-path**=*directory[:directory[:directory[...]]]*
+
+List of directories in which the CNI plugins which will be used for configuring
+network namespaces can be found.
+
 **--cpu-period**=*0*
 
 Limit the CPU CFS (Completely Fair Scheduler) period

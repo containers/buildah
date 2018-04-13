@@ -112,7 +112,7 @@ func fromCmd(c *cli.Context) error {
 		}
 	}
 
-	namespaceOptions, err := parseNamespaceOptions(c)
+	namespaceOptions, networkPolicy, err := parseNamespaceOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error parsing namespace-related options")
 	}
@@ -131,6 +131,9 @@ func fromCmd(c *cli.Context) error {
 		SystemContext:         systemContext,
 		DefaultMountsFilePath: c.GlobalString("default-mounts-file"),
 		NamespaceOptions:      namespaceOptions,
+		ConfigureNetwork:      networkPolicy,
+		CNIPluginPath:         c.String("cni-plugin-path"),
+		CNIConfigDir:          c.String("cni-config-dir"),
 		IDMappingOptions:      idmappingOptions,
 		CommonBuildOpts:       commonOpts,
 	}
