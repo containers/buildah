@@ -7,6 +7,7 @@ package cli
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/projectatomic/buildah"
+	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
 
@@ -42,6 +43,16 @@ var (
 		cli.StringFlag{
 			Name:  string(specs.NetworkNamespace) + ", net",
 			Usage: "'container', `path` of network namespace to join, or 'host'",
+		},
+		cli.StringFlag{
+			Name:  "cni-config-dir",
+			Usage: "`directory` of CNI configuration files",
+			Value: util.DefaultCNIConfigDir,
+		},
+		cli.StringFlag{
+			Name:  "cni-plugin-path",
+			Usage: "`path` of CNI network plugins",
+			Value: util.DefaultCNIPluginPath,
 		},
 		cli.StringFlag{
 			Name:  string(specs.PIDNamespace),

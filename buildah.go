@@ -67,6 +67,37 @@ func (p PullPolicy) String() string {
 	return fmt.Sprintf("unrecognized policy %d", p)
 }
 
+// NetworkConfigurationPolicy takes the value NetworkDefault, NetworkDisabled,
+// or NetworkEnabled.
+type NetworkConfigurationPolicy int
+
+const (
+	// NetworkDefault is one of the values that BuilderOptions.ConfigureNetwork
+	// can take, signalling that the default behavior should be used.
+	NetworkDefault NetworkConfigurationPolicy = iota
+	// NetworkDisabled is one of the values that BuilderOptions.ConfigureNetwork
+	// can take, signalling that network interfaces should NOT be configured for
+	// newly-created network namespaces.
+	NetworkDisabled
+	// NetworkEnabled is one of the values that BuilderOptions.ConfigureNetwork
+	// can take, signalling that network interfaces should be configured for
+	// newly-created network namespaces.
+	NetworkEnabled
+)
+
+// String formats a NetworkConfigurationPolicy as a string.
+func (p NetworkConfigurationPolicy) String() string {
+	switch p {
+	case NetworkDefault:
+		return "NetworkDefault"
+	case NetworkDisabled:
+		return "NetworkDisabled"
+	case NetworkEnabled:
+		return "NetworkEnabled"
+	}
+	return fmt.Sprintf("unknown NetworkConfigurationPolicy %d", p)
+}
+
 // Builder objects are used to represent containers which are being used to
 // build images.  They also carry potential updates which will be applied to
 // the image's configuration when the container's contents are used to build an
@@ -118,6 +149,18 @@ type Builder struct {
 
 	// NamespaceOptions controls how we set up the namespaces for processes that we run in the container.
 	NamespaceOptions NamespaceOptions
+	// ConfigureNetwork controls whether or not network interfaces and
+	// routing are configured for a new network namespace (i.e., when not
+	// joining another's namespace and not just using the host's
+	// namespace), effectively deciding whether or not the process has a
+	// usable network.
+	ConfigureNetwork NetworkConfigurationPolicy
+	// CNIPluginPath is the location of CNI plugin helpers, if they should be
+	// run from a location other than the default location.
+	CNIPluginPath string
+	// CNIConfigDir is the location of CNI configuration files, if the files in
+	// the default configuration directory shouldn't be used.
+	CNIConfigDir string
 	// ID mapping options to use when running processes in the container with non-host user namespaces.
 	IDMappingOptions IDMappingOptions
 
@@ -142,6 +185,9 @@ type BuilderInfo struct {
 	Docker                docker.V2Image
 	DefaultMountsFilePath string
 	NamespaceOptions      NamespaceOptions
+	ConfigureNetwork      string
+	CNIPluginPath         string
+	CNIConfigDir          string
 	IDMappingOptions      IDMappingOptions
 }
 
@@ -164,6 +210,9 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 		Docker:                b.Docker,
 		DefaultMountsFilePath: b.DefaultMountsFilePath,
 		NamespaceOptions:      b.NamespaceOptions,
+		ConfigureNetwork:      fmt.Sprintf("%v", b.ConfigureNetwork),
+		CNIPluginPath:         b.CNIPluginPath,
+		CNIConfigDir:          b.CNIConfigDir,
 		IDMappingOptions:      b.IDMappingOptions,
 	}
 }
@@ -262,6 +311,18 @@ type BuilderOptions struct {
 	// NamespaceOptions controls how we set up namespaces for processes that
 	// we might need to run using the container's root filesystem.
 	NamespaceOptions NamespaceOptions
+	// ConfigureNetwork controls whether or not network interfaces and
+	// routing are configured for a new network namespace (i.e., when not
+	// joining another's namespace and not just using the host's
+	// namespace), effectively deciding whether or not the process has a
+	// usable network.
+	ConfigureNetwork NetworkConfigurationPolicy
+	// CNIPluginPath is the location of CNI plugin helpers, if they should be
+	// run from a location other than the default location.
+	CNIPluginPath string
+	// CNIConfigDir is the location of CNI configuration files, if the files in
+	// the default configuration directory shouldn't be used.
+	CNIConfigDir string
 	// ID mapping options to use if we're setting up our own user namespace.
 	IDMappingOptions *IDMappingOptions
 

@@ -111,6 +111,18 @@ type BuildOptions struct {
 	// NamespaceOptions controls how we set up namespaces processes that we
 	// might need when handling RUN instructions.
 	NamespaceOptions []buildah.NamespaceOption
+	// ConfigureNetwork controls whether or not network interfaces and
+	// routing are configured for a new network namespace (i.e., when not
+	// joining another's namespace and not just using the host's
+	// namespace), effectively deciding whether or not the process has a
+	// usable network.
+	ConfigureNetwork buildah.NetworkConfigurationPolicy
+	// CNIPluginPath is the location of CNI plugin helpers, if they should be
+	// run from a location other than the default location.
+	CNIPluginPath string
+	// CNIConfigDir is the location of CNI configuration files, if the files in
+	// the default configuration directory shouldn't be used.
+	CNIConfigDir string
 	// ID mapping options to use if we're setting up our own user namespace
 	// when handling RUN instructions.
 	IDMappingOptions *buildah.IDMappingOptions
@@ -161,6 +173,9 @@ type Executor struct {
 	volumeCacheInfo                map[string]os.FileInfo
 	reportWriter                   io.Writer
 	namespaceOptions               []buildah.NamespaceOption
+	configureNetwork               buildah.NetworkConfigurationPolicy
+	cniPluginPath                  string
+	cniConfigDir                   string
 	idmappingOptions               *buildah.IDMappingOptions
 	commonBuildOptions             *buildah.CommonBuildOptions
 	defaultMountsFilePath          string
@@ -421,17 +436,21 @@ func (b *Executor) Run(run imagebuilder.Run, config docker.Config) error {
 		return errors.Errorf("no build container available")
 	}
 	options := buildah.RunOptions{
-		Hostname:        config.Hostname,
-		Runtime:         b.runtime,
-		Args:            b.runtimeArgs,
-		Mounts:          convertMounts(b.transientMounts),
-		Env:             config.Env,
-		User:            config.User,
-		WorkingDir:      config.WorkingDir,
-		Entrypoint:      config.Entrypoint,
-		Cmd:             config.Cmd,
-		NetworkDisabled: config.NetworkDisabled,
-		Quiet:           b.quiet,
+		Hostname:   config.Hostname,
+		Runtime:    b.runtime,
+		Args:       b.runtimeArgs,
+		Mounts:     convertMounts(b.transientMounts),
+		Env:        config.Env,
+		User:       config.User,
+		WorkingDir: config.WorkingDir,
+		Entrypoint: config.Entrypoint,
+		Cmd:        config.Cmd,
+		Quiet:      b.quiet,
+	}
+	if config.NetworkDisabled {
+		options.ConfigureNetwork = buildah.NetworkDisabled
+	} else {
+		options.ConfigureNetwork = buildah.NetworkEnabled
 	}
 
 	args := run.Args
@@ -498,6 +517,9 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		err:                   options.Err,
 		reportWriter:          options.ReportWriter,
 		namespaceOptions:      options.NamespaceOptions,
+		configureNetwork:      options.ConfigureNetwork,
+		cniPluginPath:         options.CNIPluginPath,
+		cniConfigDir:          options.CNIConfigDir,
 		idmappingOptions:      options.IDMappingOptions,
 		commonBuildOptions:    options.CommonBuildOpts,
 		defaultMountsFilePath: options.DefaultMountsFilePath,
@@ -548,6 +570,9 @@ func (b *Executor) Prepare(ctx context.Context, ib *imagebuilder.Builder, node *
 		ReportWriter:          b.reportWriter,
 		SystemContext:         b.systemContext,
 		NamespaceOptions:      b.namespaceOptions,
+		ConfigureNetwork:      b.configureNetwork,
+		CNIPluginPath:         b.cniPluginPath,
+		CNIConfigDir:          b.cniConfigDir,
 		IDMappingOptions:      b.idmappingOptions,
 		CommonBuildOpts:       b.commonBuildOptions,
 		DefaultMountsFilePath: b.defaultMountsFilePath,

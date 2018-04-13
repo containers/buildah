@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	cniversion "github.com/containernetworking/cni/pkg/version"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/projectatomic/buildah"
@@ -14,8 +15,9 @@ import (
 
 //Overwritten at build time
 var (
-	gitCommit string
-	buildInfo string
+	gitCommit  string
+	buildInfo  string
+	cniVersion string
 )
 
 //Function to get and print info for version command
@@ -27,15 +29,17 @@ func versionCmd(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Println("Version:      ", buildah.Version)
-	fmt.Println("Go Version:   ", runtime.Version())
-	fmt.Println("Image Spec:   ", ispecs.Version)
-	fmt.Println("Runtime Spec: ", rspecs.Version)
-	fmt.Println("Git Commit:   ", gitCommit)
+	fmt.Println("Version:        ", buildah.Version)
+	fmt.Println("Go Version:     ", runtime.Version())
+	fmt.Println("Image Spec:     ", ispecs.Version)
+	fmt.Println("Runtime Spec:   ", rspecs.Version)
+	fmt.Println("CNI Spec:       ", cniversion.Current())
+	fmt.Println("libcni Version: ", cniVersion)
+	fmt.Println("Git Commit:     ", gitCommit)
 
 	//Prints out the build time in readable format
-	fmt.Println("Built:        ", time.Unix(buildTime, 0).Format(time.ANSIC))
-	fmt.Println("OS/Arch:      ", runtime.GOOS+"/"+runtime.GOARCH)
+	fmt.Println("Built:          ", time.Unix(buildTime, 0).Format(time.ANSIC))
+	fmt.Println("OS/Arch:        ", runtime.GOOS+"/"+runtime.GOARCH)
 
 	return nil
 }

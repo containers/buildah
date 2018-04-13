@@ -14,6 +14,18 @@ the *buildah config* command.  To execute *buildah run* within an
 interactive shell, specify the --tty option.
 
 ## OPTIONS
+**--cni-config-dir**=*directory*
+
+Location of CNI configuration files which will dictate which plugins will be
+used to configure network interfaces and routing inside the running container,
+if the container will be run in its own network namespace, and networking is
+not disabled.
+
+**--cni-plugin-path**=*directory[:directory[:directory[...]]]*
+
+List of directories in which the CNI plugins which will be used for configuring
+network namespaces can be found.
+
 **--hostname**
 Set the hostname inside of the running container.
 

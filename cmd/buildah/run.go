@@ -90,7 +90,7 @@ func runCmd(c *cli.Context) error {
 	}
 
 	user := parseUserOptions(c)
-	namespaceOptions, err := parseNamespaceOptions(c)
+	namespaceOptions, networkPolicy, err := parseNamespaceOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error parsing namespace-related options")
 	}
@@ -101,6 +101,9 @@ func runCmd(c *cli.Context) error {
 		Args:             runtimeFlags,
 		User:             user,
 		NamespaceOptions: namespaceOptions,
+		ConfigureNetwork: networkPolicy,
+		CNIPluginPath:    c.String("cni-plugin-path"),
+		CNIConfigDir:     c.String("cni-config-dir"),
 	}
 
 	if c.IsSet("tty") {

@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containernetworking/cni/libcni"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/docker/docker/profiles/seccomp"
@@ -26,6 +27,7 @@ import (
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+	"github.com/projectatomic/buildah/util"
 	"github.com/projectatomic/libpod/pkg/secrets"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
@@ -81,6 +83,10 @@ type NamespaceOption struct {
 	// Path is the path of the namespace to attach our process to, if Host
 	// is not set.  If Host is not set and Path is also empty, a new
 	// namespace will be created for the process that we're starting.
+	// If Name is specs.NetworkNamespace, if Path doesn't look like an
+	// absolute path, it is treated as a comma-separated list of CNI
+	// configuration names which will be selected from among all of the CNI
+	// network configurations which we find.
 	Path string
 }
 
@@ -120,13 +126,20 @@ type RunOptions struct {
 	Cmd []string
 	// Entrypoint is an override for the configured entry point.
 	Entrypoint []string
-	// NetworkDisabled skips configuration of network interfaces and routing
-	// when setting up a new network namespace (i.e., when not joining another's
-	// namespace and not just using the host's namespace), effectively leaving
-	// the process without a usable network.
-	NetworkDisabled bool
 	// NamespaceOptions controls how we set up the namespaces for the process.
 	NamespaceOptions NamespaceOptions
+	// ConfigureNetwork controls whether or not network interfaces and
+	// routing are configured for a new network namespace (i.e., when not
+	// joining another's namespace and not just using the host's
+	// namespace), effectively deciding whether or not the process has a
+	// usable network.
+	ConfigureNetwork NetworkConfigurationPolicy
+	// CNIPluginPath is the location of CNI plugin helpers, if they should be
+	// run from a location other than the default location.
+	CNIPluginPath string
+	// CNIConfigDir is the location of CNI configuration files, if the files in
+	// the default configuration directory shouldn't be used.
+	CNIConfigDir string
 	// Terminal provides a way to specify whether or not the command should
 	// be run with a pseudoterminal.  By default (DefaultTerminal), a
 	// terminal is used if os.Stdout is connected to a terminal, but that
@@ -497,9 +510,10 @@ func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy) {
 	}
 }
 
-func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, idmapOptions IDMappingOptions, networkDisabled bool) error {
+func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, idmapOptions IDMappingOptions, policy NetworkConfigurationPolicy) (configureNetwork bool, configureNetworks []string, err error) {
 	// Set namespace options in the container configuration.
 	configureUserns := false
+	specifiedNetwork := false
 	for _, namespaceOption := range namespaceOptions {
 		switch namespaceOption.Name {
 		case string(specs.UserNamespace):
@@ -507,22 +521,32 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 			if !namespaceOption.Host && namespaceOption.Path == "" {
 				configureUserns = true
 			}
+		case specs.NetworkNamespace:
+			specifiedNetwork = true
+			configureNetwork = false
+			if !namespaceOption.Host && (namespaceOption.Path == "" || !filepath.IsAbs(namespaceOption.Path)) {
+				if namespaceOption.Path != "" && !filepath.IsAbs(namespaceOption.Path) {
+					configureNetworks = strings.Split(namespaceOption.Path, ",")
+					namespaceOption.Path = ""
+				}
+				configureNetwork = (policy != NetworkDisabled)
+			}
 		}
 		if namespaceOption.Host {
 			if err := g.RemoveLinuxNamespace(namespaceOption.Name); err != nil {
-				return errors.Wrapf(err, "error removing %q namespace for run", namespaceOption.Name)
+				return false, nil, errors.Wrapf(err, "error removing %q namespace for run", namespaceOption.Name)
 			}
 		} else if err := g.AddOrReplaceLinuxNamespace(namespaceOption.Name, namespaceOption.Path); err != nil {
 			if namespaceOption.Path == "" {
-				return errors.Wrapf(err, "error adding new %q namespace for run", namespaceOption.Name)
+				return false, nil, errors.Wrapf(err, "error adding new %q namespace for run", namespaceOption.Name)
 			}
-			return errors.Wrapf(err, "error adding %q namespace %q for run", namespaceOption.Name, namespaceOption.Path)
+			return false, nil, errors.Wrapf(err, "error adding %q namespace %q for run", namespaceOption.Name, namespaceOption.Path)
 		}
 	}
 	// If we've got mappings, we're going to have to create a user namespace.
 	if len(idmapOptions.UIDMap) > 0 || len(idmapOptions.GIDMap) > 0 || configureUserns {
 		if err := g.AddOrReplaceLinuxNamespace(specs.UserNamespace, ""); err != nil {
-			return errors.Wrapf(err, "error adding new %q namespace for run", string(specs.UserNamespace))
+			return false, nil, errors.Wrapf(err, "error adding new %q namespace for run", string(specs.UserNamespace))
 		}
 		for _, m := range idmapOptions.UIDMap {
 			g.AddLinuxUIDMapping(m.HostID, m.ContainerID, m.Size)
@@ -530,7 +554,7 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 		if len(idmapOptions.UIDMap) == 0 {
 			mappings, err := getProcIDMappings("/proc/self/uid_map")
 			if err != nil {
-				return err
+				return false, nil, err
 			}
 			for _, m := range mappings {
 				g.AddLinuxUIDMapping(m.ContainerID, m.ContainerID, m.Size)
@@ -542,28 +566,29 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 		if len(idmapOptions.GIDMap) == 0 {
 			mappings, err := getProcIDMappings("/proc/self/gid_map")
 			if err != nil {
-				return err
+				return false, nil, err
 			}
 			for _, m := range mappings {
 				g.AddLinuxGIDMapping(m.ContainerID, m.ContainerID, m.Size)
 			}
 		}
-		if !networkDisabled {
+		if !specifiedNetwork {
 			if err := g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, ""); err != nil {
-				return errors.Wrapf(err, "error adding new %q namespace for run", string(specs.NetworkNamespace))
+				return false, nil, errors.Wrapf(err, "error adding new %q namespace for run", string(specs.NetworkNamespace))
 			}
+			configureNetwork = (policy != NetworkDisabled)
 		}
 	} else {
 		if err := g.RemoveLinuxNamespace(specs.UserNamespace); err != nil {
-			return errors.Wrapf(err, "error removing %q namespace for run", string(specs.UserNamespace))
+			return false, nil, errors.Wrapf(err, "error removing %q namespace for run", string(specs.UserNamespace))
 		}
-		if !networkDisabled {
+		if !specifiedNetwork {
 			if err := g.RemoveLinuxNamespace(specs.NetworkNamespace); err != nil {
-				return errors.Wrapf(err, "error removing %q namespace for run", string(specs.NetworkNamespace))
+				return false, nil, errors.Wrapf(err, "error removing %q namespace for run", string(specs.NetworkNamespace))
 			}
 		}
 	}
-	return nil
+	return configureNetwork, configureNetworks, nil
 }
 
 // Run runs the specified command in the container's root filesystem.
@@ -634,7 +659,14 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	namespaceOptions := DefaultNamespaceOptions()
 	namespaceOptions.AddOrReplace(b.NamespaceOptions...)
 	namespaceOptions.AddOrReplace(options.NamespaceOptions...)
-	if err = setupNamespaces(g, namespaceOptions, b.IDMappingOptions, options.NetworkDisabled); err != nil {
+
+	networkPolicy := options.ConfigureNetwork
+	if networkPolicy == NetworkDefault {
+		networkPolicy = b.ConfigureNetwork
+	}
+
+	configureNetwork, configureNetworks, err := setupNamespaces(g, namespaceOptions, b.IDMappingOptions, networkPolicy)
+	if err != nil {
 		return err
 	}
 
@@ -694,25 +726,43 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container")
 	}
-	return b.runUsingRuntimeSubproc(options, spec, mountPoint, path, Package+"-"+filepath.Base(path))
+
+	if options.CNIConfigDir == "" {
+		options.CNIConfigDir = b.CNIConfigDir
+		if b.CNIConfigDir == "" {
+			options.CNIConfigDir = util.DefaultCNIConfigDir
+		}
+	}
+	if options.CNIPluginPath == "" {
+		options.CNIPluginPath = b.CNIPluginPath
+		if b.CNIPluginPath == "" {
+			options.CNIPluginPath = util.DefaultCNIPluginPath
+		}
+	}
+
+	return b.runUsingRuntimeSubproc(options, configureNetwork, configureNetworks, spec, mountPoint, path, Package+"-"+filepath.Base(path))
 }
 
 type runUsingRuntimeSubprocOptions struct {
-	Options       RunOptions
-	Spec          *specs.Spec
-	RootPath      string
-	BundlePath    string
-	ContainerName string
+	Options           RunOptions
+	Spec              *specs.Spec
+	RootPath          string
+	BundlePath        string
+	ConfigureNetwork  bool
+	ConfigureNetworks []string
+	ContainerName     string
 }
 
-func (b *Builder) runUsingRuntimeSubproc(options RunOptions, spec *specs.Spec, rootPath, bundlePath, containerName string) (err error) {
+func (b *Builder) runUsingRuntimeSubproc(options RunOptions, configureNetwork bool, configureNetworks []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (err error) {
 	var confwg sync.WaitGroup
 	config, conferr := json.Marshal(runUsingRuntimeSubprocOptions{
-		Options:       options,
-		Spec:          spec,
-		RootPath:      rootPath,
-		BundlePath:    bundlePath,
-		ContainerName: containerName,
+		Options:           options,
+		Spec:              spec,
+		RootPath:          rootPath,
+		BundlePath:        bundlePath,
+		ConfigureNetwork:  configureNetwork,
+		ConfigureNetworks: configureNetworks,
+		ContainerName:     containerName,
 	})
 	if conferr != nil {
 		return errors.Wrapf(conferr, "error encoding configuration for %q", runUsingRuntimeCommand)
@@ -773,7 +823,7 @@ func runUsingRuntimeMain() {
 		os.Exit(1)
 	}
 	// Run the container, start to finish.
-	status, err := runUsingRuntime(options.Options, options.Spec, options.RootPath, options.BundlePath, options.ContainerName)
+	status, err := runUsingRuntime(options.Options, options.ConfigureNetwork, options.ConfigureNetworks, options.Spec, options.RootPath, options.BundlePath, options.ContainerName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error running container: %v\n", err)
 		os.Exit(1)
@@ -788,7 +838,7 @@ func runUsingRuntimeMain() {
 	os.Exit(1)
 }
 
-func runUsingRuntime(options RunOptions, spec *specs.Spec, rootPath, bundlePath, containerName string) (wstatus unix.WaitStatus, err error) {
+func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetworks []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (wstatus unix.WaitStatus, err error) {
 	// Write the runtime configuration.
 	specbytes, err := json.Marshal(spec)
 	if err != nil {
@@ -928,6 +978,16 @@ func runUsingRuntime(options RunOptions, spec *specs.Spec, rootPath, bundlePath,
 		}
 	}()
 
+	if configureNetwork {
+		teardown, err := runConfigureNetwork(options, configureNetwork, configureNetworks, pid, containerName, spec.Process.Args)
+		if teardown != nil {
+			defer teardown()
+		}
+		if err != nil {
+			return 1, err
+		}
+	}
+
 	if copyStdio {
 		// We don't need the ends of the pipes that belong to the container.
 		stdin.Close()
@@ -1004,6 +1064,100 @@ func runUsingRuntime(options RunOptions, spec *specs.Spec, rootPath, bundlePath,
 	reaping.Wait()
 
 	return wstatus, nil
+}
+
+func runConfigureNetwork(options RunOptions, configureNetwork bool, configureNetworks []string, pid int, containerName string, command []string) (teardown func(), err error) {
+	var netconf, undo []*libcni.NetworkConfigList
+	// Scan for CNI configuration files.
+	confdir := options.CNIConfigDir
+	files, err := libcni.ConfFiles(confdir, []string{".conf"})
+	if err != nil {
+		return nil, errors.Wrapf(err, "error finding CNI networking configuration files named *.conf in directory %q", confdir)
+	}
+	lists, err := libcni.ConfFiles(confdir, []string{".conflist"})
+	if err != nil {
+		return nil, errors.Wrapf(err, "error finding CNI networking configuration list files named *.conflist in directory %q", confdir)
+	}
+	logrus.Debugf("CNI network configuration file list: %#v", append(files, lists...))
+	// Read the CNI configuration files.
+	for _, file := range files {
+		nc, err := libcni.ConfFromFile(file)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error loading networking configuration from file %q for %v", file, command)
+		}
+		if len(configureNetworks) > 0 && nc.Network != nil && (nc.Network.Name == "" || !stringInSlice(nc.Network.Name, configureNetworks)) {
+			if nc.Network.Name == "" {
+				logrus.Debugf("configuration in %q has no name, skipping it", file)
+			} else {
+				logrus.Debugf("configuration in %q has name %q, skipping it", file, nc.Network.Name)
+			}
+			continue
+		}
+		cl, err := libcni.ConfListFromConf(nc)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error converting networking configuration from file %q for %v", file, command)
+		}
+		logrus.Debugf("using network configuration from %q", file)
+		netconf = append(netconf, cl)
+	}
+	for _, list := range lists {
+		cl, err := libcni.ConfListFromFile(list)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error loading networking configuration list from file %q for %v", list, command)
+		}
+		if len(configureNetworks) > 0 && (cl.Name == "" || !stringInSlice(cl.Name, configureNetworks)) {
+			if cl.Name == "" {
+				logrus.Debugf("configuration list in %q has no name, skipping it", list)
+			} else {
+				logrus.Debugf("configuration list in %q has name %q, skipping it", list, cl.Name)
+			}
+			continue
+		}
+		logrus.Debugf("using network configuration list from %q", list)
+		netconf = append(netconf, cl)
+	}
+	// Make sure we can access the container's network namespace,
+	// even after it exits, to successfully tear down the
+	// interfaces.  Ensure this by opening a handle to the network
+	// namespace, and using our copy to both configure and
+	// deconfigure it.
+	netns := fmt.Sprintf("/proc/%d/ns/net", pid)
+	netFD, err := unix.Open(netns, unix.O_RDONLY, 0)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error opening network namespace for %v", command)
+	}
+	mynetns := fmt.Sprintf("/proc/%d/fd/%d", unix.Getpid(), netFD)
+	// Build our search path for the plugins.
+	pluginPaths := strings.Split(options.CNIPluginPath, string(os.PathListSeparator))
+	cni := libcni.CNIConfig{Path: pluginPaths}
+	// Configure the interfaces.
+	rtconf := make(map[*libcni.NetworkConfigList]*libcni.RuntimeConf)
+	teardown = func() {
+		for _, nc := range undo {
+			if err = cni.DelNetworkList(nc, rtconf[nc]); err != nil {
+				logrus.Errorf("error cleaning up network %v for %v: %v", rtconf[nc].IfName, command, err)
+			}
+		}
+		unix.Close(netFD)
+	}
+	for i, nc := range netconf {
+		// Build the runtime config for use with this network configuration.
+		rtconf[nc] = &libcni.RuntimeConf{
+			ContainerID:    containerName,
+			NetNS:          mynetns,
+			IfName:         fmt.Sprintf("if%d", i),
+			Args:           [][2]string{},
+			CapabilityArgs: map[string]interface{}{},
+		}
+		// Bring it up.
+		_, err := cni.AddNetworkList(nc, rtconf[nc])
+		if err != nil {
+			return teardown, errors.Wrapf(err, "error configuring network list %v for %v", rtconf[nc].IfName, command)
+		}
+		// Add it to the list of networks to take down when the container process exits.
+		undo = append([]*libcni.NetworkConfigList{nc}, undo...)
+	}
+	return teardown, nil
 }
 
 func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copyConsole bool, consoleListener *net.UnixListener, finishCopy []int, finishedCopy chan struct{}) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -137,8 +138,9 @@ func parseUserOptions(c *cli.Context) string {
 	return c.String("user")
 }
 
-func parseNamespaceOptions(c *cli.Context) (namespaceOptions buildah.NamespaceOptions, err error) {
+func parseNamespaceOptions(c *cli.Context) (namespaceOptions buildah.NamespaceOptions, networkPolicy buildah.NetworkConfigurationPolicy, err error) {
 	options := make(buildah.NamespaceOptions, 0, 7)
+	policy := buildah.NetworkDefault
 	for _, what := range []string{string(specs.IPCNamespace), "net", string(specs.PIDNamespace), string(specs.UTSNamespace)} {
 		if c.IsSet(what) {
 			how := c.String(what)
@@ -159,8 +161,27 @@ func parseNamespaceOptions(c *cli.Context) (namespaceOptions buildah.NamespaceOp
 					Host: true,
 				})
 			default:
+				if what == specs.NetworkNamespace {
+					if how == "none" {
+						options.AddOrReplace(buildah.NamespaceOption{
+							Name: what,
+						})
+						policy = buildah.NetworkDisabled
+						logrus.Debugf("setting network to disabled")
+						break
+					}
+					if !filepath.IsAbs(how) {
+						options.AddOrReplace(buildah.NamespaceOption{
+							Name: what,
+							Path: how,
+						})
+						policy = buildah.NetworkEnabled
+						logrus.Debugf("setting network configuration to %q", how)
+						break
+					}
+				}
 				if _, err := os.Stat(how); err != nil {
-					return nil, errors.Wrapf(err, "error checking for %s namespace at %q", what, how)
+					return nil, buildah.NetworkDefault, errors.Wrapf(err, "error checking for %s namespace at %q", what, how)
 				}
 				logrus.Debugf("setting %q namespace to %q", what, how)
 				options.AddOrReplace(buildah.NamespaceOption{
@@ -170,7 +191,7 @@ func parseNamespaceOptions(c *cli.Context) (namespaceOptions buildah.NamespaceOp
 			}
 		}
 	}
-	return options, nil
+	return options, policy, nil
 }
 
 func parseIDMappingOptions(c *cli.Context) (usernsOptions buildah.NamespaceOptions, idmapOptions *buildah.IDMappingOptions, err error) {
