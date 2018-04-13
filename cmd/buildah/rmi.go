@@ -84,8 +84,10 @@ func rmiCmd(c *cli.Context) error {
 		}
 	}
 
+	ctx := getContext()
+
 	for _, id := range imagesToDelete {
-		image, err := getImage(getContext(), id, store)
+		image, err := getImage(ctx, id, store)
 		if err != nil || image == nil {
 			if lastError != nil {
 				fmt.Fprintln(os.Stderr, lastError)
@@ -142,6 +144,13 @@ func rmiCmd(c *cli.Context) error {
 					continue
 				}
 				fmt.Printf("untagged: %s\n", name)
+
+				// Need to fetch the image state again after making changes to it i.e untag
+				// because only a copy of the image state is returned
+				image, err = getImage(ctx, image.ID, store)
+				if err != nil || image == nil {
+					return errors.Wrapf(err, "error getting image after untag %q", image.ID)
+				}
 			}
 
 			if len(image.Names) > 0 {

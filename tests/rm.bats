@@ -10,3 +10,36 @@ load helpers
   [ $(wc -l <<< "$output") -eq 3 ]
   [ "${status}" -eq 1 ]
 }
+
+@test "remove one container" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run buildah --debug=false rm "$cid"
+  echo "$output"
+  [ "$status" -eq 0 ]
+  buildah rmi alpine
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "remove multiple containers" {
+  cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid3=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
+  run buildah --debug=false rm "$cid2" "$cid3"
+  echo "$output"
+  [ "$status" -eq 0 ]
+  buildah rmi alpine busybox
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "remove all containers" {
+  cid1=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid3=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
+  run buildah --debug=false rm -a
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run buildah rmi --all
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
