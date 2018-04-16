@@ -140,8 +140,10 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 			logrus.Errorf("error parsing --entrypoint %q: %v", c.String("entrypoint"), err)
 		} else {
 			builder.SetEntrypoint(entrypointSpec)
+			builder.SetCmd(nil)
 		}
 	}
+	// cmd should always run after entrypoint; setting entrypoint clears cmd
 	if c.IsSet("cmd") {
 		cmdSpec, err := shellwords.Parse(c.String("cmd"))
 		if err != nil {
