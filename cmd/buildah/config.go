@@ -20,7 +20,7 @@ var (
 	configFlags = []cli.Flag{
 		cli.StringSliceFlag{
 			Name:  "annotation, a",
-			Usage: "add `annotation` e.g. annotation=value, for the target image",
+			Usage: "add `annotation` e.g. annotation=value, for the target image (default [])",
 		},
 		cli.StringFlag{
 			Name:  "arch",
@@ -32,11 +32,11 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "cmd",
-			Usage: "sets the default `command` to run for containers based on the image",
+			Usage: "set the default `command` to run for containers based on the image",
 		},
 		cli.StringFlag{
 			Name:  "created-by",
-			Usage: "add `description` of how the image was created",
+			Usage: "set `description` of how the image was created",
 			Value: DefaultCreatedBy,
 		},
 		cli.StringFlag{
@@ -45,7 +45,7 @@ var (
 		},
 		cli.StringSliceFlag{
 			Name:  "env, e",
-			Usage: "add `environment variable` to be set when running containers based on image",
+			Usage: "add `environment variable` to be set when running containers based on image (default [])",
 		},
 		cli.StringSliceFlag{
 			Name:  "label, l",
@@ -57,7 +57,7 @@ var (
 		},
 		cli.StringSliceFlag{
 			Name:  "port, p",
-			Usage: "add `port` to expose when running containers based on image",
+			Usage: "add `port` to expose when running containers based on image (default [])",
 		},
 		cli.StringFlag{
 			Name:  "shell",
@@ -73,7 +73,7 @@ var (
 		},
 		cli.StringSliceFlag{
 			Name:  "volume, v",
-			Usage: "add default `volume` path to be created for containers based on image",
+			Usage: "add default `volume` path to be created for containers based on image (default [])",
 		},
 		cli.StringFlag{
 			Name:  "workingdir",
