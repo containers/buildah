@@ -77,7 +77,7 @@ load helpers
 	[ "$status" -eq 0 ]
 	[ "$output" = /tmp ]
 
-	buildah config --entrypoint echo $cid
+	buildah config --entrypoint echo --cmd pwd $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 0 ]
 	[ "$output" = pwd ]

@@ -2,6 +2,46 @@
 
 load helpers
 
+@test "config entrypoint" {
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah config \
+   --entrypoint /ENTRYPOINT \
+   --cmd COMMAND-OR-ARGS \
+  $cid
+  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-docker | grep COMMAND-OR-ARGS
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-docker | grep COMMAND-OR-ARGS
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-oci | grep COMMAND-OR-ARGS
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-oci | grep COMMAND-OR-ARGS
+
+  buildah config \
+   --entrypoint /ENTRYPOINT \
+  $cid
+
+  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  # Cmd should now be nil
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-docker | grep '\[\]'
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-docker | grep '\[\]'
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-oci | grep '\[\]'
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-oci | grep '\[\]'
+
+  buildah config \
+   --entrypoint /ENTRYPOINT \
+   --cmd COMMAND-OR-ARGS \
+  $cid
+
+  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-docker | grep COMMAND-OR-ARGS
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-docker | grep COMMAND-OR-ARGS
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-oci | grep COMMAND-OR-ARGS
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-oci | grep COMMAND-OR-ARGS
+
+}
+
 @test "config" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config \

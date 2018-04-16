@@ -44,6 +44,8 @@ edits") in any images which will be created using the specified container.
 Set the *entry point* for containers based on any images which will be built
 using the specified container.
 
+Note: Setting the entrypoint without setting the --cmd, clears the cmd field in the container.
+
 **--env** *var=value*
 
 Add a value (e.g. name=*value*) to the environment for containers based on any
