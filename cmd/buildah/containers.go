@@ -242,7 +242,7 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 func containerOutputUsingTemplate(format string, params containerOutputParams) error {
 	matched, err := regexp.MatchString("{{.*}}", format)
 	if err != nil {
-		return errors.Wrapf(err, "error validating format provided %s", format)
+		return errors.Wrapf(err, "error validating format provided: %s", format)
 	} else if !matched {
 		return errors.Errorf("error invalid format provided: %s", format)
 	}
