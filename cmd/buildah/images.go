@@ -356,16 +356,20 @@ func matchesReference(name, argName string) bool {
 	return strings.HasSuffix(splitName[0], argName)
 }
 
+/*
+According to  https://en.wikipedia.org/wiki/Binary_prefix
+We should be return numbers based on 1000, rather then 1024
+*/
 func formattedSize(size int64) string {
 	suffixes := [5]string{"B", "KB", "MB", "GB", "TB"}
 
 	count := 0
 	formattedSize := float64(size)
-	for formattedSize >= 1024 && count < 4 {
-		formattedSize /= 1024
+	for formattedSize >= 1000 && count < 4 {
+		formattedSize /= 1000
 		count++
 	}
-	return fmt.Sprintf("%.4g %s", formattedSize, suffixes[count])
+	return fmt.Sprintf("%.3g %s", formattedSize, suffixes[count])
 }
 
 func outputUsingTemplate(format string, params imageOutputParams) error {
