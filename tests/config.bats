@@ -125,3 +125,11 @@ load helpers
   buildah --debug=false inspect --type=image --format '{{.ImageAnnotations}}' scratch-image-oci | grep ANNOTATION:VALUE
   buildah --debug=false inspect --type=image --format '{{.ImageAnnotations}}' scratch-image-oci | grep ANNOTATION:VALUE
 }
+
+@test "config with entrypoint" {
+  ctr=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah config --workingdir /tmp $ctr
+  buildah config --entrypoint /bin/sh $ctr
+  buildah commit --signature-policy ${TESTSDIR}/policy.json $ctr test1
+  buildah inspect --format '{{.Docker.Config.Entrypoint}}' test1 | grep '/bin/sh -c /bin/sh'
+}
