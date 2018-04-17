@@ -77,30 +77,21 @@ load helpers
 	[ "$status" -eq 0 ]
 	[ "$output" = /tmp ]
 
-	buildah config --entrypoint echo --cmd pwd $cid
-	run buildah --debug=false run $cid
-	[ "$status" -eq 0 ]
-	[ "$output" = pwd ]
-
+	buildah config --entrypoint pwd $cid
 	buildah config --cmd "" $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 0 ]
-	[ "$output" = "" ]
+	[ "$output" = /tmp ]
 
-	buildah config --entrypoint "" $cid
-	run buildah --debug=false run $cid echo that-other-thing
+	buildah config --entrypoint pwd $cid
+	run buildah --debug=false run $cid
 	[ "$status" -eq 0 ]
-	[ "$output" = that-other-thing ]
+	[ "$output" = /tmp ]
 
-	buildah config --cmd echo $cid
-	run buildah --debug=false run $cid echo that-other-thing
+	buildah config --entrypoint "ls -lha" $cid
+	buildah config --cmd "/tmp" $cid
+	run buildah --debug=false run $cid
 	[ "$status" -eq 0 ]
-	[ "$output" = that-other-thing ]
-
-	buildah config --entrypoint echo $cid
-	run buildah --debug=false run $cid that-other-thing
-	[ "$status" -eq 0 ]
-	[ "$output" = that-other-thing ]
 
 	buildah rm $cid
 }
