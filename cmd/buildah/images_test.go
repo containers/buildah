@@ -74,14 +74,14 @@ func TestSizeFormatting(t *testing.T) {
 		t.Errorf("Error formatting size: expected '%s' got '%s'", "0 B", size)
 	}
 
-	size = formattedSize(1024)
+	size = formattedSize(1000)
 	if size != "1 KB" {
 		t.Errorf("Error formatting size: expected '%s' got '%s'", "1 KB", size)
 	}
 
-	size = formattedSize(1024 * 1024 * 1024 * 1024 * 1024)
-	if size != "1024 TB" {
-		t.Errorf("Error formatting size: expected '%s' got '%s'", "1024 TB", size)
+	size = formattedSize(1000 * 1000 * 1000 * 1000)
+	if size != "1 TB" {
+		t.Errorf("Error formatting size: expected '%s' got '%s'", "1 TB", size)
 	}
 }
 
