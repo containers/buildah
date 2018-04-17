@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -239,6 +240,13 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 }
 
 func containerOutputUsingTemplate(format string, params containerOutputParams) error {
+	matched, err := regexp.MatchString("{{.*}}", format)
+	if err != nil {
+		return errors.Wrapf(err, "error validating format provided: %s", format)
+	} else if !matched {
+		return errors.Errorf("error invalid format provided: %s", format)
+	}
+
 	tmpl, err := template.New("container").Parse(format)
 	if err != nil {
 		return errors.Wrapf(err, "Template parsing error")

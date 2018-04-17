@@ -107,6 +107,12 @@ buildah containers --format "{{.ContainerID}} {{.ContainerName}}"
 fbfd3505376ee639c3ed50f9d32b78445cd59198a1dfcacf2e7958cda2516d5c ubuntu-working-container
 ```
 
+buildah containers --format "Container ID: {{.ContainerID}}"
+```
+Container ID: 3fbeaa87e583ee7a3e6787b2d3af961ef21946a0c01a08938e4f52d53cce4c04
+Container ID: fbfd3505376ee639c3ed50f9d32b78445cd59198a1dfcacf2e7958cda2516d5c
+```
+
 buildah containers --filter ancestor=ubuntu
 ```
 CONTAINER ID  BUILDER  IMAGE ID     IMAGE NAME                       CONTAINER NAME
