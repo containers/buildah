@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/urfave/cli"
 )
 
@@ -31,7 +32,7 @@ func mountCmd(c *cli.Context) error {
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
-	if err := validateFlags(c, mountFlags); err != nil {
+	if err := parse.ValidateFlags(c, mountFlags); err != nil {
 		return err
 	}
 

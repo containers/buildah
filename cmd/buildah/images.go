@@ -13,6 +13,7 @@ import (
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -87,7 +88,7 @@ var (
 )
 
 func imagesCmd(c *cli.Context) error {
-	if err := validateFlags(c, imagesFlags); err != nil {
+	if err := parse.ValidateFlags(c, imagesFlags); err != nil {
 		return err
 	}
 	store, err := getStore(c)

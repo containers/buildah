@@ -7,6 +7,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
+	"github.com/projectatomic/buildah/pkg/parse"
 	util "github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
@@ -58,7 +60,7 @@ var (
 		Name:           "from",
 		Usage:          "Create a working container based on an image",
 		Description:    fromDescription,
-		Flags:          append(fromFlags, fromAndBudFlags...),
+		Flags:          append(fromFlags, buildahcli.FromAndBudFlags...),
 		Action:         fromCmd,
 		ArgsUsage:      "IMAGE",
 		SkipArgReorder: true,
@@ -73,11 +75,11 @@ func fromCmd(c *cli.Context) error {
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
-	if err := validateFlags(c, fromFlags); err != nil {
+	if err := parse.ValidateFlags(c, fromFlags); err != nil {
 		return err
 	}
 
-	systemContext, err := systemContextFromOptions(c)
+	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
@@ -97,7 +99,7 @@ func fromCmd(c *cli.Context) error {
 		return err
 	}
 
-	commonOpts, err := parseCommonBuildOptions(c)
+	commonOpts, err := parse.ParseCommonBuildOptions(c)
 	if err != nil {
 		return err
 	}
