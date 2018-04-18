@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -54,11 +55,11 @@ func inspectCmd(c *cli.Context) error {
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
-	if err := validateFlags(c, inspectFlags); err != nil {
+	if err := parse.ValidateFlags(c, inspectFlags); err != nil {
 		return err
 	}
 
-	systemContext, err := systemContextFromOptions(c)
+	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}

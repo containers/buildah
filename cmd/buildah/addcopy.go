@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/urfave/cli"
 )
 
@@ -48,7 +49,7 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 		return errors.Errorf("src must be specified")
 	}
 
-	if err := validateFlags(c, addAndCopyFlags); err != nil {
+	if err := parse.ValidateFlags(c, addAndCopyFlags); err != nil {
 		return err
 	}
 

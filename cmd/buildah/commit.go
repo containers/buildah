@@ -10,6 +10,7 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
@@ -87,7 +88,7 @@ func commitCmd(c *cli.Context) error {
 		return errors.Errorf("too many arguments specified")
 	}
 	image := args[0]
-	if err := validateFlags(c, commitFlags); err != nil {
+	if err := parse.ValidateFlags(c, commitFlags); err != nil {
 		return err
 	}
 
@@ -134,7 +135,7 @@ func commitCmd(c *cli.Context) error {
 		dest = dest2
 	}
 
-	systemContext, err := systemContextFromOptions(c)
+	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}

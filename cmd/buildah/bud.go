@@ -7,80 +7,20 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/imagebuildah"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
 var (
-	budFlags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "authfile",
-			Usage: "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json",
-		},
-		cli.StringSliceFlag{
-			Name:  "build-arg",
-			Usage: "`argument=value` to supply to the builder",
-		},
-		cli.StringFlag{
-			Name:  "cert-dir",
-			Value: "",
-			Usage: "use certificates at the specified path to access the registry",
-		},
-		cli.StringFlag{
-			Name:  "creds",
-			Value: "",
-			Usage: "use `[username[:password]]` for accessing the registry",
-		},
-		cli.StringSliceFlag{
-			Name:  "file, f",
-			Usage: "`pathname or URL` of a Dockerfile",
-		},
-		cli.StringFlag{
-			Name:  "format",
-			Usage: "`format` of the built image's manifest and metadata",
-		},
-		cli.BoolTFlag{
-			Name:  "pull",
-			Usage: "pull the image if not present",
-		},
-		cli.BoolFlag{
-			Name:  "pull-always",
-			Usage: "pull the image, even if a version is present",
-		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "refrain from announcing build instructions and image read/write progress",
-		},
-		cli.StringFlag{
-			Name:  "runtime",
-			Usage: "`path` to an alternate runtime",
-			Value: imagebuildah.DefaultRuntime,
-		},
-		cli.StringSliceFlag{
-			Name:  "runtime-flag",
-			Usage: "add global flags for the container runtime",
-		},
-		cli.StringFlag{
-			Name:  "signature-policy",
-			Usage: "`pathname` of signature policy file (not usually used)",
-		},
-		cli.StringSliceFlag{
-			Name:  "tag, t",
-			Usage: "`tag` to apply to the built image",
-		},
-		cli.BoolTFlag{
-			Name:  "tls-verify",
-			Usage: "require HTTPS and verify certificates when accessing the registry",
-		},
-	}
-
 	budDescription = "Builds an OCI image using instructions in one or more Dockerfiles."
 	budCommand     = cli.Command{
 		Name:           "build-using-dockerfile",
 		Aliases:        []string{"bud"},
 		Usage:          "Build an image using instructions in a Dockerfile",
 		Description:    budDescription,
-		Flags:          append(budFlags, fromAndBudFlags...),
+		Flags:          append(buildahcli.BudFlags, buildahcli.FromAndBudFlags...),
 		Action:         budCmd,
 		ArgsUsage:      "CONTEXT-DIRECTORY | URL",
 		SkipArgReorder: true,
@@ -183,7 +123,7 @@ func budCmd(c *cli.Context) error {
 	if len(dockerfiles) == 0 {
 		dockerfiles = append(dockerfiles, filepath.Join(contextDir, "Dockerfile"))
 	}
-	if err := validateFlags(c, budFlags); err != nil {
+	if err := parse.ValidateFlags(c, buildahcli.BudFlags); err != nil {
 		return err
 	}
 
@@ -192,7 +132,7 @@ func budCmd(c *cli.Context) error {
 		return err
 	}
 
-	systemContext, err := systemContextFromOptions(c)
+	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
@@ -202,7 +142,7 @@ func budCmd(c *cli.Context) error {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
-	commonOpts, err := parseCommonBuildOptions(c)
+	commonOpts, err := parse.ParseCommonBuildOptions(c)
 	if err != nil {
 		return err
 	}
