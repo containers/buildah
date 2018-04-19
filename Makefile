@@ -19,8 +19,8 @@ all: buildah imgtype docs
 buildah: *.go imagebuildah/*.go cmd/buildah/*.go docker/*.go util/*.go
 	$(GO) build $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
 
-imgtype: *.go docker/*.go util/*.go tests/imgtype.go
-	$(GO) build $(LDFLAGS) -o imgtype $(BUILDFLAGS) ./tests/imgtype.go
+imgtype: *.go docker/*.go util/*.go tests/imgtype/imgtype.go
+	$(GO) build $(LDFLAGS) -o imgtype $(BUILDFLAGS) ./tests/imgtype/imgtype.go
 
 .PHONY: clean
 clean:
