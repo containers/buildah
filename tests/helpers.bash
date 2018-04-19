@@ -15,8 +15,7 @@ function setup() {
 
 function starthttpd() {
 	pushd ${2:-${TESTDIR}} > /dev/null
-	cp ${TESTSDIR}/serve.go .
-	go build serve.go
+	go build -o serve ${TESTSDIR}/serve/serve.go
 	HTTP_SERVER_PORT=$((RANDOM+32768))
 	./serve ${HTTP_SERVER_PORT} ${1:-${BATS_TMPDIR}} &
 	HTTP_SERVER_PID=$!
