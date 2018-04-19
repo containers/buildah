@@ -74,7 +74,7 @@ func localImageNameForReference(ctx context.Context, store storage.Store, srcRef
 	default:
 		ref := srcRef.DockerReference()
 		if ref == nil {
-			name := srcRef.StringWithinTransport()
+			name = srcRef.StringWithinTransport()
 			_, err := is.Transport.ParseStoreReference(store, name)
 			if err == nil {
 				return name, nil
