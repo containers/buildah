@@ -53,5 +53,7 @@ buildah images -q --noheading --notruncate
 
 buildah images --filter dangling=true
 
+buildah images --format "ImageID: {{.ID}}"
+
 ## SEE ALSO
 buildah(1)

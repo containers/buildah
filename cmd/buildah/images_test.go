@@ -13,22 +13,6 @@ import (
 	"github.com/containers/storage"
 )
 
-func TestTemplateOutputBlankTemplate(t *testing.T) {
-	params := imageOutputParams{
-		ID:        "0123456789abcdef",
-		Name:      "test/image:latest",
-		Digest:    "sha256:012345789abcdef012345789abcdef012345789abcdef012345789abcdef",
-		CreatedAt: "Jan 01 2016 10:45",
-		Size:      "97 KB",
-	}
-
-	err := outputUsingTemplate("", params)
-	//Output: Words
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestTemplateOutputValidTemplate(t *testing.T) {
 	params := imageOutputParams{
 		ID:        "0123456789abcdef",
@@ -47,6 +31,23 @@ func TestTemplateOutputValidTemplate(t *testing.T) {
 		t.Error(err)
 	} else if strings.TrimSpace(output) != strings.TrimSpace(params.ID) {
 		t.Errorf("Error with template output:\nExpected: %s\nReceived: %s\n", params.ID, output)
+	}
+}
+
+func TestTemplateOutputInvalidFormat(t *testing.T) {
+	params := imageOutputParams{
+		ID:        "0123456789abcdef",
+		Name:      "test/image:latest",
+		Digest:    "sha256:012345789abcdef012345789abcdef012345789abcdef012345789abcdef",
+		CreatedAt: "Jan 01 2016 10:45",
+		Size:      "97 KB",
+	}
+
+	formatString := "ID"
+
+	err := outputUsingTemplate(formatString, params)
+	if err == nil || err.Error() != "error invalid format provided: ID" {
+		t.Fatalf("expected error invalid format")
 	}
 }
 
