@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -373,6 +374,12 @@ func formattedSize(size int64) string {
 }
 
 func outputUsingTemplate(format string, params imageOutputParams) error {
+	if matched, err := regexp.MatchString("{{.*}}", format); err != nil {
+		return errors.Wrapf(err, "error validating format provided: %s", format)
+	} else if !matched {
+		return errors.Errorf("error invalid format provided: %s", format)
+	}
+
 	tmpl, err := template.New("image").Parse(format)
 	if err != nil {
 		return errors.Wrapf(err, "Template parsing error")
