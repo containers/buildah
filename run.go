@@ -496,7 +496,15 @@ func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy) {
 
 func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, idmapOptions IDMappingOptions, networkDisabled bool) error {
 	// Set namespace options in the container configuration.
+	configureUserns := false
 	for _, namespaceOption := range namespaceOptions {
+		switch namespaceOption.Name {
+		case string(specs.UserNamespace):
+			configureUserns = false
+			if !namespaceOption.Host && namespaceOption.Path == "" {
+				configureUserns = true
+			}
+		}
 		if namespaceOption.Host {
 			if err := g.RemoveLinuxNamespace(namespaceOption.Name); err != nil {
 				return errors.Wrapf(err, "error removing %q namespace for run", namespaceOption.Name)
@@ -509,15 +517,33 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 		}
 	}
 	// If we've got mappings, we're going to have to create a user namespace.
-	if len(idmapOptions.UIDMap) > 0 || len(idmapOptions.GIDMap) > 0 {
+	if len(idmapOptions.UIDMap) > 0 || len(idmapOptions.GIDMap) > 0 || configureUserns {
 		if err := g.AddOrReplaceLinuxNamespace(specs.UserNamespace, ""); err != nil {
 			return errors.Wrapf(err, "error adding new %q namespace for run", string(specs.UserNamespace))
 		}
 		for _, m := range idmapOptions.UIDMap {
 			g.AddLinuxUIDMapping(m.HostID, m.ContainerID, m.Size)
 		}
+		if len(idmapOptions.UIDMap) == 0 {
+			mappings, err := getProcIDMappings("/proc/self/uid_map")
+			if err != nil {
+				return err
+			}
+			for _, m := range mappings {
+				g.AddLinuxUIDMapping(m.ContainerID, m.ContainerID, m.Size)
+			}
+		}
 		for _, m := range idmapOptions.GIDMap {
 			g.AddLinuxGIDMapping(m.HostID, m.ContainerID, m.Size)
+		}
+		if len(idmapOptions.GIDMap) == 0 {
+			mappings, err := getProcIDMappings("/proc/self/gid_map")
+			if err != nil {
+				return err
+			}
+			for _, m := range mappings {
+				g.AddLinuxGIDMapping(m.ContainerID, m.ContainerID, m.Size)
+			}
 		}
 		if !networkDisabled {
 			if err := g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, ""); err != nil {
@@ -608,6 +634,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if err = setupNamespaces(g, namespaceOptions, b.IDMappingOptions, options.NetworkDisabled); err != nil {
 		return err
 	}
+
 	if user, err = b.user(mountPoint, options.User); err != nil {
 		return err
 	}

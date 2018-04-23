@@ -1,10 +1,16 @@
 package buildah
 
 import (
+	"bufio"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/reexec"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -53,4 +59,36 @@ func convertStorageIDMaps(UIDMap, GIDMap []idtools.IDMap) ([]rspec.LinuxIDMappin
 		})
 	}
 	return uidmap, gidmap
+}
+
+// getProcIDMappings reads mappings from the named node under /proc.
+func getProcIDMappings(path string) ([]rspec.LinuxIDMapping, error) {
+	var mappings []rspec.LinuxIDMapping
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error reading ID mappings from %q", path)
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) != 3 {
+			return nil, errors.Errorf("line %q from %q has %d fields, not 3", line, path, len(fields))
+		}
+		cid, err := strconv.ParseUint(fields[0], 10, 32)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error parsing container ID value %q from line %q in %q", fields[0], line, path)
+		}
+		hid, err := strconv.ParseUint(fields[1], 10, 32)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error parsing host ID value %q from line %q in %q", fields[1], line, path)
+		}
+		size, err := strconv.ParseUint(fields[2], 10, 32)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error parsing size value %q from line %q in %q", fields[2], line, path)
+		}
+		mappings = append(mappings, rspec.LinuxIDMapping{ContainerID: uint32(cid), HostID: uint32(hid), Size: uint32(size)})
+	}
+	return mappings, nil
 }
