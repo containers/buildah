@@ -11,6 +11,7 @@ import (
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -58,7 +59,7 @@ func rmiCmd(c *cli.Context) error {
 		return errors.Errorf("when using the --all switch, you may not use --prune switch")
 	}
 
-	if err := validateFlags(c, rmiFlags); err != nil {
+	if err := parse.ValidateFlags(c, rmiFlags); err != nil {
 		return err
 	}
 

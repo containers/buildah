@@ -12,6 +12,7 @@ import (
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
@@ -80,7 +81,7 @@ func pushCmd(c *cli.Context) error {
 	if len(args) < 2 {
 		return errors.New("source and destination image IDs must be specified")
 	}
-	if err := validateFlags(c, pushFlags); err != nil {
+	if err := parse.ValidateFlags(c, pushFlags); err != nil {
 		return err
 	}
 	src := args[0]
@@ -111,7 +112,7 @@ func pushCmd(c *cli.Context) error {
 		dest = dest2
 	}
 
-	systemContext, err := systemContextFromOptions(c)
+	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}

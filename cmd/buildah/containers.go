@@ -11,6 +11,7 @@ import (
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/urfave/cli"
 )
 
@@ -89,7 +90,7 @@ var (
 )
 
 func containersCmd(c *cli.Context) error {
-	if err := validateFlags(c, containersFlags); err != nil {
+	if err := parse.ValidateFlags(c, containersFlags); err != nil {
 		return err
 	}
 	store, err := getStore(c)

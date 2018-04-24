@@ -6,6 +6,7 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -196,7 +197,7 @@ func configCmd(c *cli.Context) error {
 		return errors.Errorf("too many arguments specified")
 	}
 	name := args[0]
-	if err := validateFlags(c, configFlags); err != nil {
+	if err := parse.ValidateFlags(c, configFlags); err != nil {
 		return err
 	}
 

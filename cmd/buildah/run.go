@@ -9,6 +9,7 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -59,7 +60,7 @@ func runCmd(c *cli.Context) error {
 		return errors.Errorf("container ID must be specified")
 	}
 	name := args[0]
-	if err := validateFlags(c, runFlags); err != nil {
+	if err := parse.ValidateFlags(c, runFlags); err != nil {
 		return err
 	}
 
