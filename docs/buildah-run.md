@@ -29,7 +29,7 @@ runtime, the manpage to consult is `runc(8)`).
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah run, the option given would be `--runtime-flag log-format=json`.
 
-**--tty**
+**-t**, **--tty**, **--terminal**
 
 By default a pseudo-TTY is allocated only when buildah's standard input is
 attached to a pseudo-TTY.  Setting the `--tty` option to `true` will cause a

@@ -34,7 +34,7 @@ var (
 			Usage: "security Options (default [])",
 		},
 		cli.BoolFlag{
-			Name:  "tty",
+			Name:  "t, tty, terminal",
 			Usage: "allocate a pseudo-TTY in the container",
 		},
 		cli.StringSliceFlag{
