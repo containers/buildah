@@ -9,6 +9,11 @@ GO := go
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 BUILD_INFO := $(shell date +%s)
 
+ifndef BUILD_INFO
+    $(warning Warning! NO value set for BUILD_INFO, date command failed.)
+    BUILD_INFO := 0
+endif
+
 RUNC_COMMIT := c5ec25487693612aed95673800863e134785f946
 LIBSECCOMP_COMMIT := release-2.3
 
