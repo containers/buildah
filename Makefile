@@ -6,8 +6,8 @@ BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
 BUILDFLAGS := -tags "$(AUTOTAGS) $(TAGS)"
 GO := go
 
-GIT_COMMIT := $(shell git rev-parse --short HEAD)
-BUILD_INFO := $(shell date +%s)
+GIT_COMMIT := $(if $(shell git rev-parse --short HEAD),$(shell git rev-parse --short HEAD),$(error "git failed"))
+BUILD_INFO := $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
 
 RUNC_COMMIT := c5ec25487693612aed95673800863e134785f946
 LIBSECCOMP_COMMIT := release-2.3
