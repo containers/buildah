@@ -141,13 +141,22 @@ var (
 
 type Stages []Stage
 
+func (stages Stages) ByName(name string) (Stage, bool) {
+	for _, stage := range stages {
+		if stage.Name == name {
+			return stage, true
+		}
+	}
+	return Stage{}, false
+}
+
 func (stages Stages) ByTarget(target string) (Stages, bool) {
 	if len(target) == 0 {
 		return stages, true
 	}
 	for i, stage := range stages {
 		if stage.Name == target {
-			return stages[:i+1], true
+			return stages[i : i+1], true
 		}
 	}
 	return nil, false
