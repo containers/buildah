@@ -53,9 +53,11 @@ load helpers
   root=$(buildah mount $cid)
   cp ${TESTDIR}/randomfile $root/randomfile
   buildah unmount $cid
+  buildah commit --iidfile output.iid --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  iid=$(cat output.iid)
+  buildah rmi $iid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   buildah rm $cid
-
   newcid=$(buildah from new-image)
   newroot=$(buildah mount $newcid)
   test -s $newroot/randomfile

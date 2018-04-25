@@ -13,6 +13,18 @@ load helpers
   [ "$output" = "" ]
 }
 
+@test "bud-from-scratch-iid" {
+  target=scratch-image
+  buildah bud --iidfile output.iid --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  iid=$(cat output.iid)
+  cid=$(buildah from ${iid})
+  buildah rm ${cid}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}
+
 @test "bud-from-multiple-files-one-from" {
   target=scratch-image
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.nofrom
