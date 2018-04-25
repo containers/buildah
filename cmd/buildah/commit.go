@@ -40,6 +40,10 @@ var (
 			Usage: "`format` of the image manifest and metadata",
 			Value: "oci",
 		},
+		cli.StringFlag{
+			Name:  "iidfile",
+			Usage: "Write the image ID to the file",
+		},
 		cli.BoolFlag{
 			Name:  "quiet, q",
 			Usage: "don't output progress information when writing images",
@@ -146,6 +150,7 @@ func commitCmd(c *cli.Context) error {
 		SignaturePolicyPath:   c.String("signature-policy"),
 		HistoryTimestamp:      &timestamp,
 		SystemContext:         systemContext,
+		IIDFile:               c.String("iidfile"),
 	}
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr

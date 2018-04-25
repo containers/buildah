@@ -37,6 +37,10 @@ var (
 			Name:  "format",
 			Usage: "`format` of the built image's manifest and metadata",
 		},
+		cli.StringFlag{
+			Name:  "iidfile",
+			Usage: "Write the image ID to the file",
+		},
 		cli.BoolTFlag{
 			Name:  "pull",
 			Usage: "pull the image if not present",

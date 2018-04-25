@@ -42,6 +42,10 @@ Control the format for the image manifest and configuration data.  Recognized
 formats include *oci* (OCI image-spec v1.0, the default) and *docker* (version
 2, using schema format 2 for the manifest).
 
+**--iidfile** *ImageIDfile*
+
+Write the image ID to the file.
+
 **--quiet**
 
 When writing the output image, suppress progress output.
