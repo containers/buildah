@@ -1,7 +1,7 @@
 # buildah-push"1" "June 2017" "buildah"
 
 ## NAME
-buildah push - Push an image from local storage to elsewhere.
+buildah\-push - Push an image from local storage to elsewhere.
 
 ## SYNOPSIS
 **buildah** **push** [*options* [...]] **imageID** [**destination**]

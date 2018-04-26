@@ -1,7 +1,7 @@
 # buildah-containers "1" "March 2017" "buildah"
 
 ## NAME
-buildah containers - List the working containers and their base images.
+buildah\-containers - List the working containers and their base images.
 
 ## SYNOPSIS
 **buildah** **containers** [*options* [...]]

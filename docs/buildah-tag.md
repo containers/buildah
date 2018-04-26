@@ -1,7 +1,7 @@
 # buildah-tag "1" "May 2017" "buildah"
 
 ## NAME
-buildah tag - Add additional names to local images.
+buildah\-tag - Add additional names to local images.
 
 ## SYNOPSIS
 **buildah** **tag** **name** **new-name** [...]

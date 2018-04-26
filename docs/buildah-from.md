@@ -1,7 +1,7 @@
 # buildah-from "1" "March 2017" "buildah"
 
 ## NAME
-buildah from - Creates a new working container, either from scratch or using a specified image as a starting point.
+buildah\-from - Creates a new working container, either from scratch or using a specified image as a starting point.
 
 ## SYNOPSIS
 **buildah** **from** [*options* [...]] *imageName*

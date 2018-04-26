@@ -1,7 +1,7 @@
 # buildah-inspect "1" "May 2017" "buildah"
 
 ## NAME
-buildah inspect - Display information about working containers or images.
+buildah\-inspect - Display information about working containers or images.
 
 ## SYNOPSIS
 **buildah** **inspect** [*options* [...] --] **ID**

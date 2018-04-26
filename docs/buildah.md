@@ -1,7 +1,7 @@
 # buildah "1" "March 2017" "buildah"
 
 ## NAME
-Buildah - A command line tool to facilitate working with containers and using them to build images.
+Buildah - A command line tool that facilitates building OCI container images.
 
 ## SYNOPSIS
 buildah [OPTIONS] COMMAND [ARG...]

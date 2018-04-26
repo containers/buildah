@@ -1,7 +1,7 @@
 # buildah-rm "1" "March 2017" "buildah"
 
 ## NAME
-buildah rm - Removes one or more working containers.
+buildah\-rm - Removes one or more working containers.
 
 ## SYNOPSIS
 **buildah** **rm** **containerID [...]**

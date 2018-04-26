@@ -1,7 +1,7 @@
 # buildah-images "1" "March 2017" "buildah"
 
 ## NAME
-buildah images - List images in local storage.
+buildah\-images - List images in local storage.
 
 ## SYNOPSIS
 **buildah** **images** [*options* [...]]
