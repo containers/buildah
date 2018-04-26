@@ -147,6 +147,18 @@ func budCmd(c *cli.Context) error {
 		return err
 	}
 
+	if c.IsSet("compress") {
+		logrus.Debugf("--compress option specified but is ignored")
+	}
+
+	if c.IsSet("rm") {
+		logrus.Debugf("build caching not enabled so --rm flag has no effect")
+	}
+
+	if c.IsSet("squash") {
+		logrus.Debugf("build caching not enabled so --squash flag has no effect")
+	}
+
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:      contextDir,
 		PullPolicy:            pullPolicy,

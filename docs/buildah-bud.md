@@ -41,6 +41,12 @@ Default certificates directory is _/etc/containers/certs.d_.
 
 Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
+**--compress**
+
+This option is added to be aligned with other containers CLIs.
+Buildah doesn't communicate with a daemon or a remote server.
+Thus, compressing the data before sending it is irrelevant to Buildah.
+
 **--cpu-period**=*0*
 
 Limit the CPU CFS (Completely Fair Scheduler) period
@@ -174,6 +180,10 @@ Suppress output messages which indicate which instruction is being processed,
 and of progress when pulling images from a registry, and when writing the
 output image.
 
+**--rm**
+
+Remove intermediate containers after a successful build.  Buildah does not currently support cacheing so this is a NOOP.
+
 **--runtime** *path*
 
 The *path* to an alternate OCI-compatible runtime, which will be used to run
@@ -215,6 +225,10 @@ If you omit the unit, the system uses bytes. If you omit the size entirely, the 
 Pathname of a signature policy file to use.  It is not recommended that this
 option be used, as the default behavior of using the system-wide default policy
 (frequently */etc/containers/policy.json*) is most often preferred.
+
+**--squash**
+
+Squash newly built layers into a single new layer.  Buildah does not currently support cacheing so this is a NOOP.
 
 **-t, --tag** *imageName*
 
@@ -265,7 +279,7 @@ Only the current container can use a private volume.
 
 By default bind mounted volumes are `private`. That means any mounts done
 inside container will not be visible on the host and vice versa. This behavior can
-be changed by specifying a volume mount propagation property. 
+be changed by specifying a volume mount propagation property.
 
 When the mount propagation policy is set to `shared`, any mounts completed inside
 the container on that volume will be visible to both the host and container. When
