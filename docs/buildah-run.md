@@ -1,7 +1,7 @@
 # buildah-run "1" "March 2017" "buildah"
 
 ## NAME
-buildah run - Run a command inside of the container.
+buildah\-run - Run a command inside of the container.
 
 ## SYNOPSIS
 **buildah** **run** [*options* [...] --] **containerID** **command**

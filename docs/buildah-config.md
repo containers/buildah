@@ -1,7 +1,7 @@
 # buildah-config "1" "March 2017" "buildah"
 
 ## NAME
-buildah config - Update image configuration settings.
+buildah\-config - Update image configuration settings.
 
 ## SYNOPSIS
 **buildah** **config** [*options* [...]] **containerID**

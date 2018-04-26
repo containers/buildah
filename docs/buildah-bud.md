@@ -1,7 +1,7 @@
 # buildah-bud "1" "April 2017" "buildah"
 
 ## NAME
-buildah bud - Build an image using instructions from Dockerfiles.
+buildah\-bud - Build an image using instructions from Dockerfiles.
 
 ## SYNOPSIS
 **buildah** **bud | build-using-dockerfile** [*options* [...]] [**context**]

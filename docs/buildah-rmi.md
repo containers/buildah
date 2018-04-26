@@ -1,7 +1,7 @@
 # buildah-rmi "1" "March 2017" "buildah"
 
 ## NAME
-buildah rmi - Removes one or more images.
+buildah\-rmi - Removes one or more images.
 
 ## SYNOPSIS
 **buildah** **rmi** **imageID [...]**
