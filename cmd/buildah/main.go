@@ -64,7 +64,6 @@ func main() {
 		cli.StringFlag{
 			Name:   "default-mounts-file",
 			Usage:  "path to default mounts file",
-			Value:  buildah.DefaultMountsFile,
 			Hidden: true,
 		},
 	}
