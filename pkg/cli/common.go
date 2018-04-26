@@ -24,6 +24,10 @@ var (
 			Value: "",
 			Usage: "use certificates at the specified path to access the registry",
 		},
+		cli.BoolFlag{
+			Name:  "compress",
+			Usage: "This is legacy option, which has no effect on the image",
+		},
 		cli.StringFlag{
 			Name:  "creds",
 			Value: "",
@@ -53,6 +57,10 @@ var (
 			Name:  "quiet, q",
 			Usage: "refrain from announcing build instructions and image read/write progress",
 		},
+		cli.BoolFlag{
+			Name:  "rm",
+			Usage: "Remove intermediate containers after a successful build.  Buildah does not currently support cacheing so this is a NOOP.",
+		},
 		cli.StringFlag{
 			Name:  "runtime",
 			Usage: "`path` to an alternate runtime",
@@ -65,6 +73,10 @@ var (
 		cli.StringFlag{
 			Name:  "signature-policy",
 			Usage: "`pathname` of signature policy file (not usually used)",
+		},
+		cli.BoolFlag{
+			Name:  "squash",
+			Usage: "Squash newly built layers into a single new layer. Buildah does not currently support cacheing so this is a NOOP.",
 		},
 		cli.StringSliceFlag{
 			Name:  "tag, t",
