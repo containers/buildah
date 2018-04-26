@@ -131,6 +131,12 @@ Recognized formats include *oci* (OCI image-spec v1.0, the default) and
 
 Write the image ID to the file.
 
+**--isolation** [Not Supported]
+
+Buildah is not currently supported on Windows, and does not have a daemon.
+If you want to override the container isolation you can choose a different
+OCI Runtime, using the --runtime flag.
+
 **-m**, **--memory**=""
 
 Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
