@@ -39,7 +39,6 @@ load helpers
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-docker | grep COMMAND-OR-ARGS
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-oci | grep COMMAND-OR-ARGS
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-oci | grep COMMAND-OR-ARGS
-
 }
 
 @test "config" {
@@ -54,11 +53,16 @@ load helpers
    --env VARIABLE=VALUE \
    --entrypoint /ENTRYPOINT \
    --cmd COMMAND-OR-ARGS \
+   --comment INFORMATIVE \
+   --history-comment PROBABLY-EMPTY \
    --volume /VOLUME \
    --workingdir /tmp \
    --label LABEL=VALUE \
    --stop-signal SIGINT \
    --annotation ANNOTATION=VALUE \
+   --shell /bin/arbitrarysh \
+   --domainname mydomain.local \
+   --hostname cleverhostname \
   $cid
 
   buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
@@ -121,9 +125,23 @@ load helpers
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.StopSignal}}' scratch-image-oci | grep SIGINT
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.StopSignal}}' scratch-image-oci | grep SIGINT
 
+  buildah --debug=false inspect --type=image --format '{{(index .Docker.History 0).Comment}}' scratch-image-docker | grep PROBABLY-EMPTY
+  buildah --debug=false inspect --type=image --format '{{(index .OCIv1.History 0).Comment}}' scratch-image-docker | grep PROBABLY-EMPTY
+  buildah --debug=false inspect --type=image --format '{{(index .Docker.History 0).Comment}}' scratch-image-oci | grep PROBABLY-EMPTY
+  buildah --debug=false inspect --type=image --format '{{(index .OCIv1.History 0).Comment}}' scratch-image-oci | grep PROBABLY-EMPTY
+
   # Annotations aren't part of the Docker v2 spec, so they're discarded when we save to Docker format.
   buildah --debug=false inspect --type=image --format '{{.ImageAnnotations}}' scratch-image-oci | grep ANNOTATION:VALUE
   buildah --debug=false inspect --type=image --format '{{.ImageAnnotations}}' scratch-image-oci | grep ANNOTATION:VALUE
+
+  # Comment isn't part of the OCI spec, so it's discarded when we save to OCI format.
+  buildah --debug=false inspect --type=image --format '{{.Docker.Comment}}' scratch-image-docker | grep INFORMATIVE
+  # Domainname isn't part of the OCI spec, so it's discarded when we save to OCI format.
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Domainname}}' scratch-image-docker | grep mydomain.local
+  # Hostname isn't part of the OCI spec, so it's discarded when we save to OCI format.
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Hostname}}' scratch-image-docker | grep cleverhostname
+  # Shell isn't part of the OCI spec, so it's discarded when we save to OCI format.
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Shell}}' scratch-image-docker | grep /bin/arbitrarysh
 }
 
 @test "config with entrypoint" {

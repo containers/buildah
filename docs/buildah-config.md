@@ -34,10 +34,24 @@ Set the default *command* to run for containers based on any images which will
 be built using the specified container.  When used in combination with an
 *entry point*, this specifies the default parameters for the *entry point*.
 
+**--comment** *comment*
+
+Set the image-level comment for any images which will be built using the
+specified container.
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
+
 **--created-by** *created*
 
 Set the description of how the topmost layer was *created* for any images which
 will be created using the specified container.
+
+**--domainname** *domain*
+
+Set the domainname to set when running containers based on any images built
+using the specified container.
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
 
 **--entrypoint** *entry*
 
@@ -50,6 +64,18 @@ Note: Setting the entrypoint without setting the --cmd, clears the cmd field in 
 
 Add a value (e.g. name=*value*) to the environment for containers based on any
 images which will be built using the specified container. Can be used multiple times.
+
+**--history-comment** *comment*
+
+Sets a comment on the the topmost layer in any images which will be created
+using the specified container.
+
+**--hostname** *host*
+
+Set the hostname to set when running containers based on any images built using
+the specified container.
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
 
 **--label** *label*
 

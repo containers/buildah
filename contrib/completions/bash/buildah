@@ -268,10 +268,14 @@ return 1
        --arch
        --author
        --cmd
+       --comment
        --created-by
+       --domainname
        --entrypoint
        --env
        -e
+       --history-comment
+       --hostname
        --label
        -l
        --os

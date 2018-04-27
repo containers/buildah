@@ -30,8 +30,16 @@ var (
 			Usage: "set the default `command` to run for containers based on the image",
 		},
 		cli.StringFlag{
+			Name:  "comment",
+			Usage: "set a `comment` in the target image",
+		},
+		cli.StringFlag{
 			Name:  "created-by",
 			Usage: "set `description` of how the image was created",
+		},
+		cli.StringFlag{
+			Name:  "domainname",
+			Usage: "set a domain `name` for containers based on image",
 		},
 		cli.StringFlag{
 			Name:  "entrypoint",
@@ -40,6 +48,14 @@ var (
 		cli.StringSliceFlag{
 			Name:  "env, e",
 			Usage: "add `environment variable` to be set when running containers based on image (default [])",
+		},
+		cli.StringFlag{
+			Name:  "history-comment",
+			Usage: "set a `comment` for the history of the target image",
+		},
+		cli.StringFlag{
+			Name:  "hostname",
+			Usage: "set a host`name` for containers based on image",
 		},
 		cli.StringSliceFlag{
 			Name:  "label, l",
@@ -168,6 +184,18 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 	}
 	if c.IsSet("workingdir") {
 		builder.SetWorkDir(c.String("workingdir"))
+	}
+	if c.IsSet("comment") {
+		builder.SetComment(c.String("comment"))
+	}
+	if c.IsSet("history-comment") {
+		builder.SetHistoryComment(c.String("history-comment"))
+	}
+	if c.IsSet("domainname") {
+		builder.SetDomainname(c.String("domainname"))
+	}
+	if c.IsSet("hostname") {
+		builder.SetHostname(c.String("hostname"))
 	}
 	if c.IsSet("annotation") || c.IsSet("a") {
 		for _, annotationSpec := range c.StringSlice("annotation") {
