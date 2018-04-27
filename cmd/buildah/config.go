@@ -11,12 +11,6 @@ import (
 	"github.com/urfave/cli"
 )
 
-const (
-	// DefaultCreatedBy is the default description of how an image layer
-	// was created that we use when adding to an image's history.
-	DefaultCreatedBy = "manual edits"
-)
-
 var (
 	configFlags = []cli.Flag{
 		cli.StringSliceFlag{
@@ -38,7 +32,6 @@ var (
 		cli.StringFlag{
 			Name:  "created-by",
 			Usage: "set `description` of how the image was created",
-			Value: DefaultCreatedBy,
 		},
 		cli.StringFlag{
 			Name:  "entrypoint",

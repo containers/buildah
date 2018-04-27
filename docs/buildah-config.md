@@ -36,8 +36,8 @@ be built using the specified container.  When used in combination with an
 
 **--created-by** *created*
 
-Set the description of how the read-write layer *created* (default: "manual
-edits") in any images which will be created using the specified container.
+Set the description of how the topmost layer was *created* for any images which
+will be created using the specified container.
 
 **--entrypoint** *entry*
 
