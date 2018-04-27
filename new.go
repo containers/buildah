@@ -54,7 +54,7 @@ func reserveSELinuxLabels(store storage.Store, id string) error {
 					}
 					return err
 				}
-				// Prevent containers from using same MCS Label
+				// Prevent different containers from using same MCS label
 				if err := label.ReserveLabel(b.ProcessLabel); err != nil {
 					return err
 				}
