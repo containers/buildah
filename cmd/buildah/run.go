@@ -98,6 +98,11 @@ func runCmd(c *cli.Context) error {
 		}
 	}
 
+	// validate volume paths
+	if err := parse.ParseVolumes(c.StringSlice("volume")); err != nil {
+		return err
+	}
+
 	for _, volumeSpec := range c.StringSlice("volume") {
 		volSpec := strings.Split(volumeSpec, ":")
 		if len(volSpec) >= 2 {
