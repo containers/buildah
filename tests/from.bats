@@ -236,3 +236,12 @@ load helpers
   [[ "$output" =~ 80 ]]
   buildah rm $cid
 }
+
+@test "from add-host test" {
+  cid=$(buildah from --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run buildah run $cid -- cat /etc/hosts
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ localhost:127.0.0.1 ]]
+  buildah rm $cid
+}
