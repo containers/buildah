@@ -17,7 +17,8 @@ Multiple transports are supported:
   An existing local directory _path_ retrieving the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
 
   **docker://**_docker-reference_ (Default)
-  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG_RUNTIME_DIR/containers/auth.json`, which is set using `(podman login)`. If the authorization state is not found there, `$HOME/.docker/config.json` is checked, which is set using `(docker login)`.
+  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG\_RUNTIME\_DIR/containers/auth.json`, which is set using `(podman login)`. If the authorization state is not found there, `$HOME/.docker/config.json` is checked, which is set using `(docker login)`.
+  If _docker-reference_ does not include a registry name, *localhost* will be consulted first, followed by any registries named in the registries configuration.
 
   **docker-archive:**_path_
   An image is retrieved as a `docker load` formatted file.
@@ -44,7 +45,7 @@ Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option c
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
+Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
 **--cert-dir** *path*

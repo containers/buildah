@@ -93,4 +93,4 @@ test-unit:
 	$(GO) test -v -race $(shell go list ./... | grep -v vendor | grep -v tests | grep -v cmd)
 	tmp=$(shell mktemp -d) ; \
 	mkdir -p $$tmp/root $$tmp/runroot; \
-	$(GO) test -v -tags "$(AUTOTAGS) $(TAGS)" ./cmd/buildah -args -root $$tmp/root -runroot $$tmp/runroot -storage-driver vfs -signature-policy $(shell pwd)/tests/policy.json
+	$(GO) test -v -tags "$(AUTOTAGS) $(TAGS)" ./cmd/buildah -args -root $$tmp/root -runroot $$tmp/runroot -storage-driver vfs -signature-policy $(shell pwd)/tests/policy.json -registries-conf $(shell pwd)/tests/registries.conf

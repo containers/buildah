@@ -130,18 +130,22 @@ func commitCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
+	systemContext, err := parse.SystemContextFromOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error building system context")
+	}
+
 	dest, err := alltransports.ParseImageName(image)
 	if err != nil {
-		dest2, err2 := storage.Transport.ParseStoreReference(store, image)
+		candidates := util.ResolveName(image, "", systemContext, store)
+		if len(candidates) == 0 {
+			return errors.Errorf("error parsing target image name %q", image)
+		}
+		dest2, err2 := storage.Transport.ParseStoreReference(store, candidates[0])
 		if err2 != nil {
 			return errors.Wrapf(err, "error parsing target image name %q", image)
 		}
 		dest = dest2
-	}
-
-	systemContext, err := parse.SystemContextFromOptions(c)
-	if err != nil {
-		return errors.Wrapf(err, "error building system context")
 	}
 
 	options := buildah.CommitOptions{
