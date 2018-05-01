@@ -15,7 +15,6 @@ import (
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/pkg/parse"
-	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
@@ -233,7 +232,7 @@ func outputImages(ctx context.Context, images []storage.Image, format string, st
 				createdTime = inspectedTime
 			}
 		}
-		createdTime = util.GetLocalTime(createdTime)
+		createdTime = createdTime.Local()
 
 		names := []string{}
 		if len(image.Names) > 0 {
