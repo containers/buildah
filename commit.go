@@ -78,16 +78,19 @@ type PushOptions struct {
 
 // Commit writes the contents of the container, along with its updated
 // configuration, to a new image in the specified location, and if we know how,
-// add any additional tags that were specified.
-func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options CommitOptions) error {
+// add any additional tags that were specified. Returns the ID of the new image
+// if commit was successful and the image destination was local
+func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options CommitOptions) (string, error) {
+	var imgID string
+
 	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
 	policy, err := signature.DefaultPolicy(systemContext)
 	if err != nil {
-		return errors.Wrapf(err, "error obtaining default signature policy")
+		return imgID, errors.Wrapf(err, "error obtaining default signature policy")
 	}
 	policyContext, err := signature.NewPolicyContext(policy)
 	if err != nil {
-		return errors.Wrapf(err, "error creating new signature policy context")
+		return imgID, errors.Wrapf(err, "error creating new signature policy context")
 	}
 	defer func() {
 		if err2 := policyContext.Destroy(); err2 != nil {
@@ -99,23 +102,23 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	exporting := !destIsStorage
 	src, err := b.makeImageRef(options.PreferredManifestType, exporting, options.Compression, options.HistoryTimestamp)
 	if err != nil {
-		return errors.Wrapf(err, "error computing layer digests and building metadata")
+		return imgID, errors.Wrapf(err, "error computing layer digests and building metadata")
 	}
 	// "Copy" our image to where it needs to be.
 	err = cp.Image(ctx, policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, systemContext, ""))
 	if err != nil {
-		return errors.Wrapf(err, "error copying layers and metadata")
+		return imgID, errors.Wrapf(err, "error copying layers and metadata")
 	}
 	if len(options.AdditionalTags) > 0 {
 		switch dest.Transport().Name() {
 		case is.Transport.Name():
 			img, err := is.Transport.GetStoreImage(b.store, dest)
 			if err != nil {
-				return errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
+				return imgID, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
 			err = util.AddImageNames(b.store, "", systemContext, img, options.AdditionalTags)
 			if err != nil {
-				return errors.Wrapf(err, "error setting image names to %v", append(img.Names, options.AdditionalTags...))
+				return imgID, errors.Wrapf(err, "error setting image names to %v", append(img.Names, options.AdditionalTags...))
 			}
 			logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
 		default:
@@ -124,16 +127,21 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	}
 
 	img, err := is.Transport.GetStoreImage(b.store, dest)
+	if err != nil && err != storage.ErrImageUnknown {
+		return imgID, err
+	}
+
 	if err == nil {
+		imgID = img.ID
+
 		if options.IIDFile != "" {
 			if err := ioutil.WriteFile(options.IIDFile, []byte(img.ID), 0644); err != nil {
-				return errors.Wrapf(err, "failed to write Image ID File %q", options.IIDFile)
+				return imgID, errors.Wrapf(err, "failed to write Image ID File %q", options.IIDFile)
 			}
-		} else {
-			fmt.Printf("%s\n", img.ID)
 		}
 	}
-	return nil
+
+	return imgID, nil
 }
 
 // Push copies the contents of the image to a new location.
