@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -159,12 +160,15 @@ func commitCmd(c *cli.Context) error {
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
 	}
-	err = builder.Commit(ctx, dest, options)
+	id, err := builder.Commit(ctx, dest, options)
 	if err != nil {
 		return util.GetFailureCause(
 			err,
 			errors.Wrapf(err, "error committing container %q to %q", builder.Container, image),
 		)
+	}
+	if options.IIDFile == "" && id != "" {
+		fmt.Printf("%s\n", id)
 	}
 
 	if c.Bool("rm") {
