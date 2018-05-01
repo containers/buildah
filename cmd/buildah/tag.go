@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/pkg/errors"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
@@ -27,11 +28,15 @@ func tagCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	img, err := util.FindImage(store, args[0])
+	systemContext, err := parse.SystemContextFromOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error building system context")
+	}
+	_, img, err := util.FindImage(store, "", systemContext, args[0])
 	if err != nil {
 		return errors.Wrapf(err, "error finding local image %q", args[0])
 	}
-	err = util.AddImageNames(store, img, args[1:])
+	err = util.AddImageNames(store, "", systemContext, img, args[1:])
 	if err != nil {
 		return errors.Wrapf(err, "error adding names %v to image %q", args[1:], args[0])
 	}

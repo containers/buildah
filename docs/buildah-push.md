@@ -24,7 +24,8 @@ Image stored in local container/storage
   An existing local directory _path_ storing the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
 
   **docker://**_docker-reference_
-  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG_RUNTIME_DIR/containers/auth.json`, which is set using `(podman login)`. If the authorization state is not found there, `$HOME/.docker/config.json` is checked, which is set using `(docker login)`.
+  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG\_RUNTIME\_DIR/containers/auth.json`, which is set using `(podman login)`. If the authorization state is not found there, `$HOME/.docker/config.json` is checked, which is set using `(docker login)`.
+  If _docker-reference_ does not include a registry name, the image will be pushed to a registry running on *localhost*.
 
   **docker-archive:**_path_[**:**_docker-reference_]
   An image is stored in the `docker save` formatted file.  _docker-reference_ is only used when creating such a file, and it must not contain a digest.
@@ -45,12 +46,12 @@ Image stored in local container/storage
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
+Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
 **--cert-dir** *path*
 
-Use certificates at *path* (*.crt, *.cert, *.key) to connect to the registry.
+Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
 Default certificates directory is _/etc/containers/certs.d_.
 
 **--creds** *creds*

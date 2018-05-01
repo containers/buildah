@@ -52,7 +52,7 @@ func TestStorageImageRefTrue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
-	imgRef, err := storageImageRef(getContext(), store, "busybox")
+	imgRef, err := storageImageRef(getContext(), &testSystemContext, store, "busybox")
 	if err != nil {
 		t.Errorf("could not match image: %v", err)
 	} else if imgRef == nil {
@@ -76,7 +76,7 @@ func TestStorageImageRefFalse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not pull image to remove: %v", err)
 	}
-	imgRef, _ := storageImageRef(getContext(), store, "")
+	imgRef, _ := storageImageRef(getContext(), &testSystemContext, store, "")
 	if imgRef != nil {
 		t.Error("should not have found an Image Reference")
 	}

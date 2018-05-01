@@ -240,7 +240,7 @@ load helpers
   target=scratch-image
   target2=another-scratch-image
   target3=so-many-scratch-images
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -t ${target2} -t ${target3} ${TESTSDIR}/bud/from-scratch
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -t docker.io/${target2} -t ${target3} ${TESTSDIR}/bud/from-scratch
   run buildah --debug=false images
   [ "$status" -eq 0 ]
   cid=$(buildah from ${target})

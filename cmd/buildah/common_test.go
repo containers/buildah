@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	is "github.com/containers/image/storage"
+	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/projectatomic/buildah"
 	"github.com/sirupsen/logrus"
@@ -16,6 +17,7 @@ import (
 var (
 	signaturePolicyPath = ""
 	storeOptions        = storage.DefaultStoreOptions
+	testSystemContext   = types.SystemContext{}
 )
 
 func TestMain(m *testing.M) {
@@ -25,6 +27,7 @@ func TestMain(m *testing.M) {
 	flag.StringVar(&options.GraphRoot, "root", "", "storage root dir")
 	flag.StringVar(&options.RunRoot, "runroot", "", "storage state dir")
 	flag.StringVar(&options.GraphDriverName, "storage-driver", "", "storage driver")
+	flag.StringVar(&testSystemContext.SystemRegistriesConfPath, "registries-conf", "", "registries list")
 	flag.BoolVar(&debug, "debug", false, "turn on debug logging")
 	flag.Parse()
 	if options.GraphRoot != "" || options.RunRoot != "" || options.GraphDriverName != "" {
@@ -112,6 +115,7 @@ func pullTestImage(t *testing.T, imageName string) (string, error) {
 		FromImage:           imageName,
 		SignaturePolicyPath: signaturePolicyPath,
 		CommonBuildOpts:     commonOpts,
+		SystemContext:       &testSystemContext,
 	}
 
 	b, err := buildah.NewBuilder(getContext(), store, options)

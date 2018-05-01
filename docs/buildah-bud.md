@@ -22,7 +22,7 @@ Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option c
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
+Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
 **--build-arg** *arg=value*
@@ -34,7 +34,7 @@ resulting image's configuration.
 
 **--cert-dir** *path*
 
-Use certificates at *path* (*.crt, *.cert, *.key) to connect to the registry.
+Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
 Default certificates directory is _/etc/containers/certs.d_.
 
 **--cgroup-parent**=""
@@ -234,6 +234,7 @@ Squash newly built layers into a single new layer.  Buildah does not currently s
 
 Specifies the name which will be assigned to the resulting image if the build
 process completes successfully.
+If _imageName_ does not include a registry name, the registry name *localhost* will be prepended to the image name.
 
 **--tls-verify** *bool-value*
 

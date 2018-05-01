@@ -123,7 +123,7 @@ load helpers
   cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm $cid
   buildah tag alpine alpine2
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json docker.io/alpine2)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json localhost/alpine2)
   [ "$cid" == alpine2-working-container ]
   buildah rm ${cid}
   buildah rmi alpine alpine2

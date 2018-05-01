@@ -80,7 +80,8 @@ type PushOptions struct {
 // configuration, to a new image in the specified location, and if we know how,
 // add any additional tags that were specified.
 func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options CommitOptions) error {
-	policy, err := signature.DefaultPolicy(getSystemContext(options.SystemContext, options.SignaturePolicyPath))
+	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
+	policy, err := signature.DefaultPolicy(systemContext)
 	if err != nil {
 		return errors.Wrapf(err, "error obtaining default signature policy")
 	}
@@ -101,7 +102,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		return errors.Wrapf(err, "error computing layer digests and building metadata")
 	}
 	// "Copy" our image to where it needs to be.
-	err = cp.Image(ctx, policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext, ""))
+	err = cp.Image(ctx, policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, systemContext, ""))
 	if err != nil {
 		return errors.Wrapf(err, "error copying layers and metadata")
 	}
@@ -112,7 +113,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 			if err != nil {
 				return errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
-			err = util.AddImageNames(b.store, img, options.AdditionalTags)
+			err = util.AddImageNames(b.store, "", systemContext, img, options.AdditionalTags)
 			if err != nil {
 				return errors.Wrapf(err, "error setting image names to %v", append(img.Names, options.AdditionalTags...))
 			}
@@ -147,12 +148,12 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 		return errors.Wrapf(err, "error creating new signature policy context")
 	}
 	// Look up the image.
-	src, err := is.Transport.ParseStoreReference(options.Store, image)
+	src, _, err := util.FindImage(options.Store, "", systemContext, image)
 	if err != nil {
-		return errors.Wrapf(err, "error parsing reference to image %q", image)
+		return err
 	}
 	// Copy everything.
-	err = cp.Image(ctx, policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, options.SystemContext, options.ManifestType))
+	err = cp.Image(ctx, policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, systemContext, options.ManifestType))
 	if err != nil {
 		return errors.Wrapf(err, "error copying layers and metadata")
 	}
