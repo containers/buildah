@@ -71,27 +71,39 @@ load helpers
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	buildah config --workingdir /tmp $cid
 
+	# Configured entrypoint/cmd shouldn't modify behaviour of run with no command
+	# empty entrypoint, configured cmd
 	buildah config --entrypoint "" $cid
 	buildah config --cmd pwd $cid
 	run buildah --debug=false run $cid
-	[ "$status" -eq 0 ]
-	[ "$output" = /tmp ]
+	[ "$status" -eq 1 ]
+	[ "$output" = "args must not be empty" ]
 
+	# configured entrypoint, empty cmd
 	buildah config --entrypoint pwd $cid
 	buildah config --cmd "" $cid
 	run buildah --debug=false run $cid
-	[ "$status" -eq 0 ]
-	[ "$output" = /tmp ]
+	[ "$status" -eq 1 ]
+	[ "$output" = "args must not be empty" ]
 
+	# configured entrypoint only
 	buildah config --entrypoint pwd $cid
 	run buildah --debug=false run $cid
-	[ "$status" -eq 0 ]
-	[ "$output" = /tmp ]
+	[ "$status" -eq 1 ]
+	[ "$output" = "args must not be empty" ]
 
-	buildah config --entrypoint "ls -lha" $cid
-	buildah config --cmd "/tmp" $cid
+	# cofigured cmd only
+	buildah config --cmd pwd $cid
 	run buildah --debug=false run $cid
-	[ "$status" -eq 0 ]
+	[ "$status" -eq 1 ]
+	[ "$output" = "args must not be empty" ]
+
+	# configured entrypoint, configured cmd
+	buildah config --entrypoint "pwd" $cid
+	buildah config --cmd "whoami" $cid
+	run buildah --debug=false run $cid
+	[ "$status" -eq 1 ]
+	[ "$output" = "args must not be empty" ]
 
 	buildah rm $cid
 }
