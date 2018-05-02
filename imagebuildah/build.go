@@ -693,7 +693,14 @@ func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder) (err er
 		PreferredManifestType: b.outputFormat,
 		IIDFile:               b.iidfile,
 	}
-	return b.builder.Commit(ctx, imageRef, options)
+	imgID, err := b.builder.Commit(ctx, imageRef, options)
+	if err != nil {
+		return err
+	}
+	if options.IIDFile == "" && imgID != "" {
+		fmt.Printf("%s\n", imgID)
+	}
+	return nil
 }
 
 // Build takes care of the details of running Prepare/Execute/Commit/Delete
