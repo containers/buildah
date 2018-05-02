@@ -337,5 +337,11 @@ buildah bud --security-opt label=level:s0:c100,c200 --cgroup-parent /path/to/cgr
 
 buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
 
+## Files
+
+**registries.conf** (`/etc/containers/registries.conf`)
+
+registries.conf is the configuration file which specifies which registries should be consulted when completing image names which do not include a registry or domain portion.
+
 ## SEE ALSO
-buildah(1), podman-login(1), docker-login(1)
+buildah(1), podman-login(1), docker-login(1), policy.json(5), registries.conf(5)

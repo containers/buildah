@@ -114,5 +114,11 @@ This example extracts the imageID image and puts it into the registry on the loc
 This example extracts the imageID image and puts it into the registry on the localhost using credentials and certificates for authentication.
  `# buildah push --cert-dir ~/auth --tls-verify=true --creds=username:password imageID docker://localhost:5000/my-imageID`
 
+## Files
+
+**registries.conf** (`/etc/containers/registries.conf`)
+
+registries.conf is the configuration file which specifies which registries should be consulted when completing image names which do not include a registry or domain portion.
+
 ## SEE ALSO
-buildah(1), podman-login(1), docker-login(1)
+buildah(1), podman-login(1), docker-login(1), policy.json(5), registries.conf(5)

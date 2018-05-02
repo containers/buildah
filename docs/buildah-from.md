@@ -299,5 +299,11 @@ buildah from --ulimit nofile=1024:1028 --cgroup-parent /path/to/cgroup/parent my
 
 buildah from --volume /home/test:/myvol:ro,Z myregistry/myrepository/imagename:imagetag
 
+## Files
+
+**registries.conf** (`/etc/containers/registries.conf`)
+
+registries.conf is the configuration file which specifies which registries should be consulted when completing image names which do not include a registry or domain portion.
+
 ## SEE ALSO
-buildah(1), podman-login(1), docker-login(1)
+buildah(1), podman-login(1), docker-login(1), policy.json(5), registries.conf(5)
