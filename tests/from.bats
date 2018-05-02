@@ -245,3 +245,9 @@ load helpers
   [[ "$output" =~ localhost:127.0.0.1 ]]
   buildah rm $cid
 }
+
+@test "from name test" {
+  container_name=mycontainer
+  cid=$(buildah from --name=${container_name} --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah --debug=false inspect --format '{{.Container}}' ${container_name}
+}
