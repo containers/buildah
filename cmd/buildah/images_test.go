@@ -11,6 +11,7 @@ import (
 
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
+	"github.com/projectatomic/buildah/util"
 )
 
 func TestTemplateOutputValidTemplate(t *testing.T) {
@@ -428,9 +429,9 @@ func TestParseFilterAllParams(t *testing.T) {
 		t.Fatalf("error parsing filter: %v", err)
 	}
 
-	ref, err := is.Transport.ParseStoreReference(store, "busybox:latest")
+	ref, _, err := util.FindImage(store, "", &testSystemContext, "busybox:latest")
 	if err != nil {
-		t.Fatalf("error parsing store reference: %v", err)
+		t.Fatalf("error finding local copy of image: %v", err)
 	}
 	img, err := ref.NewImage(getContext(), nil)
 	if err != nil {

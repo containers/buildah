@@ -8,7 +8,8 @@ buildah\-commit - Create an image from a working container.
 
 ## DESCRIPTION
 Writes a new image using the specified container's read-write layer and if it
-is based on an image, the layers of that image.
+is based on an image, the layers of that image.  If *imageName* does not begin
+with a registry name component, *localhost* will be added to the name.
 
 ## RETURN VALUE
 The image ID of the image that was created.  On error, 1 is returned and errno is returned.
@@ -17,12 +18,12 @@ The image ID of the image that was created.  On error, 1 is returned and errno i
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
+Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
 **--cert-dir** *path*
 
-Use certificates at *path* (*.crt, *.cert, *.key) to connect to the registry.
+Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
 Default certificates directory is _/etc/containers/certs.d_.
 
 **--creds** *creds*
@@ -34,7 +35,6 @@ value can be entered.  The password is entered without echo.
 **--disable-compression, -D**
 
 Don't compress filesystem layers when building the image.
-
 
 **--format**
 
@@ -72,7 +72,6 @@ This example saves an image based on the container.
 This example saves an image named newImageName based on the container.
  `buildah commit --rm containerID newImageName`
 
-
 This example saves an image based on the container disabling compression.
  `buildah commit --disable-compression containerID`
 
@@ -86,7 +85,7 @@ This example commits the container to the image on the local registry using cred
  `buildah commit --cert-dir ~/auth  --tls-verify=true --creds=username:password containerID docker://localhost:5000/imageId`
 
 This example commits the container to the image on the local registry using credentials from the /tmp/auths/myauths.json file and certificates for authentication.
- `buildah commit --authfile /tmp/auths/myauths.json --cert-dir ~/auth  --tls-verify=true --creds=username:password containerID docker://localhost:5000/imageId`
+ `buildah commit --authfile /tmp/auths/myauths.json --cert-dir ~/auth  --tls-verify=true --creds=username:password containerID docker://localhost:5000/imageName`
 
 ## SEE ALSO
 buildah(1)

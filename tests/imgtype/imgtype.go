@@ -15,6 +15,7 @@ import (
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/projectatomic/buildah"
 	"github.com/projectatomic/buildah/docker"
+	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -101,11 +102,11 @@ func main() {
 		manifestType := ""
 		configType := ""
 
-		ref, err := is.Transport.ParseStoreReference(store, image)
+		ref, _, err := util.FindImage(store, "", systemContext, image)
 		if err != nil {
 			ref2, err2 := alltransports.ParseImageName(image)
 			if err2 != nil {
-				logrus.Errorf("error parsing reference %q: %v", image, err)
+				logrus.Errorf("error parsing reference %q to an image: %v", image, err)
 				errors = true
 				continue
 			}

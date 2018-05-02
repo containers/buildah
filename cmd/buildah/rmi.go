@@ -12,6 +12,7 @@ import (
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/pkg/parse"
+	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -86,9 +87,13 @@ func rmiCmd(c *cli.Context) error {
 	}
 
 	ctx := getContext()
+	systemContext, err := parse.SystemContextFromOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error building system context")
+	}
 
 	for _, id := range imagesToDelete {
-		image, err := getImage(ctx, id, store)
+		image, err := getImage(ctx, systemContext, id, store)
 		if err != nil || image == nil {
 			if lastError != nil {
 				fmt.Fprintln(os.Stderr, lastError)
@@ -148,7 +153,7 @@ func rmiCmd(c *cli.Context) error {
 
 				// Need to fetch the image state again after making changes to it i.e untag
 				// because only a copy of the image state is returned
-				image, err = getImage(ctx, image.ID, store)
+				image, err = getImage(ctx, systemContext, image.ID, store)
 				if err != nil || image == nil {
 					return errors.Wrapf(err, "error getting image after untag %q", image.ID)
 				}
@@ -172,14 +177,14 @@ func rmiCmd(c *cli.Context) error {
 	return lastError
 }
 
-func getImage(ctx context.Context, id string, store storage.Store) (*storage.Image, error) {
+func getImage(ctx context.Context, systemContext *types.SystemContext, id string, store storage.Store) (*storage.Image, error) {
 	var ref types.ImageReference
 	ref, err := properImageRef(ctx, id)
 	if err != nil {
 		logrus.Debug(err)
 	}
 	if ref == nil {
-		if ref, err = storageImageRef(ctx, store, id); err != nil {
+		if ref, err = storageImageRef(ctx, systemContext, store, id); err != nil {
 			logrus.Debug(err)
 		}
 	}
@@ -263,16 +268,15 @@ func properImageRef(ctx context.Context, id string) (types.ImageReference, error
 
 // If it's looks like an image reference that's relative to our storage, parse
 // it and check if it corresponds to an image that actually exists.
-func storageImageRef(ctx context.Context, store storage.Store, id string) (types.ImageReference, error) {
-	var err error
-	if ref, err := is.Transport.ParseStoreReference(store, id); err == nil {
-		if img, err2 := ref.NewImageSource(ctx, nil); err2 == nil {
-			img.Close()
-			return ref, nil
+func storageImageRef(ctx context.Context, systemContext *types.SystemContext, store storage.Store, id string) (types.ImageReference, error) {
+	ref, _, err := util.FindImage(store, "", systemContext, id)
+	if err != nil {
+		if ref != nil {
+			return nil, errors.Wrapf(err, "error confirming presence of storage image reference %q", transports.ImageName(ref))
 		}
-		return nil, errors.Wrapf(err, "error confirming presence of storage image reference %q", transports.ImageName(ref))
+		return nil, errors.Wrapf(err, "error confirming presence of storage image name %q", id)
 	}
-	return nil, errors.Wrapf(err, "error parsing %q as a storage image reference", id)
+	return ref, err
 }
 
 // If it might be an ID that's relative to our storage, truncated or not, so
