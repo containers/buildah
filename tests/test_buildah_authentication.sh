@@ -65,10 +65,10 @@ buildah containers
 buildah images
 
 ########
-# Buildah pulls using certs and cached Docker creds.
+# Buildah from (pull) using certs and cached Docker creds.
 # Should show two alpine images and containers when done.
 ########
-ctrid=$(buildah from localhost:5000/my-alpine --cert-dir /root/auth)
+ctrid=$(buildah from --cert-dir /root/auth localhost:5000/my-alpine) 
 
 buildah containers
 
@@ -114,12 +114,12 @@ buildah push --cert-dir ~/auth --tls-verify=true --creds=testuser:badpassword al
 ########
 # No creds anywhere, only the certificate, this should FAIL.
 ########
-buildah from localhost:5000/my-alpine --cert-dir /root/auth  --tls-verify=true
+buildah from --cert-dir /root/auth  --tls-verify=true localhost:5000/my-alpine
 
 ########
 # From with creds and certs, this should work
 ########
-ctrid=$(buildah from localhost:5000/my-alpine --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpassword)
+ctrid=$(buildah from --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpassword localhost:5000/my-alpine)
 
 ########
 # Show stuff
@@ -171,12 +171,12 @@ buildah commit --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpas
 ########
 # Use bad password on from/pull, this should FAIL
 ########
-buildah from localhost:5000/my-commit-alpine --pull-always --cert-dir /root/auth  --tls-verify=true --creds=testuser:badpassword
+buildah from --pull-always --cert-dir /root/auth  --tls-verify=true --creds=testuser:badpassword localhost:5000/my-commit-alpine
 
 ########
 # Pull the new image that we just commited
 ########
-buildah from localhost:5000/my-commit-alpine --pull-always --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpassword
+buildah from --pull-always --cert-dir /root/auth --tls-verify=true --creds=testuser:testpassword localhost:5000/my-commit-alpine
 
 ########
 # Show stuff
