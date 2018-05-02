@@ -71,39 +71,78 @@ load helpers
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	buildah config --workingdir /tmp $cid
 
-	# Configured entrypoint/cmd shouldn't modify behaviour of run with no command
-	# empty entrypoint, configured cmd
+
+	# Configured entrypoint/cmd shouldn't modify behaviour of run with no arguments
+
+	# empty entrypoint, configured cmd, empty run arguments
 	buildah config --entrypoint "" $cid
 	buildah config --cmd pwd $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
 	[ "$output" = "args must not be empty" ]
 
-	# configured entrypoint, empty cmd
+	# configured entrypoint, empty cmd, empty run arguments
 	buildah config --entrypoint pwd $cid
 	buildah config --cmd "" $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
 	[ "$output" = "args must not be empty" ]
 
-	# configured entrypoint only
+	# configured entrypoint only, empty run arguments
 	buildah config --entrypoint pwd $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
 	[ "$output" = "args must not be empty" ]
 
-	# cofigured cmd only
+	# cofigured cmd only, empty run arguments
 	buildah config --cmd pwd $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
 	[ "$output" = "args must not be empty" ]
 
-	# configured entrypoint, configured cmd
+	# configured entrypoint, configured cmd, empty run arguments
 	buildah config --entrypoint "pwd" $cid
 	buildah config --cmd "whoami" $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
 	[ "$output" = "args must not be empty" ]
+
+
+	# Configured entrypoint/cmd shouldn't modify behaviour of run with argument
+	# Note: entrypoint and cmd can be invalid in below tests as they should never execute
+
+	# empty entrypoint, configured cmd, configured run arguments
+	buildah config --entrypoint "" $cid
+	buildah config --cmd "/invalid/cmd" $cid
+	run buildah --debug=false run $cid -- pwd
+	[ "$status" -eq 0 ]
+	[ "$output" = "/tmp" ]
+
+        # configured entrypoint, empty cmd, configured run arguments
+        buildah config --entrypoint "/invalid/entrypoint" $cid
+        buildah config --cmd "" $cid
+        run buildah --debug=false run $cid -- pwd
+        [ "$status" -eq 0 ]
+        [ "$output" = "/tmp" ]
+
+        # configured entrypoint only, configured run arguments
+        buildah config --entrypoint "/invalid/entrypoint" $cid
+        run buildah --debug=false run $cid -- pwd
+        [ "$status" -eq 0 ]
+        [ "$output" = "/tmp" ]
+
+        # cofigured cmd only, configured run arguments
+        buildah config --cmd "/invalid/cmd" $cid
+        run buildah --debug=false run $cid -- pwd
+        [ "$status" -eq 0 ]
+        [ "$output" = "/tmp" ]
+
+        # configured entrypoint, configured cmd, configured run arguments
+        buildah config --entrypoint "/invalid/entrypoint" $cid
+        buildah config --cmd "/invalid/cmd" $cid
+        run buildah --debug=false run $cid -- pwd
+        [ "$status" -eq 0 ]
+        [ "$output" = "/tmp" ]
 
 	buildah rm $cid
 }
