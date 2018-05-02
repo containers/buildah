@@ -90,6 +90,11 @@ load helpers
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.User}}' scratch-image-oci | grep likes:things
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.User}}' scratch-image-oci | grep likes:things
 
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.ExposedPorts}}' scratch-image-docker | grep 12345
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.ExposedPorts}}' scratch-image-docker | grep 12345
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.ExposedPorts}}' scratch-image-oci | grep 12345
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.ExposedPorts}}' scratch-image-oci | grep 12345
+
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Env}}' scratch-image-docker | grep VARIABLE=VALUE
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Env}}' scratch-image-docker | grep VARIABLE=VALUE
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Env}}' scratch-image-oci | grep VARIABLE=VALUE
@@ -132,7 +137,7 @@ load helpers
 
   # Annotations aren't part of the Docker v2 spec, so they're discarded when we save to Docker format.
   buildah --debug=false inspect --type=image --format '{{.ImageAnnotations}}' scratch-image-oci | grep ANNOTATION:VALUE
-  buildah --debug=false inspect --type=image --format '{{.ImageAnnotations}}' scratch-image-oci | grep ANNOTATION:VALUE
+  buildah --debug=false inspect --format '{{.ImageAnnotations}}' $cid | grep ANNOTATION:VALUE
 
   # Comment isn't part of the OCI spec, so it's discarded when we save to OCI format.
   buildah --debug=false inspect --type=image --format '{{.Docker.Comment}}' scratch-image-docker | grep INFORMATIVE
