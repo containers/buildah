@@ -80,6 +80,13 @@ load helpers
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
 	[ "$output" = "command must be specified" ]
+	
+	# empty entrypoint, configured cmd, empty run arguments, end parsing option
+	buildah config --entrypoint "" $cid
+	buildah config --cmd pwd $cid
+	run buildah --debug=false run $cid --
+	[ "$status" -eq 1 ]
+	[ "$output" = "command must be specified" ]
 
 	# configured entrypoint, empty cmd, empty run arguments
 	buildah config --entrypoint pwd $cid
@@ -87,10 +94,23 @@ load helpers
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
 	[ "$output" = "command must be specified" ]
+	
+	# configured entrypoint, empty cmd, empty run arguments, end parsing option
+	buildah config --entrypoint pwd $cid
+	buildah config --cmd "" $cid
+	run buildah --debug=false run $cid --
+	[ "$status" -eq 1 ]
+	[ "$output" = "command must be specified" ]
 
 	# configured entrypoint only, empty run arguments
 	buildah config --entrypoint pwd $cid
 	run buildah --debug=false run $cid
+	[ "$status" -eq 1 ]
+	[ "$output" = "command must be specified" ]
+	
+	# configured entrypoint only, empty run arguments, end parsing option
+	buildah config --entrypoint pwd $cid
+	run buildah --debug=false run $cid --
 	[ "$status" -eq 1 ]
 	[ "$output" = "command must be specified" ]
 
@@ -100,10 +120,23 @@ load helpers
 	[ "$status" -eq 1 ]
 	[ "$output" = "command must be specified" ]
 
+	# cofigured cmd only, empty run arguments, end parsing option
+	buildah config --cmd pwd $cid
+	run buildah --debug=false run $cid --
+	[ "$status" -eq 1 ]
+	[ "$output" = "command must be specified" ]
+
 	# configured entrypoint, configured cmd, empty run arguments
 	buildah config --entrypoint "pwd" $cid
 	buildah config --cmd "whoami" $cid
 	run buildah --debug=false run $cid
+	[ "$status" -eq 1 ]
+	[ "$output" = "command must be specified" ]
+	
+	# configured entrypoint, configured cmd, empty run arguments, end parsing option
+	buildah config --entrypoint "pwd" $cid
+	buildah config --cmd "whoami" $cid
+	run buildah --debug=false run $cid --
 	[ "$status" -eq 1 ]
 	[ "$output" = "command must be specified" ]
 
