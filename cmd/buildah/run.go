@@ -69,9 +69,9 @@ func runCmd(c *cli.Context) error {
 		args = args[1:]
 	}
 
-        if len(args) == 0 {
-                return errors.Errorf("command must be specified")
-        }
+	if len(args) == 0 {
+		return errors.Errorf("command must be specified")
+	}
 
 	store, err := getStore(c)
 	if err != nil {
