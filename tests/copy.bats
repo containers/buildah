@@ -122,18 +122,20 @@ load helpers
   createrandom ${TESTDIR}/other-subdir/other-randomfile
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  root=$(buildah mount $cid)
   buildah config --workingdir / $cid
   buildah copy --chown 1:1 $cid ${TESTDIR}/randomfile
   buildah copy --chown root:1 $cid ${TESTDIR}/randomfile /randomfile2
   buildah copy --chown nobody $cid ${TESTDIR}/randomfile /randomfile3
   buildah copy --chown nobody:root $cid ${TESTDIR}/subdir /subdir
-  test $(stat -c "%u:%g" $root/randomfile) = "1:1"
-  test $(stat -c "%U:%g" $root/randomfile2) = "root:1"
-  test $(stat -c "%U" $root/randomfile3) = "nobody"
-  (cd $root/subdir/; for i in *; do test $(stat -c "%U:%G" $i) = "nobody:root"; done)
+  buildah run $cid stat -c "%u:%g" /randomfile
+  test $(buildah run $cid stat -c "%u:%g" /randomfile) = "1:1"
+  buildah run $cid stat -c "%U:%g" /randomfile2
+  test $(buildah run $cid stat -c "%U:%g" /randomfile2) = "root:1"
+  buildah run $cid stat -c "%U" /randomfile3
+  test $(buildah run $cid stat -c "%U" /randomfile3) = "nobody"
+  (for i in randomfile other-randomfile ; do test $(buildah run $cid stat -c "%U:%G" /subdir/$i) = "nobody:root"; done)
   buildah copy --chown root:root $cid ${TESTDIR}/other-subdir /subdir
-  (cd $root/subdir/; for i in *randomfile; do test $(stat -c "%U:%G" $i) = "root:root"; done)
-  test $(stat -c "%U:%G" $root/subdir) = "nobody:root"
-  buildah rm $cid
+  (for i in randomfile other-randomfile ; do test $(buildah run $cid stat -c "%U:%G" /subdir/$i) = "root:root"; done)
+  buildah run $cid stat -c "%U:%G" /subdir
+  test $(buildah run $cid stat -c "%U:%G" /subdir) = "nobody:root"
 }
