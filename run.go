@@ -778,6 +778,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 	g.SetProcessUID(user.UID)
 	g.SetProcessGID(user.GID)
+	for _, gid := range user.AdditionalGids {
+		g.AddProcessAdditionalGid(gid)
+	}
 
 	// Now grab the spec from the generator.  Set the generator to nil so that future contributors
 	// will quickly be able to tell that they're supposed to be modifying the spec directly from here.

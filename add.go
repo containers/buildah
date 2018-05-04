@@ -209,5 +209,16 @@ func (b *Builder) user(mountPoint string, userspec string) (specs.User, error) {
 		GID:      gid,
 		Username: userspec,
 	}
+	if !strings.Contains(userspec, ":") {
+		groups, err2 := chrootuser.GetAdditionalGroupsForUser(mountPoint, uint64(u.UID))
+		if err2 != nil {
+			if errors.Cause(err2) != chrootuser.ErrNoSuchUser && err == nil {
+				err = err2
+			}
+		} else {
+			u.AdditionalGids = groups
+		}
+
+	}
 	return u, err
 }
