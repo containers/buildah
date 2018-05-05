@@ -409,3 +409,37 @@ load helpers
   run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.symlink-points-to-itself
   [ "$status" -ne 0 ]
 }
+
+@test "bud with ENTRYPOINT and RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-run
+  [[ "$output" =~ "unique.test.string" ]]
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with ENTRYPOINT and empty RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-empty-run
+  [[ "$output" =~ "error building at step" ]]
+  [ "$status" -eq 1 ]
+}
+
+@test "bud with CMD and RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.cmd-run
+  [[ "$output" =~ "unique.test.string" ]]
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with CMD and empty RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.cmd-empty-run
+  [[ "$output" =~ "error building at step" ]]
+  [ "$status" -eq 1 ]
+}

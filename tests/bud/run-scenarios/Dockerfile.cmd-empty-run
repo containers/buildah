@@ -1,0 +1,3 @@
+FROM alpine
+CMD [ "pwd" ]
+RUN
