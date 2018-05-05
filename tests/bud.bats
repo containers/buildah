@@ -443,3 +443,20 @@ load helpers
   [[ "$output" =~ "error building at step" ]]
   [ "$status" -eq 1 ]
 }
+
+@test "bud with ENTRYPOINT, CMD and RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-run
+  [[ "$output" =~ "unique.test.string" ]]
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with ENTRYPOINT, CMD and empty RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-empty-run
+  [[ "$output" =~ "error building at step" ]]
+  [ "$status" -eq 1 ]
+}
