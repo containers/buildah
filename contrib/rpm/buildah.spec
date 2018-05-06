@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        0.16
+Version:        1.0
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -91,6 +91,28 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon May 7 2018 Dan Walsh <dwalsh@redhat.com> 1.0-1
+- Remove buildah run cmd and entrypoint execution
+- Add Files section with registries.conf to pertinent man pages
+- Force "localhost" as a default registry
+- Add --compress, --rm, --squash flags as a noop for bud
+- Add FIPS mode secret to buildah run and bud
+- Add config --comment/--domainname/--history-comment/--hostname
+- Add support for --iidfile to bud and commit
+- Add /bin/sh -c to entrypoint in config
+- buildah images and podman images are listing different sizes
+- Remove tarball as an option from buildah push --help
+- Update entrypoint behaviour to match docker
+- Display imageId after commit
+- config: add support for StopSignal
+- Allow referencing stages as index and names
+- Add multi-stage builds support
+- Vendor in latest imagebuilder, to get mixed case AS support
+- Allow umount to have multi-containers
+- Update buildah push doc
+- buildah bud walks symlinks
+- Imagename is required for commit atm, update manpage
+
 * Wed Apr 4 2018 Dan Walsh <dwalsh@redhat.com> 0.16-1
 -   Add support for shell
 -   Vendor in latest containers/image
