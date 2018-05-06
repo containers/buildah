@@ -409,3 +409,109 @@ load helpers
   run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.symlink-points-to-itself
   [ "$status" -ne 0 ]
 }
+
+@test "bud with ENTRYPOINT and RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-run
+  [[ "$output" =~ "unique.test.string" ]]
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with ENTRYPOINT and empty RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-empty-run
+  [[ "$output" =~ "error building at step" ]]
+  [ "$status" -eq 1 ]
+}
+
+@test "bud with CMD and RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.cmd-run
+  [[ "$output" =~ "unique.test.string" ]]
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with CMD and empty RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.cmd-empty-run
+  [[ "$output" =~ "error building at step" ]]
+  [ "$status" -eq 1 ]
+}
+
+@test "bud with ENTRYPOINT, CMD and RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-run
+  [[ "$output" =~ "unique.test.string" ]]
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with ENTRYPOINT, CMD and empty RUN" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-empty-run
+  [[ "$output" =~ "error building at step" ]]
+  [ "$status" -eq 1 ]
+}
+
+# Following flags are configured to result in noop but should not affect buildiah bud behavior
+@test "bud with --cache-from noop flag" {
+  target=noop-image
+  run buildah bud --cache-from=invalidimage --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with --compress noop flag" {
+  target=noop-image
+  run buildah bud --compress --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with --force-rm noop flag" {
+  target=noop-image
+  run buildah bud --force-rm --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with --no-cache noop flag" {
+  target=noop-image
+  run buildah bud --no-cache --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with --rm noop flag" {
+  target=noop-image
+  run buildah bud --rm --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with --squash noop flag" {
+  target=noop-image
+  run buildah bud --squash --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
