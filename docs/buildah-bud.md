@@ -32,6 +32,10 @@ instructions read from the Dockerfiles in the same way that environment
 variables are, but which will not be added to environment variable list in the
 resulting image's configuration.
 
+**--cache-from**
+
+Images to utilise as potential cache sources. Buildah does not currently support caching so this is a NOOP.
+
 **--cert-dir** *path*
 
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
@@ -127,6 +131,10 @@ If a build context is not specified, and at least one Dockerfile is a
 local file, the directory in which it resides will be used as the build
 context.
 
+**--force-rm**
+
+Always remove intermediate containers after a build. Buildah does not currently support caching so this is a NOOP.
+
 **--format**
 
 Control the format for the built image's manifest and configuration data.
@@ -164,6 +172,10 @@ The format of `LIMIT` is `<number>[<unit>]`. Unit can be `b` (bytes),
 `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you don't specify a
 unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
+**--no-cache**
+
+Do not use caching for the container build. Buildah does not currently support caching so this is a NOOP.
+
 **--pull**
 
 Pull the image if it is not present.  If this flag is disabled (with
@@ -182,7 +194,7 @@ output image.
 
 **--rm**
 
-Remove intermediate containers after a successful build.  Buildah does not currently support cacheing so this is a NOOP.
+Remove intermediate containers after a successful build. Buildah does not currently support caching so this is a NOOP.
 
 **--runtime** *path*
 
@@ -228,7 +240,7 @@ option be used, as the default behavior of using the system-wide default policy
 
 **--squash**
 
-Squash newly built layers into a single new layer.  Buildah does not currently support cacheing so this is a NOOP.
+Squash newly built layers into a single new layer. Buildah does not currently support caching so this is a NOOP.
 
 **-t, --tag** *imageName*
 

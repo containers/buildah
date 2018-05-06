@@ -19,6 +19,10 @@ var (
 			Name:  "build-arg",
 			Usage: "`argument=value` to supply to the builder",
 		},
+		cli.BoolFlag{
+			Name:  "cache-from",
+			Usage: "Images to utilise as potential cache sources. Buildah does not currently support caching so this is a NOOP.",
+		},
 		cli.StringFlag{
 			Name:  "cert-dir",
 			Value: "",
@@ -37,6 +41,10 @@ var (
 			Name:  "file, f",
 			Usage: "`pathname or URL` of a Dockerfile",
 		},
+		cli.BoolFlag{
+			Name:  "force-rm",
+			Usage: "Always remove intermediate containers after a build. Buildah does not currently support caching so this is a NOOP.",
+		},
 		cli.StringFlag{
 			Name:  "format",
 			Usage: "`format` of the built image's manifest and metadata",
@@ -44,6 +52,10 @@ var (
 		cli.StringFlag{
 			Name:  "iidfile",
 			Usage: "Write the image ID to the file",
+		},
+		cli.BoolFlag{
+			Name:  "no-cache",
+			Usage: "Do not use caching for the container build. Buildah does not currently support caching so this is a NOOP.",
 		},
 		cli.BoolTFlag{
 			Name:  "pull",
@@ -59,7 +71,7 @@ var (
 		},
 		cli.BoolFlag{
 			Name:  "rm",
-			Usage: "Remove intermediate containers after a successful build.  Buildah does not currently support cacheing so this is a NOOP.",
+			Usage: "Remove intermediate containers after a successful build. Buildah does not currently support caching so this is a NOOP.",
 		},
 		cli.StringFlag{
 			Name:  "runtime",
@@ -76,7 +88,7 @@ var (
 		},
 		cli.BoolFlag{
 			Name:  "squash",
-			Usage: "Squash newly built layers into a single new layer. Buildah does not currently support cacheing so this is a NOOP.",
+			Usage: "Squash newly built layers into a single new layer. Buildah does not currently support caching so this is a NOOP.",
 		},
 		cli.StringSliceFlag{
 			Name:  "tag, t",

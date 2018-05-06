@@ -147,8 +147,20 @@ func budCmd(c *cli.Context) error {
 		return err
 	}
 
+	if c.IsSet("cache-from") {
+		logrus.Debugf("build caching not enabled so --cache-from flag has no effect")
+	}
+
 	if c.IsSet("compress") {
 		logrus.Debugf("--compress option specified but is ignored")
+	}
+
+	if c.IsSet("force-rm") {
+		logrus.Debugf("build caching not enabled so --force-rm flag has no effect")
+	}
+
+	if c.IsSet("no-cache") {
+		logrus.Debugf("build caching not enabled so --no-cache flag has no effect")
 	}
 
 	if c.IsSet("rm") {
