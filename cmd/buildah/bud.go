@@ -151,6 +151,10 @@ func budCmd(c *cli.Context) error {
 		logrus.Debugf("--compress option specified but is ignored")
 	}
 
+	if c.IsSet("force-rm") {
+		logrus.Debugf("build caching not enabled so --force-rm flag has no effect")
+	}
+
 	if c.IsSet("rm") {
 		logrus.Debugf("build caching not enabled so --rm flag has no effect")
 	}
