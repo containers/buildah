@@ -37,6 +37,10 @@ var (
 			Name:  "file, f",
 			Usage: "`pathname or URL` of a Dockerfile",
 		},
+		cli.BoolFlag{
+			Name:  "force-rm",
+			Usage: "Always remove intermediate containers after a build.  Buildah does not currently support cacheing so this is a NOOP.",
+		},
 		cli.StringFlag{
 			Name:  "format",
 			Usage: "`format` of the built image's manifest and metadata",

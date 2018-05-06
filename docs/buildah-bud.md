@@ -127,6 +127,10 @@ If a build context is not specified, and at least one Dockerfile is a
 local file, the directory in which it resides will be used as the build
 context.
 
+**--force-rm**
+
+Always remove intermediate containers after a build.  Buildah does not currently support cacheing so this is a NOOP.
+
 **--format**
 
 Control the format for the built image's manifest and configuration data.
