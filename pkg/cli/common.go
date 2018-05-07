@@ -19,7 +19,7 @@ var (
 			Name:  "build-arg",
 			Usage: "`argument=value` to supply to the builder",
 		},
-		cli.BoolFlag{
+		cli.StringFlag{
 			Name:  "cache-from",
 			Usage: "Images to utilise as potential cache sources. Buildah does not currently support caching so this is a NOOP.",
 		},
