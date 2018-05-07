@@ -114,35 +114,33 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Imagename is required for commit atm, update manpage
 
 * Wed Apr 4 2018 Dan Walsh <dwalsh@redhat.com> 0.16-1
--   Add support for shell
--   Vendor in latest containers/image
--    	 docker-archive generates docker legacy compatible images
--	 Do not create $DiffID subdirectories for layers with no configs
-- 	 Ensure the layer IDs in legacy docker/tarfile metadata are unique
--	 docker-archive: repeated layers are symlinked in the tar file
--	 sysregistries: remove all trailing slashes
--	 Improve docker/* error messages
--	 Fix failure to make auth directory
--	 Create a new slice in Schema1.UpdateLayerInfos
--	 Drop unused storageImageDestination.{image,systemContext}
--	 Load a *storage.Image only once in storageImageSource
--	 Support gzip for docker-archive files
--	 Remove .tar extension from blob and config file names
--	 ostree, src: support copy of compressed layers
--	 ostree: re-pull layer if it misses uncompressed_digest|uncompressed_size
--	 image: fix docker schema v1 -> OCI conversion
--	 Add /etc/containers/certs.d as default certs directory
--  Change image time to locale, add troubleshooting.md, add logo to other mds
--   Allow --cmd parameter to have commands as values
--   Document the mounts.conf file
--   Fix man pages to format correctly
--   buildah from now supports pulling images using the following transports:
--   docker-archive, oci-archive, and dir.
--   If the user overrides the storage driver, the options should be dropped
--   Show Config/Manifest as JSON string in inspect when format is not set
--   Adds feature to pull compressed docker-archive files
-
-
+- Add support for shell
+- Vendor in latest containers/image
+- docker-archive generates docker legacy compatible images
+- Do not create $DiffID subdirectories for layers with no configs
+- Ensure the layer IDs in legacy docker/tarfile metadata are unique
+- docker-archive: repeated layers are symlinked in the tar file
+- sysregistries: remove all trailing slashes
+- Improve docker/* error messages
+- Fix failure to make auth directory
+- Create a new slice in Schema1.UpdateLayerInfos
+- Drop unused storageImageDestination.{image,systemContext}
+- Load a *storage.Image only once in storageImageSource
+- Support gzip for docker-archive files
+- Remove .tar extension from blob and config file names
+- ostree, src: support copy of compressed layers
+- ostree: re-pull layer if it misses uncompressed_digest|uncompressed_size
+- image: fix docker schema v1 -> OCI conversion
+- Add /etc/containers/certs.d as default certs directory
+- Change image time to locale, add troubleshooting.md, add logo to other mds
+- Allow --cmd parameter to have commands as values
+- Document the mounts.conf file
+- Fix man pages to format correctly
+- buildah from now supports pulling images using the following transports:
+- docker-archive, oci-archive, and dir.
+- If the user overrides the storage driver, the options should be dropped
+- Show Config/Manifest as JSON string in inspect when format is not set
+- Adds feature to pull compressed docker-archive files
 
 * Tue Feb 27 2018 Dan Walsh <dwalsh@redhat.com> 0.15-1
 - Fix handling of buildah run command options
@@ -156,20 +154,20 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 
 * Thu Feb 22 2018 Dan Walsh <dwalsh@redhat.com> 0.13-1
 - Vendor in latest containers/storage
--    This fixes a large SELinux bug.  
+- This fixes a large SELinux bug.  
 - run: do not open /etc/hosts if not needed
 - Add the following flags to buildah bud and from
-            --add-host
-            --cgroup-parent
-            --cpu-period
-            --cpu-quota
-            --cpu-shares
-            --cpuset-cpus
-            --cpuset-mems
-            --memory
-            --memory-swap
-            --security-opt
-            --ulimit
+    --add-host
+    --cgroup-parent
+    --cpu-period
+    --cpu-quota
+    --cpu-shares
+    --cpuset-cpus
+    --cpuset-mems
+    --memory
+    --memory-swap
+    --security-opt
+    --ulimit
 
 * Mon Feb 12 2018 Dan Walsh <dwalsh@redhat.com> 0.12-1
 - Added handing for simpler error message for Unknown Dockerfile instructions.
@@ -219,7 +217,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 
 * Thu Nov 16 2017 Dan Walsh <dwalsh@redhat.com> 0.7-1
 - Ignore errors when trying to read containers buildah.json for loading SELinux reservations
--     Use credentials from kpod login for buildah
+- Use credentials from kpod login for buildah
 
 * Wed Nov 15 2017 Dan Walsh <dwalsh@redhat.com> 0.6-1
 - Adds support for converting manifest types when using the dir transport
@@ -228,38 +226,38 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Set option.terminal appropriately in run
 
 * Wed Nov 08 2017 Dan Walsh <dwalsh@redhat.com> 0.5-2
--  Bump github.com/vbatts/tar-split
--  Fixes CVE That could allow a container image to cause a DOS
+- Bump github.com/vbatts/tar-split
+- Fixes CVE That could allow a container image to cause a DOS
 
 * Tue Nov 07 2017 Dan Walsh <dwalsh@redhat.com> 0.5-1
--  Add secrets patch to buildah
--  Add proper SELinux labeling to buildah run
--  Add tls-verify to bud command
--  Make filtering by date use the image's date
--  images: don't list unnamed images twice
--  Fix timeout issue
--  Add further tty verbiage to buildah run
--  Make inspect try an image on failure if type not specified
--  Add support for `buildah run --hostname`
--  Tons of bug fixes and code cleanup
+- Add secrets patch to buildah
+- Add proper SELinux labeling to buildah run
+- Add tls-verify to bud command
+- Make filtering by date use the image's date
+- images: don't list unnamed images twice
+- Fix timeout issue
+- Add further tty verbiage to buildah run
+- Make inspect try an image on failure if type not specified
+- Add support for `buildah run --hostname`
+- Tons of bug fixes and code cleanup
 
 * Fri Sep 22 2017 Dan Walsh <dwalsh@redhat.com> 0.4-1.git9cbccf88c
--   Add default transport to push if not provided
--   Avoid trying to print a nil ImageReference
--   Add authentication to commit and push
--   Add information on buildah from man page on transports
--   Remove --transport flag
--   Run: do not complain about missing volume locations
--   Add credentials to buildah from
--   Remove export command
--   Run(): create the right working directory
--   Improve "from" behavior with unnamed references
--   Avoid parsing image metadata for dates and layers
--   Read the image's creation date from public API
--   Bump containers/storage and containers/image
--   Don't panic if an image's ID can't be parsed
--   Turn on --enable-gc when running gometalinter
--   rmi: handle truncated image IDs
+- Add default transport to push if not provided
+- Avoid trying to print a nil ImageReference
+- Add authentication to commit and push
+- Add information on buildah from man page on transports
+- Remove --transport flag
+- Run: do not complain about missing volume locations
+- Add credentials to buildah from
+- Remove export command
+- Run(): create the right working directory
+- Improve "from" behavior with unnamed references
+- Avoid parsing image metadata for dates and layers
+- Read the image's creation date from public API
+- Bump containers/storage and containers/image
+- Don't panic if an image's ID can't be parsed
+- Turn on --enable-gc when running gometalinter
+- rmi: handle truncated image IDs
 
 * Tue Aug 15 2017 Josh Boyer <jwboyer@redhat.com> - 0.3-5.gitb9b2a8a
 - Build for s390x as well
@@ -274,23 +272,23 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump for inclusion of OCI 1.0 Runtime and Image Spec
 
 * Tue Jul 18 2017 Dan Walsh <dwalsh@redhat.com> 0.2.0-1.gitac2aad6
--   buildah run: Add support for -- ending options parsing 
--   buildah Add/Copy support for glob syntax
--   buildah commit: Add flag to remove containers on commit
--   buildah push: Improve man page and help information
--   buildah run: add a way to disable PTY allocation
--   Buildah docs: clarify --runtime-flag of run command
--   Update to match newer storage and image-spec APIs
--   Update containers/storage and containers/image versions
--   buildah export: add support
--   buildah images: update commands
--   buildah images: Add JSON output option
--   buildah rmi: update commands
--   buildah containers: Add JSON output option
--   buildah version: add command
--   buildah run: Handle run without an explicit command correctly
--   Ensure volume points get created, and with perms
--   buildah containers: Add a -a/--all option
+- buildah run: Add support for -- ending options parsing 
+- buildah Add/Copy support for glob syntax
+- buildah commit: Add flag to remove containers on commit
+- buildah push: Improve man page and help information
+- buildah run: add a way to disable PTY allocation
+- Buildah docs: clarify --runtime-flag of run command
+- Update to match newer storage and image-spec APIs
+- Update containers/storage and containers/image versions
+- buildah export: add support
+- buildah images: update commands
+- buildah images: Add JSON output option
+- buildah rmi: update commands
+- buildah containers: Add JSON output option
+- buildah version: add command
+- buildah run: Handle run without an explicit command correctly
+- Ensure volume points get created, and with perms
+- buildah containers: Add a -a/--all option
 
 * Wed Jun 14 2017 Dan Walsh <dwalsh@redhat.com> 0.1.0-2.git597d2ab9
 - Release Candidate 1
