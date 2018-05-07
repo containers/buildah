@@ -210,7 +210,7 @@ Ulimit options
 
    * [rw|ro]
    * [z|Z]
-   * [`[r]shared`|`[r]slave`|`[r]private`]
+   * [`[r]shared`|`[r]slave`|`[r]private`|`[r]unbindable`]
 
 The `CONTAINER-DIR` must be an absolute path such as `/src/docs`. The `HOST-DIR`
 must be an absolute path as well. Buildah bind-mounts the `HOST-DIR` to the
@@ -247,7 +247,7 @@ the container on that volume will be visible to both the host and container. Whe
 the mount propagation policy is set to `slave`, one way mount propagation is enabled
 and any mounts completed on the host for that volume will be visible only inside of the container.
 To control the mount propagation property of the volume use the `:[r]shared`,
-`:[r]slave` or `:[r]private` propagation flag. The propagation property can
+`:[r]slave`, `[r]private` or `[r]unbindable`propagation flag. The propagation property can
 be specified only for bind mounted volumes and not for internal volumes or
 named volumes. For mount propagation to work on the source mount point (the mount point
 where source dir is mounted on) it has to have the right propagation properties. For
