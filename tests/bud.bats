@@ -460,3 +460,58 @@ load helpers
   [[ "$output" =~ "error building at step" ]]
   [ "$status" -eq 1 ]
 }
+
+# Following flags are configured to result in noop but should not affect buildiah bud behavior
+@test "bud with --cache-from noop flag" {
+  target=noop-image
+  run buildah bud --cache-from=invalidimage --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with --compress noop flag" {
+  target=noop-image
+  run buildah bud --compress --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with --force-rm noop flag" {
+  target=noop-image
+  run buildah bud --force-rm --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with --no-cache noop flag" {
+  target=noop-image
+  run buildah bud --no-cache --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with --rm noop flag" {
+  target=noop-image
+  run buildah bud --rm --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with --squash noop flag" {
+  target=noop-image
+  run buildah bud --squash --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
