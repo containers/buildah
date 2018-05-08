@@ -116,22 +116,22 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 * Wed Apr 4 2018 Dan Walsh <dwalsh@redhat.com> 0.16-1
 - Add support for shell
 - Vendor in latest containers/image
-- docker-archive generates docker legacy compatible images
-- Do not create $DiffID subdirectories for layers with no configs
-- Ensure the layer IDs in legacy docker/tarfile metadata are unique
-- docker-archive: repeated layers are symlinked in the tar file
-- sysregistries: remove all trailing slashes
-- Improve docker/* error messages
-- Fix failure to make auth directory
-- Create a new slice in Schema1.UpdateLayerInfos
-- Drop unused storageImageDestination.{image,systemContext}
-- Load a *storage.Image only once in storageImageSource
-- Support gzip for docker-archive files
-- Remove .tar extension from blob and config file names
-- ostree, src: support copy of compressed layers
-- ostree: re-pull layer if it misses uncompressed_digest|uncompressed_size
-- image: fix docker schema v1 -> OCI conversion
-- Add /etc/containers/certs.d as default certs directory
+    docker-archive generates docker legacy compatible images
+    Do not create $DiffID subdirectories for layers with no configs
+    Ensure the layer IDs in legacy docker/tarfile metadata are unique
+    docker-archive: repeated layers are symlinked in the tar file
+    sysregistries: remove all trailing slashes
+    Improve docker/* error messages
+    Fix failure to make auth directory
+    Create a new slice in Schema1.UpdateLayerInfos
+    Drop unused storageImageDestination.{image,systemContext}
+    Load a *storage.Image only once in storageImageSource
+    Support gzip for docker-archive files
+    Remove .tar extension from blob and config file names
+    ostree, src: support copy of compressed layers
+    ostree: re-pull layer if it misses uncompressed_digest|uncompressed_size
+    image: fix docker schema v1 -> OCI conversion
+    Add /etc/containers/certs.d as default certs directory
 - Change image time to locale, add troubleshooting.md, add logo to other mds
 - Allow --cmd parameter to have commands as values
 - Document the mounts.conf file
