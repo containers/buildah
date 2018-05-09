@@ -118,7 +118,7 @@ var (
 			Usage: "limit the CPU CFS (Completely Fair Scheduler) quota",
 		},
 		cli.Uint64Flag{
-			Name:  "cpu-shares",
+			Name:  "cpu-shares, c",
 			Usage: "CPU shares (relative weight)",
 		},
 		cli.StringFlag{
