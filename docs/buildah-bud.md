@@ -65,7 +65,7 @@ Limit the container's CPU usage. By default, containers run with the full
 CPU resource. This flag tell the kernel to restrict the container's CPU usage
 to the quota you specify.
 
-**-c, --cpu-shares**=*0*
+**--cpu-shares, -c**=*0*
 
 CPU shares (relative weight)
 
@@ -120,7 +120,7 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
-**-f, --file** *Dockerfile*
+**--file, -f** *Dockerfile*
 
 Specifies a Dockerfile which contains instructions for building the image,
 either a local file or an **http** or **https** URL.  If more than one
@@ -151,7 +151,7 @@ Buildah is not currently supported on Windows, and does not have a daemon.
 If you want to override the container isolation you can choose a different
 OCI Runtime, using the --runtime flag.
 
-**-m**, **--memory**=""
+**--memory, -m**=""
 
 Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
 
@@ -186,7 +186,7 @@ Defaults to *true*.
 
 Pull the image even if a version of the image is already present.
 
-**-q, --quiet**
+**--quiet, -q**
 
 Suppress output messages which indicate which instruction is being processed,
 and of progress when pulling images from a registry, and when writing the
@@ -242,7 +242,7 @@ option be used, as the default behavior of using the system-wide default policy
 
 Squash newly built layers into a single new layer. Buildah does not currently support caching so this is a NOOP.
 
-**-t, --tag** *imageName*
+**--tag, -t** *imageName*
 
 Specifies the name which will be assigned to the resulting image if the build
 process completes successfully.
@@ -256,7 +256,7 @@ Require HTTPS and verify certificates when talking to container registries (defa
 
 Ulimit options
 
-**-v**|**--volume**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
+**--volume, -v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
 
    Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
    bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah
