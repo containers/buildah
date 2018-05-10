@@ -71,7 +71,7 @@ Limit the container's CPU usage. By default, containers run with the full
 CPU resource. This flag tell the kernel to restrict the container's CPU usage
 to the quota you specify.
 
-**--cpu-shares**=*0*
+**--cpu-shares, -c**=*0*
 
 CPU shares (relative weight)
 
@@ -126,7 +126,7 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
-**-m**, **--memory**=""
+**--memory, -m**=""
 
 Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
 
@@ -161,7 +161,7 @@ Defaults to *true*.
 
 Pull the image even if a version of the image is already present.
 
-**--quiet**
+**--quiet, -q**
 
 If an image needs to be pulled from the registry, suppress progress output.
 
@@ -202,7 +202,7 @@ Require HTTPS and verify certificates when talking to container registries (defa
 
 Ulimit options
 
-**-v**|**--volume**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
+**--volume, -v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
 
    Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
    bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah

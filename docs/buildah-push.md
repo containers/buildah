@@ -68,7 +68,7 @@ Don't compress copies of filesystem layers which will be pushed.
 
 Manifest Type (oci, v2s1, or v2s2) to use when saving image to directory using the 'dir:' transport (default is manifest type of source)
 
-**--quiet**
+**--quiet, -q**
 
 When writing the output image, suppress progress output.
 
