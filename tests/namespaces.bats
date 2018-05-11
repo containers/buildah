@@ -3,6 +3,9 @@
 load helpers
 
 @test "user-and-network-namespace" {
+  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+    skip
+  fi
   mkdir -p $TESTDIR/no-cni-configs
   RUNOPTS="--cni-config-dir=${TESTDIR}/no-cni-configs ${RUNC_BINARY:+--runtime $RUNC_BINARY}"
   # Check if we're running in an environment that can even test this.
@@ -170,7 +173,9 @@ load helpers
     [ "$output" != "" ]
     case x"$map" in
     x)
-      [ "$output" == "$mynamespace" ]
+      if test "$BUILDAH_ISOLATION" != "chroot" ; then
+        [ "$output" == "$mynamespace" ]
+      fi
       ;;
     *)
       [ "$output" != "$mynamespace" ]
@@ -300,30 +305,51 @@ general_namespace() {
 }
 
 @test "ipc-namespace" {
+  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+    skip
+  fi
   general_namespace ipc
 }
 
 @test "net-namespace" {
+  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+    skip
+  fi
   general_namespace net
 }
 
 @test "network-namespace" {
+  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+    skip
+  fi
   general_namespace net network
 }
 
 @test "pid-namespace" {
+  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+    skip
+  fi
   general_namespace pid
 }
 
 @test "user-namespace" {
+  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+    skip
+  fi
   general_namespace user userns
 }
 
 @test "uts-namespace" {
+  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+    skip
+  fi
   general_namespace uts
 }
 
 @test "combination-namespaces" {
+  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+    skip
+  fi
   # mnt is always per-container, cgroup isn't a thing runc lets us configure
   for ipc in host container ; do
     for net in host container ; do
