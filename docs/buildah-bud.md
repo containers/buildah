@@ -65,7 +65,7 @@ Limit the container's CPU usage. By default, containers run with the full
 CPU resource. This flag tell the kernel to restrict the container's CPU usage
 to the quota you specify.
 
-**--cpu-shares**=*0*
+**-c, --cpu-shares**=*0*
 
 CPU shares (relative weight)
 

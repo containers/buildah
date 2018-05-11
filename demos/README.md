@@ -49,7 +49,7 @@ There are several variables you will want to set that are listed at the top of t
 
 filename: [`buildah-scratch-demo.sh`](https://github.com/projectatomic/buildah/demos/docker-compatibility-demo.sh)
 
-This demo builds an nginx container image using Buildah. It modifies the home page and commits the image. The contianer is tested using `podman run` and then stopped. The Docker dameon is then started and the image is pushed over to the Docker repository. The container is started using `docker run` and tested. 
+This demo builds an nginx container image using Buildah. It modifies the homepage and commits the image. The contianer is tested using `podman run` and then stopped. The Docker daemon is then started and the image is pushed to the Docker repository. The container is started using `docker run` and tested. 
 
 There are several variables you will want to set that are listed at the top of the script. The name for the container image, your quay.io username, your name, and the Fedora release number:
 

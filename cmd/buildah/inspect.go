@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"text/template"
 
 	"github.com/pkg/errors"
@@ -14,9 +15,6 @@ import (
 )
 
 const (
-	defaultFormat = `Container: {{.Container}}
-ID: {{.ContainerID}}
-`
 	inspectTypeContainer = "container"
 	inspectTypeImage     = "image"
 )
@@ -64,12 +62,6 @@ func inspectCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	format := defaultFormat
-	if c.String("format") != "" {
-		format = c.String("format")
-	}
-	t := template.Must(template.New("format").Parse(format))
-
 	name := args[0]
 
 	store, err := getStore(c)
@@ -101,6 +93,13 @@ func inspectCmd(c *cli.Context) error {
 	}
 	out := buildah.GetBuildInfo(builder)
 	if c.IsSet("format") {
+		format := c.String("format")
+		if matched, err := regexp.MatchString("{{.*}}", format); err != nil {
+			return errors.Wrapf(err, "error validating format provided: %s", format)
+		} else if !matched {
+			return errors.Errorf("error invalid format provided: %s", format)
+		}
+		t := template.Must(template.New("format").Parse(format))
 		if err := t.Execute(os.Stdout, out); err != nil {
 			return err
 		}

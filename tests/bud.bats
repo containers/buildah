@@ -515,3 +515,47 @@ load helpers
   buildah rm ${cid}
   buildah rmi ${target}
 }
+
+@test "bud with --cpu-shares flag, no argument" {
+  target=bud-flag
+  run buildah bud --cpu-shares --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile
+  [ "$status" -ne 0 ]
+}
+
+@test "bud with --cpu-shares flag, invalid argument" {
+  target=bud-flag
+  run buildah bud --cpu-shares bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile
+  [ "$status" -ne 0 ]
+  [[ "$output" =~ "invalid value \"bogus\" for flag" ]]
+}
+
+@test "bud with --cpu-shares flag, valid argument" {
+  target=bud-flag
+  run buildah bud --cpu-shares 2 --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with --cpu-shares short flag (-c), no argument" {
+  target=bud-flag
+  run buildah bud -c --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile
+  [ "$status" -ne 0 ]
+}
+
+@test "bud with --cpu-shares short flag (-c), invalid argument" {
+  target=bud-flag
+  run buildah bud -c bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile
+  [ "$status" -ne 0 ]
+  [[ "$output" =~ "invalid value \"bogus\" for flag" ]]
+}
+
+@test "bud with --cpu-shares short flag (-c), valid argument" {
+  target=bud-flag
+  run buildah bud -c 2 --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
