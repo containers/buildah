@@ -216,7 +216,9 @@ another process.
 **--isolation** *type*
 
 Controls what type of isolation is used when processing RUN instructions.
-Recognized types include *oci* (OCI-compatible runtime, the default).
+Recognized types include *oci* (OCI-compatible runtime, the default) and
+*chroot* (an internal wrapper that leans more toward chroot(1) than container
+technology).
 
 Note: You can also override the default isolation type by setting the
 BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`

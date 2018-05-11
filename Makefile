@@ -17,7 +17,7 @@ LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_I
 
 all: buildah imgtype docs
 
-buildah: *.go imagebuildah/*.go bind/*.go cmd/buildah/*.go docker/*.go pkg/cli/*.go pkg/parse/*.go unshare/*.c unshare/*.go util/*.go
+buildah: *.go imagebuildah/*.go bind/*.go chroot/*.go cmd/buildah/*.go docker/*.go pkg/cli/*.go pkg/parse/*.go unshare/*.c unshare/*.go util/*.go
 	$(GO) build $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
 
 darwin:
@@ -104,9 +104,12 @@ test-integration:
 	ginkgo -v tests/e2e/.
 	cd tests; ./test_runner.sh
 
+tests/testreport/testreport: tests/testreport/testreport.go
+	$(GO) build -ldflags "-linkmode external -extldflags -static" -tags "$(AUTOTAGS) $(TAGS)" -o tests/testreport/testreport ./tests/testreport
+
 .PHONY: test-unit
-test-unit:
-	$(GO) test -v -race $(shell go list ./... | grep -v vendor | grep -v tests | grep -v cmd)
+test-unit: tests/testreport/testreport
+	$(GO) test -v -tags "$(AUTOTAGS) $(TAGS)" -race $(shell go list ./... | grep -v vendor | grep -v tests | grep -v cmd)
 	tmp=$(shell mktemp -d) ; \
 	mkdir -p $$tmp/root $$tmp/runroot; \
 	$(GO) test -v -tags "$(AUTOTAGS) $(TAGS)" ./cmd/buildah -args -root $$tmp/root -runroot $$tmp/runroot -storage-driver vfs -signature-policy $(shell pwd)/tests/policy.json -registries-conf $(shell pwd)/tests/registries.conf

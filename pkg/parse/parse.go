@@ -531,12 +531,17 @@ func NamespaceOptions(c *cli.Context) (namespaceOptions buildah.NamespaceOptions
 	return options, policy, nil
 }
 
-func defaultIsolation() buildah.Isolation {
-	isolation := os.Getenv("BUILDAH_ISOLATION")
-	if strings.HasPrefix(strings.ToLower(isolation), "oci") {
-		return buildah.IsolationOCI
+func defaultIsolation() (buildah.Isolation, error) {
+	isolation, isSet := os.LookupEnv("BUILDAH_ISOLATION")
+	if isSet {
+		if strings.HasPrefix(strings.ToLower(isolation), "oci") {
+			return buildah.IsolationOCI, nil
+		} else if strings.HasPrefix(strings.ToLower(isolation), "chroot") {
+			return buildah.IsolationChroot, nil
+		}
+		return 0, errors.Errorf("unrecognized $BUILDAH_ISOLATION value %q", isolation)
 	}
-	return buildah.IsolationDefault
+	return buildah.IsolationDefault, nil
 }
 
 // IsolationOption parses the --isolation flag.
@@ -544,9 +549,11 @@ func IsolationOption(c *cli.Context) (buildah.Isolation, error) {
 	if c.String("isolation") != "" {
 		if strings.HasPrefix(strings.ToLower(c.String("isolation")), "oci") {
 			return buildah.IsolationOCI, nil
+		} else if strings.HasPrefix(strings.ToLower(c.String("isolation")), "chroot") {
+			return buildah.IsolationChroot, nil
 		} else {
 			return buildah.IsolationDefault, errors.Errorf("unrecognized isolation type %q", c.String("isolation"))
 		}
 	}
-	return defaultIsolation(), nil
+	return defaultIsolation()
 }
