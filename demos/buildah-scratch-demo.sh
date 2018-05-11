@@ -41,13 +41,13 @@ read -p "${cyan}Time to install some basic bash capabilities: coreutils and bash
 if [ "$pkgmgr" == "dnf" ]; then
 	$pkgmgr install --installroot $scratchmnt --release ${distrorelease} bash coreutils --setopt install_weak_deps=false -y
 elif [ "$pkgmgr" == "yum" ]; then
-	$pkgmgr install --installroot $scratchmnt --release ${distrorelease} bash coreutils  -y
+	$pkgmgr install --installroot $scratchmnt --releasever ${distrorelease} bash coreutils  -y
 else
 	echo -e "${red}[Error] Unknown package manager ${pkgmgr}${reset}"
 fi
 
 read -p "${cyan}Clean up the packages${reset}"
-$pkgmgr clean --installroot $scratchmnt --release ${distrorelease} all
+$pkgmgr clean --installroot $scratchmnt all
 read -p "${green}Run the shell and see what is inside. When your done, type ${red}exit${green} and return.${reset}"
 buildah run $newcontainer bash
 read -p "${cyan}Let's look at the program${yellow}"
