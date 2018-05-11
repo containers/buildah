@@ -30,7 +30,7 @@ buildah run $ctrid ls /
 ########
 ctr=$(buildah from scratch)
 mnt=$(buildah mount $ctr)
-dnf -y install --installroot=$mnt --releasever=27 httpd
+dnf -y install --installroot=$mnt --releasever=28 httpd
 buildah run $ctr touch /test
 
 ########
@@ -90,9 +90,9 @@ scratchmnt=$(buildah mount $newcontainer)
 echo $scratchmnt
 
 ########
-# Install Fedora 27 bash and coreutils
+# Install Fedora 28 bash and coreutils
 ########
-dnf install --installroot $scratchmnt --release 27 bash coreutils --setopt install_weak_deps=false -y
+dnf install --installroot $scratchmnt --release 28 bash coreutils --setopt install_weak_deps=false -y
 
 ########
 # Check /usr/bin on the new container
@@ -117,13 +117,13 @@ chmod +x $FILE
 ########
 buildah copy $newcontainer $FILE /usr/bin
 buildah config --cmd /usr/bin/runecho.sh $newcontainer
-buildah run $newcontainer
+buildah run $newcontainer /usr/bin/runecho.sh 
 
 ########
 # Add configuration information
 ########
 buildah config --created-by "ipbabble"  $newcontainer
-buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora27-bashecho $newcontainer
+buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora28-bashecho $newcontainer
 
 ########
 # Inspect the container, verifying above was put into it
@@ -200,7 +200,7 @@ whalesays=$(buildah from whale-says)
 ########
 # Run the container to see what the whale says
 ########
-buildah run $whalesays
+buildah run $whalesays bash -c '/usr/games/fortune -a | cowsay'
 
 ########
 # Clean up Buildah
