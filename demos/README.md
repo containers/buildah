@@ -10,6 +10,10 @@
 
 **[Tutorials](../docs/tutorials/README.md)**
 
+**[Useful blogs by ipbabble](https://www.projectatomic.io/blog/author/ipbabble/)**
+
+**[Useful blogs by Tom Sweeney](http://www.projectatomic.io/blog/author/tsweeney/)**
+
 # Buildah Demos
 
 The purpose of these demonstrations is twofold:
@@ -17,9 +21,11 @@ The purpose of these demonstrations is twofold:
 1. To help automate some of the tutorial material so that Buildah newcomers can walk through some of the concepts.
 2. For Buildah enthusiasts and practitioners to use for demos at educational presentations - college classes, Meetups etc.
 
-It is assumed that you have installed Buildah and Podman on your  machine.
+It is assumed that you have installed Buildah and Podman on your machine. 
 
     $ sudo yum -y install podman buildah
+
+Replace `yum` with `dnf` if required.
 
 ## Building from scratch demo 
 
@@ -34,12 +40,22 @@ Please make sure you have installed Buildah and Podman. Also this demo uses Quay
 There are several variables you will want to set that are listed at the top of the script. The name for the container image, your quay.io username, your name, and the Fedora release number:
 
     demoimg=myshdemo
-    quayuser=ipbabble
+    quayuser=UserNameHere
     myname=YourNameHere
-    fedorarelease=28
+    distrorelease=28
+    pkgmgr=dnf   # switch to yum if using yum 
 
 ## Buildah and Docker compatibility demo
 
-Coming soon.
+filename: [`buildah-scratch-demo.sh`](https://github.com/projectatomic/buildah/demos/docker-compatibility-demo.sh)
 
+This demo builds an nginx container image using Buildah. It modifies the home page and commits the image. The contianer is tested using `podman run` and then stopped. The Docker dameon is then started and the image is pushed over to the Docker repository. The container is started using `docker run` and tested. 
 
+There are several variables you will want to set that are listed at the top of the script. The name for the container image, your quay.io username, your name, and the Fedora release number:
+
+    demoimg=dockercompatibilitydemo
+    quayuser=UsernameHere  
+    myname=YourNameHear
+    distro=fedora
+    distrorelease=28
+    pkgmgr=dnf   # switch to yum if using yum 
