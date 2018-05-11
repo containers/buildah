@@ -530,3 +530,23 @@ func NamespaceOptions(c *cli.Context) (namespaceOptions buildah.NamespaceOptions
 	}
 	return options, policy, nil
 }
+
+func defaultIsolation() buildah.Isolation {
+	isolation := os.Getenv("BUILDAH_ISOLATION")
+	if strings.HasPrefix(strings.ToLower(isolation), "oci") {
+		return buildah.IsolationOCI
+	}
+	return buildah.IsolationDefault
+}
+
+// IsolationOption parses the --isolation flag.
+func IsolationOption(c *cli.Context) (buildah.Isolation, error) {
+	if c.String("isolation") != "" {
+		if strings.HasPrefix(strings.ToLower(c.String("isolation")), "oci") {
+			return buildah.IsolationOCI, nil
+		} else {
+			return buildah.IsolationDefault, errors.Errorf("unrecognized isolation type %q", c.String("isolation"))
+		}
+	}
+	return defaultIsolation(), nil
+}

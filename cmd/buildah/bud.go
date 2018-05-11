@@ -138,6 +138,11 @@ func budCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
+	isolation, err := parse.IsolationOption(c)
+	if err != nil {
+		return err
+	}
+
 	runtimeFlags := []string{}
 	for _, arg := range c.StringSlice("runtime-flag") {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
@@ -194,6 +199,7 @@ func budCmd(c *cli.Context) error {
 		RuntimeArgs:             runtimeFlags,
 		OutputFormat:            format,
 		SystemContext:           systemContext,
+		Isolation:               isolation,
 		NamespaceOptions:        namespaceOptions,
 		ConfigureNetwork:        networkPolicy,
 		CNIPluginPath:           c.String("cni-plugin-path"),

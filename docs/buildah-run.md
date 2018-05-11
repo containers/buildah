@@ -63,6 +63,14 @@ that the IPC namespace in which `buildah` itself is being run should be reused,
 or it can be the path to an IPC namespace which is already in use by another
 process.
 
+**--isolation** *type*
+
+Controls what type of isolation is used for running the process.
+Recognized types include *oci* (OCI-compatible runtime, the default).
+
+Note: You can also override the default isolation type by setting the
+BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
+
 **--net** *how*
 **--network** *how*
 
