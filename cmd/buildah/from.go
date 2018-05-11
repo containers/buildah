@@ -191,6 +191,11 @@ func fromCmd(c *cli.Context) error {
 		}
 	}
 
+	isolation, err := parse.IsolationOption(c)
+	if err != nil {
+		return err
+	}
+
 	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error parsing namespace-related options")
@@ -209,6 +214,7 @@ func fromCmd(c *cli.Context) error {
 		SignaturePolicyPath:   signaturePolicy,
 		SystemContext:         systemContext,
 		DefaultMountsFilePath: c.GlobalString("default-mounts-file"),
+		Isolation:             isolation,
 		NamespaceOptions:      namespaceOptions,
 		ConfigureNetwork:      networkPolicy,
 		CNIPluginPath:         c.String("cni-plugin-path"),
