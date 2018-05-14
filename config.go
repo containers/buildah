@@ -331,6 +331,17 @@ func (b *Builder) SetUser(spec string) {
 	b.Docker.Config.User = spec
 }
 
+// OnBuild returns the OnBuild value from the container.
+func (b *Builder) OnBuild() []string {
+	return copyStringSlice(b.Docker.Config.OnBuild)
+}
+
+// SetOnBuild sets a trigger instruction to be executed when the image is used
+// as the base of another image.
+func (b *Builder) SetOnBuild(onBuild []string) {
+	b.Docker.Config.OnBuild = copyStringSlice(onBuild)
+}
+
 // WorkDir returns the default working directory for running commands in the
 // container, or in a container built using an image built from this container.
 func (b *Builder) WorkDir() string {
@@ -348,7 +359,7 @@ func (b *Builder) SetWorkDir(there string) {
 // Shell returns the default shell for running commands in the
 // container, or in a container built using an image built from this container.
 func (b *Builder) Shell() []string {
-	return b.Docker.Config.Shell
+	return copyStringSlice(b.Docker.Config.Shell)
 }
 
 // SetShell sets the default shell for running
@@ -357,7 +368,7 @@ func (b *Builder) Shell() []string {
 // Note: this setting is not present in the OCIv1 image format, so it is
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetShell(shell []string) {
-	b.Docker.Config.Shell = shell
+	b.Docker.Config.Shell = copyStringSlice(shell)
 }
 
 // Env returns a list of key-value pairs to be set when running commands in the
