@@ -461,6 +461,31 @@ load helpers
   [ "$status" -eq 1 ]
 }
 
+# Determines if a variable set with ENV is available to following commands in the Dockerfile
+@test "bud accessing ENV variable defined in same source file" {
+  target=env-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/env/Dockerfile.env-same-file
+  [[ "$output" =~ ":unique.test.string:" ]]
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+# Determines if a variable set with ENV in an image is available to commands in downstream Dockerfile
+@test "bud accessing ENV variable defined in FROM image" {
+  from_target=env-from-image
+  target=env-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${from_target} -f ${TESTSDIR}/bud/env/Dockerfile.env-same-file
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/env/Dockerfile.env-from-image
+  [[ "$output" =~ "@unique.test.string@" ]]
+  [ "$status" -eq 0 ]
+  from_cid=$(buildah from ${from_target})
+  cid=$(buildah from ${target})
+  buildah rm ${from_cid} ${cid}
+  buildah rmi ${from_target} ${target}
+}
+
 # Following flags are configured to result in noop but should not affect buildiah bud behavior
 @test "bud with --cache-from noop flag" {
   target=noop-image
