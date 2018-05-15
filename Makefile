@@ -55,7 +55,7 @@ install.tools:
 	$(GO) get -u $(BUILDFLAGS) github.com/vbatts/git-validation
 	$(GO) get -u $(BUILDFLAGS) github.com/onsi/ginkgo/ginkgo
 	$(GO) get -u $(BUILDFLAGS) gopkg.in/alecthomas/gometalinter.v1
-	gometalinter.v1 -i
+	$(GOPATH)/bin/gometalinter.v1 -i
 
 .PHONY: runc
 runc: gopath
