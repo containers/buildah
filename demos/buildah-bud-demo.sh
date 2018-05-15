@@ -5,7 +5,7 @@
 # Do NOT start the docker deamon
 # Set some of the variables below
 
-demoimg=dockercompatibilitydemo
+demoimg=buildahbuddemo
 quayuser=ipbabble
 myname="William Henry"
 distro=fedora
@@ -13,7 +13,6 @@ distrorelease=28
 pkgmgr=dnf   # switch to yum if using yum 
 
 #Setting up some colors for helping read the demo output
-bold=$(tput bold)
 red=$(tput setaf 1)
 green=$(tput setaf 2)
 yellow=$(tput setaf 3)
@@ -31,26 +30,29 @@ echo -e "Building an image called ${demoimg}"
 read -p "${green}Start of the script${reset}"
 
 set -x
-read -p "${green}Create a new container on disk from ${distro}${reset}"
-newcontainer=$(buildah from ${distro})
-read -p "${green}Update packages and clean all ${reset}"
-buildah run $newcontainer -- ${pkgmgr} -y update && ${pkgmgr} -y clean all
-read -p "${green}Install nginx${reset}"
-buildah run $newcontainer -- ${pkgmgr} -y install nginx && ${pkgmgr} -y clean all 
-read -p "${green}Make some nginx config and home page changes ${reset}"
-buildah run $newcontainer bash -c 'echo "daemon off;" >> /etc/nginx/nginx.conf'
-buildah run $newcontainer bash -c 'echo "nginx on OCI Fedora image, built using Buildah" > /usr/share/nginx/html/index.html'
-read -p "${green}Use buildah config to expose the port and set the entrypoint${reset}"
-buildah config --port 80 --entrypoint /usr/sbin/nginx $newcontainer
-read -p "${green}Set other meta data using buildah config${reset}"
-buildah config --created-by "${quayuser}"  $newcontainer
-buildah config --author "${myname}" --label name=$demoimg $newcontainer
-read -p "${green}Inspect the container image meta data${yellow}"
-buildah inspect $newcontainer
-read -p "${green}Commit the container to an OCI image called ${demoimg}.${reset}"
-buildah commit $newcontainer $demoimg
+DOCKERFILE=./Dockerfile
+/bin/cat <<EOM >$DOCKERFILE
+FROM docker://docker.io/fedora:latest
+MAINTAINER ${myname}
+
+
+RUN dnf -y update; dnf -y clean all
+RUN dnf -y install nginx --setopt install_weak_deps=false; dnf -y clean all
+RUN echo "daemon off;" >> /etc/nginx/nginx.conf
+RUN echo "nginx on Fedora" > /usr/share/nginx/html/index.html
+
+EXPOSE 80
+
+CMD [ "/usr/sbin/nginx" ]
+EOM
+read -p "${cyan}Display the Dockerfile:${reset}"
+cat $DOCKERFILE
+read -p "${green}Create a new container image from Dockerfile${reset}"
+buildah bud -t $demoimg .
 read -p "${green}List the images we have.${reset}"
 buildah images
+read -p "${green}Inspect the container image meta data${yellow}"
+buildah inspect --type image $demoimg
 read -p "${blue}Run the container using Podman.${reset}"
 containernum=$(podman run -d -p 80:80 $demoimg) 
 read -p "${cyan}Check that nginx is up and running with our new page${reset}"
@@ -66,14 +68,14 @@ systemctl restart docker
 read -p "${red}List the Docker images in the repository - should be empty${reset}"
 docker images                                                                          
 read -p "${blue}Push the image to the local Docker repository using docker-daemon${reset}"
-podman push $demoimg docker-daemon:$quayuser/dockercompatibilitydemo:latest       
+podman push $demoimg docker-daemon:$quayuser/${demoimg}:latest       
 read -p "${red}List the Docker images in the repository${reset}"
 docker images                                                                          
 read -p "${red}Start the container from the new Docker repo image${reset}"
 dockercontainer=$(docker run -d -p 80:80 $quayuser/$demoimg)
 read -p "${cyan}Check that nginx is up and running with our new page${reset}"
 curl localhost
-read -p "${red}Stop the container and rm it${reset}"
+read -p "${red}Stop the container and remove it and the image${reset}"
 docker stop $dockercontainer                                                                            
 docker rm $dockercontainer                                                                            
 docker rmi $demoimg
