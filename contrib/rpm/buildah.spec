@@ -259,13 +259,13 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Turn on --enable-gc when running gometalinter
 - rmi: handle truncated image IDs
 
-* Tue Aug 15 2017 Josh Boyer <jwboyer@redhat.com> - 0.3-5.gitb9b2a8a
+* Tue Aug 15 2017 Josh Boyer <jwboyer@redhat.com> 0.3-5.gitb9b2a8a
 - Build for s390x as well
 
-* Wed Aug 02 2017 Fedora Release Engineering <releng@fedoraproject.org> - 0.3-4.gitb9b2a8a
+* Wed Aug 02 2017 Fedora Release Engineering <releng@fedoraproject.org> 0.3-4.gitb9b2a8a
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_27_Binutils_Mass_Rebuild
 
-* Wed Jul 26 2017 Fedora Release Engineering <releng@fedoraproject.org> - 0.3-3.gitb9b2a8a
+* Wed Jul 26 2017 Fedora Release Engineering <releng@fedoraproject.org> 0.3-3.gitb9b2a8a
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_27_Mass_Rebuild
 
 * Thu Jul 20 2017 Dan Walsh <dwalsh@redhat.com> 0.3-2.gitb9b2a8a7e

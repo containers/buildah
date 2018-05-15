@@ -73,7 +73,7 @@ read -p "${red}Start the container from the new Docker repo image${reset}"
 dockercontainer=$(docker run -d -p 80:80 $quayuser/$demoimg)
 read -p "${cyan}Check that nginx is up and running with our new page${reset}"
 curl localhost
-read -p "${red}Stop the container and remove it. Leaving the image in the repo.${reset}"
+read -p "${red}Stop the container and rm it${reset}"
 docker stop $dockercontainer                                                                            
 docker rm $dockercontainer                                                                            
 docker rmi $demoimg
