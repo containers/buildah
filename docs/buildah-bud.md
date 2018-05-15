@@ -4,13 +4,19 @@
 buildah\-bud - Build an image using instructions from Dockerfiles.
 
 ## SYNOPSIS
-**buildah** **bud | build-using-dockerfile** [*options* [...]] [**context**]
+**buildah** **bud | build-using-dockerfile** [*options* [...]] **context**
 
 ## DESCRIPTION
 Builds an image using instructions from one or more Dockerfiles and a specified
-build context directory.  The build context directory can be specified as the
-**http** or **https** URL of an archive which will be retrieved and extracted
-to a temporary location.
+build context directory.
+
+The build context directory can be specified as the http(s) URL of an archive, git repository or Dockerfile.
+
+When the URL is an archive, the contents of the URL is downloaded to a temporary location and extracted before execution.
+
+When the URL is an Dockerfile, the Dockerfile is downloaded to a temporary location.
+
+When a Git repository is set as the URL, the repository is cloned locally and then set as the context.
 
 ## OPTIONS
 
@@ -325,6 +331,8 @@ mount can be changed directly. For instance if `/` is the source mount for
 
 ## EXAMPLE
 
+### Build an image using local Dockerfiles
+
 buildah bud .
 
 buildah bud -f Dockerfile.simple .
@@ -348,6 +356,21 @@ buildah bud --memory 40m --cpu-period 10000 --cpu-quota 50000 --ulimit nofile=10
 buildah bud --security-opt label=level:s0:c100,c200 --cgroup-parent /path/to/cgroup/parent -t imageName .
 
 buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
+
+### Building an image using a URL
+
+  This will clone the specified GitHub repository from the URL and use it as context. The Dockerfile at the root of the repository is used as Dockerfile. This only works if the GitHub repository is a dedicated repository.
+
+  buildah bud github.com/scollier/purpletest
+
+  Note: You can set an arbitrary Git repository via the git:// scheme.
+
+### Building an image using a URL to a tarball'ed context
+  Buildah will fetch the tarball archive, decompress it and use its contents as the build context.  The Dockerfile at the root of the archive and the rest of the archive will get used as the context of the build. If you pass an -f PATH/Dockerfile option as well, the system will look for that file inside the contents of the tarball.
+
+  buildah bud -f dev/Dockerfile https://10.10.10.1/docker/context.tar.gz
+
+  Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
 
 ## Files
 
