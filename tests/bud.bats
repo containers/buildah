@@ -25,6 +25,15 @@ load helpers
   [ "$output" = "" ]
 }
 
+@test "bud-from-scratch-label" {
+  target=scratch-image
+  buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  run buildah --debug=false inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
+  [ "$status" -eq 0 ]
+  [ "$output" = 'map["test":"label"]' ]
+  buildah rmi ${target}
+}
+
 @test "bud-from-multiple-files-one-from" {
   target=scratch-image
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.nofrom

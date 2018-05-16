@@ -378,6 +378,7 @@ return 1
      --file
      --format
      --iidfile
+     --label
      -m
      --memory
      --memory-swap

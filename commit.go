@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	cp "github.com/containers/image/copy"
@@ -49,6 +50,8 @@ type CommitOptions struct {
 	SystemContext *types.SystemContext
 	// IIDFile tells the builder to write the image ID to the specified file
 	IIDFile string
+	// Labels metadata for an image
+	Labels []string
 }
 
 // PushOptions can be used to alter how an image is copied somewhere.
@@ -82,6 +85,15 @@ type PushOptions struct {
 // if commit was successful and the image destination was local
 func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options CommitOptions) (string, error) {
 	var imgID string
+
+	for _, labelSpec := range options.Labels {
+		label := strings.SplitN(labelSpec, "=", 2)
+		if len(label) > 1 {
+			b.SetLabel(label[0], label[1])
+		} else {
+			b.SetLabel(label[0], "")
+		}
+	}
 
 	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
 	policy, err := signature.DefaultPolicy(systemContext)

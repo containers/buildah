@@ -157,6 +157,10 @@ Buildah is not currently supported on Windows, and does not have a daemon.
 If you want to override the container isolation you can choose a different
 OCI Runtime, using the --runtime flag.
 
+**--label** *label*
+
+Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
+
 **--memory, -m**=""
 
 Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
