@@ -5,7 +5,7 @@
 ## A list of common issues and solutions for Buildah
 
 ---
-### No such image
+### 1) No such image
 
 When doing a `buildah pull` or `buildah bud` command and a "common" image can not be pulled,
 it is likely that the `/etc/containers/registries.conf` file is either not installed or possibly
@@ -24,7 +24,7 @@ error building: error creating build container: no such image "alpine" in regist
   * Verify that the entries in the `[registries.search]` section of the /etc/containers/registries file are valid and reachable.
 
 ---
-### http: server gave HTTP response to HTTPS client
+### 2) http: server gave HTTP response to HTTPS client
 
 When doing a Buildah command such as `bud`, `commit`, `from`, or `push` to a registry,
 tls verification is turned on by default.  If authentication is not used with
@@ -47,4 +47,35 @@ communicate with a registry and not use tls verification.
 
   * Turn off tls verification by passing false to the tls-verification option.
   * I.e. `buildah push --tls-verify=false alpine docker://localhost:5000/myalpine:latest`
+
+---
+### 3) `buildah run` command fails with pipe or output redirection
+
+When doing a `buildah run` command while using a pipe ('|') or output redirection ('>>'),
+the command will fail, often times with a `command not found` type of error.
+
+#### Symptom
+When executing a `buildah run` command with a pipe or output redirection such as the
+following commands:
+
+```
+buildah run $whalecontainer /usr/games/fortune -a | cowsay
+buildah run $newcontainer echo "daemon off;" >> /etc/nginx/nginx.conf
+buildah run $newcontainer echo "nginx on Fedora" > /usr/share/nginx/html/index.html
+```
+the `buildah run` command will not complete and an error will be raised.
+
+#### Solution
+There are two solutions to this problem.  The
+[`podman run`](https://github.com/projectatomic/libpod/blob/master/docs/podman-run.1.md)
+command can be used in place of `buildah run`.  To still use `buildah run`, surround
+the command with single quotes and use `bash -c`.  The previous examples would be
+changed to:
+
+```
+buildah run bash -c '$whalecontainer /usr/games/fortune -a | cowsay'
+buildah run bash -c '$newcontainer echo "daemon off;" >> /etc/nginx/nginx.conf'
+buildah run bash -c '$newcontainer echo "nginx on Fedora" > /usr/share/nginx/html/index.html'
+```
+
 ---
