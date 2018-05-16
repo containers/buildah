@@ -53,6 +53,10 @@ var (
 			Name:  "iidfile",
 			Usage: "Write the image ID to the file",
 		},
+		cli.StringSliceFlag{
+			Name:  "label",
+			Usage: "Set metadata for an image (default [])",
+		},
 		cli.BoolFlag{
 			Name:  "no-cache",
 			Usage: "Do not use caching for the container build. Buildah does not currently support caching so this is a NOOP.",

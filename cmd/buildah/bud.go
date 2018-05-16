@@ -187,6 +187,7 @@ func budCmd(c *cli.Context) error {
 		CommonBuildOpts:       commonOpts,
 		DefaultMountsFilePath: c.GlobalString("default-mounts-file"),
 		IIDFile:               c.String("iidfile"),
+		Labels:                c.StringSlice("label"),
 	}
 
 	if !c.Bool("quiet") {
