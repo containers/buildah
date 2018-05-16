@@ -156,6 +156,26 @@ load helpers
   rm -rf alp-dir
 }
 
+@test "from the following transports: docker-archive and oci-archive with no image reference" {
+  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah rm $cid
+  buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:docker-alp.tar
+  buildah push --signature-policy ${TESTSDIR}/policy.json alpine oci-archive:oci-alp.tar
+  buildah rmi alpine
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json docker-archive:docker-alp.tar)
+  [ "$cid" == docker-archive-working-container ]
+  buildah rm ${cid}
+  buildah rmi -a
+  rm -f docker-alp.tar
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json oci-archive:oci-alp.tar)
+  [ "$cid" == oci-archive-working-container ]
+  buildah rm ${cid}
+  buildah rmi -a
+  rm -f oci-alp.tar
+}
+
 @test "from cpu-period test" {
   cid=$(buildah from --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
