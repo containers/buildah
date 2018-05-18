@@ -127,6 +127,22 @@ load helpers
   [ "$cid" == alpine2-working-container ]
   buildah rm ${cid}
   buildah rmi alpine alpine2
+
+  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
+  buildah rm ${cid}
+  buildah rmi docker.io/alpine
+
+  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine:latest)
+  buildah rm ${cid}
+  buildah rmi docker.io/alpine:latest
+
+  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:7)
+  buildah rm ${cid}
+  buildah rmi docker.io/centos:7
+
+  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:latest)
+  buildah rm ${cid}
+  buildah rmi docker.io/centos:latest
 }
 
 @test "from the following transports: docker-archive, oci-archive, and dir" {
