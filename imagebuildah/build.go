@@ -113,6 +113,8 @@ type BuildOptions struct {
 	DefaultMountsFilePath string
 	// IIDFile tells the builder to write the image ID to the specified file
 	IIDFile string
+	// Labels metadata for an image
+	Labels []string
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor
@@ -150,6 +152,7 @@ type Executor struct {
 	commonBuildOptions             *buildah.CommonBuildOptions
 	defaultMountsFilePath          string
 	iidfile                        string
+	labels                         []string
 }
 
 // withName creates a new child executor that will be used whenever a COPY statement uses --from=NAME.
@@ -482,6 +485,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		commonBuildOptions:    options.CommonBuildOpts,
 		defaultMountsFilePath: options.DefaultMountsFilePath,
 		iidfile:               options.IIDFile,
+		labels:                options.Labels,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -692,6 +696,7 @@ func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder) (err er
 		ReportWriter:          b.reportWriter,
 		PreferredManifestType: b.outputFormat,
 		IIDFile:               b.iidfile,
+		Labels:                b.labels,
 	}
 	imgID, err := b.builder.Commit(ctx, imageRef, options)
 	if err != nil {
