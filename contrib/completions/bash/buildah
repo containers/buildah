@@ -419,7 +419,9 @@ return 1
  _buildah_run() {
      local boolean_options="
      --help
+     -t
      --tty
+     --terminal
      -h
   "
 
