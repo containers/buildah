@@ -165,15 +165,11 @@ func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) 
 		return err
 	}
 
-	if err := addHostsToFile(commonOpts.AddHost, "/etc/hosts"); err != nil {
-		return err
-	}
-
 	logrus.Debugf("Resources: %#v", commonOpts)
 	return nil
 }
 
-func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles, builtinVolumes, volumeMounts []string, shmSize string) error {
+func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string) error {
 	// The passed-in mounts matter the most to us.
 	mounts := make([]specs.Mount, len(optionMounts))
 	copy(mounts, optionMounts)
@@ -198,14 +194,14 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 		mounts = append(mounts, specMount)
 	}
 	// Add bind mounts for important files, unless they conflict.
-	for _, boundFile := range bindFiles {
-		if haveMount(boundFile) {
+	for dest, src := range bindFiles {
+		if haveMount(dest) {
 			// Already have something to mount there, so skip this one.
 			continue
 		}
 		mounts = append(mounts, specs.Mount{
-			Source:      boundFile,
-			Destination: boundFile,
+			Source:      src,
+			Destination: dest,
 			Type:        "bind",
 			Options:     []string{"rbind", "ro"},
 		})
@@ -310,6 +306,28 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 	// Set the list in the spec.
 	spec.Mounts = mounts
 	return nil
+}
+
+// addNetworkConfig copies files from host and sets them up to bind mount into container
+func (b *Builder) addNetworkConfig(rdir, hostPath string) (string, error) {
+	stat, err := os.Stat(hostPath)
+	if err != nil {
+		return "", errors.Wrapf(err, "stat %q failed", hostPath)
+	}
+
+	buf, err := ioutil.ReadFile(hostPath)
+	if err != nil {
+		return "", errors.Wrapf(err, "opening %q failed", hostPath)
+	}
+	cfile := filepath.Join(rdir, filepath.Base(hostPath))
+	if err := ioutil.WriteFile(cfile, buf, stat.Mode()); err != nil {
+		return "", errors.Wrapf(err, "opening %q failed", cfile)
+	}
+	if err = label.Relabel(cfile, b.MountLabel, false); err != nil {
+		return "", errors.Wrapf(err, "error relabeling %q in container %q", cfile, b.ContainerID)
+	}
+
+	return cfile, nil
 }
 
 // Run runs the specified command in the container's root filesystem.
@@ -449,8 +467,23 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		Options:     []string{"nosuid", "noexec", "nodev", "relatime", "ro"},
 	}
 	g.AddMount(cgroupMnt)
+	hostFile, err := b.addNetworkConfig(path, "/etc/hosts")
+	if err != nil {
+		return err
+	}
+	resolvFile, err := b.addNetworkConfig(path, "/etc/resolv.conf")
+	if err != nil {
+		return err
+	}
 
-	bindFiles := []string{"/etc/hosts", "/etc/resolv.conf"}
+	if err := addHostsToFile(b.CommonBuildOpts.AddHost, hostFile); err != nil {
+		return err
+	}
+
+	bindFiles := map[string]string{
+		"/etc/hosts":       hostFile,
+		"/etc/resolv.conf": resolvFile,
+	}
 	err = b.setupMounts(mountPoint, spec, options.Mounts, bindFiles, b.Volumes(), b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize)
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container")
