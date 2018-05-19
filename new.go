@@ -133,6 +133,18 @@ func imageManifestAndConfig(ctx context.Context, ref types.ImageReference, syste
 	return nil, nil, nil
 }
 
+// Adds default transport if the image is not empty and does not have a transport
+func addTransport(image, transport string) string {
+	if image == "" {
+		return image
+	}
+
+	if _, err := alltransports.ParseImageName(image); err != nil {
+		return fmt.Sprintf("%s%s", transport, image)
+	}
+	return image
+}
+
 func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions) (*Builder, error) {
 	var ref types.ImageReference
 	var img *storage.Image
@@ -146,6 +158,8 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	if options.Transport == "" {
 		options.Transport = DefaultTransport
 	}
+
+	options.FromImage = addTransport(options.FromImage, options.Transport)
 
 	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
 
