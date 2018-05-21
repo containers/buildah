@@ -12,8 +12,8 @@ it is likely that the `/etc/containers/registries.conf` file is either not insta
 misconfigured.
 
 #### Symptom
-```
-sudo buildah bud -f Dockerfile 
+```console
+$ sudo buildah bud -f Dockerfile 
 STEP 1: FROM alpine
 error building: error creating build container: no such image "alpine" in registry: image not known
 ```
@@ -31,8 +31,8 @@ tls verification is turned on by default.  If authentication is not used with
 those commands, this error can occur.
 
 #### Symptom
-```
-buildah push alpine docker://localhost:5000/myalpine:latest
+```console
+# buildah push alpine docker://localhost:5000/myalpine:latest
 Getting image source signatures
 Get https://localhost:5000/v2/: http: server gave HTTP response to HTTPS client
 ```
@@ -58,10 +58,10 @@ the command will fail, often times with a `command not found` type of error.
 When executing a `buildah run` command with a pipe or output redirection such as the
 following commands:
 
-```
-buildah run $whalecontainer /usr/games/fortune -a | cowsay
-buildah run $newcontainer echo "daemon off;" >> /etc/nginx/nginx.conf
-buildah run $newcontainer echo "nginx on Fedora" > /usr/share/nginx/html/index.html
+```console
+# buildah run $whalecontainer /usr/games/fortune -a | cowsay
+# buildah run $newcontainer echo "daemon off;" >> /etc/nginx/nginx.conf
+# buildah run $newcontainer echo "nginx on Fedora" > /usr/share/nginx/html/index.html
 ```
 the `buildah run` command will not complete and an error will be raised.
 
@@ -72,10 +72,10 @@ command can be used in place of `buildah run`.  To still use `buildah run`, surr
 the command with single quotes and use `bash -c`.  The previous examples would be
 changed to:
 
-```
-buildah run bash -c '$whalecontainer /usr/games/fortune -a | cowsay'
-buildah run bash -c '$newcontainer echo "daemon off;" >> /etc/nginx/nginx.conf'
-buildah run bash -c '$newcontainer echo "nginx on Fedora" > /usr/share/nginx/html/index.html'
+```console
+# buildah run bash -c '$whalecontainer /usr/games/fortune -a | cowsay'
+# buildah run bash -c '$newcontainer echo "daemon off;" >> /etc/nginx/nginx.conf'
+# buildah run bash -c '$newcontainer echo "nginx on Fedora" > /usr/share/nginx/html/index.html'
 ```
 
 ---
