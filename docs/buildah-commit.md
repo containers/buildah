@@ -60,6 +60,10 @@ Pathname of a signature policy file to use.  It is not recommended that this
 option be used, as the default behavior of using the system-wide default policy
 (frequently */etc/containers/policy.json*) is most often preferred.
 
+**--squash**
+
+Squash all of the new image's layers (including those inherited from a base image) into a single new layer.
+
 **--tls-verify** *bool-value*
 
 Require HTTPS and verify certificates when talking to container registries (defaults to true)
