@@ -250,7 +250,7 @@ option be used, as the default behavior of using the system-wide default policy
 
 **--squash**
 
-Squash newly built layers into a single new layer. Buildah does not currently support caching so this is a NOOP.
+Squash all of the new image's layers (including those inherited from a base image) into a single new layer.
 
 **--tag, -t** *imageName*
 

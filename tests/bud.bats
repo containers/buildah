@@ -595,16 +595,6 @@ load helpers
   buildah rmi ${target}
 }
 
-@test "bud with --squash noop flag" {
-  target=noop-image
-  run buildah bud --squash --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags
-  echo "$output"
-  [ "$status" -eq 0 ]
-  cid=$(buildah from ${target})
-  buildah rm ${cid}
-  buildah rmi ${target}
-}
-
 @test "bud with --cpu-shares flag, no argument" {
   target=bud-flag
   run buildah bud --cpu-shares --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile

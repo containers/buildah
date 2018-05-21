@@ -113,6 +113,9 @@ type BuildOptions struct {
 	DefaultMountsFilePath string
 	// IIDFile tells the builder to write the image ID to the specified file
 	IIDFile string
+	// Squash tells the builder to produce an image with a single layer
+	// instead of with possibly more than one layer.
+	Squash bool
 	// Labels metadata for an image
 	Labels []string
 }
@@ -152,6 +155,7 @@ type Executor struct {
 	commonBuildOptions             *buildah.CommonBuildOptions
 	defaultMountsFilePath          string
 	iidfile                        string
+	squash                         bool
 	labels                         []string
 }
 
@@ -485,6 +489,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		commonBuildOptions:    options.CommonBuildOpts,
 		defaultMountsFilePath: options.DefaultMountsFilePath,
 		iidfile:               options.IIDFile,
+		squash:                options.Squash,
 		labels:                options.Labels,
 	}
 	if exec.err == nil {
@@ -696,6 +701,7 @@ func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder) (err er
 		ReportWriter:          b.reportWriter,
 		PreferredManifestType: b.outputFormat,
 		IIDFile:               b.iidfile,
+		Squash:                b.squash,
 		Labels:                b.labels,
 	}
 	imgID, err := b.builder.Commit(ctx, imageRef, options)

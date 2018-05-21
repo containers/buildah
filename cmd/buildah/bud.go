@@ -167,10 +167,6 @@ func budCmd(c *cli.Context) error {
 		logrus.Debugf("build caching not enabled so --rm flag has no effect")
 	}
 
-	if c.IsSet("squash") {
-		logrus.Debugf("build caching not enabled so --squash flag has no effect")
-	}
-
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:      contextDir,
 		PullPolicy:            pullPolicy,
@@ -187,6 +183,7 @@ func budCmd(c *cli.Context) error {
 		CommonBuildOpts:       commonOpts,
 		DefaultMountsFilePath: c.GlobalString("default-mounts-file"),
 		IIDFile:               c.String("iidfile"),
+		Squash:                c.Bool("squash"),
 		Labels:                c.StringSlice("label"),
 	}
 

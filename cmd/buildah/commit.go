@@ -62,6 +62,10 @@ var (
 			Name:  "signature-policy",
 			Usage: "`pathname` of signature policy file (not usually used)",
 		},
+		cli.BoolFlag{
+			Name:  "squash",
+			Usage: "produce an image with only one layer",
+		},
 		cli.BoolTFlag{
 			Name:  "tls-verify",
 			Usage: "Require HTTPS and verify certificates when accessing the registry",
@@ -156,6 +160,7 @@ func commitCmd(c *cli.Context) error {
 		HistoryTimestamp:      &timestamp,
 		SystemContext:         systemContext,
 		IIDFile:               c.String("iidfile"),
+		Squash:                c.Bool("squash"),
 	}
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr

@@ -308,6 +308,7 @@ return 1
           --quiet
           -q
           --rm
+          --squash
           --tls-verify
   "
 
@@ -359,6 +360,7 @@ return 1
      --pull-always
      --quiet
      -q
+     --squash
      --tls-verify
   "
 
