@@ -26,6 +26,12 @@ Add a custom host-to-IP mapping (host:ip)
 
 Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option can be set multiple times.
 
+**--annotation** *annotation*
+
+Add an image *annotation* (e.g. annotation=*value*) to the image metadata. Can be used multiple times.
+
+Note: this information is not present in Docker image formats, so it is discarded when writing images in Docker formats.
+
 **--authfile** *path*
 
 Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
