@@ -805,12 +805,9 @@ func runUsingRuntime(options RunOptions, spec *specs.Spec, rootPath, bundlePath,
 			moreCreateArgs = func() []string { return []string{"--console-socket", socketPath} }
 		} else {
 			copyStdio = true
-			// Create pipes to use for relaying stdio.
-			for i := range stdioPipe {
-				stdioPipe[i] = make([]int, 2)
-				if err = unix.Pipe(stdioPipe[i]); err != nil {
-					return 1, errors.Wrapf(err, "error creating pipe for container FD %d", i)
-				}
+			// Create stdio pipes.
+			if stdioPipe, err = runMakeStdioPipe(); err != nil {
+				return 1, err
 			}
 			// Set stdio to our pipes.
 			getCreateStdio = func() (*os.File, *os.File, *os.File) {
@@ -1219,4 +1216,16 @@ func runSetDeathSig(cmd *exec.Cmd) {
 	if cmd.SysProcAttr.Pdeathsig == 0 {
 		cmd.SysProcAttr.Pdeathsig = syscall.SIGTERM
 	}
+}
+
+// Create pipes to use for relaying stdio.
+func runMakeStdioPipe() ([][]int, error) {
+	stdioPipe := make([][]int, 3)
+	for i := range stdioPipe {
+		stdioPipe[i] = make([]int, 2)
+		if err := unix.Pipe(stdioPipe[i]); err != nil {
+			return nil, errors.Wrapf(err, "error creating pipe for container FD %d", i)
+		}
+	}
+	return stdioPipe, nil
 }
