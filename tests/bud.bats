@@ -526,7 +526,7 @@ load helpers
 }
 
 # Determines if a variable set with ENV is available to following commands in the Dockerfile
-@test "bud accessing ENV variable defined in same source file" {
+@test "bud access ENV variable defined in same source file" {
   target=env-image
   run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/env/Dockerfile.env-same-file
   echo "$output"
@@ -538,7 +538,7 @@ load helpers
 }
 
 # Determines if a variable set with ENV in an image is available to commands in downstream Dockerfile
-@test "bud accessing ENV variable defined in FROM image" {
+@test "bud access ENV variable defined in FROM image" {
   from_target=env-from-image
   target=env-image
   run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${from_target} -f ${TESTSDIR}/bud/env/Dockerfile.env-same-file
@@ -552,6 +552,33 @@ load helpers
   cid=$(buildah from ${target})
   buildah rm ${from_cid} ${cid}
   buildah rmi ${from_target} ${target}
+}
+
+@test "bud with Dockerfile from valid URL" {
+  target=url-image
+  url=https://raw.githubusercontent.com/projectatomic/buildah/master/tests/bud/from-scratch/Dockerfile
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${url}
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
+@test "bud with Dockerfile from invalid URL" {
+  target=url-image
+  url=https://raw.githubusercontent.com/projectatomic/buildah/master/tests/bud/from-scratch/Dockerfile.bogus
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${url}
+  [ "$status" -eq 1 ]
+}
+
+# When provided with a -f flag and directory, buildah will look for the alternate Dockerfile name in the supplied directory
+@test "bud with -f flag, alternate Dockerfile name" {
+  target=fileflag-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.noop-flags ${TESTSDIR}/bud/run-scenarios
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi ${target}
 }
 
 # Following flags are configured to result in noop but should not affect buildiah bud behavior
