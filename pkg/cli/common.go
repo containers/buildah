@@ -11,6 +11,10 @@ import (
 
 var (
 	BudFlags = []cli.Flag{
+		cli.StringSliceFlag{
+			Name:  "annotation",
+			Usage: "Set metadata for an image (default [])",
+		},
 		cli.StringFlag{
 			Name:  "authfile",
 			Usage: "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json",

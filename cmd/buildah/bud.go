@@ -185,6 +185,7 @@ func budCmd(c *cli.Context) error {
 		IIDFile:               c.String("iidfile"),
 		Squash:                c.Bool("squash"),
 		Labels:                c.StringSlice("label"),
+		Annotations:           c.StringSlice("annotation"),
 	}
 
 	if !c.Bool("quiet") {
