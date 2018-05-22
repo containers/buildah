@@ -71,6 +71,12 @@ install.libseccomp.sudo: gopath
 	git clone https://github.com/seccomp/libseccomp ../../seccomp/libseccomp
 	cd ../../seccomp/libseccomp && git checkout $(LIBSECCOMP_COMMIT) && ./autogen.sh && ./configure --prefix=/usr && make all && sudo make install
 
+.PHONY: install.cni.sudo
+install.cni.sudo: gopath
+	rm -rf ../../containernetworking/plugins
+	git clone https://github.com/containernetworking/plugins ../../containernetworking/plugins
+	cd ../../containernetworking/plugins && ./build.sh && mkdir -p /opt/cni/bin && sudo install -v -m755 bin/* /opt/cni/bin/
+
 .PHONY: install
 install:
 	install -D -m0755 buildah $(DESTDIR)/$(BINDIR)/buildah
