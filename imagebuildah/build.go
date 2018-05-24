@@ -705,7 +705,6 @@ func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder) (err er
 	for p := range config.ExposedPorts {
 		b.builder.SetPort(string(p))
 	}
-	b.builder.ClearEnv()
 	for _, envSpec := range config.Env {
 		spec := strings.SplitN(envSpec, "=", 2)
 		b.builder.SetEnv(spec[0], spec[1])
