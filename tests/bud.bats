@@ -2,6 +2,18 @@
 
 load helpers
 
+@test "bud from base image should have base image ENV also" {
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t test -f ${TESTSDIR}/bud/env/Dockerfile.check-env
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json test)
+  buildah config --env random=hello ${cid}
+  buildah commit --signature-policy ${TESTSDIR}/policy.json ${cid} test1
+  buildah --debug inspect test1 | grep foo=bar
+  buildah --debug  inspect test1 | grep random=hello
+  buildah rm ${cid}
+  buildah rmi test
+  buildah rmi test1
+}
+
 @test "bud-from-scratch" {
   target=scratch-image
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
