@@ -185,6 +185,8 @@ type Executor struct {
 	annotations                    []string
 }
 
+var onBuildCmd string
+
 // withName creates a new child executor that will be used whenever a COPY statement uses --from=NAME.
 func (b *Executor) withName(name string, index int) *Executor {
 	if b.named == nil {
@@ -585,6 +587,7 @@ func (b *Executor) Prepare(ctx context.Context, ib *imagebuilder.Builder, node *
 	for _, v := range builder.Volumes() {
 		volumes[v] = struct{}{}
 	}
+	onBuildCmdSlice := []string{onBuildCmd}
 	dConfig := docker.Config{
 		Hostname:   builder.Hostname(),
 		Domainname: builder.Domainname(),
@@ -598,6 +601,7 @@ func (b *Executor) Prepare(ctx context.Context, ib *imagebuilder.Builder, node *
 		Labels:     builder.Labels(),
 		Shell:      builder.Shell(),
 		StopSignal: builder.StopSignal(),
+		OnBuild:    onBuildCmdSlice,
 	}
 	var rootfs *docker.RootFS
 	if builder.Docker.RootFS != nil {
@@ -714,6 +718,7 @@ func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder) (err er
 	for v := range config.Volumes {
 		b.builder.AddVolume(v)
 	}
+	b.builder.SetOnBuild(config.OnBuild)
 	b.builder.SetWorkDir(config.WorkingDir)
 	b.builder.SetEntrypoint(config.Entrypoint)
 	b.builder.SetShell(config.Shell)
@@ -852,6 +857,13 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 		return errors.Wrapf(err, "error creating build executor")
 	}
 	b := imagebuilder.NewBuilder(options.Args)
+	// If the this is the ONBUILD line, note the value less the first
+	// eight characters "ONBUILD " retaining only the command.
+	for _, node := range mainNode.Children {
+		if node.Value == "onbuild" && len(node.Original) > 8 {
+			onBuildCmd = node.Original[8:]
+		}
+	}
 	stages := imagebuilder.NewStages(mainNode, b)
 	return exec.Build(ctx, stages)
 }
