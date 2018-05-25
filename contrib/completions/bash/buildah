@@ -278,6 +278,7 @@ return 1
        --hostname
        --label
        -l
+       --onbuild
        --os
        --port
        -p

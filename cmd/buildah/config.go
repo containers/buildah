@@ -61,6 +61,10 @@ var (
 			Name:  "label, l",
 			Usage: "add image configuration `label` e.g. label=value",
 		},
+		cli.StringSliceFlag{
+			Name:  "onbuild",
+			Usage: "add onbuild command to be run on images based on this image. Only supported on 'docker' formatted images",
+		},
 		cli.StringFlag{
 			Name:  "os",
 			Usage: "set `operating system` of the target image",
@@ -196,6 +200,11 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 	}
 	if c.IsSet("hostname") {
 		builder.SetHostname(c.String("hostname"))
+	}
+	if c.IsSet("onbuild") {
+		for _, onbuild := range c.StringSlice("onbuild") {
+			builder.SetOnBuild(onbuild)
+		}
 	}
 	if c.IsSet("annotation") || c.IsSet("a") {
 		for _, annotationSpec := range c.StringSlice("annotation") {

@@ -82,6 +82,12 @@ Note: this setting is not present in the OCIv1 image format, so it is discarded 
 Add an image *label* (e.g. label=*value*) to the image configuration of any
 images which will be built using the specified container. Can be used multiple times.
 
+**--onbuild** *onbuild command*
+
+Add an ONBUILD command to the image.  ONBUILD commands are automatically run
+when images are built based on the image you are creating.  ONBUILD images are
+only supported on `docker` formatted images.
+
 **--os** *operating system*
 
 Set the target *operating system* for any images which will be built using
