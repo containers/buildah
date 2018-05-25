@@ -10,6 +10,7 @@ import (
 	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	util "github.com/projectatomic/buildah/util"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -66,6 +67,81 @@ var (
 		SkipArgReorder: true,
 	}
 )
+
+func onBuild(builder *buildah.Builder) error {
+	ctr := 0
+	for _, onBuildSpec := range builder.OnBuild() {
+		ctr = ctr + 1
+		commands := strings.Split(onBuildSpec, " ")
+		command := commands[0]
+		args := commands[1:]
+		fmt.Fprintf(os.Stderr, "STEP %d: %s\n", ctr, onBuildSpec)
+		switch command {
+		case "ADD":
+		case "COPY":
+			dest := ""
+			size := len(args)
+			if size > 1 {
+				dest = args[size-1]
+				args = args[:size-1]
+			}
+			if err := builder.Add(dest, false, buildah.AddAndCopyOptions{}, args...); err != nil {
+				return err
+			}
+		case "ANNOTATION":
+			annotation := strings.SplitN(args[0], "=", 2)
+			if len(annotation) > 1 {
+				builder.SetAnnotation(annotation[0], annotation[1])
+			} else {
+				builder.UnsetAnnotation(annotation[0])
+			}
+		case "CMD":
+			builder.SetCmd(args)
+		case "ENV":
+			env := strings.SplitN(args[0], "=", 2)
+			if len(env) > 1 {
+				builder.SetEnv(env[0], env[1])
+			} else {
+				builder.UnsetEnv(env[0])
+			}
+		case "ENTRYPOINT":
+			builder.SetEntrypoint(args)
+		case "EXPOSE":
+			builder.SetPort(strings.Join(args, " "))
+		case "HOSTNAME":
+			builder.SetHostname(strings.Join(args, " "))
+		case "LABEL":
+			label := strings.SplitN(args[0], "=", 2)
+			if len(label) > 1 {
+				builder.SetLabel(label[0], label[1])
+			} else {
+				builder.UnsetLabel(label[0])
+			}
+		case "MAINTAINER":
+			builder.SetMaintainer(strings.Join(args, " "))
+		case "ONBUILD":
+			builder.SetOnBuild(strings.Join(args, " "))
+		case "RUN":
+			if err := builder.Run(args, buildah.RunOptions{}); err != nil {
+				return err
+			}
+		case "SHELL":
+			builder.SetShell(args)
+		case "STOPSIGNAL":
+			builder.SetStopSignal(strings.Join(args, " "))
+		case "USER":
+			builder.SetUser(strings.Join(args, " "))
+		case "VOLUME":
+			builder.AddVolume(strings.Join(args, " "))
+		case "WORKINGDIR":
+			builder.SetWorkDir(strings.Join(args, " "))
+		default:
+			logrus.Errorf("unknown OnBuild command %q; ignored", onBuildSpec)
+		}
+	}
+	builder.ClearOnBuild()
+	return nil
+}
 
 func fromCmd(c *cli.Context) error {
 	args := c.Args()
@@ -147,6 +223,10 @@ func fromCmd(c *cli.Context) error {
 
 	builder, err := buildah.NewBuilder(getContext(), store, options)
 	if err != nil {
+		return err
+	}
+
+	if err := onBuild(builder); err != nil {
 		return err
 	}
 

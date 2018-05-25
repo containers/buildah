@@ -693,3 +693,45 @@ load helpers
   buildah rm ${cid}
   buildah rmi ${target}
 }
+
+@test "bud-onbuild" {
+  target=onbuild
+  buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/onbuild
+  run buildah --debug=false inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "$output" = '["RUN touch /onbuild1" "RUN touch /onbuild2"]' ]
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  run ls ${root}/onbuild1 ${root}/onbuild2
+  echo "$output"
+  [ "$status" -eq 0 ]
+  buildah umount ${cid}
+  buildah rm ${cid}
+
+  target=onbuild-image2
+  buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1 ${TESTSDIR}/bud/onbuild
+  run buildah --debug=false inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "$output" = '["RUN touch /onbuild3"]' ]
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  run ls ${root}/onbuild1 ${root}/onbuild2 ${root}/onbuild3
+  echo "$output"
+  [ "$status" -eq 0 ]
+  buildah umount ${cid}
+
+  run buildah --debug=false config --onbuild "RUN touch /onbuild4" ${cid}
+  echo "$output"
+  [ "$status" -eq 0 ]
+
+  target=onbuild-image3
+  buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker ${cid} ${target}
+  run buildah --debug=false inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "$output" = '["RUN touch /onbuild4"]' ]
+  buildah rm ${cid}
+  buildah rmi --all
+}
