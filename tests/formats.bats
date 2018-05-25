@@ -19,9 +19,9 @@ load helpers
 }
 
 @test "bud-formats" {
-  buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t scratch-image-default -f bud/from-scratch/Dockerfile
-  buildah build-using-dockerfile --format dockerv2 --signature-policy ${TESTSDIR}/policy.json -t scratch-image-docker -f bud/from-scratch/Dockerfile
-  buildah build-using-dockerfile --format ociv1 --signature-policy ${TESTSDIR}/policy.json -t scratch-image-oci -f bud/from-scratch/Dockerfile
+  buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t scratch-image-default -f Dockerfile bud/from-scratch
+  buildah build-using-dockerfile --format dockerv2 --signature-policy ${TESTSDIR}/policy.json -t scratch-image-docker -f Dockerfile bud/from-scratch
+  buildah build-using-dockerfile --format ociv1 --signature-policy ${TESTSDIR}/policy.json -t scratch-image-oci -f Dockerfile bud/from-scratch
   imgtype -expected-manifest-type application/vnd.oci.image.manifest.v1+json scratch-image-default
   imgtype -expected-manifest-type application/vnd.oci.image.manifest.v1+json scratch-image-oci
   imgtype -expected-manifest-type application/vnd.docker.distribution.manifest.v2+json scratch-image-docker
