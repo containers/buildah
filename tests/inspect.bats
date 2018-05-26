@@ -2,6 +2,16 @@
 
 load helpers
 
+@test "inspect" {
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	run buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" alpine-image
+	[ "$status" -eq "0" ]
+	out1=$(buildah inspect --format '{{.OCIv1.Config}}' alpine)
+	out2=$(buildah inspect --type image --format '{{.OCIv1.Config}}' alpine-image)
+	[ "$out1" != "" ]
+	[ "$out1" = "$out2" ]
+}
+
 @test "inspect-config-is-json" {
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	out=$(buildah inspect alpine | grep "Config" | grep "{" | wc -l)
