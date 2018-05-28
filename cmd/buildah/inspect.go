@@ -99,8 +99,11 @@ func inspectCmd(c *cli.Context) error {
 		} else if !matched {
 			return errors.Errorf("error invalid format provided: %s", format)
 		}
-		t := template.Must(template.New("format").Parse(format))
-		if err := t.Execute(os.Stdout, out); err != nil {
+		t, err := template.New("format").Parse(format)
+		if err != nil {
+			return errors.Wrapf(err, "Template parsing error")
+		}
+		if err = t.Execute(os.Stdout, out); err != nil {
 			return err
 		}
 		if terminal.IsTerminal(int(os.Stdout.Fd())) {
