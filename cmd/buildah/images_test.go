@@ -354,14 +354,11 @@ func TestOutputImagesArgNoMatch(t *testing.T) {
 	// Tests output with an arg name that does not match.  Args ending in ":" cannot match
 	// because all images in the repository must have a tag, and here the tag is an
 	// empty string
-	output, err := captureOutputWithError(func() error {
+	_, err = captureOutputWithError(func() error {
 		return outputImages(getContext(), images[:1], "", store, nil, "foo:", false, true, false, false)
 	})
-	expectedOutput := fmt.Sprintf("")
-	if err != nil {
-		t.Error("arg no match output produces error")
-	} else if strings.TrimSpace(output) != strings.TrimSpace(expectedOutput) {
-		t.Error("arg no match output should be empty")
+	if err == nil || err.Error() != "No such image foo:" {
+		t.Fatalf("expected error arg no match")
 	}
 }
 

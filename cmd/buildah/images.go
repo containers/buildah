@@ -222,6 +222,7 @@ func outputHeader(truncate, digests bool) {
 }
 
 func outputImages(ctx context.Context, images []storage.Image, format string, store storage.Store, filters *filterParams, argName string, hasTemplate, truncate, digests, quiet bool) error {
+	found := false
 	for _, image := range images {
 		createdTime := image.Created
 
@@ -242,7 +243,12 @@ func outputImages(ctx context.Context, images []storage.Image, format string, st
 			names = append(names, "<none>")
 		}
 		for _, name := range names {
-			if !matchesFilter(ctx, image, store, name, filters) || !matchesReference(name, argName) {
+			if !matchesReference(name, argName) {
+				continue
+			}
+			found = true
+
+			if !matchesFilter(ctx, image, store, name, filters) {
 				continue
 			}
 			if quiet {
@@ -268,6 +274,11 @@ func outputImages(ctx context.Context, images []storage.Image, format string, st
 			outputUsingFormatString(truncate, digests, params)
 		}
 	}
+
+	if !found && argName != "" {
+		return errors.Errorf("No such image %s", argName)
+	}
+
 	return nil
 }
 
