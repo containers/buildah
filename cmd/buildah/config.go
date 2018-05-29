@@ -145,14 +145,15 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 		}
 	}
 	if c.IsSet("entrypoint") {
-		entrypointSpec := make([]string, 3)
-		entrypointSpec[0] = "/bin/sh"
-		entrypointSpec[1] = "-c"
-		entrypointSpec[2] = c.String("entrypoint")
-		if len(strings.TrimSpace(c.String("entrypoint"))) == 0 {
-			builder.SetEntrypoint(nil)
+		entrypointSpec, err := shellwords.Parse(c.String("entrypoint"))
+		if err != nil {
+			logrus.Errorf("error parsing --entrypoint %q: %v", c.String("entrypoint"), err)
 		} else {
-			builder.SetEntrypoint(entrypointSpec)
+			if len(strings.TrimSpace(c.String("entrypoint"))) == 0 {
+				builder.SetEntrypoint(nil)
+ 			} else {
+ 				builder.SetEntrypoint(entrypointSpec)
+ 			}
 		}
 		builder.SetCmd(nil)
 	}
