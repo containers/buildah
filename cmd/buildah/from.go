@@ -78,6 +78,9 @@ func fromCmd(c *cli.Context) error {
 	if err := parse.ValidateFlags(c, fromFlags); err != nil {
 		return err
 	}
+	if err := parse.ValidateFlags(c, buildahcli.FromAndBudFlags); err != nil {
+		return err
+	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
