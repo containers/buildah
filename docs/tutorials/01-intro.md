@@ -111,14 +111,17 @@ Change the permissions on the file so that it can be run:
 
     # chmod +x runecho.sh
     
-With `buildah` files can be copied into the new image and we can also configure the image to run commands. Let's copy this new command into the container's `/usr/bin` directory and configure the container to run the command when the container is run: 
 
+With `buildah` files can be copied into the new image.  We can then use `buildah run` to run that command within the container by specifying the command.  We can also configure the image to run the command directly using [Podman](https://github.com/projectatomic/libpod) and its `podman run` command. In short the `buildah run` command is equivalent to the "RUN" command in a Dockerfile, whereas `podman run` is equivalent to the `docker run` command.  Now let's copy this new command into the container's `/usr/bin` directory and configure the container to run the command when the container is run via podman: 
+
+    # To test with Podman, first install via:
+    # dnf -y install podman
     # buildah copy $newcontainer ./runecho.sh /usr/bin
     # buildah config --cmd /usr/bin/runecho.sh $newcontainer
     
-Now run the container:
+Now run the command in the container with Buildah specifying the command to run in the container:
 
-    # buildah run $newcontainer
+    # buildah run $newcontainer /usr/bin/runecho.sh
     This is a new container from ipbabble [ 0 ]
     This is a new container from ipbabble [ 1 ]
     This is a new container from ipbabble [ 2 ]
@@ -130,7 +133,23 @@ Now run the container:
     This is a new container from ipbabble [ 8 ]
     This is a new container from ipbabble [ 9 ]
 
-It works! Congratulations, you have built a new OCI container from scratch that uses bash scripting. Let's add some more configuration information.
+Now run the command in the container with Podman (no command required):
+
+    # podman run $newcontainer
+    This is a new container from ipbabble [ 0 ]
+    This is a new container from ipbabble [ 1 ]
+    This is a new container from ipbabble [ 2 ]
+    This is a new container from ipbabble [ 3 ]
+    This is a new container from ipbabble [ 4 ]
+    This is a new container from ipbabble [ 5 ]
+    This is a new container from ipbabble [ 6 ]
+    This is a new container from ipbabble [ 7 ]
+    This is a new container from ipbabble [ 8 ]
+    This is a new container from ipbabble [ 9 ]
+
+It works! Congratulations, you have built a new OCI container from scratch that uses bash scripting.
+
+Back to Buildah, let's add some more configuration information.
 
     # buildah config --created-by "ipbabble"  $newcontainer
     # buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora26-bashecho $newcontainer
