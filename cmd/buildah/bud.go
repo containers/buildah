@@ -126,6 +126,9 @@ func budCmd(c *cli.Context) error {
 	if err := parse.ValidateFlags(c, buildahcli.BudFlags); err != nil {
 		return err
 	}
+	if err := parse.ValidateFlags(c, buildahcli.FromAndBudFlags); err != nil {
+		return err
+	}
 
 	store, err := getStore(c)
 	if err != nil {
