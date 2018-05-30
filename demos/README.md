@@ -62,7 +62,7 @@ There are several variables you will want to set that are listed at the top of t
 
 ## Buildah build using Docker demo
 
-filename: [`docker-compatibility-demo.sh`](buildah-bud-demo.sh)
+filename: [`docker-bud-demo.sh`](buildah-bud-demo.sh)
 
 This demo builds an nginx container image using Buildah with. Buildah's `buildah-using-docker`, or `bud` option, provides a mechanism for using existing Dockerfiles to build the container image. This image is the same as the image in the Docker compatibility demo (at time of creating this README). The container is tested using `podman run` and then stopped. The Docker daemon is then started and the image is pushed to the Docker repository. The container is started using `docker run` and tested. 
 
