@@ -453,8 +453,6 @@ return 1
      --security-opt
      --user
      --uts
-     --volume
-     -v
   "
 
      local all_options="$options_with_args $boolean_options"

@@ -3,10 +3,8 @@ package main
 import (
 	"os"
 	"os/exec"
-	"strings"
 	"syscall"
 
-	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	buildahcli "github.com/projectatomic/buildah/pkg/cli"
@@ -37,10 +35,6 @@ var (
 		cli.BoolFlag{
 			Name:  "t, tty, terminal",
 			Usage: "allocate a pseudo-TTY in the container",
-		},
-		cli.StringSliceFlag{
-			Name:  "volume, v",
-			Usage: "bind mount a host location into the container while running the command",
 		},
 	}
 	runDescription = "Runs a specified command using the container's root filesystem as a root\n   filesystem, using configuration settings inherited from the container's\n   image or as specified using previous calls to the config command"
@@ -114,28 +108,6 @@ func runCmd(c *cli.Context) error {
 		}
 	}
 
-	// validate volume paths
-	if err := parse.ParseVolumes(c.StringSlice("volume")); err != nil {
-		return err
-	}
-
-	for _, volumeSpec := range c.StringSlice("volume") {
-		volSpec := strings.Split(volumeSpec, ":")
-		if len(volSpec) >= 2 {
-			mountOptions := "bind"
-			if len(volSpec) >= 3 {
-				mountOptions = mountOptions + "," + volSpec[2]
-			}
-			mountOpts := strings.Split(mountOptions, ",")
-			mount := specs.Mount{
-				Source:      volSpec[0],
-				Destination: volSpec[1],
-				Type:        "bind",
-				Options:     mountOpts,
-			}
-			options.Mounts = append(options.Mounts, mount)
-		}
-	}
 	runerr := builder.Run(args, options)
 	if runerr != nil {
 		logrus.Debugf("error running %v in container %q: %v", args, builder.Container, runerr)

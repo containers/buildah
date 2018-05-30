@@ -94,74 +94,6 @@ that the UTS namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a UTS namespace which is already in use by another
 process.
 
-**--volume, -v** *source*:*destination*:*options*
-
-Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
-bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah
-container. The `OPTIONS` are a comma delimited list and can be:
-
-   * [rw|ro]
-   * [z|Z]
-   * [`[r]shared`|`[r]slave`|`[r]private`]
-
-The `CONTAINER-DIR` must be an absolute path such as `/src/docs`. The `HOST-DIR`
-must be an absolute path as well. Buildah bind-mounts the `HOST-DIR` to the
-path you specify. For example, if you supply `/foo` as the host path,
-Buildah copies the contents of `/foo` to the container filesystem on the host
-and bind mounts that into the container.
-
-You can specify multiple  **-v** options to mount one or more mounts to a
-container.
-
-You can add the `:ro` or `:rw` suffix to a volume to mount it read-only or
-read-write mode, respectively. By default, the volumes are mounted read-write.
-See examples.
-
-Labeling systems like SELinux require that proper labels are placed on volume
-content mounted into a container. Without a label, the security system might
-prevent the processes running inside the container from using the content. By
-default, Buildah does not change the labels set by the OS.
-
-To change a label in the container context, you can add either of two suffixes
-`:z` or `:Z` to the volume mount. These suffixes tell Buildah to relabel file
-objects on the shared volumes. The `z` option tells Buildah that two containers
-share the volume content. As a result, Buildah labels the content with a shared
-content label. Shared volume labels allow all containers to read/write content.
-The `Z` option tells Buildah to label the content with a private unshared label.
-Only the current container can use a private volume.
-
-By default bind mounted volumes are `private`. That means any mounts done
-inside container will not be visible on the host and vice versa. This behavior can
-be changed by specifying a volume mount propagation property. 
-
-When the mount propagation policy is set to `shared`, any mounts completed inside
-the container on that volume will be visible to both the host and container. When
-the mount propagation policy is set to `slave`, one way mount propagation is enabled
-and any mounts completed on the host for that volume will be visible only inside of the container.
-To control the mount propagation property of the volume use the `:[r]shared`,
-`:[r]slave` or `:[r]private` propagation flag. The propagation property can
-be specified only for bind mounted volumes and not for internal volumes or
-named volumes. For mount propagation to work on the source mount point (the mount point
-where source dir is mounted on) it has to have the right propagation properties. For
-shared volumes, the source mount point has to be shared. And for slave volumes,
-the source mount has to be either shared or slave.
-
-Use `df <source-dir>` to determine the source mount and then use
-`findmnt -o TARGET,PROPAGATION <source-mount-dir>` to determine propagation
-properties of source mount, if `findmnt` utility is not available, the source mount point
-can be determined by looking at the mount entry in `/proc/self/mountinfo`. Look
-at `optional fields` and see if any propagaion properties are specified.
-`shared:X` means the mount is `shared`, `master:X` means the mount is `slave` and if
-nothing is there that means the mount is `private`.
-
-To change propagation properties of a mount point use the `mount` command. For
-example, to bind mount the source directory `/foo` do
-`mount --bind /foo /foo` and `mount --make-private --make-shared /foo`. This
-will convert /foo into a `shared` mount point.  The propagation properties of the source
-mount can be changed directly. For instance if `/` is the source mount for
-`/foo`, then use `mount --make-shared /` to convert `/` into a `shared` mount.
-
-
 NOTE: End parsing of options with the `--` option, so that other
 options can be passed to the command inside of the container.
 
@@ -178,8 +110,6 @@ buildah run --runtime-flag debug containerID /bin/bash
 buildah run --tty containerID /bin/bash
 
 buildah run --tty=false containerID ls /
-
-buildah run --volume /path/on/host:/path/in/container:ro,z containerID sh
 
 ## SEE ALSO
 buildah(1), namespaces(7), pid\_namespaces(7)
