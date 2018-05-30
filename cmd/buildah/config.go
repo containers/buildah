@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/mattn/go-shellwords"
@@ -145,16 +146,26 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 		}
 	}
 	if c.IsSet("entrypoint") {
-		entrypointSpec := make([]string, 3)
-		entrypointSpec[0] = "/bin/sh"
-		entrypointSpec[1] = "-c"
-		entrypointSpec[2] = c.String("entrypoint")
 		if len(strings.TrimSpace(c.String("entrypoint"))) == 0 {
 			builder.SetEntrypoint(nil)
 		} else {
-			builder.SetEntrypoint(entrypointSpec)
+			var entrypointJSON []string
+			err := json.Unmarshal([]byte(c.String("entrypoint")), &entrypointJSON)
+
+			if err != nil {
+				// it wasn't a valid json array, fall back to string
+				entrypointSpec := make([]string, 3)
+				entrypointSpec[0] = "/bin/sh"
+				entrypointSpec[1] = "-c"
+				entrypointSpec[2] = c.String("entrypoint")
+
+				builder.SetEntrypoint(entrypointSpec)
+			} else {
+				builder.SetEntrypoint(entrypointJSON)
+			}
+
+			builder.SetCmd(nil)
 		}
-		builder.SetCmd(nil)
 	}
 	// cmd should always run after entrypoint; setting entrypoint clears cmd
 	if c.IsSet("cmd") {

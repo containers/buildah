@@ -2,7 +2,112 @@
 
 load helpers
 
-@test "config entrypoint" {
+@test "config entrypoint using single element in JSON array (exec form)" {
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
+  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
+  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
+
+  run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-docker
+  [ "$output" = "[/ENTRYPOINT]" ]
+  [ "$status" -eq 0 ]
+  
+  run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-oci
+  [ "$output" = "[/ENTRYPOINT]" ]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Entrypoint}}' entry-image-docker
+  [ "$output" = "[/ENTRYPOINT]" ]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Entrypoint}}' entry-image-oci
+  [ "$output" = "[/ENTRYPOINT]" ]
+  [ "$status" -eq 0 ]
+
+  buildah rm $cid
+  buildah rmi entry-image-docker entry-image-oci
+}
+
+@test "config entrypoint using multiple elements in JSON array (exec form)" {
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah config --entrypoint '[ "/ENTRYPOINT", "ELEMENT2" ]' $cid
+  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
+  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
+
+  run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-docker
+  [ "$output" = "[/ENTRYPOINT ELEMENT2]" ]
+  [ "$status" -eq 0 ]
+ 
+  run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-oci
+  [ "$output" = "[/ENTRYPOINT ELEMENT2]" ]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Entrypoint}}' entry-image-docker
+  [ "$output" = "[/ENTRYPOINT ELEMENT2]" ]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Entrypoint}}' entry-image-oci
+  [ "$output" = "[/ENTRYPOINT ELEMENT2]" ]
+  [ "$status" -eq 0 ]
+
+  buildah rm $cid
+  buildah rmi entry-image-docker entry-image-oci
+}
+
+@test "config entrypoint using string (shell form)" {
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah config --entrypoint /ENTRYPOINT $cid
+  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
+  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
+
+  run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-docker
+  [ "$output" = "[/bin/sh -c /ENTRYPOINT]" ]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-oci
+  [ "$output" = "[/bin/sh -c /ENTRYPOINT]" ]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Entrypoint}}' entry-image-docker
+  [ "$output" = "[/bin/sh -c /ENTRYPOINT]" ]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Entrypoint}}' entry-image-oci
+  [ "$output" = "[/bin/sh -c /ENTRYPOINT]" ]
+  [ "$status" -eq 0 ]
+
+  buildah rm $cid
+  buildah rmi entry-image-docker entry-image-oci
+}
+
+@test "config set empty entrypoint doesn't wipe cmd" {
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah config --cmd "command" $cid
+  buildah config --entrypoint "" $cid
+  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
+  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
+
+  run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' entry-image-docker
+  [ "$output" = "[command]" ]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' entry-image-oci
+  [ "$output" = "[command]" ]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' entry-image-docker
+  [ "$output" = "[command]" ]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' entry-image-oci
+  [ "$output" = "[command]" ]
+  [ "$status" -eq 0 ]
+
+  buildah rm $cid
+  buildah rmi entry-image-docker entry-image-oci
+}
+
+@test "config entrypoint with cmd" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config \
    --entrypoint /ENTRYPOINT \
@@ -147,12 +252,4 @@ load helpers
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Hostname}}' scratch-image-docker | grep cleverhostname
   # Shell isn't part of the OCI spec, so it's discarded when we save to OCI format.
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Shell}}' scratch-image-docker | grep /bin/arbitrarysh
-}
-
-@test "config with entrypoint" {
-  ctr=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  buildah config --workingdir /tmp $ctr
-  buildah config --entrypoint /bin/sh $ctr
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $ctr test1
-  buildah inspect --format '{{.Docker.Config.Entrypoint}}' test1 | grep '/bin/sh -c /bin/sh'
 }
