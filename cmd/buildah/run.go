@@ -61,7 +61,7 @@ func runCmd(c *cli.Context) error {
 		return errors.Errorf("container ID must be specified")
 	}
 	name := args[0]
-	if err := parse.ValidateFlags(c, runFlags); err != nil {
+	if err := parse.ValidateFlags(c, append(append(runFlags, userFlags...), buildahcli.NamespaceFlags...)); err != nil {
 		return err
 	}
 
