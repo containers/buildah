@@ -96,29 +96,7 @@ func budCmd(c *cli.Context) error {
 		}
 		cliArgs = cliArgs.Tail()
 	} else {
-		// No context directory or URL was specified.  Try to use the
-		// home of the first locally-available Dockerfile.
-		for i := range dockerfiles {
-			if strings.HasPrefix(dockerfiles[i], "http://") ||
-				strings.HasPrefix(dockerfiles[i], "https://") ||
-				strings.HasPrefix(dockerfiles[i], "git://") ||
-				strings.HasPrefix(dockerfiles[i], "github.com/") {
-				continue
-			}
-			absFile, err := filepath.Abs(dockerfiles[i])
-			if err != nil {
-				return errors.Wrapf(err, "error determining path to file %q", dockerfiles[i])
-			}
-			contextDir = filepath.Dir(absFile)
-			dockerfiles[i], err = filepath.Rel(contextDir, absFile)
-			if err != nil {
-				return errors.Wrapf(err, "error determining path to file %q", dockerfiles[i])
-			}
-			break
-		}
-	}
-	if contextDir == "" {
-		return errors.Errorf("no context directory specified, and no dockerfile specified")
+		return errors.Errorf("no context directory or URL specified")
 	}
 	if len(dockerfiles) == 0 {
 		dockerfiles = append(dockerfiles, filepath.Join(contextDir, "Dockerfile"))

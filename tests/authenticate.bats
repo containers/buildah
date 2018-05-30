@@ -37,7 +37,7 @@ EOM
   [ "$status" -ne 0 ]
 
   # bud test this should work
-  run buildah bud -f ./Dockerfile --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:testpassword
+  run buildah bud -f ./Dockerfile --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:testpassword .
   echo $status
   [ "$status" -eq 0 ]
 
