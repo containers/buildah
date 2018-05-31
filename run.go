@@ -976,6 +976,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 	// Figure out how we're doing stdio handling, and create pipes and sockets.
 	var stdio sync.WaitGroup
 	var consoleListener *net.UnixListener
+	var errorFds []int
 	stdioPipe := make([][]int, 3)
 	copyConsole := false
 	copyStdio := false
@@ -1006,6 +1007,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 			if stdioPipe, err = runMakeStdioPipe(int(uid), int(gid)); err != nil {
 				return 1, err
 			}
+			errorFds = []int{stdioPipe[unix.Stdout][0], stdioPipe[unix.Stderr][0]}
 			// Set stdio to our pipes.
 			getCreateStdio = func() (*os.File, *os.File, *os.File) {
 				stdin := os.NewFile(uintptr(stdioPipe[unix.Stdin][0]), "/dev/stdin")
@@ -1056,7 +1058,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 	// Actually create the container.
 	err = create.Run()
 	if err != nil {
-		return 1, errors.Wrapf(err, "error creating container for %v: %s", spec.Process.Args, runCollectOutput(stdioPipe[unix.Stdout][0], stdioPipe[unix.Stderr][0]))
+		return 1, errors.Wrapf(err, "error creating container for %v: %s", spec.Process.Args, runCollectOutput(errorFds...))
 	}
 	defer func() {
 		err2 := del.Run()
