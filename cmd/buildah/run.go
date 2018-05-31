@@ -122,9 +122,9 @@ func runCmd(c *cli.Context) error {
 	for _, volumeSpec := range c.StringSlice("volume") {
 		volSpec := strings.Split(volumeSpec, ":")
 		if len(volSpec) >= 2 {
-			mountOptions := "bind"
+			var mountOptions string
 			if len(volSpec) >= 3 {
-				mountOptions = mountOptions + "," + volSpec[2]
+				mountOptions = volSpec[2]
 			}
 			mountOpts := strings.Split(mountOptions, ",")
 			mount := specs.Mount{

@@ -318,3 +318,20 @@ load helpers
 	[ "$output" = "foobar" ]
 	buildah rm $cid
 }
+
+@test "run --volume" {
+	if ! which runc ; then
+		skip
+	fi
+	runc --version
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	mkdir -p ${TESTDIR}/was-empty
+	# As a baseline, this should succeed.
+	run buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty    $cid touch /var/not-empty/testfile
+	echo "$output"
+	[ "$status" -eq 0 ]
+	# If we're parsing the options at all, this should be read-only, so it should fail.
+	run buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty:ro $cid touch /var/not-empty/testfile
+	echo "$output"
+	[ "$status" -ne 0 ]
+}
