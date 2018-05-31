@@ -27,6 +27,15 @@ load helpers
   [ "$output" == "" ]
 }
 
+@test "remove multiple non-existent images errors" {
+  run buildah --debug=false rmi image1 image2 image3
+  [ "${lines[0]}" == "could not get image \"image1\": identifier is not an image" ]
+  [ "${lines[1]}" == "could not get image \"image2\": identifier is not an image" ]
+  [ "${lines[2]}" == "could not get image \"image3\": identifier is not an image" ]
+  [ $(wc -l <<< "$output") -eq 3 ]
+  [ "${status}" -eq 1 ]
+}
+
 @test "remove all images" {
   cid1=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
@@ -81,4 +90,19 @@ load helpers
   buildah rmi --all --force
   run buildah --debug=false images -q
   [ "$output" == "" ]
+}
+
+@test "use conflicting commands to remove images" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah rm "$cid"
+  run buildah --debug=false rmi -a alpine
+  [ "$status" -eq 1 ]
+  [ "$output" == "when using the --all switch, you may not pass any images names or IDs" ]
+
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah rm "$cid"
+  run buildah --debug=false rmi -a -p
+  [ "$status" -eq 1 ]
+  [ "$output" == "when using the --all switch, you may not use --prune switch" ]
+  buildah rmi --all
 }
