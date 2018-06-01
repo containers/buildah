@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -394,6 +395,9 @@ func (d *ostreeImageDestination) PutSignatures(ctx context.Context, signatures [
 }
 
 func (d *ostreeImageDestination) Commit(ctx context.Context) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	repo, err := otbuiltin.OpenRepo(d.ref.repo)
 	if err != nil {
 		return err
