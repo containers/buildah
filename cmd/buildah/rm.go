@@ -35,6 +35,9 @@ func rmCmd(c *cli.Context) error {
 	if len(args) == 0 && !c.Bool("all") {
 		return errors.Errorf("container ID must be specified")
 	}
+	if len(args) > 0 && c.Bool("all") {
+		return errors.Errorf("when using the --all switch, you may not pass any containers names or IDs")
+	}
 	store, err := getStore(c)
 	if err != nil {
 		return err
