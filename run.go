@@ -709,6 +709,11 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if err != nil {
 		return err
 	}
+	cleaned, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return errors.Wrapf(err, "error cleaning path %q", path)
+	}
+	path = cleaned
 	logrus.Debugf("using %q to hold bundle data", path)
 	defer func() {
 		if err2 := os.RemoveAll(path); err2 != nil {
