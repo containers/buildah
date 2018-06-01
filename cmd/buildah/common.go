@@ -326,3 +326,11 @@ func parseIDMap(spec []string) (m [][3]uint32, err error) {
 	}
 	return m, nil
 }
+
+func defaultFormat() string {
+	format := os.Getenv("BUILDAH_FORMAT")
+	if format != "" {
+		return format
+	}
+	return "oci"
+}

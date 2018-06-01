@@ -58,7 +58,7 @@ func budCmd(c *cli.Context) error {
 	}
 
 	dockerfiles := c.StringSlice("file")
-	format := "oci"
+	format := defaultFormat()
 	if c.IsSet("format") {
 		format = strings.ToLower(c.String("format"))
 	}
