@@ -107,6 +107,34 @@ var (
 	}
 )
 
+func updateEntrypoint(builder *buildah.Builder, c *cli.Context) {
+	if len(strings.TrimSpace(c.String("entrypoint"))) == 0 {
+		builder.SetEntrypoint(nil)
+		return
+	}
+	var entrypointJSON []string
+	err := json.Unmarshal([]byte(c.String("entrypoint")), &entrypointJSON)
+
+	if err == nil {
+		builder.SetEntrypoint(entrypointJSON)
+		if len(builder.Cmd()) > 0 {
+			logrus.Warnf("cmd %q exists and will be passed to entrypoint as a parameter", strings.Join(builder.Cmd(), " "))
+		}
+		return
+	}
+
+	// it wasn't a valid json array, fall back to string
+	entrypointSpec := make([]string, 3)
+	entrypointSpec[0] = "/bin/sh"
+	entrypointSpec[1] = "-c"
+	entrypointSpec[2] = c.String("entrypoint")
+	if len(builder.Cmd()) > 0 {
+		logrus.Warnf("cmd %q exists but will be ignored because of entrypoint settings", strings.Join(builder.Cmd(), " "))
+	}
+
+	builder.SetEntrypoint(entrypointSpec)
+}
+
 func updateConfig(builder *buildah.Builder, c *cli.Context) {
 	if c.IsSet("author") {
 		builder.SetMaintainer(c.String("author"))
@@ -150,26 +178,7 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 		}
 	}
 	if c.IsSet("entrypoint") {
-		if len(strings.TrimSpace(c.String("entrypoint"))) == 0 {
-			builder.SetEntrypoint(nil)
-		} else {
-			var entrypointJSON []string
-			err := json.Unmarshal([]byte(c.String("entrypoint")), &entrypointJSON)
-
-			if err != nil {
-				// it wasn't a valid json array, fall back to string
-				entrypointSpec := make([]string, 3)
-				entrypointSpec[0] = "/bin/sh"
-				entrypointSpec[1] = "-c"
-				entrypointSpec[2] = c.String("entrypoint")
-
-				builder.SetEntrypoint(entrypointSpec)
-			} else {
-				builder.SetEntrypoint(entrypointJSON)
-			}
-
-			builder.SetCmd(nil)
-		}
+		updateEntrypoint(builder, c)
 	}
 	// cmd should always run after entrypoint; setting entrypoint clears cmd
 	if c.IsSet("cmd") {
