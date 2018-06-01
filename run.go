@@ -1219,14 +1219,18 @@ func runCollectOutput(fds ...int) string {
 	var b bytes.Buffer
 	buf := make([]byte, 8192)
 	for _, fd := range fds {
-		if err := unix.SetNonblock(fd, true); err != nil {
-			logrus.Errorf("error setting pipe descriptor %d nonblocking: %v", fd, err)
-			continue
-		}
 		nread, err := unix.Read(fd, buf)
 		if err != nil {
-			logrus.Errorf("error reading from pipe %d: %v", fd, err)
-			break
+			if errno, isErrno := err.(syscall.Errno); isErrno {
+				switch errno {
+				default:
+					logrus.Errorf("error reading from pipe %d: %v", fd, err)
+				case syscall.EINTR, syscall.EAGAIN:
+				}
+			} else {
+				logrus.Errorf("unable to wait for data from pipe %d: %v", fd, err)
+			}
+			continue
 		}
 		for nread > 0 {
 			r := buf[:nread]
@@ -1238,7 +1242,15 @@ func runCollectOutput(fds ...int) string {
 			}
 			nread, err = unix.Read(fd, buf)
 			if err != nil {
-				logrus.Errorf("error reading from pipe %d: %v", fd, err)
+				if errno, isErrno := err.(syscall.Errno); isErrno {
+					switch errno {
+					default:
+						logrus.Errorf("error reading from pipe %d: %v", fd, err)
+					case syscall.EINTR, syscall.EAGAIN:
+					}
+				} else {
+					logrus.Errorf("unable to wait for data from pipe %d: %v", fd, err)
+				}
 				break
 			}
 		}
