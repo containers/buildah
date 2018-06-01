@@ -335,3 +335,17 @@ load helpers
 	echo "$output"
 	[ "$status" -ne 0 ]
 }
+
+@test "run symlinks" {
+	if ! which runc ; then
+		skip
+	fi
+	runc --version
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	mkdir -p ${TESTDIR}/tmp
+	ln -s tmp ${TESTDIR}/tmp2
+	export TMPDIR=${TESTDIR}/tmp2
+	run buildah --debug=false run $cid id
+	echo "$output"
+	[ "$status" -eq 0 ]
+}
