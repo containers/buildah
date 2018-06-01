@@ -705,7 +705,13 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
 	var user specs.User
-	path, err := ioutil.TempDir(os.TempDir(), Package)
+	p, err := ioutil.TempDir(os.TempDir(), Package)
+	if err != nil {
+		return err
+	}
+	// On some hosts like AH, /tmp is a symlink and we need an
+	// absolute path.
+	path, err := filepath.EvalSymlinks(p)
 	if err != nil {
 		return err
 	}
