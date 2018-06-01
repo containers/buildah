@@ -39,7 +39,7 @@ var (
 		cli.StringFlag{
 			Name:  "format, f",
 			Usage: "`format` of the image manifest and metadata",
-			Value: "oci",
+			Value: defaultFormat(),
 		},
 		cli.StringFlag{
 			Name:  "iidfile",
