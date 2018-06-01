@@ -127,11 +127,6 @@ load helpers
 
   buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
-  # Cmd should now be nil
-  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-docker | grep '\[\]'
-  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-docker | grep '\[\]'
-  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-oci | grep '\[\]'
-  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-oci | grep '\[\]'
 
   buildah config \
    --entrypoint /ENTRYPOINT \

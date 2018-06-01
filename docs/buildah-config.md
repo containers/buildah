@@ -56,9 +56,13 @@ Note: this setting is not present in the OCIv1 image format, so it is discarded 
 **--entrypoint** *entry*
 
 Set the *entry point* for containers based on any images which will be built
-using the specified container.
+using the specified container. buildah supports two formats for entrypoint.  It
+can be specified as a simple string, or as a array of commands.
 
-Note: Setting the entrypoint without setting the --cmd, clears the cmd field in the container.
+Note: When the entrypoint is specified as a string, container runtimes will
+ignore the `cmd` value of the container image.  However if you use the array
+form, then the cmd will be appended onto the end of the entrypoint cmd and be
+executed together.
 
 **--env** *var=value*
 
