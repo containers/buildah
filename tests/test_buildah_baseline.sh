@@ -190,7 +190,7 @@ chmod +x $FILE
 ########
 # Build with the Dockerfile
 ########
-buildah bud -f Dockerfile -t whale-says 
+buildah bud -f Dockerfile -t whale-says . 
 
 ########
 # Create a whalesays container 
