@@ -153,6 +153,12 @@ type RunOptions struct {
 	Stderr io.Writer `json:"-"`
 	// Quiet tells the run to turn off output to stdout.
 	Quiet bool
+	// AddCapabilities is a list of capabilities to add to the default set.
+	AddCapabilities []string
+	// DropCapabilities is a list of capabilities to remove from the default set,
+	// after processing the AddCapabilities set.  If a capability appears in both
+	// lists, it will be dropped.
+	DropCapabilities []string
 }
 
 // DefaultNamespaceOptions returns the default namespace settings from the
@@ -576,6 +582,68 @@ func setupReadOnlyPaths(g *generate.Generator) {
 	}
 }
 
+func setupCapAdd(g *generate.Generator, caps ...string) error {
+	for _, cap := range caps {
+		if err := g.AddProcessCapabilityBounding(cap); err != nil {
+			return errors.Wrapf(err, "error adding %q to the bounding capability set", cap)
+		}
+		if err := g.AddProcessCapabilityEffective(cap); err != nil {
+			return errors.Wrapf(err, "error adding %q to the effective capability set", cap)
+		}
+		if err := g.AddProcessCapabilityInheritable(cap); err != nil {
+			return errors.Wrapf(err, "error adding %q to the inheritable capability set", cap)
+		}
+		if err := g.AddProcessCapabilityPermitted(cap); err != nil {
+			return errors.Wrapf(err, "error adding %q to the permitted capability set", cap)
+		}
+		if err := g.AddProcessCapabilityAmbient(cap); err != nil {
+			return errors.Wrapf(err, "error adding %q to the ambient capability set", cap)
+		}
+	}
+	return nil
+}
+
+func setupCapDrop(g *generate.Generator, caps ...string) error {
+	for _, cap := range caps {
+		if err := g.DropProcessCapabilityBounding(cap); err != nil {
+			return errors.Wrapf(err, "error removing %q from the bounding capability set", cap)
+		}
+		if err := g.DropProcessCapabilityEffective(cap); err != nil {
+			return errors.Wrapf(err, "error removing %q from the effective capability set", cap)
+		}
+		if err := g.DropProcessCapabilityInheritable(cap); err != nil {
+			return errors.Wrapf(err, "error removing %q from the inheritable capability set", cap)
+		}
+		if err := g.DropProcessCapabilityPermitted(cap); err != nil {
+			return errors.Wrapf(err, "error removing %q from the permitted capability set", cap)
+		}
+		if err := g.DropProcessCapabilityAmbient(cap); err != nil {
+			return errors.Wrapf(err, "error removing %q from the ambient capability set", cap)
+		}
+	}
+	return nil
+}
+
+func setupCapabilities(g *generate.Generator, firstAdds, firstDrops, secondAdds, secondDrops []string) error {
+	g.ClearProcessCapabilities()
+	if err := setupCapAdd(g, util.DefaultCapabilities...); err != nil {
+		return err
+	}
+	if err := setupCapAdd(g, firstAdds...); err != nil {
+		return err
+	}
+	if err := setupCapDrop(g, firstDrops...); err != nil {
+		return err
+	}
+	if err := setupCapAdd(g, secondAdds...); err != nil {
+		return err
+	}
+	if err := setupCapDrop(g, secondDrops...); err != nil {
+		return err
+	}
+	return nil
+}
+
 func setupSeccomp(spec *specs.Spec, seccompProfilePath string) error {
 	if seccompProfilePath != "unconfined" {
 		if seccompProfilePath != "" {
@@ -793,7 +861,11 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		g.SetHostname("")
 	}
 
+	// Set the user UID/GID/supplemental group list/capabilities lists.
 	if user, err = b.user(mountPoint, options.User); err != nil {
+		return err
+	}
+	if err = setupCapabilities(g, b.AddCapabilities, b.DropCapabilities, options.AddCapabilities, options.DropCapabilities); err != nil {
 		return err
 	}
 	g.SetProcessUID(user.UID)
@@ -805,8 +877,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	// Now grab the spec from the generator.  Set the generator to nil so that future contributors
 	// will quickly be able to tell that they're supposed to be modifying the spec directly from here.
 	spec := g.Spec()
+	g = nil
 
-	//Remove capabilities if not running as root
+	// Remove capabilities if not running as root
 	if user.UID != 0 {
 		var caplist []string
 		spec.Process.Capabilities.Permitted = caplist
@@ -814,7 +887,8 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		spec.Process.Capabilities.Effective = caplist
 		spec.Process.Capabilities.Ambient = caplist
 	}
-	g = nil
+
+	// Set the working directory, creating it if we must.
 	if spec.Process.Cwd == "" {
 		spec.Process.Cwd = DefaultWorkingDir
 	}

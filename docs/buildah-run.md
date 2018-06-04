@@ -14,6 +14,30 @@ the *buildah config* command.  To execute *buildah run* within an
 interactive shell, specify the --tty option.
 
 ## OPTIONS
+**--cap-add**=*CAP\_xxx*
+
+Add the specified capability to the set of capabilities which will be granted
+to the specified command.
+Certain capabilities are granted by default; this option can be used to add
+more beyond the defaults, which may have been modified by **--cap-add** and
+**--cap-drop** options used with the *buildah from* invocation which created
+the container.
+
+**--cap-drop**=*CAP\_xxx*
+
+Add the specified capability from the set of capabilities which will be granted
+to the specified command.
+The CAP\_AUDIT\_WRITE, CAP\_CHOWN, CAP\_DAC\_OVERRIDE, CAP\_FOWNER,
+CAP\_FSETID, CAP\_KILL, CAP\_MKNOD, CAP\_NET\_BIND\_SERVICE, CAP\_SETFCAP,
+CAP\_SETGID, CAP\_SETPCAP, CAP\_SETUID, and CAP\_SYS\_CHROOT capabilities are
+granted by default; this option can be used to remove them from the defaults,
+which may have been modified by **--cap-add** and **--cap-drop** options used
+with the *buildah from* invocation which created the container.
+
+If a capability is specified to both the **--cap-add** and **--cap-drop**
+options, it will be dropped, regardless of the order in which the options were
+given.
+
 **--cni-config-dir**=*directory*
 
 Location of CNI configuration files which will dictate which plugins will be

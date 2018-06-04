@@ -18,6 +18,14 @@ import (
 
 var (
 	runFlags = []cli.Flag{
+		cli.StringSliceFlag{
+			Name:  "cap-add",
+			Usage: "add the specified capability (default [])",
+		},
+		cli.StringSliceFlag{
+			Name:  "cap-drop",
+			Usage: "drop the specified capability (default [])",
+		},
 		cli.StringFlag{
 			Name:  "hostname",
 			Usage: "set the hostname inside of the container",
@@ -104,6 +112,8 @@ func runCmd(c *cli.Context) error {
 		ConfigureNetwork: networkPolicy,
 		CNIPluginPath:    c.String("cni-plugin-path"),
 		CNIConfigDir:     c.String("cni-config-dir"),
+		AddCapabilities:  c.StringSlice("cap-add"),
+		DropCapabilities: c.StringSlice("cap-drop"),
 	}
 
 	if c.IsSet("tty") {

@@ -199,6 +199,8 @@ func budCmd(c *cli.Context) error {
 		CNIPluginPath:           c.String("cni-plugin-path"),
 		CNIConfigDir:            c.String("cni-config-dir"),
 		IDMappingOptions:        idmappingOptions,
+		AddCapabilities:         c.StringSlice("cap-add"),
+		DropCapabilities:        c.StringSlice("cap-drop"),
 		CommonBuildOpts:         commonOpts,
 		DefaultMountsFilePath:   c.GlobalString("default-mounts-file"),
 		IIDFile:                 c.String("iidfile"),

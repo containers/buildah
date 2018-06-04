@@ -48,6 +48,26 @@ Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option c
 Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
+**--cap-add**=*CAP\_xxx*
+
+Add the specified capability to the default set of capabilities which will be
+supplied for subsequent *buildah run* invocations which use this container.
+Certain capabilities are granted by default; this option can be used to add
+more.
+
+**--cap-drop**=*CAP\_xxx*
+
+Remove the specified capability from the default set of capabilities which will
+be supplied for subsequent *buildah run* invocations which use this container.
+The CAP\_AUDIT\_WRITE, CAP\_CHOWN, CAP\_DAC\_OVERRIDE, CAP\_FOWNER,
+CAP\_FSETID, CAP\_KILL, CAP\_MKNOD, CAP\_NET\_BIND\_SERVICE, CAP\_SETFCAP,
+CAP\_SETGID, CAP\_SETPCAP, CAP\_SETUID, and CAP\_SYS\_CHROOT capabilities are
+granted by default; this option can be used to remove them.
+
+If a capability is specified to both the **--cap-add** and **--cap-drop**
+options, it will be dropped, regardless of the order in which the options were
+given.
+
 **--cert-dir** *path*
 
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
