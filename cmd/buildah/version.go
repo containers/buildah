@@ -9,6 +9,7 @@ import (
 	cniversion "github.com/containernetworking/cni/pkg/version"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
@@ -22,6 +23,9 @@ var (
 
 //Function to get and print info for version command
 func versionCmd(c *cli.Context) error {
+	if len(c.Args()) > 0 {
+		return errors.New("'buildah version' does not accept arguments")
+	}
 
 	//converting unix time from string to int64
 	buildTime, err := strconv.ParseInt(buildInfo, 10, 64)
