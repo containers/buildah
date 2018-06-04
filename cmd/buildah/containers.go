@@ -90,6 +90,9 @@ var (
 )
 
 func containersCmd(c *cli.Context) error {
+	if len(c.Args()) > 0 {
+		return errors.New("'buildah containers' does not accept arguments")
+	}
 	if err := parse.ValidateFlags(c, containersFlags); err != nil {
 		return err
 	}
