@@ -349,3 +349,35 @@ load helpers
 	echo "$output"
 	[ "$status" -eq 0 ]
 }
+
+@test "run --cap-add/--cap-drop" {
+	if ! which runc ; then
+		skip
+	fi
+	runc --version
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	# Try with default caps.
+	run buildah --debug=false run $cid grep ^CapEff /proc/self/status
+	echo "$output"
+	[ "$status" -eq 0 ]
+	defaultcaps="$output"
+	# Try adding DAC_OVERRIDE.
+	run buildah --debug=false run --cap-add CAP_DAC_OVERRIDE $cid grep ^CapEff /proc/self/status
+	echo "$output"
+	[ "$status" -eq 0 ]
+	addedcaps="$output"
+	# Try dropping DAC_OVERRIDE.
+	run buildah --debug=false run --cap-drop CAP_DAC_OVERRIDE $cid grep ^CapEff /proc/self/status
+	echo "$output"
+	[ "$status" -eq 0 ]
+	droppedcaps="$output"
+	# Okay, now the "dropped" and "added" should be different.
+	test "$addedcaps" != "$droppedcaps"
+	# And one or the other should be different from the default, with the other being the same.
+	if test "$defaultcaps" == "$addedcaps" ; then
+		test "$defaultcaps" != "$droppedcaps"
+	fi
+	if test "$defaultcaps" == "$droppedcaps" ; then
+		test "$defaultcaps" != "$addedcaps"
+	fi
+}

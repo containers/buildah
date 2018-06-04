@@ -214,6 +214,8 @@ func fromCmd(c *cli.Context) error {
 		CNIPluginPath:         c.String("cni-plugin-path"),
 		CNIConfigDir:          c.String("cni-config-dir"),
 		IDMappingOptions:      idmappingOptions,
+		AddCapabilities:       c.StringSlice("cap-add"),
+		DropCapabilities:      c.StringSlice("cap-drop"),
 		CommonBuildOpts:       commonOpts,
 	}
 

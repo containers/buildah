@@ -127,6 +127,13 @@ type BuildOptions struct {
 	// ID mapping options to use if we're setting up our own user namespace
 	// when handling RUN instructions.
 	IDMappingOptions *buildah.IDMappingOptions
+	// AddCapabilities is a list of capabilities to add to the default set when
+	// handling RUN instructions.
+	AddCapabilities []string
+	// DropCapabilities is a list of capabilities to remove from the default set
+	// when handling RUN instructions. If a capability appears in both lists, it
+	// will be dropped.
+	DropCapabilities []string
 	CommonBuildOpts  *buildah.CommonBuildOptions
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
 	DefaultMountsFilePath string

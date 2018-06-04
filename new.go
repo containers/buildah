@@ -317,8 +317,10 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 			UIDMap:         uidmap,
 			GIDMap:         gidmap,
 		},
-		CommonBuildOpts: options.CommonBuildOpts,
-		TopLayer:        topLayer,
+		AddCapabilities:  copyStringSlice(options.AddCapabilities),
+		DropCapabilities: copyStringSlice(options.DropCapabilities),
+		CommonBuildOpts:  options.CommonBuildOpts,
+		TopLayer:         topLayer,
 	}
 
 	if options.Mount {
