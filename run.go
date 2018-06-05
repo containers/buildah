@@ -150,6 +150,11 @@ type RunOptions struct {
 	// decision can be overridden by specifying either WithTerminal or
 	// WithoutTerminal.
 	Terminal TerminalPolicy
+	// The stdin/stdout/stderr descriptors to use.  If set to nil, the
+	// corresponding files in the "os" package are used as defaults.
+	Stdin  io.ReadCloser  `json:"-"`
+	Stdout io.WriteCloser `json:"-"`
+	Stderr io.WriteCloser `json:"-"`
 	// Quiet tells the run to turn off output to stdout.
 	Quiet bool
 }
@@ -886,9 +891,18 @@ func (b *Builder) runUsingRuntimeSubproc(options RunOptions, configureNetwork bo
 	}
 	cmd := reexec.Command(runUsingRuntimeCommand)
 	cmd.Dir = bundlePath
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdin = options.Stdin
+	if cmd.Stdin == nil {
+		cmd.Stdin = os.Stdin
+	}
+	cmd.Stdout = options.Stdout
+	if cmd.Stdout == nil {
+		cmd.Stdout = os.Stdout
+	}
+	cmd.Stderr = options.Stderr
+	if cmd.Stderr == nil {
+		cmd.Stderr = os.Stderr
+	}
 	cmd.Env = append(os.Environ(), fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel()))
 	preader, pwriter, err := os.Pipe()
 	if err != nil {
@@ -990,7 +1004,9 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 	// Default to not specifying a console socket location.
 	moreCreateArgs := func() []string { return nil }
 	// Default to just passing down our stdio.
-	getCreateStdio := func() (*os.File, *os.File, *os.File) { return os.Stdin, os.Stdout, os.Stderr }
+	getCreateStdio := func() (io.ReadCloser, io.WriteCloser, io.WriteCloser) {
+		return os.Stdin, os.Stdout, os.Stderr
+	}
 
 	// Figure out how we're doing stdio handling, and create pipes and sockets.
 	var stdio sync.WaitGroup
@@ -1028,7 +1044,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 			}
 			errorFds = []int{stdioPipe[unix.Stdout][0], stdioPipe[unix.Stderr][0]}
 			// Set stdio to our pipes.
-			getCreateStdio = func() (*os.File, *os.File, *os.File) {
+			getCreateStdio = func() (io.ReadCloser, io.WriteCloser, io.WriteCloser) {
 				stdin := os.NewFile(uintptr(stdioPipe[unix.Stdin][0]), "/dev/stdin")
 				stdout := os.NewFile(uintptr(stdioPipe[unix.Stdout][1]), "/dev/stdout")
 				stderr := os.NewFile(uintptr(stdioPipe[unix.Stderr][1]), "/dev/stderr")
@@ -1038,7 +1054,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 	} else {
 		if options.Quiet {
 			// Discard stdout.
-			getCreateStdio = func() (*os.File, *os.File, *os.File) {
+			getCreateStdio = func() (io.ReadCloser, io.WriteCloser, io.WriteCloser) {
 				return os.Stdin, nil, os.Stderr
 			}
 		}

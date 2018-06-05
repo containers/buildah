@@ -191,6 +191,11 @@ OCI Runtime, using the --runtime flag.
 
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
 
+**--logfile** *filename*
+
+Log output which would be sent to standard output and standard error to the
+specified file instead of to standard output and standard error.
+
 **--memory, -m**=""
 
 Memory limit (format: <number>[<unit>], where unit = b, k, m or g)

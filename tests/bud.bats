@@ -735,3 +735,12 @@ load helpers
   buildah rm ${cid}
   buildah rmi --all
 }
+
+@test "bud-logfile" {
+  rm -f ${TESTDIR}/logfile
+  run buildah bud --logfile ${TESTDIR}/logfile --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/preserve-volumes
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+  test -s ${TESTDIR}/logfile
+}
