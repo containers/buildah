@@ -100,6 +100,11 @@ func pushCmd(c *cli.Context) error {
 	dest, err := alltransports.ParseImageName(destSpec)
 	// add the docker:// transport to see if they neglected it.
 	if err != nil {
+		destTransport := strings.Split(destSpec, ":")[0]
+		if t := transports.Get(destTransport); t != nil {
+			return err
+		}
+
 		if strings.Contains(destSpec, "://") {
 			return err
 		}
