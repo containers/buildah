@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,6 +108,21 @@ func budCmd(c *cli.Context) error {
 	if err := parse.ValidateFlags(c, buildahcli.FromAndBudFlags); err != nil {
 		return err
 	}
+	var stdout, stderr, reporter *os.File
+	stdout = os.Stdout
+	stderr = os.Stderr
+	reporter = os.Stderr
+	if c.IsSet("logfile") {
+		f, err := os.OpenFile(c.String("logfile"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+		if err != nil {
+			return errors.Errorf("error opening logfile %q: %v", c.String("logfile"), err)
+		}
+		defer f.Close()
+		logrus.SetOutput(f)
+		stdout = f
+		stderr = f
+		reporter = f
+	}
 
 	store, err := getStore(c)
 	if err != nil {
@@ -167,6 +183,9 @@ func budCmd(c *cli.Context) error {
 		Args:                  args,
 		Output:                output,
 		AdditionalTags:        tags,
+		Out:                   stdout,
+		Err:                   stderr,
+		ReportWriter:          reporter,
 		Runtime:               c.String("runtime"),
 		RuntimeArgs:           runtimeFlags,
 		OutputFormat:          format,
@@ -184,8 +203,8 @@ func budCmd(c *cli.Context) error {
 		Annotations:           c.StringSlice("annotation"),
 	}
 
-	if !c.Bool("quiet") {
-		options.ReportWriter = os.Stderr
+	if c.Bool("quiet") {
+		options.ReportWriter = ioutil.Discard
 	}
 
 	return imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)

@@ -119,6 +119,10 @@ var (
 			Name:  "no-cache",
 			Usage: "Do not use caching for the container build. Buildah does not currently support caching so this is a NOOP.",
 		},
+		cli.StringFlag{
+			Name:  "logfile",
+			Usage: "log to `file` instead of stdout/stderr",
+		},
 		cli.BoolTFlag{
 			Name:  "pull",
 			Usage: "pull the image if not present",
