@@ -178,9 +178,9 @@ func budCmd(c *cli.Context) error {
 		logrus.Debugf("--compress option specified but is ignored")
 	}
 
-	compression := imagebuildah.Gzip
-	if c.Bool("disable-compression") {
-		compression = imagebuildah.Uncompressed
+	compression := imagebuildah.Uncompressed
+	if c.IsSet("disable-compression") && !c.Bool("disable-compression") {
+		compression = imagebuildah.Gzip
 	}
 
 	if c.IsSet("disable-content-trust") {

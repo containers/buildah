@@ -6,13 +6,13 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/transports/alltransports"
-	"github.com/containers/storage/pkg/archive"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -110,9 +110,9 @@ func pushCmd(c *cli.Context) error {
 		return errors.New("Only two arguments are necessary to push: source and destination")
 	}
 
-	compress := archive.Gzip
+	compress := imagebuildah.Gzip
 	if c.Bool("disable-compression") {
-		compress = archive.Uncompressed
+		compress = imagebuildah.Uncompressed
 	}
 
 	store, err := getStore(c)
