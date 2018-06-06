@@ -43,3 +43,12 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
 }
+
+@test "use conflicting commands to remove containers" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run buildah --debug=false rm -a "$cid"
+  [ "$status" -eq 1 ]
+  [ "$output" == "when using the --all switch, you may not pass any containers names or IDs" ]
+  buildah rm "$cid"
+  buildah rmi alpine
+}
