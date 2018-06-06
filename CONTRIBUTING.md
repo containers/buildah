@@ -118,7 +118,7 @@ commit automatically with `git commit -s`.
 ## Communications
 
 For general questions, or discussions, please use the
-IRC group on `irc.freenode.net` called `cri-o`
+IRC group on `irc.freenode.net` called `buildah`
 that has been setup.
 
 For discussions around issues/bugs and features, you can use the github
