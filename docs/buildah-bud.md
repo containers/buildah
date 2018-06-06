@@ -172,7 +172,12 @@ value can be entered.  The password is entered without echo.
 
 **--disable-compression, -D**
 
-Don't default to compressing filesystem layers when building the image.
+Don't compress filesystem layers when building the image unless it is required
+by the location where the image is being written.  This is the default setting,
+because image layers are compressed automatically when they are pushed to
+registries, and images being written to local storage would only need to be
+decompressed again to be stored.  Compression can be forced in all cases by
+specifying **--disable-compression=false**.
 
 **--disable-content-trust**
 

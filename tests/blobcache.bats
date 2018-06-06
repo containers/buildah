@@ -41,12 +41,13 @@ load helpers
 	run buildah add ${ctr} ${TESTSDIR}/bud/add-file/file /
 	echo "$output"
 	[ "$status" -eq 0 ]
-	# Commit the image without using the blob cache.
+	# Commit the image without using the blob cache, using compression so that uncompressed blobs
+	# in the cache which we inherited from our base image won't be matched.
 	doomeddir=${TESTDIR}/doomed
 	mkdir -p ${doomeddir}
 	ls -l ${blobcachedir}
-	echo buildah commit --signature-policy ${TESTSDIR}/policy.json ${ctr} dir:${doomeddir}
-	run buildah commit --signature-policy ${TESTSDIR}/policy.json ${ctr} dir:${doomeddir}
+	echo buildah commit --signature-policy ${TESTSDIR}/policy.json --disable-compression=false ${ctr} dir:${doomeddir}
+	run buildah commit --signature-policy ${TESTSDIR}/policy.json --disable-compression=false ${ctr} dir:${doomeddir}
 	echo "$output"
 	[ "$status" -eq 0 ]
 	# Look for layer blobs in the destination that match the ones in the cache.
@@ -70,12 +71,14 @@ load helpers
 	done
 	[ ${matched} -eq 0 ] # nothing should match items in the cache
 	[ ${unmatched} -eq 6 ] # nothing should match items in the cache
-	# Commit the image using the blob cache.
+	# Commit the image using the blob cache, again using compression.  We'll have recorded the
+	# compressed digests that match the uncompressed digests the last time around, so we should
+	# get some matches this time.
 	destdir=${TESTDIR}/dest
 	mkdir -p ${destdir}
 	ls -l ${blobcachedir}
-	echo buildah commit --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} ${ctr} dir:${destdir}
-	run buildah commit --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} ${ctr} dir:${destdir}
+	echo buildah commit --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} --disable-compression=false ${ctr} dir:${destdir}
+	run buildah commit --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} --disable-compression=false ${ctr} dir:${destdir}
 	echo "$output"
 	[ "$status" -eq 0 ]
 	# Look for layer blobs in the destination that match the ones in the cache.
@@ -115,8 +118,8 @@ load helpers
 	[ "$status" -eq 0 ]
 	# Commit the image using the blob cache.
 	ls -l ${blobcachedir}
-	echo buildah commit --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} ${ctr} ${target}
-	run buildah commit --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} ${ctr} ${target}
+	echo buildah commit --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} --disable-compression=false ${ctr} ${target}
+	run buildah commit --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} --disable-compression=false ${ctr} ${target}
 	echo "$output"
 	[ "$status" -eq 0 ]
 	# Try to push the image without the blob cache.
@@ -183,14 +186,18 @@ load helpers
 	blobcachedir=${TESTDIR}/cache
 	mkdir -p ${blobcachedir}
 	target=new-image
-	# Build an image while pulling the base image.
-	run buildah build-using-dockerfile -t ${target} --pull-always --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/add-file
+	# Build an image while pulling the base image.  Compress the layers so that they get added
+	# to the blob cache in their compressed forms.
+	run buildah build-using-dockerfile -t ${target} --pull-always --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} --disable-compression=false ${TESTSDIR}/bud/add-file
 	echo "$output"
 	[ "$status" -eq 0 ]
-	# Now try to push the image using the blob cache.
+	# Now try to push the image using the blob cache.  The blob cache will only suggest the
+	# compressed version of a blob if it's been told that we want to compress things, so
+	# we also request compression here to avoid having the copy logic just compress the
+	# uncompressed copy again.
 	destdir=${TESTDIR}/dest
 	mkdir -p ${destdir}
-	run buildah push --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} ${target} dir:${destdir}
+	run buildah push --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} --disable-compression=false ${target} dir:${destdir}
 	echo "$output"
 	[ "$status" -eq 0 ]
 	# Look for layer blobs in the destination that match the ones in the cache.

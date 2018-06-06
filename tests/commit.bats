@@ -28,9 +28,9 @@ load helpers
 @test "commit format test" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-oci
-  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-docker
+  buildah commit --format docker --disable-compression=false --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-docker
 
-  buildah --debug=false inspect --type=image --format '{{.Manifest}}' alpine-image-oci | grep "application/vnd.oci.image.layer.v1.tar+gzip"
+  buildah --debug=false inspect --type=image --format '{{.Manifest}}' alpine-image-oci | grep "application/vnd.oci.image.layer.v1.tar"
   buildah --debug=false inspect --type=image --format '{{.Manifest}}' alpine-image-docker | grep "application/vnd.docker.image.rootfs.diff.tar.gzip"
   buildah rm $cid
   buildah rmi -a

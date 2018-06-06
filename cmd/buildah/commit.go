@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/image/storage"
 	"github.com/containers/image/transports/alltransports"
-	"github.com/containers/storage/pkg/archive"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -112,9 +112,9 @@ func commitCmd(c *cli.Context) error {
 		return err
 	}
 
-	compress := archive.Gzip
-	if c.Bool("disable-compression") {
-		compress = archive.Uncompressed
+	compress := imagebuildah.Uncompressed
+	if c.IsSet("disable-compression") && !c.Bool("disable-compression") {
+		compress = imagebuildah.Gzip
 	}
 	timestamp := time.Now().UTC()
 	if c.IsSet("reference-time") {
