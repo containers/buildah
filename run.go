@@ -1468,11 +1468,11 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 			if pollFd.Revents&unix.POLLHUP == unix.POLLHUP {
 				removes = append(removes, int(pollFd.Fd))
 			}
-			// If the EPOLLIN flag isn't set, then there's no data to be read from this descriptor.
+			// If the POLLIN flag isn't set, then there's no data to be read from this descriptor.
 			if pollFd.Revents&unix.POLLIN == 0 {
-				// If we're using pipes and it's our stdin, close the writing end
-				// of the corresponding pipe.
-				if copyStdio && int(pollFd.Fd) == unix.Stdin {
+				// If we're using pipes and it's our stdin and it's closed, close the writing
+				// end of the corresponding pipe.
+				if copyStdio && int(pollFd.Fd) == unix.Stdin && pollFd.Revents&unix.POLLHUP != 0 {
 					unix.Close(stdioPipe[unix.Stdin][1])
 					stdioPipe[unix.Stdin][1] = -1
 				}
