@@ -152,6 +152,10 @@ func budCmd(c *cli.Context) error {
 		logrus.Debugf("--compress option specified but is ignored")
 	}
 
+	if c.IsSet("disable-content-trust") {
+		logrus.Debugf("--disable-content-trust option specified but is ignored")
+	}
+
 	if c.IsSet("force-rm") {
 		logrus.Debugf("build caching not enabled so --force-rm flag has no effect")
 	}
