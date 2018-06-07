@@ -148,9 +148,9 @@ type RunOptions struct {
 	Terminal TerminalPolicy
 	// The stdin/stdout/stderr descriptors to use.  If set to nil, the
 	// corresponding files in the "os" package are used as defaults.
-	Stdin  io.ReadCloser  `json:"-"`
-	Stdout io.WriteCloser `json:"-"`
-	Stderr io.WriteCloser `json:"-"`
+	Stdin  io.Reader `json:"-"`
+	Stdout io.Writer `json:"-"`
+	Stderr io.Writer `json:"-"`
 	// Quiet tells the run to turn off output to stdout.
 	Quiet bool
 }

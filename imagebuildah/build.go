@@ -17,7 +17,6 @@ import (
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
-	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/stringid"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	docker "github.com/fsouza/go-dockerclient"
@@ -472,8 +471,8 @@ func (b *Executor) Run(run imagebuilder.Run, config docker.Config) error {
 		Entrypoint: config.Entrypoint,
 		Cmd:        config.Cmd,
 		Stdin:      devNull,
-		Stdout:     ioutils.NopWriteCloser(b.out),
-		Stderr:     ioutils.NopWriteCloser(b.err),
+		Stdout:     b.out,
+		Stderr:     b.err,
 		Quiet:      b.quiet,
 	}
 	if config.NetworkDisabled {
