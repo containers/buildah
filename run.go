@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,9 +19,7 @@ import (
 	"time"
 
 	"github.com/containernetworking/cni/libcni"
-	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
-	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/docker/docker/profiles/seccomp"
 	units "github.com/docker/go-units"
@@ -31,6 +28,7 @@ import (
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+	"github.com/projectatomic/buildah/bind"
 	"github.com/projectatomic/buildah/util"
 	"github.com/projectatomic/libpod/pkg/secrets"
 	"github.com/sirupsen/logrus"
@@ -286,7 +284,7 @@ func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) 
 	return nil
 }
 
-func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions NamespaceOptions) error {
+func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions NamespaceOptions) error {
 	// Start building a new list of mounts.
 	var mounts []specs.Mount
 	haveMount := func(destination string) bool {
@@ -316,7 +314,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 					Source:      "/dev/shm",
 					Type:        "bind",
 					Destination: "/dev/shm",
-					Options:     []string{"nobuildahbind", "rbind", "nosuid", "noexec", "nodev"},
+					Options:     []string{bind.NoBindOption, "rbind", "nosuid", "noexec", "nodev"},
 				}
 			}
 		}
@@ -331,7 +329,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 					Source:      "/dev/mqueue",
 					Type:        "bind",
 					Destination: "/dev/mqueue",
-					Options:     []string{"nobuildahbind", "rbind", "nosuid", "noexec", "nodev"},
+					Options:     []string{bind.NoBindOption, "rbind", "nosuid", "noexec", "nodev"},
 				}
 			}
 		}
@@ -347,7 +345,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 					Source:      "/sys",
 					Type:        "bind",
 					Destination: "/sys",
-					Options:     []string{"nobuildahbind", "rbind", "nosuid", "noexec", "nodev", "ro"},
+					Options:     []string{bind.NoBindOption, "rbind", "nosuid", "noexec", "nodev", "ro"},
 				}
 			}
 		}
@@ -363,12 +361,12 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 			Destination: "/sys/fs/cgroup",
 			Type:        "cgroup",
 			Source:      "cgroup",
-			Options:     []string{"nobuildahbind", "nosuid", "noexec", "nodev", "relatime", "ro"},
+			Options:     []string{bind.NoBindOption, "nosuid", "noexec", "nodev", "relatime", "ro"},
 		}}
 	}
 
 	// Get the list of files we need to bind into the container.
-	bindFileMounts, err := runSetupBoundFiles(bindFiles)
+	bindFileMounts, err := runSetupBoundFiles(bundlePath, bindFiles)
 	if err != nil {
 		return err
 	}
@@ -381,7 +379,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 
 	// Figure out which UID and GID to tell the secrets package to use
 	// for files that it creates.
-	rootUID, rootGID, err := getHostRootIDs(spec)
+	rootUID, rootGID, err := util.GetHostRootIDs(spec)
 	if err != nil {
 		return err
 	}
@@ -418,13 +416,17 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, optionMounts 
 	return nil
 }
 
-func runSetupBoundFiles(bindFiles map[string]string) (mounts []specs.Mount, err error) {
+func runSetupBoundFiles(bundlePath string, bindFiles map[string]string) (mounts []specs.Mount, err error) {
 	for dest, src := range bindFiles {
+		options := []string{"rbind"}
+		if strings.HasPrefix(src, bundlePath) {
+			options = append(options, bind.NoBindOption)
+		}
 		mounts = append(mounts, specs.Mount{
 			Source:      src,
 			Destination: dest,
 			Type:        "bind",
-			Options:     []string{"rbind"},
+			Options:     options,
 		})
 	}
 	return mounts, nil
@@ -851,7 +853,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		"/etc/hosts":       hostFile,
 		"/etc/resolv.conf": resolvFile,
 	}
-	err = b.setupMounts(mountPoint, spec, options.Mounts, bindFiles, b.Volumes(), b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, append(b.NamespaceOptions, options.NamespaceOptions...))
+	err = b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, b.Volumes(), b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, append(b.NamespaceOptions, options.NamespaceOptions...))
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container")
 	}
@@ -977,9 +979,11 @@ func runUsingRuntimeMain() {
 }
 
 func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetworks []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (wstatus unix.WaitStatus, err error) {
-	// Set up bind mounts for things that a namespaced user might not be able to get to directly.
+	// Lock the caller to a single OS-level thread.
 	runtime.LockOSThread()
-	unmountAll, err := runSetupIntermediateMountNamespace(spec, bundlePath)
+
+	// Set up bind mounts for things that a namespaced user might not be able to get to directly.
+	unmountAll, err := bind.SetupIntermediateMountNamespace(spec, bundlePath)
 	if unmountAll != nil {
 		defer func() {
 			if err := unmountAll(); err != nil {
@@ -1041,7 +1045,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 		} else {
 			copyStdio = true
 			// Figure out who should own the pipes.
-			uid, gid, err := getHostRootIDs(spec)
+			uid, gid, err := util.GetHostRootIDs(spec)
 			if err != nil {
 				return 1, err
 			}
@@ -1284,7 +1288,7 @@ func runConfigureNetwork(options RunOptions, configureNetwork bool, configureNet
 		if err != nil {
 			return nil, errors.Wrapf(err, "error loading networking configuration from file %q for %v", file, command)
 		}
-		if len(configureNetworks) > 0 && nc.Network != nil && (nc.Network.Name == "" || !stringInSlice(nc.Network.Name, configureNetworks)) {
+		if len(configureNetworks) > 0 && nc.Network != nil && (nc.Network.Name == "" || !util.StringInSlice(nc.Network.Name, configureNetworks)) {
 			if nc.Network.Name == "" {
 				logrus.Debugf("configuration in %q has no name, skipping it", file)
 			} else {
@@ -1304,7 +1308,7 @@ func runConfigureNetwork(options RunOptions, configureNetwork bool, configureNet
 		if err != nil {
 			return nil, errors.Wrapf(err, "error loading networking configuration list from file %q for %v", list, command)
 		}
-		if len(configureNetworks) > 0 && (cl.Name == "" || !stringInSlice(cl.Name, configureNetworks)) {
+		if len(configureNetworks) > 0 && (cl.Name == "" || !util.StringInSlice(cl.Name, configureNetworks)) {
 			if cl.Name == "" {
 				logrus.Debugf("configuration list in %q has no name, skipping it", list)
 			} else {
@@ -1633,189 +1637,4 @@ func runMakeStdioPipe(uid, gid int) ([][]int, error) {
 		return nil, errors.Wrapf(err, "error setting owner of stderr pipe descriptor")
 	}
 	return stdioPipe, nil
-}
-
-// Create and bind mount all bind-mount sources into a subdirectory of
-// bundlePath that can only be reached by the root user of the container's user
-// namespace.
-func runSetupIntermediateMountNamespace(spec *specs.Spec, bundlePath string) (unmountAll func() error, err error) {
-	defer func() {
-		// Strip "nobuildahbind" options out of the spec, at least. */
-		for i := range spec.Mounts {
-			if stringInSlice("nobuildahbind", spec.Mounts[i].Options) {
-				prunedOptions := make([]string, 0, len(spec.Mounts[i].Options))
-				for _, option := range spec.Mounts[i].Options {
-					if option != "nobuildahbind" {
-						prunedOptions = append(prunedOptions, option)
-					}
-				}
-				spec.Mounts[i].Options = prunedOptions
-			}
-		}
-	}()
-
-	// Create a new mount namespace in which to do the things we're doing.
-	if err := unix.Unshare(unix.CLONE_NEWNS); err != nil {
-		return nil, errors.Wrapf(err, "error creating new mount namespace for %v", spec.Process.Args)
-	}
-
-	// Make all of our mounts private to our namespace.
-	if err := mount.MakePrivate("/"); err != nil {
-		return nil, errors.Wrapf(err, "error making mounts private to mount namespace for %v", spec.Process.Args)
-	}
-
-	// We expect a root directory to be defined.
-	if spec.Root == nil {
-		return nil, errors.Errorf("configuration has no root filesystem?")
-	}
-	rootPath := spec.Root.Path
-
-	// Make sure the bundle directory is searchable.  We created it with
-	// TempDir(), so it should have started with permissions set to 0700.
-	info, err := os.Stat(bundlePath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error checking permissions on %q", bundlePath)
-	}
-	if err = os.Chmod(bundlePath, info.Mode()|0111); err != nil {
-		return nil, errors.Wrapf(err, "error loosening permissions on %q", bundlePath)
-	}
-
-	// Figure out who needs to be able to reach these bind mounts in order
-	// for the container to be started.
-	rootUID, rootGID, err := getHostRootIDs(spec)
-	if err != nil {
-		return nil, err
-	}
-
-	// Hand back a callback that the caller can use to clean up everything
-	// we're doing here.
-	unmount := []string{}
-	unmountAll = func() (err error) {
-		for _, mountpoint := range unmount {
-			subdirs := []string{mountpoint}
-			var infos []*mount.Info
-			infos, err = mount.GetMounts()
-			// Gather up mountpoints below this one, since we did
-			// some recursive mounting.
-			if err == nil {
-				for _, info := range infos {
-					if strings.HasPrefix(info.Mountpoint, mountpoint) {
-						subdirs = append(subdirs, info.Mountpoint)
-					}
-				}
-			}
-			// Unmount all of the lower mountpoints, then the
-			// mountpoint itself.
-			sort.Strings(subdirs)
-			for i := range subdirs {
-				var err2 error
-				subdir := subdirs[len(subdirs)-i-1]
-				for err2 == nil {
-					err2 = unix.Unmount(subdir, 0)
-				}
-				if errno, ok := err2.(syscall.Errno); !ok || errno != unix.EINVAL {
-					logrus.Warnf("error unmounting %q: %v", mountpoint, err2)
-					if err == nil {
-						err = err2
-					}
-				}
-			}
-			// Remove just the mountpoint.
-			if err2 := os.Remove(mountpoint); err2 != nil {
-				logrus.Warnf("error removing %q: %v", mountpoint, err2)
-				if err == nil {
-					err = err2
-				}
-			}
-		}
-		return err
-	}
-
-	// Create a top-level directory that the "root" user will be able to
-	// access, that "root" from containers which use different mappings, or
-	// other unprivileged users outside of containers, shouldn't be able to
-	// access.
-	mnt := filepath.Join(bundlePath, "mnt")
-	if err = idtools.MkdirAndChown(mnt, 0100, idtools.IDPair{UID: int(rootUID), GID: int(rootGID)}); err != nil {
-		return unmountAll, errors.Wrapf(err, "error creating %q owned by the container's root user", mnt)
-	}
-
-	// Make that directory private, and add it to the list of locations we
-	// unmount at cleanup time.
-	if err = mount.MakeRPrivate(mnt); err != nil {
-		return unmountAll, errors.Wrapf(err, "error marking filesystem at %q as private", mnt)
-	}
-	unmount = append([]string{mnt}, unmount...)
-
-	// Create a bind mount for the root filesystem and add it to the list.
-	rootfs := filepath.Join(mnt, "rootfs")
-	if err = os.Mkdir(rootfs, 0000); err != nil {
-		return unmountAll, errors.Wrapf(err, "error creating directory %q", rootfs)
-	}
-	if err = unix.Mount(rootPath, rootfs, "", unix.MS_BIND|unix.MS_REC|unix.MS_PRIVATE, ""); err != nil {
-		return unmountAll, errors.Wrapf(err, "error bind mounting root filesystem from %q to %q", rootPath, rootfs)
-	}
-	unmount = append([]string{rootfs}, unmount...)
-	spec.Root.Path = rootfs
-
-	// Do the same for everything we're binding in.
-	mounts := make([]specs.Mount, 0, len(spec.Mounts))
-	for i := range spec.Mounts {
-		// If we're not using an intermediate, leave it in the list.
-		if runLeaveBindMountAlone(spec.Mounts[i]) {
-			mounts = append(mounts, spec.Mounts[i])
-			continue
-		}
-		// Check if the source is a directory or something else.
-		info, err := os.Stat(spec.Mounts[i].Source)
-		if err != nil {
-			if os.IsNotExist(err) {
-				logrus.Warnf("couldn't find %q on host to bind mount into container", spec.Mounts[i].Source)
-				continue
-			}
-			return unmountAll, errors.Wrapf(err, "error checking if %q is a directory", spec.Mounts[i].Source)
-		}
-		stage := filepath.Join(mnt, fmt.Sprintf("buildah-bind-target-%d", i))
-		if info.IsDir() {
-			// If the source is a directory, make one to use as the
-			// mount target.
-			if err = os.Mkdir(stage, 0000); err != nil {
-				return unmountAll, errors.Wrapf(err, "error creating directory %q", stage)
-			}
-		} else {
-			// If the source is not a directory, create an empty
-			// file to use as the mount target.
-			file, err := os.OpenFile(stage, os.O_WRONLY|os.O_CREATE, 0000)
-			if err != nil {
-				return unmountAll, errors.Wrapf(err, "error creating file %q", stage)
-			}
-			file.Close()
-		}
-		// Bind mount the source from wherever it is to a place where
-		// we know the runtime helper will be able to get to it...
-		if err = unix.Mount(spec.Mounts[i].Source, stage, "", unix.MS_BIND|unix.MS_REC|unix.MS_PRIVATE, ""); err != nil {
-			return unmountAll, errors.Wrapf(err, "error bind mounting bind object from %q to %q", spec.Mounts[i].Source, stage)
-		}
-		spec.Mounts[i].Source = stage
-		// ... and update the source location that we'll pass to the
-		// runtime to our intermediate location.
-		mounts = append(mounts, spec.Mounts[i])
-		unmount = append([]string{stage}, unmount...)
-	}
-	spec.Mounts = mounts
-
-	return unmountAll, nil
-}
-
-// Decide if the mount should not be redirected to an intermediate location first.
-func runLeaveBindMountAlone(mount specs.Mount) bool {
-	// If we know we shouldn't do a redirection for this mount, skip it.
-	if stringInSlice("nobuildahbind", mount.Options) {
-		return true
-	}
-	// If we're not bind mounting it in, we don't need to do anything for it.
-	if mount.Type != "bind" && !stringInSlice("bind", mount.Options) && !stringInSlice("rbind", mount.Options) {
-		return true
-	}
-	return false
 }

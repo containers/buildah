@@ -18,6 +18,7 @@ import (
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -242,4 +243,54 @@ func Runtime() string {
 		return runtime
 	}
 	return DefaultRuntime
+}
+
+// StringInSlice returns a boolean indicating if the exact value s is present
+// in the slice slice.
+func StringInSlice(s string, slice []string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+// GetHostIDs uses ID mappings to compute the host-level IDs that will
+// correspond to a UID/GID pair in the container.
+func GetHostIDs(uidmap, gidmap []specs.LinuxIDMapping, uid, gid uint32) (uint32, uint32, error) {
+	uidMapped := true
+	for _, m := range uidmap {
+		uidMapped = false
+		if uid >= m.ContainerID && uid < m.ContainerID+m.Size {
+			uid = (uid - m.ContainerID) + m.HostID
+			uidMapped = true
+			break
+		}
+	}
+	if !uidMapped {
+		return 0, 0, errors.Errorf("container uses ID mappings, but doesn't map UID %d", uid)
+	}
+	gidMapped := true
+	for _, m := range gidmap {
+		gidMapped = false
+		if gid >= m.ContainerID && gid < m.ContainerID+m.Size {
+			gid = (gid - m.ContainerID) + m.HostID
+			gidMapped = true
+			break
+		}
+	}
+	if !gidMapped {
+		return 0, 0, errors.Errorf("container uses ID mappings, but doesn't map GID %d", gid)
+	}
+	return uid, gid, nil
+}
+
+// GetHostRootIDs uses ID mappings in spec to compute the host-level IDs that will
+// correspond to UID/GID 0/0 in the container.
+func GetHostRootIDs(spec *specs.Spec) (uint32, uint32, error) {
+	if spec.Linux == nil {
+		return 0, 0, nil
+	}
+	return GetHostIDs(spec.Linux.UIDMappings, spec.Linux.GIDMappings, 0, 0)
 }
