@@ -139,7 +139,7 @@ func budCmd(c *cli.Context) error {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
-	commonOpts, err := parse.ParseCommonBuildOptions(c)
+	commonOpts, err := parse.CommonBuildOptions(c)
 	if err != nil {
 		return err
 	}
@@ -168,11 +168,11 @@ func budCmd(c *cli.Context) error {
 		logrus.Debugf("build caching not enabled so --rm flag has no effect")
 	}
 
-	namespaceOptions, networkPolicy, err := parseNamespaceOptions(c)
+	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error parsing namespace-related options")
 	}
-	usernsOption, idmappingOptions, err := parseIDMappingOptions(c)
+	usernsOption, idmappingOptions, err := parse.IDMappingOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error parsing ID mapping options")
 	}
