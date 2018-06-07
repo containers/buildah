@@ -89,8 +89,7 @@ func runCmd(c *cli.Context) error {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
-	user := parseUserOptions(c)
-	namespaceOptions, networkPolicy, err := parseNamespaceOptions(c)
+	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error parsing namespace-related options")
 	}
@@ -99,7 +98,7 @@ func runCmd(c *cli.Context) error {
 		Hostname:         c.String("hostname"),
 		Runtime:          c.String("runtime"),
 		Args:             runtimeFlags,
-		User:             user,
+		User:             c.String("user"),
 		NamespaceOptions: namespaceOptions,
 		ConfigureNetwork: networkPolicy,
 		CNIPluginPath:    c.String("cni-plugin-path"),

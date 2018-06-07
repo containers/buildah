@@ -178,7 +178,7 @@ func fromCmd(c *cli.Context) error {
 		return err
 	}
 
-	commonOpts, err := parse.ParseCommonBuildOptions(c)
+	commonOpts, err := parse.CommonBuildOptions(c)
 	if err != nil {
 		return err
 	}
@@ -191,11 +191,11 @@ func fromCmd(c *cli.Context) error {
 		}
 	}
 
-	namespaceOptions, networkPolicy, err := parseNamespaceOptions(c)
+	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error parsing namespace-related options")
 	}
-	usernsOption, idmappingOptions, err := parseIDMappingOptions(c)
+	usernsOption, idmappingOptions, err := parse.IDMappingOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error parsing ID mapping options")
 	}
