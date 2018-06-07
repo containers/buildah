@@ -41,15 +41,6 @@ func copyStringSlice(s []string) []string {
 	return t
 }
 
-func stringInSlice(s string, slice []string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
 func convertStorageIDMaps(UIDMap, GIDMap []idtools.IDMap) ([]rspec.LinuxIDMapping, []rspec.LinuxIDMapping) {
 	uidmap := make([]rspec.LinuxIDMapping, 0, len(UIDMap))
 	gidmap := make([]rspec.LinuxIDMapping, 0, len(GIDMap))
@@ -208,45 +199,6 @@ func getProcIDMappings(path string) ([]rspec.LinuxIDMapping, error) {
 		mappings = append(mappings, rspec.LinuxIDMapping{ContainerID: uint32(cid), HostID: uint32(hid), Size: uint32(size)})
 	}
 	return mappings, nil
-}
-
-// getHostIDs uses ID mappings to compute the host-level IDs that will
-// correspond to a UID/GID pair in the container.
-func getHostIDs(uidmap, gidmap []rspec.LinuxIDMapping, uid, gid uint32) (uint32, uint32, error) {
-	uidMapped := true
-	for _, m := range uidmap {
-		uidMapped = false
-		if uid >= m.ContainerID && uid < m.ContainerID+m.Size {
-			uid = (uid - m.ContainerID) + m.HostID
-			uidMapped = true
-			break
-		}
-	}
-	if !uidMapped {
-		return 0, 0, errors.Errorf("container uses ID mappings, but doesn't map UID %d", uid)
-	}
-	gidMapped := true
-	for _, m := range gidmap {
-		gidMapped = false
-		if gid >= m.ContainerID && gid < m.ContainerID+m.Size {
-			gid = (gid - m.ContainerID) + m.HostID
-			gidMapped = true
-			break
-		}
-	}
-	if !gidMapped {
-		return 0, 0, errors.Errorf("container uses ID mappings, but doesn't map GID %d", gid)
-	}
-	return uid, gid, nil
-}
-
-// getHostRootIDs uses ID mappings in spec to compute the host-level IDs that will
-// correspond to UID/GID 0/0 in the container.
-func getHostRootIDs(spec *rspec.Spec) (uint32, uint32, error) {
-	if spec.Linux == nil {
-		return 0, 0, nil
-	}
-	return getHostIDs(spec.Linux.UIDMappings, spec.Linux.GIDMappings, 0, 0)
 }
 
 // getRegistries obtains the list of registries defined in the global registries file.
