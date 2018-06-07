@@ -271,8 +271,30 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		return nil, err
 	}
 
+	// Build history notes in the image configurations.
+	onews := v1.History{
+		Created:    &i.created,
+		CreatedBy:  i.createdBy,
+		Author:     oimage.Author,
+		Comment:    i.historyComment,
+		EmptyLayer: false,
+	}
+	oimage.History = append(oimage.History, onews)
+	dnews := docker.V2S2History{
+		Created:    i.created,
+		CreatedBy:  i.createdBy,
+		Author:     dimage.Author,
+		Comment:    i.historyComment,
+		EmptyLayer: false,
+	}
+	dimage.History = append(dimage.History, dnews)
+	dimage.Parent = docker.ID(digest.FromString(i.parent))
+
+	if len(layers) != len(oimage.History) {
+		return nil, fmt.Errorf("Internal error: %d layers vs. %d history items", len(layers), len(oimage.History))
+	}
 	// Extract each layer and compute its digests, both compressed (if requested) and uncompressed.
-	for _, layerID := range layers {
+	for layerIndex, layerID := range layers {
 		what := fmt.Sprintf("layer %q", layerID)
 		if i.squash {
 			what = fmt.Sprintf("container %q", i.containerID)
@@ -305,9 +327,11 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 				Size:      layerBlobSize,
 			}
 			dmanifest.Layers = append(dmanifest.Layers, dlayerDescriptor)
-			// Note this layer in the list of diffIDs, again using the uncompressed blobsum.
-			oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, layerBlobSum)
-			dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, layerBlobSum)
+			if !oimage.History[layerIndex].EmptyLayer {
+				// Note this layer in the list of diffIDs, again using the uncompressed blobsum.
+				oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, layerBlobSum)
+				dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, layerBlobSum)
+			}
 			continue
 		}
 		// Figure out if we need to change the media type, in case we're using compression.
@@ -384,29 +408,12 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			Size:      size,
 		}
 		dmanifest.Layers = append(dmanifest.Layers, dlayerDescriptor)
-		// Add a note about the diffID, which is always the layer's uncompressed digest.
-		oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, srcHasher.Digest())
-		dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, srcHasher.Digest())
+		if !oimage.History[layerIndex].EmptyLayer {
+			// Add a note about the diffID, which is always the layer's uncompressed digest.
+			oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, srcHasher.Digest())
+			dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, srcHasher.Digest())
+		}
 	}
-
-	// Build history notes in the image configurations.
-	onews := v1.History{
-		Created:    &i.created,
-		CreatedBy:  i.createdBy,
-		Author:     oimage.Author,
-		Comment:    i.historyComment,
-		EmptyLayer: false,
-	}
-	oimage.History = append(oimage.History, onews)
-	dnews := docker.V2S2History{
-		Created:    i.created,
-		CreatedBy:  i.createdBy,
-		Author:     dimage.Author,
-		Comment:    i.historyComment,
-		EmptyLayer: false,
-	}
-	dimage.History = append(dimage.History, dnews)
-	dimage.Parent = docker.ID(digest.FromString(i.parent))
 
 	// Sanity check that we didn't just create a mismatch between non-empty layers in the
 	// history and the number of diffIDs.
