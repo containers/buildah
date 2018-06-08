@@ -57,7 +57,7 @@ load helpers
         echo "buildah version: $bv"
         echo "buildah rpm version: $rv"
         test $shortcommit = $id
-        test $bv = ${rv}-dev
+        test $bv = ${rv} -o $bv = ${rv}-dev
 
         # Clean up.
         buildah --debug=false rm $cid $cid2
@@ -112,7 +112,7 @@ load helpers
 	echo "buildah version: $bv"
 	echo "buildah rpm version: $rv"
 	test $shortcommit = $id
-	test $bv = $rv
+	test $bv = ${rv} -o $bv = ${rv}-dev
 
 	# Clean up.
 	buildah --debug=false rm $cid $cid2
@@ -167,7 +167,7 @@ load helpers
         echo "buildah version: $bv"
         echo "buildah rpm version: $rv"
         test $shortcommit = $id
-        test $bv = $rv
+	test $bv = ${rv} -o $bv = ${rv}-dev
 
         # Clean up.
         buildah --debug=false rm $cid $cid2

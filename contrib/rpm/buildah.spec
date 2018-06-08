@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.1
+Version:        1.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -91,6 +91,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Sat Jun 9 2018 Dan Walsh <dwalsh@redhat.com> 1.2-dev-1
 * Sat Jun 9 2018 Dan Walsh <dwalsh@redhat.com> 1.1-1
 - Drop capabilities if running container processes as non root
 - Print Warning message if cmd will not be used based on entrypoint
