@@ -57,7 +57,7 @@ load helpers
         echo "buildah version: $bv"
         echo "buildah rpm version: $rv"
         test $shortcommit = $id
-        test $bv = $rv
+        test $bv = ${rv}-dev
 
         # Clean up.
         buildah --debug=false rm $cid $cid2
