@@ -68,7 +68,7 @@ func main() {
 		},
 	}
 	app.Before = func(c *cli.Context) error {
-		logrus.SetLevel(logrus.WarnLevel)
+		logrus.SetLevel(logrus.ErrorLevel)
 		if c.GlobalBool("debug") {
 			debug = true
 			logrus.SetLevel(logrus.DebugLevel)
