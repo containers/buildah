@@ -165,6 +165,8 @@ type Builder struct {
 	IDMappingOptions IDMappingOptions
 
 	CommonBuildOpts *CommonBuildOptions
+	// TopLayer is the top layer of the image
+	TopLayer string
 }
 
 // BuilderInfo are used as objects to display container information

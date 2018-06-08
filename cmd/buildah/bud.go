@@ -70,6 +70,10 @@ func budCmd(c *cli.Context) error {
 	} else {
 		return errors.Errorf("unrecognized image type %q", format)
 	}
+	layers := buildahcli.UseLayers()
+	if c.IsSet("layers") {
+		layers = c.Bool("layers")
+	}
 	contextDir := ""
 	cliArgs := c.Args()
 	if len(cliArgs) > 0 {
@@ -160,10 +164,6 @@ func budCmd(c *cli.Context) error {
 		logrus.Debugf("build caching not enabled so --force-rm flag has no effect")
 	}
 
-	if c.IsSet("no-cache") {
-		logrus.Debugf("build caching not enabled so --no-cache flag has no effect")
-	}
-
 	if c.IsSet("rm") {
 		logrus.Debugf("build caching not enabled so --rm flag has no effect")
 	}
@@ -205,6 +205,8 @@ func budCmd(c *cli.Context) error {
 		Squash:                c.Bool("squash"),
 		Labels:                c.StringSlice("label"),
 		Annotations:           c.StringSlice("annotation"),
+		Layers:                layers,
+		NoCache:               c.Bool("no-cache"),
 	}
 
 	if c.Bool("quiet") {
