@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.0
+Version:        1.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -91,6 +91,57 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Wed May 30 2018 Tom Sweeney <tsweeney@redhat.com> 1.1-1
+- Add OnBuild support for Dockerfiles
+- Accept json array input for config entrypoint
+- Print a warning if cmd will not be used based on entrypoint
+- buildah bud should require a context directory or URL
+- images: Error if the specified imagename does not exist
+- Drop capabilities if running container processes as non root
+- Shouldn't add insecure registries to list of search registries
+- Report errors on bad transports specfication when pushing images
+- Allow image format to be specifed by an environment variable
+- Fixed an issue opening temp directories when running a container
+- runCopyStdio(): don't close stdin unless we saw POLLHUP
+- Better handling of bind mounts in buildah run
+- buildah rm --all now validates args as it should
+- inspect: Increase err judgments to avoid panic
+- buildah bud picks up ENV from base image
+- Add example CNI configurations
+- Run: set supplemental group IDs
+- Run: use a temporary mount namespace
+- Use CNI to configure container networks
+- add/secrets/commit: Use mappings when setting permissions on added content
+- Add CLI options for specifying namespace and cgroup setup
+- Always set mappings when using user namespaces
+- Run(): break out creation of stdio pipe descriptors
+- Read UID/GID mapping information from containers and images
+- Improved error handling for image searches in registries
+- build-using-dockerfile: add --annotation
+- Implement --squash for build-using-dockerfile and commit
+- bud.bats: print "$output" before checking its contents
+- Manage "Run" containers more closely
+- Break Builder.Run()'s "run runc" bits out
+- util.ResolveName(): handle completion for tagged/digested image names
+- Handle /etc/hosts and /etc/resolv.conf properly in container
+- Make it easier to parse out temporary directory as an image name
+- containerImageSource: return more-correct errors
+- API cleanup: PullPolicy and TerminalPolicy should be types
+- Make "run --terminal" and "run -t" aliases for "run --tty"
+- Add support for buildah bud --label
+- buildah push/from can push and pull images with no reference
+- Merge pull request #688 from pixdrift/env-ci
+- Attempt to download file from url, if fails assume Dockerfile
+- builder-inspect: fix format option
+- Add cpu-shares short flag (-c) and cpu-shares CI tests
+- buildah-from: add effective value to mount propagation
+- Add disable-content-trust noop flag to bud
+- Move parsing code out of common for namespaces and into pkg/parse.go
+- Tutorial 01-intro.md update to clarify root user
+- A number of updates to tests
+- A number of Makefile cleanups
+- Created a demos directory with initial demos 
+
 * Mon May 7 2018 Dan Walsh <dwalsh@redhat.com> 1.0-1
 - Remove buildah run cmd and entrypoint execution
 - Add Files section with registries.conf to pertinent man pages
