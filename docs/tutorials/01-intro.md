@@ -9,6 +9,10 @@ In brief the `containers/image` project provides mechanisms to copy, push, pull,
 
 First step is to install Buildah. Run as root because you will need to be root for running Buildah commands:
 
+    $ sudo -s
+
+Then install buildah by running:
+
     # dnf -y install buildah
 
 After installing Buildah we can see there are no images installed. The `buildah images` command will list all the images:
