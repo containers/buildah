@@ -17,6 +17,10 @@ specified as a source, its *contents* are copied to the destination.
 
 Sets the user and group ownership of the destination content.
 
+**--quiet**
+
+Refrain from printing a digest of the copied content.
+
 ## EXAMPLE
 
 buildah copy containerID '/myapp/app.conf' '/myapp/app.conf'
