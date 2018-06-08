@@ -197,6 +197,13 @@ OCI Runtime, using the --runtime flag.
 
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
 
+**--layers**
+
+Cache intermediate images during the build process (Default is `false`).
+
+Note: You can also override the default value of layers by setting the BUILDAH_LAYERS
+environment variable. `export BUILDAH_LAYERS=true`
+
 **--logfile** *filename*
 
 Log output which would be sent to standard output and standard error to the
@@ -235,7 +242,7 @@ another process.
 
 **--no-cache**
 
-Do not use caching for the container build. Buildah does not currently support caching so this is a NOOP.
+Do not use existing cached images for the container build. Build from the start with a new set of cached layers.
 
 **--pid** *how*
 
@@ -503,6 +510,10 @@ buildah bud --memory 40m --cpu-period 10000 --cpu-quota 50000 --ulimit nofile=10
 buildah bud --security-opt label=level:s0:c100,c200 --cgroup-parent /path/to/cgroup/parent -t imageName .
 
 buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
+
+buildah bud --layers -t imageName .
+
+buildah bud --no-cache -t imageName .
 
 ### Building an image using a URL
 
