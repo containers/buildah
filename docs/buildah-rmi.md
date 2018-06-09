@@ -13,7 +13,7 @@ Removes one or more locally stored images.
 If the image was pushed to a directory path using the 'dir:' transport
 the rmi command can not remove the image.  Instead standard file system
 commands should be used.
-If _imageID_ is a name, but does not include a registry name, buildah will attempt to find and remove an image named using the registry name *localhost*, if no such image is found, it will search for the intended image by attempting to expand the given name using the names of registries provided in the system's registries configuration.
+If _imageID_ is a name, but does not include a registry name, buildah will attempt to find and remove an image named using the registry name *localhost*, if no such image is found, it will search for the intended image by attempting to expand the given name using the names of registries provided in the system's registries configuration file, registries.conf.
 
 ## OPTIONS
 
@@ -43,5 +43,11 @@ buildah rmi --force imageID
 
 buildah rmi imageID1 imageID2 imageID3
 
+## Files
+
+**registries.conf** (`/etc/containers/registries.conf`)
+
+registries.conf is the configuration file which specifies which registries should be consulted when completing image names which do not include a registry or domain portion.
+
 ## SEE ALSO
-buildah(1)
+buildah(1), registries.conf(5)
