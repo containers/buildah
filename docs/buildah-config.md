@@ -53,7 +53,7 @@ using the specified container.
 
 Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
 
-**--entrypoint** *entry*
+**--entrypoint** *"command"* | *'["command", "arg1", ...]'*
 
 Set the *entry point* for containers based on any images which will be built
 using the specified container. buildah supports two formats for entrypoint.  It
@@ -134,6 +134,10 @@ be built using the specified container.
 ## EXAMPLE
 
 buildah config --author='Jane Austen' --workingdir='/etc/mycontainers' containerID
+
+buildah config --entrypoint /entrypoint.sh containerID
+
+buildah config --entrypoint '[ "/entrypoint.sh", "dev" ]' containerID
 
 buildah config --env foo=bar PATH=$PATH containerID
 
