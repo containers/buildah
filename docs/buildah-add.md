@@ -19,6 +19,10 @@ archive file itself.  If a local directory is specified as a source, its
 
 Sets the user and group ownership of the destination content.
 
+**--quiet**
+
+Refrain from printing a digest of the added content.
+
 ## EXAMPLE
 
 buildah add containerID '/myapp/app.conf' '/myapp/app.conf'
