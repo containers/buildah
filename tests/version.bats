@@ -11,7 +11,7 @@ load helpers
 @test "buildah version current in .spec file Version" {
 	bversion=$(buildah version | awk '/^Version:/ { print $NF }')
 	rversion=$(cat ${TESTSDIR}/../contrib/rpm/buildah.spec | awk '/^Version:/ { print $NF }')
-	run test "${bversion}" = "${rversion}"
+	run test "${bversion}" = "${rversion}" -o "${bversion}" = "${rversion}-dev"
 	[ "$status" -eq 0 ]
 }
 

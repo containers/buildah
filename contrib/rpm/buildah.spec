@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.0
+Version:        1.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -91,6 +91,100 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Sat Jun 9 2018 Dan Walsh <dwalsh@redhat.com> 1.2-dev-1
+* Sat Jun 9 2018 Dan Walsh <dwalsh@redhat.com> 1.1-1
+- Drop capabilities if running container processes as non root
+- Print Warning message if cmd will not be used based on entrypoint
+- Update 01-intro.md
+- Shouldn't add insecure registries to list of search registries
+- Report errors on bad transports specification when pushing images
+- Move parsing code out of common for namespaces and into pkg/parse.go
+- Add disable-content-trust noop flag to bud
+- Change freenode chan to buildah
+- runCopyStdio(): don't close stdin unless we saw POLLHUP
+- Add registry errors for pull
+- runCollectOutput(): just read until the pipes are closed on us
+- Run(): provide redirection for stdio
+- rmi, rm: add test
+- add mount test
+- Add parameter judgment for commands that do not require parameters
+- Add context dir to bud command in baseline test
+- run.bats: check that we can run with symlinks in the bundle path
+- Give better messages to users when image can not be found
+- use absolute path for bundlePath
+- Add environment variable to buildah --format
+- rm: add validation to args and all option
+- Accept json array input for config entrypoint
+- Run(): process RunOptions.Mounts, and its flags
+- Run(): only collect error output from stdio pipes if we created some
+- Add OnBuild support for Dockerfiles
+- Quick fix on demo readme
+- run: fix validate flags
+- buildah bud should require a context directory or URL
+- Touchup tutorial for run changes
+- Validate common bud and from flags
+- images: Error if the specified imagename does not exist
+- inspect: Increase err judgments to avoid panic
+- add test to inspect
+- buildah bud picks up ENV from base image
+- Extend the amount of time travis_wait should wait
+- Add a make target for Installing CNI plugins
+- Add tests for namespace control flags
+- copy.bats: check ownerships in the container
+- Fix SELinux test errors when SELinux is enabled
+- Add example CNI configurations
+- Run: set supplemental group IDs
+- Run: use a temporary mount namespace
+- Use CNI to configure container networks
+- add/secrets/commit: Use mappings when setting permissions on added content
+- Add CLI options for specifying namespace and cgroup setup
+- Always set mappings when using user namespaces
+- Run(): break out creation of stdio pipe descriptors
+- Read UID/GID mapping information from containers and images
+- Additional bud CI tests
+- Run integration tests under travis_wait in Travis
+- build-using-dockerfile: add --annotation
+- Implement --squash for build-using-dockerfile and commit
+- Vendor in latest container/storage for devicemapper support
+- add test to inspect
+- Vendor github.com/onsi/ginkgo and github.com/onsi/gomega
+- Test with Go 1.10, too
+- Add console syntax highlighting to troubleshooting page
+- bud.bats: print "$output" before checking its contents
+- Manage "Run" containers more closely
+- Break Builder.Run()'s "run runc" bits out
+- util.ResolveName(): handle completion for tagged/digested image names
+- Handle /etc/hosts and /etc/resolv.conf properly in container
+- Documentation fixes
+- Make it easier to parse our temporary directory as an image name
+- Makefile: list new pkg/ subdirectoris as dependencies for buildah
+- containerImageSource: return more-correct errors
+- API cleanup: PullPolicy and TerminalPolicy should be types
+- Make "run --terminal" and "run -t" aliases for "run --tty"
+- Vendor github.com/containernetworking/cni v0.6.0
+- Update github.com/containers/storage
+- Update github.com/projectatomic/libpod
+- Add support for buildah bud --label
+- buildah push/from can push and pull images with no reference
+- Vendor in latest containers/image
+- Update gometalinter to fix install.tools error
+- Update troubleshooting with new run workaround
+- Added a bud demo and tidied up
+- Attempt to download file from url, if fails assume Dockerfile
+- Add buildah bud CI tests for ENV variables
+- Re-enable rpm .spec version check and new commit test
+- Update buildah scratch demo to support el7
+- Added Docker compatibility demo
+- Update to F28 and new run format in baseline test
+- Touchup man page short options across man pages
+- Added demo dir and a demo. chged distrorlease
+- builder-inspect: fix format option
+- Add cpu-shares short flag (-c) and cpu-shares CI tests
+- Minor fixes to formatting in rpm spec changelog
+- Fix rpm .spec changelog formatting
+- CI tests and minor fix for cache related noop flags
+- buildah-from: add effective value to mount propagation
+
 * Mon May 7 2018 Dan Walsh <dwalsh@redhat.com> 1.0-1
 - Remove buildah run cmd and entrypoint execution
 - Add Files section with registries.conf to pertinent man pages
