@@ -127,7 +127,7 @@ func makeDockerV2S1Image(manifest docker.V2S1Manifest) (docker.V2Image, error) {
 	if err != nil {
 		return docker.V2Image{}, err
 	}
-	if dimage.DockerVersion == "" {
+	if dimage.ID == "" {
 		return docker.V2Image{}, errors.Errorf("error parsing image configuration from history")
 	}
 	// The DiffID list is intended to contain the sums of _uncompressed_ blobs, and these are most
