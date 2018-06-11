@@ -180,7 +180,7 @@ func makeDockerV2S1Image(manifest docker.V2S1Manifest) (docker.V2Image, error) {
 
 func (b *Builder) initConfig(ctx context.Context, img types.Image) error {
 	if img != nil { // A pre-existing image, as opposed to a "FROM scratch" new one.
-		rawManifest, _, err := img.Manifest(ctx)
+		rawManifest, manifestMIMEType, err := img.Manifest(ctx)
 		if err != nil {
 			return errors.Wrapf(err, "error reading image manifest for %q", transports.ImageName(img.Reference()))
 		}
@@ -191,7 +191,7 @@ func (b *Builder) initConfig(ctx context.Context, img types.Image) error {
 		b.Manifest = rawManifest
 		b.Config = rawConfig
 
-		switch mt := manifest.GuessMIMEType(b.Manifest); mt {
+		switch manifestMIMEType {
 		case manifest.DockerV2Schema2MediaType:
 			dimage := docker.V2Image{}
 			if err := json.Unmarshal(b.Config, &dimage); err != nil {
@@ -231,7 +231,7 @@ func (b *Builder) initConfig(ctx context.Context, img types.Image) error {
 		case "":
 			return errors.Errorf("can't work with an unrecognized manifest type")
 		default:
-			return errors.Errorf("unsupported manifest type %#v", mt)
+			return errors.Errorf("unsupported manifest type %#v", manifestMIMEType)
 		}
 	}
 
