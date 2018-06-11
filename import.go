@@ -70,7 +70,9 @@ func importBuilderDataFromImage(ctx context.Context, store storage.Store, system
 		},
 	}
 
-	builder.initConfig()
+	if err := builder.initConfig(); err != nil {
+		return nil, errors.Wrapf(err, "error preparing image configuration")
+	}
 
 	return builder, nil
 }
