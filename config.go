@@ -175,37 +175,38 @@ func makeDockerV2S1Image(manifest docker.V2S1Manifest) (docker.V2Image, error) {
 }
 
 func (b *Builder) initConfig() {
-	image := ociv1.Image{}
-	dimage := docker.V2Image{}
-	if len(b.Config) > 0 {
-		// Try to parse the image configuration. If we fail start over from scratch.
-		if err := json.Unmarshal(b.Config, &dimage); err == nil && dimage.DockerVersion != "" {
-			image = makeOCIv1Image(&dimage)
-		} else {
-			if err := json.Unmarshal(b.Config, &image); err == nil {
-				dimage = makeDockerV2S2Image(&image)
-			}
-		}
-		b.OCIv1 = image
-		b.Docker = dimage
-	} else {
-		// Try to dig out the image configuration from the manifest.
-		manifest := docker.V2S1Manifest{}
-		if err := json.Unmarshal(b.Manifest, &manifest); err == nil && manifest.SchemaVersion == 1 {
-			if dimage, err = makeDockerV2S1Image(manifest); err == nil {
+	if len(b.Manifest) > 0 { // A pre-existing image, as opposed to a "FROM scratch" new one.
+		image := ociv1.Image{}
+		dimage := docker.V2Image{}
+		if len(b.Config) > 0 {
+			// Try to parse the image configuration. If we fail start over from scratch.
+			if err := json.Unmarshal(b.Config, &dimage); err == nil && dimage.DockerVersion != "" {
 				image = makeOCIv1Image(&dimage)
+			} else {
+				if err := json.Unmarshal(b.Config, &image); err == nil {
+					dimage = makeDockerV2S2Image(&image)
+				}
 			}
+			b.OCIv1 = image
+			b.Docker = dimage
+		} else {
+			// Try to dig out the image configuration from the manifest.
+			manifest := docker.V2S1Manifest{}
+			if err := json.Unmarshal(b.Manifest, &manifest); err == nil && manifest.SchemaVersion == 1 {
+				if dimage, err = makeDockerV2S1Image(manifest); err == nil {
+					image = makeOCIv1Image(&dimage)
+				}
+			}
+			b.OCIv1 = image
+			b.Docker = dimage
 		}
-		b.OCIv1 = image
-		b.Docker = dimage
-	}
-	if len(b.Manifest) > 0 {
 		// Attempt to recover format-specific data from the manifest.
 		v1Manifest := ociv1.Manifest{}
 		if json.Unmarshal(b.Manifest, &v1Manifest) == nil {
 			b.ImageAnnotations = v1Manifest.Annotations
 		}
 	}
+
 	b.fixupConfig()
 }
 
