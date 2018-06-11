@@ -1,6 +1,7 @@
 package buildah
 
 import (
+	"context"
 	"encoding/json"
 	"path/filepath"
 	"runtime"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/containers/image/manifest"
+	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	digest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -176,8 +178,19 @@ func makeDockerV2S1Image(manifest docker.V2S1Manifest) (docker.V2Image, error) {
 	return dimage, nil
 }
 
-func (b *Builder) initConfig(_ types.Image) error {
-	if len(b.Manifest) > 0 { // A pre-existing image, as opposed to a "FROM scratch" new one.
+func (b *Builder) initConfig(ctx context.Context, img types.Image) error {
+	if img != nil { // A pre-existing image, as opposed to a "FROM scratch" new one.
+		rawManifest, _, err := img.Manifest(ctx)
+		if err != nil {
+			return errors.Wrapf(err, "error reading image manifest for %q", transports.ImageName(img.Reference()))
+		}
+		rawConfig, err := img.ConfigBlob(ctx)
+		if err != nil {
+			return errors.Wrapf(err, "error reading image configuration for %q", transports.ImageName(img.Reference()))
+		}
+		b.Manifest = rawManifest
+		b.Config = rawConfig
+
 		switch mt := manifest.GuessMIMEType(b.Manifest); mt {
 		case manifest.DockerV2Schema2MediaType:
 			dimage := docker.V2Image{}
