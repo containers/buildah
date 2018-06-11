@@ -50,8 +50,7 @@ type storageImageSource struct {
 }
 
 type storageImageDestination struct {
-	imageRef       storageReference                // The reference we'll use to name the image
-	publicRef      storageReference                // The reference we return when asked about the name we'll give to the image
+	imageRef       storageReference
 	directory      string                          // Temporary directory where we store blobs until Commit() time
 	nextTempFileID int32                           // A counter that we use for computing filenames to assign to blobs
 	manifest       []byte                          // Manifest contents, temporary
@@ -102,6 +101,9 @@ func (s storageImageSource) Close() error {
 
 // GetBlob reads the data blob or filesystem layer which matches the digest and size, if given.
 func (s *storageImageSource) GetBlob(ctx context.Context, info types.BlobInfo) (rc io.ReadCloser, n int64, err error) {
+	if info.Digest == image.GzippedEmptyLayerDigest {
+		return ioutil.NopCloser(bytes.NewReader(image.GzippedEmptyLayer)), int64(len(image.GzippedEmptyLayer)), nil
+	}
 	rc, n, _, err = s.getBlobAndLayerID(info)
 	return rc, n, err
 }
@@ -175,11 +177,15 @@ func (s *storageImageSource) GetManifest(ctx context.Context, instanceDigest *di
 // LayerInfosForCopy() returns the list of layer blobs that make up the root filesystem of
 // the image, after they've been decompressed.
 func (s *storageImageSource) LayerInfosForCopy(ctx context.Context) ([]types.BlobInfo, error) {
-	updatedBlobInfos := []types.BlobInfo{}
-	_, manifestType, err := s.GetManifest(ctx, nil)
+	manifestBlob, manifestType, err := s.GetManifest(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error reading image manifest for %q", s.image.ID)
 	}
+	man, err := manifest.FromBlob(manifestBlob, manifestType)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error parsing image manifest for %q", s.image.ID)
+	}
+
 	uncompressedLayerType := ""
 	switch manifestType {
 	case imgspecv1.MediaTypeImageManifest:
@@ -188,6 +194,8 @@ func (s *storageImageSource) LayerInfosForCopy(ctx context.Context) ([]types.Blo
 		// This is actually a compressed type, but there's no uncompressed type defined
 		uncompressedLayerType = manifest.DockerV2Schema2LayerMediaType
 	}
+
+	physicalBlobInfos := []types.BlobInfo{}
 	layerID := s.image.TopLayer
 	for layerID != "" {
 		layer, err := s.imageRef.transport.store.Layer(layerID)
@@ -205,10 +213,43 @@ func (s *storageImageSource) LayerInfosForCopy(ctx context.Context) ([]types.Blo
 			Size:      layer.UncompressedSize,
 			MediaType: uncompressedLayerType,
 		}
-		updatedBlobInfos = append([]types.BlobInfo{blobInfo}, updatedBlobInfos...)
+		physicalBlobInfos = append([]types.BlobInfo{blobInfo}, physicalBlobInfos...)
 		layerID = layer.Parent
 	}
-	return updatedBlobInfos, nil
+
+	res, err := buildLayerInfosForCopy(man.LayerInfos(), physicalBlobInfos)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error creating LayerInfosForCopy of image %q", s.image.ID)
+	}
+	return res, nil
+}
+
+// buildLayerInfosForCopy builds a LayerInfosForCopy return value based on manifestInfos from the original manifest,
+// but using layer data which we can actually produce — physicalInfos for non-empty layers,
+// and image.GzippedEmptyLayer for empty ones.
+// (This is split basically only to allow easily unit-testing the part that has no dependencies on the external environment.)
+func buildLayerInfosForCopy(manifestInfos []manifest.LayerInfo, physicalInfos []types.BlobInfo) ([]types.BlobInfo, error) {
+	nextPhysical := 0
+	res := make([]types.BlobInfo, len(manifestInfos))
+	for i, mi := range manifestInfos {
+		if mi.EmptyLayer {
+			res[i] = types.BlobInfo{
+				Digest:    image.GzippedEmptyLayerDigest,
+				Size:      int64(len(image.GzippedEmptyLayer)),
+				MediaType: mi.MediaType,
+			}
+		} else {
+			if nextPhysical >= len(physicalInfos) {
+				return nil, fmt.Errorf("expected more than %d physical layers to exist", len(physicalInfos))
+			}
+			res[i] = physicalInfos[nextPhysical]
+			nextPhysical++
+		}
+	}
+	if nextPhysical != len(physicalInfos) {
+		return nil, fmt.Errorf("used only %d out of %d physical layers", nextPhysical, len(physicalInfos))
+	}
+	return res, nil
 }
 
 // GetSignatures() parses the image's signatures blob into a slice of byte slices.
@@ -243,15 +284,8 @@ func newImageDestination(imageRef storageReference) (*storageImageDestination, e
 	if err != nil {
 		return nil, errors.Wrapf(err, "error creating a temporary directory")
 	}
-	// Break reading of the reference we're writing, so that copy.Image() won't try to rewrite
-	// schema1 image manifests to remove embedded references, since that changes the manifest's
-	// digest, and that makes the image unusable if we subsequently try to access it using a
-	// reference that mentions the no-longer-correct digest.
-	publicRef := imageRef
-	publicRef.name = nil
 	image := &storageImageDestination{
 		imageRef:       imageRef,
-		publicRef:      publicRef,
 		directory:      directory,
 		blobDiffIDs:    make(map[digest.Digest]digest.Digest),
 		fileSizes:      make(map[digest.Digest]int64),
@@ -261,11 +295,10 @@ func newImageDestination(imageRef storageReference) (*storageImageDestination, e
 	return image, nil
 }
 
-// Reference returns a mostly-usable image reference that can't return a DockerReference, to
-// avoid triggering logic in copy.Image() that rewrites schema 1 image manifests in order to
-// remove image names that they contain which don't match the value we're using.
+// Reference returns the reference used to set up this destination.  Note that this should directly correspond to user's intent,
+// e.g. it should use the public hostname instead of the result of resolving CNAMEs or following redirects.
 func (s storageImageDestination) Reference() types.ImageReference {
-	return s.publicRef
+	return s.imageRef
 }
 
 // Close cleans up the temporary directory.
@@ -408,12 +441,7 @@ func (s *storageImageDestination) computeID(m manifest.Manifest) string {
 	case *manifest.Schema1:
 		// Build a list of the diffIDs we've generated for the non-throwaway FS layers,
 		// in reverse of the order in which they were originally listed.
-		for i, history := range m.History {
-			compat := manifest.Schema1V1Compatibility{}
-			if err := json.Unmarshal([]byte(history.V1Compatibility), &compat); err != nil {
-				logrus.Debugf("internal error reading schema 1 history: %v", err)
-				return ""
-			}
+		for i, compat := range m.ExtractedV1Compatibility {
 			if compat.ThrowAway {
 				continue
 			}
@@ -471,8 +499,11 @@ func (s *storageImageDestination) Commit(ctx context.Context) error {
 	layerBlobs := man.LayerInfos()
 	// Extract or find the layers.
 	lastLayer := ""
-	addedLayers := []string{}
 	for _, blob := range layerBlobs {
+		if blob.EmptyLayer {
+			continue
+		}
+
 		var diff io.ReadCloser
 		// Check if there's already a layer with the ID that we'd give to the result of applying
 		// this layer blob to its parent, if it has one, or the blob's hex value otherwise.
@@ -481,7 +512,7 @@ func (s *storageImageDestination) Commit(ctx context.Context) error {
 			// Check if it's elsewhere and the caller just forgot to pass it to us in a PutBlob(),
 			// or to even check if we had it.
 			logrus.Debugf("looking for diffID for blob %+v", blob.Digest)
-			has, _, err := s.HasBlob(ctx, blob)
+			has, _, err := s.HasBlob(ctx, blob.BlobInfo)
 			if err != nil {
 				return errors.Wrapf(err, "error checking for a layer based on blob %q", blob.Digest.String())
 			}
@@ -550,7 +581,6 @@ func (s *storageImageDestination) Commit(ctx context.Context) error {
 			return errors.Wrapf(err, "error adding layer with blob %q", blob.Digest)
 		}
 		lastLayer = layer.ID
-		addedLayers = append([]string{lastLayer}, addedLayers...)
 	}
 	// If one of those blobs was a configuration blob, then we can try to dig out the date when the image
 	// was originally created, in case we're just copying it.  If not, no harm done.
@@ -613,7 +643,7 @@ func (s *storageImageDestination) Commit(ctx context.Context) error {
 	if name := s.imageRef.DockerReference(); len(oldNames) > 0 || name != nil {
 		names := []string{}
 		if name != nil {
-			names = append(names, verboseName(name))
+			names = append(names, name.String())
 		}
 		if len(oldNames) > 0 {
 			names = append(names, oldNames...)
@@ -701,6 +731,13 @@ func (s *storageImageDestination) AcceptsForeignLayerURLs() bool {
 // MustMatchRuntimeOS returns true iff the destination can store only images targeted for the current runtime OS. False otherwise.
 func (s *storageImageDestination) MustMatchRuntimeOS() bool {
 	return true
+}
+
+// IgnoresEmbeddedDockerReference returns true iff the destination does not care about Image.EmbeddedDockerReferenceConflicts(),
+// and would prefer to receive an unmodified manifest instead of one modified for the destination.
+// Does not make a difference if Reference().DockerReference() is nil.
+func (s *storageImageDestination) IgnoresEmbeddedDockerReference() bool {
+	return true // Yes, we want the unmodified manifest
 }
 
 // PutSignatures records the image's signatures for committing as a single data blob.
