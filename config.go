@@ -15,7 +15,7 @@ import (
 
 // makeOCIv1Image builds the best OCIv1 image structure we can from the
 // contents of the docker image structure.
-func makeOCIv1Image(dimage *docker.V2Image) (ociv1.Image, error) {
+func makeOCIv1Image(dimage *docker.V2Image) ociv1.Image {
 	config := dimage.Config
 	if config == nil {
 		config = &dimage.ContainerConfig
@@ -65,12 +65,12 @@ func makeOCIv1Image(dimage *docker.V2Image) (ociv1.Image, error) {
 		}
 		image.History = append(image.History, ohistory)
 	}
-	return image, nil
+	return image
 }
 
 // makeDockerV2S2Image builds the best docker image structure we can from the
 // contents of the OCI image structure.
-func makeDockerV2S2Image(oimage *ociv1.Image) (docker.V2Image, error) {
+func makeDockerV2S2Image(oimage *ociv1.Image) docker.V2Image {
 	image := docker.V2Image{
 		V1Image: docker.V1Image{Created: oimage.Created.UTC(),
 			Author:       oimage.Author,
@@ -112,7 +112,7 @@ func makeDockerV2S2Image(oimage *ociv1.Image) (docker.V2Image, error) {
 		image.History = append(image.History, dhistory)
 	}
 	image.Config = &image.ContainerConfig
-	return image, nil
+	return image
 }
 
 // makeDockerV2S1Image builds the best docker image structure we can from the
@@ -180,14 +180,10 @@ func (b *Builder) initConfig() {
 	if len(b.Config) > 0 {
 		// Try to parse the image configuration. If we fail start over from scratch.
 		if err := json.Unmarshal(b.Config, &dimage); err == nil && dimage.DockerVersion != "" {
-			if image, err = makeOCIv1Image(&dimage); err != nil {
-				image = ociv1.Image{}
-			}
+			image = makeOCIv1Image(&dimage)
 		} else {
 			if err := json.Unmarshal(b.Config, &image); err != nil {
-				if dimage, err = makeDockerV2S2Image(&image); err != nil {
-					dimage = docker.V2Image{}
-				}
+				dimage = makeDockerV2S2Image(&image)
 			}
 		}
 		b.OCIv1 = image
@@ -197,9 +193,7 @@ func (b *Builder) initConfig() {
 		manifest := docker.V2S1Manifest{}
 		if err := json.Unmarshal(b.Manifest, &manifest); err == nil && manifest.SchemaVersion == 1 {
 			if dimage, err = makeDockerV2S1Image(manifest); err == nil {
-				if image, err = makeOCIv1Image(&dimage); err != nil {
-					image = ociv1.Image{}
-				}
+				image = makeOCIv1Image(&dimage)
 			}
 		}
 		b.OCIv1 = image
