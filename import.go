@@ -28,14 +28,7 @@ func importBuilderDataFromImage(ctx context.Context, store storage.Store, system
 		return nil, errors.Wrapf(err2, "error instantiating image")
 	}
 	defer src.Close()
-	config, err := src.ConfigBlob(ctx)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error reading image configuration")
-	}
-	manifest, _, err := src.Manifest(ctx)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error reading image manifest")
-	}
+
 	imageName := ""
 	if img, err3 := store.Image(imageID); err3 == nil {
 		if len(img.Names) > 0 {
@@ -55,8 +48,6 @@ func importBuilderDataFromImage(ctx context.Context, store storage.Store, system
 		Type:             containerType,
 		FromImage:        imageName,
 		FromImageID:      imageID,
-		Config:           config,
-		Manifest:         manifest,
 		Container:        containerName,
 		ContainerID:      containerID,
 		ImageAnnotations: map[string]string{},
@@ -70,7 +61,7 @@ func importBuilderDataFromImage(ctx context.Context, store storage.Store, system
 		},
 	}
 
-	if err := builder.initConfig(src); err != nil {
+	if err := builder.initConfig(ctx, src); err != nil {
 		return nil, errors.Wrapf(err, "error preparing image configuration")
 	}
 

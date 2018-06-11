@@ -114,21 +114,6 @@ func imageNamePrefix(imageName string) string {
 	return prefix
 }
 
-func imageManifestAndConfig(ctx context.Context, img types.Image) (manifest, config []byte, err error) {
-	if img != nil {
-		config, err := img.ConfigBlob(ctx)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "error reading image configuration for %q", transports.ImageName(img.Reference()))
-		}
-		manifest, _, err := img.Manifest(ctx)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "error reading image manifest for %q", transports.ImageName(img.Reference()))
-		}
-		return manifest, config, nil
-	}
-	return nil, nil, nil
-}
-
 func newContainerIDMappingOptions(idmapOptions *IDMappingOptions) storage.IDMappingOptions {
 	var options storage.IDMappingOptions
 	if idmapOptions != nil {
@@ -224,8 +209,6 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	var ref types.ImageReference
 	var img *storage.Image
 	var err error
-	var manifest []byte
-	var config []byte
 
 	if options.FromImage == BaseImageFakeName {
 		options.FromImage = ""
@@ -263,10 +246,6 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 			return nil, errors.Wrapf(err, "error instantiating image for %q", transports.ImageName(ref))
 		}
 		defer src.Close()
-	}
-
-	if manifest, config, err = imageManifestAndConfig(ctx, src); err != nil {
-		return nil, errors.Wrapf(err, "error reading data from image %q", transports.ImageName(ref))
 	}
 
 	name := "working-container"
@@ -321,8 +300,6 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		Type:                  containerType,
 		FromImage:             image,
 		FromImageID:           imageID,
-		Config:                config,
-		Manifest:              manifest,
 		Container:             name,
 		ContainerID:           container.ID,
 		ImageAnnotations:      map[string]string{},
@@ -351,7 +328,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		}
 	}
 
-	if err := builder.initConfig(src); err != nil {
+	if err := builder.initConfig(ctx, src); err != nil {
 		return nil, errors.Wrapf(err, "error preparing image configuration")
 	}
 	err = builder.Save()
