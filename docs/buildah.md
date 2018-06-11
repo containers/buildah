@@ -30,7 +30,7 @@ Show help
 
 **--registries-conf** *path*
 
-Pathname of the configuration file which specifies which registries should be
+Pathname of the configuration file which specifies which container registries should be
 consulted when completing image names which do not include a registry or domain
 portion.  It is not recommended that this option be used, as the default
 behavior of using the system-wide configuration
@@ -112,7 +112,7 @@ Print the version
 
 **registries.conf** (`/etc/containers/registries.conf`)
 
-	registries.conf is the configuration file which specifies which registries should be consulted when completing image names which do not include a registry or domain portion.
+	registries.conf is the configuration file which specifies which container registries should be consulted when completing image names which do not include a registry or domain portion.
 
 ## SEE ALSO
 podman(1), mounts.conf(5), registries.conf(5), storage.conf(5)
