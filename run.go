@@ -146,6 +146,10 @@ type RunOptions struct {
 	// decision can be overridden by specifying either WithTerminal or
 	// WithoutTerminal.
 	Terminal TerminalPolicy
+	// TerminalSize provides a way to set the number of rows and columns in
+	// a pseudo-terminal, if we create one, and Stdin/Stdout/Stderr aren't
+	// connected to a terminal.
+	TerminalSize *specs.Box
 	// The stdin/stdout/stderr descriptors to use.  If set to nil, the
 	// corresponding files in the "os" package are used as defaults.
 	Stdin  io.Reader `json:"-"`
@@ -605,14 +609,23 @@ func setupApparmor(spec *specs.Spec, apparmorProfile string) error {
 	return nil
 }
 
-func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy) {
+func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, terminalSize *specs.Box) {
 	switch terminalPolicy {
 	case DefaultTerminal:
-		g.SetProcessTerminal(terminal.IsTerminal(int(os.Stdout.Fd())))
+		onTerminal := terminal.IsTerminal(unix.Stdin) && terminal.IsTerminal(unix.Stdout) && terminal.IsTerminal(unix.Stderr)
+		if onTerminal {
+			logrus.Debugf("stdio is a terminal, defaulting to using a terminal")
+		} else {
+			logrus.Debugf("stdio is not a terminal, defaulting to not using a terminal")
+		}
+		g.SetProcessTerminal(onTerminal)
 	case WithTerminal:
 		g.SetProcessTerminal(true)
 	case WithoutTerminal:
 		g.SetProcessTerminal(false)
+	}
+	if terminalSize != nil {
+		g.SetProcessConsoleSize(terminalSize.Width, terminalSize.Height)
 	}
 }
 
@@ -768,7 +781,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	g.SetRootPath(mountPoint)
 
-	setupTerminal(g, options.Terminal)
+	setupTerminal(g, options.Terminal, options.TerminalSize)
 
 	namespaceOptions := DefaultNamespaceOptions()
 	namespaceOptions.AddOrReplace(b.NamespaceOptions...)
@@ -1158,7 +1171,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 
 	// Handle stdio for the container in the background.
 	stdio.Add(1)
-	go runCopyStdio(&stdio, copyPipes, stdioPipe, copyConsole, consoleListener, finishCopy, finishedCopy)
+	go runCopyStdio(&stdio, copyPipes, stdioPipe, copyConsole, consoleListener, finishCopy, finishedCopy, spec)
 
 	// Start the container.
 	err = start.Run()
@@ -1362,7 +1375,7 @@ func runConfigureNetwork(options RunOptions, configureNetwork bool, configureNet
 	return teardown, nil
 }
 
-func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copyConsole bool, consoleListener *net.UnixListener, finishCopy []int, finishedCopy chan struct{}) {
+func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copyConsole bool, consoleListener *net.UnixListener, finishCopy []int, finishedCopy chan struct{}, spec *specs.Spec) {
 	defer func() {
 		unix.Close(finishCopy[0])
 		if copyPipes {
@@ -1380,7 +1393,7 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 	terminalFD := -1
 	if copyConsole {
 		// Accept a connection over our listening socket.
-		fd, err := runAcceptTerminal(consoleListener)
+		fd, err := runAcceptTerminal(consoleListener, spec.Process.ConsoleSize)
 		if err != nil {
 			logrus.Errorf("%v", err)
 			return
@@ -1388,18 +1401,16 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 		terminalFD = fd
 		// Set our terminal's mode to raw, to pass handling of special
 		// terminal input to the terminal in the container.
-		state, err := terminal.MakeRaw(unix.Stdin)
-		if err != nil {
-			logrus.Warnf("error setting terminal state: %v", err)
-		} else {
-			defer func() {
-				if err = terminal.Restore(unix.Stdin, state); err != nil {
-					logrus.Errorf("unable to restore terminal state: %v", err)
-				}
-			}()
-			// FIXME - if we're connected to a terminal, we should be
-			// passing the updated terminal size down when we receive a
-			// SIGWINCH.
+		if terminal.IsTerminal(unix.Stdin) {
+			if state, err := terminal.MakeRaw(unix.Stdin); err != nil {
+				logrus.Warnf("error setting terminal state: %v", err)
+			} else {
+				defer func() {
+					if err = terminal.Restore(unix.Stdin, state); err != nil {
+						logrus.Errorf("unable to restore terminal state: %v", err)
+					}
+				}()
+			}
 		}
 	}
 	// Track how many descriptors we're expecting data from.
@@ -1552,7 +1563,7 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 	}
 }
 
-func runAcceptTerminal(consoleListener *net.UnixListener) (int, error) {
+func runAcceptTerminal(consoleListener *net.UnixListener, terminalSize *specs.Box) (int, error) {
 	defer consoleListener.Close()
 	c, err := consoleListener.AcceptUnix()
 	if err != nil {
@@ -1595,15 +1606,29 @@ func runAcceptTerminal(consoleListener *net.UnixListener) (int, error) {
 	if terminalFD == -1 {
 		return -1, errors.Errorf("unable to read terminal descriptor")
 	}
-	// Set the pseudoterminal's size to match our own.
-	winsize, err := unix.IoctlGetWinsize(unix.Stdin, unix.TIOCGWINSZ)
-	if err != nil {
-		logrus.Warnf("error reading size of controlling terminal: %v", err)
-		return terminalFD, nil
+	// Set the pseudoterminal's size to the configured size, or our own.
+	winsize := &unix.Winsize{}
+	if terminalSize != nil {
+		// Use configured sizes.
+		winsize.Row = uint16(terminalSize.Height)
+		winsize.Col = uint16(terminalSize.Width)
+	} else {
+		if terminal.IsTerminal(unix.Stdin) {
+			// Use the size of our terminal.
+			if winsize, err = unix.IoctlGetWinsize(unix.Stdin, unix.TIOCGWINSZ); err != nil {
+				logrus.Warnf("error reading size of controlling terminal: %v", err)
+				winsize.Row = 0
+				winsize.Col = 0
+			}
+		}
 	}
-	err = unix.IoctlSetWinsize(terminalFD, unix.TIOCSWINSZ, winsize)
-	if err != nil {
-		logrus.Warnf("error setting size of container pseudoterminal: %v", err)
+	if winsize.Row != 0 && winsize.Col != 0 {
+		if err = unix.IoctlSetWinsize(terminalFD, unix.TIOCSWINSZ, winsize); err != nil {
+			logrus.Warnf("error setting size of container pseudoterminal: %v", err)
+		}
+		// FIXME - if we're connected to a terminal, we should
+		// be passing the updated terminal size down when we
+		// receive a SIGWINCH.
 	}
 	return terminalFD, nil
 }
