@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containers/image/manifest"
 	digest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -176,21 +177,29 @@ func makeDockerV2S1Image(manifest docker.V2S1Manifest) (docker.V2Image, error) {
 
 func (b *Builder) initConfig() error {
 	if len(b.Manifest) > 0 { // A pre-existing image, as opposed to a "FROM scratch" new one.
-		image := ociv1.Image{}
-		dimage := docker.V2Image{}
-		if len(b.Config) > 0 {
-			// Try to parse the image configuration. If we fail start over from scratch.
-			if err := json.Unmarshal(b.Config, &dimage); err == nil && dimage.DockerVersion != "" {
-				image = makeOCIv1Image(&dimage)
-			} else {
-				if err := json.Unmarshal(b.Config, &image); err != nil {
-					return errors.Wrapf(err, "error parsing config (as either Docker v2s2 or OCI)")
-				}
-				dimage = makeDockerV2S2Image(&image)
+		switch mt := manifest.GuessMIMEType(b.Manifest); mt {
+		case manifest.DockerV2Schema2MediaType:
+			dimage := docker.V2Image{}
+			if err := json.Unmarshal(b.Config, &dimage); err != nil {
+				return errors.Wrapf(err, "error parsing Docker v2s2 configuration")
+			}
+			b.OCIv1 = makeOCIv1Image(&dimage)
+			b.Docker = dimage
+		case ociv1.MediaTypeImageManifest:
+			image := ociv1.Image{}
+			if err := json.Unmarshal(b.Config, &image); err != nil {
+				return errors.Wrapf(err, "error parsing OCI configuration")
 			}
 			b.OCIv1 = image
-			b.Docker = dimage
-		} else {
+			b.Docker = makeDockerV2S2Image(&image)
+
+			// Attempt to recover format-specific data from the manifest.
+			v1Manifest := ociv1.Manifest{}
+			if err := json.Unmarshal(b.Manifest, &v1Manifest); err != nil {
+				return errors.Wrapf(err, "error parsing OCI manifest")
+			}
+			b.ImageAnnotations = v1Manifest.Annotations
+		case manifest.DockerV2Schema1SignedMediaType, manifest.DockerV2Schema1MediaType:
 			// Try to dig out the image configuration from the manifest.
 			manifest := docker.V2S1Manifest{}
 			if err := json.Unmarshal(b.Manifest, &manifest); err != nil {
@@ -199,17 +208,16 @@ func (b *Builder) initConfig() error {
 			if manifest.SchemaVersion != 1 {
 				return errors.Errorf("manifest is not v2s1, config is not available")
 			}
-			if dimage, err = makeDockerV2S1Image(manifest); err != nil {
+			dimage, err := makeDockerV2S1Image(manifest)
+			if err != nil {
 				return errors.Wrapf(err, "error converting v2s1 image to v2s2")
 			}
-			image = makeOCIv1Image(&dimage)
-			b.OCIv1 = image
+			b.OCIv1 = makeOCIv1Image(&dimage)
 			b.Docker = dimage
-		}
-		// Attempt to recover format-specific data from the manifest.
-		v1Manifest := ociv1.Manifest{}
-		if json.Unmarshal(b.Manifest, &v1Manifest) == nil {
-			b.ImageAnnotations = v1Manifest.Annotations
+		case "":
+			return errors.Errorf("can't work with an unrecognized manifest type")
+		default:
+			return errors.Errorf("unsupported manifest type %#v", mt)
 		}
 	}
 
