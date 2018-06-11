@@ -182,7 +182,7 @@ func (b *Builder) initConfig() {
 		if err := json.Unmarshal(b.Config, &dimage); err == nil && dimage.DockerVersion != "" {
 			image = makeOCIv1Image(&dimage)
 		} else {
-			if err := json.Unmarshal(b.Config, &image); err != nil {
+			if err := json.Unmarshal(b.Config, &image); err == nil {
 				dimage = makeDockerV2S2Image(&image)
 			}
 		}
