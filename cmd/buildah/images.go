@@ -82,7 +82,7 @@ var (
 		Description:    imagesDescription,
 		Flags:          imagesFlags,
 		Action:         imagesCmd,
-		ArgsUsage:      " ",
+		ArgsUsage:      "[imageName]",
 		SkipArgReorder: true,
 	}
 )
