@@ -269,7 +269,10 @@ Remove intermediate containers after a successful build. Buildah does not curren
 **--runtime** *path*
 
 The *path* to an alternate OCI-compatible runtime, which will be used to run
-commands specified by the **RUN** instruction.
+commands specified by the **RUN** instruction. Default is runc.
+
+Note: You can also override the default runtime by setting the BUILDAH_RUNTIME
+environment variable.  `export BUILDAH_FORMAT=/usr/local/bin/runc`
 
 **--runtime-flag** *flag*
 

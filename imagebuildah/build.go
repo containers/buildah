@@ -32,7 +32,6 @@ const (
 	PullIfMissing       = buildah.PullIfMissing
 	PullAlways          = buildah.PullAlways
 	PullNever           = buildah.PullNever
-	DefaultRuntime      = buildah.DefaultRuntime
 	OCIv1ImageFormat    = buildah.OCIv1ImageManifest
 	Dockerv2ImageFormat = buildah.Dockerv2ImageManifest
 
