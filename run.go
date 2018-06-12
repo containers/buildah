@@ -41,8 +41,6 @@ import (
 const (
 	// DefaultWorkingDir is used if none was specified.
 	DefaultWorkingDir = "/"
-	// DefaultRuntime is the default command to use to run the container.
-	DefaultRuntime = "runc"
 	// runUsingRuntimeCommand is a command we use as a key for reexec
 	runUsingRuntimeCommand = Package + "-runtime"
 )
@@ -1007,7 +1005,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 	// Decide which runtime to use.
 	runtime := options.Runtime
 	if runtime == "" {
-		runtime = DefaultRuntime
+		runtime = util.Runtime()
 	}
 
 	// Default to not specifying a console socket location.

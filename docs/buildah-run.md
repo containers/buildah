@@ -59,7 +59,10 @@ process.
 
 **--runtime** *path*
 
-The *path* to an alternate OCI-compatible runtime.
+The *path* to an alternate OCI-compatible runtime. Default is runc.
+
+Note: You can also override the default runtime by setting the BUILDAH_RUNTIME
+environment variable.  `export BUILDAH_FORMAT=/usr/local/bin/runc`
 
 **--runtime-flag** *flag*
 

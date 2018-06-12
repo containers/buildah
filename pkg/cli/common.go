@@ -10,12 +10,12 @@ import (
 	"strings"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/projectatomic/buildah"
 	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
 
 var (
+	runtime     = util.Runtime()
 	usernsFlags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "userns",
@@ -154,7 +154,7 @@ var (
 		cli.StringFlag{
 			Name:  "runtime",
 			Usage: "`path` to an alternate runtime",
-			Value: buildah.DefaultRuntime,
+			Value: runtime,
 		},
 		cli.StringSliceFlag{
 			Name:  "runtime-flag",
