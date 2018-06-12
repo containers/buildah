@@ -11,6 +11,7 @@ import (
 	"github.com/projectatomic/buildah"
 	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
+	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -24,7 +25,7 @@ var (
 		cli.StringFlag{
 			Name:  "runtime",
 			Usage: "`path` to an alternate runtime",
-			Value: buildah.DefaultRuntime,
+			Value: util.Runtime(),
 		},
 		cli.StringSliceFlag{
 			Name:  "runtime-flag",
