@@ -357,6 +357,8 @@ return 1
      local boolean_options="
      --help
      -h
+     --layers
+     --no-cache
      --pull
      --pull-always
      --quiet

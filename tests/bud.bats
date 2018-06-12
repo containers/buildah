@@ -2,6 +2,37 @@
 
 load helpers
 
+@test "bud with --layers and --no-cache flags" {
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
+  images1=$(buildah images | grep "" -c)
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTSDIR}/bud/use-layers
+  images2=$(buildah images | grep "" -c)
+  diff="$(($images2-$images1))"
+  [[ "$diff" == "1" ]]
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
+  images3=$(buildah images | grep "" -c)
+  diff="$(($images3-$images2))"
+  [[ "$diff" == "2" ]]
+
+  mkdir -p ${TESTSDIR}/bud/use-layers/mount/subdir
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test4 -f Dockerfile.3 ${TESTSDIR}/bud/use-layers
+  images4=$(buildah images | grep "" -c)
+  touch ${TESTSDIR}/bud/use-layers/mount/subdir/file.txt
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test5 -f Dockerfile.3 ${TESTSDIR}/bud/use-layers
+  images5=$(buildah images | grep "" -c)
+  diff="$(($images5-$images4))"
+  [[ "$diff" == "2" ]]
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test6 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
+  images6=$(buildah images | grep "" -c)
+  diff="$(($images6-$images5))"
+  [[ "$diff" == "3" ]]
+
+  buildah rmi -a
+  rm -rf ${TESTSDIR}/bud/use-layers/mount
+}
+
 @test "bud from base image should have base image ENV also" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t test -f Dockerfile.check-env ${TESTSDIR}/bud/env
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json test)
@@ -617,16 +648,6 @@ load helpers
 @test "bud with --force-rm noop flag" {
   target=noop-image
   run buildah bud --force-rm --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags ${TESTSDIR}/bud/run-scenarios
-  echo "$output"
-  [ "$status" -eq 0 ]
-  cid=$(buildah from ${target})
-  buildah rm ${cid}
-  buildah rmi ${target}
-}
-
-@test "bud with --no-cache noop flag" {
-  target=noop-image
-  run buildah bud --no-cache --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.noop-flags ${TESTSDIR}/bud/run-scenarios
   echo "$output"
   [ "$status" -eq 0 ]
   cid=$(buildah from ${target})
