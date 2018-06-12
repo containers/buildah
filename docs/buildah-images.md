@@ -45,11 +45,15 @@ Displays only the image IDs.
 
 buildah images
 
+buildah images fedora:latest
+
 buildah images --json
 
 buildah images --quiet
 
 buildah images -q --noheading --notruncate
+
+buildah images --quiet fedora:latest
 
 buildah images --filter dangling=true
 
