@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"syscall"
 
 	"github.com/containers/storage/pkg/idtools"
@@ -65,45 +63,44 @@ func SetupIntermediateMountNamespace(spec *specs.Spec, bundlePath string) (unmou
 	unmount := []string{}
 	unmountAll = func() (err error) {
 		for _, mountpoint := range unmount {
-			subdirs := []string{}
-			var infos []*mount.Info
-			infos, err = mount.GetMounts()
-			// Gather up mountpoints below this one, since we did
-			// some recursive mounting.
-			if err == nil {
-				for _, info := range infos {
-					if info.Mountpoint != mountpoint && strings.HasPrefix(info.Mountpoint, mountpoint) {
-						subdirs = dedupeStringSlice(append(subdirs, info.Mountpoint))
-					}
+			// Unmount it and anything under it.
+			if err2 := UnmountMountpoints(mountpoint, nil); err2 != nil {
+				logrus.Warnf("pkg/bind: error unmounting %q: %v", mountpoint, err2)
+				if err == nil {
+					err = err2
 				}
 			}
-			// Unmount all of the lower mountpoints...
-			sort.Strings(subdirs)
-			for i := range subdirs {
-				var err2 error
-				subdir := subdirs[len(subdirs)-i-1]
-				for err2 == nil {
-					err2 = unix.Unmount(subdir, unix.MNT_DETACH)
-				}
-				if errno, ok := err2.(syscall.Errno); !ok || errno != unix.EINVAL {
-					logrus.Errorf("error unmounting %q: %v", subdir, err2)
-					if err == nil {
-						err = err2
-					}
-				}
-			}
-			// ... and then the mountpoint itself.
 			if err2 := unix.Unmount(mountpoint, unix.MNT_DETACH); err2 != nil {
-				if errno, ok := err2.(syscall.Errno); !ok || errno != unix.EINVAL {
-					logrus.Errorf("error unmounting %q (MNT_DETACH): %v", mountpoint, err2)
+				if errno, ok := err2.(syscall.Errno); !ok || errno != syscall.EINVAL {
+					logrus.Warnf("pkg/bind: error detaching %q: %v", mountpoint, err2)
 					if err == nil {
 						err = err2
 					}
 				}
 			}
 			// Remove just the mountpoint.
-			if err2 := os.Remove(mountpoint); err2 != nil {
-				logrus.Warnf("error removing %q: %v", mountpoint, err2)
+			retry := 10
+			remove := unix.Unlink
+			err2 := remove(mountpoint)
+			for err2 != nil && retry > 0 {
+				if errno, ok := err2.(syscall.Errno); ok {
+					switch errno {
+					default:
+						retry = 0
+						continue
+					case syscall.EISDIR:
+						remove = unix.Rmdir
+						err2 = remove(mountpoint)
+					case syscall.EBUSY:
+						if err3 := unix.Unmount(mountpoint, unix.MNT_DETACH); err3 == nil {
+							err2 = remove(mountpoint)
+						}
+					}
+					retry--
+				}
+			}
+			if err2 != nil {
+				logrus.Warnf("pkg/bind: error removing %q: %v", mountpoint, err2)
 				if err == nil {
 					err = err2
 				}
@@ -200,4 +197,98 @@ func leaveBindMountAlone(mount specs.Mount) bool {
 		return true
 	}
 	return false
+}
+
+// UnmountMountpoints unmounts the given mountpoints and anything that's hanging
+// off of them, rather aggressively.  If a mountpoint also appears in the
+// mountpointsToRemove slice, the mountpoints are removed after they are
+// unmounted.
+func UnmountMountpoints(mountpoint string, mountpointsToRemove []string) error {
+	mounts, err := mount.GetMounts()
+	if err != nil {
+		return errors.Wrapf(err, "error retrieving list of mounts")
+	}
+	// getChildren returns the list of mount IDs that hang off of the
+	// specified ID.
+	getChildren := func(id int) []int {
+		var list []int
+		for _, info := range mounts {
+			if info.Parent == id {
+				list = append(list, info.ID)
+			}
+		}
+		return list
+	}
+	// getTree returns the list of mount IDs that hang off of the specified
+	// ID, and off of those mount IDs, etc.
+	getTree := func(id int) []int {
+		mounts := []int{id}
+		i := 0
+		for i < len(mounts) {
+			children := getChildren(mounts[i])
+			mounts = append(mounts, children...)
+			i++
+		}
+		return mounts
+	}
+	// getMountByID looks up the mount info with the specified ID
+	getMountByID := func(id int) *mount.Info {
+		for i := range mounts {
+			if mounts[i].ID == id {
+				return mounts[i]
+			}
+		}
+		return nil
+	}
+	// getMountByPoint looks up the mount info with the specified mountpoint
+	getMountByPoint := func(mountpoint string) *mount.Info {
+		for i := range mounts {
+			if mounts[i].Mountpoint == mountpoint {
+				return mounts[i]
+			}
+		}
+		return nil
+	}
+	// find the top of the tree we're unmounting
+	top := getMountByPoint(mountpoint)
+	if top == nil {
+		return errors.Wrapf(err, "%q is not mounted", mountpoint)
+	}
+	// add all of the mounts that are hanging off of it
+	tree := getTree(top.ID)
+	// unmount each mountpoint, working from the end of the list (leaf nodes) to the top
+	for i := range tree {
+		var st unix.Stat_t
+		id := tree[len(tree)-i-1]
+		mount := getMountByID(id)
+		// check if this mountpoint is mounted
+		if err := unix.Lstat(mount.Mountpoint, &st); err != nil {
+			return errors.Wrapf(err, "error checking if %q is mounted", mount.Mountpoint)
+		}
+		if mount.Major != int(unix.Major(st.Dev)) || mount.Minor != int(unix.Minor(st.Dev)) {
+			logrus.Debugf("%q is apparently not really mounted, skipping", mount.Mountpoint)
+			continue
+		}
+		// do the unmount
+		if err := unix.Unmount(mount.Mountpoint, 0); err != nil {
+			// if it was busy, detach it
+			if errno, ok := err.(syscall.Errno); ok && errno == syscall.EBUSY {
+				err = unix.Unmount(mount.Mountpoint, unix.MNT_DETACH)
+			}
+			if err != nil {
+				// if it was invalid (not mounted), hide the error, else return it
+				if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EINVAL {
+					logrus.Warnf("error unmounting %q: %v", mount.Mountpoint, err)
+					continue
+				}
+			}
+		}
+		// if we're also supposed to remove this thing, do that, too
+		if util.StringInSlice(mount.Mountpoint, mountpointsToRemove) {
+			if err := os.Remove(mount.Mountpoint); err != nil {
+				return errors.Wrapf(err, "error removing %q", mount.Mountpoint)
+			}
+		}
+	}
+	return nil
 }
