@@ -638,6 +638,8 @@ return 1
 
  _buildah_images() {
      local boolean_options="
+     --all
+     -a
      --digests
      --help
      -h

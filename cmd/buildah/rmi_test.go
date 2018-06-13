@@ -104,7 +104,7 @@ func TestStorageImageIDTrue(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	id, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images, "", store, nil, "busybox:latest", false, false, false, true)
+		return outputImages(getContext(), images, "", store, nil, "busybox:latest", false, false, false, true, false)
 	})
 	if err != nil {
 		t.Fatalf("Error getting id of image: %v", err)
