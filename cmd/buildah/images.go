@@ -45,6 +45,10 @@ type filterParams struct {
 var (
 	imagesFlags = []cli.Flag{
 		cli.BoolFlag{
+			Name:  "all, a",
+			Usage: "show all images, including intermediate images from a build",
+		},
+		cli.BoolFlag{
 			Name:  "digests",
 			Usage: "show digests",
 		},
@@ -140,7 +144,7 @@ func imagesCmd(c *cli.Context) error {
 		outputHeader(truncate, digests)
 	}
 
-	return outputImages(ctx, images, c.String("format"), store, params, name, hasTemplate, truncate, digests, quiet)
+	return outputImages(ctx, images, c.String("format"), store, params, name, hasTemplate, truncate, digests, quiet, c.Bool("all"))
 }
 
 func parseFilter(ctx context.Context, store storage.Store, images []storage.Image, filter string) (*filterParams, error) {
@@ -220,8 +224,12 @@ func outputHeader(truncate, digests bool) {
 	fmt.Printf("%-22s %s\n", "CREATED AT", "SIZE")
 }
 
-func outputImages(ctx context.Context, images []storage.Image, format string, store storage.Store, filters *filterParams, argName string, hasTemplate, truncate, digests, quiet bool) error {
+func outputImages(ctx context.Context, images []storage.Image, format string, store storage.Store, filters *filterParams, argName string, hasTemplate, truncate, digests, quiet, all bool) error {
 	found := false
+	storageLayers, err := store.Layers()
+	if err != nil {
+		return errors.Wrap(err, "error getting layers from store")
+	}
 	for _, image := range images {
 		createdTime := image.Created
 
@@ -233,6 +241,13 @@ func outputImages(ctx context.Context, images []storage.Image, format string, st
 			}
 		}
 		createdTime = createdTime.Local()
+
+		// If all is false and the image doesn't have a name, check to see if the top layer of the image is a parent
+		// to another image's top layer. If it is, then it is an intermediate image so don't print out if the --all flag
+		// is not set.
+		if !all && len(image.Names) == 0 && !layerIsLeaf(storageLayers, image.TopLayer) {
+			continue
+		}
 
 		names := []string{}
 		if len(image.Names) > 0 {
@@ -414,4 +429,15 @@ func outputUsingFormatString(truncate, digests bool, params imageOutputParams) {
 		fmt.Printf(" %-64s", params.Digest)
 	}
 	fmt.Printf(" %-22s %s\n", params.CreatedAt, params.Size)
+}
+
+// layerIsLeaf goes through the layers in the store and checks if "layer" is
+// the parent of any other layer in store.
+func layerIsLeaf(storageLayers []storage.Layer, layer string) bool {
+	for _, storeLayer := range storageLayers {
+		if storeLayer.Parent == layer {
+			return false
+		}
+	}
+	return true
 }

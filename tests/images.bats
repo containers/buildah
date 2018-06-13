@@ -12,6 +12,22 @@ load helpers
   buildah rmi -a -f
 }
 
+@test "images all test" {
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false images
+  [ $(wc -l <<< "$output") -eq 3 ]
+  [ "${status}" -eq 0 ]
+  run buildah --debug=false images -a
+  [ $(wc -l <<< "$output") -eq 5 ]
+
+  # create a no name image which should show up when doing buildah images without the --all flag
+  buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false images
+  [ $(wc -l <<< "$output") -eq 4 ]
+
+  buildah rmi -a -f
+}
+
 @test "images filter test" {
   cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
