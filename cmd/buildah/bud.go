@@ -148,6 +148,14 @@ func budCmd(c *cli.Context) error {
 		return err
 	}
 
+	if c.IsSet("layers") && c.IsSet("no-cache") {
+		return errors.Errorf("can only set one of 'layers' or 'no-cache'")
+	}
+
+	if (c.IsSet("rm") || c.IsSet("force-rm")) && (!c.IsSet("layers") && !c.IsSet("no-cache")) {
+		return errors.Errorf("'rm' and 'force-rm' can only be set with either 'layers' or 'no-cache'")
+	}
+
 	if c.IsSet("cache-from") {
 		logrus.Debugf("build caching not enabled so --cache-from flag has no effect")
 	}
@@ -158,14 +166,6 @@ func budCmd(c *cli.Context) error {
 
 	if c.IsSet("disable-content-trust") {
 		logrus.Debugf("--disable-content-trust option specified but is ignored")
-	}
-
-	if c.IsSet("force-rm") {
-		logrus.Debugf("build caching not enabled so --force-rm flag has no effect")
-	}
-
-	if c.IsSet("rm") {
-		logrus.Debugf("build caching not enabled so --rm flag has no effect")
 	}
 
 	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
@@ -179,34 +179,36 @@ func budCmd(c *cli.Context) error {
 	namespaceOptions.AddOrReplace(usernsOption...)
 
 	options := imagebuildah.BuildOptions{
-		ContextDirectory:      contextDir,
-		PullPolicy:            pullPolicy,
-		Compression:           imagebuildah.Gzip,
-		Quiet:                 c.Bool("quiet"),
-		SignaturePolicyPath:   c.String("signature-policy"),
-		Args:                  args,
-		Output:                output,
-		AdditionalTags:        tags,
-		Out:                   stdout,
-		Err:                   stderr,
-		ReportWriter:          reporter,
-		Runtime:               c.String("runtime"),
-		RuntimeArgs:           runtimeFlags,
-		OutputFormat:          format,
-		SystemContext:         systemContext,
-		NamespaceOptions:      namespaceOptions,
-		ConfigureNetwork:      networkPolicy,
-		CNIPluginPath:         c.String("cni-plugin-path"),
-		CNIConfigDir:          c.String("cni-config-dir"),
-		IDMappingOptions:      idmappingOptions,
-		CommonBuildOpts:       commonOpts,
-		DefaultMountsFilePath: c.GlobalString("default-mounts-file"),
-		IIDFile:               c.String("iidfile"),
-		Squash:                c.Bool("squash"),
-		Labels:                c.StringSlice("label"),
-		Annotations:           c.StringSlice("annotation"),
-		Layers:                layers,
-		NoCache:               c.Bool("no-cache"),
+		ContextDirectory:        contextDir,
+		PullPolicy:              pullPolicy,
+		Compression:             imagebuildah.Gzip,
+		Quiet:                   c.Bool("quiet"),
+		SignaturePolicyPath:     c.String("signature-policy"),
+		Args:                    args,
+		Output:                  output,
+		AdditionalTags:          tags,
+		Out:                     stdout,
+		Err:                     stderr,
+		ReportWriter:            reporter,
+		Runtime:                 c.String("runtime"),
+		RuntimeArgs:             runtimeFlags,
+		OutputFormat:            format,
+		SystemContext:           systemContext,
+		NamespaceOptions:        namespaceOptions,
+		ConfigureNetwork:        networkPolicy,
+		CNIPluginPath:           c.String("cni-plugin-path"),
+		CNIConfigDir:            c.String("cni-config-dir"),
+		IDMappingOptions:        idmappingOptions,
+		CommonBuildOpts:         commonOpts,
+		DefaultMountsFilePath:   c.GlobalString("default-mounts-file"),
+		IIDFile:                 c.String("iidfile"),
+		Squash:                  c.Bool("squash"),
+		Labels:                  c.StringSlice("label"),
+		Annotations:             c.StringSlice("annotation"),
+		Layers:                  layers,
+		NoCache:                 c.Bool("no-cache"),
+		RemoveIntermediateCtrs:  c.BoolT("rm"),
+		ForceRmIntermediateCtrs: c.Bool("force-rm"),
 	}
 
 	if c.Bool("quiet") {
