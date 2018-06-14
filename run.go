@@ -664,15 +664,15 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 		if err := g.AddOrReplaceLinuxNamespace(specs.UserNamespace, ""); err != nil {
 			return false, nil, false, errors.Wrapf(err, "error adding new %q namespace for run", string(specs.UserNamespace))
 		}
+		hostUidmap, hostGidmap, err := util.GetHostIDMappings("")
+		if err != nil {
+			return false, nil, false, err
+		}
 		for _, m := range idmapOptions.UIDMap {
 			g.AddLinuxUIDMapping(m.HostID, m.ContainerID, m.Size)
 		}
 		if len(idmapOptions.UIDMap) == 0 {
-			mappings, err := getProcIDMappings("/proc/self/uid_map")
-			if err != nil {
-				return false, nil, false, err
-			}
-			for _, m := range mappings {
+			for _, m := range hostUidmap {
 				g.AddLinuxUIDMapping(m.ContainerID, m.ContainerID, m.Size)
 			}
 		}
@@ -680,11 +680,7 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 			g.AddLinuxGIDMapping(m.HostID, m.ContainerID, m.Size)
 		}
 		if len(idmapOptions.GIDMap) == 0 {
-			mappings, err := getProcIDMappings("/proc/self/gid_map")
-			if err != nil {
-				return false, nil, false, err
-			}
-			for _, m := range mappings {
+			for _, m := range hostGidmap {
 				g.AddLinuxGIDMapping(m.ContainerID, m.ContainerID, m.Size)
 			}
 		}
