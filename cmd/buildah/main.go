@@ -81,6 +81,7 @@ func main() {
 			debug = true
 			logrus.SetLevel(logrus.DebugLevel)
 		}
+		maybeReexecUsingUserNamespace(c, false)
 		return nil
 	}
 	app.After = func(c *cli.Context) error {
@@ -110,6 +111,7 @@ func main() {
 		runCommand,
 		tagCommand,
 		umountCommand,
+		unshareCommand,
 		versionCommand,
 	}
 	err := app.Run(os.Args)

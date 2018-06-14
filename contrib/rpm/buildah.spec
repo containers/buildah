@@ -27,7 +27,7 @@
 Name:           buildah
 # Bump version in buildah.go too
 Version:        1.2
-Release:        1.git%{shortcommit}%{?dist}
+Release:        2.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -49,6 +49,7 @@ BuildRequires:  make
 Requires:       runc >= 1.0.0-6
 Requires:       container-selinux
 Requires:       skopeo-containers
+Requires:       shadow-utils
 Provides:       %{repo} = %{version}-%{release}
 
 %description
