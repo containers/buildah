@@ -46,23 +46,23 @@ be used, as the default behavior of using the system-wide configuration
 
 **--root** **value**
 
-Storage root dir (default: "/var/lib/containers/storage")
+Storage root dir (default: "/var/lib/containers/storage" for UID 0, "$HOME/.local/share/containers/storage" for other users)
 Default root dir is configured in /etc/containers/storage.conf
 
 **--runroot** **value**
 
-Storage state dir (default: "/var/run/containers/storage")
+Storage state dir (default: "/var/run/containers/storage" for UID 0, "/var/run/user/$UID/run" for other users)
 Default state dir is configured in /etc/containers/storage.conf
 
 **--storage-driver** **value**
 
-Storage driver.  Default Storage driver is configured in /etc/containers/storage.conf.  Overriding
-this option, will drop the storage-opt definitions was well from the storage.conf file.  User must
+Storage driver.  The default storage driver for UID 0 is configured in /etc/containers/storage.conf, and is *vfs* for other users.
+Overriding this option will cause the *storage-opt* settings in /etc/containers/storage.conf to be ignored.  The user must
 specify additional options via the `--storage-opt` flag.
 
 **--storage-opt** **value**
 
-Storage driver option, Default Storage driver options are configured in /etc/containers/storage.conf
+Storage driver option, Default storage driver options are configured in /etc/containers/storage.conf
 
 **--userns-uid-map** *mapping*
 
@@ -107,8 +107,9 @@ Print the version
 | buildah-run(1)        | Run a command inside of the container.                                                               |
 | buildah-tag(1)        | Add an additional name to a local image.                                                             |
 | buildah-umount(1)     | Unmount a working container's root file system.                                                      |
-| buildah-version(1)    | Display the Buildah Version Information                                    |
-| storage.conf(5) | Syntax of Container Storage configuration file |
+| buildah-unshare(1)    | Launch a command in a user namespace with modified ID mappings.                                      |
+| buildah-version(1)    | Display the Buildah Version Information                                                              |
+| storage.conf(5)       | Syntax of Container Storage configuration file                                                       |
 
 
 ## Files
@@ -134,7 +135,7 @@ Print the version
 	registries.conf is the configuration file which specifies which container registries should be consulted when completing image names which do not include a registry or domain portion.
 
 ## SEE ALSO
-podman(1), mounts.conf(5), registries.conf(5), storage.conf(5)
+podman(1), mounts.conf(5), newuidmap(1), newgidmap(1), registries.conf(5), storage.conf(5)
 
 ## HISTORY
 December 2017, Originally compiled by Tom Sweeney <tsweeney@redhat.com>

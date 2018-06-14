@@ -17,7 +17,7 @@ LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_I
 
 all: buildah imgtype docs
 
-buildah: *.go imagebuildah/*.go bind/*.go cmd/buildah/*.go docker/*.go pkg/cli/*.go pkg/parse/*.go util/*.go
+buildah: *.go imagebuildah/*.go bind/*.go cmd/buildah/*.go docker/*.go pkg/cli/*.go pkg/parse/*.go unshare/*.c unshare/*.go util/*.go
 	$(GO) build $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
 
 imgtype: *.go docker/*.go util/*.go tests/imgtype/imgtype.go
