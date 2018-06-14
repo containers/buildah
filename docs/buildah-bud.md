@@ -161,9 +161,9 @@ If a build context is not specified, and at least one Dockerfile is a
 local file, the directory in which it resides will be used as the build
 context.
 
-**--force-rm**
+**--force-rm** *bool-value*
 
-Always remove intermediate containers after a build. Buildah does not currently support caching so this is a NOOP.
+Always remove intermediate containers after a build, even if the build is unsuccessful..
 
 **--format**
 
@@ -197,7 +197,7 @@ OCI Runtime, using the --runtime flag.
 
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
 
-**--layers**
+**--layers** *bool-value*
 
 Cache intermediate images during the build process (Default is `false`).
 
@@ -240,7 +240,7 @@ that the network namespace in which `buildah` itself is being run should be
 reused, or it can be the path to a network namespace which is already in use by
 another process.
 
-**--no-cache**
+**--no-cache** *bool-value*
 
 Do not use existing cached images for the container build. Build from the start with a new set of cached layers.
 
@@ -269,9 +269,9 @@ Suppress output messages which indicate which instruction is being processed,
 and of progress when pulling images from a registry, and when writing the
 output image.
 
-**--rm**
+**--rm** *bool-value*
 
-Remove intermediate containers after a successful build. Buildah does not currently support caching so this is a NOOP.
+Remove intermediate containers after a successful build (default true).
 
 **--runtime** *path*
 
@@ -517,6 +517,10 @@ buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
 buildah bud --layers -t imageName .
 
 buildah bud --no-cache -t imageName .
+
+buildah bud --layers --force-rm -t imageName .
+
+buildah bud --no-cache --rm=false -t imageName .
 
 ### Building an image using a URL
 
