@@ -1024,7 +1024,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 	var errorFds []int
 	stdioPipe := make([][]int, 3)
 	copyConsole := false
-	copyStdio := false
+	copyPipes := false
 	finishCopy := make([]int, 2)
 	if err = unix.Pipe(finishCopy); err != nil {
 		return 1, errors.Wrapf(err, "error creating pipe for notifying to stop stdio")
@@ -1042,7 +1042,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 			// Add console socket arguments.
 			moreCreateArgs = func() []string { return []string{"--console-socket", socketPath} }
 		} else {
-			copyStdio = true
+			copyPipes = true
 			// Figure out who should own the pipes.
 			uid, gid, err := util.GetHostRootIDs(spec)
 			if err != nil {
@@ -1147,7 +1147,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 		}
 	}
 
-	if copyStdio {
+	if copyPipes {
 		// We don't need the ends of the pipes that belong to the container.
 		stdin.Close()
 		if stdout != nil {
@@ -1158,7 +1158,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 
 	// Handle stdio for the container in the background.
 	stdio.Add(1)
-	go runCopyStdio(&stdio, copyStdio, stdioPipe, copyConsole, consoleListener, finishCopy, finishedCopy)
+	go runCopyStdio(&stdio, copyPipes, stdioPipe, copyConsole, consoleListener, finishCopy, finishedCopy)
 
 	// Start the container.
 	err = start.Run()
@@ -1362,10 +1362,10 @@ func runConfigureNetwork(options RunOptions, configureNetwork bool, configureNet
 	return teardown, nil
 }
 
-func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copyConsole bool, consoleListener *net.UnixListener, finishCopy []int, finishedCopy chan struct{}) {
+func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copyConsole bool, consoleListener *net.UnixListener, finishCopy []int, finishedCopy chan struct{}) {
 	defer func() {
 		unix.Close(finishCopy[0])
-		if copyStdio {
+		if copyPipes {
 			unix.Close(stdioPipe[unix.Stdin][1])
 			unix.Close(stdioPipe[unix.Stdout][0])
 			unix.Close(stdioPipe[unix.Stderr][0])
@@ -1374,7 +1374,7 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 		finishedCopy <- struct{}{}
 	}()
 	// If we're not doing I/O handling, we're done.
-	if !copyConsole && !copyStdio {
+	if !copyConsole && !copyPipes {
 		return
 	}
 	terminalFD := -1
@@ -1423,7 +1423,7 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 		writeDesc[unix.Stdout] = "output"
 		reading = 2
 	}
-	if copyStdio {
+	if copyPipes {
 		// Input from our stdin, output from the stdout and stderr pipes.
 		relayMap[unix.Stdin] = stdioPipe[unix.Stdin][1]
 		readDesc[unix.Stdin] = "stdin"
@@ -1489,7 +1489,7 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 			if pollFd.Revents&unix.POLLIN == 0 {
 				// If we're using pipes and it's our stdin and it's closed, close the writing
 				// end of the corresponding pipe.
-				if copyStdio && int(pollFd.Fd) == unix.Stdin && pollFd.Revents&unix.POLLHUP != 0 {
+				if copyPipes && int(pollFd.Fd) == unix.Stdin && pollFd.Revents&unix.POLLHUP != 0 {
 					unix.Close(stdioPipe[unix.Stdin][1])
 					stdioPipe[unix.Stdin][1] = -1
 				}
@@ -1506,7 +1506,7 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 				// If it's zero-length on our stdin and we're
 				// using pipes, it's an EOF, so close the stdin
 				// pipe's writing end.
-				if n == 0 && copyStdio && int(pollFd.Fd) == unix.Stdin {
+				if n == 0 && copyPipes && int(pollFd.Fd) == unix.Stdin {
 					unix.Close(stdioPipe[unix.Stdin][1])
 					stdioPipe[unix.Stdin][1] = -1
 				}
