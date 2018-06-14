@@ -1080,25 +1080,21 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 	if create.SysProcAttr == nil {
 		create.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	runSetDeathSig(create)
 
 	args = append(options.Args, "start", containerName)
 	start := exec.Command(runtime, args...)
 	start.Dir = bundlePath
 	start.Stderr = os.Stderr
-	runSetDeathSig(start)
 
 	args = append(options.Args, "kill", containerName)
 	kill := exec.Command(runtime, args...)
 	kill.Dir = bundlePath
 	kill.Stderr = os.Stderr
-	runSetDeathSig(kill)
 
 	args = append(options.Args, "delete", containerName)
 	del := exec.Command(runtime, args...)
 	del.Dir = bundlePath
 	del.Stderr = os.Stderr
-	runSetDeathSig(del)
 
 	// Actually create the container.
 	err = create.Run()
@@ -1606,15 +1602,6 @@ func runAcceptTerminal(consoleListener *net.UnixListener) (int, error) {
 		logrus.Warnf("error setting size of container pseudoterminal: %v", err)
 	}
 	return terminalFD, nil
-}
-
-func runSetDeathSig(cmd *exec.Cmd) {
-	if cmd.SysProcAttr == nil {
-		cmd.SysProcAttr = &syscall.SysProcAttr{}
-	}
-	if cmd.SysProcAttr.Pdeathsig == 0 {
-		cmd.SysProcAttr.Pdeathsig = syscall.SIGTERM
-	}
 }
 
 // Create pipes to use for relaying stdio.
