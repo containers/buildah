@@ -27,6 +27,7 @@ List of directories in which the CNI plugins which will be used for configuring
 network namespaces can be found.
 
 **--hostname**
+
 Set the hostname inside of the running container.
 
 **--ipc** *how*
@@ -61,8 +62,8 @@ process.
 
 The *path* to an alternate OCI-compatible runtime. Default is runc.
 
-Note: You can also override the default runtime by setting the BUILDAH_RUNTIME
-environment variable.  `export BUILDAH_FORMAT=/usr/local/bin/runc`
+Note: You can also override the default runtime by setting the BUILDAH\_RUNTIME
+environment variable.  `export BUILDAH_RUNTIME=/usr/local/bin/runc`
 
 **--runtime-flag** *flag*
 

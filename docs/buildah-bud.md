@@ -171,7 +171,7 @@ Control the format for the built image's manifest and configuration data.
 Recognized formats include *oci* (OCI image-spec v1.0, the default) and
 *docker* (version 2, using schema format 2 for the manifest).
 
-Note: You can also override the default format by setting the BUILDAH_FORMAT
+Note: You can also override the default format by setting the BUILDAH\_FORMAT
 environment variable.  `export BUILDAH_FORMAT=docker`
 
 **--iidfile** *ImageIDfile*
@@ -201,7 +201,7 @@ Add an image *label* (e.g. label=*value*) to the image metadata. Can be used mul
 
 Cache intermediate images during the build process (Default is `false`).
 
-Note: You can also override the default value of layers by setting the BUILDAH_LAYERS
+Note: You can also override the default value of layers by setting the BUILDAH\_LAYERS
 environment variable. `export BUILDAH_LAYERS=true`
 
 **--logfile** *filename*
@@ -240,7 +240,7 @@ that the network namespace in which `buildah` itself is being run should be
 reused, or it can be the path to a network namespace which is already in use by
 another process.
 
-**--no-cache** *bool-value*
+**--no-cache**
 
 Do not use existing cached images for the container build. Build from the start with a new set of cached layers.
 
@@ -278,8 +278,8 @@ Remove intermediate containers after a successful build (default true).
 The *path* to an alternate OCI-compatible runtime, which will be used to run
 commands specified by the **RUN** instruction. Default is runc.
 
-Note: You can also override the default runtime by setting the BUILDAH_RUNTIME
-environment variable.  `export BUILDAH_FORMAT=/usr/local/bin/runc`
+Note: You can also override the default runtime by setting the BUILDAH\_RUNTIME
+environment variable.  `export BUILDAH_RUNTIME=/usr/local/bin/runc`
 
 **--runtime-flag** *flag*
 
