@@ -1386,11 +1386,14 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 		stdio.Done()
 		finishedCopy <- struct{}{}
 	}()
-	// If we're not doing I/O handling, we're done.
-	if !copyConsole && !copyPipes {
-		return
-	}
-	terminalFD := -1
+	// Map describing where data on an incoming descriptor should go.
+	relayMap := make(map[int]int)
+	// Map describing incoming and outgoing descriptors.
+	readDesc := make(map[int]string)
+	writeDesc := make(map[int]string)
+	// Buffers.
+	relayBuffer := make(map[int]*bytes.Buffer)
+	// Set up the terminal descriptor or pipes for polling.
 	if copyConsole {
 		// Accept a connection over our listening socket.
 		fd, err := runAcceptTerminal(consoleListener, spec.Process.ConsoleSize)
@@ -1398,7 +1401,16 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 			logrus.Errorf("%v", err)
 			return
 		}
-		terminalFD = fd
+		terminalFD := fd
+		// Input from our stdin, output from the terminal descriptor.
+		relayMap[unix.Stdin] = terminalFD
+		readDesc[unix.Stdin] = "stdin"
+		relayBuffer[terminalFD] = new(bytes.Buffer)
+		writeDesc[terminalFD] = "container terminal input"
+		relayMap[terminalFD] = unix.Stdout
+		readDesc[terminalFD] = "container terminal output"
+		relayBuffer[unix.Stdout] = new(bytes.Buffer)
+		writeDesc[unix.Stdout] = "output"
 		// Set our terminal's mode to raw, to pass handling of special
 		// terminal input to the terminal in the container.
 		if terminal.IsTerminal(unix.Stdin) {
@@ -1412,27 +1424,6 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 				}()
 			}
 		}
-	}
-	// Track how many descriptors we're expecting data from.
-	reading := 0
-	// Map describing where data on an incoming descriptor should go.
-	relayMap := make(map[int]int)
-	// Map describing incoming and outgoing descriptors.
-	readDesc := make(map[int]string)
-	writeDesc := make(map[int]string)
-	// Buffers.
-	relayBuffer := make(map[int]*bytes.Buffer)
-	if copyConsole {
-		// Input from our stdin, output from the terminal descriptor.
-		relayMap[unix.Stdin] = terminalFD
-		readDesc[unix.Stdin] = "stdin"
-		relayBuffer[terminalFD] = new(bytes.Buffer)
-		writeDesc[terminalFD] = "container terminal input"
-		relayMap[terminalFD] = unix.Stdout
-		readDesc[terminalFD] = "container terminal output"
-		relayBuffer[unix.Stdout] = new(bytes.Buffer)
-		writeDesc[unix.Stdout] = "output"
-		reading = 2
 	}
 	if copyPipes {
 		// Input from our stdin, output from the stdout and stderr pipes.
@@ -1448,7 +1439,6 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 		readDesc[stdioPipe[unix.Stderr][0]] = "container stderr"
 		relayBuffer[unix.Stderr] = new(bytes.Buffer)
 		writeDesc[unix.Stderr] = "stderr"
-		reading = 3
 	}
 	// Set our reading descriptors to non-blocking.
 	for fd := range relayMap {
@@ -1474,9 +1464,9 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 	}
 	// Pass data back and forth.
 	pollTimeout := -1
-	for {
+	for len(relayMap) > 0 {
 		// Start building the list of descriptors to poll.
-		pollFds := make([]unix.PollFd, 0, reading+1)
+		pollFds := make([]unix.PollFd, 0, len(relayMap)+1)
 		// Poll for a notification that we should stop handling stdio.
 		pollFds = append(pollFds, unix.PollFd{Fd: int32(finishCopy[0]), Events: unix.POLLIN | unix.POLLHUP})
 		// Poll on our reading descriptors.
@@ -1552,11 +1542,6 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 		// Remove any descriptors which we don't need to poll any more from the poll descriptor list.
 		for remove := range removes {
 			delete(relayMap, remove)
-			reading--
-		}
-		if reading == 0 {
-			// We have no more open descriptors to read, so we can stop now.
-			return
 		}
 		// If the we-can-return pipe had anything for us, we're done.
 		for _, pollFd := range pollFds {
