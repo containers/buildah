@@ -1559,12 +1559,17 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 		if !logIfNotRetryable(err, fmt.Sprintf("error waiting for stdio/terminal data to relay: %v", err)) {
 			return
 		}
-		var removes []int
+		removes := make(map[int]struct{})
 		for _, pollFd := range pollFds {
 			// If this descriptor's just been closed from the other end, mark it for
 			// removal from the set that we're checking for.
 			if pollFd.Revents&unix.POLLHUP == unix.POLLHUP {
-				removes = append(removes, int(pollFd.Fd))
+				removes[int(pollFd.Fd)] = struct{}{}
+			}
+			// If the descriptor was closed elsewhere, remove it from our list.
+			if pollFd.Revents&unix.POLLNVAL != 0 {
+				logrus.Debugf("error polling descriptor %d: closed?", pollFd.Fd)
+				removes[int(pollFd.Fd)] = struct{}{}
 			}
 			// If the POLLIN flag isn't set, then there's no data to be read from this descriptor.
 			if pollFd.Revents&unix.POLLIN == 0 {
@@ -1615,7 +1620,7 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 			}
 		}
 		// Remove any descriptors which we don't need to poll any more from the poll descriptor list.
-		for _, remove := range removes {
+		for remove := range removes {
 			delete(relayMap, remove)
 			reading--
 		}
