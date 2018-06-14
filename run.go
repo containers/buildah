@@ -1012,7 +1012,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 	}
 
 	// Default to not specifying a console socket location.
-	moreCreateArgs := func() []string { return nil }
+	var moreCreateArgs []string
 	// Default to just passing down our stdio.
 	getCreateStdio := func() (io.ReadCloser, io.WriteCloser, io.WriteCloser) {
 		return os.Stdin, os.Stdout, os.Stderr
@@ -1040,7 +1040,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 				return 1, errors.Wrapf(err, "error creating socket to receive terminal descriptor")
 			}
 			// Add console socket arguments.
-			moreCreateArgs = func() []string { return []string{"--console-socket", socketPath} }
+			moreCreateArgs = append(moreCreateArgs, "--console-socket", socketPath)
 		} else {
 			copyStdio = true
 			// Figure out who should own the pipes.
@@ -1072,7 +1072,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 
 	// Build the commands that we'll execute.
 	pidFile := filepath.Join(bundlePath, "pid")
-	args := append(append(append(options.Args, "create", "--bundle", bundlePath, "--pid-file", pidFile), moreCreateArgs()...), containerName)
+	args := append(append(append(options.Args, "create", "--bundle", bundlePath, "--pid-file", pidFile), moreCreateArgs...), containerName)
 	create := exec.Command(runtime, args...)
 	create.Dir = bundlePath
 	stdin, stdout, stderr := getCreateStdio()
