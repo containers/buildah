@@ -221,7 +221,7 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 
 // CommonBuildOptions are resources that can be defined by flags for both buildah from and build-using-dockerfile
 type CommonBuildOptions struct {
-	// AddHost is the list of hostnames to add to the resolv.conf
+	// AddHost is the list of hostnames to add to the build container's /etc/hosts.
 	AddHost []string
 	// CgroupParent is the path to cgroups under which the cgroup for the container will be created.
 	CgroupParent string
