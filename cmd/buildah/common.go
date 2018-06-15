@@ -11,6 +11,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
 
@@ -32,6 +33,26 @@ func getStore(c *cli.Context) (storage.Store, error) {
 		if len(opts) > 0 {
 			options.GraphDriverOptions = opts
 		}
+	}
+	if c.GlobalIsSet("userns-uid-map") && c.GlobalIsSet("userns-gid-map") {
+		uopts := c.GlobalStringSlice("userns-uid-map")
+		gopts := c.GlobalStringSlice("userns-gid-map")
+		if len(uopts) == 0 {
+			return nil, errors.New("--userns-uid-map used with no mappings?")
+		}
+		if len(gopts) == 0 {
+			return nil, errors.New("--userns-gid-map used with no mappings?")
+		}
+		uidmap, gidmap, err := util.ParseIDMappings(uopts, gopts)
+		if err != nil {
+			return nil, err
+		}
+		options.UIDMap = uidmap
+		options.GIDMap = gidmap
+	} else if c.GlobalIsSet("userns-uid-map") {
+		return nil, errors.Errorf("--userns-uid-map requires --userns-gid-map")
+	} else if c.GlobalIsSet("userns-gid-map") {
+		return nil, errors.Errorf("--userns-gid-map requires --userns-uid-map")
 	}
 	store, err := storage.GetStore(options)
 	if store != nil {

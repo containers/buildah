@@ -61,6 +61,14 @@ func main() {
 			Usage: "storage driver option",
 			Value: defaultStoreDriverOptions,
 		},
+		cli.StringSliceFlag{
+			Name:  "userns-uid-map",
+			Usage: "default `ctrID:hostID:length` UID mapping to use",
+		},
+		cli.StringSliceFlag{
+			Name:  "userns-gid-map",
+			Usage: "default `ctrID:hostID:length` GID mapping to use",
+		},
 		cli.StringFlag{
 			Name:   "default-mounts-file",
 			Usage:  "path to default mounts file",
