@@ -15,6 +15,26 @@ load helpers
   [ "${status}" -ne 0 ]
 }
 
+@test "mount multi images" {
+  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid3=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run buildah mount "$cid1" "$cid2" "$cid3"
+  [ "${status}" -eq 0 ] 
+  buildah rm --all
+  buildah rmi -f alpine
+}
+
+@test "mount multi images one bad" {
+  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid3=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run buildah mount "$cid1" badcontainer "$cid2" "$cid3"
+  [ "${status}" -ne 0 ]
+  buildah rm --all
+  buildah rmi -f alpine
+}
+
 @test "list currently mounted containers" {
   cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid1"

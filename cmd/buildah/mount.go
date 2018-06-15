@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/pkg/parse"
+	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
 
@@ -21,7 +23,7 @@ var (
 		Usage:          "Mount a working container's root filesystem",
 		Description:    mountDescription,
 		Action:         mountCmd,
-		ArgsUsage:      "CONTAINER-NAME-OR-ID",
+		ArgsUsage:      "[CONTAINER-NAME-OR-ID [...]]",
 		Flags:          mountFlags,
 		SkipArgReorder: true,
 	}
@@ -29,9 +31,7 @@ var (
 
 func mountCmd(c *cli.Context) error {
 	args := c.Args()
-	if len(args) > 1 {
-		return errors.Errorf("too many arguments specified")
-	}
+
 	if err := parse.ValidateFlags(c, mountFlags); err != nil {
 		return err
 	}
@@ -42,17 +42,25 @@ func mountCmd(c *cli.Context) error {
 	}
 	truncate := !c.Bool("notruncate")
 
-	if len(args) == 1 {
-		name := args[0]
-		builder, err := openBuilder(getContext(), store, name)
-		if err != nil {
-			return errors.Wrapf(err, "error reading build container %q", name)
+	var lastError error
+	if len(args) > 0 {
+		for _, name := range args {
+			builder, err := openBuilder(getContext(), store, name)
+			if err != nil {
+				lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "error reading build container %q", name), lastError)
+				continue
+			}
+			mountPoint, err := builder.Mount(builder.MountLabel)
+			if err != nil {
+				lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "error mounting %q container %q", name, builder.Container), lastError)
+				continue
+			}
+			if len(args) > 1 {
+				fmt.Printf("%s %s\n", name, mountPoint)
+			} else {
+				fmt.Printf("%s\n", mountPoint)
+			}
 		}
-		mountPoint, err := builder.Mount(builder.MountLabel)
-		if err != nil {
-			return errors.Wrapf(err, "error mounting %q container %q", name, builder.Container)
-		}
-		fmt.Printf("%s\n", mountPoint)
 	} else {
 		builders, err := openBuilders(store)
 		if err != nil {
@@ -69,5 +77,5 @@ func mountCmd(c *cli.Context) error {
 			}
 		}
 	}
-	return nil
+	return lastError
 }
