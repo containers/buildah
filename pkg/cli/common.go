@@ -187,6 +187,14 @@ var (
 			Name:  "add-host",
 			Usage: "add a custom host-to-IP mapping (host:ip) (default [])",
 		},
+		cli.StringSliceFlag{
+			Name:  "cap-add",
+			Usage: "add the specified capability when running (default [])",
+		},
+		cli.StringSliceFlag{
+			Name:  "cap-drop",
+			Usage: "drop the specified capability when running (default [])",
+		},
 		cli.StringFlag{
 			Name:  "cgroup-parent",
 			Usage: "optional parent cgroup for the container",
