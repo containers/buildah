@@ -577,24 +577,25 @@ func setupReadOnlyPaths(g *generate.Generator) {
 }
 
 func setupSeccomp(spec *specs.Spec, seccompProfilePath string) error {
-	if seccompProfilePath != "unconfined" {
-		if seccompProfilePath != "" {
-			seccompProfile, err := ioutil.ReadFile(seccompProfilePath)
-			if err != nil {
-				return errors.Wrapf(err, "opening seccomp profile (%s) failed", seccompProfilePath)
-			}
-			seccompConfig, err := seccomp.LoadProfile(string(seccompProfile), spec)
-			if err != nil {
-				return errors.Wrapf(err, "loading seccomp profile (%s) failed", seccompProfilePath)
-			}
-			spec.Linux.Seccomp = seccompConfig
-		} else {
-			seccompConfig, err := seccomp.GetDefaultProfile(spec)
-			if err != nil {
-				return errors.Wrapf(err, "loading seccomp profile (%s) failed", seccompProfilePath)
-			}
-			spec.Linux.Seccomp = seccompConfig
+	switch seccompProfilePath {
+	case "unconfined":
+		spec.Linux.Seccomp = nil
+	case "":
+		seccompConfig, err := seccomp.GetDefaultProfile(spec)
+		if err != nil {
+			return errors.Wrapf(err, "loading default seccomp profile failed")
 		}
+		spec.Linux.Seccomp = seccompConfig
+	default:
+		seccompProfile, err := ioutil.ReadFile(seccompProfilePath)
+		if err != nil {
+			return errors.Wrapf(err, "opening seccomp profile (%s) failed", seccompProfilePath)
+		}
+		seccompConfig, err := seccomp.LoadProfile(string(seccompProfile), spec)
+		if err != nil {
+			return errors.Wrapf(err, "loading seccomp profile (%s) failed", seccompProfilePath)
+		}
+		spec.Linux.Seccomp = seccompConfig
 	}
 	return nil
 }
@@ -827,7 +828,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return err
 	}
 
-	// Set the seccomp configuration using the specified profile name.
+	// Set the seccomp configuration using the specified profile name.  Some syscalls are
+	// allowed if certain capabilities are to be granted (example: CAP_SYS_CHROOT and chroot),
+	// so we sorted out the capabilities lists first.
 	if err = setupSeccomp(spec, b.CommonBuildOpts.SeccompProfilePath); err != nil {
 		return err
 	}
