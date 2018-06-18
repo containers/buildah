@@ -86,6 +86,8 @@ func pushCmd(c *cli.Context) error {
 	}
 	src := args[0]
 	destSpec := args[1]
+	home := os.Getenv("HOME")
+	destSpec = strings.Replace(destSpec, "~", home, -1)
 
 	compress := archive.Gzip
 	if c.Bool("disable-compression") {
