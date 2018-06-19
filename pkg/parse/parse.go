@@ -367,7 +367,14 @@ func IDMappingOptions(c *cli.Context) (usernsOptions buildah.NamespaceOptions, i
 		}
 		// Parse the flag's value as one or more triples (if it's even
 		// been set), and append them.
-		idmap, err := parseIDMap(c.StringSlice(option))
+		var spec []string
+		if c.GlobalIsSet(option) {
+			spec = c.GlobalStringSlice(option)
+		}
+		if c.IsSet(option) {
+			spec = c.StringSlice(option)
+		}
+		idmap, err := parseIDMap(spec)
 		if err != nil {
 			return nil, err
 		}
