@@ -185,7 +185,7 @@ var (
 	FromAndBudFlags = append(append([]cli.Flag{
 		cli.StringSliceFlag{
 			Name:  "add-host",
-			Usage: "add a custom host-to-IP mapping (host:ip) (default [])",
+			Usage: "add a custom host-to-IP mapping (`host:ip`) (default [])",
 		},
 		cli.StringSliceFlag{
 			Name:  "cap-add",

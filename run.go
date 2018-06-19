@@ -237,7 +237,17 @@ func addRlimits(ulimit []string, g *generate.Generator) error {
 func addHosts(hosts []string, w io.Writer) error {
 	buf := bufio.NewWriter(w)
 	for _, host := range hosts {
-		fmt.Fprintln(buf, host)
+		values := strings.SplitN(host, ":", 2)
+		if len(values) != 2 {
+			return errors.Errorf("unable to parse host entry %q: incorrect format", host)
+		}
+		if values[0] == "" {
+			return errors.Errorf("hostname in host entry %q is empty", host)
+		}
+		if values[1] == "" {
+			return errors.Errorf("IP address in host entry %q is empty", host)
+		}
+		fmt.Fprintf(buf, "%s\t%s\n", values[1], values[0])
 	}
 	return buf.Flush()
 }

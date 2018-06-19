@@ -98,8 +98,8 @@ func TestAddHosts(t *testing.T) {
 		},
 		{
 			name:     "host list",
-			hosts:    []string{"localhost", "host-1", "host-2"},
-			expected: "localhost\nhost-1\nhost-2\n",
+			hosts:    []string{"localhost:127.0.0.1", "host-1:127.0.0.2", "host-2:127.0.0.3"},
+			expected: "127.0.0.1\tlocalhost\n127.0.0.2\thost-1\n127.0.0.3\thost-2\n",
 		},
 	}
 	for _, te := range tt {
@@ -126,8 +126,8 @@ func TestAddHostsToFile(t *testing.T) {
 			prepare: func() (*os.File, error) {
 				return ioutil.TempFile("", "buildah-hosts-test")
 			},
-			hosts:    []string{"host-1", "system-1"},
-			expected: "host-1\nsystem-1\n",
+			hosts:    []string{"host-1:127.0.0.2", "system-1:127.0.0.3", "ipv6-host:::1"},
+			expected: "127.0.0.2\thost-1\n127.0.0.3\tsystem-1\n::1\tipv6-host\n",
 		},
 		{
 			name: "append hosts to file",
@@ -144,8 +144,8 @@ func TestAddHostsToFile(t *testing.T) {
 				}
 				return file, nil
 			},
-			hosts:    []string{"host-0", "host-1", "dns.name.1"},
-			expected: "localhost\nhost-0\nhost-1\ndns.name.1\n",
+			hosts:    []string{"host-0:127.0.0.2", "host-1:127.0.0.3", "dns.name.1:127.0.0.4"},
+			expected: "localhost\n127.0.0.2\thost-0\n127.0.0.3\thost-1\n127.0.0.4\tdns.name.1\n",
 		},
 		{
 			name: "empty host list",
