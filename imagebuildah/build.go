@@ -568,10 +568,10 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		forceRmIntermediateCtrs: options.ForceRmIntermediateCtrs,
 	}
 	if exec.err == nil {
-		exec.err = os.Stderr
+		exec.err = options.ReportWriter
 	}
 	if exec.out == nil {
-		exec.out = os.Stdout
+		exec.out = options.ReportWriter
 	}
 	if exec.log == nil {
 		stepCounter := 0
@@ -1064,7 +1064,7 @@ func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder, created
 // over each of the one or more parsed Dockerfiles and stages.
 func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) error {
 	if len(stages) == 0 {
-		errors.New("error building: no stages to build")
+		return errors.New("error building: no stages to build")
 	}
 	var stageExecutor *Executor
 	for _, stage := range stages {
