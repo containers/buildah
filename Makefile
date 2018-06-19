@@ -82,6 +82,12 @@ install:
 	install -D -m0755 buildah $(DESTDIR)/$(BINDIR)/buildah
 	$(MAKE) -C docs install
 
+.PHONY: uninstall
+uninstall:
+	rm -f $(DESTDIR)/$(BINDIR)/buildah
+	rm -f $(PREFIX)/share/man/man1/buildah*.1
+	rm -f $(DESTDIR)/${BASHINSTALLDIR}/buildah
+
 .PHONY: install.completions
 install.completions:
 	install -m 644 -D contrib/completions/bash/buildah $(DESTDIR)/${BASHINSTALLDIR}/buildah
