@@ -159,10 +159,10 @@ func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
 	err = os.Setenv(startedInUserNS, "1")
 	bailOnError(err, "error setting %s=1 in environment", startedInUserNS)
 
-	// Set the default isolation type to use the "chroot" method.
-	if _, ok := os.LookupEnv("BUILDAH_ISOLATION"); !ok {
-		if err = os.Setenv("BUILDAH_ISOLATION", "chroot"); err != nil {
-			logrus.Errorf("error setting BUILDAH_ISOLATION=chroot in environment: %v", err)
+	// Set the default isolation type to use the "rootless" method.
+	if _, present := os.LookupEnv("BUILDAH_ISOLATION"); !present {
+		if err = os.Setenv("BUILDAH_ISOLATION", "rootless"); err != nil {
+			logrus.Errorf("error setting BUILDAH_ISOLATION=rootless in environment: %v", err)
 			os.Exit(1)
 		}
 	}
