@@ -146,6 +146,10 @@ type RunOptions struct {
 	// decision can be overridden by specifying either WithTerminal or
 	// WithoutTerminal.
 	Terminal TerminalPolicy
+	// TerminalSize provides a way to set the number of rows and columns in
+	// a pseudo-terminal, if we create one, and Stdin/Stdout/Stderr aren't
+	// connected to a terminal.
+	TerminalSize *specs.Box
 	// The stdin/stdout/stderr descriptors to use.  If set to nil, the
 	// corresponding files in the "os" package are used as defaults.
 	Stdin  io.Reader `json:"-"`
@@ -673,14 +677,23 @@ func setupApparmor(spec *specs.Spec, apparmorProfile string) error {
 	return nil
 }
 
-func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy) {
+func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, terminalSize *specs.Box) {
 	switch terminalPolicy {
 	case DefaultTerminal:
-		g.SetProcessTerminal(terminal.IsTerminal(int(os.Stdout.Fd())))
+		onTerminal := terminal.IsTerminal(unix.Stdin) && terminal.IsTerminal(unix.Stdout) && terminal.IsTerminal(unix.Stderr)
+		if onTerminal {
+			logrus.Debugf("stdio is a terminal, defaulting to using a terminal")
+		} else {
+			logrus.Debugf("stdio is not a terminal, defaulting to not using a terminal")
+		}
+		g.SetProcessTerminal(onTerminal)
 	case WithTerminal:
 		g.SetProcessTerminal(true)
 	case WithoutTerminal:
 		g.SetProcessTerminal(false)
+	}
+	if terminalSize != nil {
+		g.SetProcessConsoleSize(terminalSize.Width, terminalSize.Height)
 	}
 }
 
@@ -836,7 +849,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	g.SetRootPath(mountPoint)
 
-	setupTerminal(g, options.Terminal)
+	setupTerminal(g, options.Terminal, options.TerminalSize)
 
 	namespaceOptions := DefaultNamespaceOptions()
 	namespaceOptions.AddOrReplace(b.NamespaceOptions...)
@@ -1098,7 +1111,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 	var errorFds []int
 	stdioPipe := make([][]int, 3)
 	copyConsole := false
-	copyStdio := false
+	copyPipes := false
 	finishCopy := make([]int, 2)
 	if err = unix.Pipe(finishCopy); err != nil {
 		return 1, errors.Wrapf(err, "error creating pipe for notifying to stop stdio")
@@ -1116,7 +1129,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 			// Add console socket arguments.
 			moreCreateArgs = append(moreCreateArgs, "--console-socket", socketPath)
 		} else {
-			copyStdio = true
+			copyPipes = true
 			// Figure out who should own the pipes.
 			uid, gid, err := util.GetHostRootIDs(spec)
 			if err != nil {
@@ -1217,7 +1230,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 		}
 	}
 
-	if copyStdio {
+	if copyPipes {
 		// We don't need the ends of the pipes that belong to the container.
 		stdin.Close()
 		if stdout != nil {
@@ -1228,7 +1241,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 
 	// Handle stdio for the container in the background.
 	stdio.Add(1)
-	go runCopyStdio(&stdio, copyStdio, stdioPipe, copyConsole, consoleListener, finishCopy, finishedCopy)
+	go runCopyStdio(&stdio, copyPipes, stdioPipe, copyConsole, consoleListener, finishCopy, finishedCopy, spec)
 
 	// Start the container.
 	err = start.Run()
@@ -1432,10 +1445,10 @@ func runConfigureNetwork(options RunOptions, configureNetwork bool, configureNet
 	return teardown, nil
 }
 
-func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copyConsole bool, consoleListener *net.UnixListener, finishCopy []int, finishedCopy chan struct{}) {
+func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copyConsole bool, consoleListener *net.UnixListener, finishCopy []int, finishedCopy chan struct{}, spec *specs.Spec) {
 	defer func() {
 		unix.Close(finishCopy[0])
-		if copyStdio {
+		if copyPipes {
 			unix.Close(stdioPipe[unix.Stdin][1])
 			unix.Close(stdioPipe[unix.Stdout][0])
 			unix.Close(stdioPipe[unix.Stderr][0])
@@ -1443,37 +1456,6 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 		stdio.Done()
 		finishedCopy <- struct{}{}
 	}()
-	// If we're not doing I/O handling, we're done.
-	if !copyConsole && !copyStdio {
-		return
-	}
-	terminalFD := -1
-	if copyConsole {
-		// Accept a connection over our listening socket.
-		fd, err := runAcceptTerminal(consoleListener)
-		if err != nil {
-			logrus.Errorf("%v", err)
-			return
-		}
-		terminalFD = fd
-		// Set our terminal's mode to raw, to pass handling of special
-		// terminal input to the terminal in the container.
-		state, err := terminal.MakeRaw(unix.Stdin)
-		if err != nil {
-			logrus.Warnf("error setting terminal state: %v", err)
-		} else {
-			defer func() {
-				if err = terminal.Restore(unix.Stdin, state); err != nil {
-					logrus.Errorf("unable to restore terminal state: %v", err)
-				}
-			}()
-			// FIXME - if we're connected to a terminal, we should be
-			// passing the updated terminal size down when we receive a
-			// SIGWINCH.
-		}
-	}
-	// Track how many descriptors we're expecting data from.
-	reading := 0
 	// Map describing where data on an incoming descriptor should go.
 	relayMap := make(map[int]int)
 	// Map describing incoming and outgoing descriptors.
@@ -1481,7 +1463,15 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 	writeDesc := make(map[int]string)
 	// Buffers.
 	relayBuffer := make(map[int]*bytes.Buffer)
+	// Set up the terminal descriptor or pipes for polling.
 	if copyConsole {
+		// Accept a connection over our listening socket.
+		fd, err := runAcceptTerminal(consoleListener, spec.Process.ConsoleSize)
+		if err != nil {
+			logrus.Errorf("%v", err)
+			return
+		}
+		terminalFD := fd
 		// Input from our stdin, output from the terminal descriptor.
 		relayMap[unix.Stdin] = terminalFD
 		readDesc[unix.Stdin] = "stdin"
@@ -1491,9 +1481,21 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 		readDesc[terminalFD] = "container terminal output"
 		relayBuffer[unix.Stdout] = new(bytes.Buffer)
 		writeDesc[unix.Stdout] = "output"
-		reading = 2
+		// Set our terminal's mode to raw, to pass handling of special
+		// terminal input to the terminal in the container.
+		if terminal.IsTerminal(unix.Stdin) {
+			if state, err := terminal.MakeRaw(unix.Stdin); err != nil {
+				logrus.Warnf("error setting terminal state: %v", err)
+			} else {
+				defer func() {
+					if err = terminal.Restore(unix.Stdin, state); err != nil {
+						logrus.Errorf("unable to restore terminal state: %v", err)
+					}
+				}()
+			}
+		}
 	}
-	if copyStdio {
+	if copyPipes {
 		// Input from our stdin, output from the stdout and stderr pipes.
 		relayMap[unix.Stdin] = stdioPipe[unix.Stdin][1]
 		readDesc[unix.Stdin] = "stdin"
@@ -1507,7 +1509,6 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 		readDesc[stdioPipe[unix.Stderr][0]] = "container stderr"
 		relayBuffer[unix.Stderr] = new(bytes.Buffer)
 		writeDesc[unix.Stderr] = "stderr"
-		reading = 3
 	}
 	// Set our reading descriptors to non-blocking.
 	for fd := range relayMap {
@@ -1533,9 +1534,9 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 	}
 	// Pass data back and forth.
 	pollTimeout := -1
-	for {
+	for len(relayMap) > 0 {
 		// Start building the list of descriptors to poll.
-		pollFds := make([]unix.PollFd, 0, reading+1)
+		pollFds := make([]unix.PollFd, 0, len(relayMap)+1)
 		// Poll for a notification that we should stop handling stdio.
 		pollFds = append(pollFds, unix.PollFd{Fd: int32(finishCopy[0]), Events: unix.POLLIN | unix.POLLHUP})
 		// Poll on our reading descriptors.
@@ -1548,18 +1549,23 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 		if !logIfNotRetryable(err, fmt.Sprintf("error waiting for stdio/terminal data to relay: %v", err)) {
 			return
 		}
-		var removes []int
+		removes := make(map[int]struct{})
 		for _, pollFd := range pollFds {
 			// If this descriptor's just been closed from the other end, mark it for
 			// removal from the set that we're checking for.
 			if pollFd.Revents&unix.POLLHUP == unix.POLLHUP {
-				removes = append(removes, int(pollFd.Fd))
+				removes[int(pollFd.Fd)] = struct{}{}
+			}
+			// If the descriptor was closed elsewhere, remove it from our list.
+			if pollFd.Revents&unix.POLLNVAL != 0 {
+				logrus.Debugf("error polling descriptor %d: closed?", pollFd.Fd)
+				removes[int(pollFd.Fd)] = struct{}{}
 			}
 			// If the POLLIN flag isn't set, then there's no data to be read from this descriptor.
 			if pollFd.Revents&unix.POLLIN == 0 {
 				// If we're using pipes and it's our stdin and it's closed, close the writing
 				// end of the corresponding pipe.
-				if copyStdio && int(pollFd.Fd) == unix.Stdin && pollFd.Revents&unix.POLLHUP != 0 {
+				if copyPipes && int(pollFd.Fd) == unix.Stdin && pollFd.Revents&unix.POLLHUP != 0 {
 					unix.Close(stdioPipe[unix.Stdin][1])
 					stdioPipe[unix.Stdin][1] = -1
 				}
@@ -1576,7 +1582,7 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 				// If it's zero-length on our stdin and we're
 				// using pipes, it's an EOF, so close the stdin
 				// pipe's writing end.
-				if n == 0 && copyStdio && int(pollFd.Fd) == unix.Stdin {
+				if n == 0 && copyPipes && int(pollFd.Fd) == unix.Stdin {
 					unix.Close(stdioPipe[unix.Stdin][1])
 					stdioPipe[unix.Stdin][1] = -1
 				}
@@ -1604,13 +1610,8 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 			}
 		}
 		// Remove any descriptors which we don't need to poll any more from the poll descriptor list.
-		for _, remove := range removes {
+		for remove := range removes {
 			delete(relayMap, remove)
-			reading--
-		}
-		if reading == 0 {
-			// We have no more open descriptors to read, so we can stop now.
-			return
 		}
 		// If the we-can-return pipe had anything for us, we're done.
 		for _, pollFd := range pollFds {
@@ -1622,7 +1623,7 @@ func runCopyStdio(stdio *sync.WaitGroup, copyStdio bool, stdioPipe [][]int, copy
 	}
 }
 
-func runAcceptTerminal(consoleListener *net.UnixListener) (int, error) {
+func runAcceptTerminal(consoleListener *net.UnixListener, terminalSize *specs.Box) (int, error) {
 	defer consoleListener.Close()
 	c, err := consoleListener.AcceptUnix()
 	if err != nil {
@@ -1665,15 +1666,29 @@ func runAcceptTerminal(consoleListener *net.UnixListener) (int, error) {
 	if terminalFD == -1 {
 		return -1, errors.Errorf("unable to read terminal descriptor")
 	}
-	// Set the pseudoterminal's size to match our own.
-	winsize, err := unix.IoctlGetWinsize(unix.Stdin, unix.TIOCGWINSZ)
-	if err != nil {
-		logrus.Warnf("error reading size of controlling terminal: %v", err)
-		return terminalFD, nil
+	// Set the pseudoterminal's size to the configured size, or our own.
+	winsize := &unix.Winsize{}
+	if terminalSize != nil {
+		// Use configured sizes.
+		winsize.Row = uint16(terminalSize.Height)
+		winsize.Col = uint16(terminalSize.Width)
+	} else {
+		if terminal.IsTerminal(unix.Stdin) {
+			// Use the size of our terminal.
+			if winsize, err = unix.IoctlGetWinsize(unix.Stdin, unix.TIOCGWINSZ); err != nil {
+				logrus.Warnf("error reading size of controlling terminal: %v", err)
+				winsize.Row = 0
+				winsize.Col = 0
+			}
+		}
 	}
-	err = unix.IoctlSetWinsize(terminalFD, unix.TIOCSWINSZ, winsize)
-	if err != nil {
-		logrus.Warnf("error setting size of container pseudoterminal: %v", err)
+	if winsize.Row != 0 && winsize.Col != 0 {
+		if err = unix.IoctlSetWinsize(terminalFD, unix.TIOCSWINSZ, winsize); err != nil {
+			logrus.Warnf("error setting size of container pseudoterminal: %v", err)
+		}
+		// FIXME - if we're connected to a terminal, we should
+		// be passing the updated terminal size down when we
+		// receive a SIGWINCH.
 	}
 	return terminalFD, nil
 }
