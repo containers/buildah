@@ -674,7 +674,7 @@ func (b *Executor) Prepare(ctx context.Context, ib *imagebuilder.Builder, node *
 	}
 	b.mountPoint = mountPoint
 	b.builder = builder
-	// Add the top  layer of this image to b.topLayers so we can keep track of them
+	// Add the top layer of this image to b.topLayers so we can keep track of them
 	// when building with cached images.
 	b.topLayers = append(b.topLayers, builder.TopLayer)
 	return nil
