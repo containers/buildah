@@ -79,3 +79,23 @@ changed to:
 ```
 
 ---
+### 4) `buildah push alpine oci:~/myalpine:latest` fails with lstat error
+
+When doing a `buildah push` command and the target image has a tilde (`~`) character
+in it, an lstat error will be raised stating there is no such file or directory.
+This is expected behavior for shell expansion of the tilde character as it is only
+expanded at the start of a word.  This behavior is documented
+[here](https://www.gnu.org/software/libc/manual/html_node/Tilde-Expansion.html).
+
+#### Symptom
+```console
+$ sudo pull alpine
+$ sudo buildah push alpine oci:~/myalpine:latest
+lstat /home/myusername/~: no such file or directory
+```
+
+#### Solution
+
+  * Replace `~` with `$HOME` or the fully specified directory `/home/myusername`.
+    * `$ sudo buildah push alpine oci:${HOME}/myalpine:latest`
+---
