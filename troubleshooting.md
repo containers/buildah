@@ -20,7 +20,7 @@ error building: error creating build container: no such image "alpine" in regist
 
 #### Solution
 
-  * Verify that the `/etc/containers/registries.conf` file exists.  If not, verify that the skopeo-containers package is installed.
+  * Verify that the `/etc/containers/registries.conf` file exists.  If not, verify that the containers-common package is installed.
   * Verify that the entries in the `[registries.search]` section of the /etc/containers/registries file are valid and reachable.
 
 ---
