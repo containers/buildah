@@ -40,3 +40,12 @@ load helpers
   [ $(wc -l <<< "$output") -eq 1 ]
   buildah rmi -a
 }
+
+@test "commit-alternate-storage" {
+  echo FROM
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json openshift/hello-openshift)
+  echo COMMIT
+  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid "containers-storage:[vfs@${TESTDIR}/root2+${TESTDIR}/runroot2]newimage"
+  echo FROM
+  buildah --storage-driver vfs --root ${TESTDIR}/root2 --runroot ${TESTDIR}/runroot2 from newimage
+}
