@@ -4,7 +4,7 @@ branches:
   - try
 
 host:
-  distro: fedora/26/atomic
+  distro: fedora/28/atomic
 
 required: true
 
@@ -23,27 +23,27 @@ tests:
   - sudo cp /home/travis/auth/domain.crt /etc/docker/certs.d/localhost:5000/ca.crt
   - sudo cp /home/travis/auth/domain.crt /etc/docker/certs.d/localhost:5000/domain.crt
   # Create the credentials file, then start up the Docker registry
-  - docker run --entrypoint htpasswd registry:2 -Bbn testuser testpassword > /home/travis/auth/htpasswd
-  - docker run -d -p 5000:5000 --name registry -v /home/travis/auth:/home/travis/auth:Z -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=/home/travis/auth/htpasswd -e REGISTRY_HTTP_TLS_CERTIFICATE=/home/travis/auth/domain.crt -e REGISTRY_HTTP_TLS_KEY=/home/travis/auth/domain.key registry:2
+  - podman run --entrypoint htpasswd registry:2 -Bbn testuser testpassword > /home/travis/auth/htpasswd
+  - podman run -d -p 5000:5000 --name registry -v /home/travis/auth:/home/travis/auth:Z -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=/home/travis/auth/htpasswd -e REGISTRY_HTTP_TLS_CERTIFICATE=/home/travis/auth/domain.crt -e REGISTRY_HTTP_TLS_KEY=/home/travis/auth/domain.key registry:2
 
-# Test Docker setup
-  - docker ps --all
-  - docker images
+# Test Podman setup
+  - podman ps --all
+  - podman images
   - ls -alF /home/travis/auth
-  - docker pull alpine
-  - docker login localhost:5000 --username testuser --password testpassword
-  - docker tag alpine localhost:5000/my-alpine
-  - docker push localhost:5000/my-alpine
-  - docker ps --all
-  - docker images
-  - docker rmi docker.io/alpine
-  - docker rmi localhost:5000/my-alpine
-  - docker pull localhost:5000/my-alpine
-  - docker ps --all
-  - docker images
-  - docker rmi localhost:5000/my-alpine
+  - podman pull alpine
+  - podman login localhost:5000 --username testuser --password testpassword
+  - podman tag alpine localhost:5000/my-alpine
+  - podman push localhost:5000/my-alpine
+  - podman ps --all
+  - podman images
+  - podman rmi docker.io/alpine
+  - podman rmi localhost:5000/my-alpine
+  - podman pull localhost:5000/my-alpine
+  - podman ps --all
+  - podman images
+  - podman rmi localhost:5000/my-alpine
 
   # mount yum repos to inherit injected mirrors from PAPR
-  - docker run --net=host --privileged -v /etc/yum.repos.d:/etc/yum.repos.d.host:ro
-    -v $PWD:/code registry.fedoraproject.org/fedora:26 sh -c
+  - podman run --net=host --privileged -v /etc/yum.repos.d:/etc/yum.repos.d.host:ro
+    -v $PWD:/code registry.fedoraproject.org/fedora:28 sh -c
     "cp -fv /etc/yum.repos.d{.host/*.repo,} && /code/.papr.sh"
