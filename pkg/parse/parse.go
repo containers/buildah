@@ -294,6 +294,7 @@ func SystemContextFromOptions(c *cli.Context) (*types.SystemContext, error) {
 	if c.GlobalIsSet("registries-conf-dir") {
 		ctx.RegistriesDirPath = c.GlobalString("registries-conf-dir")
 	}
+	ctx.DockerRegistryUserAgent = fmt.Sprintf("Buildah/%s", buildah.Version)
 	return ctx, nil
 }
 
