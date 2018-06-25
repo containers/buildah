@@ -817,6 +817,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	gp := generate.New()
 	g := &gp
 
+	g.ClearProcessEnv()
 	for _, envSpec := range append(b.Env(), options.Env...) {
 		env := strings.SplitN(envSpec, "=", 2)
 		if len(env) > 1 {
