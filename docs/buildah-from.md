@@ -32,6 +32,12 @@ Multiple transports are supported:
   **ostree:**_image_[**@**_/absolute/repo/path_]
   An image in local OSTree repository.  _/absolute/repo/path_ defaults to _/ostree/repo_.
 
+### DEPENDENCIES
+
+Buildah resolves the path to the registry to pull from by using the /etc/containers/registries.conf
+file, registries.conf(5).  If the `buildah from` command fails with an "image not known" error,
+first verify that the registries.conf file is installed and configured appropriately.
+
 ## RETURN VALUE
 The container ID of the container that was created.  On error, 1 is returned and errno is returned.
 
