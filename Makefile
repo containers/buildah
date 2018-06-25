@@ -5,6 +5,7 @@ BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
 BUILDFLAGS := -tags "$(AUTOTAGS) $(TAGS)"
 GO := go
+DEPS := $(shell sh -c "git ls-files docker imagebuildah pkg util cmd vendor | egrep ^.*go$$")
 
 GIT_COMMIT := $(if $(shell git rev-parse --short HEAD),$(shell git rev-parse --short HEAD),$(error "git failed"))
 BUILD_INFO := $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
@@ -17,7 +18,7 @@ LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_I
 
 all: buildah imgtype docs
 
-buildah: *.go imagebuildah/*.go bind/*.go cmd/buildah/*.go docker/*.go pkg/cli/*.go pkg/parse/*.go util/*.go
+buildah: *.go $(DEPS)
 	$(GO) build $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
 
 imgtype: *.go docker/*.go util/*.go tests/imgtype/imgtype.go
