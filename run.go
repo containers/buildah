@@ -792,6 +792,11 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 			}
 		}
 	}
+	if configureNetwork {
+		for name, val := range util.DefaultNetworkSysctl {
+			g.AddLinuxSysctl(name, val)
+		}
+	}
 	return configureNetwork, configureNetworks, configureUTS, nil
 }
 
