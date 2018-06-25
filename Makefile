@@ -1,5 +1,5 @@
 AUTOTAGS := $(shell ./btrfs_tag.sh) $(shell ./libdm_tag.sh) $(shell ./ostree_tag.sh) $(shell ./selinux_tag.sh)
-TAGS := seccomp
+TAGS ?= seccomp
 PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
