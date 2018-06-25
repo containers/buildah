@@ -824,6 +824,10 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		}
 	}
 
+	for src, dest := range b.Args {
+		g.AddProcessEnv(src, dest)
+	}
+
 	if b.CommonBuildOpts == nil {
 		return errors.Errorf("Invalid format on container you must recreate the container")
 	}
