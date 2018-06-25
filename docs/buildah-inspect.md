@@ -33,5 +33,7 @@ buildah inspect --type container containerID
 
 buildah inspect --type image imageID
 
+buildah inspect --format '{{.OCIv1.Config.Env}}' alpine
+
 ## SEE ALSO
 buildah(1)
