@@ -321,6 +321,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		DropCapabilities: copyStringSlice(options.DropCapabilities),
 		CommonBuildOpts:  options.CommonBuildOpts,
 		TopLayer:         topLayer,
+		Args:             options.Args,
 	}
 
 	if options.Mount {

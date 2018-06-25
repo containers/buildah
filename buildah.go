@@ -105,6 +105,8 @@ func (p NetworkConfigurationPolicy) String() string {
 type Builder struct {
 	store storage.Store
 
+	// Args define variables that users can pass at build-time to the builder
+	Args map[string]string
 	// Type is used to help identify a build container's metadata.  It
 	// should not be modified.
 	Type string `json:"type"`
@@ -279,6 +281,9 @@ type CommonBuildOptions struct {
 
 // BuilderOptions are used to initialize a new Builder.
 type BuilderOptions struct {
+
+	// Args define variables that users can pass at build-time to the builder
+	Args map[string]string
 	// FromImage is the name of the image which should be used as the
 	// starting point for the container.  It can be set to an empty value
 	// or "scratch" to indicate that the container should not be based on

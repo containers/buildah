@@ -601,6 +601,7 @@ func (b *Executor) Prepare(ctx context.Context, ib *imagebuilder.Builder, node *
 		b.log("FROM %s", from)
 	}
 	builderOptions := buildah.BuilderOptions{
+		Args:                  ib.Args,
 		FromImage:             from,
 		PullPolicy:            b.pullPolicy,
 		Registry:              b.registry,

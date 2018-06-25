@@ -783,3 +783,11 @@ load helpers
   [ "$output" = "" ]
   test -s ${TESTDIR}/logfile
 }
+
+@test "bud with ARGS" {
+  target=alpine-image
+  run buildah -debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.args ${TESTSDIR}/bud/run-scenarios
+  echo "$output"
+  [[ "$output" =~ "arg_value" ]]
+  [ "$status" -eq 0 ]
+}
