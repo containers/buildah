@@ -522,6 +522,8 @@ return 1
 
  _buildah_umount() {
      local boolean_options="
+     --all
+     -a
      --help
      -h
   "

@@ -28,6 +28,18 @@ load helpers
   buildah rm --all
 }
 
+@test "umount all images" {
+  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah mount "$cid1"
+  cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah mount "$cid2"
+  cid3=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah mount "$cid3"
+  run buildah umount --all
+  [ "${status}" -eq 0 ]
+  buildah rm --all
+}
+
 @test "umount multi images one bad" {
   cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid1"
