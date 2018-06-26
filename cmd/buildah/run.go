@@ -31,8 +31,12 @@ var (
 			Usage: "set the hostname inside of the container",
 		},
 		cli.StringFlag{
+			Name:  "isolation",
+			Usage: "which process isolation `type` to use",
+		},
+		cli.StringFlag{
 			Name:  "runtime",
-			Usage: "`path` to an alternate runtime",
+			Usage: "`path` to an alternate OCI runtime",
 			Value: util.Runtime(),
 		},
 		cli.StringSliceFlag{
@@ -93,6 +97,11 @@ func runCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
+	isolation, err := parse.IsolationOption(c)
+	if err != nil {
+		return err
+	}
+
 	runtimeFlags := []string{}
 	for _, arg := range c.StringSlice("runtime-flag") {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
@@ -108,6 +117,7 @@ func runCmd(c *cli.Context) error {
 		Runtime:          c.String("runtime"),
 		Args:             runtimeFlags,
 		User:             c.String("user"),
+		Isolation:        isolation,
 		NamespaceOptions: namespaceOptions,
 		ConfigureNetwork: networkPolicy,
 		CNIPluginPath:    c.String("cni-plugin-path"),

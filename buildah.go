@@ -149,6 +149,8 @@ type Builder struct {
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format.
 	DefaultMountsFilePath string `json:"defaultMountsFilePath,omitempty"`
 
+	// Isolation controls how we handle "RUN" statements and the Run() method.
+	Isolation Isolation
 	// NamespaceOptions controls how we set up the namespaces for processes that we run in the container.
 	NamespaceOptions NamespaceOptions
 	// ConfigureNetwork controls whether or not network interfaces and
@@ -195,6 +197,7 @@ type BuilderInfo struct {
 	OCIv1                 v1.Image
 	Docker                docker.V2Image
 	DefaultMountsFilePath string
+	Isolation             string
 	NamespaceOptions      NamespaceOptions
 	ConfigureNetwork      string
 	CNIPluginPath         string
@@ -220,6 +223,7 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 		OCIv1:                 b.OCIv1,
 		Docker:                b.Docker,
 		DefaultMountsFilePath: b.DefaultMountsFilePath,
+		Isolation:             b.Isolation.String(),
 		NamespaceOptions:      b.NamespaceOptions,
 		ConfigureNetwork:      fmt.Sprintf("%v", b.ConfigureNetwork),
 		CNIPluginPath:         b.CNIPluginPath,
@@ -322,6 +326,9 @@ type BuilderOptions struct {
 	// DefaultMountsFilePath is the file path holding the mounts to be
 	// mounted in "host-path:container-path" format
 	DefaultMountsFilePath string
+	// Isolation controls how we handle "RUN" statements and the Run()
+	// method.
+	Isolation Isolation
 	// NamespaceOptions controls how we set up namespaces for processes that
 	// we might need to run using the container's root filesystem.
 	NamespaceOptions NamespaceOptions

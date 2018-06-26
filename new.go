@@ -307,6 +307,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		ProcessLabel:          processLabel,
 		MountLabel:            mountLabel,
 		DefaultMountsFilePath: options.DefaultMountsFilePath,
+		Isolation:             options.Isolation,
 		NamespaceOptions:      namespaceOptions,
 		ConfigureNetwork:      options.ConfigureNetwork,
 		CNIPluginPath:         options.CNIPluginPath,

@@ -102,10 +102,34 @@ type IDMappingOptions struct {
 	GIDMap         []specs.LinuxIDMapping
 }
 
+// Isolation provides a way to specify whether we're supposed to use a proper
+// OCI runtime, or some other method for running commands.
+type Isolation int
+
+const (
+	// IsolationDefault is whatever we think will work best.
+	IsolationDefault Isolation = iota
+	// IsolationOCI is a proper OCI runtime.
+	IsolationOCI
+)
+
+// String converts a Isolation into a string.
+func (i Isolation) String() string {
+	switch i {
+	case IsolationDefault:
+		return "IsolationDefault"
+	case IsolationOCI:
+		return "IsolationOCI"
+	}
+	return fmt.Sprintf("unrecognized isolation type %d", i)
+}
+
 // RunOptions can be used to alter how a command is run in the container.
 type RunOptions struct {
 	// Hostname is the hostname we set for the running container.
 	Hostname string
+	// Isolation is either IsolationDefault or IsolationOCI.
+	Isolation Isolation
 	// Runtime is the name of the command to run.  It should accept the same arguments
 	// that runc does, and produce similar output.
 	Runtime string
@@ -994,7 +1018,20 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		}
 	}
 
-	return b.runUsingRuntimeSubproc(options, configureNetwork, configureNetworks, spec, mountPoint, path, Package+"-"+filepath.Base(path))
+	isolation := options.Isolation
+	if isolation == IsolationDefault {
+		isolation = b.Isolation
+		if isolation == IsolationDefault {
+			isolation = IsolationOCI
+		}
+	}
+	switch isolation {
+	case IsolationOCI:
+		err = b.runUsingRuntimeSubproc(options, configureNetwork, configureNetworks, spec, mountPoint, path, Package+"-"+filepath.Base(path))
+	default:
+		err = errors.Errorf("don't know how to run this command")
+	}
+	return err
 }
 
 type runUsingRuntimeSubprocOptions struct {
