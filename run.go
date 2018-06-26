@@ -167,7 +167,7 @@ type RunOptions struct {
 
 // DefaultNamespaceOptions returns the default namespace settings from the
 // runtime-tools generator library.
-func DefaultNamespaceOptions() NamespaceOptions {
+func DefaultNamespaceOptions() (NamespaceOptions, error) {
 	options := NamespaceOptions{
 		{Name: string(specs.CgroupNamespace), Host: true},
 		{Name: string(specs.IPCNamespace), Host: true},
@@ -177,8 +177,11 @@ func DefaultNamespaceOptions() NamespaceOptions {
 		{Name: string(specs.UserNamespace), Host: true},
 		{Name: string(specs.UTSNamespace), Host: true},
 	}
-	g := generate.New()
-	spec := g.Spec()
+	g, err := generate.New("linux")
+	if err != nil {
+		return options, err
+	}
+	spec := g.Config
 	if spec.Linux != nil {
 		for _, ns := range spec.Linux.Namespaces {
 			options.AddOrReplace(NamespaceOption{
@@ -187,7 +190,7 @@ func DefaultNamespaceOptions() NamespaceOptions {
 			})
 		}
 	}
-	return options
+	return options, nil
 }
 
 // Find the configuration for the namespace of the given type.  If there are
@@ -814,7 +817,11 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			logrus.Errorf("error removing %q: %v", path, err2)
 		}
 	}()
-	gp := generate.New()
+	gp, err := generate.New("linux")
+	if err != nil {
+		return err
+	}
+
 	g := &gp
 
 	for _, envSpec := range append(b.Env(), options.Env...) {
@@ -865,7 +872,12 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	setupTerminal(g, options.Terminal, options.TerminalSize)
 
-	namespaceOptions := DefaultNamespaceOptions()
+	defaultNamespaceOptions, err := DefaultNamespaceOptions()
+	if err != nil {
+		return err
+	}
+
+	namespaceOptions := defaultNamespaceOptions
 	namespaceOptions.AddOrReplace(b.NamespaceOptions...)
 	namespaceOptions.AddOrReplace(options.NamespaceOptions...)
 
