@@ -770,6 +770,53 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 	return configureNetwork, configureNetworks, configureUTS, nil
 }
 
+// Search for a command that isn't given as an absolute path using the $PATH
+// under the rootfs.  We can't resolve absolute symbolic links without
+// chroot()ing, which we may not be able to do, so just accept a link as a
+// valid resolution.
+func runLookupPath(g *generate.Generator, command []string) []string {
+	// Look for the configured $PATH.
+	spec := g.Spec()
+	envPath := ""
+	for i := range spec.Process.Env {
+		if strings.HasPrefix(spec.Process.Env[i], "PATH=") {
+			envPath = spec.Process.Env[i]
+		}
+	}
+	// If there is no configured $PATH, supply one.
+	if envPath == "" {
+		defaultPath := "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
+		envPath = "PATH=" + defaultPath
+		g.AddProcessEnv("PATH", defaultPath)
+	}
+	// No command, nothing to do.
+	if len(command) == 0 {
+		return command
+	}
+	// Command is already an absolute path, use it as-is.
+	if filepath.IsAbs(command[0]) {
+		return command
+	}
+	// For each element in the PATH,
+	for _, pathEntry := range filepath.SplitList(envPath[5:]) {
+		// if it's the empty string, it's ".", which is the Cwd,
+		if pathEntry == "" {
+			pathEntry = spec.Process.Cwd
+		}
+		// build the absolute path which it might be,
+		candidate := filepath.Join(pathEntry, command[0])
+		// check if it's there,
+		if fi, err := os.Lstat(filepath.Join(spec.Root.Path, candidate)); fi != nil && err == nil {
+			// and if it's not a directory, and either a symlink or executable,
+			if !fi.IsDir() && ((fi.Mode()&os.ModeSymlink != 0) || (fi.Mode()&0111 != 0)) {
+				// use that.
+				return append([]string{candidate}, command[1:]...)
+			}
+		}
+	}
+	return command
+}
+
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
 	var user specs.User
@@ -792,6 +839,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	gp := generate.New()
 	g := &gp
 
+	g.ClearProcessEnv()
 	for _, envSpec := range append(b.Env(), options.Env...) {
 		env := strings.SplitN(envSpec, "=", 2)
 		if len(env) > 1 {
@@ -811,11 +859,6 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return err
 	}
 
-	if len(command) > 0 {
-		g.SetProcessArgs(command)
-	} else {
-		g.SetProcessArgs(nil)
-	}
 	if options.WorkingDir != "" {
 		g.SetProcessCwd(options.WorkingDir)
 	} else if b.WorkDir() != "" {
@@ -832,11 +875,16 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			logrus.Errorf("error unmounting container: %v", err2)
 		}
 	}()
+	g.SetRootPath(mountPoint)
+	if len(command) > 0 {
+		command = runLookupPath(g, command)
+		g.SetProcessArgs(command)
+	} else {
+		g.SetProcessArgs(nil)
+	}
 
 	setupMaskedPaths(g)
 	setupReadOnlyPaths(g)
-
-	g.SetRootPath(mountPoint)
 
 	setupTerminal(g, options.Terminal, options.TerminalSize)
 
