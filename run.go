@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/containernetworking/cni/libcni"
+	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
 	units "github.com/docker/go-units"
@@ -579,8 +580,8 @@ func runSetupVolumeMounts(mountLabel string, volumeMounts []string, optionMounts
 }
 
 // addNetworkConfig copies files from host and sets them up to bind mount into container
-func (b *Builder) addNetworkConfig(rdir, hostPath string) (string, error) {
-	copyFileWithTar := b.copyFileWithTar(nil, nil)
+func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDPair) (string, error) {
+	copyFileWithTar := b.copyFileWithTar(chownOpts, nil)
 
 	cfile := filepath.Join(rdir, filepath.Base(hostPath))
 
@@ -1003,11 +1004,18 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return err
 	}
 
-	hostFile, err := b.addNetworkConfig(path, "/etc/hosts")
+	// Figure out who owns files that will appear to be owned by UID/GID 0 in the container.
+	rootUID, rootGID, err := util.GetHostRootIDs(spec)
 	if err != nil {
 		return err
 	}
-	resolvFile, err := b.addNetworkConfig(path, "/etc/resolv.conf")
+	rootIDPair := &idtools.IDPair{UID: int(rootUID), GID: int(rootGID)}
+
+	hostFile, err := b.addNetworkConfig(path, "/etc/hosts", rootIDPair)
+	if err != nil {
+		return err
+	}
+	resolvFile, err := b.addNetworkConfig(path, "/etc/resolv.conf", rootIDPair)
 	if err != nil {
 		return err
 	}

@@ -753,6 +753,16 @@ return 1
      esac
  }
 
+ _buildah_unshare() {
+     local boolean_options="
+     --help
+     -h
+     "
+
+     local options_with_args="
+     "
+ }
+
  _buildah_version() {
      local boolean_options="
      --help
@@ -761,7 +771,7 @@ return 1
 
      local options_with_args="
      "
-}
+ }
 
  _buildah() {
    local previous_extglob_setting=$(shopt -p extglob)
@@ -787,6 +797,7 @@ return 1
        tag
        umount
        unmount
+       unshare
        version
    )
 
