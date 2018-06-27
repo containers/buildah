@@ -15,6 +15,7 @@ import (
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/docker"
+	"github.com/projectatomic/buildah/util"
 )
 
 const (
@@ -203,6 +204,9 @@ type BuilderInfo struct {
 	CNIPluginPath         string
 	CNIConfigDir          string
 	IDMappingOptions      IDMappingOptions
+	DefaultCapabilities   []string
+	AddCapabilities       []string
+	DropCapabilities      []string
 }
 
 // GetBuildInfo gets a pointer to a Builder object and returns a BuilderInfo object from it.
@@ -229,6 +233,9 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 		CNIPluginPath:         b.CNIPluginPath,
 		CNIConfigDir:          b.CNIConfigDir,
 		IDMappingOptions:      b.IDMappingOptions,
+		DefaultCapabilities:   append([]string{}, util.DefaultCapabilities...),
+		AddCapabilities:       append([]string{}, b.AddCapabilities...),
+		DropCapabilities:      append([]string{}, b.DropCapabilities...),
 	}
 }
 
