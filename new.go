@@ -292,7 +292,13 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		return nil, err
 	}
 	uidmap, gidmap := convertStorageIDMaps(container.UIDMap, container.GIDMap)
-	namespaceOptions := DefaultNamespaceOptions()
+
+	defaultNamespaceOptions, err := DefaultNamespaceOptions()
+	if err != nil {
+		return nil, err
+	}
+
+	namespaceOptions := defaultNamespaceOptions
 	namespaceOptions.AddOrReplace(options.NamespaceOptions...)
 
 	builder := &Builder{
