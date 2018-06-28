@@ -15,6 +15,7 @@ dnf install -y \
   findutils \
   git \
   glib2-devel \
+  glibc-static \
   gnupg \
   golang \
   gpgme-devel \
@@ -37,3 +38,4 @@ go get github.com/onsi/gomega/...
 # up to, but not including, the merge commit.
 export GITVALIDATE_TIP=$(cd $GOSRC; git log -2 --pretty='%H' | tail -n 1)
 make -C $GOSRC install.tools runc all validate test-unit test-integration TAGS="seccomp"
+env BUILDAH_ISOLATION=chroot make -C $GOSRC test-integration TAGS="seccomp"
