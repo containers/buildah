@@ -11,6 +11,10 @@ load helpers
   run buildah --debug=false images -a
   [ $(wc -l <<< "$output") -eq 6 ]
   [ "${status}" -eq 0 ]
+  run buildah inspect --format "{{.Docker.ContainerConfig.Env}}" test2
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output =~ "foo=bar" ]]
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
@@ -33,7 +37,7 @@ load helpers
   [ $(wc -l <<< "$output") -eq 15 ]
   [ "${status}" -eq 0 ]
 
-  buildah rmi -a
+  buildah rmi -a -f
   rm -rf ${TESTSDIR}/bud/use-layers/mount
 }
 
@@ -49,7 +53,7 @@ load helpers
   [ "${status}" -eq 0 ]
 
   buildah rm -a
-  buildah rmi -a
+  buildah rmi -a -f
 }
 
 @test "bud with --force-rm flag" {
@@ -68,7 +72,7 @@ load helpers
   [ "${status}" -eq 0 ]
 
   buildah rm -a
-  buildah rmi -a
+  buildah rmi -a -f
 }
 
 @test "bud from base image should have base image ENV also" {
