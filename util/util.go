@@ -16,6 +16,7 @@ import (
 	"github.com/containers/image/docker/reference"
 	ociarchive "github.com/containers/image/oci/archive"
 	"github.com/containers/image/pkg/sysregistries"
+	"github.com/containers/image/signature"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/tarball"
 	"github.com/containers/image/types"
@@ -463,4 +464,18 @@ func UnsharedRunrootPath(uid string) (string, error) {
 		return filepath.Join("/var/run/user", uid, "run"), nil
 	}
 	return "", errors.New("unable to determine a --runroot location: $XDG_RUNTIME_DIR is not set, and we don't know our UID")
+}
+
+// GetPolicyContext sets up, initializes and returns a new context for the specified policy
+func GetPolicyContext(ctx *types.SystemContext) (*signature.PolicyContext, error) {
+	policy, err := signature.DefaultPolicy(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	policyContext, err := signature.NewPolicyContext(policy)
+	if err != nil {
+		return nil, err
+	}
+	return policyContext, nil
 }
