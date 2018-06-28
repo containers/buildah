@@ -1323,7 +1323,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 	}()
 
 	if configureNetwork {
-		teardown, err := runConfigureNetwork(options, configureNetwork, configureNetworks, pid, containerName, spec.Process.Args)
+		teardown, err := runConfigureNetwork(options, configureNetworks, pid, containerName, spec.Process.Args)
 		if teardown != nil {
 			defer teardown()
 		}
@@ -1453,7 +1453,7 @@ func runCollectOutput(fds ...int) string {
 	return b.String()
 }
 
-func runConfigureNetwork(options RunOptions, configureNetwork bool, configureNetworks []string, pid int, containerName string, command []string) (teardown func(), err error) {
+func runConfigureNetwork(options RunOptions, configureNetworks []string, pid int, containerName string, command []string) (teardown func(), err error) {
 	var netconf, undo []*libcni.NetworkConfigList
 	// Scan for CNI configuration files.
 	confdir := options.CNIConfigDir
