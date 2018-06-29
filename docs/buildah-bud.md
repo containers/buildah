@@ -4,7 +4,11 @@
 buildah\-bud - Build an image using instructions from Dockerfiles.
 
 ## SYNOPSIS
-**buildah** **bud | build-using-dockerfile** [*options* [...]] **context**
+**buildah build-using-dockerfile** [*options*] *context*
+
+**buildah bud** [*options*] *context*
+
+**bud** is an alias for **build-using-dockerfile**.
 
 ## DESCRIPTION
 Builds an image using instructions from one or more Dockerfiles and a specified

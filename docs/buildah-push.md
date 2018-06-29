@@ -4,7 +4,7 @@
 buildah\-push - Push an image from local storage to elsewhere.
 
 ## SYNOPSIS
-**buildah** **push** [*options* [...]] **imageID** [**destination**]
+**buildah push** [*options*] *image* [*destination*]
 
 ## DESCRIPTION
 Pushes an image from local storage to a specified destination, decompressing

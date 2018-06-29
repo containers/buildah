@@ -4,7 +4,7 @@
 buildah\-rmi - Removes one or more images.
 
 ## SYNOPSIS
-**buildah** **rmi** **imageID [...]**
+**buildah rmi** *image* ...
 
 ## DESCRIPTION
 Removes one or more locally stored images.

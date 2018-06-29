@@ -4,7 +4,7 @@
 buildah\-copy - Copies the contents of a file, URL, or directory into a container's working directory.
 
 ## SYNOPSIS
-**buildah** **copy** containerID **SRC** [[...] **DEST**]
+**buildah copy** *container* *src* [[*src* ...] *dest*]
 
 ## DESCRIPTION
 Copies the contents of a file, URL, or a directory to a container's working

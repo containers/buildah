@@ -4,7 +4,7 @@
 buildah\-config - Update image configuration settings.
 
 ## SYNOPSIS
-**buildah** **config** [*options* [...]] **containerID**
+**buildah config** [*options*] *container*
 
 ## DESCRIPTION
 Updates one or more of the settings kept for a container.

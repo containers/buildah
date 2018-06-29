@@ -4,9 +4,7 @@
 buildah\-mount - Mount a working container's root filesystem.
 
 ## SYNOPSIS
-**buildah** **mount**
-
-**buildah** **mount** [**containerID** [...]]
+**buildah mount** [*container* ...]
 
 ## DESCRIPTION
 Mounts the specified container's root file system in a location which can be

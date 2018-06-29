@@ -4,7 +4,7 @@
 buildah\-images - List images in local storage.
 
 ## SYNOPSIS
-**buildah** **images** [*options* [...]] [*imageName*]
+**buildah images** [*options*] [*image*]
 
 ## DESCRIPTION
 Displays locally stored images, their names, sizes, created date and their IDs.

@@ -4,8 +4,7 @@
 buildah\-version - Display the Buildah Version Information.
 
 ## SYNOPSIS
-**buildah version**
-[**--help**|**-h**]
+**buildah version** [*options*]
 
 ## DESCRIPTION
 Shows the following information: Version, Go Version, Image Spec, Runtime Spec, CNI Spec, libcni Version, Git Commit, Build Time, OS, and Architecture.
