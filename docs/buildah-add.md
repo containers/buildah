@@ -4,7 +4,7 @@
 buildah\-add - Add the contents of a file, URL, or a directory to a container.
 
 ## SYNOPSIS
-**buildah** **add** **containerID** **SRC** [[...] **DEST**]
+**buildah add** [*options*] *container* *src* [[*src* ...] *dest*]
 
 ## DESCRIPTION
 Adds the contents of a file, URL, or a directory to a container's working

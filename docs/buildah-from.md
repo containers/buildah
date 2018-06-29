@@ -4,7 +4,7 @@
 buildah\-from - Creates a new working container, either from scratch or using a specified image as a starting point.
 
 ## SYNOPSIS
-**buildah** **from** [*options* [...]] *imageName*
+**buildah from** [*options*] *image*
 
 ## DESCRIPTION
 Creates a working container based upon the specified image name.  If the

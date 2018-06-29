@@ -4,7 +4,7 @@
 buildah\-unshare - Run a command inside of a modified user namespace.
 
 ## SYNOPSIS
-**buildah** **unshare** [*options* [...] --] [**command**]
+**buildah unshare** [*options*] [**--**] [*command*]
 
 ## DESCRIPTION
 Launches a process (by default, *$SHELL*) in a new user namespace.  The user
