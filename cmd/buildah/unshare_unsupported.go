@@ -2,6 +2,10 @@
 
 package main
 
+import (
+	"github.com/urfave/cli"
+)
+
 var (
 	unshareCommand = cli.Command{
 		Name:           "unshare",

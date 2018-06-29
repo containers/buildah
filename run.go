@@ -1145,9 +1145,9 @@ func runUsingRuntimeMain() {
 		os.Exit(1)
 	}
 	// Set ourselves up to read the container's exit status.  We're doing this in a child process
-	// so that we won't mess with the setting in a caller of the library.
-	if err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, uintptr(1), 0, 0, 0); err != nil {
-		fmt.Fprintf(os.Stderr, "prctl(PR_SET_CHILD_SUBREAPER, 1): %v\n", err)
+	// so that we won't mess with the setting in a caller of the library. This stubs to OS specific
+	// calls
+	if err := setChildProcess(); err != nil {
 		os.Exit(1)
 	}
 	// Run the container, start to finish.
