@@ -4,7 +4,7 @@
 buildah\-containers - List the working containers and their base images.
 
 ## SYNOPSIS
-**buildah** **containers** [*options* [...]]
+**buildah containers** [*options*]
 
 ## DESCRIPTION
 Lists containers which appear to be Buildah working containers, their names and

@@ -4,7 +4,7 @@
 buildah\-tag - Add additional names to local images.
 
 ## SYNOPSIS
-**buildah** **tag** **name** **new-name** [...]
+**buildah tag** *name* *new-name* ...
 
 ## DESCRIPTION
 Adds additional names to locally-stored images.

@@ -4,7 +4,7 @@
 buildah\-inspect - Display information about working containers or images.
 
 ## SYNOPSIS
-**buildah** **inspect** [*options* [...] --] **ID**
+**buildah inspect** [*options*] [**--**] *object*
 
 ## DESCRIPTION
 Prints the low-level information on Buildah object(s) (e.g. container, images) identified by name or ID. By default, this will render all results in a
@@ -21,9 +21,9 @@ Users of this option should be familiar with the [*text/template*
 package](https://golang.org/pkg/text/template/) in the Go standard library, and
 of internals of Buildah's implementation.
 
-**--type** *container* | *image*
+**--type** **container** | **image**
 
-Specify whether the ID is that of a container or an image.
+Specify whether *object* is a container or an image.
 
 ## EXAMPLE
 

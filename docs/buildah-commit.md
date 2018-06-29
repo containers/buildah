@@ -4,12 +4,12 @@
 buildah\-commit - Create an image from a working container.
 
 ## SYNOPSIS
-**buildah** **commit** [*options* [...]] **containerID** **imageName**
+**buildah commit** [*options*] *container* *image*
 
 ## DESCRIPTION
 Writes a new image using the specified container's read-write layer and if it
-is based on an image, the layers of that image.  If *imageName* does not begin
-with a registry name component, *localhost* will be added to the name.
+is based on an image, the layers of that image.  If *image* does not begin
+with a registry name component, `localhost` will be added to the name.
 
 ## RETURN VALUE
 The image ID of the image that was created.  On error, 1 is returned and errno is returned.

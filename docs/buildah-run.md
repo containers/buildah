@@ -4,7 +4,7 @@
 buildah\-run - Run a command inside of the container.
 
 ## SYNOPSIS
-**buildah** **run** [*options* [...] --] **containerID** **command**
+**buildah run** [*options*] [**--**] *container* *command*
 
 ## DESCRIPTION
 Launches a container and runs the specified command in that container using the
