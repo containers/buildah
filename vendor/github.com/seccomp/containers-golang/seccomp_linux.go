@@ -1,14 +1,12 @@
-// +build linux
+// +build seccomp
 
-package seccomp
+package seccomp // import "github.com/seccomp/containers-golang"
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	libseccomp "github.com/seccomp/libseccomp-golang"
 )
@@ -22,24 +20,35 @@ func GetDefaultProfile(rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 
 // LoadProfile takes a json string and decodes the seccomp profile.
 func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
-	var config types.Seccomp
+	var config Seccomp
 	if err := json.Unmarshal([]byte(body), &config); err != nil {
 		return nil, fmt.Errorf("Decoding seccomp profile failed: %v", err)
 	}
 	return setupSeccomp(&config, rs)
 }
 
-var nativeToSeccomp = map[string]types.Arch{
-	"amd64":       types.ArchX86_64,
-	"arm64":       types.ArchAARCH64,
-	"mips64":      types.ArchMIPS64,
-	"mips64n32":   types.ArchMIPS64N32,
-	"mipsel64":    types.ArchMIPSEL64,
-	"mipsel64n32": types.ArchMIPSEL64N32,
-	"s390x":       types.ArchS390X,
+var nativeToSeccomp = map[string]Arch{
+	"amd64":       ArchX86_64,
+	"arm64":       ArchAARCH64,
+	"mips64":      ArchMIPS64,
+	"mips64n32":   ArchMIPS64N32,
+	"mipsel64":    ArchMIPSEL64,
+	"mipsel64n32": ArchMIPSEL64N32,
+	"s390x":       ArchS390X,
 }
 
-func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
+// inSlice tests whether a string is contained in a slice of strings or not.
+// Comparison is case sensitive
+func inSlice(slice []string, s string) bool {
+	for _, ss := range slice {
+		if s == ss {
+			return true
+		}
+	}
+	return false
+}
+
+func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 	if config == nil {
 		return nil, nil
 	}
@@ -89,25 +98,25 @@ Loop:
 	// Loop through all syscall blocks and convert them to libcontainer format after filtering them
 	for _, call := range config.Syscalls {
 		if len(call.Excludes.Arches) > 0 {
-			if stringutils.InSlice(call.Excludes.Arches, arch) {
+			if inSlice(call.Excludes.Arches, arch) {
 				continue Loop
 			}
 		}
 		if len(call.Excludes.Caps) > 0 {
 			for _, c := range call.Excludes.Caps {
-				if stringutils.InSlice(rs.Process.Capabilities.Effective, c) {
+				if inSlice(rs.Process.Capabilities.Bounding, c) {
 					continue Loop
 				}
 			}
 		}
 		if len(call.Includes.Arches) > 0 {
-			if !stringutils.InSlice(call.Includes.Arches, arch) {
+			if !inSlice(call.Includes.Arches, arch) {
 				continue Loop
 			}
 		}
 		if len(call.Includes.Caps) > 0 {
 			for _, c := range call.Includes.Caps {
-				if !stringutils.InSlice(rs.Process.Capabilities.Effective, c) {
+				if !inSlice(rs.Process.Capabilities.Bounding, c) {
 					continue Loop
 				}
 			}
@@ -129,7 +138,7 @@ Loop:
 	return newConfig, nil
 }
 
-func createSpecsSyscall(name string, action types.Action, args []*types.Arg) specs.LinuxSyscall {
+func createSpecsSyscall(name string, action Action, args []*Arg) specs.LinuxSyscall {
 	newCall := specs.LinuxSyscall{
 		Names:  []string{name},
 		Action: specs.LinuxSeccompAction(action),
