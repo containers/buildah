@@ -14,6 +14,7 @@ exec gometalinter.v1 \
 	--exclude='declaration of.*err.*shadows declaration.*\(vetshadow\)$'\
 	--exclude='duplicate of.*_test.go.*\(dupl\)$' \
 	--exclude='vendor\/.*' \
+	--enable=unparam \
 	--disable=gotype \
 	--disable=gas \
 	--disable=aligncheck \
