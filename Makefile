@@ -20,6 +20,9 @@ all: buildah imgtype docs
 buildah: *.go imagebuildah/*.go bind/*.go cmd/buildah/*.go docker/*.go pkg/cli/*.go pkg/parse/*.go unshare/*.c unshare/*.go util/*.go
 	$(GO) build $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
 
+darwin:
+	GOOS=darwin $(GO) build $(LDFLAGS) -o buildah.darwin -tags "containers_image_openpgp" ./cmd/buildah
+
 imgtype: *.go docker/*.go util/*.go tests/imgtype/imgtype.go
 	$(GO) build $(LDFLAGS) -o imgtype $(BUILDFLAGS) ./tests/imgtype/imgtype.go
 
