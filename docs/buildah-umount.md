@@ -4,7 +4,7 @@
 buildah\-umount - Unmount the root file system on the specified working containers.
 
 ## SYNOPSIS
-**buildah umount** *container* ...
+**buildah umount** [*options*]  [*container* ...]
 
 ## DESCRIPTION
 Unmounts the root file system on the specified working containers.

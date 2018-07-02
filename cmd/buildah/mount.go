@@ -6,8 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/pkg/parse"
-	"github.com/projectatomic/buildah/util"
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -49,17 +47,17 @@ func mountCmd(c *cli.Context) error {
 			builder, err := openBuilder(getContext(), store, name)
 			if err != nil {
 				if lastError != nil {
-					logrus.Error(lastError)
+					fmt.Fprintln(os.Stderr, lastError)
 				}
-				lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "error reading build container %q", name), lastError)
+				lastError = errors.Wrapf(err, "error reading build container %q", name)
 				continue
 			}
 			mountPoint, err := builder.Mount(builder.MountLabel)
 			if err != nil {
 				if lastError != nil {
-					logrus.Error(lastError)
+					fmt.Fprintln(os.Stderr, lastError)
 				}
-				lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "error mounting %q container %q", name, builder.Container), lastError)
+				lastError = errors.Wrapf(err, "error mounting %q container %q", name, builder.Container)
 				continue
 			}
 			if len(args) > 1 {
