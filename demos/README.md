@@ -1,15 +1,5 @@
 ![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
 
-# Useful Buildah links
-
-**[Changelog](../CHANGELOG.md)**
-
-**[Installation notes](../install.md)**
-
-**[Troubleshooting Guide](../troubleshooting.md)**
-
-**[Tutorials](../docs/tutorials/README.md)**
-
 # Buildah Demos
 
 The purpose of these demonstrations is twofold:
