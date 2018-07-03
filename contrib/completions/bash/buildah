@@ -388,6 +388,7 @@ return 1
      --iidfile
      --ipc
      --label
+     --loglevel
      -m
      --memory
      --memory-swap
