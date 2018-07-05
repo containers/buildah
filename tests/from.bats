@@ -287,3 +287,11 @@ load helpers
   cid=$(buildah from --name=${container_name} --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah --debug=false inspect --format '{{.Container}}' ${container_name}
 }
+
+@test "from cidfile test" {
+  buildah from --cidfile output.cid --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$(cat output.cid)
+  run buildah --debug=false containers -f id=${cid}
+  [ "$status" -eq 0 ]
+  buildah rm ${cid}
+}
