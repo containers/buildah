@@ -716,6 +716,7 @@ return 1
      --authfile
      --cert-dir
      --cgroup-parent
+     --cidfile
      --cni-config-dir
      --cni-plugin-path
      --cpu-period
