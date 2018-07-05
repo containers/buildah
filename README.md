@@ -18,6 +18,8 @@ The Buildah package provides a command line tool that can be used to
 
 **[Changelog](CHANGELOG.md)**
 
+**[Contributing](CONTRIBUTING.md)**
+
 **[Development Plan](developmentplan.md)**
 
 **[Installation notes](install.md)**
