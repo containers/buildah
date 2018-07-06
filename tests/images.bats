@@ -29,10 +29,11 @@ load helpers
 }
 
 @test "images filter test" {
-  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json kubernetes/pause)
   cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
-  run buildah --debug=false images --filter since=alpine
-  [ $(wc -l <<< "$output") -eq 2 ]
+  run buildah --debug=false images --noheading --filter since=kubernetes/pause
+  echo "$output"
+  [ $(wc -l <<< "$output") -eq 1 ]
   [ "${status}" -eq 0 ]
   buildah rm -a
   buildah rmi -a -f
