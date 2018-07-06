@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -24,6 +25,10 @@ var (
 			Name:  "cert-dir",
 			Value: "",
 			Usage: "use certificates at the specified path to access the registry",
+		},
+		cli.StringFlag{
+			Name:  "cidfile",
+			Usage: "write the container ID to the file",
 		},
 		cli.StringFlag{
 			Name:  "creds",
@@ -238,6 +243,12 @@ func fromCmd(c *cli.Context) error {
 		return err
 	}
 
+	if c.String("cidfile") != "" {
+		filePath := c.String("cidfile")
+		if err := ioutil.WriteFile(filePath, []byte(builder.ContainerID), 0644); err != nil {
+			return errors.Wrapf(err, "filed to write Container ID File %q", filePath)
+		}
+	}
 	fmt.Printf("%s\n", builder.Container)
 	return builder.Save()
 }
