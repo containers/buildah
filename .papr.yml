@@ -47,3 +47,39 @@ tests:
   - podman run --net=host --privileged -v /etc/yum.repos.d:/etc/yum.repos.d.host:ro
     -v $PWD:/code registry.fedoraproject.org/fedora:28 sh -c
     "cp -fv /etc/yum.repos.d{.host/*.repo,} && /code/.papr.sh"
+
+---
+
+container:
+    image: registry.fedoraproject.org/fedora:28
+
+packages:
+    - btrfs-progs-devel
+    - bzip2
+    - device-mapper-devel
+    - findutils
+    - git
+    - glib2-devel
+    - gnupg
+    - golang
+    - libassuan-devel
+    - make
+    - ostree-devel
+    - skopeo-containers
+
+required: false
+pulls: true
+
+env:
+    GOPATH: /go
+    GOSRC: /go/src/github.com/projectatomic
+
+tests:
+    - mkdir -p $GOSRC && ln -s /var/tmp/checkout $GOSRC/buildah
+    - cd $GOSRC/buildah && make darwin
+    - cd $GOSRC/buildah && GOOS=darwin GOPATH=/go sh ./tests/validate/gofmt.sh
+
+artifacts:
+    - test-suite.log
+
+context: "darwin CI"
