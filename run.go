@@ -598,7 +598,9 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 
 func setupMaskedPaths(g *generate.Generator) {
 	for _, mp := range []string{
+		"/proc/acpi",
 		"/proc/kcore",
+		"/proc/keys",
 		"/proc/latency_stats",
 		"/proc/timer_list",
 		"/proc/timer_stats",
