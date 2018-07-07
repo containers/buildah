@@ -34,8 +34,9 @@ func main() {
 			Usage: "print debugging information",
 		},
 		cli.StringFlag{
-			Name:  "registries-conf",
-			Usage: "path to registries.conf file (not usually used)",
+			Name:   "registries-conf",
+			Usage:  "path to registries.conf file (not usually used)",
+			EnvVar: "REGISTRIES_CONFIG_PATH",
 		},
 		cli.StringFlag{
 			Name:  "registries-conf-dir",
