@@ -127,7 +127,6 @@ and
 [PRs](https://github.com/projectatomic/buildah/pulls)
 tracking system.
 
-<!--
 ## Becoming a Maintainer
 
 To become a maintainer you must first be nominated by an existing maintainer.
@@ -141,4 +140,3 @@ inactive for a long period of time or are viewed as disruptive to the community.
 
 The current list of maintainers can be found in the
 [MAINTAINERS](MAINTAINERS) file.
--->
