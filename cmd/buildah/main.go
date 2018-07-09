@@ -107,6 +107,7 @@ func main() {
 		inspectCommand,
 		mountCommand,
 		pushCommand,
+		renameCommand,
 		rmCommand,
 		rmiCommand,
 		runCommand,
