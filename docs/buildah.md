@@ -15,6 +15,7 @@ The Buildah package provides a command line tool which can be used to:
     * Unmount a working container's root filesystem.
     * Use the updated contents of a container's root filesystem as a filesystem layer to create a new image.
     * Delete a working container or an image.
+    * Rename a local container.
 
 This tool needs to be run as the root user.
 
@@ -103,6 +104,7 @@ Print the version
 | buildah-inspect(1)    | Inspects the configuration of a container or image                                                   |
 | buildah-mount(1)      | Mount the working container's root filesystem.                                                       |
 | buildah-push(1)       | Push an image from local storage to elsewhere.                                                       |
+| buildah-rename(1)     | Rename a local container.                                                                            |
 | buildah-rm(1)         | Removes one or more working containers.                                                              |
 | buildah-rmi(1)        | Removes one or more images.                                                                          |
 | buildah-run(1)        | Run a command inside of the container.                                                               |

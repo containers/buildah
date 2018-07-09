@@ -765,6 +765,16 @@ return 1
      "
  }
 
+ _buildah_rename() {
+     local boolean_options="
+     --help
+     -h
+     "
+
+     local options_with_args="
+     "
+ }
+
  _buildah_version() {
      local boolean_options="
      --help
@@ -793,6 +803,7 @@ return 1
        inspect
        mount
        push
+       rename
        rm
        rmi
        run
