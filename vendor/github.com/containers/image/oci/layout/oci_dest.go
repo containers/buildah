@@ -18,9 +18,10 @@ import (
 )
 
 type ociImageDestination struct {
-	ref           ociReference
-	index         imgspecv1.Index
-	sharedBlobDir string
+	ref                      ociReference
+	index                    imgspecv1.Index
+	sharedBlobDir            string
+	acceptUncompressedLayers bool
 }
 
 // newImageDestination returns an ImageDestination for writing to an existing directory.
@@ -43,6 +44,7 @@ func newImageDestination(sys *types.SystemContext, ref ociReference) (types.Imag
 	d := &ociImageDestination{ref: ref, index: *index}
 	if sys != nil {
 		d.sharedBlobDir = sys.OCISharedBlobDirPath
+		d.acceptUncompressedLayers = sys.OCIAcceptUncompressedLayers
 	}
 
 	if err := ensureDirectoryExists(d.ref.dir); err != nil {
@@ -81,6 +83,9 @@ func (d *ociImageDestination) SupportsSignatures(ctx context.Context) error {
 }
 
 func (d *ociImageDestination) DesiredLayerCompression() types.LayerCompression {
+	if d.acceptUncompressedLayers {
+		return types.PreserveOriginal
+	}
 	return types.Compress
 }
 
@@ -93,6 +98,13 @@ func (d *ociImageDestination) AcceptsForeignLayerURLs() bool {
 // MustMatchRuntimeOS returns true iff the destination can store only images targeted for the current runtime OS. False otherwise.
 func (d *ociImageDestination) MustMatchRuntimeOS() bool {
 	return false
+}
+
+// IgnoresEmbeddedDockerReference returns true iff the destination does not care about Image.EmbeddedDockerReferenceConflicts(),
+// and would prefer to receive an unmodified manifest instead of one modified for the destination.
+// Does not make a difference if Reference().DockerReference() is nil.
+func (d *ociImageDestination) IgnoresEmbeddedDockerReference() bool {
+	return false // N/A, DockerReference() returns nil.
 }
 
 // PutBlob writes contents of stream and returns data representing the result (with all data filled in).
