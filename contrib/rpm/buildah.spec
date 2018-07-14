@@ -27,7 +27,7 @@
 Name:           buildah
 # Bump version in buildah.go too
 Version:        1.2
-Release:        2.git%{shortcommit}%{?dist}
+Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
 URL:            https://%{provider_prefix}
@@ -92,7 +92,101 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Sat Jun 9 2018 Dan Walsh <dwalsh@redhat.com> 1.2-dev-1
+* Sat Jul 14 2018 Dan Walsh <dwalsh@redhat.com> 1.2-1
+- Vendor in lates containers/image
+- build-using-dockerfile: let -t include transports again
+- Block use of /proc/acpi and /proc/keys from inside containers
+- Fix handling of --registries-conf
+- Fix becoming a maintainer link
+- add optional CI test fo darwin
+- Don't pass a nil error to errors.Wrapf()
+- image filter test: use kubernetes/pause as a "since"
+- Add --cidfile option to from
+- vendor: update containers/storage
+- Contributors need to find the CONTRIBUTOR.md file easier
+- Add a --loglevel option to build-with-dockerfile
+- Create Development plan
+- cmd: Code improvement
+- allow buildah cross compile for a darwin target
+- Add unused function param lint check
+- docs: Follow man-pages(7) suggestions for SYNOPSIS
+- Start using github.com/seccomp/containers-golang
+- umount: add all option to umount all mounted containers
+- runConfigureNetwork(): remove an unused parameter
+- Update github.com/opencontainers/selinux
+- Fix buildah bud --layers
+- Force ownership of /etc/hosts and /etc/resolv.conf to 0:0
+- main: if unprivileged, reexec in a user namespace
+- Vendor in latest imagebuilder
+- Reduce the complexity of the buildah.Run function
+- mount: output it before replacing lastError
+- Vendor in latest selinux-go code
+- Implement basic recognition of the "--isolation" option
+- Run(): try to resolve non-absolute paths using $PATH
+- Run(): don't include any default environment variables
+- build without seccomp
+- vendor in latest runtime-tools
+- bind/mount_unsupported.go: remove import errors
+- Update github.com/opencontainers/runc
+- Add Capabilities lists to BuilderInfo
+- Tweaks for commit tests
+- commit: recognize committing to second storage locations
+- Fix ARGS parsing for run commands
+- Add info on registries.conf to from manpage
+- Switch from using docker to podman for testing in .papr
+- buildah: set the HTTP User-Agent
+- ONBUILD tutorial
+- Add information about the configuration files to the install docs
+- Makefile: add uninstall
+- Add tilde info for push to troubleshooting
+- mount: support multiple inputs
+- Use the right formatting when adding entries to /etc/hosts
+- Vendor in latest go-selinux bindings
+- Allow --userns-uid-map/--userns-gid-map to be global options
+- bind: factor out UnmountMountpoints
+- Run(): simplify runCopyStdio()
+- Run(): handle POLLNVAL results
+- Run(): tweak terminal mode handling
+- Run(): rename 'copyStdio' to 'copyPipes'
+- Run(): don't set a Pdeathsig for the runtime
+- Run(): add options for adding and removing capabilities
+- Run(): don't use a callback when a slice will do
+- setupSeccomp(): refactor
+- Change RunOptions.Stdin/Stdout/Stderr to just be Reader/Writers
+- Escape use of '_' in .md docs
+- Break out getProcIDMappings()
+- Break out SetupIntermediateMountNamespace()
+- Add Multi From Demo
+- Use the c/image conversion code instead of converting configs manually
+- Don't throw away the manifest MIME type and guess again
+- Consolidate loading manifest and config in initConfig
+- Pass a types.Image to Builder.initConfig
+- Require an image ID in importBuilderDataFromImage
+- Use c/image/manifest.GuessMIMEType instead of a custom heuristic
+- Do not ignore any parsing errors in initConfig
+- Explicitly handle "from scratch" images in Builder.initConfig
+- Fix parsing of OCI images
+- Simplify dead but dangerous-looking error handling
+- Don't ignore v2s1 history if docker_version is not set
+- Add --rm and --force-rm to buildah bud
+- Add --all,-a flag to buildah images
+- Separate stdio buffering from writing
+- Remove tty check from images --format
+- Add environment variable BUILDAH_RUNTIME
+- Add --layers and --no-cache to buildah bud
+- Touch up images man
+- version.md: fix DESCRIPTION
+- tests: add containers test
+- tests: add images test
+- images: fix usage
+- fix make clean error
+- Change 'registries' to 'container registries' in man
+- add commit test
+- Add(): learn to record hashes of what we add
+- Minor update to buildah config documentation for entrypoint
+- Bump to v1.2-dev
+- Add registries.conf link to a few man pages
+
 * Sat Jun 9 2018 Dan Walsh <dwalsh@redhat.com> 1.1-1
 - Drop capabilities if running container processes as non root
 - Print Warning message if cmd will not be used based on entrypoint
