@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.2
+Version:        1.3
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -92,6 +92,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Sat Jul 14 2018 Dan Walsh <dwalsh@redhat.com> 1.3-dev-1
 * Sat Jul 14 2018 Dan Walsh <dwalsh@redhat.com> 1.2-1
 - Vendor in lates containers/image
 - build-using-dockerfile: let -t include transports again
