@@ -271,124 +271,6 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		return nil, err
 	}
 
-	// Extract each layer and compute its digests, both compressed (if requested) and uncompressed.
-	for _, layerID := range layers {
-		what := fmt.Sprintf("layer %q", layerID)
-		if i.squash {
-			what = fmt.Sprintf("container %q", i.containerID)
-		}
-		// The default layer media type assumes no compression.
-		omediaType := v1.MediaTypeImageLayer
-		dmediaType := docker.V2S2MediaTypeUncompressedLayer
-		// If we're not re-exporting the data, and we're reusing layers individually, reuse
-		// the blobsum and diff IDs.
-		if !i.exporting && !i.squash && layerID != i.layerID {
-			layer, err2 := i.store.Layer(layerID)
-			if err2 != nil {
-				return nil, errors.Wrapf(err, "unable to locate layer %q", layerID)
-			}
-			if layer.UncompressedDigest == "" {
-				return nil, errors.Errorf("unable to look up size of layer %q", layerID)
-			}
-			layerBlobSum := layer.UncompressedDigest
-			layerBlobSize := layer.UncompressedSize
-			// Note this layer in the manifest, using the uncompressed blobsum.
-			olayerDescriptor := v1.Descriptor{
-				MediaType: omediaType,
-				Digest:    layerBlobSum,
-				Size:      layerBlobSize,
-			}
-			omanifest.Layers = append(omanifest.Layers, olayerDescriptor)
-			dlayerDescriptor := docker.V2S2Descriptor{
-				MediaType: dmediaType,
-				Digest:    layerBlobSum,
-				Size:      layerBlobSize,
-			}
-			dmanifest.Layers = append(dmanifest.Layers, dlayerDescriptor)
-			// Note this layer in the list of diffIDs, again using the uncompressed blobsum.
-			oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, layerBlobSum)
-			dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, layerBlobSum)
-			continue
-		}
-		// Figure out if we need to change the media type, in case we're using compression.
-		omediaType, dmediaType, err = i.computeLayerMIMEType(what)
-		if err != nil {
-			return nil, err
-		}
-		// Start reading either the layer or the whole container rootfs.
-		noCompression := archive.Uncompressed
-		diffOptions := &storage.DiffOptions{
-			Compression: &noCompression,
-		}
-		var rc io.ReadCloser
-		if i.squash {
-			// Extract the root filesystem as a single layer.
-			rc, err = i.extractRootfs()
-			if err != nil {
-				return nil, err
-			}
-			defer rc.Close()
-		} else {
-			// Extract this layer, one of possibly many.
-			rc, err = i.store.Diff("", layerID, diffOptions)
-			if err != nil {
-				return nil, errors.Wrapf(err, "error extracting %s", what)
-			}
-			defer rc.Close()
-		}
-		srcHasher := digest.Canonical.Digester()
-		reader := io.TeeReader(rc, srcHasher.Hash())
-		// Set up to write the possibly-recompressed blob.
-		layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0600)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error opening file for %s", what)
-		}
-		destHasher := digest.Canonical.Digester()
-		counter := ioutils.NewWriteCounter(layerFile)
-		multiWriter := io.MultiWriter(counter, destHasher.Hash())
-		// Compress the layer, if we're recompressing it.
-		writer, err := archive.CompressStream(multiWriter, i.compression)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error compressing %s", what)
-		}
-		size, err := io.Copy(writer, reader)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error storing %s to file", what)
-		}
-		writer.Close()
-		layerFile.Close()
-		if i.compression == archive.Uncompressed {
-			if size != counter.Count {
-				return nil, errors.Errorf("error storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, size, counter.Count)
-			}
-		} else {
-			size = counter.Count
-		}
-		logrus.Debugf("%s size is %d bytes", what, size)
-		// Rename the layer so that we can more easily find it by digest later.
-		err = os.Rename(filepath.Join(path, "layer"), filepath.Join(path, destHasher.Digest().String()))
-		if err != nil {
-			return nil, errors.Wrapf(err, "error storing %s to file", what)
-		}
-		// Add a note in the manifest about the layer.  The blobs are identified by their possibly-
-		// compressed blob digests.
-		olayerDescriptor := v1.Descriptor{
-			MediaType: omediaType,
-			Digest:    destHasher.Digest(),
-			Size:      size,
-		}
-		omanifest.Layers = append(omanifest.Layers, olayerDescriptor)
-		dlayerDescriptor := docker.V2S2Descriptor{
-			MediaType: dmediaType,
-			Digest:    destHasher.Digest(),
-			Size:      size,
-		}
-		dmanifest.Layers = append(dmanifest.Layers, dlayerDescriptor)
-		// Add a note about the diffID, which is always the layer's uncompressed digest.
-		oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, srcHasher.Digest())
-		dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, srcHasher.Digest())
-	}
-
 	// Build history notes in the image configurations.
 	onews := v1.History{
 		Created:    &i.created,
@@ -407,6 +289,118 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 	}
 	dimage.History = append(dimage.History, dnews)
 	dimage.Parent = docker.ID(digest.FromString(i.parent))
+
+	if len(layers) != len(oimage.History) {
+		return nil, fmt.Errorf("Internal error: %d layers vs. %d history items", len(layers), len(oimage.History))
+	}
+	// Extract each layer and compute its digests, both compressed (if requested) and uncompressed.
+	for layerIndex, layerID := range layers {
+		what := fmt.Sprintf("layer %q", layerID)
+		if i.squash {
+			what = fmt.Sprintf("container %q", i.containerID)
+		}
+		// The default layer media type assumes no compression.
+		omediaType := v1.MediaTypeImageLayer
+		dmediaType := docker.V2S2MediaTypeUncompressedLayer
+		var layerBlobDigest, layerDiffID digest.Digest
+		var layerBlobSize int64
+		// If we're not re-exporting the data, and we're reusing layers individually, reuse
+		// the blobsum and diff IDs.
+		if !i.exporting && !i.squash && layerID != i.layerID {
+			layer, err2 := i.store.Layer(layerID)
+			if err2 != nil {
+				return nil, errors.Wrapf(err, "unable to locate layer %q", layerID)
+			}
+			if layer.UncompressedDigest == "" {
+				return nil, errors.Errorf("unable to look up size of layer %q", layerID)
+			}
+
+			layerDiffID = layer.UncompressedDigest     // Use the uncompressed blobsum both for DiffIDs…
+			layerBlobDigest = layer.UncompressedDigest // … and for the blobs in the manifest.
+			layerBlobSize = layer.UncompressedSize
+		} else {
+			// Figure out if we need to change the media type, in case we're using compression.
+			omediaType, dmediaType, err = i.computeLayerMIMEType(what)
+			if err != nil {
+				return nil, err
+			}
+			// Start reading either the layer or the whole container rootfs.
+			noCompression := archive.Uncompressed
+			diffOptions := &storage.DiffOptions{
+				Compression: &noCompression,
+			}
+			var rc io.ReadCloser
+			if i.squash {
+				// Extract the root filesystem as a single layer.
+				rc, err = i.extractRootfs()
+				if err != nil {
+					return nil, err
+				}
+				defer rc.Close()
+			} else {
+				// Extract this layer, one of possibly many.
+				rc, err = i.store.Diff("", layerID, diffOptions)
+				if err != nil {
+					return nil, errors.Wrapf(err, "error extracting %s", what)
+				}
+				defer rc.Close()
+			}
+			srcHasher := digest.Canonical.Digester()
+			reader := io.TeeReader(rc, srcHasher.Hash())
+			// Set up to write the possibly-recompressed blob.
+			layerFile, err := os.OpenFile(filepath.Join(path, "layer"), os.O_CREATE|os.O_WRONLY, 0600)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error opening file for %s", what)
+			}
+			destHasher := digest.Canonical.Digester()
+			counter := ioutils.NewWriteCounter(layerFile)
+			multiWriter := io.MultiWriter(counter, destHasher.Hash())
+			// Compress the layer, if we're recompressing it.
+			writer, err := archive.CompressStream(multiWriter, i.compression)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error compressing %s", what)
+			}
+			size, err := io.Copy(writer, reader)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error storing %s to file", what)
+			}
+			writer.Close()
+			layerFile.Close()
+			if i.compression == archive.Uncompressed && size != counter.Count {
+				return nil, errors.Errorf("error storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, size, counter.Count)
+			}
+			layerBlobSize = counter.Count
+			logrus.Debugf("%s size is %d bytes", what, layerBlobSize)
+			// Rename the layer so that we can more easily find it by digest later.
+			err = os.Rename(filepath.Join(path, "layer"), filepath.Join(path, destHasher.Digest().String()))
+			if err != nil {
+				return nil, errors.Wrapf(err, "error storing %s to file", what)
+			}
+
+			layerDiffID = srcHasher.Digest()      // The diffID which is always the layer's uncompressed digest.
+			layerBlobDigest = destHasher.Digest() // The blobs are identified by their possibly-compressed blob digests.
+		}
+
+		// Add a note in the manifest about the layer.  The blobs are identified by their possibly-
+		// compressed blob digests.
+		olayerDescriptor := v1.Descriptor{
+			MediaType: omediaType,
+			Digest:    layerBlobDigest,
+			Size:      layerBlobSize,
+		}
+		omanifest.Layers = append(omanifest.Layers, olayerDescriptor)
+		dlayerDescriptor := docker.V2S2Descriptor{
+			MediaType: dmediaType,
+			Digest:    layerBlobDigest,
+			Size:      layerBlobSize,
+		}
+		dmanifest.Layers = append(dmanifest.Layers, dlayerDescriptor)
+		if !oimage.History[layerIndex].EmptyLayer {
+			// Add a note about the diffID, which is always the layer's uncompressed digest.
+			oimage.RootFS.DiffIDs = append(oimage.RootFS.DiffIDs, layerDiffID)
+			dimage.RootFS.DiffIDs = append(dimage.RootFS.DiffIDs, layerDiffID)
+		}
+	}
 
 	// Sanity check that we didn't just create a mismatch between non-empty layers in the
 	// history and the number of diffIDs.
