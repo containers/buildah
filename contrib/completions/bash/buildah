@@ -1,5 +1,3 @@
-#!/bin/bash
-#
 # bash completion file for buildah command
 #
 # This script provides completion of:
