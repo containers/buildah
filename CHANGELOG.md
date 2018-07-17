@@ -2,6 +2,287 @@
 
 # Changelog
 
+## 1.2 (2018-07-14)
+    Vendor in lates containers/image
+    build-using-dockerfile: let -t include transports again
+    Block use of /proc/acpi and /proc/keys from inside containers
+    Fix handling of --registries-conf
+    Fix becoming a maintainer link
+    add optional CI test fo darwin
+    Don't pass a nil error to errors.Wrapf()
+    image filter test: use kubernetes/pause as a "since"
+    Add --cidfile option to from
+    vendor: update containers/storage
+    Contributors need to find the CONTRIBUTOR.md file easier
+    Add a --loglevel option to build-with-dockerfile
+    Create Development plan
+    cmd: Code improvement
+    allow buildah cross compile for a darwin target
+    Add unused function param lint check
+    docs: Follow man-pages(7) suggestions for SYNOPSIS
+    Start using github.com/seccomp/containers-golang
+    umount: add all option to umount all mounted containers
+    runConfigureNetwork(): remove an unused parameter
+    Update github.com/opencontainers/selinux
+    Fix buildah bud --layers
+    Force ownership of /etc/hosts and /etc/resolv.conf to 0:0
+    main: if unprivileged, reexec in a user namespace
+    Vendor in latest imagebuilder
+    Reduce the complexity of the buildah.Run function
+    mount: output it before replacing lastError
+    Vendor in latest selinux-go code
+    Implement basic recognition of the "--isolation" option
+    Run(): try to resolve non-absolute paths using $PATH
+    Run(): don't include any default environment variables
+    build without seccomp
+    vendor in latest runtime-tools
+    bind/mount_unsupported.go: remove import errors
+    Update github.com/opencontainers/runc
+    Add Capabilities lists to BuilderInfo
+    Tweaks for commit tests
+    commit: recognize committing to second storage locations
+    Fix ARGS parsing for run commands
+    Add info on registries.conf to from manpage
+    Switch from using docker to podman for testing in .papr
+    buildah: set the HTTP User-Agent
+    ONBUILD tutorial
+    Add information about the configuration files to the install docs
+    Makefile: add uninstall
+    Add tilde info for push to troubleshooting
+    mount: support multiple inputs
+    Use the right formatting when adding entries to /etc/hosts
+    Vendor in latest go-selinux bindings
+    Allow --userns-uid-map/--userns-gid-map to be global options
+    bind: factor out UnmountMountpoints
+    Run(): simplify runCopyStdio()
+    Run(): handle POLLNVAL results
+    Run(): tweak terminal mode handling
+    Run(): rename 'copyStdio' to 'copyPipes'
+    Run(): don't set a Pdeathsig for the runtime
+    Run(): add options for adding and removing capabilities
+    Run(): don't use a callback when a slice will do
+    setupSeccomp(): refactor
+    Change RunOptions.Stdin/Stdout/Stderr to just be Reader/Writers
+    Escape use of '_' in .md docs
+    Break out getProcIDMappings()
+    Break out SetupIntermediateMountNamespace()
+    Add Multi From Demo
+    Use the c/image conversion code instead of converting configs manually
+    Don't throw away the manifest MIME type and guess again
+    Consolidate loading manifest and config in initConfig
+    Pass a types.Image to Builder.initConfig
+    Require an image ID in importBuilderDataFromImage
+    Use c/image/manifest.GuessMIMEType instead of a custom heuristic
+    Do not ignore any parsing errors in initConfig
+    Explicitly handle "from scratch" images in Builder.initConfig
+    Fix parsing of OCI images
+    Simplify dead but dangerous-looking error handling
+    Don't ignore v2s1 history if docker_version is not set
+    Add --rm and --force-rm to buildah bud
+    Add --all,-a flag to buildah images
+    Separate stdio buffering from writing
+    Remove tty check from images --format
+    Add environment variable BUILDAH_RUNTIME
+    Add --layers and --no-cache to buildah bud
+    Touch up images man
+    version.md: fix DESCRIPTION
+    tests: add containers test
+    tests: add images test
+    images: fix usage
+    fix make clean error
+    Change 'registries' to 'container registries' in man
+    add commit test
+    Add(): learn to record hashes of what we add
+    Minor update to buildah config documentation for entrypoint
+    Bump to v1.2-dev
+    Add registries.conf link to a few man pages
+
+## 1.1 (2018-06-08)
+    Drop capabilities if running container processes as non root
+    Print Warning message if cmd will not be used based on entrypoint
+    Update 01-intro.md
+    Shouldn't add insecure registries to list of search registries
+    Report errors on bad transports specification when pushing images
+    Move parsing code out of common for namespaces and into pkg/parse.go
+    Add disable-content-trust noop flag to bud
+    Change freenode chan to buildah
+    runCopyStdio(): don't close stdin unless we saw POLLHUP
+    Add registry errors for pull
+    runCollectOutput(): just read until the pipes are closed on us
+    Run(): provide redirection for stdio
+    rmi, rm: add test
+    add mount test
+    Add parameter judgment for commands that do not require parameters
+    Add context dir to bud command in baseline test
+    run.bats: check that we can run with symlinks in the bundle path
+    Give better messages to users when image can not be found
+    use absolute path for bundlePath
+    Add environment variable to buildah --format
+    rm: add validation to args and all option
+    Accept json array input for config entrypoint
+    Run(): process RunOptions.Mounts, and its flags
+    Run(): only collect error output from stdio pipes if we created some
+    Add OnBuild support for Dockerfiles
+    Quick fix on demo readme
+    run: fix validate flags
+    buildah bud should require a context directory or URL
+    Touchup tutorial for run changes
+    Validate common bud and from flags
+    images: Error if the specified imagename does not exist
+    inspect: Increase err judgments to avoid panic
+    add test to inspect
+    buildah bud picks up ENV from base image
+    Extend the amount of time travis_wait should wait
+    Add a make target for Installing CNI plugins
+    Add tests for namespace control flags
+    copy.bats: check ownerships in the container
+    Fix SELinux test errors when SELinux is enabled
+    Add example CNI configurations
+    Run: set supplemental group IDs
+    Run: use a temporary mount namespace
+    Use CNI to configure container networks
+    add/secrets/commit: Use mappings when setting permissions on added content
+    Add CLI options for specifying namespace and cgroup setup
+    Always set mappings when using user namespaces
+    Run(): break out creation of stdio pipe descriptors
+    Read UID/GID mapping information from containers and images
+    Additional bud CI tests
+    Run integration tests under travis_wait in Travis
+    build-using-dockerfile: add --annotation
+    Implement --squash for build-using-dockerfile and commit
+    Vendor in latest container/storage for devicemapper support
+    add test to inspect
+    Vendor github.com/onsi/ginkgo and github.com/onsi/gomega
+    Test with Go 1.10, too
+    Add console syntax highlighting to troubleshooting page
+    bud.bats: print "$output" before checking its contents
+    Manage "Run" containers more closely
+    Break Builder.Run()'s "run runc" bits out
+    util.ResolveName(): handle completion for tagged/digested image names
+    Handle /etc/hosts and /etc/resolv.conf properly in container
+    Documentation fixes
+    Make it easier to parse our temporary directory as an image name
+    Makefile: list new pkg/ subdirectoris as dependencies for buildah
+    containerImageSource: return more-correct errors
+    API cleanup: PullPolicy and TerminalPolicy should be types
+    Make "run --terminal" and "run -t" aliases for "run --tty"
+    Vendor github.com/containernetworking/cni v0.6.0
+    Update github.com/containers/storage
+    Update github.com/projectatomic/libpod
+    Add support for buildah bud --label
+    buildah push/from can push and pull images with no reference
+    Vendor in latest containers/image
+    Update gometalinter to fix install.tools error
+    Update troubleshooting with new run workaround
+    Added a bud demo and tidied up
+    Attempt to download file from url, if fails assume Dockerfile
+    Add buildah bud CI tests for ENV variables
+    Re-enable rpm .spec version check and new commit test
+    Update buildah scratch demo to support el7
+    Added Docker compatibility demo
+    Update to F28 and new run format in baseline test
+    Touchup man page short options across man pages
+    Added demo dir and a demo. chged distrorlease
+    builder-inspect: fix format option
+    Add cpu-shares short flag (-c) and cpu-shares CI tests
+    Minor fixes to formatting in rpm spec changelog
+    Fix rpm .spec changelog formatting
+    CI tests and minor fix for cache related noop flags
+    buildah-from: add effective value to mount propagation
+
+## 1.0 (2018-05-06)
+    Declare Buildah 1.0
+    Add cache-from and no-cache noops, and fix doco
+    Update option and documentation for --force-rm
+    Adding noop for --force-rm to match --rm
+    Add buildah bud ENTRYPOINT,CMD,RUN tests
+    Adding buildah bud RUN test scenarios
+    Extend tests for empty buildah run command
+    Fix formatting error in run.go
+    Update buildah run to make command required
+    Expanding buildah run cmd/entrypoint tests
+    Update test cases for buildah run behaviour
+    Remove buildah run cmd and entrypoint execution
+    Add Files section with registries.conf to pertinent man pages
+    tests/config: perfect test
+    tests/from: add name test
+    Do not print directly to stdout in Commit()
+    Touch up auth test commands
+    Force "localhost" as a default registry
+    Drop util.GetLocalTime()
+    Vendor in latest containers/image
+    Validate host and container paths passed to --volume
+    test/from: add add-host test
+    Add --compress, --rm, --squash flags as a noop for bud
+    Add FIPS mode secret to buildah run and bud
+    Add config --comment/--domainname/--history-comment/--hostname
+    'buildah config': stop replacing Created-By whenever it's not specified
+    Modify man pages so they compile correctly in mandb
+    Add description on how to do --isolation to buildah-bud man page
+    Add support for --iidfile to bud and commit
+    Refactor buildah bud for vendoring
+    Fail if date or git not installed
+    Revert update of entrypoint behaviour to match docker
+    Vendor in latest imagebuilder code to fix multiple stage builds
+    Add /bin/sh -c to entrypoint in config
+    image_test: Improve the test
+    Fix README example of buildah config
+    buildah-image: add validation to 'format'
+    Simple changes to allow buildah to pass make validate
+    Clarify the use of buildah config options
+    containers_test: Perfect testing
+    buildah images and podman images are listing different sizes
+    buildah-containers: add tests and example to the man page
+    buildah-containers: add validation to 'format'
+    Clarify the use of buildah config options
+    Minor fix for lighttpd example in README
+    Add tls-verification to troubleshooting
+    Modify buildah rmi to account for changes in containers/storage
+    Vendor in latest containers/image and containers/storage
+    addcopy: add src validation
+    Remove tarball as an option from buildah push --help
+    Fix secrets patch
+    Update entrypoint behaviour to match docker
+    Display imageId after commit
+    config: add support for StopSignal
+    Fix docker login issue in travis.yml
+    Allow referencing stages as index and names
+    Add multi-stage builds tests
+    Add multi-stage builds support
+    Add accessor functions for comment and stop signal
+    Vendor in latest imagebuilder, to get mixed case AS support
+    Allow umount to have multi-containers
+    Update buildah push doc
+    buildah bud walks symlinks
+    Imagename is required for commit atm, update manpage
+
+## 0.16.0 (2018-04-08)
+    Bump to v0.16.0
+    Remove requires for ostree-lib in rpm spec file
+    Add support for shell
+    buildah.spec should require ostree-libs
+    Vendor in latest containers/image
+    bash: prefer options
+    Change image time to locale, add troubleshooting.md, add logo to other mds
+    buildah-run.md: fix error SYNOPSIS
+    docs: fix error example
+    Allow --cmd parameter to have commands as values
+    Touchup README to re-enable logo
+    Clean up README.md
+    Make default-mounts-file a hidden option
+    Document the mounts.conf file
+    Fix man pages to format correctly
+    Add various transport support to buildah from
+    Add unit tests to run.go
+    If the user overrides the storage driver, the options should be dropped
+    Show Config/Manifest as JSON string in inspect when format is not set
+    Switch which for that in README.md
+    Remove COPR
+    Fix wrong order of parameters
+    Vendor in latest containers/image
+    Remove shallowCopy(), which shouldn't be saving us time any more
+    shallowCopy: avoid a second read of the container's layer
+
 ## 0.5 - 2017-11-07
     Add secrets patch to buildah
     Add proper SELinux labeling to buildah run
