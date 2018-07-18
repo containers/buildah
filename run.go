@@ -116,6 +116,8 @@ const (
 	// IsolationChroot is a more chroot-like environment: less isolation,
 	// but with fewer requirements.
 	IsolationChroot
+	// IsolationOCIRootless is a proper OCI runtime in rootless mode.
+	IsolationOCIRootless
 )
 
 // String converts a Isolation into a string.
@@ -127,6 +129,8 @@ func (i Isolation) String() string {
 		return "IsolationOCI"
 	case IsolationChroot:
 		return "IsolationChroot"
+	case IsolationOCIRootless:
+		return "IsolationOCIRootless"
 	}
 	return fmt.Sprintf("unrecognized isolation type %d", i)
 }
@@ -135,7 +139,7 @@ func (i Isolation) String() string {
 type RunOptions struct {
 	// Hostname is the hostname we set for the running container.
 	Hostname string
-	// Isolation is either IsolationDefault, IsolationOCI, or IsolationChroot.
+	// Isolation is either IsolationDefault, IsolationOCI, IsolationChroot, or IsolationOCIRootless.
 	Isolation Isolation
 	// Runtime is the name of the runtime to run.  It should accept the
 	// same arguments that runc does, and produce similar output.
