@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/containers/image/manifest"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
@@ -50,7 +51,7 @@ func main() {
 		expectedConfigType = v1.MediaTypeImageConfig
 	case buildah.Dockerv2ImageManifest:
 		expectedManifestType = *mtype
-		expectedConfigType = docker.V2S2MediaTypeImageConfig
+		expectedConfigType = manifest.DockerV2Schema2ConfigMediaType
 	case "*":
 		expectedManifestType = ""
 		expectedConfigType = ""
