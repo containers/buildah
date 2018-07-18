@@ -102,6 +102,7 @@ Print the version
 | buildah-images(1)     | List images in local storage.                                                                        |
 | buildah-inspect(1)    | Inspects the configuration of a container or image                                                   |
 | buildah-mount(1)      | Mount the working container's root filesystem.                                                       |
+| buildah-push(1)       | Push an image from local storage to elsewhere.                                                       |
 | buildah-rm(1)         | Removes one or more working containers.                                                              |
 | buildah-rmi(1)        | Removes one or more images.                                                                          |
 | buildah-run(1)        | Run a command inside of the container.                                                               |
