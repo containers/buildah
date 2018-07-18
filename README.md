@@ -76,7 +76,8 @@ $ sudo ./lighttpd.sh
 | [buildah-run(1)](/docs/buildah-run.md)               | Run a command inside of the container.                                                               |
 | [buildah-tag(1)](/docs/buildah-tag.md)               | Add an additional name to a local image.                                                             |
 | [buildah-umount(1)](/docs/buildah-umount.md)         | Unmount a working container's root file system.                                                      |
-| [buildah-version(1)](/docs/buildah-version.md)       | Display the Buildah Version Information             |
+| [buildah-unshare(1)](/docs/buildah-unshare.md)       | Launch a command in a user namespace with modified ID mappings.                                      |
+| [buildah-version(1)](/docs/buildah-version.md)       | Display the Buildah Version Information                                                              |
 
 **Future goals include:**
 * more CI tests
