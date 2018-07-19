@@ -10,7 +10,7 @@ GIT_COMMIT := $(if $(shell git rev-parse --short HEAD),$(shell git rev-parse --s
 BUILD_INFO := $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
 CNI_COMMIT := $(if $(shell sed -e '\,github.com/containernetworking/cni, !d' -e 's,.* ,,g' vendor.conf),$(shell sed -e '\,github.com/containernetworking/cni, !d' -e 's,.* ,,g' vendor.conf),$(error "sed failed"))
 
-RUNC_COMMIT := c5ec25487693612aed95673800863e134785f946
+RUNC_COMMIT := 2c632d1a2de0192c3f18a2542ccb6f30a8719b1f
 LIBSECCOMP_COMMIT := release-2.3
 
 LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_INFO} -X main.cniVersion=${CNI_COMMIT}'

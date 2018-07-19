@@ -4,7 +4,7 @@ load helpers
 
 @test "selinux test" {
   if ! which selinuxenabled > /dev/null 2> /dev/null ; then
-    skip "No selinuxenabled"
+    skip 'selinuxenabled command not found in $PATH'
   elif ! selinuxenabled ; then
     skip "selinux is disabled"
   fi

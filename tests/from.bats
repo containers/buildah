@@ -193,7 +193,7 @@ load helpers
 }
 
 @test "from cpu-period test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   if ! which runc ; then
@@ -208,7 +208,7 @@ load helpers
 }
 
 @test "from cpu-quota test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   if ! which runc ; then
@@ -223,7 +223,7 @@ load helpers
 }
 
 @test "from cpu-shares test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   if ! which runc ; then
@@ -238,7 +238,7 @@ load helpers
 }
 
 @test "from cpuset-cpus test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   if ! which runc ; then
@@ -253,7 +253,7 @@ load helpers
 }
 
 @test "from cpuset-mems test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   if ! which runc ; then
@@ -268,7 +268,7 @@ load helpers
 }
 
 @test "from memory test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   if ! which runc ; then
@@ -307,7 +307,7 @@ load helpers
 }
 
 @test "from shm-size test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   if ! which runc ; then
