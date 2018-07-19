@@ -303,6 +303,9 @@ load helpers
 }
 
 @test "run --hostname" {
+	if test "$BUILDAH_ISOLATION" = "rootless" ; then
+		skip
+	fi
 	if ! which runc ; then
 		skip
 	fi
