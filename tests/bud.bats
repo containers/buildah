@@ -159,7 +159,7 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   buildah rm ${cid}
-  buildah rmi $(buildah --debug=false images -q)
+  buildah rmi -a
   run buildah --debug=false images -q
   echo "$output"
   [ "$status" -eq 0 ]
@@ -179,7 +179,7 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   buildah rm ${cid}
-  buildah rmi $(buildah --debug=false images -q)
+  buildah rmi -a
   run buildah --debug=false images -q
   echo "$output"
   [ "$status" -eq 0 ]
@@ -197,7 +197,7 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   buildah rm ${cid}
-  buildah rmi $(buildah --debug=false images -q)
+  buildah rmi -a
   run buildah --debug=false images -q
   echo "$output"
   [ "$status" -eq 0 ]
@@ -213,7 +213,7 @@ load helpers
   run test -s $root/etc/passwd
   [ "$status" -eq 0 ]
   buildah rm ${cid}
-  buildah rmi $(buildah --debug=false images -q)
+  buildah rmi -a
   run buildah --debug=false images -q
   echo "$output"
   [ "$status" -eq 0 ]
@@ -266,7 +266,7 @@ load helpers
   run test -s $root/vol/anothervolfile
   [ "$status" -ne 0 ]
   buildah rm ${cid}
-  buildah rmi $(buildah --debug=false images -q)
+  buildah rmi -a
   run buildah --debug=false images -q
   echo "$output"
   [ "$status" -eq 0 ]
@@ -402,7 +402,7 @@ load helpers
   [ "$status" -eq 0 ]
   [ "$output" = 41ed ]
   buildah rm ${cid}
-  buildah rmi $(buildah --debug=false images -q)
+  buildah rmi -a
   run buildah --debug=false images -q
   echo "$output"
   [ "$status" -eq 0 ]
@@ -417,7 +417,7 @@ load helpers
   cmp $root/Dockerfile1.alpine ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.alpine
   cmp $root/Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
   buildah rm ${cid}
-  buildah rmi $(buildah --debug=false images -q)
+  buildah rmi -a
   run buildah --debug=false images -q
   echo "$output"
   [ "$status" -eq 0 ]
@@ -435,7 +435,7 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   [ "$output" = kilroy ]
-  buildah rmi $(buildah --debug=false images -q)
+  buildah rmi -a
   run buildah --debug=false images -q
   echo "$output"
   [ "$status" -eq 0 ]
@@ -471,7 +471,7 @@ load helpers
   [ "$status" -eq 0 ]
   [ "$output" = '["/bin/bash" "-c"]' ]
   buildah rm ${ctr}
-  buildah rmi $(buildah --debug=false images -q)
+  buildah rmi -a
   run buildah --debug=false images -q
   echo "$output"
   [ "$status" -eq 0 ]

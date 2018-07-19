@@ -227,10 +227,6 @@ func outputHeader(truncate, digests bool) {
 
 func outputImages(ctx context.Context, images []storage.Image, format string, store storage.Store, filters *filterParams, argName string, hasTemplate, truncate, digests, quiet, all bool) error {
 	found := false
-	storageLayers, err := store.Layers()
-	if err != nil {
-		return errors.Wrap(err, "error getting layers from store")
-	}
 	for _, image := range images {
 		createdTime := image.Created
 
@@ -246,7 +242,11 @@ func outputImages(ctx context.Context, images []storage.Image, format string, st
 		// If all is false and the image doesn't have a name, check to see if the top layer of the image is a parent
 		// to another image's top layer. If it is, then it is an intermediate image so don't print out if the --all flag
 		// is not set.
-		if !all && len(image.Names) == 0 && !layerIsLeaf(storageLayers, image.TopLayer) {
+		isParent, err := imageIsParent(store, image.TopLayer)
+		if err != nil {
+			logrus.Errorf("error checking if image is a parent %q: %v", image.ID, err)
+		}
+		if !all && len(image.Names) == 0 && isParent {
 			continue
 		}
 
@@ -430,15 +430,4 @@ func outputUsingFormatString(truncate, digests bool, params imageOutputParams) {
 		fmt.Printf(" %-64s", params.Digest)
 	}
 	fmt.Printf(" %-22s %s\n", params.CreatedAt, params.Size)
-}
-
-// layerIsLeaf goes through the layers in the store and checks if "layer" is
-// the parent of any other layer in store.
-func layerIsLeaf(storageLayers []storage.Layer, layer string) bool {
-	for _, storeLayer := range storageLayers {
-		if storeLayer.Parent == layer {
-			return false
-		}
-	}
-	return true
 }

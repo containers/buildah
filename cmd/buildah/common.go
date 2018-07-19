@@ -154,3 +154,65 @@ func defaultFormat() string {
 	}
 	return "oci"
 }
+
+// imageIsParent goes through the layers in the store and checks if i.TopLayer is
+// the parent of any other layer in store. Double check that image with that
+// layer exists as well.
+func imageIsParent(store storage.Store, topLayer string) (bool, error) {
+	children, err := getChildren(store, topLayer)
+	if err != nil {
+		return false, err
+	}
+	return len(children) > 0, nil
+}
+
+// getParent returns the image ID of the parent. Return nil if a parent is not found.
+func getParent(store storage.Store, topLayer string) (*storage.Image, error) {
+	images, err := store.Images()
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to retrieve images from store")
+	}
+	layer, err := store.Layer(topLayer)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to retrieve layers from store")
+	}
+	for _, img := range images {
+		if img.TopLayer == layer.Parent {
+			return &img, nil
+		}
+	}
+	return nil, nil
+}
+
+// getChildren returns a list of the imageIDs that depend on the image
+func getChildren(store storage.Store, topLayer string) ([]string, error) {
+	var children []string
+	images, err := store.Images()
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to retrieve images from store")
+	}
+	layers, err := store.Layers()
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to retrieve layers from store")
+	}
+
+	for _, layer := range layers {
+		if layer.Parent == topLayer {
+			if imageID := getImageOfTopLayer(images, layer.ID); len(imageID) > 0 {
+				children = append(children, imageID...)
+			}
+		}
+	}
+	return children, nil
+}
+
+// getImageOfTopLayer returns the image ID where layer is the top layer of the image
+func getImageOfTopLayer(images []storage.Image, layer string) []string {
+	var matches []string
+	for _, img := range images {
+		if img.TopLayer == layer {
+			matches = append(matches, img.ID)
+		}
+	}
+	return matches
+}

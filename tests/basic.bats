@@ -108,9 +108,7 @@ load helpers
   run buildah --debug=false images -q
   [ "$status" -eq 0 ]
   [ "$output" != "" ]
-  for id in $output ; do
-    buildah rmi $id
-  done
+  buildah rmi -a
   run buildah --debug=false images -q
   [ "$status" -eq 0 ]
   [ "$output" == "" ]
