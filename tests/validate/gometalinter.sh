@@ -19,5 +19,5 @@ exec gometalinter.v1 \
 	--disable=gas \
 	--disable=aligncheck \
 	--cyclo-over=40 \
-	--deadline=900s \
+	--deadline=2000s \
 	--tests "$@"

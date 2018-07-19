@@ -71,7 +71,6 @@ func rmiCmd(c *cli.Context) error {
 	}
 
 	imagesToDelete := args[:]
-	var lastError error
 
 	if removeAll {
 		imagesToDelete, err = findAllImages(store)
@@ -93,6 +92,11 @@ func rmiCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
+	return deleteImages(ctx, systemContext, store, imagesToDelete, removeAll, force)
+}
+
+func deleteImages(ctx context.Context, systemContext *types.SystemContext, store storage.Store, imagesToDelete []string, removeAll, force bool) error {
+	var lastError error
 	for _, id := range imagesToDelete {
 		image, err := getImage(ctx, systemContext, id, store)
 		if err != nil || image == nil {
@@ -160,7 +164,21 @@ func rmiCmd(c *cli.Context) error {
 				}
 			}
 
-			if len(image.Names) > 0 {
+			isParent, err := imageIsParent(store, image.TopLayer)
+			if err != nil {
+				return err
+			}
+			// If the --all flag is not set and the image has named references or is
+			// a parent, do not elete image.
+			if len(image.Names) > 0 || (isParent && len(image.Names) == 0) && !removeAll {
+				continue
+			}
+
+			if isParent && len(image.Names) == 0 && !removeAll {
+				if lastError != nil {
+					fmt.Fprintln(os.Stderr, lastError)
+				}
+				lastError = errors.Errorf("unable to delete %q (cannot be forced) - image has dependent child images", image.ID)
 				continue
 			}
 			id, err := removeImage(image, store)
@@ -223,8 +241,34 @@ func untagImage(imgArg string, image *storage.Image, store storage.Store) (strin
 }
 
 func removeImage(image *storage.Image, store storage.Store) (string, error) {
+	parent, err := getParent(store, image.TopLayer)
+	if err != nil {
+		return "", err
+	}
 	if _, err := store.DeleteImage(image.ID, true); err != nil {
 		return "", errors.Wrapf(err, "could not remove image %q", image.ID)
+	}
+	for parent != nil {
+		nextParent, err := getParent(store, parent.TopLayer)
+		if err != nil {
+			return "", err
+		}
+		children, err := getChildren(store, parent.TopLayer)
+		if err != nil {
+			return "", err
+		}
+		// Do not remove if image is a base image and is not untagged, or if
+		// the image has more children.
+		if len(parent.Names) > 0 || len(children) > 0 {
+			return "", nil
+		}
+		id := parent.ID
+		if _, err := store.DeleteImage(id, true); err != nil {
+			logrus.Debugf("unable to remove intermediate image %q: %v", id, err)
+		} else {
+			fmt.Println(id)
+		}
+		parent = nextParent
 	}
 	return image.ID, nil
 }
