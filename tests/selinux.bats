@@ -32,4 +32,3 @@ load helpers
   [ "$status" -eq 0 ]
   [ "$output" != "$firstlabel" ]
 }
-
