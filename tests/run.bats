@@ -323,15 +323,21 @@ load helpers
 	if ! which runc ; then
 		skip
 	fi
+	zflag=
+	if which selinuxenabled > /dev/null 2> /dev/null ; then
+		if selinuxenabled ; then
+			zflag=z
+		fi
+	fi
 	runc --version
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	mkdir -p ${TESTDIR}/was-empty
 	# As a baseline, this should succeed.
-	run buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty    $cid touch /var/not-empty/testfile
+	run buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty${zflag:+:${zflag}}     $cid touch /var/not-empty/testfile
 	echo "$output"
 	[ "$status" -eq 0 ]
 	# If we're parsing the options at all, this should be read-only, so it should fail.
-	run buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty:ro $cid touch /var/not-empty/testfile
+	run buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty:ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
 	echo "$output"
 	[ "$status" -ne 0 ]
 }
