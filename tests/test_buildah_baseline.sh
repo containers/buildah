@@ -177,7 +177,42 @@ docker run fedora-bashecho
 dnf -y remove docker
 
 ########
-# Build Dockerfile
+# Build Dockerfiles for OnBuild Test
+# (Thanks @clcollins!)
+########
+FILE=./Dockerfile
+/bin/cat <<EOM >$FILE
+FROM alpine
+RUN touch /foo
+ONBUILD RUN touch /bar
+EOM
+chmod +x $FILE
+
+FILE=./Dockerfile-2
+/bin/cat <<EOM >$FILE
+FROM onbuild-image
+RUN touch /baz
+EOM
+chmod +x $FILE
+
+########
+# Build with Dockerfiles 
+########
+buildah bud -f ./Dockerfile --format=docker -t onbuild-image .
+buildah bud -f ./Dockerfile-2 --format=docker -t result-image .
+
+########
+# Build a container to see if the /bar file has been created. 
+########
+ctr=$(buildah from result-image)
+
+########
+# Validate that the /bar file has been created in the container. 
+########
+buildah run $ctr ls -alF /bar /foo /baz
+
+########
+# Build Dockerfile for WhaleSays
 ########
 FILE=./Dockerfile
 /bin/cat <<EOM >$FILE
