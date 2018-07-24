@@ -58,7 +58,7 @@ load helpers
   buildah rmi $iid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   buildah rm $cid
-  newcid=$(buildah from new-image)
+  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
   newroot=$(buildah mount $newcid)
   test -s $newroot/randomfile
   cmp ${TESTDIR}/randomfile $newroot/randomfile
@@ -73,7 +73,7 @@ load helpers
   buildah unmount $newcid
   buildah rm $newcid
 
-  othernewcid=$(buildah from other-new-image)
+  othernewcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json other-new-image)
   othernewroot=$(buildah mount $othernewcid)
   test -s $othernewroot/randomfile
   cmp ${TESTDIR}/randomfile $othernewroot/randomfile
@@ -81,7 +81,7 @@ load helpers
   cmp ${TESTDIR}/other-randomfile $othernewroot/other-randomfile
   buildah rm $othernewcid
 
-  anothernewcid=$(buildah from another-new-image)
+  anothernewcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json another-new-image)
   anothernewroot=$(buildah mount $anothernewcid)
   test -s $anothernewroot/randomfile
   cmp ${TESTDIR}/randomfile $anothernewroot/randomfile
@@ -89,7 +89,7 @@ load helpers
   cmp ${TESTDIR}/other-randomfile $anothernewroot/other-randomfile
   buildah rm $anothernewcid
 
-  yetanothernewcid=$(buildah from yet-another-new-image)
+  yetanothernewcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json yet-another-new-image)
   yetanothernewroot=$(buildah mount $yetanothernewcid)
   test -s $yetanothernewroot/randomfile
   cmp ${TESTDIR}/randomfile $yetanothernewroot/randomfile
@@ -97,7 +97,7 @@ load helpers
   cmp ${TESTDIR}/other-randomfile $yetanothernewroot/other-randomfile
   buildah delete $yetanothernewcid
 
-  newcid=$(buildah from new-image)
+  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
   buildah commit --rm --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:remove-container-image
   run buildah mount $newcid
   [ "$status" -ne 0 ]

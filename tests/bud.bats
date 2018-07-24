@@ -375,9 +375,9 @@ load helpers
   [ "$status" -eq 0 ]
   cid=$(buildah from ${target})
   buildah rm ${cid}
-  cid=$(buildah from library/${target2})
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json library/${target2})
   buildah rm ${cid}
-  cid=$(buildah from ${target3}:latest)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target3}:latest)
   buildah rm ${cid}
   buildah rmi -f $(buildah --debug=false images -q)
   run buildah --debug=false images -q
@@ -393,7 +393,7 @@ load helpers
   fi
   target=volume-image
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/volume-perms
-  cid=$(buildah from ${target})
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   root=$(buildah mount ${cid})
   run test -s $root/vol/subvol/subvolfile
   [ "$status" -ne 0 ]
@@ -412,7 +412,7 @@ load helpers
 @test "bud-from-glob" {
   target=alpine-image
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile2.glob ${TESTSDIR}/bud/from-multiple-files
-  cid=$(buildah from ${target})
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   root=$(buildah mount ${cid})
   cmp $root/Dockerfile1.alpine ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.alpine
   cmp $root/Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
@@ -462,7 +462,7 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   [ "$output" = '["/bin/sh" "-c"]' ]
-  ctr=$(buildah from ${target})
+  ctr=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   run buildah --debug=false config --shell "/bin/bash -c" ${ctr}
   echo "$output"
   [ "$status" -eq 0 ]
@@ -483,7 +483,7 @@ load helpers
   run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/symlink
   echo "$output"
   [ "$status" -eq 0 ]
-  cid=$(buildah from ${target})
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   root=$(buildah mount ${cid})
   run ls $root/data/log
   echo "$output"
@@ -504,7 +504,7 @@ load helpers
   run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.relative-symlink ${TESTSDIR}/bud/symlink 
   echo "$output"
   [ "$status" -eq 0 ]
-  cid=$(buildah from ${target})
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   root=$(buildah mount ${cid})
   run ls $root/log
   echo "$output"
@@ -523,7 +523,7 @@ load helpers
   run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.multiple-symlinks ${TESTSDIR}/bud/symlink
   echo "$output"
   [ "$status" -eq 0 ]
-  cid=$(buildah from ${target})
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   root=$(buildah mount ${cid})
   run ls $root/data/log
   echo "$output"
@@ -559,7 +559,7 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" =~ "unique.test.string" ]]
-  cid=$(buildah from ${target})
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   buildah rm ${cid}
   buildah rmi ${target}
 }
@@ -578,7 +578,7 @@ load helpers
   echo "$output"
   [[ "$output" =~ "unique.test.string" ]]
   [ "$status" -eq 0 ]
-  cid=$(buildah from ${target})
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   buildah rm ${cid}
   buildah rmi ${target}
 }
@@ -597,7 +597,7 @@ load helpers
   echo "$output"
   [[ "$output" =~ "unique.test.string" ]]
   [ "$status" -eq 0 ]
-  cid=$(buildah from ${target})
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   buildah rm ${cid}
   buildah rmi ${target}
 }
@@ -617,7 +617,7 @@ load helpers
   echo "$output"
   [[ "$output" =~ ":unique.test.string:" ]]
   [ "$status" -eq 0 ]
-  cid=$(buildah from ${target})
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   buildah rm ${cid}
   buildah rmi ${target}
 }

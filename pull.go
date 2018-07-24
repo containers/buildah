@@ -2,6 +2,8 @@ package buildah
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"strings"
 
 	cp "github.com/containers/image/copy"
@@ -172,6 +174,15 @@ func pullImage(ctx context.Context, store storage.Store, imageName string, optio
 		return destRef, nil
 	}
 
+	// If the signature policy rejected this reference, return the error.
+	switch err := errors.Cause(err).(type) {
+	case signature.PolicyRequirementError:
+		logrus.Debugf("PolicyRequirementError raised")
+		return nil, err
+	default:
+		logrus.Debugf("Generic Error raised [%v] [%v]", err, reflect.TypeOf(err))
+	}
+
 	// If no image was found, we should handle.  Lets be nicer to the user and see if we can figure out why.
 	registryPath := sysregistries.RegistriesConfPath(sc)
 	searchRegistries, err := getRegistries(sc)
@@ -185,7 +196,7 @@ func pullImage(ctx context.Context, store storage.Store, imageName string, optio
 	if !hasRegistryInName && len(searchRegistries) == 0 {
 		return nil, errors.Errorf("image name provided is a short name and no search registries are defined in %s.", registryPath)
 	}
-	return nil, errors.Errorf("unable to find image in the registries defined in %q", registryPath)
+	return nil, NewGenericPullError(fmt.Sprintf("unable to find image in the registries defined in %q", registryPath))
 }
 
 // getImageDigest creates an image object and uses the hex value of the digest as the image ID
