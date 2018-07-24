@@ -938,6 +938,17 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	b.configureEnvironment(g, options)
 
+	if os.Getuid() != 0 {
+		g.RemoveMount("/dev/pts")
+		devPts := specs.Mount{
+			Destination: "/dev/pts",
+			Type:        "devpts",
+			Source:      "devpts",
+			Options:     []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620"},
+		}
+		g.AddMount(devPts)
+	}
+
 	if b.CommonBuildOpts == nil {
 		return errors.Errorf("Invalid format on container you must recreate the container")
 	}
