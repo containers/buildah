@@ -47,8 +47,13 @@ BuildRequires:  glib2-devel
 BuildRequires:  ostree-devel
 BuildRequires:  make
 Requires:       runc >= 1.0.0-6
+%if 0%{?rhel} == 7
 Requires:       container-selinux
 Requires:       skopeo-containers
+%else
+Recommends:     container-selinux
+Requires:       containers-common
+%endif
 Requires:       shadow-utils
 Provides:       %{repo} = %{version}-%{release}
 
