@@ -87,17 +87,22 @@ func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
 	}
 
 	// Build modified maps that map us to uid/gid 0, and maps every other
-	// range to itself.  In a namespace that uses this map, the invoking
+	// range increasingly.  In a namespace that uses this map, the invoking
 	// user will appear to be root.  This should let us create storage
 	// directories and access credentials under the invoking user's home
 	// directory.
 	uidmap2 := append([]specs.LinuxIDMapping{{HostID: uint32(uidNum), ContainerID: 0, Size: 1}}, uidmap...)
+	nextUID := uint32(1)
 	for i := range uidmap2[1:] {
-		uidmap2[i+1].ContainerID = uidmap2[i+1].HostID
+		uidmap2[i+1].ContainerID = nextUID
+		nextUID = nextUID + uidmap2[i+1].Size
 	}
+
 	gidmap2 := append([]specs.LinuxIDMapping{{HostID: uint32(gidNum), ContainerID: 0, Size: 1}}, gidmap...)
+	nextGID := uint32(1)
 	for i := range gidmap2[1:] {
-		gidmap2[i+1].ContainerID = gidmap2[i+1].HostID
+		gidmap2[i+1].ContainerID = nextGID
+		nextGID = nextGID + gidmap2[i+1].Size
 	}
 
 	// Map the uidmap and gidmap ranges, consecutively, starting at 0.
@@ -107,18 +112,18 @@ func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
 	// containers, so we'll want to use it as a default for any containers
 	// that we create.
 	umap := new(bytes.Buffer)
-	for i := range uidmap {
+	for i := range uidmap2 {
 		if i > 0 {
 			fmt.Fprintf(umap, ",")
 		}
-		fmt.Fprintf(umap, "%d:%d:%d", uidmap[i].ContainerID, uidmap[i].HostID, uidmap[i].Size)
+		fmt.Fprintf(umap, "%d:%d:%d", uidmap2[i].ContainerID, uidmap2[i].ContainerID, uidmap2[i].Size)
 	}
 	gmap := new(bytes.Buffer)
-	for i := range gidmap {
+	for i := range gidmap2 {
 		if i > 0 {
 			fmt.Fprintf(gmap, ",")
 		}
-		fmt.Fprintf(gmap, "%d:%d:%d", gidmap[i].ContainerID, gidmap[i].HostID, gidmap[i].Size)
+		fmt.Fprintf(gmap, "%d:%d:%d", gidmap2[i].ContainerID, gidmap2[i].ContainerID, gidmap2[i].Size)
 	}
 
 	// Add args to change the global defaults.
