@@ -185,6 +185,8 @@ If a build context is not specified, and at least one Dockerfile is a
 local file, the directory in which it resides will be used as the build
 context.
 
+If you specify `-f -`, the Dockerfile contents will be read from stdin.
+
 **--force-rm** *bool-value*
 
 Always remove intermediate containers after a build, even if the build is unsuccessful..
@@ -541,6 +543,8 @@ mount can be changed directly. For instance if `/` is the source mount for
 buildah bud .
 
 buildah bud -f Dockerfile.simple .
+
+cat ~/Dockerfile | buildah bud -f - .
 
 buildah bud -f Dockerfile.simple -f Dockerfile.notsosimple
 

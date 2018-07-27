@@ -1199,7 +1199,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 				contents.Close()
 				return errors.Wrapf(err, "error reading info about %q", dfile)
 			}
-			if dinfo.Size() == 0 {
+			if dinfo.Mode().IsRegular() && dinfo.Size() == 0 {
 				contents.Close()
 				return errors.Wrapf(err, "no contents in %q", dfile)
 			}

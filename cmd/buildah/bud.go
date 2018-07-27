@@ -28,6 +28,18 @@ var (
 	}
 )
 
+func getDockerfiles(files []string) []string {
+	var dockerfiles []string
+	for _, f := range files {
+		if f == "-" {
+			dockerfiles = append(dockerfiles, "/dev/stdin")
+		} else {
+			dockerfiles = append(dockerfiles, f)
+		}
+	}
+	return dockerfiles
+}
+
 func budCmd(c *cli.Context) error {
 	output := ""
 	tags := []string{}
@@ -58,7 +70,7 @@ func budCmd(c *cli.Context) error {
 		}
 	}
 
-	dockerfiles := c.StringSlice("file")
+	dockerfiles := getDockerfiles(c.StringSlice("file"))
 	format := defaultFormat()
 	if c.IsSet("format") {
 		format = strings.ToLower(c.String("format"))
