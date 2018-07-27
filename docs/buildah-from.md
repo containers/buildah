@@ -39,7 +39,7 @@ file, registries.conf(5).  If the `buildah from` command fails with an "image no
 first verify that the registries.conf file is installed and configured appropriately.
 
 ## RETURN VALUE
-The container ID of the container that was created.  On error, 1 is returned and errno is returned.
+The container ID of the container that was created.  On error 1 is returned.
 
 ## OPTIONS
 
@@ -488,4 +488,4 @@ buildah from --volume /home/test:/myvol:ro,Z myregistry/myrepository/imagename:i
 registries.conf is the configuration file which specifies which container registries should be consulted when completing image names which do not include a registry or domain portion.
 
 ## SEE ALSO
-buildah(1), podman-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), policy.json(5), registries.conf(5), user\_namespaces(7)
+buildah(1), buildah-pull(1), podman-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), policy.json(5), registries.conf(5), user\_namespaces(7)
