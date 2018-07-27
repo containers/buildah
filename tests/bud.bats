@@ -795,3 +795,19 @@ load helpers
   [[ "$output" =~ "arg_value" ]]
   [ "$status" -eq 0 ]
 }
+
+@test "bud-from-stdin" {
+  target=scratch-image
+  cat ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch | buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f - ${TESTSDIR}/bud/from-multiple-files
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  run test -s $root/Dockerfile1
+  echo "$output"
+  [ "$status" -eq 0 ]
+  buildah rm ${cid}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}
