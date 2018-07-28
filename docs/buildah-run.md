@@ -28,7 +28,7 @@ the container.
 Add the specified capability from the set of capabilities which will be granted
 to the specified command.
 The CAP\_AUDIT\_WRITE, CAP\_CHOWN, CAP\_DAC\_OVERRIDE, CAP\_FOWNER,
-CAP\_FSETID, CAP\_KILL, CAP\_MKNOD, CAP\_NET\_BIND\_SERVICE, CAP\_SETFCAP,
+CAP\_FSETID, CAP\_KILL, CAP\_MKNOD, CAP\_NET\_BIND\_SERVICE, CAP\_NET\_RAW, CAP\_SETFCAP,
 CAP\_SETGID, CAP\_SETPCAP, CAP\_SETUID, and CAP\_SYS\_CHROOT capabilities are
 granted by default; this option can be used to remove them from the defaults,
 which may have been modified by **--cap-add** and **--cap-drop** options used
