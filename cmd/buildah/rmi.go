@@ -295,7 +295,7 @@ func storageImageID(ctx context.Context, store storage.Store, id string) (types.
 		}
 		return nil, errors.Wrapf(err, "error confirming presence of storage image reference %q", transports.ImageName(ref))
 	}
-	return nil, errors.Wrapf(err, "error parsing %q as a storage image reference: %v", id)
+	return nil, errors.Wrapf(err, "error parsing %q as a storage image reference", id)
 }
 
 // Returns a list of all existing images
