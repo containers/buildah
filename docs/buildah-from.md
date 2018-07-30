@@ -281,7 +281,7 @@ option be used, as the default behavior of using the system-wide default policy
 
 Require HTTPS and verify certificates when talking to container registries (defaults to true)
 
-**--ulimit**=*type*:*soft-limit*[:*hard-limit*]
+**--ulimit** *type*=*soft-limit*[:*hard-limit*]
 
 Specifies resource limits to apply to processes launched during `buildah run`.
 This option can be specified multiple times.  Recognized resource types
@@ -295,7 +295,9 @@ include:
   "msgqueue": maximum amount of data in message queues (ulimit -q)
   "nice": niceness adjustment (nice -n, ulimit -e)
   "nofile": maximum number of open files (ulimit -n)
+  "nofile": maximum number of open files (1048576); when run by root
   "nproc": maximum number of processes (ulimit -u)
+  "nproc": maximum number of processes (1048576); when run by root
   "rss": maximum size of a process's (ulimit -m)
   "rtprio": maximum real-time scheduling priority (ulimit -r)
   "rttime": maximum amount of real-time execution between blocking syscalls
