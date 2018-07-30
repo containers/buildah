@@ -387,3 +387,44 @@ load helpers
 		test "$defaultcaps" != "$addedcaps"
 	fi
 }
+
+@test "Check if containers run with correct open files/processes limits" {
+	if ! which runc ; then
+		skip
+	fi
+	if test "$BUILDAH_ISOLATION" = "chroot" ; then
+	    skip
+	fi
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	run buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
+	[ "$status" -eq 0 ]
+	[ "$output" = 1048576 ]
+	echo $output
+	run buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
+	[ "$status" -eq 0 ]
+	[ "$output" = 1048576 ]
+	echo $output
+	buildah rm $cid
+
+	cid=$(buildah from --ulimit nofile=300:400 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	run buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
+	[ "$status" -eq 0 ]
+	[ "$output" = 300 ]
+	echo $output
+	run buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
+	echo $output
+	[ "$status" -eq 0 ]
+	[ "$output" = 1048576 ]
+	buildah rm $cid
+
+	cid=$(buildah from --ulimit nproc=100:200 --ulimit nofile=300:400 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	run buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
+	[ "$status" -eq 0 ]
+	[ "$output" = 300 ]
+	echo $output
+	run buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
+	[ "$status" -eq 0 ]
+	[ "$output" = 100 ]
+	echo $output
+	buildah rm $cid
+}
