@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,6 +16,7 @@ import (
 	"github.com/projectatomic/buildah/unshare"
 	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
+	"github.com/syndtr/gocapability/capability"
 	"github.com/urfave/cli"
 )
 
@@ -42,132 +42,129 @@ type runnable interface {
 	Run() error
 }
 
+func bailOnError(err error, format string, a ...interface{}) {
+	if err != nil {
+		if format != "" {
+			logrus.Errorf("%s: %v", fmt.Sprintf(format, a...), err)
+		} else {
+			logrus.Errorf("%v", err)
+		}
+		cli.OsExiter(1)
+	}
+}
+
 func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
 	// If we've already been through this once, no need to try again.
 	if os.Getenv(startedInUserNS) != "" {
 		return
 	}
 
-	// Figure out if we're already root, or "root", which is close enough,
-	// unless we've been explicitly told to do this even for root.
-	me, err := user.Current()
-	if err != nil {
-		logrus.Errorf("error determining current user: %v", err)
-		cli.OsExiter(1)
-	}
-	if me.Uid == "0" && !evenForRoot {
+	// If this is one of the commands that doesn't need this indirection, skip it.
+	switch c.Args()[0] {
+	case "help", "version":
 		return
 	}
+
+	// Figure out who we are.
+	me, err := user.Current()
+	bailOnError(err, "error determining current user")
 	uidNum, err := strconv.ParseUint(me.Uid, 10, 32)
-	if err != nil {
-		logrus.Errorf("error parsing current UID %s: %v", me.Uid, err)
-		cli.OsExiter(1)
-	}
+	bailOnError(err, "error parsing current UID %s", me.Uid)
 	gidNum, err := strconv.ParseUint(me.Gid, 10, 32)
-	if err != nil {
-		logrus.Errorf("error parsing current GID %s: %v", me.Gid, err)
-		cli.OsExiter(1)
-	}
+	bailOnError(err, "error parsing current GID %s", me.Gid)
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	// Read the set of ID mappings that we're allowed to use.  Each range
-	// in /etc/subuid and /etc/subgid file is a starting ID and a range size.
-	uidmap, gidmap, err := util.GetSubIDMappings(me.Username, me.Username)
-	if err != nil {
-		logrus.Errorf("error reading allowed ID mappings: %v", err)
-		cli.OsExiter(1)
-	}
-	if len(uidmap) == 0 {
-		logrus.Warnf("Found no UID ranges set aside for user %q in /etc/subuid.", me.Username)
-	}
-	if len(gidmap) == 0 {
-		logrus.Warnf("Found no GID ranges set aside for user %q in /etc/subgid.", me.Username)
-	}
-
-	// Build modified maps that map us to uid/gid 0, and maps every other
-	// range increasingly.  In a namespace that uses this map, the invoking
-	// user will appear to be root.  This should let us create storage
-	// directories and access credentials under the invoking user's home
-	// directory.
-	uidmap2 := append([]specs.LinuxIDMapping{{HostID: uint32(uidNum), ContainerID: 0, Size: 1}}, uidmap...)
-	nextUID := uint32(1)
-	for i := range uidmap2[1:] {
-		uidmap2[i+1].ContainerID = nextUID
-		nextUID = nextUID + uidmap2[i+1].Size
-	}
-
-	gidmap2 := append([]specs.LinuxIDMapping{{HostID: uint32(gidNum), ContainerID: 0, Size: 1}}, gidmap...)
-	nextGID := uint32(1)
-	for i := range gidmap2[1:] {
-		gidmap2[i+1].ContainerID = nextGID
-		nextGID = nextGID + gidmap2[i+1].Size
-	}
-
-	// Map the uidmap and gidmap ranges, consecutively, starting at 0.
-	// When used to created a namespace inside of a namespace that uses the
-	// maps we've created above, they'll produce mappings which don't map
-	// in the invoking user.  This is more suitable for running commands in
-	// containers, so we'll want to use it as a default for any containers
-	// that we create.
-	umap := new(bytes.Buffer)
-	for i := range uidmap2 {
-		if i > 0 {
-			fmt.Fprintf(umap, ",")
+	// ID mappings to use to reexec ourselves.
+	var uidmap, gidmap []specs.LinuxIDMapping
+	if uidNum != 0 || evenForRoot {
+		// Read the set of ID mappings that we're allowed to use.  Each
+		// range in /etc/subuid and /etc/subgid file is a starting host
+		// ID and a range size.
+		uidmap, gidmap, err = util.GetSubIDMappings(me.Username, me.Username)
+		bailOnError(err, "error reading allowed ID mappings")
+		if len(uidmap) == 0 {
+			logrus.Warnf("Found no UID ranges set aside for user %q in /etc/subuid.", me.Username)
 		}
-		fmt.Fprintf(umap, "%d:%d:%d", uidmap2[i].ContainerID, uidmap2[i].ContainerID, uidmap2[i].Size)
-	}
-	gmap := new(bytes.Buffer)
-	for i := range gidmap2 {
-		if i > 0 {
-			fmt.Fprintf(gmap, ",")
+		if len(gidmap) == 0 {
+			logrus.Warnf("Found no GID ranges set aside for user %q in /etc/subgid.", me.Username)
 		}
-		fmt.Fprintf(gmap, "%d:%d:%d", gidmap2[i].ContainerID, gidmap2[i].ContainerID, gidmap2[i].Size)
+		// Map our UID and GID, then the subuid and subgid ranges,
+		// consecutively, starting at 0, to get the mappings to use for
+		// a copy of ourselves.
+		uidmap = append([]specs.LinuxIDMapping{{HostID: uint32(uidNum), ContainerID: 0, Size: 1}}, uidmap...)
+		gidmap = append([]specs.LinuxIDMapping{{HostID: uint32(gidNum), ContainerID: 0, Size: 1}}, gidmap...)
+		var rangeStart uint32
+		for i := range uidmap {
+			uidmap[i].ContainerID = rangeStart
+			rangeStart += uidmap[i].Size
+		}
+		rangeStart = 0
+		for i := range gidmap {
+			gidmap[i].ContainerID = rangeStart
+			rangeStart += gidmap[i].Size
+		}
+	} else {
+		// If we have CAP_SYS_ADMIN, then we don't need to create a new namespace in order to be able
+		// to use unshare(), so don't bother creating a new user namespace at this point.
+		capabilities, err := capability.NewPid(0)
+		bailOnError(err, "error reading the current capabilities sets")
+		if capabilities.Get(capability.EFFECTIVE, capability.CAP_SYS_ADMIN) {
+			return
+		}
+		// Read the set of ID mappings that we're currently using.
+		uidmap, gidmap, err = util.GetHostIDMappings("")
+		bailOnError(err, "error reading current ID mappings")
+		// Just reuse them.
+		for i := range uidmap {
+			uidmap[i].HostID = uidmap[i].ContainerID
+		}
+		for i := range gidmap {
+			gidmap[i].HostID = gidmap[i].ContainerID
+		}
 	}
 
-	// Add args to change the global defaults.
-	defaultStorageDriver := "vfs"
-	defaultRoot, err := util.UnsharedRootPath(me.HomeDir)
-	if err != nil {
-		logrus.Errorf("%v", err)
-		cli.OsExiter(1)
-	}
-	defaultRunroot, err := util.UnsharedRunrootPath(me.Uid)
-	if err != nil {
-		logrus.Errorf("%v", err)
-		cli.OsExiter(1)
-	}
 	var moreArgs []string
-	if !c.GlobalIsSet("storage-driver") || !c.GlobalIsSet("root") || !c.GlobalIsSet("runroot") || (!c.GlobalIsSet("userns-uid-map") && !c.GlobalIsSet("userns-gid-map")) {
-		logrus.Infof("Running without privileges, assuming arguments:")
-		if !c.GlobalIsSet("storage-driver") {
-			logrus.Infof(" --storage-driver %q", defaultStorageDriver)
-			moreArgs = append(moreArgs, "--storage-driver", defaultStorageDriver)
-		}
-		if !c.GlobalIsSet("root") {
-			logrus.Infof(" --root %q", defaultRoot)
-			moreArgs = append(moreArgs, "--root", defaultRoot)
-		}
-		if !c.GlobalIsSet("runroot") {
-			logrus.Infof(" --runroot %q", defaultRunroot)
-			moreArgs = append(moreArgs, "--runroot", defaultRunroot)
-		}
-		if !c.GlobalIsSet("userns-uid-map") && !c.GlobalIsSet("userns-gid-map") && umap.Len() > 0 && gmap.Len() > 0 {
-			logrus.Infof(" --userns-uid-map %q --userns-gid-map %q", umap.String(), gmap.String())
-			moreArgs = append(moreArgs, "--userns-uid-map", umap.String(), "--userns-gid-map", gmap.String())
+	// Add args to change the global defaults.
+	if uidNum != 0 {
+		if !c.GlobalIsSet("storage-driver") || !c.GlobalIsSet("root") || !c.GlobalIsSet("runroot") {
+			logrus.Infof("Running without privileges, assuming arguments:")
+			if !c.GlobalIsSet("storage-driver") {
+				defaultStorageDriver := "vfs"
+				logrus.Infof(" --storage-driver %q", defaultStorageDriver)
+				moreArgs = append(moreArgs, "--storage-driver", defaultStorageDriver)
+			}
+			if !c.GlobalIsSet("root") {
+				defaultRoot, err := util.UnsharedRootPath(me.HomeDir)
+				bailOnError(err, "")
+				logrus.Infof(" --root %q", defaultRoot)
+				moreArgs = append(moreArgs, "--root", defaultRoot)
+			}
+			if !c.GlobalIsSet("runroot") {
+				defaultRunroot, err := util.UnsharedRunrootPath(me.Uid)
+				bailOnError(err, "")
+				logrus.Infof(" --runroot %q", defaultRunroot)
+				moreArgs = append(moreArgs, "--runroot", defaultRunroot)
+			}
 		}
 	}
 
 	// Unlike most uses of reexec or unshare, we're using a name that
 	// _won't_ be recognized as a registered reexec handler, since we
 	// _want_ to fall through reexec.Init() to the normal main().
-	cmd := unshare.Command(append(append([]string{"buildah-unprivileged"}, moreArgs...), os.Args[1:]...)...)
+	cmd := unshare.Command(append(append([]string{"buildah-in-a-user-namespace"}, moreArgs...), os.Args[1:]...)...)
 
 	// If, somehow, we don't become UID 0 in our child, indicate that the child shouldn't try again.
-	if err = os.Setenv(startedInUserNS, "1"); err != nil {
-		logrus.Errorf("error setting %s=1 in environment: %v", startedInUserNS, err)
-		os.Exit(1)
+	err = os.Setenv(startedInUserNS, "1")
+	bailOnError(err, "error setting %s=1 in environment", startedInUserNS)
+
+	// Set the default isolation type to use the "chroot" method.
+	if _, ok := os.LookupEnv("BUILDAH_ISOLATION"); !ok {
+		if err = os.Setenv("BUILDAH_ISOLATION", "chroot"); err != nil {
+			logrus.Errorf("error setting BUILDAH_ISOLATION=chroot in environment: %v", err)
+			os.Exit(1)
+		}
 	}
 
 	// Reuse our stdio.
@@ -177,10 +174,10 @@ func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
 
 	// Set up a new user namespace with the ID mapping.
 	cmd.UnshareFlags = syscall.CLONE_NEWUSER
-	cmd.UseNewuidmap = true
-	cmd.UidMappings = uidmap2
-	cmd.UseNewgidmap = true
-	cmd.GidMappings = gidmap2
+	cmd.UseNewuidmap = uidNum != 0
+	cmd.UidMappings = uidmap
+	cmd.UseNewgidmap = uidNum != 0
+	cmd.GidMappings = gidmap
 	cmd.GidMappingsEnableSetgroups = true
 
 	// Finish up.
