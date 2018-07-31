@@ -9,6 +9,7 @@ go:
 env:
     - BUILDAH_ISOLATION=oci
     - BUILDAH_ISOLATION=chroot
+    - BUILDAH_ISOLATION=rootless
 
 matrix:
   # If the latest unstable development version of go fails, that's OK.
