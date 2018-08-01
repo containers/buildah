@@ -2,7 +2,6 @@ language: go
 dist: trusty
 sudo: required
 go:
-    - 1.8
     - 1.9.x
     - 1.10.x
     - tip
