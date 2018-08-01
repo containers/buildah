@@ -50,8 +50,9 @@ func versionCmd(c *cli.Context) error {
 
 //cli command to print out the version info of buildah
 var versionCommand = cli.Command{
-	Name:           "version",
-	Usage:          "Display the Buildah Version Information",
-	Action:         versionCmd,
-	SkipArgReorder: true,
+	Name:                   "version",
+	Usage:                  "Display the Buildah Version Information",
+	Action:                 versionCmd,
+	SkipArgReorder:         true,
+	UseShortOptionHandling: true,
 }

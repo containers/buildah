@@ -9,12 +9,13 @@ import (
 var (
 	renameDescription = "Rename a local container"
 	renameCommand     = cli.Command{
-		Name:           "rename",
-		Usage:          "Rename a container",
-		Description:    renameDescription,
-		Action:         renameCmd,
-		ArgsUsage:      "CONTAINER-NAME-OR-ID CONTAINER-NAME",
-		SkipArgReorder: true,
+		Name:                   "rename",
+		Usage:                  "Rename a container",
+		Description:            renameDescription,
+		Action:                 renameCmd,
+		ArgsUsage:              "CONTAINER-NAME-OR-ID CONTAINER-NAME",
+		SkipArgReorder:         true,
+		UseShortOptionHandling: true,
 	}
 )
 
