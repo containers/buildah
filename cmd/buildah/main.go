@@ -106,6 +106,7 @@ func main() {
 		imagesCommand,
 		inspectCommand,
 		mountCommand,
+		pullCommand,
 		pushCommand,
 		renameCommand,
 		rmCommand,
