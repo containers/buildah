@@ -32,3 +32,39 @@ load helpers
   [ "$status" -eq 0 ]
   [ "$output" != "$firstlabel" ]
 }
+
+@test "selinux spc" {
+  if ! which selinuxenabled > /dev/null 2> /dev/null ; then
+    skip "No selinuxenabled"
+  elif ! selinuxenabled ; then
+    skip "selinux is disabled"
+  fi
+
+  image=alpine
+
+  firstlabel=$(id -Z)
+  # Create a container and read its context as a baseline.
+  cid=$(buildah --debug=false from --security-opt label=disable --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  run buildah --debug=false run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "$output" == "$firstlabel" ]
+}
+
+@test "selinux specific level" {
+  if ! which selinuxenabled > /dev/null 2> /dev/null ; then
+    skip "No selinuxenabled"
+  elif ! selinuxenabled ; then
+    skip "selinux is disabled"
+  fi
+
+  image=alpine
+
+  firstlabel="system_u:system_r:container_t:s0:c1,c2"
+  # Create a container and read its context as a baseline.
+  cid=$(buildah --debug=false from --security-opt label=level:s0:c1,c2 --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  run buildah --debug=false run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "$output" == "$firstlabel" ]
+}
