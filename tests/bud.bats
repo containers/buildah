@@ -811,3 +811,18 @@ load helpers
   [ "$status" -eq 0 ]
   [ "$output" = "" ]
 }
+
+@test "bud with preprocessor" {
+  target=alpine-image
+  run buildah -debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Decomposed.in ${TESTSDIR}/bud/preprocess
+  echo "$output"
+  [ "$status" -eq 0 ]
+  echo "$output"
+}
+
+@test "bud with preprocessor error" {
+  target=alpine-image
+  run buildah -debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Error.in ${TESTSDIR}/bud/preprocess
+  echo "$output"
+  [ "$status" -eq 1 ]
+}
