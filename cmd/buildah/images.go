@@ -80,13 +80,14 @@ var (
 
 	imagesDescription = "Lists locally stored images."
 	imagesCommand     = cli.Command{
-		Name:           "images",
-		Usage:          "List images in local storage",
-		Description:    imagesDescription,
-		Flags:          imagesFlags,
-		Action:         imagesCmd,
-		ArgsUsage:      "[imageName]",
-		SkipArgReorder: true,
+		Name:                   "images",
+		Usage:                  "List images in local storage",
+		Description:            imagesDescription,
+		Flags:                  imagesFlags,
+		Action:                 imagesCmd,
+		ArgsUsage:              "[imageName]",
+		SkipArgReorder:         true,
+		UseShortOptionHandling: true,
 	}
 )
 

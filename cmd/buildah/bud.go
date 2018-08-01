@@ -17,14 +17,15 @@ import (
 var (
 	budDescription = "Builds an OCI image using instructions in one or more Dockerfiles."
 	budCommand     = cli.Command{
-		Name:           "build-using-dockerfile",
-		Aliases:        []string{"bud"},
-		Usage:          "Build an image using instructions in a Dockerfile",
-		Description:    budDescription,
-		Flags:          append(buildahcli.BudFlags, buildahcli.FromAndBudFlags...),
-		Action:         budCmd,
-		ArgsUsage:      "CONTEXT-DIRECTORY | URL",
-		SkipArgReorder: true,
+		Name:                   "build-using-dockerfile",
+		Aliases:                []string{"bud"},
+		Usage:                  "Build an image using instructions in a Dockerfile",
+		Description:            budDescription,
+		Flags:                  append(buildahcli.BudFlags, buildahcli.FromAndBudFlags...),
+		Action:                 budCmd,
+		ArgsUsage:              "CONTEXT-DIRECTORY | URL",
+		SkipArgReorder:         true,
+		UseShortOptionHandling: true,
 	}
 )
 

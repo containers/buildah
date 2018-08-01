@@ -66,13 +66,14 @@ var (
 `, getListOfTransports())
 
 	pushCommand = cli.Command{
-		Name:           "push",
-		Usage:          "Push an image to a specified destination",
-		Description:    pushDescription,
-		Flags:          pushFlags,
-		Action:         pushCmd,
-		ArgsUsage:      "IMAGE DESTINATION",
-		SkipArgReorder: true,
+		Name:                   "push",
+		Usage:                  "Push an image to a specified destination",
+		Description:            pushDescription,
+		Flags:                  pushFlags,
+		Action:                 pushCmd,
+		ArgsUsage:              "IMAGE DESTINATION",
+		SkipArgReorder:         true,
+		UseShortOptionHandling: true,
 	}
 )
 
