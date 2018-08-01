@@ -215,6 +215,7 @@ type Executor struct {
 	noCache                        bool
 	removeIntermediateCtrs         bool
 	forceRmIntermediateCtrs        bool
+	containerIDs                   []string // Stores the IDs of the successful intermediate containers used during layer build
 }
 
 // withName creates a new child executor that will be used whenever a COPY statement uses --from=NAME.
@@ -684,6 +685,7 @@ func (b *Executor) Prepare(ctx context.Context, ib *imagebuilder.Builder, node *
 	// Add the top layer of this image to b.topLayers so we can keep track of them
 	// when building with cached images.
 	b.topLayers = append(b.topLayers, builder.TopLayer)
+	logrus.Debugln("Container ID:", builder.ContainerID)
 	return nil
 }
 
@@ -811,12 +813,8 @@ func (b *Executor) Execute(ctx context.Context, ib *imagebuilder.Builder, node *
 			// it is used to create the container for the next step.
 			imgID = cacheID
 		}
-		// Delete the intermediate container if b.removeIntermediateCtrs is true.
-		if b.removeIntermediateCtrs {
-			if err := b.Delete(); err != nil {
-				return errors.Wrap(err, "error deleting intermediate container")
-			}
-		}
+		// Add container ID of successful intermediate container to b.containerIDs
+		b.containerIDs = append(b.containerIDs, b.builder.ContainerID)
 		// Prepare for the next step with imgID as the new base image.
 		if i != len(children)-1 {
 			if err := b.Prepare(ctx, ib, node, imgID); err != nil {
@@ -1122,11 +1120,14 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) error 
 	if len(stages) == 0 {
 		errors.New("error building: no stages to build")
 	}
-	var stageExecutor *Executor
+	var (
+		stageExecutor *Executor
+		lastErr       error
+	)
 	for _, stage := range stages {
 		stageExecutor = b.withName(stage.Name, stage.Position)
 		if err := stageExecutor.Prepare(ctx, stage.Builder, stage.Node, ""); err != nil {
-			return err
+			lastErr = err
 		}
 		// Always remove the intermediate/build containers, even if the build was unsuccessful.
 		// If building with layers, remove all intermediate/build containers if b.forceRmIntermediateCtrs
@@ -1135,8 +1136,18 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) error 
 			defer stageExecutor.Delete()
 		}
 		if err := stageExecutor.Execute(ctx, stage.Builder, stage.Node); err != nil {
-			return err
+			lastErr = err
 		}
+
+		// Delete the successful intermediate containers if an error in the build
+		// process occurs and b.removeIntermediateCtrs is true.
+		if lastErr != nil {
+			if b.removeIntermediateCtrs {
+				stageExecutor.deleteSuccessfulIntermediateCtrs()
+			}
+			return lastErr
+		}
+		b.containerIDs = append(b.containerIDs, stageExecutor.containerIDs...)
 	}
 
 	if !b.layers && !b.noCache {
@@ -1154,7 +1165,9 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) error 
 	// the removal of intermediate/build containers will be handled by the
 	// defer statement above.
 	if b.removeIntermediateCtrs && (b.layers || b.noCache) {
-		return stageExecutor.Delete()
+		if err := b.deleteSuccessfulIntermediateCtrs(); err != nil {
+			return errors.Errorf("Failed to cleanup intermediate containers")
+		}
 	}
 	return nil
 }
@@ -1224,4 +1237,17 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 	b := imagebuilder.NewBuilder(options.Args)
 	stages := imagebuilder.NewStages(mainNode, b)
 	return exec.Build(ctx, stages)
+}
+
+// deleteSuccessfulIntermediateCtrs goes through the container IDs in b.containerIDs
+// and deletes the containers associated with that ID.
+func (b *Executor) deleteSuccessfulIntermediateCtrs() error {
+	var lastErr error
+	for _, ctr := range b.containerIDs {
+		if err := b.store.DeleteContainer(ctr); err != nil {
+			logrus.Errorf("error deleting build container %q: %v\n", ctr, err)
+			lastErr = err
+		}
+	}
+	return lastErr
 }
