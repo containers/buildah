@@ -242,7 +242,7 @@ func (c *Cmd) Start() error {
 	}
 	if _, err := fmt.Fprintf(oomScoreAdj, "%d\n", c.OOMScoreAdj); err != nil {
 		fmt.Fprintf(continueWrite, "error writing \"%d\" to oom_score_adj: %v", c.OOMScoreAdj, err)
-		return errors.Wrapf(err, "error writing \"%d\" to /proc/%s/oom_score_adj", c.OOMScoreAdj)
+		return errors.Wrapf(err, "error writing \"%d\" to /proc/%s/oom_score_adj", c.OOMScoreAdj, pidString)
 	}
 	defer oomScoreAdj.Close()
 
