@@ -60,6 +60,9 @@ func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
 	}
 
 	// If this is one of the commands that doesn't need this indirection, skip it.
+	if c.NArg() == 0 {
+		return
+	}
 	switch c.Args()[0] {
 	case "help", "version":
 		return
