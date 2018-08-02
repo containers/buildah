@@ -18,10 +18,9 @@ import (
 )
 
 type ociImageDestination struct {
-	ref                      ociReference
-	index                    imgspecv1.Index
-	sharedBlobDir            string
-	acceptUncompressedLayers bool
+	ref           ociReference
+	index         imgspecv1.Index
+	sharedBlobDir string
 }
 
 // newImageDestination returns an ImageDestination for writing to an existing directory.
@@ -44,7 +43,6 @@ func newImageDestination(sys *types.SystemContext, ref ociReference) (types.Imag
 	d := &ociImageDestination{ref: ref, index: *index}
 	if sys != nil {
 		d.sharedBlobDir = sys.OCISharedBlobDirPath
-		d.acceptUncompressedLayers = sys.OCIAcceptUncompressedLayers
 	}
 
 	if err := ensureDirectoryExists(d.ref.dir); err != nil {
@@ -83,9 +81,6 @@ func (d *ociImageDestination) SupportsSignatures(ctx context.Context) error {
 }
 
 func (d *ociImageDestination) DesiredLayerCompression() types.LayerCompression {
-	if d.acceptUncompressedLayers {
-		return types.PreserveOriginal
-	}
 	return types.Compress
 }
 
