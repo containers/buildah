@@ -71,7 +71,7 @@ images which will be built using the specified container. Can be used multiple t
 
 **--history-comment** *comment*
 
-Sets a comment on the the topmost layer in any images which will be created
+Sets a comment on the topmost layer in any images which will be created
 using the specified container.
 
 **--hostname** *host*
