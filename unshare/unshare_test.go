@@ -198,7 +198,7 @@ func TestUnshareOOMScoreAdj(t *testing.T) {
 		var report Report
 		buf := new(bytes.Buffer)
 		cmd := Command("report")
-		cmd.OOMScoreAdj = adj
+		cmd.OOMScoreAdj = &adj
 		cmd.Stdout = buf
 		cmd.Stderr = buf
 		err := cmd.Run()
