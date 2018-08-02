@@ -449,9 +449,6 @@ func (c *dockerClient) getBearerToken(ctx context.Context, realm, service, scope
 	}
 	authReq = authReq.WithContext(ctx)
 	getParams := authReq.URL.Query()
-	if c.username != "" {
-		getParams.Add("account", c.username)
-	}
 	if service != "" {
 		getParams.Add("service", service)
 	}
