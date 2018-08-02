@@ -39,9 +39,34 @@ const (
 	runUsingChrootExecCommand = "buildah-chroot-exec"
 )
 
+var (
+	rlimitsMap = map[string]int{
+		"RLIMIT_AS":         unix.RLIMIT_AS,
+		"RLIMIT_CORE":       unix.RLIMIT_CORE,
+		"RLIMIT_CPU":        unix.RLIMIT_CPU,
+		"RLIMIT_DATA":       unix.RLIMIT_DATA,
+		"RLIMIT_FSIZE":      unix.RLIMIT_FSIZE,
+		"RLIMIT_LOCKS":      unix.RLIMIT_LOCKS,
+		"RLIMIT_MEMLOCK":    unix.RLIMIT_MEMLOCK,
+		"RLIMIT_MSGQUEUE":   unix.RLIMIT_MSGQUEUE,
+		"RLIMIT_NICE":       unix.RLIMIT_NICE,
+		"RLIMIT_NOFILE":     unix.RLIMIT_NOFILE,
+		"RLIMIT_NPROC":      unix.RLIMIT_NPROC,
+		"RLIMIT_RSS":        unix.RLIMIT_RSS,
+		"RLIMIT_RTPRIO":     unix.RLIMIT_RTPRIO,
+		"RLIMIT_RTTIME":     unix.RLIMIT_RTTIME,
+		"RLIMIT_SIGPENDING": unix.RLIMIT_SIGPENDING,
+		"RLIMIT_STACK":      unix.RLIMIT_STACK,
+	}
+	rlimitsReverseMap = map[int]string{}
+)
+
 func init() {
 	reexec.Register(runUsingChrootCommand, runUsingChrootMain)
 	reexec.Register(runUsingChrootExecCommand, runUsingChrootExecMain)
+	for limitName, limitNumber := range rlimitsMap {
+		rlimitsReverseMap[limitNumber] = limitName
+	}
 }
 
 type runUsingChrootSubprocOptions struct {
@@ -819,34 +844,14 @@ func setRlimits(spec *specs.Spec) error {
 	if spec.Process == nil {
 		return nil
 	}
-	limitsMap := map[string]int{
-		"RLIMIT_AS":         unix.RLIMIT_AS,
-		"RLIMIT_CORE":       unix.RLIMIT_CORE,
-		"RLIMIT_CPU":        unix.RLIMIT_CPU,
-		"RLIMIT_DATA":       unix.RLIMIT_DATA,
-		"RLIMIT_FSIZE":      unix.RLIMIT_FSIZE,
-		"RLIMIT_LOCKS":      unix.RLIMIT_LOCKS,
-		"RLIMIT_MEMLOCK":    unix.RLIMIT_MEMLOCK,
-		"RLIMIT_MSGQUEUE":   unix.RLIMIT_MSGQUEUE,
-		"RLIMIT_NICE":       unix.RLIMIT_NICE,
-		"RLIMIT_NOFILE":     unix.RLIMIT_NOFILE,
-		"RLIMIT_NPROC":      unix.RLIMIT_NPROC,
-		"RLIMIT_RSS":        unix.RLIMIT_RSS,
-		"RLIMIT_RTPRIO":     unix.RLIMIT_RTPRIO,
-		"RLIMIT_RTTIME":     unix.RLIMIT_RTTIME,
-		"RLIMIT_SIGPENDING": unix.RLIMIT_SIGPENDING,
-		"RLIMIT_STACK":      unix.RLIMIT_STACK,
-	}
-	seen := make(map[int]struct{})
 	for _, limit := range spec.Process.Rlimits {
-		resource, recognized := limitsMap[strings.ToUpper(limit.Type)]
+		resource, recognized := rlimitsMap[strings.ToUpper(limit.Type)]
 		if !recognized {
 			return errors.Errorf("error parsing limit type %q", limit.Type)
 		}
 		if err := unix.Setrlimit(resource, &unix.Rlimit{Cur: limit.Soft, Max: limit.Hard}); err != nil {
 			return errors.Wrapf(err, "error setting %q limit to soft=%d,hard=%d", limit.Type, limit.Soft, limit.Hard)
 		}
-		seen[resource] = struct{}{}
 	}
 	return nil
 }
