@@ -10,12 +10,13 @@ import (
 var (
 	tagDescription = "Adds one or more additional names to locally-stored image"
 	tagCommand     = cli.Command{
-		Name:           "tag",
-		Usage:          "Add an additional name to a local image",
-		Description:    tagDescription,
-		Action:         tagCmd,
-		ArgsUsage:      "IMAGE-NAME [IMAGE-NAME ...]",
-		SkipArgReorder: true,
+		Name:                   "tag",
+		Usage:                  "Add an additional name to a local image",
+		Description:            tagDescription,
+		Action:                 tagCmd,
+		ArgsUsage:              "IMAGE-NAME [IMAGE-NAME ...]",
+		SkipArgReorder:         true,
+		UseShortOptionHandling: true,
 	}
 )
 
