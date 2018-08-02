@@ -43,18 +43,11 @@ func CommonBuildOptions(c *cli.Context) (*buildah.CommonBuildOptions, error) {
 	)
 	rlim := unix.Rlimit{Cur: 1048576, Max: 1048576}
 	defaultLimits := []string{}
-	isolation, err := defaultIsolation()
-	if err != nil {
-		return nil, err
+	if err := unix.Setrlimit(unix.RLIMIT_NOFILE, &rlim); err == nil {
+		defaultLimits = append(defaultLimits, fmt.Sprintf("nofile=%d:%d", rlim.Cur, rlim.Max))
 	}
-	// Chroot isolation does not support setRlimits, so we need to leave this alone
-	if isolation != buildah.IsolationChroot {
-		if err := unix.Setrlimit(unix.RLIMIT_NOFILE, &rlim); err == nil {
-			defaultLimits = append(defaultLimits, fmt.Sprintf("nofile=%d:%d", rlim.Cur, rlim.Max))
-		}
-		if err := unix.Setrlimit(unix.RLIMIT_NPROC, &rlim); err == nil {
-			defaultLimits = append(defaultLimits, fmt.Sprintf("nproc=%d:%d", rlim.Cur, rlim.Max))
-		}
+	if err := unix.Setrlimit(unix.RLIMIT_NPROC, &rlim); err == nil {
+		defaultLimits = append(defaultLimits, fmt.Sprintf("nproc=%d:%d", rlim.Cur, rlim.Max))
 	}
 	if c.String("memory") != "" {
 		memoryLimit, err = units.RAMInBytes(c.String("memory"))

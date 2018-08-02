@@ -150,6 +150,12 @@ func RunUsingChroot(spec *specs.Spec, bundlePath string, stdin io.Reader, stdout
 		}
 	}
 
+	// Raise any resource limits that are higher than they are now, before
+	// we drop any more privileges.
+	if err = setRlimits(spec, false, true); err != nil {
+		return err
+	}
+
 	// Start the grandparent subprocess.
 	cmd := unshare.Command(runUsingChrootCommand)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, stderr
@@ -654,7 +660,7 @@ func runUsingChrootExecMain() {
 		os.Exit(1)
 	}
 	logrus.Debugf("setting resource limits")
-	if err = setRlimits(options.Spec); err != nil {
+	if err = setRlimits(options.Spec, false, false); err != nil {
 		fmt.Fprintf(os.Stderr, "error setting process resource limits for process: %v\n", err)
 		os.Exit(1)
 	}
@@ -838,19 +844,45 @@ func setCapabilities(spec *specs.Spec) error {
 	return nil
 }
 
-// sets the resource limits for ourselves and any processes that
-// we'll start.
-func setRlimits(spec *specs.Spec) error {
+// parses the resource limits for ourselves and any processes that
+// we'll start into a format that's more in line with the kernel APIs
+func parseRlimits(spec *specs.Spec) (map[int]unix.Rlimit, error) {
 	if spec.Process == nil {
-		return nil
+		return nil, nil
 	}
+	parsed := make(map[int]unix.Rlimit)
 	for _, limit := range spec.Process.Rlimits {
 		resource, recognized := rlimitsMap[strings.ToUpper(limit.Type)]
 		if !recognized {
-			return errors.Errorf("error parsing limit type %q", limit.Type)
+			return nil, errors.Errorf("error parsing limit type %q", limit.Type)
 		}
-		if err := unix.Setrlimit(resource, &unix.Rlimit{Cur: limit.Soft, Max: limit.Hard}); err != nil {
-			return errors.Wrapf(err, "error setting %q limit to soft=%d,hard=%d", limit.Type, limit.Soft, limit.Hard)
+		parsed[resource] = unix.Rlimit{Cur: limit.Soft, Max: limit.Hard}
+	}
+	return parsed, nil
+}
+
+// setRlimits sets any resource limits that we want to apply to processes that
+// we'll start.
+func setRlimits(spec *specs.Spec, onlyLower, onlyRaise bool) error {
+	limits, err := parseRlimits(spec)
+	if err != nil {
+		return err
+	}
+	for resource, desired := range limits {
+		var current unix.Rlimit
+		if err := unix.Getrlimit(resource, &current); err != nil {
+			return errors.Wrapf(err, "error reading %q limit", rlimitsReverseMap[resource])
+		}
+		if desired.Max > current.Max && onlyLower {
+			// this would raise a hard limit, and we're only here to lower them
+			continue
+		}
+		if desired.Max < current.Max && onlyRaise {
+			// this would lower a hard limit, and we're only here to raise them
+			continue
+		}
+		if err := unix.Setrlimit(resource, &desired); err != nil {
+			return errors.Wrapf(err, "error setting %q limit to soft=%d,hard=%d (was soft=%d,hard=%d)", rlimitsReverseMap[resource], desired.Cur, desired.Max, current.Cur, current.Max)
 		}
 	}
 	return nil
