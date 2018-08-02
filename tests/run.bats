@@ -392,9 +392,6 @@ load helpers
 	if ! which runc ; then
 		skip
 	fi
-	if test "$BUILDAH_ISOLATION" = "chroot" ; then
-	    skip
-	fi
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
 	[ "$status" -eq 0 ]
