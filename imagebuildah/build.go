@@ -1,11 +1,14 @@
 package imagebuildah
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -1186,6 +1189,8 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 		}
 	}(dockerfiles...)
 	for _, dfile := range paths {
+		var data io.ReadCloser
+
 		if strings.HasPrefix(dfile, "http://") || strings.HasPrefix(dfile, "https://") {
 			logrus.Debugf("reading remote Dockerfile %q", dfile)
 			resp, err := http.Get(dfile)
@@ -1196,7 +1201,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 				resp.Body.Close()
 				return errors.Errorf("no contents in %q", dfile)
 			}
-			dockerfiles = append(dockerfiles, resp.Body)
+			data = resp.Body
 		} else {
 			if !filepath.IsAbs(dfile) {
 				logrus.Debugf("resolving local Dockerfile %q", dfile)
@@ -1216,8 +1221,19 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 				contents.Close()
 				return errors.Wrapf(err, "no contents in %q", dfile)
 			}
-			dockerfiles = append(dockerfiles, contents)
+			data = contents
 		}
+
+		// pre-process Dockerfiles with ".in" suffix
+		if strings.HasSuffix(dfile, ".in") {
+			pData, err := preprocessDockerfileContents(data, options.ContextDirectory)
+			if err != nil {
+				return err
+			}
+			data = *pData
+		}
+
+		dockerfiles = append(dockerfiles, data)
 	}
 	mainNode, err := imagebuilder.ParseDockerfile(dockerfiles[0])
 	if err != nil {
@@ -1250,4 +1266,55 @@ func (b *Executor) deleteSuccessfulIntermediateCtrs() error {
 		}
 	}
 	return lastErr
+}
+
+// preprocessDockerfileContents runs CPP(1) in preprocess-only mode on the input
+// dockerfile content and will use ctxDir as the base include path.
+//
+// Note: we cannot use cmd.StdoutPipe() as cmd.Wait() closes it.
+func preprocessDockerfileContents(r io.ReadCloser, ctxDir string) (rdrCloser *io.ReadCloser, err error) {
+	cppPath := "/usr/bin/cpp"
+	if _, err = os.Stat(cppPath); err != nil {
+		if os.IsNotExist(err) {
+			err = errors.Errorf("error: Dockerfile.in support requires %s to be installed", cppPath)
+		}
+		return nil, err
+	}
+
+	stdout := bytes.Buffer{}
+	stderr := bytes.Buffer{}
+
+	cmd := exec.Command(cppPath, "-E", "-iquote", ctxDir, "-")
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	pipe, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if err != nil {
+			pipe.Close()
+		}
+	}()
+
+	if err = cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	if _, err = io.Copy(pipe, r); err != nil {
+		return nil, err
+	}
+
+	pipe.Close()
+	if err = cmd.Wait(); err != nil {
+		if stderr.Len() > 0 {
+			err = fmt.Errorf("%v: %s", err, strings.TrimSpace(stderr.String()))
+		}
+		return nil, errors.Wrapf(err, "error pre-processing Dockerfile")
+	}
+
+	rc := ioutil.NopCloser(bytes.NewReader(stdout.Bytes()))
+	return &rc, nil
 }

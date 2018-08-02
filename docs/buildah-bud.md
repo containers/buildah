@@ -16,6 +16,8 @@ build context directory.
 
 The build context directory can be specified as the http(s) URL of an archive, git repository or Dockerfile.
 
+Dockerfiles ending with a ".in" suffix will be preprocessed via CPP(1).  This can be useful to decompose Dockerfiles into several reusable parts that can be used via CPP's **#include** directive.  Notice, a Dockerfile.in file can still be used by other tools when manually preprocessing them via `cpp -E`.
+
 When the URL is an archive, the contents of the URL is downloaded to a temporary location and extracted before execution.
 
 When the URL is an Dockerfile, the Dockerfile is downloaded to a temporary location.
@@ -598,4 +600,4 @@ buildah bud --no-cache --rm=false -t imageName .
 registries.conf is the configuration file which specifies which container registries should be consulted when completing image names which do not include a registry or domain portion.
 
 ## SEE ALSO
-buildah(1), podman-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), policy.json(5), registries.conf(5), user\_namespaces(7)
+buildah(1), CPP(1), podman-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), policy.json(5), registries.conf(5), user\_namespaces(7)
