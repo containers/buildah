@@ -28,7 +28,7 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   buildah rm $cid
 
-  newcid=$(buildah from new-image)
+  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
   newroot=$(buildah mount $newcid)
   test -s $newroot/randomfile
   cmp ${TESTDIR}/randomfile $newroot/randomfile
@@ -75,7 +75,7 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   buildah rm $cid
 
-  newcid=$(buildah from new-image)
+  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
   newroot=$(buildah mount $newcid)
   test -s $newroot/random1
   cmp ${TESTDIR}/random1 $newroot/random1
