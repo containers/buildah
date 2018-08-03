@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
@@ -39,6 +40,10 @@ func rmCmd(c *cli.Context) error {
 	if len(args) > 0 && c.Bool("all") {
 		return errors.Errorf("when using the --all switch, you may not pass any containers names or IDs")
 	}
+	if err := parse.ValidateFlags(c, rmFlags); err != nil {
+		return err
+	}
+
 	store, err := getStore(c)
 	if err != nil {
 		return err
