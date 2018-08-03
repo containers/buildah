@@ -106,3 +106,84 @@ load helpers
   [ "$output" == "when using the --all switch, you may not use --prune switch" ]
   buildah rmi --all
 }
+
+@test "remove image that is a parent of another image" {
+  buildah rmi -a -f
+  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
+  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
+  buildah rm -a
+  run buildah --debug=false rmi alpine
+  echo "$output"
+  [ "${status}" -eq 0 ]
+  run buildah --debug=false images -q
+  echo "$output"
+  [ $(wc -l <<< "$output") -eq 1 ]
+  [ "${status}" -eq 0 ]
+  run buildah --debug=false images -q -a
+  echo "$output"
+  [ $(wc -l <<< "$output") -eq 2 ]
+  [ "${status}" -eq 0 ]
+  my_images=( $(buildah --debug=false images -a -q) )
+  run buildah --debug=false rmi ${my_images[2]}
+  echo "$output"
+  [ "${status}" -ne 0 ]
+  buildah rmi new-image
+}
+
+@test "rmi with cached images" {
+  buildah rmi -a -f
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false images -a -q
+  echo "$output"
+  [ $(wc -l <<< "$output") -eq 5 ]
+  [ "${status}" -eq 0 ]
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false images -a -q
+  echo "$output"
+  [ $(wc -l <<< "$output") -eq 7 ]
+  [ "${status}" -eq 0 ]
+  run buildah --debug=false rmi test2
+  echo "$output"
+  [ "${status}" -eq 0 ]
+  run buildah --debug=false images -a -q
+  echo "$output"
+  [ $(wc -l <<< "$output") -eq 5 ]
+  [ "${status}" -eq 0 ]
+  run buildah --debug=false rmi test1
+  echo "$output"
+  [ "${status}" -eq 0 ]
+  run buildah --debug=false images -a -q
+  echo "$output"
+  [ $(wc -l <<< "$output") -eq 1 ]
+  [ "${status}" -eq 0 ]
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false rmi alpine
+  echo "$output"
+  [ "${status}" -eq 0 ]
+  run buildah --debug=false rmi test3
+  echo "$output"
+  [ "${status}" -eq 0 ]
+  run buildah --debug=false images -a -q
+  echo "$output"
+  [ "${status}" -eq 0 ]
+  [ "$output" == "" ]
+}
+
+@test "rmi image that is created from another named image" {
+  buildah rmi -a -f
+  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
+  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
+  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json new-image)
+  buildah config --env 'foo=bar' $cid
+  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image-2
+  buildah rm -a
+  run buildah --debug=false rmi new-image-2
+  echo "$output"
+  [ "${status}" -eq 0 ]
+  run buildah --debug=false images -q
+  echo "$output"
+  [ $(wc -l <<< "$output") -eq 2 ]
+  [ "${status}" -eq 0 ]
+}
