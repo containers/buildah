@@ -82,7 +82,7 @@ func pullCmd(c *cli.Context) error {
 		return err
 	}
 
-	transport := buildah.DefaultTransport
+	transport := ""
 	arr := strings.SplitN(args[0], ":", 2)
 	if len(arr) == 2 {
 		if _, ok := util.Transports[arr[0]]; ok {
