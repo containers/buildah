@@ -3,7 +3,7 @@
 load helpers
 
 @test "user-and-network-namespace" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   mkdir -p $TESTDIR/no-cni-configs
@@ -173,7 +173,7 @@ load helpers
     [ "$output" != "" ]
     case x"$map" in
     x)
-      if test "$BUILDAH_ISOLATION" != "chroot" ; then
+      if test "$BUILDAH_ISOLATION" != "chroot" -a "$BUILDAH_ISOLATION" != "rootless" ; then
         [ "$output" == "$mynamespace" ]
       fi
       ;;
@@ -305,49 +305,49 @@ general_namespace() {
 }
 
 @test "ipc-namespace" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   general_namespace ipc
 }
 
 @test "net-namespace" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   general_namespace net
 }
 
 @test "network-namespace" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   general_namespace net network
 }
 
 @test "pid-namespace" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   general_namespace pid
 }
 
 @test "user-namespace" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   general_namespace user userns
 }
 
 @test "uts-namespace" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   general_namespace uts
 }
 
 @test "combination-namespaces" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip
   fi
   # mnt is always per-container, cgroup isn't a thing runc lets us configure

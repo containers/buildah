@@ -39,3 +39,4 @@ go get github.com/onsi/gomega/...
 export GITVALIDATE_TIP=$(cd $GOSRC; git log -2 --pretty='%H' | tail -n 1)
 make -C $GOSRC install.tools runc all validate test-unit test-integration TAGS="seccomp"
 env BUILDAH_ISOLATION=chroot make -C $GOSRC test-integration TAGS="seccomp"
+env BUILDAH_ISOLATION=rootless make -C $GOSRC test-integration TAGS="seccomp"
