@@ -183,9 +183,8 @@ either a local file or an **http** or **https** URL.  If more than one
 Dockerfile is specified, *FROM* instructions will only be accepted from the
 first specified file.
 
-If a build context is not specified, and at least one Dockerfile is a
-local file, the directory in which it resides will be used as the build
-context.
+If a local file is specified as the Dockerfile and it does not exist, the
+context directory will be prepended to the local file value.
 
 If you specify `-f -`, the Dockerfile contents will be read from stdin.
 
