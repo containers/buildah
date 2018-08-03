@@ -114,7 +114,7 @@ func localImageNameForReference(ctx context.Context, store storage.Store, srcRef
 	return name, nil
 }
 
-func pullImage(ctx context.Context, store storage.Store, imageName string, options BuilderOptions, sc *types.SystemContext) (types.ImageReference, error) {
+func pullImage(ctx context.Context, store storage.Store, imageName string, options BuilderOptions, sc *types.SystemContext, useRegistries bool) (types.ImageReference, error) {
 	spec := imageName
 	srcRef, err := alltransports.ParseImageName(spec)
 	if err != nil {
@@ -172,6 +172,9 @@ func pullImage(ctx context.Context, store storage.Store, imageName string, optio
 	err = cp.Image(ctx, policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter, sc, nil, ""))
 	if err == nil {
 		return destRef, nil
+	}
+	if !useRegistries {
+		return nil, err
 	}
 
 	// If the signature policy rejected this reference, return the error.

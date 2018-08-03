@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/containers/image/directory"
+	"github.com/containers/image/docker"
 	dockerarchive "github.com/containers/image/docker/archive"
 	"github.com/containers/image/docker/reference"
 	ociarchive "github.com/containers/image/oci/archive"
@@ -39,8 +40,10 @@ var (
 		"index.docker.io": "library",
 		"docker.io":       "library",
 	}
+
 	// Transports contains the possible transports used for images
 	Transports = map[string]string{
+		docker.Transport.Name():        "",
 		dockerarchive.Transport.Name(): "",
 		ociarchive.Transport.Name():    "",
 		directory.Transport.Name():     "",

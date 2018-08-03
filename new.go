@@ -65,8 +65,8 @@ func reserveSELinuxLabels(store storage.Store, id string) error {
 	return nil
 }
 
-func pullAndFindImage(ctx context.Context, store storage.Store, imageName string, options BuilderOptions, sc *types.SystemContext) (*storage.Image, types.ImageReference, error) {
-	ref, err := pullImage(ctx, store, imageName, options, sc)
+func pullAndFindImage(ctx context.Context, store storage.Store, imageName string, options BuilderOptions, sc *types.SystemContext, useRegistries bool) (*storage.Image, types.ImageReference, error) {
+	ref, err := pullImage(ctx, store, imageName, options, sc, useRegistries)
 	if err != nil {
 		logrus.Debugf("error pulling image %q: %v", imageName, err)
 		return nil, nil, err
@@ -131,7 +131,7 @@ func newContainerIDMappingOptions(idmapOptions *IDMappingOptions) storage.IDMapp
 	return options
 }
 
-func resolveImage(ctx context.Context, systemContext *types.SystemContext, store storage.Store, options BuilderOptions) (types.ImageReference, *storage.Image, error) {
+func resolveImage(ctx context.Context, systemContext *types.SystemContext, store storage.Store, options BuilderOptions, useRegistries bool) (types.ImageReference, *storage.Image, error) {
 	var ref types.ImageReference
 	var img *storage.Image
 	for _, image := range util.ResolveName(options.FromImage, options.Registry, systemContext, store) {
@@ -146,7 +146,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 		}
 
 		if options.PullPolicy == PullAlways {
-			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, image, options, systemContext)
+			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, image, options, systemContext, useRegistries)
 			if err != nil {
 				logrus.Debugf("unable to pull and read image %q: %v", image, err)
 				switch err := errors.Cause(err).(type) {
@@ -198,7 +198,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 				logrus.Debugf("no such image %q: %v", transports.ImageName(ref), err)
 				continue
 			}
-			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, image, options, systemContext)
+			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, image, options, systemContext, useRegistries)
 			if err != nil {
 				logrus.Debugf("unable to pull and read image %q: %v", image, err)
 				switch err := errors.Cause(err).(type) {
@@ -222,6 +222,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	var img *storage.Image
 	var err error
 
+	useRegistries := options.Transport == ""
 	if options.FromImage == BaseImageFakeName {
 		options.FromImage = ""
 	}
@@ -232,7 +233,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
 
 	if options.FromImage != "scratch" {
-		ref, img, err = resolveImage(ctx, systemContext, store, options)
+		ref, img, err = resolveImage(ctx, systemContext, store, options, useRegistries)
 		if err != nil {
 			return nil, err
 		}
