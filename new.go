@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/containers/buildah/util"
-	"github.com/containers/image/pkg/sysregistries"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/transports/alltransports"
@@ -207,12 +206,6 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		ref, img, err = resolveImage(ctx, systemContext, store, options)
 		if err != nil {
 			return nil, err
-		}
-		if ref == nil || img == nil {
-			// If options.FromImage is set but we ended up
-			// with nil in ref or in img then there was an error that
-			// we should return.
-			return nil, errors.Wrapf(storage.ErrImageUnknown, "image %q not found in %s registries", options.FromImage, sysregistries.RegistriesConfPath(systemContext))
 		}
 	}
 	image := options.FromImage
