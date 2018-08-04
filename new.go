@@ -106,7 +106,7 @@ func newContainerIDMappingOptions(idmapOptions *IDMappingOptions) storage.IDMapp
 }
 
 func resolveImage(ctx context.Context, systemContext *types.SystemContext, store storage.Store, options BuilderOptions) (types.ImageReference, *storage.Image, error) {
-	images, err := util.ResolveName(options.FromImage, options.Registry, systemContext, store)
+	images, _, err := util.ResolveName(options.FromImage, options.Registry, systemContext, store)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "error parsing reference to image %q", options.FromImage)
 	}
