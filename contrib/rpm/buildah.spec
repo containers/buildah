@@ -92,7 +92,63 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Sat Jul 14 2018 Dan Walsh <dwalsh@redhat.com> 1.3-dev-1
+* Sat Aug 4 2018 Dan Walsh <dwalsh@redhat.com> 1.3-1
+- Revert pull error handling from 881
+- bud should not search context directory for Dockerfile
+- Set BUILDAH_ISOLATION=rootless when running unprivileged
+- .papr.sh: Also test with BUILDAH_ISOLATION=rootless
+- Skip certain tests when we're using "rootless" isolation
+- .travis.yml: run integration tests with BUILDAH_ISOLATION=chroot
+- Add and implement IsolationOCIRootless
+- Add a value for IsolationOCIRootless
+- Fix rmi to remove intermediate images associated with an image
+- Return policy error on pull
+- Update containers/image to 216acb1bcd2c1abef736ee322e17147ee2b7d76c
+- Switch to github.com/containers/image/pkg/sysregistriesv2
+- unshare: make adjusting the OOM score optional
+- Add flags validation
+- chroot: handle raising process limits
+- chroot: make the resource limits name map module-global
+- Remove rpm.bats, we need to run this manually
+- Set the default ulimits to match Docker
+- buildah: no args is out of bounds
+- unshare: error message missed the pid
+- preprocess ".in" suffixed Dockerfiles
+- Fix the the in buildah-config man page
+- Only test rpmbuild on latest fedora
+- Add support for multiple Short options
+- Update to latest urvave/cli
+- Add additional SELinux tests
+- Vendor in latest github.com/containers/{image;storage}
+- Stop testing with golang 1.8
+- Fix volume cache issue with buildah bud --layers
+- Create buildah pull command
+- Increase the deadline for gometalinter during 'make validate'
+- .papr.sh: Also test with BUILDAH_ISOLATION=chroot
+- .travis.yml: run integration tests with BUILDAH_ISOLATION=chroot
+- Add a Dockerfile
+- Set BUILDAH_ISOLATION=chroot when running unprivileged
+- Add and implement IsolationChroot
+- Update github.com/opencontainers/runc
+- maybeReexecUsingUserNamespace: add a default for root
+- Allow ping command without NET_RAW Capabilities
+- rmi.storageImageID: fix Wrapf format warning
+- Allow Dockerfile content to come from stdin
+- Vendor latest container/storage to fix overlay mountopt
+- userns: assign additional IDs sequentially
+- Remove default dev/pts
+- Add OnBuild test to baseline test
+- tests/run.bats(volumes): use :z when SELinux is enabled
+- Avoid a stall in runCollectOutput()
+- Use manifest from container/image
+- Vendor in latest containers/image and containers/storage
+- add rename command
+- Completion command
+- Update CHANGELOG.md
+- Update vendor for runc to fix 32 bit builds
+- bash completion: remove shebang
+- Update vendor for runc to fix 32 bit builds
+
 * Sat Jul 14 2018 Dan Walsh <dwalsh@redhat.com> 1.2-1
 - Vendor in lates containers/image
 - build-using-dockerfile: let -t include transports again
@@ -306,22 +362,22 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 * Wed Apr 4 2018 Dan Walsh <dwalsh@redhat.com> 0.16-1
 - Add support for shell
 - Vendor in latest containers/image
-    docker-archive generates docker legacy compatible images
-    Do not create $DiffID subdirectories for layers with no configs
-    Ensure the layer IDs in legacy docker/tarfile metadata are unique
-    docker-archive: repeated layers are symlinked in the tar file
-    sysregistries: remove all trailing slashes
-    Improve docker/* error messages
-    Fix failure to make auth directory
-    Create a new slice in Schema1.UpdateLayerInfos
-    Drop unused storageImageDestination.{image,systemContext}
-    Load a *storage.Image only once in storageImageSource
-    Support gzip for docker-archive files
-    Remove .tar extension from blob and config file names
-    ostree, src: support copy of compressed layers
-    ostree: re-pull layer if it misses uncompressed_digest|uncompressed_size
-    image: fix docker schema v1 -> OCI conversion
-    Add /etc/containers/certs.d as default certs directory
+- docker-archive generates docker legacy compatible images
+- Do not create $DiffID subdirectories for layers with no configs
+- Ensure the layer IDs in legacy docker/tarfile metadata are unique
+- docker-archive: repeated layers are symlinked in the tar file
+- sysregistries: remove all trailing slashes
+- Improve docker/* error messages
+- Fix failure to make auth directory
+- Create a new slice in Schema1.UpdateLayerInfos
+- Drop unused storageImageDestination.{image,systemContext}
+- Load a *storage.Image only once in storageImageSource
+- Support gzip for docker-archive files
+- Remove .tar extension from blob and config file names
+- ostree, src: support copy of compressed layers
+- ostree: re-pull layer if it misses uncompressed_digest|uncompressed_size
+- image: fix docker schema v1 -> OCI conversion
+- Add /etc/containers/certs.d as default certs directory
 - Change image time to locale, add troubleshooting.md, add logo to other mds
 - Allow --cmd parameter to have commands as values
 - Document the mounts.conf file
