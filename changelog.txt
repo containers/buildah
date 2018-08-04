@@ -1,3 +1,60 @@
+- Changelog for v1.3 (2018-08-04)
+  * Revert pull error handling from 881
+  * bud should not search context directory for Dockerfile
+  * Set BUILDAH_ISOLATION=rootless when running unprivileged
+  * .papr.sh: Also test with BUILDAH_ISOLATION=rootless
+  * Skip certain tests when we're using "rootless" isolation
+  * .travis.yml: run integration tests with BUILDAH_ISOLATION=chroot
+  * Add and implement IsolationOCIRootless
+  * Add a value for IsolationOCIRootless
+  * Fix rmi to remove intermediate images associated with an image
+  * Return policy error on pull
+  * Update containers/image to 216acb1bcd2c1abef736ee322e17147ee2b7d76c
+  * Switch to github.com/containers/image/pkg/sysregistriesv2
+  * unshare: make adjusting the OOM score optional
+  * Add flags validation
+  * chroot: handle raising process limits
+  * chroot: make the resource limits name map module-global
+  * Remove rpm.bats, we need to run this manually
+  * Set the default ulimits to match Docker
+  * buildah: no args is out of bounds
+  * unshare: error message missed the pid
+  * preprocess ".in" suffixed Dockerfiles
+  * Fix the the in buildah-config man page
+  * Only test rpmbuild on latest fedora
+  * Add support for multiple Short options
+  * Update to latest urvave/cli
+  * Add additional SELinux tests
+  * Vendor in latest github.com/containers/{image;storage}
+  * Stop testing with golang 1.8
+  * Fix volume cache issue with buildah bud --layers
+  * Create buildah pull command
+  * Increase the deadline for gometalinter during 'make validate'
+  * .papr.sh: Also test with BUILDAH_ISOLATION=chroot
+  * .travis.yml: run integration tests with BUILDAH_ISOLATION=chroot
+  * Add a Dockerfile
+  * Set BUILDAH_ISOLATION=chroot when running unprivileged
+  * Add and implement IsolationChroot
+  * Update github.com/opencontainers/runc
+  * maybeReexecUsingUserNamespace: add a default for root
+  * Allow ping command without NET_RAW Capabilities
+  * rmi.storageImageID: fix Wrapf format warning
+  * Allow Dockerfile content to come from stdin
+  * Vendor latest container/storage to fix overlay mountopt
+  * userns: assign additional IDs sequentially
+  * Remove default dev/pts
+  * Add OnBuild test to baseline test
+  * tests/run.bats(volumes): use :z when SELinux is enabled
+  * Avoid a stall in runCollectOutput()
+  * Use manifest from container/image
+  * Vendor in latest containers/image and containers/storage
+  * add rename command
+  * Completion command
+  * Update CHANGELOG.md
+  * Update vendor for runc to fix 32 bit builds
+  * bash completion: remove shebang
+  * Update vendor for runc to fix 32 bit builds
+
 - Changelog for v1.2 (2018-07-14)
   * Vendor in lates containers/image
   * build-using-dockerfile: let -t include transports again
