@@ -761,7 +761,7 @@ func (b *Executor) resolveNameToImageRef() (types.ImageReference, error) {
 	if b.output != "" {
 		imageRef, err = alltransports.ParseImageName(b.output)
 		if err != nil {
-			candidates, err := util.ResolveName(b.output, "", b.systemContext, b.store)
+			candidates, _, err := util.ResolveName(b.output, "", b.systemContext, b.store)
 			if err != nil {
 				return nil, errors.Wrapf(err, "error parsing target image name %q: %v", b.output)
 			}
