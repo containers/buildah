@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/containers/buildah/util"
+	"github.com/containers/image/pkg/sysregistries"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/transports/alltransports"
@@ -106,7 +107,7 @@ func newContainerIDMappingOptions(idmapOptions *IDMappingOptions) storage.IDMapp
 }
 
 func resolveImage(ctx context.Context, systemContext *types.SystemContext, store storage.Store, options BuilderOptions) (types.ImageReference, *storage.Image, error) {
-	images, _, err := util.ResolveName(options.FromImage, options.Registry, systemContext, store)
+	images, searchRegistriesWereUsedButEmpty, err := util.ResolveName(options.FromImage, options.Registry, systemContext, store)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "error parsing reference to image %q", options.FromImage)
 	}
@@ -184,6 +185,11 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 			continue
 		}
 		return pulledReference, pulledImg, nil
+	}
+	if searchRegistriesWereUsedButEmpty {
+		logrus.Debugf("recorded errors while trying with a short name and empty search list: %s", pullErrors)
+		registriesConfPath := sysregistries.RegistriesConfPath(systemContext)
+		return nil, nil, errors.Errorf("image name %q is a short name and no search registries are defined in %s.", options.FromImage, registriesConfPath)
 	}
 	return nil, nil, pullErrors
 }
