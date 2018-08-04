@@ -203,12 +203,12 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 
 	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
 
-	if options.FromImage != "scratch" {
+	if options.FromImage != "" && options.FromImage != "scratch" {
 		ref, img, err = resolveImage(ctx, systemContext, store, options)
 		if err != nil {
 			return nil, err
 		}
-		if options.FromImage != "" && (ref == nil || img == nil) {
+		if ref == nil || img == nil {
 			// If options.FromImage is set but we ended up
 			// with nil in ref or in img then there was an error that
 			// we should return.
