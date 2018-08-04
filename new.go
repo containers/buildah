@@ -149,13 +149,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, image, options, systemContext)
 			if err != nil {
 				logrus.Debugf("unable to pull and read image %q: %v", image, err)
-				switch err := errors.Cause(err).(type) {
-				case GenericPullError:
-					logrus.Debugf("GenericPullError: %v", err.Error())
-					continue
-				default:
-					return nil, nil, err
-				}
+				continue
 			}
 			ref = pulledReference
 			img = pulledImg
@@ -201,13 +195,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, image, options, systemContext)
 			if err != nil {
 				logrus.Debugf("unable to pull and read image %q: %v", image, err)
-				switch err := errors.Cause(err).(type) {
-				case GenericPullError:
-					logrus.Debugf("GenericPullError: %v", err.Error())
-					continue
-				default:
-					return nil, nil, err
-				}
+				continue
 			}
 			ref = pulledReference
 			img = pulledImg
