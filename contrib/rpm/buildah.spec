@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.3
+Version:        1.4
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -92,6 +92,8 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Sat Aug 4 2018 Dan Walsh <dwalsh@redhat.com> 1.4-dev-1
+
 * Sat Aug 4 2018 Dan Walsh <dwalsh@redhat.com> 1.3-1
 - Revert pull error handling from 881
 - bud should not search context directory for Dockerfile
