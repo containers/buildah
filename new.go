@@ -121,7 +121,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 				if ref, err = is.Transport.ParseStoreReference(store, img.ID); err != nil {
 					return nil, nil, errors.Wrapf(err, "error parsing reference to image %q", img.ID)
 				}
-				break
+				return ref, img, nil
 			}
 		}
 
@@ -132,9 +132,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 				logrus.Debugf("unable to pull and read image %q: %v", image, err)
 				continue
 			}
-			ref = pulledReference
-			img = pulledImg
-			break
+			return pulledReference, pulledImg, nil
 		}
 
 		srcRef, err := alltransports.ParseImageName(image)
@@ -171,22 +169,23 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 			return nil, nil, errors.Wrapf(err, "error parsing reference to image %q", destImage)
 		}
 		img, err = is.Transport.GetStoreImage(store, ref)
-		if err != nil {
-			if errors.Cause(err) == storage.ErrImageUnknown && options.PullPolicy != PullIfMissing {
-				pullErrors = multierror.Append(pullErrors, err)
-				logrus.Debugf("no such image %q: %v", transports.ImageName(ref), err)
-				continue
-			}
-			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, image, options, systemContext)
-			if err != nil {
-				pullErrors = multierror.Append(pullErrors, err)
-				logrus.Debugf("unable to pull and read image %q: %v", image, err)
-				continue
-			}
-			ref = pulledReference
-			img = pulledImg
+		if err == nil {
+			return ref, img, nil
 		}
-		break
+
+		if errors.Cause(err) == storage.ErrImageUnknown && options.PullPolicy != PullIfMissing {
+			pullErrors = multierror.Append(pullErrors, err)
+			logrus.Debugf("no such image %q: %v", transports.ImageName(ref), err)
+			continue
+		}
+
+		pulledImg, pulledReference, err := pullAndFindImage(ctx, store, image, options, systemContext)
+		if err != nil {
+			pullErrors = multierror.Append(pullErrors, err)
+			logrus.Debugf("unable to pull and read image %q: %v", image, err)
+			continue
+		}
+		return pulledReference, pulledImg, nil
 	}
 
 	if img == nil && pullErrors != nil {
