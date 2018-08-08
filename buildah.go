@@ -292,7 +292,6 @@ type CommonBuildOptions struct {
 
 // BuilderOptions are used to initialize a new Builder.
 type BuilderOptions struct {
-
 	// Args define variables that users can pass at build-time to the builder
 	Args map[string]string
 	// FromImage is the name of the image which should be used as the
@@ -360,9 +359,7 @@ type BuilderOptions struct {
 	// after processing the AddCapabilities set, when running commands in the
 	// container.  If a capability appears in both lists, it will be dropped.
 	DropCapabilities []string
-	// ImageOnly is a boolean designating that we wish to only pull the image and
-	// to not create a container from it.  Used by pull command.
-	ImageOnly       bool
+
 	CommonBuildOpts *CommonBuildOptions
 }
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	is "github.com/containers/image/storage"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
 	"github.com/projectatomic/buildah/pkg/parse"
@@ -73,8 +74,6 @@ func pullCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	pullPolicy := buildah.PullAlways
-
 	signaturePolicy := c.String("signature-policy")
 
 	store, err := getStore(c)
@@ -90,24 +89,27 @@ func pullCmd(c *cli.Context) error {
 		}
 	}
 
-	options := buildah.BuilderOptions{
-		FromImage:           args[0],
+	options := buildah.PullOptions{
 		Transport:           transport,
-		PullPolicy:          pullPolicy,
 		SignaturePolicyPath: signaturePolicy,
+		Store:               store,
 		SystemContext:       systemContext,
-		ImageOnly:           true,
 	}
 
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
 	}
 
-	builder, err := buildah.NewBuilder(getContext(), store, options)
+	ref, err := buildah.Pull(getContext(), args[0], options)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%s\n", builder.FromImageID)
+	img, err := is.Transport.GetStoreImage(store, ref)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s\n", img.ID)
 	return nil
 }
