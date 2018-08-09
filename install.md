@@ -112,7 +112,7 @@ Then to install Buildah on Fedora follow the steps in this example:
 ### RHEL, CentOS
 
 In RHEL and CentOS 7, ensure that you are subscribed to the `rhel-7-server-rpms`,
-`rhel-7-server-extras-rpms`, and `rhel-7-server-optional-rpms` repositories, then
+`rhel-7-server-extras-rpms`, `rhel-7-server-optional-rpms` and `EPEL` repositories, then
 run this command:
 
 ```
