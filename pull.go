@@ -173,12 +173,6 @@ func pullImage(ctx context.Context, store storage.Store, imageName string, optio
 		return nil, errors.Wrapf(err, "error parsing image name %q", destName)
 	}
 
-	img, err := srcRef.NewImageSource(ctx, sc)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error initializing %q as an image source", spec)
-	}
-	img.Close()
-
 	policy, err := signature.DefaultPolicy(sc)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error obtaining default signature policy")
