@@ -125,7 +125,8 @@ func budCmd(c *cli.Context) error {
 	if err := parse.ValidateFlags(c, buildahcli.FromAndBudFlags); err != nil {
 		return err
 	}
-	var stdout, stderr, reporter *os.File
+	var stdin, stdout, stderr, reporter *os.File
+	stdin = os.Stdin
 	stdout = os.Stdout
 	stderr = os.Stderr
 	reporter = os.Stderr
@@ -205,6 +206,7 @@ func budCmd(c *cli.Context) error {
 		Args:                    args,
 		Output:                  output,
 		AdditionalTags:          tags,
+		In:                      stdin,
 		Out:                     stdout,
 		Err:                     stderr,
 		ReportWriter:            reporter,
