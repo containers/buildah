@@ -1094,7 +1094,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			}
 		}
 		options.Args = append(options.Args, rootlessFlag...)
-		err = b.runUsingRuntimeSubproc(options, configureNetwork, configureNetworks, []string{"--no-new-keyring", "--no-pivot"}, spec, mountPoint, path, Package+"-"+filepath.Base(path))
+		err = b.runUsingRuntimeSubproc(options, configureNetwork, configureNetworks, []string{"--no-new-keyring"}, spec, mountPoint, path, Package+"-"+filepath.Base(path))
 	default:
 		err = errors.Errorf("don't know how to run this command")
 	}
