@@ -141,7 +141,11 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 			// If the user supplied an ID, we cannot delete the image if it is referred to by multiple tags
 			if matchesID(image.ID, id) {
 				if len(image.Names) > 1 && !force {
-					return fmt.Errorf("unable to delete %s (must force) - image is referred to in multiple tags", image.ID)
+					if lastError != nil {
+						fmt.Fprintln(os.Stderr, lastError)
+					}
+					lastError = errors.Errorf("unable to delete %s (must force) - image is referred to in multiple tags", image.ID)
+					continue
 				}
 				// If it is forced, we have to untag the image so that it can be deleted
 				image.Names = image.Names[:0]
@@ -160,13 +164,20 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 				// because only a copy of the image state is returned
 				image, err = getImage(ctx, systemContext, image.ID, store)
 				if err != nil || image == nil {
-					return errors.Wrapf(err, "error getting image after untag %q", image.ID)
+					if lastError != nil {
+						fmt.Fprintln(os.Stderr, lastError)
+					}
+					lastError = errors.Wrapf(err, "error getting image after untag %q", image.ID)
 				}
 			}
 
 			isParent, err := imageIsParent(store, image.TopLayer)
 			if err != nil {
-				return err
+				if lastError != nil {
+					fmt.Fprintln(os.Stderr, lastError)
+				}
+				lastError = errors.Wrapf(err, "error judging image %q", image.ID)
+				continue
 			}
 			// If the --all flag is not set and the image has named references or is
 			// a parent, do not elete image.
