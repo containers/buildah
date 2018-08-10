@@ -115,7 +115,8 @@ load helpers
   buildah rm -a
   run buildah --debug=false rmi alpine
   echo "$output"
-  [ "${status}" -eq 0 ]
+  [ "${status}" -eq 1 ]
+  [ $(wc -l <<< "$output") -eq 2 ]
   run buildah --debug=false images -q
   echo "$output"
   [ $(wc -l <<< "$output") -eq 1 ]
@@ -160,7 +161,8 @@ load helpers
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false rmi alpine
   echo "$output"
-  [ "${status}" -eq 0 ]
+  [ "${status}" -eq 1 ]
+  [ $(wc -l <<< "$output") -eq 2 ]
   run buildah --debug=false rmi test3
   echo "$output"
   [ "${status}" -eq 0 ]

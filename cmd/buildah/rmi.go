@@ -176,12 +176,12 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
 				}
-				lastError = errors.Wrapf(err, "error judging image %q", image.ID)
+				lastError = errors.Wrapf(err, "error determining if the image %q is a parent", image.ID)
 				continue
 			}
 			// If the --all flag is not set and the image has named references or is
-			// a parent, do not elete image.
-			if len(image.Names) > 0 || (isParent && len(image.Names) == 0) && !removeAll {
+			// a parent, do not delete image.
+			if len(image.Names) > 0 && !removeAll {
 				continue
 			}
 
@@ -262,16 +262,16 @@ func removeImage(image *storage.Image, store storage.Store) (string, error) {
 	for parent != nil {
 		nextParent, err := getParent(store, parent.TopLayer)
 		if err != nil {
-			return "", err
+			return image.ID, errors.Wrapf(err, "unable to get parent from image %q", image.ID)
 		}
 		children, err := getChildren(store, parent.TopLayer)
 		if err != nil {
-			return "", err
+			return image.ID, errors.Wrapf(err, "unable to get children from image %q", image.ID)
 		}
 		// Do not remove if image is a base image and is not untagged, or if
 		// the image has more children.
 		if len(parent.Names) > 0 || len(children) > 0 {
-			return "", nil
+			return image.ID, nil
 		}
 		id := parent.ID
 		if _, err := store.DeleteImage(id, true); err != nil {

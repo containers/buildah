@@ -83,8 +83,7 @@ load helpers
   buildah --debug inspect test1 | grep foo=bar
   buildah --debug  inspect test1 | grep random=hello
   buildah rm ${cid}
-  buildah rmi test
-  buildah rmi test1
+  buildah rmi -a -f
 }
 
 @test "bud-from-scratch" {
@@ -636,7 +635,7 @@ load helpers
   from_cid=$(buildah from ${from_target})
   cid=$(buildah from ${target})
   buildah rm ${from_cid} ${cid}
-  buildah rmi ${from_target} ${target}
+  buildah rmi -a -f
 }
 
 @test "bud with Dockerfile from valid URL" {
