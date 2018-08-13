@@ -790,7 +790,7 @@ load helpers
 
 @test "bud with ARGS" {
   target=alpine-image
-  run buildah -debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.args ${TESTSDIR}/bud/run-scenarios
+  run buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.args ${TESTSDIR}/bud/run-scenarios
   echo "$output"
   [[ "$output" =~ "arg_value" ]]
   [ "$status" -eq 0 ]
@@ -814,7 +814,7 @@ load helpers
 
 @test "bud with preprocessor" {
   target=alpine-image
-  run buildah -debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Decomposed.in ${TESTSDIR}/bud/preprocess
+  run buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Decomposed.in ${TESTSDIR}/bud/preprocess
   echo "$output"
   [ "$status" -eq 0 ]
   echo "$output"
@@ -822,7 +822,28 @@ load helpers
 
 @test "bud with preprocessor error" {
   target=alpine-image
-  run buildah -debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Error.in ${TESTSDIR}/bud/preprocess
+  run buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Error.in ${TESTSDIR}/bud/preprocess
   echo "$output"
   [ "$status" -eq 1 ]
+}
+@test "bud with chmod copy" {
+  imgName=alpine-image
+  ctrName=alpine-chown
+  run buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-chown
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run buildah --debug=false from --name ${ctrName} ${imgName}
+  echo "$output"
+  [ "$status" -eq 0 ] 
+  run buildah --debug=false run alpine-chown -- stat -c '%u' /tmp/copychown.txt
+  echo "$output"
+  # Validate that output starts with "2367"
+  [ $(expr "$output" : "2367") -ne 0 ]
+  [ "$status" -eq 0 ]
+  
+  run buildah --debug=false run alpine-chown -- stat -c '%g' /tmp/copychown.txt
+  echo "$output"
+  # Validate that output starts with "3267"
+  [ $(expr "$output" : "3267") -ne 0 ]
+  [ "$status" -eq 0 ]
 }
