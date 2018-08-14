@@ -317,7 +317,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Make "run --terminal" and "run -t" aliases for "run --tty"
 - Vendor github.com/containernetworking/cni v0.6.0
 - Update github.com/containers/storage
-- Update github.com/projectatomic/libpod
+- Update github.com/containers/libpod
 - Add support for buildah bud --label
 - buildah push/from can push and pull images with no reference
 - Vendor in latest containers/image
