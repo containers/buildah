@@ -186,7 +186,7 @@ If you have any suggestions or issues please post them at the [ProjectAtomic Bui
 
 For more information on Buildah and how you might contribute please visit the [Buildah home page on Github](https://github.com/projectatomic/buildah).
 
-[GitHub]: https://github.com/projectatomic/libpod/
+[GitHub]: https://github.com/containers/libpod/
 [image specification]: https://github.com/opencontainers/runtime-spec
 [Introduction Tutorial]: 01-intro.md
 [Open Container Initiative]: https://www.opencontainers.org/
