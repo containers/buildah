@@ -213,6 +213,8 @@ buildah run containerID -- ps -auxw
 
 buildah run --hostname myhost containerID -- ps -auxw
 
+buildah run containerID -- sh -c 'echo $PATH'
+
 buildah run --runtime-flag log-format=json containerID /bin/bash
 
 buildah run --runtime-flag debug containerID /bin/bash
