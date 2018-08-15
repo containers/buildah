@@ -11,7 +11,7 @@ load helpers
   run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-docker
   [ "$output" = "[/ENTRYPOINT]" ]
   [ "$status" -eq 0 ]
-  
+
   run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-oci
   [ "$output" = "[/ENTRYPOINT]" ]
   [ "$status" -eq 0 ]
@@ -37,7 +37,7 @@ load helpers
   run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-docker
   [ "$output" = "[/ENTRYPOINT ELEMENT2]" ]
   [ "$status" -eq 0 ]
- 
+
   run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-oci
   [ "$output" = "[/ENTRYPOINT ELEMENT2]" ]
   [ "$status" -eq 0 ]
@@ -247,4 +247,25 @@ load helpers
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Hostname}}' scratch-image-docker | grep cleverhostname
   # Shell isn't part of the OCI spec, so it's discarded when we save to OCI format.
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Shell}}' scratch-image-docker | grep /bin/arbitrarysh
+}
+
+@test "config env using --env expansion" {
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah config --env 'foo=bar' --env 'foo1=bar1' $cid
+  buildah config --env 'combined=$foo/${foo1}' $cid
+  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid env-image-docker
+  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid env-image-oci
+
+  run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Env}}' env-image-docker
+  echo $output
+  [[ "$output" =~ combined=bar/bar1 ]]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Env}}' env-image-docker
+  echo $output
+  [[ "$output" =~ combined=bar/bar1 ]]
+  [ "$status" -eq 0 ]
+
+  buildah rm $cid
+  buildah rmi env-image-docker env-image-oci
 }
