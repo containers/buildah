@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/containernetworking/cni/libcni"
+	"github.com/containers/libpod/pkg/secrets"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
@@ -31,7 +32,6 @@ import (
 	"github.com/projectatomic/buildah/bind"
 	"github.com/projectatomic/buildah/chroot"
 	"github.com/projectatomic/buildah/util"
-	"github.com/projectatomic/libpod/pkg/secrets"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sys/unix"
