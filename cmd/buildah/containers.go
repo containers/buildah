@@ -147,48 +147,59 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 		return seenImages[id]
 	}
 
-	builders, err := openBuilders(store)
-	if err != nil {
-		return errors.Wrapf(err, "error reading build containers")
-	}
 	var (
 		containerOutput []containerOutputParams
 		JSONContainers  []jsonContainer
 	)
+	builders, err := openBuilders(store)
+	if err != nil {
+		return errors.Wrapf(err, "error reading build containers")
+	}
+
+	builderMap := make(map[string]struct{})
+	for _, builder := range builders {
+		builderMap[builder.ContainerID] = struct{}{}
+	}
+
+	containers, err2 := store.Containers()
+	if err2 != nil {
+		return errors.Wrapf(err2, "error reading list of all containers")
+	}
+
 	if !opts.all {
 		// only output containers created by buildah
-		for _, builder := range builders {
-			image := imageNameForID(builder.FromImageID)
-			if !matchesCtrFilter(builder.ContainerID, builder.Container, builder.FromImageID, image, params) {
+		for _, container := range containers {
+			_, ours := builderMap[container.ID]
+			if !ours {
+				continue
+			}
+			name := ""
+			if len(container.Names) > 0 {
+				name = container.Names[0]
+			}
+			image := imageNameForID(container.ImageID)
+			if !matchesCtrFilter(container.ID, name, container.ImageID, image, params) {
 				continue
 			}
 			if opts.json {
-				JSONContainers = append(JSONContainers, jsonContainer{ID: builder.ContainerID,
+				JSONContainers = append(JSONContainers, jsonContainer{ID: container.ID,
 					Builder:       true,
-					ImageID:       builder.FromImageID,
+					ImageID:       container.ImageID,
 					ImageName:     image,
-					ContainerName: builder.Container})
+					ContainerName: name})
 				continue
 			}
 			output := containerOutputParams{
-				ContainerID:   builder.ContainerID,
+				ContainerID:   container.ID,
 				Builder:       "   *",
-				ImageID:       builder.FromImageID,
+				ImageID:       container.ImageID,
 				ImageName:     image,
-				ContainerName: builder.Container,
+				ContainerName: name,
 			}
 			containerOutput = append(containerOutput, output)
 		}
 	} else {
 		// output all containers currently in storage
-		builderMap := make(map[string]struct{})
-		for _, builder := range builders {
-			builderMap[builder.ContainerID] = struct{}{}
-		}
-		containers, err2 := store.Containers()
-		if err2 != nil {
-			return errors.Wrapf(err2, "error reading list of all containers")
-		}
 		for _, container := range containers {
 			name := ""
 			if len(container.Names) > 0 {
