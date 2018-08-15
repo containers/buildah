@@ -57,13 +57,16 @@ Default state dir is configured in /etc/containers/storage.conf
 
 **--storage-driver** **value**
 
-Storage driver.  The default storage driver for UID 0 is configured in /etc/containers/storage.conf, and is *vfs* for other users.
+Storage driver.  The default storage driver for UID 0 is configured in /etc/containers/storage.conf, and is *vfs* for other users.  The `STORAGE_DRIVER` environment variable overrides the default. The --storage-driver specified driver overrides all.
+
+Examples: "overlay", "devicemapper", "vfs"
+
 Overriding this option will cause the *storage-opt* settings in /etc/containers/storage.conf to be ignored.  The user must
 specify additional options via the `--storage-opt` flag.
 
 **--storage-opt** **value**
 
-Storage driver option, Default storage driver options are configured in /etc/containers/storage.conf
+Storage driver option, Default storage driver options are configured in /etc/containers/storage.conf. The `STORAGE_OPTS` environment variable overrides the default.  The --storage-opt specified options overrides all.
 
 **--userns-uid-map** *mapping*
 
