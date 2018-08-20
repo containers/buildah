@@ -177,6 +177,11 @@ load helpers
    --shell /bin/arbitrarysh \
    --domainname mydomain.local \
    --hostname cleverhostname \
+   --healthcheck "CMD /bin/true" \
+   --healthcheck-start-period 5s \
+   --healthcheck-interval 6s \
+   --healthcheck-timeout 7s \
+   --healthcheck-retries 8 \
   $cid
 
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
@@ -261,6 +266,16 @@ load helpers
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Hostname}}' scratch-image-docker | grep cleverhostname
   # Shell isn't part of the OCI spec, so it's discarded when we save to OCI format.
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Shell}}' scratch-image-docker | grep /bin/arbitrarysh
+  # Healthcheck command isn't part of the OCI spec, so it's discarded when we save to OCI format.
+  buildah --debug=false inspect -f '{{.Docker.Config.Healthcheck.Test}}' scratch-image-docker | grep true
+  # Healthcheck start period isn't part of the OCI spec, so it's discarded when we save to OCI format.
+  buildah --debug=false inspect -f '{{.Docker.Config.Healthcheck.StartPeriod}}' scratch-image-docker | grep 5
+  # Healthcheck interval isn't part of the OCI spec, so it's discarded when we save to OCI format.
+  buildah --debug=false inspect -f '{{.Docker.Config.Healthcheck.Interval}}' scratch-image-docker | grep 6
+  # Healthcheck timeout isn't part of the OCI spec, so it's discarded when we save to OCI format.
+  buildah --debug=false inspect -f '{{.Docker.Config.Healthcheck.Timeout}}' scratch-image-docker | grep 7
+  # Healthcheck retry count isn't part of the OCI spec, so it's discarded when we save to OCI format.
+  buildah --debug=false inspect -f '{{.Docker.Config.Healthcheck.Retries}}' scratch-image-docker | grep 8
 }
 
 @test "config env using --env expansion" {
