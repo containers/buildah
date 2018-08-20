@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
+	buildahdocker "github.com/containers/buildah/docker"
 	"github.com/containers/buildah/util"
 	cp "github.com/containers/image/copy"
 	"github.com/containers/image/docker/reference"
@@ -1139,6 +1140,17 @@ func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder, created
 	b.builder.SetEntrypoint(config.Entrypoint)
 	b.builder.SetShell(config.Shell)
 	b.builder.SetStopSignal(config.StopSignal)
+	if config.Healthcheck != nil {
+		b.builder.SetHealthcheck(&buildahdocker.HealthConfig{
+			Test:        append([]string{}, config.Healthcheck.Test...),
+			Interval:    config.Healthcheck.Interval,
+			Timeout:     config.Healthcheck.Timeout,
+			StartPeriod: config.Healthcheck.StartPeriod,
+			Retries:     config.Healthcheck.Retries,
+		})
+	} else {
+		b.builder.SetHealthcheck(nil)
+	}
 	b.builder.ClearLabels()
 	for k, v := range config.Labels {
 		b.builder.SetLabel(k, v)
