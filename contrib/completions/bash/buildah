@@ -274,6 +274,11 @@ return 1
        --entrypoint
        --env
        -e
+       --healthcheck
+       --healthcheck-interval
+       --healthcheck-retries
+       --healthcheck-start-period
+       --healthcheck-timeout
        --history-comment
        --hostname
        --label

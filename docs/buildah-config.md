@@ -69,6 +69,46 @@ executed together.
 Add a value (e.g. name=*value*) to the environment for containers based on any
 images which will be built using the specified container. Can be used multiple times.
 
+**--healthcheck** *command*
+
+Specify a command which should be run to check if a container is running correctly.
+
+Values can be *NONE*, "*CMD* ..." (run the specified command directly), or
+"*CMD-SHELL* ..." (run the specified command using the system's shell), or the
+empty value (remove a previously-set value and related settings).
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
+
+**--healthcheck-interval** *interval*
+
+Specify how often the command specified using the *--healthcheck* option should
+be run.
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
+
+**--healthcheck-retries** *count*
+
+Specify how many times the command specified using the *--healthcheck* option
+can fail before the container is considered to be unhealthy.
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
+
+**--healthcheck-start-period** *interval*
+
+Specify how long to wait after starting a container before running the command
+specified using the *--healthcheck* option.
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
+
+**--healthcheck-timeout** *interval*
+
+Specify how long to wait after starting the command specified using the
+*--healthcheck* option to wait for the command to return its exit status.  If
+the command has not returned within this time, it should be considered to have
+failed.
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
+
 **--history-comment** *comment*
 
 Sets a comment on the topmost layer in any images which will be created
@@ -89,8 +129,9 @@ images which will be built using the specified container. Can be used multiple t
 **--onbuild** *onbuild command*
 
 Add an ONBUILD command to the image.  ONBUILD commands are automatically run
-when images are built based on the image you are creating.  ONBUILD images are
-only supported on `docker` formatted images.
+when images are built based on the image you are creating.
+
+Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
 
 **--os** *operating system*
 

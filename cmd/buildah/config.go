@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/docker"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/mattn/go-shellwords"
@@ -50,6 +52,26 @@ var (
 		cli.StringSliceFlag{
 			Name:  "env, e",
 			Usage: "add `environment variable` to be set when running containers based on image (default [])",
+		},
+		cli.StringFlag{
+			Name:  "healthcheck",
+			Usage: "set a `healthcheck` command for the target image",
+		},
+		cli.StringFlag{
+			Name:  "healthcheck-interval",
+			Usage: "set the `interval` between runs of the `healthcheck` command for the target image",
+		},
+		cli.IntFlag{
+			Name:  "healthcheck-retries",
+			Usage: "set the `number` of times the `healthcheck` command has to fail",
+		},
+		cli.StringFlag{
+			Name:  "healthcheck-start-period",
+			Usage: "set the amount of `time` to wait after starting a container before running a `healthcheck` command",
+		},
+		cli.StringFlag{
+			Name:  "healthcheck-timeout",
+			Usage: "set the maximum amount of `time` to wait for a `healthcheck` command for the target image",
 		},
 		cli.StringFlag{
 			Name:  "history-comment",
@@ -198,6 +220,7 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 			}
 		}
 	}
+	updateHealthcheck(builder, c)
 	if c.IsSet("label") || c.IsSet("l") {
 		for _, labelSpec := range c.StringSlice("label") {
 			label := strings.SplitN(labelSpec, "=", 2)
@@ -236,6 +259,57 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 			} else {
 				builder.UnsetAnnotation(annotation[0])
 			}
+		}
+	}
+}
+
+func updateHealthcheck(builder *buildah.Builder, c *cli.Context) {
+	if c.IsSet("healthcheck") || c.IsSet("healthcheck-interval") || c.IsSet("healthcheck-retries") || c.IsSet("healthcheck-start-period") || c.IsSet("healthcheck-timeout") {
+		healthcheck := builder.Healthcheck()
+		if healthcheck == nil {
+			healthcheck = &docker.HealthConfig{
+				Test:        []string{"NONE"},
+				Interval:    30 * time.Second,
+				StartPeriod: 0,
+				Timeout:     30 * time.Second,
+				Retries:     3,
+			}
+		}
+		if c.IsSet("healthcheck") {
+			test, err := shellwords.Parse(c.String("healthcheck"))
+			if err != nil {
+				logrus.Errorf("error parsing --healthcheck %q: %v", c.String("healthcheck"), err)
+			}
+			healthcheck.Test = test
+		}
+		if c.IsSet("healthcheck-interval") {
+			duration, err := time.ParseDuration(c.String("healthcheck-interval"))
+			if err != nil {
+				logrus.Errorf("error parsing --healthcheck-interval %q: %v", c.String("healthcheck-interval"), err)
+			}
+			healthcheck.Interval = duration
+		}
+		if c.IsSet("healthcheck-retries") {
+			healthcheck.Retries = c.Int("healthcheck-retries")
+		}
+		if c.IsSet("healthcheck-start-period") {
+			duration, err := time.ParseDuration(c.String("healthcheck-start-period"))
+			if err != nil {
+				logrus.Errorf("error parsing --healthcheck-start-period %q: %v", c.String("healthcheck-start-period"), err)
+			}
+			healthcheck.StartPeriod = duration
+		}
+		if c.IsSet("healthcheck-timeout") {
+			duration, err := time.ParseDuration(c.String("healthcheck-timeout"))
+			if err != nil {
+				logrus.Errorf("error parsing --healthcheck-timeout %q: %v", c.String("healthcheck-timeout"), err)
+			}
+			healthcheck.Timeout = duration
+		}
+		if len(healthcheck.Test) == 0 {
+			builder.SetHealthcheck(nil)
+		} else {
+			builder.SetHealthcheck(healthcheck)
 		}
 	}
 }
