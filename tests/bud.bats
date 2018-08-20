@@ -1060,3 +1060,15 @@ load helpers
   [ "$status" -eq 0 ]
 }
 
+@test "bud-with-healthcheck" {
+  target=alpine-image
+  buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} --format docker ${TESTSDIR}/bud/healthcheck
+  run buildah --debug=false inspect -f '{{printf "%q" .Docker.Config.Healthcheck.Test}} {{printf "%d" .Docker.Config.Healthcheck.StartPeriod}} {{printf "%d" .Docker.Config.Healthcheck.Interval}} {{printf "%d" .Docker.Config.Healthcheck.Timeout}} {{printf "%d" .Docker.Config.Healthcheck.Retries}}' ${target}
+  echo "$output"
+  [ "$status" -eq 0 ]
+  second=1000000000
+  threeseconds=$(( 3 * $second ))
+  fiveminutes=$(( 5 * 60 * $second ))
+  tenminutes=$(( 10 * 60 * $second ))
+  [ "$output" = '["CMD-SHELL" "curl -f http://localhost/ || exit 1"]'" $tenminutes $fiveminutes $threeseconds 4" ]
+}
