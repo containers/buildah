@@ -85,7 +85,6 @@ var (
 		Flags:                  containersFlags,
 		Action:                 containersCmd,
 		ArgsUsage:              " ",
-		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}
 )

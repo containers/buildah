@@ -79,7 +79,6 @@ var (
 		Flags:                  commitFlags,
 		Action:                 commitCmd,
 		ArgsUsage:              "CONTAINER-NAME-OR-ID IMAGE",
-		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}
 )

@@ -64,7 +64,6 @@ var (
 		Flags:                  append(append(runFlags, userFlags...), buildahcli.NamespaceFlags...),
 		Action:                 runCmd,
 		ArgsUsage:              "CONTAINER-NAME-OR-ID COMMAND [ARGS [...]]",
-		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}
 )

@@ -17,14 +17,13 @@ var (
 		},
 	}
 	umountCommand = cli.Command{
-		Name:                   "umount",
-		Aliases:                []string{"unmount"},
-		Usage:                  "Unmounts the root file system on the specified working containers",
-		Description:            "Unmounts the root file system on the specified working containers",
-		Action:                 umountCmd,
-		ArgsUsage:              "[CONTAINER-NAME-OR-ID [...]]",
-		Flags:                  umountFlags,
-		SkipArgReorder:         true,
+		Name:        "umount",
+		Aliases:     []string{"unmount"},
+		Usage:       "Unmounts the root file system on the specified working containers",
+		Description: "Unmounts the root file system on the specified working containers",
+		Action:      umountCmd,
+		ArgsUsage:   "[CONTAINER-NAME-OR-ID [...]]",
+		Flags:       umountFlags,
 		UseShortOptionHandling: true,
 	}
 )

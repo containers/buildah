@@ -72,7 +72,6 @@ var (
 		Flags:                  pushFlags,
 		Action:                 pushCmd,
 		ArgsUsage:              "IMAGE DESTINATION",
-		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}
 )

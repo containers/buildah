@@ -29,12 +29,11 @@ const (
 var (
 	unshareDescription = "Runs a command in a modified user namespace"
 	unshareCommand     = cli.Command{
-		Name:           "unshare",
-		Usage:          "Run a command in a modified user namespace",
-		Description:    unshareDescription,
-		Action:         unshareCmd,
-		ArgsUsage:      "[COMMAND [ARGS [...]]]",
-		SkipArgReorder: true,
+		Name:        "unshare",
+		Usage:       "Run a command in a modified user namespace",
+		Description: unshareDescription,
+		Action:      unshareCmd,
+		ArgsUsage:   "[COMMAND [ARGS [...]]]",
 	}
 )
 
