@@ -33,12 +33,12 @@ tests:
   - podman pull alpine
   - podman login localhost:5000 --username testuser --password testpassword
   - podman tag alpine localhost:5000/my-alpine
-  - podman push localhost:5000/my-alpine
+  - podman push --creds=testuser:testpassword localhost:5000/my-alpine
   - podman ps --all
   - podman images
   - podman rmi docker.io/alpine
   - podman rmi localhost:5000/my-alpine
-  - podman pull localhost:5000/my-alpine
+  - podman pull --creds=testuser:testpassword localhost:5000/my-alpine
   - podman ps --all
   - podman images
   - podman rmi localhost:5000/my-alpine
