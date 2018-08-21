@@ -50,3 +50,11 @@ load helpers
   echo FROM
   buildah --storage-driver vfs --root ${TESTDIR}/root2 --runroot ${TESTDIR}/runroot2 from --signature-policy ${TESTSDIR}/policy.json newimage
 }
+
+@test "commit-rejected-name" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run buildah --debug=false commit --signature-policy ${TESTSDIR}/policy.json $cid ThisNameShouldBeRejected
+  echo "$output"
+  [ "${status}" -ne 0 ]
+  [[ "${output}" =~ "must be lower" ]]
+}

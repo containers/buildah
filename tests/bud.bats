@@ -826,6 +826,15 @@ load helpers
   echo "$output"
   [ "$status" -eq 1 ]
 }
+
+@test "bud-with-rejected-name" {
+  target=ThisNameShouldBeRejected
+  run buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  echo "$output"
+  [ "$status" -eq 1 ]
+  [[ "${output}" =~ "must be lower" ]]
+}
+
 @test "bud with chmod copy" {
   imgName=alpine-image
   ctrName=alpine-chown
