@@ -35,13 +35,12 @@ var (
 	}
 
 	copyCommand = cli.Command{
-		Name:           "copy",
-		Usage:          "Copy content into the container",
-		Description:    copyDescription,
-		Flags:          addAndCopyFlags,
-		Action:         copyCmd,
-		ArgsUsage:      "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
-		SkipArgReorder: true,
+		Name:        "copy",
+		Usage:       "Copy content into the container",
+		Description: copyDescription,
+		Flags:       addAndCopyFlags,
+		Action:      copyCmd,
+		ArgsUsage:   "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
 	}
 )
 

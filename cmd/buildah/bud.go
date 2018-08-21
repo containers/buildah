@@ -24,7 +24,6 @@ var (
 		Flags:                  append(buildahcli.BudFlags, buildahcli.FromAndBudFlags...),
 		Action:                 budCmd,
 		ArgsUsage:              "CONTEXT-DIRECTORY | URL",
-		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}
 )

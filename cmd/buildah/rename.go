@@ -14,7 +14,6 @@ var (
 		Description:            renameDescription,
 		Action:                 renameCmd,
 		ArgsUsage:              "CONTAINER-NAME-OR-ID CONTAINER-NAME",
-		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}
 )

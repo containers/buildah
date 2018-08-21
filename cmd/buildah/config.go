@@ -103,7 +103,6 @@ var (
 		Flags:                  configFlags,
 		Action:                 configCmd,
 		ArgsUsage:              "CONTAINER-NAME-OR-ID",
-		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}
 )

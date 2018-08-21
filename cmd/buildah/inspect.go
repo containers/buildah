@@ -39,7 +39,6 @@ var (
 		Flags:                  inspectFlags,
 		Action:                 inspectCmd,
 		ArgsUsage:              "CONTAINER-OR-IMAGE",
-		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}
 )

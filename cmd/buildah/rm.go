@@ -19,14 +19,13 @@ var (
 		},
 	}
 	rmCommand = cli.Command{
-		Name:                   "rm",
-		Aliases:                []string{"delete"},
-		Usage:                  "Remove one or more working containers",
-		Description:            rmDescription,
-		Action:                 rmCmd,
-		ArgsUsage:              "CONTAINER-NAME-OR-ID [...]",
-		Flags:                  rmFlags,
-		SkipArgReorder:         true,
+		Name:        "rm",
+		Aliases:     []string{"delete"},
+		Usage:       "Remove one or more working containers",
+		Description: rmDescription,
+		Action:      rmCmd,
+		ArgsUsage:   "CONTAINER-NAME-OR-ID [...]",
+		Flags:       rmFlags,
 		UseShortOptionHandling: true,
 	}
 )

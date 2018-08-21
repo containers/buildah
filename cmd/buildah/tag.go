@@ -15,7 +15,6 @@ var (
 		Description:            tagDescription,
 		Action:                 tagCmd,
 		ArgsUsage:              "IMAGE-NAME [IMAGE-NAME ...]",
-		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}
 )

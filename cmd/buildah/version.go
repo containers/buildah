@@ -53,6 +53,5 @@ var versionCommand = cli.Command{
 	Name:                   "version",
 	Usage:                  "Display the Buildah Version Information",
 	Action:                 versionCmd,
-	SkipArgReorder:         true,
 	UseShortOptionHandling: true,
 }
