@@ -965,6 +965,7 @@ func (b *Executor) getFilesToCopy(node *parser.Node) ([]string, error) {
 		}
 		if strings.HasPrefix(currNode.Value, "http://") || strings.HasPrefix(currNode.Value, "https://") {
 			src = append(src, currNode.Value)
+			currNode = currNode.Next
 			continue
 		}
 		matches, err := filepath.Glob(filepath.Join(b.contextDir, currNode.Value))
