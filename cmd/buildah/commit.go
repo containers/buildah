@@ -143,7 +143,10 @@ func commitCmd(c *cli.Context) error {
 
 	dest, err := alltransports.ParseImageName(image)
 	if err != nil {
-		candidates := util.ResolveName(image, "", systemContext, store)
+		candidates, err := util.ResolveName(image, "", systemContext, store)
+		if err != nil {
+			return errors.Wrapf(err, "error parsing target image name %q", image)
+		}
 		if len(candidates) == 0 {
 			return errors.Errorf("error parsing target image name %q", image)
 		}
