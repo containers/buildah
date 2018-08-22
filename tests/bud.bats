@@ -75,6 +75,13 @@ load helpers
   buildah rmi -a -f
 }
 
+@test "bud --layers with non-existent/down registry" {
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json --force-rm --layers -t test1 -f Dockerfile.non-existent-registry ${TESTSDIR}/bud/use-layers
+  echo "$output"
+  [ "$status" -ne 0 ]
+  [[ "$output" =~ "image not known" ]]
+}
+
 @test "bud from base image should have base image ENV also" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t test -f Dockerfile.check-env ${TESTSDIR}/bud/env
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json test)

@@ -1147,7 +1147,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) error 
 	for _, stage := range stages {
 		stageExecutor = b.withName(stage.Name, stage.Position)
 		if err := stageExecutor.Prepare(ctx, stage.Builder, stage.Node, ""); err != nil {
-			lastErr = err
+			return err
 		}
 		// Always remove the intermediate/build containers, even if the build was unsuccessful.
 		// If building with layers, remove all intermediate/build containers if b.forceRmIntermediateCtrs
