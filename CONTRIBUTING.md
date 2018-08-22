@@ -9,6 +9,7 @@ that we follow.
 
 * [Reporting Issues](#reporting-issues)
 * [Submitting Pull Requests](#submitting-pull-requests)
+* [Sign your PRs](#sign-your-prs)
 * [Communications](#communications)
 * [Becoming a Maintainer](#becoming-a-maintainer)
 
