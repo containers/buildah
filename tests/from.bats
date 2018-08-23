@@ -312,7 +312,7 @@ load helpers
 }
 
 @test "from volume ro test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
+  if test "$BUILDAH_ISOLATION" = "chroot" ; then
     skip
   fi
   if ! which runc ; then
