@@ -965,6 +965,7 @@ func (b *Executor) getFilesToCopy(node *parser.Node) ([]string, error) {
 		}
 		if strings.HasPrefix(currNode.Value, "http://") || strings.HasPrefix(currNode.Value, "https://") {
 			src = append(src, currNode.Value)
+			currNode = currNode.Next
 			continue
 		}
 		matches, err := filepath.Glob(filepath.Join(b.contextDir, currNode.Value))
@@ -1146,7 +1147,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) error 
 	for _, stage := range stages {
 		stageExecutor = b.withName(stage.Name, stage.Position)
 		if err := stageExecutor.Prepare(ctx, stage.Builder, stage.Node, ""); err != nil {
-			lastErr = err
+			return err
 		}
 		// Always remove the intermediate/build containers, even if the build was unsuccessful.
 		// If building with layers, remove all intermediate/build containers if b.forceRmIntermediateCtrs
