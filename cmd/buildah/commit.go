@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/containers/image/storage"
@@ -116,13 +115,9 @@ func commitCmd(c *cli.Context) error {
 		timestamp = finfo.ModTime().UTC()
 	}
 
-	format := c.String("format")
-	if strings.HasPrefix(strings.ToLower(format), "oci") {
-		format = buildah.OCIv1ImageManifest
-	} else if strings.HasPrefix(strings.ToLower(format), "docker") {
-		format = buildah.Dockerv2ImageManifest
-	} else {
-		return errors.Errorf("unrecognized image type %q", format)
+	format, err := getFormat(c)
+	if err != nil {
+		return err
 	}
 	store, err := getStore(c)
 	if err != nil {
