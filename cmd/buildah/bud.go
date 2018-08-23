@@ -72,16 +72,9 @@ func budCmd(c *cli.Context) error {
 	}
 
 	dockerfiles := getDockerfiles(c.StringSlice("file"))
-	format := defaultFormat()
-	if c.IsSet("format") {
-		format = strings.ToLower(c.String("format"))
-	}
-	if strings.HasPrefix(format, "oci") {
-		format = imagebuildah.OCIv1ImageFormat
-	} else if strings.HasPrefix(format, "docker") {
-		format = imagebuildah.Dockerv2ImageFormat
-	} else {
-		return errors.Errorf("unrecognized image type %q", format)
+	format, err := getFormat(c)
+	if err != nil {
+		return err
 	}
 	layers := buildahcli.UseLayers()
 	if c.IsSet("layers") {

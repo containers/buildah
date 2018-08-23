@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	is "github.com/containers/image/storage"
@@ -152,7 +153,7 @@ func defaultFormat() string {
 	if format != "" {
 		return format
 	}
-	return "oci"
+	return buildah.OCI
 }
 
 // imageIsParent goes through the layers in the store and checks if i.TopLayer is
@@ -215,4 +216,16 @@ func getImageOfTopLayer(images []storage.Image, layer string) []string {
 		}
 	}
 	return matches
+}
+
+func getFormat(c *cli.Context) (string, error) {
+	format := strings.ToLower(c.String("format"))
+	if strings.HasPrefix(format, buildah.OCI) {
+		return buildah.OCIv1ImageManifest, nil
+	}
+
+	if strings.HasPrefix(format, buildah.DOCKER) {
+		return buildah.Dockerv2ImageManifest, nil
+	}
+	return "", errors.Errorf("unrecognized image type %q", format)
 }
