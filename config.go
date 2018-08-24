@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
+	"github.com/containers/storage/pkg/stringid"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah/docker"
@@ -107,8 +107,8 @@ func (b *Builder) fixupConfig() {
 	if b.Architecture() == "" {
 		b.SetArchitecture(runtime.GOARCH)
 	}
-	if b.WorkDir() == "" {
-		b.SetWorkDir(string(filepath.Separator))
+	if b.Hostname() == "" {
+		b.SetHostname(stringid.TruncateID(stringid.GenerateRandomID()))
 	}
 }
 
@@ -327,7 +327,10 @@ func (b *Builder) SetCmd(cmd []string) {
 // Entrypoint returns the command to be run for containers built from images
 // built from this container.
 func (b *Builder) Entrypoint() []string {
-	return copyStringSlice(b.OCIv1.Config.Entrypoint)
+	if len(b.OCIv1.Config.Entrypoint) > 0 {
+		return copyStringSlice(b.OCIv1.Config.Entrypoint)
+	}
+	return nil
 }
 
 // SetEntrypoint sets the command to be run for in containers built from images
@@ -416,7 +419,10 @@ func (b *Builder) Volumes() []string {
 	for k := range b.OCIv1.Config.Volumes {
 		v = append(v, k)
 	}
-	return v
+	if len(v) > 0 {
+		return v
+	}
+	return nil
 }
 
 // AddVolume adds a location to the image's list of locations which should be
