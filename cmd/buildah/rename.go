@@ -49,5 +49,6 @@ func renameCmd(c *cli.Context) error {
 	if err != nil {
 		return errors.Wrapf(err, "error renaming container %q to the name %q", oldName, newName)
 	}
-	return nil
+	builder.Container = newName
+	return builder.Save()
 }
