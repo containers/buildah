@@ -36,6 +36,12 @@ var (
 			Usage: "use `[username[:password]]` for accessing the registry",
 		},
 		cli.StringFlag{
+			Name:   "format, f",
+			Usage:  "`format` of the image manifest and metadata",
+			Value:  defaultFormat(),
+			Hidden: true,
+		},
+		cli.StringFlag{
 			Name:  "name",
 			Usage: "`name` for the working container",
 		},
@@ -211,6 +217,11 @@ func fromCmd(c *cli.Context) error {
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 
+	format, err := getFormat(c)
+	if err != nil {
+		return err
+	}
+
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
 		Transport:             transport,
@@ -228,6 +239,7 @@ func fromCmd(c *cli.Context) error {
 		AddCapabilities:       c.StringSlice("cap-add"),
 		DropCapabilities:      c.StringSlice("cap-drop"),
 		CommonBuildOpts:       commonOpts,
+		Format:                format,
 	}
 
 	if !c.Bool("quiet") {
