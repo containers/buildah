@@ -1,0 +1,2 @@
+FROM busybox
+COPY existing/ .
