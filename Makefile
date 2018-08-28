@@ -101,7 +101,7 @@ install.runc:
 
 .PHONY: test-integration
 test-integration:
-	ginkgo -v tests/e2e/.
+	ginkgo -v -cover -progress -trace tests/e2e/.
 	cd tests; ./test_runner.sh
 
 tests/testreport/testreport: tests/testreport/testreport.go
