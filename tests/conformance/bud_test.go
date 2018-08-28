@@ -67,8 +67,6 @@ var _ = Describe("Buildah build conformance test", func() {
 				dst = filepath.Join(buildahtest.TempDir, "Dockerfile")
 			}
 			CopyFiles(dockerfilePath, dst)
-			tmp := SystemExec("ls", []string{dst})
-			tmp.WaitWithDefaultTimeout()
 
 			buildahoptions := []string{"bud", "-t", "buildahimage", buildDir}
 			dockeroptions := []string{"build", "-t", "dockerimage", buildDir}
