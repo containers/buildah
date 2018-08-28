@@ -52,7 +52,10 @@ var _ = Describe("Buildah build conformance test", func() {
 
 	AfterEach(func() {
 		buildahtest.Cleanup()
-		buildahtest.Docker([]string{"rmi", "-f", "buildahimage"})
+		cleanup := buildahtest.Docker([]string{"rmi", "-f", "buildahimage"})
+		cleanup.WaitWithDefaultTimeout()
+		cleanup = buildahtest.Docker([]string{"rmi", "-f", "dockerimage"})
+		cleanup.WaitWithDefaultTimeout()
 	})
 
 	DescribeTable("conformance with docker",
