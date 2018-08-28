@@ -45,6 +45,10 @@ func renameCmd(c *cli.Context) error {
 		return errors.Errorf("renaming a container with the same name as its current name")
 	}
 
+	if build, err := openBuilder(getContext(), store, newName); err == nil {
+		return errors.Errorf("The container name %q is already in use by container %q", newName, build.ContainerID)
+	}
+
 	err = store.SetNames(builder.ContainerID, []string{newName})
 	if err != nil {
 		return errors.Wrapf(err, "error renaming container %q to the name %q", oldName, newName)
