@@ -52,7 +52,10 @@ var _ = Describe("Buildah build conformance test", func() {
 
 	AfterEach(func() {
 		buildahtest.Cleanup()
-		buildahtest.Docker([]string{"rmi", "-f", "buildahimage"})
+		cleanup := buildahtest.Docker([]string{"rmi", "-f", "buildahimage"})
+		cleanup.WaitWithDefaultTimeout()
+		cleanup = buildahtest.Docker([]string{"rmi", "-f", "dockerimage"})
+		cleanup.WaitWithDefaultTimeout()
 	})
 
 	DescribeTable("conformance with docker",
@@ -64,8 +67,6 @@ var _ = Describe("Buildah build conformance test", func() {
 				dst = filepath.Join(buildahtest.TempDir, "Dockerfile")
 			}
 			CopyFiles(dockerfilePath, dst)
-			tmp := SystemExec("ls", []string{dst})
-			tmp.WaitWithDefaultTimeout()
 
 			buildahoptions := []string{"bud", "-t", "buildahimage", buildDir}
 			dockeroptions := []string{"build", "-t", "dockerimage", buildDir}
@@ -350,7 +351,7 @@ var _ = Describe("Buildah build conformance test", func() {
 		Entry("run with JSON", BuildTest{
 			Dockerfile:   "Dockerfile.run.args",
 			BuildahRegex: "(first|third|fifth|inner) (second|fourth|sixth|outer)",
-			DockerRegex:  "Running in [0-9a-z]+ (first|third|fifth|inner) (second|fourth|sixth|outer)",
+			DockerRegex:  "Running in [0-9a-z]+.*?(first|third|fifth|inner) (second|fourth|sixth|outer)",
 			IsFile:       true,
 			ExtraOptions: []string{"--no-cache"},
 		}),
