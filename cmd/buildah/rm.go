@@ -57,12 +57,11 @@ func rmCmd(c *cli.Context) error {
 		}
 
 		for _, builder := range builders {
-			id := builder.ContainerID
 			if err = builder.Delete(); err != nil {
 				lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "%s %q", delContainerErrStr, builder.Container), lastError)
 				continue
 			}
-			fmt.Printf("%s\n", id)
+			fmt.Printf("%s\n", builder.ContainerID)
 		}
 	} else {
 		for _, name := range args {
@@ -71,12 +70,11 @@ func rmCmd(c *cli.Context) error {
 				lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "%s %q", delContainerErrStr, name), lastError)
 				continue
 			}
-			id := builder.ContainerID
 			if err = builder.Delete(); err != nil {
 				lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "%s %q", delContainerErrStr, name), lastError)
 				continue
 			}
-			fmt.Printf("%s\n", id)
+			fmt.Printf("%s\n", builder.ContainerID)
 		}
 
 	}
