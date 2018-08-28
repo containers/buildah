@@ -41,11 +41,11 @@ var (
 		"inspect",
 		"mount",
 		"push",
-		"rm", "delete",
+		"rm",
 		"rmi",
 		"run",
 		"tag",
-		"umount", "unmount",
+		"umount",
 		"unshare",
 	}
 	ERR_MSG = `The test Dockerfile:
@@ -68,7 +68,7 @@ type BuildAhTest struct {
 	TempDir           string
 	TestDataDir       string
 	GlobalOptions     map[string]string
-	BuildahCmdOptions []string
+	BuildahCmdOptions map[string][]string
 }
 
 // TestBuildAh ginkgo master function
@@ -118,7 +118,7 @@ func BuildahCreate(tempDir string) BuildAhTest {
 	var globalOptions map[string]string
 	var option string
 	var envKey string
-	var buildahCmdOptions []string
+	buildahCmdOptions := make(map[string][]string)
 	cwd, _ := os.Getwd()
 
 	for _, n := range GLOBALOPTIONS {
@@ -132,8 +132,7 @@ func BuildahCreate(tempDir string) BuildAhTest {
 	for _, n := range BUILDAH_SUBCMD {
 		envKey = strings.Replace("BUILDAH_SUBCMD_OPTIONS", "SUBCMD", strings.ToUpper(n), -1)
 		if envSeted(envKey) {
-			buildahCmdOptions = append(buildahCmdOptions,
-				strings.Split(os.Getenv("BUILDAH_BUD_OPTIONS"), " ")...)
+			buildahCmdOptions[n] = strings.Split(os.Getenv(envKey), " ")
 		}
 	}
 
@@ -171,10 +170,21 @@ func (p *BuildAhTest) MakeOptions(args []string) []string {
 		}
 	}
 
-	addOptions = append(addOptions, args[0])
-	if (args[0] == "bud") || (args[0] == "build-using-dockerfile") {
+	subCmd := args[0]
+	addOptions = append(addOptions, subCmd)
+	if subCmd == "build-using-dockerfile" {
+		subCmd = "bud"
+	}
+	if subCmd == "unmount" {
+		subCmd = "umount"
+	}
+	if subCmd == "delete" {
+		subCmd = "rm"
+	}
+
+	if _, ok := p.BuildahCmdOptions[subCmd]; ok {
 		m := make(map[string]bool)
-		subArgs = p.BuildahCmdOptions
+		subArgs = p.BuildahCmdOptions[subCmd]
 		for i := 0; i < len(subArgs); i++ {
 			m[subArgs[i]] = true
 		}
