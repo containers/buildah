@@ -350,7 +350,7 @@ var _ = Describe("Buildah build conformance test", func() {
 		Entry("run with JSON", BuildTest{
 			Dockerfile:   "Dockerfile.run.args",
 			BuildahRegex: "(first|third|fifth|inner) (second|fourth|sixth|outer)",
-			DockerRegex:  "Running in [0-9a-z]+ (first|third|fifth|inner) (second|fourth|sixth|outer)",
+			DockerRegex:  "Running in [0-9a-z]+.*?(first|third|fifth|inner) (second|fourth|sixth|outer)",
 			IsFile:       true,
 			ExtraOptions: []string{"--no-cache"},
 		}),
