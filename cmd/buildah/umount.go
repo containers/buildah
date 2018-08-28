@@ -63,7 +63,6 @@ func umountCmd(c *cli.Context) error {
 				continue
 			}
 
-			id := builder.ContainerID
 			if err = builder.Unmount(); err != nil {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
@@ -71,7 +70,7 @@ func umountCmd(c *cli.Context) error {
 				lastError = errors.Wrapf(err, "%s %q", umountContainerErrStr, builder.Container)
 				continue
 			}
-			fmt.Printf("%s\n", id)
+			fmt.Printf("%s\n", builder.ContainerID)
 		}
 	} else {
 		builders, err := openBuilders(store)
@@ -83,7 +82,6 @@ func umountCmd(c *cli.Context) error {
 				continue
 			}
 
-			id := builder.ContainerID
 			if err = builder.Unmount(); err != nil {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
@@ -91,7 +89,7 @@ func umountCmd(c *cli.Context) error {
 				lastError = errors.Wrapf(err, "%s %q", umountContainerErrStr, builder.Container)
 				continue
 			}
-			fmt.Printf("%s\n", id)
+			fmt.Printf("%s\n", builder.ContainerID)
 		}
 	}
 	return lastError
