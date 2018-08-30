@@ -208,6 +208,7 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 					ImageID:       container.ImageID,
 					ImageName:     imageNameForID(container.ImageID),
 					ContainerName: name})
+				continue
 			}
 			output := containerOutputParams{
 				ContainerID:   container.ID,
