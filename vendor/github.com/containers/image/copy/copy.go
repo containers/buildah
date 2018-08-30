@@ -71,7 +71,6 @@ func (d *digestingReader) Read(p []byte) (int, error) {
 // copier allows us to keep track of diffID values for blobs, and other
 // data shared across one or more images in a possible manifest list.
 type copier struct {
-	copiedBlobs      map[digest.Digest]digest.Digest
 	cachedDiffIDs    map[digest.Digest]digest.Digest
 	dest             types.ImageDestination
 	rawSource        types.ImageSource
@@ -141,7 +140,6 @@ func Image(ctx context.Context, policyContext *signature.PolicyContext, destRef,
 	}()
 
 	c := &copier{
-		copiedBlobs:      make(map[digest.Digest]digest.Digest),
 		cachedDiffIDs:    make(map[digest.Digest]digest.Digest),
 		dest:             dest,
 		rawSource:        rawSource,
@@ -604,6 +602,7 @@ func computeDiffID(stream io.Reader, decompressor compression.DecompressorFunc) 
 		if err != nil {
 			return "", err
 		}
+		defer s.Close()
 		stream = s
 	}
 
@@ -673,10 +672,12 @@ func (c *copier) copyBlobFromStream(ctx context.Context, srcStream io.Reader, sr
 		inputInfo.Size = -1
 	} else if canModifyBlob && c.dest.DesiredLayerCompression() == types.Decompress && isCompressed {
 		logrus.Debugf("Blob will be decompressed")
-		destStream, err = decompressor(destStream)
+		s, err := decompressor(destStream)
 		if err != nil {
 			return types.BlobInfo{}, err
 		}
+		defer s.Close()
+		destStream = s
 		inputInfo.Digest = ""
 		inputInfo.Size = -1
 	} else {
