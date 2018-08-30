@@ -327,6 +327,7 @@ environment variable.  `export BUILDAH_RUNTIME=/usr/local/bin/runc`
 Adds global flags for the container rutime. To list the supported flags, please
 consult the manpages of the selected container runtime (`runc` is the default
 runtime, the manpage to consult is `runc(8)`).
+
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah bud, the option given would be `--runtime-flag log-format=json`.
 
@@ -555,11 +556,11 @@ buildah bud -f Dockerfile.simple .
 
 cat ~/Dockerfile | buildah bud -f - .
 
-buildah bud -f Dockerfile.simple -f Dockerfile.notsosimple
+buildah bud -f Dockerfile.simple -f Dockerfile.notsosimple .
 
 buildah bud -t imageName .
 
-buildah bud --tls-verify=true -t imageName -f Dockerfile.simple
+buildah bud --tls-verify=true -t imageName -f Dockerfile.simple .
 
 buildah bud --tls-verify=false -t imageName .
 
@@ -567,7 +568,7 @@ buildah bud --runtime-flag log-format=json .
 
 buildah bud --runtime-flag debug .
 
-buildah bud --authfile /tmp/auths/myauths.json --cert-dir ~/auth --tls-verify=true --creds=username:password -t imageName -f Dockerfile.simple
+buildah bud --authfile /tmp/auths/myauths.json --cert-dir ~/auth --tls-verify=true --creds=username:password -t imageName -f Dockerfile.simple .
 
 buildah bud --memory 40m --cpu-period 10000 --cpu-quota 50000 --ulimit nofile=1024:1028 -t imageName .
 
