@@ -197,6 +197,11 @@ func TestOutputImagesQuietTruncated(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
+	opts := imageOptions{
+		truncate: true,
+		quiet:    true,
+	}
+
 	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
@@ -217,7 +222,7 @@ func TestOutputImagesQuietTruncated(t *testing.T) {
 
 	// Tests quiet and truncated output
 	output, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:1], "", store, nil, "", false, true, false, true, false)
+		return outputImages(getContext(), images[:1], store, nil, "", opts)
 	})
 	expectedOutput := fmt.Sprintf("%-64s\n", images[0].ID)
 	if err != nil {
@@ -231,6 +236,9 @@ func TestOutputImagesQuietNotTruncated(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
+	opts := imageOptions{
+		quiet: true,
+	}
 	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
@@ -251,7 +259,7 @@ func TestOutputImagesQuietNotTruncated(t *testing.T) {
 
 	// Tests quiet and non-truncated output
 	output, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:1], "", store, nil, "", false, false, false, true, false)
+		return outputImages(getContext(), images[:1], store, nil, "", opts)
 	})
 	expectedOutput := fmt.Sprintf("%-64s\n", images[0].ID)
 	if err != nil {
@@ -265,6 +273,10 @@ func TestOutputImagesFormatString(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
+	opts := imageOptions{
+		format:   "{{.ID}}",
+		truncate: true,
+	}
 	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
@@ -285,7 +297,7 @@ func TestOutputImagesFormatString(t *testing.T) {
 
 	// Tests output with format template
 	output, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:1], "{{.ID}}", store, nil, "", true, true, false, false, false)
+		return outputImages(getContext(), images[:1], store, nil, "", opts)
 	})
 	expectedOutput := images[0].ID
 	if err != nil {
@@ -299,6 +311,9 @@ func TestOutputImagesFormatTemplate(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
+	opts := imageOptions{
+		quiet: true,
+	}
 	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
@@ -319,7 +334,7 @@ func TestOutputImagesFormatTemplate(t *testing.T) {
 
 	// Tests quiet and non-truncated output
 	output, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:1], "", store, nil, "", false, false, false, true, false)
+		return outputImages(getContext(), images[:1], store, nil, "", opts)
 	})
 	expectedOutput := fmt.Sprintf("%-64s\n", images[0].ID)
 	if err != nil {
@@ -333,6 +348,9 @@ func TestOutputImagesArgNoMatch(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
+	opts := imageOptions{
+		truncate: true,
+	}
 	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
@@ -355,7 +373,7 @@ func TestOutputImagesArgNoMatch(t *testing.T) {
 	// because all images in the repository must have a tag, and here the tag is an
 	// empty string
 	_, err = captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:1], "", store, nil, "foo:", false, true, false, false, false)
+		return outputImages(getContext(), images[:1], store, nil, "foo:", opts)
 	})
 	if err == nil || err.Error() != "No such image foo:" {
 		t.Fatalf("expected error arg no match")
@@ -366,6 +384,10 @@ func TestOutputMultipleImages(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
+	opts := imageOptions{
+		quiet:    true,
+		truncate: true,
+	}
 	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		t.Fatal(err)
@@ -390,7 +412,7 @@ func TestOutputMultipleImages(t *testing.T) {
 
 	// Tests quiet and truncated output
 	output, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:2], "", store, nil, "", false, true, false, true, false)
+		return outputImages(getContext(), images[:2], store, nil, "", opts)
 	})
 	expectedOutput := fmt.Sprintf("%-64s\n%-64s\n", images[0].ID, images[1].ID)
 	if err != nil {

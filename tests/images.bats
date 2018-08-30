@@ -69,6 +69,20 @@ load helpers
   buildah rmi -a -f
 }
 
+@test "images json test" {
+  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
+  run buildah --debug=false images --json
+  [ $(wc -l <<< "$output") -eq 12 ]
+  [ "${status}" -eq 0 ]
+ 
+  run buildah --debug=false images --json alpine
+  [ $(wc -l <<< "$output") -eq 6 ]
+  [ "${status}" -eq 0 ]
+  buildah rm -a
+  buildah rmi -a -f
+}
+
 @test "specify an existing image" {
   cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
