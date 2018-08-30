@@ -92,6 +92,20 @@ var (
 )
 
 func imagesCmd(c *cli.Context) error {
+	name := ""
+	args := c.Args()
+	if len(args) > 0 {
+		if c.Bool("all") {
+			return errors.Errorf("when using the --all switch, you may not pass any images names or IDs")
+		}
+
+		if len(args) == 1 {
+			name = args.Get(0)
+		} else {
+			return errors.New("'buildah images' requires at most 1 argument")
+		}
+	}
+
 	if err := parse.ValidateFlags(c, imagesFlags); err != nil {
 		return err
 	}
@@ -115,12 +129,6 @@ func imagesCmd(c *cli.Context) error {
 	hasTemplate := c.IsSet("format")
 	ctx := getContext()
 
-	name := ""
-	if len(c.Args()) == 1 {
-		name = c.Args().Get(0)
-	} else if len(c.Args()) > 1 {
-		return errors.New("'buildah images' requires at most 1 argument")
-	}
 	if c.IsSet("json") {
 		JSONImages := []jsonImage{}
 		for _, image := range images {
