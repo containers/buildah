@@ -37,8 +37,7 @@ func tagCmd(c *cli.Context) error {
 	if err != nil {
 		return errors.Wrapf(err, "error finding local image %q", args[0])
 	}
-	err = util.AddImageNames(store, "", systemContext, img, args[1:])
-	if err != nil {
+	if err := util.AddImageNames(store, "", systemContext, img, args[1:]); err != nil {
 		return errors.Wrapf(err, "error adding names %v to image %q", args[1:], args[0])
 	}
 	return nil
