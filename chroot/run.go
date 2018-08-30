@@ -98,6 +98,7 @@ func RunUsingChroot(spec *specs.Spec, bundlePath string, stdin io.Reader, stdout
 	if err = ioutils.AtomicWriteFile(filepath.Join(bundlePath, "config.json"), specbytes, 0600); err != nil {
 		return errors.Wrapf(err, "error storing runtime configuration")
 	}
+	logrus.Debugf("config = %v", string(specbytes))
 
 	// Run the grandparent subprocess in a user namespace that reuses the mappings that we have.
 	uidmap, gidmap, err := util.GetHostIDMappings("")
@@ -630,6 +631,31 @@ func runUsingChrootExecMain() {
 		}
 	}
 
+	// Try to chroot into the root.  Do this before we potentially block the syscall via the
+	// seccomp profile.
+	var oldst, newst unix.Stat_t
+	if err := unix.Stat(options.Spec.Root.Path, &oldst); err != nil {
+		fmt.Fprintf(os.Stderr, "error stat()ing intended root directory %q: %v\n", options.Spec.Root.Path, err)
+		os.Exit(1)
+	}
+	if err := unix.Chdir(options.Spec.Root.Path); err != nil {
+		fmt.Fprintf(os.Stderr, "error chdir()ing to intended root directory %q: %v\n", options.Spec.Root.Path, err)
+		os.Exit(1)
+	}
+	if err := unix.Chroot(options.Spec.Root.Path); err != nil {
+		fmt.Fprintf(os.Stderr, "error chroot()ing into directory %q: %v\n", options.Spec.Root.Path, err)
+		os.Exit(1)
+	}
+	if err := unix.Stat("/", &newst); err != nil {
+		fmt.Fprintf(os.Stderr, "error stat()ing current root directory: %v\n", err)
+		os.Exit(1)
+	}
+	if oldst.Dev != newst.Dev || oldst.Ino != newst.Ino {
+		fmt.Fprintf(os.Stderr, "unknown error chroot()ing into directory %q: %v\n", options.Spec.Root.Path, err)
+		os.Exit(1)
+	}
+	logrus.Debugf("chrooted into %q", options.Spec.Root.Path)
+
 	// not doing because it's still shared: creating devices
 	// not doing because it's not applicable: setting annotations
 	// not doing because it's still shared: setting sysctl settings
@@ -663,20 +689,21 @@ func runUsingChrootExecMain() {
 		os.Exit(1)
 	}
 
-	// Try to chroot into the root.
-	if err := unix.Chroot(options.Spec.Root.Path); err != nil {
-		fmt.Fprintf(os.Stderr, "error chroot()ing into directory %q: %v\n", options.Spec.Root.Path, err)
-		os.Exit(1)
-	}
+	// Try to change to the directory.
 	cwd := options.Spec.Process.Cwd
 	if !filepath.IsAbs(cwd) {
 		cwd = "/" + cwd
 	}
-	if err := unix.Chdir(cwd); err != nil {
-		fmt.Fprintf(os.Stderr, "error chdir()ing into directory %q: %v\n", cwd, err)
+	cwd = filepath.Clean(cwd)
+	if err := unix.Chdir("/"); err != nil {
+		fmt.Fprintf(os.Stderr, "error chdir()ing into new root directory %q: %v\n", options.Spec.Root.Path, err)
 		os.Exit(1)
 	}
-	logrus.Debugf("chrooted into %q, changed working directory to %q", options.Spec.Root.Path, cwd)
+	if err := unix.Chdir(cwd); err != nil {
+		fmt.Fprintf(os.Stderr, "error chdir()ing into directory %q under root %q: %v\n", cwd, options.Spec.Root.Path, err)
+		os.Exit(1)
+	}
+	logrus.Debugf("changed working directory to %q", cwd)
 
 	// Drop privileges.
 	user := options.Spec.Process.User
