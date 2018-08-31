@@ -32,6 +32,16 @@ type imageOutputParams struct {
 	Size      string
 }
 
+type imageOptions struct {
+	all       bool
+	digests   bool
+	format    string
+	json      bool
+	noHeading bool
+	truncate  bool
+	quiet     bool
+}
+
 type filterParams struct {
 	dangling         string
 	label            string
@@ -92,6 +102,20 @@ var (
 )
 
 func imagesCmd(c *cli.Context) error {
+	name := ""
+	args := c.Args()
+	if len(args) > 0 {
+		if c.Bool("all") {
+			return errors.Errorf("when using the --all switch, you may not pass any images names or IDs")
+		}
+
+		if len(args) == 1 {
+			name = args.Get(0)
+		} else {
+			return errors.New("'buildah images' requires at most 1 argument")
+		}
+	}
+
 	if err := parse.ValidateFlags(c, imagesFlags); err != nil {
 		return err
 	}
@@ -109,30 +133,17 @@ func imagesCmd(c *cli.Context) error {
 		return errors.Errorf("quiet and format are mutually exclusive")
 	}
 
-	quiet := c.Bool("quiet")
-	truncate := !c.Bool("no-trunc")
-	digests := c.Bool("digests")
-	hasTemplate := c.IsSet("format")
+	opts := imageOptions{
+		all:       c.Bool("all"),
+		digests:   c.Bool("digests"),
+		format:    c.String("format"),
+		json:      c.Bool("json"),
+		noHeading: c.Bool("noheading"),
+		truncate:  !c.Bool("notruncate"),
+		quiet:     c.Bool("quiet"),
+	}
 	ctx := getContext()
 
-	name := ""
-	if len(c.Args()) == 1 {
-		name = c.Args().Get(0)
-	} else if len(c.Args()) > 1 {
-		return errors.New("'buildah images' requires at most 1 argument")
-	}
-	if c.IsSet("json") {
-		JSONImages := []jsonImage{}
-		for _, image := range images {
-			JSONImages = append(JSONImages, jsonImage{ID: image.ID, Names: image.Names})
-		}
-		data, err2 := json.MarshalIndent(JSONImages, "", "    ")
-		if err2 != nil {
-			return err2
-		}
-		fmt.Printf("%s\n", data)
-		return nil
-	}
 	var params *filterParams
 	if c.IsSet("filter") {
 		params, err = parseFilter(ctx, store, images, c.String("filter"))
@@ -141,11 +152,11 @@ func imagesCmd(c *cli.Context) error {
 		}
 	}
 
-	if len(images) > 0 && !c.Bool("noheading") && !quiet && !hasTemplate {
-		outputHeader(truncate, digests)
+	if len(images) > 0 && !opts.noHeading && !opts.quiet && opts.format == "" && !opts.json {
+		outputHeader(opts.truncate, opts.digests)
 	}
 
-	return outputImages(ctx, images, c.String("format"), store, params, name, hasTemplate, truncate, digests, quiet, c.Bool("all"))
+	return outputImages(ctx, images, store, params, name, opts)
 }
 
 func parseFilter(ctx context.Context, store storage.Store, images []storage.Image, filter string) (*filterParams, error) {
@@ -225,7 +236,7 @@ func outputHeader(truncate, digests bool) {
 	fmt.Printf("%-22s %s\n", "CREATED AT", "SIZE")
 }
 
-func outputImages(ctx context.Context, images []storage.Image, format string, store storage.Store, filters *filterParams, argName string, hasTemplate, truncate, digests, quiet, all bool) error {
+func outputImages(ctx context.Context, images []storage.Image, store storage.Store, filters *filterParams, argName string, opts imageOptions) error {
 	found := false
 	for _, image := range images {
 		createdTime := image.Created
@@ -246,7 +257,7 @@ func outputImages(ctx context.Context, images []storage.Image, format string, st
 		if err != nil {
 			logrus.Errorf("error checking if image is a parent %q: %v", image.ID, err)
 		}
-		if !all && len(image.Names) == 0 && isParent {
+		if !opts.all && len(image.Names) == 0 && isParent {
 			continue
 		}
 
@@ -266,10 +277,20 @@ func outputImages(ctx context.Context, images []storage.Image, format string, st
 			if !matchesFilter(ctx, image, store, name, filters) {
 				continue
 			}
-			if quiet {
+			if opts.quiet {
 				fmt.Printf("%-64s\n", image.ID)
 				// We only want to print each id once
 				break
+			}
+
+			if opts.json {
+				JSONImage := jsonImage{ID: image.ID, Names: image.Names}
+				data, err2 := json.MarshalIndent(JSONImage, "", "    ")
+				if err2 != nil {
+					return err2
+				}
+				fmt.Printf("%s\n", data)
+				continue
 			}
 
 			params := imageOutputParams{
@@ -279,14 +300,14 @@ func outputImages(ctx context.Context, images []storage.Image, format string, st
 				CreatedAt: createdTime.Format("Jan 2, 2006 15:04"),
 				Size:      formattedSize(size),
 			}
-			if hasTemplate {
-				if err := outputUsingTemplate(format, params); err != nil {
+			if opts.format != "" {
+				if err := outputUsingTemplate(opts.format, params); err != nil {
 					return err
 				}
 				continue
 			}
 
-			outputUsingFormatString(truncate, digests, params)
+			outputUsingFormatString(opts.truncate, opts.digests, params)
 		}
 	}
 
