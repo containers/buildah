@@ -1761,10 +1761,13 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 		writeDesc[unix.Stderr] = "stderr"
 	}
 	// Set our reading descriptors to non-blocking.
-	for fd := range relayMap {
-		if err := unix.SetNonblock(fd, true); err != nil {
-			logrus.Errorf("error setting %s to nonblocking: %v", readDesc[fd], err)
+	for rfd, wfd := range relayMap {
+		if err := unix.SetNonblock(rfd, true); err != nil {
+			logrus.Errorf("error setting %s to nonblocking: %v", readDesc[rfd], err)
 			return
+		}
+		if err := unix.SetNonblock(wfd, false); err != nil {
+			logrus.Errorf("error setting descriptor %d (%s) blocking: %v", wfd, writeDesc[wfd], err)
 		}
 	}
 	// A helper that returns false if err is an error that would cause us
@@ -1838,7 +1841,33 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 				}
 				if n > 0 {
 					// Buffer the data in case we get blocked on where they need to go.
-					relayBuffer[writeFD].Write(buf[:n])
+					nwritten, err := relayBuffer[writeFD].Write(buf[:n])
+					if err != nil {
+						logrus.Debugf("buffer: %v", err)
+						continue
+					}
+					if nwritten != n {
+						logrus.Debugf("buffer: expected to buffer %d bytes, wrote %d", n, nwritten)
+						continue
+					}
+					// If this is the last of the data we'll be able to read from this
+					// descriptor, read all that there is to read.
+					for pollFd.Revents&unix.POLLHUP == unix.POLLHUP {
+						nr, err := unix.Read(readFD, buf)
+						logIfNotRetryable(err, fmt.Sprintf("read %s: %v", readDesc[readFD], err))
+						if nr <= 0 {
+							break
+						}
+						nwritten, err := relayBuffer[writeFD].Write(buf[:nr])
+						if err != nil {
+							logrus.Debugf("buffer: %v", err)
+							break
+						}
+						if nwritten != nr {
+							logrus.Debugf("buffer: expected to buffer %d bytes, wrote %d", nr, nwritten)
+							break
+						}
+					}
 				}
 			}
 		}

@@ -382,9 +382,13 @@ func runUsingChrootMain() {
 		logrus.Error(what)
 		return false
 	}
-	for readFd := range relays {
+	for readFd, writeFd := range relays {
 		if err := unix.SetNonblock(readFd, true); err != nil {
 			logrus.Errorf("error setting descriptor %d (%s) non-blocking: %v", readFd, fdDesc[readFd], err)
+			return
+		}
+		if err := unix.SetNonblock(writeFd, false); err != nil {
+			logrus.Errorf("error setting descriptor %d (%s) blocking: %v", relays[writeFd], fdDesc[writeFd], err)
 			return
 		}
 	}
@@ -428,6 +432,26 @@ func runUsingChrootMain() {
 						if nwritten != nread {
 							logrus.Debugf("buffer: expected to buffer %d bytes, wrote %d", nread, nwritten)
 							continue
+						}
+					}
+					// If this is the last of the data we'll be able to read
+					// from this descriptor, read as much as there is to read.
+					for rfd.Revents&unix.POLLHUP == unix.POLLHUP {
+						nr, err := unix.Read(int(rfd.Fd), b)
+						logIfNotRetryable(err, fmt.Sprintf("read %s: %v", fdDesc[int(rfd.Fd)], err))
+						if nr <= 0 {
+							break
+						}
+						if wfd, ok := relays[int(rfd.Fd)]; ok {
+							nwritten, err := buffers[wfd].Write(b[:nr])
+							if err != nil {
+								logrus.Debugf("buffer: %v", err)
+								break
+							}
+							if nwritten != nr {
+								logrus.Debugf("buffer: expected to buffer %d bytes, wrote %d", nr, nwritten)
+								break
+							}
 						}
 					}
 				}
@@ -593,8 +617,7 @@ func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io
 
 // main() for parent subprocess.  Its main job is to try to make our
 // environment look like the one described by the runtime configuration blob,
-// and then launch the intended command as a child, since we can't exec()
-// directly.
+// and then launch the intended command as a child.
 func runUsingChrootExecMain() {
 	args := os.Args[1:]
 	var options runUsingChrootExecSubprocOptions
