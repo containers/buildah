@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
@@ -50,6 +51,9 @@ func inspectCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
 		return errors.Errorf("container or image name must be specified")
+	}
+	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+		return err
 	}
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")

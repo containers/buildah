@@ -2,6 +2,20 @@
 
 load helpers
 
+@test "bud-flags-order-verification" {
+  run buildah bud /tmp/tmpdockerfile/ -t blabla
+  check_options_flag_err "-t"
+
+  run buildah bud /tmp/tmpdockerfile/ -q -t blabla
+  check_options_flag_err "-q"
+
+  run buildah bud /tmp/tmpdockerfile/ --force-rm
+  check_options_flag_err "--force-rm"
+
+  run buildah bud /tmp/tmpdockerfile/ --userns=cnt1
+  check_options_flag_err "--userns=cnt1"
+}
+
 @test "bud with --layers and --no-cache flags" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a

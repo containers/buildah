@@ -159,12 +159,10 @@ func fromCmd(c *cli.Context) error {
 	if len(args) == 0 {
 		return errors.Errorf("an image name (or \"scratch\") must be specified")
 	}
+	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+		return err
+	}
 	if len(args) > 1 {
-		for _, arg := range args {
-			if strings.HasPrefix(arg, "-") {
-				return errors.Errorf("%s should be set before the image name", arg)
-			}
-		}
 		return errors.Errorf("too many arguments specified")
 	}
 	if err := parse.ValidateFlags(c, fromFlags); err != nil {
