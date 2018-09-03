@@ -2,26 +2,21 @@
 
 load helpers
 
-@test "from bad order of flags" {
+@test "from-flags-order-verification" {
   run buildah from scratch -q
-  [ "$status" -eq 1 ]
-  [[ $output = *"-q should be set before the image name"* ]]
+  check_options_flag_err "-q"
 
   run buildah from scratch --pull
-  [ "$status" -eq 1 ]
-  [[ $output = *"--pull should be set before the image name"* ]]
+  check_options_flag_err "--pull"
 
   run buildah from scratch --ulimit=1024
-  [ "$status" -eq 1 ]
-  [[ $output = *"--ulimit=1024 should be set before the image name"* ]]
+  check_options_flag_err "--ulimit=1024"
 
   run buildah from scratch --name container-name-irrelevant
-  [ "$status" -eq 1 ]
-  [[ $output = *"--name should be set before the image name"* ]]
+  check_options_flag_err "--name"
 
   run buildah from scratch --cred="fake fake" --name small
-  [ "$status" -eq 1 ]
-  [[ $output = *"--cred=fake fake should be set before the image name"* ]]
+  check_options_flag_err "--cred=fake fake"
 }
 
 @test "commit-to-from-elsewhere" {

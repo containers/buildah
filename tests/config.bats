@@ -2,6 +2,20 @@
 
 load helpers
 
+@test "config-flags-order-verification" {
+  run buildah config cnt1 --author=user1
+  check_options_flag_err "--author=user1"
+
+  run buildah config cnt1 --arch x86_54
+  check_options_flag_err "--arch"
+
+  run buildah config cnt1 --created-by buildahcli --cmd "/usr/bin/run.sh" --hostname "localhost1"
+  check_options_flag_err "--created-by"
+
+  run buildah config cnt1 --annotation=service=cache
+  check_options_flag_err "--annotation=service=cache"
+}
+
 @test "config entrypoint using single element in JSON array (exec form)" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid

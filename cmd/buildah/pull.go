@@ -8,6 +8,7 @@ import (
 	is "github.com/containers/image/storage"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	util "github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
@@ -61,6 +62,9 @@ func pullCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
 		return errors.Errorf("an image name must be specified")
+	}
+	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+		return err
 	}
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")

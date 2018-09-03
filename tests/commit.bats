@@ -2,6 +2,20 @@
 
 load helpers
 
+@test "commit-flags-order-verification" {
+  run buildah commit cnt1 --tls-verify
+  check_options_flag_err "--tls-verify"
+
+  run buildah commit cnt1 -q
+  check_options_flag_err "-q"
+
+  run buildah commit cnt1 -f=docker --quiet --creds=bla:bla
+  check_options_flag_err "-f=docker"
+
+  run buildah commit cnt1 --creds=bla:bla
+  check_options_flag_err "--creds=bla:bla"
+}
+
 @test "commit" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image

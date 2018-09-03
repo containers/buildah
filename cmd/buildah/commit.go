@@ -10,6 +10,7 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
@@ -87,6 +88,9 @@ func commitCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
 		return errors.Errorf("container ID must be specified")
+	}
+	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+		return err
 	}
 	name := args[0]
 	args = args.Tail()

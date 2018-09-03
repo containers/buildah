@@ -7,6 +7,7 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -243,6 +244,9 @@ func configCmd(c *cli.Context) error {
 	args := c.Args()
 	if len(args) == 0 {
 		return errors.Errorf("container ID must be specified")
+	}
+	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+		return err
 	}
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")

@@ -109,6 +109,9 @@ func budCmd(c *cli.Context) error {
 	}
 	cliArgs = cliArgs.Tail()
 
+	if err := buildahcli.VerifyFlagsArgsOrder(cliArgs); err != nil {
+		return err
+	}
 	if len(dockerfiles) == 0 {
 		dockerfiles = append(dockerfiles, filepath.Join(contextDir, "Dockerfile"))
 	}
