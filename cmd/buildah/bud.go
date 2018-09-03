@@ -82,33 +82,33 @@ func budCmd(c *cli.Context) error {
 	}
 	contextDir := ""
 	cliArgs := c.Args()
-	if len(cliArgs) > 0 {
-		// The context directory could be a URL.  Try to handle that.
-		tempDir, subDir, err := imagebuildah.TempDirForURL("", "buildah", cliArgs[0])
-		if err != nil {
-			return errors.Wrapf(err, "error prepping temporary context directory")
-		}
-		if tempDir != "" {
-			// We had to download it to a temporary directory.
-			// Delete it later.
-			defer func() {
-				if err = os.RemoveAll(tempDir); err != nil {
-					logrus.Errorf("error removing temporary directory %q: %v", contextDir, err)
-				}
-			}()
-			contextDir = filepath.Join(tempDir, subDir)
-		} else {
-			// Nope, it was local.  Use it as is.
-			absDir, err := filepath.Abs(cliArgs[0])
-			if err != nil {
-				return errors.Wrapf(err, "error determining path to directory %q", cliArgs[0])
-			}
-			contextDir = absDir
-		}
-		cliArgs = cliArgs.Tail()
-	} else {
+	if len(cliArgs) == 0 {
 		return errors.Errorf("no context directory or URL specified")
 	}
+	// The context directory could be a URL.  Try to handle that.
+	tempDir, subDir, err := imagebuildah.TempDirForURL("", "buildah", cliArgs[0])
+	if err != nil {
+		return errors.Wrapf(err, "error prepping temporary context directory")
+	}
+	if tempDir != "" {
+		// We had to download it to a temporary directory.
+		// Delete it later.
+		defer func() {
+			if err = os.RemoveAll(tempDir); err != nil {
+				logrus.Errorf("error removing temporary directory %q: %v", contextDir, err)
+			}
+		}()
+		contextDir = filepath.Join(tempDir, subDir)
+	} else {
+		// Nope, it was local.  Use it as is.
+		absDir, err := filepath.Abs(cliArgs[0])
+		if err != nil {
+			return errors.Wrapf(err, "error determining path to directory %q", cliArgs[0])
+		}
+		contextDir = absDir
+	}
+	cliArgs = cliArgs.Tail()
+
 	if len(dockerfiles) == 0 {
 		dockerfiles = append(dockerfiles, filepath.Join(contextDir, "Dockerfile"))
 	}
