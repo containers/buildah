@@ -973,8 +973,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	} else if b.WorkDir() != "" {
 		g.SetProcessCwd(b.WorkDir())
 	}
-	g.SetProcessSelinuxLabel(b.ProcessLabel)
-	g.SetLinuxMountLabel(b.MountLabel)
+	setupSelinux(g, b.ProcessLabel, b.MountLabel)
 	mountPoint, err := b.Mount(b.MountLabel)
 	if err != nil {
 		return err
