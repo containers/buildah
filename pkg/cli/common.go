@@ -69,6 +69,13 @@ var (
 		},
 	}
 
+	LayerFlags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "layers",
+			Usage: fmt.Sprintf("cache intermediate layers during build. Use BUILDAH_LAYERS environment variable to override. (default %t)", UseLayers()),
+		},
+	}
+
 	BudFlags = []cli.Flag{
 		cli.StringSliceFlag{
 			Name:  "annotation",
@@ -129,10 +136,6 @@ var (
 		cli.StringSliceFlag{
 			Name:  "label",
 			Usage: "Set metadata for an image (default [])",
-		},
-		cli.BoolFlag{
-			Name:  "layers",
-			Usage: fmt.Sprintf("cache intermediate layers during build. Use BUILDAH_LAYERS environment variable to override. (default %t)", UseLayers()),
 		},
 		cli.BoolFlag{
 			Name:  "no-cache",

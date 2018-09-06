@@ -21,7 +21,7 @@ var (
 		Aliases:                []string{"bud"},
 		Usage:                  "Build an image using instructions in a Dockerfile",
 		Description:            budDescription,
-		Flags:                  append(buildahcli.BudFlags, buildahcli.FromAndBudFlags...),
+		Flags:                  append(append(buildahcli.BudFlags, buildahcli.LayerFlags...), buildahcli.FromAndBudFlags...),
 		Action:                 budCmd,
 		ArgsUsage:              "CONTEXT-DIRECTORY | URL",
 		SkipArgReorder:         true,
@@ -116,6 +116,9 @@ func budCmd(c *cli.Context) error {
 		dockerfiles = append(dockerfiles, filepath.Join(contextDir, "Dockerfile"))
 	}
 	if err := parse.ValidateFlags(c, buildahcli.BudFlags); err != nil {
+		return err
+	}
+	if err := parse.ValidateFlags(c, buildahcli.LayerFlags); err != nil {
 		return err
 	}
 	if err := parse.ValidateFlags(c, buildahcli.FromAndBudFlags); err != nil {
