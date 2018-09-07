@@ -67,3 +67,12 @@ load helpers
   buildah rmi alpine
   rm -rf my-dir
 }
+
+@test "push without destination" {
+  buildah pull busybox
+  run buildah push busybox
+  echo "$output"
+  [ "$status" -eq 1 ]
+  echo "$output" | grep -q "docker://busybox"
+  buildah rmi busybox
+}
