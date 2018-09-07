@@ -35,7 +35,7 @@ What can we do with this new container? Let's try running bash:
 
     # buildah run $container bash
     
-Notice we get a new shell prompt because we are running a bash shell inside of the container. It should be noted that `buildah run` is primarily intended for helping debug during the build process. A runtime like runc or a container interface like [CRI-O](https://github.com/kubernetes-incubator/cri-o) is more suited for starting containers in production.
+Notice we get a new shell prompt because we are running a bash shell inside of the container. It should be noted that `buildah run` is primarily intended for helping debug during the build process. A runtime like runc or a container interface like [CRI-O](https://github.com/kubernetes-sigs/cri-o) is more suited for starting containers in production.
 
 Be sure to `exit` out of the container and let's try running something else:
 

@@ -29,7 +29,7 @@ install those plugins, try running:
 ```
 
 If you've already installed a CNI configuration (for example, for
-[CRI-O](https://github.com/kubernetes-incubator/cri-o)), it'll probably just
+[CRI-O](https://github.com/kubernetes-sigs/cri-o)), it'll probably just
 work, but to install these sample configuration files:
 ```
   mkdir -p /etc/cni/net.d
