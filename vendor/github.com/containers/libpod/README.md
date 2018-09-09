@@ -19,8 +19,8 @@ At a high level, the scope of libpod and podman is the following:
 
 ## What is not in scope for this project?
 
-* Signing and pushing images to various image storages. See [Skopeo](https://github.com/projectatomic/skopeo/).
-* Container Runtimes daemons for working with Kubernetes CRIs. See [CRI-O](https://github.com/kubernetes-incubator/cri-o). We are working to integrate libpod into CRI-O to share containers and backend code with Podman.
+* Signing and pushing images to various image storages. See [Skopeo](https://github.com/containers/skopeo/).
+* Container Runtimes daemons for working with Kubernetes CRIs. See [CRI-O](https://github.com/kubernetes-sigs/cri-o). We are working to integrate libpod into CRI-O to share containers and backend code with Podman.
 
 ## OCI Projects Plans
 
@@ -30,7 +30,7 @@ The plan is to use OCI projects and best of breed libraries for different aspect
 - Storage: Container and image storage is managed by [containers/storage](https://github.com/containers/storage)
 - Networking: Networking support through use of [CNI](https://github.com/containernetworking/cni)
 - Builds: Builds are supported via [Buildah](https://github.com/projectatomic/buildah).
-- Conmon: [Conmon](https://github.com/kubernetes-incubator/cri-o) is a tool for monitoring OCI runtimes. It is part of the CRI-O package
+- Conmon: [Conmon](https://github.com/kubernetes-sigs/cri-o) is a tool for monitoring OCI runtimes. It is part of the CRI-O package
 
 ## Podman Information for Developers
 
@@ -56,6 +56,9 @@ includes tables showing Docker commands and their Podman equivalent commands.
 
 **[Tutorials](docs/tutorials)**
 Tutorials on using Podman.
+
+**[Release Notes](RELEASE_NOTES.md)**
+Release notes for recent Podman versions
 
 **[Contributing](CONTRIBUTING.md)**
 Information about contributing to this project.
