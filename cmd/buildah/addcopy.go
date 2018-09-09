@@ -6,6 +6,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/projectatomic/buildah"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/urfave/cli"
 )
@@ -56,6 +57,9 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 		return errors.Errorf("src must be specified")
 	}
 
+	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+		return err
+	}
 	if err := parse.ValidateFlags(c, addAndCopyFlags); err != nil {
 		return err
 	}

@@ -2,6 +2,17 @@
 
 load helpers
 
+@test "umount-flags-order-verification" {
+  run buildah umount cnt1 -a
+  check_options_flag_err "-a"
+
+  run buildah umount cnt1 --all cnt2
+  check_options_flag_err "--all"
+
+  run buildah umount cnt1 cnt2 --all
+  check_options_flag_err "--all"
+}
+
 @test "umount one image" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid"
