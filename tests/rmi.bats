@@ -2,6 +2,17 @@
 
 load helpers
 
+@test "rmi-flags-order-verification" {
+  run buildah rmi img1 -f
+  check_options_flag_err "-f"
+
+  run buildah rm img1 --all img2 
+  check_options_flag_err "--all"
+
+  run buildah rm img1 img2 --force
+  check_options_flag_err "--force"
+}
+
 @test "remove one image" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"

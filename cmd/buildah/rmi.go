@@ -11,6 +11,7 @@ import (
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
@@ -61,6 +62,9 @@ func rmiCmd(c *cli.Context) error {
 		return errors.Errorf("when using the --all switch, you may not use --prune switch")
 	}
 
+	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+		return err
+	}
 	if err := parse.ValidateFlags(c, rmiFlags); err != nil {
 		return err
 	}

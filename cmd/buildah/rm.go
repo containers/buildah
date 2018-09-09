@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
@@ -39,6 +40,10 @@ func rmCmd(c *cli.Context) error {
 	}
 	if len(args) > 0 && c.Bool("all") {
 		return errors.Errorf("when using the --all switch, you may not pass any containers names or IDs")
+	}
+
+	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+		return err
 	}
 	if err := parse.ValidateFlags(c, rmFlags); err != nil {
 		return err

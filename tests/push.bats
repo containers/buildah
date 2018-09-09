@@ -2,6 +2,20 @@
 
 load helpers
 
+@test "push-flags-order-verification" {
+  run buildah push img1 dest1 -q
+  check_options_flag_err "-q"
+
+  run buildah push img1 --tls-verify dest1
+  check_options_flag_err "--tls-verify"
+
+  run buildah push img1 dest1 arg3 --creds user1:pass1
+  check_options_flag_err "--creds"
+
+  run buildah push img1 --creds=user1:pass1 dest1 
+  check_options_flag_err "--creds=user1:pass1"
+}
+
 @test "push" {
   touch ${TESTDIR}/reference-time-file
   for source in scratch scratch-image; do

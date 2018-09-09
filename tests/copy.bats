@@ -2,6 +2,17 @@
 
 load helpers
 
+@test "copy-flags-order-verification" {
+  run buildah copy container1 -q /tmp/container1
+  check_options_flag_err "-q"
+
+  run buildah copy container1 --chown /tmp/container1 --quiet 
+  check_options_flag_err "--chown"
+
+  run buildah copy container1 /tmp/container1 --quiet 
+  check_options_flag_err "--quiet"
+}
+
 @test "copy-local-multiple" {
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
