@@ -343,6 +343,13 @@ load helpers
 	run buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty:ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
 	echo "$output"
 	[ "$status" -ne 0 ]
+	# Even if the parent directory doesn't exist yet, this should succeed.
+	run buildah --debug=false run -v ${TESTDIR}/was-empty:/var/multi-level/subdirectory        $cid touch /var/multi-level/subdirectory/testfile
+	echo "$output"
+	# And check the same for file volumes.
+	run buildah --debug=false run -v ${TESTDIR}/was-empty/testfile:/var/different-multi-level/subdirectory/testfile        $cid touch /var/different-multi-level/subdirectory/testfile
+	echo "$output"
+	[ "$status" -eq 0 ]
 }
 
 @test "run symlinks" {
