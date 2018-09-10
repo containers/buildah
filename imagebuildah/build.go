@@ -222,6 +222,8 @@ type Executor struct {
 	containerIDs                   []string // Stores the IDs of the successful intermediate containers used during layer build
 }
 
+var builderMap map[string]*buildah.Builder
+
 // withName creates a new child executor that will be used whenever a COPY statement uses --from=NAME.
 func (b *Executor) withName(name string, index int) *Executor {
 	if b.named == nil {
@@ -617,10 +619,22 @@ func (b *Executor) Prepare(ctx context.Context, ib *imagebuilder.Builder, node *
 		}
 		from = base
 	}
-	logrus.Debugf("FROM %#v", from)
-	if !b.quiet {
-		b.log("FROM %s", from)
+	displayFrom := from
+	asImageName := ib.AsImageName
+	if asImageName != "" {
+		displayFrom = from + " AS " + asImageName
 	}
+
+	logrus.Debugf("FROM %#v", displayFrom)
+	if !b.quiet {
+		b.log("FROM %s", displayFrom)
+	}
+
+	if asImageBuilderFound, ok := builderMap[from]; ok {
+		b.builder = asImageBuilderFound
+		return nil
+	}
+
 	builderOptions := buildah.BuilderOptions{
 		Args:                  ib.Args,
 		FromImage:             from,
@@ -696,6 +710,9 @@ func (b *Executor) Prepare(ctx context.Context, ib *imagebuilder.Builder, node *
 		return errors.Wrapf(err, "error mounting new container")
 	}
 	b.mountPoint = mountPoint
+	if asImageName != "" {
+		builderMap[asImageName] = builder
+	}
 	b.builder = builder
 	// Add the top layer of this image to b.topLayers so we can keep track of them
 	// when building with cached images.
@@ -1143,6 +1160,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) error 
 		stageExecutor *Executor
 		lastErr       error
 	)
+
 	for _, stage := range stages {
 		stageExecutor = b.withName(stage.Name, stage.Position)
 		if err := stageExecutor.Prepare(ctx, stage.Builder, stage.Node, ""); err != nil {
@@ -1204,6 +1222,8 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 			d.Close()
 		}
 	}(dockerfiles...)
+	builderMap = make(map[string]*buildah.Builder)
+
 	for _, dfile := range paths {
 		var data io.ReadCloser
 
