@@ -12,6 +12,7 @@ import (
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/stringid"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/openshift/imagebuilder"
@@ -262,19 +263,11 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	if options.Container != "" {
 		name = options.Container
 	} else {
-		var err2 error
 		if image != "" {
 			name = imageNamePrefix(image) + "-" + name
 		}
-		suffix := 1
-		tmpName := name
-		for errors.Cause(err2) != storage.ErrContainerUnknown {
-			_, err2 = store.Container(tmpName)
-			if err2 == nil {
-				suffix++
-				tmpName = fmt.Sprintf("%s-%d", name, suffix)
-			}
-		}
+		suffix := stringid.GenerateRandomID()
+		tmpName := fmt.Sprintf("%s-%s", name, suffix)
 		name = tmpName
 	}
 
