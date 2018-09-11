@@ -37,7 +37,7 @@ Display the output in JSON format.
 
 Omit the table headings from the listing of images.
 
-**no-trunc**
+**--no-trunc, --notruncate**
 
 Do not truncate output.
 
