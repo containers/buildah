@@ -262,26 +262,23 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	if options.Container != "" {
 		name = options.Container
 	} else {
-		var err2 error
 		if image != "" {
 			name = imageNamePrefix(image) + "-" + name
 		}
-		suffix := 1
-		tmpName := name
-		for errors.Cause(err2) != storage.ErrContainerUnknown {
-			_, err2 = store.Container(tmpName)
-			if err2 == nil {
-				suffix++
-				tmpName = fmt.Sprintf("%s-%d", name, suffix)
-			}
-		}
-		name = tmpName
 	}
 
 	coptions := storage.ContainerOptions{}
 	coptions.IDMappingOptions = newContainerIDMappingOptions(options.IDMappingOptions)
 
 	container, err := store.CreateContainer("", []string{name}, imageID, "", "", &coptions)
+	suffix := 1
+	for err != nil && errors.Cause(err) == storage.ErrDuplicateName && options.Container == "" {
+		suffix++
+		tmpName := fmt.Sprintf("%s-%d", name, suffix)
+		if container, err = store.CreateContainer("", []string{tmpName}, imageID, "", "", &coptions); err == nil {
+			name = tmpName
+		}
+	}
 	if err != nil {
 		return nil, errors.Wrapf(err, "error creating container")
 	}
