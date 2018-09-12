@@ -283,3 +283,25 @@ load helpers
   buildah rm $cid
   buildah rmi env-image-docker env-image-oci
 }
+
+@test "user" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  bndoutput=$(buildah --debug=false run $cid grep CapBnd /proc/self/status)
+  buildah config --user 1000 $cid
+  run buildah --debug=false run $cid id -u
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ 1000 ]]
+
+  run buildah --debug=false run $cid sh -c "grep CapEff /proc/self/status | cut -f2"
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "0000000000000000" ]]
+
+  run buildah --debug=false run $cid grep CapBnd /proc/self/status
+  echo $output
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ $bndoutput ]]
+
+  buildah rm $cid
+}
