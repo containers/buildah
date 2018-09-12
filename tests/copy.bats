@@ -139,3 +139,23 @@ load helpers
   buildah run $cid stat -c "%U:%G" /subdir
   test $(buildah run $cid stat -c "%U:%G" /subdir) = "nobody:root"
 }
+
+@test "copy-symlink" {
+  createrandom ${TESTDIR}/randomfile
+  ln -s ${TESTDIR}/randomfile ${TESTDIR}/link-randomfile
+
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
+  root=$(buildah mount $cid)
+  buildah config --workingdir / $cid
+  buildah copy $cid ${TESTDIR}/link-randomfile
+  buildah unmount $cid
+  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  buildah rm $cid
+
+  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
+  newroot=$(buildah mount $newcid)
+  test -s $newroot/link-randomfile
+  test -f $newroot/link-randomfile
+  cmp ${TESTDIR}/randomfile $newroot/link-randomfile
+  buildah rm $newcid
+}
