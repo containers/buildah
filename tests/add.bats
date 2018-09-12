@@ -2,6 +2,17 @@
 
 load helpers
 
+@test "add-flags-order-verification" {
+  run buildah add container1 -q /tmp/container1
+  check_options_flag_err "-q"
+
+  run buildah add container1 --chown /tmp/container1 --quiet 
+  check_options_flag_err "--chown"
+
+  run buildah add container1 /tmp/container1 --quiet 
+  check_options_flag_err "--quiet"
+}
+
 @test "add-local-plain" {
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile

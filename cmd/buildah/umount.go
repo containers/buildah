@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/urfave/cli"
 )
@@ -38,6 +39,9 @@ func umountCmd(c *cli.Context) error {
 	}
 	if len(args) > 0 && umountAll {
 		return errors.Errorf("when using the --all switch, you may not pass any container IDs")
+	}
+	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+		return err
 	}
 	if err := parse.ValidateFlags(c, umountFlags); err != nil {
 		return err

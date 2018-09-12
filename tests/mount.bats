@@ -2,6 +2,17 @@
 
 load helpers
 
+@test "mount-flags-order-verification" {
+  run buildah mount cnt1 --notruncate path1
+  check_options_flag_err "--notruncate"
+
+  run buildah mount cnt1 --notruncate
+  check_options_flag_err "--notruncate"
+
+  run buildah mount cnt1 path1 --notruncate
+  check_options_flag_err "--notruncate"
+}
+
 @test "mount one container" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run buildah --debug=false mount "$cid"

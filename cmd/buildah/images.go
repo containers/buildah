@@ -14,6 +14,7 @@ import (
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -109,6 +110,9 @@ func imagesCmd(c *cli.Context) error {
 			return errors.Errorf("when using the --all switch, you may not pass any images names or IDs")
 		}
 
+		if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+			return err
+		}
 		if len(args) == 1 {
 			name = args.Get(0)
 		} else {

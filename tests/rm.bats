@@ -2,6 +2,14 @@
 
 load helpers
 
+@test "rm-flags-order-verification" {
+  run buildah rm cnt1 -a
+  check_options_flag_err "-a"
+
+  run buildah rm cnt1 --all cnt2
+  check_options_flag_err "--all"
+}
+
 @test "remove multiple containers errors" {
   run buildah --debug=false rm mycontainer1 mycontainer2 mycontainer3
   [ "${lines[0]}" == "error removing container \"mycontainer1\": error reading build container: container not known" ]

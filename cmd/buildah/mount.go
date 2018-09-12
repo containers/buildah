@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/urfave/cli"
 )
@@ -32,6 +33,9 @@ var (
 func mountCmd(c *cli.Context) error {
 	args := c.Args()
 
+	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
+		return err
+	}
 	if err := parse.ValidateFlags(c, mountFlags); err != nil {
 		return err
 	}

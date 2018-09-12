@@ -2,6 +2,20 @@
 
 load helpers
 
+@test "images-flags-order-verification" {
+  run buildah images --all
+  [ $status -eq 0 ]
+
+  run buildah images img1 -n
+  check_options_flag_err "-n"
+
+  run buildah images img1 --filter="service=redis" img2
+  check_options_flag_err "--filter=service=redis"
+
+  run buildah images img1 img2 img3 -q 
+  check_options_flag_err "-q"
+}
+
 @test "images" {
   cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
