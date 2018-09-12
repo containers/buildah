@@ -10,6 +10,17 @@ env:
     - BUILDAH_ISOLATION=oci
     - BUILDAH_ISOLATION=chroot
     - BUILDAH_ISOLATION=rootless
+    - TRAVIS_ENV="-e TRAVIS=$TRAVIS
+      -e CI=$CI
+      -e TRAVIS_COMMIT=$TRAVIS_COMMIT
+      -e TRAVIS_COMMIT_RANGE=$TRAVIS_COMMIT_RANGE
+      -e TRAVIS_REPO_SLUG=$TRAVIS_REPO_SLUG
+      -e TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
+      -e TRAVIS_PULL_REQUEST_SHA=$TRAVIS_PULL_REQUEST_SHA
+      -e TRAVIS_PULL_REQUEST_SLUG=$TRAVIS_PULL_REQUEST_SLUG
+      -e TRAVIS_BRANCH=$TRAVIS_BRANCH
+      -e TRAVIS_JOB_ID=$TRAVIS_JOB_ID
+      -e TRAVIS_BUILD_DIR=$TRAVIS_BUILD_DIR"
 
 matrix:
   # If the latest unstable development version of go fails, that's OK.
@@ -25,11 +36,12 @@ services:
 before_install:
     - sudo add-apt-repository -y ppa:duggan/bats
     - sudo apt-get update
-    - sudo apt-get -qq install bats btrfs-tools git libapparmor-dev libc-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libselinux1-dev
+    - sudo apt-get -qq install bats btrfs-tools git libapparmor-dev libc-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libselinux1-dev realpath
     - sudo apt-get -qq remove libseccomp2
     - sudo apt-get -qq update
     - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
     - mkdir /home/travis/auth
+    - sudo mkdir -p /var/lib/containers/storage/overlay
 install:
     #  Let's create a self signed certificate and get it in the right places
     - hostname
@@ -68,3 +80,11 @@ script:
     - go test -c -tags "apparmor seccomp `./btrfs_tag.sh` `./libdm_tag.sh` `./ostree_tag.sh` `./selinux_tag.sh`" ./cmd/buildah
     - tmp=`mktemp -d`; mkdir $tmp/root $tmp/runroot; sudo PATH="$PATH" ./buildah.test -test.v -root $tmp/root -runroot $tmp/runroot -storage-driver vfs -signature-policy `pwd`/tests/policy.json -registries-conf `pwd`/tests/registries.conf
     - cd tests; travis_wait 60 sudo PATH="$PATH" ./test_runner.sh
+    - cd ..
+    - echo "Run container-diff tests in Fedora container..."
+    - echo "Travis/host environment:"
+    - env
+    - echo
+    - echo "Running tests in SPC using ./hack/run_build.sh"
+    - "./hack/run_build.sh"
+
