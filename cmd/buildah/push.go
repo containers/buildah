@@ -15,6 +15,7 @@ import (
 	buildahcli "github.com/projectatomic/buildah/pkg/cli"
 	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/projectatomic/buildah/util"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -58,7 +59,7 @@ var (
 	pushDescription = fmt.Sprintf(`
    Pushes an image to a specified location.
 
-   The Image "DESTINATION" uses a "transport":"details" format.
+   The Image "DESTINATION" uses a "transport":"details" format. If not specified, will reuse source IMAGE as DESTINATION.
 
    Supported transports:
    %s
@@ -72,25 +73,36 @@ var (
 		Description:            pushDescription,
 		Flags:                  pushFlags,
 		Action:                 pushCmd,
-		ArgsUsage:              "IMAGE DESTINATION",
+		ArgsUsage:              "IMAGE [DESTINATION]",
 		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}
 )
 
 func pushCmd(c *cli.Context) error {
+	var src, destSpec string
 	args := c.Args()
-	if len(args) < 2 {
-		return errors.New("source and destination image IDs must be specified")
-	}
+
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
 	if err := parse.ValidateFlags(c, pushFlags); err != nil {
 		return err
 	}
-	src := args[0]
-	destSpec := args[1]
+
+	switch len(args) {
+	case 0:
+		return errors.New("At least a source image ID must be specified")
+	case 1:
+		src = args[0]
+		destSpec = src
+		logrus.Debugf("Destination argument not specified, assuming the same as the source: %s", destSpec)
+	case 2:
+		src = args[0]
+		destSpec = args[1]
+	default:
+		return errors.New("Only two arguments are necessary to push: source and destination")
+	}
 
 	compress := archive.Gzip
 	if c.Bool("disable-compression") {
@@ -120,6 +132,7 @@ func pushCmd(c *cli.Context) error {
 			return err
 		}
 		dest = dest2
+		logrus.Debugf("Assuming docker:// as the transport method for DESTINATION: %s", destSpec)
 	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)

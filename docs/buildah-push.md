@@ -15,10 +15,9 @@ Image stored in local container/storage
 
 ## DESTINATION
 
- The DESTINATION is a location to store container images
- The Image "DESTINATION" uses a "transport":"details" format.
+ The DESTINATION is a location to store container images. If omitted, the source image parameter will be reused as destination.
 
- Multiple transports are supported:
+ The Image "DESTINATION" uses a "transport":"details" format. Multiple transports are supported:
 
   **dir:**_path_
   An existing local directory _path_ storing the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
@@ -41,6 +40,8 @@ Image stored in local container/storage
 
   **ostree:**_image_[**@**_/absolute/repo/path_]
   An image in local OSTree repository.  _/absolute/repo/path_ defaults to _/ostree/repo_.
+
+If the transport part of DESTINATION is omitted, "docker://" is assumed.
 
 ## OPTIONS
 
@@ -99,6 +100,10 @@ This example extracts the imageID image to a tar archive in oci format.
 This example extracts the imageID image to a container registry named registry.example.com.
 
  `# buildah push imageID docker://registry.example.com/repository:tag`
+
+This example works like **docker push**, assuming *registry.example.com/my_image* is a local image.
+
+ `# buildah push registry.example.com/my_image`
 
 This example extracts the imageID image to a private container registry named registry.example.com with authentication from /tmp/auths/myauths.json.
 
