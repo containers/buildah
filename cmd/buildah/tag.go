@@ -14,7 +14,7 @@ var (
 		Usage:                  "Add an additional name to a local image",
 		Description:            tagDescription,
 		Action:                 tagCmd,
-		ArgsUsage:              "IMAGE-NAME [IMAGE-NAME ...]",
+		ArgsUsage:              "IMAGE-NAME NEW-IMAGE-NAME",
 		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}
