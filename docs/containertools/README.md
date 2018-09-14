@@ -1,4 +1,4 @@
-# Container Tools Guide 
+# Container Tools Guide
 
 ## Introduction
 
@@ -89,13 +89,13 @@ Some of the commands between the projects overlap:
 The `podman build` and `buildah bud` commands have significant overlap as Podman borrows large pieces of the `podman build` implementation from Buildah. 
 
 * run
-The `buildah run` and `podman run` commands are similar but different.  As explained above podman and buildah have a different concept of a container.  An easy way to think of it is the `buildah run` command emulates the RUN command in a Dockerfile while the `podman run` command emulates the `docker run` command in functionality.  Buildah and podman have someone different concepts of containers, because of this so you can not see podman containers from within buildah or vice versa.
+The `buildah run` and `podman run` commands are similar but different.  As explained above Podman and Buildah have a different concept of a container.  An easy way to think of it is the `buildah run` command emulates the RUN command in a Dockerfile while the `podman run` command emulates the `docker run` command in functionality.  As Buildah and Podman have some what different concepts of containers, you can not see Podman containers from within Buildah or vice versa.
 
 * pull, push 
 These commands are basically the same between the two and either could be used.
 
 * commit
-Commit works differently because of the differences in `containers`.  You cannot commit a podman container from buildah nor a buildah container from podman.
+Commit works differently because of the differences in `containers`.  You cannot commit a Podman container from Buildah nor a Buildah container from Podman.
 
 * tag, rmi, images 
 These commands are basically the same between the two and either could be used.
