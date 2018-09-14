@@ -13,8 +13,12 @@ misconfigured.
 
 #### Symptom
 ```console
-$ sudo buildah bud -f Dockerfile 
+$ sudo buildah bud -f Dockerfile .
 STEP 1: FROM alpine
+error creating build container: 2 errors occurred:
+
+* Error determining manifest MIME type for docker://localhost/alpine:latest: pinging docker registry returned: Get https://localhost/v2/: dial tcp [::1]:443: connect: connection refused
+* Error determining manifest MIME type for docker://registry.access.redhat.com/alpine:latest: Error reading manifest latest in registry.access.redhat.com/alpine: unknown: Not Found
 error building: error creating build container: no such image "alpine" in registry: image not known
 ```
 
@@ -22,7 +26,8 @@ error building: error creating build container: no such image "alpine" in regist
 
   * Verify that the `/etc/containers/registries.conf` file exists.  If not, verify that the containers-common package is installed.
   * Verify that the entries in the `[registries.search]` section of the /etc/containers/registries file are valid and reachable.
-
+  * Verify that the image you requested is either fully qualified, or that it exists on one of your search registries.
+  * Verify that the image is public or that you have logged in to at least one search registry which contains the private image.
 ---
 ### 2) http: server gave HTTP response to HTTPS client
 
