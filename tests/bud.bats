@@ -93,7 +93,7 @@ load helpers
   run buildah bud --signature-policy ${TESTSDIR}/policy.json --force-rm --layers -t test1 -f Dockerfile.non-existent-registry ${TESTSDIR}/bud/use-layers
   echo "$output"
   [ "$status" -ne 0 ]
-  [[ "$output" =~ "image not known" ]]
+  [[ "$output" =~ "no such host" ]]
 }
 
 @test "bud from base image should have base image ENV also" {

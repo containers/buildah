@@ -12,6 +12,7 @@ import (
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/openshift/imagebuilder"
@@ -144,6 +145,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "error parsing reference to image %q", options.FromImage)
 	}
+	var pullErrors *multierror.Error
 	for _, image := range images {
 		var err error
 		if len(image) >= minimumTruncatedIDLength {
@@ -158,6 +160,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 		if options.PullPolicy == PullAlways {
 			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, image, options, systemContext)
 			if err != nil {
+				pullErrors = multierror.Append(pullErrors, err)
 				logrus.Debugf("unable to pull and read image %q: %v", image, err)
 				continue
 			}
@@ -169,6 +172,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 		srcRef, err := alltransports.ParseImageName(image)
 		if err != nil {
 			if options.Transport == "" {
+				pullErrors = multierror.Append(pullErrors, err)
 				logrus.Debugf("error parsing image name %q: %v", image, err)
 				continue
 			}
@@ -178,6 +182,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 			}
 			srcRef2, err := alltransports.ParseImageName(transport + image)
 			if err != nil {
+				pullErrors = multierror.Append(pullErrors, err)
 				logrus.Debugf("error parsing image name %q: %v", image, err)
 				continue
 			}
@@ -199,11 +204,13 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 		img, err = is.Transport.GetStoreImage(store, ref)
 		if err != nil {
 			if errors.Cause(err) == storage.ErrImageUnknown && options.PullPolicy != PullIfMissing {
+				pullErrors = multierror.Append(pullErrors, err)
 				logrus.Debugf("no such image %q: %v", transports.ImageName(ref), err)
 				continue
 			}
 			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, image, options, systemContext)
 			if err != nil {
+				pullErrors = multierror.Append(pullErrors, err)
 				logrus.Debugf("unable to pull and read image %q: %v", image, err)
 				continue
 			}
@@ -212,6 +219,11 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 		}
 		break
 	}
+
+	if img == nil && pullErrors != nil {
+		return nil, nil, pullErrors
+	}
+
 	return ref, img, nil
 }
 
