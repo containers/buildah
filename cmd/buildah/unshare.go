@@ -16,7 +16,6 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/syndtr/gocapability/capability"
 	"github.com/urfave/cli"
 )
 
@@ -76,56 +75,40 @@ func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
 	gidNum, err := strconv.ParseUint(me.Gid, 10, 32)
 	bailOnError(err, "error parsing current GID %s", me.Gid)
 
+	if uidNum == 0 && !evenForRoot {
+		return
+	}
+
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
 	// ID mappings to use to reexec ourselves.
 	var uidmap, gidmap []specs.LinuxIDMapping
-	if uidNum != 0 || evenForRoot {
-		// Read the set of ID mappings that we're allowed to use.  Each
-		// range in /etc/subuid and /etc/subgid file is a starting host
-		// ID and a range size.
-		uidmap, gidmap, err = util.GetSubIDMappings(me.Username, me.Username)
-		bailOnError(err, "error reading allowed ID mappings")
-		if len(uidmap) == 0 {
-			logrus.Warnf("Found no UID ranges set aside for user %q in /etc/subuid.", me.Username)
-		}
-		if len(gidmap) == 0 {
-			logrus.Warnf("Found no GID ranges set aside for user %q in /etc/subgid.", me.Username)
-		}
-		// Map our UID and GID, then the subuid and subgid ranges,
-		// consecutively, starting at 0, to get the mappings to use for
-		// a copy of ourselves.
-		uidmap = append([]specs.LinuxIDMapping{{HostID: uint32(uidNum), ContainerID: 0, Size: 1}}, uidmap...)
-		gidmap = append([]specs.LinuxIDMapping{{HostID: uint32(gidNum), ContainerID: 0, Size: 1}}, gidmap...)
-		var rangeStart uint32
-		for i := range uidmap {
-			uidmap[i].ContainerID = rangeStart
-			rangeStart += uidmap[i].Size
-		}
-		rangeStart = 0
-		for i := range gidmap {
-			gidmap[i].ContainerID = rangeStart
-			rangeStart += gidmap[i].Size
-		}
-	} else {
-		// If we have CAP_SYS_ADMIN, then we don't need to create a new namespace in order to be able
-		// to use unshare(), so don't bother creating a new user namespace at this point.
-		capabilities, err := capability.NewPid(0)
-		bailOnError(err, "error reading the current capabilities sets")
-		if capabilities.Get(capability.EFFECTIVE, capability.CAP_SYS_ADMIN) {
-			return
-		}
-		// Read the set of ID mappings that we're currently using.
-		uidmap, gidmap, err = util.GetHostIDMappings("")
-		bailOnError(err, "error reading current ID mappings")
-		// Just reuse them.
-		for i := range uidmap {
-			uidmap[i].HostID = uidmap[i].ContainerID
-		}
-		for i := range gidmap {
-			gidmap[i].HostID = gidmap[i].ContainerID
-		}
+	// Read the set of ID mappings that we're allowed to use.  Each
+	// range in /etc/subuid and /etc/subgid file is a starting host
+	// ID and a range size.
+	uidmap, gidmap, err = util.GetSubIDMappings(me.Username, me.Username)
+	bailOnError(err, "error reading allowed ID mappings")
+	if len(uidmap) == 0 {
+		logrus.Warnf("Found no UID ranges set aside for user %q in /etc/subuid.", me.Username)
+	}
+	if len(gidmap) == 0 {
+		logrus.Warnf("Found no GID ranges set aside for user %q in /etc/subgid.", me.Username)
+	}
+	// Map our UID and GID, then the subuid and subgid ranges,
+	// consecutively, starting at 0, to get the mappings to use for
+	// a copy of ourselves.
+	uidmap = append([]specs.LinuxIDMapping{{HostID: uint32(uidNum), ContainerID: 0, Size: 1}}, uidmap...)
+	gidmap = append([]specs.LinuxIDMapping{{HostID: uint32(gidNum), ContainerID: 0, Size: 1}}, gidmap...)
+	var rangeStart uint32
+	for i := range uidmap {
+		uidmap[i].ContainerID = rangeStart
+		rangeStart += uidmap[i].Size
+	}
+	rangeStart = 0
+	for i := range gidmap {
+		gidmap[i].ContainerID = rangeStart
+		rangeStart += gidmap[i].Size
 	}
 
 	var moreArgs []string
