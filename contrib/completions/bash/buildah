@@ -168,6 +168,8 @@ return 1
          --runroot
          --storage-driver
          --storage-opt
+         --userns-uid-map
+         --userns-gid-map
          "
 
      case "$prev" in
@@ -317,7 +319,7 @@ return 1
           --creds
           --format
           -f
-	  --iidfile
+          --iidfile
           --signature-policy
   "
 
@@ -370,6 +372,8 @@ return 1
      --annotation
      --authfile
      --build-arg
+     --cap-add
+     --cap-drop
      --cert-dir
      --cgroup-parent
      --cni-config-dir
@@ -384,6 +388,7 @@ return 1
      --file
      --format
      --iidfile
+     --isolation
      --ipc
      --label
      --loglevel
@@ -443,10 +448,13 @@ return 1
   "
 
      local options_with_args="
+     --cap-add
+     --cap-drop
      --cni-config-dir
      --cni-plugin-path
      --hostname
      --ipc
+     --isolation
      --net
      --network
      --pid
@@ -481,6 +489,8 @@ return 1
      local boolean_options="
      --help
      -h
+     --quiet
+     -q
   "
 
      local options_with_args="
@@ -500,6 +510,8 @@ return 1
      local boolean_options="
      --help
      -h
+     --quiet
+     -q
     "
 
      local options_with_args="
@@ -712,6 +724,8 @@ return 1
      local options_with_args="
      --add-host
      --authfile
+     --cap-add
+     --cap-drop
      --cert-dir
      --cgroup-parent
      --cidfile
