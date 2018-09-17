@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/containers/buildah"
 	"github.com/containers/storage"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/projectatomic/buildah"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

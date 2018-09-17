@@ -6,12 +6,12 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/containers/buildah"
+	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/buildah/util"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah"
-	buildahcli "github.com/projectatomic/buildah/pkg/cli"
-	"github.com/projectatomic/buildah/pkg/parse"
-	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

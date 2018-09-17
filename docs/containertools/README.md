@@ -10,7 +10,7 @@ on how they interact amongst each other.
 
 The tools are:  
 
-* [Buildah](https://github.com/projectatomic/buildah)
+* [Buildah](https://github.com/containers/buildah)
 * [CRI-O](https://github.com/kubernetes-sigs/cri-o)
 * [Podman](https://github.com/containers/libpod)
 * [Skopeo](https://github.com/containers/skopeo)
@@ -56,7 +56,7 @@ for authentication.
 
 Buildah and Podman are two complementary Open-source projects that are available on
 most Linux platforms and both projects reside at [GitHub.com](https://github.com)
-with Buildah [here](https://github.com/projectatomic/buildah) and
+with Buildah [here](https://github.com/containers/buildah) and
 Podman [here](https://github.com/containers/libpod).  Both Buildah and Podman are
 command line tools that work on OCI images and containers.  The two projects
 differentiate in their specialization.

@@ -72,7 +72,7 @@ pulls: true
 
 env:
     GOPATH: /go
-    GOSRC: /go/src/github.com/projectatomic
+    GOSRC: /go/src/github.com/containers
 
 tests:
     - mkdir -p $GOSRC && ln -s /var/tmp/checkout $GOSRC/buildah

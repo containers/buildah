@@ -8,10 +8,10 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/containers/buildah"
+	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah"
-	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/urfave/cli"
 )
 

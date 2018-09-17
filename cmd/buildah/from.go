@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/containers/buildah"
+	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/parse"
+	util "github.com/containers/buildah/util"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah"
-	buildahcli "github.com/projectatomic/buildah/pkg/cli"
-	"github.com/projectatomic/buildah/pkg/parse"
-	util "github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

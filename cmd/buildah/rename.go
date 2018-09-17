@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/containers/buildah"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
 

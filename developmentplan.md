@@ -1,4 +1,4 @@
-![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
+![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
 
 # Development Plan
 
@@ -10,4 +10,4 @@
 
  * Buildah `buildah bud` command's goal is to have feature parity with other OCI image and container build systems.
 
- * Addressing issues from the community as reported in the [Issues](https://github.com/projectatomic/buildah/issues) page.
+ * Addressing issues from the community as reported in the [Issues](https://github.com/containers/buildah/issues) page.

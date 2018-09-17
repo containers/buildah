@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/containers/buildah/unshare"
+	"github.com/containers/buildah/util"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah/unshare"
-	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/gocapability/capability"
 	"github.com/urfave/cli"

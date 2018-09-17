@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"os"
 
+	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/buildah/util"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
-	buildahcli "github.com/projectatomic/buildah/pkg/cli"
-	"github.com/projectatomic/buildah/pkg/parse"
-	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

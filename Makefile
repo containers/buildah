@@ -36,10 +36,10 @@ docs: ## build the docs on the host
 	$(MAKE) -C docs
 
 # For vendoring to work right, the checkout directory must be such that our top
-# level is at $GOPATH/src/github.com/projectatomic/buildah.
+# level is at $GOPATH/src/github.com/containers/buildah.
 .PHONY: gopath
 gopath:
-	test $(shell pwd) = $(shell cd ../../../../src/github.com/projectatomic/buildah ; pwd)
+	test $(shell pwd) = $(shell cd ../../../../src/github.com/containers/buildah ; pwd)
 
 # We use https://github.com/lk4d4/vndr to manage dependencies.
 .PHONY: deps

@@ -30,7 +30,7 @@ ${PACKAGER} install -y buildah
 # Clone buildah from GitHub.com
 ########
 cd $SBOX
-git clone https://github.com/projectatomic/buildah.git
+git clone https://github.com/containers/buildah.git
 cd $GITROOT
 
 ########

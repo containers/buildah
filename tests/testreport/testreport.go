@@ -11,10 +11,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/containers/buildah/tests/testreport/types"
 	"github.com/containers/storage/pkg/mount"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah/tests/testreport/types"
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/crypto/ssh/terminal"

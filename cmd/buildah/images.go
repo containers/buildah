@@ -11,11 +11,11 @@ import (
 
 	"encoding/json"
 
+	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/parse"
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
-	buildahcli "github.com/projectatomic/buildah/pkg/cli"
-	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

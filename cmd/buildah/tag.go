@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/buildah/util"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah/pkg/parse"
-	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
 

@@ -7,10 +7,10 @@ import (
 	"regexp"
 	"text/template"
 
+	"github.com/containers/buildah"
+	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/parse"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah"
-	buildahcli "github.com/projectatomic/buildah/pkg/cli"
-	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
 )

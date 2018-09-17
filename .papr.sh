@@ -3,7 +3,7 @@ set -xeuo pipefail
 
 export GOPATH=$HOME/gopath
 export PATH=$HOME/gopath/bin:$PATH
-export GOSRC=$HOME/gopath/src/github.com/projectatomic/buildah
+export GOSRC=$HOME/gopath/src/github.com/containers/buildah
 
 (mkdir -p $GOSRC && cd /code && cp -r . $GOSRC)
 

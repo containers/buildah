@@ -7,10 +7,10 @@ import (
 	"time"
 
 	cniversion "github.com/containernetworking/cni/pkg/version"
+	"github.com/containers/buildah"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah"
 	"github.com/urfave/cli"
 )
 
