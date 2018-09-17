@@ -115,14 +115,10 @@ func budCmd(c *cli.Context) error {
 	if len(dockerfiles) == 0 {
 		dockerfiles = append(dockerfiles, filepath.Join(contextDir, "Dockerfile"))
 	}
-	if err := parse.ValidateFlags(c, buildahcli.BudFlags); err != nil {
-		return err
-	}
-	if err := parse.ValidateFlags(c, buildahcli.LayerFlags); err != nil {
-		return err
-	}
-	if err := parse.ValidateFlags(c, buildahcli.FromAndBudFlags); err != nil {
-		return err
+	for _, flag := range [][]cli.Flag{buildahcli.BudFlags, buildahcli.LayerFlags, buildahcli.FromAndBudFlags} {
+		if err := parse.ValidateFlags(c, flag); err != nil {
+			return err
+		}
 	}
 	var stdin, stdout, stderr, reporter *os.File
 	stdin = os.Stdin
