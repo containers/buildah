@@ -69,8 +69,8 @@ load helpers
 }
 
 @test "push without destination" {
-  buildah pull busybox
-  run buildah push busybox
+  buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  run buildah push --signature-policy ${TESTSDIR}/policy.json busybox
   echo "$output"
   [ "$status" -eq 1 ]
   echo "$output" | grep -q "docker://busybox"
