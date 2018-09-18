@@ -61,6 +61,9 @@ func rmiCmd(c *cli.Context) error {
 	if removeAll && pruneDangling {
 		return errors.Errorf("when using the --all switch, you may not use --prune switch")
 	}
+	if len(args) > 0 && pruneDangling {
+		return errors.Errorf("when using the --prune switch, you may not pass any images names or IDs")
+	}
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
