@@ -112,6 +112,12 @@ load helpers
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
+  run buildah --debug=false rmi -p alpine
+  [ "$status" -eq 1 ]
+  [ "$output" == "when using the --prune switch, you may not pass any images names or IDs" ]
+
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  buildah rm "$cid"
   run buildah --debug=false rmi -a -p
   [ "$status" -eq 1 ]
   [ "$output" == "when using the --all switch, you may not use --prune switch" ]
