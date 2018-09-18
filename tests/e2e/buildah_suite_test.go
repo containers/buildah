@@ -12,6 +12,7 @@ import (
 
 	"encoding/json"
 
+	"github.com/containers/buildah"
 	"github.com/containers/image/copy"
 	"github.com/containers/image/signature"
 	"github.com/containers/image/storage"
@@ -23,7 +24,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah"
 )
 
 var (

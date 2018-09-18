@@ -1,4 +1,4 @@
-![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
+![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
 
 # Installation Instructions
 
@@ -46,7 +46,7 @@ The CNI library needs to be configured so that it will know which plugins to
 call to set up namespaces.  Usually, this configuration takes the form of one
 or more configuration files in the `/etc/cni/net.d` directory.  A set of example
 configuration files is included in the
-[`docs/cni-examples`](https://github.com/projectatomic/buildah/tree/master/docs/cni-examples)
+[`docs/cni-examples`](https://github.com/containers/buildah/tree/master/docs/cni-examples)
 directory of this source tree.
 
 ## Package Installation
@@ -102,8 +102,8 @@ Then to install Buildah on Fedora follow the steps in this example:
   mkdir ~/buildah
   cd ~/buildah
   export GOPATH=`pwd`
-  git clone https://github.com/projectatomic/buildah ./src/github.com/projectatomic/buildah
-  cd ./src/github.com/projectatomic/buildah
+  git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
+  cd ./src/github.com/containers/buildah
   make
   sudo make install
   buildah --help
@@ -177,8 +177,8 @@ Then to install Buildah on Ubuntu follow the steps in this example:
   mkdir ~/buildah
   cd ~/buildah
   export GOPATH=`pwd`
-  git clone https://github.com/projectatomic/buildah ./src/github.com/projectatomic/buildah
-  cd ./src/github.com/projectatomic/buildah
+  git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
+  cd ./src/github.com/containers/buildah
   PATH=/usr/lib/go-1.8/bin:$PATH make runc all TAGS="apparmor seccomp"
   sudo make install install.runc
   buildah --help
@@ -268,7 +268,7 @@ containers.  This file is usually provided by the containers-common package.
 
 The link above takes you to the seccomp.json
 
-### [policy.json](https://github.com/projectatomic/skopeo/blob/master/default-policy.json)
+### [policy.json](https://github.com/containers/skopeo/blob/master/default-policy.json)
 
 `/etc/containers/policy.json`
 

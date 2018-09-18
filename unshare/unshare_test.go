@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/containers/buildah/util"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/projectatomic/buildah/util"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )

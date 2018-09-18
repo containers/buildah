@@ -1,4 +1,4 @@
-![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
+![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
 
 # Buildah Tutorial 1
 ## Building OCI container images
@@ -256,6 +256,6 @@ Why not try and modify the Dockerfile. Do not install httpd, but instead ADD the
 
 Well done. You have learned a lot about Buildah using this short tutorial. Hopefully you followed along with the examples and found them to be sufficient. Be sure to look at Buildah's man pages to see the other useful commands you can use. Have fun playing.
 
-If you have any suggestions or issues please post them at the [ProjectAtomic Buildah Issues page](https://github.com/projectatomic/buildah/issues).
+If you have any suggestions or issues please post them at the [Buildah Issues page](https://github.com/containers/buildah/issues).
 
-For more information on Buildah and how you might contribute please visit the [Buildah home page on Github](https://github.com/projectatomic/buildah).
+For more information on Buildah and how you might contribute please visit the [Buildah home page on Github](https://github.com/containers/buildah).

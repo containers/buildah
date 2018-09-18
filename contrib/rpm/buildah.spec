@@ -16,9 +16,9 @@
 
 %global provider        github
 %global provider_tld    com
-%global project         projectatomic
+%global project         containers
 %global repo            buildah
-# https://github.com/projectatomic/buildah
+# https://github.com/containers/buildah
 %global provider_prefix %{provider}.%{provider_tld}/%{project}/%{repo}
 %global import_path     %{provider_prefix}
 %global commit         REPLACEWITHCOMMITID

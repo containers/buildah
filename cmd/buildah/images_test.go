@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containers/buildah/util"
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
-	"github.com/projectatomic/buildah/util"
 )
 
 func TestTemplateOutputValidTemplate(t *testing.T) {

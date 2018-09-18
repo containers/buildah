@@ -5,14 +5,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/containers/buildah"
+	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/buildah/util"
 	"github.com/containers/image/storage"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah"
-	buildahcli "github.com/projectatomic/buildah/pkg/cli"
-	"github.com/projectatomic/buildah/pkg/parse"
-	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
 

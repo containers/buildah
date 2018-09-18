@@ -6,10 +6,10 @@ import (
 	"os/user"
 	"testing"
 
+	"github.com/containers/buildah"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
-	"github.com/projectatomic/buildah"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

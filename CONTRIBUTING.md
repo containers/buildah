@@ -1,4 +1,4 @@
-![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
+![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
 
 # Contributing to Buildah
 
@@ -16,7 +16,7 @@ that we follow.
 ## Reporting Issues
 
 Before reporting an issue, check our backlog of
-[open issues](https://github.com/projectatomic/buildah/issues)
+[open issues](https://github.com/containers/buildah/issues)
 to see if someone else has already reported it. If so, feel free to add
 your scenario, or additional information, to the discussion. Or simply
 "subscribe" to it to be notified when it is updated.
@@ -123,9 +123,9 @@ IRC group on `irc.freenode.net` called `buildah`
 that has been setup.
 
 For discussions around issues/bugs and features, you can use the github
-[issues](https://github.com/projectatomic/buildah/issues)
+[issues](https://github.com/containers/buildah/issues)
 and
-[PRs](https://github.com/projectatomic/buildah/pulls)
+[PRs](https://github.com/containers/buildah/pulls)
 tracking system.
 
 ## Becoming a Maintainer

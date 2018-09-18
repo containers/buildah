@@ -1,4 +1,4 @@
-![buildah logo](https://cdn.rawgit.com/projectatomic/buildah/master/logos/buildah-logo_large.png)
+![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
 
 # Buildah/Docker Conformance Test Suite
 
@@ -16,7 +16,7 @@ The dependencies for comformance testing include two parts:
 
 ### Install Buildah
 
-Install Buildah using dnf, yum or apt-get, based on your distribution.  Buildah can also be cloned and installed from [GitHub](https://github.com/projectatomic/buildah/blob/master/install.md).
+Install Buildah using dnf, yum or apt-get, based on your distribution.  Buildah can also be cloned and installed from [GitHub](https://github.com/containers/buildah/blob/master/install.md).
  
 ### Install Docker CE
 

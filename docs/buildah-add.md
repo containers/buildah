@@ -35,7 +35,7 @@ buildah add containerID '/home/myuser/myfiles.tar' '/tmp'
 
 buildah add containerID '/tmp/workingdir' '/tmp/workingdir'
 
-buildah add containerID 'https://github.com/projectatomic/buildah/blob/master/README.md' '/tmp'
+buildah add containerID 'https://github.com/containers/buildah/blob/master/README.md' '/tmp'
 
 buildah add containerID 'passwd' 'certs.d' /etc
 

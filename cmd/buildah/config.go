@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/containers/buildah"
+	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/parse"
 	"github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah"
-	buildahcli "github.com/projectatomic/buildah/pkg/cli"
-	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

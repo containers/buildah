@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containers/buildah"
+	"github.com/containers/buildah/util"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah"
-	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
 

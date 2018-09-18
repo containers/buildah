@@ -33,7 +33,7 @@ buildah copy containerID '/home/myuser/myfiles.tar' '/tmp'
 
 buildah copy containerID '/tmp/workingdir' '/tmp/workingdir'
 
-buildah copy containerID 'https://github.com/projectatomic/buildah' '/tmp'
+buildah copy containerID 'https://github.com/containers/buildah' '/tmp'
 
 buildah copy containerID 'passwd' 'certs.d' /etc
 

@@ -136,7 +136,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi scratch2 scratch3
 
-  # Github https://github.com/projectatomic/buildah/issues/396#issuecomment-360949396
+  # Github https://github.com/containers/buildah/issues/396#issuecomment-360949396
   cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm $cid
   buildah tag alpine alpine2

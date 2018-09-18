@@ -661,7 +661,7 @@ load helpers
 
 @test "bud with Dockerfile from valid URL" {
   target=url-image
-  url=https://raw.githubusercontent.com/projectatomic/buildah/master/tests/bud/from-scratch/Dockerfile
+  url=https://raw.githubusercontent.com/containers/buildah/master/tests/bud/from-scratch/Dockerfile
   run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${url}
   [ "$status" -eq 0 ]
   cid=$(buildah from ${target})
@@ -671,7 +671,7 @@ load helpers
 
 @test "bud with Dockerfile from invalid URL" {
   target=url-image
-  url=https://raw.githubusercontent.com/projectatomic/buildah/master/tests/bud/from-scratch/Dockerfile.bogus
+  url=https://raw.githubusercontent.com/containers/buildah/master/tests/bud/from-scratch/Dockerfile.bogus
   run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${url}
   [ "$status" -eq 1 ]
 }

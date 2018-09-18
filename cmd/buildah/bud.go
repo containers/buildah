@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containers/buildah/imagebuildah"
+	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/parse"
 	"github.com/pkg/errors"
-	"github.com/projectatomic/buildah/imagebuildah"
-	buildahcli "github.com/projectatomic/buildah/pkg/cli"
-	"github.com/projectatomic/buildah/pkg/parse"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

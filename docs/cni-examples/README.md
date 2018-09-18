@@ -1,4 +1,4 @@
-When [buildah](https://github.com/projectatomic/buildah)'s `buildah run`
+When [buildah](https://github.com/containers/buildah)'s `buildah run`
 command is used, or when  `buildah build-using-dockerfile` needs to handle a
 `RUN` instruction, the processes which `buildah` starts are run in their own
 network namespace unless the `--network=host` option is used.

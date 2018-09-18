@@ -14,11 +14,11 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/containers/buildah/tests/testreport/types"
+	"github.com/containers/buildah/util"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
-	"github.com/projectatomic/buildah/tests/testreport/types"
-	"github.com/projectatomic/buildah/util"
 )
 
 const (

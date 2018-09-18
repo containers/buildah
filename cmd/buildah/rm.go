@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/buildah/util"
 	"github.com/pkg/errors"
-	buildahcli "github.com/projectatomic/buildah/pkg/cli"
-	"github.com/projectatomic/buildah/pkg/parse"
-	"github.com/projectatomic/buildah/util"
 	"github.com/urfave/cli"
 )
 
