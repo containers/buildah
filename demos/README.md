@@ -7,7 +7,7 @@ The purpose of these demonstrations is twofold:
 1. To help automate some of the tutorial material so that Buildah newcomers can walk through some of the concepts.
 2. For Buildah enthusiasts and practitioners to use for demos at educational presentations - college classes, Meetups etc.
 
-It is assumed that you have installed Buildah and Podman on your machine. 
+It is assumed that you have installed Buildah and Podman on your machine.
 
     $ sudo yum -y install podman buildah
 
@@ -17,7 +17,7 @@ For the Docker compatibility demo you will also need to install Docker.
 
 Replace `yum` with `dnf` if required.
 
-## Building from scratch demo 
+## Building from scratch demo
 
 filename: [`buildah-scratch-demo.sh`](buildah-scratch-demo.sh)
 
@@ -33,34 +33,34 @@ There are several variables you will want to set that are listed at the top of t
     quayuser=UserNameHere
     myname=YourNameHere
     distrorelease=28
-    pkgmgr=dnf   # switch to yum if using yum 
+    pkgmgr=dnf   # switch to yum if using yum
 
 ## Buildah and Docker compatibility demo
 
 filename: [`docker-compatibility-demo.sh`](docker-compatibility-demo.sh)
 
-This demo builds an nginx container image using Buildah. It modifies the homepage and commits the image. The container is tested using `podman run` and then stopped. The Docker daemon is then started and the image is pushed to the Docker repository. The container is started using `docker run` and tested. 
+This demo builds an nginx container image using Buildah. It modifies the homepage and commits the image. The container is tested using `podman run` and then stopped. The Docker daemon is then started and the image is pushed to the Docker repository. The container is started using `docker run` and tested.
 
 There are several variables you will want to set that are listed at the top of the script. The name for the container image, your quay.io username, your name, and the Fedora release number:
 
     demoimg=dockercompatibilitydemo
-    quayuser=UsernameHere  
+    quayuser=UsernameHere
     myname=YourNameHear
     distro=fedora
     distrorelease=28
-    pkgmgr=dnf   # switch to yum if using yum 
+    pkgmgr=dnf   # switch to yum if using yum
 
 ## Buildah build using Docker demo
 
 filename: [`docker-bud-demo.sh`](buildah-bud-demo.sh)
 
-This demo builds an nginx container image using Buildah with. Buildah's `buildah-using-docker`, or `bud` option, provides a mechanism for using existing Dockerfiles to build the container image. This image is the same as the image in the Docker compatibility demo (at time of creating this README). The container is tested using `podman run` and then stopped. The Docker daemon is then started and the image is pushed to the Docker repository. The container is started using `docker run` and tested. 
+This demo builds an nginx container image using Buildah with. Buildah's `buildah-using-docker`, or `bud` option, provides a mechanism for using existing Dockerfiles to build the container image. This image is the same as the image in the Docker compatibility demo (at time of creating this README). The container is tested using `podman run` and then stopped. The Docker daemon is then started and the image is pushed to the Docker repository. The container is started using `docker run` and tested.
 
 There are several variables you will want to set that are listed at the top of the script. The name for the container image, your quay.io username, your name, and the Fedora release number:
 
     demoimg=buildahbuddemo
-    quayuser=UsernameHere  
+    quayuser=UsernameHere
     myname=YourNameHear
     distro=fedora
     distrorelease=28
-    pkgmgr=dnf   # switch to yum if using yum 
+    pkgmgr=dnf   # switch to yum if using yum

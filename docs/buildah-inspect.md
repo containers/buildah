@@ -8,7 +8,7 @@ buildah\-inspect - Display information about working containers or images.
 
 ## DESCRIPTION
 Prints the low-level information on Buildah object(s) (e.g. container, images) identified by name or ID. By default, this will render all results in a
-JSON array. If the container and image have the same name, this will return container JSON for unspecified type. If a format is specified, 
+JSON array. If the container and image have the same name, this will return container JSON for unspecified type. If a format is specified,
 the given template will be executed for each result.
 
 ## OPTIONS

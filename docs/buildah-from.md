@@ -430,7 +430,7 @@ Only the current container can use a private volume.
 
 By default bind mounted volumes are `private`. That means any mounts done
 inside container will not be visible on the host and vice versa. This behavior can
-be changed by specifying a volume mount propagation property. 
+be changed by specifying a volume mount propagation property.
 
 When the mount propagation policy is set to `shared`, any mounts completed inside
 the container on that volume will be visible to both the host and container. When
@@ -475,7 +475,7 @@ buildah from --name mycontainer dir:directoryname
 
 buildah from --signature-policy /etc/containers/policy.json imagename
 
-buildah from --pull-always --name "mycontainer" docker://myregistry.example.com/imagename 
+buildah from --pull-always --name "mycontainer" docker://myregistry.example.com/imagename
 
 buildah from --tls-verify=false myregistry/myrepository/imagename:imagetag
 
