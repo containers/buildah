@@ -87,4 +87,4 @@ script:
     - echo
     - echo "Running tests in SPC using ./hack/run_build.sh"
     - "./hack/run_build.sh"
-
+    - echo "CHECK IF TRAVIS RUNS"
