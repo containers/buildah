@@ -1,18 +1,18 @@
 ![buildah logo](../../logos/buildah-logo_large.png)
 
-# Buildah Tutorial 3 
-## Using ONBUILD in Buildah 
+# Buildah Tutorial 3
+## Using ONBUILD in Buildah
 
 The purpose of this tutorial is to demonstrate how Buildah can use a Dockerfile with the ONBUILD instruction within it or how the ONBUILD instruction can be used with the `buildah config` command.  The ONBUILD instruction stores a command in the meta data of a container image which is then invoked when a secondary container image is created.  The image can have multiple ONBUILD instructions.  Note: The ONBUILD instructions do not change the content of the image that contain the instructions, only the container images that are created from this image are changed based on the FROM command.
 
-Container images that are compliant with the [Open Container Initiative][] (OCI) [image specification][] do not support the ONBUILD instruction.  Images that are created by Buildah are OCI compliant by default.  Therefore only containers that are created by Buildah that use the Docker format can use the ONBUILD instruction.  The OCI format can be overridden in Buildah by specifying the Docker format with the `--format=docker` option or by setting the BUILDAH_FORMAT environment variable to 'docker'.  Regardless of the format selected, Buildah is capable of working seamlessly with either OCI or Docker compliant images and containers. 
+Container images that are compliant with the [Open Container Initiative][] (OCI) [image specification][] do not support the ONBUILD instruction.  Images that are created by Buildah are OCI compliant by default.  Therefore only containers that are created by Buildah that use the Docker format can use the ONBUILD instruction.  The OCI format can be overridden in Buildah by specifying the Docker format with the `--format=docker` option or by setting the BUILDAH_FORMAT environment variable to 'docker'.  Regardless of the format selected, Buildah is capable of working seamlessly with either OCI or Docker compliant images and containers.
 
 On to the tutorial.  The first step is to install Buildah.  In short, the `buildah run` command emulates the RUN command that is found in a Dockerfile while the `podman run` command emulates the `docker run` command.  For the purpose of this tutorial Buildah's run command will be used.  As an aside, Podman is aimed at managing containers, images, and pods while Buildah focuses on the building of containers.  For more info on Podman, please go to [GitHub][].
 
 ## Setup
 
 The following assumes installation on Fedora.
- 
+
 Run as root because you will need to be root for running Buildah commands (at the time of this writing work is underway to allow non-root access):
 
     $ sudo -s
@@ -28,10 +28,10 @@ After installing Buildah check to see that there are no images installed. The `b
 We can also see that there are also no containers by running:
 
     # buildah containers
-  
+
 ## Examples
 
-The two examples that will be shown are relatively simple, but they illustrate how a command or a number of commands can be setup in a master image such that they will be added to a secondary container image that is created from it.  This is extremely useful if you need to setup an environment where your containers have 75% of the same content, but need a few individual tweaks.  This can be helpful in setting up a environment for maven or java development containers for instance.  In this way you can create a single Dockerfile with all the common setup steps as ONBUILD commands and then really minimize the buildah commands or instructions in a second Dockerfile that would be necessary to complete the creation of the container image.  
+The two examples that will be shown are relatively simple, but they illustrate how a command or a number of commands can be setup in a master image such that they will be added to a secondary container image that is created from it.  This is extremely useful if you need to setup an environment where your containers have 75% of the same content, but need a few individual tweaks.  This can be helpful in setting up a environment for maven or java development containers for instance.  In this way you can create a single Dockerfile with all the common setup steps as ONBUILD commands and then really minimize the buildah commands or instructions in a second Dockerfile that would be necessary to complete the creation of the container image.
 
 ## ONBUILD in a Dockerfile - Example 1
 
@@ -113,7 +113,7 @@ result-container
 /bar  /baz  /foo
 ```
 
-## ONBUILD via `buildah config` - Example 2 
+## ONBUILD via `buildah config` - Example 2
 
 For this example the ONBUILD instructions in the primary container image will be used to copy a shell script and then run it in the secondary container image.  For the script, we'll make use of the shell script from the [Introduction Tutorial][].  First create a file in the local directory called `runecho.sh` containing the following:
 
@@ -124,7 +124,7 @@ for i in `seq 0 9`;
 do
 	echo "This is a new container from ipbabble [" $i "]"
 done
-``` 
+```
 Change the permissions on the file so that it can be run:
 
 ```
@@ -176,7 +176,7 @@ This is a new container pull ipbabble [ 8 ]
 This is a new container pull ipbabble [ 9 ]
 
 ```
-Again these aren't the most extensive examples, but they both illustrate how a master image can be setup and then a secondary container image can then be created with just a few steps.  This way the steps that are set up with the ONBUILD instructions don't have to be typed in each and every time that you need to setup your container. 
+Again these aren't the most extensive examples, but they both illustrate how a master image can be setup and then a secondary container image can then be created with just a few steps.  This way the steps that are set up with the ONBUILD instructions don't have to be typed in each and every time that you need to setup your container.
 
 ## Congratulations
 

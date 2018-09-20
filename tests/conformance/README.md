@@ -17,7 +17,7 @@ The dependencies for comformance testing include two parts:
 ### Install Buildah
 
 Install Buildah using dnf, yum or apt-get, based on your distribution.  Buildah can also be cloned and installed from [GitHub](https://github.com/containers/buildah/blob/master/install.md).
- 
+
 ### Install Docker CE
 
 Conformance tests use Docker CE to check the images built with Buildah. Install Docker CE with dnf, yum or apt-get, based on your distribution and verify that the Docker service is started as the default. In Fedora, RHEL and CentOS Docker rather than Docker CE may be installed by default, please verify that you install the correct variant of Docker.

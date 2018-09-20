@@ -49,6 +49,7 @@ deps: gopath
 .PHONY: validate
 validate:
 	@./tests/validate/gofmt.sh
+	@./tests/validate/whitespace.sh
 	@./tests/validate/govet.sh
 	@./tests/validate/git-validation.sh
 	@./tests/validate/gometalinter.sh . cmd/buildah

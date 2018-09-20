@@ -3,7 +3,7 @@
 # Buildah Tutorial 2
 ## Using Buildah with container registries
 
-The purpose of this tutorial is to demonstrate how Buildah can be used to move OCI compliant images in and out of private or public registries. 
+The purpose of this tutorial is to demonstrate how Buildah can be used to move OCI compliant images in and out of private or public registries.
 
 In the [first tutorial](https://github.com/containers/buildah/blob/master/docs/tutorials/01-intro.md) we built an image from scratch that we called `fedora-bashecho` and we pushed it to a local Docker repository using the `docker-daemon` protocol. We are going to use the same image to push to a private Docker registry.
 
@@ -18,12 +18,12 @@ It is worth pointing out that the `from` command can also use other protocols be
 Then we need to start the registry. You should start the registry in a separate shell and leave it running there:
 
     # buildah run $registry
-    
+
 If you would like to see more details as to what is going on inside the registry, especially if you are having problems with the registry, you can run the registry container in debug mode as follows:
 
     # buildah --debug run $registry
 
-You can use `--debug` on any Buildah command. 
+You can use `--debug` on any Buildah command.
 
 The registry is running and is waiting for requests to process. Notice that this registry is a Docker registry that we pulled from Docker hub and we are running it for this example using `buildah run`. There is no Docker daemon running at this time.
 
@@ -32,7 +32,7 @@ Let's push our image to the private registry. By default, Buildah is set up to e
     # buildah push --tls-verify=false fedora-bashecho docker://localhost:5000/ipbabble/fedora-bashecho:latest
 
 [Skopeo](https://github.com/containers/skopeo) is a containers tool that was created to inspect images in registries without having to pull the image from the registry. It has grown to have many other uses. We will verify that the image has been stored by using Skopeo to inspect the image in the registry:
- 
+
     # skopeo inspect --tls-verify=false docker://localhost:5000/ipbabble/fedora-bashecho:latest
     {
         "Name": "localhost:5000/ipbabble/fedora-bashecho",
@@ -57,9 +57,9 @@ We can verify that it is still portable with Docker by starting Docker again, as
     # systemctl start docker
     # docker pull localhost:5000/ipbabble/fedora-bashecho
     Using default tag: latest
-    Trying to pull repository localhost:5000/ipbabble/fedora-bashecho ... 
+    Trying to pull repository localhost:5000/ipbabble/fedora-bashecho ...
     sha256:6806f9385f97bc09f54b5c0ef583e58c3bc906c8c0b3e693d8782d0a0acf2137: Pulling from localhost:5000/ipbabble/fedora-bashecho
-    0cb7556c7147: Pull complete 
+    0cb7556c7147: Pull complete
     Digest: sha256:6806f9385f97bc09f54b5c0ef583e58c3bc906c8c0b3e693d8782d0a0acf2137
     Status: Downloaded newer image for localhost:5000/ipbabble/fedora-bashecho:latest
 
@@ -103,20 +103,20 @@ And let's inspect that with Skopeo:
 
 We can use Buildah to pull down the image using the `buildah from` command. But before we do let's clean up our local containers-storage so that we don't have an existing fedora-bashecho - otherwise Buildah will know it already exists and not bother pulling it down.
 
-    #  buildah images 
+    #  buildah images
     IMAGE ID             IMAGE NAME                                               CREATED AT             SIZE
     d4cd7d73ee42         docker.io/library/registry:latest                        Dec 1, 2017 22:15      31.74 MB
     e31b0f0b0a63         docker.io/library/fedora-bashecho:latest                 Dec 5, 2017 21:38      772 B
     # buildah rmi fedora-bashecho
     untagged: docker.io/library/fedora-bashecho:latest
     e31b0f0b0a63e94c5a558d438d7490fab930a282a4736364360ab9b92cb25f3a
-    #  buildah images 
+    #  buildah images
     IMAGE ID             IMAGE NAME                                               CREATED AT             SIZE
     d4cd7d73ee42         docker.io/library/registry:latest                        Dec 1, 2017 22:15      31.74 MB
 
 Okay, so we don't have a fedora-bashecho anymore. Let's pull the image from Docker hub:
 
-    # buildah from ipbabble/fedora-bashecho 
+    # buildah from ipbabble/fedora-bashecho
 
 If you don't want to bother doing the remove image step (`rmi`) you can use the flag `--pull-always` to force the image to be pulled again and overwrite any corresponding local image.
 
@@ -126,7 +126,7 @@ Now check that image is in the local containers-storage:
     IMAGE ID             IMAGE NAME                                               CREATED AT             SIZE
     d4cd7d73ee42         docker.io/library/registry:latest                        Dec 1, 2017 22:15      31.74 MB
     864871ac1c45         docker.io/ipbabble/fedora-bashecho:latest                Dec 5, 2017 21:38      315.4 MB
-    
+
 Success!
 
 If you have any suggestions or issues please post them at the [Containers Buildah Issues page](https://github.com/containers/buildah/issues).

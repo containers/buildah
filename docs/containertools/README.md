@@ -8,7 +8,7 @@ on [GitHub.com](https://github.com) that operate on
 guide will give a high level explanation of the related container tools and will explain a bit
 on how they interact amongst each other.
 
-The tools are:  
+The tools are:
 
 * [Buildah](https://github.com/containers/buildah)
 * [CRI-O](https://github.com/kubernetes-sigs/cri-o)
@@ -45,11 +45,11 @@ and image verification when pulling images along with resource isolation of cont
 ## Skopeo
 
 Skopeo is a command line tool that performs a variety of operations on container images and image repositories.
-Skopeo can work on either OCI or Docker images.  Skopeo can be used to copy images from and to various 
+Skopeo can work on either OCI or Docker images.  Skopeo can be used to copy images from and to various
 container storage mehchanisms including container registries.  Skopeo also allows you to inspect an image
 showing its layers without requiring that the image be pulled.  Skopeo also allows you to delete an image
 from a repository.  When required by the repository, Skopeo can pass appropriate certificates and credentials
-for authentication. 
+for authentication.
 
 
 ## Buildah and Podman relationship
@@ -86,18 +86,18 @@ familiar container cli commands.
 Some of the commands between the projects overlap:
 
 * build
-The `podman build` and `buildah bud` commands have significant overlap as Podman borrows large pieces of the `podman build` implementation from Buildah. 
+The `podman build` and `buildah bud` commands have significant overlap as Podman borrows large pieces of the `podman build` implementation from Buildah.
 
 * run
 The `buildah run` and `podman run` commands are similar but different.  As explained above Podman and Buildah have a different concept of a container.  An easy way to think of it is the `buildah run` command emulates the RUN command in a Dockerfile while the `podman run` command emulates the `docker run` command in functionality.  As Buildah and Podman have some what different concepts of containers, you can not see Podman containers from within Buildah or vice versa.
 
-* pull, push 
+* pull, push
 These commands are basically the same between the two and either could be used.
 
 * commit
 Commit works differently because of the differences in `containers`.  You cannot commit a Podman container from Buildah nor a Buildah container from Podman.
 
-* tag, rmi, images 
+* tag, rmi, images
 These commands are basically the same between the two and either could be used.
 
 * rm
@@ -105,7 +105,7 @@ This command appears to be equivalent on the surface, but they differ due to the
 between the two projects.  Given that, Buildah containers can not be removed with a Podman command and Podman containers
 can not be removed with a Buildah command.
 
-* mount 
+* mount
 Mount command is similar for both in that you can mount the container image and modify content in it, which will be saved to an image when you commit.
 
 In short Buildah is an efficient way to create OCI images  while Podman allows
