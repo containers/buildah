@@ -898,3 +898,64 @@ load helpers
   [ "$status" -eq 0 ]
   [[ $output =~ "/var/file2" ]]
 }
+
+@test "bud with FROM AS construct" {
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
+  run buildah --debug=false images -a
+  [[ $output =~ "test1" ]]
+  [ "${status}" -eq 0 ]
+
+  ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json test1)
+  run buildah --debug=false containers -a
+  [[ $output =~ "test1" ]]
+  [ "${status}" -eq 0 ]
+  
+  run buildah inspect --format "{{.Docker.ContainerConfig.Env}}" --type image test1
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output =~ "LOCAL=/1" ]]
+}
+
+@test "bud with FROM AS construct with layers" {
+  buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
+  run buildah --debug=false images -a
+  [[ $output =~ "test1" ]]
+  [ "${status}" -eq 0 ]
+
+  ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json test1)
+  run buildah --debug=false containers -a
+  [[ $output =~ "test1" ]]
+  [ "${status}" -eq 0 ]
+  
+  run buildah inspect --format "{{.Docker.ContainerConfig.Env}}" --type image test1
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output =~ "LOCAL=/1" ]]
+}
+
+@test "bud with FROM AS skip FROM construct" {
+  run buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t test1 -f ${TESTSDIR}/bud/from-as/Dockerfile.skip ${TESTSDIR}/bud/from-as
+  [[ $output =~ "LOCAL=/1" ]]
+  [[ $output =~ "LOCAL2=/2" ]]
+  [ "${status}" -eq 0 ]
+
+  run buildah --debug=false images -a
+  [[ $output =~ "test1" ]]
+  [ "${status}" -eq 0 ]
+
+  ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json test1)
+  run buildah --debug=false containers -a
+  [[ $output =~ "test1" ]]
+  [ "${status}" -eq 0 ]
+
+  mnt=$(buildah mount $ctr)
+  run test -e $mnt/1
+  [ "${status}" -eq 0 ]
+  run test -e $mnt/2
+  [ "${status}" -ne 0 ]
+ 
+  run buildah --debug=false inspect --format "{{.Docker.ContainerConfig.Env}}" --type image test1
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output =~ "[PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin LOCAL=/1]" ]]
+}
