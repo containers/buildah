@@ -1,0 +1,14 @@
+FROM centos:7 AS base
+RUN touch /1
+ENV LOCAL=/1
+RUN find $LOCAL
+    	
+FROM base
+RUN find $LOCAL
+RUN touch /2
+ENV LOCAL2=/2
+RUN find $LOCAL2
+
+FROM base
+RUN find $LOCAL
+RUN ls / 
