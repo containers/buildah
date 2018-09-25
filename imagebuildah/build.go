@@ -751,6 +751,7 @@ func (b *Executor) Execute(ctx context.Context, ib *imagebuilder.Builder, node *
 	checkForLayers := true
 	children := node.Children
 	commitName := b.output
+	b.containerIDs = nil
 	for i, node := range node.Children {
 		step := ib.Step()
 		if err := step.Resolve(node); err != nil {
