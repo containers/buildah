@@ -46,6 +46,12 @@ Briefly describe the problem you are having in a few paragraphs.
 (paste your output here)
 ```
 
+**Output of `podman version` if reporting a `podman build` issue:**
+
+```
+(paste your output here)
+```
+
 **Output of `cat /etc/*release`:**
 
 ```
