@@ -4,7 +4,7 @@
 buildah\-rmi - Removes one or more images.
 
 ## SYNOPSIS
-**buildah rmi** *image* ...
+**buildah rmi** [*image*] ...
 
 ## DESCRIPTION
 Removes one or more locally stored images.
@@ -20,10 +20,12 @@ If _imageID_ is a name, but does not include a registry name, buildah will attem
 **--all, -a**
 
 All local images will be removed from the system that do not have containers using the image as a reference image.
+An image name or id cannot be provided when this option is used.
 
 **--prune, -p**
 
 All local images will be removed from the system that do not have a tag and do not have a child image pointing to them.
+An image name or id cannot be provided when this option is used.
 
 **--force, -f**
 
