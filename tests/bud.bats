@@ -19,36 +19,40 @@ load helpers
 @test "bud with --layers and --no-cache flags" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 7 ]
+  [ $(wc -l <<< "$output") -eq 8 ]
   [ "${status}" -eq 0 ]
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 9 ]
+  [ $(wc -l <<< "$output") -eq 10 ]
   [ "${status}" -eq 0 ]
   run buildah inspect --format "{{.Docker.ContainerConfig.Env}}" test2
   echo "$output"
   [ "$status" -eq 0 ]
   [[ $output =~ "foo=bar" ]]
+  run buildah inspect --format "{{.Docker.ContainerConfig.ExposedPorts}}" test2
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output =~ "8080" ]]
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 11 ]
+  [ $(wc -l <<< "$output") -eq 12 ]
   [ "${status}" -eq 0 ]
 
   mkdir -p ${TESTSDIR}/bud/use-layers/mount/subdir
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test4 -f Dockerfile.3 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 13 ]
+  [ $(wc -l <<< "$output") -eq 14 ]
   [ "${status}" -eq 0 ]
   touch ${TESTSDIR}/bud/use-layers/mount/subdir/file.txt
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test5 -f Dockerfile.3 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 15 ]
+  [ $(wc -l <<< "$output") -eq 16 ]
   [ "${status}" -eq 0 ]
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test6 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 18 ]
+  [ $(wc -l <<< "$output") -eq 19 ]
   [ "${status}" -eq 0 ]
 
   buildah rmi -a -f
@@ -63,7 +67,7 @@ load helpers
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --rm=false --layers -t test2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false containers
-  [ $(wc -l <<< "$output") -eq 6 ]
+  [ $(wc -l <<< "$output") -eq 7 ]
   [ "${status}" -eq 0 ]
 
   buildah rm -a

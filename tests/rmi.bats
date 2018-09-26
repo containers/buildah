@@ -154,19 +154,19 @@ load helpers
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a -q
   echo "$output"
-  [ $(wc -l <<< "$output") -eq 6 ]
+  [ $(wc -l <<< "$output") -eq 7 ]
   [ "${status}" -eq 0 ]
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a -q
   echo "$output"
-  [ $(wc -l <<< "$output") -eq 8 ]
+  [ $(wc -l <<< "$output") -eq 9 ]
   [ "${status}" -eq 0 ]
   run buildah --debug=false rmi test2
   echo "$output"
   [ "${status}" -eq 0 ]
   run buildah --debug=false images -a -q
   echo "$output"
-  [ $(wc -l <<< "$output") -eq 6 ]
+  [ $(wc -l <<< "$output") -eq 7 ]
   [ "${status}" -eq 0 ]
   run buildah --debug=false rmi test1
   echo "$output"
