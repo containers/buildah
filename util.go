@@ -9,11 +9,14 @@ import (
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/pkg/sysregistriesv2"
 	"github.com/containers/image/types"
+	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/reexec"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
 
@@ -193,4 +196,36 @@ func hasRegistry(imageName string) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+// ReserveSELinuxLabels reads containers storage and reserves SELinux containers
+// fall all existing buildah containers
+func ReserveSELinuxLabels(store storage.Store, id string) error {
+	if selinux.GetEnabled() {
+		containers, err := store.Containers()
+		if err != nil {
+			return err
+		}
+
+		for _, c := range containers {
+			if id == c.ID {
+				continue
+			} else {
+				b, err := OpenBuilder(store, c.ID)
+				if err != nil {
+					if os.IsNotExist(err) {
+						// Ignore not exist errors since containers probably created by other tool
+						// TODO, we need to read other containers json data to reserve their SELinux labels
+						continue
+					}
+					return err
+				}
+				// Prevent different containers from using same MCS label
+				if err := label.ReserveLabel(b.ProcessLabel); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
