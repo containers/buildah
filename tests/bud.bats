@@ -880,3 +880,20 @@ load helpers
   [ $(expr "$output" : "3267") -ne 0 ]
   [ "$status" -eq 0 ]
 }
+
+@test "bud with ADD file construct" {
+  buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/add-file
+  run buildah --debug=false images -a
+  [[ $output =~ "test1" ]]
+  [ "${status}" -eq 0 ]
+
+  ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json test1)
+  run buildah --debug=false containers -a
+  [[ $output =~ "test1" ]]
+  [ "${status}" -eq 0 ]
+
+  run buildah --debug=false run $ctr ls /var/file2
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output =~ "/var/file2" ]]
+}
