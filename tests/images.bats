@@ -32,7 +32,7 @@ load helpers
   [ $(wc -l <<< "$output") -eq 3 ]
   [ "${status}" -eq 0 ]
   run buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 7 ]
+  [ $(wc -l <<< "$output") -eq 8 ]
 
   # create a no name image which should show up when doing buildah images without the --all flag
   buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/use-layers
