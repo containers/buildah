@@ -26,6 +26,7 @@ matrix:
   # If the latest unstable development version of go fails, that's OK.
   allow_failures:
     - go: tip
+    - env: TEST_GROUP=conformance
 
   # Don't hold on the tip tests to finish.  Mark tests green if the
   # stable versions pass.
@@ -81,9 +82,11 @@ script:
     - tmp=`mktemp -d`; mkdir $tmp/root $tmp/runroot; sudo PATH="$PATH" ./buildah.test -test.v -root $tmp/root -runroot $tmp/runroot -storage-driver vfs -signature-policy `pwd`/tests/policy.json -registries-conf `pwd`/tests/registries.conf
     - cd tests; travis_wait 60 sudo PATH="$PATH" ./test_runner.sh
     - cd ..
-    - echo "Run container-diff tests in Fedora container..."
+after_script:
+    - echo "Run conformance tests in Fedora container..."
     - echo "Travis/host environment:"
     - env
+    - env TEST_GROUP=conformance
     - echo
     - echo "Running tests in SPC using ./hack/run_build.sh"
     - "./hack/run_build.sh"
