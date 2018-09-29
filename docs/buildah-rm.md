@@ -4,7 +4,7 @@
 buildah\-rm - Removes one or more working containers.
 
 ## SYNOPSIS
-**buildah rm** *container* ...
+**buildah rm** [*container* ...]
 
 ## DESCRIPTION
 Removes one or more working containers, unmounting them if necessary.
@@ -13,7 +13,7 @@ Removes one or more working containers, unmounting them if necessary.
 
 **--all, -a**
 
-All Buildah containers will be removed.  Buildah containers are denoted with an '*' in the 'BUILDER' column listed by the command 'buildah containers'.
+All Buildah containers will be removed.  Buildah containers are denoted with an '*' in the 'BUILDER' column listed by the command 'buildah containers'.A container name or id cannot be provided when this option is used.
 
 ## EXAMPLE
 
