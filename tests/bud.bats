@@ -859,12 +859,13 @@ load helpers
   [[ "${output}" =~ "must be lower" ]]
 }
 
-@test "bud with chmod copy" {
+@test "bud with chown copy" {
   imgName=alpine-image
   ctrName=alpine-chown
-  run buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-chown
+  run buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-chown
   echo "$output"
   [ "$status" -eq 0 ]
+  [[ "$output" =~ user:2367[[:space:]]group:3267 ]]
   run buildah --debug=false from --name ${ctrName} ${imgName}
   echo "$output"
   [ "$status" -eq 0 ] 
