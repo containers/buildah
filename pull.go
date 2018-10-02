@@ -135,7 +135,7 @@ func localImageNameForReference(ctx context.Context, store storage.Store, srcRef
 	return name, nil
 }
 
-// Pull copies the contents of the image from somewhere else.
+// Pull copies the contents of the image from somewhere else to local storage.
 func Pull(ctx context.Context, imageName string, options PullOptions) (types.ImageReference, error) {
 	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
 	return pullImage(ctx, options.Store, imageName, options, systemContext)
@@ -146,8 +146,9 @@ func pullImage(ctx context.Context, store storage.Store, imageName string, optio
 	srcRef, err := alltransports.ParseImageName(spec)
 	if err != nil {
 		if options.Transport == "" {
-			return nil, errors.Wrapf(err, "error parsing image name %q", spec)
+			options.Transport = DefaultTransport
 		}
+		logrus.Debugf("error parsing image name %q, trying with transport %q: %v", spec, options.Transport, err)
 		transport := options.Transport
 		if transport != DefaultTransport {
 			transport = transport + ":"
@@ -159,6 +160,7 @@ func pullImage(ctx context.Context, store storage.Store, imageName string, optio
 		}
 		srcRef = srcRef2
 	}
+	logrus.Debugf("parsed image name %q", spec)
 
 	blocked, err := isReferenceBlocked(srcRef, sc)
 	if err != nil {
@@ -214,7 +216,7 @@ func pullImage(ctx context.Context, store storage.Store, imageName string, optio
 		return nil, err
 	}
 	if !hasRegistryInName && len(searchRegistries) == 0 {
-		return nil, errors.Errorf("image name provided is a short name and no search registries are defined in %s: %s", registryPath, pullError)
+		return nil, errors.Errorf("image name provided does not include a registry name and no search registries are defined in %s: %s", registryPath, pullError)
 	}
 	return nil, pullError
 }
