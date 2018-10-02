@@ -190,7 +190,7 @@ func pullImage(ctx context.Context, store storage.Store, imageName string, optio
 	}()
 
 	logrus.Debugf("copying %q to %q", spec, destName)
-	pullError := cp.Image(ctx, policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter, sc, nil, ""))
+	pullError := cp.Image(ctx, policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter, srcRef, sc, destRef, nil, ""))
 	if pullError == nil {
 		return destRef, nil
 	}
