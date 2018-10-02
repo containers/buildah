@@ -1,3 +1,103 @@
+- Changelog for v1.4 (2018-10-02)
+  * from: fix isolation option
+  * Touchup pull manpage
+  * Export buildah ReserveSELinuxLables so podman can use it
+  * Add buildah.io to README.md and doc fixes
+  * Update rmi man for prune changes
+  * Ignore file not found removal error in bud
+  * bump(github.com/containers/{storage,image})
+  * NewImageSource(): only create one Diff() at a time
+  * Copy ExposedPorts from base image into the config
+  * tests: run conformance test suite in Travis
+  * Change rmi --prune to not accept an imageID
+  * Clear intermediate container IDs after each stage
+  * Request podman version for build issues
+  * unshare: keep the additional groups of the user
+  * Builtin volumes should be owned by the UID/GID of the container
+  * Get rid of dangling whitespace in markdown files
+  * Move buildah from projecatatomic/buildah to containers/buildah
+  * nitpick: parse.validateFlags loop in bud cli
+  * bash: Completion options
+  * Add signature policy to push tests
+  * vendor in latest containers/image
+  * Fix grammar in Container Tools Guide
+  * Don't build btrfs if it is not installed
+  * new: Return image-pulling errors from resolveImage
+  * pull: Return image-pulling errors from pullImage
+  * Add more volume mount tests
+  * chroot: create missing parent directories for volume mounts
+  * Push: Allow an empty destination
+  * Add Podman relationship to readme, create container tools guide
+  * Fix arg usage in buildah-tag
+  * Add flags/arguments order verification to other commands
+  * Handle ErrDuplicateName errors from store.CreateContainer()
+  * Evaluate symbolic links on Add/Copy Commands
+  * Vendor in latest containers/image and containers/storage
+  * Retain bounding set when running containers as non root
+  * run container-diff tests in Travis
+  * buildah-images.md: Fix option contents
+  * push: show image digest after push succeed
+  * Vendor in latest containers/storage,image,libpod and runc
+  * Change references to cri-o to point at new repository
+  * Exclude --layers from the common bug cli flags
+  * demos: Increase the executable permissions
+  * run: clear default seccomp filter if not enabled
+  * Bump maximum cyclomatic complexity to 45
+  * stdin: on HUP, read everything
+  * nitpick: use tabs in tests/helpers.bash
+  * Add flags/arguments order verification to one arg commands
+  * nitpick: decrease cognitive complexity in buildah-bud
+  * rename: Avoid renaming the same name as other containers
+  * chroot isolation: chroot() before setting up seccomp
+  * Small nitpick at the "if" condition in tag.go
+  * cmd/images: Modify json option
+  * cmd/images: Disallow the input of image when using the -a option
+  * Fix examples to include context directory
+  * Update containers/image to fix commit layer issue
+  * cmd/containers: End loop early when using the json option
+  * Make buildah-from error message clear when flags are after arg
+  * Touch up README.md for conformance tests
+  * Update container/storage for lock fix
+  * cmd/rm: restore the correct containerID display
+  * Remove debug lines
+  * Remove docker build image after each test
+  * Add README for conformance test
+  * Update the MakeOptions to accept all command options for buildah
+  * Update regrex to fit the docker output in test "run with JSON"
+  * cmd/buildah: Remove redundant variable declarations
+  * Warn about using Commands in Dockerfile that are not supported by OCI.
+  * Add buildah bud conformance test
+  * Fix rename to also change container name in builder
+  * Makefile: use $(GO) env-var everywhere
+  * Cleanup code to more closely match Docker Build images
+  * Document BUILDAH_* environment variables in buildah bud --help output
+  * Return error immediately if error occurs in Prepare step
+  * Fix --layers ADD from url issue
+  * Add "Sign your PRs" TOC item to contributing.md.
+  * Display the correct ID after deleting image
+  * rmi: Modify the handling of errors
+  * Let util.ResolveName() return parsing errors
+  * Explain Open Container Initiative (OCI) acronym, add link
+  * Update vendor for urfave/cli back to master
+  * Handle COPY --chown in Dockerfile
+  * Switch to Recommends container-selinux
+  * Update vendor for containernetworking, imagebuildah and podman
+  * Document STORAGE_DRIVER and STORAGE_OPTS environment variable
+  * Change references to projectatomic/libpod to containers/libpod
+  * Add container PATH retrieval example
+  * Expand variables names for --env
+  * imagebuildah: provide a way to provide stdin for RUN
+  * Remove an unused srcRef.NewImageSource in pullImage
+  * chroot: correct a comment
+  * chroot: bind mount an empty directory for masking
+  * Don't bother with --no-pivot for rootless isolation
+  * CentOS need EPEL repo
+  * Export a Pull() function
+  * Remove stream options, since docker build does not have it
+  * release v1.3: mention openSUSE
+  * Add Release Announcements directory
+  * Bump to v1.4-dev
+
 - Changelog for v1.3 (2018-08-04)
   * Revert pull error handling from 881
   * bud should not search context directory for Dockerfile
