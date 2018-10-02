@@ -92,6 +92,15 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	var imgID string
 
 	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
+
+	blocked, err := isReferenceBlocked(dest, systemContext)
+	if err != nil {
+		return "", errors.Wrapf(err, "error checking if committing to registry for %q is blocked", transports.ImageName(dest))
+	}
+	if blocked {
+		return "", errors.Errorf("commit access to registry for %q is blocked by configuration", transports.ImageName(dest))
+	}
+
 	policy, err := signature.DefaultPolicy(systemContext)
 	if err != nil {
 		return imgID, errors.Wrapf(err, "error obtaining default signature policy")
@@ -162,6 +171,15 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 // Push copies the contents of the image to a new location.
 func Push(ctx context.Context, image string, dest types.ImageReference, options PushOptions) error {
 	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
+
+	blocked, err := isReferenceBlocked(dest, systemContext)
+	if err != nil {
+		return errors.Wrapf(err, "error checking if pushing to registry for %q is blocked", transports.ImageName(dest))
+	}
+	if blocked {
+		return errors.Errorf("push access to registry for %q is blocked by configuration", transports.ImageName(dest))
+	}
+
 	policy, err := signature.DefaultPolicy(systemContext)
 	if err != nil {
 		return errors.Wrapf(err, "error obtaining default signature policy")
