@@ -19,6 +19,7 @@ import (
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // InitReexec is a wrapper for reexec.Init().  It should be called at
@@ -192,8 +193,14 @@ func isRegistryInsecure(registry string, sc *types.SystemContext) (bool, error) 
 		return false, errors.Wrapf(err, "unable to parse the registries configuration (%s)", sysregistries.RegistriesConfPath(sc))
 	}
 	if reginfo := sysregistriesv2.FindRegistry(registry, registries); reginfo != nil {
+		if reginfo.Insecure {
+			logrus.Debugf("registry %q is marked insecure in registries configuration %q", registry, sysregistries.RegistriesConfPath(sc))
+		} else {
+			logrus.Debugf("registry %q is not marked insecure in registries configuration %q", registry, sysregistries.RegistriesConfPath(sc))
+		}
 		return reginfo.Insecure, nil
 	}
+	logrus.Debugf("registry %q is not listed in registries configuration %q, assuming it's secure", registry, sysregistries.RegistriesConfPath(sc))
 	return false, nil
 }
 
@@ -204,8 +211,14 @@ func isRegistryBlocked(registry string, sc *types.SystemContext) (bool, error) {
 		return false, errors.Wrapf(err, "unable to parse the registries configuration (%s)", sysregistries.RegistriesConfPath(sc))
 	}
 	if reginfo := sysregistriesv2.FindRegistry(registry, registries); reginfo != nil {
+		if reginfo.Blocked {
+			logrus.Debugf("registry %q is marked as blocked in registries configuration %q", registry, sysregistries.RegistriesConfPath(sc))
+		} else {
+			logrus.Debugf("registry %q is not marked as blocked in registries configuration %q", registry, sysregistries.RegistriesConfPath(sc))
+		}
 		return reginfo.Blocked, nil
 	}
+	logrus.Debugf("registry %q is not listed in registries configuration %q, assuming it's not blocked", registry, sysregistries.RegistriesConfPath(sc))
 	return false, nil
 }
 
