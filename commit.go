@@ -120,7 +120,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		return imgID, errors.Wrapf(err, "error computing layer digests and building metadata")
 	}
 	// "Copy" our image to where it needs to be.
-	err = cp.Image(ctx, policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, systemContext, ""))
+	err = cp.Image(ctx, policyContext, dest, src, getCopyOptions(options.ReportWriter, src, nil, dest, systemContext, ""))
 	if err != nil {
 		return imgID, errors.Wrapf(err, "error copying layers and metadata")
 	}
@@ -176,7 +176,7 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 		return err
 	}
 	// Copy everything.
-	err = cp.Image(ctx, policyContext, dest, src, getCopyOptions(options.ReportWriter, nil, systemContext, options.ManifestType))
+	err = cp.Image(ctx, policyContext, dest, src, getCopyOptions(options.ReportWriter, src, nil, dest, systemContext, options.ManifestType))
 	if err != nil {
 		return errors.Wrapf(err, "error copying layers and metadata")
 	}
