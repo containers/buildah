@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/opencontainers/runtime-tools/generate"
+	"github.com/pkg/errors"
 )
 
 func TestAddRlimits(t *testing.T) {
@@ -185,7 +186,7 @@ func TestAddHostsToNotExistFile(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected test to fail")
 	}
-	if !os.IsNotExist(err) {
+	if !os.IsNotExist(errors.Cause(err)) {
 		t.Errorf("expected error to fail because of 'no such file or directory' but got %#v", err.Error())
 	}
 }
