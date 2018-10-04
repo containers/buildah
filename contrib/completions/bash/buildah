@@ -738,6 +738,7 @@ return 1
      --cpuset-mems
      --creds
      --ipc
+     --isolation
      -m
      --memory
      --memory-swap
