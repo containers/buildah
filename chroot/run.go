@@ -848,7 +848,11 @@ func setApparmorProfile(spec *specs.Spec) error {
 }
 
 // setCapabilities sets capabilities for ourselves, to be more or less inherited by any processes that we'll start.
-func setCapabilities(spec *specs.Spec) error {
+func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
+	currentCaps, err := capability.NewPid(0)
+	if err != nil {
+		return errors.Wrapf(err, "error reading capabilities of current process")
+	}
 	caps, err := capability.NewPid(0)
 	if err != nil {
 		return errors.Wrapf(err, "error reading capabilities of current process")
@@ -861,8 +865,8 @@ func setCapabilities(spec *specs.Spec) error {
 		capability.AMBIENT:     spec.Process.Capabilities.Ambient,
 	}
 	knownCaps := capability.List()
+	caps.Clear(capability.CAPS | capability.BOUNDS | capability.AMBS)
 	for capType, capList := range capMap {
-		caps.Clear(capType)
 		for _, capToSet := range capList {
 			cap := capability.CAP_LAST_CAP
 			for _, c := range knownCaps {
@@ -876,11 +880,24 @@ func setCapabilities(spec *specs.Spec) error {
 			}
 			caps.Set(capType, cap)
 		}
-	}
-	for capType := range capMap {
-		if err = caps.Apply(capType); err != nil {
-			return errors.Wrapf(err, "error setting %s capabilities to %#v", capType.String(), capMap[capType])
+		for _, capToSet := range keepCaps {
+			cap := capability.CAP_LAST_CAP
+			for _, c := range knownCaps {
+				if strings.EqualFold("CAP_"+c.String(), capToSet) {
+					cap = c
+					break
+				}
+			}
+			if cap == capability.CAP_LAST_CAP {
+				return errors.Errorf("error mapping capability %q to a number", capToSet)
+			}
+			if currentCaps.Get(capType, cap) {
+				caps.Set(capType, cap)
+			}
 		}
+	}
+	if err = caps.Apply(capability.CAPS | capability.BOUNDS | capability.AMBS); err != nil {
+		return errors.Wrapf(err, "error setting capabilities")
 	}
 	return nil
 }
