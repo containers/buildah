@@ -86,19 +86,21 @@ load helpers
   uidsize=$((${RANDOM}+1024))
   gidsize=$((${RANDOM}+1024))
   # Test with no mappings.
-  maps[0]=
+  uidmapargs[0]=
+  gidmapargs[0]=
   uidmaps[0]="0 0 4294967295"
   gidmaps[0]="0 0 4294967295"
   # Test with both UID and GID maps specified.
-  maps[1]="--userns-uid-map=0:$uidbase:$uidsize --userns-gid-map=0:$gidbase:$gidsize"
+  uidmapargs[1]="--userns-uid-map=0:$uidbase:$uidsize"
+  gidmapargs[1]="--userns-gid-map=0:$gidbase:$gidsize"
   uidmaps[1]="0 $uidbase $uidsize"
   gidmaps[1]="0 $gidbase $gidsize"
   # Test with just a UID map specified.
-  maps[2]=--userns-uid-map=0:$uidbase:$uidsize
+  uidmapargs[2]=--userns-uid-map=0:$uidbase:$uidsize
   uidmaps[2]="0 $uidbase $uidsize"
   gidmaps[2]="0 $uidbase $uidsize"
   # Test with just a GID map specified.
-  maps[3]=--userns-gid-map=0:$gidbase:$gidsize
+  gidmapargs[3]=--userns-gid-map=0:$gidbase:$gidsize
   uidmaps[3]="0 $gidbase $gidsize"
   gidmaps[3]="0 $gidbase $gidsize"
   # Conditionalize some tests on the subuid and subgid files being present.
@@ -111,15 +113,16 @@ load helpers
           userbase=$(sed -e "/^${candidate}:/!d" -e 's,^[^:]*:,,g' -e 's,:[^:]*,,g' /etc/subuid)
           groupbase=$(sed -e "/^${candidate}:/!d" -e 's,^[^:]*:,,g' -e 's,:[^:]*,,g' /etc/subgid)
           # Test specifying both the user and group names.
-          maps[${#maps[*]}]="--userns-uid-map-user $candidate --userns-gid-map-group $candidate"
+          uidmapargs[${#uidmaps[*]}]=--userns-uid-map-user=$candidate
+          gidmapargs[${#gidmaps[*]}]=--userns-gid-map-group=$candidate
           uidmaps[${#uidmaps[*]}]="0 $userbase 65536"
           gidmaps[${#gidmaps[*]}]="0 $groupbase 65536"
           # Test specifying just the user name.
-          maps[${#maps[*]}]="--userns-uid-map-user $candidate"
+          uidmapargs[${#uidmaps[*]}]=--userns-uid-map-user=$candidate
           uidmaps[${#uidmaps[*]}]="0 $userbase 65536"
           gidmaps[${#gidmaps[*]}]="0 $groupbase 65536"
           # Test specifying just the group name.
-          maps[${#maps[*]}]="--userns-gid-map-group $candidate"
+          gidmapargs[${#gidmaps[*]}]=--userns-gid-map-group=$candidate
           uidmaps[${#uidmaps[*]}]="0 $userbase 65536"
           gidmaps[${#gidmaps[*]}]="0 $groupbase 65536"
           break
@@ -141,7 +144,8 @@ load helpers
           userbase=$(sed -e "/^${candidateuser}:/!d" -e 's,^[^:]*:,,g' -e 's,:[^:]*,,g' /etc/subuid)
           groupbase=$(sed -e "/^${candidategroup}:/!d" -e 's,^[^:]*:,,g' -e 's,:[^:]*,,g' /etc/subgid)
           # Test specifying both the user and group names.
-          maps[${#maps[*]}]="--userns-uid-map-user $candidateuser --userns-gid-map-group $candidategroup"
+          uidmapargs[${#uidmaps[*]}]=--userns-uid-map-user=$candidateuser
+          gidmapargs[${#gidmaps[*]}]=--userns-gid-map-group=$candidategroup
           uidmaps[${#uidmaps[*]}]="0 $userbase 65536"
           gidmaps[${#gidmaps[*]}]="0 $groupbase 65536"
           break
@@ -158,8 +162,8 @@ load helpers
 
   for i in $(seq 0 "$((${#maps[*]}-1))") ; do
     # Create a container using these mappings.
-    map="${maps[$i]}"
-    run buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet $map alpine
+    echo "Building container with --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine"
+    run buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine
     echo "$output"
     [ $status -eq 0 ]
     [ "$output" != "" ]
