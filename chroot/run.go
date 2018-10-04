@@ -690,15 +690,7 @@ func runUsingChrootExecMain() {
 		fmt.Fprintf(os.Stderr, "error setting SELinux label for process: %v\n", err)
 		os.Exit(1)
 	}
-	logrus.Debugf("setting capabilities")
-	if err := setCapabilities(options.Spec); err != nil {
-		fmt.Fprintf(os.Stderr, "error setting capabilities for process %v\n", err)
-		os.Exit(1)
-	}
-	if err = setSeccomp(options.Spec); err != nil {
-		fmt.Fprintf(os.Stderr, "error setting seccomp filter for process: %v\n", err)
-		os.Exit(1)
-	}
+
 	logrus.Debugf("setting resource limits")
 	if err = setRlimits(options.Spec, false, false); err != nil {
 		fmt.Fprintf(os.Stderr, "error setting process resource limits for process: %v\n", err)
@@ -740,11 +732,28 @@ func runUsingChrootExecMain() {
 			os.Exit(1)
 		}
 	}
+
 	logrus.Debugf("setting gid")
 	if err = syscall.Setresgid(int(user.GID), int(user.GID), int(user.GID)); err != nil {
 		fmt.Fprintf(os.Stderr, "error setting GID: %v", err)
 		os.Exit(1)
 	}
+
+	if err = setSeccomp(options.Spec); err != nil {
+		fmt.Fprintf(os.Stderr, "error setting seccomp filter for process: %v\n", err)
+		os.Exit(1)
+	}
+
+	logrus.Debugf("setting capabilities")
+	var keepCaps []string
+	if user.UID != 0 {
+		keepCaps = []string{"CAP_SETUID"}
+	}
+	if err := setCapabilities(options.Spec, keepCaps...); err != nil {
+		fmt.Fprintf(os.Stderr, "error setting capabilities for process: %v\n", err)
+		os.Exit(1)
+	}
+
 	logrus.Debugf("setting uid")
 	if err = syscall.Setresuid(int(user.UID), int(user.UID), int(user.UID)); err != nil {
 		fmt.Fprintf(os.Stderr, "error setting UID: %v", err)
