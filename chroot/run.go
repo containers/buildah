@@ -100,18 +100,6 @@ func RunUsingChroot(spec *specs.Spec, bundlePath string, stdin io.Reader, stdout
 	}
 	logrus.Debugf("config = %v", string(specbytes))
 
-	// Run the grandparent subprocess in a user namespace that reuses the mappings that we have.
-	uidmap, gidmap, err := util.GetHostIDMappings("")
-	if err != nil {
-		return err
-	}
-	for i := range uidmap {
-		uidmap[i].HostID = uidmap[i].ContainerID
-	}
-	for i := range gidmap {
-		gidmap[i].HostID = gidmap[i].ContainerID
-	}
-
 	// Default to using stdin/stdout/stderr if we weren't passed objects to use.
 	if stdin == nil {
 		stdin = os.Stdin
@@ -162,10 +150,6 @@ func RunUsingChroot(spec *specs.Spec, bundlePath string, stdin io.Reader, stdout
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, stderr
 	cmd.Dir = "/"
 	cmd.Env = append([]string{fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel())}, os.Environ()...)
-	cmd.UnshareFlags = syscall.CLONE_NEWUSER
-	cmd.UidMappings = uidmap
-	cmd.GidMappings = gidmap
-	cmd.GidMappingsEnableSetgroups = true
 
 	logrus.Debugf("Running %#v in %#v", cmd.Cmd, cmd)
 	confwg.Add(1)
@@ -568,10 +552,19 @@ func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, stderr
 	cmd.Dir = "/"
 	cmd.Env = append([]string{fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel())}, os.Environ()...)
-	cmd.UnshareFlags = syscall.CLONE_NEWUSER | syscall.CLONE_NEWUTS | syscall.CLONE_NEWNS
-	cmd.UidMappings = uidmap
-	cmd.GidMappings = gidmap
-	cmd.GidMappingsEnableSetgroups = true
+	cmd.UnshareFlags = syscall.CLONE_NEWUTS | syscall.CLONE_NEWNS
+	requestedUserNS := false
+	for _, ns := range spec.Linux.Namespaces {
+		if ns.Type == specs.LinuxNamespaceType(specs.UserNamespace) {
+			requestedUserNS = true
+		}
+	}
+	if len(spec.Linux.UIDMappings) > 0 || len(spec.Linux.GIDMappings) > 0 || requestedUserNS {
+		cmd.UnshareFlags = cmd.UnshareFlags | syscall.CLONE_NEWUSER
+		cmd.UidMappings = uidmap
+		cmd.GidMappings = gidmap
+		cmd.GidMappingsEnableSetgroups = true
+	}
 	if ctty != nil {
 		cmd.Setsid = true
 		cmd.Ctty = ctty
