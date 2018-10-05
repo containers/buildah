@@ -1131,6 +1131,7 @@ func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder, created
 		AdditionalTags:        b.additionalTags,
 		ReportWriter:          writer,
 		PreferredManifestType: b.outputFormat,
+		SystemContext:         b.systemContext,
 		IIDFile:               b.iidfile,
 		Squash:                b.squash,
 		Parent:                b.builder.FromImageID,
