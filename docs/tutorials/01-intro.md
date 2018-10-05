@@ -7,6 +7,11 @@ The purpose of this tutorial is to demonstrate how Buildah can be used to build 
 
 In brief the `containers/image` project provides mechanisms to copy, push, pull, inspect and sign container images. The `containers/storage` project provides mechanisms for storing filesystem layers, container images, and containers. Buildah is a CLI that takes advantage of these underlying projects and therefore allows you to build, move, and manage container images and containers.
 
+Note that installation instructions below assume you are running a Linux distro that uses `dnf` as its package manager, and have all prerequisites fulfilled. See Buildah's [installation instructions][buildah-install] for a full list of prerequisites, and the `buildah` installation section in the [official Red Hat documentation][rh-repo-docs] for RHEL-specific instructions.
+
+[buildah-install]:../../install.md
+[rh-repo-docs]:https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux_atomic_host/7/html/managing_containers/finding_running_and_building_containers_without_docker
+
 First step is to install Buildah. Run as root because you will need to be root for running Buildah commands:
 
     $ sudo -s
