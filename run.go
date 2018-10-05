@@ -146,6 +146,8 @@ type RunOptions struct {
 	Runtime string
 	// Args adds global arguments for the runtime.
 	Args []string
+	// NoPivot adds the --no-pivot runtime flag.
+	NoPivot bool
 	// Mounts are additional mount points which we want to provide.
 	Mounts []specs.Mount
 	// Env is additional environment variables to set.
@@ -1091,7 +1093,13 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		// 	}
 		// }
 		// options.Args = append(options.Args, rootlessFlag...)
-		err = b.runUsingRuntimeSubproc(options, configureNetwork, configureNetworks, nil, spec, mountPoint, path, Package+"-"+filepath.Base(path))
+		var moreCreateArgs []string
+		if options.NoPivot {
+			moreCreateArgs = []string{"--no-pivot"}
+		} else {
+			moreCreateArgs = nil
+		}
+		err = b.runUsingRuntimeSubproc(options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, Package+"-"+filepath.Base(path))
 	case IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, options.Stdin, options.Stdout, options.Stderr)
 	case IsolationOCIRootless:
