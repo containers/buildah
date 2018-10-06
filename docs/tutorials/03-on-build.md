@@ -33,6 +33,7 @@ We can also see that there are also no containers by running:
 
 The two examples that will be shown are relatively simple, but they illustrate how a command or a number of commands can be setup in a master image such that they will be added to a secondary container image that is created from it.  This is extremely useful if you need to setup an environment where your containers have 75% of the same content, but need a few individual tweaks.  This can be helpful in setting up a environment for maven or java development containers for instance.  In this way you can create a single Dockerfile with all the common setup steps as ONBUILD commands and then really minimize the buildah commands or instructions in a second Dockerfile that would be necessary to complete the creation of the container image.
 
+NOTE: In the examples below the option `--format=docker` is used in several places.  If you wanted to omit that, you could define the `BUILDAH_FORMAT` and set it to 'docker'.  On Fedora that command would be `export BUILDAH_FORMAT docker`.
 ## ONBUILD in a Dockerfile - Example 1
 
 
@@ -64,7 +65,7 @@ Now to create the first container and verify that ONBUILD has been set:
 The second container is now created and the `/bar` file will be created within it:
 
 ```
-# buildah bud -f Dockerfile-2 -t result-image .
+# buildah bud --format=docker -f Dockerfile-2 -t result-image .
 STEP 1: FROM onbuild-image
 STEP 2: RUN touch /bar    # Note /bar created here based on the ONBUILD in Dockerfile
 STEP 3: RUN touch /baz
@@ -82,7 +83,7 @@ Instead of using a Dockerfile to create the onbuild-image, Buildah allows you to
 First a Fedora container will be created with `buildah from`, then the `/foo` file will be added with `buildah run`.  The `buildah config` command will configure  ONBUILD to add `/bar` when a container image is created from the primary image, and finally the image will be saved with `buildah commit`.
 
 ```
-# buildah from --name onbuild-container fedora:latest
+# buildah from --format=docker --name onbuild-container fedora:latest
 # buildah run onbuild-container touch /foo
 # buildah config --onbuild="RUN touch /bar" onbuild-container
 # buildah commit --format=docker onbuild-container onbuild-image
@@ -93,7 +94,7 @@ First a Fedora container will be created with `buildah from`, then the `/foo` fi
 The onbuild-image has been created, so now create a container from it using the same commands as the first example using the second Dockerfile:
 
 ```
-# buildah bud -f Dockerfile-2 -t result-image .
+# buildah bud --format=docker -f Dockerfile-2 -t result-image .
 STEP 1: FROM onbuild-image
 STEP 2: RUN touch /bar    # Note /bar created here based on the ONBUILD in Dockerfile
 STEP 3: RUN touch /baz
@@ -106,7 +107,7 @@ $ container=$(sudo buildah from result-image:latest)
 Or for bonus points, piece the secondary container image together with Buildah commands directly:
 
 ```
-# buildah from --name result-container onbuild-image
+# buildah from --format=docker --name result-container onbuild-image
 result-container
 # buildah run result-container touch /baz
 # buildah run result-container ls /bar /foo /baz
@@ -134,7 +135,7 @@ $ chmod +x runecho.sh
 Now create a second primary container image.  This image has multiple ONBUILD instructions, the first ONBUILD instruction copies the file into the image and a second ONBUILD instruction to then run it.  We're going to do this example using only Buildah commands.  A Dockerfile could be translated easily and used from these commands, or these commands could be saved to a script directly.
 
 ```
-# buildah from --name onbuild-container-2 fedora:latest
+# buildah from --format=docker --name onbuild-container-2 fedora:latest
 onbuild-container-2
 # buildah config --onbuild="COPY ./runecho.sh /usr/bin/runecho.sh" onbuild-container-2
 # buildah config --onbuild="RUN /usr/bin/runecho.sh" onbuild-container-2
@@ -147,7 +148,7 @@ onbuild-container-2
 Now the result container can be created from the primary container image onbuild-image-2.  The runecho.sh script will be copied to the containers /usr/bin directory and then run from there when the secondary container image is created.
 
 ```
-# buildah from --name result-container-2 onbuild-image-2
+# buildah from --format=docker --name result-container-2 onbuild-image-2
 STEP 1: COPY ./runecho.sh /usr/bin/runecho.sh
 STEP 2: RUN /usr/bin/runecho.sh
 This is a new container pull ipbabble [ 1 ]
