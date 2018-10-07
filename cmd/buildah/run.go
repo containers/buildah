@@ -112,7 +112,7 @@ func runCmd(c *cli.Context) error {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
-	noPivot := c.Bool("no-pivot")
+	noPivot := c.Bool("no-pivot") || (os.Getenv("BUILDAH_NOPIVOT") != "")
 
 	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
