@@ -397,6 +397,7 @@ return 1
      --memory-swap
      --net
      --network
+     --no-pivot
      --pid
      --runtime
      --runtime-flag
