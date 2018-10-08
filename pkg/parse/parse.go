@@ -568,7 +568,7 @@ func IsolationOption(c *cli.Context) (buildah.Isolation, error) {
 		case "chroot":
 			return buildah.IsolationChroot, nil
 		default:
-			return buildah.IsolationDefault, errors.Errorf("unrecognized isolation type %q", c.String("isolation"))
+			return 0, errors.Errorf("unrecognized isolation type %q", c.String("isolation"))
 		}
 	}
 	return defaultIsolation()
