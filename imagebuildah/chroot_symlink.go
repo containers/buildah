@@ -24,7 +24,8 @@ func init() {
 func resolveChrootedSymlinks() {
 	status := 0
 	flag.Parse()
-	if len(flag.Args()) < 1 {
+	if len(flag.Args()) < 2 {
+		fmt.Fprintf(os.Stderr, "%s needs two arguments\n", symlinkChrootedCommand)
 		os.Exit(1)
 	}
 	// Our first parameter is the directory to chroot into.
