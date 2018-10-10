@@ -215,7 +215,7 @@ func pullImage(ctx context.Context, store storage.Store, imageName string, optio
 	}
 	hasRegistryInName, err := hasRegistry(imageName)
 	if err != nil {
-		logrus.Debugf("error checking if image name %q includes a registry component: %v", err)
+		logrus.Debugf("error checking if image name %q includes a registry component: %v", imageName, err)
 		return nil, errors.Wrapf(pullError, "error copying image from %q to %q", transports.ImageName(srcRef), transports.ImageName(destRef))
 	}
 	if !hasRegistryInName && len(searchRegistries) == 0 {
