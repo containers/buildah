@@ -233,5 +233,6 @@ func budCmd(c *cli.Context) error {
 		options.ReportWriter = ioutil.Discard
 	}
 
-	return imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)
+	_, _, err = imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)
+	return err
 }
