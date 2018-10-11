@@ -903,7 +903,7 @@ func (b *Executor) copyExistingImage(ctx context.Context, cacheID string) error 
 	if err != nil {
 		return errors.Wrapf(err, "error getting source imageReference for %q", cacheID)
 	}
-	if err := cp.Image(ctx, policyContext, dest, src, nil); err != nil {
+	if _, err := cp.Image(ctx, policyContext, dest, src, nil); err != nil {
 		return errors.Wrapf(err, "error copying image %q", cacheID)
 	}
 	b.log("COMMIT %s", b.output)
@@ -1165,7 +1165,7 @@ func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder, created
 		Squash:                b.squash,
 		Parent:                b.builder.FromImageID,
 	}
-	imgID, err := b.builder.Commit(ctx, imageRef, options)
+	imgID, _, _, err := b.builder.Commit(ctx, imageRef, options)
 	if err != nil {
 		return "", err
 	}

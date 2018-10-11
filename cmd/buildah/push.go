@@ -165,12 +165,14 @@ func pushCmd(c *cli.Context) error {
 		options.ReportWriter = os.Stderr
 	}
 
-	err = buildah.Push(getContext(), src, dest, options)
+	ref, digest, err := buildah.Push(getContext(), src, dest, options)
 	if err != nil {
-		return util.GetFailureCause(
-			err,
-			errors.Wrapf(err, "error pushing image %q to %q", src, destSpec),
-		)
+		return util.GetFailureCause(err, errors.Wrapf(err, "error pushing image %q to %q", src, destSpec))
+	}
+	if ref != nil {
+		logrus.Debugf("pushed image %q with digest %s", ref, digest.String())
+	} else {
+		logrus.Debugf("pushed image with digest %s", digest.String())
 	}
 
 	return nil
