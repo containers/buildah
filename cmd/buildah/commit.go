@@ -13,6 +13,7 @@ import (
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -168,12 +169,14 @@ func commitCmd(c *cli.Context) error {
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
 	}
-	id, err := builder.Commit(ctx, dest, options)
+	id, ref, _, err := builder.Commit(ctx, dest, options)
 	if err != nil {
-		return util.GetFailureCause(
-			err,
-			errors.Wrapf(err, "error committing container %q to %q", builder.Container, image),
-		)
+		return util.GetFailureCause(err, errors.Wrapf(err, "error committing container %q to %q", builder.Container, image))
+	}
+	if ref != nil {
+		logrus.Debugf("wrote image %s with ID %s", ref, id)
+	} else {
+		logrus.Debugf("wrote image with ID %s", id)
 	}
 	if options.IIDFile == "" && id != "" {
 		fmt.Printf("%s\n", id)
