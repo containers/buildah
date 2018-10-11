@@ -706,10 +706,7 @@ func setupCapabilities(g *generate.Generator, firstAdds, firstDrops, secondAdds,
 	if err := setupCapAdd(g, secondAdds...); err != nil {
 		return err
 	}
-	if err := setupCapDrop(g, secondDrops...); err != nil {
-		return err
-	}
-	return nil
+	return setupCapDrop(g, secondDrops...)
 }
 
 func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, terminalSize *specs.Box) {
