@@ -229,14 +229,14 @@ func getImageOfTopLayer(images []storage.Image, layer string) []string {
 
 func getFormat(c *cli.Context) (string, error) {
 	format := strings.ToLower(c.String("format"))
-	if strings.HasPrefix(format, buildah.OCI) {
+	switch format {
+	case buildah.OCI:
 		return buildah.OCIv1ImageManifest, nil
-	}
-
-	if strings.HasPrefix(format, buildah.DOCKER) {
+	case buildah.DOCKER:
 		return buildah.Dockerv2ImageManifest, nil
+	default:
+		return "", errors.Errorf("unrecognized image type %q", format)
 	}
-	return "", errors.Errorf("unrecognized image type %q", format)
 }
 
 func sortFlags(flags []cli.Flag) []cli.Flag {

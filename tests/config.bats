@@ -19,8 +19,8 @@ load helpers
 @test "config entrypoint using single element in JSON array (exec form)" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
-  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
-  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
 
   run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-docker
   [ "$output" = "[/ENTRYPOINT]" ]
@@ -45,8 +45,8 @@ load helpers
 @test "config entrypoint using multiple elements in JSON array (exec form)" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --entrypoint '[ "/ENTRYPOINT", "ELEMENT2" ]' $cid
-  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
-  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
 
   run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-docker
   [ "$output" = "[/ENTRYPOINT ELEMENT2]" ]
@@ -71,8 +71,8 @@ load helpers
 @test "config entrypoint using string (shell form)" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --entrypoint /ENTRYPOINT $cid
-  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
-  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
 
   run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Entrypoint}}' entry-image-docker
   [ "$output" = "[/bin/sh -c /ENTRYPOINT]" ]
@@ -98,8 +98,8 @@ load helpers
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --cmd "command" $cid
   buildah config --entrypoint "" $cid
-  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
-  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid entry-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid entry-image-oci
 
   run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' entry-image-docker
   [ "$output" = "[command]" ]
@@ -127,8 +127,8 @@ load helpers
    --entrypoint /ENTRYPOINT \
    --cmd COMMAND-OR-ARGS \
   $cid
-  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
 
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-docker | grep COMMAND-OR-ARGS
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-docker | grep COMMAND-OR-ARGS
@@ -139,16 +139,16 @@ load helpers
    --entrypoint /ENTRYPOINT \
   $cid
 
-  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
 
   buildah config \
    --entrypoint /ENTRYPOINT \
    --cmd COMMAND-OR-ARGS \
   $cid
 
-  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-docker | grep COMMAND-OR-ARGS
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Cmd}}' scratch-image-docker | grep COMMAND-OR-ARGS
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Cmd}}' scratch-image-oci | grep COMMAND-OR-ARGS
@@ -179,8 +179,8 @@ load helpers
    --hostname cleverhostname \
   $cid
 
-  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
 
   buildah --debug=false inspect --type=image --format '{{.Docker.Author}}' scratch-image-docker | grep TESTAUTHOR
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Author}}' scratch-image-docker | grep TESTAUTHOR
@@ -267,8 +267,8 @@ load helpers
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --env 'foo=bar' --env 'foo1=bar1' $cid
   buildah config --env 'combined=$foo/${foo1}' $cid
-  buildah commit --format dockerv2 --signature-policy ${TESTSDIR}/policy.json $cid env-image-docker
-  buildah commit --format ociv1 --signature-policy ${TESTSDIR}/policy.json $cid env-image-oci
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid env-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid env-image-oci
 
   run buildah --debug=false inspect --type=image --format '{{.Docker.Config.Env}}' env-image-docker
   echo $output
