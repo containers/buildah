@@ -46,7 +46,7 @@ tests:
   - podman rmi localhost:5000/my-alpine
 
   # mount yum repos to inherit injected mirrors from PAPR
-  - podman run --net=host --privileged -v /etc/yum.repos.d:/etc/yum.repos.d.host:ro
+  - podman run --net=host --security-opt label=disable --cap-add all --security-opt seccomp=unconfined -v /etc/yum.repos.d:/etc/yum.repos.d.host:ro
     -v $PWD:/go/src/github.com/containers/buildah
     --workdir /go/src/github.com/containers/buildah
     registry.fedoraproject.org/fedora:28 bash -c sh ./.papr.sh
