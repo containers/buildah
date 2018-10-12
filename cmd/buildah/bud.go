@@ -21,7 +21,7 @@ var (
 		Aliases:                []string{"bud"},
 		Usage:                  "Build an image using instructions in a Dockerfile",
 		Description:            budDescription,
-		Flags:                  append(append(buildahcli.BudFlags, buildahcli.LayerFlags...), buildahcli.FromAndBudFlags...),
+		Flags:                  sortFlags(append(append(buildahcli.BudFlags, buildahcli.LayerFlags...), buildahcli.FromAndBudFlags...)),
 		Action:                 budCmd,
 		ArgsUsage:              "CONTEXT-DIRECTORY | URL",
 		SkipArgReorder:         true,
