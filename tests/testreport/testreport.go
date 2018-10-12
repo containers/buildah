@@ -240,10 +240,7 @@ func getProcess(r *types.TestReport) error {
 	if err := getProcessOOMScoreAdjust(r); err != nil {
 		return err
 	}
-	if err := getProcessSeLinuxLabel(r); err != nil {
-		return err
-	}
-	return nil
+	return getProcessSeLinuxLabel(r)
 }
 
 func getMounts(r *types.TestReport) error {
@@ -338,10 +335,7 @@ func getLinuxSysctl(r *types.TestReport) error {
 		r.Spec.Linux.Sysctl[sysctl] = val
 		return nil
 	}
-	if err := filepath.Walk("/proc/sys", walk); err != nil {
-		return err
-	}
-	return nil
+	return filepath.Walk("/proc/sys", walk)
 }
 
 func getLinuxResources(r *types.TestReport) error {
@@ -423,10 +417,7 @@ func getLinux(r *types.TestReport) error {
 	if err := getLinuxMountLabel(r); err != nil {
 		return err
 	}
-	if err := getLinuxIntelRdt(r); err != nil {
-		return err
-	}
-	return nil
+	return getLinuxIntelRdt(r)
 }
 
 func main() {
