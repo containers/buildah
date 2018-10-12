@@ -1,11 +1,10 @@
 #!/bin/bash
 set -xeuo pipefail
+export GOPATH=/go
+export PATH=$HOME/gopath/bin:$PATH:$GOPATH/bin
+export GOSRC=$GOPATH/src/github.com/containers/buildah
 
-export GOPATH=$HOME/gopath
-export PATH=$HOME/gopath/bin:$PATH
-export GOSRC=$HOME/gopath/src/github.com/containers/buildah
-
-(mkdir -p $GOSRC && cd /code && cp -r . $GOSRC)
+cp -fv /etc/yum.repos.d{.host/*.repo,}
 
 dnf install -y \
   bats \
