@@ -47,8 +47,9 @@ tests:
 
   # mount yum repos to inherit injected mirrors from PAPR
   - podman run --net=host --privileged -v /etc/yum.repos.d:/etc/yum.repos.d.host:ro
-    -v $PWD:/code registry.fedoraproject.org/fedora:28 sh -c
-    "cp -fv /etc/yum.repos.d{.host/*.repo,} && /code/.papr.sh"
+    -v $PWD:/go/src/github.com/containers/buildah
+    --workdir /go/src/github.com/containers/buildah
+    registry.fedoraproject.org/fedora:28 bash -c sh ./.papr.sh
 
 ---
 
