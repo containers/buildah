@@ -43,6 +43,10 @@ var (
 			Name:  "runtime-flag",
 			Usage: "add global flags for the container runtime",
 		},
+		cli.BoolFlag{
+			Name:  "no-pivot",
+			Usage: "do not use pivot root to jail process inside rootfs",
+		},
 		cli.StringSliceFlag{
 			Name:  "security-opt",
 			Usage: "security options (default [])",
@@ -108,6 +112,8 @@ func runCmd(c *cli.Context) error {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
+	noPivot := c.Bool("no-pivot") || (os.Getenv("BUILDAH_NOPIVOT") != "")
+
 	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error parsing namespace-related options")
@@ -117,6 +123,7 @@ func runCmd(c *cli.Context) error {
 		Hostname:         c.String("hostname"),
 		Runtime:          c.String("runtime"),
 		Args:             runtimeFlags,
+		NoPivot:          noPivot,
 		User:             c.String("user"),
 		Isolation:        isolation,
 		NamespaceOptions: namespaceOptions,

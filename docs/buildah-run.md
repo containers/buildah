@@ -111,6 +111,14 @@ runtime, the manpage to consult is `runc(8)`).
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah run, the option given would be `--runtime-flag log-format=json`.
 
+**--no-pivot**
+
+Do not use pivot root to jail process inside rootfs. This should be used
+whenever the rootfs is on top of a ramdisk.
+
+Note: You can make this option the default by setting the BUILDAH\_NOPIVOT
+environment variable.  `export BUILDAH_NOPIVOT=true`
+
 **-t**, **--tty**, **--terminal**
 
 By default a pseudo-TTY is allocated only when buildah's standard input is
