@@ -38,8 +38,6 @@ import (
 )
 
 const (
-	// DefaultWorkingDir is used if none was specified.
-	DefaultWorkingDir = "/"
 	// runUsingRuntimeCommand is a command we use as a key for reexec
 	runUsingRuntimeCommand = Package + "-oci-runtime"
 )
@@ -1027,10 +1025,6 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	spec := g.Spec()
 	g = nil
 
-	// Set the working directory, creating it if we must.
-	if spec.Process.Cwd == "" {
-		spec.Process.Cwd = DefaultWorkingDir
-	}
 	logrus.Debugf("ensuring working directory %q exists", filepath.Join(mountPoint, spec.Process.Cwd))
 	if err = os.MkdirAll(filepath.Join(mountPoint, spec.Process.Cwd), 0755); err != nil {
 		return errors.Wrapf(err, "error ensuring working directory %q exists", spec.Process.Cwd)
