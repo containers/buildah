@@ -1956,7 +1956,7 @@ func runAcceptTerminal(consoleListener *net.UnixListener, terminalSize *specs.Bo
 	for i := range scm {
 		fds, err := unix.ParseUnixRights(&scm[i])
 		if err != nil {
-			return -1, errors.Wrapf(err, "error parsing unix rights control message: %v")
+			return -1, errors.Wrapf(err, "error parsing unix rights control message: %v", &scm[i])
 		}
 		logrus.Debugf("fds: %v", fds)
 		if len(fds) == 0 {
