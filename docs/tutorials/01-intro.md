@@ -28,7 +28,7 @@ We can also see that there are also no containers by running:
 
     # buildah containers
 
-When you build a working container from an existing image, Buildah defaults to appending '-working-container' to the image's name to construct a name for the container. The Buildah CLI conveniently returns the name of the new container. You can take advantage of this by assigning the returned value to a shell varible using standard shell assignment :
+When you build a working container from an existing image, Buildah defaults to appending '-working-container-' followed by a randon number to the image's name to construct a name for the container. The Buildah CLI conveniently returns the name of the new container. You can take advantage of this by assigning the returned value to a shell varible using standard shell assignment :
 
     # container=$(buildah from fedora)
 
@@ -73,10 +73,10 @@ You can see this new empty container by running:
 You should see output similar to the following:
 
     CONTAINER ID  BUILDER  IMAGE ID     IMAGE NAME                       CONTAINER NAME
-    82af3b9a9488     *     3d85fcda5754 docker.io/library/fedora:latest  fedora-working-container
-    ac8fa6be0f0a     *                  scratch                          working-container
+    82af3b9a9488     *     3d85fcda5754 docker.io/library/fedora:latest  fedora-working-container-765469913859858382
+    ac8fa6be0f0a     *                  scratch                          working-container-22830411075835428
 
-Its container name is working-container by default and it's stored in the `$newcontainer` variable. Notice the image name (IMAGE NAME) is "scratch". This just indicates that there is no real image yet. i.e. It is containers/storage but there is no representation in containers/image. So when we run:
+Its container name is working-container-22830411075835428 and it's stored in the `$newcontainer` variable. Notice the image name (IMAGE NAME) is "scratch". This just indicates that there is no real image yet. i.e. It is containers/storage but there is no representation in containers/image. So when we run:
 
     # buildah images
 
@@ -179,13 +179,13 @@ And you can see there is a new image called `fedora-bashecho:latest`. You can in
 
 Later when you want to create a new container or containers from this image, you simply need need to do `buildah from fedora-bashecho`. This will create a new containers based on this image for you.
 
-Now that you have the new image you can remove the scratch container called working-container:
+Now that you have the new image you can remove the scratch container called working-container-22830411075835428:
 
     # buildah rm $newcontainer
 
 or
 
-    # buildah rm working-container
+    # buildah rm working-container-22830411075835428
 
 ## OCI images built using Buildah are portable
 

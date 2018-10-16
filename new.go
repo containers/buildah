@@ -3,6 +3,7 @@ package buildah
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"strings"
 
 	"github.com/containers/buildah/util"
@@ -281,17 +282,18 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	coptions := storage.ContainerOptions{}
 	coptions.IDMappingOptions = newContainerIDMappingOptions(options.IDMappingOptions)
 
+	attempts := 0
+	name = fmt.Sprintf("%s-%d", name, rand.Int())
 	container, err := store.CreateContainer("", []string{name}, imageID, "", "", &coptions)
-	suffix := 1
 	for err != nil && errors.Cause(err) == storage.ErrDuplicateName && options.Container == "" {
-		suffix++
-		tmpName := fmt.Sprintf("%s-%d", name, suffix)
-		if container, err = store.CreateContainer("", []string{tmpName}, imageID, "", "", &coptions); err == nil {
-			name = tmpName
+		attempts++
+		name = fmt.Sprintf("%s-%d", name, rand.Int())
+		if container, err = store.CreateContainer("", []string{name}, imageID, "", "", &coptions); err == nil {
+			break
 		}
-	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "error creating container")
+		if attempts > 99 {
+			return nil, fmt.Errorf("error creating container: reached maximum of 100 attempts to create working container")
+		}
 	}
 
 	defer func() {
