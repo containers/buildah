@@ -230,7 +230,8 @@ func (p *BuildAhTest) CreateArtifact(image string) error {
 		return errors.Errorf("error parsing image name %v: %v", exportTo, err)
 	}
 
-	return copy.Image(context.Background(), policyContext, exportRef, importRef, options)
+	_, err = copy.Image(context.Background(), policyContext, exportRef, importRef, options)
+	return err
 }
 
 // RestoreArtifact puts the cached image into our test store
@@ -276,7 +277,7 @@ func (p *BuildAhTest) RestoreArtifact(image string) error {
 	defer func() {
 		_ = policyContext.Destroy()
 	}()
-	err = copy.Image(context.Background(), policyContext, ref, importRef, options)
+	_, err = copy.Image(context.Background(), policyContext, ref, importRef, options)
 	if err != nil {
 		return errors.Errorf("error importing %s: %v", importFrom, err)
 	}
