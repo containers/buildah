@@ -27,10 +27,14 @@ func versionCmd(c *cli.Context) error {
 		return errors.New("'buildah version' does not accept arguments")
 	}
 
-	//converting unix time from string to int64
-	buildTime, err := strconv.ParseInt(buildInfo, 10, 64)
-	if err != nil {
-		return err
+	var err error
+	buildTime := int64(0)
+	if buildInfo != "" {
+		//converting unix time from string to int64
+		buildTime, err = strconv.ParseInt(buildInfo, 10, 64)
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Println("Version:        ", buildah.Version)

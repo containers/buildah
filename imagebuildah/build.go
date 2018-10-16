@@ -764,7 +764,7 @@ func (b *Executor) resolveNameToImageRef() (types.ImageReference, error) {
 		if err != nil {
 			candidates, _, err := util.ResolveName(b.output, "", b.systemContext, b.store)
 			if err != nil {
-				return nil, errors.Wrapf(err, "error parsing target image name %q: %v", b.output)
+				return nil, errors.Wrapf(err, "error parsing target image name %q", b.output)
 			}
 			if len(candidates) == 0 {
 				return nil, errors.Errorf("error parsing target image name %q", b.output)

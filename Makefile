@@ -51,7 +51,7 @@ deps: gopath
 
 .PHONY: validate
 validate:
-	# Run gofmt only on version 1.11
+	# Run gofmt on version 1.11 and higher
 	
 ifneq ($(GO110),$(GOVERSION))
 	@./tests/validate/gofmt.sh
