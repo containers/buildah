@@ -168,6 +168,8 @@ type BuildOptions struct {
 	// ForceRmIntermediateCtrs tells the builder to remove all intermediate containers even if
 	// the build was unsuccessful.
 	ForceRmIntermediateCtrs bool
+	// BlobDirectory is a directory which we'll use for caching layer blobs.
+	BlobDirectory string
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor
@@ -224,6 +226,7 @@ type Executor struct {
 	containerIDs                   []string          // Stores the IDs of the successful intermediate containers used during layer build
 	imageMap                       map[string]string // Used to map images that we create to handle the AS construct.
 	copyFrom                       string            // Used to keep track of the --from flag from COPY and ADD
+	blobDirectory                  string
 }
 
 // builtinAllowedBuildArgs is list of built-in allowed build args
@@ -609,6 +612,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		noCache:                        options.NoCache,
 		removeIntermediateCtrs:         options.RemoveIntermediateCtrs,
 		forceRmIntermediateCtrs:        options.ForceRmIntermediateCtrs,
+		blobDirectory:                  options.BlobDirectory,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -664,6 +668,7 @@ func (b *Executor) Prepare(ctx context.Context, stage imagebuilder.Stage, from s
 		PullPolicy:            b.pullPolicy,
 		Registry:              b.registry,
 		Transport:             b.transport,
+		PullBlobDirectory:     b.blobDirectory,
 		SignaturePolicyPath:   b.signaturePolicyPath,
 		ReportWriter:          b.reportWriter,
 		SystemContext:         b.systemContext,
@@ -1227,6 +1232,7 @@ func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder, created
 		SystemContext:         b.systemContext,
 		IIDFile:               b.iidfile,
 		Squash:                b.squash,
+		BlobDirectory:         b.blobDirectory,
 		Parent:                b.builder.FromImageID,
 	}
 	imgID, ref, _, err := b.builder.Commit(ctx, imageRef, options)
