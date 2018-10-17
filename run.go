@@ -520,7 +520,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, copyWit
 			if err = os.Chown(volumePath, int(stat.Sys().(*syscall.Stat_t).Uid), int(stat.Sys().(*syscall.Stat_t).Gid)); err != nil {
 				return nil, errors.Wrapf(err, "error chowning directory %q for volume %q", volumePath, volume)
 			}
-			if err = copyWithTar(srcPath, volumePath); err != nil && !os.IsNotExist(err) {
+			if err = copyWithTar(srcPath, volumePath); err != nil && !os.IsNotExist(errors.Cause(err)) {
 				return nil, errors.Wrapf(err, "error populating directory %q for volume %q using contents of %q", volumePath, volume, srcPath)
 			}
 		}

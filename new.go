@@ -296,7 +296,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 
 	defer func() {
 		if err != nil {
-			if err2 := store.DeleteContainer(container.ID); err != nil {
+			if err2 := store.DeleteContainer(container.ID); err2 != nil {
 				logrus.Errorf("error deleting container %q: %v", container.ID, err2)
 			}
 		}
