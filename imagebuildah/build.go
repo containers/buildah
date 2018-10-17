@@ -1286,9 +1286,18 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 		} else {
 			// If the Dockerfile isn't found try prepending the
 			// context directory to it.
-			if _, err := os.Stat(dfile); os.IsNotExist(err) {
-				dfile = filepath.Join(options.ContextDirectory, dfile)
+			s, err := os.Stat(dfile)
+			if err != nil {
+				if os.IsNotExist(err) {
+					dfile = filepath.Join(options.ContextDirectory, dfile)
+				} else {
+					return "", nil, errors.Wrapf(err, "Unable to stat file %q", dfile)
+				}
 			}
+			if !s.Mode().IsRegular() {
+				return "", nil, errors.Errorf("%q is not a file", dfile)
+			}
+
 			logrus.Debugf("reading local Dockerfile %q", dfile)
 			contents, err := os.Open(dfile)
 			if err != nil {
