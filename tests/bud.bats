@@ -59,6 +59,28 @@ load helpers
   rm -rf ${TESTSDIR}/bud/use-layers/mount
 }
 
+@test "bud with --layers and symlink file" {
+  echo 'echo "Hello World!"' > ${TESTSDIR}/bud/use-layers/hello.sh
+  cd ${TESTSDIR}/bud/use-layers && ln -s hello.sh hello_world.sh
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.4 ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false images -a
+  [ $(wc -l <<< "$output") -eq 4 ]
+  [ "${status}" -eq 0 ]
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.4 ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false images -a
+  [ $(wc -l <<< "$output") -eq 5 ]
+  [ "${status}" -eq 0 ]
+
+  echo 'echo "Hello Cache!"' > ${TESTSDIR}/bud/use-layers/hello.sh
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.4 ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false images -a
+  [ $(wc -l <<< "$output") -eq 7 ]
+  [ "${status}" -eq 0 ]
+
+  rm ${TESTSDIR}/bud/use-layers/hello.sh ${TESTSDIR}/bud/use-layers/hello_world.sh
+  buildah rmi -a -f
+}
+
 @test "bud with --rm flag" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false containers

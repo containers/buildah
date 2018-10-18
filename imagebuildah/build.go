@@ -279,7 +279,7 @@ func (b *Executor) Preserve(path string) error {
 
 	// Try and resolve the symlink (if one exists)
 	// Set archivedPath and path based on whether a symlink is found or not
-	if symLink, err := ResolveSymLink(b.mountPoint, path); err == nil {
+	if symLink, err := resolveSymLink(b.mountPoint, path); err == nil {
 		archivedPath = filepath.Join(b.mountPoint, symLink)
 		path = symLink
 	} else {
@@ -1044,17 +1044,14 @@ func (b *Executor) copiedFilesMatch(node *parser.Node, historyTime *time.Time) (
 			}
 			continue
 		}
-		// For local files, walk the file tree and check the time stamps.
-		timeIsGreater := false
-		err := filepath.Walk(item, func(path string, info os.FileInfo, err error) error {
-			if info.ModTime().After(*historyTime) {
-				timeIsGreater = true
-				return nil
-			}
-			return nil
-		})
+		// Walks the file tree for local files and uses chroot to ensure we don't escape out of the allowed path
+		// when resolving any symlinks.
+		// Change the time format to ensure we don't run into a parsing error when converting again from string
+		// to time.Time. It is a known Go issue that the conversions cause errors sometimes, so specifying a particular
+		// time format here when converting to a string.
+		timeIsGreater, err := resolveModifiedTime(b.contextDir, item, historyTime.Format(time.RFC3339Nano))
 		if err != nil {
-			return false, errors.Wrapf(err, "error walking file tree %q", item)
+			return false, errors.Wrapf(err, "error resolving symlinks and comparing modified times: %q", item)
 		}
 		if timeIsGreater {
 			return false, nil
