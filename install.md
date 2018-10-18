@@ -203,7 +203,7 @@ The build steps on Debian are otherwise the same as Ubuntu, above.
 
 ### [registries.conf](https://src.fedoraproject.org/rpms/skopeo/blob/master/f/registries.conf)
 
-#### Man Page: [registries.conf.5](https://github.com/containers/image/blob/master/docs/registries.conf.5.md)
+#### Man Page: [registries.conf.5](https://github.com/containers/image/blob/master/docs/containers-registries.conf.5.md)
 
 `/etc/containers/registries.conf`
 
