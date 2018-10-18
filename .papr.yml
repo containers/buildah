@@ -80,7 +80,6 @@ env:
 tests:
     - mkdir -p $GOSRC && ln -s /var/tmp/checkout $GOSRC/buildah
     - cd $GOSRC/buildah && make darwin
-    - cd $GOSRC/buildah && GOOS=darwin GOPATH=/go sh ./tests/validate/gofmt.sh
 
 artifacts:
     - test-suite.log
