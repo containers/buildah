@@ -5,8 +5,8 @@ BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
 BUILDFLAGS := -tags "$(AUTOTAGS) $(TAGS)"
 GO := go
-GO111 := 1.11
-GOVERSION := $(findstring $(GO111),$(shell go version))
+GO110 := 1.10
+GOVERSION := $(findstring $(GO110),$(shell go version))
 
 
 GIT_COMMIT := $(if $(shell git rev-parse --short HEAD),$(shell git rev-parse --short HEAD),$(error "git failed"))
@@ -53,7 +53,7 @@ deps: gopath
 validate:
 	# Run gofmt only on version 1.11
 	
-ifeq ($(GO111),$(GOVERSION))
+ifneq ($(GO110),$(GOVERSION))
 	@./tests/validate/gofmt.sh
 endif
 	@./tests/validate/whitespace.sh
