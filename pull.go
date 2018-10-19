@@ -201,6 +201,7 @@ func pullImage(ctx context.Context, store storage.Store, imageName string, optio
 
 	logrus.Debugf("copying %q to %q", spec, destName)
 	if _, err := cp.Image(ctx, policyContext, destRef, srcRef, getCopyOptions(options.ReportWriter, srcRef, sc, destRef, nil, "")); err != nil {
+		logrus.Debugf("error copying src image [%q] to dest image [%q] err: %v", spec, destiName, err)
 		return nil, err
 	}
 	return destRef, nil

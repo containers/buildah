@@ -84,6 +84,12 @@ func ResolveName(name string, firstRegistry string, sc *types.SystemContext, sto
 	// If the image includes a transport's name as a prefix, use it as-is.
 	split := strings.SplitN(name, ":", 2)
 	if len(split) == 2 {
+		// If we have a '//' at the start of split[1], then they
+		// used a fully qualified image, just use the name as is.
+		// i.e. docker://centos:centos
+		if strings.HasPrefix(split[1], "//") {
+			return []string{name}, false, nil
+		}
 		if _, ok := Transports[split[0]]; ok {
 			return []string{split[1]}, false, nil
 		}
