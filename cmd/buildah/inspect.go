@@ -27,6 +27,10 @@ var (
 			Usage: "use `format` as a Go template to format the output",
 		},
 		cli.StringFlag{
+			Name:  "output",
+			Usage: "output file (defaults to stdout)",
+		},
+		cli.StringFlag{
 			Name:  "type, t",
 			Usage: "look at the item of the specified `type` (container or image) and name",
 			Value: inspectTypeContainer,
@@ -96,6 +100,16 @@ func inspectCmd(c *cli.Context) error {
 	default:
 		return errors.Errorf("the only recognized types are %q and %q", inspectTypeContainer, inspectTypeImage)
 	}
+
+	output := os.Stdout
+	if c.IsSet("output") {
+		path := c.String("output")
+		f, err := os.Create(path)
+		if err != nil {
+			return err
+		}
+		output = f
+	}
 	out := buildah.GetBuildInfo(builder)
 	if c.IsSet("format") {
 		format := c.String("format")
@@ -108,18 +122,18 @@ func inspectCmd(c *cli.Context) error {
 		if err != nil {
 			return errors.Wrapf(err, "Template parsing error")
 		}
-		if err = t.Execute(os.Stdout, out); err != nil {
+		if err = t.Execute(output, out); err != nil {
 			return err
 		}
-		if terminal.IsTerminal(int(os.Stdout.Fd())) {
+		if terminal.IsTerminal(int(output.Fd())) {
 			fmt.Println()
 		}
 		return nil
 	}
 
-	enc := json.NewEncoder(os.Stdout)
+	enc := json.NewEncoder(output)
 	enc.SetIndent("", "    ")
-	if terminal.IsTerminal(int(os.Stdout.Fd())) {
+	if terminal.IsTerminal(int(output.Fd())) {
 		enc.SetEscapeHTML(false)
 	}
 	return enc.Encode(out)

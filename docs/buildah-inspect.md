@@ -21,6 +21,9 @@ Users of this option should be familiar with the [*text/template*
 package](https://golang.org/pkg/text/template/) in the Go standard library, and
 of internals of Buildah's implementation.
 
+**--output**=PATH
+Write the contents of the inspect to a file at *PATH* (overwriting the existing content if a file already exists at *PATH*).
+
 **--type** **container** | **image**
 
 Specify whether *object* is a container or an image.

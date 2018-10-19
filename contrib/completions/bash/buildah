@@ -685,6 +685,7 @@ return 1
      local options_with_args="
        --format
        -f
+       --output
        --type
        -t
      "
