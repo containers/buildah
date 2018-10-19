@@ -31,6 +31,10 @@ import (
 
 const (
 	minimumTruncatedIDLength = 3
+	// DefaultTransport is a prefix that we apply to an image name if we
+	// can't find one in the local Store, in order to generate a source
+	// reference for the image that we can then copy to the local Store.
+	DefaultTransport = "docker://"
 )
 
 var (
@@ -89,6 +93,7 @@ func ResolveName(name string, firstRegistry string, sc *types.SystemContext, sto
 		}
 	}
 
+	name = strings.TrimPrefix(name, DefaultTransport)
 	// If the image name already included a domain component, we're done.
 	named, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
