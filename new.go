@@ -3,6 +3,7 @@ package buildah
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"strings"
 
 	"github.com/containers/buildah/util"
@@ -12,7 +13,6 @@ import (
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
-	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/openshift/imagebuilder"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -232,6 +232,27 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 	}
 }
 
+func containerNameExist(name string, containers []storage.Container) bool {
+	for _, container := range containers {
+		for _, cname := range container.Names {
+			if cname == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func findUnusedContainer(name string, containers []storage.Container) string {
+	suffix := 1
+	tmpName := name
+	for containerNameExist(tmpName, containers) {
+		tmpName = fmt.Sprintf("%s-%d", name, suffix)
+		suffix++
+	}
+	return tmpName
+}
+
 func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions) (*Builder, error) {
 	var ref types.ImageReference
 	var img *storage.Image
@@ -277,23 +298,33 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 			name = imageNamePrefix(image) + "-" + name
 		}
 	}
-
-	coptions := storage.ContainerOptions{}
-	coptions.IDMappingOptions = newContainerIDMappingOptions(options.IDMappingOptions)
-
-	container, err := store.CreateContainer("", []string{name}, imageID, "", "", &coptions)
-	suffix := 1
-	for err != nil && errors.Cause(err) == storage.ErrDuplicateName && options.Container == "" {
-		suffix++
-		tmpName := fmt.Sprintf("%s-%d", name, suffix)
-		if container, err = store.CreateContainer("", []string{tmpName}, imageID, "", "", &coptions); err == nil {
-			name = tmpName
+	var container *storage.Container
+	tmpName := name
+	if options.Container == "" {
+		containers, err := store.Containers()
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to check for container names")
 		}
-	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "error creating container")
+		tmpName = findUnusedContainer(tmpName, containers)
 	}
 
+	conflict := 100
+	for true {
+		coptions := storage.ContainerOptions{
+			LabelOpts:        options.CommonBuildOpts.LabelOpts,
+			IDMappingOptions: newContainerIDMappingOptions(options.IDMappingOptions),
+		}
+		container, err = store.CreateContainer("", []string{tmpName}, imageID, "", "", &coptions)
+		if err == nil {
+			name = tmpName
+			break
+		}
+		if errors.Cause(err) != storage.ErrDuplicateName || options.Container != "" {
+			return nil, errors.Wrapf(err, "error creating container")
+		}
+		tmpName = fmt.Sprintf("%s-%d", name, rand.Int()%conflict)
+		conflict = conflict * 10
+	}
 	defer func() {
 		if err != nil {
 			if err2 := store.DeleteContainer(container.ID); err2 != nil {
@@ -302,13 +333,6 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		}
 	}()
 
-	if err = ReserveSELinuxLabels(store, container.ID); err != nil {
-		return nil, err
-	}
-	processLabel, mountLabel, err := label.InitLabels(options.CommonBuildOpts.LabelOpts)
-	if err != nil {
-		return nil, err
-	}
 	uidmap, gidmap := convertStorageIDMaps(container.UIDMap, container.GIDMap)
 
 	defaultNamespaceOptions, err := DefaultNamespaceOptions()
@@ -328,8 +352,8 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		ContainerID:           container.ID,
 		ImageAnnotations:      map[string]string{},
 		ImageCreatedBy:        "",
-		ProcessLabel:          processLabel,
-		MountLabel:            mountLabel,
+		ProcessLabel:          container.ProcessLabel(),
+		MountLabel:            container.MountLabel(),
 		DefaultMountsFilePath: options.DefaultMountsFilePath,
 		Isolation:             options.Isolation,
 		NamespaceOptions:      namespaceOptions,
@@ -351,7 +375,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	}
 
 	if options.Mount {
-		_, err = builder.Mount(mountLabel)
+		_, err = builder.Mount(container.MountLabel())
 		if err != nil {
 			return nil, errors.Wrapf(err, "error mounting build container %q", builder.ContainerID)
 		}
