@@ -23,11 +23,6 @@ const (
 	// as "no image".
 	BaseImageFakeName = imagebuilder.NoBaseImageSpecifier
 
-	// DefaultTransport is a prefix that we apply to an image name if we
-	// can't find one in the local Store, in order to generate a source
-	// reference for the image that we can then copy to the local Store.
-	DefaultTransport = "docker://"
-
 	// minimumTruncatedIDLength is the minimum length of an identifier that
 	// we'll accept as possibly being a truncated image ID.
 	minimumTruncatedIDLength = 3
@@ -150,7 +145,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 			}
 			logrus.Debugf("error parsing image name %q as given, trying with transport %q: %v", image, options.Transport, err)
 			transport := options.Transport
-			if transport != DefaultTransport {
+			if transport != util.DefaultTransport {
 				transport = transport + ":"
 			}
 			srcRef2, err := alltransports.ParseImageName(transport + image)
@@ -241,7 +236,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		options.FromImage = ""
 	}
 	if options.Transport == "" {
-		options.Transport = DefaultTransport
+		options.Transport = util.DefaultTransport
 	}
 
 	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
