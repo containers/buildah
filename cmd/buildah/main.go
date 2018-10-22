@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/containers/buildah"
+	"github.com/containers/libpod/pkg/util"
 	"github.com/containers/storage"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
@@ -18,6 +19,11 @@ func main() {
 	var defaultStoreDriverOptions *cli.StringSlice
 	if buildah.InitReexec() {
 		return
+	}
+	storageOptions, err := util.GetDefaultStoreOptions()
+	if err != nil {
+		logrus.Errorf(err.Error())
+		cli.OsExiter(1)
 	}
 
 	app := cli.NewApp()
@@ -45,17 +51,17 @@ func main() {
 		cli.StringFlag{
 			Name:  "root",
 			Usage: "storage root dir",
-			Value: storage.DefaultStoreOptions.GraphRoot,
+			Value: storageOptions.GraphRoot,
 		},
 		cli.StringFlag{
 			Name:  "runroot",
 			Usage: "storage state dir",
-			Value: storage.DefaultStoreOptions.RunRoot,
+			Value: storageOptions.RunRoot,
 		},
 		cli.StringFlag{
 			Name:  "storage-driver",
 			Usage: "storage driver",
-			Value: storage.DefaultStoreOptions.GraphDriverName,
+			Value: storageOptions.GraphDriverName,
 		},
 		cli.StringSliceFlag{
 			Name:  "storage-opt",
@@ -117,8 +123,7 @@ func main() {
 		unshareCommand,
 		versionCommand,
 	}
-	err := app.Run(os.Args)
-	if err != nil {
+	if err := app.Run(os.Args); err != nil {
 		if debug {
 			logrus.Errorf(err.Error())
 		} else {
