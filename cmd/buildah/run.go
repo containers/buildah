@@ -102,9 +102,12 @@ func runCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
-	isolation, err := parse.IsolationOption(c)
-	if err != nil {
-		return err
+	isolation := builder.Isolation
+	if c.IsSet("isolation") {
+		isolation, err = parse.IsolationOption(c)
+		if err != nil {
+			return err
+		}
 	}
 
 	runtimeFlags := []string{}
