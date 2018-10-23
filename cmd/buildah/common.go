@@ -11,6 +11,7 @@ import (
 	"github.com/containers/buildah/util"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
+	lu "github.com/containers/libpod/pkg/util"
 	"github.com/containers/storage"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -20,7 +21,10 @@ import (
 var needToShutdownStore = false
 
 func getStore(c *cli.Context) (storage.Store, error) {
-	options := storage.DefaultStoreOptions
+	options, err := lu.GetDefaultStoreOptions()
+	if err != nil {
+		return nil, err
+	}
 	if c.GlobalIsSet("root") || c.GlobalIsSet("runroot") {
 		options.GraphRoot = c.GlobalString("root")
 		options.RunRoot = c.GlobalString("runroot")
