@@ -128,35 +128,10 @@ func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
 		}
 	}
 
-	var moreArgs []string
-	// Add args to change the global defaults.
-	if uidNum != 0 {
-		if !c.GlobalIsSet("storage-driver") || !c.GlobalIsSet("root") || !c.GlobalIsSet("runroot") {
-			logrus.Infof("Running without privileges, assuming arguments:")
-			if !c.GlobalIsSet("storage-driver") {
-				defaultStorageDriver := "vfs"
-				logrus.Infof(" --storage-driver %q", defaultStorageDriver)
-				moreArgs = append(moreArgs, "--storage-driver", defaultStorageDriver)
-			}
-			if !c.GlobalIsSet("root") {
-				defaultRoot, err := util.UnsharedRootPath(me.HomeDir)
-				bailOnError(err, "")
-				logrus.Infof(" --root %q", defaultRoot)
-				moreArgs = append(moreArgs, "--root", defaultRoot)
-			}
-			if !c.GlobalIsSet("runroot") {
-				defaultRunroot, err := util.UnsharedRunrootPath(me.Uid)
-				bailOnError(err, "")
-				logrus.Infof(" --runroot %q", defaultRunroot)
-				moreArgs = append(moreArgs, "--runroot", defaultRunroot)
-			}
-		}
-	}
-
 	// Unlike most uses of reexec or unshare, we're using a name that
 	// _won't_ be recognized as a registered reexec handler, since we
 	// _want_ to fall through reexec.Init() to the normal main().
-	cmd := unshare.Command(append(append([]string{"buildah-in-a-user-namespace"}, moreArgs...), os.Args[1:]...)...)
+	cmd := unshare.Command(append([]string{"buildah-in-a-user-namespace"}, os.Args[1:]...)...)
 
 	// If, somehow, we don't become UID 0 in our child, indicate that the child shouldn't try again.
 	err = os.Setenv(startedInUserNS, "1")
