@@ -512,7 +512,8 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, copyWit
 			srcPath := filepath.Join(mountPoint, volume)
 			stat, err := os.Stat(srcPath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to stat %q for volume %q", srcPath, volume)
+				logrus.Debugf("failed to stat %q for volume %q err %v", srcPath, volume, err)
+				continue
 			}
 			if err = os.Chmod(volumePath, stat.Mode().Perm()); err != nil {
 				return nil, errors.Wrapf(err, "failed to chmod %q for volume %q", volumePath, volume)
