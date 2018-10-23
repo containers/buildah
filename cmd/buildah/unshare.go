@@ -176,7 +176,7 @@ func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
 	cmd.Stderr = os.Stderr
 
 	// Set up a new user namespace with the ID mapping.
-	cmd.UnshareFlags = syscall.CLONE_NEWUSER
+	cmd.UnshareFlags = syscall.CLONE_NEWUSER|syscall.CLONE_NEWNS
 	cmd.UseNewuidmap = uidNum != 0
 	cmd.UidMappings = uidmap
 	cmd.UseNewgidmap = uidNum != 0
