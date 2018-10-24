@@ -451,7 +451,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
 	copyWithTar := b.copyWithTar(nil, nil)
-	builtins, err := runSetupBuiltinVolumes(b.MountLabel, mountPoint, cdir, copyWithTar, builtinVolumes)
+	builtins, err := runSetupBuiltinVolumes(b.MountLabel, mountPoint, cdir, copyWithTar, builtinVolumes, int(rootUID), int(rootGID))
 	if err != nil {
 		return err
 	}
@@ -493,15 +493,21 @@ func runSetupBoundFiles(bundlePath string, bindFiles map[string]string) (mounts 
 	return mounts, nil
 }
 
-func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, copyWithTar func(srcPath, dstPath string) error, builtinVolumes []string) ([]specs.Mount, error) {
+func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, copyWithTar func(srcPath, dstPath string) error, builtinVolumes []string, rootUID, rootGID int) ([]specs.Mount, error) {
 	var mounts []specs.Mount
+	hostOwner := idtools.IDPair{UID: rootUID, GID: rootGID}
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
 	for _, volume := range builtinVolumes {
 		subdir := digest.Canonical.FromString(volume).Hex()
 		volumePath := filepath.Join(containerDir, "buildah-volumes", subdir)
+		srcPath := filepath.Join(mountPoint, volume)
+		initializeVolume := false
 		// If we need to, initialize the volume path's initial contents.
-		if _, err := os.Stat(volumePath); err != nil && os.IsNotExist(err) {
+		if _, err := os.Stat(volumePath); err != nil {
+			if !os.IsNotExist(err) {
+				return nil, errors.Wrapf(err, "failed to stat %q for volume %q", volumePath, volume)
+			}
 			logrus.Debugf("setting up built-in volume at %q", volumePath)
 			if err = os.MkdirAll(volumePath, 0755); err != nil {
 				return nil, errors.Wrapf(err, "error creating directory %q for volume %q", volumePath, volume)
@@ -509,11 +515,21 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, copyWit
 			if err = label.Relabel(volumePath, mountLabel, false); err != nil {
 				return nil, errors.Wrapf(err, "error relabeling directory %q for volume %q", volumePath, volume)
 			}
-			srcPath := filepath.Join(mountPoint, volume)
-			stat, err := os.Stat(srcPath)
-			if err != nil {
+			initializeVolume = true
+		}
+		stat, err := os.Stat(srcPath)
+		if err != nil {
+			if !os.IsNotExist(err) {
 				return nil, errors.Wrapf(err, "failed to stat %q for volume %q", srcPath, volume)
 			}
+			if err = idtools.MkdirAllAndChownNew(srcPath, 0755, hostOwner); err != nil {
+				return nil, errors.Wrapf(err, "error creating directory %q for volume %q", srcPath, volume)
+			}
+			if stat, err = os.Stat(srcPath); err != nil {
+				return nil, errors.Wrapf(err, "failed to stat %q for volume %q", srcPath, volume)
+			}
+		}
+		if initializeVolume {
 			if err = os.Chmod(volumePath, stat.Mode().Perm()); err != nil {
 				return nil, errors.Wrapf(err, "failed to chmod %q for volume %q", volumePath, volume)
 			}

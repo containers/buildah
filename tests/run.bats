@@ -404,20 +404,20 @@ load helpers
 	fi
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
+	echo $output
 	[ "$status" -eq 0 ]
 	[ "$output" = 1048576 ]
-	echo $output
 	run buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
+	echo $output
 	[ "$status" -eq 0 ]
 	[ "$output" = 1048576 ]
-	echo $output
 	buildah rm $cid
 
 	cid=$(buildah from --ulimit nofile=300:400 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
+	echo $output
 	[ "$status" -eq 0 ]
 	[ "$output" = 300 ]
-	echo $output
 	run buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
 	echo $output
 	[ "$status" -eq 0 ]
@@ -426,12 +426,32 @@ load helpers
 
 	cid=$(buildah from --ulimit nproc=100:200 --ulimit nofile=300:400 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
+	echo $output
 	[ "$status" -eq 0 ]
 	[ "$output" = 300 ]
-	echo $output
 	run buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
+	echo $output
 	[ "$status" -eq 0 ]
 	[ "$output" = 100 ]
-	echo $output
 	buildah rm $cid
+}
+
+@test "run-builtin-volume-omitted" {
+	# This image is known to include a volume, but not include the mountpoint
+	# in the image.
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json docker.io/library/registry@sha256:a25e4660ed5226bdb59a5e555083e08ded157b1218282840e55d25add0223390)
+	mnt=$(buildah mount $cid)
+	# By default, the mountpoint should not be there.
+	run test -d "$mnt"/var/lib/registry
+	echo "$output"
+	[ "$status" -ne 0 ]
+	# We'll create the mountpoint for "run".
+	run buildah --debug=false run $cid ls -1 /var/lib
+	echo "$output"
+	[[ "$output" =~ registry ]]
+	[ "$status" -eq 0 ]
+	# Double-check that the mountpoint is there.
+	run test -d "$mnt"/var/lib/registry
+	echo "$output"
+	[ "$status" -eq 0 ]
 }
