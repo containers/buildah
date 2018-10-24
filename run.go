@@ -512,7 +512,14 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, copyWit
 			srcPath := filepath.Join(mountPoint, volume)
 			stat, err := os.Stat(srcPath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to stat %q for volume %q", srcPath, volume)
+				logrus.Debugf("failed to stat %q for volume %q err %v, attempting MkdirAll", srcPath, volume, err)
+				if err = os.MkdirAll(srcPath, 0755); err != nil {
+					return nil, errors.Wrapf(err, "error creating directory %q", srcPath)
+				}
+				stat, err = os.Stat(srcPath)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to stat %q for volume %q", srcPath, volume)
+				}
 			}
 			if err = os.Chmod(volumePath, stat.Mode().Perm()); err != nil {
 				return nil, errors.Wrapf(err, "failed to chmod %q for volume %q", volumePath, volume)
