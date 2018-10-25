@@ -232,6 +232,7 @@ func budCmd(c *cli.Context) error {
 		NoCache:                 c.Bool("no-cache"),
 		RemoveIntermediateCtrs:  c.BoolT("rm"),
 		ForceRmIntermediateCtrs: c.Bool("force-rm"),
+		BlobDirectory:           c.String("blob-cache"),
 	}
 
 	if c.Bool("quiet") {

@@ -196,6 +196,12 @@ var (
 			Name:  "add-host",
 			Usage: "add a custom host-to-IP mapping (`host:ip`) (default [])",
 		},
+		cli.StringFlag{
+			Name:   "blob-cache",
+			Value:  "",
+			Usage:  "assume image blobs in the specified directory will be available for pushing",
+			Hidden: true, // this is here mainly so that we can test the API during integration tests
+		},
 		cli.StringSliceFlag{
 			Name:  "cap-add",
 			Usage: "add the specified capability when running (default [])",
