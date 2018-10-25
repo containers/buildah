@@ -243,6 +243,7 @@ func fromCmd(c *cli.Context) error {
 		DropCapabilities:      c.StringSlice("cap-drop"),
 		CommonBuildOpts:       commonOpts,
 		Format:                format,
+		PullBlobDirectory:     c.String("blob-cache"),
 	}
 
 	if !c.Bool("quiet") {

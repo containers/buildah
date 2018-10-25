@@ -21,6 +21,12 @@ var (
 			Usage: "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json",
 		},
 		cli.StringFlag{
+			Name:   "blob-cache",
+			Value:  "",
+			Usage:  "store copies of pulled image blobs in the specified directory",
+			Hidden: true, // this is here mainly so that we can test the API during integration tests
+		},
+		cli.StringFlag{
 			Name:  "cert-dir",
 			Value: "",
 			Usage: "use certificates at the specified path to access the registry",
@@ -98,6 +104,7 @@ func pullCmd(c *cli.Context) error {
 		SignaturePolicyPath: signaturePolicy,
 		Store:               store,
 		SystemContext:       systemContext,
+		BlobDirectory:       c.String("blob-cache"),
 	}
 
 	if !c.Bool("quiet") {
