@@ -21,6 +21,8 @@ dnf install -y \
   libassuan-devel \
   libseccomp-devel \
   libselinux-devel \
+  libselinux-static \
+  libseccomp-static \
   libselinux-utils \
   make \
   openssl \
@@ -36,6 +38,6 @@ go get github.com/onsi/gomega/...
 # short-commit-subject validation test, so tell git-validate.sh to only check
 # up to, but not including, the merge commit.
 export GITVALIDATE_TIP=$(cd $GOSRC; git log -2 --pretty='%H' | tail -n 1)
-make -C $GOSRC install.tools runc all validate test-unit test-integration TAGS="seccomp"
-env BUILDAH_ISOLATION=chroot make -C $GOSRC test-integration TAGS="seccomp"
-env BUILDAH_ISOLATION=rootless make -C $GOSRC test-integration TAGS="seccomp"
+make -C $GOSRC install.tools runc all validate test-unit test-integration static
+env BUILDAH_ISOLATION=chroot make -C $GOSRC test-integration
+env BUILDAH_ISOLATION=rootless make -C $GOSRC test-integration
