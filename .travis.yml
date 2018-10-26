@@ -81,7 +81,7 @@ script:
     - docker images
     - docker rmi localhost:5000/my-alpine
     # Setting up  Docker Registry is complete, let's do Buildah testing! 
-    - make install.tools install.libseccomp.sudo all runc validate TAGS="apparmor seccomp containers_image_ostree_stub"
+    - make install.tools install.libseccomp.sudo all runc validate SECURITYTAGS="apparmor seccomp"
     - go test -c -tags "apparmor seccomp `./btrfs_tag.sh` `./libdm_tag.sh` `./ostree_tag.sh` `./selinux_tag.sh`" ./cmd/buildah
     - tmp=`mktemp -d`; mkdir $tmp/root $tmp/runroot; sudo PATH="$PATH" ./buildah.test -test.v -root $tmp/root -runroot $tmp/runroot -storage-driver vfs -signature-policy `pwd`/tests/policy.json -registries-conf `pwd`/tests/registries.conf
     - cd tests; travis_wait 60 sudo PATH="$PATH" ./test_runner.sh

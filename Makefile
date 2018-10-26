@@ -1,27 +1,38 @@
-AUTOTAGS := $(shell ./btrfs_tag.sh) $(shell ./btrfs_installed_tag.sh) $(shell ./libdm_tag.sh) $(shell ./ostree_tag.sh) $(shell ./selinux_tag.sh)
-TAGS ?= seccomp
+SELINUXTAG := $(shell ./selinux_tag.sh)
+STORAGETAGS := $(shell ./btrfs_tag.sh) $(shell ./btrfs_installed_tag.sh) $(shell ./libdm_tag.sh) $(shell ./ostree_tag.sh)
+SECURITYTAGS ?= seccomp $(SELINUXTAG)
+TAGS ?= "$(SECURITYTAGS) $(STORAGETAGS)"
 PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
-BUILDFLAGS := -tags "$(AUTOTAGS) $(TAGS)"
+BUILDFLAGS := -tags ${TAGS}
+BUILDAH := buildah
 GO := go
 GO110 := 1.10
 GOVERSION := $(findstring $(GO110),$(shell go version))
-
-
 GIT_COMMIT := $(if $(shell git rev-parse --short HEAD),$(shell git rev-parse --short HEAD),$(error "git failed"))
 BUILD_INFO := $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
 CNI_COMMIT := $(if $(shell sed -e '\,github.com/containernetworking/cni, !d' -e 's,.* ,,g' vendor.conf),$(shell sed -e '\,github.com/containernetworking/cni, !d' -e 's,.* ,,g' vendor.conf),$(error "sed failed"))
+STATIC_STORAGETAGS="containers_image_ostree_stub containers_image_openpgp exclude_graphdriver_devicemapper $(STORAGE_TAGS)"
 
 RUNC_COMMIT := 2c632d1a2de0192c3f18a2542ccb6f30a8719b1f
 LIBSECCOMP_COMMIT := release-2.3
 
-LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_INFO} -X main.cniVersion=${CNI_COMMIT}'
+EXTRALDFLAGS :=
+LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_INFO} -X main.cniVersion=${CNI_COMMIT}' ${EXTRALDFLAGS}
+SOURCES=*.go imagebuildah/*.go bind/*.go chroot/*.go cmd/buildah/*.go docker/*.go pkg/cli/*.go pkg/parse/*.go unshare/*.c unshare/*.go util/*.go
 
 all: buildah imgtype docs
 
-buildah: *.go imagebuildah/*.go bind/*.go chroot/*.go cmd/buildah/*.go docker/*.go pkg/cli/*.go pkg/parse/*.go unshare/*.c unshare/*.go util/*.go
-	$(GO) build $(LDFLAGS) -o buildah $(BUILDFLAGS) ./cmd/buildah
+.PHONY: static
+static: $(SOURCES)
+	$(MAKE) SECURITYTAGS="$(SECURITYTAGS)" STORAGETAGS=$(STATIC_STORAGETAGS) EXTRALDFLAGS='-ldflags "-extldflags '-static'"' BUILDAH=buildah.static binary
+
+.PHONY: binary
+binary:  $(SOURCES)
+	$(GO) build $(LDFLAGS) -o ${BUILDAH} $(BUILDFLAGS) ./cmd/buildah
+
+buildah: binary
 
 darwin:
 	GOOS=darwin $(GO) build $(LDFLAGS) -o buildah.darwin -tags "containers_image_openpgp" ./cmd/buildah
@@ -31,7 +42,7 @@ imgtype: *.go docker/*.go util/*.go tests/imgtype/imgtype.go
 
 .PHONY: clean
 clean:
-	$(RM) -r buildah imgtype build
+	$(RM) -r buildah imgtype build buildah.static
 	$(MAKE) -C docs clean 
 
 .PHONY: docs
@@ -52,7 +63,6 @@ deps: gopath
 .PHONY: validate
 validate:
 	# Run gofmt on version 1.11 and higher
-	
 ifneq ($(GO110),$(GOVERSION))
 	@./tests/validate/gofmt.sh
 endif
@@ -73,7 +83,7 @@ install.tools:
 runc: gopath
 	rm -rf ../../opencontainers/runc
 	git clone https://github.com/opencontainers/runc ../../opencontainers/runc
-	cd ../../opencontainers/runc && git checkout $(RUNC_COMMIT) && $(GO) build -tags "$(AUTOTAGS) $(TAGS)"
+	cd ../../opencontainers/runc && git checkout $(RUNC_COMMIT) && $(GO) build -tags "$(STORAGETAGS) $(SECURITYTAGS)"
 	ln -sf ../../opencontainers/runc/runc
 
 .PHONY: install.libseccomp.sudo
@@ -113,11 +123,11 @@ test-integration:
 	cd tests; ./test_runner.sh
 
 tests/testreport/testreport: tests/testreport/testreport.go
-	$(GO) build -ldflags "-linkmode external -extldflags -static" -tags "$(AUTOTAGS) $(TAGS)" -o tests/testreport/testreport ./tests/testreport
+	$(GO) build -ldflags "-linkmode external -extldflags -static" -tags "$(STORAGETAGS) $(SECURITYTAGS)" -o tests/testreport/testreport ./tests/testreport
 
 .PHONY: test-unit
 test-unit: tests/testreport/testreport
-	$(GO) test -v -tags "$(AUTOTAGS) $(TAGS)" -race $(shell $(GO) list ./... | grep -v vendor | grep -v tests | grep -v cmd)
+	$(GO) test -v -tags "$(STOAGETAGS) $(SECURITYTAGS)" -race $(shell $(GO) list ./... | grep -v vendor | grep -v tests | grep -v cmd)
 	tmp=$(shell mktemp -d) ; \
 	mkdir -p $$tmp/root $$tmp/runroot; \
-	$(GO) test -v -tags "$(AUTOTAGS) $(TAGS)" ./cmd/buildah -args -root $$tmp/root -runroot $$tmp/runroot -storage-driver vfs -signature-policy $(shell pwd)/tests/policy.json -registries-conf $(shell pwd)/tests/registries.conf
+	$(GO) test -v -tags "$(STORAGETAGS) $(SECURITYTAGS)" ./cmd/buildah -args -root $$tmp/root -runroot $$tmp/runroot -storage-driver vfs -signature-policy $(shell pwd)/tests/policy.json -registries-conf $(shell pwd)/tests/registries.conf
