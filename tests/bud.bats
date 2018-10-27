@@ -981,3 +981,28 @@ load helpers
   [ "$status" -eq 0 ]
   [[ $output =~ "[PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin LOCAL=/1]" ]]
 }
+
+@test "bud with symlink Dockerfile not specified in file" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink ${TESTSDIR}/bud/symlink
+  echo "$output"
+  [[ $output =~ "FROM alpine" ]]
+  [ "$status" -eq 0 ]
+}
+
+@test "bud with dir for file but no Dockerfile in dir" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/empty-dir ${TESTSDIR}/bud/empty-dir
+  echo "$output"
+  [[ $output =~ "no such file or directory" ]]
+  [ "$status" -ne 0 ]
+}
+
+@test "bud with bad dir Dockerfile" {
+  target=alpine-image
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/baddirname ${TESTSDIR}/baddirname
+  echo "$output"
+  [[ $output =~ "no such file or directory" ]]
+  [ "$status" -ne 0 ]
+}
+
