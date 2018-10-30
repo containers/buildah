@@ -1342,7 +1342,10 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 		return "", nil, errors.Wrapf(err, "error creating build executor")
 	}
 	b := imagebuilder.NewBuilder(options.Args)
-	stages := imagebuilder.NewStages(mainNode, b)
+	stages, err := imagebuilder.NewStages(mainNode, b)
+	if err != nil {
+		return "", nil, errors.Wrapf(err, "error breaking build process up into stages")
+	}
 	return exec.Build(ctx, stages)
 }
 
