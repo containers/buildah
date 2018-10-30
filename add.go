@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah/util"
-	"github.com/containers/libpod/pkg/chrootuser"
+	"github.com/containers/libpod/pkg/lookup"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -221,22 +221,21 @@ func (b *Builder) user(mountPoint string, userspec string) (specs.User, error) {
 		userspec = b.User()
 	}
 
-	uid, gid, err := chrootuser.GetUser(mountPoint, userspec)
+	execUser, err := lookup.GetUserGroupInfo(mountPoint, userspec, nil)
+	if err != nil {
+		return specs.User{}, err
+	}
 	u := specs.User{
-		UID:      uid,
-		GID:      gid,
+		UID:      uint32(execUser.Uid),
+		GID:      uint32(execUser.Gid),
 		Username: userspec,
 	}
 	if !strings.Contains(userspec, ":") {
-		groups, err2 := chrootuser.GetAdditionalGroupsForUser(mountPoint, uint64(u.UID))
-		if err2 != nil {
-			if errors.Cause(err2) != chrootuser.ErrNoSuchUser && err == nil {
-				err = err2
-			}
-		} else {
-			u.AdditionalGids = groups
+		var groups []uint32
+		for _, g := range execUser.Sgids {
+			groups = append(groups, uint32(g))
 		}
-
+		u.AdditionalGids = groups
 	}
-	return u, err
+	return u, nil
 }
