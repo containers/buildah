@@ -1060,24 +1060,28 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 	rootIDPair := &idtools.IDPair{UID: int(rootUID), GID: int(rootGID)}
 
-	hostFile, err := b.addNetworkConfig(path, "/etc/hosts", rootIDPair)
-	if err != nil {
-		return err
-	}
-	resolvFile, err := b.addNetworkConfig(path, "/etc/resolv.conf", rootIDPair)
-	if err != nil {
-		return err
+	bindFiles := make(map[string]string)
+	namespaceOptions := append(b.NamespaceOptions, options.NamespaceOptions...)
+	networkNamespace := namespaceOptions.Find(string(specs.NetworkNamespace))
+	if networkNamespace == nil || networkNamespace.Host || networkNamespace.Path != "" {
+		hostFile, err := b.addNetworkConfig(path, "/etc/hosts", rootIDPair)
+		if err != nil {
+			return err
+		}
+		bindFiles["/etc/hosts"] = hostFile
+
+		if err := addHostsToFile(b.CommonBuildOpts.AddHost, hostFile); err != nil {
+			return err
+		}
+
+		resolvFile, err := b.addNetworkConfig(path, "/etc/resolv.conf", rootIDPair)
+		if err != nil {
+			return err
+		}
+		bindFiles["/etc/resolv.conf"] = resolvFile
 	}
 
-	if err := addHostsToFile(b.CommonBuildOpts.AddHost, hostFile); err != nil {
-		return err
-	}
-
-	bindFiles := map[string]string{
-		"/etc/hosts":       hostFile,
-		"/etc/resolv.conf": resolvFile,
-	}
-	err = b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, b.Volumes(), b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, append(b.NamespaceOptions, options.NamespaceOptions...))
+	err = b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, b.Volumes(), b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, namespaceOptions)
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container %q", b.ContainerID)
 	}
