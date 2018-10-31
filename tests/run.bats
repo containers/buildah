@@ -350,6 +350,10 @@ load helpers
 	run buildah --debug=false run -v ${TESTDIR}/was-empty/testfile:/var/different-multi-level/subdirectory/testfile        $cid touch /var/different-multi-level/subdirectory/testfile
 	echo "$output"
 	[ "$status" -eq 0 ]
+	# If hostdir doesn't exist yet, this should succeed.
+	run buildah --debug=false run -v ${TESTDIR}/testdir/subdirectory:/var/testdir/subdirectory        $cid touch /var/testdir/subdirectory/testfile
+	echo "$output"
+	[ "$status" -eq 0 ]
 }
 
 @test "run symlinks" {

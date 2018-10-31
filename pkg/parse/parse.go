@@ -167,7 +167,12 @@ func validateVolumeHostDir(hostDir string) error {
 		return errors.Errorf("invalid host path, must be an absolute path %q", hostDir)
 	}
 	if _, err := os.Stat(hostDir); err != nil {
-		return errors.Wrapf(err, "error checking path %q", hostDir)
+		if !os.IsNotExist(err) {
+			return errors.Wrapf(err, "fail to stat %q", hostDir)
+		}
+		if err = os.MkdirAll(hostDir, 0755); err != nil {
+			return errors.Wrapf(err, "error creating directory %q", hostDir)
+		}
 	}
 	return nil
 }
