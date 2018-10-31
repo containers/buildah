@@ -1143,10 +1143,21 @@ func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) 
 			logrus.Debugf("Forcing use of an IPC namespace.")
 		}
 		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.IPCNamespace)})
-		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil && !ns.Host {
-			logrus.Debugf("Disabling network namespace.")
+		hostNetworking := true
+		networkNamespacePath := ""
+		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil {
+			hostNetworking = ns.Host
+			networkNamespacePath = ns.Path
+			if !hostNetworking && networkNamespacePath != "" && !filepath.IsAbs(networkNamespacePath) {
+				logrus.Debugf("Disabling network namespace configuration.")
+				networkNamespacePath = ""
+			}
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.NetworkNamespace), Host: true})
+		options.NamespaceOptions.AddOrReplace(NamespaceOption{
+			Name: string(specs.NetworkNamespace),
+			Host: hostNetworking,
+			Path: networkNamespacePath,
+		})
 		if ns := options.NamespaceOptions.Find(string(specs.PIDNamespace)); ns == nil || ns.Host {
 			logrus.Debugf("Forcing use of a PID namespace.")
 		}
