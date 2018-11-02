@@ -1006,3 +1006,8 @@ load helpers
   [ "$status" -ne 0 ]
 }
 
+@test "bud with ARG before FROM" {
+  run buildah bud --signature-policy ${TESTDIR}/policy.json -t test1 -f ${TESTDIR}/bud/leading-args/Dockerfile ${TESTDIR}/bud/leading-args
+  [ "$status" -eq 0 ]
+}
+
