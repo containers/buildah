@@ -1115,7 +1115,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		} else {
 			moreCreateArgs = nil
 		}
-		err = b.runUsingRuntimeSubproc(options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, Package+"-"+filepath.Base(path))
+		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, Package+"-"+filepath.Base(path))
 	case IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, options.Stdin, options.Stdout, options.Stderr)
 	case IsolationOCIRootless:
@@ -1129,7 +1129,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			}
 		}
 		options.Args = append(options.Args, rootlessFlag...)
-		err = b.runUsingRuntimeSubproc(options, configureNetwork, configureNetworks, []string{"--no-new-keyring"}, spec, mountPoint, path, Package+"-"+filepath.Base(path))
+		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, []string{"--no-new-keyring"}, spec, mountPoint, path, Package+"-"+filepath.Base(path))
 	default:
 		err = errors.Errorf("don't know how to run this command")
 	}
@@ -1143,7 +1143,8 @@ func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) 
 			logrus.Debugf("Forcing use of an IPC namespace.")
 		}
 		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.IPCNamespace)})
-		hostNetworking := true
+		_, err := exec.LookPath("slirp4netns")
+		hostNetworking := err != nil
 		networkNamespacePath := ""
 		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil {
 			hostNetworking = ns.Host
@@ -1258,9 +1259,10 @@ type runUsingRuntimeSubprocOptions struct {
 	ConfigureNetworks []string
 	MoreCreateArgs    []string
 	ContainerName     string
+	Isolation         Isolation
 }
 
-func (b *Builder) runUsingRuntimeSubproc(options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (err error) {
+func (b *Builder) runUsingRuntimeSubproc(isolation Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (err error) {
 	var confwg sync.WaitGroup
 	config, conferr := json.Marshal(runUsingRuntimeSubprocOptions{
 		Options:           options,
@@ -1271,6 +1273,7 @@ func (b *Builder) runUsingRuntimeSubproc(options RunOptions, configureNetwork bo
 		ConfigureNetworks: configureNetworks,
 		MoreCreateArgs:    moreCreateArgs,
 		ContainerName:     containerName,
+		Isolation:         isolation,
 	})
 	if conferr != nil {
 		return errors.Wrapf(conferr, "error encoding configuration for %q", runUsingRuntimeCommand)
@@ -1349,7 +1352,7 @@ func runUsingRuntimeMain() {
 		os.Exit(1)
 	}
 	// Run the container, start to finish.
-	status, err := runUsingRuntime(options.Options, options.ConfigureNetwork, options.ConfigureNetworks, options.MoreCreateArgs, options.Spec, options.RootPath, options.BundlePath, options.ContainerName)
+	status, err := runUsingRuntime(options.Isolation, options.Options, options.ConfigureNetwork, options.ConfigureNetworks, options.MoreCreateArgs, options.Spec, options.RootPath, options.BundlePath, options.ContainerName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error running container: %v\n", err)
 		os.Exit(1)
@@ -1364,7 +1367,7 @@ func runUsingRuntimeMain() {
 	os.Exit(1)
 }
 
-func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (wstatus unix.WaitStatus, err error) {
+func runUsingRuntime(isolation Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (wstatus unix.WaitStatus, err error) {
 	// Lock the caller to a single OS-level thread.
 	runtime.LockOSThread()
 
@@ -1521,7 +1524,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, configureNetwork
 	}()
 
 	if configureNetwork {
-		teardown, err := runConfigureNetwork(options, configureNetworks, pid, containerName, spec.Process.Args)
+		teardown, err := runConfigureNetwork(isolation, options, configureNetworks, pid, containerName, spec.Process.Args)
 		if teardown != nil {
 			defer teardown()
 		}
@@ -1654,9 +1657,81 @@ func runCollectOutput(fds, closeBeforeReadingFds []int) string {
 	}
 	return b.String()
 }
+func setupRootlessNetwork(pid int) (teardown func(), err error) {
+	slirp4netns, err := exec.LookPath("slirp4netns")
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot find slirp4netns")
+	}
 
-func runConfigureNetwork(options RunOptions, configureNetworks []string, pid int, containerName string, command []string) (teardown func(), err error) {
+	rootlessSlirpSyncR, rootlessSlirpSyncW, err := os.Pipe()
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot create slirp4netns sync pipe")
+	}
+	defer rootlessSlirpSyncR.Close()
+
+	// Be sure there are no fds inherited to slirp4netns except the sync pipe
+	files, err := ioutil.ReadDir("/proc/self/fd")
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot list open fds")
+	}
+	for _, f := range files {
+		fd, err := strconv.Atoi(f.Name())
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot parse fd")
+		}
+		if fd == int(rootlessSlirpSyncW.Fd()) {
+			continue
+		}
+		unix.CloseOnExec(fd)
+	}
+
+	cmd := exec.Command(slirp4netns, "-r", "3", "-c", fmt.Sprintf("%d", pid), "tap0")
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
+	cmd.ExtraFiles = []*os.File{rootlessSlirpSyncW}
+
+	err = cmd.Start()
+	rootlessSlirpSyncW.Close()
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot start slirp4netns")
+	}
+
+	b := make([]byte, 1)
+	for {
+		if err := rootlessSlirpSyncR.SetDeadline(time.Now().Add(1 * time.Second)); err != nil {
+			return nil, errors.Wrapf(err, "error setting slirp4netns pipe timeout")
+		}
+		if _, err := rootlessSlirpSyncR.Read(b); err == nil {
+			break
+		} else {
+			if os.IsTimeout(err) {
+				// Check if the process is still running.
+				var status syscall.WaitStatus
+				_, err := syscall.Wait4(cmd.Process.Pid, &status, syscall.WNOHANG, nil)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to read slirp4netns process status")
+				}
+				if status.Exited() || status.Signaled() {
+					return nil, errors.New("slirp4netns failed")
+				}
+
+				continue
+			}
+			return nil, errors.Wrapf(err, "failed to read from slirp4netns sync pipe")
+		}
+	}
+
+	return func() {
+		cmd.Process.Kill()
+		cmd.Wait()
+	}, nil
+}
+
+func runConfigureNetwork(isolation Isolation, options RunOptions, configureNetworks []string, pid int, containerName string, command []string) (teardown func(), err error) {
 	var netconf, undo []*libcni.NetworkConfigList
+
+	if isolation == IsolationOCIRootless {
+		return setupRootlessNetwork(pid)
+	}
 	// Scan for CNI configuration files.
 	confdir := options.CNIConfigDir
 	files, err := libcni.ConfFiles(confdir, []string{".conf"})
