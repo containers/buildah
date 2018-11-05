@@ -7,21 +7,25 @@ go:
     - tip
 
 env:
-    - BUILDAH_ISOLATION=oci
-    - BUILDAH_ISOLATION=chroot
-    - BUILDAH_ISOLATION=rootless
-    - TRAVIS_ENV="-e TRAVIS=$TRAVIS
-      -e CI=$CI
-      -e TRAVIS_COMMIT=$TRAVIS_COMMIT
-      -e TRAVIS_COMMIT_RANGE=$TRAVIS_COMMIT_RANGE
-      -e TRAVIS_REPO_SLUG=$TRAVIS_REPO_SLUG
-      -e TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
-      -e TRAVIS_PULL_REQUEST_SHA=$TRAVIS_PULL_REQUEST_SHA
-      -e TRAVIS_PULL_REQUEST_SLUG=$TRAVIS_PULL_REQUEST_SLUG
-      -e TRAVIS_BRANCH=$TRAVIS_BRANCH
-      -e TRAVIS_JOB_ID=$TRAVIS_JOB_ID
-      -e TRAVIS_BUILD_DIR=$TRAVIS_BUILD_DIR"
-
+    global:
+        - TRAVIS_ENV="-e TRAVIS=$TRAVIS
+                      -e CI=$CI
+                      -e TRAVIS_COMMIT=$TRAVIS_COMMIT
+                      -e TRAVIS_COMMIT_RANGE=$TRAVIS_COMMIT_RANGE
+                      -e TRAVIS_REPO_SLUG=$TRAVIS_REPO_SLUG
+                      -e TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
+                      -e TRAVIS_PULL_REQUEST_SHA=$TRAVIS_PULL_REQUEST_SHA
+                      -e TRAVIS_PULL_REQUEST_SLUG=$TRAVIS_PULL_REQUEST_SLUG
+                      -e TRAVIS_BRANCH=$TRAVIS_BRANCH
+                      -e TRAVIS_JOB_ID=$TRAVIS_JOB_ID
+                      -e TRAVIS_BUILD_DIR=$TRAVIS_BUILD_DIR"
+    matrix:
+        - BUILDAH_ISOLATION=oci
+          DISTRO="ubuntu"
+        - BUILDAH_ISOLATION=chroot
+          DISTRO="ubuntu"
+        - BUILDAH_ISOLATION=rootless
+          DISTRO="ubuntu"
 matrix:
   # If the latest unstable development version of go fails, that's OK.
   allow_failures:
