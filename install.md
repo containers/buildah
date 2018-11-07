@@ -136,6 +136,10 @@ run this command:
 
 The build steps for Buildah on RHEL or CentOS are the same as for Fedora, above.
 
+*NOTE:* Buildah on RHEL or CentOS version 7.* is not supported running as non-root due to
+these systems not having newuidmap or newgidmap installed.  It is possible to pull
+the shadow-utils source RPM from Fedora 29 and build and install from that in order to
+run Buildah as non-root on these systems.
 
 ### openSUSE
 
