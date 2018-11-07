@@ -552,6 +552,31 @@ return 1
      esac
  }
 
+ _buildah_pull() {
+     local boolean_options="
+     --help
+     -h
+     --quiet
+     -q
+     --tls-verify
+  "
+
+     local options_with_args="
+     --authfile
+     --cert-dir
+     --creds
+     --signature-policy
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
  _buildah_push() {
      local boolean_options="
           --help
@@ -818,6 +843,7 @@ return 1
        images
        inspect
        mount
+       pull
        push
        rename
        rm
