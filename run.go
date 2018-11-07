@@ -1062,8 +1062,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	bindFiles := make(map[string]string)
 	namespaceOptions := append(b.NamespaceOptions, options.NamespaceOptions...)
-	networkNamespace := namespaceOptions.Find(string(specs.NetworkNamespace))
-	if networkNamespace == nil || networkNamespace.Host || networkNamespace.Path != "" {
+	volumes := b.Volumes()
+
+	if !contains(volumes, "/etc/hosts") {
 		hostFile, err := b.addNetworkConfig(path, "/etc/hosts", rootIDPair)
 		if err != nil {
 			return err
@@ -1073,7 +1074,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		if err := addHostsToFile(b.CommonBuildOpts.AddHost, hostFile); err != nil {
 			return err
 		}
+	}
 
+	if !contains(volumes, "/etc/resolv.conf") {
 		resolvFile, err := b.addNetworkConfig(path, "/etc/resolv.conf", rootIDPair)
 		if err != nil {
 			return err
@@ -1081,7 +1084,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		bindFiles["/etc/resolv.conf"] = resolvFile
 	}
 
-	err = b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, b.Volumes(), b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, namespaceOptions)
+	err = b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, volumes, b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, namespaceOptions)
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container %q", b.ContainerID)
 	}
@@ -1134,6 +1137,15 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		err = errors.Errorf("don't know how to run this command")
 	}
 	return err
+}
+
+func contains(volumes []string, v string) bool {
+	for _, i := range volumes {
+		if i == v {
+			return true
+		}
+	}
+	return false
 }
 
 func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) error {
