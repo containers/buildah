@@ -279,7 +279,7 @@ func (b *Executor) Preserve(path string) error {
 
 	// Try and resolve the symlink (if one exists)
 	// Set archivedPath and path based on whether a symlink is found or not
-	if symLink, err := resolveSymLink(b.mountPoint, path); err == nil {
+	if symLink, err := ResolveSymLink(b.mountPoint, path); err == nil {
 		archivedPath = filepath.Join(b.mountPoint, symLink)
 		path = symLink
 	} else {

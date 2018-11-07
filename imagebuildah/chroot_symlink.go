@@ -57,9 +57,9 @@ func resolveChrootedSymlinks() {
 	os.Exit(status)
 }
 
-// resolveSymLink (in the grandparent process) resolves any symlink in filename
+// ResolveSymLink (in the grandparent process) resolves any symlink in filename
 // in the context of rootdir.
-func resolveSymLink(rootdir, filename string) (string, error) {
+func ResolveSymLink(rootdir, filename string) (string, error) {
 	// The child process expects a chroot and one path that
 	// will be consulted relative to the chroot directory and evaluated
 	// for any symbolic links present.
