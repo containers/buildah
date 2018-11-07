@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -29,6 +30,10 @@ var (
 			Name:  "creds",
 			Value: "",
 			Usage: "use `[username[:password]]` for accessing the registry",
+		},
+		cli.StringFlag{
+			Name:  "iidfile",
+			Usage: "Write the image ID to the file",
 		},
 		cli.BoolFlag{
 			Name:  "quiet, q",
@@ -112,6 +117,13 @@ func pullCmd(c *cli.Context) error {
 	img, err := is.Transport.GetStoreImage(store, ref)
 	if err != nil {
 		return err
+	}
+
+	filePath := c.String("iidfile")
+	if filePath != "" {
+		if err := ioutil.WriteFile(filePath, []byte(img.ID), 0644); err != nil {
+			return errors.Wrapf(err, "failed to write image ID to file %q", filePath)
+		}
 	}
 
 	fmt.Printf("%s\n", img.ID)

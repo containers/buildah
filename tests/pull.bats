@@ -25,3 +25,15 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
 }
+
+@test "pull-iidfile" {
+  buildah --registries-conf ${TESTSDIR}/registries.conf pull --iidfile output.iid --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
+  iid=$(cat output.iid)
+  cid=$(buildah from ${iid})
+  buildah rm ${cid}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}

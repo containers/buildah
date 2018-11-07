@@ -565,6 +565,7 @@ return 1
      --authfile
      --cert-dir
      --creds
+     --iidfile
      --signature-policy
   "
 
