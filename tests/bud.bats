@@ -1006,3 +1006,15 @@ load helpers
   [ "$status" -ne 0 ]
 }
 
+@test "bud with ARG before FROM default value" {
+  target=leading-args-default
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/leading-args/Dockerfile ${TESTSDIR}/bud/leading-args
+  [ "$status" -eq 0 ]
+}
+
+@test "bud with ARG before FROM" {
+  target=leading-args
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg=VERSION=musl -f ${TESTSDIR}/bud/leading-args/Dockerfile ${TESTSDIR}/bud/leading-args
+  [ "$status" -eq 0 ]
+}
+
