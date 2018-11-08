@@ -63,8 +63,7 @@ func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
 	if c.NArg() == 0 {
 		return
 	}
-	switch c.Args()[0] {
-	case "help", "version":
+	if c.Args()[0] != "run" {
 		return
 	}
 
