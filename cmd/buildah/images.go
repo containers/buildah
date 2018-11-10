@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -9,8 +10,7 @@ import (
 	"text/template"
 	"time"
 
-	"encoding/json"
-
+	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	is "github.com/containers/image/storage"
@@ -26,6 +26,7 @@ type jsonImage struct {
 }
 
 type imageOutputParams struct {
+	Tag       string
 	ID        string
 	Name      string
 	Digest    string
@@ -228,9 +229,9 @@ func setFilterDate(ctx context.Context, store storage.Store, images []storage.Im
 
 func outputHeader(truncate, digests bool) {
 	if truncate {
-		fmt.Printf("%-20s %-56s ", "IMAGE ID", "IMAGE NAME")
+		fmt.Printf("%-56s %-20s %-20s ", "IMAGE NAME", "IMAGE TAG", "IMAGE ID")
 	} else {
-		fmt.Printf("%-64s %-56s ", "IMAGE ID", "IMAGE NAME")
+		fmt.Printf("%-56s %-20s %-64s ", "IMAGE NAME", "IMAGE TAG", "IMAGE ID")
 	}
 
 	if digests {
@@ -270,48 +271,62 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 			names = image.Names
 		} else {
 			// images without names should be printed with "<none>" as the image name
-			names = append(names, "<none>")
+			names = append(names, "<none>:<none>")
 		}
-		for _, name := range names {
-			if !matchesReference(name, argName) {
-				continue
+		if opts.quiet && argName == "" {
+			fmt.Printf("%-64s\n", image.ID)
+			// We only want to print each id once
+			continue
+		}
+		if opts.json && argName == "" {
+			JSONImage := jsonImage{ID: image.ID, Names: image.Names}
+			data, err2 := json.MarshalIndent(JSONImage, "", "    ")
+			if err2 != nil {
+				return err2
 			}
-			found = true
-
-			if !matchesFilter(ctx, image, store, name, filters) {
-				continue
-			}
-			if opts.quiet {
-				fmt.Printf("%-64s\n", image.ID)
-				// We only want to print each id once
-				break
-			}
-
-			if opts.json {
-				JSONImage := jsonImage{ID: image.ID, Names: image.Names}
-				data, err2 := json.MarshalIndent(JSONImage, "", "    ")
-				if err2 != nil {
-					return err2
+			fmt.Printf("%s\n", data)
+			continue
+		}
+		for name, tags := range imagebuildah.ReposToMap(names) {
+			for _, tag := range tags {
+				if !matchesReference(name+":"+tag, argName) {
+					continue
 				}
-				fmt.Printf("%s\n", data)
-				continue
-			}
+				found = true
 
-			params := imageOutputParams{
-				ID:        image.ID,
-				Name:      name,
-				Digest:    digest,
-				CreatedAt: createdTime.Format("Jan 2, 2006 15:04"),
-				Size:      formattedSize(size),
-			}
-			if opts.format != "" {
-				if err := outputUsingTemplate(opts.format, params); err != nil {
-					return err
+				if !matchesFilter(ctx, image, store, name+":"+tag, filters) {
+					continue
 				}
-				continue
+				if opts.quiet {
+					fmt.Printf("%-64s\n", image.ID)
+					// We only want to print each id once
+					break
+				}
+				if opts.json {
+					JSONImage := jsonImage{ID: image.ID, Names: image.Names}
+					data, err2 := json.MarshalIndent(JSONImage, "", "    ")
+					if err2 != nil {
+						return err2
+					}
+					fmt.Printf("%s\n", data)
+					break
+				}
+				params := imageOutputParams{
+					Tag:       tag,
+					ID:        image.ID,
+					Name:      name,
+					Digest:    digest,
+					CreatedAt: createdTime.Format("Jan 2, 2006 15:04"),
+					Size:      formattedSize(size),
+				}
+				if opts.format != "" {
+					if err := outputUsingTemplate(opts.format, params); err != nil {
+						return err
+					}
+					continue
+				}
+				outputUsingFormatString(opts.truncate, opts.digests, params)
 			}
-
-			outputUsingFormatString(opts.truncate, opts.digests, params)
 		}
 	}
 
@@ -446,9 +461,9 @@ func outputUsingTemplate(format string, params imageOutputParams) error {
 
 func outputUsingFormatString(truncate, digests bool, params imageOutputParams) {
 	if truncate {
-		fmt.Printf("%-20.12s %-56s", params.ID, params.Name)
+		fmt.Printf("%-56s %-20s %-20.12s", params.Name, params.Tag, params.ID)
 	} else {
-		fmt.Printf("%-64s %-56s", params.ID, params.Name)
+		fmt.Printf("%-56s %-20s %-64s", params.Name, params.Tag, params.ID)
 	}
 
 	if digests {
