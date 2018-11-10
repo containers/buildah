@@ -65,19 +65,19 @@ buildah images --format "ImageID: {{.ID}}"
 
 ```
 # buildah images
-IMAGE ID             IMAGE NAME                                               CREATED AT             SIZE
-3fd9065eaf02         docker.io/library/alpine:latest                          Jan 9, 2018 16:10      4.41 MB
-c0cfe75da054         localhost/test:latest                                    Jun 13, 2018 15:52     4.42 MB
+IMAGE NAME                                               IMAGE TAG            IMAGE ID             CREATED AT             SIZE
+docker.io/library/alpine                                 latest               3fd9065eaf02         Jan 9, 2018 16:10      4.41 MB
+localhost/test                                           latest               c0cfe75da054         Jun 13, 2018 15:52     4.42 MB
 ```
 
 ```
 # buildah images -a
-IMAGE ID             IMAGE NAME                                               CREATED AT             SIZE
-3fd9065eaf02         docker.io/library/alpine:latest                          Jan 9, 2018 16:10      4.41 MB
-12515a2658dc         <none>                                                   Jun 13, 2018 15:52     4.41 MB
-fcc3ddd28930         <none>                                                   Jun 13, 2018 15:52     4.41 MB
-8c6e16890c2b         <none>                                                   Jun 13, 2018 15:52     4.42 MB
-c0cfe75da054         localhost/test:latest                                    Jun 13, 2018 15:52     4.42 MB
+IMAGE NAME                                               IMAGE TAG            IMAGE ID             CREATED AT             SIZE
+docker.io/library/alpine                                 latest               3fd9065eaf02         Jan 9, 2018 16:10      4.41 MB
+<none>                                                   <none>               12515a2658dc         Jun 13, 2018 15:52     4.41 MB
+<none>                                                   <none>               fcc3ddd28930         Jun 13, 2018 15:52     4.41 MB
+<none>                                                   <none>               8c6e16890c2b         Jun 13, 2018 15:52     4.42 MB
+localhost/test                                           latest               c0cfe75da054         Jun 13, 2018 15:52     4.42 MB
 ```
 
 ## SEE ALSO
