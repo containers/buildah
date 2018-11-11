@@ -40,7 +40,7 @@ var (
 		Description:            rmiDescription,
 		Action:                 rmiCmd,
 		ArgsUsage:              "IMAGE-NAME-OR-ID [...]",
-		Flags:                  rmiFlags,
+		Flags:                  sortFlags(rmiFlags),
 		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}

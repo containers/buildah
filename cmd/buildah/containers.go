@@ -82,7 +82,7 @@ var (
 		Name:                   "containers",
 		Usage:                  "List working containers and their base images",
 		Description:            containersDescription,
-		Flags:                  containersFlags,
+		Flags:                  sortFlags(containersFlags),
 		Action:                 containersCmd,
 		ArgsUsage:              " ",
 		SkipArgReorder:         true,

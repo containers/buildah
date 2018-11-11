@@ -24,7 +24,7 @@ var (
 		Description:            "Unmounts the root file system on the specified working containers",
 		Action:                 umountCmd,
 		ArgsUsage:              "[CONTAINER-NAME-OR-ID [...]]",
-		Flags:                  umountFlags,
+		Flags:                  sortFlags(umountFlags),
 		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}

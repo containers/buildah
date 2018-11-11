@@ -39,7 +39,7 @@ var (
 		Name:           "copy",
 		Usage:          "Copy content into the container",
 		Description:    copyDescription,
-		Flags:          addAndCopyFlags,
+		Flags:          sortFlags(addAndCopyFlags),
 		Action:         copyCmd,
 		ArgsUsage:      "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
 		SkipArgReorder: true,

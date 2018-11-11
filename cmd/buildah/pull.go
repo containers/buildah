@@ -51,7 +51,7 @@ specified, the image with the 'latest' tag (if it exists) is pulled.`
 		Name:           "pull",
 		Usage:          "Pull an image from the specified location",
 		Description:    pullDescription,
-		Flags:          append(pullFlags),
+		Flags:          sortFlags(append(pullFlags)),
 		Action:         pullCmd,
 		ArgsUsage:      "IMAGE",
 		SkipArgReorder: true,

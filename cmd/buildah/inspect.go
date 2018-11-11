@@ -37,7 +37,7 @@ var (
 		Name:                   "inspect",
 		Usage:                  "Inspects the configuration of a container or image",
 		Description:            inspectDescription,
-		Flags:                  inspectFlags,
+		Flags:                  sortFlags(inspectFlags),
 		Action:                 inspectCmd,
 		ArgsUsage:              "CONTAINER-OR-IMAGE",
 		SkipArgReorder:         true,

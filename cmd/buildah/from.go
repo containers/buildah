@@ -72,7 +72,7 @@ var (
 		Name:           "from",
 		Usage:          "Create a working container based on an image",
 		Description:    fromDescription,
-		Flags:          append(fromFlags, buildahcli.FromAndBudFlags...),
+		Flags:          sortFlags(append(fromFlags, buildahcli.FromAndBudFlags...)),
 		Action:         fromCmd,
 		ArgsUsage:      "IMAGE",
 		SkipArgReorder: true,

@@ -101,7 +101,7 @@ var (
 		Name:                   "config",
 		Usage:                  "Update image configuration settings",
 		Description:            configDescription,
-		Flags:                  configFlags,
+		Flags:                  sortFlags(configFlags),
 		Action:                 configCmd,
 		ArgsUsage:              "CONTAINER-NAME-OR-ID",
 		SkipArgReorder:         true,

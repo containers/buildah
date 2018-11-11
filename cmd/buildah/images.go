@@ -94,7 +94,7 @@ var (
 		Name:                   "images",
 		Usage:                  "List images in local storage",
 		Description:            imagesDescription,
-		Flags:                  imagesFlags,
+		Flags:                  sortFlags(imagesFlags),
 		Action:                 imagesCmd,
 		ArgsUsage:              "[imageName]",
 		SkipArgReorder:         true,
