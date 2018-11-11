@@ -65,7 +65,7 @@ var (
 		Name:                   "run",
 		Usage:                  "Run a command inside of the container",
 		Description:            runDescription,
-		Flags:                  append(append(runFlags, userFlags...), buildahcli.NamespaceFlags...),
+		Flags:                  sortFlags(append(append(runFlags, userFlags...), buildahcli.NamespaceFlags...)),
 		Action:                 runCmd,
 		ArgsUsage:              "CONTAINER-NAME-OR-ID COMMAND [ARGS [...]]",
 		SkipArgReorder:         true,

@@ -24,7 +24,7 @@ var (
 		Description:            mountDescription,
 		Action:                 mountCmd,
 		ArgsUsage:              "[CONTAINER-NAME-OR-ID [...]]",
-		Flags:                  mountFlags,
+		Flags:                  sortFlags(mountFlags),
 		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}

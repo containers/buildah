@@ -26,7 +26,7 @@ var (
 		Description:            rmDescription,
 		Action:                 rmCmd,
 		ArgsUsage:              "CONTAINER-NAME-OR-ID [...]",
-		Flags:                  rmFlags,
+		Flags:                  sortFlags(rmFlags),
 		SkipArgReorder:         true,
 		UseShortOptionHandling: true,
 	}

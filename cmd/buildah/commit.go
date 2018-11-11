@@ -77,7 +77,7 @@ var (
 		Name:                   "commit",
 		Usage:                  "Create an image from a working container",
 		Description:            commitDescription,
-		Flags:                  commitFlags,
+		Flags:                  sortFlags(commitFlags),
 		Action:                 commitCmd,
 		ArgsUsage:              "CONTAINER-NAME-OR-ID IMAGE",
 		SkipArgReorder:         true,
