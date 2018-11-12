@@ -30,6 +30,8 @@ var _ = Describe("Buildah build conformance test", func() {
 		"VirtualSize",
 		"Size",
 		"Image",
+		"Hostname",
+		"ContainerConfig:Cmd",
 	}
 	type BuildTest struct {
 		Dockerfile      string

@@ -341,14 +341,28 @@ func CompareJSON(a, b map[string]interface{}, skip []string) ([]string, []string
 			continue
 		}
 		if reflect.TypeOf(v) != reflect.TypeOf(vb) {
+			if reflect.TypeOf(v) == nil && reflect.ValueOf(vb).Len() == 0 {
+				continue
+			} else if reflect.TypeOf(vb) == nil && reflect.ValueOf(v).Len() == 0 {
+				continue
+			}
 			diffKeys = append(diffKeys, diffDebug(k, v, vb))
 			isSame = false
 			continue
 		}
 		switch v.(type) {
 		case map[string]interface{}:
+			nextSkip := skip
+			for _, s := range skip {
+				if strings.Contains(s, ":") {
+					tmp := strings.Split(s, ":")
+					if tmp[0] == k {
+						nextSkip = append(nextSkip, strings.Join(tmp[1:], ":"))
+					}
+				}
+			}
 			submiss, subleft, subdiff, ok := CompareJSON(v.(map[string]interface{}),
-				vb.(map[string]interface{}), skip)
+				vb.(map[string]interface{}), nextSkip)
 			missKeys = append(missKeys, addPrefix(submiss, k)...)
 			leftKeys = append(leftKeys, addPrefix(subleft, k)...)
 			diffKeys = append(diffKeys, addPrefix(subdiff, k)...)
