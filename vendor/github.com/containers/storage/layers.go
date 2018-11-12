@@ -542,8 +542,8 @@ func (r *layerStore) Put(id string, parentLayer *Layer, names []string, mountLab
 			_, idInUse = r.byid[id]
 		}
 	}
-	if _, idInUse := r.byid[id]; idInUse {
-		return nil, -1, ErrDuplicateID
+	if duplicateLayer, idInUse := r.byid[id]; idInUse {
+		return duplicateLayer, -1, ErrDuplicateID
 	}
 	names = dedupeNames(names)
 	for _, name := range names {
