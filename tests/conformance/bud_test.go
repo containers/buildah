@@ -284,7 +284,7 @@ var _ = Describe("Buildah build conformance test", func() {
 
 		Entry("multi stage base", BuildTest{
 			Dockerfile:    "Dockerfile.reusebase",
-			BuildahRegex:  "[-rw]+.*?/a/1",
+			BuildahRegex:  "[0-9a-z]+ /1",
 			WithoutDocker: true,
 			IsFile:        true,
 		}),
