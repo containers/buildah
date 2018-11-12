@@ -466,6 +466,7 @@ func (s *BuildahTestSession) LineInOuputContains(term string) bool {
 
 // SystemExec is used to exec a system command to check its exit code or output
 func SystemExec(command string, args []string) *BuildahTestSession {
+	fmt.Printf("Running: %s %s\n", command, strings.Join(args, " "))
 	c := exec.Command(command, args...)
 	session, err := gexec.Start(c, GinkgoWriter, GinkgoWriter)
 	if err != nil {
