@@ -71,7 +71,7 @@ var _ = Describe("Buildah build conformance test", func() {
 			CopyFiles(dockerfilePath, dst)
 
 			buildahoptions := []string{"bud", "-t", "buildahimage", buildDir}
-			dockeroptions := []string{"build", "-t", "dockerimage", buildDir}
+			dockeroptions := []string{"build", "-t", "docker.io/dockerimage", buildDir}
 			if len(test.ExtraOptions) != 0 {
 				for i := 0; i < len(test.ExtraOptions); i++ {
 					test.ExtraOptions[i] = strings.Replace(test.ExtraOptions[i], "TEMPDIR",
