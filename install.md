@@ -58,7 +58,7 @@ as yum, dnf or apt-get on a number of Linux distributions.
 
 Prior to installing Buildah, install the following packages on your Linux distro:
 * make
-* golang (Requires version 1.8.1 or higher.)
+* golang (Requires version 1.10 or higher.)
 * bats
 * btrfs-progs-devel
 * bzip2
@@ -143,8 +143,7 @@ run Buildah as non-root on these systems.
 
 ### openSUSE
 
-Currently openSUSE Leap 15 offers `go1.8` , while openSUSE Tumbleweed has `go1.9`.
-`zypper in go1.X` should do the work, then run this command:
+On openSUSE Tumbleweed, install go via `zypper in go`, then run this command:
 
 ```
  zypper in make \
@@ -173,7 +172,7 @@ In Ubuntu zesty and xenial, you can use these commands:
   apt-add-repository -y ppa:projectatomic/ppa
   apt-get -y -qq update
   apt-get -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libostree-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
-  apt-get -y install golang-1.8
+  apt-get -y install golang-1.10
 ```
 Then to install Buildah on Ubuntu follow the steps in this example:
 
@@ -183,7 +182,7 @@ Then to install Buildah on Ubuntu follow the steps in this example:
   export GOPATH=`pwd`
   git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
   cd ./src/github.com/containers/buildah
-  PATH=/usr/lib/go-1.8/bin:$PATH make runc all TAGS="apparmor seccomp"
+  PATH=/usr/lib/go-1.10/bin:$PATH make runc all TAGS="apparmor seccomp"
   sudo make install install.runc
   buildah --help
 ```
