@@ -343,7 +343,8 @@ func CompareJSON(a, b map[string]interface{}, skip []string) ([]string, []string
 		if reflect.TypeOf(v) != reflect.TypeOf(vb) {
 			if reflect.TypeOf(v) == nil && reflect.ValueOf(vb).Len() == 0 {
 				continue
-			} else if reflect.TypeOf(vb) == nil && reflect.ValueOf(v).Len() == 0 {
+			}
+			if reflect.TypeOf(vb) == nil && reflect.ValueOf(v).Len() == 0 {
 				continue
 			}
 			diffKeys = append(diffKeys, diffDebug(k, v, vb))
