@@ -336,6 +336,50 @@ load helpers
   [ "$status" -eq 0 ]
 }
 
+@test "bud-multi-stage-builds-small-as" {
+  target=multi-stage-index
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds-small-as
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  cmp $root/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.index
+  run test -s $root/etc/passwd
+  [ "$status" -eq 0 ]
+  buildah rm ${cid}
+  buildah rmi -a
+  run buildah --debug=false images -q
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+
+  target=multi-stage-name
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds-small-as
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  cmp $root/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.name
+  run test -s $root/etc/passwd
+  [ "$status" -ne 0 ]
+  buildah rm ${cid}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  echo "$output"
+  [ "$output" = "" ]
+  [ "$status" -eq 0 ]
+
+  target=multi-stage-mixed
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.mixed ${TESTSDIR}/bud/multi-stage-builds-small-as
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  cmp $root/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.name
+  cmp $root/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.index
+  cmp $root/Dockerfile.mixed ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.mixed
+  buildah rm ${cid}
+  buildah rmi $(buildah --debug=false images -q)
+  run buildah --debug=false images -q
+  echo "$output"
+  [ "$output" = "" ]
+  [ "$status" -eq 0 ]
+}
+
 @test "bud-preserve-subvolumes" {
   # This Dockerfile needs us to be able to handle a working RUN instruction.
   if ! which runc ; then
@@ -1077,4 +1121,17 @@ load helpers
   target=busybox-image
   out=$(buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg foo=bar --build-arg foo2=bar2 -f ${TESTSDIR}/bud/build-arg ${TESTSDIR}/bud/build-arg | grep "Warning" | wc -l)
   [ "$out" -ne 0 ]
+}
+
+@test "bud with copy-from in Dockerfile no prior FROM" {
+  target=php-image
+  run buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from ${TESTSDIR}/bud/copy-from
+  echo "$output"
+  [ "$status" -eq 0 ]
+
+  ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json ${target})
+  mnt=$(buildah --debug=false mount ${ctr})
+
+  run test -e $mnt/usr/local/bin/composer
+  [ "$status" -eq 0 ]
 }
