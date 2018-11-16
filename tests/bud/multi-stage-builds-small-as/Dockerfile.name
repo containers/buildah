@@ -1,4 +1,4 @@
-FROM alpine AS myname
+FROM alpine as myname
 COPY Dockerfile.name /
 
 FROM scratch
