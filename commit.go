@@ -133,6 +133,12 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		return imgID, nil, "", errors.Wrapf(err, "error computing layer digests and building metadata for container %q", b.ContainerID)
 	}
 	// "Copy" our image to where it needs to be.
+	switch options.Compression {
+	case archive.Uncompressed:
+		systemContext.OCIAcceptUncompressedLayers = true
+	case archive.Gzip:
+		systemContext.DirForceCompress = true
+	}
 	var manifestBytes []byte
 	if manifestBytes, err = cp.Image(ctx, policyContext, dest, src, getCopyOptions(options.ReportWriter, src, nil, dest, systemContext, "")); err != nil {
 		return imgID, nil, "", errors.Wrapf(err, "error copying layers and metadata for container %q", b.ContainerID)
@@ -210,6 +216,12 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 		return nil, "", err
 	}
 	// Copy everything.
+	switch options.Compression {
+	case archive.Uncompressed:
+		systemContext.OCIAcceptUncompressedLayers = true
+	case archive.Gzip:
+		systemContext.DirForceCompress = true
+	}
 	var manifestBytes []byte
 	if manifestBytes, err = cp.Image(ctx, policyContext, dest, src, getCopyOptions(options.ReportWriter, src, nil, dest, systemContext, options.ManifestType)); err != nil {
 		return nil, "", errors.Wrapf(err, "error copying layers and metadata from %q to %q", transports.ImageName(src), transports.ImageName(dest))

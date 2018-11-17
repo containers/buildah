@@ -178,6 +178,11 @@ func budCmd(c *cli.Context) error {
 		logrus.Debugf("--compress option specified but is ignored")
 	}
 
+	compression := imagebuildah.Gzip
+	if c.Bool("disable-compression") {
+		compression = imagebuildah.Uncompressed
+	}
+
 	if c.IsSet("disable-content-trust") {
 		logrus.Debugf("--disable-content-trust option specified but is ignored")
 	}
@@ -195,7 +200,7 @@ func budCmd(c *cli.Context) error {
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:        contextDir,
 		PullPolicy:              pullPolicy,
-		Compression:             imagebuildah.Gzip,
+		Compression:             compression,
 		Quiet:                   c.Bool("quiet"),
 		SignaturePolicyPath:     c.String("signature-policy"),
 		Args:                    args,
