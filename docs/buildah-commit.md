@@ -34,7 +34,7 @@ value can be entered.  The password is entered without echo.
 
 **--disable-compression, -D**
 
-Don't compress filesystem layers when building the image.
+Don't default to compressing filesystem layers when building the image.
 
 **--format**
 

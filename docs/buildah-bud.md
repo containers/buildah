@@ -170,6 +170,10 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
+**--disable-compression, -D**
+
+Don't default to compressing filesystem layers when building the image.
+
 **--disable-content-trust**
 
 This is a Docker specific option to disable image verification to a Docker

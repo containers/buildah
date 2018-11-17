@@ -112,6 +112,10 @@ var (
 			Usage: "use `[username[:password]]` for accessing the registry",
 		},
 		cli.BoolFlag{
+			Name:  "disable-compression, D",
+			Usage: "don't compress layers by default",
+		},
+		cli.BoolFlag{
 			Name:  "disable-content-trust",
 			Usage: "This is a Docker specific option and is a NOOP",
 		},
