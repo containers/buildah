@@ -59,6 +59,48 @@ load helpers
   rm -rf ${TESTSDIR}/bud/use-layers/mount
 }
 
+@test "bud with --layers, multistage, and COPY with --from" {
+  mkdir -p ${TESTSDIR}/bud/use-layers/uuid
+  uuidgen > ${TESTSDIR}/bud/use-layers/uuid/data
+  mkdir -p ${TESTSDIR}/bud/use-layers/date
+  date > ${TESTSDIR}/bud/use-layers/date/data
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false images -a
+  [ $(wc -l <<< "$output") -eq 6 ]
+  [ "${status}" -eq 0 ]
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false images -a
+  [ $(wc -l <<< "$output") -eq 7 ]
+  [ "${status}" -eq 0 ]
+
+  uuidgen > ${TESTSDIR}/bud/use-layers/uuid/data
+  date > ${TESTSDIR}/bud/use-layers/date/data
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false images -a
+  [ $(wc -l <<< "$output") -eq 11 ]
+  [ "${status}" -eq 0 ]
+  run buildah --debug=false containers
+  [ $(wc -l <<< "$output") -eq 1 ]
+  [ "${status}" -eq 0 ]
+  
+  ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json test3)
+  mnt=$(buildah --debug=false mount ${ctr})
+  run test -e $mnt/uuid
+  [ "${status}" -eq 0 ]
+  run test -e $mnt/date
+  [ "${status}" -eq 0 ]
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t test4 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
+  run buildah --debug=false images -a
+  [ $(wc -l <<< "$output") -eq 12 ]
+  [ "${status}" -eq 0 ]
+
+  buildah rmi -a -f
+  rm -rf ${TESTSDIR}/bud/use-layers/uuid
+  rm -rf ${TESTSDIR}/bud/use-layers/date
+}
+
 @test "bud with --layers and symlink file" {
   echo 'echo "Hello World!"' > ${TESTSDIR}/bud/use-layers/hello.sh
   cd ${TESTSDIR}/bud/use-layers && ln -s hello.sh hello_world.sh
