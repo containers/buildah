@@ -3,11 +3,13 @@ package util
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/BurntSushi/toml"
 	"github.com/containers/image/types"
 	"github.com/containers/libpod/pkg/rootless"
 	"github.com/containers/storage"
@@ -273,7 +275,12 @@ func GetRootlessStorageOpts() (storage.StoreOptions, error) {
 		dataDir = filepath.Join(resolvedHome, ".local", "share")
 	}
 	opts.GraphRoot = filepath.Join(dataDir, "containers", "storage")
-	opts.GraphDriverName = "vfs"
+	if path, err := exec.LookPath("fuse-overlayfs"); err == nil {
+		opts.GraphDriverName = "overlay"
+		opts.GraphDriverOptions = []string{fmt.Sprintf("overlay.mount_program=%s", path)}
+	} else {
+		opts.GraphDriverName = "vfs"
+	}
 	return opts, nil
 }
 
@@ -290,6 +297,18 @@ func GetDefaultStoreOptions() (storage.StoreOptions, error) {
 		storageConf := filepath.Join(os.Getenv("HOME"), ".config/containers/storage.conf")
 		if _, err := os.Stat(storageConf); err == nil {
 			storage.ReloadConfigurationFile(storageConf, &storageOpts)
+		} else if os.IsNotExist(err) {
+			os.MkdirAll(filepath.Dir(storageConf), 0755)
+			file, err := os.OpenFile(storageConf, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+			if err != nil {
+				return storageOpts, errors.Wrapf(err, "cannot open %s", storageConf)
+			}
+
+			defer file.Close()
+			enc := toml.NewEncoder(file)
+			if err := enc.Encode(storageOpts); err != nil {
+				os.Remove(storageConf)
+			}
 		}
 	}
 	return storageOpts, nil
