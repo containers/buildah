@@ -68,13 +68,16 @@ func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
 		return
 	}
 
+	var uidNum, gidNum uint64
 	// Figure out who we are.
 	me, err := user.Current()
-	bailOnError(err, "error determining current user")
-	uidNum, err := strconv.ParseUint(me.Uid, 10, 32)
-	bailOnError(err, "error parsing current UID %s", me.Uid)
-	gidNum, err := strconv.ParseUint(me.Gid, 10, 32)
-	bailOnError(err, "error parsing current GID %s", me.Gid)
+	if !os.IsNotExist(err) {
+		bailOnError(err, "error determining current user")
+		uidNum, err = strconv.ParseUint(me.Uid, 10, 32)
+		bailOnError(err, "error parsing current UID %s", me.Uid)
+		gidNum, err = strconv.ParseUint(me.Gid, 10, 32)
+		bailOnError(err, "error parsing current GID %s", me.Gid)
+	}
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
