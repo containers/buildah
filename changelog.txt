@@ -1,3 +1,96 @@
+- Changelog for v1.5-1 (2018-11-21)
+  * Bump min go to 1.10 in install.md
+  * vendor: update ostree-go
+  * Update docker build command line in conformance test
+  * Print command in SystemExec as debug information
+  * Add some skip word for inspect check in conformance test
+  * Update regex for multi stage base test
+  * Sort CLI flags
+  * vendor: update containers/storage
+  * Add note to install about non-root on RHEL/CentOS
+  * Update imagebuild depdency to support heading ARGs in Dockerfile
+  * rootless: do not specify --rootless to the OCI runtime
+  * Export resolvesymlink function
+  * Exclude --force-rm from common bud cli flags
+  * run: bind mount /etc/hosts and /etc/resolv.conf if not in a volume
+  * rootless: use slirp4netns to setup the network namespace
+  * Instructions for completing the pull command
+  * Fix travis to not run environment variable patch
+  * rootless: only discard network configuration names
+  * run: only set up /etc/hosts or /etc/resolv.conf with network
+  * common: getFormat: match entire string not only the prefix
+  * vendor: update libpod
+  * Change validation EPOCH
+  * Fixing broken link for container-registries.conf
+  * Restore rootless isolation test for from volume ro test
+  * ostree: fix tag for build constraint
+  * Handle directories better in bud -f
+  * vndr in latest containers/storage
+  * Fix unshare gofmt issue
+  * runSetupBuiltinVolumes(): break up volume setup
+  * common: support a per-user registries conf file
+  * unshare: do not override the configuration
+  * common: honor the rootless configuration file
+  * unshare: create a new mount namespace
+  * unshare: support libpod rootless pkg
+  * Use libpod GetDefaultStorage to report proper storage config
+  * Allow container storage to manage the SELinux labels
+  * Resolve image names with default transport in from command
+  * run: When the value of isolation is set, use the set value instead of the default value.
+  * Vendor in latest containers/storage and opencontainers/selinux
+  * Remove no longer valid todo
+  * Check for empty buildTime in version
+  * Change gofmt so it runs on all but 1.10
+  * Run gofmt only on Go 1.11
+  * Walk symlinks when checking cached images for copied/added files
+  * ReserveSELinuxLabels(): handle wrapped errors from OpenBuilder
+  * Set WorkingDir to empty, not / for conformance
+  * Update calls in e2e to addres 1101
+  * imagebuilder.BuildDockerfiles: return the image ID
+  * Update for changes in the containers/image API
+  * bump(github.com/containers/image)
+  * Allow setting --no-pivot default with an env var
+  * Add man page and bash completion, for --no-pivot
+  * Add the --no-pivot flag to the run command
+  * Improve reporting about individual pull failures
+  * Move the "short name but no search registries" error handling to resolveImage
+  * Return a "search registries were needed but empty" indication in util.ResolveName
+  * Simplify handling of the "tried to pull an image but found nothing" case in newBuilder
+  * Don't even invoke the pull loop if options.FromImage == ""
+  * Eliminate the long-running ref and img variables in resolveImage
+  * In resolveImage, return immediately on success
+  * Fix From As in Dockerfile
+  * Vendor latest containers/image
+  * Vendor in latest libpod
+  * Sort CLI flags of buildah bud
+  * Change from testing with golang 1.9 to 1.11.
+  * unshare: detect when unprivileged userns are disabled
+  * Optimize redundant code
+  * fix missing format param
+  * chroot: fix the args check
+  * imagebuildah: make ResolveSymLink public
+  * Update copy chown test
+  * buildah: use the same logic for XDG_RUNTIME_DIR as podman
+  * V1.4 Release Announcement
+  * Podman  --privileged selinux is broken
+  * papr: mount source at gopath
+  * parse: Modify the return value
+  * parse: modify the verification of the isolation value
+  * Make sure we log or return every error
+  * pullImage(): when completing an image name, try docker://
+  * Fix up Tutorial 3 to account for format
+  * Vendor in latest containers/storage and containers/image
+  * docs/tutorials/01-intro.md: enhanced installation instructions
+  * Enforce "blocked" for registries for the "docker" transport
+  * Correctly set DockerInsecureSkipTLSVerify when pulling images
+  * chroot: set up seccomp and capabilities after supplemental groups
+  * chroot: fix capabilities list setup and application
+  * .papr.yml: log the podman version
+  * namespaces.bats: fix handling of uidmap/gidmap options in pairs
+  * chroot: only create user namespaces when we know we need them
+  * Check /proc/sys/user/max_user_namespaces on unshare(NEWUSERNS)
+  * bash/buildah: add isolation option to the from command
+
 - Changelog for v1.4 (2018-10-02)
   * from: fix isolation option
   * Touchup pull manpage
