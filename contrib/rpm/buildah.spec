@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.5
+Version:        1.6-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -97,6 +97,8 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Wed Nov 21 2018 Tom Sweeney <tsweeney@redhat.com> 1.6-dev-1
+
 * Wed Nov 21 2018 Tom Sweeney <tsweeney@redhat.com> 1.5-1
 - Bump min go to 1.10 in install.md
 - vendor: update ostree-go
