@@ -13,6 +13,7 @@ import (
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/image"
 	"github.com/containers/image/manifest"
+	"github.com/containers/image/pkg/blobinfocache"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/pkg/archive"
@@ -194,7 +195,7 @@ func saveStream(wg *sync.WaitGroup, decompressReader io.ReadCloser, tempFile *os
 	}
 }
 
-func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, isConfig bool, destination types.ImageDestination) (types.BlobInfo, error) {
+func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, cache types.BlobInfoCache, isConfig bool, destination types.ImageDestination) (types.BlobInfo, error) {
 	newBlobInfo := inputInfo
 	var tempfile *os.File
 	var err error
@@ -259,7 +260,7 @@ func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inpu
 		}
 	}
 	if destination != nil {
-		newBlobInfo, err = destination.PutBlob(ctx, stream, inputInfo, isConfig)
+		newBlobInfo, err = destination.PutBlob(ctx, stream, inputInfo, cache, isConfig)
 		if err != nil {
 			return newBlobInfo, errors.Wrapf(err, "error storing blob to image destination for cache %q", transports.ImageName(r))
 		}
@@ -282,7 +283,7 @@ func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inpu
 }
 
 func (r *blobCacheReference) PutBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, isConfig bool) error {
-	_, err := r.putBlob(ctx, stream, inputInfo, isConfig, nil)
+	_, err := r.putBlob(ctx, stream, inputInfo, blobinfocache.NoCache, isConfig, nil)
 	return err
 }
 
@@ -361,7 +362,7 @@ func (s *blobCacheSource) GetManifest(ctx context.Context, instanceDigest *diges
 	return s.source.GetManifest(ctx, instanceDigest)
 }
 
-func (s *blobCacheSource) GetBlob(ctx context.Context, blobinfo types.BlobInfo) (io.ReadCloser, int64, error) {
+func (s *blobCacheSource) GetBlob(ctx context.Context, blobinfo types.BlobInfo, cache types.BlobInfoCache) (io.ReadCloser, int64, error) {
 	present, size, err := s.reference.HasBlob(blobinfo)
 	if err != nil {
 		return nil, -1, err
@@ -381,7 +382,7 @@ func (s *blobCacheSource) GetBlob(ctx context.Context, blobinfo types.BlobInfo) 
 		}
 	}
 	s.cacheMisses++
-	rc, size, err := s.source.GetBlob(ctx, blobinfo)
+	rc, size, err := s.source.GetBlob(ctx, blobinfo, cache)
 	if err != nil {
 		return rc, size, errors.Wrapf(err, "error reading blob from source image %q", transports.ImageName(s.reference))
 	}
@@ -493,37 +494,30 @@ func (d *blobCacheDestination) IgnoresEmbeddedDockerReference() bool {
 	return d.destination.IgnoresEmbeddedDockerReference()
 }
 
-func (d *blobCacheDestination) PutBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, isConfig bool) (types.BlobInfo, error) {
-	return d.reference.putBlob(ctx, stream, inputInfo, isConfig, d.destination)
+func (d *blobCacheDestination) PutBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, cache types.BlobInfoCache, isConfig bool) (types.BlobInfo, error) {
+	return d.reference.putBlob(ctx, stream, inputInfo, cache, isConfig, d.destination)
 }
 
-func (d *blobCacheDestination) HasBlob(ctx context.Context, info types.BlobInfo) (bool, int64, error) {
-	present, size, err := d.reference.HasBlob(info)
-	if err != nil {
-		return false, -1, errors.Wrapf(err, "error checking for blob %q in cache %q", info.Digest.String(), d.reference.directory)
+func (d *blobCacheDestination) TryReusingBlob(ctx context.Context, info types.BlobInfo, cache types.BlobInfoCache, canSubstitute bool) (bool, types.BlobInfo, error) {
+	present, reusedInfo, err := d.destination.TryReusingBlob(ctx, info, cache, canSubstitute)
+	if err != nil || present {
+		return present, reusedInfo, err
 	}
-	if present {
-		return present, size, nil
-	}
-	return d.destination.HasBlob(ctx, info)
-}
 
-func (d *blobCacheDestination) ReapplyBlob(ctx context.Context, info types.BlobInfo) (types.BlobInfo, error) {
-	present, _, err := d.destination.HasBlob(ctx, info)
-	if err != nil {
-		return types.BlobInfo{}, errors.Wrapf(err, "error checking for blob %q in cache %q", info.Digest.String(), d.reference.directory)
-	}
-	if !present {
-		for _, isConfig := range []bool{false, true} {
-			filename := filepath.Join(d.reference.directory, makeFilename(info.Digest, isConfig))
-			f, err := os.Open(filename)
-			if err == nil {
-				defer f.Close()
-				return d.destination.PutBlob(ctx, f, info, isConfig)
+	for _, isConfig := range []bool{false, true} {
+		filename := filepath.Join(d.reference.directory, makeFilename(info.Digest, isConfig))
+		f, err := os.Open(filename)
+		if err == nil {
+			defer f.Close()
+			uploadedInfo, err := d.destination.PutBlob(ctx, f, info, cache, isConfig)
+			if err != nil {
+				return false, types.BlobInfo{}, err
 			}
+			return true, uploadedInfo, nil
 		}
 	}
-	return d.destination.ReapplyBlob(ctx, info)
+
+	return false, types.BlobInfo{}, nil
 }
 
 func (d *blobCacheDestination) PutManifest(ctx context.Context, manifestBytes []byte) error {

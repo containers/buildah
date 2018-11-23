@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	cp "github.com/containers/image/copy"
+	"github.com/containers/image/pkg/blobinfocache"
 	"github.com/containers/image/signature"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
@@ -127,25 +128,11 @@ func TestBlobCache(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error opening source image for writing: %v", err)
 				}
-				has, _, err := destImage.HasBlob(context.TODO(), blobInfo)
-				if err != nil {
-					t.Fatalf("error checking if source image has layer blob: %v", err)
-				}
-				if has {
-					t.Fatalf("new directory surprisingly already has the layer blob we never wrote to it: %v", err)
-				}
-				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(blobBytes), blobInfo, false)
+				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(blobBytes), blobInfo, blobinfocache.NoCache, false)
 				if err != nil {
 					t.Fatalf("error writing layer blob to source image: %v", err)
 				}
-				has, _, err = destImage.HasBlob(context.TODO(), configInfo)
-				if err != nil {
-					t.Fatalf("error checking if source image has config blob: %v", err)
-				}
-				if has {
-					t.Fatalf("new directory surprisingly already has a config blob we never wrote to it: %v", err)
-				}
-				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(configBytes), configInfo, true)
+				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(configBytes), configInfo, blobinfocache.NoCache, true)
 				if err != nil {
 					t.Fatalf("error writing config blob to source image: %v", err)
 				}
@@ -225,13 +212,11 @@ func TestBlobCache(t *testing.T) {
 					SourceCtx:      &systemContext,
 					DestinationCtx: &systemContext,
 				}
-				policy, err := signature.DefaultPolicy(&systemContext)
+				policyContext, err := signature.NewPolicyContext(&signature.Policy{
+					Default: []signature.PolicyRequirement{signature.NewPRInsecureAcceptAnything()},
+				})
 				if err != nil {
-					t.Fatalf("error loading default signature policy: %v", err)
-				}
-				policyContext, err := signature.NewPolicyContext(policy)
-				if err != nil {
-					t.Fatalf("error loading default signature policy context: %v", err)
+					t.Fatalf("error creating signature policy context: %v", err)
 				}
 				_, err = cp.Image(context.TODO(), policyContext, destRef, srcRef, &options)
 				if err == nil {
