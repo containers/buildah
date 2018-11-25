@@ -110,6 +110,7 @@ func main() {
 		copyCommand,
 		fromCommand,
 		imagesCommand,
+		infoCommand,
 		inspectCommand,
 		mountCommand,
 		pullCommand,
