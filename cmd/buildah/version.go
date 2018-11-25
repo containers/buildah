@@ -16,7 +16,7 @@ import (
 
 //Overwritten at build time
 var (
-	gitCommit  string
+	GitCommit  string
 	buildInfo  string
 	cniVersion string
 )
@@ -43,7 +43,7 @@ func versionCmd(c *cli.Context) error {
 	fmt.Println("Runtime Spec:   ", rspecs.Version)
 	fmt.Println("CNI Spec:       ", cniversion.Current())
 	fmt.Println("libcni Version: ", cniVersion)
-	fmt.Println("Git Commit:     ", gitCommit)
+	fmt.Println("Git Commit:     ", GitCommit)
 
 	//Prints out the build time in readable format
 	fmt.Println("Built:          ", time.Unix(buildTime, 0).Format(time.ANSIC))

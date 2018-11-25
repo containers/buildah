@@ -19,7 +19,7 @@ RUNC_COMMIT := 2c632d1a2de0192c3f18a2542ccb6f30a8719b1f
 LIBSECCOMP_COMMIT := release-2.3
 
 EXTRALDFLAGS :=
-LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_INFO} -X main.cniVersion=${CNI_COMMIT}' ${EXTRALDFLAGS}
+LDFLAGS := -ldflags '-X main.GitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_INFO} -X main.cniVersion=${CNI_COMMIT}' ${EXTRALDFLAGS}
 SOURCES=*.go imagebuildah/*.go bind/*.go chroot/*.go cmd/buildah/*.go docker/*.go pkg/cli/*.go pkg/parse/*.go unshare/*.c unshare/*.go util/*.go
 
 all: buildah imgtype docs

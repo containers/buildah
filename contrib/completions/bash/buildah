@@ -711,6 +711,22 @@ return 1
      esac
  }
 
+ _buildah_info() {
+     local options_with_args="
+       --debug
+       --D
+       --format
+     "
+
+     local all_options="$options_with_args"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$options_with_args" -- "$cur"))
+             ;;
+     esac
+}
+
  _buildah_inspect() {
      local options_with_args="
        --format
@@ -846,6 +862,7 @@ return 1
        delete
        from
        images
+       info
        inspect
        mount
        pull
