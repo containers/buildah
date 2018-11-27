@@ -356,9 +356,9 @@ func matchesFilter(ctx context.Context, image storage.Image, store storage.Store
 }
 
 func matchesDangling(name string, dangling string) bool {
-	if dangling == "false" && name != "<none>" {
+	if dangling == "false" && !strings.Contains(name, "<none>") {
 		return true
-	} else if dangling == "true" && name == "<none>" {
+	} else if dangling == "true" && strings.Contains(name, "<none>") {
 		return true
 	}
 	return false
