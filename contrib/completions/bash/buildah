@@ -74,11 +74,11 @@ __buildah_previous_extglob_setting=$(shopt -p extglob)
 shopt -s extglob
 
 __buildah_list_containers() {
-    COMPREPLY=($(compgen -W "$(buildah containers -q)" -- $cur))
+   COMPREPLY=($(compgen -W "$(buildah containers --format '{{.ContainerName}} {{.ContainerID}}' )" -- $cur))
 }
 
 __buildah_list_images() {
-    COMPREPLY=($(compgen -W "$(buildah images -q)" -- $cur))
+   COMPREPLY=($(compgen -W "$(buildah images --format '{{.ID}} {{.Name}}' )" -- $cur))
 }
 
 __buildah_pos_first_nonflag() {
