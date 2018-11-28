@@ -1,11 +1,11 @@
 SELINUXTAG := $(shell ./selinux_tag.sh)
 STORAGETAGS := $(shell ./btrfs_tag.sh) $(shell ./btrfs_installed_tag.sh) $(shell ./libdm_tag.sh) $(shell ./ostree_tag.sh)
 SECURITYTAGS ?= seccomp $(SELINUXTAG)
-TAGS ?= "$(SECURITYTAGS) $(STORAGETAGS)"
+TAGS ?= $(SECURITYTAGS) $(STORAGETAGS)
 PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
-BASHINSTALLDIR=${PREFIX}/share/bash-completion/completions
-BUILDFLAGS := -tags ${TAGS}
+BASHINSTALLDIR = $(PREFIX)/share/bash-completion/completions
+BUILDFLAGS := -tags "$(TAGS)"
 BUILDAH := buildah
 GO := go
 GO110 := 1.10
@@ -13,13 +13,13 @@ GOVERSION := $(findstring $(GO110),$(shell go version))
 GIT_COMMIT := $(if $(shell git rev-parse --short HEAD),$(shell git rev-parse --short HEAD),$(error "git failed"))
 BUILD_INFO := $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
 CNI_COMMIT := $(if $(shell sed -e '\,github.com/containernetworking/cni, !d' -e 's,.* ,,g' vendor.conf),$(shell sed -e '\,github.com/containernetworking/cni, !d' -e 's,.* ,,g' vendor.conf),$(error "sed failed"))
-STATIC_STORAGETAGS="containers_image_ostree_stub containers_image_openpgp exclude_graphdriver_devicemapper $(STORAGE_TAGS)"
+STATIC_STORAGETAGS = "containers_image_ostree_stub containers_image_openpgp exclude_graphdriver_devicemapper $(STORAGE_TAGS)"
 
 RUNC_COMMIT := 2c632d1a2de0192c3f18a2542ccb6f30a8719b1f
 LIBSECCOMP_COMMIT := release-2.3
 
 EXTRALDFLAGS :=
-LDFLAGS := -ldflags '-X main.GitCommit=${GIT_COMMIT} -X main.buildInfo=${BUILD_INFO} -X main.cniVersion=${CNI_COMMIT}' ${EXTRALDFLAGS}
+LDFLAGS := -ldflags '-X main.GitCommit=$(GIT_COMMIT) -X main.buildInfo=$(BUILD_INFO) -X main.cniVersion=$(CNI_COMMIT)' $(EXTRALDFLAGS)
 SOURCES=*.go imagebuildah/*.go bind/*.go chroot/*.go cmd/buildah/*.go docker/*.go pkg/cli/*.go pkg/parse/*.go unshare/*.c unshare/*.go util/*.go
 
 all: buildah imgtype docs
@@ -30,7 +30,7 @@ static: $(SOURCES)
 
 .PHONY: binary
 binary:  $(SOURCES)
-	$(GO) build $(LDFLAGS) -o ${BUILDAH} $(BUILDFLAGS) ./cmd/buildah
+	$(GO) build $(LDFLAGS) -o $(BUILDAH) $(BUILDFLAGS) ./cmd/buildah
 
 buildah: binary
 
@@ -43,7 +43,7 @@ imgtype: *.go docker/*.go util/*.go tests/imgtype/imgtype.go
 .PHONY: clean
 clean:
 	$(RM) -r buildah imgtype build buildah.static
-	$(MAKE) -C docs clean 
+	$(MAKE) -C docs clean
 
 .PHONY: docs
 docs: ## build the docs on the host
@@ -107,11 +107,11 @@ install:
 uninstall:
 	rm -f $(DESTDIR)/$(BINDIR)/buildah
 	rm -f $(PREFIX)/share/man/man1/buildah*.1
-	rm -f $(DESTDIR)/${BASHINSTALLDIR}/buildah
+	rm -f $(DESTDIR)/$(BASHINSTALLDIR)/buildah
 
 .PHONY: install.completions
 install.completions:
-	install -m 644 -D contrib/completions/bash/buildah $(DESTDIR)/${BASHINSTALLDIR}/buildah
+	install -m 644 -D contrib/completions/bash/buildah $(DESTDIR)/$(BASHINSTALLDIR)/buildah
 
 .PHONY: install.runc
 install.runc:
