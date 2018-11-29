@@ -1072,3 +1072,9 @@ load helpers
   tenminutes=$(( 10 * 60 * $second ))
   [ "$output" = '["CMD-SHELL" "curl -f http://localhost/ || exit 1"]'" $tenminutes $fiveminutes $threeseconds 4" ]
 }
+
+@test "bud with unused build arg" {
+  target=busybox-image
+  out=$(buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg foo=bar --build-arg foo2=bar2 -f ${TESTSDIR}/bud/build-arg ${TESTSDIR}/bud/build-arg | grep "Warning" | wc -l)
+  [ "$out" -ne 0 ]
+}

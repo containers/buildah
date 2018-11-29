@@ -226,6 +226,18 @@ type Executor struct {
 	copyFrom                       string            // Used to keep track of the --from flag from COPY and ADD
 }
 
+// builtinAllowedBuildArgs is list of built-in allowed build args
+var builtinAllowedBuildArgs = map[string]bool{
+	"HTTP_PROXY":  true,
+	"http_proxy":  true,
+	"HTTPS_PROXY": true,
+	"https_proxy": true,
+	"FTP_PROXY":   true,
+	"ftp_proxy":   true,
+	"NO_PROXY":    true,
+	"no_proxy":    true,
+}
+
 // withName creates a new child executor that will be used whenever a COPY statement uses --from=NAME.
 func (b *Executor) withName(name string, index int) *Executor {
 	if b.named == nil {
@@ -794,12 +806,28 @@ func (b *Executor) Execute(ctx context.Context, stage imagebuilder.Stage) error 
 	commitName := b.output
 	b.containerIDs = nil
 
+	var leftoverArgs []string
+	for arg := range b.builder.Args {
+		if !builtinAllowedBuildArgs[arg] {
+			leftoverArgs = append(leftoverArgs, arg)
+		}
+	}
 	for i, node := range node.Children {
 		step := ib.Step()
 		if err := step.Resolve(node); err != nil {
 			return errors.Wrapf(err, "error resolving step %+v", *node)
 		}
 		logrus.Debugf("Parsed Step: %+v", *step)
+		if step.Command == "arg" {
+			for index, arg := range leftoverArgs {
+				for _, Arg := range step.Args {
+					list := strings.SplitN(Arg, "=", 2)
+					if arg == list[0] {
+						leftoverArgs = append(leftoverArgs[:index], leftoverArgs[index+1:]...)
+					}
+				}
+			}
+		}
 		if !b.quiet {
 			b.log("%s", step.Original)
 		}
@@ -895,6 +923,9 @@ func (b *Executor) Execute(ctx context.Context, stage imagebuilder.Stage) error 
 				return errors.Wrap(err, "error preparing container for next step")
 			}
 		}
+	}
+	if len(leftoverArgs) > 0 {
+		fmt.Fprintf(b.out, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
 	}
 	return nil
 }
