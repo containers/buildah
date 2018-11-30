@@ -104,8 +104,10 @@ Print the version
 | buildah-copy(1)       | Copies the contents of a file, URL, or directory into a container's working directory.               |
 | buildah-from(1)       | Creates a new working container, either from scratch or using a specified image as a starting point. |
 | buildah-images(1)     | List images in local storage.                                                                        |
+| buildah-info(1)       | Display Buildah system information.                                                                  |
 | buildah-inspect(1)    | Inspects the configuration of a container or image                                                   |
 | buildah-mount(1)      | Mount the working container's root filesystem.                                                       |
+| buildah-pull(1)       | Pull an image from the specified location.                                                           |
 | buildah-push(1)       | Push an image from local storage to elsewhere.                                                       |
 | buildah-rename(1)     | Rename a local container.                                                                            |
 | buildah-rm(1)         | Removes one or more working containers.                                                              |
