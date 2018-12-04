@@ -29,6 +29,7 @@ import (
 	"github.com/containers/storage/pkg/parsers"
 	"github.com/containers/storage/pkg/system"
 	units "github.com/docker/go-units"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -743,7 +744,9 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 
 	workDir := path.Join(dir, "work")
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", strings.Join(absLowers, ":"), diffDir, workDir)
-	if d.options.mountOptions != "" {
+	if len(options.Options) > 0 {
+		opts = fmt.Sprintf("%s,%s", strings.Join(options.Options, ","), opts)
+	} else if d.options.mountOptions != "" {
 		opts = fmt.Sprintf("%s,%s", d.options.mountOptions, opts)
 	}
 	mountData := label.FormatMountLabel(opts, options.MountLabel)
@@ -874,6 +877,7 @@ func (d *Driver) ApplyDiff(id string, idMappings *idtools.IDMappings, parent str
 		UIDMaps:        idMappings.UIDs(),
 		GIDMaps:        idMappings.GIDs(),
 		WhiteoutFormat: d.getWhiteoutFormat(),
+		InUserNS:       rsystem.RunningInUserNS(),
 	}); err != nil {
 		return 0, err
 	}
