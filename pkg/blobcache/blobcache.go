@@ -13,7 +13,6 @@ import (
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/image"
 	"github.com/containers/image/manifest"
-	"github.com/containers/image/pkg/blobinfocache"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/pkg/archive"
@@ -43,9 +42,6 @@ type BlobCache interface {
 	// HasBlob checks if a blob that matches the passed-in digest (and
 	// size, if not -1), is present in the cache.
 	HasBlob(types.BlobInfo) (bool, int64, error)
-	// PutBlob adds a blob to the cache.  The expected digest of the blob
-	// must be provided.
-	PutBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, isConfig bool) error
 	// Directories returns the list of cache directories.
 	Directory() string
 	// ClearCache() clears the contents of the cache directories.  Note
@@ -196,7 +192,6 @@ func saveStream(wg *sync.WaitGroup, decompressReader io.ReadCloser, tempFile *os
 }
 
 func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, cache types.BlobInfoCache, isConfig bool, destination types.ImageDestination) (types.BlobInfo, error) {
-	newBlobInfo := inputInfo
 	var tempfile *os.File
 	var err error
 	var n int
@@ -259,20 +254,9 @@ func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inpu
 			}
 		}
 	}
-	if destination != nil {
-		newBlobInfo, err = destination.PutBlob(ctx, stream, inputInfo, cache, isConfig)
-		if err != nil {
-			return newBlobInfo, errors.Wrapf(err, "error storing blob to image destination for cache %q", transports.ImageName(r))
-		}
-	} else {
-		digester := digest.Canonical.Digester()
-		counter := ioutils.NewWriteCounter(digester.Hash())
-		_, err = io.Copy(counter, stream)
-		if err != nil {
-			return newBlobInfo, errors.Wrapf(err, "error storing blob to cache %q", transports.ImageName(r))
-		}
-		newBlobInfo.Size = counter.Count
-		newBlobInfo.Digest = digester.Digest()
+	newBlobInfo, err := destination.PutBlob(ctx, stream, inputInfo, cache, isConfig)
+	if err != nil {
+		return newBlobInfo, errors.Wrapf(err, "error storing blob to image destination for cache %q", transports.ImageName(r))
 	}
 	if alternateDigest.Validate() == nil {
 		logrus.Debugf("added blob %q (also %q) to the cache at %q", inputInfo.Digest.String(), alternateDigest.String(), r.directory)
@@ -280,11 +264,6 @@ func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inpu
 		logrus.Debugf("added blob %q to the cache at %q", inputInfo.Digest.String(), r.directory)
 	}
 	return newBlobInfo, nil
-}
-
-func (r *blobCacheReference) PutBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, isConfig bool) error {
-	_, err := r.putBlob(ctx, stream, inputInfo, blobinfocache.NoCache, isConfig, nil)
-	return err
 }
 
 func (r *blobCacheReference) Directory() string {
