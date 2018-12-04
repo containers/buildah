@@ -143,129 +143,6 @@ func (r *blobCacheReference) HasBlob(blobinfo types.BlobInfo) (bool, int64, erro
 	return false, -1, nil
 }
 
-// Decompress and save the contents of the decompressReader stream into the passed-in temporary
-// file.  If we successfully save all of the data, rename the file to match the digest of the data,
-// and make notes about the relationship between the file that holds a copy of the compressed data
-// and this new file.
-func saveStream(wg *sync.WaitGroup, decompressReader io.ReadCloser, tempFile *os.File, compressedFilename string, compressedDigest digest.Digest, isConfig bool, alternateDigest *digest.Digest) {
-	defer wg.Done()
-	// Decompress from and digest the reading end of that pipe.
-	decompressed, err3 := archive.DecompressStream(decompressReader)
-	digester := digest.Canonical.Digester()
-	if err3 == nil {
-		// Read the decompressed data through the filter over the pipe, blocking until the
-		// writing end is closed.
-		_, err3 = io.Copy(io.MultiWriter(tempFile, digester.Hash()), decompressed)
-	} else {
-		// Drain the pipe to keep from stalling the PutBlob() thread.
-		io.Copy(ioutil.Discard, decompressReader)
-	}
-	decompressReader.Close()
-	decompressed.Close()
-	tempFile.Close()
-	// Determine the name that we should give to the uncompressed copy of the blob.
-	decompressedFilename := filepath.Join(filepath.Dir(tempFile.Name()), makeFilename(digester.Digest(), isConfig))
-	if err3 == nil {
-		// Rename the temporary file.
-		if err3 = os.Rename(tempFile.Name(), decompressedFilename); err3 != nil {
-			logrus.Debugf("error renaming new decompressed copy of blob %q into place at %q: %v", digester.Digest().String(), decompressedFilename, err3)
-			// Remove the temporary file.
-			if err3 = os.Remove(tempFile.Name()); err3 != nil {
-				logrus.Debugf("error cleaning up temporary file %q for decompressed copy of blob %q: %v", tempFile.Name(), compressedDigest.String(), err3)
-			}
-		} else {
-			*alternateDigest = digester.Digest()
-			// Note the relationship between the two files.
-			if err3 = ioutils.AtomicWriteFile(decompressedFilename+compressedNote, []byte(compressedDigest.String()), 0600); err3 != nil {
-				logrus.Debugf("error noting that the compressed version of %q is %q: %v", digester.Digest().String(), compressedDigest.String(), err3)
-			}
-			if err3 = ioutils.AtomicWriteFile(compressedFilename+decompressedNote, []byte(digester.Digest().String()), 0600); err3 != nil {
-				logrus.Debugf("error noting that the decompressed version of %q is %q: %v", compressedDigest.String(), digester.Digest().String(), err3)
-			}
-		}
-	} else {
-		// Remove the temporary file.
-		if err3 = os.Remove(tempFile.Name()); err3 != nil {
-			logrus.Debugf("error cleaning up temporary file %q for decompressed copy of blob %q: %v", tempFile.Name(), compressedDigest.String(), err3)
-		}
-	}
-}
-
-func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, cache types.BlobInfoCache, isConfig bool, destination types.ImageDestination) (types.BlobInfo, error) {
-	var tempfile *os.File
-	var err error
-	var n int
-	var alternateDigest digest.Digest
-	wg := new(sync.WaitGroup)
-	defer wg.Wait()
-	compression := archive.Uncompressed
-	if inputInfo.Digest != "" {
-		filename := filepath.Join(r.directory, makeFilename(inputInfo.Digest, isConfig))
-		tempfile, err = ioutil.TempFile(r.directory, makeFilename(inputInfo.Digest, isConfig))
-		if err == nil {
-			stream = io.TeeReader(stream, tempfile)
-			defer func() {
-				if err == nil {
-					if err = os.Rename(tempfile.Name(), filename); err != nil {
-						if err2 := os.Remove(tempfile.Name()); err2 != nil {
-							logrus.Debugf("error cleaning up temporary file %q for blob %q: %v", tempfile.Name(), inputInfo.Digest.String(), err2)
-						}
-						err = errors.Wrapf(err, "error renaming new layer for blob %q into place at %q", inputInfo.Digest.String(), filename)
-					}
-				} else {
-					if err2 := os.Remove(tempfile.Name()); err2 != nil {
-						logrus.Debugf("error cleaning up temporary file %q for blob %q: %v", tempfile.Name(), inputInfo.Digest.String(), err2)
-					}
-				}
-				tempfile.Close()
-			}()
-		} else {
-			logrus.Debugf("error while creating a temporary file under %q to hold blob %q: %v", r.directory, inputInfo.Digest.String(), err)
-		}
-		if !isConfig {
-			initial := make([]byte, 8)
-			n, err = stream.Read(initial)
-			if n > 0 {
-				// Build a Reader that will still return the bytes that we just
-				// read, for PutBlob()'s sake.
-				stream = io.MultiReader(bytes.NewReader(initial[:n]), stream)
-				if n >= len(initial) {
-					compression = archive.DetectCompression(initial[:n])
-				}
-				if compression != archive.Uncompressed {
-					// The stream is compressed, so create a file which we'll
-					// use to store a decompressed copy.
-					decompressedTemp, err2 := ioutil.TempFile(r.directory, makeFilename(inputInfo.Digest, isConfig))
-					if err2 != nil {
-						logrus.Debugf("error while creating a temporary file under %q to hold decompressed blob %q: %v", r.directory, inputInfo.Digest.String(), err2)
-						decompressedTemp.Close()
-					} else {
-						// Write a copy of the compressed data to a pipe,
-						// closing the writing end of the pipe after
-						// PutBlob() returns.
-						decompressReader, decompressWriter := io.Pipe()
-						defer decompressWriter.Close()
-						stream = io.TeeReader(stream, decompressWriter)
-						// Let saveStream() close the reading end and handle the temporary file.
-						wg.Add(1)
-						go saveStream(wg, decompressReader, decompressedTemp, filename, inputInfo.Digest, isConfig, &alternateDigest)
-					}
-				}
-			}
-		}
-	}
-	newBlobInfo, err := destination.PutBlob(ctx, stream, inputInfo, cache, isConfig)
-	if err != nil {
-		return newBlobInfo, errors.Wrapf(err, "error storing blob to image destination for cache %q", transports.ImageName(r))
-	}
-	if alternateDigest.Validate() == nil {
-		logrus.Debugf("added blob %q (also %q) to the cache at %q", inputInfo.Digest.String(), alternateDigest.String(), r.directory)
-	} else {
-		logrus.Debugf("added blob %q to the cache at %q", inputInfo.Digest.String(), r.directory)
-	}
-	return newBlobInfo, nil
-}
-
 func (r *blobCacheReference) Directory() string {
 	return r.directory
 }
@@ -471,6 +348,129 @@ func (d *blobCacheDestination) MustMatchRuntimeOS() bool {
 
 func (d *blobCacheDestination) IgnoresEmbeddedDockerReference() bool {
 	return d.destination.IgnoresEmbeddedDockerReference()
+}
+
+// Decompress and save the contents of the decompressReader stream into the passed-in temporary
+// file.  If we successfully save all of the data, rename the file to match the digest of the data,
+// and make notes about the relationship between the file that holds a copy of the compressed data
+// and this new file.
+func saveStream(wg *sync.WaitGroup, decompressReader io.ReadCloser, tempFile *os.File, compressedFilename string, compressedDigest digest.Digest, isConfig bool, alternateDigest *digest.Digest) {
+	defer wg.Done()
+	// Decompress from and digest the reading end of that pipe.
+	decompressed, err3 := archive.DecompressStream(decompressReader)
+	digester := digest.Canonical.Digester()
+	if err3 == nil {
+		// Read the decompressed data through the filter over the pipe, blocking until the
+		// writing end is closed.
+		_, err3 = io.Copy(io.MultiWriter(tempFile, digester.Hash()), decompressed)
+	} else {
+		// Drain the pipe to keep from stalling the PutBlob() thread.
+		io.Copy(ioutil.Discard, decompressReader)
+	}
+	decompressReader.Close()
+	decompressed.Close()
+	tempFile.Close()
+	// Determine the name that we should give to the uncompressed copy of the blob.
+	decompressedFilename := filepath.Join(filepath.Dir(tempFile.Name()), makeFilename(digester.Digest(), isConfig))
+	if err3 == nil {
+		// Rename the temporary file.
+		if err3 = os.Rename(tempFile.Name(), decompressedFilename); err3 != nil {
+			logrus.Debugf("error renaming new decompressed copy of blob %q into place at %q: %v", digester.Digest().String(), decompressedFilename, err3)
+			// Remove the temporary file.
+			if err3 = os.Remove(tempFile.Name()); err3 != nil {
+				logrus.Debugf("error cleaning up temporary file %q for decompressed copy of blob %q: %v", tempFile.Name(), compressedDigest.String(), err3)
+			}
+		} else {
+			*alternateDigest = digester.Digest()
+			// Note the relationship between the two files.
+			if err3 = ioutils.AtomicWriteFile(decompressedFilename+compressedNote, []byte(compressedDigest.String()), 0600); err3 != nil {
+				logrus.Debugf("error noting that the compressed version of %q is %q: %v", digester.Digest().String(), compressedDigest.String(), err3)
+			}
+			if err3 = ioutils.AtomicWriteFile(compressedFilename+decompressedNote, []byte(digester.Digest().String()), 0600); err3 != nil {
+				logrus.Debugf("error noting that the decompressed version of %q is %q: %v", compressedDigest.String(), digester.Digest().String(), err3)
+			}
+		}
+	} else {
+		// Remove the temporary file.
+		if err3 = os.Remove(tempFile.Name()); err3 != nil {
+			logrus.Debugf("error cleaning up temporary file %q for decompressed copy of blob %q: %v", tempFile.Name(), compressedDigest.String(), err3)
+		}
+	}
+}
+
+func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, cache types.BlobInfoCache, isConfig bool, destination types.ImageDestination) (types.BlobInfo, error) {
+	var tempfile *os.File
+	var err error
+	var n int
+	var alternateDigest digest.Digest
+	wg := new(sync.WaitGroup)
+	defer wg.Wait()
+	compression := archive.Uncompressed
+	if inputInfo.Digest != "" {
+		filename := filepath.Join(r.directory, makeFilename(inputInfo.Digest, isConfig))
+		tempfile, err = ioutil.TempFile(r.directory, makeFilename(inputInfo.Digest, isConfig))
+		if err == nil {
+			stream = io.TeeReader(stream, tempfile)
+			defer func() {
+				if err == nil {
+					if err = os.Rename(tempfile.Name(), filename); err != nil {
+						if err2 := os.Remove(tempfile.Name()); err2 != nil {
+							logrus.Debugf("error cleaning up temporary file %q for blob %q: %v", tempfile.Name(), inputInfo.Digest.String(), err2)
+						}
+						err = errors.Wrapf(err, "error renaming new layer for blob %q into place at %q", inputInfo.Digest.String(), filename)
+					}
+				} else {
+					if err2 := os.Remove(tempfile.Name()); err2 != nil {
+						logrus.Debugf("error cleaning up temporary file %q for blob %q: %v", tempfile.Name(), inputInfo.Digest.String(), err2)
+					}
+				}
+				tempfile.Close()
+			}()
+		} else {
+			logrus.Debugf("error while creating a temporary file under %q to hold blob %q: %v", r.directory, inputInfo.Digest.String(), err)
+		}
+		if !isConfig {
+			initial := make([]byte, 8)
+			n, err = stream.Read(initial)
+			if n > 0 {
+				// Build a Reader that will still return the bytes that we just
+				// read, for PutBlob()'s sake.
+				stream = io.MultiReader(bytes.NewReader(initial[:n]), stream)
+				if n >= len(initial) {
+					compression = archive.DetectCompression(initial[:n])
+				}
+				if compression != archive.Uncompressed {
+					// The stream is compressed, so create a file which we'll
+					// use to store a decompressed copy.
+					decompressedTemp, err2 := ioutil.TempFile(r.directory, makeFilename(inputInfo.Digest, isConfig))
+					if err2 != nil {
+						logrus.Debugf("error while creating a temporary file under %q to hold decompressed blob %q: %v", r.directory, inputInfo.Digest.String(), err2)
+						decompressedTemp.Close()
+					} else {
+						// Write a copy of the compressed data to a pipe,
+						// closing the writing end of the pipe after
+						// PutBlob() returns.
+						decompressReader, decompressWriter := io.Pipe()
+						defer decompressWriter.Close()
+						stream = io.TeeReader(stream, decompressWriter)
+						// Let saveStream() close the reading end and handle the temporary file.
+						wg.Add(1)
+						go saveStream(wg, decompressReader, decompressedTemp, filename, inputInfo.Digest, isConfig, &alternateDigest)
+					}
+				}
+			}
+		}
+	}
+	newBlobInfo, err := destination.PutBlob(ctx, stream, inputInfo, cache, isConfig)
+	if err != nil {
+		return newBlobInfo, errors.Wrapf(err, "error storing blob to image destination for cache %q", transports.ImageName(r))
+	}
+	if alternateDigest.Validate() == nil {
+		logrus.Debugf("added blob %q (also %q) to the cache at %q", inputInfo.Digest.String(), alternateDigest.String(), r.directory)
+	} else {
+		logrus.Debugf("added blob %q to the cache at %q", inputInfo.Digest.String(), r.directory)
+	}
+	return newBlobInfo, nil
 }
 
 func (d *blobCacheDestination) PutBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, cache types.BlobInfoCache, isConfig bool) (types.BlobInfo, error) {
