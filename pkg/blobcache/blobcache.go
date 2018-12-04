@@ -398,7 +398,7 @@ func saveStream(wg *sync.WaitGroup, decompressReader io.ReadCloser, tempFile *os
 	}
 }
 
-func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, cache types.BlobInfoCache, isConfig bool, destination types.ImageDestination) (types.BlobInfo, error) {
+func (d *blobCacheDestination) PutBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, cache types.BlobInfoCache, isConfig bool) (types.BlobInfo, error) {
 	var tempfile *os.File
 	var err error
 	var n int
@@ -407,8 +407,8 @@ func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inpu
 	defer wg.Wait()
 	compression := archive.Uncompressed
 	if inputInfo.Digest != "" {
-		filename := filepath.Join(r.directory, makeFilename(inputInfo.Digest, isConfig))
-		tempfile, err = ioutil.TempFile(r.directory, makeFilename(inputInfo.Digest, isConfig))
+		filename := filepath.Join(d.reference.directory, makeFilename(inputInfo.Digest, isConfig))
+		tempfile, err = ioutil.TempFile(d.reference.directory, makeFilename(inputInfo.Digest, isConfig))
 		if err == nil {
 			stream = io.TeeReader(stream, tempfile)
 			defer func() {
@@ -427,7 +427,7 @@ func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inpu
 				tempfile.Close()
 			}()
 		} else {
-			logrus.Debugf("error while creating a temporary file under %q to hold blob %q: %v", r.directory, inputInfo.Digest.String(), err)
+			logrus.Debugf("error while creating a temporary file under %q to hold blob %q: %v", d.reference.directory, inputInfo.Digest.String(), err)
 		}
 		if !isConfig {
 			initial := make([]byte, 8)
@@ -442,9 +442,9 @@ func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inpu
 				if compression != archive.Uncompressed {
 					// The stream is compressed, so create a file which we'll
 					// use to store a decompressed copy.
-					decompressedTemp, err2 := ioutil.TempFile(r.directory, makeFilename(inputInfo.Digest, isConfig))
+					decompressedTemp, err2 := ioutil.TempFile(d.reference.directory, makeFilename(inputInfo.Digest, isConfig))
 					if err2 != nil {
-						logrus.Debugf("error while creating a temporary file under %q to hold decompressed blob %q: %v", r.directory, inputInfo.Digest.String(), err2)
+						logrus.Debugf("error while creating a temporary file under %q to hold decompressed blob %q: %v", d.reference.directory, inputInfo.Digest.String(), err2)
 						decompressedTemp.Close()
 					} else {
 						// Write a copy of the compressed data to a pipe,
@@ -461,20 +461,16 @@ func (r *blobCacheReference) putBlob(ctx context.Context, stream io.Reader, inpu
 			}
 		}
 	}
-	newBlobInfo, err := destination.PutBlob(ctx, stream, inputInfo, cache, isConfig)
+	newBlobInfo, err := d.destination.PutBlob(ctx, stream, inputInfo, cache, isConfig)
 	if err != nil {
-		return newBlobInfo, errors.Wrapf(err, "error storing blob to image destination for cache %q", transports.ImageName(r))
+		return newBlobInfo, errors.Wrapf(err, "error storing blob to image destination for cache %q", transports.ImageName(d.reference))
 	}
 	if alternateDigest.Validate() == nil {
-		logrus.Debugf("added blob %q (also %q) to the cache at %q", inputInfo.Digest.String(), alternateDigest.String(), r.directory)
+		logrus.Debugf("added blob %q (also %q) to the cache at %q", inputInfo.Digest.String(), alternateDigest.String(), d.reference.directory)
 	} else {
-		logrus.Debugf("added blob %q to the cache at %q", inputInfo.Digest.String(), r.directory)
+		logrus.Debugf("added blob %q to the cache at %q", inputInfo.Digest.String(), d.reference.directory)
 	}
 	return newBlobInfo, nil
-}
-
-func (d *blobCacheDestination) PutBlob(ctx context.Context, stream io.Reader, inputInfo types.BlobInfo, cache types.BlobInfoCache, isConfig bool) (types.BlobInfo, error) {
-	return d.reference.putBlob(ctx, stream, inputInfo, cache, isConfig, d.destination)
 }
 
 func (d *blobCacheDestination) TryReusingBlob(ctx context.Context, info types.BlobInfo, cache types.BlobInfoCache, canSubstitute bool) (bool, types.BlobInfo, error) {
