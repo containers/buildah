@@ -30,7 +30,7 @@ Image stored in local container/storage
   An image is stored in the `docker save` formatted file.  _docker-reference_ is only used when creating such a file, and it must not contain a digest.
 
   **docker-daemon:**_docker-reference_
-  An image _docker-reference_ stored in the docker daemon internal storage.  _docker-reference_ must contain either a tag or a digest.  Alternatively, when reading images, the format can also be docker-daemon:algo:digest (an image ID).
+  An image _docker_reference_ stored in the docker daemon internal storage. If _docker_reference_ does not begin with a valid registry name (a domain name containing "." or the reserved name "localhost") then the default registry name "docker.io" will be prepended. _docker_reference_ must contain either a tag or a digest. Alternatively, when reading images, the format can also be docker-daemon:algo:digest (an image ID).
 
   **oci:**_path_**:**_tag_
   An image _tag_ in a directory compliant with "Open Container Image Layout Specification" at _path_.
