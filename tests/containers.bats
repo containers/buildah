@@ -32,6 +32,14 @@ load helpers
   buildah rmi -a -f
 }
 
+@test "containers json test" {
+  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  out=$(buildah --debug=false containers --json | grep "{" | wc -l)
+  [ "$out" -ne "0" ]
+  buildah rm -a
+  buildah rmi -a -f
+}
+
 @test "containers noheading test" {
   cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
