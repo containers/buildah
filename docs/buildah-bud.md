@@ -298,6 +298,12 @@ that the PID namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a PID namespace which is already in use by another
 process.
 
+**--platform**="Linux"
+
+This option has no effect on the build. Other container engines use this option
+to control the execution platform for the build (e.g., Windows, Linux) which is
+not required for Buildah as it supports only Linux.
+
 **--pull**
 
 Pull the image if it is not present.  If this flag is disabled (with
