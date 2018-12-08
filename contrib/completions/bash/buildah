@@ -404,6 +404,7 @@ return 1
      --network
      --no-pivot
      --pid
+     --platform
      --runtime
      --runtime-flag
      --security-opt
