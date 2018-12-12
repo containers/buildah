@@ -6,6 +6,10 @@ import (
 	"github.com/urfave/cli"
 )
 
+const (
+	startedInUserNS = "_BUILDAH_STARTED_IN_USERNS"
+)
+
 var (
 	unshareCommand = cli.Command{
 		Name:           "unshare",
