@@ -207,7 +207,7 @@ func unshareCmd(c *cli.Context) error {
 		args = []string{shell}
 	}
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Env = append(os.Environ(), "USER=root", "USERNAME=root", "GROUP=root", "LOGNAME=root", "UID=0", "GID=0")
+	cmd.Env = append(os.Environ(), "USER=root", "USERNAME=root", "GROUP=root", "LOGNAME=root", "UID=0", "GID=0", "_BUILDAH_STARTED_IN_USERNS=")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

@@ -48,6 +48,14 @@ func mountCmd(c *cli.Context) error {
 
 	var lastError error
 	if len(args) > 0 {
+		// Do not allow to mount a graphdriver that is not vfs if we are creating the userns as part
+		// of the mount command.
+		// Differently, allow the mount if we are already in a userns, as the mount point will still
+		// be accessible once "buildah mount" exits.
+		if os.Getenv(startedInUserNS) != "" && store.GraphDriverName() != "vfs" {
+			return fmt.Errorf("cannot mount using driver %s in rootless mode", store.GraphDriverName())
+		}
+
 		for _, name := range args {
 			builder, err := openBuilder(getContext(), store, name)
 			if err != nil {
