@@ -273,7 +273,8 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 			// images without names should be printed with "<none>" as the image name
 			names = append(names, "<none>:<none>")
 		}
-		breakOuter := false
+
+	outer:
 		for name, tags := range imagebuildah.ReposToMap(names) {
 			for _, tag := range tags {
 				if !matchesReference(name+":"+tag, argName) {
@@ -287,8 +288,7 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 				if opts.quiet {
 					fmt.Printf("%-64s\n", image.ID)
 					// We only want to print each id once
-					breakOuter = true
-					break
+					break outer
 				}
 				if opts.json {
 					JSONImage := jsonImage{ID: image.ID, Names: image.Names}
@@ -314,9 +314,6 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 					continue
 				}
 				outputUsingFormatString(opts.truncate, opts.digests, params)
-			}
-			if breakOuter { // Show only one imageID when quiet
-				break
 			}
 		}
 	}
