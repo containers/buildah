@@ -2,7 +2,6 @@ package copy
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -18,6 +17,7 @@ import (
 	"github.com/containers/image/signature"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
+	"github.com/klauspost/pgzip"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -761,7 +761,7 @@ func compressGoroutine(dest *io.PipeWriter, src io.Reader) {
 		dest.CloseWithError(err) // CloseWithError(nil) is equivalent to Close()
 	}()
 
-	zipper := gzip.NewWriter(dest)
+	zipper := pgzip.NewWriter(dest)
 	defer zipper.Close()
 
 	_, err = io.Copy(zipper, src) // Sets err to nil, i.e. causes dest.Close()
