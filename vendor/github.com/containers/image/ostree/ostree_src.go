@@ -4,7 +4,6 @@ package ostree
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -17,6 +16,7 @@ import (
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/pkg/ioutils"
+	"github.com/klauspost/pgzip"
 	"github.com/opencontainers/go-digest"
 	glib "github.com/ostreedev/ostree-go/pkg/glibobject"
 	"github.com/pkg/errors"
@@ -304,7 +304,7 @@ func (s *ostreeImageSource) GetBlob(ctx context.Context, info types.BlobInfo, ca
 	}
 
 	mf := bytes.NewReader(tarsplit)
-	mfz, err := gzip.NewReader(mf)
+	mfz, err := pgzip.NewReader(mf)
 	if err != nil {
 		return nil, 0, err
 	}
