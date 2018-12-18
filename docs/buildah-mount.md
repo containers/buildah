@@ -13,6 +13,14 @@ accessed from the host, and returns its location.
 If the mount command is invoked without any arguments, the tool will list all of the
 currently mounted containers.
 
+When running in rootless mode, mount runs in a different namespace so
+that the mounted volume might not be accessible from the host when
+using a driver different than `vfs`.  To be able to access the file
+system mounted, you might need to create the mount namespace
+separately as part of `buildah unshare`.  In the environment created
+with `buildah unshare` you can then use `buildah mount` and have
+access to the mounted file system.
+
 ## RETURN VALUE
 The location of the mounted file system.  On error an empty string and errno is
 returned.
