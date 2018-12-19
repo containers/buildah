@@ -20,7 +20,7 @@ func main() {
 	if buildah.InitReexec() {
 		return
 	}
-	storageOptions, err := util.GetDefaultStoreOptions()
+	storageOptions, _, err := util.GetDefaultStoreOptions()
 	if err != nil {
 		logrus.Errorf(err.Error())
 		cli.OsExiter(1)

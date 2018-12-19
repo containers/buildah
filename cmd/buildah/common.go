@@ -21,7 +21,7 @@ import (
 var needToShutdownStore = false
 
 func getStore(c *cli.Context) (storage.Store, error) {
-	options, err := lu.GetDefaultStoreOptions()
+	options, _, err := lu.GetDefaultStoreOptions()
 	if err != nil {
 		return nil, err
 	}
