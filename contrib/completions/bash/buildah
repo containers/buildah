@@ -652,7 +652,19 @@ return 1
      esac
  }
 
- _buildah_containers() {
+ _buildah_ps() {
+   _buildah_containers
+ }
+
+_buildah_list() {
+   _buildah_containers
+ }
+
+_buildah_ls() {
+   _buildah_containers
+ }
+
+_buildah_containers() {
      local boolean_options="
      --help
      -h
@@ -865,9 +877,12 @@ return 1
        images
        info
        inspect
+       list
+       ls
        mount
        pull
        push
+       ps
        rename
        rm
        rmi
