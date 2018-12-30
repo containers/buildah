@@ -1,4 +1,6 @@
 docs/buildah*.1
+*.o
+*.d
 /buildah
 /imgtype
 /build/

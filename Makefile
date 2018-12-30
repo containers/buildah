@@ -8,6 +8,7 @@ BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR = $(PREFIX)/share/bash-completion/completions
 BUILDFLAGS := -tags "$(BUILDTAGS)"
 BUILDAH := buildah
+PROJECT := github.com/containers/buildah
 GO := go
 GO110 := 1.10
 GOVERSION := $(findstring $(GO110),$(shell go version))
@@ -23,27 +24,39 @@ EXTRALDFLAGS :=
 LDFLAGS := -ldflags '-X main.GitCommit=$(GIT_COMMIT) -X main.buildInfo=$(BUILD_INFO) -X main.cniVersion=$(CNI_COMMIT)' $(EXTRALDFLAGS)
 SOURCES=*.go imagebuildah/*.go bind/*.go chroot/*.go cmd/buildah/*.go docker/*.go pkg/blobcache/*.go pkg/cli/*.go pkg/parse/*.go unshare/*.c unshare/*.go util/*.go
 
+MAKEDEPEND := ./makedepend.sh
+
 all: buildah imgtype docs
+depend: buildah.d imgtype.d
 
 .PHONY: static
 static: $(SOURCES)
 	$(MAKE) SECURITYTAGS="$(SECURITYTAGS)" STORAGETAGS=$(STATIC_STORAGETAGS) EXTRALDFLAGS='-ldflags "-extldflags '-static'"' BUILDAH=buildah.static binary
 
-.PHONY: binary
-binary:  $(SOURCES)
+buildah.d: unshare/*.c
+	$(MAKEDEPEND) buildah $(PROJECT) ./cmd/buildah $^ > $@
+
+-include buildah.d
+$(BUILDAH): unshare/*.c
 	$(GO) build $(LDFLAGS) -o $(BUILDAH) $(BUILDFLAGS) ./cmd/buildah
 
-buildah: binary
+.PHONY: binary
+binary: $(BUILDAH)
 
 darwin:
 	GOOS=darwin $(GO) build $(LDFLAGS) -o buildah.darwin -tags "containers_image_openpgp" ./cmd/buildah
 
-imgtype: *.go docker/*.go util/*.go tests/imgtype/imgtype.go
+imgtype.d:
+	$(MAKEDEPEND) imgtype $(PROJECT) ./tests/imgtype/imgtype.go $^ > $@
+
+-include imgtype.d
+imgtype:
 	$(GO) build $(LDFLAGS) -o imgtype $(BUILDFLAGS) ./tests/imgtype/imgtype.go
 
 .PHONY: clean
 clean:
 	$(RM) -r buildah imgtype build buildah.static
+	$(RM) buildah.d imgtype.d
 	$(MAKE) -C docs clean
 
 .PHONY: docs
