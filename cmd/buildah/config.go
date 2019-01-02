@@ -244,7 +244,11 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 		builder.SetDomainname(c.String("domainname"))
 	}
 	if c.IsSet("hostname") {
-		builder.SetHostname(c.String("hostname"))
+		name := c.String("hostname")
+		if name != "" && builder.Format == buildah.OCIv1ImageManifest {
+			logrus.Errorf("HOSTNAME is not supported for OCI V1 image format, hostname %s will be ignored. Must use `docker` format", name)
+		}
+		builder.SetHostname(name)
 	}
 	if c.IsSet("onbuild") {
 		for _, onbuild := range c.StringSlice("onbuild") {
