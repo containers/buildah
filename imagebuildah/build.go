@@ -1159,7 +1159,7 @@ func (b *Executor) Commit(ctx context.Context, ib *imagebuilder.Builder, created
 	b.builder.SetUser(config.User)
 	b.builder.ClearPorts()
 	for p := range config.ExposedPorts {
-		b.builder.SetPort(string(p))
+		b.builder.SetPort(fmt.Sprintf("%d", p))
 	}
 	for _, envSpec := range config.Env {
 		spec := strings.SplitN(envSpec, "=", 2)
