@@ -87,11 +87,11 @@ load helpers
   cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
   run buildah --debug=false images --json
-  [ $(wc -l <<< "$output") -eq 12 ]
+  [ $(wc -l <<< "$output") -eq 14 ]
   [ "${status}" -eq 0 ]
  
   run buildah --debug=false images --json alpine
-  [ $(wc -l <<< "$output") -eq 6 ]
+  [ $(wc -l <<< "$output") -eq 8 ]
   [ "${status}" -eq 0 ]
   buildah rm -a
   buildah rmi -a -f
@@ -104,6 +104,20 @@ load helpers
 
   run buildah --debug=false images --json
   [ $(grep '"id": "' <<< "$output" | wc -l) -eq 1 ]
+  [ "${status}" -eq 0 ]
+
+  buildah rm -a
+  buildah rmi -a -f
+}
+
+@test "images json valid" {
+  cid1=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid1 test
+  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid2 test2
+
+  run buildah --debug=false images --json
+  run python -m json.tool <<< "$output"
   [ "${status}" -eq 0 ]
 
   buildah rm -a
