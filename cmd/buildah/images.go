@@ -297,7 +297,8 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 						return err2
 					}
 					fmt.Printf("%s\n", data)
-					break
+					// We only want to print each id once
+					break outer
 				}
 				params := imageOutputParams{
 					Tag:       tag,
