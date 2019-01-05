@@ -187,33 +187,6 @@ load helpers
 	run buildah build-using-dockerfile -t ${target} --pull-always --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/add-file
 	echo "$output"
 	[ "$status" -eq 0 ]
-	# Try to push the image without the blob cache.
-	doomeddir=${TESTDIR}/doomed
-	mkdir -p ${doomeddir}
-	run buildah push --signature-policy ${TESTSDIR}/policy.json ${target} dir:${doomeddir}
-	echo "$output"
-	[ "$status" -eq 0 ]
-	# Look for layer blobs in the destination that match the ones in the cache.
-	matched=0
-	unmatched=0
-	for content in ${doomeddir}/* ; do
-		match=false
-		for blob in ${blobcachedir}/* ; do
-			if cmp -s ${content} ${blob} ; then
-				echo $(file ${blob}) and ${content} have the same contents, was cached
-				match=true
-				break
-			fi
-		done
-		if ${match} ; then
-			matched=$(( ${matched} + 1 ))
-		else
-			unmatched=$(( ${unmatched} + 1 ))
-			echo ${content} was not cached
-		fi
-	done
-	[ ${matched} -eq 4 ] # the base layer, our new layer, config, and manifest should all match the cache
-	[ ${unmatched} -eq 1 ] # the only mismatch should be "version"
 	# Now try to push the image using the blob cache.
 	destdir=${TESTDIR}/dest
 	mkdir -p ${destdir}
@@ -251,33 +224,6 @@ load helpers
 	run buildah build-using-dockerfile -t ${target} -D --pull-always --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/add-file
 	echo "$output"
 	[ "$status" -eq 0 ]
-	# Try to push the image without the blob cache.
-	doomeddir=${TESTDIR}/doomed
-	mkdir -p ${doomeddir}
-	run buildah push --signature-policy ${TESTSDIR}/policy.json ${target} dir:${doomeddir}
-	echo "$output"
-	[ "$status" -eq 0 ]
-	# Look for layer blobs in the destination that match the ones in the cache.
-	matched=0
-	unmatched=0
-	for content in ${doomeddir}/* ; do
-		match=false
-		for blob in ${blobcachedir}/* ; do
-			if cmp -s ${content} ${blob} ; then
-				echo $(file ${blob}) and ${content} have the same contents, was cached
-				match=true
-				break
-			fi
-		done
-		if ${match} ; then
-			matched=$(( ${matched} + 1 ))
-		else
-			unmatched=$(( ${unmatched} + 1 ))
-			echo ${content} was not cached
-		fi
-	done
-	[ ${matched} -eq 2 ] # our new layer (written at build-time) and config should match the cache
-	[ ${unmatched} -eq 3 ] # expected mismatches should be "version", and the base layers, which had to be recompressed
 	# Now try to push the image using the blob cache.
 	destdir=${TESTDIR}/dest
 	mkdir -p ${destdir}
