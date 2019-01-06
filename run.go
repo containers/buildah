@@ -1130,10 +1130,14 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	case IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, options.Stdin, options.Stdout, options.Stderr)
 	case IsolationOCIRootless:
+		moreCreateArgs := []string{"--no-new-keyring"}
+		if options.NoPivot {
+			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
+		}
 		if err := setupRootlessSpecChanges(spec, path, rootUID, rootGID); err != nil {
 			return err
 		}
-		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, []string{"--no-new-keyring"}, spec, mountPoint, path, Package+"-"+filepath.Base(path))
+		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, Package+"-"+filepath.Base(path))
 	default:
 		err = errors.Errorf("don't know how to run this command")
 	}
