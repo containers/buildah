@@ -42,6 +42,10 @@ The image ID of the image that was pulled.  On error 1 is returned.
 
 ## OPTIONS
 
+**--all-tags, a**
+
+All tagged images in the repository will be pulled.
+
 **--authfile** *path*
 
 Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
