@@ -560,6 +560,8 @@ return 1
 
  _buildah_pull() {
      local boolean_options="
+     --all-tags
+     -a
      --help
      -h
      --quiet

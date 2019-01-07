@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -9,13 +8,16 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	util "github.com/containers/buildah/util"
-	is "github.com/containers/image/storage"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
 var (
 	pullFlags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "all-tags, a",
+			Usage: "download all tagged images in the repository",
+		},
 		cli.StringFlag{
 			Name:  "authfile",
 			Usage: "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json",
@@ -94,6 +96,9 @@ func pullCmd(c *cli.Context) error {
 	transport := util.DefaultTransport
 	arr := strings.SplitN(args[0], ":", 2)
 	if len(arr) == 2 {
+		if c.Bool("all-tags") {
+			return errors.Errorf("tag can't be used with --all-tags")
+		}
 		if _, ok := util.Transports[arr[0]]; ok {
 			transport = arr[0]
 		}
@@ -105,22 +110,12 @@ func pullCmd(c *cli.Context) error {
 		Store:               store,
 		SystemContext:       systemContext,
 		BlobDirectory:       c.String("blob-cache"),
+		AllTags:             c.Bool("all-tags"),
 	}
 
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr
 	}
 
-	ref, err := buildah.Pull(getContext(), args[0], options)
-	if err != nil {
-		return err
-	}
-
-	img, err := is.Transport.GetStoreImage(store, ref)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("%s\n", img.ID)
-	return nil
+	return buildah.Pull(getContext(), args[0], options)
 }
