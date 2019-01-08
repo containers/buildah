@@ -26,23 +26,25 @@ var (
 	copyDescription = "Copies the contents of a file, URL, or directory into a container's working\n   directory"
 
 	addCommand = cli.Command{
-		Name:           "add",
-		Usage:          "Add content to the container",
-		Description:    addDescription,
-		Flags:          addAndCopyFlags,
-		Action:         addCmd,
-		ArgsUsage:      "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
-		SkipArgReorder: true,
+		Name:                   "add",
+		Usage:                  "Add content to the container",
+		Description:            addDescription,
+		Flags:                  addAndCopyFlags,
+		Action:                 addCmd,
+		ArgsUsage:              "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
+		SkipArgReorder:         true,
+		UseShortOptionHandling: true,
 	}
 
 	copyCommand = cli.Command{
-		Name:           "copy",
-		Usage:          "Copy content into the container",
-		Description:    copyDescription,
-		Flags:          sortFlags(addAndCopyFlags),
-		Action:         copyCmd,
-		ArgsUsage:      "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
-		SkipArgReorder: true,
+		Name:                   "copy",
+		Usage:                  "Copy content into the container",
+		Description:            copyDescription,
+		Flags:                  sortFlags(addAndCopyFlags),
+		Action:                 copyCmd,
+		ArgsUsage:              "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
+		SkipArgReorder:         true,
+		UseShortOptionHandling: true,
 	}
 )
 

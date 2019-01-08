@@ -54,13 +54,14 @@ An image can be pulled using its tag or digest. If a tag is not
 specified, the image with the 'latest' tag (if it exists) is pulled.`
 
 	pullCommand = cli.Command{
-		Name:           "pull",
-		Usage:          "Pull an image from the specified location",
-		Description:    pullDescription,
-		Flags:          sortFlags(append(pullFlags)),
-		Action:         pullCmd,
-		ArgsUsage:      "IMAGE",
-		SkipArgReorder: true,
+		Name:                   "pull",
+		Usage:                  "Pull an image from the specified location",
+		Description:            pullDescription,
+		Flags:                  sortFlags(append(pullFlags)),
+		Action:                 pullCmd,
+		ArgsUsage:              "IMAGE",
+		SkipArgReorder:         true,
+		UseShortOptionHandling: true,
 	}
 )
 
