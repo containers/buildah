@@ -62,3 +62,11 @@ load helpers
   buildah rm -all
   buildah rmi -f alpine
 }
+
+@test "mount the container that has been mounted" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  out=$(buildah --debug=false mount "$cid" "$cid" | grep "Warning" | wc -l)
+  [ "$out" -ne 0 ]
+  buildah rm -all
+  buildah rmi -f alpine
+}

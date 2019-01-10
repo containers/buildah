@@ -65,6 +65,10 @@ func mountCmd(c *cli.Context) error {
 				lastError = errors.Wrapf(err, "error reading build container %q", name)
 				continue
 			}
+			if builder.MountPoint != "" {
+				fmt.Printf("[Warning] %s has been mounted to %s\n", name, builder.MountPoint)
+				continue
+			}
 			mountPoint, err := builder.Mount(builder.MountLabel)
 			if err != nil {
 				if lastError != nil {
