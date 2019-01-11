@@ -1527,6 +1527,11 @@ func (b *Executor) deleteSuccessfulIntermediateCtrs() error {
 	return lastErr
 }
 
+func (b *Executor) EnsureContainerPath(path string) error {
+	_, err := os.Stat(path)
+	return err
+}
+
 // preprocessDockerfileContents runs CPP(1) in preprocess-only mode on the input
 // dockerfile content and will use ctxDir as the base include path.
 //
