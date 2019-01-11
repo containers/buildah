@@ -3,6 +3,8 @@ package schema1
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/Microsoft/hcsshim/internal/schema2"
 )
 
 // ProcessConfig is used as both the input of Container.CreateProcess
@@ -35,6 +37,8 @@ type MappedDir struct {
 	BandwidthMaximum  uint64
 	IOPSMaximum       uint64
 	CreateInUtilityVM bool
+	// LinuxMetadata - Support added in 1803/RS4+.
+	LinuxMetadata bool `json:",omitempty"`
 }
 
 type MappedPipe struct {
@@ -59,6 +63,14 @@ type MappedVirtualDisk struct {
 	ReadOnly          bool   `json:",omitempty"`
 	Cache             string `json:",omitempty"` // "" (Unspecified); "Disabled"; "Enabled"; "Private"; "PrivateAllowSharing"
 	AttachOnly        bool   `json:",omitempty:`
+}
+
+// AssignedDevice represents a device that has been directly assigned to a container
+//
+// NOTE: Support added in RS5
+type AssignedDevice struct {
+	//  InterfaceClassGUID of the device to assign to container.
+	InterfaceClassGUID string `json:"InterfaceClassGuid,omitempty"`
 }
 
 // ContainerConfig is used as both the input of CreateContainer
@@ -92,6 +104,7 @@ type ContainerConfig struct {
 	ContainerType               string              `json:",omitempty"` // "Linux" for Linux containers on Windows. Omitted otherwise.
 	TerminateOnLastHandleClosed bool                `json:",omitempty"` // Should HCS terminate the container once all handles have been closed
 	MappedVirtualDisks          []MappedVirtualDisk `json:",omitempty"` // Array of virtual disks to mount at start
+	AssignedDevices             []AssignedDevice    `json:",omitempty"` // Array of devices to assign. NOTE: Support added in RS5
 }
 
 type ComputeSystemQuery struct {
@@ -104,9 +117,10 @@ type ComputeSystemQuery struct {
 type PropertyType string
 
 const (
-	PropertyTypeStatistics        PropertyType = "Statistics"
-	PropertyTypeProcessList                    = "ProcessList"
-	PropertyTypeMappedVirtualDisk              = "MappedVirtualDisk"
+	PropertyTypeStatistics        PropertyType = "Statistics"        // V1 and V2
+	PropertyTypeProcessList                    = "ProcessList"       // V1 and V2
+	PropertyTypeMappedVirtualDisk              = "MappedVirtualDisk" // Not supported in V2 schema call
+	PropertyTypeGuestConnection                = "GuestConnection"   // V1 and V2. Nil return from HCS before RS5
 )
 
 type PropertyQuery struct {
@@ -131,6 +145,7 @@ type ContainerProperties struct {
 	Statistics                   Statistics                          `json:",omitempty"`
 	ProcessList                  []ProcessListItem                   `json:",omitempty"`
 	MappedVirtualDiskControllers map[int]MappedVirtualDiskController `json:",omitempty"`
+	GuestConnectionInfo          GuestConnectionInfo                 `json:",omitempty"`
 }
 
 // MemoryStats holds the memory statistics for a container
@@ -193,6 +208,19 @@ type ProcessListItem struct {
 // MappedVirtualDiskController is the structure of an item returned by a MappedVirtualDiskList call on a container
 type MappedVirtualDiskController struct {
 	MappedVirtualDisks map[int]MappedVirtualDisk `json:",omitempty"`
+}
+
+// GuestDefinedCapabilities is part of the GuestConnectionInfo returned by a GuestConnection call on a utility VM
+type GuestDefinedCapabilities struct {
+	NamespaceAddRequestSupported bool `json:",omitempty"`
+	SignalProcessSupported       bool `json:",omitempty"`
+}
+
+// GuestConnectionInfo is the structure of an iterm return by a GuestConnection call on a utility VM
+type GuestConnectionInfo struct {
+	SupportedSchemaVersions  []hcsschema.Version      `json:",omitempty"`
+	ProtocolVersion          uint32                   `json:",omitempty"`
+	GuestDefinedCapabilities GuestDefinedCapabilities `json:",omitempty"`
 }
 
 // Type of Request Support in ModifySystem

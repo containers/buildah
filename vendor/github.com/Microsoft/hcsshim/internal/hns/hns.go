@@ -4,7 +4,6 @@ import "fmt"
 
 //go:generate go run ../../mksyscall_windows.go -output zsyscall_windows.go hns.go
 
-//sys SetCurrentThreadCompartmentId(compartmentId uint32) (hr error) = iphlpapi.SetCurrentThreadCompartmentId
 //sys _hnsCall(method string, path string, object string, response **uint16) (hr error) = vmcompute.HNSCall?
 
 type EndpointNotFoundError struct {

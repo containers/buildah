@@ -10,7 +10,7 @@ import (
 //sys coTaskMemFree(buffer unsafe.Pointer) = ole32.CoTaskMemFree
 
 func ConvertAndFreeCoTaskMemString(buffer *uint16) string {
-	str := syscall.UTF16ToString((*[1 << 30]uint16)(unsafe.Pointer(buffer))[:])
+	str := syscall.UTF16ToString((*[1 << 29]uint16)(unsafe.Pointer(buffer))[:])
 	coTaskMemFree(unsafe.Pointer(buffer))
 	return str
 }

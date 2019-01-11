@@ -9,6 +9,10 @@ import (
 	"github.com/Microsoft/hcsshim/internal/hcserror"
 )
 
+//go:generate go run mksyscall_windows.go -output zsyscall_windows.go hcsshim.go
+
+//sys SetCurrentThreadCompartmentId(compartmentId uint32) (hr error) = iphlpapi.SetCurrentThreadCompartmentId
+
 const (
 	// Specific user-visible exit codes
 	WaitErrExecFailed = 32767
