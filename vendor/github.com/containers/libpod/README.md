@@ -23,23 +23,22 @@ At a high level, the scope of libpod and podman is the following:
 
 ## Roadmap
 
-1. Python frontend for Varlink API
+1. Allow the Podman CLI to use a Varlink backend to connect to remote Podman instances
 1. Integrate libpod into CRI-O to replace its existing container management backend
 1. Further work on the podman pod command
 1. Further improvements on rootless containers
-1. In-memory locking to replace file locks
 
 ## Out of scope
 
 * Signing and pushing images to various image storages.
   See [Skopeo](https://github.com/containers/skopeo/).
-* Container Runtimes daemons for working with Kubernetes CRIs.
+* Container Runtimes daemons for working with the Kubernetes CRI interface.
   See [CRI-O](https://github.com/kubernetes-sigs/cri-o).
 
 ## OCI Projects Plans
 
 The plan is to use OCI projects and best of breed libraries for different aspects:
-- Runtime: [runc](https://github.com/opencontainers/runc) (or any OCI compliant runtime) and [oci runtime tools](https://github.com/opencontainers/runtime-tools) to generate the spec
+- Runtime: [runc](https://github.com/opencontainers/runc) (or any OCI compliant runtime) and [OCI runtime tools](https://github.com/opencontainers/runtime-tools) to generate the spec
 - Images: Image management using [containers/image](https://github.com/containers/image)
 - Storage: Container and image storage is managed by [containers/storage](https://github.com/containers/storage)
 - Networking: Networking support through use of [CNI](https://github.com/containernetworking/cni)
@@ -106,7 +105,7 @@ to be long lived.  While Buildah containers are really just created to allow con
 to be added back to the container image.   An easy way to think of it is the
 `buildah run` command emulates the RUN command in a Dockerfile while the `podman run`
 command emulates the `docker run` command in functionality.  Because of this and their underlying
-storage differences, you can not see Podman containers from within Buildah or vice versa.
+storage differences, you cannot see Podman containers from within Buildah or vice versa.
 
 In short Buildah is an efficient way to create OCI images  while Podman allows
 you to manage and maintain those images and containers in a production environment using

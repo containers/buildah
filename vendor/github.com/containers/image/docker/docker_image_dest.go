@@ -113,7 +113,7 @@ func (c *sizeCounter) Write(p []byte) (n int, err error) {
 
 // HasThreadSafePutBlob indicates whether PutBlob can be executed concurrently.
 func (d *dockerImageDestination) HasThreadSafePutBlob() bool {
-	return true
+	return false
 }
 
 // PutBlob writes contents of stream and returns data representing the result (with all data filled in).

@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -155,40 +154,6 @@ func ParseIDMapping(UIDMapSlice, GIDMapSlice []string, subUIDMap, subGIDMap stri
 		GIDMapSlice = []string{fmt.Sprintf("0:%d:1", os.Getgid())}
 	}
 
-	parseTriple := func(spec []string) (container, host, size int, err error) {
-		cid, err := strconv.ParseUint(spec[0], 10, 32)
-		if err != nil {
-			return 0, 0, 0, fmt.Errorf("error parsing id map value %q: %v", spec[0], err)
-		}
-		hid, err := strconv.ParseUint(spec[1], 10, 32)
-		if err != nil {
-			return 0, 0, 0, fmt.Errorf("error parsing id map value %q: %v", spec[1], err)
-		}
-		sz, err := strconv.ParseUint(spec[2], 10, 32)
-		if err != nil {
-			return 0, 0, 0, fmt.Errorf("error parsing id map value %q: %v", spec[2], err)
-		}
-		return int(cid), int(hid), int(sz), nil
-	}
-	parseIDMap := func(spec []string) (idmap []idtools.IDMap, err error) {
-		for _, uid := range spec {
-			splitmap := strings.SplitN(uid, ":", 3)
-			if len(splitmap) < 3 {
-				return nil, fmt.Errorf("invalid mapping requires 3 fields: %q", uid)
-			}
-			cid, hid, size, err := parseTriple(splitmap)
-			if err != nil {
-				return nil, err
-			}
-			pmap := idtools.IDMap{
-				ContainerID: cid,
-				HostID:      hid,
-				Size:        size,
-			}
-			idmap = append(idmap, pmap)
-		}
-		return idmap, nil
-	}
 	if subUIDMap != "" && subGIDMap != "" {
 		mappings, err := idtools.NewIDMappings(subUIDMap, subGIDMap)
 		if err != nil {
@@ -197,11 +162,11 @@ func ParseIDMapping(UIDMapSlice, GIDMapSlice []string, subUIDMap, subGIDMap stri
 		options.UIDMap = mappings.UIDs()
 		options.GIDMap = mappings.GIDs()
 	}
-	parsedUIDMap, err := parseIDMap(UIDMapSlice)
+	parsedUIDMap, err := idtools.ParseIDMap(UIDMapSlice, "UID")
 	if err != nil {
 		return nil, err
 	}
-	parsedGIDMap, err := parseIDMap(GIDMapSlice)
+	parsedGIDMap, err := idtools.ParseIDMap(GIDMapSlice, "GID")
 	if err != nil {
 		return nil, err
 	}
@@ -349,9 +314,22 @@ func GetDefaultStoreOptions() (storage.StoreOptions, string, error) {
 			return storageOpts, volumePath, err
 		}
 
-		storageConf := filepath.Join(os.Getenv("HOME"), ".config/containers/storage.conf")
+		storageConf := StorageConfigFile()
 		if _, err := os.Stat(storageConf); err == nil {
+			defaultRootlessRunRoot := storageOpts.RunRoot
+			defaultRootlessGraphRoot := storageOpts.GraphRoot
+			storageOpts = storage.StoreOptions{}
 			storage.ReloadConfigurationFile(storageConf, &storageOpts)
+
+			// If the file did not specify a graphroot or runroot,
+			// set sane defaults so we don't try and use root-owned
+			// directories
+			if storageOpts.RunRoot == "" {
+				storageOpts.RunRoot = defaultRootlessRunRoot
+			}
+			if storageOpts.GraphRoot == "" {
+				storageOpts.GraphRoot = defaultRootlessGraphRoot
+			}
 		} else if os.IsNotExist(err) {
 			os.MkdirAll(filepath.Dir(storageConf), 0755)
 			file, err := os.OpenFile(storageConf, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
@@ -368,4 +346,12 @@ func GetDefaultStoreOptions() (storage.StoreOptions, string, error) {
 		}
 	}
 	return storageOpts, volumePath, nil
+}
+
+// StorageConfigFile returns the path to the storage config file used
+func StorageConfigFile() string {
+	if rootless.IsRootless() {
+		return filepath.Join(os.Getenv("HOME"), ".config/containers/storage.conf")
+	}
+	return storage.DefaultConfigFile
 }

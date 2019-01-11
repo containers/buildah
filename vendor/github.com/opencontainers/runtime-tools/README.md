@@ -69,7 +69,7 @@ validation/linux_cgroups_hugetlb.t .................... 0/1
 
 validation/linux_cgroups_memory.t ..................... 9/9
 validation/linux_rootfs_propagation_shared.t ...... 252/282
-  not ok shared root propogation exposes "/target348456609/mount892511628/example376408222"
+  not ok shared root propagation exposes "/target348456609/mount892511628/example376408222"
 
   Skipped: 29
      /dev/null (default device) has unconfigured permissions
@@ -87,7 +87,7 @@ make: *** [Makefile:44: localvalidation] Error 1
 You can also run an individual test executable directly:
 
 ```console
-$ RUNTIME=runc validation/default.t
+$ sudo RUNTIME=runc validation/default/default.t
 TAP version 13
 ok 1 - has expected hostname
   ---
@@ -105,7 +105,7 @@ If you cannot install node-tap, you can probably run the test suite with another
 For example, with [`prove`][prove]:
 
 ```console
-$ sudo make TAP='prove -Q -j9' RUNTIME=runc VALIDATION_TESTS=validation/pidfile.t localvalidation
+$ sudo make TAP='prove -Q -j9' RUNTIME=runc VALIDATION_TESTS=validation/pidfile/pidfile.t localvalidation
 RUNTIME=runc prove -Q -j9 validation/pidfile.t
 All tests successful.
 Files=1, Tests=1,  0 wallclock secs ( 0.01 usr  0.01 sys +  0.03 cusr  0.03 csys =  0.08 CPU)
