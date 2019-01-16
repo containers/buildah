@@ -1,3 +1,73 @@
+- Changelog for v1.6 (2019-01-15)
+  * Vendor in latest containers/storage
+  * Revendor everything
+  * Revendor in latest code by release
+  * unshare: do not set USER=root
+  * run: ignore EIO when flushing at the end, avoid double log
+  * build-using-dockerfile,commit: disable compression by default
+  * Update some comments
+  * Make rootless work under no_pivot_root
+  * Add CreatedAtRaw date field for use with Format
+  * Properly format images JSON output
+  * pull: add all-tags option
+  * Fix support for multiple Short options
+  * pkg/blobcache: add synchronization
+  * Skip empty files in file check of conformance test
+  * Use NoPivot also for RUN, not only for run
+  * Remove no longer used isReferenceInsecure / isRegistryInsecure
+  * Do not set OCIInsecureSkipTLSVerify based on registries.conf
+  * Remove duplicate entries from images JSON output
+  * vendor parallel-copy from containers/image
+  * blobcache.bats: adjust explicit push tests
+  * Handle one line Dockerfile with layers
+  * We should only warn if user actually requests Hostname be set in image
+  * Fix compiler Warning about comparing different size types
+  * imagebuildah: don't walk if rootdir and path are equal
+  * Add aliases for buildah containers, so buildah list, ls and ps work
+  * vendor: use faster version instead compress/gzip
+  * vendor: update libpod
+  * Properly handle Hostname inside of RUN command
+  * docs: mention how to mount in rootless mode
+  * tests: use fully qualified name for centos image
+  * travis.yml: use the fully qualified name for alpine
+  * mount: allow mount only when using vfs
+  * Add some tests for buildah pull
+  * Touch up images -q processing
+  * Refactor: Use library shared idtools.ParseIDMap() instead of bundling it
+  * bump GITVALIDATE_EPOCH
+  * cli.BudFlags: add `--platform` nop
+  * Makefile: allow packagers to more easily add tags
+  * Makefile: soften the requirement on git
+  * tests: add containers json test
+  * Inline blobCache.putBlob into blobCacheDestination.PutBlob
+  * Move saveStream and putBlob near blobCacheDestination.PutBlob
+  * Remove BlobCache.PutBlob
+  * Update for API changes
+  * Vendor c/image after merging c/image#536
+  * Handle 'COPY --from' in Dockerfile
+  * Vendor in latest content from github.com/containers/storage
+  * Clarify docker.io default in push with docker-daemon
+  * Test blob caching
+  * Wire in a hidden --blob-cache option
+  * Use a blob cache when we're asked to use one
+  * Add --disable-compression to 'build-using-dockerfile'
+  * Add a blob cache implementation
+  * vendor: update containers/storage
+  * Update for sysregistriesv2 API changes
+  * Update containers/image to 63a1cbdc5e6537056695cf0d627c0a33b334df53
+  * clean up makefile variables
+  * Fix file permission
+  * Complete the instructions for the command
+  * Show warning when a build arg not used
+  * Assume user 0 group 0, if /etc/passwd file in container.
+  * Add buildah info command
+  * Enable -q when --filter is used for images command
+  * Add v1.5 Release Announcement
+  * Fix dangling filter for images command
+  * Fix completions to print Names as well as IDs
+  * tests: Fix file permissions
+  * Bump 1.6-dev
+
 - Changelog for v1.5-1 (2018-11-21)
   * Bump min go to 1.10 in install.md
   * vendor: update ostree-go
