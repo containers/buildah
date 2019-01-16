@@ -97,7 +97,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Wed Nov 21 2018 Tom Sweeney <tsweeney@redhat.com> 1.6-dev-1
+* Tue Jan 15 2019 Tom Sweeney <tsweeney@redhat.com> 1.6-1
 - Vendor in latest containers/storage
 - Revendor everything
 - Revendor in latest code by release
