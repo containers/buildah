@@ -1,0 +1,1 @@
+File for testing COPY with chown in a Dockerfile.

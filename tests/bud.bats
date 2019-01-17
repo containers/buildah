@@ -990,6 +990,29 @@ load helpers
   [ "$status" -eq 0 ]
 }
 
+@test "bud with chown add" {
+  imgName=alpine-image
+  ctrName=alpine-chown
+  run buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/add-chown
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ user:2367[[:space:]]group:3267 ]]
+  run buildah --debug=false from --name ${ctrName} ${imgName}
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run buildah --debug=false run alpine-chown -- stat -c '%u' /tmp/addchown.txt
+  echo "$output"
+  # Validate that output starts with "2367"
+  [ $(expr "$output" : "2367") -ne 0 ]
+  [ "$status" -eq 0 ]
+
+  run buildah --debug=false run alpine-chown -- stat -c '%g' /tmp/addchown.txt
+  echo "$output"
+  # Validate that output starts with "3267"
+  [ $(expr "$output" : "3267") -ne 0 ]
+  [ "$status" -eq 0 ]
+}
+
 @test "bud with ADD file construct" {
   buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/add-file
   run buildah --debug=false images -a
