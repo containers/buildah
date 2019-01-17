@@ -1528,8 +1528,14 @@ func (b *Executor) deleteSuccessfulIntermediateCtrs() error {
 }
 
 func (b *Executor) EnsureContainerPath(path string) error {
-	_, err := os.Stat(path)
-	return err
+	_, err := os.Stat(filepath.Join(b.mountPoint, path))
+	if err != nil && os.IsNotExist(err) {
+		err = os.MkdirAll(filepath.Join(b.mountPoint, path), 0755)
+	}
+	if err != nil {
+		return errors.Wrapf(err, "error ensuring container path %q", path)
+	}
+	return nil
 }
 
 // preprocessDockerfileContents runs CPP(1) in preprocess-only mode on the input
