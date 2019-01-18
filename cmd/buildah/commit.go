@@ -53,6 +53,10 @@ var (
 			Usage: "Write the image ID to the file",
 		},
 		cli.BoolFlag{
+			Name:  "omit-timestamp",
+			Usage: "set created timestamp to epoch 0 to allow for deterministic builds",
+		},
+		cli.BoolFlag{
 			Name:  "quiet, q",
 			Usage: "don't output progress information when writing images",
 		},
@@ -172,6 +176,7 @@ func commitCmd(c *cli.Context) error {
 		IIDFile:               c.String("iidfile"),
 		Squash:                c.Bool("squash"),
 		BlobDirectory:         c.String("blob-cache"),
+		OmitTimestamp:         c.Bool("omit-timestamp"),
 	}
 	if !c.Bool("quiet") {
 		options.ReportWriter = os.Stderr

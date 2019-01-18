@@ -317,6 +317,7 @@ return 1
           --rm
           --squash
           --tls-verify
+          --omit-timestamp
   "
 
      local options_with_args="
