@@ -15,6 +15,7 @@ import (
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/reexec"
+	"github.com/opencontainers/image-spec/specs-go/v1"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -41,6 +42,28 @@ func copyStringSlice(s []string) []string {
 	t := make([]string, len(s))
 	copy(t, s)
 	return t
+}
+
+func copyHistory(history []v1.History) []v1.History {
+	if len(history) == 0 {
+		return nil
+	}
+	h := make([]v1.History, 0, len(history))
+	for _, entry := range history {
+		created := entry.Created
+		if created != nil {
+			timestamp := *created
+			created = &timestamp
+		}
+		h = append(h, v1.History{
+			Created:    created,
+			CreatedBy:  entry.CreatedBy,
+			Author:     entry.Author,
+			Comment:    entry.Comment,
+			EmptyLayer: entry.EmptyLayer,
+		})
+	}
+	return h
 }
 
 func convertStorageIDMaps(UIDMap, GIDMap []idtools.IDMap) ([]rspec.LinuxIDMapping, []rspec.LinuxIDMapping) {

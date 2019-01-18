@@ -258,6 +258,7 @@ return 1
 
  _buildah_config() {
      local boolean_options="
+     --add-history
      --help
      -h
   "
@@ -447,6 +448,7 @@ return 1
 
  _buildah_run() {
      local boolean_options="
+     --add-history
      --help
      -t
      --tty
@@ -494,6 +496,7 @@ return 1
 
  _buildah_copy() {
      local boolean_options="
+     --add-history
      --help
      -h
      --quiet
@@ -515,6 +518,7 @@ return 1
 
  _buildah_add() {
      local boolean_options="
+     --add-history
      --help
      -h
      --quiet

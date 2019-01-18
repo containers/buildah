@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -17,6 +18,10 @@ import (
 
 var (
 	configFlags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "add-history",
+			Usage: "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)",
+		},
 		cli.StringSliceFlag{
 			Name:  "annotation, a",
 			Usage: "add `annotation` e.g. annotation=value, for the target image (default [])",
@@ -159,6 +164,19 @@ func updateEntrypoint(builder *buildah.Builder, c *cli.Context) {
 	builder.SetEntrypoint(entrypointSpec)
 }
 
+func conditionallyAddHistory(builder *buildah.Builder, c *cli.Context, createdByFmt string, args ...interface{}) {
+	history := buildahcli.DefaultHistory()
+	if c.IsSet("add-history") {
+		history = c.Bool("add-history")
+	}
+	if history {
+		now := time.Now().UTC()
+		created := &now
+		createdBy := fmt.Sprintf(createdByFmt, args...)
+		builder.AddPrependedEmptyLayer(created, createdBy, "", "")
+	}
+}
+
 func updateConfig(builder *buildah.Builder, c *cli.Context) {
 	if c.IsSet("author") {
 		builder.SetMaintainer(c.String("author"))
@@ -174,6 +192,7 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 	}
 	if c.IsSet("user") {
 		builder.SetUser(c.String("user"))
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) USER %s", c.String("user"))
 	}
 	if c.IsSet("shell") {
 		shellSpec, err := shellwords.Parse(c.String("shell"))
@@ -182,14 +201,17 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 		} else {
 			builder.SetShell(shellSpec)
 		}
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) SHELL %s", c.String("shell"))
 	}
 	if c.IsSet("stop-signal") {
 		builder.SetStopSignal(c.String("stop-signal"))
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) STOPSIGNAL %s", c.String("stop-signal"))
 	}
 	if c.IsSet("port") || c.IsSet("p") {
 		for _, portSpec := range c.StringSlice("port") {
 			builder.SetPort(portSpec)
 		}
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) EXPOSE %s", strings.Join(c.StringSlice("port"), " "))
 	}
 	if c.IsSet("env") || c.IsSet("e") {
 		for _, envSpec := range c.StringSlice("env") {
@@ -200,9 +222,11 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 				builder.UnsetEnv(env[0])
 			}
 		}
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ENV %s", strings.Join(c.StringSlice("env"), " "))
 	}
 	if c.IsSet("entrypoint") {
 		updateEntrypoint(builder, c)
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ENTRYPOINT %s", c.String("entrypoint"))
 	}
 	// cmd should always run after entrypoint; setting entrypoint clears cmd
 	if c.IsSet("cmd") {
@@ -212,11 +236,13 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 		} else {
 			builder.SetCmd(cmdSpec)
 		}
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop)  CMD %s", c.String("cmd"))
 	}
 	if c.IsSet("volume") {
 		if volSpec := c.StringSlice("volume"); len(volSpec) > 0 {
 			for _, spec := range volSpec {
 				builder.AddVolume(spec)
+				conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) VOLUME %s", spec)
 			}
 		}
 	}
@@ -230,9 +256,11 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 				builder.UnsetLabel(label[0])
 			}
 		}
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) LABEL %s", strings.Join(c.StringSlice("label"), " "))
 	}
 	if c.IsSet("workingdir") {
 		builder.SetWorkDir(c.String("workingdir"))
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) WORKDIR %s", c.String("workingdir"))
 	}
 	if c.IsSet("comment") {
 		builder.SetComment(c.String("comment"))
@@ -253,6 +281,7 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 	if c.IsSet("onbuild") {
 		for _, onbuild := range c.StringSlice("onbuild") {
 			builder.SetOnBuild(onbuild)
+			conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ONBUILD %s", onbuild)
 		}
 	}
 	if c.IsSet("annotation") || c.IsSet("a") {
@@ -270,6 +299,7 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 func updateHealthcheck(builder *buildah.Builder, c *cli.Context) {
 	if c.IsSet("healthcheck") || c.IsSet("healthcheck-interval") || c.IsSet("healthcheck-retries") || c.IsSet("healthcheck-start-period") || c.IsSet("healthcheck-timeout") {
 		healthcheck := builder.Healthcheck()
+		args := ""
 		if healthcheck == nil {
 			healthcheck = &docker.HealthConfig{
 				Test:        []string{"NONE"},
@@ -292,9 +322,11 @@ func updateHealthcheck(builder *buildah.Builder, c *cli.Context) {
 				logrus.Errorf("error parsing --healthcheck-interval %q: %v", c.String("healthcheck-interval"), err)
 			}
 			healthcheck.Interval = duration
+			args = args + "--interval=" + c.String("healthcheck-interval") + " "
 		}
 		if c.IsSet("healthcheck-retries") {
 			healthcheck.Retries = c.Int("healthcheck-retries")
+			args = args + "--retries=" + c.String("healthcheck-retries") + " "
 		}
 		if c.IsSet("healthcheck-start-period") {
 			duration, err := time.ParseDuration(c.String("healthcheck-start-period"))
@@ -302,6 +334,7 @@ func updateHealthcheck(builder *buildah.Builder, c *cli.Context) {
 				logrus.Errorf("error parsing --healthcheck-start-period %q: %v", c.String("healthcheck-start-period"), err)
 			}
 			healthcheck.StartPeriod = duration
+			args = args + "--start-period=" + c.String("healthcheck-start-period") + " "
 		}
 		if c.IsSet("healthcheck-timeout") {
 			duration, err := time.ParseDuration(c.String("healthcheck-timeout"))
@@ -309,11 +342,14 @@ func updateHealthcheck(builder *buildah.Builder, c *cli.Context) {
 				logrus.Errorf("error parsing --healthcheck-timeout %q: %v", c.String("healthcheck-timeout"), err)
 			}
 			healthcheck.Timeout = duration
+			args = args + "--timeout=" + c.String("healthcheck-timeout") + " "
 		}
 		if len(healthcheck.Test) == 0 {
 			builder.SetHealthcheck(nil)
+			conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) HEALTHCHECK NONE")
 		} else {
 			builder.SetHealthcheck(healthcheck)
+			conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) HEALTHCHECK %s%s", args, c.String("healthcheck"))
 		}
 	}
 }

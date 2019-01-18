@@ -14,6 +14,14 @@ the *buildah config* command.  To execute *buildah run* within an
 interactive shell, specify the --tty option.
 
 ## OPTIONS
+**--add-history**
+
+Add an entry to the history which will note what command is being invoked.
+Defaults to false.
+
+Note: You can also override the default value of --add-history by setting the
+BUILDAH\_HISTORY environment variable. `export BUILDAH_HISTORY=true`
+
 **--cap-add**=*CAP\_xxx*
 
 Add the specified capability to the set of capabilities which will be granted

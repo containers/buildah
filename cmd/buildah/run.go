@@ -18,6 +18,10 @@ import (
 
 var (
 	runFlags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "add-history",
+			Usage: "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)",
+		},
 		cli.StringSliceFlag{
 			Name:  "cap-add",
 			Usage: "add the specified capability (default [])",
@@ -175,6 +179,14 @@ func runCmd(c *cli.Context) error {
 		if w, ok := ee.Sys().(syscall.WaitStatus); ok {
 			os.Exit(w.ExitStatus())
 		}
+	}
+	if runerr == nil {
+		shell := "/bin/sh -c"
+		if len(builder.Shell()) > 0 {
+			shell = strings.Join(builder.Shell(), " ")
+		}
+		conditionallyAddHistory(builder, c, "%s %s", shell, strings.Join(args, " "))
+		return builder.Save()
 	}
 	return runerr
 }
