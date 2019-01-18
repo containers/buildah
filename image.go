@@ -603,7 +603,7 @@ func (i *containerImageSource) GetBlob(ctx context.Context, blob types.BlobInfo,
 	return ioutils.NewReadCloserWrapper(layerFile, closer), size, nil
 }
 
-func (b *Builder) makeImageRef(manifestType, parent string, exporting bool, squash bool, blobDirectory string, compress archive.Compression, historyTimestamp *time.Time) (types.ImageReference, error) {
+func (b *Builder) makeImageRef(manifestType, parent string, exporting bool, squash bool, blobDirectory string, compress archive.Compression, historyTimestamp *time.Time, omitTimestamp bool) (types.ImageReference, error) {
 	var name reference.Named
 	container, err := b.store.Container(b.ContainerID)
 	if err != nil {
@@ -628,6 +628,10 @@ func (b *Builder) makeImageRef(manifestType, parent string, exporting bool, squa
 	created := time.Now().UTC()
 	if historyTimestamp != nil {
 		created = historyTimestamp.UTC()
+	}
+
+	if omitTimestamp {
+		created = time.Unix(0, 0)
 	}
 
 	ref := &containerImageRef{
