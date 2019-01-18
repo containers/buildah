@@ -15,6 +15,14 @@ archive file itself.  If a local directory is specified as a source, its
 
 ## OPTIONS
 
+**--add-history**
+
+Add an entry to the history which will note the digest of the added content.
+Defaults to false.
+
+Note: You can also override the default value of --add-history by setting the
+BUILDAH\_HISTORY environment variable. `export BUILDAH_HISTORY=true`
+
 **--chown** *owner*:*group*
 
 Sets the user and group ownership of the destination content.

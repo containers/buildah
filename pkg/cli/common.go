@@ -299,6 +299,15 @@ func DefaultIsolation() string {
 	return buildah.OCI
 }
 
+// DefaultHistory returns the default add-history setting
+func DefaultHistory() bool {
+	history := os.Getenv("BUILDAH_HISTORY")
+	if strings.ToLower(history) == "true" || history == "1" {
+		return true
+	}
+	return false
+}
+
 func VerifyFlagsArgsOrder(args []string) error {
 	for _, arg := range args {
 		if strings.HasPrefix(arg, "-") {

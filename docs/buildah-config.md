@@ -11,6 +11,17 @@ Updates one or more of the settings kept for a container.
 
 ## OPTIONS
 
+**--add-history**
+
+Add an entry to the image's history which will note changes to the settings for
+**--cmd**, **--entrypoint**, **--env**, **--healthcheck**, **--label**,
+**--onbuild**, **--port**, **--shell**, **--stop-signal**, **--user**,
+**--volume**, and **--workingdir**.
+Defaults to false.
+
+Note: You can also override the default value of --add-history by setting the
+BUILDAH\_HISTORY environment variable. `export BUILDAH_HISTORY=true`
+
 **--annotation** *annotation*
 
 Add an image *annotation* (e.g. annotation=*annotation*) to the image manifest

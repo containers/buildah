@@ -13,9 +13,13 @@ import (
 
 var (
 	addAndCopyFlags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "add-history",
+			Usage: "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)",
+		},
 		cli.StringFlag{
 			Name:  "chown",
-			Usage: "Set the user and group ownership of the destination content",
+			Usage: "set the user and group ownership of the destination content",
 		},
 		cli.BoolFlag{
 			Name:  "quiet, q",
@@ -48,7 +52,7 @@ var (
 	}
 )
 
-func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
+func addAndCopyCmd(c *cli.Context, verb string, extractLocalArchives bool) error {
 	args := c.Args()
 	if len(args) == 0 {
 		return errors.Errorf("container ID must be specified")
@@ -97,13 +101,14 @@ func addAndCopyCmd(c *cli.Context, extractLocalArchives bool) error {
 	if !c.Bool("quiet") {
 		fmt.Printf("%s\n", digester.Digest().Hex())
 	}
-	return nil
+	conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) %s file:%s", verb, digester.Digest().Hex())
+	return builder.Save()
 }
 
 func addCmd(c *cli.Context) error {
-	return addAndCopyCmd(c, true)
+	return addAndCopyCmd(c, "ADD", true)
 }
 
 func copyCmd(c *cli.Context) error {
-	return addAndCopyCmd(c, false)
+	return addAndCopyCmd(c, "COPY", false)
 }
