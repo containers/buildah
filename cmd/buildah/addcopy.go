@@ -23,7 +23,7 @@ var (
 		},
 	}
 	addDescription  = "Adds the contents of a file, URL, or directory to a container's working\n   directory.  If a local file appears to be an archive, its contents are\n   extracted and added instead of the archive file itself."
-	copyDescription = "Copies the contents of a file, URL, or directory into a container's working\n   directory"
+	copyDescription = "Copies the contents of a file, URL, or directory into a container's working\n   directory."
 
 	addCommand = cli.Command{
 		Name:                   "add",

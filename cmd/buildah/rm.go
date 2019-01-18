@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	rmDescription = "Removes one or more working containers, unmounting them if necessary"
+	rmDescription = "Removes one or more working containers, unmounting them if necessary."
 	rmFlags       = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "all, a",

@@ -66,7 +66,7 @@ var (
 			Usage: "require HTTPS and verify certificates when accessing the registry",
 		},
 	}
-	fromDescription = "Creates a new working container, either from scratch or using a specified\n   image as a starting point"
+	fromDescription = "Creates a new working container, either from scratch or using a specified\n   image as a starting point."
 
 	fromCommand = cli.Command{
 		Name:                   "from",

@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	tagDescription = "Adds one or more additional names to locally-stored image"
+	tagDescription = "Adds one or more additional names to locally-stored image."
 	tagCommand     = cli.Command{
 		Name:                   "tag",
 		Usage:                  "Add an additional name to a local image",
