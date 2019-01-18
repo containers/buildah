@@ -1,4 +1,7 @@
-- Changelog for v1.6 (2019-01-15)
+- Changelog for v1.6-1 (2019-01-18)
+  * Add support for ADD --chown
+  * imagebuildah: make EnsureContainerPath() check/create the right one
+  * Fix contrib/rpm/bulidah.spec changelog date
   * Vendor in latest containers/storage
   * Revendor everything
   * Revendor in latest code by release
