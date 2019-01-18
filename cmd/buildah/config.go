@@ -118,7 +118,7 @@ var (
 			Usage: "set working `directory` for containers based on image",
 		},
 	}
-	configDescription = "Modifies the configuration values which will be saved to the image"
+	configDescription = "Modifies the configuration values which will be saved to the image."
 	configCommand     = cli.Command{
 		Name:                   "config",
 		Usage:                  "Update image configuration settings",

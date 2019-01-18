@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	renameDescription = "Rename a local container"
+	renameDescription = "Renames a local container."
 	renameCommand     = cli.Command{
 		Name:                   "rename",
 		Usage:                  "Rename a container",

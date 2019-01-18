@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	infoDescription = "The information displayed pertains to the host and current storage statistics which is useful when reporting issues."
+	infoDescription = "Display information about the host and current storage statistics which are useful when reporting issues."
 	infoFlags       = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "debug, D",

@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	mountDescription = "Mounts a working container's root filesystem for manipulation"
+	mountDescription = "Mounts a working container's root filesystem for manipulation."
 	mountFlags       = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "notruncate",

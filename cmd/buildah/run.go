@@ -60,7 +60,7 @@ var (
 			Usage: "bind mount a host location into the container while running the command",
 		},
 	}
-	runDescription = "Runs a specified command using the container's root filesystem as a root\n   filesystem, using configuration settings inherited from the container's\n   image or as specified using previous calls to the config command"
+	runDescription = "Runs a specified command using the container's root filesystem as a root\n   filesystem, using configuration settings inherited from the container's\n   image or as specified using previous calls to the config command."
 	runCommand     = cli.Command{
 		Name:                   "run",
 		Usage:                  "Run a command inside of the container",
