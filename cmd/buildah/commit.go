@@ -14,89 +14,69 @@ import (
 	"github.com/containers/image/transports/alltransports"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var (
-	commitFlags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "authfile",
-			Usage: "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json",
-		},
-		cli.StringFlag{
-			Name:   "blob-cache",
-			Value:  "",
-			Usage:  "assume image blobs in the specified directory will be available for pushing",
-			Hidden: true, // this is here mainly so that we can test the API during integration tests
-		},
-		cli.StringFlag{
-			Name:  "cert-dir",
-			Value: "",
-			Usage: "use certificates at the specified path to access the registry",
-		},
-		cli.StringFlag{
-			Name:  "creds",
-			Value: "",
-			Usage: "use `[username[:password]]` for accessing the registry",
-		},
-		cli.BoolFlag{
-			Name:  "disable-compression, D",
-			Usage: "don't compress layers",
-		},
-		cli.StringFlag{
-			Name:  "format, f",
-			Usage: "`format` of the image manifest and metadata",
-			Value: defaultFormat(),
-		},
-		cli.StringFlag{
-			Name:  "iidfile",
-			Usage: "Write the image ID to the file",
-		},
-		cli.BoolFlag{
-			Name:  "omit-timestamp",
-			Usage: "set created timestamp to epoch 0 to allow for deterministic builds",
-		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "don't output progress information when writing images",
-		},
-		cli.StringFlag{
-			Name:   "reference-time",
-			Usage:  "set the timestamp on the image to match the named `file`",
-			Hidden: true,
-		},
-		cli.BoolFlag{
-			Name:  "rm",
-			Usage: "remove the container and its content after committing it to an image. Default leaves the container and its content in place.",
-		},
-		cli.StringFlag{
-			Name:  "signature-policy",
-			Usage: "`pathname` of signature policy file (not usually used)",
-		},
-		cli.BoolFlag{
-			Name:  "squash",
-			Usage: "produce an image with only one layer",
-		},
-		cli.BoolTFlag{
-			Name:  "tls-verify",
-			Usage: "Require HTTPS and verify certificates when accessing the registry",
-		},
-	}
-	commitDescription = "Writes a new image using the container's read-write layer and, if it is based\n   on an image, the layers of that image."
-	commitCommand     = cli.Command{
-		Name:                   "commit",
-		Usage:                  "Create an image from a working container",
-		Description:            commitDescription,
-		Flags:                  sortFlags(commitFlags),
-		Action:                 commitCmd,
-		ArgsUsage:              "CONTAINER-NAME-OR-ID IMAGE",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
-	}
-)
+type commitInputOptions struct {
+	authfile           string
+	blobCache          string
+	certDir            string
+	creds              string
+	disableCompression bool
+	format             string
+	iidfile            string
+	omitTimestamp      bool
+	quiet              bool
+	referenceTime      string
+	rm                 bool
+	signaturePolicy    string
+	squash             bool
+	tlsVerify          bool
+}
 
-func commitCmd(c *cli.Context) error {
-	args := c.Args()
+func init() {
+	var (
+		opts              commitInputOptions
+		commitDescription = "Writes a new image using the container's read-write layer and, if it is based\n   on an image, the layers of that image."
+	)
+	commitCommand := &cobra.Command{
+		Use:   "commit",
+		Short: "Create an image from a working container",
+		Long:  commitDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return commitCmd(cmd, args, opts)
+		},
+		Example: "CONTAINER-NAME-OR-ID IMAGE",
+	}
+	flags := commitCommand.Flags()
+	flags.SetInterspersed(false)
+
+	flags.StringVar(&opts.authfile, "authfile", "", "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json")
+	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
+
+	flags.MarkHidden("blob-cache")
+
+	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
+	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
+	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", false, "don't compress layers")
+	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
+	flags.StringVar(&opts.iidfile, "iidfile", "", "Write the image ID to the file")
+	flags.BoolVar(&opts.omitTimestamp, "omit-timestamp", false, "set created timestamp to epoch 0 to allow for deterministic builds")
+	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when writing images")
+	flags.StringVar(&opts.referenceTime, "reference-time", "", "set the timestamp on the image to match the named `file`")
+
+	flags.MarkHidden("reference-time")
+
+	flags.BoolVar(&opts.rm, "rm", false, "remove the container and its content after committing it to an image. Default leaves the container and its content in place.")
+	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
+	flags.BoolVar(&opts.squash, "squash", false, "produce an image with only one layer")
+	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "Require HTTPS and verify certificates when accessing the registry")
+
+	rootCmd.AddCommand(commitCommand)
+
+}
+
+func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error {
 	if len(args) == 0 {
 		return errors.Errorf("container ID must be specified")
 	}
@@ -104,7 +84,7 @@ func commitCmd(c *cli.Context) error {
 		return err
 	}
 	name := args[0]
-	args = args.Tail()
+	args = Tail(args)
 	if len(args) == 0 {
 		return errors.Errorf("an image name must be specified")
 	}
@@ -112,17 +92,13 @@ func commitCmd(c *cli.Context) error {
 		return errors.Errorf("too many arguments specified")
 	}
 	image := args[0]
-	if err := parse.ValidateFlags(c, commitFlags); err != nil {
-		return err
-	}
-
 	compress := imagebuildah.Uncompressed
-	if c.IsSet("disable-compression") && !c.Bool("disable-compression") {
+	if c.Flag("disable-compression").Changed && !iopts.disableCompression {
 		compress = imagebuildah.Gzip
 	}
 	timestamp := time.Now().UTC()
-	if c.IsSet("reference-time") {
-		referenceFile := c.String("reference-time")
+	if c.Flag("reference-time").Changed {
+		referenceFile := iopts.referenceTime
 		finfo, err := os.Stat(referenceFile)
 		if err != nil {
 			return errors.Wrapf(err, "error reading timestamp of file %q", referenceFile)
@@ -130,7 +106,7 @@ func commitCmd(c *cli.Context) error {
 		timestamp = finfo.ModTime().UTC()
 	}
 
-	format, err := getFormat(c)
+	format, err := getFormat(iopts.format)
 	if err != nil {
 		return err
 	}
@@ -170,15 +146,15 @@ func commitCmd(c *cli.Context) error {
 	options := buildah.CommitOptions{
 		PreferredManifestType: format,
 		Compression:           compress,
-		SignaturePolicyPath:   c.String("signature-policy"),
+		SignaturePolicyPath:   iopts.signaturePolicy,
 		HistoryTimestamp:      &timestamp,
 		SystemContext:         systemContext,
-		IIDFile:               c.String("iidfile"),
-		Squash:                c.Bool("squash"),
-		BlobDirectory:         c.String("blob-cache"),
-		OmitTimestamp:         c.Bool("omit-timestamp"),
+		IIDFile:               iopts.iidfile,
+		Squash:                iopts.squash,
+		BlobDirectory:         iopts.blobCache,
+		OmitTimestamp:         iopts.omitTimestamp,
 	}
-	if !c.Bool("quiet") {
+	if !iopts.quiet {
 		options.ReportWriter = os.Stderr
 	}
 	id, ref, _, err := builder.Commit(ctx, dest, options)
@@ -198,7 +174,7 @@ func commitCmd(c *cli.Context) error {
 		fmt.Printf("%s\n", id)
 	}
 
-	if c.Bool("rm") {
+	if iopts.rm {
 		return builder.Delete()
 	}
 	return nil

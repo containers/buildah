@@ -4,27 +4,23 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
 var (
 	tagDescription = "Adds one or more additional names to locally-stored image."
-	tagCommand     = cli.Command{
-		Name:                   "tag",
-		Usage:                  "Add an additional name to a local image",
-		Description:            tagDescription,
-		Action:                 tagCmd,
-		ArgsUsage:              "IMAGE-NAME NEW-IMAGE-NAME",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
+	tagCommand     = &cobra.Command{
+		Use:   "tag",
+		Short: "Add an additional name to a local image",
+		Long:  tagDescription,
+		RunE:  tagCmd,
+
+		Example: "IMAGE-NAME NEW-IMAGE-NAME",
+		Args:    cobra.MinimumNArgs(2),
 	}
 )
 
-func tagCmd(c *cli.Context) error {
-	args := c.Args()
-	if len(args) < 2 {
-		return errors.Errorf("image name and at least one new name must be specified")
-	}
+func tagCmd(c *cobra.Command, args []string) error {
 	store, err := getStore(c)
 	if err != nil {
 		return err
@@ -41,4 +37,8 @@ func tagCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error adding names %v to image %q", args[1:], args[0])
 	}
 	return nil
+}
+
+func init() {
+	rootCmd.AddCommand(tagCommand)
 }

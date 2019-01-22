@@ -9,10 +9,9 @@ import (
 	"text/template"
 
 	"github.com/containers/buildah"
-	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
 type jsonContainer struct {
@@ -46,79 +45,70 @@ type containerFilterParams struct {
 	ancestor string
 }
 
-var (
-	containersFlags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "all, a",
-			Usage: "also list non-buildah containers",
-		},
-		cli.StringFlag{
-			Name:  "filter, f",
-			Usage: "filter output based on conditions provided",
-		},
-		cli.StringFlag{
-			Name:  "format",
-			Usage: "pretty-print containers using a Go template",
-		},
-		cli.BoolFlag{
-			Name:  "json",
-			Usage: "output in JSON format",
-		},
-		cli.BoolFlag{
-			Name:  "noheading, n",
-			Usage: "do not print column headings",
-		},
-		cli.BoolFlag{
-			Name:  "notruncate",
-			Usage: "do not truncate output",
-		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "display only container IDs",
-		},
-	}
-	containersDescription = "Lists containers which appear to be " + buildah.Package + " working containers, their\n   names and IDs, and the names and IDs of the images from which they were\n   initialized."
-	containersCommand     = cli.Command{
-		Name:                   "containers",
-		Aliases:                []string{"list", "ls", "ps"},
-		Usage:                  "List working containers and their base images",
-		Description:            containersDescription,
-		Flags:                  sortFlags(containersFlags),
-		Action:                 containersCmd,
-		ArgsUsage:              " ",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
-	}
-)
+type containersResults struct {
+	all        bool
+	filter     string
+	format     string
+	json       bool
+	noheading  bool
+	notruncate bool
+	quiet      bool
+}
 
-func containersCmd(c *cli.Context) error {
-	if len(c.Args()) > 0 {
-		return errors.New("'buildah containers' does not accept arguments")
+func init() {
+	var (
+		containersDescription = "Lists containers which appear to be " + buildah.Package + " working containers, their\n   names and IDs, and the names and IDs of the images from which they were\n   initialized."
+		opts                  containersResults
+	)
+	containersCommand := &cobra.Command{
+		Use:     "containers",
+		Aliases: []string{"list", "ls", "ps"},
+		Short:   "List working containers and their base images",
+		Long:    containersDescription,
+		//Flags:                  sortFlags(containersFlags),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return containersCmd(cmd, args, opts)
+		},
+		Example: " ",
 	}
-	if err := parse.ValidateFlags(c, containersFlags); err != nil {
-		return err
+
+	flags := containersCommand.Flags()
+	flags.BoolVarP(&opts.all, "all", "a", false, "also list non-buildah containers")
+	flags.StringVarP(&opts.filter, "filter", "f", "", "filter output based on conditions provided")
+	flags.StringVar(&opts.format, "format", "", "pretty-print containers using a Go template")
+	flags.BoolVar(&opts.json, "json", false, "output in JSON format")
+	flags.BoolVarP(&opts.noheading, "noheading", "n", false, "do not print column headings")
+	flags.BoolVar(&opts.notruncate, "notruncate", false, "do not truncate output")
+	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "display only container IDs")
+
+	rootCmd.AddCommand(containersCommand)
+}
+
+func containersCmd(c *cobra.Command, args []string, iopts containersResults) error {
+	if len(args) > 0 {
+		return errors.New("'buildah containers' does not accept arguments")
 	}
 	store, err := getStore(c)
 	if err != nil {
 		return err
 	}
 
-	if c.IsSet("quiet") && c.IsSet("format") {
+	if c.Flag("quiet").Changed && c.Flag("format").Changed {
 		return errors.Errorf("quiet and format are mutually exclusive")
 	}
 
 	opts := containerOptions{
-		all:        c.Bool("all"),
-		format:     c.String("format"),
-		json:       c.Bool("json"),
-		noHeading:  c.Bool("noheading"),
-		noTruncate: c.Bool("notruncate"),
-		quiet:      c.Bool("quiet"),
+		all:        iopts.all,
+		format:     iopts.format,
+		json:       iopts.json,
+		noHeading:  iopts.noheading,
+		noTruncate: iopts.notruncate,
+		quiet:      iopts.quiet,
 	}
 
 	var params *containerFilterParams
-	if c.IsSet("filter") {
-		params, err = parseCtrFilter(c.String("filter"))
+	if c.Flag("filter").Changed {
+		params, err = parseCtrFilter(iopts.filter)
 		if err != nil {
 			return errors.Wrapf(err, "error parsing filter")
 		}

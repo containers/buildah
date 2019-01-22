@@ -3,22 +3,24 @@
 package main
 
 import (
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
 const (
 	startedInUserNS = "_BUILDAH_STARTED_IN_USERNS"
 )
 
-var (
-	unshareCommand = cli.Command{
-		Name:           "unshare",
-		Hidden:         true,
-		Action:         func(c *cli.Context) error { return nil },
-		SkipArgReorder: true,
+func init() {
+	unshareCommand := cobra.Command{
+		Use:    "unshare",
+		Hidden: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+		},
 	}
-)
+	rootCmd.AddCommand(&unshareCommand)
+}
 
-func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
+func maybeReexecUsingUserNamespace(args []string, evenForRoot bool) {
 	return
 }

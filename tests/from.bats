@@ -349,7 +349,8 @@ load helpers
   run buildah run $cid -- cat /etc/hosts
   echo $output
   [ "$status" -eq 0 ]
-  [[ "$output" =~ localhost:127.0.0.1 ]]
+  [[ "$output" =~ localhost ]]
+  [[ "$output" =~ 127.0.0.1 ]]
   buildah rm $cid
 }
 

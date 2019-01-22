@@ -79,66 +79,66 @@ load helpers
 	buildah config --cmd pwd $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
-	[ "$output" = "command must be specified" ]
+	[[ "$output" =~ "command must be specified" ]]
 	
 	# empty entrypoint, configured cmd, empty run arguments, end parsing option
 	buildah config --entrypoint "" $cid
 	buildah config --cmd pwd $cid
 	run buildah --debug=false run $cid --
 	[ "$status" -eq 1 ]
-	[ "$output" = "command must be specified" ]
+	[[ "$output" =~ "command must be specified" ]]
 
 	# configured entrypoint, empty cmd, empty run arguments
 	buildah config --entrypoint pwd $cid
 	buildah config --cmd "" $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
-	[ "$output" = "command must be specified" ]
+	[[ "$output" =~ "command must be specified" ]]
 	
 	# configured entrypoint, empty cmd, empty run arguments, end parsing option
 	buildah config --entrypoint pwd $cid
 	buildah config --cmd "" $cid
 	run buildah --debug=false run $cid --
 	[ "$status" -eq 1 ]
-	[ "$output" = "command must be specified" ]
+	[[ "$output" =~ "command must be specified" ]]
 
 	# configured entrypoint only, empty run arguments
 	buildah config --entrypoint pwd $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
-	[ "$output" = "command must be specified" ]
+	[[ "$output" =~ "command must be specified" ]]
 	
 	# configured entrypoint only, empty run arguments, end parsing option
 	buildah config --entrypoint pwd $cid
 	run buildah --debug=false run $cid --
 	[ "$status" -eq 1 ]
-	[ "$output" = "command must be specified" ]
+	[[ "$output" =~ "command must be specified" ]]
 
 	# cofigured cmd only, empty run arguments
 	buildah config --cmd pwd $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
-	[ "$output" = "command must be specified" ]
+	[[ "$output" =~ "command must be specified" ]]
 
-	# cofigured cmd only, empty run arguments, end parsing option
+	# configured cmd only, empty run arguments, end parsing option
 	buildah config --cmd pwd $cid
 	run buildah --debug=false run $cid --
 	[ "$status" -eq 1 ]
-	[ "$output" = "command must be specified" ]
+	[[ "$output" =~ "command must be specified" ]]
 
 	# configured entrypoint, configured cmd, empty run arguments
 	buildah config --entrypoint "pwd" $cid
 	buildah config --cmd "whoami" $cid
 	run buildah --debug=false run $cid
 	[ "$status" -eq 1 ]
-	[ "$output" = "command must be specified" ]
+	[[ "$output" =~ "command must be specified" ]]
 	
 	# configured entrypoint, configured cmd, empty run arguments, end parsing option
 	buildah config --entrypoint "pwd" $cid
 	buildah config --cmd "whoami" $cid
 	run buildah --debug=false run $cid --
 	[ "$status" -eq 1 ]
-	[ "$output" = "command must be specified" ]
+	[[ "$output" =~ "command must be specified" ]]
 
 
 	# Configured entrypoint/cmd shouldn't modify behaviour of run with argument

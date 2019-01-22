@@ -7,68 +7,57 @@ import (
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	util "github.com/containers/buildah/util"
+	"github.com/containers/buildah/util"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var (
-	pullFlags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "all-tags, a",
-			Usage: "download all tagged images in the repository",
-		},
-		cli.StringFlag{
-			Name:  "authfile",
-			Usage: "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json",
-		},
-		cli.StringFlag{
-			Name:   "blob-cache",
-			Value:  "",
-			Usage:  "store copies of pulled image blobs in the specified directory",
-			Hidden: true, // this is here mainly so that we can test the API during integration tests
-		},
-		cli.StringFlag{
-			Name:  "cert-dir",
-			Value: "",
-			Usage: "use certificates at the specified path to access the registry",
-		},
-		cli.StringFlag{
-			Name:  "creds",
-			Value: "",
-			Usage: "use `[username[:password]]` for accessing the registry",
-		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "don't output progress information when pulling images",
-		},
-		cli.StringFlag{
-			Name:  "signature-policy",
-			Usage: "`pathname` of signature policy file (not usually used)",
-		},
-		cli.BoolTFlag{
-			Name:  "tls-verify",
-			Usage: "require HTTPS and verify certificates when accessing the registry",
-		},
-	}
-	pullDescription = `Pulls an image from a registry and stores it locally.
+type pullResults struct {
+	allTags         bool
+	authfile        string
+	blobCache       string
+	certDir         string
+	creds           string
+	signaturePolicy string
+	quiet           bool
+	tlsVerify       bool
+}
+
+func init() {
+	var (
+		opts pullResults
+
+		pullDescription = `Pulls an image from a registry and stores it locally.
 An image can be pulled using its tag or digest. If a tag is not
 specified, the image with the 'latest' tag (if it exists) is pulled.`
+	)
 
-	pullCommand = cli.Command{
-		Name:                   "pull",
-		Usage:                  "Pull an image from the specified location",
-		Description:            pullDescription,
-		Flags:                  sortFlags(append(pullFlags)),
-		Action:                 pullCmd,
-		ArgsUsage:              "IMAGE",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
+	pullCommand := &cobra.Command{
+		Use:   "pull",
+		Short: "Pull an image from the specified location",
+		Long:  pullDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return pullCmd(cmd, args, opts)
+		},
+		Example: "IMAGE",
 	}
-)
 
-func pullCmd(c *cli.Context) error {
-	args := c.Args()
+	flags := pullCommand.Flags()
+	flags.SetInterspersed(false)
+	flags.BoolVarP(&opts.allTags, "all-tags", "a", false, "download all tagged images in the repository")
+	flags.StringVar(&opts.authfile, "authfile", "", "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json")
+	flags.StringVar(&opts.blobCache, "blob-cache", "", "store copies of pulled image blobs in the specified directory")
+	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
+	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
+	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
+	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pulling images")
+	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
+	flags.MarkHidden("blob-cache")
+
+	rootCmd.AddCommand(pullCommand)
+}
+
+func pullCmd(c *cobra.Command, args []string, iopts pullResults) error {
 	if len(args) == 0 {
 		return errors.Errorf("an image name must be specified")
 	}
@@ -78,16 +67,11 @@ func pullCmd(c *cli.Context) error {
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
-	if err := parse.ValidateFlags(c, pullFlags); err != nil {
-		return err
-	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
-
-	signaturePolicy := c.String("signature-policy")
 
 	store, err := getStore(c)
 	if err != nil {
@@ -97,7 +81,7 @@ func pullCmd(c *cli.Context) error {
 	transport := util.DefaultTransport
 	arr := strings.SplitN(args[0], ":", 2)
 	if len(arr) == 2 {
-		if c.Bool("all-tags") {
+		if iopts.allTags {
 			return errors.Errorf("tag can't be used with --all-tags")
 		}
 		if _, ok := util.Transports[arr[0]]; ok {
@@ -107,14 +91,13 @@ func pullCmd(c *cli.Context) error {
 
 	options := buildah.PullOptions{
 		Transport:           transport,
-		SignaturePolicyPath: signaturePolicy,
+		SignaturePolicyPath: iopts.signaturePolicy,
 		Store:               store,
 		SystemContext:       systemContext,
-		BlobDirectory:       c.String("blob-cache"),
-		AllTags:             c.Bool("all-tags"),
+		BlobDirectory:       iopts.blobCache,
+		AllTags:             iopts.allTags,
 	}
-
-	if !c.Bool("quiet") {
+	if !iopts.quiet {
 		options.ReportWriter = os.Stderr
 	}
 

@@ -63,7 +63,7 @@ load helpers
   [[ ! "$output" =~ "fakeimage/fortest" ]]
 }
 
-@test "pull-from-docerk-archive" {
+@test "pull-from-docker-archive" {
   run buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
   echo "$output"
   [ "$status" -eq 0 ]

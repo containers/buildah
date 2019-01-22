@@ -51,8 +51,7 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json --rm $cid alpine-image
   run buildah --debug=false rm $cid
   [ "${status}" -eq 1 ]
-  [ "${lines[0]}" == "error removing container \"alpine-working-container\": error reading build container: container not known" ]
-  [ $(wc -l <<< "$output") -eq 1 ]
+  [[ "${lines}" =~ "error removing container \"alpine-working-container\": error reading build container: container not known" ]]
   buildah rmi -a
 }
 

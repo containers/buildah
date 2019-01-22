@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"os"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/containers/buildah"
@@ -13,40 +11,45 @@ import (
 	"github.com/containers/image/types"
 	lu "github.com/containers/libpod/pkg/util"
 	"github.com/containers/storage"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var needToShutdownStore = false
 
-func getStore(c *cli.Context) (storage.Store, error) {
+func getStore(c *cobra.Command) (storage.Store, error) {
 	options, _, err := lu.GetDefaultStoreOptions()
 	if err != nil {
 		return nil, err
 	}
-	if c.GlobalIsSet("root") || c.GlobalIsSet("runroot") {
-		options.GraphRoot = c.GlobalString("root")
-		options.RunRoot = c.GlobalString("runroot")
+	if c.Flag("root").Changed || c.Flag("runroot").Changed {
+		options.GraphRoot = globalFlagResults.Root
+		options.RunRoot = globalFlagResults.RunRoot
 	}
 	if err := os.Setenv("XDG_RUNTIME_DIR", options.RunRoot); err != nil {
 		return nil, errors.New("could not set XDG_RUNTIME_DIR")
 	}
 
-	if c.GlobalIsSet("storage-driver") {
-		options.GraphDriverName = c.GlobalString("storage-driver")
+	if c.Flag("storage-driver").Changed {
+		options.GraphDriverName = globalFlagResults.StorageDriver
 		// If any options setup in config, these should be dropped if user overrode the driver
 		options.GraphDriverOptions = []string{}
 	}
-	if c.GlobalIsSet("storage-opt") {
-		opts := c.GlobalStringSlice("storage-opt")
-		if len(opts) > 0 {
-			options.GraphDriverOptions = opts
+	if c.Flag("storage-opt").Changed {
+		if len(globalFlagResults.StorageOpts) > 0 {
+			options.GraphDriverOptions = globalFlagResults.StorageOpts
 		}
 	}
-	if c.GlobalIsSet("userns-uid-map") && c.GlobalIsSet("userns-gid-map") {
-		uopts := c.GlobalStringSlice("userns-uid-map")
-		gopts := c.GlobalStringSlice("userns-gid-map")
+
+	// For uid/gid mappings, first we check the global definitions
+	if len(globalFlagResults.UserNSUID) > 0 || len(globalFlagResults.UserNSGID) > 0 {
+		if !(len(globalFlagResults.UserNSUID) > 0 && len(globalFlagResults.UserNSGID) > 0) {
+			return nil, errors.Errorf("--userns-uid-map and --userns-gid-map must be used together")
+		}
+		uopts := globalFlagResults.UserNSUID
+		gopts := globalFlagResults.UserNSGID
 		if len(uopts) == 0 {
 			return nil, errors.New("--userns-uid-map used with no mappings?")
 		}
@@ -59,11 +62,32 @@ func getStore(c *cli.Context) (storage.Store, error) {
 		}
 		options.UIDMap = uidmap
 		options.GIDMap = gidmap
-	} else if c.GlobalIsSet("userns-uid-map") {
-		return nil, errors.Errorf("--userns-uid-map requires --userns-gid-map")
-	} else if c.GlobalIsSet("userns-gid-map") {
-		return nil, errors.Errorf("--userns-gid-map requires --userns-uid-map")
 	}
+
+	// If a subcommand has the flags, check if they are set; if so, override the global values
+	localUIDMapFlag := c.Flags().Lookup("userns-uid-map")
+	localGIDMapFlag := c.Flags().Lookup("userns-gid-map")
+	if localUIDMapFlag != nil && localGIDMapFlag != nil && (localUIDMapFlag.Changed || localGIDMapFlag.Changed) {
+		if !(localUIDMapFlag.Changed && localGIDMapFlag.Changed) {
+			return nil, errors.Errorf("--userns-uid-map and --userns-gid-map must be used together")
+		}
+		// We know that the flags are both !nil and have been changed (i.e. have values)
+		uopts, _ := c.Flags().GetStringSlice("userns-uid-map")
+		gopts, _ := c.Flags().GetStringSlice("userns-gid-map")
+		if len(uopts) == 0 {
+			return nil, errors.New("--userns-uid-map used with no mappings?")
+		}
+		if len(gopts) == 0 {
+			return nil, errors.New("--userns-gid-map used with no mappings?")
+		}
+		uidmap, gidmap, err := util.ParseIDMappings(uopts, gopts)
+		if err != nil {
+			return nil, err
+		}
+		options.UIDMap = uidmap
+		options.GIDMap = gidmap
+	}
+
 	store, err := storage.GetStore(options)
 	if store != nil {
 		is.Transport.SetStore(store)
@@ -150,11 +174,10 @@ func getContext() context.Context {
 	return context.TODO()
 }
 
-var userFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:  "user",
-		Usage: "`user[:group]` to run the command as",
-	},
+func getUserFlags() pflag.FlagSet {
+	fs := pflag.FlagSet{}
+	fs.String("user", "", "`user[:group]` to run the command as")
+	return fs
 }
 
 func defaultFormat() string {
@@ -227,8 +250,7 @@ func getImageOfTopLayer(images []storage.Image, layer string) []string {
 	return matches
 }
 
-func getFormat(c *cli.Context) (string, error) {
-	format := strings.ToLower(c.String("format"))
+func getFormat(format string) (string, error) {
 	switch format {
 	case buildah.OCI:
 		return buildah.OCIv1ImageManifest, nil
@@ -239,9 +261,12 @@ func getFormat(c *cli.Context) (string, error) {
 	}
 }
 
-func sortFlags(flags []cli.Flag) []cli.Flag {
-	sort.Slice(flags, func(i, j int) bool {
-		return strings.Compare(flags[i].GetName(), flags[j].GetName()) < 0
-	})
-	return flags
+// Tail returns a string slice after the first element unless there are
+// not enough elements, then it returns an empty slice.  This is to replace
+// the urfavecli Tail method for args
+func Tail(a []string) []string {
+	if len(a) >= 2 {
+		return []string(a)[1:]
+	}
+	return []string{}
 }

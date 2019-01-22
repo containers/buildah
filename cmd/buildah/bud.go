@@ -11,23 +11,61 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var (
-	budDescription = "Builds an OCI image using instructions in one or more Dockerfiles."
-	budCommand     = cli.Command{
-		Name:                   "build-using-dockerfile",
-		Aliases:                []string{"bud"},
-		Usage:                  "Build an image using instructions in a Dockerfile",
-		Description:            budDescription,
-		Flags:                  sortFlags(append(append(buildahcli.BudFlags, buildahcli.LayerFlags...), buildahcli.FromAndBudFlags...)),
-		Action:                 budCmd,
-		ArgsUsage:              "CONTEXT-DIRECTORY | URL",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
+type budResults struct {
+	*buildahcli.LayerResults
+	*buildahcli.BudResults
+	*buildahcli.UserNSResults
+	*buildahcli.FromAndBudResults
+	*buildahcli.NameSpaceResults
+}
+
+func init() {
+	var (
+		budDescription = "Builds an OCI image using instructions in one or more Dockerfiles."
+	)
+
+	layerFlagsResults := buildahcli.LayerResults{}
+	budFlagResults := buildahcli.BudResults{}
+	fromAndBudResults := buildahcli.FromAndBudResults{}
+	userNSResults := buildahcli.UserNSResults{}
+	namespaceResults := buildahcli.NameSpaceResults{}
+
+	budCommand := &cobra.Command{
+		Use:     "build-using-dockerfile",
+		Aliases: []string{"bud"},
+		Short:   "Build an image using instructions in a Dockerfile",
+		Long:    budDescription,
+		//Flags:                  sortFlags(append(append(buildahcli.BudFlags, buildahcli.LayerFlags...), buildahcli.FromAndBudFlags...)),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			br := budResults{
+				&layerFlagsResults,
+				&budFlagResults,
+				&userNSResults,
+				&fromAndBudResults,
+				&namespaceResults,
+			}
+			return budCmd(cmd, args, br)
+		},
+		Example: "CONTEXT-DIRECTORY | URL",
 	}
-)
+
+	flags := budCommand.Flags()
+	flags.SetInterspersed(false)
+
+	// BUD is a all common flags
+	budFlags := buildahcli.GetBudFlags(&budFlagResults)
+	layerFlags := buildahcli.GetLayerFlags(&layerFlagsResults)
+	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
+
+	flags.AddFlagSet(&budFlags)
+	flags.AddFlagSet(&layerFlags)
+	flags.AddFlagSet(&fromAndBudFlags)
+
+	rootCmd.AddCommand(budCommand)
+}
 
 func getDockerfiles(files []string) []string {
 	var dockerfiles []string
@@ -41,27 +79,27 @@ func getDockerfiles(files []string) []string {
 	return dockerfiles
 }
 
-func budCmd(c *cli.Context) error {
+func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	output := ""
 	tags := []string{}
-	if c.IsSet("tag") || c.IsSet("t") {
-		tags = c.StringSlice("tag")
+	if c.Flag("tag").Changed {
+		tags = iopts.Tag
 		if len(tags) > 0 {
 			output = tags[0]
 			tags = tags[1:]
 		}
 	}
 	pullPolicy := imagebuildah.PullNever
-	if c.BoolT("pull") {
+	if iopts.Pull {
 		pullPolicy = imagebuildah.PullIfMissing
 	}
-	if c.Bool("pull-always") {
+	if iopts.PullAlways {
 		pullPolicy = imagebuildah.PullAlways
 	}
 
 	args := make(map[string]string)
-	if c.IsSet("build-arg") {
-		for _, arg := range c.StringSlice("build-arg") {
+	if c.Flag("build-arg").Changed {
+		for _, arg := range iopts.BuildArg {
 			av := strings.SplitN(arg, "=", 2)
 			if len(av) > 1 {
 				args[av[0]] = av[1]
@@ -71,17 +109,17 @@ func budCmd(c *cli.Context) error {
 		}
 	}
 
-	dockerfiles := getDockerfiles(c.StringSlice("file"))
-	format, err := getFormat(c)
+	dockerfiles := getDockerfiles(iopts.File)
+	format, err := getFormat(iopts.Format)
 	if err != nil {
 		return err
 	}
 	layers := buildahcli.UseLayers()
-	if c.IsSet("layers") {
-		layers = c.Bool("layers")
+	if c.Flag("layers").Changed {
+		layers = iopts.Layers
 	}
 	contextDir := ""
-	cliArgs := c.Args()
+	cliArgs := inputArgs
 	if len(cliArgs) == 0 {
 		return errors.Errorf("no context directory or URL specified")
 	}
@@ -107,7 +145,7 @@ func budCmd(c *cli.Context) error {
 		}
 		contextDir = absDir
 	}
-	cliArgs = cliArgs.Tail()
+	cliArgs = Tail(cliArgs)
 
 	if err := buildahcli.VerifyFlagsArgsOrder(cliArgs); err != nil {
 		return err
@@ -115,20 +153,16 @@ func budCmd(c *cli.Context) error {
 	if len(dockerfiles) == 0 {
 		dockerfiles = append(dockerfiles, filepath.Join(contextDir, "Dockerfile"))
 	}
-	for _, flag := range [][]cli.Flag{buildahcli.BudFlags, buildahcli.LayerFlags, buildahcli.FromAndBudFlags} {
-		if err := parse.ValidateFlags(c, flag); err != nil {
-			return err
-		}
-	}
+
 	var stdin, stdout, stderr, reporter *os.File
 	stdin = os.Stdin
 	stdout = os.Stdout
 	stderr = os.Stderr
 	reporter = os.Stderr
-	if c.IsSet("logfile") {
-		f, err := os.OpenFile(c.String("logfile"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	if c.Flag("logfile").Changed {
+		f, err := os.OpenFile(iopts.Logfile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 		if err != nil {
-			return errors.Errorf("error opening logfile %q: %v", c.String("logfile"), err)
+			return errors.Errorf("error opening logfile %q: %v", iopts.Logfile, err)
 		}
 		defer f.Close()
 		logrus.SetOutput(f)
@@ -153,7 +187,7 @@ func budCmd(c *cli.Context) error {
 	}
 
 	runtimeFlags := []string{}
-	for _, arg := range c.StringSlice("runtime-flag") {
+	for _, arg := range iopts.RuntimeOpts {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
@@ -162,28 +196,29 @@ func budCmd(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("layers") && c.IsSet("no-cache") {
+	if c.Flag("layers").Changed && c.Flag("no-cache").Changed {
 		return errors.Errorf("can only set one of 'layers' or 'no-cache'")
 	}
 
-	if (c.IsSet("rm") || c.IsSet("force-rm")) && (!c.IsSet("layers") && !c.IsSet("no-cache")) {
+	if (c.Flag("rm").Changed || c.Flag("force-rm").Changed) && (!c.Flag("layers").Changed && !c.Flag("no-cache").Changed) {
 		return errors.Errorf("'rm' and 'force-rm' can only be set with either 'layers' or 'no-cache'")
 	}
 
-	if c.IsSet("cache-from") {
+	if c.Flag("cache-from").Changed {
 		logrus.Debugf("build caching not enabled so --cache-from flag has no effect")
 	}
 
-	if c.IsSet("compress") {
+	if c.Flag("compress").Changed {
 		logrus.Debugf("--compress option specified but is ignored")
 	}
 
 	compression := imagebuildah.Uncompressed
-	if c.IsSet("disable-compression") && !c.Bool("disable-compression") {
+
+	if c.Flag("disable-compression").Changed && !iopts.DisableCompression {
 		compression = imagebuildah.Gzip
 	}
 
-	if c.IsSet("disable-content-trust") {
+	if c.Flag("disable-content-trust").Changed {
 		logrus.Debugf("--disable-content-trust option specified but is ignored")
 	}
 
@@ -197,12 +232,13 @@ func budCmd(c *cli.Context) error {
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 
+	defaultsMountFile, _ := c.PersistentFlags().GetString("defaults-mount-file")
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:        contextDir,
 		PullPolicy:              pullPolicy,
 		Compression:             compression,
-		Quiet:                   c.Bool("quiet"),
-		SignaturePolicyPath:     c.String("signature-policy"),
+		Quiet:                   iopts.Quiet,
+		SignaturePolicyPath:     iopts.SignaturePolicy,
 		Args:                    args,
 		Output:                  output,
 		AdditionalTags:          tags,
@@ -210,32 +246,32 @@ func budCmd(c *cli.Context) error {
 		Out:                     stdout,
 		Err:                     stderr,
 		ReportWriter:            reporter,
-		Runtime:                 c.String("runtime"),
+		Runtime:                 iopts.Runtime,
 		RuntimeArgs:             runtimeFlags,
 		OutputFormat:            format,
 		SystemContext:           systemContext,
 		Isolation:               isolation,
 		NamespaceOptions:        namespaceOptions,
 		ConfigureNetwork:        networkPolicy,
-		CNIPluginPath:           c.String("cni-plugin-path"),
-		CNIConfigDir:            c.String("cni-config-dir"),
+		CNIPluginPath:           iopts.CNIPlugInPath,
+		CNIConfigDir:            iopts.CNIConfigDir,
 		IDMappingOptions:        idmappingOptions,
-		AddCapabilities:         c.StringSlice("cap-add"),
-		DropCapabilities:        c.StringSlice("cap-drop"),
+		AddCapabilities:         iopts.CapAdd,
+		DropCapabilities:        iopts.CapDrop,
 		CommonBuildOpts:         commonOpts,
-		DefaultMountsFilePath:   c.GlobalString("default-mounts-file"),
-		IIDFile:                 c.String("iidfile"),
-		Squash:                  c.Bool("squash"),
-		Labels:                  c.StringSlice("label"),
-		Annotations:             c.StringSlice("annotation"),
+		DefaultMountsFilePath:   defaultsMountFile,
+		IIDFile:                 iopts.Iidfile,
+		Squash:                  iopts.Squash,
+		Labels:                  iopts.Label,
+		Annotations:             iopts.Annotation,
 		Layers:                  layers,
-		NoCache:                 c.Bool("no-cache"),
-		RemoveIntermediateCtrs:  c.BoolT("rm"),
-		ForceRmIntermediateCtrs: c.Bool("force-rm"),
-		BlobDirectory:           c.String("blob-cache"),
+		NoCache:                 iopts.NoCache,
+		RemoveIntermediateCtrs:  iopts.Rm,
+		ForceRmIntermediateCtrs: iopts.ForceRm,
+		BlobDirectory:           iopts.BlobCache,
 	}
 
-	if c.Bool("quiet") {
+	if iopts.Quiet {
 		options.ReportWriter = ioutil.Discard
 	}
 

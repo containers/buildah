@@ -3,146 +3,104 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/docker"
 	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/pkg/parse"
 	"github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var (
-	configFlags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "add-history",
-			Usage: "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)",
-		},
-		cli.StringSliceFlag{
-			Name:  "annotation, a",
-			Usage: "add `annotation` e.g. annotation=value, for the target image (default [])",
-		},
-		cli.StringFlag{
-			Name:  "arch",
-			Usage: "set `architecture` of the target image",
-		},
-		cli.StringFlag{
-			Name:  "author",
-			Usage: "set image author contact `information`",
-		},
-		cli.StringFlag{
-			Name:  "cmd",
-			Usage: "set the default `command` to run for containers based on the image",
-		},
-		cli.StringFlag{
-			Name:  "comment",
-			Usage: "set a `comment` in the target image",
-		},
-		cli.StringFlag{
-			Name:  "created-by",
-			Usage: "set `description` of how the image was created",
-		},
-		cli.StringFlag{
-			Name:  "domainname",
-			Usage: "set a domain `name` for containers based on image",
-		},
-		cli.StringFlag{
-			Name:  "entrypoint",
-			Usage: "set `entry point` for containers based on image",
-		},
-		cli.StringSliceFlag{
-			Name:  "env, e",
-			Usage: "add `environment variable` to be set when running containers based on image (default [])",
-		},
-		cli.StringFlag{
-			Name:  "healthcheck",
-			Usage: "set a `healthcheck` command for the target image",
-		},
-		cli.StringFlag{
-			Name:  "healthcheck-interval",
-			Usage: "set the `interval` between runs of the `healthcheck` command for the target image",
-		},
-		cli.IntFlag{
-			Name:  "healthcheck-retries",
-			Usage: "set the `number` of times the `healthcheck` command has to fail",
-		},
-		cli.StringFlag{
-			Name:  "healthcheck-start-period",
-			Usage: "set the amount of `time` to wait after starting a container before running a `healthcheck` command",
-		},
-		cli.StringFlag{
-			Name:  "healthcheck-timeout",
-			Usage: "set the maximum amount of `time` to wait for a `healthcheck` command for the target image",
-		},
-		cli.StringFlag{
-			Name:  "history-comment",
-			Usage: "set a `comment` for the history of the target image",
-		},
-		cli.StringFlag{
-			Name:  "hostname",
-			Usage: "set a host`name` for containers based on image",
-		},
-		cli.StringSliceFlag{
-			Name:  "label, l",
-			Usage: "add image configuration `label` e.g. label=value",
-		},
-		cli.StringSliceFlag{
-			Name:  "onbuild",
-			Usage: "add onbuild command to be run on images based on this image. Only supported on 'docker' formatted images",
-		},
-		cli.StringFlag{
-			Name:  "os",
-			Usage: "set `operating system` of the target image",
-		},
-		cli.StringSliceFlag{
-			Name:  "port, p",
-			Usage: "add `port` to expose when running containers based on image (default [])",
-		},
-		cli.StringFlag{
-			Name:  "shell",
-			Usage: "add `shell` to run in containers",
-		},
-		cli.StringFlag{
-			Name:  "stop-signal",
-			Usage: "set `stop signal` for containers based on image",
-		},
-		cli.StringFlag{
-			Name:  "user, u",
-			Usage: "set default `user` to run inside containers based on image",
-		},
-		cli.StringSliceFlag{
-			Name:  "volume, v",
-			Usage: "add default `volume` path to be created for containers based on image (default [])",
-		},
-		cli.StringFlag{
-			Name:  "workingdir",
-			Usage: "set working `directory` for containers based on image",
-		},
-	}
-	configDescription = "Modifies the configuration values which will be saved to the image."
-	configCommand     = cli.Command{
-		Name:                   "config",
-		Usage:                  "Update image configuration settings",
-		Description:            configDescription,
-		Flags:                  sortFlags(configFlags),
-		Action:                 configCmd,
-		ArgsUsage:              "CONTAINER-NAME-OR-ID",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
-	}
-)
+type configResults struct {
+	addHistory             bool
+	annotation             []string
+	arch                   string
+	author                 string
+	cmd                    string
+	comment                string
+	createdBy              string
+	domainName             string
+	entrypoint             string
+	env                    []string
+	healthcheck            string
+	healthcheckInterval    string
+	healthcheckRetries     int
+	healthcheckStartPeriod string
+	healthcheckTimeout     string
+	historyComment         string
+	hostname               string
+	labels                 []string
+	onbuild                []string
+	os                     string
+	ports                  []string
+	shell                  string
+	stopSignal             string
+	user                   string
+	volume                 []string
+	workingDir             string
+}
 
-func updateEntrypoint(builder *buildah.Builder, c *cli.Context) {
-	if len(strings.TrimSpace(c.String("entrypoint"))) == 0 {
+func init() {
+	var (
+		configDescription = "Modifies the configuration values which will be saved to the image."
+		opts              configResults
+	)
+	configCommand := &cobra.Command{
+		Use:   "config",
+		Short: "Update image configuration settings",
+		Long:  configDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return configCmd(cmd, args, opts)
+		},
+		Example: "CONTAINER-NAME-OR-ID",
+	}
+
+	flags := configCommand.Flags()
+	flags.SetInterspersed(false)
+	flags.BoolVar(&opts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
+	flags.StringSliceVarP(&opts.annotation, "annotation", "a", []string{}, "add `annotation` e.g. annotation=value, for the target image (default [])")
+	flags.StringVar(&opts.arch, "arch", "", "set `architecture` of the target image")
+	flags.StringVar(&opts.author, "author", "", "set image author contact `information`")
+	flags.StringVar(&opts.cmd, "cmd", "", "set the default `command` to run for containers based on the image")
+	flags.StringVar(&opts.comment, "comment", "", "set a `comment` in the target image")
+	flags.StringVar(&opts.createdBy, "created-by", "", "set `description` of how the image was created")
+	flags.StringVar(&opts.domainName, "domainname", "", "set a domain `name` for containers based on image")
+	flags.StringVar(&opts.entrypoint, "entrypoint", "", "set `entry point` for containers based on image")
+	flags.StringSliceVarP(&opts.env, "env", "e", []string{}, "add `environment variable` to be set when running containers based on image (default [])")
+	flags.StringVar(&opts.healthcheck, "healthcheck", "", "set a `healthcheck` command for the target image")
+	flags.StringVar(&opts.healthcheckInterval, "healthcheck-interval", "", "set the `interval` between runs of the `healthcheck` command for the target image")
+	flags.IntVar(&opts.healthcheckRetries, "healthcheck-retries", 0, "set the `number` of times the `healthcheck` command has to fail")
+	flags.StringVar(&opts.healthcheckStartPeriod, "healthcheck-start-period", "", "set the amount of `time` to wait after starting a container before running a `healthcheck` command")
+	flags.StringVar(&opts.healthcheckTimeout, "healthcheck-timeout", "", "set the maximum amount of `time` to wait for a `healthcheck` command for the target image")
+	flags.StringVar(&opts.historyComment, "history-comment", "", "set a `comment` for the history of the target image")
+	flags.StringVar(&opts.hostname, "hostname", "", "set a host`name` for containers based on image")
+	flags.StringSliceVarP(&opts.labels, "label", "l", []string{}, "add image configuration `label` e.g. label=value")
+	flags.StringSliceVar(&opts.onbuild, "onbuild", []string{}, "add onbuild command to be run on images based on this image. Only supported on 'docker' formatted images")
+	flags.StringVar(&opts.os, "os", "", "set `operating system` of the target image")
+	flags.StringSliceVarP(&opts.ports, "port", "p", []string{}, "add `port` to expose when running containers based on image (default [])")
+	flags.StringVar(&opts.shell, "shell", "", "add `shell` to run in containers")
+	flags.StringVar(&opts.stopSignal, "stop-signal", "", "set `stop signal` for containers based on image")
+	flags.StringVarP(&opts.user, "user", "u", "", "set default `user` to run inside containers based on image")
+	flags.StringSliceVarP(&opts.volume, "volume", "v", []string{}, "add default `volume` path to be created for containers based on image (default [])")
+	flags.StringVar(&opts.workingDir, "workingdir", "", "set working `directory` for containers based on image")
+
+	rootCmd.AddCommand(configCommand)
+
+}
+
+func updateEntrypoint(builder *buildah.Builder, iopts configResults) {
+	entrypoint := iopts.entrypoint
+	if len(strings.TrimSpace(entrypoint)) == 0 {
 		builder.SetEntrypoint(nil)
 		return
 	}
 	var entrypointJSON []string
-	err := json.Unmarshal([]byte(c.String("entrypoint")), &entrypointJSON)
+	err := json.Unmarshal([]byte(entrypoint), &entrypointJSON)
 
 	if err == nil {
 		builder.SetEntrypoint(entrypointJSON)
@@ -156,7 +114,7 @@ func updateEntrypoint(builder *buildah.Builder, c *cli.Context) {
 	entrypointSpec := make([]string, 3)
 	entrypointSpec[0] = "/bin/sh"
 	entrypointSpec[1] = "-c"
-	entrypointSpec[2] = c.String("entrypoint")
+	entrypointSpec[2] = entrypoint
 	if len(builder.Cmd()) > 0 {
 		logrus.Warnf("cmd %q exists but will be ignored because of entrypoint settings", strings.Join(builder.Cmd(), " "))
 	}
@@ -164,10 +122,10 @@ func updateEntrypoint(builder *buildah.Builder, c *cli.Context) {
 	builder.SetEntrypoint(entrypointSpec)
 }
 
-func conditionallyAddHistory(builder *buildah.Builder, c *cli.Context, createdByFmt string, args ...interface{}) {
+func conditionallyAddHistory(builder *buildah.Builder, c *cobra.Command, createdByFmt string, args ...interface{}) {
 	history := buildahcli.DefaultHistory()
-	if c.IsSet("add-history") {
-		history = c.Bool("add-history")
+	if c.Flag("add-history").Changed {
+		history, _ = c.Flags().GetBool("add-history")
 	}
 	if history {
 		now := time.Now().UTC()
@@ -177,44 +135,45 @@ func conditionallyAddHistory(builder *buildah.Builder, c *cli.Context, createdBy
 	}
 }
 
-func updateConfig(builder *buildah.Builder, c *cli.Context) {
-	if c.IsSet("author") {
-		builder.SetMaintainer(c.String("author"))
+func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResults) {
+	if c.Flag("author").Changed {
+		builder.SetMaintainer(iopts.author)
 	}
-	if c.IsSet("created-by") {
-		builder.SetCreatedBy(c.String("created-by"))
+	if c.Flag("created-by").Changed {
+		builder.SetCreatedBy(iopts.createdBy)
 	}
-	if c.IsSet("arch") {
-		builder.SetArchitecture(c.String("arch"))
+	if c.Flag("arch").Changed {
+		builder.SetArchitecture(iopts.arch)
 	}
-	if c.IsSet("os") {
-		builder.SetOS(c.String("os"))
+	if c.Flag("os").Changed {
+		builder.SetOS(iopts.os)
 	}
-	if c.IsSet("user") {
-		builder.SetUser(c.String("user"))
-		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) USER %s", c.String("user"))
+	if c.Flag("user").Changed {
+		builder.SetUser(iopts.user)
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) USER %s", iopts.user)
 	}
-	if c.IsSet("shell") {
-		shellSpec, err := shellwords.Parse(c.String("shell"))
+	if c.Flag("shell").Changed {
+		shell := iopts.shell
+		shellSpec, err := shellwords.Parse(shell)
 		if err != nil {
-			logrus.Errorf("error parsing --shell %q: %v", c.String("shell"), err)
+			logrus.Errorf("error parsing --shell %q: %v", shell, err)
 		} else {
 			builder.SetShell(shellSpec)
 		}
-		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) SHELL %s", c.String("shell"))
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) SHELL %s", shell)
 	}
-	if c.IsSet("stop-signal") {
-		builder.SetStopSignal(c.String("stop-signal"))
-		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) STOPSIGNAL %s", c.String("stop-signal"))
+	if c.Flag("stop-signal").Changed {
+		builder.SetStopSignal(iopts.stopSignal)
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) STOPSIGNAL %s", iopts.stopSignal)
 	}
-	if c.IsSet("port") || c.IsSet("p") {
-		for _, portSpec := range c.StringSlice("port") {
+	if c.Flag("port").Changed {
+		for _, portSpec := range iopts.ports {
 			builder.SetPort(portSpec)
 		}
-		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) EXPOSE %s", strings.Join(c.StringSlice("port"), " "))
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) EXPOSE %s", strings.Join(iopts.ports, " "))
 	}
-	if c.IsSet("env") || c.IsSet("e") {
-		for _, envSpec := range c.StringSlice("env") {
+	if c.Flag("env").Changed {
+		for _, envSpec := range iopts.env {
 			env := strings.SplitN(envSpec, "=", 2)
 			if len(env) > 1 {
 				builder.SetEnv(env[0], env[1])
@@ -222,33 +181,34 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 				builder.UnsetEnv(env[0])
 			}
 		}
-		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ENV %s", strings.Join(c.StringSlice("env"), " "))
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ENV %s", strings.Join(iopts.env, " "))
 	}
-	if c.IsSet("entrypoint") {
-		updateEntrypoint(builder, c)
-		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ENTRYPOINT %s", c.String("entrypoint"))
+	if c.Flag("entrypoint").Changed {
+		updateEntrypoint(builder, iopts)
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ENTRYPOINT %s", iopts.entrypoint)
 	}
 	// cmd should always run after entrypoint; setting entrypoint clears cmd
-	if c.IsSet("cmd") {
-		cmdSpec, err := shellwords.Parse(c.String("cmd"))
+	if c.Flag("cmd").Changed {
+		cmd := iopts.cmd
+		cmdSpec, err := shellwords.Parse(cmd)
 		if err != nil {
-			logrus.Errorf("error parsing --cmd %q: %v", c.String("cmd"), err)
+			logrus.Errorf("error parsing --cmd %q: %v", cmd, err)
 		} else {
 			builder.SetCmd(cmdSpec)
 		}
-		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop)  CMD %s", c.String("cmd"))
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop)  CMD %s", cmd)
 	}
-	if c.IsSet("volume") {
-		if volSpec := c.StringSlice("volume"); len(volSpec) > 0 {
+	if c.Flag("volume").Changed {
+		if volSpec := iopts.volume; len(volSpec) > 0 {
 			for _, spec := range volSpec {
 				builder.AddVolume(spec)
 				conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) VOLUME %s", spec)
 			}
 		}
 	}
-	updateHealthcheck(builder, c)
-	if c.IsSet("label") || c.IsSet("l") {
-		for _, labelSpec := range c.StringSlice("label") {
+	updateHealthcheck(builder, c, iopts)
+	if c.Flag("label").Changed {
+		for _, labelSpec := range iopts.labels {
 			label := strings.SplitN(labelSpec, "=", 2)
 			if len(label) > 1 {
 				builder.SetLabel(label[0], label[1])
@@ -256,36 +216,37 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 				builder.UnsetLabel(label[0])
 			}
 		}
-		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) LABEL %s", strings.Join(c.StringSlice("label"), " "))
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) LABEL %s", strings.Join(iopts.labels, " "))
 	}
-	if c.IsSet("workingdir") {
-		builder.SetWorkDir(c.String("workingdir"))
-		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) WORKDIR %s", c.String("workingdir"))
+	if c.Flag("workingdir").Changed {
+		builder.SetWorkDir(iopts.workingDir)
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) WORKDIR %s", iopts.workingDir)
 	}
-	if c.IsSet("comment") {
-		builder.SetComment(c.String("comment"))
+	if c.Flag("comment").Changed {
+		builder.SetComment(iopts.comment)
 	}
-	if c.IsSet("history-comment") {
-		builder.SetHistoryComment(c.String("history-comment"))
+	if c.Flag("history-comment").Changed {
+		builder.SetHistoryComment(iopts.historyComment)
 	}
-	if c.IsSet("domainname") {
-		builder.SetDomainname(c.String("domainname"))
+	if c.Flag("domainname").Changed {
+		builder.SetDomainname(iopts.domainName)
 	}
-	if c.IsSet("hostname") {
-		name := c.String("hostname")
+	if c.Flag("hostname").Changed {
+		name := iopts.hostname
 		if name != "" && builder.Format == buildah.OCIv1ImageManifest {
 			logrus.Errorf("HOSTNAME is not supported for OCI V1 image format, hostname %s will be ignored. Must use `docker` format", name)
 		}
 		builder.SetHostname(name)
 	}
-	if c.IsSet("onbuild") {
-		for _, onbuild := range c.StringSlice("onbuild") {
+	if c.Flag("onbuild").Changed {
+		fmt.Println("--------------->")
+		for _, onbuild := range iopts.onbuild {
 			builder.SetOnBuild(onbuild)
 			conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ONBUILD %s", onbuild)
 		}
 	}
-	if c.IsSet("annotation") || c.IsSet("a") {
-		for _, annotationSpec := range c.StringSlice("annotation") {
+	if c.Flag("annotation").Changed {
+		for _, annotationSpec := range iopts.annotation {
 			annotation := strings.SplitN(annotationSpec, "=", 2)
 			if len(annotation) > 1 {
 				builder.SetAnnotation(annotation[0], annotation[1])
@@ -296,8 +257,8 @@ func updateConfig(builder *buildah.Builder, c *cli.Context) {
 	}
 }
 
-func updateHealthcheck(builder *buildah.Builder, c *cli.Context) {
-	if c.IsSet("healthcheck") || c.IsSet("healthcheck-interval") || c.IsSet("healthcheck-retries") || c.IsSet("healthcheck-start-period") || c.IsSet("healthcheck-timeout") {
+func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configResults) {
+	if c.Flag("healthcheck").Changed || c.Flag("healthcheck-interval").Changed || c.Flag("healthcheck-retries").Changed || c.Flag("healthcheck-start-period").Changed || c.Flag("healthcheck-timeout").Changed {
 		healthcheck := builder.Healthcheck()
 		args := ""
 		if healthcheck == nil {
@@ -309,53 +270,54 @@ func updateHealthcheck(builder *buildah.Builder, c *cli.Context) {
 				Retries:     3,
 			}
 		}
-		if c.IsSet("healthcheck") {
-			test, err := shellwords.Parse(c.String("healthcheck"))
+		if c.Flag("healthcheck").Changed {
+			test, err := shellwords.Parse(iopts.healthcheck)
 			if err != nil {
-				logrus.Errorf("error parsing --healthcheck %q: %v", c.String("healthcheck"), err)
+				logrus.Errorf("error parsing --healthcheck %q: %v", iopts.healthcheck, err)
 			}
 			healthcheck.Test = test
 		}
-		if c.IsSet("healthcheck-interval") {
-			duration, err := time.ParseDuration(c.String("healthcheck-interval"))
+		if c.Flag("healthcheck-interval").Changed {
+			duration, err := time.ParseDuration(iopts.healthcheckInterval)
 			if err != nil {
-				logrus.Errorf("error parsing --healthcheck-interval %q: %v", c.String("healthcheck-interval"), err)
+				logrus.Errorf("error parsing --healthcheck-interval %q: %v", iopts.healthcheckInterval, err)
 			}
 			healthcheck.Interval = duration
-			args = args + "--interval=" + c.String("healthcheck-interval") + " "
+			args = args + "--interval=" + iopts.healthcheckInterval + " "
 		}
-		if c.IsSet("healthcheck-retries") {
-			healthcheck.Retries = c.Int("healthcheck-retries")
-			args = args + "--retries=" + c.String("healthcheck-retries") + " "
+		if c.Flag("healthcheck-retries").Changed {
+			healthcheck.Retries = iopts.healthcheckRetries
+			args = args + "--retries=" + strconv.Itoa(iopts.healthcheckRetries) + " "
+			//args = fmt.Sprintf("%s --retries=%d ", args, iopts.healthcheckRetries)
+
 		}
-		if c.IsSet("healthcheck-start-period") {
-			duration, err := time.ParseDuration(c.String("healthcheck-start-period"))
+		if c.Flag("healthcheck-start-period").Changed {
+			duration, err := time.ParseDuration(iopts.healthcheckStartPeriod)
 			if err != nil {
-				logrus.Errorf("error parsing --healthcheck-start-period %q: %v", c.String("healthcheck-start-period"), err)
+				logrus.Errorf("error parsing --healthcheck-start-period %q: %v", iopts.healthcheckStartPeriod, err)
 			}
 			healthcheck.StartPeriod = duration
-			args = args + "--start-period=" + c.String("healthcheck-start-period") + " "
+			args = args + "--start-period=" + iopts.healthcheckStartPeriod + " "
 		}
-		if c.IsSet("healthcheck-timeout") {
-			duration, err := time.ParseDuration(c.String("healthcheck-timeout"))
+		if c.Flag("healthcheck-timeout").Changed {
+			duration, err := time.ParseDuration(iopts.healthcheckTimeout)
 			if err != nil {
-				logrus.Errorf("error parsing --healthcheck-timeout %q: %v", c.String("healthcheck-timeout"), err)
+				logrus.Errorf("error parsing --healthcheck-timeout %q: %v", iopts.healthcheckTimeout, err)
 			}
 			healthcheck.Timeout = duration
-			args = args + "--timeout=" + c.String("healthcheck-timeout") + " "
+			args = args + "--timeout=" + iopts.healthcheckTimeout + " "
 		}
 		if len(healthcheck.Test) == 0 {
 			builder.SetHealthcheck(nil)
 			conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) HEALTHCHECK NONE")
 		} else {
 			builder.SetHealthcheck(healthcheck)
-			conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) HEALTHCHECK %s%s", args, c.String("healthcheck"))
+			conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) HEALTHCHECK %s%s", args, iopts.healthcheck)
 		}
 	}
 }
 
-func configCmd(c *cli.Context) error {
-	args := c.Args()
+func configCmd(c *cobra.Command, args []string, iopts configResults) error {
 	if len(args) == 0 {
 		return errors.Errorf("container ID must be specified")
 	}
@@ -366,9 +328,6 @@ func configCmd(c *cli.Context) error {
 		return errors.Errorf("too many arguments specified")
 	}
 	name := args[0]
-	if err := parse.ValidateFlags(c, configFlags); err != nil {
-		return err
-	}
 
 	store, err := getStore(c)
 	if err != nil {
@@ -380,6 +339,6 @@ func configCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
-	updateConfig(builder, c)
+	updateConfig(builder, c, iopts)
 	return builder.Save()
 }

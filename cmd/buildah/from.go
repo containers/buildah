@@ -9,76 +9,71 @@ import (
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	util "github.com/containers/buildah/util"
+	"github.com/containers/buildah/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var (
-	fromFlags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "authfile",
-			Usage: "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json",
-		},
-		cli.StringFlag{
-			Name:  "cert-dir",
-			Value: "",
-			Usage: "use certificates at the specified path to access the registry",
-		},
-		cli.StringFlag{
-			Name:  "cidfile",
-			Usage: "write the container ID to the file",
-		},
-		cli.StringFlag{
-			Name:  "creds",
-			Value: "",
-			Usage: "use `[username[:password]]` for accessing the registry",
-		},
-		cli.StringFlag{
-			Name:   "format, f",
-			Usage:  "`format` of the image manifest and metadata",
-			Value:  defaultFormat(),
-			Hidden: true,
-		},
-		cli.StringFlag{
-			Name:  "name",
-			Usage: "`name` for the working container",
-		},
-		cli.BoolTFlag{
-			Name:  "pull",
-			Usage: "pull the image if not present",
-		},
-		cli.BoolFlag{
-			Name:  "pull-always",
-			Usage: "pull the image even if named image is present in store (supersedes pull option)",
-		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "don't output progress information when pulling images",
-		},
-		cli.StringFlag{
-			Name:  "signature-policy",
-			Usage: "`pathname` of signature policy file (not usually used)",
-		},
-		cli.BoolTFlag{
-			Name:  "tls-verify",
-			Usage: "require HTTPS and verify certificates when accessing the registry",
-		},
-	}
-	fromDescription = "Creates a new working container, either from scratch or using a specified\n   image as a starting point."
+type fromReply struct {
+	authfile        string
+	certDir         string
+	cidfile         string
+	creds           string
+	format          string
+	name            string
+	pull            bool
+	pullAlways      bool
+	quiet           bool
+	signaturePolicy string
+	tlsVerify       bool
+	*buildahcli.FromAndBudResults
+	*buildahcli.UserNSResults
+	*buildahcli.NameSpaceResults
+}
 
-	fromCommand = cli.Command{
-		Name:                   "from",
-		Usage:                  "Create a working container based on an image",
-		Description:            fromDescription,
-		Flags:                  sortFlags(append(fromFlags, buildahcli.FromAndBudFlags...)),
-		Action:                 fromCmd,
-		ArgsUsage:              "IMAGE",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
+func init() {
+	var (
+		fromDescription = "Creates a new working container, either from scratch or using a specified\n   image as a starting point."
+		opts            fromReply
+	)
+	fromAndBudResults := buildahcli.FromAndBudResults{}
+	userNSResults := buildahcli.UserNSResults{}
+	namespaceResults := buildahcli.NameSpaceResults{}
+	fromCommand := &cobra.Command{
+		Use:   "from",
+		Short: "Create a working container based on an image",
+		Long:  fromDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Add in the results from the common cli commands
+			opts.FromAndBudResults = &fromAndBudResults
+			opts.UserNSResults = &userNSResults
+			opts.NameSpaceResults = &namespaceResults
+			return fromCmd(cmd, args, opts)
+		},
+		Example: "IMAGE",
 	}
-)
+
+	flags := fromCommand.Flags()
+	flags.SetInterspersed(false)
+	flags.StringVar(&opts.authfile, "authfile", "", "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json")
+	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
+	flags.StringVar(&opts.cidfile, "cidfile", "", "write the container ID to the file")
+	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
+	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
+	flags.StringVar(&opts.name, "name", "", "`name` for the working container")
+	flags.BoolVar(&opts.pull, "pull", true, "pull the image if not present")
+	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if named image is present in store (supersedes pull option)")
+	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pulling images")
+	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
+	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
+
+	// Add in the common flags
+	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
+	flags.AddFlagSet(&fromAndBudFlags)
+
+	rootCmd.AddCommand(fromCommand)
+}
 
 func onBuild(builder *buildah.Builder) error {
 	ctr := 0
@@ -155,8 +150,7 @@ func onBuild(builder *buildah.Builder) error {
 	return nil
 }
 
-func fromCmd(c *cli.Context) error {
-	args := c.Args()
+func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if len(args) == 0 {
 		return errors.Errorf("an image name (or \"scratch\") must be specified")
 	}
@@ -166,12 +160,6 @@ func fromCmd(c *cli.Context) error {
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
-	if err := parse.ValidateFlags(c, fromFlags); err != nil {
-		return err
-	}
-	if err := parse.ValidateFlags(c, buildahcli.FromAndBudFlags); err != nil {
-		return err
-	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
@@ -179,14 +167,14 @@ func fromCmd(c *cli.Context) error {
 	}
 
 	pullPolicy := buildah.PullNever
-	if c.BoolT("pull") {
+	if iopts.pull {
 		pullPolicy = buildah.PullIfMissing
 	}
-	if c.Bool("pull-always") {
+	if iopts.pullAlways {
 		pullPolicy = buildah.PullAlways
 	}
 
-	signaturePolicy := c.String("signature-policy")
+	signaturePolicy := iopts.signaturePolicy
 
 	store, err := getStore(c)
 	if err != nil {
@@ -221,7 +209,7 @@ func fromCmd(c *cli.Context) error {
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 
-	format, err := getFormat(c)
+	format, err := getFormat(iopts.format)
 	if err != nil {
 		return err
 	}
@@ -229,25 +217,25 @@ func fromCmd(c *cli.Context) error {
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
 		Transport:             transport,
-		Container:             c.String("name"),
+		Container:             iopts.name,
 		PullPolicy:            pullPolicy,
 		SignaturePolicyPath:   signaturePolicy,
 		SystemContext:         systemContext,
-		DefaultMountsFilePath: c.GlobalString("default-mounts-file"),
+		DefaultMountsFilePath: globalFlagResults.DefaultMountsFile,
 		Isolation:             isolation,
 		NamespaceOptions:      namespaceOptions,
 		ConfigureNetwork:      networkPolicy,
-		CNIPluginPath:         c.String("cni-plugin-path"),
-		CNIConfigDir:          c.String("cni-config-dir"),
+		CNIPluginPath:         iopts.CNIPlugInPath,
+		CNIConfigDir:          iopts.CNIConfigDir,
 		IDMappingOptions:      idmappingOptions,
-		AddCapabilities:       c.StringSlice("cap-add"),
-		DropCapabilities:      c.StringSlice("cap-drop"),
+		AddCapabilities:       iopts.CapAdd,
+		DropCapabilities:      iopts.CapDrop,
 		CommonBuildOpts:       commonOpts,
 		Format:                format,
-		PullBlobDirectory:     c.String("blob-cache"),
+		PullBlobDirectory:     iopts.BlobCache,
 	}
 
-	if !c.Bool("quiet") {
+	if !iopts.quiet {
 		options.ReportWriter = os.Stderr
 	}
 
@@ -260,8 +248,8 @@ func fromCmd(c *cli.Context) error {
 		return err
 	}
 
-	if c.String("cidfile") != "" {
-		filePath := c.String("cidfile")
+	if iopts.cidfile != "" {
+		filePath := iopts.cidfile
 		if err := ioutil.WriteFile(filePath, []byte(builder.ContainerID), 0644); err != nil {
 			return errors.Wrapf(err, "filed to write Container ID File %q", filePath)
 		}

@@ -16,8 +16,8 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/syndtr/gocapability/capability"
-	"github.com/urfave/cli"
 )
 
 const (
@@ -28,16 +28,18 @@ const (
 
 var (
 	unshareDescription = "Runs a command in a modified user namespace."
-	unshareCommand     = cli.Command{
-		Name:                   "unshare",
-		Usage:                  "Run a command in a modified user namespace",
-		Description:            unshareDescription,
-		Action:                 unshareCmd,
-		ArgsUsage:              "[COMMAND [ARGS [...]]]",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
+	unshareCommand     = &cobra.Command{
+		Use:     "unshare",
+		Short:   "Run a command in a modified user namespace",
+		Long:    unshareDescription,
+		RunE:    unshareCmd,
+		Example: "[COMMAND [ARGS [...]]]",
 	}
 )
+
+func init() {
+	rootCmd.AddCommand(unshareCommand)
+}
 
 type runnable interface {
 	Run() error
@@ -50,21 +52,22 @@ func bailOnError(err error, format string, a ...interface{}) {
 		} else {
 			logrus.Errorf("%v", err)
 		}
-		cli.OsExiter(1)
+		os.Exit(1)
 	}
 }
 
-func maybeReexecUsingUserNamespace(c *cli.Context, evenForRoot bool) {
+func maybeReexecUsingUserNamespace(args []string, evenForRoot bool) {
 	// If we've already been through this once, no need to try again.
 	if os.Getenv(startedInUserNS) != "" {
 		return
 	}
 
 	// If this is one of the commands that doesn't need this indirection, skip it.
-	if c.NArg() == 0 {
+	if len(args) == 0 {
 		return
 	}
-	switch c.Args()[0] {
+
+	switch args[0] {
 	case "help", "version":
 		return
 	}
@@ -193,11 +196,10 @@ func execRunnable(cmd runnable) {
 }
 
 // unshareCmd execs whatever using the ID mappings that we want to use for ourselves
-func unshareCmd(c *cli.Context) error {
+func unshareCmd(c *cobra.Command, args []string) error {
 	// force reexec using the configured ID mappings
-	maybeReexecUsingUserNamespace(c, true)
+	maybeReexecUsingUserNamespace(args, true)
 	// exec the specified command, if there is one
-	args := c.Args()
 	if len(args) < 1 {
 		// try to exec the shell, if one's set
 		shell, shellSet := os.LookupEnv("SHELL")

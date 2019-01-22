@@ -16,53 +16,25 @@ import (
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var (
-	pushFlags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "authfile",
-			Usage: "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json",
-		},
-		cli.StringFlag{
-			Name:   "blob-cache",
-			Value:  "",
-			Usage:  "assume image blobs in the specified directory will be available for pushing",
-			Hidden: true, // this is here mainly so that we can test the API during integration tests
-		},
-		cli.StringFlag{
-			Name:  "cert-dir",
-			Value: "",
-			Usage: "use certificates at the specified path to access the registry",
-		},
-		cli.StringFlag{
-			Name:  "creds",
-			Value: "",
-			Usage: "use `[username[:password]]` for accessing the registry",
-		},
-		cli.BoolFlag{
-			Name:  "disable-compression, D",
-			Usage: "don't compress layers",
-		},
-		cli.StringFlag{
-			Name:  "format, f",
-			Usage: "manifest type (oci, v2s1, or v2s2) to use when saving image using the 'dir:' transport (default is manifest type of source)",
-		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "don't output progress information when pushing images",
-		},
-		cli.StringFlag{
-			Name:  "signature-policy",
-			Usage: "`pathname` of signature policy file (not usually used)",
-		},
-		cli.BoolTFlag{
-			Name:  "tls-verify",
-			Usage: "require HTTPS and verify certificates when accessing the registry",
-		},
-	}
-	pushDescription = fmt.Sprintf(`
+type pushResults struct {
+	authfile           string
+	blobCache          string
+	certDir            string
+	creds              string
+	disableCompression bool
+	format             string
+	quiet              bool
+	signaturePolicy    string
+	tlsVerify          bool
+}
+
+func init() {
+	var (
+		opts            pushResults
+		pushDescription = fmt.Sprintf(`
    Pushes an image to a specified location.
 
    The Image "DESTINATION" uses a "transport":"details" format. If not specified, will reuse source IMAGE as DESTINATION.
@@ -72,27 +44,38 @@ var (
 
    See buildah-push(1) section "DESTINATION" for the expected format
 `, getListOfTransports())
+	)
 
-	pushCommand = cli.Command{
-		Name:                   "push",
-		Usage:                  "Push an image to a specified destination",
-		Description:            pushDescription,
-		Flags:                  sortFlags(pushFlags),
-		Action:                 pushCmd,
-		ArgsUsage:              "IMAGE [DESTINATION]",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
+	pushCommand := &cobra.Command{
+		Use:   "push",
+		Short: "Push an image to a specified destination",
+		Long:  pushDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return pushCmd(cmd, args, opts)
+		},
+		Example: "IMAGE [DESTINATION]",
 	}
-)
+	flags := pushCommand.Flags()
+	flags.SetInterspersed(false)
+	flags.StringVar(&opts.authfile, "authfile", "", "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json")
+	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
+	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
+	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
+	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", false, "don't compress layers")
+	flags.StringVarP(&opts.format, "format", "f", "", "manifest type (oci, v2s1, or v2s2) to use when saving image using the 'dir:' transport (default is manifest type of source)")
+	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pushing images")
+	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
+	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 
-func pushCmd(c *cli.Context) error {
+	flags.MarkHidden("blob-cache")
+
+	rootCmd.AddCommand(pushCommand)
+}
+
+func pushCmd(c *cobra.Command, args []string, iopts pushResults) error {
 	var src, destSpec string
-	args := c.Args()
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
-		return err
-	}
-	if err := parse.ValidateFlags(c, pushFlags); err != nil {
 		return err
 	}
 
@@ -111,7 +94,7 @@ func pushCmd(c *cli.Context) error {
 	}
 
 	compress := imagebuildah.Gzip
-	if c.Bool("disable-compression") {
+	if iopts.disableCompression {
 		compress = imagebuildah.Uncompressed
 	}
 
@@ -147,8 +130,8 @@ func pushCmd(c *cli.Context) error {
 	}
 
 	var manifestType string
-	if c.IsSet("format") {
-		switch c.String("format") {
+	if iopts.format != "" {
+		switch iopts.format {
 		case "oci":
 			manifestType = imgspecv1.MediaTypeImageManifest
 		case "v2s1":
@@ -156,19 +139,19 @@ func pushCmd(c *cli.Context) error {
 		case "v2s2", "docker":
 			manifestType = manifest.DockerV2Schema2MediaType
 		default:
-			return fmt.Errorf("unknown format %q. Choose on of the supported formats: 'oci', 'v2s1', or 'v2s2'", c.String("format"))
+			return fmt.Errorf("unknown format %q. Choose on of the supported formats: 'oci', 'v2s1', or 'v2s2'", iopts.format)
 		}
 	}
 
 	options := buildah.PushOptions{
 		Compression:         compress,
 		ManifestType:        manifestType,
-		SignaturePolicyPath: c.String("signature-policy"),
+		SignaturePolicyPath: iopts.signaturePolicy,
 		Store:               store,
 		SystemContext:       systemContext,
-		BlobDirectory:       c.String("blob-cache"),
+		BlobDirectory:       iopts.blobCache,
 	}
-	if !c.Bool("quiet") {
+	if !iopts.quiet {
 		options.ReportWriter = os.Stderr
 	}
 

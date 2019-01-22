@@ -10,8 +10,7 @@ import (
 	"github.com/containers/buildah"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
 //Overwritten at build time
@@ -22,11 +21,7 @@ var (
 )
 
 //Function to get and print info for version command
-func versionCmd(c *cli.Context) error {
-	if len(c.Args()) > 0 {
-		return errors.New("'buildah version' does not accept arguments")
-	}
-
+func versionCmd(c *cobra.Command, args []string) error {
 	var err error
 	buildTime := int64(0)
 	if buildInfo != "" {
@@ -53,11 +48,14 @@ func versionCmd(c *cli.Context) error {
 }
 
 //cli command to print out the version info of buildah
-var versionCommand = cli.Command{
-	Name:                   "version",
-	Usage:                  "Display the Buildah version information",
-	Description:            "Displays Buildah version information.",
-	Action:                 versionCmd,
-	SkipArgReorder:         true,
-	UseShortOptionHandling: true,
+var versionCommand = &cobra.Command{
+	Use:   "version",
+	Short: "Display the Buildah version information",
+	Long:  "Displays Buildah version information.",
+	RunE:  versionCmd,
+	Args:  cobra.NoArgs,
+}
+
+func init() {
+	rootCmd.AddCommand(versionCommand)
 }

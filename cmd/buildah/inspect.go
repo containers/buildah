@@ -11,7 +11,7 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -20,35 +20,38 @@ const (
 	inspectTypeImage     = "image"
 )
 
-var (
-	inspectFlags = []cli.Flag{
-		cli.StringFlag{
-			Name:  "format, f",
-			Usage: "use `format` as a Go template to format the output",
-		},
-		cli.StringFlag{
-			Name:  "type, t",
-			Usage: "look at the item of the specified `type` (container or image) and name",
-			Value: inspectTypeContainer,
-		},
-	}
-	inspectDescription = "Inspects a build container's or built image's configuration."
-	inspectCommand     = cli.Command{
-		Name:                   "inspect",
-		Usage:                  "Inspect the configuration of a container or image",
-		Description:            inspectDescription,
-		Flags:                  sortFlags(inspectFlags),
-		Action:                 inspectCmd,
-		ArgsUsage:              "CONTAINER-OR-IMAGE",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
-	}
-)
+type inspectResults struct {
+	format      string
+	inspectType string
+}
 
-func inspectCmd(c *cli.Context) error {
+func init() {
+	var (
+		opts               inspectResults
+		inspectDescription = "Inspects a build container's or built image's configuration."
+	)
+
+	inspectCommand := &cobra.Command{
+		Use:   "inspect",
+		Short: "Inspect the configuration of a container or image",
+		Long:  inspectDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return inspectCmd(cmd, args, opts)
+		},
+		Example: "CONTAINER-OR-IMAGE",
+	}
+
+	flags := inspectCommand.Flags()
+	flags.SetInterspersed(false)
+	flags.StringVarP(&opts.format, "format", "f", "", "use `format` as a Go template to format the output")
+	flags.StringVarP(&opts.inspectType, "type", "t", inspectTypeContainer, "look at the item of the specified `type` (container or image) and name")
+
+	rootCmd.AddCommand(inspectCommand)
+}
+
+func inspectCmd(c *cobra.Command, args []string, iopts inspectResults) error {
 	var builder *buildah.Builder
 
-	args := c.Args()
 	if len(args) == 0 {
 		return errors.Errorf("container or image name must be specified")
 	}
@@ -57,9 +60,6 @@ func inspectCmd(c *cli.Context) error {
 	}
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
-	}
-	if err := parse.ValidateFlags(c, inspectFlags); err != nil {
-		return err
 	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)
@@ -76,11 +76,11 @@ func inspectCmd(c *cli.Context) error {
 
 	ctx := getContext()
 
-	switch c.String("type") {
+	switch iopts.inspectType {
 	case inspectTypeContainer:
 		builder, err = openBuilder(ctx, store, name)
 		if err != nil {
-			if c.IsSet("type") {
+			if c.Flag("type").Changed {
 				return errors.Wrapf(err, "error reading build container %q", name)
 			}
 			builder, err = openImage(ctx, systemContext, store, name)
@@ -97,8 +97,8 @@ func inspectCmd(c *cli.Context) error {
 		return errors.Errorf("the only recognized types are %q and %q", inspectTypeContainer, inspectTypeImage)
 	}
 	out := buildah.GetBuildInfo(builder)
-	if c.IsSet("format") {
-		format := c.String("format")
+	if iopts.format != "" {
+		format := iopts.format
 		if matched, err := regexp.MatchString("{{.*}}", format); err != nil {
 			return errors.Wrapf(err, "error validating format provided: %s", format)
 		} else if !matched {
