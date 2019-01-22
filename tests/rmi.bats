@@ -42,8 +42,8 @@ load helpers
   run buildah --debug=false rmi image1 image2 image3
   [ "${lines[0]}" == "could not get image \"image1\": identifier is not an image" ]
   [ "${lines[1]}" == "could not get image \"image2\": identifier is not an image" ]
-  [ "${lines[2]}" == "could not get image \"image3\": identifier is not an image" ]
-  [ $(wc -l <<< "$output") -eq 3 ]
+  [[ "${lines[2]}" =~ "could not get image \"image3\": identifier is not an image" ]]
+  [ $(wc -l <<< "$output") -gt 2 ]
   [ "${status}" -eq 1 ]
 }
 
@@ -108,19 +108,19 @@ load helpers
   buildah rm "$cid"
   run buildah --debug=false rmi -a alpine
   [ "$status" -eq 1 ]
-  [ "$output" == "when using the --all switch, you may not pass any images names or IDs" ]
+  [[ "$output" =~ "when using the --all switch, you may not pass any images names or IDs" ]]
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   run buildah --debug=false rmi -p alpine
   [ "$status" -eq 1 ]
-  [ "$output" == "when using the --prune switch, you may not pass any images names or IDs" ]
+  [[ "$output" =~ "when using the --prune switch, you may not pass any images names or IDs" ]]
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   run buildah --debug=false rmi -a -p
   [ "$status" -eq 1 ]
-  [ "$output" == "when using the --all switch, you may not use --prune switch" ]
+  [[ "$output" =~ "when using the --all switch, you may not use --prune switch" ]]
   buildah rmi --all
 }
 

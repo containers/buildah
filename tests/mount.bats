@@ -59,6 +59,6 @@ load helpers
   [[ "${lines[2]}" =~ "/tmp" ]]
   [ $(wc -l <<< "$output") -eq 3 ]
   [ "${status}" -eq 0 ]
-  buildah rm -all
+  buildah rm --all
   buildah rmi -f alpine
 }

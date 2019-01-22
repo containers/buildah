@@ -15,60 +15,54 @@ import (
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var (
-	rmiDescription = "Removes one or more locally stored images."
-	rmiFlags       = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "all, a",
-			Usage: "remove all images",
-		},
-		cli.BoolFlag{
-			Name:  "prune, p",
-			Usage: "prune dangling images",
-		},
-		cli.BoolFlag{
-			Name:  "force, f",
-			Usage: "force removal of the image and any containers using the image",
-		},
-	}
-	rmiCommand = cli.Command{
-		Name:                   "rmi",
-		Usage:                  "Remove one or more images from local storage",
-		Description:            rmiDescription,
-		Action:                 rmiCmd,
-		ArgsUsage:              "IMAGE-NAME-OR-ID [...]",
-		Flags:                  sortFlags(rmiFlags),
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
-	}
-)
+type rmiResults struct {
+	all   bool
+	prune bool
+	force bool
+}
 
-func rmiCmd(c *cli.Context) error {
-	force := c.Bool("force")
-	removeAll := c.Bool("all")
-	pruneDangling := c.Bool("prune")
+func init() {
+	var (
+		rmiDescription = "Removes one or more locally stored images."
+		opts           rmiResults
+	)
+	rmiCommand := &cobra.Command{
+		Use:   "rmi",
+		Short: "Remove one or more images from local storage",
+		Long:  rmiDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return rmiCmd(cmd, args, opts)
+		},
+		Example: "IMAGE-NAME-OR-ID [...]",
+	}
+	flags := rmiCommand.Flags()
+	flags.SetInterspersed(false)
 
-	args := c.Args()
-	if len(args) == 0 && !removeAll && !pruneDangling {
+	flags.BoolVarP(&opts.all, "all", "a", false, "remove all images")
+	flags.BoolVarP(&opts.prune, "prune", "p", false, "prune dangling images")
+	flags.BoolVarP(&opts.force, "force", "f", false, "force removal of the image and any containers using the image")
+
+	rootCmd.AddCommand(rmiCommand)
+}
+
+func rmiCmd(c *cobra.Command, args []string, iopts rmiResults) error {
+	if len(args) == 0 && !iopts.all && !iopts.prune {
 		return errors.Errorf("image name or ID must be specified")
 	}
-	if len(args) > 0 && removeAll {
+	if len(args) > 0 && iopts.all {
 		return errors.Errorf("when using the --all switch, you may not pass any images names or IDs")
 	}
-	if removeAll && pruneDangling {
+	if iopts.all && iopts.prune {
 		return errors.Errorf("when using the --all switch, you may not use --prune switch")
 	}
-	if len(args) > 0 && pruneDangling {
+	if len(args) > 0 && iopts.prune {
 		return errors.Errorf("when using the --prune switch, you may not pass any images names or IDs")
 	}
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
-		return err
-	}
-	if err := parse.ValidateFlags(c, rmiFlags); err != nil {
 		return err
 	}
 
@@ -79,14 +73,14 @@ func rmiCmd(c *cli.Context) error {
 
 	imagesToDelete := args[:]
 
-	if removeAll {
+	if iopts.all {
 		imagesToDelete, err = findAllImages(store)
 		if err != nil {
 			return err
 		}
 	}
 
-	if pruneDangling {
+	if iopts.prune {
 		imagesToDelete, err = findDanglingImages(store)
 		if err != nil {
 			return err
@@ -99,7 +93,7 @@ func rmiCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	return deleteImages(ctx, systemContext, store, imagesToDelete, removeAll, force)
+	return deleteImages(ctx, systemContext, store, imagesToDelete, iopts.all, iopts.force)
 }
 
 func deleteImages(ctx context.Context, systemContext *types.SystemContext, store storage.Store, imagesToDelete []string, removeAll, force bool) error {

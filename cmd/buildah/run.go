@@ -10,84 +10,79 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var (
-	runFlags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "add-history",
-			Usage: "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)",
-		},
-		cli.StringSliceFlag{
-			Name:  "cap-add",
-			Usage: "add the specified capability (default [])",
-		},
-		cli.StringSliceFlag{
-			Name:  "cap-drop",
-			Usage: "drop the specified capability (default [])",
-		},
-		cli.StringFlag{
-			Name:  "hostname",
-			Usage: "set the hostname inside of the container",
-		},
-		cli.StringFlag{
-			Name:  "isolation",
-			Usage: "which process isolation `type` to use",
-		},
-		cli.StringFlag{
-			Name:  "runtime",
-			Usage: "`path` to an alternate OCI runtime",
-			Value: util.Runtime(),
-		},
-		cli.StringSliceFlag{
-			Name:  "runtime-flag",
-			Usage: "add global flags for the container runtime",
-		},
-		cli.BoolFlag{
-			Name:  "no-pivot",
-			Usage: "do not use pivot root to jail process inside rootfs",
-		},
-		cli.StringSliceFlag{
-			Name:  "security-opt",
-			Usage: "security options (default [])",
-		},
-		cli.BoolFlag{
-			Name:  "t, tty, terminal",
-			Usage: "allocate a pseudo-TTY in the container",
-		},
-		cli.StringSliceFlag{
-			Name:  "volume, v",
-			Usage: "bind mount a host location into the container while running the command",
-		},
-	}
-	runDescription = "Runs a specified command using the container's root filesystem as a root\n   filesystem, using configuration settings inherited from the container's\n   image or as specified using previous calls to the config command."
-	runCommand     = cli.Command{
-		Name:                   "run",
-		Usage:                  "Run a command inside of the container",
-		Description:            runDescription,
-		Flags:                  sortFlags(append(append(runFlags, userFlags...), buildahcli.NamespaceFlags...)),
-		Action:                 runCmd,
-		ArgsUsage:              "CONTAINER-NAME-OR-ID COMMAND [ARGS [...]]",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
-	}
-)
+type runInputOptions struct {
+	addHistory     bool
+	capAdd         []string
+	capDrop        []string
+	hostname       string
+	isolation      string
+	runtime        string
+	runtimeFlag    []string
+	noPivot        bool
+	securityOption []string
+	terminal       bool
+	volumes        []string
+	*buildahcli.NameSpaceResults
+}
 
-func runCmd(c *cli.Context) error {
-	args := c.Args()
+func init() {
+	var (
+		runDescription = "Runs a specified command using the container's root filesystem as a root\n   filesystem, using configuration settings inherited from the container's\n   image or as specified using previous calls to the config command."
+		opts           runInputOptions
+	)
+
+	namespaceResults := buildahcli.NameSpaceResults{}
+
+	runCommand := &cobra.Command{
+		Use:   "run",
+		Short: "Run a command inside of the container",
+		Long:  runDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.NameSpaceResults = &namespaceResults
+			return runCmd(cmd, args, opts)
+
+		},
+		Example: "CONTAINER-NAME-OR-ID COMMAND [ARGS [...]]",
+	}
+
+	flags := runCommand.Flags()
+	flags.SetInterspersed(false)
+	flags.BoolVar(&opts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
+	flags.StringSliceVar(&opts.capAdd, "cap-add", []string{}, "add the specified capability (default []")
+	flags.StringSliceVar(&opts.capDrop, "cap-drop", []string{}, "drop the specified capability (default [])")
+	flags.StringVar(&opts.hostname, "hostname", "", "set the hostname inside of the container")
+	flags.StringVar(&opts.isolation, "isolation", "", "which process isolation `type` to use")
+	flags.StringVar(&opts.runtime, "runtime", util.Runtime(), "`path` to an alternate OCI runtime")
+	flags.StringSliceVar(&opts.runtimeFlag, "runtime-flag", []string{}, "add global flags for the container runtime")
+	flags.BoolVar(&opts.noPivot, "no-pivot", false, "do not use pivot root to jail process inside rootfs")
+	flags.StringSliceVar(&opts.securityOption, "security-opt", []string{}, "security options (default [])")
+	// TODO add-third alias for tty
+	flags.BoolVarP(&opts.terminal, "terminal", "t", false, "allocate a pseudo-TTY in the container")
+	flags.BoolVar(&opts.terminal, "tty", false, "allocate a pseudo-TTY in the container")
+	flags.MarkHidden("tty")
+	flags.StringSliceVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
+
+	userFlags := getUserFlags()
+	namespaceFlags := buildahcli.GetNameSpaceFlags(&namespaceResults)
+
+	flags.AddFlagSet(&userFlags)
+	flags.AddFlagSet(&namespaceFlags)
+
+	rootCmd.AddCommand(runCommand)
+}
+
+func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	if len(args) == 0 {
 		return errors.Errorf("container ID must be specified")
 	}
 	name := args[0]
-	if err := parse.ValidateFlags(c, append(append(runFlags, userFlags...), buildahcli.NamespaceFlags...)); err != nil {
-		return err
-	}
-
-	args = args.Tail()
+	args = Tail(args)
 	if len(args) > 0 && args[0] == "--" {
 		args = args[1:]
 	}
@@ -107,7 +102,7 @@ func runCmd(c *cli.Context) error {
 	}
 
 	isolation := builder.Isolation
-	if c.IsSet("isolation") {
+	if c.Flag("isolation").Changed {
 		isolation, err = parse.IsolationOption(c)
 		if err != nil {
 			return err
@@ -115,11 +110,11 @@ func runCmd(c *cli.Context) error {
 	}
 
 	runtimeFlags := []string{}
-	for _, arg := range c.StringSlice("runtime-flag") {
+	for _, arg := range iopts.runtimeFlag {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
-	noPivot := c.Bool("no-pivot") || (os.Getenv("BUILDAH_NOPIVOT") != "")
+	noPivot := iopts.noPivot || (os.Getenv("BUILDAH_NOPIVOT") != "")
 
 	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
@@ -127,22 +122,22 @@ func runCmd(c *cli.Context) error {
 	}
 
 	options := buildah.RunOptions{
-		Hostname:         c.String("hostname"),
-		Runtime:          c.String("runtime"),
+		Hostname:         iopts.hostname,
+		Runtime:          iopts.runtime,
 		Args:             runtimeFlags,
 		NoPivot:          noPivot,
-		User:             c.String("user"),
+		User:             c.Flag("user").Value.String(),
 		Isolation:        isolation,
 		NamespaceOptions: namespaceOptions,
 		ConfigureNetwork: networkPolicy,
-		CNIPluginPath:    c.String("cni-plugin-path"),
-		CNIConfigDir:     c.String("cni-config-dir"),
-		AddCapabilities:  c.StringSlice("cap-add"),
-		DropCapabilities: c.StringSlice("cap-drop"),
+		CNIPluginPath:    iopts.CNIPlugInPath,
+		CNIConfigDir:     iopts.CNIConfigDir,
+		AddCapabilities:  iopts.capAdd,
+		DropCapabilities: iopts.capDrop,
 	}
 
-	if c.IsSet("tty") {
-		if c.Bool("tty") {
+	if c.Flag("terminal").Changed {
+		if iopts.terminal {
 			options.Terminal = buildah.WithTerminal
 		} else {
 			options.Terminal = buildah.WithoutTerminal
@@ -150,11 +145,11 @@ func runCmd(c *cli.Context) error {
 	}
 
 	// validate volume paths
-	if err := parse.ParseVolumes(c.StringSlice("volume")); err != nil {
+	if err := parse.ParseVolumes(iopts.volumes); err != nil {
 		return err
 	}
 
-	for _, volumeSpec := range c.StringSlice("volume") {
+	for _, volumeSpec := range iopts.volumes {
 		volSpec := strings.Split(volumeSpec, ":")
 		if len(volSpec) >= 2 {
 			var mountOptions string

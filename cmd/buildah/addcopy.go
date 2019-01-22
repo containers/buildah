@@ -5,68 +5,74 @@ import (
 
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/pkg/parse"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var (
-	addAndCopyFlags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "add-history",
-			Usage: "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)",
-		},
-		cli.StringFlag{
-			Name:  "chown",
-			Usage: "set the user and group ownership of the destination content",
-		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "don't output a digest of the newly-added/copied content",
-		},
-	}
-	addDescription  = "Adds the contents of a file, URL, or directory to a container's working\n   directory.  If a local file appears to be an archive, its contents are\n   extracted and added instead of the archive file itself."
-	copyDescription = "Copies the contents of a file, URL, or directory into a container's working\n   directory."
+type addCopyResults struct {
+	addHistory bool
+	chown      string
+	quiet      bool
+}
 
-	addCommand = cli.Command{
-		Name:                   "add",
-		Usage:                  "Add content to the container",
-		Description:            addDescription,
-		Flags:                  addAndCopyFlags,
-		Action:                 addCmd,
-		ArgsUsage:              "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
+func init() {
+	var (
+		addDescription  = "Adds the contents of a file, URL, or directory to a container's working\n   directory.  If a local file appears to be an archive, its contents are\n   extracted and added instead of the archive file itself."
+		copyDescription = "Copies the contents of a file, URL, or directory into a container's working\n   directory."
+		addOpts         addCopyResults
+		copyOpts        addCopyResults
+	)
+	addCommand := &cobra.Command{
+		Use:   "add",
+		Short: "Add content to the container",
+		Long:  addDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return addCmd(cmd, args, addOpts)
+		},
+		Example: "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
+		Args:    cobra.MinimumNArgs(1),
 	}
 
-	copyCommand = cli.Command{
-		Name:                   "copy",
-		Usage:                  "Copy content into the container",
-		Description:            copyDescription,
-		Flags:                  sortFlags(addAndCopyFlags),
-		Action:                 copyCmd,
-		ArgsUsage:              "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
+	copyCommand := &cobra.Command{
+		Use:   "copy",
+		Short: "Copy content into the container",
+		Long:  copyDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return copyCmd(cmd, args, copyOpts)
+		},
+		Example: "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
+		Args:    cobra.MinimumNArgs(1),
 	}
-)
 
-func addAndCopyCmd(c *cli.Context, verb string, extractLocalArchives bool) error {
-	args := c.Args()
+	addFlags := addCommand.Flags()
+	addFlags.SetInterspersed(false)
+	addFlags.BoolVar(&addOpts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
+	addFlags.StringVar(&addOpts.chown, "chown", "", "set the user and group ownership of the destination content")
+	addFlags.BoolVarP(&addOpts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
+
+	// TODO We could avoid some duplication here if need-be; given it is small, leaving as is
+	copyFlags := copyCommand.Flags()
+	copyFlags.SetInterspersed(false)
+	copyFlags.BoolVar(&copyOpts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
+	copyFlags.StringVar(&copyOpts.chown, "chown", "", "set the user and group ownership of the destination content")
+	copyFlags.BoolVarP(&copyOpts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
+
+	rootCmd.AddCommand(addCommand)
+	rootCmd.AddCommand(copyCommand)
+}
+
+func addAndCopyCmd(c *cobra.Command, args []string, verb string, extractLocalArchives bool, iopts addCopyResults) error {
 	if len(args) == 0 {
 		return errors.Errorf("container ID must be specified")
 	}
 	name := args[0]
-	args = args.Tail()
+	args = Tail(args)
 	if len(args) == 0 {
 		return errors.Errorf("src must be specified")
 	}
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
-		return err
-	}
-	if err := parse.ValidateFlags(c, addAndCopyFlags); err != nil {
 		return err
 	}
 
@@ -90,7 +96,7 @@ func addAndCopyCmd(c *cli.Context, verb string, extractLocalArchives bool) error
 
 	digester := digest.Canonical.Digester()
 	options := buildah.AddAndCopyOptions{
-		Chown:  c.String("chown"),
+		Chown:  iopts.chown,
 		Hasher: digester.Hash(),
 	}
 
@@ -98,17 +104,17 @@ func addAndCopyCmd(c *cli.Context, verb string, extractLocalArchives bool) error
 		return errors.Wrapf(err, "error adding content to container %q", builder.Container)
 	}
 
-	if !c.Bool("quiet") {
+	if !iopts.quiet {
 		fmt.Printf("%s\n", digester.Digest().Hex())
 	}
 	conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) %s file:%s", verb, digester.Digest().Hex())
 	return builder.Save()
 }
 
-func addCmd(c *cli.Context) error {
-	return addAndCopyCmd(c, "ADD", true)
+func addCmd(c *cobra.Command, args []string, iopts addCopyResults) error {
+	return addAndCopyCmd(c, args, "ADD", true, iopts)
 }
 
-func copyCmd(c *cli.Context) error {
-	return addAndCopyCmd(c, "COPY", false)
+func copyCmd(c *cobra.Command, args []string, iopts addCopyResults) error {
+	return addAndCopyCmd(c, args, "COPY", false, iopts)
 }

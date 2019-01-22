@@ -831,7 +831,7 @@ load helpers
   run buildah bud --cpu-shares bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
   echo "$output"
   [ "$status" -ne 0 ]
-  [[ "$output" =~ "invalid value \"bogus\" for flag" ]]
+  [[ "$output" =~ "invalid argument \"bogus\" for " ]]
 }
 
 @test "bud with --cpu-shares flag, valid argument" {
@@ -856,7 +856,7 @@ load helpers
   run buildah bud -c bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
   echo "$output"
   [ "$status" -ne 0 ]
-  [[ "$output" =~ "invalid value \"bogus\" for flag" ]]
+  [[ "$output" =~ "invalid argument \"bogus\" for " ]]
 }
 
 @test "bud with --cpu-shares short flag (-c), valid argument" {

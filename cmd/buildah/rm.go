@@ -5,47 +5,47 @@ import (
 	"os"
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var (
-	rmDescription = "Removes one or more working containers, unmounting them if necessary."
-	rmFlags       = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "all, a",
-			Usage: "remove all containers",
+type rmResults struct {
+	all bool
+}
+
+func init() {
+	var (
+		rmDescription = "Removes one or more working containers, unmounting them if necessary."
+		opts          rmResults
+	)
+	rmCommand := &cobra.Command{
+		Use:     "rm",
+		Aliases: []string{"delete"},
+		Short:   "Remove one or more working containers",
+		Long:    rmDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return rmCmd(cmd, args, opts)
 		},
+		Example: "CONTAINER-NAME-OR-ID [...]",
 	}
-	rmCommand = cli.Command{
-		Name:                   "rm",
-		Aliases:                []string{"delete"},
-		Usage:                  "Remove one or more working containers",
-		Description:            rmDescription,
-		Action:                 rmCmd,
-		ArgsUsage:              "CONTAINER-NAME-OR-ID [...]",
-		Flags:                  sortFlags(rmFlags),
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
-	}
-)
 
-func rmCmd(c *cli.Context) error {
+	flags := rmCommand.Flags()
+	flags.SetInterspersed(false)
+	flags.BoolVarP(&opts.all, "all", "a", false, "remove all containers")
+	rootCmd.AddCommand(rmCommand)
+}
+
+func rmCmd(c *cobra.Command, args []string, iopts rmResults) error {
 	delContainerErrStr := "error removing container"
-	args := c.Args()
-	if len(args) == 0 && !c.Bool("all") {
+	if len(args) == 0 && !iopts.all {
 		return errors.Errorf("container ID must be specified")
 	}
-	if len(args) > 0 && c.Bool("all") {
+	if len(args) > 0 && iopts.all {
 		return errors.Errorf("when using the --all switch, you may not pass any containers names or IDs")
 	}
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
-		return err
-	}
-	if err := parse.ValidateFlags(c, rmFlags); err != nil {
 		return err
 	}
 
@@ -55,7 +55,7 @@ func rmCmd(c *cli.Context) error {
 	}
 
 	var lastError error
-	if c.Bool("all") {
+	if iopts.all {
 		builders, err := openBuilders(store)
 		if err != nil {
 			return errors.Wrapf(err, "error reading build containers")

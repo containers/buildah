@@ -12,12 +12,11 @@ import (
 
 	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/pkg/parse"
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
 type jsonImage struct {
@@ -55,60 +54,46 @@ type filterParams struct {
 	referencePattern string
 }
 
-var (
-	imagesFlags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "all, a",
-			Usage: "show all images, including intermediate images from a build",
+type imageResults struct {
+	imageOptions
+	filter string
+}
+
+func init() {
+	var (
+		opts              imageResults
+		imagesDescription = "Lists locally stored images."
+	)
+	imagesCommand := &cobra.Command{
+		Use:   "images",
+		Short: "List images in local storage",
+		Long:  imagesDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return imagesCmd(cmd, args, &opts)
 		},
-		cli.BoolFlag{
-			Name:  "digests",
-			Usage: "show digests",
-		},
-		cli.StringFlag{
-			Name:  "filter, f",
-			Usage: "filter output based on conditions provided",
-		},
-		cli.StringFlag{
-			Name:  "format",
-			Usage: "pretty-print images using a Go template",
-		},
-		cli.BoolFlag{
-			Name:  "json",
-			Usage: "output in JSON format",
-		},
-		cli.BoolFlag{
-			Name:  "noheading, n",
-			Usage: "do not print column headings",
-		},
-		cli.BoolFlag{
-			Name:  "no-trunc, notruncate",
-			Usage: "do not truncate output",
-		},
-		cli.BoolFlag{
-			Name:  "quiet, q",
-			Usage: "display only image IDs",
-		},
+		Example: "[imageName]",
 	}
 
-	imagesDescription = "Lists locally stored images."
-	imagesCommand     = cli.Command{
-		Name:                   "images",
-		Usage:                  "List images in local storage",
-		Description:            imagesDescription,
-		Flags:                  sortFlags(imagesFlags),
-		Action:                 imagesCmd,
-		ArgsUsage:              "[imageName]",
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
-	}
-)
+	flags := imagesCommand.Flags()
+	flags.SetInterspersed(false)
+	flags.BoolVarP(&opts.all, "all", "a", false, "show all images, including intermediate images from a build")
+	flags.BoolVar(&opts.digests, "digests", false, "show digests")
+	flags.StringVarP(&opts.filter, "filter", "f", "", "filter output based on conditions provided")
+	flags.StringVar(&opts.format, "format", "", "pretty-print images using a Go template")
+	flags.BoolVar(&opts.json, "json", false, "output in JSON format")
+	flags.BoolVarP(&opts.noHeading, "noheading", "n", false, "do not print column headings")
+	// TODO needs alias here -- to `notruncate`
+	flags.BoolVar(&opts.truncate, "no-trunc", false, "do not truncate output")
+	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "display only image IDs")
 
-func imagesCmd(c *cli.Context) error {
+	rootCmd.AddCommand(imagesCommand)
+}
+
+func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
+
 	name := ""
-	args := c.Args()
 	if len(args) > 0 {
-		if c.Bool("all") {
+		if iopts.all {
 			return errors.Errorf("when using the --all switch, you may not pass any images names or IDs")
 		}
 
@@ -116,15 +101,12 @@ func imagesCmd(c *cli.Context) error {
 			return err
 		}
 		if len(args) == 1 {
-			name = args.Get(0)
+			name = args[0]
 		} else {
 			return errors.New("'buildah images' requires at most 1 argument")
 		}
 	}
 
-	if err := parse.ValidateFlags(c, imagesFlags); err != nil {
-		return err
-	}
 	store, err := getStore(c)
 	if err != nil {
 		return err
@@ -135,24 +117,24 @@ func imagesCmd(c *cli.Context) error {
 		return errors.Wrapf(err, "error reading images")
 	}
 
-	if c.IsSet("quiet") && c.IsSet("format") {
+	if iopts.quiet && iopts.format != "" {
 		return errors.Errorf("quiet and format are mutually exclusive")
 	}
 
 	opts := imageOptions{
-		all:       c.Bool("all"),
-		digests:   c.Bool("digests"),
-		format:    c.String("format"),
-		json:      c.Bool("json"),
-		noHeading: c.Bool("noheading"),
-		truncate:  !c.Bool("notruncate"),
-		quiet:     c.Bool("quiet"),
+		all:       iopts.all,
+		digests:   iopts.digests,
+		format:    iopts.format,
+		json:      iopts.json,
+		noHeading: iopts.noHeading,
+		truncate:  !iopts.truncate,
+		quiet:     iopts.quiet,
 	}
 	ctx := getContext()
 
 	var params *filterParams
-	if c.IsSet("filter") {
-		params, err = parseFilter(ctx, store, images, c.String("filter"))
+	if iopts.filter != "" {
+		params, err = parseFilter(ctx, store, images, iopts.filter)
 		if err != nil {
 			return errors.Wrapf(err, "error parsing filter")
 		}

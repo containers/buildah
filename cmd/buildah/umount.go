@@ -5,35 +5,34 @@ import (
 	"os"
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/containers/buildah/pkg/parse"
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var (
-	umountFlags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "all, a",
-			Usage: "umount all of the currently mounted containers",
-		},
-	}
-	umountCommand = cli.Command{
-		Name:                   "umount",
-		Aliases:                []string{"unmount"},
-		Usage:                  "Unmount the root file system of the specified working containers",
-		Description:            "Unmounts the root file system of the specified working containers.",
-		Action:                 umountCmd,
-		ArgsUsage:              "[CONTAINER-NAME-OR-ID [...]]",
-		Flags:                  sortFlags(umountFlags),
-		SkipArgReorder:         true,
-		UseShortOptionHandling: true,
-	}
-)
+func init() {
 
-func umountCmd(c *cli.Context) error {
-	umountAll := c.Bool("all")
+	umountCommand := &cobra.Command{
+		Use:     "umount",
+		Aliases: []string{"unmount"},
+		Short:   "Unmount the root file system of the specified working containers",
+		Long:    "Unmounts the root file system of the specified working containers.",
+		RunE:    umountCmd,
+		Example: "[CONTAINER-NAME-OR-ID [...]]",
+	}
+
+	flags := umountCommand.Flags()
+	flags.SetInterspersed(false)
+	flags.BoolP("all", "a", false, "umount all of the currently mounted containers")
+
+	rootCmd.AddCommand(umountCommand)
+}
+
+func umountCmd(c *cobra.Command, args []string) error {
+	umountAll := false
+	if c.Flag("all").Changed {
+		umountAll = true
+	}
 	umountContainerErrStr := "error unmounting container"
-	args := c.Args()
 	if len(args) == 0 && !umountAll {
 		return errors.Errorf("at least one container ID must be specified")
 	}
@@ -41,9 +40,6 @@ func umountCmd(c *cli.Context) error {
 		return errors.Errorf("when using the --all switch, you may not pass any container IDs")
 	}
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
-		return err
-	}
-	if err := parse.ValidateFlags(c, umountFlags); err != nil {
 		return err
 	}
 
