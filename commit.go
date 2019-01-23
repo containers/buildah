@@ -101,6 +101,10 @@ type PushOptions struct {
 	// regenerate from on-disk layers, substituting them in the list of
 	// blobs to copy whenever possible.
 	BlobDirectory string
+	// Quiet is a boolean value that determines if minimal output to
+	// the user will be displayed, this is best used for logging.
+	// The default is false.
+	Quiet bool
 }
 
 // Commit writes the contents of the container, along with its updated
@@ -228,6 +232,9 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 func Push(ctx context.Context, image string, dest types.ImageReference, options PushOptions) (reference.Canonical, digest.Digest, error) {
 	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
 
+	if options.Quiet {
+		options.ReportWriter = nil // Turns off logging output
+	}
 	blocked, err := isReferenceBlocked(dest, systemContext)
 	if err != nil {
 		return nil, "", errors.Wrapf(err, "error checking if pushing to registry for %q is blocked", transports.ImageName(dest))

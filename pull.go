@@ -51,6 +51,10 @@ type PullOptions struct {
 	// AllTags is a boolean value that determines if all tagged images
 	// will be downloaded from the repository. The default is false.
 	AllTags bool
+	// Quiet is a boolean value that determines if minimal output to
+	// the user will be displayed, this is best used for logging.
+	// The default is false.
+	Quiet bool
 }
 
 func localImageNameForReference(ctx context.Context, store storage.Store, srcRef types.ImageReference, spec string) (string, error) {
@@ -166,6 +170,9 @@ func Pull(ctx context.Context, imageName string, options PullOptions) error {
 			return errors.Wrapf(err2, "error parsing image name %q", imageName)
 		}
 		srcRef = srcRef2
+	}
+	if options.Quiet {
+		options.ReportWriter = nil // Turns off logging output
 	}
 	var names []string
 	if options.AllTags {
