@@ -204,6 +204,9 @@ The build steps on Debian are otherwise the same as Ubuntu, above.
 
 ## Configuration files
 
+The following configuration files are required in order for Buildah to run appropriately.  The
+majority of these files are commonly contained in the `containers-common` package.
+
 ### [registries.conf](https://src.fedoraproject.org/rpms/skopeo/blob/master/f/registries.conf)
 
 #### Man Page: [registries.conf.5](https://github.com/containers/image/blob/master/docs/containers-registries.conf.5.md)
@@ -247,7 +250,7 @@ registries = []
 
 `/usr/share/containers/mounts.conf` and optionally `/etc/containers/mounts.conf`
 
-The mounts.conf files specify volume mount directories that are automatically mounted inside containers when executing the `buildah run` or `buildah build-using-dockerfile` commands.  Container process can then use this content.  The volume mount content does not get committed to the final image.
+The mounts.conf files specify volume mount directories that are automatically mounted inside containers when executing the `buildah run` or `buildah build-using-dockerfile` commands.  Container process can then use this content.  The volume mount content does not get committed to the final image.  This file is usually provided by the containers-common package.
 
 Usually these directories are used for passing secrets or credentials required by the package software to access remote package repositories.
 
