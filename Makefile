@@ -132,3 +132,7 @@ test-unit: tests/testreport/testreport
 	tmp=$(shell mktemp -d) ; \
 	mkdir -p $$tmp/root $$tmp/runroot; \
 	$(GO) test -v -tags "$(STORAGETAGS) $(SECURITYTAGS)" ./cmd/buildah -args -root $$tmp/root -runroot $$tmp/runroot -storage-driver vfs -signature-policy $(shell pwd)/tests/policy.json -registries-conf $(shell pwd)/tests/registries.conf
+
+.PHONY: vendor
+vendor: vendor.conf
+	vndr -whitelist "github.com/onsi/gomega"
