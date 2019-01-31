@@ -1,15 +1,11 @@
 package buildah
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/opencontainers/runtime-tools/generate"
-	"github.com/pkg/errors"
 )
 
 func TestAddRlimits(t *testing.T) {
@@ -83,110 +79,5 @@ func TestAddRlimits(t *testing.T) {
 		if testErr := te.test(err, &g); testErr != nil {
 			t.Errorf("test %#v failed: %v", te.name, testErr)
 		}
-	}
-}
-
-func TestAddHosts(t *testing.T) {
-	tt := []struct {
-		name     string
-		hosts    []string
-		expected string
-	}{
-		{
-			name:     "empty host list",
-			hosts:    []string{},
-			expected: "",
-		},
-		{
-			name:     "host list",
-			hosts:    []string{"localhost:127.0.0.1", "host-1:127.0.0.2", "host-2:127.0.0.3"},
-			expected: "127.0.0.1\tlocalhost\n127.0.0.2\thost-1\n127.0.0.3\thost-2\n",
-		},
-	}
-	for _, te := range tt {
-		buf := bytes.NewBufferString("")
-		if err := addHosts(te.hosts, buf); err != nil {
-			t.Errorf("expected test %#v to not receive error: %#v", te.name, err)
-		}
-		if buf.String() != te.expected {
-			t.Errorf("test %#v failed: expected buffer to have %#v but got %#v",
-				te.name, te.expected, buf.String())
-		}
-	}
-}
-
-func TestAddHostsToFile(t *testing.T) {
-	tt := []struct {
-		name     string
-		prepare  func() (*os.File, error)
-		hosts    []string
-		expected string
-	}{
-		{
-			name: "empty hosts file",
-			prepare: func() (*os.File, error) {
-				return ioutil.TempFile("", "buildah-hosts-test")
-			},
-			hosts:    []string{"host-1:127.0.0.2", "system-1:127.0.0.3", "ipv6-host:::1"},
-			expected: "127.0.0.2\thost-1\n127.0.0.3\tsystem-1\n::1\tipv6-host\n",
-		},
-		{
-			name: "append hosts to file",
-			prepare: func() (*os.File, error) {
-				file, err := ioutil.TempFile("", "buildah-hosts-test")
-				if err != nil {
-					return file, err
-				}
-				if _, err := file.WriteString("localhost\n"); err != nil {
-					return file, fmt.Errorf("failed preparing file %#v to the test: %v", file.Name(), err)
-				}
-				if err := file.Close(); err != nil {
-					return file, fmt.Errorf("failed preparing file %#v to the test: %v", file.Name(), err)
-				}
-				return file, nil
-			},
-			hosts:    []string{"host-0:127.0.0.2", "host-1:127.0.0.3", "dns.name.1:127.0.0.4"},
-			expected: "localhost\n127.0.0.2\thost-0\n127.0.0.3\thost-1\n127.0.0.4\tdns.name.1\n",
-		},
-		{
-			name: "empty host list",
-			prepare: func() (*os.File, error) {
-				return ioutil.TempFile("", "buildah-hosts-test")
-			},
-			hosts:    []string{},
-			expected: "",
-		},
-	}
-	for _, te := range tt {
-		file, err := te.prepare()
-		if err != nil {
-			t.Errorf("%#v", err.Error())
-			if file != nil {
-				os.Remove(file.Name())
-			}
-		}
-		defer os.Remove(file.Name())
-		if err := addHostsToFile(te.hosts, file.Name()); err != nil {
-			t.Errorf("failed to add hosts to file: %v", err)
-		}
-		contentByte, err := ioutil.ReadFile(file.Name())
-		if err != nil {
-			t.Errorf("failed reading file %#v: %v", file.Name(), err)
-		}
-		res := string(contentByte)
-		if res != te.expected {
-			t.Errorf("test %#v failed: expected content to be %#v but got %#v", te.name, te.expected, res)
-		}
-
-	}
-}
-
-func TestAddHostsToNotExistFile(t *testing.T) {
-	err := addHostsToFile([]string{"myhost"}, "/tmp/blabladjsghkg")
-	if err == nil {
-		t.Errorf("expected test to fail")
-	}
-	if !os.IsNotExist(errors.Cause(err)) {
-		t.Errorf("expected error to fail because of 'no such file or directory' but got %#v", err.Error())
 	}
 }
