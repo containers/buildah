@@ -34,7 +34,7 @@ type fromReply struct {
 
 func init() {
 	var (
-		fromDescription = "Creates a new working container, either from scratch or using a specified\n   image as a starting point."
+		fromDescription = "\n  Creates a new working container, either from scratch or using a specified\n  image as a starting point."
 		opts            fromReply
 	)
 	fromAndBudResults := buildahcli.FromAndBudResults{}
@@ -51,7 +51,9 @@ func init() {
 			opts.NameSpaceResults = &namespaceResults
 			return fromCmd(cmd, args, opts)
 		},
-		Example: "IMAGE",
+		Example: `  buildah from --pull imagename
+  buildah from docker-daemon:imagename:imagetag
+  buildah from --name "myimagename" myregistry/myrepository/imagename:imagetag`,
 	}
 
 	flags := fromCommand.Flags()

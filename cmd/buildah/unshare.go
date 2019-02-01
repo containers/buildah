@@ -27,13 +27,14 @@ const (
 )
 
 var (
-	unshareDescription = "Runs a command in a modified user namespace."
+	unshareDescription = "\n  Runs a command in a modified user namespace."
 	unshareCommand     = &cobra.Command{
-		Use:     "unshare",
-		Short:   "Run a command in a modified user namespace",
-		Long:    unshareDescription,
-		RunE:    unshareCmd,
-		Example: "[COMMAND [ARGS [...]]]",
+		Use:   "unshare",
+		Short: "Run a command in a modified user namespace",
+		Long:  unshareDescription,
+		RunE:  unshareCmd,
+		Example: `  buildah unshare id
+  buildah unshare cat /proc/self/uid_map`,
 	}
 )
 

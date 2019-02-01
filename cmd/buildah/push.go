@@ -35,14 +35,14 @@ func init() {
 	var (
 		opts            pushResults
 		pushDescription = fmt.Sprintf(`
-   Pushes an image to a specified location.
+  Pushes an image to a specified location.
 
-   The Image "DESTINATION" uses a "transport":"details" format. If not specified, will reuse source IMAGE as DESTINATION.
+  The Image "DESTINATION" uses a "transport":"details" format. If not specified, will reuse source IMAGE as DESTINATION.
 
-   Supported transports:
-   %s
+  Supported transports:
+  %s
 
-   See buildah-push(1) section "DESTINATION" for the expected format
+  See buildah-push(1) section "DESTINATION" for the expected format
 `, getListOfTransports())
 	)
 
@@ -53,7 +53,9 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pushCmd(cmd, args, opts)
 		},
-		Example: "IMAGE [DESTINATION]",
+		Example: `  buildah push imageID docker://registry.example.com/repository:tag
+  buildah push imageID docker-daemon:image:tagi
+  buildah push imageID oci:/path/to/layout:image:tag`,
 	}
 	flags := pushCommand.Flags()
 	flags.SetInterspersed(false)

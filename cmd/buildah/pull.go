@@ -27,9 +27,9 @@ func init() {
 	var (
 		opts pullResults
 
-		pullDescription = `Pulls an image from a registry and stores it locally.
-An image can be pulled using its tag or digest. If a tag is not
-specified, the image with the 'latest' tag (if it exists) is pulled.`
+		pullDescription = `  Pulls an image from a registry and stores it locally.
+  An image can be pulled using its tag or digest. If a tag is not
+  specified, the image with the 'latest' tag (if it exists) is pulled.`
 	)
 
 	pullCommand := &cobra.Command{
@@ -39,7 +39,9 @@ specified, the image with the 'latest' tag (if it exists) is pulled.`
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pullCmd(cmd, args, opts)
 		},
-		Example: "IMAGE",
+		Example: `  buildah pull imagename
+  buildah pull docker-daemon:imagename:imagetag
+  buildah pull myregistry/myrepository/imagename:imagetag`,
 	}
 
 	flags := pullCommand.Flags()

@@ -8,15 +8,16 @@ import (
 )
 
 var (
-	tagDescription = "Adds one or more additional names to locally-stored image."
+	tagDescription = "\n  Adds one or more additional names to locally-stored image."
 	tagCommand     = &cobra.Command{
 		Use:   "tag",
 		Short: "Add an additional name to a local image",
 		Long:  tagDescription,
 		RunE:  tagCmd,
 
-		Example: "IMAGE-NAME NEW-IMAGE-NAME",
-		Args:    cobra.MinimumNArgs(2),
+		Example: `  buildah tag imageName firstNewName
+  buildah tag imageName firstNewName SecondNewName`,
+		Args: cobra.MinimumNArgs(2),
 	}
 )
 

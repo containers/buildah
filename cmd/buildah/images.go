@@ -62,7 +62,7 @@ type imageResults struct {
 func init() {
 	var (
 		opts              imageResults
-		imagesDescription = "Lists locally stored images."
+		imagesDescription = "\n  Lists locally stored images."
 	)
 	imagesCommand := &cobra.Command{
 		Use:   "images",
@@ -71,7 +71,9 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return imagesCmd(cmd, args, &opts)
 		},
-		Example: "[imageName]",
+		Example: `  buildah images --all
+  buildah images [imageName]
+  buildah images --format '{{.ID}} {{.Name}} {{.Size}} {{.CreatedAtRaw}}'`,
 	}
 
 	flags := imagesCommand.Flags()

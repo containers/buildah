@@ -28,7 +28,7 @@ type inspectResults struct {
 func init() {
 	var (
 		opts               inspectResults
-		inspectDescription = "Inspects a build container's or built image's configuration."
+		inspectDescription = "\n  Inspects a build container's or built image's configuration."
 	)
 
 	inspectCommand := &cobra.Command{
@@ -38,7 +38,9 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return inspectCmd(cmd, args, opts)
 		},
-		Example: "CONTAINER-OR-IMAGE",
+		Example: `  buildah inspect containerID
+  buildah inspect --type image imageID
+  buildah inspect --format '{{.OCIv1.Config.Env}}' alpine`,
 	}
 
 	flags := inspectCommand.Flags()

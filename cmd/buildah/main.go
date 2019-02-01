@@ -84,7 +84,8 @@ func init() {
 }
 
 func initConfig() {
-	// TODO We can do extra stuff here
+	// TODO Cobra allows us to do extra stuff here at init
+	// time if we ever want to take advantage.
 }
 
 func before(cmd *cobra.Command, args []string) error {

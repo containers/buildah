@@ -18,8 +18,8 @@ type addCopyResults struct {
 
 func init() {
 	var (
-		addDescription  = "Adds the contents of a file, URL, or directory to a container's working\n   directory.  If a local file appears to be an archive, its contents are\n   extracted and added instead of the archive file itself."
-		copyDescription = "Copies the contents of a file, URL, or directory into a container's working\n   directory."
+		addDescription  = "\n  Adds the contents of a file, URL, or directory to a container's working\n  directory.  If a local file appears to be an archive, its contents are\n  extracted and added instead of the archive file itself."
+		copyDescription = "\n  Copies the contents of a file, URL, or directory into a container's working\n  directory."
 		addOpts         addCopyResults
 		copyOpts        addCopyResults
 	)
@@ -30,8 +30,9 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return addCmd(cmd, args, addOpts)
 		},
-		Example: "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
-		Args:    cobra.MinimumNArgs(1),
+		Example: `  buildah add containerID '/myapp/app.conf'
+  buildah add containerID '/myapp/app.conf' '/myapp/app.conf'`,
+		Args: cobra.MinimumNArgs(1),
 	}
 
 	copyCommand := &cobra.Command{
@@ -41,8 +42,9 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return copyCmd(cmd, args, copyOpts)
 		},
-		Example: "CONTAINER-NAME-OR-ID [FILE | DIRECTORY | URL] [[...] DESTINATION]",
-		Args:    cobra.MinimumNArgs(1),
+		Example: `  buildah copy containerID '/myapp/app.conf'
+  buildah copy containerID '/myapp/app.conf' '/myapp/app.conf'`,
+		Args: cobra.MinimumNArgs(1),
 	}
 
 	addFlags := addCommand.Flags()

@@ -24,7 +24,7 @@ type budResults struct {
 
 func init() {
 	var (
-		budDescription = "Builds an OCI image using instructions in one or more Dockerfiles."
+		budDescription = "\n  Builds an OCI image using instructions in one or more Dockerfiles."
 	)
 
 	layerFlagsResults := buildahcli.LayerResults{}
@@ -49,7 +49,9 @@ func init() {
 			}
 			return budCmd(cmd, args, br)
 		},
-		Example: "CONTEXT-DIRECTORY | URL",
+		Example: `  buildah bud -f Dockerfile.simple .
+  buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
+  buildah bud -f Dockerfile.simple -f Dockerfile.notsosimple .`,
 	}
 
 	flags := budCommand.Flags()
@@ -187,7 +189,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	}
 
 	runtimeFlags := []string{}
-	for _, arg := range iopts.RuntimeOpts {
+	for _, arg := range iopts.RuntimeFlags {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
