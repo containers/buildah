@@ -11,7 +11,7 @@ import (
 
 func init() {
 	var (
-		mountDescription = "Mounts a working container's root filesystem for manipulation."
+		mountDescription = "\n  Mounts a working container's root filesystem for manipulation."
 		noTruncate       bool
 	)
 	mountCommand := &cobra.Command{
@@ -21,7 +21,9 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return mountCmd(cmd, args, noTruncate)
 		},
-		Example: "[CONTAINER-NAME-OR-ID [...]]",
+		Example: `buildah mount
+  buildah mount containerID
+  buildah mount containerID1 containerID2`,
 	}
 
 	flags := mountCommand.Flags()

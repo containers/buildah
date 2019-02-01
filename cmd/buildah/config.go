@@ -34,7 +34,7 @@ type configResults struct {
 	healthcheckTimeout     string
 	historyComment         string
 	hostname               string
-	labels                 []string
+	label                  []string
 	onbuild                []string
 	os                     string
 	ports                  []string
@@ -47,7 +47,7 @@ type configResults struct {
 
 func init() {
 	var (
-		configDescription = "Modifies the configuration values which will be saved to the image."
+		configDescription = "\n  Modifies the configuration values which will be saved to the image."
 		opts              configResults
 	)
 	configCommand := &cobra.Command{
@@ -57,7 +57,9 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return configCmd(cmd, args, opts)
 		},
-		Example: "CONTAINER-NAME-OR-ID",
+		Example: `  buildah config --author='Jane Austen' --workingdir='/etc/mycontainers' containerID
+  buildah config --entrypoint '[ "/entrypoint.sh", "dev" ]' containerID
+  buildah config --env foo=bar PATH=$PATH containerID`,
 	}
 
 	flags := configCommand.Flags()
@@ -79,7 +81,7 @@ func init() {
 	flags.StringVar(&opts.healthcheckTimeout, "healthcheck-timeout", "", "set the maximum amount of `time` to wait for a `healthcheck` command for the target image")
 	flags.StringVar(&opts.historyComment, "history-comment", "", "set a `comment` for the history of the target image")
 	flags.StringVar(&opts.hostname, "hostname", "", "set a host`name` for containers based on image")
-	flags.StringSliceVarP(&opts.labels, "label", "l", []string{}, "add image configuration `label` e.g. label=value")
+	flags.StringSliceVarP(&opts.label, "label", "l", []string{}, "add image configuration `label` e.g. label=value")
 	flags.StringSliceVar(&opts.onbuild, "onbuild", []string{}, "add onbuild command to be run on images based on this image. Only supported on 'docker' formatted images")
 	flags.StringVar(&opts.os, "os", "", "set `operating system` of the target image")
 	flags.StringSliceVarP(&opts.ports, "port", "p", []string{}, "add `port` to expose when running containers based on image (default [])")
@@ -208,7 +210,7 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 	}
 	updateHealthcheck(builder, c, iopts)
 	if c.Flag("label").Changed {
-		for _, labelSpec := range iopts.labels {
+		for _, labelSpec := range iopts.label {
 			label := strings.SplitN(labelSpec, "=", 2)
 			if len(label) > 1 {
 				builder.SetLabel(label[0], label[1])
@@ -216,7 +218,7 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 				builder.UnsetLabel(label[0])
 			}
 		}
-		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) LABEL %s", strings.Join(iopts.labels, " "))
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) LABEL %s", strings.Join(iopts.label, " "))
 	}
 	if c.Flag("workingdir").Changed {
 		builder.SetWorkDir(iopts.workingDir)

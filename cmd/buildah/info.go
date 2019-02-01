@@ -21,7 +21,7 @@ type infoResults struct {
 
 func init() {
 	var (
-		infoDescription = "Display information about the host and current storage statistics which are useful when reporting issues."
+		infoDescription = "\n  Display information about the host and current storage statistics which are useful when reporting issues."
 		opts            infoResults
 	)
 	infoCommand := &cobra.Command{

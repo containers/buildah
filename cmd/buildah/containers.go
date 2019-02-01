@@ -57,7 +57,7 @@ type containersResults struct {
 
 func init() {
 	var (
-		containersDescription = "Lists containers which appear to be " + buildah.Package + " working containers, their\n   names and IDs, and the names and IDs of the images from which they were\n   initialized."
+		containersDescription = "\n  Lists containers which appear to be " + buildah.Package + " working containers, their\n  names and IDs, and the names and IDs of the images from which they were\n  initialized."
 		opts                  containersResults
 	)
 	containersCommand := &cobra.Command{
@@ -69,7 +69,9 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return containersCmd(cmd, args, opts)
 		},
-		Example: " ",
+		Example: `  buildah containers
+  buildah containers --format "{{.ContainerID}} {{.ContainerName}}"
+  buildah containers -q --noheading --notruncate`,
 	}
 
 	flags := containersCommand.Flags()

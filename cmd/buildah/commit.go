@@ -37,7 +37,7 @@ type commitInputOptions struct {
 func init() {
 	var (
 		opts              commitInputOptions
-		commitDescription = "Writes a new image using the container's read-write layer and, if it is based\n   on an image, the layers of that image."
+		commitDescription = "\n  Writes a new image using the container's read-write layer and, if it is based\n  on an image, the layers of that image."
 	)
 	commitCommand := &cobra.Command{
 		Use:   "commit",
@@ -46,7 +46,8 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return commitCmd(cmd, args, opts)
 		},
-		Example: "CONTAINER-NAME-OR-ID IMAGE",
+		Example: `  buildah commit containerID newImageName
+  buildah commit containerID docker://localhost:5000/imageId`,
 	}
 	flags := commitCommand.Flags()
 	flags.SetInterspersed(false)

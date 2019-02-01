@@ -16,7 +16,7 @@ type rmResults struct {
 
 func init() {
 	var (
-		rmDescription = "Removes one or more working containers, unmounting them if necessary."
+		rmDescription = "\n  Removes one or more working containers, unmounting them if necessary."
 		opts          rmResults
 	)
 	rmCommand := &cobra.Command{
@@ -27,7 +27,9 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return rmCmd(cmd, args, opts)
 		},
-		Example: "CONTAINER-NAME-OR-ID [...]",
+		Example: `  buildah rm containerID
+  buildah rm containerID1 containerID2 containerID3
+  buildah rm --all`,
 	}
 
 	flags := rmCommand.Flags()

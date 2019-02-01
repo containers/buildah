@@ -33,7 +33,7 @@ type runInputOptions struct {
 
 func init() {
 	var (
-		runDescription = "Runs a specified command using the container's root filesystem as a root\n   filesystem, using configuration settings inherited from the container's\n   image or as specified using previous calls to the config command."
+		runDescription = "\n  Runs a specified command using the container's root filesystem as a root\n  filesystem, using configuration settings inherited from the container's\n  image or as specified using previous calls to the config command."
 		opts           runInputOptions
 	)
 
@@ -48,7 +48,9 @@ func init() {
 			return runCmd(cmd, args, opts)
 
 		},
-		Example: "CONTAINER-NAME-OR-ID COMMAND [ARGS [...]]",
+		Example: `  buildah run containerID -- ps -auxw
+  buildah run --tty containerID /bin/bash
+  buildah run --volume /path/on/host:/path/in/container:ro,z containerID /bin/sh`,
 	}
 
 	flags := runCommand.Flags()

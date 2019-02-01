@@ -26,7 +26,7 @@ type rmiResults struct {
 
 func init() {
 	var (
-		rmiDescription = "Removes one or more locally stored images."
+		rmiDescription = "\n  Removes one or more locally stored images."
 		opts           rmiResults
 	)
 	rmiCommand := &cobra.Command{
@@ -36,7 +36,9 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return rmiCmd(cmd, args, opts)
 		},
-		Example: "IMAGE-NAME-OR-ID [...]",
+		Example: `  buildah rmi imageID
+  buildah rmi --all --force
+  buildah rmi imageID1 imageID2 imageID3`,
 	}
 	flags := rmiCommand.Flags()
 	flags.SetInterspersed(false)
