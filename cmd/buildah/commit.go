@@ -131,7 +131,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 
 	dest, err := alltransports.ParseImageName(image)
 	if err != nil {
-		candidates, _, err := util.ResolveName(image, "", systemContext, store)
+		candidates, _, _, err := util.ResolveName(image, "", systemContext, store)
 		if err != nil {
 			return errors.Wrapf(err, "error parsing target image name %q", image)
 		}

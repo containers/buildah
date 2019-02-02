@@ -336,11 +336,6 @@ type BuilderOptions struct {
 	// needs to be pulled and the image name alone can not be resolved to a
 	// reference to a source image.  No separator is implicitly added.
 	Registry string
-	// Transport is a value which is prepended to the image's name, if it
-	// needs to be pulled and the image name alone, or the image name and
-	// the registry together, can not be resolved to a reference to a
-	// source image.  No separator is implicitly added.
-	Transport string
 	// PullBlobDirectory is the name of a directory in which we'll attempt
 	// to store copies of layer blobs that we pull down, if any.  It should
 	// already exist.

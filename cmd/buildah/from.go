@@ -9,7 +9,6 @@ import (
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/buildah/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -189,14 +188,6 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return err
 	}
 
-	transport := util.DefaultTransport
-	arr := strings.SplitN(args[0], ":", 2)
-	if len(arr) == 2 {
-		if _, ok := util.Transports[arr[0]]; ok {
-			transport = arr[0]
-		}
-	}
-
 	isolation, err := parse.IsolationOption(c)
 	if err != nil {
 		return err
@@ -219,7 +210,6 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
-		Transport:             transport,
 		Container:             iopts.name,
 		PullPolicy:            pullPolicy,
 		SignaturePolicyPath:   signaturePolicy,
