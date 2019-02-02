@@ -2,12 +2,10 @@ package main
 
 import (
 	"os"
-	"strings"
 
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/buildah/util"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -81,27 +79,14 @@ func pullCmd(c *cobra.Command, args []string, iopts pullResults) error {
 		return err
 	}
 
-	transport := util.DefaultTransport
-	arr := strings.SplitN(args[0], ":", 2)
-	if len(arr) == 2 {
-		if iopts.allTags {
-			return errors.Errorf("tag can't be used with --all-tags")
-		}
-		if _, ok := util.Transports[arr[0]]; ok {
-			transport = arr[0]
-		}
-	}
-
 	options := buildah.PullOptions{
-		Transport:           transport,
 		SignaturePolicyPath: iopts.signaturePolicy,
 		Store:               store,
 		SystemContext:       systemContext,
 		BlobDirectory:       iopts.blobCache,
 		AllTags:             iopts.allTags,
-	}
-	if !iopts.quiet {
-		options.ReportWriter = os.Stderr
+		ReportWriter:        os.Stderr,
+		Quiet:               iopts.quiet,
 	}
 
 	return buildah.Pull(getContext(), args[0], options)

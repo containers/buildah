@@ -9,7 +9,9 @@ import (
 	"github.com/containers/buildah/pkg/blobcache"
 	"github.com/containers/buildah/util"
 	cp "github.com/containers/image/copy"
+	"github.com/containers/image/directory"
 	"github.com/containers/image/docker"
+	dockerarchive "github.com/containers/image/docker/archive"
 	"github.com/containers/image/docker/reference"
 	tarfile "github.com/containers/image/docker/tarfile"
 	ociarchive "github.com/containers/image/oci/archive"
@@ -40,10 +42,6 @@ type PullOptions struct {
 	// github.com/containers/image/types SystemContext to hold credentials
 	// and other authentication/authorization information.
 	SystemContext *types.SystemContext
-	// Transport is a value which is prepended to the image's name, if the
-	// image name alone can not be resolved to a reference to a source
-	// image.  No separator is implicitly added.
-	Transport string
 	// BlobDirectory is the name of a directory in which we'll attempt to
 	// store copies of layer blobs that we pull down, if any.  It should
 	// already exist.
@@ -65,7 +63,7 @@ func localImageNameForReference(ctx context.Context, store storage.Store, srcRef
 	file := split[len(split)-1]
 	var name string
 	switch srcRef.Transport().Name() {
-	case util.DockerArchive:
+	case dockerarchive.Transport.Name():
 		tarSource, err := tarfile.NewSourceFromFile(file)
 		if err != nil {
 			return "", errors.Wrapf(err, "error opening tarfile %q as a source image", file)
@@ -92,7 +90,7 @@ func localImageNameForReference(ctx context.Context, store storage.Store, srcRef
 				}
 			}
 		}
-	case util.OCIArchive:
+	case ociarchive.Transport.Name():
 		// retrieve the manifest from index.json to access the image name
 		manifest, err := ociarchive.LoadManifestDescriptor(srcRef)
 		if err != nil {
@@ -107,7 +105,7 @@ func localImageNameForReference(ctx context.Context, store storage.Store, srcRef
 		} else {
 			name = manifest.Annotations["org.opencontainers.image.ref.name"]
 		}
-	case util.DirTransport:
+	case directory.Transport.Name():
 		// supports pull from a directory
 		name = split[1]
 		// remove leading "/"
@@ -152,76 +150,74 @@ func localImageNameForReference(ctx context.Context, store storage.Store, srcRef
 
 // Pull copies the contents of the image from somewhere else to local storage.
 func Pull(ctx context.Context, imageName string, options PullOptions) error {
-	spec := imageName
 	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
-	srcRef, err := alltransports.ParseImageName(spec)
-	if err != nil {
-		if options.Transport == "" {
-			options.Transport = util.DefaultTransport
-		}
-		logrus.Debugf("error parsing image name %q, trying with transport %q: %v", spec, options.Transport, err)
-		transport := options.Transport
-		if transport != util.DefaultTransport {
-			transport = transport + ":"
-		}
-		spec = transport + spec
-		srcRef2, err2 := alltransports.ParseImageName(spec)
-		if err2 != nil {
-			return errors.Wrapf(err2, "error parsing image name %q", imageName)
-		}
-		srcRef = srcRef2
+
+	boptions := BuilderOptions{
+		FromImage:           imageName,
+		SignaturePolicyPath: options.SignaturePolicyPath,
+		SystemContext:       systemContext,
+		PullBlobDirectory:   options.BlobDirectory,
+		ReportWriter:        options.ReportWriter,
 	}
+
 	if options.Quiet {
-		options.ReportWriter = nil // Turns off logging output
+		boptions.ReportWriter = nil // Turns off logging output
 	}
-	var names []string
+	storageRef, transport, img, err := resolveImage(ctx, systemContext, options.Store, boptions)
+	if err != nil {
+		return err
+	}
+
+	var errs *multierror.Error
 	if options.AllTags {
-		if srcRef.DockerReference() == nil {
-			return errors.New("Non-docker transport is currently not supported")
+		if transport != util.DefaultTransport {
+			return errors.New("Non-docker transport is not supported, for --all-tags pulling")
 		}
-		tags, err := docker.GetRepositoryTags(ctx, systemContext, srcRef)
+
+		spec := transport + storageRef.DockerReference().Name()
+		storageRef, err = alltransports.ParseImageName(spec)
+		if err != nil {
+			return errors.Wrapf(err, "error getting repository tags")
+		}
+		tags, err := docker.GetRepositoryTags(ctx, systemContext, storageRef)
 		if err != nil {
 			return errors.Wrapf(err, "error getting repository tags")
 		}
 		for _, tag := range tags {
 			name := spec + ":" + tag
-			names = append(names, name)
+			if options.ReportWriter != nil {
+				options.ReportWriter.Write([]byte("Pulling " + name + "\n"))
+			}
+			ref, err := pullImage(ctx, options.Store, transport, name, options, systemContext)
+			if err != nil {
+				errs = multierror.Append(errs, err)
+				continue
+			}
+			img, err := is.Transport.GetStoreImage(options.Store, ref)
+			if err != nil {
+				errs = multierror.Append(errs, err)
+				continue
+			}
+			fmt.Printf("%s\n", img.ID)
 		}
 	} else {
-		names = append(names, spec)
-	}
-	var errs *multierror.Error
-	for _, name := range names {
-		if options.ReportWriter != nil {
-			options.ReportWriter.Write([]byte("Pulling " + name + "\n"))
-		}
-		ref, err := pullImage(ctx, options.Store, name, options, systemContext)
-		if err != nil {
-			errs = multierror.Append(errs, err)
-			continue
-		}
-		img, err := is.Transport.GetStoreImage(options.Store, ref)
-		if err != nil {
-			errs = multierror.Append(errs, err)
-			continue
-		}
 		fmt.Printf("%s\n", img.ID)
 	}
 
 	return errs.ErrorOrNil()
 }
 
-func pullImage(ctx context.Context, store storage.Store, imageName string, options PullOptions, sc *types.SystemContext) (types.ImageReference, error) {
+func pullImage(ctx context.Context, store storage.Store, transport string, imageName string, options PullOptions, sc *types.SystemContext) (types.ImageReference, error) {
 	spec := imageName
 	srcRef, err := alltransports.ParseImageName(spec)
 	if err != nil {
-		if options.Transport == "" {
-			options.Transport = util.DefaultTransport
-		}
-		logrus.Debugf("error parsing image name %q, trying with transport %q: %v", spec, options.Transport, err)
-		transport := options.Transport
-		if transport != util.DefaultTransport {
-			transport = transport + ":"
+		logrus.Debugf("error parsing image name %q, trying with transport %q: %v", spec, transport, err)
+		if transport == "" {
+			transport = util.DefaultTransport
+		} else {
+			if transport != util.DefaultTransport {
+				transport = transport + ":"
+			}
 		}
 		spec = transport + spec
 		srcRef2, err2 := alltransports.ParseImageName(spec)
