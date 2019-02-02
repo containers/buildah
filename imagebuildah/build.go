@@ -171,6 +171,8 @@ type BuildOptions struct {
 	ForceRmIntermediateCtrs bool
 	// BlobDirectory is a directory which we'll use for caching layer blobs.
 	BlobDirectory string
+	// Target the targeted FROM in the Dockerfile to build
+	Target string
 }
 
 // Executor is a buildah-based implementation of the imagebuilder.Executor
@@ -1440,6 +1442,13 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 	stages, err := imagebuilder.NewStages(mainNode, b)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "error reading multiple stages")
+	}
+	if options.Target != "" {
+		stagesTargeted, ok := stages.ThroughTarget(options.Target)
+		if !ok {
+			return "", nil, errors.Errorf("The target %q was not found in the provided Dockerfile", options.Target)
+		}
+		stages = stagesTargeted
 	}
 	return exec.Build(ctx, stages)
 }

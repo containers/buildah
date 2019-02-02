@@ -1172,3 +1172,20 @@ load helpers
   run test -e $mnt/usr/local/bin/composer
   [ "$status" -eq 0 ]
 }
+
+@test "bud-target" {
+  target=target
+  run buildah bud --debug=false --signature-policy ${TESTSDIR}/policy.json -t ${target} --target mytarget ${TESTSDIR}/bud/target
+  [[ $output =~ "STEP 1: FROM ubuntu:latest" ]]
+  [[ $output =~ "STEP 3: FROM alpine:latest AS mytarget" ]]
+  [ "$status" -eq 0 ]
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  run ls ${root}/2 
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run ls ${root}/3 
+  [ "$status" -ne 0 ]
+  buildah umount ${cid}
+  buildah rm ${cid}
+}

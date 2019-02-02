@@ -69,6 +69,7 @@ type BudResults struct {
 	SignaturePolicy     string
 	Squash              bool
 	Tag                 []string
+	Target              string
 	TlsVerify           bool
 }
 
@@ -157,6 +158,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringVar(&flags.SignaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	fs.BoolVar(&flags.Squash, "squash", false, "Squash newly built layers into a single new layer. The build process does not currently support caching so this is a NOOP.")
 	fs.StringSliceVarP(&flags.Tag, "tag", "t", []string{}, "tagged `name` to apply to the built image")
+	fs.StringVar(&flags.Target, "target", "", "set the target build stage to build")
 	fs.BoolVar(&flags.TlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 	return fs
 }
