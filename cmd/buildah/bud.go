@@ -271,6 +271,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		RemoveIntermediateCtrs:  iopts.Rm,
 		ForceRmIntermediateCtrs: iopts.ForceRm,
 		BlobDirectory:           iopts.BlobCache,
+		Target:                  iopts.Target,
 	}
 
 	if iopts.Quiet {

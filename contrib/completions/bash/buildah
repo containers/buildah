@@ -414,6 +414,7 @@ return 1
      --signature-policy
      -t
      --tag
+     --target
      --ulimit
      --userns
      --userns-uid-map

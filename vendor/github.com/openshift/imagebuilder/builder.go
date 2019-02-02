@@ -163,6 +163,7 @@ func (stages Stages) ByName(name string) (Stage, bool) {
 	return Stage{}, false
 }
 
+// Get just the target stage.
 func (stages Stages) ByTarget(target string) (Stages, bool) {
 	if len(target) == 0 {
 		return stages, true
@@ -170,6 +171,19 @@ func (stages Stages) ByTarget(target string) (Stages, bool) {
 	for i, stage := range stages {
 		if stage.Name == target {
 			return stages[i : i+1], true
+		}
+	}
+	return nil, false
+}
+
+// Get all the stages up to and including the target.
+func (stages Stages) ThroughTarget(target string) (Stages, bool) {
+	if len(target) == 0 {
+		return stages, true
+	}
+	for i, stage := range stages {
+		if stage.Name == target {
+			return stages[0 : i+1], true
 		}
 	}
 	return nil, false
