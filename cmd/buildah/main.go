@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/containers/buildah"
 	"os"
 
+	"github.com/containers/buildah"
+	"github.com/containers/buildah/pkg/utils"
 	"github.com/containers/libpod/pkg/util"
 	"github.com/containers/storage"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
@@ -56,6 +57,12 @@ func init() {
 		logrus.Errorf(err.Error())
 		os.Exit(1)
 
+	}
+
+	err = utils.CheckConfigFiles()
+	if err != nil {
+		logrus.Errorf(err.Error())
+		os.Exit(1)
 	}
 
 	if len(storage.DefaultStoreOptions.GraphDriverOptions) > 0 {
