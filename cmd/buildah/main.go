@@ -98,7 +98,7 @@ func before(cmd *cobra.Command, args []string) error {
 	if globalFlagResults.Debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
-	maybeReexecUsingUserNamespace(args, false)
+	maybeReexecUsingUserNamespace(cmd.Use, false)
 	return nil
 }
 

@@ -57,19 +57,14 @@ func bailOnError(err error, format string, a ...interface{}) {
 	}
 }
 
-func maybeReexecUsingUserNamespace(args []string, evenForRoot bool) {
+func maybeReexecUsingUserNamespace(cmdName string, evenForRoot bool) {
 	// If we've already been through this once, no need to try again.
 	if os.Getenv(startedInUserNS) != "" {
 		return
 	}
 
-	// If this is one of the commands that doesn't need this indirection, skip it.
-	if len(args) == 0 {
-		return
-	}
-
-	switch args[0] {
-	case "help", "version":
+	switch cmdName {
+	case "", "help", "version":
 		return
 	}
 
@@ -199,7 +194,7 @@ func execRunnable(cmd runnable) {
 // unshareCmd execs whatever using the ID mappings that we want to use for ourselves
 func unshareCmd(c *cobra.Command, args []string) error {
 	// force reexec using the configured ID mappings
-	maybeReexecUsingUserNamespace(args, true)
+	maybeReexecUsingUserNamespace(c.Use, true)
 	// exec the specified command, if there is one
 	if len(args) < 1 {
 		// try to exec the shell, if one's set
