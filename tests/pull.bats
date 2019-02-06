@@ -27,10 +27,10 @@ load helpers
 }
 
 @test "pull-from-registry" {
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json busybox:glibc
+  run buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json busybox:glibc
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  run buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json busybox
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
@@ -38,7 +38,7 @@ load helpers
   [ "$status" -eq 0 ]
   [[ "$output" =~ "busybox:glibc" ]]
   [[ "$output" =~ "busybox:latest" ]]
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx:latest
+  run buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx:latest
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
@@ -48,17 +48,17 @@ load helpers
   run buildah rmi quay.io/libpod/alpine_nginx:latest
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx
+  run buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" =~ "alpine_nginx:latest" ]]
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json alpine@sha256:1072e499f3f655a032e88542330cf75b02e7bdf673278f701d7ba61629ee3ebe
+  run buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json alpine@sha256:1072e499f3f655a032e88542330cf75b02e7bdf673278f701d7ba61629ee3ebe
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json fakeimage/fortest
+  run buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json fakeimage/fortest
   echo "$output"
   [ "$status" -ne 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
@@ -141,16 +141,16 @@ load helpers
   run docker pull alpine
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah rmi alpine
-  echo "$output"
-  [ "$status" -eq 0 ]
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json docker-daemon:docker.io/alpine:latest
+  run buildah pull --signature-policy ${TESTSDIR}/policy.json docker-daemon:docker.io/library/alpine:latest
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" =~ "alpine:latest" ]]
+  run buildah rmi alpine
+  echo "$output"
+  [ "$status" -eq 0 ]
   run docker rmi -f alpine:latest
   echo "$output"
   [ "$status" -eq 0 ]
@@ -167,7 +167,7 @@ load helpers
   run ostree --repo=${TESTDIR}/ostree-repo init
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json alpine
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah push --signature-policy ${TESTSDIR}/policy.json alpine ostree:alpine@${TESTDIR}/ostree-repo
