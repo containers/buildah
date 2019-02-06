@@ -35,6 +35,7 @@ load helpers
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
   echo "$output"
+  [ "$status" -eq 0 ]
   [[ "$output" =~ "busybox:glibc" ]]
   [[ "$output" =~ "busybox:latest" ]]
   run buildah pull --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx:latest
@@ -42,6 +43,7 @@ load helpers
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
   echo "$output"
+  [ "$status" -eq 0 ]
   [[ "$output" =~ "alpine_nginx:latest" ]]
   run buildah rmi quay.io/libpod/alpine_nginx:latest
   echo "$output"
@@ -51,6 +53,7 @@ load helpers
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
   echo "$output"
+  [ "$status" -eq 0 ]
   [[ "$output" =~ "alpine_nginx:latest" ]]
   run buildah pull --signature-policy ${TESTSDIR}/policy.json alpine@sha256:1072e499f3f655a032e88542330cf75b02e7bdf673278f701d7ba61629ee3ebe
   echo "$output"
@@ -60,6 +63,7 @@ load helpers
   [ "$status" -ne 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
   echo "$output"
+  [ "$status" -eq 0 ]
   [[ ! "$output" =~ "fakeimage/fortest" ]]
 }
 
@@ -67,62 +71,59 @@ load helpers
   run buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest docker-archive:/tmp/alp.tar:alpine:latest
+  run buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest docker-archive:${TESTDIR}/alp.tar:alpine:latest
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah rmi alpine
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json docker-archive:/tmp/alp.tar
+  run buildah pull --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
   echo "$output"
-  [[ "$output" =~ "alpine" ]]
-  run rm -f /tmp/alp.tar
-  echo "$output"
   [ "$status" -eq 0 ]
+  [[ "$output" =~ "alpine" ]]
 }
 
 @test "pull-from-oci-archive" {
   run buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest oci-archive:/tmp/alp.tar:alpine
+  run buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest oci-archive:${TESTDIR}/alp.tar:alpine
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah rmi alpine
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json oci-archive:/tmp/alp.tar
+  run buildah pull --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/alp.tar
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
   echo "$output"
-  [[ "$output" =~ "alpine" ]]
-  run rm -f /tmp/alp.tar
-  echo "$output"
   [ "$status" -eq 0 ]
+  [[ "$output" =~ "alpine" ]]
 }
 
 @test "pull-from-local-directory" {
-  run mkdir /tmp/buildahtest
+  mkdir ${TESTDIR}/buildahtest
   run buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest dir:/tmp/buildahtest
+  run buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest dir:${TESTDIR}/buildahtest
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah rmi alpine
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json dir:/tmp/buildahtest
+  run buildah pull --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
   echo "$output"
+  [ "$status" -eq 0 ]
   [[ "$output" =~ "buildahtest" ]]
-  run rm -rf /tmp/buildahtest
+  run rm -rf ${TESTDIR}/buildahtest
   echo "$output"
   [ "$status" -eq 0 ]
 }
@@ -135,16 +136,20 @@ load helpers
   fi
 
   run systemctl start docker
+  echo "$output"
+  [ "$status" -eq 0 ]
   run docker pull alpine
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah rmi alpine
   echo "$output"
+  [ "$status" -eq 0 ]
   run buildah pull --signature-policy ${TESTSDIR}/policy.json docker-daemon:docker.io/alpine:latest
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
   echo "$output"
+  [ "$status" -eq 0 ]
   [[ "$output" =~ "alpine:latest" ]]
   run docker rmi -f alpine:latest
   echo "$output"
@@ -158,24 +163,24 @@ load helpers
      skip "Skip the test as ostree command is not avaible"
   fi
 
-  run mkdir /tmp/ostree-repo
-  run ostree --repo=/tmp/ostree-repo init
+  mkdir ${TESTDIR}/ostree-repo
+  run ostree --repo=${TESTDIR}/ostree-repo init
   echo "$output"
+  [ "$status" -eq 0 ]
   run buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah push --signature-policy ${TESTSDIR}/policy.json alpine ostree:alpine@/tmp/ostree-repo
+  run buildah push --signature-policy ${TESTSDIR}/policy.json alpine ostree:alpine@${TESTDIR}/ostree-repo
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah rmi alpine
   echo "$output"
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json ostree:alpine@/tmp/ostree-repo
+  [ "$status" -eq 0 ]
+  run buildah pull --signature-policy ${TESTSDIR}/policy.json ostree:alpine@${TESTDIR}/ostree-repo
   echo "$output"
   [ "$status" -eq 0 ]
   run buildah images --format "{{.Name}}:{{.Tag}}"
   echo "$output"
-  [[ "$output" =~ "ostree-repo:latest" ]]
-  run rm -rf /tmp/ostree-repo
-  echo "$output"
   [ "$status" -eq 0 ]
+  [[ "$output" =~ "ostree-repo:latest" ]]
 }
