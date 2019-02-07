@@ -245,12 +245,14 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 		// If all is false and the image doesn't have a name, check to see if the top layer of the image is a parent
 		// to another image's top layer. If it is, then it is an intermediate image so don't print out if the --all flag
 		// is not set.
-		isParent, err := imageIsParent(store, image.TopLayer)
-		if err != nil {
-			logrus.Errorf("error checking if image is a parent %q: %v", image.ID, err)
-		}
-		if !opts.all && len(image.Names) == 0 && isParent {
-			continue
+		if !opts.all && len(image.Names) == 0 {
+			isParent, err := imageIsParent(store, image.TopLayer)
+			if err != nil {
+				logrus.Errorf("error checking if image is a parent %q: %v", image.ID, err)
+			}
+			if isParent {
+				continue
+			}
 		}
 
 		names := []string{}
