@@ -191,7 +191,7 @@ buildah config --entrypoint /entrypoint.sh containerID
 
 buildah config --entrypoint '[ "/entrypoint.sh", "dev" ]' containerID
 
-buildah config --env foo=bar PATH=$PATH containerID
+buildah config --env foo=bar --env PATH=$PATH containerID
 
 buildah config --label Name=Mycontainer --label  Version=1.0 containerID
 

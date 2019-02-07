@@ -59,7 +59,7 @@ func init() {
 		},
 		Example: `  buildah config --author='Jane Austen' --workingdir='/etc/mycontainers' containerID
   buildah config --entrypoint '[ "/entrypoint.sh", "dev" ]' containerID
-  buildah config --env foo=bar PATH=$PATH containerID`,
+  buildah config --env foo=bar --env PATH=$PATH containerID`,
 	}
 
 	flags := configCommand.Flags()
