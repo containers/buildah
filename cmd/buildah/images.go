@@ -47,8 +47,8 @@ type imageOptions struct {
 type filterParams struct {
 	dangling         string
 	label            string
-	beforeImage      string // Images are sorted by date, so we can just output until we see the image
-	sinceImage       string // Images are sorted by date, so we can just output until we don't see the image
+	beforeImage      string
+	sinceImage       string
 	beforeDate       time.Time
 	sinceDate        time.Time
 	referencePattern string
