@@ -93,9 +93,9 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		return errors.Errorf("too many arguments specified")
 	}
 	image := args[0]
-	compress := imagebuildah.Uncompressed
-	if c.Flag("disable-compression").Changed && !iopts.disableCompression {
-		compress = imagebuildah.Gzip
+	compress := imagebuildah.Gzip
+	if iopts.disableCompression {
+		compress = imagebuildah.Uncompressed
 	}
 	timestamp := time.Now().UTC()
 	if c.Flag("reference-time").Changed {
