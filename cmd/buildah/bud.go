@@ -214,10 +214,9 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		logrus.Debugf("--compress option specified but is ignored")
 	}
 
-	compression := imagebuildah.Uncompressed
-
-	if c.Flag("disable-compression").Changed && !iopts.DisableCompression {
-		compression = imagebuildah.Gzip
+	compression := imagebuildah.Gzip
+	if iopts.DisableCompression {
+		compression = imagebuildah.Uncompressed
 	}
 
 	if c.Flag("disable-content-trust").Changed {
