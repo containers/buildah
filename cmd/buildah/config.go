@@ -77,7 +77,7 @@ func init() {
 	flags.StringVar(&opts.healthcheck, "healthcheck", "", "set a `healthcheck` command for the target image")
 	flags.StringVar(&opts.healthcheckInterval, "healthcheck-interval", "", "set the `interval` between runs of the `healthcheck` command for the target image")
 	flags.IntVar(&opts.healthcheckRetries, "healthcheck-retries", 0, "set the `number` of times the `healthcheck` command has to fail")
-	flags.StringVar(&opts.healthcheckStartPeriod, "healthcheck-start-period", "", "set the amount of `time` to wait after starting a container before running a `healthcheck` command")
+	flags.StringVar(&opts.healthcheckStartPeriod, "healthcheck-start-period", "", "set the amount of `time` to wait after starting a container before a failed `healthcheck` command will count as a failure")
 	flags.StringVar(&opts.healthcheckTimeout, "healthcheck-timeout", "", "set the maximum amount of `time` to wait for a `healthcheck` command for the target image")
 	flags.StringVar(&opts.historyComment, "history-comment", "", "set a `comment` for the history of the target image")
 	flags.StringVar(&opts.hostname, "hostname", "", "set a host`name` for containers based on image")

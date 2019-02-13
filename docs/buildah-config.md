@@ -106,8 +106,12 @@ Note: this setting is not present in the OCIv1 image format, so it is discarded 
 
 **--healthcheck-start-period** *interval*
 
-Specify how long to wait after starting a container before running the command
-specified using the *--healthcheck* option.
+Specify how much time can elapse after a container has started before a failure
+to run the command specified using the *--healthcheck* option should be treated
+as an indication that the container is failing.  During this time period,
+failures will be attributed to the container not yet having fully started, and
+will not be counted as errors.  After the command succeeds, or the time period
+has elapsed, failures will be counted as errors.
 
 Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
 
