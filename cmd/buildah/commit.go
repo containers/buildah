@@ -59,7 +59,7 @@ func init() {
 
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
-	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", false, "don't compress layers")
+	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", true, "don't compress layers")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
 	flags.StringVar(&opts.iidfile, "iidfile", "", "Write the image ID to the file")
 	flags.BoolVar(&opts.omitTimestamp, "omit-timestamp", false, "set created timestamp to epoch 0 to allow for deterministic builds")
