@@ -1,4 +1,4 @@
-# buildah-unshare "19" "June 2018" "buildah"
+# buildah-unshare "1" "June 2018" "buildah"
 
 ## NAME
 buildah\-unshare - Run a command inside of a modified user namespace.
