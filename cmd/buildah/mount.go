@@ -11,8 +11,14 @@ import (
 
 func init() {
 	var (
-		mountDescription = "\n  Mounts a working container's root filesystem for manipulation."
-		noTruncate       bool
+		mountDescription = `buildah mount
+  mounts a working container's root filesystem for manipulation.
+
+  Note:  In rootless mode you need to first execute buildah unshare, to put you
+  into the usernamespace. Afterwards you can buildah mount the container and
+  view/modify the content in the containers root file system.
+`
+		noTruncate bool
 	)
 	mountCommand := &cobra.Command{
 		Use:   "mount",
@@ -21,9 +27,14 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return mountCmd(cmd, args, noTruncate)
 		},
-		Example: `buildah mount
+		Example: `  buildah mount
   buildah mount containerID
-  buildah mount containerID1 containerID2`,
+  buildah mount containerID1 containerID2
+
+  In rootless mode you must use buildah unshare first.
+  buildah unshare
+  buildah mount containerID
+`,
 	}
 
 	flags := mountCommand.Flags()
