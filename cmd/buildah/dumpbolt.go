@@ -32,7 +32,7 @@ func dumpBoltCmd(c *cobra.Command, args []string) error {
 	encode := func(value []byte) string {
 		var b strings.Builder
 		for i := range value {
-			if value[i] <= 32 || value[i] >= 127 || value[i] == 34 || value[i] == 61 {
+			if value[i] <= 32 || value[i] >= 127 {
 				b.WriteString(fmt.Sprintf("\\%03o", value[i]))
 			} else {
 				b.WriteByte(value[i])
@@ -42,13 +42,31 @@ func dumpBoltCmd(c *cobra.Command, args []string) error {
 	}
 
 	return db.View(func(tx *bolt.Tx) error {
-		return tx.ForEach(func(name []byte, b *bolt.Bucket) error {
-			fmt.Printf("[%q]\n", encode(name))
-			return b.ForEach(func(k, v []byte) (err error) {
-				_, err = fmt.Printf(" %q = %q\n", encode(k), encode(v))
+		var dumpBucket func(string, []byte, *bolt.Bucket) error
+		dumpBucket = func(indent string, name []byte, b *bolt.Bucket) error {
+			var subs [][]byte
+			indentMore := "  "
+			fmt.Printf("%s%s:\n", indent, encode(name))
+			err := b.ForEach(func(k, v []byte) (err error) {
+				if v == nil {
+					subs = append(subs, k)
+				} else {
+					_, err = fmt.Printf("%s%s: %s\n", indent+indentMore, encode(k), encode(v))
+				}
 				return err
 			})
-		})
+			if err != nil {
+				return err
+			}
+			for _, sub := range subs {
+				subbucket := b.Bucket(sub)
+				if err = dumpBucket(indent+indentMore, sub, subbucket); err != nil {
+					return err
+				}
+			}
+			return err
+		}
+		return tx.ForEach(func(name []byte, b *bolt.Bucket) error { return dumpBucket("", name, b) })
 	})
 }
 
