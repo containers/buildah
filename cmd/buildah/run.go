@@ -48,10 +48,11 @@ func init() {
 			return runCmd(cmd, args, opts)
 
 		},
-		Example: `  buildah run containerID -- ps -auxw
+		Example: `buildah run containerID -- ps -auxw
   buildah run --tty containerID /bin/bash
   buildah run --volume /path/on/host:/path/in/container:ro,z containerID /bin/sh`,
 	}
+	runCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := runCommand.Flags()
 	flags.SetInterspersed(false)

@@ -31,8 +31,10 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return infoCmd(cmd, args, opts)
 		},
-		Args: cobra.NoArgs,
+		Args:    cobra.NoArgs,
+		Example: `buildah info`,
 	}
+	infoCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := infoCommand.Flags()
 	flags.BoolVarP(&opts.debug, "debug", "d", false, "display additional debug information")

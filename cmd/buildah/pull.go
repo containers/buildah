@@ -39,10 +39,11 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pullCmd(cmd, args, opts)
 		},
-		Example: `  buildah pull imagename
+		Example: `buildah pull imagename
   buildah pull docker-daemon:imagename:imagetag
   buildah pull myregistry/myrepository/imagename:imagetag`,
 	}
+	pullCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := pullCommand.Flags()
 	flags.SetInterspersed(false)

@@ -71,10 +71,11 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return imagesCmd(cmd, args, &opts)
 		},
-		Example: `  buildah images --all
+		Example: `buildah images --all
   buildah images [imageName]
   buildah images --format '{{.ID}} {{.Name}} {{.Size}} {{.CreatedAtRaw}}'`,
 	}
+	imagesCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := imagesCommand.Flags()
 	flags.SetInterspersed(false)

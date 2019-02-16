@@ -51,10 +51,11 @@ func init() {
 			opts.NameSpaceResults = &namespaceResults
 			return fromCmd(cmd, args, opts)
 		},
-		Example: `  buildah from --pull imagename
+		Example: `buildah from --pull imagename
   buildah from docker-daemon:imagename:imagetag
   buildah from --name "myimagename" myregistry/myrepository/imagename:imagetag`,
 	}
+	fromCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := fromCommand.Flags()
 	flags.SetInterspersed(false)

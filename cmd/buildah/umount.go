@@ -17,10 +17,11 @@ func init() {
 		Short:   "Unmount the root file system of the specified working containers",
 		Long:    "Unmounts the root file system of the specified working containers.",
 		RunE:    umountCmd,
-		Example: `  buildah umount containerID
+		Example: `buildah umount containerID
   buildah umount containerID1 containerID2 containerID3
   buildah umount --all`,
 	}
+	umountCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := umountCommand.Flags()
 	flags.SetInterspersed(false)
