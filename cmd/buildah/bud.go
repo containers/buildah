@@ -49,10 +49,11 @@ func init() {
 			}
 			return budCmd(cmd, args, br)
 		},
-		Example: `  buildah bud -f Dockerfile.simple .
+		Example: `buildah bud -f Dockerfile.simple .
   buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
   buildah bud -f Dockerfile.simple -f Dockerfile.notsosimple .`,
 	}
+	budCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := budCommand.Flags()
 	flags.SetInterspersed(false)

@@ -27,7 +27,7 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return mountCmd(cmd, args, noTruncate)
 		},
-		Example: `  buildah mount
+		Example: `buildah mount
   buildah mount containerID
   buildah mount containerID1 containerID2
 
@@ -36,6 +36,7 @@ func init() {
   buildah mount containerID
 `,
 	}
+	mountCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := mountCommand.Flags()
 	flags.SetInterspersed(false)

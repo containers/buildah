@@ -36,10 +36,12 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return rmiCmd(cmd, args, opts)
 		},
-		Example: `  buildah rmi imageID
+		Example: `buildah rmi imageID
   buildah rmi --all --force
   buildah rmi imageID1 imageID2 imageID3`,
 	}
+	rmiCommand.SetUsageTemplate(UsageTemplate())
+
 	flags := rmiCommand.Flags()
 	flags.SetInterspersed(false)
 

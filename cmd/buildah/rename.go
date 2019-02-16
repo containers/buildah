@@ -13,13 +13,14 @@ var (
 		Short: "Rename a container",
 		Long:  renameDescription,
 		RunE:  renameCmd,
-		Example: `  buildah rename containerName NewName
+		Example: `buildah rename containerName NewName
   buildah rename containerID NewName`,
 		Args: cobra.ExactArgs(2),
 	}
 )
 
 func init() {
+	renameCommand.SetUsageTemplate(UsageTemplate())
 	rootCmd.AddCommand(renameCommand)
 }
 

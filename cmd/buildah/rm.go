@@ -27,10 +27,11 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return rmCmd(cmd, args, opts)
 		},
-		Example: `  buildah rm containerID
+		Example: `buildah rm containerID
   buildah rm containerID1 containerID2 containerID3
   buildah rm --all`,
 	}
+	rmCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := rmCommand.Flags()
 	flags.SetInterspersed(false)

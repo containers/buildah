@@ -49,13 +49,15 @@ func versionCmd(c *cobra.Command, args []string) error {
 
 //cli command to print out the version info of buildah
 var versionCommand = &cobra.Command{
-	Use:   "version",
-	Short: "Display the Buildah version information",
-	Long:  "Displays Buildah version information.",
-	RunE:  versionCmd,
-	Args:  cobra.NoArgs,
+	Use:     "version",
+	Short:   "Display the Buildah version information",
+	Long:    "Displays Buildah version information.",
+	RunE:    versionCmd,
+	Args:    cobra.NoArgs,
+	Example: `buildah version`,
 }
 
 func init() {
+	versionCommand.SetUsageTemplate(UsageTemplate())
 	rootCmd.AddCommand(versionCommand)
 }

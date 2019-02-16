@@ -30,10 +30,11 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return addCmd(cmd, args, addOpts)
 		},
-		Example: `  buildah add containerID '/myapp/app.conf'
+		Example: `buildah add containerID '/myapp/app.conf'
   buildah add containerID '/myapp/app.conf' '/myapp/app.conf'`,
 		Args: cobra.MinimumNArgs(1),
 	}
+	addCommand.SetUsageTemplate(UsageTemplate())
 
 	copyCommand := &cobra.Command{
 		Use:   "copy",
@@ -42,10 +43,11 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return copyCmd(cmd, args, copyOpts)
 		},
-		Example: `  buildah copy containerID '/myapp/app.conf'
+		Example: `buildah copy containerID '/myapp/app.conf'
   buildah copy containerID '/myapp/app.conf' '/myapp/app.conf'`,
 		Args: cobra.MinimumNArgs(1),
 	}
+	copyCommand.SetUsageTemplate(UsageTemplate())
 
 	addFlags := addCommand.Flags()
 	addFlags.SetInterspersed(false)

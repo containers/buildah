@@ -57,10 +57,11 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return configCmd(cmd, args, opts)
 		},
-		Example: `  buildah config --author='Jane Austen' --workingdir='/etc/mycontainers' containerID
+		Example: `buildah config --author='Jane Austen' --workingdir='/etc/mycontainers' containerID
   buildah config --entrypoint '[ "/entrypoint.sh", "dev" ]' containerID
   buildah config --env foo=bar --env PATH=$PATH containerID`,
 	}
+	configCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := configCommand.Flags()
 	flags.SetInterspersed(false)

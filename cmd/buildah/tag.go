@@ -15,7 +15,7 @@ var (
 		Long:  tagDescription,
 		RunE:  tagCmd,
 
-		Example: `  buildah tag imageName firstNewName
+		Example: `buildah tag imageName firstNewName
   buildah tag imageName firstNewName SecondNewName`,
 		Args: cobra.MinimumNArgs(2),
 	}
@@ -41,5 +41,6 @@ func tagCmd(c *cobra.Command, args []string) error {
 }
 
 func init() {
+	tagCommand.SetUsageTemplate(UsageTemplate())
 	rootCmd.AddCommand(tagCommand)
 }

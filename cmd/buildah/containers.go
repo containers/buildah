@@ -69,10 +69,11 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return containersCmd(cmd, args, opts)
 		},
-		Example: `  buildah containers
+		Example: `buildah containers
   buildah containers --format "{{.ContainerID}} {{.ContainerName}}"
   buildah containers -q --noheading --notruncate`,
 	}
+	containersCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := containersCommand.Flags()
 	flags.BoolVarP(&opts.all, "all", "a", false, "also list non-buildah containers")

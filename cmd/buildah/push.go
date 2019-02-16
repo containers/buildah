@@ -53,10 +53,12 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return pushCmd(cmd, args, opts)
 		},
-		Example: `  buildah push imageID docker://registry.example.com/repository:tag
+		Example: `buildah push imageID docker://registry.example.com/repository:tag
   buildah push imageID docker-daemon:image:tagi
   buildah push imageID oci:/path/to/layout:image:tag`,
 	}
+	pushCommand.SetUsageTemplate(UsageTemplate())
+
 	flags := pushCommand.Flags()
 	flags.SetInterspersed(false)
 	flags.StringVar(&opts.authfile, "authfile", "", "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json")

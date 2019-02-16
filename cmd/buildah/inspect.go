@@ -38,10 +38,11 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return inspectCmd(cmd, args, opts)
 		},
-		Example: `  buildah inspect containerID
+		Example: `buildah inspect containerID
   buildah inspect --type image imageID
   buildah inspect --format '{{.OCIv1.Config.Env}}' alpine`,
 	}
+	inspectCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := inspectCommand.Flags()
 	flags.SetInterspersed(false)

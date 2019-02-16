@@ -46,9 +46,10 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return commitCmd(cmd, args, opts)
 		},
-		Example: `  buildah commit containerID newImageName
+		Example: `buildah commit containerID newImageName
   buildah commit containerID docker://localhost:5000/imageId`,
 	}
+	commitCommand.SetUsageTemplate(UsageTemplate())
 	flags := commitCommand.Flags()
 	flags.SetInterspersed(false)
 

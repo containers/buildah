@@ -33,12 +33,13 @@ var (
 		Short: "Run a command in a modified user namespace",
 		Long:  unshareDescription,
 		RunE:  unshareCmd,
-		Example: `  buildah unshare id
+		Example: `buildah unshare id
   buildah unshare cat /proc/self/uid_map`,
 	}
 )
 
 func init() {
+	unshareCommand.SetUsageTemplate(UsageTemplate())
 	rootCmd.AddCommand(unshareCommand)
 }
 
