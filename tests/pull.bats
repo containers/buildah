@@ -184,3 +184,16 @@ load helpers
   [ "$status" -eq 0 ]
   [[ "$output" =~ "ostree-repo:latest" ]]
 }
+
+
+@test "pull-all-tags" {
+  run buildah pull --signature-policy ${TESTSDIR}/policy.json --all-tags alpine
+  echo "$output"
+  [[ "$output" =~ "alpine:latest" ]]
+  [ "$status" -eq 0 ]
+
+  run buildah images -q
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ $(wc -l <<< "$output") -ge 3 ]
+}
