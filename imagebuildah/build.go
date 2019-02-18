@@ -173,12 +173,9 @@ type BuildOptions struct {
 // Executor is a buildah-based implementation of the imagebuilder.Executor
 // interface.
 type Executor struct {
-	index                          int
-	name                           string
 	named                          map[string]*Executor
 	store                          storage.Store
 	contextDir                     string
-	builder                        *buildah.Builder
 	pullPolicy                     buildah.PullPolicy
 	registry                       string
 	ignoreUnrecognizedInstructions bool
@@ -196,11 +193,6 @@ type Executor struct {
 	err                            io.Writer
 	signaturePolicyPath            string
 	systemContext                  *types.SystemContext
-	mountPoint                     string
-	preserved                      int
-	volumes                        imagebuilder.VolumeSet
-	volumeCache                    map[string]string
-	volumeCacheInfo                map[string]os.FileInfo
 	reportWriter                   io.Writer
 	isolation                      buildah.Isolation
 	namespaceOptions               []buildah.NamespaceOption
@@ -222,9 +214,18 @@ type Executor struct {
 	forceRmIntermediateCtrs        bool
 	containerIDs                   []string          // Stores the IDs of the successful intermediate containers used during layer build
 	imageMap                       map[string]string // Used to map images that we create to handle the AS construct.
-	copyFrom                       string            // Used to keep track of the --from flag from COPY and ADD
 	blobDirectory                  string
 	excludes                       []string
+
+	index           int
+	name            string
+	builder         *buildah.Builder
+	preserved       int
+	volumes         imagebuilder.VolumeSet
+	volumeCache     map[string]string
+	volumeCacheInfo map[string]os.FileInfo
+	mountPoint      string
+	copyFrom        string // Used to keep track of the --from flag from COPY and ADD
 }
 
 // builtinAllowedBuildArgs is list of built-in allowed build args
@@ -620,6 +621,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		noCache:                        options.NoCache,
 		removeIntermediateCtrs:         options.RemoveIntermediateCtrs,
 		forceRmIntermediateCtrs:        options.ForceRmIntermediateCtrs,
+		imageMap:                       make(map[string]string),
 		blobDirectory:                  options.BlobDirectory,
 	}
 	if exec.err == nil {
@@ -1267,7 +1269,6 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (strin
 		stageExecutor *Executor
 		lastErr       error
 	)
-	b.imageMap = make(map[string]string)
 	stageCount := 0
 	for _, stage := range stages {
 		ib := stage.Builder
