@@ -987,6 +987,20 @@ load helpers
   [ "$status" -eq 0 ]
 }
 
+@test "bud with unused ARGS" {
+  target=alpine-image
+  run buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=USED_VALUE ${TESTSDIR}/bud/run-scenarios
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "USED_VALUE" ]]
+  [[ ! "$output" =~ "one or more build args were not consumed: [UNUSED_ARG]" ]]
+  run buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=USED_VALUE --build-arg UNUSED_ARG=whaaaat ${TESTSDIR}/bud/run-scenarios
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "USED_VALUE" ]]
+  [[ "$output" =~ "one or more build args were not consumed: [UNUSED_ARG]" ]]
+}
+
 @test "bud-from-stdin" {
   target=scratch-image
   cat ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch | buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f - ${TESTSDIR}/bud/from-multiple-files
