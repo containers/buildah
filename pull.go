@@ -15,6 +15,7 @@ import (
 	"github.com/containers/image/docker/reference"
 	tarfile "github.com/containers/image/docker/tarfile"
 	ociarchive "github.com/containers/image/oci/archive"
+	oci "github.com/containers/image/oci/layout"
 	"github.com/containers/image/signature"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
@@ -106,6 +107,13 @@ func localImageNameForReference(ctx context.Context, store storage.Store, srcRef
 			name = manifest.Annotations["org.opencontainers.image.ref.name"]
 		}
 	case directory.Transport.Name():
+		// supports pull from a directory
+		name = split[1]
+		// remove leading "/"
+		if name[:1] == "/" {
+			name = name[1:]
+		}
+	case oci.Transport.Name():
 		// supports pull from a directory
 		name = split[1]
 		// remove leading "/"
