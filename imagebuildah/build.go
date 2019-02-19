@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -216,6 +217,7 @@ type Executor struct {
 	imageMap                       map[string]string // Used to map images that we create to handle the AS construct.
 	blobDirectory                  string
 	excludes                       []string
+	unusedArgs                     map[string]struct{}
 }
 
 // StageExecutor bundles up what we need to know when executing one stage of a
@@ -245,7 +247,10 @@ type StageExecutor struct {
 	containerIDs    []string
 }
 
-// builtinAllowedBuildArgs is list of built-in allowed build args
+// builtinAllowedBuildArgs is list of built-in allowed build args.  Normally we
+// complain if we're given values for arguments which have no corresponding ARG
+// instruction in the Dockerfile, since that's usually an indication of a user
+// error, but for these values we make exceptions and ignore them.
 var builtinAllowedBuildArgs = map[string]bool{
 	"HTTP_PROXY":  true,
 	"http_proxy":  true,
@@ -649,6 +654,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		forceRmIntermediateCtrs:        options.ForceRmIntermediateCtrs,
 		imageMap:                       make(map[string]string),
 		blobDirectory:                  options.BlobDirectory,
+		unusedArgs:                     make(map[string]struct{}),
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -663,6 +669,11 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 			prefix := fmt.Sprintf("STEP %d: ", stepCounter)
 			suffix := "\n"
 			fmt.Fprintf(exec.err, prefix+format+suffix, args...)
+		}
+	}
+	for arg := range options.Args {
+		if _, isBuiltIn := builtinAllowedBuildArgs[arg]; !isBuiltIn {
+			exec.unusedArgs[arg] = struct{}{}
 		}
 	}
 	return &exec, nil
@@ -842,30 +853,29 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 	checkForLayers := true
 	children := node.Children
 	commitName := s.output
-
-	leftoverArgs := make(map[string]struct{})
 	var layerCacheID string
-	for arg := range s.builder.Args {
-		if !builtinAllowedBuildArgs[arg] {
-			leftoverArgs[arg] = struct{}{}
-		}
-	}
+
 	for i, node := range node.Children {
+		// Resolve any arguments so that we don't have to.
 		step := ib.Step()
 		if err := step.Resolve(node); err != nil {
 			return errors.Wrapf(err, "error resolving step %+v", *node)
 		}
 		logrus.Debugf("Parsed Step: %+v", *step)
+		if !s.executor.quiet {
+			s.executor.log("%s", step.Original)
+		}
+
+		// If this instruction declares an argument, remove it from the
+		// set of arguments that we were passed but which we haven't
+		// seen used by the Dockerfile.
 		if step.Command == "arg" {
 			for _, Arg := range step.Args {
 				list := strings.SplitN(Arg, "=", 2)
-				if _, leftover := leftoverArgs[list[0]]; leftover {
-					delete(leftoverArgs, list[0])
+				if _, stillUnused := s.executor.unusedArgs[list[0]]; stillUnused {
+					delete(s.executor.unusedArgs, list[0])
 				}
 			}
-		}
-		if !s.executor.quiet {
-			s.executor.log("%s", step.Original)
 		}
 
 		// Check if there's a --from if the step command is COPY or
@@ -970,17 +980,11 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 			}
 		}
 	}
-	if len(leftoverArgs) > 0 {
-		unusedList := make([]string, 0, len(leftoverArgs))
-		for k := range leftoverArgs {
-			unusedList = append(unusedList, k)
-		}
-		fmt.Fprintf(s.executor.out, "[Warning] One or more build-args %v were not consumed\n", unusedList)
-	}
 
 	if s.executor.layers { // print out the final imageID if we're using layers flag
 		fmt.Fprintf(s.executor.out, "--> %s\n", layerCacheID)
 	}
+
 	return nil
 }
 
@@ -1345,12 +1349,21 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (strin
 			b.imageMap[stage.Name] = imgID
 		}
 	}
+	if len(b.unusedArgs) > 0 {
+		unusedList := make([]string, 0, len(b.unusedArgs))
+		for k := range b.unusedArgs {
+			unusedList = append(unusedList, k)
+		}
+		sort.Strings(unusedList)
+		fmt.Fprintf(b.out, "[Warning] one or more build args were not consumed: %v\n", unusedList)
+	}
 
 	var imageRef reference.Canonical
 	imageID := ""
 
-	// Check if we have a one line Dockerfile making layers irrelevant
-	// or the user told us to ignore layers.
+	// Check if we have a one line Dockerfile (i.e., single phase, no
+	// actual steps) making layers irrelevant, or the user told us to
+	// ignore layers.
 	singleLineDockerfile := (len(stages) < 2 && len(stages[0].Node.Children) < 1)
 	ignoreLayers := singleLineDockerfile || !b.layers && !b.noCache
 
