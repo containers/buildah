@@ -270,16 +270,8 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 			imageID = shortID(image.ID)
 		}
 
-		names := []string{}
-		if len(image.Names) > 0 {
-			names = image.Names
-		} else {
-			// images without names should be printed with "<none>" as the image name
-			names = append(names, "<none>:<none>")
-		}
-
 	outer:
-		for name, tags := range imageReposToMap(names) {
+		for name, tags := range imageReposToMap(image.Names) {
 			for _, tag := range tags {
 				if !matchesReference(name+":"+tag, argName) {
 					continue
