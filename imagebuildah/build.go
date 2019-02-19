@@ -835,6 +835,23 @@ func (b *Executor) Execute(ctx context.Context, stage imagebuilder.Stage) error 
 		if !b.quiet {
 			b.log("%s", step.Original)
 		}
+
+		// Check if there's a --from if the step command is COPY or
+		// ADD.  Set copyFrom to point to either the context directory
+		// or the root of the container from the specified stage.
+		b.copyFrom = b.contextDir
+		for _, n := range step.Flags {
+			if strings.Contains(n, "--from") && (step.Command == "copy" || step.Command == "add") {
+				arr := strings.Split(n, "=")
+				stage, ok := b.named[arr[1]]
+				if !ok {
+					return errors.Errorf("%s --from=%s: no stage found with that name", step.Command, arr[1])
+				}
+				b.copyFrom = stage.mountPoint
+				break
+			}
+		}
+
 		requiresStart := false
 		if i < len(node.Children)-1 {
 			requiresStart = ib.RequiresStart(&parser.Node{Children: node.Children[i+1:]})
@@ -859,17 +876,6 @@ func (b *Executor) Execute(ctx context.Context, stage imagebuilder.Stage) error 
 			err     error
 			imgID   string
 		)
-
-		b.copyFrom = ""
-		// Check if --from exists in the step command of COPY or ADD
-		// If it exists, set b.copyfrom to that value
-		for _, n := range step.Flags {
-			if strings.Contains(n, "--from") && (step.Command == "copy" || step.Command == "add") {
-				arr := strings.Split(n, "=")
-				b.copyFrom = b.named[arr[1]].mountPoint
-				break
-			}
-		}
 
 		// checkForLayers will be true if b.layers is true and a cached intermediate image is found.
 		// checkForLayers is set to false when either there is no cached image or a break occurs where
@@ -1064,12 +1070,7 @@ func (b *Executor) getFilesToCopy(node *parser.Node) ([]string, error) {
 			currNode = currNode.Next
 			continue
 		}
-		if b.copyFrom != "" {
-			src = append(src, filepath.Join(b.copyFrom, currNode.Value))
-			currNode = currNode.Next
-			continue
-		}
-		matches, err := filepath.Glob(filepath.Join(b.contextDir, currNode.Value))
+		matches, err := filepath.Glob(filepath.Join(b.copyFrom, currNode.Value))
 		if err != nil {
 			return nil, errors.Wrapf(err, "error finding match for pattern %q", currNode.Value)
 		}
@@ -1109,12 +1110,7 @@ func (b *Executor) copiedFilesMatch(node *parser.Node, historyTime *time.Time) (
 		// Change the time format to ensure we don't run into a parsing error when converting again from string
 		// to time.Time. It is a known Go issue that the conversions cause errors sometimes, so specifying a particular
 		// time format here when converting to a string.
-		// If the COPY has --from in the command, change the rootdir to mountpoint of the container it is copying from
-		rootdir := b.contextDir
-		if b.copyFrom != "" {
-			rootdir = b.copyFrom
-		}
-		timeIsGreater, err := resolveModifiedTime(rootdir, item, historyTime.Format(time.RFC3339Nano))
+		timeIsGreater, err := resolveModifiedTime(b.copyFrom, item, historyTime.Format(time.RFC3339Nano))
 		if err != nil {
 			return false, errors.Wrapf(err, "error resolving symlinks and comparing modified times: %q", item)
 		}
