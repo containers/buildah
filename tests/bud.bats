@@ -19,10 +19,12 @@ load helpers
 @test "bud with --layers and --no-cache flags" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 8 ]
   [ "${status}" -eq 0 ]
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 10 ]
   [ "${status}" -eq 0 ]
   run buildah inspect --format "{{.Docker.ContainerConfig.Env}}" test2
@@ -36,22 +38,26 @@ load helpers
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 12 ]
   [ "${status}" -eq 0 ]
 
   mkdir -p ${TESTSDIR}/bud/use-layers/mount/subdir
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test4 -f Dockerfile.3 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 14 ]
   [ "${status}" -eq 0 ]
   touch ${TESTSDIR}/bud/use-layers/mount/subdir/file.txt
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test5 -f Dockerfile.3 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 16 ]
   [ "${status}" -eq 0 ]
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test6 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 19 ]
   [ "${status}" -eq 0 ]
 
@@ -62,11 +68,13 @@ load helpers
 @test "bud with --layers and single and two line Dockerfiles" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.5 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 3 ]
   [ "${status}" -eq 0 ]
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.6 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 4 ]
   [ "${status}" -eq 0 ]
 
@@ -81,10 +89,12 @@ load helpers
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 6 ]
   [ "${status}" -eq 0 ]
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 7 ]
   [ "${status}" -eq 0 ]
 
@@ -92,9 +102,11 @@ load helpers
   date > ${TESTSDIR}/bud/use-layers/date/data
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 11 ]
   [ "${status}" -eq 0 ]
   run buildah --debug=false containers
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 1 ]
   [ "${status}" -eq 0 ]
   
@@ -107,6 +119,7 @@ load helpers
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t test4 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 12 ]
   [ "${status}" -eq 0 ]
 
@@ -120,16 +133,19 @@ load helpers
   cd ${TESTSDIR}/bud/use-layers && ln -s hello.sh hello_world.sh
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.4 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 4 ]
   [ "${status}" -eq 0 ]
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.4 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 5 ]
   [ "${status}" -eq 0 ]
 
   echo 'echo "Hello Cache!"' > ${TESTSDIR}/bud/use-layers/hello.sh
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.4 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false images -a
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 7 ]
   [ "${status}" -eq 0 ]
 
@@ -140,11 +156,13 @@ load helpers
 @test "bud with --rm flag" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false containers
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 1 ]
   [ "${status}" -eq 0 ]
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --rm=false --layers -t test2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false containers
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 7 ]
   [ "${status}" -eq 0 ]
 
@@ -157,6 +175,7 @@ load helpers
   echo "$output"
   [ "$status" -ne 0 ]
   run buildah --debug=false containers
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 1 ]
   [ "${status}" -eq 0 ]
 
@@ -164,6 +183,7 @@ load helpers
   echo "$output"
   [ "$status" -ne 0 ]
   run buildah --debug=false containers
+  echo "$output"
   [ $(wc -l <<< "$output") -eq 2 ]
   [ "${status}" -eq 0 ]
 
