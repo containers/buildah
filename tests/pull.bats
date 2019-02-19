@@ -197,3 +197,22 @@ load helpers
   [ "$status" -eq 0 ]
   [ $(wc -l <<< "$output") -ge 3 ]
 }
+
+@test "pull-from-oci-directory" {
+  run buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest oci:${TESTDIR}/alpine
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run buildah rmi alpine
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run buildah pull --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run buildah images --format "{{.Name}}:{{.Tag}}"
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "alpine" ]]
+}
