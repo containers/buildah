@@ -809,11 +809,11 @@ func (b *Executor) Execute(ctx context.Context, stage imagebuilder.Stage) error 
 	commitName := b.output
 	b.containerIDs = nil
 
-	var leftoverArgs []string
+	leftoverArgs := make(map[string]struct{})
 	var layerCacheID string
 	for arg := range b.builder.Args {
 		if !builtinAllowedBuildArgs[arg] {
-			leftoverArgs = append(leftoverArgs, arg)
+			leftoverArgs[arg] = struct{}{}
 		}
 	}
 	for i, node := range node.Children {
@@ -823,12 +823,10 @@ func (b *Executor) Execute(ctx context.Context, stage imagebuilder.Stage) error 
 		}
 		logrus.Debugf("Parsed Step: %+v", *step)
 		if step.Command == "arg" {
-			for index, arg := range leftoverArgs {
-				for _, Arg := range step.Args {
-					list := strings.SplitN(Arg, "=", 2)
-					if arg == list[0] {
-						leftoverArgs = append(leftoverArgs[:index], leftoverArgs[index+1:]...)
-					}
+			for _, Arg := range step.Args {
+				list := strings.SplitN(Arg, "=", 2)
+				if _, leftover := leftoverArgs[list[0]]; leftover {
+					delete(leftoverArgs, list[0])
 				}
 			}
 		}
@@ -931,7 +929,11 @@ func (b *Executor) Execute(ctx context.Context, stage imagebuilder.Stage) error 
 		}
 	}
 	if len(leftoverArgs) > 0 {
-		fmt.Fprintf(b.out, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
+		unusedList := make([]string, 0, len(leftoverArgs))
+		for k := range leftoverArgs {
+			unusedList = append(unusedList, k)
+		}
+		fmt.Fprintf(b.out, "[Warning] One or more build-args %v were not consumed\n", unusedList)
 	}
 
 	if b.layers { // print out the final imageID if we're using layers flag
