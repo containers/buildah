@@ -84,6 +84,12 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" =~ "alpine" ]]
+  run buildah pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
+  echo "$output"
+  [ "$status" -ne 0 ]
+  run rm -rf ${TESTDIR}/alp.tar
+  echo "$output"
+  [ "$status" -eq 0 ]
 }
 
 @test "pull-from-oci-archive" {
@@ -103,6 +109,12 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" =~ "alpine" ]]
+  run buildah pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/alp.tar
+  echo "$output"
+  [ "$status" -ne 0 ]
+  run rm -rf ${TESTDIR}/alp.tar
+  echo "$output"
+  [ "$status" -eq 0 ]
 }
 
 @test "pull-from-local-directory" {
@@ -123,6 +135,9 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" =~ "buildahtest" ]]
+  run buildah pull --all-tags --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
+  echo "$output"
+  [ "$status" -ne 0 ]
   run rm -rf ${TESTDIR}/buildahtest
   echo "$output"
   [ "$status" -eq 0 ]
@@ -151,6 +166,9 @@ load helpers
   run buildah rmi alpine
   echo "$output"
   [ "$status" -eq 0 ]
+  run buildah pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-daemon:docker.io/library/alpine:latest
+  echo "$output"
+  [ "$status" -ne 0 ]
   run docker rmi -f alpine:latest
   echo "$output"
   [ "$status" -eq 0 ]
@@ -215,4 +233,16 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" =~ "alpine" ]]
+  run buildah pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
+  echo "$output"
+  [ "$status" -ne 0 ]
+  run rm -rf ${TESTDIR}/alpine
+  echo "$output"
+  [ "$status" -eq 0 ]
+}
+
+@test "pull-with-alltags-from-registry" {
+  run buildah pull --all-tags --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx
+  echo "$output"
+  [ "$status" -eq 0 ]
 }
