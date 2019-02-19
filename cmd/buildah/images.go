@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/formats"
 	is "github.com/containers/image/storage"
@@ -280,7 +279,7 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 		}
 
 	outer:
-		for name, tags := range imagebuildah.ReposToMap(names) {
+		for name, tags := range imageReposToMap(names) {
 			for _, tag := range tags {
 				if !matchesReference(name+":"+tag, argName) {
 					continue
@@ -458,4 +457,29 @@ func formattedSize(size int64) string {
 		count++
 	}
 	return fmt.Sprintf("%.3g %s", formattedSize, suffixes[count])
+}
+
+// reposToMap parses the specified repotags and returns a map with repositories
+// as keys and the corresponding arrays of tags as values.
+func imageReposToMap(repotags []string) map[string][]string {
+	// map format is repo -> tag
+	repos := make(map[string][]string)
+	for _, repo := range repotags {
+		var repository, tag string
+		if strings.Contains(repo, ":") {
+			li := strings.LastIndex(repo, ":")
+			repository = repo[0:li]
+			tag = repo[li+1:]
+		} else if len(repo) > 0 {
+			repository = repo
+			tag = "<none>"
+		} else {
+			logrus.Warnf("Found image with empty name")
+		}
+		repos[repository] = append(repos[repository], tag)
+	}
+	if len(repos) == 0 {
+		repos["<none>"] = []string{"<none>"}
+	}
+	return repos
 }
