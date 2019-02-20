@@ -17,12 +17,14 @@ load helpers
 }
 
 @test "bud with --layers and --no-cache flags" {
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
+  cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 8 ]
   [ "${status}" -eq 0 ]
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTSDIR}/bud/use-layers
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 10 ]
@@ -36,33 +38,32 @@ load helpers
   [ "$status" -eq 0 ]
   [[ $output =~ "8080" ]]
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 12 ]
   [ "${status}" -eq 0 ]
 
-  mkdir -p ${TESTSDIR}/bud/use-layers/mount/subdir
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test4 -f Dockerfile.3 ${TESTSDIR}/bud/use-layers
+  mkdir -p ${TESTDIR}/use-layers/mount/subdir
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test4 -f Dockerfile.3 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 14 ]
   [ "${status}" -eq 0 ]
-  touch ${TESTSDIR}/bud/use-layers/mount/subdir/file.txt
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test5 -f Dockerfile.3 ${TESTSDIR}/bud/use-layers
+  touch ${TESTDIR}/use-layers/mount/subdir/file.txt
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test5 -f Dockerfile.3 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 16 ]
   [ "${status}" -eq 0 ]
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test6 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test6 -f Dockerfile.2 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 19 ]
   [ "${status}" -eq 0 ]
 
   buildah rmi -a -f
-  rm -rf ${TESTSDIR}/bud/use-layers/mount
 }
 
 @test "bud with --layers and single and two line Dockerfiles" {
@@ -82,25 +83,27 @@ load helpers
 }
 
 @test "bud with --layers, multistage, and COPY with --from" {
-  mkdir -p ${TESTSDIR}/bud/use-layers/uuid
-  uuidgen > ${TESTSDIR}/bud/use-layers/uuid/data
-  mkdir -p ${TESTSDIR}/bud/use-layers/date
-  date > ${TESTSDIR}/bud/use-layers/date/data
+  cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
+  mkdir -p ${TESTDIR}/use-layers/uuid
+  uuidgen > ${TESTDIR}/use-layers/uuid/data
+  mkdir -p ${TESTDIR}/use-layers/date
+  date > ${TESTDIR}/use-layers/date/data
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 6 ]
   [ "${status}" -eq 0 ]
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 7 ]
   [ "${status}" -eq 0 ]
 
-  uuidgen > ${TESTSDIR}/bud/use-layers/uuid/data
-  date > ${TESTSDIR}/bud/use-layers/date/data
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
+  uuidgen > ${TESTDIR}/use-layers/uuid/data
+  date > ${TESTDIR}/use-layers/date/data
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 11 ]
@@ -117,39 +120,37 @@ load helpers
   run test -e $mnt/date
   [ "${status}" -eq 0 ]
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t test4 -f Dockerfile.multistage-copy ${TESTSDIR}/bud/use-layers
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t test4 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 12 ]
   [ "${status}" -eq 0 ]
 
   buildah rmi -a -f
-  rm -rf ${TESTSDIR}/bud/use-layers/uuid
-  rm -rf ${TESTSDIR}/bud/use-layers/date
 }
 
 @test "bud with --layers and symlink file" {
-  echo 'echo "Hello World!"' > ${TESTSDIR}/bud/use-layers/hello.sh
-  cd ${TESTSDIR}/bud/use-layers && ln -s hello.sh hello_world.sh
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.4 ${TESTSDIR}/bud/use-layers
+  cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
+  echo 'echo "Hello World!"' > ${TESTDIR}/use-layers/hello.sh
+  ln -s hello.sh ${TESTDIR}/use-layers/hello_world.sh
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.4 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 4 ]
   [ "${status}" -eq 0 ]
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.4 ${TESTSDIR}/bud/use-layers
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.4 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 5 ]
   [ "${status}" -eq 0 ]
 
-  echo 'echo "Hello Cache!"' > ${TESTSDIR}/bud/use-layers/hello.sh
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.4 ${TESTSDIR}/bud/use-layers
+  echo 'echo "Hello Cache!"' > ${TESTDIR}/use-layers/hello.sh
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.4 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 7 ]
   [ "${status}" -eq 0 ]
 
-  rm ${TESTSDIR}/bud/use-layers/hello.sh ${TESTSDIR}/bud/use-layers/hello_world.sh
   buildah rmi -a -f
 }
 
