@@ -39,6 +39,8 @@ matrix:
 services:
     - docker
 before_install:
+    - make vendor
+    - ./hack/tree_status.sh
     - sudo apt-get update
     - sudo apt-get -qq install software-properties-common
     - sudo add-apt-repository -y ppa:duggan/bats
