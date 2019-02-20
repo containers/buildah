@@ -133,6 +133,11 @@ test-unit: tests/testreport/testreport
 	mkdir -p $$tmp/root $$tmp/runroot; \
 	$(GO) test -v -tags "$(STORAGETAGS) $(SECURITYTAGS)" ./cmd/buildah -args -root $$tmp/root -runroot $$tmp/runroot -storage-driver vfs -signature-policy $(shell pwd)/tests/policy.json -registries-conf $(shell pwd)/tests/registries.conf
 
+.PHONY: .install.vndr
+.install.vndr:
+	$(GO) get -u github.com/LK4D4/vndr
+
 .PHONY: vendor
-vendor: vendor.conf
-	vndr -whitelist "github.com/onsi/gomega"
+vendor: vendor.conf .install.vndr
+	$(GOPATH)/bin/vndr \
+		-whitelist "github.com/onsi/gomega"
