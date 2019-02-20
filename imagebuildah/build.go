@@ -213,7 +213,6 @@ type Executor struct {
 	noCache                        bool
 	removeIntermediateCtrs         bool
 	forceRmIntermediateCtrs        bool
-	containerIDs                   []string          // Stores the IDs of the successful intermediate containers used during layer build
 	imageMap                       map[string]string // Used to map images that we create to handle the AS construct.
 	blobDirectory                  string
 	excludes                       []string
@@ -1323,8 +1322,6 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (strin
 			lastErr = err
 		}
 
-		b.containerIDs = append(b.containerIDs, stageExecutor.containerIDs...)
-
 		// Delete the successful intermediate containers if an error in the build
 		// process occurs and b.removeIntermediateCtrs is true.
 		if lastErr != nil {
@@ -1569,15 +1566,23 @@ func processCopyFrom(dockerfiles []io.ReadCloser) []io.ReadCloser {
 	return newDockerfiles
 }
 
-// deleteSuccessfulIntermediateCtrs goes through the container IDs in b.containerIDs
-// and deletes the containers associated with that ID.
+// deleteSuccessfulIntermediateCtrs goes through the container IDs in each
+// stage's containerIDs list and deletes the containers associated with those
+// IDs.
 func (b *Executor) deleteSuccessfulIntermediateCtrs() error {
 	var lastErr error
-	for _, ctr := range b.containerIDs {
-		if err := b.store.DeleteContainer(ctr); err != nil {
-			logrus.Errorf("error deleting build container %q: %v\n", ctr, err)
-			lastErr = err
+	for _, s := range b.stages {
+		for _, ctr := range s.containerIDs {
+			if err := b.store.DeleteContainer(ctr); err != nil {
+				logrus.Errorf("error deleting build container %q: %v\n", ctr, err)
+				lastErr = err
+			}
 		}
+		// The stages map includes some stages under multiple keys, so
+		// clearing their lists after we process a given stage is
+		// necessary to avoid triggering errors that would occur if we
+		// tried to delete a given stage's containers multiple times.
+		s.containerIDs = nil
 	}
 	return lastErr
 }
