@@ -86,7 +86,10 @@ func pullCmd(c *cobra.Command, args []string, iopts pullResults) error {
 		BlobDirectory:       iopts.blobCache,
 		AllTags:             iopts.allTags,
 		ReportWriter:        os.Stderr,
-		Quiet:               iopts.quiet,
+	}
+
+	if iopts.quiet {
+		options.ReportWriter = nil // Turns off logging output
 	}
 
 	return buildah.Pull(getContext(), args[0], options)
