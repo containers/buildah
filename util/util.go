@@ -166,15 +166,7 @@ func ExpandNames(names []string, firstRegistry string, systemContext *types.Syst
 			name = named
 		}
 		name = reference.TagNameOnly(name)
-		tag := ""
-		digest := ""
-		if tagged, ok := name.(reference.NamedTagged); ok {
-			tag = ":" + tagged.Tag()
-		}
-		if digested, ok := name.(reference.Digested); ok {
-			digest = "@" + digested.Digest().String()
-		}
-		expanded = append(expanded, name.Name()+tag+digest)
+		expanded = append(expanded, name.String())
 	}
 	return expanded, nil
 }
