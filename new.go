@@ -24,21 +24,21 @@ const (
 	BaseImageFakeName = imagebuilder.NoBaseImageSpecifier
 )
 
-func pullAndFindImage(ctx context.Context, store storage.Store, transport string, imageName string, options BuilderOptions, sc *types.SystemContext) (*storage.Image, types.ImageReference, error) {
+func pullAndFindImage(ctx context.Context, store storage.Store, srcRef types.ImageReference, options BuilderOptions, sc *types.SystemContext) (*storage.Image, types.ImageReference, error) {
 	pullOptions := PullOptions{
 		ReportWriter:  options.ReportWriter,
 		Store:         store,
 		SystemContext: options.SystemContext,
 		BlobDirectory: options.PullBlobDirectory,
 	}
-	ref, err := pullImage(ctx, store, transport, imageName, pullOptions, sc)
+	ref, err := pullImage(ctx, store, srcRef, pullOptions, sc)
 	if err != nil {
-		logrus.Debugf("error pulling image %q: %v", imageName, err)
+		logrus.Debugf("error pulling image %q: %v", transports.ImageName(srcRef), err)
 		return nil, nil, err
 	}
 	img, err := is.Transport.GetStoreImage(store, ref)
 	if err != nil {
-		logrus.Debugf("error reading pulled image %q: %v", imageName, err)
+		logrus.Debugf("error reading pulled image %q: %v", transports.ImageName(srcRef), err)
 		return nil, nil, errors.Wrapf(err, "error locating image %q in local storage", transports.ImageName(ref))
 	}
 	return img, ref, nil
@@ -137,7 +137,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 		}
 
 		if options.PullPolicy == PullAlways {
-			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, transport, image, options, systemContext)
+			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, srcRef, options, systemContext)
 			if err != nil {
 				logrus.Debugf("unable to pull and read image %q: %v", image, err)
 				failures = append(failures, failure{resolvedImageName: image, err: err})
@@ -172,7 +172,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 			continue
 		}
 
-		pulledImg, pulledReference, err := pullAndFindImage(ctx, store, transport, image, options, systemContext)
+		pulledImg, pulledReference, err := pullAndFindImage(ctx, store, srcRef, options, systemContext)
 		if err != nil {
 			logrus.Debugf("unable to pull and read image %q: %v", image, err)
 			failures = append(failures, failure{resolvedImageName: image, err: err})
