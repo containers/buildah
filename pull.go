@@ -52,15 +52,14 @@ type PullOptions struct {
 	AllTags bool
 }
 
-func localImageNameForReference(ctx context.Context, store storage.Store, srcRef types.ImageReference, spec string) (string, error) {
+func localImageNameForReference(ctx context.Context, store storage.Store, srcRef types.ImageReference) (string, error) {
 	if srcRef == nil {
 		return "", errors.Errorf("reference to image is empty")
 	}
-	split := strings.SplitN(spec, ":", 2)
-	file := split[len(split)-1]
 	var name string
 	switch srcRef.Transport().Name() {
 	case dockerarchive.Transport.Name():
+		file := srcRef.StringWithinTransport()
 		tarSource, err := tarfile.NewSourceFromFile(file)
 		if err != nil {
 			return "", errors.Wrapf(err, "error opening tarfile %q as a source image", file)
@@ -104,14 +103,15 @@ func localImageNameForReference(ctx context.Context, store storage.Store, srcRef
 		}
 	case directory.Transport.Name():
 		// supports pull from a directory
-		name = split[1]
+		name = srcRef.StringWithinTransport()
 		// remove leading "/"
 		if name[:1] == "/" {
 			name = name[1:]
 		}
 	case oci.Transport.Name():
 		// supports pull from a directory
-		name = split[1]
+		split := strings.SplitN(srcRef.StringWithinTransport(), ":", 2)
+		name = split[0]
 		// remove leading "/"
 		if name[:1] == "/" {
 			name = name[1:]
@@ -235,7 +235,7 @@ func pullImage(ctx context.Context, store storage.Store, transport string, image
 		return nil, errors.Errorf("pull access to registry for %q is blocked by configuration", transports.ImageName(srcRef))
 	}
 
-	destName, err := localImageNameForReference(ctx, store, srcRef, spec)
+	destName, err := localImageNameForReference(ctx, store, srcRef)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error computing local image name for %q", transports.ImageName(srcRef))
 	}
