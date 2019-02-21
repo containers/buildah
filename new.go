@@ -122,16 +122,6 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 			return ref, transport, img, nil
 		}
 
-		if options.PullPolicy == PullAlways {
-			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, transport, image, options, systemContext)
-			if err != nil {
-				logrus.Debugf("unable to pull and read image %q: %v", image, err)
-				failures = append(failures, failure{resolvedImageName: image, err: err})
-				continue
-			}
-			return pulledReference, transport, pulledImg, nil
-		}
-
 		trans := transport
 		if transport != util.DefaultTransport {
 			trans = trans + ":"
@@ -144,6 +134,16 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 				err:               errors.Wrapf(err, "error parsing attempted image name %q", trans+image),
 			})
 			continue
+		}
+
+		if options.PullPolicy == PullAlways {
+			pulledImg, pulledReference, err := pullAndFindImage(ctx, store, transport, image, options, systemContext)
+			if err != nil {
+				logrus.Debugf("unable to pull and read image %q: %v", image, err)
+				failures = append(failures, failure{resolvedImageName: image, err: err})
+				continue
+			}
+			return pulledReference, transport, pulledImg, nil
 		}
 
 		destImage, err := localImageNameForReference(ctx, store, srcRef)
