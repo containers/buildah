@@ -190,10 +190,14 @@ func Pull(ctx context.Context, imageName string, options PullOptions) error {
 				errs = multierror.Append(errs, err)
 				continue
 			}
+			taggedRef, err := docker.NewReference(tagged)
+			if err != nil {
+				return errors.Wrapf(err, "internal error creating docker.Transport reference for %s", tagged.String())
+			}
 			if options.ReportWriter != nil {
 				options.ReportWriter.Write([]byte("Pulling " + tagged.String() + "\n"))
 			}
-			ref, err := pullImage(ctx, options.Store, transport, tagged.String(), options, systemContext)
+			ref, err := pullImage(ctx, options.Store, taggedRef, options, systemContext)
 			if err != nil {
 				errs = multierror.Append(errs, err)
 				continue
@@ -212,21 +216,7 @@ func Pull(ctx context.Context, imageName string, options PullOptions) error {
 	return errs.ErrorOrNil()
 }
 
-func pullImage(ctx context.Context, store storage.Store, transport string, imageName string, options PullOptions, sc *types.SystemContext) (types.ImageReference, error) {
-	if transport == "" {
-		transport = util.DefaultTransport
-	} else {
-		if transport != util.DefaultTransport {
-			transport = transport + ":"
-		}
-	}
-	spec := transport + imageName
-	srcRef, err := alltransports.ParseImageName(spec)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error parsing image name %q", spec)
-	}
-	logrus.Debugf("parsed image name %q", spec)
-
+func pullImage(ctx context.Context, store storage.Store, srcRef types.ImageReference, options PullOptions, sc *types.SystemContext) (types.ImageReference, error) {
 	blocked, err := isReferenceBlocked(srcRef, sc)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error checking if pulling from registry for %q is blocked", transports.ImageName(srcRef))
@@ -272,9 +262,9 @@ func pullImage(ctx context.Context, store storage.Store, transport string, image
 		}
 	}()
 
-	logrus.Debugf("copying %q to %q", spec, destName)
+	logrus.Debugf("copying %q to %q", transports.ImageName(srcRef), destName)
 	if _, err := cp.Image(ctx, policyContext, maybeCachedDestRef, srcRef, getCopyOptions(options.ReportWriter, srcRef, sc, maybeCachedDestRef, nil, "")); err != nil {
-		logrus.Debugf("error copying src image [%q] to dest image [%q] err: %v", spec, destName, err)
+		logrus.Debugf("error copying src image [%q] to dest image [%q] err: %v", transports.ImageName(srcRef), destName, err)
 		return nil, err
 	}
 	return destRef, nil
