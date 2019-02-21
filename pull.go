@@ -176,7 +176,7 @@ func Pull(ctx context.Context, imageName string, options PullOptions) error {
 		}
 
 		repo := reference.TrimNamed(storageRef.DockerReference())
-		dockerRef, err := alltransports.ParseImageName(transport + repo.Name())
+		dockerRef, err := alltransports.ParseImageName(transport + storageRef.DockerReference().String())
 		if err != nil {
 			return errors.Wrapf(err, "error getting repository tags")
 		}
