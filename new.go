@@ -132,24 +132,18 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 			return pulledReference, transport, pulledImg, nil
 		}
 
-		srcRef, err := alltransports.ParseImageName(image)
+		trans := transport
+		if transport != util.DefaultTransport {
+			trans = trans + ":"
+		}
+		srcRef, err := alltransports.ParseImageName(trans + image)
 		if err != nil {
-			logrus.Debugf("error parsing image name %q as given, trying with transport %q: %v", image, transport, err)
-
-			trans := transport
-			if transport != util.DefaultTransport {
-				trans = trans + ":"
-			}
-			srcRef2, err := alltransports.ParseImageName(trans + image)
-			if err != nil {
-				logrus.Debugf("error parsing image name %q: %v", trans+image, err)
-				failures = append(failures, failure{
-					resolvedImageName: image,
-					err:               errors.Wrapf(err, "error parsing attempted image name %q", trans+image),
-				})
-				continue
-			}
-			srcRef = srcRef2
+			logrus.Debugf("error parsing image name %q: %v", trans+image, err)
+			failures = append(failures, failure{
+				resolvedImageName: image,
+				err:               errors.Wrapf(err, "error parsing attempted image name %q", trans+image),
+			})
+			continue
 		}
 
 		destImage, err := localImageNameForReference(ctx, store, srcRef, options.FromImage)
