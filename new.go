@@ -134,14 +134,6 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 
 		srcRef, err := alltransports.ParseImageName(image)
 		if err != nil {
-			if transport == "" {
-				logrus.Debugf("error parsing image name %q: %v", image, err)
-				failures = append(failures, failure{
-					resolvedImageName: image,
-					err:               errors.Wrapf(err, "error parsing image name"),
-				})
-				continue
-			}
 			logrus.Debugf("error parsing image name %q as given, trying with transport %q: %v", image, transport, err)
 
 			trans := transport
