@@ -7,7 +7,6 @@ import (
 
 	cp "github.com/containers/image/copy"
 	"github.com/containers/image/types"
-	"github.com/containers/libpod/pkg/rootless"
 )
 
 const (
@@ -25,11 +24,8 @@ func getCopyOptions(reportWriter io.Writer, sourceReference types.ImageReference
 	if sourceSystemContext != nil {
 		*sourceCtx = *sourceSystemContext
 	} else {
-		if rootless.IsRootless() {
-			if _, err := os.Stat(userRegistriesFile); err == nil {
-				sourceCtx.SystemRegistriesConfPath = userRegistriesFile
-			}
-
+		if _, err := os.Stat(userRegistriesFile); err == nil {
+			sourceCtx.SystemRegistriesConfPath = userRegistriesFile
 		}
 	}
 
@@ -37,10 +33,8 @@ func getCopyOptions(reportWriter io.Writer, sourceReference types.ImageReference
 	if destinationSystemContext != nil {
 		*destinationCtx = *destinationSystemContext
 	} else {
-		if rootless.IsRootless() {
-			if _, err := os.Stat(userRegistriesFile); err == nil {
-				destinationCtx.SystemRegistriesConfPath = userRegistriesFile
-			}
+		if _, err := os.Stat(userRegistriesFile); err == nil {
+			destinationCtx.SystemRegistriesConfPath = userRegistriesFile
 		}
 	}
 
@@ -60,7 +54,7 @@ func getSystemContext(defaults *types.SystemContext, signaturePolicyPath string)
 	if signaturePolicyPath != "" {
 		sc.SignaturePolicyPath = signaturePolicyPath
 	}
-	if sc.SystemRegistriesConfPath == "" && rootless.IsRootless() {
+	if sc.SystemRegistriesConfPath == "" {
 		if _, err := os.Stat(userRegistriesFile); err == nil {
 			sc.SystemRegistriesConfPath = userRegistriesFile
 		}
