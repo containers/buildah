@@ -213,23 +213,17 @@ func Pull(ctx context.Context, imageName string, options PullOptions) error {
 }
 
 func pullImage(ctx context.Context, store storage.Store, transport string, imageName string, options PullOptions, sc *types.SystemContext) (types.ImageReference, error) {
-	spec := imageName
+	if transport == "" {
+		transport = util.DefaultTransport
+	} else {
+		if transport != util.DefaultTransport {
+			transport = transport + ":"
+		}
+	}
+	spec := transport + imageName
 	srcRef, err := alltransports.ParseImageName(spec)
 	if err != nil {
-		logrus.Debugf("error parsing image name %q, trying with transport %q: %v", spec, transport, err)
-		if transport == "" {
-			transport = util.DefaultTransport
-		} else {
-			if transport != util.DefaultTransport {
-				transport = transport + ":"
-			}
-		}
-		spec = transport + spec
-		srcRef2, err2 := alltransports.ParseImageName(spec)
-		if err2 != nil {
-			return nil, errors.Wrapf(err2, "error parsing image name %q", spec)
-		}
-		srcRef = srcRef2
+		return nil, errors.Wrapf(err, "error parsing image name %q", spec)
 	}
 	logrus.Debugf("parsed image name %q", spec)
 
