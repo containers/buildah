@@ -19,7 +19,6 @@ import (
 	"github.com/containers/image/signature"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/transports"
-	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	multierror "github.com/hashicorp/go-multierror"
@@ -176,9 +175,9 @@ func Pull(ctx context.Context, imageName string, options PullOptions) error {
 		}
 
 		repo := reference.TrimNamed(storageRef.DockerReference())
-		dockerRef, err := alltransports.ParseImageName(transport + storageRef.DockerReference().String())
+		dockerRef, err := docker.NewReference(reference.TagNameOnly(storageRef.DockerReference()))
 		if err != nil {
-			return errors.Wrapf(err, "error getting repository tags")
+			return errors.Wrapf(err, "internal error creating docker.Transport reference for %s", storageRef.DockerReference().String())
 		}
 		tags, err := docker.GetRepositoryTags(ctx, systemContext, dockerRef)
 		if err != nil {
