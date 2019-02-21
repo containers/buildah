@@ -1,3 +1,59 @@
+- Changelog for v1.7 (2019-02-21)
+  * vendor containers/image v1.4
+  * Make "images --all" faster
+  * Remove a misleading comment
+  * Remove quiet option from pull options
+  * Make sure buildah pull --all-tags only works with docker transport
+  * Support oci layout format
+  * Fix pulling of images within buildah
+  * Fix tls-verify polarity
+  * Travis: execute make vendor and hack/tree_status.sh
+  * vendor.conf: remove unused dependencies
+  * add missing vendor/github.com/containers/libpod/vendor.conf
+  * vendor.conf: remove github.com/inconshreveable/mousetrap
+  * make vendor: always fetch the latest vndr
+  * add hack/tree_status.sh script
+  * Bump c/Storage to 1.10
+  * Add --all-tags test to pull
+  * mount: make error clearer
+  * Remove global flags from cli help
+  * Set --disable-compression to true as documented
+  * Help document using buildah mount in rootless mode
+  * healthcheck start-period: update documentation
+  * Vendor in latest c/storage and c/image
+  * dumpbolt: handle nested buckets
+  * Fix buildah commit compress by default
+  * Test on xenial, not trusty
+  * unshare: reexec using a memfd copy instead of the binary
+  * Add --target to bud command
+  * Fix example for setting multiple environment variables
+  * main: fix rootless mode
+  * buildah: force umask 022
+  * pull.bats: specify registry config when using registries
+  * pull.bats: use the temporary directory, not /tmp
+  * unshare: do not set rootless mode if euid=0
+  * Touch up cli help examples and a few nits
+  * Add an undocumented dumpbolt command
+  * Move tar commands into containers/storage
+  * Fix bud issue with 2 line Dockerfile
+  * Add package install descriptions
+  * Note configuration file requirements
+  * Replace urfave/cli with cobra
+  * cleanup vendor.conf
+  * Vendor in latest containers/storage
+  * Add Quiet to PullOptions and PushOptions
+  * cmd/commit: add flag omit-timestamp to allow for deterministic builds
+  * Add options for empty-layer history entries
+  * Make CLI help descriptions and usage a bit more consistent
+  * vndr opencontainers/selinux
+  * Bump baseline test Fedora to 29
+  * Bump to v1.7-dev-1
+  * Bump to v1.6-1
+  * Add support for ADD --chown
+  * imagebuildah: make EnsureContainerPath() check/create the right one
+  * Bump 1.7-dev
+  * Fix contrib/rpm/bulidah.spec changelog date
+
 - Changelog for v1.6-1 (2019-01-18)
   * Add support for ADD --chown
   * imagebuildah: make EnsureContainerPath() check/create the right one
