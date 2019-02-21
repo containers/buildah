@@ -22,7 +22,7 @@ import (
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -176,11 +176,11 @@ func Pull(ctx context.Context, imageName string, options PullOptions) error {
 		}
 
 		spec := transport + storageRef.DockerReference().Name()
-		storageRef, err = alltransports.ParseImageName(spec)
+		dockerRef, err := alltransports.ParseImageName(spec)
 		if err != nil {
 			return errors.Wrapf(err, "error getting repository tags")
 		}
-		tags, err := docker.GetRepositoryTags(ctx, systemContext, storageRef)
+		tags, err := docker.GetRepositoryTags(ctx, systemContext, dockerRef)
 		if err != nil {
 			return errors.Wrapf(err, "error getting repository tags")
 		}
