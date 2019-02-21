@@ -146,7 +146,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 			continue
 		}
 
-		destImage, err := localImageNameForReference(ctx, store, srcRef, options.FromImage)
+		destImage, err := localImageNameForReference(ctx, store, srcRef)
 		if err != nil {
 			return nil, "", nil, errors.Wrapf(err, "error computing local image name for %q", transports.ImageName(srcRef))
 		}
