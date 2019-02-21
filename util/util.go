@@ -50,6 +50,8 @@ var (
 //
 // The returned image names never include a transport: prefix, and if transport != "",
 // (transport, image) should be a valid input to alltransports.ParseImageName.
+// transport == "" indicates that image that already exists in a local storage,
+// and the name is valid for store.Image() / storage.Transport.ParseStoreReference().
 //
 // NOTE: The "list of search registries is empty" check does not count blocked registries,
 // and neither the implied "localhost" nor a possible firstRegistry are counted
