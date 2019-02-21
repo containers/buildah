@@ -175,8 +175,8 @@ func Pull(ctx context.Context, imageName string, options PullOptions) error {
 			return errors.New("Non-docker transport is not supported, for --all-tags pulling")
 		}
 
-		spec := transport + storageRef.DockerReference().Name()
-		dockerRef, err := alltransports.ParseImageName(spec)
+		repo := storageRef.DockerReference().Name()
+		dockerRef, err := alltransports.ParseImageName(transport + repo)
 		if err != nil {
 			return errors.Wrapf(err, "error getting repository tags")
 		}
@@ -185,7 +185,7 @@ func Pull(ctx context.Context, imageName string, options PullOptions) error {
 			return errors.Wrapf(err, "error getting repository tags")
 		}
 		for _, tag := range tags {
-			name := spec + ":" + tag
+			name := repo + ":" + tag
 			if options.ReportWriter != nil {
 				options.ReportWriter.Write([]byte("Pulling " + name + "\n"))
 			}
