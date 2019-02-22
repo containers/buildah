@@ -2,6 +2,328 @@
 
 # Changelog
 
+## v1.7 (2019-02-21)
+    vendor containers/image v1.4
+    Make "images --all" faster
+    Remove a misleading comment
+    Remove quiet option from pull options
+    Make sure buildah pull --all-tags only works with docker transport
+    Support oci layout format
+    Fix pulling of images within buildah
+    Fix tls-verify polarity
+    Travis: execute make vendor and hack/tree_status.sh
+    vendor.conf: remove unused dependencies
+    add missing vendor/github.com/containers/libpod/vendor.conf
+    vendor.conf: remove github.com/inconshreveable/mousetrap
+    make vendor: always fetch the latest vndr
+    add hack/tree_status.sh script
+    Bump c/Storage to 1.10
+    Add --all-tags test to pull
+    mount: make error clearer
+    Remove global flags from cli help
+    Set --disable-compression to true as documented
+    Help document using buildah mount in rootless mode
+    healthcheck start-period: update documentation
+    Vendor in latest c/storage and c/image
+    dumpbolt: handle nested buckets
+    Fix buildah commit compress by default
+    Test on xenial, not trusty
+    unshare: reexec using a memfd copy instead of the binary
+    Add --target to bud command
+    Fix example for setting multiple environment variables
+    main: fix rootless mode
+    buildah: force umask 022
+    pull.bats: specify registry config when using registries
+    pull.bats: use the temporary directory, not /tmp
+    unshare: do not set rootless mode if euid=0
+    Touch up cli help examples and a few nits
+    Add an undocumented dumpbolt command
+    Move tar commands into containers/storage
+    Fix bud issue with 2 line Dockerfile
+    Add package install descriptions
+    Note configuration file requirements
+    Replace urfave/cli with cobra
+    cleanup vendor.conf
+    Vendor in latest containers/storage
+    Add Quiet to PullOptions and PushOptions
+    cmd/commit: add flag omit-timestamp to allow for deterministic builds
+    Add options for empty-layer history entries
+    Make CLI help descriptions and usage a bit more consistent
+    vndr opencontainers/selinux
+    Bump baseline test Fedora to 29
+    Bump to v1.7-dev-1
+    Bump to v1.6-1
+    Add support for ADD --chown
+    imagebuildah: make EnsureContainerPath() check/create the right one
+    Bump 1.7-dev
+    Fix contrib/rpm/bulidah.spec changelog date
+
+## v1.6-1 (2019-01-18)
+    Add support for ADD --chown
+    imagebuildah: make EnsureContainerPath() check/create the right one
+    Fix contrib/rpm/bulidah.spec changelog date
+    Vendor in latest containers/storage
+    Revendor everything
+    Revendor in latest code by release
+    unshare: do not set USER=root
+    run: ignore EIO when flushing at the end, avoid double log
+    build-using-dockerfile,commit: disable compression by default
+    Update some comments
+    Make rootless work under no_pivot_root
+    Add CreatedAtRaw date field for use with Format
+    Properly format images JSON output
+    pull: add all-tags option
+    Fix support for multiple Short options
+    pkg/blobcache: add synchronization
+    Skip empty files in file check of conformance test
+    Use NoPivot also for RUN, not only for run
+    Remove no longer used isReferenceInsecure / isRegistryInsecure
+    Do not set OCIInsecureSkipTLSVerify based on registries.conf
+    Remove duplicate entries from images JSON output
+    vendor parallel-copy from containers/image
+    blobcache.bats: adjust explicit push tests
+    Handle one line Dockerfile with layers
+    We should only warn if user actually requests Hostname be set in image
+    Fix compiler Warning about comparing different size types
+    imagebuildah: don't walk if rootdir and path are equal
+    Add aliases for buildah containers, so buildah list, ls and ps work
+    vendor: use faster version instead compress/gzip
+    vendor: update libpod
+    Properly handle Hostname inside of RUN command
+    docs: mention how to mount in rootless mode
+    tests: use fully qualified name for centos image
+    travis.yml: use the fully qualified name for alpine
+    mount: allow mount only when using vfs
+    Add some tests for buildah pull
+    Touch up images -q processing
+    Refactor: Use library shared idtools.ParseIDMap() instead of bundling it
+    bump GITVALIDATE_EPOCH
+    cli.BudFlags: add `--platform` nop
+    Makefile: allow packagers to more easily add tags
+    Makefile: soften the requirement on git
+    tests: add containers json test
+    Inline blobCache.putBlob into blobCacheDestination.PutBlob
+    Move saveStream and putBlob near blobCacheDestination.PutBlob
+    Remove BlobCache.PutBlob
+    Update for API changes
+    Vendor c/image after merging c/image#536
+    Handle 'COPY --from' in Dockerfile
+    Vendor in latest content from github.com/containers/storage
+    Clarify docker.io default in push with docker-daemon
+    Test blob caching
+    Wire in a hidden --blob-cache option
+    Use a blob cache when we're asked to use one
+    Add --disable-compression to 'build-using-dockerfile'
+    Add a blob cache implementation
+    vendor: update containers/storage
+    Update for sysregistriesv2 API changes
+    Update containers/image to 63a1cbdc5e6537056695cf0d627c0a33b334df53
+    clean up makefile variables
+    Fix file permission
+    Complete the instructions for the command
+    Show warning when a build arg not used
+    Assume user 0 group 0, if /etc/passwd file in container.
+    Add buildah info command
+    Enable -q when --filter is used for images command
+    Add v1.5 Release Announcement
+    Fix dangling filter for images command
+    Fix completions to print Names as well as IDs
+    tests: Fix file permissions
+    Bump 1.6-dev
+
+## v1.5-1 (2018-11-21)
+    Bump min go to 1.10 in install.md
+    vendor: update ostree-go
+    Update docker build command line in conformance test
+    Print command in SystemExec as debug information
+    Add some skip word for inspect check in conformance test
+    Update regex for multi stage base test
+    Sort CLI flags
+    vendor: update containers/storage
+    Add note to install about non-root on RHEL/CentOS
+    Update imagebuild depdency to support heading ARGs in Dockerfile
+    rootless: do not specify --rootless to the OCI runtime
+    Export resolvesymlink function
+    Exclude --force-rm from common bud cli flags
+    run: bind mount /etc/hosts and /etc/resolv.conf if not in a volume
+    rootless: use slirp4netns to setup the network namespace
+    Instructions for completing the pull command
+    Fix travis to not run environment variable patch
+    rootless: only discard network configuration names
+    run: only set up /etc/hosts or /etc/resolv.conf with network
+    common: getFormat: match entire string not only the prefix
+    vendor: update libpod
+    Change validation EPOCH
+    Fixing broken link for container-registries.conf
+    Restore rootless isolation test for from volume ro test
+    ostree: fix tag for build constraint
+    Handle directories better in bud -f
+    vndr in latest containers/storage
+    Fix unshare gofmt issue
+    runSetupBuiltinVolumes(): break up volume setup
+    common: support a per-user registries conf file
+    unshare: do not override the configuration
+    common: honor the rootless configuration file
+    unshare: create a new mount namespace
+    unshare: support libpod rootless pkg
+    Use libpod GetDefaultStorage to report proper storage config
+    Allow container storage to manage the SELinux labels
+    Resolve image names with default transport in from command
+    run: When the value of isolation is set, use the set value instead of the default value.
+    Vendor in latest containers/storage and opencontainers/selinux
+    Remove no longer valid todo
+    Check for empty buildTime in version
+    Change gofmt so it runs on all but 1.10
+    Run gofmt only on Go 1.11
+    Walk symlinks when checking cached images for copied/added files
+    ReserveSELinuxLabels(): handle wrapped errors from OpenBuilder
+    Set WorkingDir to empty, not / for conformance
+    Update calls in e2e to addres 1101
+    imagebuilder.BuildDockerfiles: return the image ID
+    Update for changes in the containers/image API
+    bump(github.com/containers/image)
+    Allow setting --no-pivot default with an env var
+    Add man page and bash completion, for --no-pivot
+    Add the --no-pivot flag to the run command
+    Improve reporting about individual pull failures
+    Move the "short name but no search registries" error handling to resolveImage
+    Return a "search registries were needed but empty" indication in util.ResolveName
+    Simplify handling of the "tried to pull an image but found nothing" case in newBuilder
+    Don't even invoke the pull loop if options.FromImage == ""
+    Eliminate the long-running ref and img variables in resolveImage
+    In resolveImage, return immediately on success
+    Fix From As in Dockerfile
+    Vendor latest containers/image
+    Vendor in latest libpod
+    Sort CLI flags of buildah bud
+    Change from testing with golang 1.9 to 1.11.
+    unshare: detect when unprivileged userns are disabled
+    Optimize redundant code
+    fix missing format param
+    chroot: fix the args check
+    imagebuildah: make ResolveSymLink public
+    Update copy chown test
+    buildah: use the same logic for XDG_RUNTIME_DIR as podman
+    V1.4 Release Announcement
+    Podman  --privileged selinux is broken
+    papr: mount source at gopath
+    parse: Modify the return value
+    parse: modify the verification of the isolation value
+    Make sure we log or return every error
+    pullImage(): when completing an image name, try docker://
+    Fix up Tutorial 3 to account for format
+    Vendor in latest containers/storage and containers/image
+    docs/tutorials/01-intro.md: enhanced installation instructions
+    Enforce "blocked" for registries for the "docker" transport
+    Correctly set DockerInsecureSkipTLSVerify when pulling images
+    chroot: set up seccomp and capabilities after supplemental groups
+    chroot: fix capabilities list setup and application
+    .papr.yml: log the podman version
+    namespaces.bats: fix handling of uidmap/gidmap options in pairs
+    chroot: only create user namespaces when we know we need them
+    Check /proc/sys/user/max_user_namespaces on unshare(NEWUSERNS)
+    bash/buildah: add isolation option to the from command
+
+## v1.4 (2018-10-02)
+    from: fix isolation option
+    Touchup pull manpage
+    Export buildah ReserveSELinuxLables so podman can use it
+    Add buildah.io to README.md and doc fixes
+    Update rmi man for prune changes
+    Ignore file not found removal error in bud
+    bump(github.com/containers/{storage,image})
+    NewImageSource(): only create one Diff() at a time
+    Copy ExposedPorts from base image into the config
+    tests: run conformance test suite in Travis
+    Change rmi --prune to not accept an imageID
+    Clear intermediate container IDs after each stage
+    Request podman version for build issues
+    unshare: keep the additional groups of the user
+    Builtin volumes should be owned by the UID/GID of the container
+    Get rid of dangling whitespace in markdown files
+    Move buildah from projecatatomic/buildah to containers/buildah
+    nitpick: parse.validateFlags loop in bud cli
+    bash: Completion options
+    Add signature policy to push tests
+    vendor in latest containers/image
+    Fix grammar in Container Tools Guide
+    Don't build btrfs if it is not installed
+    new: Return image-pulling errors from resolveImage
+    pull: Return image-pulling errors from pullImage
+    Add more volume mount tests
+    chroot: create missing parent directories for volume mounts
+    Push: Allow an empty destination
+    Add Podman relationship to readme, create container tools guide
+    Fix arg usage in buildah-tag
+    Add flags/arguments order verification to other commands
+    Handle ErrDuplicateName errors from store.CreateContainer()
+    Evaluate symbolic links on Add/Copy Commands
+    Vendor in latest containers/image and containers/storage
+    Retain bounding set when running containers as non root
+    run container-diff tests in Travis
+    buildah-images.md: Fix option contents
+    push: show image digest after push succeed
+    Vendor in latest containers/storage,image,libpod and runc
+    Change references to cri-o to point at new repository
+    Exclude --layers from the common bug cli flags
+    demos: Increase the executable permissions
+    run: clear default seccomp filter if not enabled
+    Bump maximum cyclomatic complexity to 45
+    stdin: on HUP, read everything
+    nitpick: use tabs in tests/helpers.bash
+    Add flags/arguments order verification to one arg commands
+    nitpick: decrease cognitive complexity in buildah-bud
+    rename: Avoid renaming the same name as other containers
+    chroot isolation: chroot() before setting up seccomp
+    Small nitpick at the "if" condition in tag.go
+    cmd/images: Modify json option
+    cmd/images: Disallow the input of image when using the -a option
+    Fix examples to include context directory
+    Update containers/image to fix commit layer issue
+    cmd/containers: End loop early when using the json option
+    Make buildah-from error message clear when flags are after arg
+    Touch up README.md for conformance tests
+    Update container/storage for lock fix
+    cmd/rm: restore the correct containerID display
+    Remove debug lines
+    Remove docker build image after each test
+    Add README for conformance test
+    Update the MakeOptions to accept all command options for buildah
+    Update regrex to fit the docker output in test "run with JSON"
+    cmd/buildah: Remove redundant variable declarations
+    Warn about using Commands in Dockerfile that are not supported by OCI.
+    Add buildah bud conformance test
+    Fix rename to also change container name in builder
+    Makefile: use $(GO) env-var everywhere
+    Cleanup code to more closely match Docker Build images
+    Document BUILDAH_* environment variables in buildah bud --help output
+    Return error immediately if error occurs in Prepare step
+    Fix --layers ADD from url issue
+    Add "Sign your PRs" TOC item to contributing.md.
+    Display the correct ID after deleting image
+    rmi: Modify the handling of errors
+    Let util.ResolveName() return parsing errors
+    Explain Open Container Initiative (OCI) acronym, add link
+    Update vendor for urfave/cli back to master
+    Handle COPY --chown in Dockerfile
+    Switch to Recommends container-selinux
+    Update vendor for containernetworking, imagebuildah and podman
+    Document STORAGE_DRIVER and STORAGE_OPTS environment variable
+    Change references to projectatomic/libpod to containers/libpod
+    Add container PATH retrieval example
+    Expand variables names for --env
+    imagebuildah: provide a way to provide stdin for RUN
+    Remove an unused srcRef.NewImageSource in pullImage
+    chroot: correct a comment
+    chroot: bind mount an empty directory for masking
+    Don't bother with --no-pivot for rootless isolation
+    CentOS need EPEL repo
+    Export a Pull() function
+    Remove stream options, since docker build does not have it
+    release v1.3: mention openSUSE
+    Add Release Announcements directory
+    Bump to v1.4-dev
+
 ## 1.3 (2018-08-4)
     Revert pull error handling from 881
     bud should not search context directory for Dockerfile
