@@ -17,7 +17,7 @@ import (
 	"github.com/containers/buildah/tests/testreport/types"
 	"github.com/containers/buildah/util"
 	"github.com/containers/storage/pkg/reexec"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 )
 
@@ -81,7 +81,7 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 		modify(&g, rootDir, bundleDir)
 	}
 
-	uid, gid, err := util.GetHostRootIDs(g.Spec())
+	uid, gid, err := util.GetHostRootIDs(g.Config)
 	if err != nil {
 		t.Fatalf("GetHostRootIDs: %v", err)
 	}
@@ -90,7 +90,7 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 	}
 
 	output := new(bytes.Buffer)
-	if err := RunUsingChroot(g.Spec(), bundleDir, new(bytes.Buffer), output, output); err != nil {
+	if err := RunUsingChroot(g.Config, bundleDir, new(bytes.Buffer), output, output); err != nil {
 		t.Fatalf("run: %v: %s", err, output.String())
 	}
 

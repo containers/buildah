@@ -22,5 +22,4 @@ func init() {
 }
 
 func maybeReexecUsingUserNamespace(cmd string, evenForRoot bool) {
-	return
 }
