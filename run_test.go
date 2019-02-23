@@ -60,7 +60,7 @@ func TestAddRlimits(t *testing.T) {
 				if e != nil {
 					return e
 				}
-				rlimits := g.Spec().Process.Rlimits
+				rlimits := g.Config.Process.Rlimits
 				for _, rlimit := range rlimits {
 					if rlimit.Type == "RLIMIT_FSIZE" {
 						if rlimit.Hard != 4096 {
