@@ -40,8 +40,8 @@ available on most Linux platforms and both projects reside at
 [GitHub.com](https://github.com) with Buildah
 [here](https://github.com/containers/buildah) and Podman
 [here](https://github.com/containers/libpod).  Both, Buildah and Podman are
-command line tools that work on Open Container Initiative (OCI) images images
-and containers.  The two projects differentiate in their specialization.
+command line tools that work on Open Container Initiative (OCI) images and
+containers.  The two projects differentiate in their specialization.
 
 Buildah specializes in building OCI images.  Buildah's commands replicate all
 of the commands that are found in a Dockerfile.  This allows building images
