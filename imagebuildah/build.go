@@ -911,6 +911,8 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 			if err != nil {
 				return "", nil, errors.Wrapf(err, "error building at step %+v", *step)
 			}
+			now := time.Now()
+			s.builder.AddPrependedEmptyLayer(&now, getCreatedBy(node), "", "")
 			continue
 		}
 
