@@ -856,7 +856,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 	var layerCacheID string
 
 	for i, node := range node.Children {
-		// Resolve any arguments so that we don't have to.
+		// Resolve any arguments in this instruction so that we don't have to.
 		step := ib.Step()
 		if err := step.Resolve(node); err != nil {
 			return errors.Wrapf(err, "error resolving step %+v", *node)
@@ -894,16 +894,20 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 			}
 		}
 
-		requiresStart := false
-		if i < len(node.Children)-1 {
-			requiresStart = ib.RequiresStart(&parser.Node{Children: node.Children[i+1:]})
+		// Determine if there are any RUN instructions to be run after
+		// this step.  If not, we won't have to bother preserving the
+		// contents of any volumes declared between now and when we
+		// finish.
+		noRunsRemaining := false
+		if i < len(children)-1 {
+			noRunsRemaining = !ib.RequiresStart(&parser.Node{Children: children[i+1:]})
 		}
 
 		// If we're doing a single-layer build and not looking to take
 		// shortcuts using the cache, make a note of the instruction,
 		// process it, and then move on to the next instruction.
 		if !s.executor.layers && s.executor.useCache {
-			err := ib.Run(step, s, requiresStart)
+			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
 				return errors.Wrapf(err, "error building at step %+v", *step)
 			}
@@ -956,7 +960,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 		// process the instruction and commit the layer.
 		if cacheID == "" || !checkForLayers {
 			checkForLayers = false
-			err := ib.Run(step, s, requiresStart)
+			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
 				return errors.Wrapf(err, "error building at step %+v", *step)
 			}
@@ -978,11 +982,12 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 			imgID = cacheID
 		}
 
-		// Add container ID of successful intermediate container to s.containerIDs
+		// Add this container ID to the list of successful intermediate
+		// containers.
 		s.containerIDs = append(s.containerIDs, s.builder.ContainerID)
 
 		// Prepare for the next step with imgID as the new base image.
-		if i != len(children)-1 {
+		if i < len(children)-1 {
 			if err := s.Prepare(ctx, stage, imgID); err != nil {
 				return errors.Wrap(err, "error preparing container for next step")
 			}
