@@ -210,7 +210,7 @@ type Executor struct {
 	onbuild                        []string
 	layers                         bool
 	topLayers                      []string
-	noCache                        bool
+	useCache                       bool
 	removeIntermediateCtrs         bool
 	forceRmIntermediateCtrs        bool
 	imageMap                       map[string]string // Used to map images that we create to handle the AS construct.
@@ -644,7 +644,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		labels:                         append([]string{}, options.Labels...),
 		annotations:                    append([]string{}, options.Annotations...),
 		layers:                         options.Layers,
-		noCache:                        options.NoCache,
+		useCache:                       !options.NoCache,
 		removeIntermediateCtrs:         options.RemoveIntermediateCtrs,
 		forceRmIntermediateCtrs:        options.ForceRmIntermediateCtrs,
 		imageMap:                       make(map[string]string),
@@ -889,7 +889,10 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 			requiresStart = ib.RequiresStart(&parser.Node{Children: node.Children[i+1:]})
 		}
 
-		if !s.executor.layers && !s.executor.noCache {
+		// If we're doing a single-layer build and not looking to take
+		// shortcuts using the cache, make a note of the instruction,
+		// process it, and then move on to the next instruction.
+		if !s.executor.layers && s.executor.useCache {
 			err := ib.Run(step, s, requiresStart)
 			if err != nil {
 				return errors.Wrapf(err, "error building at step %+v", *step)
@@ -913,24 +916,23 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 			imgID   string
 		)
 
-		// checkForLayers will be true if b.layers is true and a cached intermediate image is found.
-		// checkForLayers is set to false when either there is no cached image or a break occurs where
-		// the instructions in the Dockerfile change from a previous build.
-		// Don't check for cache if b.noCache is set to true.
-		if checkForLayers && !s.executor.noCache {
+		// If we're using the cache, and we've managed to stick with
+		// cached images so far, look for one that matches what we
+		// expect to produce for this instruction.
+		if checkForLayers && s.executor.useCache {
 			cacheID, err = s.layerExists(ctx, node, children[:i])
 			if err != nil {
 				return errors.Wrap(err, "error checking if cached image exists from a previous build")
 			}
 		}
-
 		if cacheID != "" {
 			fmt.Fprintf(s.executor.out, "--> Using cache %s\n", cacheID)
 		}
 
-		// If a cache is found for the last step, that means nothing in the
-		// Dockerfile changed. Just create a copy of the existing image and
-		// save it with the new name passed in by the user.
+		// If a cache is found and we're on the last step, that means
+		// nothing in this phase changed.  Just create a copy of the
+		// existing image and save it with the name that we were going
+		// to assign to the one that we were building.
 		if cacheID != "" && i == len(children)-1 {
 			if err = s.copyExistingImage(ctx, cacheID, commitName); err != nil {
 				return err
@@ -940,6 +942,8 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 			break
 		}
 
+		// If we didn't find a cached step that we could just reuse,
+		// process the instruction and commit the layer.
 		if cacheID == "" || !checkForLayers {
 			checkForLayers = false
 			err := ib.Run(step, s, requiresStart)
@@ -959,8 +963,8 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 				s.executor.log("COMMIT %s", commitName)
 			}
 		} else {
-			// Cache is found, assign imgID the id of the cached image so
-			// it is used to create the container for the next step.
+			// If we did find a cache, reuse the cached image's ID
+			// as the basis for the container for the next step.
 			imgID = cacheID
 		}
 
@@ -1250,17 +1254,17 @@ func (s *StageExecutor) Commit(ctx context.Context, ib *imagebuilder.Builder, cr
 	if imageRef != nil {
 		logName := transports.ImageName(imageRef)
 		logrus.Debugf("COMMIT %q", logName)
-		if !s.executor.quiet && !s.executor.layers && !s.executor.noCache {
+		if !s.executor.quiet && !s.executor.layers && s.executor.useCache {
 			s.executor.log("COMMIT %s", logName)
 		}
 	} else {
 		logrus.Debugf("COMMIT")
-		if !s.executor.quiet && !s.executor.layers && !s.executor.noCache {
+		if !s.executor.quiet && !s.executor.layers && s.executor.useCache {
 			s.executor.log("COMMIT")
 		}
 	}
 	writer := s.executor.reportWriter
-	if s.executor.layers || s.executor.noCache {
+	if s.executor.layers || !s.executor.useCache {
 		writer = nil
 	}
 	options := buildah.CommitOptions{
@@ -1319,7 +1323,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (strin
 		// Always remove the intermediate/build containers, even if the build was unsuccessful.
 		// If building with layers, remove all intermediate/build containers if b.forceRmIntermediateCtrs
 		// is true.
-		if b.forceRmIntermediateCtrs || (!b.layers && !b.noCache) {
+		if b.forceRmIntermediateCtrs || (!b.layers && b.useCache) {
 			defer stageExecutor.Delete()
 		}
 		if err := stageExecutor.Execute(ctx, stage); err != nil {
@@ -1356,7 +1360,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (strin
 	// Check if we have a one line Dockerfile making layers irrelevant
 	// or the user told us to ignore layers.
 	singleLineDockerfile := (len(stages) < 2 && len(stages[0].Node.Children) < 1)
-	ignoreLayers := singleLineDockerfile || !b.layers && !b.noCache
+	ignoreLayers := singleLineDockerfile || !b.layers && b.useCache
 
 	if ignoreLayers {
 		imgID, ref, err := stageExecutor.Commit(ctx, stages[len(stages)-1].Builder, "", b.output)
@@ -1378,7 +1382,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (strin
 	// This if condition will be false if not building with layers and
 	// the removal of intermediate/build containers will be handled by the
 	// defer statement above.
-	if b.removeIntermediateCtrs && (b.layers || b.noCache) {
+	if b.removeIntermediateCtrs && (b.layers || !b.useCache) {
 		if err := b.deleteSuccessfulIntermediateCtrs(); err != nil {
 			return "", nil, errors.Errorf("Failed to cleanup intermediate containers")
 		}
