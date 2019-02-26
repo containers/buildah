@@ -1,3 +1,16 @@
+- Changelog for v1.7.1 (2019-02-26)
+  * vendor containers/image v1.5
+  * Move secrets code from libpod into buildah
+  * Update CHANGELOG.md with the past changes
+  * README.md: fix typo
+  * Fix a few issues found by tests/validate/gometalinter.sh
+  * Neutralize buildah/unshare on non-Linux platforms
+  * Explicitly specify a directory to find(1)
+  * README.md: rephrase Buildah description
+  * Stop printing default twice in cli --help
+  * install.md: add section about vendoring
+  * Bump to 1.8-dev
+
 - Changelog for v1.7 (2019-02-21)
   * vendor containers/image v1.4
   * Make "images --all" faster

@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.8-dev
+Version:        1.7.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -97,9 +97,20 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Thu Feb 21 2019 Tom Sweeney <tsweeney@redhat.com> 1.8-dev-1
+* Tue Feb 26 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.1-1
+- vendor containers/image v1.5
+- Move secrets code from libpod into buildah
+- Update CHANGELOG.md with the past changes
+- README.md: fix typo
+- Fix a few issues found by tests/validate/gometalinter.sh
+- Neutralize buildah/unshare on non-Linux platforms
+- Explicitly specify a directory to find(1)
+- README.md: rephrase Buildah description
+- Stop printing default twice in cli --help
+- install.md: add section about vendoring
+- Bump to 1.8-dev
 
-* Thu Feb 21 2019 Tom Sweeney <tsweeney@redhat.com> 1.7-1
+* Thu Feb 21 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.0
 - vendor containers/image v1.4
 - Make "images --all" faster
 - Remove a misleading comment
