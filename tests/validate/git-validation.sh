@@ -8,6 +8,6 @@ if ! which git-validation > /dev/null 2> /dev/null ; then
 fi
 if test "$TRAVIS" != true ; then
 	#GITVALIDATE_EPOCH=":/git-validation epoch"
-	GITVALIDATE_EPOCH="93747b1fd5124fdc64344e569b79a8ec49d5f8ae"
+	GITVALIDATE_EPOCH="8b1d11f52721ab062c587abc711b40a6e1a1f7dc"
 fi
 exec git-validation -q -run DCO,short-subject ${GITVALIDATE_EPOCH:+-range "${GITVALIDATE_EPOCH}""..${GITVALIDATE_TIP:-@}"} ${GITVALIDATE_FLAGS}

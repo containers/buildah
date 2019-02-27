@@ -71,6 +71,7 @@ func init() {
 
 	flags.BoolVar(&opts.rm, "rm", false, "remove the container and its content after committing it to an image. Default leaves the container and its content in place.")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
+	flags.MarkHidden("signature-policy")
 	flags.BoolVar(&opts.squash, "squash", false, "produce an image with only one layer")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "Require HTTPS and verify certificates when accessing the registry")
 
