@@ -40,6 +40,8 @@ var (
 
 func init() {
 	unshareCommand.SetUsageTemplate(UsageTemplate())
+	flags := unshareCommand.Flags()
+	flags.SetInterspersed(false)
 	rootCmd.AddCommand(unshareCommand)
 }
 
