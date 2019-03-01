@@ -56,7 +56,7 @@ func init() {
 	budCommand.SetUsageTemplate(UsageTemplate())
 
 	flags := budCommand.Flags()
-	flags.SetInterspersed(false)
+	flags.SetInterspersed(true)
 
 	// BUD is a all common flags
 	budFlags := buildahcli.GetBudFlags(&budFlagResults)
