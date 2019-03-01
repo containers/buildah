@@ -806,24 +806,24 @@ func (s *StageExecutor) Delete() (err error) {
 }
 
 // resolveNameToImageRef creates a types.ImageReference from b.output
-func (b *Executor) resolveNameToImageRef() (types.ImageReference, error) {
+func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, error) {
 	var (
 		imageRef types.ImageReference
 		err      error
 	)
-	if b.output != "" {
-		imageRef, err = alltransports.ParseImageName(b.output)
+	if output != "" {
+		imageRef, err = alltransports.ParseImageName(output)
 		if err != nil {
-			candidates, _, _, err := util.ResolveName(b.output, "", b.systemContext, b.store)
+			candidates, _, _, err := util.ResolveName(output, "", b.systemContext, b.store)
 			if err != nil {
-				return nil, errors.Wrapf(err, "error parsing target image name %q", b.output)
+				return nil, errors.Wrapf(err, "error parsing target image name %q", output)
 			}
 			if len(candidates) == 0 {
-				return nil, errors.Errorf("error parsing target image name %q", b.output)
+				return nil, errors.Errorf("error parsing target image name %q", output)
 			}
 			imageRef2, err2 := is.Transport.ParseStoreReference(b.store, candidates[0])
 			if err2 != nil {
-				return nil, errors.Wrapf(err, "error parsing target image name %q", b.output)
+				return nil, errors.Wrapf(err, "error parsing target image name %q", output)
 			}
 			return imageRef2, nil
 		}
@@ -899,10 +899,14 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 		}
 
 		if i < len(children)-1 {
-			s.output = ""
+			commitName = ""
 		} else {
-			s.output = commitName
+			commitName = s.output
 		}
+
+		// TODO: this makes the tests happy, but it shouldn't be
+		// necessary unless this is the final stage.
+		commitName = s.executor.output
 
 		var (
 			cacheID string
@@ -929,7 +933,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 		// Dockerfile changed. Just create a copy of the existing image and
 		// save it with the new name passed in by the user.
 		if cacheID != "" && i == len(children)-1 {
-			if err := s.copyExistingImage(ctx, cacheID); err != nil {
+			if err = s.copyExistingImage(ctx, cacheID, commitName); err != nil {
 				return err
 			}
 			s.containerIDs = append(s.containerIDs, s.builder.ContainerID)
@@ -947,13 +951,13 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 
 		// Commit if no cache is found
 		if cacheID == "" {
-			imgID, _, err = s.Commit(ctx, ib, getCreatedBy(node))
+			imgID, _, err = s.Commit(ctx, ib, getCreatedBy(node), commitName)
 			if err != nil {
 				return errors.Wrapf(err, "error committing container for step %+v", *step)
 			}
 			if i == len(children)-1 {
 				layerCacheID = imgID
-				s.executor.log("COMMIT %s", s.output)
+				s.executor.log("COMMIT %s", commitName)
 			}
 		} else {
 			// Cache is found, assign imgID the id of the cached image so
@@ -985,10 +989,10 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) e
 	return nil
 }
 
-// copyExistingImage creates a copy of an image already in store
-func (s *StageExecutor) copyExistingImage(ctx context.Context, cacheID string) error {
+// copyExistingImage creates a copy of an image already in the store
+func (s *StageExecutor) copyExistingImage(ctx context.Context, cacheID, output string) error {
 	// Get the destination Image Reference
-	dest, err := s.executor.resolveNameToImageRef()
+	dest, err := s.executor.resolveNameToImageRef(output)
 	if err != nil {
 		return err
 	}
@@ -1178,8 +1182,8 @@ func urlContentModified(url string, historyTime *time.Time) (bool, error) {
 
 // Commit writes the container's contents to an image, using a passed-in tag as
 // the name if there is one, generating a unique ID-based one otherwise.
-func (s *StageExecutor) Commit(ctx context.Context, ib *imagebuilder.Builder, createdBy string) (string, reference.Canonical, error) {
-	imageRef, err := s.executor.resolveNameToImageRef()
+func (s *StageExecutor) Commit(ctx context.Context, ib *imagebuilder.Builder, createdBy, output string) (string, reference.Canonical, error) {
+	imageRef, err := s.executor.resolveNameToImageRef(output)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1341,7 +1345,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (strin
 		// TODO: only do this if we actually refer to the image by its
 		// pseudonym later on.
 		if _, err := strconv.Atoi(stage.Name); err != nil {
-			imgID, _, err := stageExecutor.Commit(ctx, stages[stageIndex].Builder, "")
+			imgID, _, err := stageExecutor.Commit(ctx, stages[stageIndex].Builder, "", output)
 			if err != nil {
 				return "", nil, err
 			}
@@ -1358,7 +1362,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (strin
 	ignoreLayers := singleLineDockerfile || !b.layers && !b.noCache
 
 	if ignoreLayers {
-		imgID, ref, err := stageExecutor.Commit(ctx, stages[len(stages)-1].Builder, "")
+		imgID, ref, err := stageExecutor.Commit(ctx, stages[len(stages)-1].Builder, "", b.output)
 		if err != nil {
 			return "", nil, err
 		}
