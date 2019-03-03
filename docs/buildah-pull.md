@@ -45,9 +45,9 @@ The image ID of the image that was pulled.  On error 1 is returned.
 
 ## OPTIONS
 
-**--all-tags, a**
+**--all-tags, -a**
 
-All tagged images in the repository will be pulled.
+All tagged images in the repository will be pulled, not just `:latest`.
 
 **--authfile** *path*
 
@@ -100,6 +100,7 @@ buildah pull --creds=myusername:mypassword --cert-dir ~/auth myregistry/myreposi
 
 buildah pull --authfile=/tmp/auths/myauths.json myregistry/myrepository/imagename:imagetag
 
+buildah pull --all-tags alpine
 
 ## Files
 

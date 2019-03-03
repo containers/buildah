@@ -13,6 +13,9 @@ import (
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/transports/alltransports"
+	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/archive"
+	multierror "github.com/hashicorp/go-multierror"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -20,6 +23,7 @@ import (
 )
 
 type pushResults struct {
+	allTags            bool
 	authfile           string
 	blobCache          string
 	certDir            string
@@ -61,6 +65,7 @@ func init() {
 
 	flags := pushCommand.Flags()
 	flags.SetInterspersed(false)
+	flags.BoolVarP(&opts.allTags, "all-tags", "a", false, "push all tagged images to the repository")
 	flags.StringVar(&opts.authfile, "authfile", "", "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json")
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
@@ -98,16 +103,47 @@ func pushCmd(c *cobra.Command, args []string, iopts pushResults) error {
 		return errors.New("Only two arguments are necessary to push: source and destination")
 	}
 
-	compress := imagebuildah.Gzip
-	if iopts.disableCompression {
-		compress = imagebuildah.Uncompressed
-	}
-
 	store, err := getStore(c)
 	if err != nil {
 		return err
 	}
 
+	// Map of image tags found for the specified image.
+	// tags stored in the key
+	var imageTags []string
+	if iopts.allTags {
+		if err := getAllTags(src, &imageTags, store); err != nil {
+			return err
+		}
+		logrus.Debugf("For the image: [%s] found tags: %v", src, imageTags)
+	}
+
+	var errs *multierror.Error
+	imageName := src
+	destTarget := destSpec
+	compress := imagebuildah.Gzip
+	if iopts.disableCompression {
+		compress = imagebuildah.Uncompressed
+	}
+
+	if len(imageTags) > 1 {
+		for _, tagKey := range imageTags {
+			src = imageName + ":" + tagKey
+			destSpec = destTarget + ":" + tagKey
+			if err = pushImage(c, src, destSpec, store, compress, iopts); err != nil {
+				errs = multierror.Append(errs, err)
+			}
+		}
+	} else {
+		if err = pushImage(c, src, destSpec, store, compress, iopts); err != nil {
+			errs = multierror.Append(errs, err)
+		}
+	}
+
+	return errs.ErrorOrNil()
+}
+
+func pushImage(c *cobra.Command, src string, destSpec string, store storage.Store, compress archive.Compression, iopts pushResults) error {
 	dest, err := alltransports.ParseImageName(destSpec)
 	// add the docker:// transport to see if they neglected it.
 	if err != nil {
@@ -178,4 +214,33 @@ func pushCmd(c *cobra.Command, args []string, iopts pushResults) error {
 func getListOfTransports() string {
 	allTransports := strings.Join(transports.ListNames(), ",")
 	return strings.Replace(allTransports, ",tarball", "", 1)
+}
+
+// getAllTags gets all of the locally tagged images and adds them
+// to the passed in slice.
+func getAllTags(imageName string, imageTags *[]string, store storage.Store) error {
+
+	imageName = "/" + imageName
+	images, err := store.Images()
+	if err != nil {
+		return errors.Wrapf(err, "error reading images")
+	}
+	for _, image := range images {
+
+		if len(image.Names) < 1 {
+			continue
+		}
+		// Name should look like: "docker.io/library/alpine:latest"
+		for _, name := range image.Names {
+			splitName := strings.Split(name, ":")
+			if !strings.HasSuffix(splitName[0], imageName) {
+				break
+			}
+			if len(splitName) > 1 {
+				*imageTags = append(*imageTags, splitName[1])
+			}
+		}
+
+	}
+	return nil
 }

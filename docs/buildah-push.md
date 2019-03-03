@@ -45,6 +45,10 @@ If the transport part of DESTINATION is omitted, "docker://" is assumed.
 
 ## OPTIONS
 
+**--all-tags, -a**
+
+All tagged images in the repository will be pushed, not just `:latest`.  A tag can not be included in the imageID or DESTINATION fields.
+
 **--authfile** *path*
 
 Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `podman login`.
@@ -112,6 +116,9 @@ This example extracts the imageID image and puts it into the registry on the loc
 
 This example extracts the imageID image and puts it into the registry on the localhost using credentials and certificates for authentication.
  `# buildah push --cert-dir ~/auth --tls-verify=true --creds=username:password imageID docker://localhost:5000/my-imageID`
+
+This example pushes all the tagged alpine images to the quay.io registry.
+ `# buildah push --all-tags alpine docker://quay.io/myrepo/alpine`
 
 ## Files
 

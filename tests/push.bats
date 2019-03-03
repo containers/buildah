@@ -76,3 +76,16 @@ load helpers
   echo "$output" | grep -q "docker://busybox"
   buildah rmi busybox
 }
+
+@test "push-all-tags" {
+  buildah pull --signature-policy ${TESTSDIR}/policy.json --all-tags alpine
+  run buildah push --signature-policy ${TESTSDIR}/policy.json --all-tags alpine dir:/my-dir
+  echo "$output"
+  [[ "$output" =~ "my-dir:latest" ]]
+  [ "$status" -eq 0 ]
+
+  run ls /my-dir*
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ $(wc -l <<< "$output") -ge 50 ]
+}
