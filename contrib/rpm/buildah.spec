@@ -52,10 +52,13 @@ Requires:       container-selinux
 Requires:       skopeo-containers
 %else
 Recommends:     container-selinux
+Recommends:     slirp4netns >= 0.3-0
+Recommends:     fuse-overlayfs
 Requires:       containers-common
 %endif
 Requires:       shadow-utils
 Provides:       %{repo} = %{version}-%{release}
+
 
 %description
 The buildah package provides a command line tool which can be used to
