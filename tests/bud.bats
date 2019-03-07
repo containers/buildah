@@ -660,6 +660,7 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" =~ "test-log -> ../log" ]]
+  test -r $root/var/data/empty
   buildah rm ${cid}
   buildah rmi ${target}
 }
