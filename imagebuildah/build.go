@@ -510,20 +510,21 @@ func (b *Executor) Run(run imagebuilder.Run, config docker.Config) error {
 		stdin = devNull
 	}
 	options := buildah.RunOptions{
-		Hostname:   config.Hostname,
-		Runtime:    b.runtime,
-		Args:       b.runtimeArgs,
-		NoPivot:    os.Getenv("BUILDAH_NOPIVOT") != "",
-		Mounts:     convertMounts(b.transientMounts),
-		Env:        config.Env,
-		User:       config.User,
-		WorkingDir: config.WorkingDir,
-		Entrypoint: config.Entrypoint,
-		Cmd:        config.Cmd,
-		Stdin:      stdin,
-		Stdout:     b.out,
-		Stderr:     b.err,
-		Quiet:      b.quiet,
+		Hostname:         config.Hostname,
+		Runtime:          b.runtime,
+		Args:             b.runtimeArgs,
+		NoPivot:          os.Getenv("BUILDAH_NOPIVOT") != "",
+		Mounts:           convertMounts(b.transientMounts),
+		Env:              config.Env,
+		User:             config.User,
+		WorkingDir:       config.WorkingDir,
+		Entrypoint:       config.Entrypoint,
+		Cmd:              config.Cmd,
+		Stdin:            stdin,
+		Stdout:           b.out,
+		Stderr:           b.err,
+		Quiet:            b.quiet,
+		NamespaceOptions: b.namespaceOptions,
 	}
 	if config.NetworkDisabled {
 		options.ConfigureNetwork = buildah.NetworkDisabled

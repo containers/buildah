@@ -198,7 +198,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if err != nil {
 		return errors.Wrapf(err, "error parsing namespace-related options")
 	}
-	usernsOption, idmappingOptions, err := parse.IDMappingOptions(c)
+	usernsOption, idmappingOptions, err := parse.IDMappingOptions(c, isolation)
 	if err != nil {
 		return errors.Wrapf(err, "error parsing ID mapping options")
 	}
