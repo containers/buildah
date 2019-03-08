@@ -809,6 +809,7 @@ func (b *Executor) Execute(ctx context.Context, stage imagebuilder.Stage) error 
 	b.containerIDs = nil
 
 	var leftoverArgs []string
+	var layerCacheID string
 	for arg := range b.builder.Args {
 		if !builtinAllowedBuildArgs[arg] {
 			leftoverArgs = append(leftoverArgs, arg)
@@ -892,6 +893,7 @@ func (b *Executor) Execute(ctx context.Context, stage imagebuilder.Stage) error 
 				return err
 			}
 			b.containerIDs = append(b.containerIDs, b.builder.ContainerID)
+			layerCacheID = cacheID
 			break
 		}
 
@@ -910,6 +912,7 @@ func (b *Executor) Execute(ctx context.Context, stage imagebuilder.Stage) error 
 				return errors.Wrapf(err, "error committing container for step %+v", *step)
 			}
 			if i == len(children)-1 {
+				layerCacheID = imgID
 				b.log("COMMIT %s", b.output)
 			}
 		} else {
@@ -928,6 +931,10 @@ func (b *Executor) Execute(ctx context.Context, stage imagebuilder.Stage) error 
 	}
 	if len(leftoverArgs) > 0 {
 		fmt.Fprintf(b.out, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
+	}
+
+	if b.layers { // print out the final imageID if we're using layers flag
+		fmt.Fprintf(b.out, "--> %s\n", layerCacheID)
 	}
 	return nil
 }
