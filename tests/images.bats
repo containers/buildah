@@ -12,7 +12,7 @@ load helpers
   run buildah images img1 --filter="service=redis" img2
   check_options_flag_err "--filter=service=redis"
 
-  run buildah images img1 img2 img3 -q 
+  run buildah images img1 img2 img3 -q
   check_options_flag_err "-q"
 }
 
@@ -83,13 +83,25 @@ load helpers
   buildah rmi -a -f
 }
 
+@test "images no-trunc test" {
+  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
+  run buildah --debug=false images -q --no-trunc
+  [ $(wc -l <<< "$output") -eq 2 ]
+  echo $output
+  [[ ${lines[0]} =~ "sha256" ]]
+  [ "${status}" -eq 0 ]
+  buildah rm -a
+  buildah rmi -a -f
+}
+
 @test "images json test" {
   cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
   run buildah --debug=false images --json
   [ $(wc -l <<< "$output") -eq 14 ]
   [ "${status}" -eq 0 ]
- 
+
   run buildah --debug=false images --json alpine
   [ $(wc -l <<< "$output") -eq 8 ]
   [ "${status}" -eq 0 ]
@@ -145,7 +157,7 @@ load helpers
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
-  run buildah --debug=false images 
+  run buildah --debug=false images
   [ $(wc -l <<< "$output") -eq 3 ]
   [ "${status}" -eq 0 ]
   run buildah --debug=false images --filter dangling=true

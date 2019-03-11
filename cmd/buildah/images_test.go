@@ -14,88 +14,6 @@ import (
 	"github.com/containers/storage"
 )
 
-func TestTemplateOutputValidTemplate(t *testing.T) {
-	params := imageOutputParams{
-		ID:        "0123456789abcdef",
-		Name:      "test/image:latest",
-		Digest:    "sha256:012345789abcdef012345789abcdef012345789abcdef012345789abcdef",
-		CreatedAt: "Jan 01 2016 10:45",
-		Size:      "97 KB",
-	}
-
-	templateString := "{{.ID}}"
-
-	output, err := captureOutputWithError(func() error {
-		return outputUsingTemplate(templateString, params)
-	})
-	if err != nil {
-		t.Error(err)
-	} else if strings.TrimSpace(output) != strings.TrimSpace(params.ID) {
-		t.Errorf("Error with template output:\nExpected: %s\nReceived: %s\n", params.ID, output)
-	}
-}
-
-func TestTemplateOutputInvalidFormat(t *testing.T) {
-	params := imageOutputParams{
-		Tag:       "latest",
-		ID:        "0123456789abcdef",
-		Name:      "test/image",
-		Digest:    "sha256:012345789abcdef012345789abcdef012345789abcdef012345789abcdef",
-		CreatedAt: "Jan 01 2016 10:45",
-		Size:      "97 KB",
-	}
-
-	formatString := "ID"
-
-	err := outputUsingTemplate(formatString, params)
-	if err == nil || err.Error() != "error invalid format provided: ID" {
-		t.Fatalf("expected error invalid format")
-	}
-}
-
-func TestFormatStringOutput(t *testing.T) {
-	params := imageOutputParams{
-		Tag:       "latest",
-		ID:        "012345789abcdef",
-		Name:      "test/image",
-		Digest:    "sha256:012345789abcdef012345789abcdef012345789abcdef012345789abcdef",
-		CreatedAt: "Jan 01 2016 10:45",
-		Size:      "97 KB",
-	}
-
-	output := captureOutput(func() {
-		outputUsingFormatString(true, true, params)
-	})
-	expectedOutput := fmt.Sprintf("%-56s %-20s %-20.12s %-64s %-22s %s\n", params.Name, params.Tag, params.ID, params.Digest, params.CreatedAt, params.Size)
-	if output != expectedOutput {
-		t.Errorf("Error outputting using format string:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
-	}
-
-	output = captureOutput(func() {
-		outputUsingFormatString(true, false, params)
-	})
-	expectedOutput = fmt.Sprintf("%-56s %-20s %-20.12s %-22s %s\n", params.Name, params.Tag, params.ID, params.CreatedAt, params.Size)
-	if output != expectedOutput {
-		t.Errorf("Error outputting using format string:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
-	}
-
-	output = captureOutput(func() {
-		outputUsingFormatString(false, true, params)
-	})
-	expectedOutput = fmt.Sprintf("%-56s %-20s %-64s %-64s %-22s %s\n", params.Name, params.Tag, params.ID, params.Digest, params.CreatedAt, params.Size)
-	if output != expectedOutput {
-		t.Errorf("Error outputting using format string:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
-	}
-
-	output = captureOutput(func() {
-		outputUsingFormatString(false, false, params)
-	})
-	expectedOutput = fmt.Sprintf("%-56s %-20s %-64s %-22s %s\n", params.Name, params.Tag, params.ID, params.CreatedAt, params.Size)
-	if output != expectedOutput {
-		t.Errorf("Error outputting using format string:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
-	}
-}
-
 func TestSizeFormatting(t *testing.T) {
 	size := formattedSize(0)
 	if size != "0 B" {
@@ -110,40 +28,6 @@ func TestSizeFormatting(t *testing.T) {
 	size = formattedSize(1000 * 1000 * 1000 * 1000)
 	if size != "1 TB" {
 		t.Errorf("Error formatting size: expected '%s' got '%s'", "1 TB", size)
-	}
-}
-
-func TestOutputHeader(t *testing.T) {
-	output := captureOutput(func() {
-		outputHeader(true, false)
-	})
-	expectedOutput := fmt.Sprintf("%-56s %-20s %-20s %-22s %s\n", "IMAGE NAME", "IMAGE TAG", "IMAGE ID", "CREATED AT", "SIZE")
-	if output != expectedOutput {
-		t.Errorf("Error outputting header:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
-	}
-
-	output = captureOutput(func() {
-		outputHeader(true, true)
-	})
-	expectedOutput = fmt.Sprintf("%-56s %-20s %-20s %-71s %-22s %s\n", "IMAGE NAME", "IMAGE TAG", "IMAGE ID", "DIGEST", "CREATED AT", "SIZE")
-	if output != expectedOutput {
-		t.Errorf("Error outputting header:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
-	}
-
-	output = captureOutput(func() {
-		outputHeader(false, false)
-	})
-	expectedOutput = fmt.Sprintf("%-56s %-20s %-64s %-22s %s\n", "IMAGE NAME", "IMAGE TAG", "IMAGE ID", "CREATED AT", "SIZE")
-	if output != expectedOutput {
-		t.Errorf("Error outputting header:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
-	}
-
-	output = captureOutput(func() {
-		outputHeader(false, true)
-	})
-	expectedOutput = fmt.Sprintf("%-56s %-20s %-64s %-71s %-22s %s\n", "IMAGE NAME", "IMAGE TAG", "IMAGE ID", "DIGEST", "CREATED AT", "SIZE")
-	if output != expectedOutput {
-		t.Errorf("Error outputting header:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
 	}
 }
 
@@ -195,45 +79,6 @@ func TestNoMatchesReferenceWithoutTag(t *testing.T) {
 	}
 }
 
-func TestOutputImagesQuietTruncated(t *testing.T) {
-	// Make sure the tests are running as root
-	failTestIfNotRoot(t)
-
-	opts := imageOptions{
-		truncate: true,
-		quiet:    true,
-	}
-
-	store, err := storage.GetStore(storeOptions)
-	if err != nil {
-		t.Fatal(err)
-	} else if store != nil {
-		is.Transport.SetStore(store)
-	}
-
-	images, err := store.Images()
-	if err != nil {
-		t.Fatalf("Error reading images: %v", err)
-	}
-
-	// Pull an image so that we know we have at least one
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
-
-	// Tests quiet and truncated output
-	output, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:1], store, nil, "", opts)
-	})
-	expectedOutput := fmt.Sprintf("%-64s\n", images[0].ID)
-	if err != nil {
-		t.Error("quiet/truncated output produces error")
-	} else if strings.TrimSpace(output) != strings.TrimSpace(expectedOutput) {
-		t.Errorf("quiet/truncated output does not match expected value\nExpected: %s\nReceived: %s\n", expectedOutput, output)
-	}
-}
-
 func TestOutputImagesQuietNotTruncated(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
@@ -263,7 +108,7 @@ func TestOutputImagesQuietNotTruncated(t *testing.T) {
 	output, err := captureOutputWithError(func() error {
 		return outputImages(getContext(), images[:1], store, nil, "", opts)
 	})
-	expectedOutput := fmt.Sprintf("%-64s\n", images[0].ID)
+	expectedOutput := fmt.Sprintf("sha256:%s\n", images[0].ID)
 	if err != nil {
 		t.Error("quiet/non-truncated output produces error")
 	} else if strings.TrimSpace(output) != strings.TrimSpace(expectedOutput) {
@@ -304,45 +149,8 @@ func TestOutputImagesFormatString(t *testing.T) {
 	expectedOutput := images[0].ID
 	if err != nil {
 		t.Error("format string output produces error")
-	} else if strings.TrimSpace(output) != strings.TrimSpace(expectedOutput) {
+	} else if !strings.Contains(expectedOutput, strings.TrimSpace(output)) {
 		t.Errorf("format string output does not match expected value\nExpected: %s\nReceived: %s\n", expectedOutput, output)
-	}
-}
-
-func TestOutputImagesFormatTemplate(t *testing.T) {
-	// Make sure the tests are running as root
-	failTestIfNotRoot(t)
-
-	opts := imageOptions{
-		quiet: true,
-	}
-	store, err := storage.GetStore(storeOptions)
-	if err != nil {
-		t.Fatal(err)
-	} else if store != nil {
-		is.Transport.SetStore(store)
-	}
-
-	// Pull an image so that we know we have at least one
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
-
-	images, err := store.Images()
-	if err != nil {
-		t.Fatalf("Error reading images: %v", err)
-	}
-
-	// Tests quiet and non-truncated output
-	output, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:1], store, nil, "", opts)
-	})
-	expectedOutput := fmt.Sprintf("%-64s\n", images[0].ID)
-	if err != nil {
-		t.Error("format template output produces error")
-	} else if strings.TrimSpace(output) != strings.TrimSpace(expectedOutput) {
-		t.Errorf("format template output does not match expected value\nExpected: %s\nReceived: %s\n", expectedOutput, output)
 	}
 }
 
@@ -379,48 +187,6 @@ func TestOutputImagesArgNoMatch(t *testing.T) {
 	})
 	if err == nil || err.Error() != "No such image foo:" {
 		t.Fatalf("expected error arg no match")
-	}
-}
-
-func TestOutputMultipleImages(t *testing.T) {
-	// Make sure the tests are running as root
-	failTestIfNotRoot(t)
-
-	opts := imageOptions{
-		quiet:    true,
-		truncate: true,
-	}
-	store, err := storage.GetStore(storeOptions)
-	if err != nil {
-		t.Fatal(err)
-	} else if store != nil {
-		is.Transport.SetStore(store)
-	}
-
-	// Pull two images so that we know we have at least two
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
-	_, err = pullTestImage(t, "alpine:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
-
-	images, err := store.Images()
-	if err != nil {
-		t.Fatalf("Error reading images: %v", err)
-	}
-
-	// Tests quiet and truncated output
-	output, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:2], store, nil, "", opts)
-	})
-	expectedOutput := fmt.Sprintf("%-64s\n%-64s\n", images[0].ID, images[1].ID)
-	if err != nil {
-		t.Error("multi-image output produces error")
-	} else if strings.TrimSpace(output) != strings.TrimSpace(expectedOutput) {
-		t.Errorf("multi-image output does not match expected value\nExpected: %s\nReceived: %s\n", expectedOutput, output)
 	}
 }
 
