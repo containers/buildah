@@ -55,7 +55,7 @@ func (c *Cmd) Start() error {
 	}
 	c.Env = append(c.Env, fmt.Sprintf("_Buildah-unshare=%d", c.UnshareFlags))
 
-	// Please the libpod "rootless" package to find the expected env variables.
+	// Please the "rootless" package to find the expected env variables.
 	if os.Geteuid() != 0 {
 		c.Env = append(c.Env, "_LIBPOD_USERNS_CONFIGURED=done")
 		c.Env = append(c.Env, fmt.Sprintf("_LIBPOD_ROOTLESS_UID=%d", os.Geteuid()))

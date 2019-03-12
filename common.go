@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containers/buildah/pkg/rootless"
 	cp "github.com/containers/image/copy"
 	"github.com/containers/image/types"
-	"github.com/containers/libpod/pkg/rootless"
 )
 
 const (
