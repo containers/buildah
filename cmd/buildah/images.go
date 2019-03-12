@@ -4,16 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"regexp"
+	"sort"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/formats"
 	is "github.com/containers/image/storage"
 	"github.com/containers/storage"
+	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -57,6 +57,14 @@ type filterParams struct {
 type imageResults struct {
 	imageOptions
 	filter string
+}
+
+var imagesHeader = map[string]string{
+	"Name":      "REPOSITORY",
+	"Tag":       "TAG",
+	"ID":        "IMAGE ID",
+	"CreatedAt": "CREATED",
+	"Size":      "SIZE",
 }
 
 func init() {
@@ -143,10 +151,6 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 		}
 	}
 
-	if len(images) > 0 && !opts.noHeading && !opts.quiet && opts.format == "" && !opts.json {
-		outputHeader(opts.truncate, opts.digests)
-	}
-
 	return outputImages(ctx, images, store, params, name, opts)
 }
 
@@ -213,26 +217,33 @@ func setFilterDate(ctx context.Context, store storage.Store, images []storage.Im
 	return time.Time{}, fmt.Errorf("Could not locate image %q", imgName)
 }
 
-func outputHeader(truncate, digests bool) {
-	if truncate {
-		fmt.Printf("%-56s %-20s %-20s ", "IMAGE NAME", "IMAGE TAG", "IMAGE ID")
-	} else {
-		fmt.Printf("%-56s %-20s %-64s ", "IMAGE NAME", "IMAGE TAG", "IMAGE ID")
+func outputHeader(opts imageOptions) string {
+	if opts.format != "" {
+		return strings.Replace(opts.format, `\t`, "\t", -1)
+	}
+	if opts.quiet {
+		return formats.IDString
+	}
+	format := "table {{.Name}}\t{{.Tag}}\t"
+	if opts.noHeading {
+		format = "{{.Name}}\t{{.Tag}}\t"
 	}
 
-	if digests {
-		fmt.Printf("%-71s ", "DIGEST")
+	if opts.digests {
+		format += "{{.Digest}}\t"
 	}
-
-	fmt.Printf("%-22s %s\n", "CREATED AT", "SIZE")
+	format += "{{.ID}}\t{{.CreatedAt}}\t{{.Size}}"
+	return format
 }
+
+type imagesSorted []imageOutputParams
 
 func outputImages(ctx context.Context, images []storage.Image, store storage.Store, filters *filterParams, argName string, opts imageOptions) error {
 	found := false
+	var imagesParams imagesSorted
 	jsonImages := []jsonImage{}
 	for _, image := range images {
 		createdTime := image.Created
-
 		inspectedTime, digest, size, _ := getDateAndDigestAndSize(ctx, image, store)
 		if !inspectedTime.IsZero() {
 			if createdTime != inspectedTime {
@@ -255,6 +266,11 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 			}
 		}
 
+		imageID := "sha256:" + image.ID
+		if opts.truncate {
+			imageID = shortID(image.ID)
+		}
+
 		names := []string{}
 		if len(image.Names) > 0 {
 			names = image.Names
@@ -274,11 +290,6 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 				if !matchesFilter(ctx, image, store, name+":"+tag, filters) {
 					continue
 				}
-				if opts.quiet {
-					fmt.Printf("%-64s\n", image.ID)
-					// We only want to print each id once
-					break outer
-				}
 				if opts.json {
 					jsonImages = append(jsonImages, jsonImage{ID: image.ID, Names: image.Names})
 					// We only want to print each id once
@@ -286,20 +297,18 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 				}
 				params := imageOutputParams{
 					Tag:          tag,
-					ID:           image.ID,
+					ID:           imageID,
 					Name:         name,
 					Digest:       digest,
-					CreatedAt:    createdTime.Format("Jan 2, 2006 15:04"),
-					Size:         formattedSize(size),
 					CreatedAtRaw: createdTime,
+					CreatedAt:    units.HumanDuration(time.Since((createdTime))) + " ago",
+					Size:         formattedSize(size),
 				}
-				if opts.format != "" {
-					if err := outputUsingTemplate(opts.format, params); err != nil {
-						return err
-					}
-					continue
+				imagesParams = append(imagesParams, params)
+				if opts.quiet {
+					// We only want to print each id once
+					break outer
 				}
-				outputUsingFormatString(opts.truncate, opts.digests, params)
 			}
 		}
 	}
@@ -313,9 +322,40 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 			return err
 		}
 		fmt.Printf("%s\n", data)
+		return nil
 	}
-
+	imagesParams = sortImagesOutput(imagesParams)
+	out := formats.StdoutTemplateArray{Output: imagesToGeneric(imagesParams), Template: outputHeader(opts), Fields: imagesHeader}
+	formats.Writer(out).Out()
 	return nil
+}
+
+func shortID(id string) string {
+	idTruncLength := 12
+	if len(id) > idTruncLength {
+		return id[:idTruncLength]
+	}
+	return id
+}
+
+func sortImagesOutput(imagesOutput imagesSorted) imagesSorted {
+	sort.Sort(imagesOutput)
+	return imagesOutput
+}
+
+func (a imagesSorted) Less(i, j int) bool {
+	return a[i].CreatedAtRaw.After(a[j].CreatedAtRaw)
+}
+func (a imagesSorted) Len() int      { return len(a) }
+func (a imagesSorted) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+func imagesToGeneric(templParams []imageOutputParams) (genericParams []interface{}) {
+	if len(templParams) > 0 {
+		for _, v := range templParams {
+			genericParams = append(genericParams, interface{}(v))
+		}
+	}
+	return genericParams
 }
 
 func matchesFilter(ctx context.Context, image storage.Image, store storage.Store, name string, params *filterParams) bool {
@@ -418,37 +458,4 @@ func formattedSize(size int64) string {
 		count++
 	}
 	return fmt.Sprintf("%.3g %s", formattedSize, suffixes[count])
-}
-
-func outputUsingTemplate(format string, params imageOutputParams) error {
-	if matched, err := regexp.MatchString("{{.*}}", format); err != nil {
-		return errors.Wrapf(err, "error validating format provided: %s", format)
-	} else if !matched {
-		return errors.Errorf("error invalid format provided: %s", format)
-	}
-
-	tmpl, err := template.New("image").Parse(format)
-	if err != nil {
-		return errors.Wrapf(err, "Template parsing error")
-	}
-
-	err = tmpl.Execute(os.Stdout, params)
-	if err != nil {
-		return err
-	}
-	fmt.Println()
-	return nil
-}
-
-func outputUsingFormatString(truncate, digests bool, params imageOutputParams) {
-	if truncate {
-		fmt.Printf("%-56s %-20s %-20.12s", params.Name, params.Tag, params.ID)
-	} else {
-		fmt.Printf("%-56s %-20s %-64s", params.Name, params.Tag, params.ID)
-	}
-
-	if digests {
-		fmt.Printf(" %-64s", params.Digest)
-	}
-	fmt.Printf(" %-22s %s\n", params.CreatedAt, params.Size)
 }

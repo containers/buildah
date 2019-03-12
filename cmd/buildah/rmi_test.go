@@ -86,9 +86,6 @@ func TestStorageImageIDTrue(t *testing.T) {
 	// Make sure the tests are running as root
 	failTestIfNotRoot(t)
 
-	opts := imageOptions{
-		quiet: true,
-	}
 	store, err := storage.GetStore(storeOptions)
 	if store != nil {
 		is.Transport.SetStore(store)
@@ -106,13 +103,13 @@ func TestStorageImageIDTrue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error reading images: %v", err)
 	}
-	id, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images, store, nil, "busybox:latest", opts)
-	})
-	if err != nil {
-		t.Fatalf("Error getting id of image: %v", err)
+	var id string
+	if len(images) > 0 {
+		id = strings.TrimSpace(images[0].ID)
 	}
-	id = strings.TrimSpace(id)
+	if id == "" {
+		t.Fatalf("Error getting image id")
+	}
 
 	imgRef, err := storageImageID(getContext(), store, id)
 	if err != nil {
