@@ -183,6 +183,11 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
+	if iopts.BlobCache != "" {
+		systemContext.BlobInfoCacheDir = iopts.BlobCache
+	} else {
+		systemContext.BlobInfoCacheDir = filepath.Join(store.GraphRoot(), "cache")
+	}
 
 	isolation, err := parse.IsolationOption(c)
 	if err != nil {

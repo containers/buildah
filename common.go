@@ -8,6 +8,7 @@ import (
 	cp "github.com/containers/image/copy"
 	"github.com/containers/image/types"
 	"github.com/containers/libpod/pkg/rootless"
+	"github.com/containers/storage"
 )
 
 const (
@@ -17,31 +18,15 @@ const (
 	DOCKER = "docker"
 )
 
-// userRegistriesFile is the path to the per user registry configuration file.
-var userRegistriesFile = filepath.Join(os.Getenv("HOME"), ".config/containers/registries.conf")
-
-func getCopyOptions(reportWriter io.Writer, sourceReference types.ImageReference, sourceSystemContext *types.SystemContext, destinationReference types.ImageReference, destinationSystemContext *types.SystemContext, manifestType string) *cp.Options {
-	sourceCtx := &types.SystemContext{}
+func getCopyOptions(store storage.Store, reportWriter io.Writer, sourceReference types.ImageReference, sourceSystemContext *types.SystemContext, destinationReference types.ImageReference, destinationSystemContext *types.SystemContext, manifestType string) *cp.Options {
+	sourceCtx := getSystemContext(store, nil, "")
 	if sourceSystemContext != nil {
 		*sourceCtx = *sourceSystemContext
-	} else {
-		if rootless.IsRootless() {
-			if _, err := os.Stat(userRegistriesFile); err == nil {
-				sourceCtx.SystemRegistriesConfPath = userRegistriesFile
-			}
-
-		}
 	}
 
-	destinationCtx := &types.SystemContext{}
+	destinationCtx := getSystemContext(store, nil, "")
 	if destinationSystemContext != nil {
 		*destinationCtx = *destinationSystemContext
-	} else {
-		if rootless.IsRootless() {
-			if _, err := os.Stat(userRegistriesFile); err == nil {
-				destinationCtx.SystemRegistriesConfPath = userRegistriesFile
-			}
-		}
 	}
 
 	return &cp.Options{
@@ -52,7 +37,7 @@ func getCopyOptions(reportWriter io.Writer, sourceReference types.ImageReference
 	}
 }
 
-func getSystemContext(defaults *types.SystemContext, signaturePolicyPath string) *types.SystemContext {
+func getSystemContext(store storage.Store, defaults *types.SystemContext, signaturePolicyPath string) *types.SystemContext {
 	sc := &types.SystemContext{}
 	if defaults != nil {
 		*sc = *defaults
@@ -60,11 +45,16 @@ func getSystemContext(defaults *types.SystemContext, signaturePolicyPath string)
 	if signaturePolicyPath != "" {
 		sc.SignaturePolicyPath = signaturePolicyPath
 	}
-	if sc.SystemRegistriesConfPath == "" && rootless.IsRootless() {
-		if _, err := os.Stat(userRegistriesFile); err == nil {
-			sc.SystemRegistriesConfPath = userRegistriesFile
+	if store != nil {
+		if sc.BlobInfoCacheDir == "" {
+			sc.BlobInfoCacheDir = filepath.Join(store.GraphRoot(), "cache")
 		}
-
+		if sc.SystemRegistriesConfPath == "" && rootless.IsRootless() {
+			userRegistriesFile := filepath.Join(store.GraphRoot(), "registries.conf")
+			if _, err := os.Stat(userRegistriesFile); err == nil {
+				sc.SystemRegistriesConfPath = userRegistriesFile
+			}
+		}
 	}
 	return sc
 }

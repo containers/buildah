@@ -226,7 +226,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		DropCapabilities:      iopts.CapDrop,
 		CommonBuildOpts:       commonOpts,
 		Format:                format,
-		PullBlobDirectory:     iopts.BlobCache,
+		BlobDirectory:         iopts.BlobCache,
 	}
 
 	if !iopts.quiet {

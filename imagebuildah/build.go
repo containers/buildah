@@ -666,7 +666,7 @@ func (b *Executor) Prepare(ctx context.Context, stage imagebuilder.Stage, from s
 		FromImage:             from,
 		PullPolicy:            b.pullPolicy,
 		Registry:              b.registry,
-		PullBlobDirectory:     b.blobDirectory,
+		BlobDirectory:         b.blobDirectory,
 		SignaturePolicyPath:   b.signaturePolicyPath,
 		ReportWriter:          b.reportWriter,
 		SystemContext:         b.systemContext,

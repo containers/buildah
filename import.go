@@ -83,7 +83,7 @@ func importBuilder(ctx context.Context, store storage.Store, options ImportOptio
 		return nil, err
 	}
 
-	systemContext := getSystemContext(&types.SystemContext{}, options.SignaturePolicyPath)
+	systemContext := getSystemContext(store, &types.SystemContext{}, options.SignaturePolicyPath)
 
 	builder, err := importBuilderDataFromImage(ctx, store, systemContext, c.ImageID, options.Container, c.ID)
 	if err != nil {
@@ -115,7 +115,7 @@ func importBuilderFromImage(ctx context.Context, store storage.Store, options Im
 		return nil, errors.Errorf("image name must be specified")
 	}
 
-	systemContext := getSystemContext(options.SystemContext, options.SignaturePolicyPath)
+	systemContext := getSystemContext(store, options.SystemContext, options.SignaturePolicyPath)
 
 	_, img, err := util.FindImage(store, "", systemContext, options.Image)
 	if err != nil {
