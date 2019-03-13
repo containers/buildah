@@ -1720,7 +1720,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 		unix.CloseOnExec(fd)
 	}
 
-	cmd := exec.Command(slirp4netns, "-r", "3", "-c", fmt.Sprintf("%d", pid), "tap0")
+	cmd := exec.Command(slirp4netns, "--mtu", "65520", "-r", "3", "-c", fmt.Sprintf("%d", pid), "tap0")
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
 	cmd.ExtraFiles = []*os.File{rootlessSlirpSyncW}
 
