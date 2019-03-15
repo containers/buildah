@@ -83,7 +83,7 @@ func onBuild(builder *buildah.Builder) error {
 	for _, onBuildSpec := range builder.OnBuild() {
 		ctr = ctr + 1
 		commands := strings.Split(onBuildSpec, " ")
-		command := commands[0]
+		command := strings.ToUpper(commands[0])
 		args := commands[1:]
 		fmt.Fprintf(os.Stderr, "STEP %d: %s\n", ctr, onBuildSpec)
 		switch command {
@@ -95,7 +95,7 @@ func onBuild(builder *buildah.Builder) error {
 				dest = args[size-1]
 				args = args[:size-1]
 			}
-			if err := builder.Add(dest, false, buildah.AddAndCopyOptions{}, args...); err != nil {
+			if err := builder.Add(dest, command == "ADD", buildah.AddAndCopyOptions{}, args...); err != nil {
 				return err
 			}
 		case "ANNOTATION":
