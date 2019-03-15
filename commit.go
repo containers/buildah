@@ -269,7 +269,6 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 		if err != nil {
 			return nil, "", errors.Wrapf(err, "error wrapping image reference %q in blob cache at %q", transports.ImageName(src), options.BlobDirectory)
 		}
-		systemContext.BlobInfoCacheDir = options.BlobDirectory
 		maybeCachedSrc = cache
 	}
 	// Copy everything.
