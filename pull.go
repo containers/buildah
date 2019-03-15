@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
 
 	"strings"
 
@@ -163,13 +162,6 @@ func Pull(ctx context.Context, imageName string, options PullOptions) error {
 		SystemContext:       systemContext,
 		BlobDirectory:       options.BlobDirectory,
 		ReportWriter:        options.ReportWriter,
-	}
-	if options.BlobDirectory != "" {
-		systemContext.BlobInfoCacheDir = options.BlobDirectory
-	} else {
-		if systemContext.BlobInfoCacheDir != "" {
-			systemContext.BlobInfoCacheDir = filepath.Join(options.Store.GraphRoot(), "cache")
-		}
 	}
 
 	storageRef, transport, img, err := resolveImage(ctx, systemContext, options.Store, boptions)

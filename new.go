@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"path/filepath"
 	"strings"
 
 	"github.com/containers/buildah/util"
@@ -246,11 +245,6 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	}
 
 	systemContext := getSystemContext(store, options.SystemContext, options.SignaturePolicyPath)
-	if options.BlobDirectory != "" {
-		systemContext.BlobInfoCacheDir = options.BlobDirectory
-	} else {
-		systemContext.BlobInfoCacheDir = filepath.Join(store.GraphRoot(), "cache")
-	}
 
 	if options.FromImage != "" && options.FromImage != "scratch" {
 		ref, _, img, err = resolveImage(ctx, systemContext, store, options)
