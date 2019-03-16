@@ -77,4 +77,18 @@ function check_lengths() {
 	for stage in $(seq 10) ; do
 		cmp $mountpoint/layer${stage} ${TESTDIR}/randomfile
 	done
+
+	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
+	run_buildah --debug=false inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
+	[ "$output" -eq 1 ]
+
+	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
+	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah --debug=false inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
+	[ "$output" -eq 1 ]
+
+	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
+	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
+	run_buildah --debug=false inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
+	[ "$output" -eq 1 ]
 }
