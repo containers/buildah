@@ -951,7 +951,6 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 			if imgID, ref, err = s.copyExistingImage(ctx, cacheID, commitName); err != nil {
 				return "", nil, err
 			}
-			s.containerIDs = append(s.containerIDs, s.builder.ContainerID)
 			break
 		}
 
@@ -980,12 +979,9 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 			imgID = cacheID
 		}
 
-		// Add this container ID to the list of successful intermediate
-		// containers.
-		s.containerIDs = append(s.containerIDs, s.builder.ContainerID)
-
 		// Prepare for the next step with imgID as the new base image.
 		if i < len(children)-1 {
+			s.containerIDs = append(s.containerIDs, s.builder.ContainerID)
 			if err := s.Prepare(ctx, stage, imgID); err != nil {
 				return "", nil, errors.Wrap(err, "error preparing container for next step")
 			}
@@ -1327,9 +1323,50 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	}
 	var (
 		stageExecutor *StageExecutor
-		lastErr       error
+		cleanupImages []string
 	)
+	cleanupStages := make(map[int]*StageExecutor)
+
+	cleanup := func() error {
+		var lastErr error
+		// Clean up any containers associated with the final container
+		// built by a stage, for stages that succeeded, since we no
+		// longer need their filesystem contents.
+		for _, stage := range cleanupStages {
+			if err := stage.Delete(); err != nil {
+				logrus.Debugf("Failed to cleanup stage containers: %v", err)
+				lastErr = err
+			}
+		}
+		cleanupStages = nil
+		// Clean up any intermediate containers associated with stages,
+		// since we're not keeping them for debugging.
+		if b.removeIntermediateCtrs {
+			if err := b.deleteSuccessfulIntermediateCtrs(); err != nil {
+				logrus.Debugf("Failed to cleanup intermediate containers: %v", err)
+				lastErr = err
+			}
+		}
+		// Remove images from stages except the last one, since we're
+		// not going to use them as a starting point for any new
+		// stages.
+		for i := range cleanupImages {
+			removeID := cleanupImages[len(cleanupImages)-i-1]
+			if _, err := b.store.DeleteImage(removeID, true); err != nil {
+				logrus.Debugf("failed to remove intermediate image %q: %v", removeID, err)
+				if b.forceRmIntermediateCtrs || errors.Cause(err) != storage.ErrImageUsedByContainer {
+					lastErr = err
+				}
+			}
+		}
+		cleanupImages = nil
+		return lastErr
+	}
+	defer cleanup()
+
 	for stageIndex, stage := range stages {
+		var lastErr error
+
 		ib := stage.Builder
 		node := stage.Node
 		base, err := ib.From(node)
@@ -1353,33 +1390,27 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		// Always remove the intermediate/build containers, even if the build was unsuccessful.
 		// If building with layers, remove all intermediate/build containers if b.forceRmIntermediateCtrs
 		// is true.
-		if b.forceRmIntermediateCtrs || (!b.layers && b.useCache) {
-			defer stageExecutor.Delete()
+		if b.forceRmIntermediateCtrs || !b.layers {
+			cleanupStages[stage.Position] = stageExecutor
 		}
 		if imageID, ref, err = stageExecutor.Execute(ctx, stage); err != nil {
 			lastErr = err
 		}
-
-		// Delete the successful intermediate containers if an error in the build
-		// process occurs and b.removeIntermediateCtrs is true.
 		if lastErr != nil {
-			if b.removeIntermediateCtrs {
-				b.deleteSuccessfulIntermediateCtrs()
-			}
 			return "", nil, lastErr
 		}
+		if !b.forceRmIntermediateCtrs && b.removeIntermediateCtrs {
+			cleanupStages[stage.Position] = stageExecutor
+		}
 
-		// If we've a stage.Name that isn't numeric, we've an AS clause
-		// in play.  Create an intermediate image and record its ID, so
-		// that FROM statements refer to the name later in the
-		// Dockerfile can be resolved to this image.
-		// TODO: only do this if we actually refer to the image by its
-		// pseudonym later on.
+		// If this is an intermediate stage, make a note to remove its
+		// image later.
 		if _, err := strconv.Atoi(stage.Name); err != nil {
 			if imageID, ref, err = stageExecutor.Commit(ctx, stages[stageIndex].Builder, "", output); err != nil {
 				return "", nil, err
 			}
 			b.imageMap[stage.Name] = imageID
+			cleanupImages = append(cleanupImages, imageID)
 		}
 	}
 	if len(b.unusedArgs) > 0 {
@@ -1406,25 +1437,8 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 	}
 
-	// If building with layers and b.removeIntermediateCtrs is true
-	// only remove intermediate container for each step if an error
-	// during the build process doesn't occur.
-	// If the build is unsuccessful, the container created at the step
-	// the failure happened will persist in the container store.
-	// This if condition will be false if not building with layers and
-	// the removal of intermediate/build containers will be handled by the
-	// defer statement above.
-	if b.removeIntermediateCtrs && (b.layers || !b.useCache) {
-		if err := b.deleteSuccessfulIntermediateCtrs(); err != nil {
-			return "", nil, errors.Errorf("Failed to cleanup intermediate containers")
-		}
-	}
-
-	// Remove any intermediate images that we created for AS clause handling.
-	for _, value := range b.imageMap {
-		if _, err := b.store.DeleteImage(value, true); err != nil {
-			logrus.Debugf("unable to remove intermediate image %q: %v", value, err)
-		}
+	if err := cleanup(); err != nil {
+		return "", nil, err
 	}
 
 	return imageID, ref, nil
