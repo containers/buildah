@@ -199,7 +199,7 @@ If you specify `-f -`, the Dockerfile contents will be read from stdin.
 
 **--force-rm** *bool-value*
 
-Always remove intermediate containers after a build, even if the build is unsuccessful..
+Always remove intermediate containers after a build, even if the build fails (default false).
 
 **--format**
 
