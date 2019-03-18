@@ -82,7 +82,7 @@ func init() {
 	flags.StringVar(&opts.healthcheckTimeout, "healthcheck-timeout", "", "set the maximum amount of `time` to wait for a `healthcheck` command for the target image")
 	flags.StringVar(&opts.historyComment, "history-comment", "", "set a `comment` for the history of the target image")
 	flags.StringVar(&opts.hostname, "hostname", "", "set a host`name` for containers based on image")
-	flags.StringSliceVarP(&opts.label, "label", "l", []string{}, "add image configuration `label` e.g. label=value")
+	flags.StringArrayVarP(&opts.label, "label", "l", []string{}, "add image configuration `label` e.g. label=value")
 	flags.StringSliceVar(&opts.onbuild, "onbuild", []string{}, "add onbuild command to be run on images based on this image. Only supported on 'docker' formatted images")
 	flags.StringVar(&opts.os, "os", "", "set `operating system` of the target image")
 	flags.StringSliceVarP(&opts.ports, "port", "p", []string{}, "add `port` to expose when running containers based on image (default [])")

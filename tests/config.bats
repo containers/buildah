@@ -172,6 +172,7 @@ load helpers
    --volume /VOLUME \
    --workingdir /tmp \
    --label LABEL=VALUE \
+   --label exec='podman run -it --mount=type=bind,bind-propagation=Z,source=foo,destination=bar /script buz'\
    --stop-signal SIGINT \
    --annotation ANNOTATION=VALUE \
    --shell /bin/arbitrarysh \
@@ -243,6 +244,11 @@ load helpers
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Labels}}' scratch-image-docker | grep LABEL:VALUE
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Labels}}' scratch-image-oci | grep LABEL:VALUE
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Labels}}' scratch-image-oci | grep LABEL:VALUE
+
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Labels}}' scratch-image-docker | grep 'exec:podman run -it --mount=type=bind,bind-propagation=Z,source=foo,destination=bar /script buz'
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Labels}}' scratch-image-docker | grep 'exec:podman run -it --mount=type=bind,bind-propagation=Z,source=foo,destination=bar /script buz'
+  buildah --debug=false inspect --type=image --format '{{.Docker.Config.Labels}}' scratch-image-oci | grep 'exec:podman run -it --mount=type=bind,bind-propagation=Z,source=foo,destination=bar /script buz'
+  buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Labels}}' scratch-image-oci | grep 'exec:podman run -it --mount=type=bind,bind-propagation=Z,source=foo,destination=bar /script buz'
 
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.StopSignal}}' scratch-image-docker | grep SIGINT
   buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.StopSignal}}' scratch-image-docker | grep SIGINT
