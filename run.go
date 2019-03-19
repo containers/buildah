@@ -1765,7 +1765,7 @@ func runConfigureNetwork(isolation Isolation, options RunOptions, configureNetwo
 	var netconf, undo []*libcni.NetworkConfigList
 
 	if isolation == IsolationOCIRootless {
-		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil && !ns.Host {
+		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil && !ns.Host && ns.Path == "" {
 			return setupRootlessNetwork(pid)
 		}
 	}
