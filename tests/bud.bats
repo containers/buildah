@@ -2,6 +2,29 @@
 
 load helpers
 
+@test "bud with .dockerignore" {
+  # Remove containers and images before bud tests
+  buildah rm --all
+  buildah rmi -f --all
+
+  run buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
+  echo $output
+  [ "$status" -eq 0 ]
+
+  run buildah from --name myctr testbud
+  [ "$status" -eq 0 ]
+
+  run buildah run myctr ls -l test2.txt
+  echo "$output"
+  [ "$status" -eq 0 ]
+
+  run buildah run myctr ls -l test1.txt
+  echo "$output"
+  [ "$status" -ne 0 ]
+
+  buildah rmi -a -f
+}
+
 @test "bud-flags-order-verification" {
   run buildah bud /tmp/tmpdockerfile/ -t blabla
   check_options_flag_err "-t"
@@ -112,7 +135,7 @@ load helpers
   echo "$output"
   [ $(wc -l <<< "$output") -eq 1 ]
   [ "${status}" -eq 0 ]
-  
+
   ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json test3)
   mnt=$(buildah --debug=false mount ${ctr})
   run test -e $mnt/uuid
@@ -668,7 +691,7 @@ load helpers
 
 @test "bud with symlinks to relative path" {
   target=alpine-image
-  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.relative-symlink ${TESTSDIR}/bud/symlink 
+  run buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.relative-symlink ${TESTSDIR}/bud/symlink
   echo "$output"
   [ "$status" -eq 0 ]
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
@@ -1012,13 +1035,13 @@ load helpers
   [[ "$output" =~ user:2367[[:space:]]group:3267 ]]
   run buildah --debug=false from --name ${ctrName} ${imgName}
   echo "$output"
-  [ "$status" -eq 0 ] 
+  [ "$status" -eq 0 ]
   run buildah --debug=false run alpine-chown -- stat -c '%u' /tmp/copychown.txt
   echo "$output"
   # Validate that output starts with "2367"
   [ $(expr "$output" : "2367") -ne 0 ]
   [ "$status" -eq 0 ]
-  
+
   run buildah --debug=false run alpine-chown -- stat -c '%g' /tmp/copychown.txt
   echo "$output"
   # Validate that output starts with "3267"
@@ -1076,7 +1099,7 @@ load helpers
   run buildah --debug=false containers -a
   [[ $output =~ "test1" ]]
   [ "${status}" -eq 0 ]
-  
+
   run buildah inspect --format "{{.Docker.ContainerConfig.Env}}" --type image test1
   echo "$output"
   [ "$status" -eq 0 ]
@@ -1093,7 +1116,7 @@ load helpers
   run buildah --debug=false containers -a
   [[ $output =~ "test1" ]]
   [ "${status}" -eq 0 ]
-  
+
   run buildah inspect --format "{{.Docker.ContainerConfig.Env}}" --type image test1
   echo "$output"
   [ "$status" -eq 0 ]
@@ -1120,7 +1143,7 @@ load helpers
   [ "${status}" -eq 0 ]
   run test -e $mnt/2
   [ "${status}" -ne 0 ]
- 
+
   run buildah --debug=false inspect --format "{{.Docker.ContainerConfig.Env}}" --type image test1
   echo "$output"
   [ "$status" -eq 0 ]
@@ -1203,10 +1226,10 @@ load helpers
   [ "$status" -eq 0 ]
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
-  run ls ${root}/2 
+  run ls ${root}/2
   echo "$output"
   [ "$status" -eq 0 ]
-  run ls ${root}/3 
+  run ls ${root}/3
   [ "$status" -ne 0 ]
   buildah umount ${cid}
   buildah rm ${cid}
