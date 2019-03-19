@@ -49,13 +49,13 @@ load helpers
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
-  [ $(wc -l <<< "$output") -eq 8 ]
   [ "${status}" -eq 0 ]
+  [ $(wc -l <<< "$output") -eq 6 ]
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
-  [ $(wc -l <<< "$output") -eq 10 ]
   [ "${status}" -eq 0 ]
+  [ $(wc -l <<< "$output") -eq 8 ]
   run buildah inspect --format "{{.Docker.ContainerConfig.Env}}" test2
   echo "$output"
   [ "$status" -eq 0 ]
@@ -68,26 +68,33 @@ load helpers
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
-  [ $(wc -l <<< "$output") -eq 12 ]
+  [ $(wc -l <<< "$output") -eq 10 ]
   [ "${status}" -eq 0 ]
 
   mkdir -p ${TESTDIR}/use-layers/mount/subdir
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test4 -f Dockerfile.3 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
-  [ $(wc -l <<< "$output") -eq 14 ]
+  [ $(wc -l <<< "$output") -eq 12 ]
   [ "${status}" -eq 0 ]
-  touch ${TESTDIR}/use-layers/mount/subdir/file.txt
+
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test5 -f Dockerfile.3 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
-  [ $(wc -l <<< "$output") -eq 16 ]
+  [ $(wc -l <<< "$output") -eq 13 ]
   [ "${status}" -eq 0 ]
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test6 -f Dockerfile.2 ${TESTDIR}/use-layers
+  touch ${TESTDIR}/use-layers/mount/subdir/file.txt
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test6 -f Dockerfile.3 ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
-  [ $(wc -l <<< "$output") -eq 19 ]
+  [ "${status}" -eq 0 ]
+  [ $(wc -l <<< "$output") -eq 15 ]
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test7 -f Dockerfile.2 ${TESTDIR}/use-layers
+  run buildah --debug=false images -a
+  echo "$output"
+  [ $(wc -l <<< "$output") -eq 16 ]
   [ "${status}" -eq 0 ]
 
   buildah rmi -a -f
@@ -122,18 +129,27 @@ load helpers
   echo "$output"
   [ $(wc -l <<< "$output") -eq 6 ]
   [ "${status}" -eq 0 ]
+  # The second time through, the layers should all get reused.
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
+  run buildah --debug=false images -a
+  echo "$output"
+  [ $(wc -l <<< "$output") -eq 6 ]
+  [ "${status}" -eq 0 ]
+  # The third time through, the layers should all get reused, but we'll have a new line of output for the new name.
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 7 ]
   [ "${status}" -eq 0 ]
 
+  # Both interim images will be different, and all of the layers in the final image will be different.
   uuidgen > ${TESTDIR}/use-layers/uuid/data
   date > ${TESTDIR}/use-layers/date/data
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
   [ $(wc -l <<< "$output") -eq 11 ]
+  # No leftover containers, just the header line.
   [ "${status}" -eq 0 ]
   run buildah --debug=false containers
   echo "$output"
@@ -147,6 +163,7 @@ load helpers
   run test -e $mnt/date
   [ "${status}" -eq 0 ]
 
+  # Layers won't get reused because this build won't use caching.
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t test4 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run buildah --debug=false images -a
   echo "$output"
@@ -191,7 +208,7 @@ load helpers
   buildah bud --signature-policy ${TESTSDIR}/policy.json --rm=false --layers -t test2 ${TESTSDIR}/bud/use-layers
   run buildah --debug=false containers
   echo "$output"
-  [ $(wc -l <<< "$output") -eq 7 ]
+  [ $(wc -l <<< "$output") -eq 5 ]
   [ "${status}" -eq 0 ]
 
   buildah rm -a
@@ -1233,14 +1250,16 @@ load helpers
   mnt=$(buildah --debug=false mount ${ctr})
 
   run test -e $mnt/usr/local/bin/composer
+  echo "$output"
   [ "$status" -eq 0 ]
 }
 
 @test "bud-target" {
   target=target
   run buildah bud --debug=false --signature-policy ${TESTSDIR}/policy.json -t ${target} --target mytarget ${TESTSDIR}/bud/target
+  echo "$output"
   [[ $output =~ "STEP 1: FROM ubuntu:latest" ]]
-  [[ $output =~ "STEP 3: FROM alpine:latest AS mytarget" ]]
+  [[ $output =~ "STEP 4: FROM alpine:latest AS mytarget" ]]
   [ "$status" -eq 0 ]
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
