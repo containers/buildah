@@ -224,6 +224,7 @@ type Executor struct {
 	imageMap                       map[string]string // Used to map images that we create to handle the AS construct.
 	copyFrom                       string            // Used to keep track of the --from flag from COPY and ADD
 	blobDirectory                  string
+	excludes                       []string
 }
 
 // builtinAllowedBuildArgs is list of built-in allowed build args
@@ -469,7 +470,9 @@ func (b *Executor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
 		}
 
 		options := buildah.AddAndCopyOptions{
-			Chown: copy.Chown,
+			Chown:      copy.Chown,
+			ContextDir: b.contextDir,
+			Excludes:   b.excludes,
 		}
 
 		if err := b.builder.Add(copy.Dest, copy.Download, options, sources...); err != nil {
@@ -572,9 +575,15 @@ func (b *Executor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
 func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
+	excludes, err := imagebuilder.ParseDockerignore(options.ContextDirectory)
+	if err != nil {
+		return nil, err
+	}
+
 	exec := Executor{
 		store:                          store,
 		contextDir:                     options.ContextDirectory,
+		excludes:                       excludes,
 		pullPolicy:                     options.PullPolicy,
 		registry:                       options.Registry,
 		ignoreUnrecognizedInstructions: options.IgnoreUnrecognizedInstructions,
