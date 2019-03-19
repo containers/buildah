@@ -680,17 +680,17 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 	return &exec, nil
 }
 
-// Prepare creates a working container based on the specified image, or if one
+// prepare creates a working container based on the specified image, or if one
 // isn't specified, the first argument passed to the first FROM instruction we
 // can find in the stage's parsed tree.
-func (s *StageExecutor) Prepare(ctx context.Context, stage imagebuilder.Stage, from string) error {
+func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, from string) error {
 	ib := stage.Builder
 	node := stage.Node
 
 	if from == "" {
 		base, err := ib.From(node)
 		if err != nil {
-			logrus.Debugf("Prepare(node.Children=%#v)", node.Children)
+			logrus.Debugf("prepare(node.Children=%#v)", node.Children)
 			return errors.Wrapf(err, "error determining starting point for build")
 		}
 		from = base
@@ -847,16 +847,58 @@ func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, e
 	return imageRef, nil
 }
 
-// Execute runs each of the steps in the stage's parsed tree, in turn.
-func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (imgID string, ref reference.Canonical, err error) {
-	ib := stage.Builder
-	node := stage.Node
-	checkForLayers := true
-	children := node.Children
-	commitName := s.output
+// stepRequiresCommit indicates whether or not the step should be followed by
+// committing the in-progress container to create an intermediate image.
+func (*StageExecutor) stepRequiresCommit(step *imagebuilder.Step) bool {
+	switch strings.ToUpper(step.Command) {
+	case "ADD", "COPY", "RUN":
+		return true
+	}
+	return false
+}
 
-	for i, node := range node.Children {
-		// Resolve any arguments in this instruction so that we don't have to.
+// Execute runs each of the steps in the stage's parsed tree, in turn.
+func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, base string) (imgID string, ref reference.Canonical, err error) {
+	ib := stage.Builder
+	checkForLayers := s.executor.layers && s.executor.useCache
+
+	// If the base image's name corresponds to the result of an earlier
+	// stage, substitute that image's ID for the base image's name here.
+	// If not, then go on assuming that it's just a regular image that's
+	// either in local storage, or one that we have to pull from a
+	// registry.
+	if stageImage, isPreviousStage := s.executor.imageMap[base]; isPreviousStage {
+		base = stageImage
+	}
+
+	// Create the (first) working container for this stage.  Reinitializing
+	// the imagebuilder configuration may alter the list of steps we have,
+	// so take a snapshot of them *after* that.
+	if err := s.prepare(ctx, stage, base); err != nil {
+		return "", nil, err
+	}
+	children := stage.Node.Children
+
+	if len(children) == 0 {
+		// There are no steps.
+		if s.builder.FromImageID == "" || s.executor.squash {
+			// We either don't have a base image, or we need to
+			// squash the contents of the base image.  Whichever is
+			// the case, we need to commit() to create a new image.
+			if imgID, ref, err = s.commit(ctx, ib, getCreatedBy(nil), s.output); err != nil {
+				return "", nil, errors.Wrapf(err, "error committing base container")
+			}
+		} else {
+			// We don't need to squash the base image, so just
+			// reuse the base image.
+			if imgID, ref, err = s.copyExistingImage(ctx, s.builder.FromImageID, s.output); err != nil {
+				return "", nil, err
+			}
+		}
+	}
+
+	for i, node := range children {
+		// Resolve any arguments in this instruction.
 		step := ib.Step()
 		if err := step.Resolve(node); err != nil {
 			return "", nil, errors.Wrapf(err, "error resolving step %+v", *node)
@@ -868,7 +910,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 
 		// If this instruction declares an argument, remove it from the
 		// set of arguments that we were passed but which we haven't
-		// seen used by the Dockerfile.
+		// yet seen used by the Dockerfile.
 		if step.Command == "arg" {
 			for _, Arg := range step.Args {
 				list := strings.SplitN(Arg, "=", 2)
@@ -903,88 +945,135 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 			noRunsRemaining = !ib.RequiresStart(&parser.Node{Children: children[i+1:]})
 		}
 
-		// If we're doing a single-layer build and not looking to take
-		// shortcuts using the cache, make a note of the instruction,
-		// process it, and then move on to the next instruction.
-		if !s.executor.layers && s.executor.useCache {
+		// If we're doing a single-layer build, just process the
+		// instruction.
+		if !s.executor.layers {
 			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
 				return "", nil, errors.Wrapf(err, "error building at step %+v", *step)
 			}
-			now := time.Now()
-			s.builder.AddPrependedEmptyLayer(&now, getCreatedBy(node), "", "")
-			continue
+			if i < len(children)-1 {
+				// There are still more instructions to process
+				// for this stage.  Make a note of the
+				// instruction in the history that we'll write
+				// for the image when we eventually commit it.
+				now := time.Now()
+				s.builder.AddPrependedEmptyLayer(&now, getCreatedBy(node), "", "")
+				continue
+			} else {
+				// This is the last instruction for this stage,
+				// so we should commit this container to create
+				// an image.
+				imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), s.output)
+				if err != nil {
+					return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
+				}
+				break
+			}
 		}
 
-		if i < len(children)-1 {
-			commitName = ""
-		} else {
+		// We're in a multi-layered build.
+		var (
+			commitName string
+			cacheID    string
+			err        error
+			rebase     bool
+		)
+
+		// If we have to commit for this instruction, only assign the
+		// stage's configured output name to the last layer.
+		if i == len(children)-1 {
 			commitName = s.output
 		}
-
-		// TODO: this makes the tests happy, but it shouldn't be
-		// necessary unless this is the final stage.
-		commitName = s.executor.output
-
-		var (
-			cacheID string
-			err     error
-		)
 
 		// If we're using the cache, and we've managed to stick with
 		// cached images so far, look for one that matches what we
 		// expect to produce for this instruction.
-		if checkForLayers && s.executor.useCache {
+		// Only check at steps where we commit, so that we don't
+		// abandon the cache at this step just because we can't find an
+		// image with a history entry in it that we wouldn't have
+		// committed.
+		if checkForLayers && (s.stepRequiresCommit(step) || i == len(children)-1) && !(s.executor.squash && i == len(children)-1 && s.index == s.stages-1) {
 			cacheID, err = s.layerExists(ctx, node, children[:i])
 			if err != nil {
 				return "", nil, errors.Wrap(err, "error checking if cached image exists from a previous build")
 			}
-		}
-		if cacheID != "" {
-			fmt.Fprintf(s.executor.out, "--> Using cache %s\n", cacheID)
-		}
-
-		// If a cache is found and we're on the last step, that means
-		// nothing in this phase changed.  Just create a copy of the
-		// existing image and save it with the name that we were going
-		// to assign to the one that we were building, and make sure
-		// that the builder's root fs matches it.
-		if cacheID != "" && i == len(children)-1 {
-			if imgID, ref, err = s.copyExistingImage(ctx, cacheID, commitName); err != nil {
-				return "", nil, err
+			if cacheID != "" {
+				// Note the cache hit.
+				fmt.Fprintf(s.executor.out, "--> Using cache %s\n", cacheID)
+			} else {
+				// We're not going to find any more cache hits.
+				checkForLayers = false
 			}
-			break
 		}
 
-		// If we didn't find a cached step that we could just reuse,
-		// process the instruction and commit the layer.
-		if cacheID == "" || !checkForLayers {
-			checkForLayers = false
+		if cacheID != "" {
+			// A suitable cached image was found, so just reuse it.
+			// If we need to name the resulting image because it's
+			// the last step in this stage, add the name to the
+			// image.
+			imgID = cacheID
+			if commitName != "" && (s.stepRequiresCommit(step) || i == len(children)-1) {
+				if imgID, ref, err = s.copyExistingImage(ctx, cacheID, commitName); err != nil {
+					return "", nil, err
+				}
+			}
+			// Update our working container to be based off of the
+			// cached image, in case we need to read content from
+			// its root filesystem.
+			rebase = true
+		} else {
+			// If we didn't find a cached image that we could just reuse,
+			// process the instruction directly.
 			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
 				return "", nil, errors.Wrapf(err, "error building at step %+v", *step)
 			}
+			if s.stepRequiresCommit(step) || i == len(children)-1 {
+				// Either this is the last instruction, or
+				// there are more instructions and we need to
+				// create a layer from this one before
+				// continuing.
+				// TODO: only commit for the last instruction
+				// case if we need to use this stage's image as
+				// a base image later, or if we're the final
+				// stage.
+				imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), commitName)
+				if err != nil {
+					return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
+				}
+				// We only need to build a new container rootfs
+				// using this image if we plan on making
+				// further changes to it.  Subsequent stages
+				// that just want to use the rootfs as a source
+				// for COPY or ADD will be content with what we
+				// already have.
+				rebase = i < len(children)-1
+			} else {
+				// There are still more instructions to process
+				// for this stage, and we don't need to commit
+				// here.  Make a note of the instruction in the
+				// history for the next commit.
+				now := time.Now()
+				s.builder.AddPrependedEmptyLayer(&now, getCreatedBy(node), "", "")
+			}
 		}
 
-		// Commit if no cache is found
-		if cacheID == "" {
-			imgID, ref, err = s.Commit(ctx, ib, getCreatedBy(node), commitName)
-			if err != nil {
-				return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
-			}
-			if i == len(children)-1 {
-				s.executor.log("COMMIT %s", commitName)
-			}
-		} else {
-			// If we did find a cache, reuse the cached image's ID
-			// as the basis for the container for the next step.
-			imgID = cacheID
-		}
-
-		// Prepare for the next step with imgID as the new base image.
-		if i < len(children)-1 {
+		if rebase {
+			// Since we either committed the working container or
+			// are about to replace it with one based on a cached
+			// image, add the current working container's ID to the
+			// list of successful intermediate containers that
+			// we'll clean up later.
 			s.containerIDs = append(s.containerIDs, s.builder.ContainerID)
-			if err := s.Prepare(ctx, stage, imgID); err != nil {
+
+			// Prepare for the next step or subsequent phases by
+			// creating a new working container with the
+			// just-committed or updated cached image as its new
+			// base image.
+			// TODO: only create a new container if we know that
+			// we'll need the updated root filesystem.
+			if err := s.prepare(ctx, stage, imgID); err != nil {
 				return "", nil, errors.Wrap(err, "error preparing container for next step")
 			}
 		}
@@ -1096,6 +1185,9 @@ func (b *Executor) getImageHistory(ctx context.Context, imageID string) ([]v1.Hi
 
 // getCreatedBy returns the command the image at node will be created by.
 func getCreatedBy(node *parser.Node) string {
+	if node == nil {
+		return "/bin/sh"
+	}
 	if node.Value == "run" {
 		return "/bin/sh -c " + node.Original[4:]
 	}
@@ -1203,9 +1295,9 @@ func urlContentModified(url string, historyTime *time.Time) (bool, error) {
 	return true, nil
 }
 
-// Commit writes the container's contents to an image, using a passed-in tag as
+// commit writes the container's contents to an image, using a passed-in tag as
 // the name if there is one, generating a unique ID-based one otherwise.
-func (s *StageExecutor) Commit(ctx context.Context, ib *imagebuilder.Builder, createdBy, output string) (string, reference.Canonical, error) {
+func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, createdBy, output string) (string, reference.Canonical, error) {
 	imageRef, err := s.executor.resolveNameToImageRef(output)
 	if err != nil {
 		return "", nil, err
@@ -1323,10 +1415,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	if len(stages) == 0 {
 		return "", nil, errors.New("error building: no stages to build")
 	}
-	var (
-		stageExecutor *StageExecutor
-		cleanupImages []string
-	)
+	var cleanupImages []string
 	cleanupStages := make(map[int]*StageExecutor)
 
 	cleanup := func() error {
@@ -1384,37 +1473,44 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			output = b.output
 		}
 
-		stageExecutor = b.startStage(stage.Name, stage.Position, len(stages), base, output)
-		if err := stageExecutor.Prepare(ctx, stage, base); err != nil {
-			return "", nil, err
-		}
+		stageExecutor := b.startStage(stage.Name, stage.Position, len(stages), base, output)
 
-		// Always remove the intermediate/build containers, even if the build was unsuccessful.
-		// If building with layers, remove all intermediate/build containers if b.forceRmIntermediateCtrs
-		// is true.
+		// If this a single-layer build, or if it's a multi-layered
+		// build and b.forceRmIntermediateCtrs is set, make sure we
+		// remove the intermediate/build containers, regardless of
+		// whether or not the stage's build fails.
 		if b.forceRmIntermediateCtrs || !b.layers {
 			cleanupStages[stage.Position] = stageExecutor
 		}
-		if imageID, ref, err = stageExecutor.Execute(ctx, stage); err != nil {
+
+		// Build this stage.
+		if imageID, ref, err = stageExecutor.Execute(ctx, stage, base); err != nil {
 			lastErr = err
 		}
 		if lastErr != nil {
 			return "", nil, lastErr
 		}
-		if !b.forceRmIntermediateCtrs && b.removeIntermediateCtrs {
+
+		// The stage succeeded, so remove its build container if we're
+		// told to delete successful intermediate/build containers for
+		// multi-layered builds.
+		if b.removeIntermediateCtrs {
 			cleanupStages[stage.Position] = stageExecutor
 		}
 
-		// If this is an intermediate stage, make a note to remove its
-		// image later.
-		if _, err := strconv.Atoi(stage.Name); err != nil {
-			if imageID, ref, err = stageExecutor.Commit(ctx, stages[stageIndex].Builder, "", output); err != nil {
-				return "", nil, err
-			}
+		// If this is an intermediate stage, make a note of the ID, so
+		// that we can look it up later.
+		if stageIndex < len(stages)-1 {
 			b.imageMap[stage.Name] = imageID
-			cleanupImages = append(cleanupImages, imageID)
+			// We're not populating the cache with intermediate
+			// images, so add this one to the list of images that
+			// we'll remove later.
+			if !b.layers {
+				cleanupImages = append(cleanupImages, imageID)
+			}
 		}
 	}
+
 	if len(b.unusedArgs) > 0 {
 		unusedList := make([]string, 0, len(b.unusedArgs))
 		for k := range b.unusedArgs {
@@ -1422,21 +1518,6 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 		sort.Strings(unusedList)
 		fmt.Fprintf(b.out, "[Warning] one or more build args were not consumed: %v\n", unusedList)
-	}
-
-	// Check if we have a one line Dockerfile (i.e., single phase, no
-	// actual steps) making layers irrelevant, or the user told us to
-	// ignore layers.
-	singleLineDockerfile := (len(stages) < 2 && len(stages[0].Node.Children) < 1)
-	ignoreLayers := singleLineDockerfile || !b.layers && b.useCache
-
-	if ignoreLayers {
-		if imageID, ref, err = stageExecutor.Commit(ctx, stages[len(stages)-1].Builder, "", b.output); err != nil {
-			return "", nil, err
-		}
-		if singleLineDockerfile {
-			b.log("COMMIT %s", ref)
-		}
 	}
 
 	if err := cleanup(); err != nil {
