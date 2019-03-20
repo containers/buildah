@@ -238,7 +238,7 @@ Find one of your Dockerfiles or create a file called Dockerfile. Use the followi
 
 Now run `buildah bud` with the name of the Dockerfile and the name to be given to the created image (e.g. fedora-httpd):
 
-    # buildah bud -f Dockerfile -t fedora-httpd
+    # buildah bud -f Dockerfile -t fedora-httpd .
 
 or, because `buildah bud` defaults to Dockerfile (note the period at the end of the example):
 
