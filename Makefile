@@ -50,6 +50,10 @@ clean:
 docs: ## build the docs on the host
 	$(MAKE) -C docs
 
+.PHONY: lint
+lint: ## do lint processing 
+	golangci-lint run --build-tags="$(BUILDTAGS)"
+
 # For vendoring to work right, the checkout directory must be such that our top
 # level is at $GOPATH/src/github.com/containers/buildah.
 .PHONY: gopath
@@ -70,15 +74,14 @@ endif
 	@./tests/validate/whitespace.sh
 	@./tests/validate/govet.sh
 	@./tests/validate/git-validation.sh
-	@./tests/validate/gometalinter.sh . cmd/buildah
+	lint
 
 .PHONY: install.tools
 install.tools:
 	$(GO) get -u $(BUILDFLAGS) github.com/cpuguy83/go-md2man
 	$(GO) get -u $(BUILDFLAGS) github.com/vbatts/git-validation
 	$(GO) get -u $(BUILDFLAGS) github.com/onsi/ginkgo/ginkgo
-	$(GO) get -u $(BUILDFLAGS) gopkg.in/alecthomas/gometalinter.v1
-	$(GOPATH)/bin/gometalinter.v1 -i
+	$(GO) get -u $(BUILDFLAGS) github.com/golangci/golangci-lint/cmd/golangci-lint
 
 .PHONY: runc
 runc: gopath
