@@ -991,6 +991,15 @@ load helpers
   buildah rmi --all
 }
 
+@test "bud-onbuild-layers" {
+  target=onbuild
+  buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile2 ${TESTSDIR}/bud/onbuild
+  run buildah --debug=false inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [ "$output" = '["RUN touch /onbuild1" "RUN touch /onbuild2"]' ]
+}
+
 @test "bud-logfile" {
   rm -f ${TESTDIR}/logfile
   run buildah bud --logfile ${TESTDIR}/logfile --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/preserve-volumes

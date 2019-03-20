@@ -683,7 +683,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 // prepare creates a working container based on the specified image, or if one
 // isn't specified, the first argument passed to the first FROM instruction we
 // can find in the stage's parsed tree.
-func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, from string) error {
+func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, from string, initializeIBConfig bool) error {
 	ib := stage.Builder
 	node := stage.Node
 
@@ -707,9 +707,11 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 		}
 	}
 
-	logrus.Debugf("FROM %#v", displayFrom)
-	if !s.executor.quiet {
-		s.executor.log("FROM %s", displayFrom)
+	if initializeIBConfig {
+		logrus.Debugf("FROM %#v", displayFrom)
+		if !s.executor.quiet {
+			s.executor.log("FROM %s", displayFrom)
+		}
 	}
 
 	builderOptions := buildah.BuilderOptions{
@@ -742,54 +744,56 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 		return errors.Wrapf(err, "error creating build container")
 	}
 
-	volumes := map[string]struct{}{}
-	for _, v := range builder.Volumes() {
-		volumes[v] = struct{}{}
-	}
-	ports := map[docker.Port]struct{}{}
-	for _, p := range builder.Ports() {
-		ports[docker.Port(p)] = struct{}{}
-	}
-	dConfig := docker.Config{
-		Hostname:     builder.Hostname(),
-		Domainname:   builder.Domainname(),
-		User:         builder.User(),
-		Env:          builder.Env(),
-		Cmd:          builder.Cmd(),
-		Image:        from,
-		Volumes:      volumes,
-		WorkingDir:   builder.WorkDir(),
-		Entrypoint:   builder.Entrypoint(),
-		Labels:       builder.Labels(),
-		Shell:        builder.Shell(),
-		StopSignal:   builder.StopSignal(),
-		OnBuild:      builder.OnBuild(),
-		ExposedPorts: ports,
-	}
-	var rootfs *docker.RootFS
-	if builder.Docker.RootFS != nil {
-		rootfs = &docker.RootFS{
-			Type: builder.Docker.RootFS.Type,
+	if initializeIBConfig {
+		volumes := map[string]struct{}{}
+		for _, v := range builder.Volumes() {
+			volumes[v] = struct{}{}
 		}
-		for _, id := range builder.Docker.RootFS.DiffIDs {
-			rootfs.Layers = append(rootfs.Layers, id.String())
+		ports := map[docker.Port]struct{}{}
+		for _, p := range builder.Ports() {
+			ports[docker.Port(p)] = struct{}{}
 		}
-	}
-	dImage := docker.Image{
-		Parent:          builder.FromImage,
-		ContainerConfig: dConfig,
-		Container:       builder.Container,
-		Author:          builder.Maintainer(),
-		Architecture:    builder.Architecture(),
-		RootFS:          rootfs,
-	}
-	dImage.Config = &dImage.ContainerConfig
-	err = ib.FromImage(&dImage, node)
-	if err != nil {
-		if err2 := builder.Delete(); err2 != nil {
-			logrus.Debugf("error deleting container which we failed to update: %v", err2)
+		dConfig := docker.Config{
+			Hostname:     builder.Hostname(),
+			Domainname:   builder.Domainname(),
+			User:         builder.User(),
+			Env:          builder.Env(),
+			Cmd:          builder.Cmd(),
+			Image:        from,
+			Volumes:      volumes,
+			WorkingDir:   builder.WorkDir(),
+			Entrypoint:   builder.Entrypoint(),
+			Labels:       builder.Labels(),
+			Shell:        builder.Shell(),
+			StopSignal:   builder.StopSignal(),
+			OnBuild:      builder.OnBuild(),
+			ExposedPorts: ports,
 		}
-		return errors.Wrapf(err, "error updating build context")
+		var rootfs *docker.RootFS
+		if builder.Docker.RootFS != nil {
+			rootfs = &docker.RootFS{
+				Type: builder.Docker.RootFS.Type,
+			}
+			for _, id := range builder.Docker.RootFS.DiffIDs {
+				rootfs.Layers = append(rootfs.Layers, id.String())
+			}
+		}
+		dImage := docker.Image{
+			Parent:          builder.FromImage,
+			ContainerConfig: dConfig,
+			Container:       builder.Container,
+			Author:          builder.Maintainer(),
+			Architecture:    builder.Architecture(),
+			RootFS:          rootfs,
+		}
+		dImage.Config = &dImage.ContainerConfig
+		err = ib.FromImage(&dImage, node)
+		if err != nil {
+			if err2 := builder.Delete(); err2 != nil {
+				logrus.Debugf("error deleting container which we failed to update: %v", err2)
+			}
+			return errors.Wrapf(err, "error updating build context")
+		}
 	}
 	mountPoint, err := builder.Mount(builder.MountLabel)
 	if err != nil {
@@ -874,7 +878,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 	// Create the (first) working container for this stage.  Reinitializing
 	// the imagebuilder configuration may alter the list of steps we have,
 	// so take a snapshot of them *after* that.
-	if err := s.prepare(ctx, stage, base); err != nil {
+	if err := s.prepare(ctx, stage, base, true); err != nil {
 		return "", nil, err
 	}
 	children := stage.Node.Children
@@ -1075,7 +1079,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// base image.
 			// TODO: only create a new container if we know that
 			// we'll need the updated root filesystem.
-			if err := s.prepare(ctx, stage, imgID); err != nil {
+			if err := s.prepare(ctx, stage, imgID, false); err != nil {
 				return "", nil, errors.Wrap(err, "error preparing container for next step")
 			}
 		}
