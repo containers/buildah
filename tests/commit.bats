@@ -91,3 +91,8 @@ load helpers
   [ "${status}" -eq 0 ]
   [ "$output" == "/bin/sh" ]
 }
+
+@test "commit-no-name" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid
+}

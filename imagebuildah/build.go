@@ -27,7 +27,6 @@ import (
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
-	"github.com/containers/storage/pkg/stringid"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -826,33 +825,22 @@ func (s *StageExecutor) Delete() (err error) {
 	return err
 }
 
-// resolveNameToImageRef creates a types.ImageReference from b.output
+// resolveNameToImageRef creates a types.ImageReference for the output name in local storage
 func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, error) {
-	var (
-		imageRef types.ImageReference
-		err      error
-	)
-	if output != "" {
-		imageRef, err = alltransports.ParseImageName(output)
-		if err != nil {
-			candidates, _, _, err := util.ResolveName(output, "", b.systemContext, b.store)
-			if err != nil {
-				return nil, errors.Wrapf(err, "error parsing target image name %q", output)
-			}
-			if len(candidates) == 0 {
-				return nil, errors.Errorf("error parsing target image name %q", output)
-			}
-			imageRef2, err2 := is.Transport.ParseStoreReference(b.store, candidates[0])
-			if err2 != nil {
-				return nil, errors.Wrapf(err, "error parsing target image name %q", output)
-			}
-			return imageRef2, nil
-		}
-		return imageRef, nil
-	}
-	imageRef, err = is.Transport.ParseStoreReference(b.store, "@"+stringid.GenerateRandomID())
+	imageRef, err := alltransports.ParseImageName(output)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error parsing reference for image to be written")
+		candidates, _, _, err := util.ResolveName(output, "", b.systemContext, b.store)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error parsing target image name %q", output)
+		}
+		if len(candidates) == 0 {
+			return nil, errors.Errorf("error parsing target image name %q", output)
+		}
+		imageRef2, err2 := is.Transport.ParseStoreReference(b.store, candidates[0])
+		if err2 != nil {
+			return nil, errors.Wrapf(err, "error parsing target image name %q", output)
+		}
+		return imageRef2, nil
 	}
 	return imageRef, nil
 }
@@ -1147,7 +1135,12 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 
 // copyExistingImage creates a copy of an image already in the store
 func (s *StageExecutor) copyExistingImage(ctx context.Context, cacheID, output string) (string, reference.Canonical, error) {
-	// Get the destination Image Reference
+	// If we don't need to attach a name to the image, just return the cache ID.
+	if output == "" {
+		return cacheID, nil, nil
+	}
+
+	// Get the destination image reference.
 	dest, err := s.executor.resolveNameToImageRef(output)
 	if err != nil {
 		return "", nil, err
@@ -1356,9 +1349,13 @@ func urlContentModified(url string, historyTime *time.Time) (bool, error) {
 // commit writes the container's contents to an image, using a passed-in tag as
 // the name if there is one, generating a unique ID-based one otherwise.
 func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, createdBy, output string) (string, reference.Canonical, error) {
-	imageRef, err := s.executor.resolveNameToImageRef(output)
-	if err != nil {
-		return "", nil, err
+	var imageRef types.ImageReference
+	if output != "" {
+		imageRef2, err := s.executor.resolveNameToImageRef(output)
+		if err != nil {
+			return "", nil, err
+		}
+		imageRef = imageRef2
 	}
 
 	if ib.Author != "" {
@@ -1449,9 +1446,11 @@ func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, cr
 		return "", nil, err
 	}
 	var ref reference.Canonical
-	if dref := imageRef.DockerReference(); dref != nil {
-		if ref, err = reference.WithDigest(dref, manifestDigest); err != nil {
-			return "", nil, errors.Wrapf(err, "error computing canonical reference for new image %q", imgID)
+	if imageRef != nil {
+		if dref := imageRef.DockerReference(); dref != nil {
+			if ref, err = reference.WithDigest(dref, manifestDigest); err != nil {
+				return "", nil, errors.Wrapf(err, "error computing canonical reference for new image %q", imgID)
+			}
 		}
 	}
 	return imgID, ref, nil
