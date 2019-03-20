@@ -883,22 +883,46 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 	}
 	children := stage.Node.Children
 
+	// A helper function to only log "COMMIT" as an explicit step if it's
+	// the very last step of a (possibly multi-stage) build.
+	logCommit := func(output string, instruction int) {
+		if instruction < len(children)-1 || s.index < s.stages-1 {
+			return
+		}
+		commitMessage := "COMMIT"
+		if output != "" {
+			commitMessage = fmt.Sprintf("%s %s", commitMessage, output)
+		}
+		logrus.Debugf(commitMessage)
+		if !s.executor.quiet {
+			s.executor.log(commitMessage)
+		}
+	}
+	logImageID := func(imgID string) {
+		if s.executor.iidfile == "" {
+			fmt.Fprintf(s.executor.out, "--> %s\n", imgID)
+		}
+	}
+
 	if len(children) == 0 {
 		// There are no steps.
 		if s.builder.FromImageID == "" || s.executor.squash {
 			// We either don't have a base image, or we need to
 			// squash the contents of the base image.  Whichever is
 			// the case, we need to commit() to create a new image.
+			logCommit(s.output, -1)
 			if imgID, ref, err = s.commit(ctx, ib, getCreatedBy(nil), s.output); err != nil {
 				return "", nil, errors.Wrapf(err, "error committing base container")
 			}
 		} else {
 			// We don't need to squash the base image, so just
 			// reuse the base image.
+			logCommit(s.output, -1)
 			if imgID, ref, err = s.copyExistingImage(ctx, s.builder.FromImageID, s.output); err != nil {
 				return "", nil, err
 			}
 		}
+		logImageID(imgID)
 	}
 
 	for i, node := range children {
@@ -969,10 +993,12 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// This is the last instruction for this stage,
 				// so we should commit this container to create
 				// an image.
+				logCommit(s.output, i)
 				imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), s.output)
 				if err != nil {
 					return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
 				}
+				logImageID(imgID)
 				break
 			}
 		}
@@ -1019,9 +1045,11 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// image.
 			imgID = cacheID
 			if commitName != "" && (s.stepRequiresCommit(step) || i == len(children)-1) {
+				logCommit(s.output, i)
 				if imgID, ref, err = s.copyExistingImage(ctx, cacheID, commitName); err != nil {
 					return "", nil, err
 				}
+				logImageID(imgID)
 			}
 			// Update our working container to be based off of the
 			// cached image, in case we need to read content from
@@ -1044,10 +1072,12 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// case if we need to use this stage's image as
 				// a base image later, or if we're the final
 				// stage.
+				logCommit(s.output, i)
 				imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), commitName)
 				if err != nil {
 					return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
 				}
+				logImageID(imgID)
 				// We only need to build a new container rootfs
 				// using this image if we plan on making
 				// further changes to it.  Subsequent stages
@@ -1085,10 +1115,6 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 		}
 	}
 
-	if s.executor.layers { // print out the final imageID if we're using layers flag
-		fmt.Fprintf(s.executor.out, "--> %s\n", imgID)
-	}
-
 	return imgID, ref, nil
 }
 
@@ -1123,7 +1149,6 @@ func (s *StageExecutor) copyExistingImage(ctx context.Context, cacheID, output s
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "error locating new copy of image %q (i.e., %q)", cacheID, transports.ImageName(dest))
 	}
-	s.executor.log("COMMIT %s", s.output)
 	var ref reference.Canonical
 	if dref := dest.DockerReference(); dref != nil {
 		if ref, err = reference.WithDigest(dref, manifestDigest); err != nil {
@@ -1374,14 +1399,8 @@ func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, cr
 	if imageRef != nil {
 		logName := transports.ImageName(imageRef)
 		logrus.Debugf("COMMIT %q", logName)
-		if !s.executor.quiet && !s.executor.layers && s.executor.useCache {
-			s.executor.log("COMMIT %s", logName)
-		}
 	} else {
 		logrus.Debugf("COMMIT")
-		if !s.executor.quiet && !s.executor.layers && s.executor.useCache {
-			s.executor.log("COMMIT")
-		}
 	}
 	writer := s.executor.reportWriter
 	if s.executor.layers || !s.executor.useCache {
@@ -1394,7 +1413,6 @@ func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, cr
 		ReportWriter:          writer,
 		PreferredManifestType: s.executor.outputFormat,
 		SystemContext:         s.executor.systemContext,
-		IIDFile:               s.executor.iidfile,
 		Squash:                s.executor.squash,
 		BlobDirectory:         s.executor.blobDirectory,
 		Parent:                s.builder.FromImageID,
@@ -1402,9 +1420,6 @@ func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, cr
 	imgID, _, manifestDigest, err := s.builder.Commit(ctx, imageRef, options)
 	if err != nil {
 		return "", nil, err
-	}
-	if options.IIDFile == "" && imgID != "" {
-		fmt.Fprintf(s.executor.out, "--> %s\n", imgID)
 	}
 	var ref reference.Canonical
 	if dref := imageRef.DockerReference(); dref != nil {
@@ -1528,6 +1543,12 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 
 	if err := cleanup(); err != nil {
 		return "", nil, err
+	}
+
+	if b.iidfile != "" {
+		if err = ioutil.WriteFile(b.iidfile, []byte(imageID), 0644); err != nil {
+			return imageID, ref, errors.Wrapf(err, "failed to write image ID to file %q", b.iidfile)
+		}
 	}
 
 	return imageID, ref, nil
