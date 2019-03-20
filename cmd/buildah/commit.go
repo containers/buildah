@@ -12,6 +12,7 @@ import (
 	"github.com/containers/buildah/util"
 	"github.com/containers/image/storage"
 	"github.com/containers/image/transports/alltransports"
+	"github.com/containers/image/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -46,7 +47,8 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return commitCmd(cmd, args, opts)
 		},
-		Example: `buildah commit containerID newImageName
+		Example: `buildah commit containerID
+  buildah commit containerID newImageName
   buildah commit containerID docker://localhost:5000/imageId`,
 	}
 	commitCommand.SetUsageTemplate(UsageTemplate())
@@ -80,6 +82,7 @@ func init() {
 }
 
 func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error {
+	var dest types.ImageReference
 	if len(args) == 0 {
 		return errors.Errorf("container ID must be specified")
 	}
@@ -88,13 +91,13 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	}
 	name := args[0]
 	args = Tail(args)
-	if len(args) == 0 {
-		return errors.Errorf("an image name must be specified")
-	}
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
-	image := args[0]
+	image := ""
+	if len(args) > 0 {
+		image = args[0]
+	}
 	compress := imagebuildah.Gzip
 	if iopts.disableCompression {
 		compress = imagebuildah.Uncompressed
@@ -130,20 +133,21 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	dest, err := alltransports.ParseImageName(image)
-	if err != nil {
-		candidates, _, _, err := util.ResolveName(image, "", systemContext, store)
-		if err != nil {
-			return errors.Wrapf(err, "error parsing target image name %q", image)
+	if image != "" {
+		if dest, err = alltransports.ParseImageName(image); err != nil {
+			candidates, _, _, err := util.ResolveName(image, "", systemContext, store)
+			if err != nil {
+				return errors.Wrapf(err, "error parsing target image name %q", image)
+			}
+			if len(candidates) == 0 {
+				return errors.Errorf("error parsing target image name %q", image)
+			}
+			dest2, err2 := storage.Transport.ParseStoreReference(store, candidates[0])
+			if err2 != nil {
+				return errors.Wrapf(err, "error parsing target image name %q", image)
+			}
+			dest = dest2
 		}
-		if len(candidates) == 0 {
-			return errors.Errorf("error parsing target image name %q", image)
-		}
-		dest2, err2 := storage.Transport.ParseStoreReference(store, candidates[0])
-		if err2 != nil {
-			return errors.Wrapf(err, "error parsing target image name %q", image)
-		}
-		dest = dest2
 	}
 
 	options := buildah.CommitOptions{

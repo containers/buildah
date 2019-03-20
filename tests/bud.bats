@@ -1046,3 +1046,7 @@ load helpers
   buildah umount ${cid}
   buildah rm ${cid}
 }
+
+@test "bud-no-target-name" {
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/maintainer
+}
