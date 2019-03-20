@@ -237,7 +237,7 @@ func pullImage(ctx context.Context, store storage.Store, srcRef types.ImageRefer
 	if err != nil {
 		return nil, errors.Wrapf(err, "error parsing image name %q", destName)
 	}
-	var maybeCachedDestRef types.ImageReference = destRef
+	var maybeCachedDestRef = types.ImageReference(destRef)
 	if options.BlobDirectory != "" {
 		cachedRef, err := blobcache.NewBlobCache(destRef, options.BlobDirectory, types.PreserveOriginal)
 		if err != nil {
