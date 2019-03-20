@@ -1268,7 +1268,7 @@ load helpers
   run buildah bud --debug=false --signature-policy ${TESTSDIR}/policy.json -t ${target} --target mytarget ${TESTSDIR}/bud/target
   echo "$output"
   [[ $output =~ "STEP 1: FROM ubuntu:latest" ]]
-  [[ $output =~ "STEP 4: FROM alpine:latest AS mytarget" ]]
+  [[ $output =~ "STEP 3: FROM alpine:latest AS mytarget" ]]
   [ "$status" -eq 0 ]
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
