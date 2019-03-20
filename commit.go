@@ -155,8 +155,8 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	if err != nil {
 		return imgID, nil, "", errors.Wrapf(err, "error computing layer digests and building metadata for container %q", b.ContainerID)
 	}
-	var maybeCachedSrc types.ImageReference = src
-	var maybeCachedDest types.ImageReference = dest
+	var maybeCachedSrc = types.ImageReference(src)
+	var maybeCachedDest = types.ImageReference(dest)
 	if options.BlobDirectory != "" {
 		compress := types.PreserveOriginal
 		if options.Compression != archive.Uncompressed {
@@ -259,7 +259,7 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 	if err != nil {
 		return nil, "", err
 	}
-	var maybeCachedSrc types.ImageReference = src
+	var maybeCachedSrc = types.ImageReference(src)
 	if options.BlobDirectory != "" {
 		compress := types.PreserveOriginal
 		if options.Compression != archive.Uncompressed {
