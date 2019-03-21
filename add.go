@@ -179,8 +179,8 @@ func (b *Builder) user(mountPoint string, userspec string) (specs.User, error) {
 
 // DockerIgnore struct keep info from .dockerignore
 type DockerIgnore struct {
-	excludePath string
-	isExcluded  bool
+	ExcludePath string
+	IsExcluded  bool
 }
 
 // DockerIgnoreHelper returns the lines from .dockerignore file without the comments
@@ -200,10 +200,10 @@ func DockerIgnoreHelper(lines []string, contextDir string) []DockerIgnore {
 			exclude = strings.TrimPrefix(exclude, "!")
 			excludeFlag = false
 		}
-		excludes = append(excludes, DockerIgnore{excludePath: filepath.Join(contextDir, exclude), isExcluded: excludeFlag})
+		excludes = append(excludes, DockerIgnore{ExcludePath: filepath.Join(contextDir, exclude), IsExcluded: excludeFlag})
 	}
 	if len(excludes) != 0 {
-		excludes = append(excludes, DockerIgnore{excludePath: filepath.Join(contextDir, ".dockerignore"), isExcluded: true})
+		excludes = append(excludes, DockerIgnore{ExcludePath: filepath.Join(contextDir, ".dockerignore"), IsExcluded: true})
 	}
 	return excludes
 }
@@ -270,14 +270,14 @@ func addHelper(excludes []DockerIgnore, extract bool, dest string, destfi os.Fil
 						return nil
 					}
 					for _, exclude := range excludes {
-						match, err := filepath.Match(filepath.Clean(exclude.excludePath), filepath.Clean(path))
+						match, err := filepath.Match(filepath.Clean(exclude.ExcludePath), filepath.Clean(path))
 						if err != nil {
 							return err
 						}
 						if !match {
 							continue
 						}
-						if exclude.isExcluded {
+						if exclude.IsExcluded {
 							return nil
 						}
 						break
@@ -296,14 +296,14 @@ func addHelper(excludes []DockerIgnore, extract bool, dest string, destfi os.Fil
 			}
 
 			for _, exclude := range excludes {
-				match, err := filepath.Match(filepath.Clean(exclude.excludePath), esrc)
+				match, err := filepath.Match(filepath.Clean(exclude.ExcludePath), esrc)
 				if err != nil {
 					return err
 				}
 				if !match {
 					continue
 				}
-				if exclude.isExcluded {
+				if exclude.IsExcluded {
 					continue outer
 				}
 				break
