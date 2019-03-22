@@ -2,6 +2,7 @@ package buildah
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1835,7 +1836,7 @@ func runConfigureNetwork(isolation Isolation, options RunOptions, configureNetwo
 	rtconf := make(map[*libcni.NetworkConfigList]*libcni.RuntimeConf)
 	teardown = func() {
 		for _, nc := range undo {
-			if err = cni.DelNetworkList(nc, rtconf[nc]); err != nil {
+			if err = cni.DelNetworkList(context.Background(), nc, rtconf[nc]); err != nil {
 				logrus.Errorf("error cleaning up network %v for %v: %v", rtconf[nc].IfName, command, err)
 			}
 		}
@@ -1851,7 +1852,7 @@ func runConfigureNetwork(isolation Isolation, options RunOptions, configureNetwo
 			CapabilityArgs: map[string]interface{}{},
 		}
 		// Bring it up.
-		_, err := cni.AddNetworkList(nc, rtconf[nc])
+		_, err := cni.AddNetworkList(context.Background(), nc, rtconf[nc])
 		if err != nil {
 			return teardown, errors.Wrapf(err, "error configuring network list %v for %v", rtconf[nc].IfName, command)
 		}
