@@ -1140,3 +1140,19 @@ load helpers
   echo "$output"
   test "${#lines[@]}" -eq 0
 }
+
+@test "bud copy to symlink" {
+  target=alpine-image
+  ctr=alpine-ctr
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-symlink
+  expect_output --substring "STEP 5: RUN ln -s "
+
+  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
+  expect_output --substring ${ctr}
+
+  run_buildah --debug=false run ${ctr} ls -alF /etc/hbase
+  expect_output --substring "/etc/hbase -> /usr/local/hbase/"
+
+  run_buildah --debug=false run ${ctr} ls -alF /usr/local/hbase 
+  expect_output --substring "Dockerfile"
+}
