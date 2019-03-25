@@ -156,7 +156,6 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		Squash:                iopts.squash,
 		BlobDirectory:         iopts.blobCache,
 		OmitTimestamp:         iopts.omitTimestamp,
-		Store:                 store,
 	}
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr
