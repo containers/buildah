@@ -71,9 +71,6 @@ type CommitOptions struct {
 	// OmitTimestamp forces epoch 0 as created timestamp to allow for
 	// deterministic, content-addressable builds.
 	OmitTimestamp bool
-
-	// Store is the local storage store which holds the source image.
-	Store storage.Store
 }
 
 // PushOptions can be used to alter how an image is copied somewhere.
@@ -117,7 +114,7 @@ type PushOptions struct {
 func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options CommitOptions) (string, reference.Canonical, digest.Digest, error) {
 	var imgID string
 
-	systemContext := getSystemContext(options.Store, options.SystemContext, options.SignaturePolicyPath)
+	systemContext := getSystemContext(b.store, options.SystemContext, options.SignaturePolicyPath)
 
 	blocked, err := isReferenceBlocked(dest, systemContext)
 	if err != nil {
@@ -181,7 +178,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		systemContext.DirForceCompress = true
 	}
 	var manifestBytes []byte
-	if manifestBytes, err = cp.Image(ctx, policyContext, maybeCachedDest, maybeCachedSrc, getCopyOptions(options.Store, options.ReportWriter, maybeCachedSrc, nil, maybeCachedDest, systemContext, "")); err != nil {
+	if manifestBytes, err = cp.Image(ctx, policyContext, maybeCachedDest, maybeCachedSrc, getCopyOptions(b.store, options.ReportWriter, maybeCachedSrc, nil, maybeCachedDest, systemContext, "")); err != nil {
 		return imgID, nil, "", errors.Wrapf(err, "error copying layers and metadata for container %q", b.ContainerID)
 	}
 	if len(options.AdditionalTags) > 0 {
