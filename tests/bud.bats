@@ -1050,3 +1050,22 @@ load helpers
 @test "bud-no-target-name" {
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/maintainer
 }
+
+@test "bud-no-target-name-iid" {
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --iidfile ${TESTDIR}/iid ${TESTSDIR}/bud/maintainer
+  test -s ${TESTDIR}/iid
+  run cat ${TESTDIR}/iid
+  echo "$output"
+  [ "${status}" -eq 0 ]
+  expect_line_count 1
+}
+
+@test "bud-dir-target-iid" {
+  mkdir -p ${TESTDIR}/image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --iidfile ${TESTDIR}/iid -t dir:${TESTDIR}/image ${TESTSDIR}/bud/maintainer
+  test -s ${TESTDIR}/iid
+  run cat ${TESTDIR}/iid
+  echo "$output"
+  [ "${status}" -eq 0 ]
+  expect_line_count 1
+}

@@ -96,3 +96,26 @@ load helpers
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid
 }
+
+@test "commit-iid-no-name" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --iidfile ${TESTDIR}/iid $cid
+  test -s ${TESTDIR}/iid
+  run cat ${TESTDIR}/iid
+  echo "$output"
+  [ "${status}" -eq 0 ]
+  expect_line_count 1
+  [ $(wc -c <<< "$output") -ge 64 ] && [ $(wc -c <<< "$output") -le 66 ]
+}
+
+@test "commit-iid-dir" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  mkdir -p ${TESTDIR}/image
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --iidfile ${TESTDIR}/iid $cid dir:${TESTDIR}/image
+  test -s ${TESTDIR}/iid
+  run cat ${TESTDIR}/iid
+  echo "$output"
+  [ "${status}" -eq 0 ]
+  expect_line_count 1
+  [ $(wc -c <<< "$output") -ge 64 ] && [ $(wc -c <<< "$output") -le 66 ]
+}

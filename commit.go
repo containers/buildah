@@ -221,32 +221,61 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 			logrus.Warnf("don't know how to add tags to images stored in %q transport", dest.Transport().Name())
 		}
 	}
-
-	img, err := is.Transport.GetStoreImage(b.store, dest)
-	if err != nil && err != storage.ErrImageUnknown {
-		return imgID, nil, "", errors.Wrapf(err, "error locating image %q in local storage", transports.ImageName(dest))
-	}
+	// Calculate the image ID, now that we have a real image with a
+	// configuration blob that's in its final format.
+	img, err := dest.NewImage(ctx, systemContext)
 	if err == nil {
-		imgID = img.ID
-		prunedNames := make([]string, 0, len(img.Names))
-		for _, name := range img.Names {
-			if !(nameToRemove != "" && strings.Contains(name, nameToRemove)) {
-				prunedNames = append(prunedNames, name)
-			}
+		var manifestType string
+		manifestBytes, manifestType, err = img.Manifest(ctx)
+		if err != nil {
+			return imgID, nil, "", errors.Wrapf(err, "error reading manifest from new image %q", transports.ImageName(dest))
 		}
-		if len(prunedNames) < len(img.Names) {
-			if err = b.store.SetNames(imgID, prunedNames); err != nil {
-				return imgID, nil, "", errors.Wrapf(err, "failed to prune temporary name from image %q", imgID)
-			}
-			logrus.Debugf("reassigned names %v to image %q", prunedNames, img.ID)
-			dest2, err := is.Transport.ParseStoreReference(b.store, "@"+imgID)
+		mfest, err := manifest.FromBlob(manifestBytes, manifestType)
+		if err != nil {
+			return imgID, nil, "", errors.Wrapf(err, "error parsing manifest from new image %q", transports.ImageName(dest))
+		}
+		// Make sure that we have a configuration blob.
+		configInfo := img.ConfigInfo()
+		if configInfo.Digest.Validate() != nil {
+			// no config blob digest -> no config blob, which
+			// shouldn't happen, since we only support writing in
+			// formats that have one
+			return imgID, nil, "", errors.Errorf("error reading configuration info from new image %q", transports.ImageName(dest))
+		}
+		// Read the layer list from the configuration.  Its actual
+		// format shouldn't alter the digests in the diffID list, which
+		// is all that we care about here.
+		config, err := img.OCIConfig(ctx)
+		if err != nil {
+			return imgID, nil, "", errors.Wrapf(err, "error reading configuration from new image %q", transports.ImageName(dest))
+		}
+		// Ask the manifest for the image's ID.
+		imgID, err = mfest.ImageID(config.RootFS.DiffIDs)
+		if err != nil {
+			return imgID, nil, "", errors.Wrapf(err, "error computing image ID for new image %q", transports.ImageName(dest))
+		}
+		// If we attached a temporary name to the image, remove it now.
+		if nameToRemove != "" {
+			img, err := b.store.Image(imgID)
 			if err != nil {
-				return imgID, nil, "", errors.Wrapf(err, "error creating unnamed destination reference for image")
+				return imgID, nil, "", errors.Wrapf(err, "error locating just-written local image %q", imgID)
 			}
-			dest = dest2
+			prunedNames := make([]string, 0, len(img.Names))
+			for _, name := range img.Names {
+				if !(nameToRemove != "" && strings.Contains(name, nameToRemove)) {
+					prunedNames = append(prunedNames, name)
+				}
+			}
+			if len(prunedNames) < len(img.Names) {
+				if err = b.store.SetNames(imgID, prunedNames); err != nil {
+					return imgID, nil, "", errors.Wrapf(err, "failed to prune temporary name from image %q", imgID)
+				}
+				logrus.Debugf("reassigned names %v to image %q", prunedNames, imgID)
+			}
 		}
+		// Write the new image's ID to a file, if we were asked to.
 		if options.IIDFile != "" {
-			if err = ioutil.WriteFile(options.IIDFile, []byte(img.ID), 0644); err != nil {
+			if err = ioutil.WriteFile(options.IIDFile, []byte(imgID), 0644); err != nil {
 				return imgID, nil, "", errors.Wrapf(err, "failed to write image ID to file %q", options.IIDFile)
 			}
 		}
