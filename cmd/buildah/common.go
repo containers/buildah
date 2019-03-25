@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/unshare"
 	"github.com/containers/buildah/util"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
-	lu "github.com/containers/libpod/pkg/util"
 	"github.com/containers/storage"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -22,7 +22,7 @@ import (
 var needToShutdownStore = false
 
 func getStore(c *cobra.Command) (storage.Store, error) {
-	options, _, err := lu.GetDefaultStoreOptions()
+	options, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
 	if err != nil {
 		return nil, err
 	}

@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containers/buildah/unshare"
 	cp "github.com/containers/image/copy"
 	"github.com/containers/image/types"
-	"github.com/containers/libpod/pkg/rootless"
 	"github.com/containers/storage"
 )
 
@@ -28,7 +28,6 @@ func getCopyOptions(store storage.Store, reportWriter io.Writer, sourceReference
 	if destinationSystemContext != nil {
 		*destinationCtx = *destinationSystemContext
 	}
-
 	return &cp.Options{
 		ReportWriter:          reportWriter,
 		SourceCtx:             sourceCtx,
@@ -49,7 +48,7 @@ func getSystemContext(store storage.Store, defaults *types.SystemContext, signat
 		if sc.BlobInfoCacheDir == "" {
 			sc.BlobInfoCacheDir = filepath.Join(store.GraphRoot(), "cache")
 		}
-		if sc.SystemRegistriesConfPath == "" && rootless.IsRootless() {
+		if sc.SystemRegistriesConfPath == "" && unshare.IsRootless() {
 			userRegistriesFile := filepath.Join(store.GraphRoot(), "registries.conf")
 			if _, err := os.Stat(userRegistriesFile); err == nil {
 				sc.SystemRegistriesConfPath = userRegistriesFile

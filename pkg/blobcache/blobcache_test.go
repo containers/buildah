@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	cp "github.com/containers/image/copy"
-	"github.com/containers/image/pkg/blobinfocache"
+	"github.com/containers/image/pkg/blobinfocache/none"
 	"github.com/containers/image/signature"
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
@@ -128,11 +128,11 @@ func TestBlobCache(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error opening source image for writing: %v", err)
 				}
-				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(blobBytes), blobInfo, blobinfocache.NoCache, false)
+				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(blobBytes), blobInfo, none.NoCache, false)
 				if err != nil {
 					t.Fatalf("error writing layer blob to source image: %v", err)
 				}
-				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(configBytes), configInfo, blobinfocache.NoCache, true)
+				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(configBytes), configInfo, none.NoCache, true)
 				if err != nil {
 					t.Fatalf("error writing config blob to source image: %v", err)
 				}

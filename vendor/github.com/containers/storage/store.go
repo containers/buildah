@@ -32,7 +32,7 @@ import (
 
 var (
 	// DefaultStoreOptions is a reasonable default set of options.
-	DefaultStoreOptions StoreOptions
+	defaultStoreOptions StoreOptions
 	stores              []*store
 	storesLock          sync.Mutex
 )
@@ -102,19 +102,21 @@ type ROBigDataStore interface {
 	BigDataNames(id string) ([]string, error)
 }
 
-// A RWBigDataStore wraps up the read-write big-data related methods of the
-// various types of file-based lookaside stores that we implement.
-type RWBigDataStore interface {
-	// SetBigData stores a (potentially large) piece of data associated with this
-	// ID.
-	SetBigData(id, key string, data []byte) error
+// A RWImageBigDataStore wraps up how we store big-data associated with images.
+type RWImageBigDataStore interface {
+	// SetBigData stores a (potentially large) piece of data associated
+	// with this ID.
+	// Pass github.com/containers/image/manifest.Digest as digestManifest
+	// to allow ByDigest to find images by their correct digests.
+	SetBigData(id, key string, data []byte, digestManifest func([]byte) (digest.Digest, error)) error
 }
 
-// A BigDataStore wraps up the most common big-data related methods of the
-// various types of file-based lookaside stores that we implement.
-type BigDataStore interface {
+// A ContainerBigDataStore wraps up how we store big-data associated with containers.
+type ContainerBigDataStore interface {
 	ROBigDataStore
-	RWBigDataStore
+	// SetBigData stores a (potentially large) piece of data associated
+	// with this ID.
+	SetBigData(id, key string, data []byte) error
 }
 
 // A FlaggableStore can have flags set and cleared on items which it manages.
@@ -352,9 +354,11 @@ type Store interface {
 	// of named data associated with an image.
 	ImageBigDataDigest(id, key string) (digest.Digest, error)
 
-	// SetImageBigData stores a (possibly large) chunk of named data associated
-	// with an image.
-	SetImageBigData(id, key string, data []byte) error
+	// SetImageBigData stores a (possibly large) chunk of named data
+	// associated with an image.  Pass
+	// github.com/containers/image/manifest.Digest as digestManifest to
+	// allow ImagesByDigest to find images by their correct digests.
+	SetImageBigData(id, key string, data []byte, digestManifest func([]byte) (digest.Digest, error)) error
 
 	// ImageSize computes the size of the image's layers and ancillary data.
 	ImageSize(id string) (int64, error)
@@ -546,7 +550,7 @@ type store struct {
 //   }
 func GetStore(options StoreOptions) (Store, error) {
 	if options.RunRoot == "" && options.GraphRoot == "" && options.GraphDriverName == "" && len(options.GraphDriverOptions) == 0 {
-		options = DefaultStoreOptions
+		options = defaultStoreOptions
 	}
 
 	if options.GraphRoot != "" {
@@ -1485,7 +1489,7 @@ func (s *store) ImageBigData(id, key string) ([]byte, error) {
 	return nil, ErrImageUnknown
 }
 
-func (s *store) SetImageBigData(id, key string, data []byte) error {
+func (s *store) SetImageBigData(id, key string, data []byte, digestManifest func([]byte) (digest.Digest, error)) error {
 	ristore, err := s.ImageStore()
 	if err != nil {
 		return err
@@ -1499,7 +1503,7 @@ func (s *store) SetImageBigData(id, key string, data []byte) error {
 		}
 	}
 
-	return ristore.SetBigData(id, key, data)
+	return ristore.SetBigData(id, key, data, digestManifest)
 }
 
 func (s *store) ImageSize(id string) (int64, error) {
@@ -3213,8 +3217,20 @@ func copyStringInterfaceMap(m map[string]interface{}) map[string]interface{} {
 	return ret
 }
 
-// DefaultConfigFile path to the system wide storage.conf file
-const DefaultConfigFile = "/etc/containers/storage.conf"
+// defaultConfigFile path to the system wide storage.conf file
+const defaultConfigFile = "/etc/containers/storage.conf"
+
+// DefaultConfigFile returns the path to the storage config file used
+func DefaultConfigFile(rootless bool) (string, error) {
+	if rootless {
+		home, err := homeDir()
+		if err != nil {
+			return "", errors.Wrapf(err, "cannot determine users homedir")
+		}
+		return filepath.Join(home, ".config/containers/storage.conf"), nil
+	}
+	return defaultConfigFile, nil
+}
 
 // TOML-friendly explicit tables used for conversions.
 type tomlConfig struct {
@@ -3354,19 +3370,19 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
 }
 
 func init() {
-	DefaultStoreOptions.RunRoot = "/var/run/containers/storage"
-	DefaultStoreOptions.GraphRoot = "/var/lib/containers/storage"
-	DefaultStoreOptions.GraphDriverName = ""
+	defaultStoreOptions.RunRoot = "/var/run/containers/storage"
+	defaultStoreOptions.GraphRoot = "/var/lib/containers/storage"
+	defaultStoreOptions.GraphDriverName = ""
 
-	ReloadConfigurationFile(DefaultConfigFile, &DefaultStoreOptions)
+	ReloadConfigurationFile(defaultConfigFile, &defaultStoreOptions)
 }
 
 func GetDefaultMountOptions() ([]string, error) {
 	mountOpts := []string{
 		".mountopt",
-		fmt.Sprintf("%s.mountopt", DefaultStoreOptions.GraphDriverName),
+		fmt.Sprintf("%s.mountopt", defaultStoreOptions.GraphDriverName),
 	}
-	for _, option := range DefaultStoreOptions.GraphDriverOptions {
+	for _, option := range defaultStoreOptions.GraphDriverOptions {
 		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil {
 			return nil, err
