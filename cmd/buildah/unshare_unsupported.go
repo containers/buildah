@@ -6,10 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	startedInUserNS = "_BUILDAH_STARTED_IN_USERNS"
-)
-
 func init() {
 	unshareCommand := cobra.Command{
 		Use:    "unshare",

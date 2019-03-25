@@ -20,12 +20,6 @@ import (
 	"github.com/syndtr/gocapability/capability"
 )
 
-const (
-	// startedInUserNS is an environment variable that, if set, means that we shouldn't try
-	// to create and enter a new user namespace and then re-exec ourselves.
-	startedInUserNS = "_BUILDAH_STARTED_IN_USERNS"
-)
-
 var (
 	unshareDescription = "\n  Runs a command in a modified user namespace."
 	unshareCommand     = &cobra.Command{
@@ -63,7 +57,7 @@ func bailOnError(err error, format string, a ...interface{}) {
 
 func maybeReexecUsingUserNamespace(cmdName string, evenForRoot bool) {
 	// If we've already been through this once, no need to try again.
-	if os.Getenv(startedInUserNS) != "" {
+	if unshare.IsRootless() {
 		return
 	}
 
@@ -141,8 +135,8 @@ func maybeReexecUsingUserNamespace(cmdName string, evenForRoot bool) {
 	cmd := unshare.Command(append([]string{"buildah-in-a-user-namespace"}, os.Args[1:]...)...)
 
 	// If, somehow, we don't become UID 0 in our child, indicate that the child shouldn't try again.
-	err = os.Setenv(startedInUserNS, "1")
-	bailOnError(err, "error setting %s=1 in environment", startedInUserNS)
+	err = os.Setenv(unshare.UsernsEnvName, "1")
+	bailOnError(err, "error setting %s=1 in environment", unshare.UsernsEnvName)
 
 	// Set the default isolation type to use the "rootless" method.
 	if _, present := os.LookupEnv("BUILDAH_ISOLATION"); !present {
@@ -210,7 +204,7 @@ func unshareCmd(c *cobra.Command, args []string) error {
 		args = []string{shell}
 	}
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Env = append(os.Environ(), "_BUILDAH_STARTED_IN_USERNS=")
+	cmd.Env = unshare.RootlessEnv()
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

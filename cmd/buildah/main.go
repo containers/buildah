@@ -5,7 +5,6 @@ import (
 	"github.com/containers/buildah"
 	"os"
 
-	"github.com/containers/libpod/pkg/util"
 	"github.com/containers/storage"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
@@ -51,15 +50,15 @@ func init() {
 	var (
 		defaultStoreDriverOptions []string
 	)
-	storageOptions, _, err := util.GetDefaultStoreOptions()
+	storageOptions, err := storage.DefaultStoreOptions(false, 0)
 	if err != nil {
 		logrus.Errorf(err.Error())
 		os.Exit(1)
 
 	}
 
-	if len(storage.DefaultStoreOptions.GraphDriverOptions) > 0 {
-		optionSlice := storage.DefaultStoreOptions.GraphDriverOptions[:]
+	if len(storageOptions.GraphDriverOptions) > 0 {
+		optionSlice := storageOptions.GraphDriverOptions[:]
 		defaultStoreDriverOptions = optionSlice
 	}
 

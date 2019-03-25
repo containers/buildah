@@ -28,7 +28,7 @@ func main() {
 	expectedManifestType := ""
 	expectedConfigType := ""
 
-	storeOptions := storage.DefaultStoreOptions
+	storeOptions, _ := storage.DefaultStoreOptions(false, 0)
 	debug := flag.Bool("debug", false, "turn on debug logging")
 	root := flag.String("root", storeOptions.GraphRoot, "storage root directory")
 	runroot := flag.String("runroot", storeOptions.RunRoot, "storage runtime directory")

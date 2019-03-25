@@ -17,7 +17,11 @@ func importBuilderDataFromImage(ctx context.Context, store storage.Store, system
 		return nil, errors.Errorf("Internal error: imageID is empty in importBuilderDataFromImage")
 	}
 
-	uidmap, gidmap := convertStorageIDMaps(storage.DefaultStoreOptions.UIDMap, storage.DefaultStoreOptions.GIDMap)
+	storeopts, err := storage.DefaultStoreOptions(false, 0)
+	if err != nil {
+		return nil, err
+	}
+	uidmap, gidmap := convertStorageIDMaps(storeopts.UIDMap, storeopts.GIDMap)
 
 	ref, err := is.Transport.ParseStoreReference(store, imageID)
 	if err != nil {

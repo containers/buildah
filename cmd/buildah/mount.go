@@ -5,6 +5,7 @@ import (
 	"os"
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/unshare"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -62,7 +63,7 @@ func mountCmd(c *cobra.Command, args []string, noTruncate bool) error {
 		// of the mount command.
 		// Differently, allow the mount if we are already in a userns, as the mount point will still
 		// be accessible once "buildah mount" exits.
-		if os.Getenv(startedInUserNS) != "" && store.GraphDriverName() != "vfs" {
+		if unshare.IsRootless() && store.GraphDriverName() != "vfs" {
 			return fmt.Errorf("cannot mount using driver %s in rootless mode. You need to run it in a `buildah unshare` session", store.GraphDriverName())
 		}
 
