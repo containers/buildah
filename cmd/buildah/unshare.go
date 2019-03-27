@@ -62,7 +62,7 @@ func maybeReexecUsingUserNamespace(cmdName string, evenForRoot bool) {
 	}
 
 	switch cmdName {
-	case "", "help", "version":
+	case "", "help", "version", "mount":
 		return
 	}
 
