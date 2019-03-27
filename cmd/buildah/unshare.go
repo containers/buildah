@@ -57,7 +57,7 @@ func bailOnError(err error, format string, a ...interface{}) {
 
 func maybeReexecUsingUserNamespace(cmdName string, evenForRoot bool) {
 	// If we've already been through this once, no need to try again.
-	if unshare.IsRootless() {
+	if os.Geteuid() == 0 && unshare.IsRootless() {
 		return
 	}
 
