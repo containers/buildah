@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.7.2
+Version:        1.8-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,8 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Tue Mar 28, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8-dev-1
+
 * Tue Mar 28, 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.2-1
 - mount: do not create automatically a namespace
 - buildah: correctly create the userns if euid!=0
