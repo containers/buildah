@@ -66,6 +66,7 @@ sudo yum module install -y buildah
 sudo apt-get update -qq
 sudo apt-get install -qq -y software-properties-common
 sudo add-apt-repository -y ppa:projectatomic/ppa
+sudo apt-get update -qq
 sudo apt-get -qq -y install buildah
 ```
 
