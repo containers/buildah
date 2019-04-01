@@ -18,18 +18,14 @@ function setup() {
 
 @test "bind secrets mounts to container" {
     if ! which runc ; then
-		skip
+		skip "no runc in PATH"
     fi
     runc --version
     cid=$(buildah --default-mounts-file "$MOUNTS_PATH" --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-    run buildah --debug=false run $cid ls /run/secrets
-    echo "$output"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "test.txt" ]]
-    run buildah --debug run $cid ls /run/secrets/mysymlink
-    echo "$output"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "key.pem" ]]
+    run_buildah --debug=false run $cid ls /run/secrets
+    is "$output" ".*test.txt" "ls /run/secrets"
+    run_buildah --debug run $cid ls /run/secrets/mysymlink
+    is "$output" ".*key.pem" "ls /run/secrets/mysymlink"
     buildah rm $cid
     rm -rf $TESTSDIR/containers
     rm -rf $TESTSDIR/rhel

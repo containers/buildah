@@ -12,24 +12,18 @@ load helpers
   buildah rm $cid
 
   # Get the image's ID.
-  run buildah --debug=false images -q $image
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false images -q $image
   [ $(wc -l <<< "$output") -eq 1 ]
   iid="$output"
 
   # Use the image's ID to create a container.
-  run buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json ${iid}
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json ${iid}
   [ $(wc -l <<< "$output") -eq 1 ]
   cid="$output"
   buildah rm $cid
 
   # Use a truncated form of the image's ID to create a container.
-  run buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json ${iid:0:6}
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json ${iid:0:6}
   [ $(wc -l <<< "$output") -eq 1 ]
   cid="$output"
   buildah rm $cid
@@ -47,21 +41,15 @@ load helpers
   buildah rm $cid
 
   # Get the image's ID.
-  run buildah --debug=false images -q $image
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false images -q $image
   [ $(wc -l <<< "$output") -eq 1 ]
   iid="$output"
 
   # Use the image's ID to inspect it.
-  run buildah --debug=false inspect --type=image ${iid}
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false inspect --type=image ${iid}
 
   # Use a truncated copy of the image's ID to inspect it.
-  run buildah --debug=false inspect --type=image ${iid:0:6}
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false inspect --type=image ${iid:0:6}
 
   buildah rmi $iid
 }
@@ -80,21 +68,15 @@ load helpers
     buildah rm $cid
 
     # Get the image's ID.
-    run buildah --debug=false images -q $IMAGE
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah --debug=false images -q $IMAGE
     [ $(wc -l <<< "$output") -eq 1 ]
     iid="$output"
 
     # Use the image's ID to push it.
-    run buildah push --signature-policy ${TESTSDIR}/policy.json $iid dir:$TARGET
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah push --signature-policy ${TESTSDIR}/policy.json $iid dir:$TARGET
 
     # Use a truncated form of the image's ID to push it.
-    run buildah push --signature-policy ${TESTSDIR}/policy.json ${iid:0:6} dir:$TARGET-truncated
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah push --signature-policy ${TESTSDIR}/policy.json ${iid:0:6} dir:$TARGET-truncated
 
     # Use the image's complete ID to remove it.
     buildah rmi $iid
@@ -111,14 +93,10 @@ load helpers
   buildah rm $cid
 
   # Get the image's ID.
-  run buildah --debug=false images -q $image
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false images -q $image
   [ $(wc -l <<< "$output") -eq 1 ]
   iid="$output"
 
   # Use a truncated copy of the image's ID to remove it.
-  run buildah --debug=false rmi ${iid:0:6}
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false rmi ${iid:0:6}
 }

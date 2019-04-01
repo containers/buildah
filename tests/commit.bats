@@ -3,24 +3,23 @@
 load helpers
 
 @test "commit-flags-order-verification" {
-  run buildah commit cnt1 --tls-verify
+  run_buildah 1 commit cnt1 --tls-verify
   check_options_flag_err "--tls-verify"
 
-  run buildah commit cnt1 -q
+  run_buildah 1 commit cnt1 -q
   check_options_flag_err "-q"
 
-  run buildah commit cnt1 -f=docker --quiet --creds=bla:bla
+  run_buildah 1 commit cnt1 -f=docker --quiet --creds=bla:bla
   check_options_flag_err "-f=docker"
 
-  run buildah commit cnt1 --creds=bla:bla
+  run_buildah 1 commit cnt1 --creds=bla:bla
   check_options_flag_err "--creds=bla:bla"
 }
 
 @test "commit" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
-  run buildah images alpine-image
-  [ "${status}" -eq 0 ]
+  run_buildah images alpine-image
   buildah rm $cid
   buildah rmi -a
 }
@@ -38,10 +37,8 @@ load helpers
 
 @test "commit quiet test" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah --debug=false commit --iidfile /dev/null --signature-policy ${TESTSDIR}/policy.json -q $cid alpine-image
-  echo "$output"
-  [ "${status}" -eq 0 ]
-  [ "$output" = "" ]
+  run_buildah --debug=false commit --iidfile /dev/null --signature-policy ${TESTSDIR}/policy.json -q $cid alpine-image
+  is "$output" "" "no output from commit"
   buildah rm $cid
   buildah rmi -a
 }
@@ -49,9 +46,8 @@ load helpers
 @test "commit rm test" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah commit --signature-policy ${TESTSDIR}/policy.json --rm $cid alpine-image
-  run buildah --debug=false rm $cid
-  [ "${status}" -eq 1 ]
-  [[ "${lines}" =~ "error removing container \"alpine-working-container\": error reading build container: container not known" ]]
+  run_buildah 1 --debug=false rm $cid
+  is "$output" ".*error removing container \"alpine-working-container\": error reading build container: container not known" "buildah rm"
   buildah rmi -a
 }
 
@@ -66,10 +62,8 @@ load helpers
 
 @test "commit-rejected-name" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah --debug=false commit --signature-policy ${TESTSDIR}/policy.json $cid ThisNameShouldBeRejected
-  echo "$output"
-  [ "${status}" -ne 0 ]
-  [[ "${output}" =~ "must be lower" ]]
+  run_buildah 1 --debug=false commit --signature-policy ${TESTSDIR}/policy.json $cid ThisNameShouldBeRejected
+  is "$output" ".*must be lower" "buildah commit output"
 }
 
 @test "commit-no-empty-created-by" {

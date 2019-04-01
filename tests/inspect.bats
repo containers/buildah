@@ -3,20 +3,20 @@
 load helpers
 
 @test "inspect-flags-order-verification" {
-  run buildah inspect img1 -f "{{.ContainerID}}" -t="container"
+  run_buildah 1 inspect img1 -f "{{.ContainerID}}" -t="container"
   check_options_flag_err "-f"
 
-  run buildah inspect img1 --format="{{.ContainerID}}"
+  run_buildah 1 inspect img1 --format="{{.ContainerID}}"
   check_options_flag_err "--format={{.ContainerID}}"
 
-  run buildah inspect img1 -t="image"
+  run_buildah 1 inspect img1 -t="image"
   check_options_flag_err "-t=image"
 }
 
 @test "inspect" {
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-	run buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" alpine-image
-	[ "$status" -eq "0" ]
+	run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" alpine-image
+
 	out1=$(buildah inspect --format '{{.OCIv1.Config}}' alpine)
 	out2=$(buildah inspect --type image --format '{{.OCIv1.Config}}' alpine-image)
 	[ "$out1" != "" ]
@@ -94,4 +94,3 @@ load helpers
 	buildah rm $cid
 	buildah rmi -f alpine
 }
-

@@ -4,7 +4,7 @@ load helpers
 
 @test "user-and-network-namespace" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   mkdir -p $TESTDIR/no-cni-configs
   RUNOPTS="--cni-config-dir=${TESTDIR}/no-cni-configs ${RUNC_BINARY:+--runtime $RUNC_BINARY}"
@@ -24,48 +24,36 @@ load helpers
   gidsize=$((${RANDOM}+1024))
 
   # Create a container that uses that mapping.
-  run buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize alpine
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize alpine
   [ "$output" != "" ]
   ctr="$output"
 
   # Check that with settings that require a user namespace, we also get a new network namespace by default.
   buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
-  run buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/net
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" != "$mynetns" ]
 
   # Check that with settings that require a user namespace, we can still try to use the host's network namespace.
   buildah run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
-  run buildah --debug=false run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" == "$mynetns" ]
 
   # Create a container that doesn't use that mapping.
-  run buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
   [ "$output" != "" ]
   ctr="$output"
 
   # Check that with settings that don't require a user namespace, we don't get a new network namespace by default.
   buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
-  run buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/net
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" == "$mynetns" ]
 
   # Check that with settings that don't require a user namespace, we can request to use a per-container network namespace.
   buildah run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
-  run buildah --debug=false run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
-  echo "$output"
-  [ $status -eq 0 ]
+  run_buildah --debug=false run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" != "$mynetns" ]
 }
@@ -163,17 +151,13 @@ load helpers
   for i in $(seq 0 "$((${#maps[*]}-1))") ; do
     # Create a container using these mappings.
     echo "Building container with --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine"
-    run buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine
     [ "$output" != "" ]
     ctr="$output"
 
     # If we specified mappings, expect to be in a different namespace by default.
     buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/user
-    run buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/user
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/user
     [ "$output" != "" ]
     case x"$map" in
     x)
@@ -187,15 +171,11 @@ load helpers
     esac
     # Check that we got the mappings that we expected.
     buildah run $RUNOPTS "$ctr" cat /proc/self/uid_map
-    run buildah --debug=false run $RUNOPTS "$ctr" cat /proc/self/uid_map
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah --debug=false run $RUNOPTS "$ctr" cat /proc/self/uid_map
     [ "$output" != "" ]
     uidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$output")
     buildah run $RUNOPTS "$ctr" cat /proc/self/gid_map
-    run buildah --debug=false run $RUNOPTS "$ctr" cat /proc/self/gid_map
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah --debug=false run $RUNOPTS "$ctr" cat /proc/self/gid_map
     [ "$output" != "" ]
     gidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$output")
     echo With settings "$map", expected UID map "${uidmaps[$i]}", got UID map "${uidmap}", expected GID map "${gidmaps[$i]}", got GID map "${gidmap}".
@@ -205,38 +185,24 @@ load helpers
     rootgid=$(sed -E -e 's,^([^ ]*) (.*) ([^ ]*),\2,' <<< "$gidmap")
 
     # Check that if we copy a file into the container, it gets the right permissions.
-    run buildah copy --chown 1:1 "$ctr" ${TESTDIR}/somefile /
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah copy --chown 1:1 "$ctr" ${TESTDIR}/somefile /
     buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
-    run buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
-    echo "$output"
-    [ $status -eq 0 ]
-    [ "$output" = "1:1" ]
+    run_buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
+    is "$output" "1:1" "stat /somefile"
 
     # Check that if we copy a directory into the container, its contents get the right permissions.
-    run buildah copy "$ctr" ${TESTDIR}/somedir /somedir
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah copy "$ctr" ${TESTDIR}/somedir /somedir
     buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
-    run buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
-    echo "$output"
-    [ $status -eq 0 ]
-    [ "$output" = "0:0" ]
-    run buildah --debug=false mount "$ctr"
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
+    is "$output" "0:0" "stat /somedir"
+    run_buildah --debug=false mount "$ctr"
     mnt="$output"
     run stat -c '%u:%g %a' "$mnt"/somedir/someotherfile
-    echo expecting owner/permissions "$rootuid:$rootgid 4700" ]
-    echo "$output"
     [ $status -eq 0 ]
-    [ "$output" = "$rootuid:$rootgid 4700" ]
+    is "$output" "$rootuid:$rootgid 4700" "stat from host"
     buildah run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
-    run buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
-    echo "$output"
-    [ $status -eq 0 ]
-    [ "$output" = "0:0 4700" ]
+    run_buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
+    is "$output" "0:0 4700" "stat inside container"
   done
 }
 
@@ -263,16 +229,12 @@ general_namespace() {
 
   for namespace in "${types[@]}" ; do
     # Specify the setting for this namespace for this container.
-    run buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet --"$nsflag"=$namespace alpine
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet --"$nsflag"=$namespace alpine
     [ "$output" != "" ]
     ctr="$output"
 
     # Check that, unless we override it, we get that setting in "run".
-    run buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/"$nstype"
-    echo "$output"
-    [ $status -eq 0 ]
+    run_buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/"$nstype"
     [ "$output" != "" ]
     case "$namespace" in
     ""|container)
@@ -288,9 +250,7 @@ general_namespace() {
 
     for different in $types ; do
       # Check that, if we override it, we get what we specify for "run".
-      run buildah --debug=false run $RUNOPTS --"$nsflag"=$different "$ctr" readlink /proc/self/ns/"$nstype"
-      echo "$output"
-      [ $status -eq 0 ]
+      run_buildah --debug=false run $RUNOPTS --"$nsflag"=$different "$ctr" readlink /proc/self/ns/"$nstype"
       [ "$output" != "" ]
       case "$different" in
       ""|container)
@@ -310,49 +270,49 @@ general_namespace() {
 
 @test "ipc-namespace" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   general_namespace ipc
 }
 
 @test "net-namespace" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   general_namespace net
 }
 
 @test "network-namespace" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   general_namespace net network
 }
 
 @test "pid-namespace" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   general_namespace pid
 }
 
 @test "user-namespace" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   general_namespace user userns
 }
 
 @test "uts-namespace" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   general_namespace uts
 }
 
 @test "combination-namespaces" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   # mnt is always per-container, cgroup isn't a thing runc lets us configure
   for ipc in host container ; do
@@ -367,25 +327,17 @@ general_namespace() {
             fi
 
             echo "buildah from --signature-policy ${TESTSDIR}/policy.json --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts alpine"
-            run buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts alpine
-            echo "$output"
-            [ $status -eq 0 ]
+            run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts alpine
             [ "$output" != "" ]
             ctr="$output"
             buildah run $ctr pwd
-            run buildah --debug=false run $ctr pwd
-            echo "$output"
-            [ $status -eq 0 ]
+            run_buildah --debug=false run $ctr pwd
             [ "$output" != "" ]
             buildah run --tty=true  $ctr pwd
-            run buildah --debug=false run --tty=true  $ctr pwd
-            echo "$output"
-            [ $status -eq 0 ]
+            run_buildah --debug=false run --tty=true  $ctr pwd
             [ "$output" != "" ]
             buildah run --tty=false $ctr pwd
-            run buildah --debug=false run --tty=false $ctr pwd
-            echo "$output"
-            [ $status -eq 0 ]
+            run_buildah --debug=false run --tty=false $ctr pwd
             [ "$output" != "" ]
           done
         done

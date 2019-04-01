@@ -24,20 +24,16 @@ load helpers
     # Get their image IDs.  They should be the same one.
     lastid=
     for cid in $(buildah --debug=false containers -q) ; do
-      run buildah --debug=false inspect -f "{{.FromImageID}}" $cid
-      echo "$output"
-      [ $status -eq 0 ]
+      run_buildah --debug=false inspect -f "{{.FromImageID}}" $cid
       [ $(wc -l <<< "$output") -eq 1 ]
       if [ "$lastid" != "" ] ; then
-        [ "$output" = "$lastid" ]
+        is "$output" "$lastid" ".FromImageId"
       fi
       lastid="$output"
     done
 
     # A quick bit of troubleshooting help.
-    run buildah images
-    echo "$output"
-    [ "$iid" = "$nameiid" ]
+    run_buildah images
 
     # Clean up.
     for id in $(buildah --debug=false containers -q) ; do

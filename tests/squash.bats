@@ -2,6 +2,19 @@
 
 load helpers
 
+
+function check_lengths() {
+  local image=$1
+  local expect=$2
+
+  for which in Docker OCIv1; do
+    for field in RootFS.DiffIDs History; do
+      run_buildah --debug=false inspect -t image -f "{{len .$which.$field}}" $image
+      is "$output" "$expect" "len(.$which.$field) ($image)"
+    done
+  done
+}
+
 @test "squash" {
 	createrandom ${TESTDIR}/randomfile
 	cid=$(buildah from scratch)
@@ -15,33 +28,12 @@ load helpers
 			rm -f ${mountpoint}/layer${remove[1]}
 		fi
 		buildah commit --signature-policy ${TESTSDIR}/policy.json --rm "$cid" ${image}
-		run buildah --debug=false inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' ${image}
-		echo "$output"
-		[ "$status" -eq 0 ]
-		[ "$output" -eq $stage ]
-		run buildah --debug=false inspect -t image -f '{{len .OCIv1.RootFS.DiffIDs}}' ${image}
-		echo "$output"
-		[ "$status" -eq 0 ]
-		[ "$output" -eq $stage ]
+                check_lengths $image $stage
 		cid=$(buildah from ${image})
 	done
 	buildah commit --signature-policy ${TESTSDIR}/policy.json --rm --squash "$cid" squashed
-	run buildah --debug=false inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
-	echo "$output"
-	[ "$status" -eq 0 ]
-	[ "$output" -eq 1 ]
-	run buildah --debug=false inspect -t image -f '{{len .OCIv1.RootFS.DiffIDs}}' squashed
-	echo "$output"
-	[ "$status" -eq 0 ]
-	[ "$output" -eq 1 ]
-	run buildah --debug=false inspect -t image -f '{{len .Docker.History}}' squashed
-	echo "$output"
-	[ "$status" -eq 0 ]
-	[ "$output" -eq 1 ]
-	run buildah --debug=false inspect -t image -f '{{len .OCIv1.History}}' squashed
-	echo "$output"
-	[ "$status" -eq 0 ]
-	[ "$output" -eq 1 ]
+
+        check_lengths squashed 1
 
 	cid=$(buildah from squashed)
 	mountpoint=$(buildah mount $cid)
@@ -69,14 +61,7 @@ load helpers
 		image=stage${stage}
 		from=${image}
 		buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t ${image} ${TESTDIR}/stage${stage}
-		run buildah --debug=false inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' ${image}
-		echo "$output"
-		[ "$status" -eq 0 ]
-		[ "$output" -eq $stage ]
-		run buildah --debug=false inspect -t image -f '{{len .OCIv1.RootFS.DiffIDs}}' ${image}
-		echo "$output"
-		[ "$status" -eq 0 ]
-		[ "$output" -eq $stage ]
+                check_lengths $image $stage
 	done
 
 	mkdir -p ${TESTDIR}/squashed
@@ -85,22 +70,7 @@ load helpers
 	echo COPY randomfile /layer-squashed >> ${TESTDIR}/stage${stage}/Dockerfile
 	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 
-	run buildah --debug=false inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
-	echo "$output"
-	[ "$status" -eq 0 ]
-	[ "$output" -eq 1 ]
-	run buildah --debug=false inspect -t image -f '{{len .OCIv1.RootFS.DiffIDs}}' squashed
-	echo "$output"
-	[ "$status" -eq 0 ]
-	[ "$output" -eq 1 ]
-	run buildah --debug=false inspect -t image -f '{{len .Docker.History}}' squashed
-	echo "$output"
-	[ "$status" -eq 0 ]
-	[ "$output" -eq 1 ]
-	run buildah --debug=false inspect -t image -f '{{len .OCIv1.History}}' squashed
-	echo "$output"
-	[ "$status" -eq 0 ]
-	[ "$output" -eq 1 ]
+        check_lengths squashed 1
 
 	cid=$(buildah from squashed)
 	mountpoint=$(buildah mount $cid)

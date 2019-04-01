@@ -3,19 +3,19 @@
 load helpers
 
 @test "from-flags-order-verification" {
-  run buildah from scratch -q
+  run_buildah 1 from scratch -q
   check_options_flag_err "-q"
 
-  run buildah from scratch --pull
+  run_buildah 1 from scratch --pull
   check_options_flag_err "--pull"
 
-  run buildah from scratch --ulimit=1024
+  run_buildah 1 from scratch --ulimit=1024
   check_options_flag_err "--ulimit=1024"
 
-  run buildah from scratch --name container-name-irrelevant
+  run_buildah 1 from scratch --name container-name-irrelevant
   check_options_flag_err "--name"
 
-  run buildah from scratch --cred="fake fake" --name small
+  run_buildah 1 from scratch --cred="fake fake" --name small
   check_options_flag_err "--cred=fake fake"
 }
 
@@ -211,146 +211,125 @@ load helpers
 
 @test "from cpu-period test" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   if ! which runc ; then
-    skip
+    skip "no runc in PATH"
   fi
   cid=$(buildah from --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
-  echo $output
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ "5000" ]]
+  run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
+  is "$output" "5000" "cpu.cfs_period_us"
   buildah rm $cid
 }
 
 @test "from cpu-quota test" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   if ! which runc ; then
-    skip
+    skip "no runc in PATH"
   fi
   cid=$(buildah from --cpu-quota=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
-  echo "$output"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ 5000 ]]
+  run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
+  is "$output" "5000" "cpu.cfs_quota_us"
   buildah rm $cid
 }
 
 @test "from cpu-shares test" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   if ! which runc ; then
-    skip
+    skip "no runc in PATH"
   fi
   cid=$(buildah from --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.shares
-  echo "$output"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ 2 ]]
+  run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.shares
+  is "$output" "1024" "cpu.shares"
   buildah rm $cid
 }
 
 @test "from cpuset-cpus test" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   if ! which runc ; then
-    skip
+    skip "no runc in PATH"
   fi
   cid=$(buildah from --cpuset-cpus=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah --debug=false run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
-  echo "$output"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ 0 ]]
+  run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
+  is "$output" "0" "cpuset.cpus"
   buildah rm $cid
 }
 
 @test "from cpuset-mems test" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   if ! which runc ; then
-    skip
+    skip "no runc in PATH"
   fi
   cid=$(buildah from --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah --debug=false run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
-  echo "$output"
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ 0 ]]
+  run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
+  is "$output" "0" "cpuset.mems"
   buildah rm $cid
 }
 
 @test "from memory test" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   if ! which runc ; then
-    skip
+    skip "no runc in PATH"
   fi
   cid=$(buildah from --memory=40m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah --debug=false run $cid cat /sys/fs/cgroup/memory/memory.limit_in_bytes
-  echo $output
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ 41943040 ]]
+  run_buildah --debug=false run $cid cat /sys/fs/cgroup/memory/memory.limit_in_bytes
+  is "$output" "41943040" "memory.limit_in_bytes"
   buildah rm $cid
 }
 
 @test "from volume test" {
   if ! which runc ; then
-    skip
+    skip "no runc in PATH"
   fi
   cid=$(buildah from --volume=${TESTDIR}:/myvol --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah --debug=false run $cid -- cat /proc/mounts
-  echo $output
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ /myvol ]]
+  run_buildah --debug=false run $cid -- cat /proc/mounts
+  is "$output" ".* /myvol " "/proc/mounts"
   buildah rm $cid
 }
 
 @test "from volume ro test" {
   if test "$BUILDAH_ISOLATION" = "chroot" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   if ! which runc ; then
-    skip
+    skip "no runc in PATH"
   fi
   cid=$(buildah from --volume=${TESTDIR}:/myvol:ro --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah --debug=false run $cid -- cat /proc/mounts
-  echo $output
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ /myvol ]]
+  run_buildah --debug=false run $cid -- cat /proc/mounts
+  is "$output" ".* /myvol " "/proc/mounts"
   buildah rm $cid
 }
 
 @test "from shm-size test" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   if ! which runc ; then
-    skip
+    skip "no runc in PATH"
   fi
   cid=$(buildah from --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah --debug=false run $cid -- df -h
-  echo $output
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ 80 ]]
+  run_buildah --debug=false run $cid -- df -h
+  is "$output" ".*shm[[:space:]]\+80.0M[[:space:]]" "df -h"
   buildah rm $cid
 }
 
 @test "from add-host test" {
   if ! which runc ; then
-    skip
+    skip "no runc in PATH"
   fi
   cid=$(buildah from --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah run $cid -- cat /etc/hosts
-  echo $output
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ localhost ]]
-  [[ "$output" =~ 127.0.0.1 ]]
+  run_buildah run $cid -- cat /etc/hosts
+  is "$output" ".*127.0.0.1[[:space:]]\+localhost" "/etc/hosts"
   buildah rm $cid
 }
 
@@ -363,8 +342,7 @@ load helpers
 @test "from cidfile test" {
   buildah from --cidfile output.cid --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$(cat output.cid)
-  run buildah --debug=false containers -f id=${cid}
-  [ "$status" -eq 0 ]
+  run_buildah --debug=false containers -f id=${cid}
   buildah rm ${cid}
 }
 

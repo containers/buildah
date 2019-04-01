@@ -3,13 +3,13 @@
 load helpers
 
 @test "add-flags-order-verification" {
-  run buildah add container1 -q /tmp/container1
+  run_buildah 1 add container1 -q /tmp/container1
   check_options_flag_err "-q"
 
-  run buildah add container1 --chown /tmp/container1 --quiet 
+  run_buildah 1 add container1 --chown /tmp/container1 --quiet
   check_options_flag_err "--chown"
 
-  run buildah add container1 /tmp/container1 --quiet 
+  run_buildah 1 add container1 /tmp/container1 --quiet
   check_options_flag_err "--quiet"
 }
 
@@ -21,23 +21,21 @@ load helpers
   root=$(buildah mount $cid)
   mkdir $root/subdir $root/other-subdir
   # Copy a file to the working directory
-  buildah config --workingdir=/ $cid
-  buildah add $cid ${TESTDIR}/randomfile
+  run_buildah config --workingdir=/ $cid
+  run_buildah add $cid ${TESTDIR}/randomfile
   # Copy a file to a specific subdirectory
-  buildah add $cid ${TESTDIR}/randomfile /subdir
+  run_buildah add $cid ${TESTDIR}/randomfile /subdir
   # Copy two files to a specific subdirectory
-  buildah add $cid ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile /other-subdir
+  run_buildah add $cid ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile /other-subdir
   # Copy two files to a specific location, which fails because it's not a directory.
-  run buildah add ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile $cid /notthereyet-subdir
-  [ $status -ne 0 ]
-  run buildah add ${TESTDIR}/randomfile $cid ${TESTDIR}/other-randomfile /randomfile
-  [ $status -ne 0 ]
+  run_buildah 1 add ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile $cid /notthereyet-subdir
+  run_buildah 1 add ${TESTDIR}/randomfile $cid ${TESTDIR}/other-randomfile /randomfile
   # Copy a file to a different working directory
-  buildah config --workingdir=/cwd $cid
-  buildah add $cid ${TESTDIR}/randomfile
-  buildah unmount $cid
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
-  buildah rm $cid
+  run_buildah config --workingdir=/cwd $cid
+  run_buildah add $cid ${TESTDIR}/randomfile
+  run_buildah unmount $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah rm $cid
 
   newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
   newroot=$(buildah mount $newcid)
@@ -52,7 +50,7 @@ load helpers
   test -d $newroot/cwd
   test -s $newroot/cwd/randomfile
   cmp ${TESTDIR}/randomfile $newroot/cwd/randomfile
-  buildah rm $newcid
+  run_buildah rm $newcid
 }
 
 @test "add-local-archive" {
@@ -77,14 +75,14 @@ load helpers
   dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/tarball4/tarball4.random2
   tar -c -C ${TESTDIR} -j -f ${TESTDIR}/tarball4.tar.bz2 tarball4
   # Add the files to the working directory, which should extract them all.
-  buildah config --workingdir=/ $cid
-  buildah add $cid ${TESTDIR}/tarball1.tar
-  buildah add $cid ${TESTDIR}/tarball2.tar.gz
-  buildah add $cid ${TESTDIR}/tarball3.tar.bz2
-  buildah add $cid ${TESTDIR}/tarball4.tar.bz2
-  buildah unmount $cid
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
-  buildah rm $cid
+  run_buildah config --workingdir=/ $cid
+  run_buildah add $cid ${TESTDIR}/tarball1.tar
+  run_buildah add $cid ${TESTDIR}/tarball2.tar.gz
+  run_buildah add $cid ${TESTDIR}/tarball3.tar.bz2
+  run_buildah add $cid ${TESTDIR}/tarball4.tar.bz2
+  run_buildah unmount $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah rm $cid
 
   newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
   newroot=$(buildah mount $newcid)
@@ -104,5 +102,5 @@ load helpers
   cmp ${TESTDIR}/tarball4/tarball4.random1 $newroot/tarball4/tarball4.random1
   test -s $newroot/tarball4/tarball4.random2
   cmp ${TESTDIR}/tarball4/tarball4.random2 $newroot/tarball4/tarball4.random2
-  buildah rm $newcid
+  run_buildah rm $newcid
 }
