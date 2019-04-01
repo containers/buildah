@@ -3,27 +3,25 @@
 load helpers
 
 @test "umount-flags-order-verification" {
-  run buildah umount cnt1 -a
+  run_buildah 1 umount cnt1 -a
   check_options_flag_err "-a"
 
-  run buildah umount cnt1 --all cnt2
+  run_buildah 1 umount cnt1 --all cnt2
   check_options_flag_err "--all"
 
-  run buildah umount cnt1 cnt2 --all
+  run_buildah 1 umount cnt1 cnt2 --all
   check_options_flag_err "--all"
 }
 
 @test "umount one image" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid"
-  run buildah umount "$cid"
-  [ "${status}" -eq 0 ]
+  run_buildah umount "$cid"
   buildah rm --all
 }
 
 @test "umount bad image" {
-  run buildah umount badcontainer 
-  [ "${status}" -ne 0 ]
+  run_buildah 1 umount badcontainer
   buildah rm --all
 }
 
@@ -34,8 +32,7 @@ load helpers
   buildah mount "$cid2"
   cid3=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid3"
-  run buildah umount "$cid1" "$cid2" "$cid3"
-  [ "${status}" -eq 0 ]
+  run_buildah umount "$cid1" "$cid2" "$cid3"
   buildah rm --all
 }
 
@@ -46,8 +43,7 @@ load helpers
   buildah mount "$cid2"
   cid3=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid3"
-  run buildah umount --all
-  [ "${status}" -eq 0 ]
+  run_buildah umount --all
   buildah rm --all
 }
 
@@ -58,7 +54,6 @@ load helpers
   buildah mount "$cid2"
   cid3=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid3"
-  run buildah umount "$cid1" badcontainer "$cid2" "$cid3"
-  [ "${status}" -ne 0 ]
+  run_buildah 1 umount "$cid1" badcontainer "$cid2" "$cid3"
   buildah rm --all
 }

@@ -3,16 +3,16 @@
 load helpers
 
 @test "push-flags-order-verification" {
-  run buildah push img1 dest1 -q
+  run_buildah 1 push img1 dest1 -q
   check_options_flag_err "-q"
 
-  run buildah push img1 --tls-verify dest1
+  run_buildah 1 push img1 --tls-verify dest1
   check_options_flag_err "--tls-verify"
 
-  run buildah push img1 dest1 arg3 --creds user1:pass1
+  run_buildah 1 push img1 dest1 arg3 --creds user1:pass1
   check_options_flag_err "--creds"
 
-  run buildah push img1 --creds=user1:pass1 dest1 
+  run_buildah 1 push img1 --creds=user1:pass1 dest1
   check_options_flag_err "--creds=user1:pass1"
 }
 
@@ -39,16 +39,12 @@ load helpers
 
 @test "push with manifest type conversion" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run buildah push --signature-policy ${TESTSDIR}/policy.json --format oci alpine dir:my-dir
-  echo "$output"
-  [ "$status" -eq 0 ]
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --format oci alpine dir:my-dir
   manifest=$(cat my-dir/manifest.json)
   run grep "application/vnd.oci.image.config.v1+json" <<< "$manifest"
   echo "$output"
   [ "$status" -eq 0 ]
-  run buildah push --signature-policy ${TESTSDIR}/policy.json --format v2s2 alpine dir:my-dir
-  echo "$output"
-  [ "$status" -eq 0 ]
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --format v2s2 alpine dir:my-dir
   run grep "application/vnd.docker.distribution.manifest.v2+json" my-dir/manifest.json
   echo "$output"
   [ "$status" -eq 0 ]
@@ -60,9 +56,7 @@ load helpers
 @test "push with imageid" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   imageid=$(buildah images -q)
-  run buildah push --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
-  echo "$output"
-  [ "$status" -eq 0 ]
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
   buildah rm "$cid"
   buildah rmi alpine
   rm -rf my-dir
@@ -70,9 +64,7 @@ load helpers
 
 @test "push without destination" {
   buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
-  run buildah push --signature-policy ${TESTSDIR}/policy.json busybox
-  echo "$output"
-  [ "$status" -eq 1 ]
-  echo "$output" | grep -q "docker://busybox"
+  run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json busybox
+  is "$output" ".*docker://busybox" "output of buildah push"
   buildah rmi busybox
 }

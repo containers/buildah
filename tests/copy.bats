@@ -3,13 +3,13 @@
 load helpers
 
 @test "copy-flags-order-verification" {
-  run buildah copy container1 -q /tmp/container1
+  run_buildah 1 copy container1 -q /tmp/container1
   check_options_flag_err "-q"
 
-  run buildah copy container1 --chown /tmp/container1 --quiet 
+  run_buildah 1 copy container1 --chown /tmp/container1 --quiet
   check_options_flag_err "--chown"
 
-  run buildah copy container1 /tmp/container1 --quiet 
+  run_buildah 1 copy container1 /tmp/container1 --quiet
   check_options_flag_err "--quiet"
 }
 
@@ -22,8 +22,7 @@ load helpers
   root=$(buildah mount $cid)
   buildah config --workingdir / $cid
   buildah copy $cid ${TESTDIR}/randomfile
-  run buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
-  [ "$status" -eq 1 ]
+  run_buildah 1 copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
   buildah rm $cid
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)

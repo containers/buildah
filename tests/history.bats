@@ -76,9 +76,7 @@ function testconfighistory() {
 @test "history-add" {
   createrandom ${TESTDIR}/randomfile
   buildah from --name addctr --format docker scratch
-  run buildah add --add-history addctr ${TESTDIR}/randomfile
-  echo "$output"
-  [ "$status" -eq 0 ]
+  run_buildah add --add-history addctr ${TESTDIR}/randomfile
   digest="$output"
   buildah commit --signature-policy ${TESTSDIR}/policy.json addctr addimg
   buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' addimg
@@ -88,9 +86,7 @@ function testconfighistory() {
 @test "history-copy" {
   createrandom ${TESTDIR}/randomfile
   buildah from --name copyctr --format docker scratch
-  run buildah --debug=false copy --add-history copyctr ${TESTDIR}/randomfile
-  echo "$output"
-  [ "$status" -eq 0 ]
+  run_buildah --debug=false copy --add-history copyctr ${TESTDIR}/randomfile
   digest="$output"
   buildah commit --signature-policy ${TESTSDIR}/policy.json copyctr copyimg
   buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' copyimg

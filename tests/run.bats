@@ -4,20 +4,18 @@ load helpers
 
 @test "run" {
 	if ! which runc ; then
-		skip
+		skip "no runc in PATH"
 	fi
 	runc --version
 	createrandom ${TESTDIR}/randomfile
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	root=$(buildah mount $cid)
 	buildah config --workingdir /tmp $cid
-	run buildah --debug=false run $cid pwd
-	[ "$status" -eq 0 ]
-	[ "$output" = /tmp ]
+	run_buildah --debug=false run $cid pwd
+	is "$output" "/tmp" "pwd"
 	buildah config --workingdir /root $cid
-	run buildah --debug=false run        $cid pwd
-	[ "$status" -eq 0 ]
-	[ "$output" = /root ]
+	run_buildah --debug=false run        $cid pwd
+	is "$output" "/root" "pwd"
 	cp ${TESTDIR}/randomfile $root/tmp/
 	buildah run        $cid cp /tmp/randomfile /tmp/other-randomfile
 	test -s $root/tmp/other-randomfile
@@ -29,44 +27,35 @@ load helpers
 
 @test "run--args" {
 	if ! which runc ; then
-		skip
+		skip "no runc in PATH"
 	fi
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 
 	# This should fail, because buildah run doesn't have a -n flag.
-	run buildah --debug=false run -n $cid echo test
-	[ "$status" -ne 0 ]
+	run_buildah 1 --debug=false run -n $cid echo test
 
 	# This should succeed, because buildah run stops caring at the --, which is preserved as part of the command.
-	run buildah --debug=false run $cid echo -- -n test
-	[ "$status" -eq 0 ]
-	echo :"$output":
-	[ "$output" = "-- -n test" ]
+	run_buildah --debug=false run $cid echo -- -n test
+	is "$output" "-- -n test" "echo"
 
 	# This should succeed, because buildah run stops caring at the --, which is not part of the command.
-	run buildah --debug=false run $cid -- echo -n -- test
-	[ "$status" -eq 0 ]
-	echo :"$output":
-	[ "$output" = "-- test" ]
+	run_buildah --debug=false run $cid -- echo -n -- test
+	is "$output" "-- test" "echo"
 
 	# This should succeed, because buildah run stops caring at the --.
-	run buildah --debug=false run $cid -- echo -- -n test --
-	[ "$status" -eq 0 ]
-	echo :"$output":
-	[ "$output" = "-- -n test --" ]
+	run_buildah --debug=false run $cid -- echo -- -n test --
+	is "$output" "-- -n test --" "echo"
 
 	# This should succeed, because buildah run stops caring at the --.
-	run buildah --debug=false run $cid -- echo -n "test"
-	[ "$status" -eq 0 ]
-	echo :"$output":
-	[ "$output" = "test" ]
+	run_buildah --debug=false run $cid -- echo -n "test"
+	is "$output" "test" "echo"
 
 	buildah rm $cid
 }
 
 @test "run-cmd" {
 	if ! which runc ; then
-		skip
+		skip "no runc in PATH"
 	fi
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	buildah config --workingdir /tmp $cid
@@ -77,68 +66,58 @@ load helpers
 	# empty entrypoint, configured cmd, empty run arguments
 	buildah config --entrypoint "" $cid
 	buildah config --cmd pwd $cid
-	run buildah --debug=false run $cid
-	[ "$status" -eq 1 ]
-	[[ "$output" =~ "command must be specified" ]]
-	
+	run_buildah 1 --debug=false run $cid
+	is "$output" ".*command must be specified" "empty entrypoint, cmd, no args"
+
 	# empty entrypoint, configured cmd, empty run arguments, end parsing option
 	buildah config --entrypoint "" $cid
 	buildah config --cmd pwd $cid
-	run buildah --debug=false run $cid --
-	[ "$status" -eq 1 ]
-	[[ "$output" =~ "command must be specified" ]]
+	run_buildah 1 --debug=false run $cid --
+	is "$output" ".*command must be specified" "empty entrypoint, cmd, no args, --"
 
 	# configured entrypoint, empty cmd, empty run arguments
 	buildah config --entrypoint pwd $cid
 	buildah config --cmd "" $cid
-	run buildah --debug=false run $cid
-	[ "$status" -eq 1 ]
-	[[ "$output" =~ "command must be specified" ]]
-	
+	run_buildah 1 --debug=false run $cid
+	is "$output" ".*command must be specified" "entrypoint, empty cmd, no args"
+
 	# configured entrypoint, empty cmd, empty run arguments, end parsing option
 	buildah config --entrypoint pwd $cid
 	buildah config --cmd "" $cid
-	run buildah --debug=false run $cid --
-	[ "$status" -eq 1 ]
-	[[ "$output" =~ "command must be specified" ]]
+	run_buildah 1 --debug=false run $cid --
+	is "$output" ".*command must be specified" "entrypoint, empty cmd, no args, --"
 
 	# configured entrypoint only, empty run arguments
 	buildah config --entrypoint pwd $cid
-	run buildah --debug=false run $cid
-	[ "$status" -eq 1 ]
-	[[ "$output" =~ "command must be specified" ]]
-	
+	run_buildah 1 --debug=false run $cid
+	is "$output" ".*command must be specified" "entrypoint, no args"
+
 	# configured entrypoint only, empty run arguments, end parsing option
 	buildah config --entrypoint pwd $cid
-	run buildah --debug=false run $cid --
-	[ "$status" -eq 1 ]
-	[[ "$output" =~ "command must be specified" ]]
+	run_buildah 1 --debug=false run $cid --
+	is "$output" ".*command must be specified" "entrypoint, no args, --"
 
 	# cofigured cmd only, empty run arguments
 	buildah config --cmd pwd $cid
-	run buildah --debug=false run $cid
-	[ "$status" -eq 1 ]
-	[[ "$output" =~ "command must be specified" ]]
+	run_buildah 1 --debug=false run $cid
+	is "$output" ".*command must be specified" "cmd, no args"
 
 	# configured cmd only, empty run arguments, end parsing option
 	buildah config --cmd pwd $cid
-	run buildah --debug=false run $cid --
-	[ "$status" -eq 1 ]
-	[[ "$output" =~ "command must be specified" ]]
+	run_buildah 1 --debug=false run $cid --
+	is "$output" ".*command must be specified" "cmd, no args, --"
 
 	# configured entrypoint, configured cmd, empty run arguments
 	buildah config --entrypoint "pwd" $cid
 	buildah config --cmd "whoami" $cid
-	run buildah --debug=false run $cid
-	[ "$status" -eq 1 ]
-	[[ "$output" =~ "command must be specified" ]]
-	
+	run_buildah 1 --debug=false run $cid
+	is "$output" ".*command must be specified" "entrypoint, cmd, no args"
+
 	# configured entrypoint, configured cmd, empty run arguments, end parsing option
 	buildah config --entrypoint "pwd" $cid
 	buildah config --cmd "whoami" $cid
-	run buildah --debug=false run $cid --
-	[ "$status" -eq 1 ]
-	[[ "$output" =~ "command must be specified" ]]
+	run_buildah 1 --debug=false run $cid --
+	is "$output" ".*command must be specified" "entrypoint, cmd, no args"
 
 
 	# Configured entrypoint/cmd shouldn't modify behaviour of run with argument
@@ -147,47 +126,55 @@ load helpers
 	# empty entrypoint, configured cmd, configured run arguments
 	buildah config --entrypoint "" $cid
 	buildah config --cmd "/invalid/cmd" $cid
-	run buildah --debug=false run $cid -- pwd
-	[ "$status" -eq 0 ]
-	[ "$output" = "/tmp" ]
+	run_buildah --debug=false run $cid -- pwd
+	is "$output" "/tmp" "empty entrypoint, invalid cmd, pwd"
 
         # configured entrypoint, empty cmd, configured run arguments
         buildah config --entrypoint "/invalid/entrypoint" $cid
         buildah config --cmd "" $cid
-        run buildah --debug=false run $cid -- pwd
-        [ "$status" -eq 0 ]
-        [ "$output" = "/tmp" ]
+        run_buildah --debug=false run $cid -- pwd
+	is "$output" "/tmp" "invalid entrypoint, empty cmd, pwd"
 
         # configured entrypoint only, configured run arguments
         buildah config --entrypoint "/invalid/entrypoint" $cid
-        run buildah --debug=false run $cid -- pwd
-        [ "$status" -eq 0 ]
-        [ "$output" = "/tmp" ]
+        run_buildah --debug=false run $cid -- pwd
+	is "$output" "/tmp" "invalid entrypoint, no cmd(??), pwd"
 
         # cofigured cmd only, configured run arguments
         buildah config --cmd "/invalid/cmd" $cid
-        run buildah --debug=false run $cid -- pwd
-        [ "$status" -eq 0 ]
-        [ "$output" = "/tmp" ]
+        run_buildah --debug=false run $cid -- pwd
+	is "$output" "/tmp" "invalid cmd, no entrypoint(??), pwd"
 
         # configured entrypoint, configured cmd, configured run arguments
         buildah config --entrypoint "/invalid/entrypoint" $cid
         buildah config --cmd "/invalid/cmd" $cid
-        run buildah --debug=false run $cid -- pwd
-        [ "$status" -eq 0 ]
-        [ "$output" = "/tmp" ]
+        run_buildah --debug=false run $cid -- pwd
+	is "$output" "/tmp" "invalid cmd & entrypoint, pwd"
 
 	buildah rm $cid
 }
 
+function configure_and_check_user() {
+    local setting=$1
+    local expect_u=$2
+    local expect_g=$3
+
+    run_buildah config -u "$setting" $cid
+    run_buildah --debug=false run -- $cid id -u
+    is "$output" "$expect_u" "id -u ($setting)"
+
+    run_buildah --debug=false run -- $cid id -g
+    is "$output" "$expect_g" "id -g ($setting)"
+}
+
 @test "run-user" {
 	if ! which runc ; then
-		skip
+		skip "no runc in PATH"
 	fi
 	eval $(go env)
 	echo CGO_ENABLED=${CGO_ENABLED}
 	if test "$CGO_ENABLED" -ne 1; then
-		skip
+		skip "CGO_ENABLED = '$CGO_ENABLED'"
 	fi
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	root=$(buildah mount $cid)
@@ -202,101 +189,27 @@ load helpers
 	echo "$testuser:x:$testuid:$testgid:Jimbo Jenkins:/home/$testuser:/bin/sh" >> $root/etc/passwd
 	echo "$testgroup:x:$testgroupid:" >> $root/etc/group
 
-	buildah config -u "" $cid
-	buildah run -- $cid id
-	run buildah --debug=false run -- $cid id -u
-	[ "$status" -eq 0 ]
-	[ "$output" = 0 ]
-	run buildah --debug=false run -- $cid id -g
-	[ "$status" -eq 0 ]
-	[ "$output" = 0 ]
+        configure_and_check_user ""                             0             0
+        configure_and_check_user "${testuser}"                  $testuid      $testgid
+        configure_and_check_user "${testuid}"                   $testuid      $testgid
+        configure_and_check_user "${testuser}:${testgroup}"     $testuid      $testgroupid
+        configure_and_check_user "${testuid}:${testgroup}"      $testuid      $testgroupid
+        configure_and_check_user "${testotheruid}:${testgroup}" $testotheruid $testgroupid
+        configure_and_check_user "${testotheruid}"              $testotheruid 0
+        configure_and_check_user "${testuser}:${testgroupid}"   $testuid      $testgroupid
+        configure_and_check_user "${testuid}:${testgroupid}"    $testuid      $testgroupid
 
-	buildah config -u ${testuser} $cid
-	buildah run -- $cid id
-	run buildah --debug=false run -- $cid id -u
-	[ "$status" -eq 0 ]
-	[ "$output" = $testuid ]
-	run buildah --debug=false run -- $cid id -g
-	[ "$status" -eq 0 ]
-	[ "$output" = $testgid ]
-
-	buildah config -u ${testuid} $cid
-	buildah run -- $cid id
-	run buildah --debug=false run -- $cid id -u
-	[ "$status" -eq 0 ]
-	[ "$output" = $testuid ]
-	run buildah --debug=false run -- $cid id -g
-	[ "$status" -eq 0 ]
-	[ "$output" = $testgid ]
-
-	buildah config -u ${testuser}:${testgroup} $cid
-	buildah run -- $cid id
-	run buildah --debug=false run -- $cid id -u
-	[ "$status" -eq 0 ]
-	[ "$output" = $testuid ]
-	run buildah --debug=false run -- $cid id -g
-	[ "$status" -eq 0 ]
-	[ "$output" = $testgroupid ]
-
-	buildah config -u ${testuid}:${testgroup} $cid
-	buildah run -- $cid id
-	run buildah --debug=false run -- $cid id -u
-	[ "$status" -eq 0 ]
-	[ "$output" = $testuid ]
-	run buildah --debug=false run -- $cid id -g
-	[ "$status" -eq 0 ]
-	[ "$output" = $testgroupid ]
-
-	buildah config -u ${testotheruid}:${testgroup} $cid
-	buildah run -- $cid id
-	run buildah --debug=false run -- $cid id -u
-	[ "$status" -eq 0 ]
-	[ "$output" = $testotheruid ]
-	run buildah --debug=false run -- $cid id -g
-	[ "$status" -eq 0 ]
-	[ "$output" = $testgroupid ]
-
-	buildah config -u ${testotheruid} $cid
-	buildah run -- $cid id
-	run buildah --debug=false run -- $cid id -u
-	[ "$status" -eq 0 ]
-	[ "$output" = $testotheruid ]
-	run buildah --debug=false run -- $cid id -g
-	[ "$status" -eq 0 ]
-	[ "$output" = 0 ]
-
-	buildah config -u ${testuser}:${testgroupid} $cid
-	buildah run -- $cid id
-	run buildah --debug=false run -- $cid id -u
-	[ "$status" -eq 0 ]
-	[ "$output" = $testuid ]
-	run buildah --debug=false run -- $cid id -g
-	[ "$status" -eq 0 ]
-	[ "$output" = $testgroupid ]
-
-	buildah config -u ${testuid}:${testgroupid} $cid
-	buildah run -- $cid id
-	run buildah --debug=false run -- $cid id -u
-	[ "$status" -eq 0 ]
-	[ "$output" = $testuid ]
-	run buildah --debug=false run -- $cid id -g
-	[ "$status" -eq 0 ]
-	[ "$output" = $testgroupid ]
-
-	buildah config -u ${testbogususer} $cid
-	run buildah --debug=false run -- $cid id -u
-	[ "$status" -ne 0 ]
-	[[ "$output" =~ "unknown user" ]]
-	run buildah --debug=false run -- $cid id -g
-	[ "$status" -ne 0 ]
-	[[ "$output" =~ "unknown user" ]]
+        buildah config -u ${testbogususer} $cid
+        run_buildah 1 --debug=false run -- $cid id -u
+        is "$output" ".*unknown user" "id -u (bogus user)"
+        run_buildah 1 --debug=false run -- $cid id -g
+        is "$output" ".*unknown user" "id -g (bogus user)"
 
 	ln -vsf /etc/passwd $root/etc/passwd
 	buildah config -u ${testuser}:${testgroup} $cid
-	run buildah --debug=false run -- $cid id -u
+	run_buildah 1 --debug=false run -- $cid id -u
 	echo "$output"
-	[ "$status" -ne 0 ]
-	[[ "$output" =~ "unknown user" ]]
+	is "$output" ".*unknown user" "run as unknown user"
 
 	buildah unmount $cid
 	buildah rm $cid
@@ -304,27 +217,23 @@ load helpers
 
 @test "run --hostname" {
 	if test "$BUILDAH_ISOLATION" = "rootless" ; then
-		skip
+		skip "rootless"
 	fi
 	if ! which runc ; then
-		skip
+		skip "no runc in PATH"
 	fi
 	runc --version
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-	run buildah --debug=false run $cid hostname
-	echo "$output"
-	[ "$status" -eq 0 ]
+	run_buildah --debug=false run $cid hostname
 	[ "$output" != "foobar" ]
-	run buildah --debug=false run --hostname foobar $cid hostname
-	echo "$output"
-	[ "$status" -eq 0 ]
-	[ "$output" = "foobar" ]
+	run_buildah --debug=false run --hostname foobar $cid hostname
+	is "$output" "foobar" "hostname"
 	buildah rm $cid
 }
 
 @test "run --volume" {
 	if ! which runc ; then
-		skip
+		skip "no runc in PATH"
 	fi
 	zflag=
 	if which selinuxenabled > /dev/null 2> /dev/null ; then
@@ -336,56 +245,41 @@ load helpers
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	mkdir -p ${TESTDIR}/was-empty
 	# As a baseline, this should succeed.
-	run buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty${zflag:+:${zflag}}     $cid touch /var/not-empty/testfile
-	echo "$output"
-	[ "$status" -eq 0 ]
+	run_buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty${zflag:+:${zflag}}     $cid touch /var/not-empty/testfile
 	# If we're parsing the options at all, this should be read-only, so it should fail.
-	run buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty:ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
-	echo "$output"
-	[ "$status" -ne 0 ]
+	run_buildah 1 --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty:ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
 	# Even if the parent directory doesn't exist yet, this should succeed.
-	run buildah --debug=false run -v ${TESTDIR}/was-empty:/var/multi-level/subdirectory        $cid touch /var/multi-level/subdirectory/testfile
-	echo "$output"
+	run_buildah --debug=false run -v ${TESTDIR}/was-empty:/var/multi-level/subdirectory        $cid touch /var/multi-level/subdirectory/testfile
 	# And check the same for file volumes.
-	run buildah --debug=false run -v ${TESTDIR}/was-empty/testfile:/var/different-multi-level/subdirectory/testfile        $cid touch /var/different-multi-level/subdirectory/testfile
-	echo "$output"
-	[ "$status" -eq 0 ]
+	run_buildah --debug=false run -v ${TESTDIR}/was-empty/testfile:/var/different-multi-level/subdirectory/testfile        $cid touch /var/different-multi-level/subdirectory/testfile
 }
 
 @test "run symlinks" {
 	if ! which runc ; then
-		skip
+		skip "no runc in PATH"
 	fi
 	runc --version
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	mkdir -p ${TESTDIR}/tmp
 	ln -s tmp ${TESTDIR}/tmp2
 	export TMPDIR=${TESTDIR}/tmp2
-	run buildah --debug=false run $cid id
-	echo "$output"
-	[ "$status" -eq 0 ]
+	run_buildah --debug=false run $cid id
 }
 
 @test "run --cap-add/--cap-drop" {
 	if ! which runc ; then
-		skip
+		skip "no runc in PATH"
 	fi
 	runc --version
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	# Try with default caps.
-	run buildah --debug=false run $cid grep ^CapEff /proc/self/status
-	echo "$output"
-	[ "$status" -eq 0 ]
+	run_buildah --debug=false run $cid grep ^CapEff /proc/self/status
 	defaultcaps="$output"
 	# Try adding DAC_OVERRIDE.
-	run buildah --debug=false run --cap-add CAP_DAC_OVERRIDE $cid grep ^CapEff /proc/self/status
-	echo "$output"
-	[ "$status" -eq 0 ]
+	run_buildah --debug=false run --cap-add CAP_DAC_OVERRIDE $cid grep ^CapEff /proc/self/status
 	addedcaps="$output"
 	# Try dropping DAC_OVERRIDE.
-	run buildah --debug=false run --cap-drop CAP_DAC_OVERRIDE $cid grep ^CapEff /proc/self/status
-	echo "$output"
-	[ "$status" -eq 0 ]
+	run_buildah --debug=false run --cap-drop CAP_DAC_OVERRIDE $cid grep ^CapEff /proc/self/status
 	droppedcaps="$output"
 	# Okay, now the "dropped" and "added" should be different.
 	test "$addedcaps" != "$droppedcaps"
@@ -400,39 +294,27 @@ load helpers
 
 @test "Check if containers run with correct open files/processes limits" {
 	if ! which runc ; then
-		skip
+		skip "no runc in PATH"
 	fi
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-	run buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
-	echo $output
-	[ "$status" -eq 0 ]
-	[ "$output" = 1048576 ]
-	run buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
-	echo $output
-	[ "$status" -eq 0 ]
-	[ "$output" = 1048576 ]
+	run_buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
+	is "$output" "1048576" "limits: open files (unlimited)"
+	run_buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
+	is "$output" "1048576" "limits: processes (unlimited)"
 	buildah rm $cid
 
 	cid=$(buildah from --ulimit nofile=300:400 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-	run buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
-	echo $output
-	[ "$status" -eq 0 ]
-	[ "$output" = 300 ]
-	run buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
-	echo $output
-	[ "$status" -eq 0 ]
-	[ "$output" = 1048576 ]
+	run_buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
+	is "$output" "300" "limits: open files (w/file limit)"
+	run_buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
+	is "$output" "1048576" "limits: processes (w/file limit)"
 	buildah rm $cid
 
 	cid=$(buildah from --ulimit nproc=100:200 --ulimit nofile=300:400 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-	run buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
-	echo $output
-	[ "$status" -eq 0 ]
-	[ "$output" = 300 ]
-	run buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
-	echo $output
-	[ "$status" -eq 0 ]
-	[ "$output" = 100 ]
+	run_buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
+	is "$output" "300" "limits: open files (w/file & proc limits)"
+	run_buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
+	is "$output" "100" "limits: processes (w/file & proc limits)"
 	buildah rm $cid
 }
 
@@ -446,12 +328,9 @@ load helpers
 	echo "$output"
 	[ "$status" -ne 0 ]
 	# We'll create the mountpoint for "run".
-	run buildah --debug=false run $cid ls -1 /var/lib
-	echo "$output"
-	[[ "$output" =~ registry ]]
-	[ "$status" -eq 0 ]
+	run_buildah --debug=false run $cid ls -1 /var/lib
+        is "$output" ".*registry" "ls /var/lib"
+
 	# Double-check that the mountpoint is there.
-	run test -d "$mnt"/var/lib/registry
-	echo "$output"
-	[ "$status" -eq 0 ]
+	test -d "$mnt"/var/lib/registry
 }
