@@ -1559,6 +1559,10 @@ func processCopyFrom(dockerfiles []io.ReadCloser) []io.ReadCloser {
 	// asMap contains the names of the images seen after a "FROM image AS"
 	// line in the Dockefiles.  The boolean value just completes the map object.
 	asMap := make(map[string]bool)
+	// foreignImages is the list of images that are referenced as sources
+	// of "COPY --from" instructions, but which are not the result of
+	// earlier stages in the build.
+	foreignImages := []string{}
 
 	copyRE := regexp.MustCompile(`\s*COPY\s+--from=`)
 	fromRE := regexp.MustCompile(`\s*FROM\s+`)
@@ -1611,13 +1615,19 @@ func processCopyFrom(dockerfiles []io.ReadCloser) []io.ReadCloser {
 				_, okAs := asMap[trimmedFrom]
 				_, err := strconv.Atoi(trimmedFrom)
 				if !okFrom && !okAs && err != nil {
-					from := "FROM " + trimmedFrom
-					newDockerfiles = append(newDockerfiles, ioutil.NopCloser(strings.NewReader(from)))
+					foreignImages = append(foreignImages, trimmedFrom)
 				}
 			}
 			newDockerfiles = append(newDockerfiles, ioutil.NopCloser(strings.NewReader(dfileString)))
 		} // End if dfileBinary, err := ioutil.ReadAll(dfile); err == nil
 	} // End for _, dfile := range dockerfiles {
+	// Build a list of ReadClosers that pull referenced images, in the order we first encountered them.
+	var foreignPulls []io.ReadCloser
+	for _, foreignImage := range dedupeStringSlice(foreignImages) {
+		from := "FROM " + foreignImage
+		foreignPulls = append(foreignPulls, ioutil.NopCloser(strings.NewReader(from)))
+	}
+	newDockerfiles = append(foreignPulls, newDockerfiles...)
 	return newDockerfiles
 }
 
