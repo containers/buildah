@@ -1019,6 +1019,17 @@ load helpers
   [ "$out" -ne 0 ]
 }
 
+@test "bud with copy-from and cache" {
+  target=busybox-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers --iidfile ${TESTDIR}/iid1 -f ${TESTSDIR}/bud/copy-from/Dockerfile2 ${TESTSDIR}/bud/copy-from
+  cat ${TESTDIR}/iid1
+  test -s ${TESTDIR}/iid1
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers --iidfile ${TESTDIR}/iid2 -f ${TESTSDIR}/bud/copy-from/Dockerfile2 ${TESTSDIR}/bud/copy-from
+  cat ${TESTDIR}/iid2
+  test -s ${TESTDIR}/iid2
+  cmp ${TESTDIR}/iid1 ${TESTDIR}/iid2
+}
+
 @test "bud with copy-from in Dockerfile no prior FROM" {
   target=php-image
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from ${TESTSDIR}/bud/copy-from
