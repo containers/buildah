@@ -367,3 +367,20 @@ load helpers
   [ "$status" -eq 0 ]
   buildah rm ${cid}
 }
+
+@test "from security-opt test" {
+  if ! which selinuxenabled > /dev/null 2> /dev/null ; then
+    skip 'selinuxenabled command not found in $PATH'
+  elif ! selinuxenabled ; then
+    skip "selinux is disabled"
+  fi
+
+  container_name=mycontainer
+  run buildah from --name=${container_name} --security-opt label=level:s0:c1,c2 scratch
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run buildah inspect  --format '{{.ProcessLabel}}' ${container_name}
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ $output =~ "s0:c1,c2" ]]
+}

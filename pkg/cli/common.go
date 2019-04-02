@@ -132,7 +132,7 @@ func GetLayerFlags(flags *LayerResults) pflag.FlagSet {
 // GetBudFlags returns common bud flags
 func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs := pflag.FlagSet{}
-	fs.StringSliceVar(&flags.Annotation, "annotation", []string{}, "Set metadata for an image (default [])")
+	fs.StringArrayVar(&flags.Annotation, "annotation", []string{}, "Set metadata for an image (default [])")
 	fs.StringVar(&flags.Authfile, "authfile", "", "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json")
 	fs.StringSliceVar(&flags.BuildArg, "build-arg", []string{}, "`argument=value` to supply to the builder")
 	fs.StringVar(&flags.CacheFrom, "cache-from", "", "Images to utilise as potential cache sources. The build process does not currently support caching so this is a NOOP.")
@@ -144,7 +144,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringSliceVarP(&flags.File, "file", "f", []string{}, "`pathname or URL` of a Dockerfile")
 	fs.StringVar(&flags.Format, "format", DefaultFormat(), "`format` of the built image's manifest and metadata. Use BUILDAH_FORMAT environment variable to override.")
 	fs.StringVar(&flags.Iidfile, "iidfile", "", "`file` to write the image ID to")
-	fs.StringSliceVar(&flags.Label, "label", []string{}, "Set metadata for an image (default [])")
+	fs.StringArrayVar(&flags.Label, "label", []string{}, "Set metadata for an image (default [])")
 	fs.BoolVar(&flags.NoCache, "no-cache", false, "Do not use existing cached images for the container build. Build from the start with a new set of cached layers.")
 	fs.StringVar(&flags.Logfile, "logfile", "", "log to `file` instead of stdout/stderr")
 	fs.IntVar(&flags.Loglevel, "loglevel", 0, "adjust logging level (range from -2 to 3)")
@@ -157,7 +157,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringSliceVar(&flags.RuntimeFlags, "runtime-flag", []string{}, "add global flags for the container runtime")
 	fs.StringVar(&flags.SignaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	fs.BoolVar(&flags.Squash, "squash", false, "Squash newly built layers into a single new layer.")
-	fs.StringSliceVarP(&flags.Tag, "tag", "t", []string{}, "tagged `name` to apply to the built image")
+	fs.StringArrayVarP(&flags.Tag, "tag", "t", []string{}, "tagged `name` to apply to the built image")
 	fs.StringVar(&flags.Target, "target", "", "set the target build stage to build")
 	fs.BoolVar(&flags.TlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 	return fs
@@ -179,7 +179,7 @@ func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, 
 	fs.StringVar(&flags.Isolation, "isolation", DefaultIsolation(), "`type` of process isolation to use. Use BUILDAH_ISOLATION environment variable to override.")
 	fs.StringVarP(&flags.Memory, "memory", "m", "", "memory limit (format: <number>[<unit>], where unit = b, k, m or g)")
 	fs.StringVar(&flags.MemorySwap, "memory-swap", "", "swap limit equal to memory plus swap: '-1' to enable unlimited swap")
-	fs.StringSliceVar(&flags.SecurityOpt, "security-opt", []string{}, "security options (default [])")
+	fs.StringArrayVar(&flags.SecurityOpt, "security-opt", []string{}, "security options (default [])")
 	fs.StringVar(&flags.ShmSize, "shm-size", "65536k", "size of '/dev/shm'. The format is `<number><unit>`.")
 	fs.StringSliceVar(&flags.Ulimit, "ulimit", []string{}, "ulimit options (default [])")
 	fs.StringSliceVarP(&flags.Volume, "volume", "v", []string{}, "bind mount a volume into the container (default [])")
