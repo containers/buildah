@@ -208,7 +208,7 @@ load helpers
   [ "$status" -ne 0 ]
   run buildah --debug=false containers
   echo "$output"
-  [ $(wc -l <<< "$output") -eq 2 ]
+  [ $(wc -l <<< "$output") -eq 1 ]
   [ "${status}" -eq 0 ]
 
   buildah rm -a
@@ -1247,4 +1247,37 @@ load helpers
   [ "$status" -ne 0 ]
   buildah umount ${cid}
   buildah rm ${cid}
+}
+
+@test "bud-bad-dockerfile-one-stage" {
+  target=target
+  run buildah bud --debug=false --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/bad-dockerfile/Dockerfile.false.onestage  ${TESTSDIR}/bud/bad-dockerfile
+  [[ $output =~ "STEP 1: FROM alpine" ]]
+  [[ $output =~ "STEP 4: RUN /bin/false" ]]
+  [ "$status" -ne 0 ]
+
+  run buildah --debug=false containers
+  [ "$status" -eq 0 ]
+  [ $(wc -l <<< "$output") -eq 1 ]
+  run buildah --debug=false images
+  [ "$status" -eq 0 ]
+  [ $(wc -l <<< "$output") -eq 2 ]
+  [[ $output =~ "alpine" ]]
+}
+
+@test "bud-bad-dockerfile-stages" {
+  target=target
+  run buildah bud --debug=false --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/bad-dockerfile/Dockerfile.false.stages  ${TESTSDIR}/bud/bad-dockerfile
+  [[ $output =~ "STEP 1: FROM busybox" ]]
+  [[ $output =~ "STEP 6: RUN /bin/false" ]]
+  [ "$status" -ne 0 ]
+
+  run buildah --debug=false containers
+  [ "$status" -eq 0 ]
+  [ $(wc -l <<< "$output") -eq 1 ]
+  run buildah --debug=false images
+  [ "$status" -eq 0 ]
+  [ $(wc -l <<< "$output") -eq 3 ]
+  [[ $output =~ "alpine" ]]
+  [[ $output =~ "busybox" ]]
 }

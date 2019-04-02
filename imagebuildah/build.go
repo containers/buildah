@@ -848,7 +848,7 @@ func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, e
 }
 
 // Execute runs each of the steps in the stage's parsed tree, in turn.
-func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (imgID string, ref reference.Canonical, err error) {
+func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (imgID string, ref reference.Canonical, commitIDs []string, err error) {
 	ib := stage.Builder
 	node := stage.Node
 	checkForLayers := true
@@ -859,7 +859,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 		// Resolve any arguments in this instruction so that we don't have to.
 		step := ib.Step()
 		if err := step.Resolve(node); err != nil {
-			return "", nil, errors.Wrapf(err, "error resolving step %+v", *node)
+			return "", nil, commitIDs, errors.Wrapf(err, "error resolving step %+v", *node)
 		}
 		logrus.Debugf("Parsed Step: %+v", *step)
 		if !s.executor.quiet {
@@ -887,7 +887,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 				arr := strings.Split(n, "=")
 				stage, ok := s.executor.stages[arr[1]]
 				if !ok {
-					return "", nil, errors.Errorf("%s --from=%s: no stage found with that name", step.Command, arr[1])
+					return "", nil, commitIDs, errors.Errorf("%s --from=%s: no stage found with that name", step.Command, arr[1])
 				}
 				s.copyFrom = stage.mountPoint
 				break
@@ -909,7 +909,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 		if !s.executor.layers && s.executor.useCache {
 			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
-				return "", nil, errors.Wrapf(err, "error building at step %+v", *step)
+				return "", nil, commitIDs, errors.Wrapf(err, "error building at step %+v", *step)
 			}
 			continue
 		}
@@ -935,7 +935,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 		if checkForLayers && s.executor.useCache {
 			cacheID, err = s.layerExists(ctx, node, children[:i])
 			if err != nil {
-				return "", nil, errors.Wrap(err, "error checking if cached image exists from a previous build")
+				return "", nil, commitIDs, errors.Wrap(err, "error checking if cached image exists from a previous build")
 			}
 		}
 		if cacheID != "" {
@@ -949,7 +949,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 		// that the builder's root fs matches it.
 		if cacheID != "" && i == len(children)-1 {
 			if imgID, ref, err = s.copyExistingImage(ctx, cacheID, commitName); err != nil {
-				return "", nil, err
+				return "", nil, commitIDs, err
 			}
 			break
 		}
@@ -960,7 +960,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 			checkForLayers = false
 			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
-				return "", nil, errors.Wrapf(err, "error building at step %+v", *step)
+				return "", nil, commitIDs, errors.Wrapf(err, "error building at step %+v", *step)
 			}
 		}
 
@@ -968,11 +968,12 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 		if cacheID == "" {
 			imgID, ref, err = s.Commit(ctx, ib, getCreatedBy(node), commitName)
 			if err != nil {
-				return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
+				return "", nil, commitIDs, errors.Wrapf(err, "error committing container for step %+v", *step)
 			}
 			if i == len(children)-1 {
 				s.executor.log("COMMIT %s", commitName)
 			}
+			commitIDs = append(commitIDs, imgID)
 		} else {
 			// If we did find a cache, reuse the cached image's ID
 			// as the basis for the container for the next step.
@@ -983,16 +984,16 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 		if i < len(children)-1 {
 			s.containerIDs = append(s.containerIDs, s.builder.ContainerID)
 			if err := s.Prepare(ctx, stage, imgID); err != nil {
-				return "", nil, errors.Wrap(err, "error preparing container for next step")
+				return "", nil, commitIDs, errors.Wrap(err, "error preparing container for next step")
 			}
 		}
-	}
+	} //End for i, node := range node.Children
 
 	if s.executor.layers { // print out the final imageID if we're using layers flag
 		fmt.Fprintf(s.executor.out, "--> %s\n", imgID)
 	}
 
-	return imgID, ref, nil
+	return imgID, ref, commitIDs, nil
 }
 
 // copyExistingImage creates a copy of an image already in the store
@@ -1322,8 +1323,10 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		return "", nil, errors.New("error building: no stages to build")
 	}
 	var (
-		stageExecutor *StageExecutor
-		cleanupImages []string
+		stageExecutor   *StageExecutor
+		cleanupImages   []string
+		stageExecuteIDs []string
+		commitIDs       []string
 	)
 	cleanupStages := make(map[int]*StageExecutor)
 
@@ -1393,10 +1396,20 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		if b.forceRmIntermediateCtrs || !b.layers {
 			cleanupStages[stage.Position] = stageExecutor
 		}
-		if imageID, ref, err = stageExecutor.Execute(ctx, stage); err != nil {
+		if imageID, ref, stageExecuteIDs, err = stageExecutor.Execute(ctx, stage); err != nil {
 			lastErr = err
 		}
+		for _, imgID := range stageExecuteIDs {
+			commitIDs = append(commitIDs, imgID)
+		}
+
 		if lastErr != nil {
+			// Clean up any prior successful images and containers that were made
+			// when layers were in play.
+			cleanupStages[stage.Position] = stageExecutor
+			for _, imgID := range commitIDs {
+				cleanupImages = append(cleanupImages, imgID)
+			}
 			return "", nil, lastErr
 		}
 		if !b.forceRmIntermediateCtrs && b.removeIntermediateCtrs {

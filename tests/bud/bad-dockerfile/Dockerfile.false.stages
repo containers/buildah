@@ -1,0 +1,7 @@
+FROM busybox
+ENV RED=sox
+
+FROM alpine
+ENV FOO=bar
+ENV BAR=foo
+RUN /bin/false
