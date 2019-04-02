@@ -96,7 +96,7 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 		Ulimit:       append(defaultLimits, ulimit...),
 		Volumes:      volumes,
 	}
-	securityOpts, _ := c.Flags().GetStringSlice("security-opt")
+	securityOpts, _ := c.Flags().GetStringArray("security-opt")
 	if err := parseSecurityOpts(securityOpts, commonOpts); err != nil {
 		return nil, err
 	}

@@ -64,7 +64,7 @@ func init() {
 	flags.StringVar(&opts.runtime, "runtime", util.Runtime(), "`path` to an alternate OCI runtime")
 	flags.StringSliceVar(&opts.runtimeFlag, "runtime-flag", []string{}, "add global flags for the container runtime")
 	flags.BoolVar(&opts.noPivot, "no-pivot", false, "do not use pivot root to jail process inside rootfs")
-	flags.StringSliceVar(&opts.securityOption, "security-opt", []string{}, "security options (default [])")
+	flags.StringArrayVar(&opts.securityOption, "security-opt", []string{}, "security options (default [])")
 	// TODO add-third alias for tty
 	flags.BoolVarP(&opts.terminal, "terminal", "t", false, "allocate a pseudo-TTY in the container")
 	flags.BoolVar(&opts.terminal, "tty", false, "allocate a pseudo-TTY in the container")
