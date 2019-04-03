@@ -16,6 +16,12 @@ function setup() {
     ln -s $TESTSDIR/symlink/target $TESTSDIR/rhel/secrets/mysymlink
 }
 
+function teardown() {
+    for d in containers rhel symlink;do
+        rm -rf $TESTSDIR/$d
+    done
+}
+
 @test "bind secrets mounts to container" {
     if ! which runc ; then
 		skip "no runc in PATH"

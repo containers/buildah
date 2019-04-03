@@ -319,7 +319,7 @@ load helpers
   fi
   cid=$(buildah from --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid -- df -h
-  is "$output" ".*shm[[:space:]]\+80.0M[[:space:]]" "df -h"
+  is "$output" ".* 80.0M " "df -h"
   buildah rm $cid
 }
 
@@ -329,7 +329,7 @@ load helpers
   fi
   cid=$(buildah from --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah run $cid -- cat /etc/hosts
-  is "$output" ".*127.0.0.1[[:space:]]\+localhost" "/etc/hosts"
+  is "$output" ".*127.0.0.1 +localhost" "/etc/hosts"
   buildah rm $cid
 }
 

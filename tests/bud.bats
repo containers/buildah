@@ -878,7 +878,7 @@ load helpers
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-chown
-  is "$output" ".*user:2367[[:space:]]group:3267" "buildah bud output"
+  is "$output" ".*user:2367 group:3267" "buildah bud output"
   run_buildah --debug=false from --name ${ctrName} ${imgName}
   run_buildah --debug=false run alpine-chown -- stat -c '%u' /tmp/copychown.txt
   # Validate that output starts with "2367"
@@ -893,7 +893,7 @@ load helpers
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/add-chown
-  is "$output" ".*user:2367[[:space:]]group:3267" "buildah bud output"
+  is "$output" ".*user:2367 group:3267" "buildah bud output"
   run_buildah --debug=false from --name ${ctrName} ${imgName}
   run_buildah --debug=false run alpine-chown -- stat -c '%u' /tmp/addchown.txt
   # Validate that output starts with "2367"

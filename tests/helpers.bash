@@ -7,7 +7,7 @@ STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/..:${PATH}
 
 # Default timeout for a buildah command.
-BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-120}
+BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 
 function setup() {
 	suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | od -An -tx1 | sed -e 's, ,,g')
@@ -82,7 +82,7 @@ function run_buildah() {
 
     # stdout is only emitted upon error; this echo is to help a debugger
     echo "\$ $BUILDAH_BINARY $*"
-    run timeout --foreground -v --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} --debug --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
+    run timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} --debug --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
     # without "quotes", multiple lines are glommed together into one
     if [ -n "$output" ]; then
         echo "$output"
@@ -99,11 +99,13 @@ function run_buildah() {
         echo "]"
     fi
 
-    if [ "$status" -eq 124 ]; then
-        if expr "$output" : ".*timeout: sending" >/dev/null; then
-            echo "*** TIMED OUT ***"
-            false
-        fi
+    if [ "$status" -eq 124 -o "$status" -eq 137 ]; then
+        # FIXME: 'timeout -v' requires coreutils-8.29; travis seems to have
+        #        an older version. If/when travis updates, please add -v
+        #        to the 'timeout' command above, and un-comment this out:
+        # if expr "$output" : ".*timeout: sending" >/dev/null; then
+        echo "*** TIMED OUT ***"
+        false
     fi
 
     if [ -n "$expected_rc" ]; then
@@ -127,7 +129,7 @@ function die() {
 #  is  #  Compare actual vs expected string; fail w/diagnostic if mismatch
 ########
 #
-# Compares given string against expectations, using 'expr' to allow patterns.
+# Compares given string against expectations, using '=~' to allow patterns.
 #
 # Examples:
 #
@@ -147,7 +149,7 @@ function is() {
         expect='[no output]'
     elif [ "$actual" = "$expect" ]; then
 	return
-    elif expr "$actual" : "$expect" >/dev/null; then
+    elif [[ "$actual" =~ ^$expect ]]; then
         return
     fi
 
