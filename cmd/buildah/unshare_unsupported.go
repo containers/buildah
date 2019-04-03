@@ -16,6 +16,3 @@ func init() {
 	}
 	rootCmd.AddCommand(&unshareCommand)
 }
-
-func maybeReexecUsingUserNamespace(cmd string, evenForRoot bool) {
-}
