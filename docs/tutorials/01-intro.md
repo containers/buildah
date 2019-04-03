@@ -44,19 +44,19 @@ Notice we get a new shell prompt because we are running a bash shell inside of t
 
 Be sure to `exit` out of the container and let's try running something else:
 
-    # buildah run $container java
+    # buildah run $container strace ls
 
-Oops. Java is not installed. A message containing something like the following was returned.
+Oops. strace is not installed. A message containing something like the following was returned.
 
-    container_linux.go:274: starting container process caused "exec: \"java\": executable file not found in $PATH"
+    container_linux.go:345: starting container process caused "exec: \"strace\": executable file not found in $PATH"
 
 Lets try installing it using:
 
-    # buildah run $container -- dnf -y install java
+    # buildah run $container -- dnf -y install strace
 
 The `--` syntax basically tells Buildah: there are no more `buildah run` command options after this point. The options after this point are for inside the containers shell. It is required if the command we specify includes command line options which are not meant for Buildah.
 
-Now running `buildah run $container java` will show that Java has been installed. It will return the standard Java `Usage` output.
+Now running `buildah run $container strace ls` will demonstrate that strace has been installed.
 
 ## Building a container from scratch
 
