@@ -22,6 +22,10 @@ load helpers
   echo "$output"
   [ "$status" -ne 0 ]
 
+  run buildah run myctr ls -l subdir/sub1.txt
+  echo "$output"
+  [ "$status" -eq 0 ]
+
   buildah rmi -a -f
 }
 
