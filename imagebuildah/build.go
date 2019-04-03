@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -215,7 +214,8 @@ type Executor struct {
 	useCache                       bool
 	removeIntermediateCtrs         bool
 	forceRmIntermediateCtrs        bool
-	imageMap                       map[string]string // Used to map images that we create to handle the AS construct.
+	imageMap                       map[string]string           // Used to map images that we create to handle the AS construct.
+	containerMap                   map[string]*buildah.Builder // Used to map from image names to only-created-for-the-rootfs containers.
 	blobDirectory                  string
 	excludes                       []string
 	unusedArgs                     map[string]struct{}
@@ -496,6 +496,8 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			} else if len(copy.From) > 0 {
 				if other, ok := s.executor.stages[copy.From]; ok && other.index < s.index {
 					sources = append(sources, filepath.Join(other.mountPoint, src))
+				} else if builder, ok := s.executor.containerMap[copy.From]; ok {
+					sources = append(sources, filepath.Join(builder.MountPoint, src))
 				} else {
 					return errors.Errorf("the stage %q has not been built", copy.From)
 				}
@@ -654,6 +656,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		removeIntermediateCtrs:         options.RemoveIntermediateCtrs,
 		forceRmIntermediateCtrs:        options.ForceRmIntermediateCtrs,
 		imageMap:                       make(map[string]string),
+		containerMap:                   make(map[string]*buildah.Builder),
 		blobDirectory:                  options.BlobDirectory,
 		unusedArgs:                     make(map[string]struct{}),
 	}
@@ -683,7 +686,7 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 // prepare creates a working container based on the specified image, or if one
 // isn't specified, the first argument passed to the first FROM instruction we
 // can find in the stage's parsed tree.
-func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, from string, initializeIBConfig bool) error {
+func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, from string, initializeIBConfig, rebase bool) (builder *buildah.Builder, err error) {
 	ib := stage.Builder
 	node := stage.Node
 
@@ -691,7 +694,7 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 		base, err := ib.From(node)
 		if err != nil {
 			logrus.Debugf("prepare(node.Children=%#v)", node.Children)
-			return errors.Wrapf(err, "error determining starting point for build")
+			return nil, errors.Wrapf(err, "error determining starting point for build")
 		}
 		from = base
 	}
@@ -707,7 +710,7 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 		}
 	}
 
-	if initializeIBConfig {
+	if initializeIBConfig && rebase {
 		logrus.Debugf("FROM %#v", displayFrom)
 		if !s.executor.quiet {
 			s.executor.log("FROM %s", displayFrom)
@@ -739,9 +742,9 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 	if asImageFound, ok := s.executor.imageMap[from]; ok {
 		builderOptions.FromImage = asImageFound
 	}
-	builder, err := buildah.NewBuilder(ctx, s.executor.store, builderOptions)
+	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)
 	if err != nil {
-		return errors.Wrapf(err, "error creating build container")
+		return nil, errors.Wrapf(err, "error creating build container")
 	}
 
 	if initializeIBConfig {
@@ -792,7 +795,7 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 			if err2 := builder.Delete(); err2 != nil {
 				logrus.Debugf("error deleting container which we failed to update: %v", err2)
 			}
-			return errors.Wrapf(err, "error updating build context")
+			return nil, errors.Wrapf(err, "error updating build context")
 		}
 	}
 	mountPoint, err := builder.Mount(builder.MountLabel)
@@ -800,15 +803,18 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 		if err2 := builder.Delete(); err2 != nil {
 			logrus.Debugf("error deleting container which we failed to mount: %v", err2)
 		}
-		return errors.Wrapf(err, "error mounting new container")
+		return nil, errors.Wrapf(err, "error mounting new container")
 	}
-	s.mountPoint = mountPoint
-	s.builder = builder
-	// Add the top layer of this image to b.topLayers so we can keep track of them
-	// when building with cached images.
-	s.executor.topLayers = append(s.executor.topLayers, builder.TopLayer)
+	if rebase {
+		// Make this our "current" working container.
+		s.mountPoint = mountPoint
+		s.builder = builder
+		// Add the top layer of this image to b.topLayers so we can
+		// keep track of them when building with cached images.
+		s.executor.topLayers = append(s.executor.topLayers, builder.TopLayer)
+	}
 	logrus.Debugln("Container ID:", builder.ContainerID)
-	return nil
+	return builder, nil
 }
 
 // Delete deletes the stage's working container, if we have one.
@@ -861,6 +867,22 @@ func (*StageExecutor) stepRequiresCommit(step *imagebuilder.Step) bool {
 	return false
 }
 
+// getImageRootfs checks for an image matching the passed-in name in local
+// storage.  If it isn't found, it pulls down a copy.  Then, if we don't have a
+// working container root filesystem based on the image, it creates one.  Then
+// it returns that root filesystem's location.
+func (s *StageExecutor) getImageRootfs(ctx context.Context, stage imagebuilder.Stage, image string) (mountPoint string, err error) {
+	if builder, ok := s.executor.containerMap[image]; ok {
+		return builder.MountPoint, nil
+	}
+	builder, err := s.prepare(ctx, stage, image, false, false)
+	if err != nil {
+		return "", err
+	}
+	s.executor.containerMap[image] = builder
+	return builder.MountPoint, nil
+}
+
 // Execute runs each of the steps in the stage's parsed tree, in turn.
 func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, base string) (imgID string, ref reference.Canonical, err error) {
 	ib := stage.Builder
@@ -878,7 +900,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 	// Create the (first) working container for this stage.  Reinitializing
 	// the imagebuilder configuration may alter the list of steps we have,
 	// so take a snapshot of them *after* that.
-	if err := s.prepare(ctx, stage, base, true); err != nil {
+	if _, err := s.prepare(ctx, stage, base, true, true); err != nil {
 		return "", nil, err
 	}
 	children := stage.Node.Children
@@ -954,12 +976,17 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 		s.copyFrom = s.executor.contextDir
 		for _, n := range step.Flags {
 			if strings.Contains(n, "--from") && (step.Command == "copy" || step.Command == "add") {
+				var mountPoint string
 				arr := strings.Split(n, "=")
-				stage, ok := s.executor.stages[arr[1]]
+				otherStage, ok := s.executor.stages[arr[1]]
 				if !ok {
-					return "", nil, errors.Errorf("%s --from=%s: no stage found with that name", step.Command, arr[1])
+					if mountPoint, err = s.getImageRootfs(ctx, stage, arr[1]); err != nil {
+						return "", nil, errors.Errorf("%s --from=%s: no stage or image found with that name", step.Command, arr[1])
+					}
+				} else {
+					mountPoint = otherStage.mountPoint
 				}
-				s.copyFrom = stage.mountPoint
+				s.copyFrom = mountPoint
 				break
 			}
 		}
@@ -1109,7 +1136,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// base image.
 			// TODO: only create a new container if we know that
 			// we'll need the updated root filesystem.
-			if err := s.prepare(ctx, stage, imgID, false); err != nil {
+			if _, err := s.prepare(ctx, stage, imgID, false, true); err != nil {
 				return "", nil, errors.Wrap(err, "error preparing container for next step")
 			}
 		}
@@ -1451,6 +1478,14 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			}
 		}
 		cleanupStages = nil
+		// Clean up any builders that we used to get data from images.
+		for _, builder := range b.containerMap {
+			if err := builder.Delete(); err != nil {
+				logrus.Debugf("Failed to cleanup image containers: %v", err)
+				lastErr = err
+			}
+		}
+		b.containerMap = nil
 		// Clean up any intermediate containers associated with stages,
 		// since we're not keeping them for debugging.
 		if b.removeIntermediateCtrs {
@@ -1626,8 +1661,6 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 		dockerfiles = append(dockerfiles, data)
 	}
 
-	dockerfiles = processCopyFrom(dockerfiles)
-
 	mainNode, err := imagebuilder.ParseDockerfile(dockerfiles[0])
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "error parsing main Dockerfile")
@@ -1656,89 +1689,6 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 		stages = stagesTargeted
 	}
 	return exec.Build(ctx, stages)
-}
-
-// processCopyFrom goes through the Dockerfiles and handles any 'COPY --from' instances
-// prepending a new FROM statement the Dockerfile that do not already have a corresponding
-// FROM command within them.
-func processCopyFrom(dockerfiles []io.ReadCloser) []io.ReadCloser {
-	var newDockerfiles []io.ReadCloser
-	// fromMap contains the names of the images seen in a FROM
-	// line in the Dockerfiles.  The boolean value just completes the map object.
-	fromMap := make(map[string]bool)
-	// asMap contains the names of the images seen after a "FROM image AS"
-	// line in the Dockefiles.  The boolean value just completes the map object.
-	asMap := make(map[string]bool)
-	// foreignImages is the list of images that are referenced as sources
-	// of "COPY --from" instructions, but which are not the result of
-	// earlier stages in the build.
-	foreignImages := []string{}
-
-	copyRE := regexp.MustCompile(`\s*COPY\s+--from=`)
-	fromRE := regexp.MustCompile(`\s*FROM\s+`)
-	asRE := regexp.MustCompile(`(?i)\s+as\s+`)
-	for _, dfile := range dockerfiles {
-		if dfileBinary, err := ioutil.ReadAll(dfile); err == nil {
-			dfileString := fmt.Sprintf("%s", dfileBinary)
-			copyFromContent := copyRE.Split(dfileString, -1)
-			// no "COPY --from=", just continue
-			if len(copyFromContent) < 2 {
-				newDockerfiles = append(newDockerfiles, ioutil.NopCloser(strings.NewReader(dfileString)))
-				continue
-			}
-			// Load all image names in our Dockerfiles into a map
-			// for easy reference later.
-			fromContent := fromRE.Split(dfileString, -1)
-			for i := 0; i < len(fromContent); i++ {
-				imageName := strings.Split(fromContent[i], " ")
-				if len(imageName) > 0 {
-					finalImage := strings.Split(imageName[0], "\n")
-					if finalImage[0] != "" {
-						fromMap[strings.TrimSpace(finalImage[0])] = true
-					}
-				}
-			}
-			logrus.Debug("fromMap: ", fromMap)
-
-			// Load all image names associated with an 'as' or 'AS' in
-			// our Dockerfiles into a map for easy reference later.
-			asContent := asRE.Split(dfileString, -1)
-			// Skip the first entry in the array as it's stuff before
-			// the " as " and we don't care.
-			for i := 1; i < len(asContent); i++ {
-				asName := strings.Split(asContent[i], " ")
-				if len(asName) > 0 {
-					finalAsImage := strings.Split(asName[0], "\n")
-					if finalAsImage[0] != "" {
-						asMap[strings.TrimSpace(finalAsImage[0])] = true
-					}
-				}
-			}
-			logrus.Debug("asMap: ", asMap)
-
-			for i := 1; i < len(copyFromContent); i++ {
-				fromArray := strings.Split(copyFromContent[i], " ")
-				// If the image isn't a stage number or already declared,
-				// add a FROM statement for it to the top of our Dockerfile.
-				trimmedFrom := strings.TrimSpace(fromArray[0])
-				_, okFrom := fromMap[trimmedFrom]
-				_, okAs := asMap[trimmedFrom]
-				_, err := strconv.Atoi(trimmedFrom)
-				if !okFrom && !okAs && err != nil {
-					foreignImages = append(foreignImages, trimmedFrom)
-				}
-			}
-			newDockerfiles = append(newDockerfiles, ioutil.NopCloser(strings.NewReader(dfileString)))
-		} // End if dfileBinary, err := ioutil.ReadAll(dfile); err == nil
-	} // End for _, dfile := range dockerfiles {
-	// Build a list of ReadClosers that pull referenced images, in the order we first encountered them.
-	var foreignPulls []io.ReadCloser
-	for _, foreignImage := range dedupeStringSlice(foreignImages) {
-		from := "FROM " + foreignImage
-		foreignPulls = append(foreignPulls, ioutil.NopCloser(strings.NewReader(from)))
-	}
-	newDockerfiles = append(foreignPulls, newDockerfiles...)
-	return newDockerfiles
 }
 
 // deleteSuccessfulIntermediateCtrs goes through the container IDs in each
