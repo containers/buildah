@@ -972,6 +972,10 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 	// Now bind mount all of those things to be under the rootfs's location in this
 	// mount namespace.
 	commonFlags := uintptr(unix.MS_BIND | unix.MS_REC | unix.MS_PRIVATE)
+	// When running in a container, don't allow recursive mounts.
+	if os.Getenv("container") != "" {
+		commonFlags = uintptr(unix.MS_BIND | unix.MS_PRIVATE)
+	}
 	bindFlags := commonFlags | unix.MS_NODEV
 	devFlags := commonFlags | unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_RDONLY
 	procFlags := devFlags | unix.MS_NODEV
@@ -987,7 +991,7 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 			}
 		}
 		if err != nil {
-			return undoBinds, errors.Wrapf(err, "error bind mounting /dev from host into mount namespace")
+			return undoBinds, errors.Wrapf(err, "error bind mounting /dev from host into mount namespace [%v]", subDev)
 		}
 	}
 	// Make sure it's read-only.
