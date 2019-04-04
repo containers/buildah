@@ -950,7 +950,8 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 		if !s.executor.layers {
 			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
-				return "", nil, errors.Wrapf(err, "error building at step %+v", *step)
+				logrus.Debugf("%v", errors.Wrapf(err, "error building at step %+v", *step))
+				return "", nil, errors.Wrapf(err, "error building at STEP \"%s\"", step.Message)
 			}
 			if i < len(children)-1 {
 				// There are still more instructions to process
@@ -1027,7 +1028,8 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// process the instruction directly.
 			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
-				return "", nil, errors.Wrapf(err, "error building at step %+v", *step)
+				logrus.Debugf("%v", errors.Wrapf(err, "error building at step %+v", *step))
+				return "", nil, errors.Wrapf(err, "error building at STEP \"%s\"", step.Message)
 			}
 			if s.stepRequiresCommit(step) || i == len(children)-1 {
 				// Either this is the last instruction, or
