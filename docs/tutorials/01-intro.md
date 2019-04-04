@@ -93,13 +93,13 @@ Nope. This really is empty. The package installer `dnf` is not even inside this 
 By echoing `$scratchmnt` we can see the path for the [overlay image](https://wiki.archlinux.org/index.php/Overlay_filesystem), which gives you a link directly to the root file system of the container.
 
     # echo $scratchmnt
-    /var/lib/containers/storage/overlay/b78d0e11957d15b5d1fe776293bd40a36c28825fb6cf76f407b4d0a95b2a200d/diff
+    /var/lib/containers/storage/overlay/b78d0e11957d15b5d1fe776293bd40a36c28825fb6cf76f407b4d0a95b2a200d/merged
 
 Notice that the overlay image is under `/var/lib/containers/storage` as one would expect. (See above on `containers/storage` or for more information see [containers/storage](https://github.com/containers/storage).)
 
 Now that we have a new empty container we can install or remove software packages or simply copy content into that container. So let's install `bash` and `coreutils` so that we can run bash scripts. This could easily be `nginx` or other packages needed for your container.
 
-    # dnf install --installroot $scratchmnt --release 26 bash coreutils --setopt install_weak_deps=false -y
+    # dnf install --installroot $scratchmnt --releasever 29 bash coreutils --setopt install_weak_deps=false -y
 
 Let's try it out (showing the prompt in this example to demonstrate the difference):
 
@@ -161,7 +161,7 @@ It works! Congratulations, you have built a new OCI container from scratch that 
 Back to Buildah, let's add some more configuration information.
 
     # buildah config --created-by "ipbabble"  $newcontainer
-    # buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora26-bashecho $newcontainer
+    # buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora29-bashecho $newcontainer
 
 We can inspect the container's metadata using the `inspect` command:
 
