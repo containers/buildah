@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/containers/buildah/unshare"
+	"github.com/containers/buildah/pkg/unshare"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
