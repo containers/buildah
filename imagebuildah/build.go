@@ -909,7 +909,8 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 		if !s.executor.layers && s.executor.useCache {
 			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
-				return "", nil, errors.Wrapf(err, "error building at step %+v", *step)
+				logrus.Debugf("%v", errors.Wrapf(err, "error building at step %+v", *step))
+				return "", nil, errors.Wrapf(err, "error building at STEP \"%s\"", step.Message)
 			}
 			continue
 		}
@@ -960,7 +961,8 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage) (
 			checkForLayers = false
 			err := ib.Run(step, s, noRunsRemaining)
 			if err != nil {
-				return "", nil, errors.Wrapf(err, "error building at step %+v", *step)
+				logrus.Debugf("%v", errors.Wrapf(err, "error building at step %+v", *step))
+				return "", nil, errors.Wrapf(err, "error building at STEP \"%s\"", step.Message)
 			}
 		}
 
