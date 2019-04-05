@@ -56,13 +56,17 @@ load helpers
     skip "selinux is disabled"
   fi
 
-  skip "this test does not actually work (#1465)"
-
   image=alpine
 
   firstlabel="system_u:system_r:container_t:s0:c1,c2"
   # Create a container and read its context as a baseline.
   cid=$(buildah --debug=false from --security-opt label="level:s0:c1,c2" --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+
+  # Inspect image
+  run_buildah --debug=false inspect  --format '{{.ProcessLabel}}' $cid
+  is "$output" $firstlabel "buildah inspect"
+
+  # Check actual running context
   run_buildah --debug=false run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
-  is "$output" "$firstlabel" "container context"
+  is "$output" "$firstlabel" "running container context"
 }
