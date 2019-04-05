@@ -128,22 +128,49 @@ function die() {
     false
 }
 
-########
-#  is  #  Compare actual vs expected string; fail w/diagnostic if mismatch
-########
+###################
+#  expect_output  #  Compare actual vs expected string; fail if mismatch
+###################
 #
-# Compares given string against expectations, using '=~' to allow patterns.
+# Compares $output against the given string argument. Optional second
+# argument is descriptive text to show as the error message (default:
+# the command most recently run by 'run_buildah'). This text can be
+# useful to isolate a failure when there are multiple identical
+# run_buildah invocations, and the difference is solely in the
+# config or setup; see, e.g., run.bats:run-cmd().
+#
+# By default we run an exact string comparison; use --substring to
+# look for the given string anywhere in $output.
+#
+# By default we look in "$output", which is set in run_buildah().
+# To override, use --from="some-other-string" (e.g. "${lines[0]}")
 #
 # Examples:
 #
-#   is "$actual" "$expected" "descriptive test name"
-#   is "apple" "orange"  "name of a test that will fail in most universes"
-#   is "apple" "[a-z]\+" "this time it should pass"
+#   expect_output "this is exactly what we expect"
+#   expect_output "foo=bar"  "description of this particular test"
+#   expect_output --from="${lines[0]}"  "expected first line"
 #
-function is() {
-    local actual="$1"
-    local expect="$2"
-    local testname="${3:-FIXME}"
+function expect_output() {
+    # By default we examine $output, the result of run_buildah
+    local actual="$output"
+    local check_substring=
+
+    # option processing: recognize --from="...", --substring
+    local opt
+    for opt; do
+        local value=$(expr "$opt" : '[^=]*=\(.*\)')
+        case "$opt" in
+            --from=*)       actual="$value";   shift;;
+            --substring)    check_substring=1; shift;;
+            --)             shift; break;;
+            -*)             die "Invalid option '$opt'" ;;
+            *)              break;;
+        esac
+    done
+
+    local expect="$1"
+    local testname="${2:-${MOST_RECENT_BUILDAH_COMMAND:-[no test name given]}}"
 
     if [ -z "$expect" ]; then
         if [ -z "$actual" ]; then
@@ -152,8 +179,10 @@ function is() {
         expect='[no output]'
     elif [ "$actual" = "$expect" ]; then
 	return
-    elif [[ "$actual" =~ ^$expect ]]; then
-        return
+    elif [ -n "$check_substring" ]; then
+        if [[ "$actual" =~ $expect ]]; then
+            return
+        fi
     fi
 
     # This is a multi-line message, which may in turn contain multi-line

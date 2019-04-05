@@ -44,9 +44,9 @@ load helpers
   run_buildah --debug=false images -a
   expect_line_count 8
   run_buildah --debug=false  inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test2
-  is "$output" "foo=bar" "ContainerConfig.Env"
+  expect_output "foo=bar"
   run_buildah --debug=false inspect --format "{{.Docker.ContainerConfig.ExposedPorts}}" test2
-  is "$output" "map[8080/tcp:{}]" "ContainerConfig.ExposedPorts"
+  expect_output "map[8080/tcp:{}]"
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
@@ -180,7 +180,7 @@ load helpers
 
 @test "bud --layers with non-existent/down registry" {
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --force-rm --layers -t test1 -f Dockerfile.non-existent-registry ${TESTSDIR}/bud/use-layers
-  is "$output" ".*no such host" "expecting non-existent-registry"
+  expect_output --substring "no such host"
 }
 
 @test "bud from base image should have base image ENV also" {
@@ -189,9 +189,9 @@ load helpers
   buildah config --env random=hello,goodbye ${cid}
   buildah commit --signature-policy ${TESTSDIR}/policy.json ${cid} test1
   run_buildah --debug=false inspect --format '{{index .Docker.ContainerConfig.Env 1}}' test1
-  is "$output" "foo=bar" "image environment, index 1"
+  expect_output "foo=bar"
   run_buildah --debug=false inspect --format '{{index .Docker.ContainerConfig.Env 2}}' test1
-  is "$output" "random=hello,goodbye" "image environment, index 2"
+  expect_output "random=hello,goodbye"
   buildah rm ${cid}
   buildah rmi -a -f
 }
@@ -203,7 +203,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "output from buildah images"
+  expect_output ""
 }
 
 @test "bud-from-scratch-iid" {
@@ -214,14 +214,14 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-from-scratch-label" {
   target=scratch-image
   buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   run_buildah --debug=false inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
-  is "$output" 'map["test":"label"]' "buildah inspect"
+  expect_output 'map["test":"label"]'
 
   buildah rmi ${target}
 }
@@ -230,7 +230,7 @@ load helpers
   target=scratch-image
   buildah bud --annotation "test=annotation1,annotation2=z" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   run_buildah --debug=false inspect --format '{{printf "%q" .ImageAnnotations}}' ${target}
-  is "$output" 'map["test":"annotation1,annotation2=z"]' "buildah inspect"
+  expect_output 'map["test":"annotation1,annotation2=z"]'
   buildah rmi ${target}
 }
 
@@ -247,7 +247,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output"  "" "buildah images -q"
+  expect_output ""
 
   target=alpine-image
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.alpine -f Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files
@@ -261,7 +261,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-from-multiple-files-two-froms" {
@@ -279,7 +279,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 
   target=alpine-image
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.alpine -f Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files
@@ -296,7 +296,7 @@ load helpers
   buildah rmi -a
   run_buildah --debug=false images -q
   echo "$output"
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-multi-stage-builds" {
@@ -310,7 +310,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 
   target=multi-stage-name
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds
@@ -322,7 +322,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 
   target=multi-stage-mixed
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.mixed ${TESTSDIR}/bud/multi-stage-builds
@@ -334,7 +334,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-multi-stage-builds-small-as" {
@@ -348,7 +348,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 
   target=multi-stage-name
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds-small-as
@@ -360,7 +360,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 
   target=multi-stage-mixed
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.mixed ${TESTSDIR}/bud/multi-stage-builds-small-as
@@ -372,7 +372,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-preserve-subvolumes" {
@@ -395,7 +395,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-http-Dockerfile" {
@@ -407,7 +407,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-http-context-with-Dockerfile" {
@@ -419,7 +419,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-http-context-dir-with-Dockerfile-pre" {
@@ -431,7 +431,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-http-context-dir-with-Dockerfile-post" {
@@ -443,7 +443,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-git-context" {
@@ -462,7 +462,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-github-context" {
@@ -475,7 +475,7 @@ load helpers
   buildah --debug=false images -q
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-additional-tags" {
@@ -492,7 +492,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi -f $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-volume-perms" {
@@ -513,7 +513,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-from-glob" {
@@ -526,43 +526,43 @@ load helpers
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-maintainer" {
   target=alpine-image
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/maintainer
   run_buildah --debug=false inspect --type=image --format '{{.Docker.Author}}' ${target}
-  is "$output" "kilroy" "buildah inspect - .Docker.Author"
+  expect_output "kilroy"
   run_buildah --debug=false inspect --type=image --format '{{.OCIv1.Author}}' ${target}
-  is "$output" "kilroy" "buildah inspect - .OCIv1.Author"
+  expect_output "kilroy"
   buildah rmi -a
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-unrecognized-instruction" {
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/unrecognized
-  is "$output" ".*BOGUS" "buildah bud - unrecognized"
+  expect_output --substring "BOGUS"
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud-shell" {
   target=alpine-image
   buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/shell
   run_buildah --debug=false inspect --type=image --format '{{printf "%q" .Docker.Config.Shell}}' ${target}
-  is "$output" '["/bin/sh" "-c"]' ".Docker.Config.Shell (original)"
+  expect_output '["/bin/sh" "-c"]' ".Docker.Config.Shell (original)"
   ctr=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   run_buildah --debug=false config --shell "/bin/bash -c" ${ctr}
   run_buildah --debug=false inspect --type=container --format '{{printf "%q" .Docker.Config.Shell}}' ${ctr}
-  is "$output" '["/bin/bash" "-c"]' ".Docker.Config.Shell (changed)"
+  expect_output '["/bin/bash" "-c"]' ".Docker.Config.Shell (changed)"
   buildah rm ${ctr}
   buildah rmi -a
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud with symlinks" {
@@ -636,7 +636,7 @@ load helpers
 @test "bud with ENTRYPOINT and RUN" {
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.entrypoint-run ${TESTSDIR}/bud/run-scenarios
-  is "$output" ".*unique.test.string" "buildah bud run-scenarios"
+  expect_output --substring "unique.test.string"
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   buildah rm ${cid}
   buildah rmi ${target}
@@ -645,13 +645,13 @@ load helpers
 @test "bud with ENTRYPOINT and empty RUN" {
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.entrypoint-empty-run ${TESTSDIR}/bud/run-scenarios
-  is "$output" ".*error building at step" "buildah bud output"
+  expect_output --substring "error building at step"
 }
 
 @test "bud with CMD and RUN" {
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.cmd-run ${TESTSDIR}/bud/run-scenarios
-  is "$output" ".*unique.test.string" "buildah bud output"
+  expect_output --substring "unique.test.string"
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   buildah rm ${cid}
   buildah rmi ${target}
@@ -660,13 +660,13 @@ load helpers
 @test "bud with CMD and empty RUN" {
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.cmd-empty-run ${TESTSDIR}/bud/run-scenarios
-  is "$output" ".*error building at step" "buildah bud output"
+  expect_output --substring "error building at step"
 }
 
 @test "bud with ENTRYPOINT, CMD and RUN" {
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-run ${TESTSDIR}/bud/run-scenarios
-  is "$output" ".*unique.test.string" "buildah bud output"
+  expect_output --substring "unique.test.string"
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   buildah rm ${cid}
   buildah rmi ${target}
@@ -675,14 +675,14 @@ load helpers
 @test "bud with ENTRYPOINT, CMD and empty RUN" {
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-empty-run ${TESTSDIR}/bud/run-scenarios
-  is "$output" ".*error building at step" "buildah bud output"
+  expect_output --substring "error building at step"
 }
 
 # Determines if a variable set with ENV is available to following commands in the Dockerfile
 @test "bud access ENV variable defined in same source file" {
   target=env-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/env/Dockerfile.env-same-file ${TESTSDIR}/bud/env
-  is "$output" ".*:unique.test.string:" "buildah bud output"
+  expect_output --substring ":unique.test.string:"
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   buildah rm ${cid}
   buildah rmi ${target}
@@ -694,7 +694,7 @@ load helpers
   target=env-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${from_target} -f ${TESTSDIR}/bud/env/Dockerfile.env-same-file ${TESTSDIR}/bud/env
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/env/Dockerfile.env-from-image ${TESTSDIR}/bud/env
-  is "$output" ".*@unique.test.string@" "buildah bud output"
+  expect_output --substring "@unique.test.string@"
   from_cid=$(buildah from ${from_target})
   cid=$(buildah from ${target})
   buildah rm ${from_cid} ${cid}
@@ -750,7 +750,7 @@ load helpers
 @test "bud with --cpu-shares flag, invalid argument" {
   target=bud-flag
   run_buildah 1 bud --cpu-shares bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
-  is "$output" ".*invalid argument \"bogus\" for " "buildah bud output"
+  expect_output --substring "invalid argument \"bogus\" for "
 }
 
 @test "bud with --cpu-shares flag, valid argument" {
@@ -769,7 +769,7 @@ load helpers
 @test "bud with --cpu-shares short flag (-c), invalid argument" {
   target=bud-flag
   run_buildah 1 bud -c bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
-  is "$output" "invalid argument \"bogus\" for " "buildah bud output"
+  expect_output --substring "invalid argument \"bogus\" for "
 }
 
 @test "bud with --cpu-shares short flag (-c), valid argument" {
@@ -784,7 +784,7 @@ load helpers
   target=onbuild
   buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/onbuild
   run_buildah --debug=false inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
-  is "$output" '["RUN touch /onbuild1" "RUN touch /onbuild2"]' ".Config.OnBuild"
+  expect_output '["RUN touch /onbuild1" "RUN touch /onbuild2"]'
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
   run ls ${root}/onbuild1 ${root}/onbuild2
@@ -796,7 +796,7 @@ load helpers
   target=onbuild-image2
   buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1 ${TESTSDIR}/bud/onbuild
   run_buildah --debug=false inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
-  is "$output" '["RUN touch /onbuild3"]' ".Config.OnBuild"
+  expect_output '["RUN touch /onbuild3"]'
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
   run ls ${root}/onbuild1 ${root}/onbuild2 ${root}/onbuild3
@@ -809,7 +809,7 @@ load helpers
   target=onbuild-image3
   buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker ${cid} ${target}
   run_buildah --debug=false inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
-  is "$output" '["RUN touch /onbuild4"]' ".Config.OnBuild"
+  expect_output '["RUN touch /onbuild4"]'
   buildah rm ${cid}
   buildah rmi --all
 }
@@ -817,39 +817,37 @@ load helpers
 @test "bud-onbuild-layers" {
   target=onbuild
   buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile2 ${TESTSDIR}/bud/onbuild
-  run buildah --debug=false inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
-  echo "$output"
-  [ "$status" -eq 0 ]
-  [ "$output" = '["RUN touch /onbuild1" "RUN touch /onbuild2"]' ]
+  run_buildah --debug=false inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
+  expect_output '["RUN touch /onbuild1" "RUN touch /onbuild2"]'
 }
 
 @test "bud-logfile" {
   rm -f ${TESTDIR}/logfile
   run_buildah bud --logfile ${TESTDIR}/logfile --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/preserve-volumes
-  is "$output" "" "buildah bud output"
+  expect_output ""
   test -s ${TESTDIR}/logfile
 }
 
 @test "bud with ARGS" {
   target=alpine-image
   run_buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.args ${TESTSDIR}/bud/run-scenarios
-  is "$output" ".*arg_value" "buildah bud output"
+  expect_output --substring "arg_value"
 }
 
 @test "bud with unused ARGS" {
   target=alpine-image
   run_buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=USED_VALUE ${TESTSDIR}/bud/run-scenarios
-  is "$output" ".*USED_VALUE" "buildah bud output"
+  expect_output --substring "USED_VALUE"
   [[ ! "$output" =~ "one or more build args were not consumed: [UNUSED_ARG]" ]]
   run_buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=USED_VALUE --build-arg UNUSED_ARG=whaaaat ${TESTSDIR}/bud/run-scenarios
-  is "$output" ".*USED_VALUE" "buildah bud output"
-  is "$output" ".*one or more build args were not consumed: \[UNUSED_ARG\]" "buildah bud output"
+  expect_output --substring "USED_VALUE"
+  expect_output --substring "one or more build args were not consumed: \[UNUSED_ARG\]"
 }
 
 @test "bud with multi-value ARGS" {
   target=alpine-image
   run_buildah --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=plugin1,plugin2,plugin3 ${TESTSDIR}/bud/run-scenarios
-  is "$output" ".*plugin1,plugin2,plugin3" "buildah bud output"
+  expect_output --substring "plugin1,plugin2,plugin3"
   [[ ! "$output" =~ "one or more build args were not consumed: [UNUSED_ARG]" ]]
 }
 
@@ -864,7 +862,7 @@ load helpers
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
   run_buildah --debug=false images -q
-  is "$output" "" "buildah images -q"
+  expect_output ""
 }
 
 @test "bud with preprocessor" {
@@ -880,89 +878,89 @@ load helpers
 @test "bud-with-rejected-name" {
   target=ThisNameShouldBeRejected
   run_buildah 1 --debug=false bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
-  is "$output" ".*must be lower" "buildah bud output"
+  expect_output --substring "must be lower"
 }
 
 @test "bud with chown copy" {
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-chown
-  is "$output" ".*user:2367 group:3267" "buildah bud output"
+  expect_output --substring "user:2367 group:3267"
   run_buildah --debug=false from --name ${ctrName} ${imgName}
   run_buildah --debug=false run alpine-chown -- stat -c '%u' /tmp/copychown.txt
   # Validate that output starts with "2367"
-  is "$output" "2367.*" "output from stat"
+  expect_output --substring "2367"
 
   run_buildah --debug=false run alpine-chown -- stat -c '%g' /tmp/copychown.txt
   # Validate that output starts with "3267"
-  is "$output" "3267.*" "output from stat"
+  expect_output --substring "3267"
 }
 
 @test "bud with chown add" {
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/add-chown
-  is "$output" ".*user:2367 group:3267" "buildah bud output"
+  expect_output --substring "user:2367 group:3267"
   run_buildah --debug=false from --name ${ctrName} ${imgName}
   run_buildah --debug=false run alpine-chown -- stat -c '%u' /tmp/addchown.txt
   # Validate that output starts with "2367"
-  is "$output" "2367.*" "output from stat"
+  expect_output --substring "2367"
 
   run_buildah --debug=false run alpine-chown -- stat -c '%g' /tmp/addchown.txt
   # Validate that output starts with "3267"
-  is "$output" "3267.*" "output from stat"
+  expect_output --substring "3267"
 }
 
 @test "bud with ADD file construct" {
   buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/add-file
   run_buildah --debug=false images -a
-  is "$output" ".*test1" "buildah images -a"
+  expect_output --substring "test1"
 
   ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json test1)
   run_buildah --debug=false containers -a
-  is "$output" ".*test1" "buildah containers -a"
+  expect_output --substring "test1"
 
   run_buildah --debug=false run $ctr ls /var/file2
-  is "$output" ".*/var/file2" "buildah run ls"
+  expect_output --substring "/var/file2"
 }
 
 @test "bud with FROM AS construct" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
   run_buildah --debug=false images -a
-  is "$output"  ".*test1" "buildah images -a"
+  expect_output --substring "test1"
 
   ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json test1)
   run_buildah --debug=false containers -a
-  is "$output" ".*test1" "buildah containers -a"
+  expect_output --substring "test1"
 
   run_buildah inspect --format "{{.Docker.ContainerConfig.Env}}" --type image test1
-  is "$output" ".*LOCAL=/1" ".ContainerConfig.Env"
+  expect_output --substring "LOCAL=/1"
 }
 
 @test "bud with FROM AS construct with layers" {
   buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
   run_buildah --debug=false images -a
-  is "$output" ".*test1" "buildah images -a"
+  expect_output --substring "test1"
 
   ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json test1)
   run_buildah --debug=false containers -a
-  is "$output" ".*test1" "buildah containers -a"
+  expect_output --substring "test1"
 
   run_buildah inspect --format "{{.Docker.ContainerConfig.Env}}" --type image test1
-  is "$output" ".*LOCAL=/1" ".ContainerConfig.Env"
+  expect_output --substring "LOCAL=/1"
 }
 
 @test "bud with FROM AS skip FROM construct" {
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t test1 -f ${TESTSDIR}/bud/from-as/Dockerfile.skip ${TESTSDIR}/bud/from-as
-  is "$output" ".*LOCAL=/1" "buildah bud output"
-  is "$output" ".*LOCAL2=/2" "buildah bud output"
+  expect_output --substring "LOCAL=/1"
+  expect_output --substring "LOCAL2=/2"
 
   run_buildah --debug=false images -a
-  is "$output" ".*test1" "buildah images -a"
+  expect_output --substring "test1"
 
   ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json test1)
   run_buildah --debug=false containers -a
-  is "$output" ".*test1" "buildah containers -a"
+  expect_output --substring "test1"
 
   mnt=$(buildah mount $ctr)
   run test -e $mnt/1
@@ -971,25 +969,25 @@ load helpers
   [ "${status}" -ne 0 ]
 
   run_buildah --debug=false inspect --format "{{.Docker.ContainerConfig.Env}}" --type image test1
-  is "$output" "[PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin LOCAL=/1]" ".ContainerConfig.Env"
+  expect_output "[PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin LOCAL=/1]"
 }
 
 @test "bud with symlink Dockerfile not specified in file" {
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink ${TESTSDIR}/bud/symlink
-  is "$output" ".*FROM alpine" "buildah bud output"
+  expect_output --substring "FROM alpine"
 }
 
 @test "bud with dir for file but no Dockerfile in dir" {
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/empty-dir ${TESTSDIR}/bud/empty-dir
-  is "$output" ".*no such file or directory" "buildah bud output"
+  expect_output --substring "no such file or directory"
 }
 
 @test "bud with bad dir Dockerfile" {
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/baddirname ${TESTSDIR}/baddirname
-  is "$output" ".*no such file or directory" "buildah bud output"
+  expect_output --substring "no such file or directory"
 }
 
 @test "bud with ARG before FROM default value" {
@@ -1010,7 +1008,7 @@ load helpers
   threeseconds=$(( 3 * $second ))
   fiveminutes=$(( 5 * 60 * $second ))
   tenminutes=$(( 10 * 60 * $second ))
-  is "$output" '["CMD-SHELL" "curl -f http://localhost/ || exit 1"]'" $tenminutes $fiveminutes $threeseconds 4" "Healthcheck config"
+  expect_output '["CMD-SHELL" "curl -f http://localhost/ || exit 1"]'" $tenminutes $fiveminutes $threeseconds 4" "Healthcheck config"
 }
 
 @test "bud with unused build arg" {
@@ -1034,8 +1032,8 @@ load helpers
 @test "bud-target" {
   target=target
   run_buildah bud --debug=false --signature-policy ${TESTSDIR}/policy.json -t ${target} --target mytarget ${TESTSDIR}/bud/target
-  is "$output" ".*STEP 1: FROM ubuntu:latest" "buildah bud output"
-  is "$output" ".*STEP 3: FROM alpine:latest AS mytarget" "buildah bud output"
+  expect_output --substring "STEP 1: FROM ubuntu:latest"
+  expect_output --substring "STEP 3: FROM alpine:latest AS mytarget"
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
   run ls ${root}/2

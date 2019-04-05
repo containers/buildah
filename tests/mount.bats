@@ -50,9 +50,9 @@ load helpers
   cid3=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid3"
   run_buildah --debug=false mount
-  is "${lines[0]}" ".*/tmp" "mount line 1 of 3"
-  is "${lines[1]}" ".*/tmp" "mount line 2 of 3"
-  is "${lines[2]}" ".*/tmp" "mount line 3 of 3"
+  expect_output --from="${lines[0]}" --substring "/tmp" "mount line 1 of 3"
+  expect_output --from="${lines[1]}" --substring "/tmp" "mount line 2 of 3"
+  expect_output --from="${lines[2]}" --substring "/tmp" "mount line 3 of 3"
   expect_line_count 3
 
   buildah rm --all

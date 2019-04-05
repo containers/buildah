@@ -27,7 +27,7 @@ load helpers
       run_buildah --debug=false inspect -f "{{.FromImageID}}" $cid
       expect_line_count 1
       if [ "$lastid" != "" ] ; then
-        is "$output" "$lastid" ".FromImageId"
+        expect_output "$lastid"
       fi
       lastid="$output"
     done

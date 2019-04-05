@@ -12,9 +12,9 @@ load helpers
 
 @test "remove multiple containers errors" {
   run_buildah 1 --debug=false rm mycontainer1 mycontainer2 mycontainer3
-  is "${lines[0]}" "error removing container \"mycontainer1\": error reading build container: container not known" "output line 1"
-  is "${lines[1]}" "error removing container \"mycontainer2\": error reading build container: container not known" "output line 2"
-  is "${lines[2]}" "error removing container \"mycontainer3\": error reading build container: container not known" "output line 3"
+  expect_output --from="${lines[0]}" "error removing container \"mycontainer1\": error reading build container: container not known" "output line 1"
+  expect_output --from="${lines[1]}" "error removing container \"mycontainer2\": error reading build container: container not known" "output line 2"
+  expect_output --from="${lines[2]}" "error removing container \"mycontainer3\": error reading build container: container not known" "output line 3"
   expect_line_count 3
 }
 
@@ -42,7 +42,7 @@ load helpers
 @test "use conflicting commands to remove containers" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah 1 --debug=false rm -a "$cid"
-  is "$output" ".*when using the --all switch, you may not pass any containers names or IDs" "output from buildah rm -a cid"
+  expect_output --substring "when using the --all switch, you may not pass any containers names or IDs"
   run_buildah rm "$cid"
   run_buildah rmi alpine
 }

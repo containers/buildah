@@ -20,10 +20,11 @@ function check_matrix() {
   local setting=$1
   local expect=$2
 
+  # matrix test: all permutations of .Docker.* and .OCIv1.* in all image types
   for image in docker oci; do
       for which in Docker OCIv1; do
         run_buildah --debug=false inspect --type=image --format "{{.$which.$setting}}" scratch-image-$image
-        is "$output" "$expect" "scratch-image-$image > .$which.$setting"
+        expect_output "$expect"
     done
   done
 }
@@ -144,16 +145,16 @@ function check_matrix() {
 
   buildah --debug=false inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
 
-  check_matrix 'Config.User'         'likes:things'
-  check_matrix 'Config.ExposedPorts' 'map[12345:{}]'
-  check_matrix 'Config.Env'          '[VARIABLE=VALUE1,VALUE2]'
-  check_matrix 'Config.Entrypoint'   '[/bin/sh -c /ENTRYPOINT]'
   check_matrix 'Config.Cmd'          '[COMMAND-OR-ARGS]'
+  check_matrix 'Config.Entrypoint'   '[/bin/sh -c /ENTRYPOINT]'
+  check_matrix 'Config.Env'          '[VARIABLE=VALUE1,VALUE2]'
+  check_matrix 'Config.ExposedPorts' 'map[12345:{}]'
+  check_matrix 'Config.Labels.exec'  'podman run -it --mount=type=bind,bind-propagation=Z,source=foo,destination=bar /script buz'
+  check_matrix 'Config.Labels.LABEL' 'VALUE'
+  check_matrix 'Config.StopSignal'   'SIGINT'
+  check_matrix 'Config.User'         'likes:things'
   check_matrix 'Config.Volumes'      'map[/VOLUME:{}]'
   check_matrix 'Config.WorkingDir'   '/tmp'
-  check_matrix 'Config.Labels'       '.*LABEL:VALUE'
-  check_matrix 'Config.Labels'       '.*exec:podman run -it --mount=type=bind,bind-propagation=Z,source=foo,destination=bar /script buz'
-  check_matrix 'Config.StopSignal'   'SIGINT'
 
   buildah --debug=false inspect --type=image --format '{{(index .Docker.History 0).Comment}}' scratch-image-docker | grep PROBABLY-EMPTY
   buildah --debug=false inspect --type=image --format '{{(index .OCIv1.History 0).Comment}}' scratch-image-docker | grep PROBABLY-EMPTY
@@ -182,10 +183,10 @@ function check_matrix() {
   buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid env-image-oci
 
   run_buildah --debug=false inspect --type=image --format '{{.Docker.Config.Env}}' env-image-docker
-  is "$output" ".*combined=bar/bar1" ".Docker.Config.Env"
+  expect_output --substring "combined=bar/bar1"
 
   run_buildah --debug=false inspect --type=image --format '{{.OCIv1.Config.Env}}' env-image-docker
-  is "$output" ".*combined=bar/bar1" ".OCIv1.Config.Env"
+  expect_output --substring "combined=bar/bar1"
 
   buildah rm $cid
   buildah rmi env-image-docker env-image-oci
@@ -196,13 +197,13 @@ function check_matrix() {
   bndoutput=$(buildah --debug=false run $cid grep CapBnd /proc/self/status)
   buildah config --user 1000 $cid
   run_buildah --debug=false run $cid id -u
-  is "$output" "1000" "id -u in container"
+  expect_output "1000"
 
   run_buildah --debug=false run $cid sh -c "grep CapEff /proc/self/status | cut -f2"
-  is "$output" "0000000000000000" "CapEff in /proc/self/status"
+  expect_output "0000000000000000"
 
   run_buildah --debug=false run $cid grep CapBnd /proc/self/status
-  is "$output" "$bndoutput" "CapBnd in /proc/self/status"
+  expect_output "$bndoutput"
 
   buildah rm $cid
 }

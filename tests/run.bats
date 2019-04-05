@@ -12,10 +12,10 @@ load helpers
 	root=$(buildah mount $cid)
 	buildah config --workingdir /tmp $cid
 	run_buildah --debug=false run $cid pwd
-	is "$output" "/tmp" "pwd"
+	expect_output "/tmp"
 	buildah config --workingdir /root $cid
 	run_buildah --debug=false run        $cid pwd
-	is "$output" "/root" "pwd"
+	expect_output "/root"
 	cp ${TESTDIR}/randomfile $root/tmp/
 	buildah run        $cid cp /tmp/randomfile /tmp/other-randomfile
 	test -s $root/tmp/other-randomfile
@@ -36,19 +36,19 @@ load helpers
 
 	# This should succeed, because buildah run stops caring at the --, which is preserved as part of the command.
 	run_buildah --debug=false run $cid echo -- -n test
-	is "$output" "-- -n test" "echo"
+	expect_output -- "-- -n test"
 
 	# This should succeed, because buildah run stops caring at the --, which is not part of the command.
 	run_buildah --debug=false run $cid -- echo -n -- test
-	is "$output" "-- test" "echo"
+	expect_output -- "-- test"
 
 	# This should succeed, because buildah run stops caring at the --.
 	run_buildah --debug=false run $cid -- echo -- -n test --
-	is "$output" "-- -n test --" "echo"
+	expect_output -- "-- -n test --"
 
 	# This should succeed, because buildah run stops caring at the --.
 	run_buildah --debug=false run $cid -- echo -n "test"
-	is "$output" "test" "echo"
+	expect_output "test"
 
 	buildah rm $cid
 }
@@ -67,57 +67,57 @@ load helpers
 	buildah config --entrypoint "" $cid
 	buildah config --cmd pwd $cid
 	run_buildah 1 --debug=false run $cid
-	is "$output" ".*command must be specified" "empty entrypoint, cmd, no args"
+	expect_output --substring "command must be specified" "empty entrypoint, cmd, no args"
 
 	# empty entrypoint, configured cmd, empty run arguments, end parsing option
 	buildah config --entrypoint "" $cid
 	buildah config --cmd pwd $cid
 	run_buildah 1 --debug=false run $cid --
-	is "$output" ".*command must be specified" "empty entrypoint, cmd, no args, --"
+	expect_output --substring "command must be specified" "empty entrypoint, cmd, no args, --"
 
 	# configured entrypoint, empty cmd, empty run arguments
 	buildah config --entrypoint pwd $cid
 	buildah config --cmd "" $cid
 	run_buildah 1 --debug=false run $cid
-	is "$output" ".*command must be specified" "entrypoint, empty cmd, no args"
+	expect_output --substring "command must be specified" "entrypoint, empty cmd, no args"
 
 	# configured entrypoint, empty cmd, empty run arguments, end parsing option
 	buildah config --entrypoint pwd $cid
 	buildah config --cmd "" $cid
 	run_buildah 1 --debug=false run $cid --
-	is "$output" ".*command must be specified" "entrypoint, empty cmd, no args, --"
+	expect_output --substring "command must be specified" "entrypoint, empty cmd, no args, --"
 
 	# configured entrypoint only, empty run arguments
 	buildah config --entrypoint pwd $cid
 	run_buildah 1 --debug=false run $cid
-	is "$output" ".*command must be specified" "entrypoint, no args"
+	expect_output --substring "command must be specified" "entrypoint, no args"
 
 	# configured entrypoint only, empty run arguments, end parsing option
 	buildah config --entrypoint pwd $cid
 	run_buildah 1 --debug=false run $cid --
-	is "$output" ".*command must be specified" "entrypoint, no args, --"
+	expect_output --substring "command must be specified" "entrypoint, no args, --"
 
 	# cofigured cmd only, empty run arguments
 	buildah config --cmd pwd $cid
 	run_buildah 1 --debug=false run $cid
-	is "$output" ".*command must be specified" "cmd, no args"
+	expect_output --substring "command must be specified" "cmd, no args"
 
 	# configured cmd only, empty run arguments, end parsing option
 	buildah config --cmd pwd $cid
 	run_buildah 1 --debug=false run $cid --
-	is "$output" ".*command must be specified" "cmd, no args, --"
+	expect_output --substring "command must be specified" "cmd, no args, --"
 
 	# configured entrypoint, configured cmd, empty run arguments
 	buildah config --entrypoint "pwd" $cid
 	buildah config --cmd "whoami" $cid
 	run_buildah 1 --debug=false run $cid
-	is "$output" ".*command must be specified" "entrypoint, cmd, no args"
+	expect_output --substring "command must be specified" "entrypoint, cmd, no args"
 
 	# configured entrypoint, configured cmd, empty run arguments, end parsing option
 	buildah config --entrypoint "pwd" $cid
 	buildah config --cmd "whoami" $cid
 	run_buildah 1 --debug=false run $cid --
-	is "$output" ".*command must be specified" "entrypoint, cmd, no args"
+	expect_output --substring "command must be specified"  "entrypoint, cmd, no args"
 
 
 	# Configured entrypoint/cmd shouldn't modify behaviour of run with argument
@@ -127,29 +127,29 @@ load helpers
 	buildah config --entrypoint "" $cid
 	buildah config --cmd "/invalid/cmd" $cid
 	run_buildah --debug=false run $cid -- pwd
-	is "$output" "/tmp" "empty entrypoint, invalid cmd, pwd"
+	expect_output "/tmp" "empty entrypoint, invalid cmd, pwd"
 
         # configured entrypoint, empty cmd, configured run arguments
         buildah config --entrypoint "/invalid/entrypoint" $cid
         buildah config --cmd "" $cid
         run_buildah --debug=false run $cid -- pwd
-	is "$output" "/tmp" "invalid entrypoint, empty cmd, pwd"
+	expect_output "/tmp" "invalid entrypoint, empty cmd, pwd"
 
         # configured entrypoint only, configured run arguments
         buildah config --entrypoint "/invalid/entrypoint" $cid
         run_buildah --debug=false run $cid -- pwd
-	is "$output" "/tmp" "invalid entrypoint, no cmd(??), pwd"
+	expect_output "/tmp" "invalid entrypoint, no cmd(??), pwd"
 
         # cofigured cmd only, configured run arguments
         buildah config --cmd "/invalid/cmd" $cid
         run_buildah --debug=false run $cid -- pwd
-	is "$output" "/tmp" "invalid cmd, no entrypoint(??), pwd"
+	expect_output "/tmp" "invalid cmd, no entrypoint(??), pwd"
 
         # configured entrypoint, configured cmd, configured run arguments
         buildah config --entrypoint "/invalid/entrypoint" $cid
         buildah config --cmd "/invalid/cmd" $cid
         run_buildah --debug=false run $cid -- pwd
-	is "$output" "/tmp" "invalid cmd & entrypoint, pwd"
+	expect_output "/tmp" "invalid cmd & entrypoint, pwd"
 
 	buildah rm $cid
 }
@@ -161,10 +161,10 @@ function configure_and_check_user() {
 
     run_buildah config -u "$setting" $cid
     run_buildah --debug=false run -- $cid id -u
-    is "$output" "$expect_u" "id -u ($setting)"
+    expect_output "$expect_u" "id -u ($setting)"
 
     run_buildah --debug=false run -- $cid id -g
-    is "$output" "$expect_g" "id -g ($setting)"
+    expect_output "$expect_g" "id -g ($setting)"
 }
 
 @test "run-user" {
@@ -201,15 +201,15 @@ function configure_and_check_user() {
 
         buildah config -u ${testbogususer} $cid
         run_buildah 1 --debug=false run -- $cid id -u
-        is "$output" ".*unknown user" "id -u (bogus user)"
+        expect_output --substring "unknown user" "id -u (bogus user)"
         run_buildah 1 --debug=false run -- $cid id -g
-        is "$output" ".*unknown user" "id -g (bogus user)"
+        expect_output --substring "unknown user" "id -g (bogus user)"
 
 	ln -vsf /etc/passwd $root/etc/passwd
 	buildah config -u ${testuser}:${testgroup} $cid
 	run_buildah 1 --debug=false run -- $cid id -u
 	echo "$output"
-	is "$output" ".*unknown user" "run as unknown user"
+	expect_output --substring "unknown user" "run as unknown user"
 
 	buildah unmount $cid
 	buildah rm $cid
@@ -227,7 +227,7 @@ function configure_and_check_user() {
 	run_buildah --debug=false run $cid hostname
 	[ "$output" != "foobar" ]
 	run_buildah --debug=false run --hostname foobar $cid hostname
-	is "$output" "foobar" "hostname"
+	expect_output "foobar"
 	buildah rm $cid
 }
 
@@ -298,23 +298,23 @@ function configure_and_check_user() {
 	fi
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run_buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
-	is "$output" "1048576" "limits: open files (unlimited)"
+	expect_output "1048576" "limits: open files (unlimited)"
 	run_buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
-	is "$output" "1048576" "limits: processes (unlimited)"
+	expect_output "1048576" "limits: processes (unlimited)"
 	buildah rm $cid
 
 	cid=$(buildah from --ulimit nofile=300:400 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run_buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
-	is "$output" "300" "limits: open files (w/file limit)"
+	expect_output "300" "limits: open files (w/file limit)"
 	run_buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
-	is "$output" "1048576" "limits: processes (w/file limit)"
+	expect_output "1048576" "limits: processes (w/file limit)"
 	buildah rm $cid
 
 	cid=$(buildah from --ulimit nproc=100:200 --ulimit nofile=300:400 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run_buildah --debug=false run $cid awk '/open files/{print $4}' /proc/self/limits
-	is "$output" "300" "limits: open files (w/file & proc limits)"
+	expect_output "300" "limits: open files (w/file & proc limits)"
 	run_buildah --debug=false run $cid awk '/processes/{print $3}' /proc/self/limits
-	is "$output" "100" "limits: processes (w/file & proc limits)"
+	expect_output "100" "limits: processes (w/file & proc limits)"
 	buildah rm $cid
 }
 
@@ -329,7 +329,7 @@ function configure_and_check_user() {
 	[ "$status" -ne 0 ]
 	# We'll create the mountpoint for "run".
 	run_buildah --debug=false run $cid ls -1 /var/lib
-        is "$output" ".*registry" "ls /var/lib"
+        expect_output --substring "registry"
 
 	# Double-check that the mountpoint is there.
 	test -d "$mnt"/var/lib/registry
