@@ -65,6 +65,6 @@ load helpers
 @test "push without destination" {
   buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json busybox
-  is "$output" ".*docker://busybox" "output of buildah push"
+  expect_output --substring "docker://busybox"
   buildah rmi busybox
 }

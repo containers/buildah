@@ -188,21 +188,21 @@ load helpers
     run_buildah copy --chown 1:1 "$ctr" ${TESTDIR}/somefile /
     buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
     run_buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
-    is "$output" "1:1" "stat /somefile"
+    expect_output "1:1"
 
     # Check that if we copy a directory into the container, its contents get the right permissions.
     run_buildah copy "$ctr" ${TESTDIR}/somedir /somedir
     buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
     run_buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
-    is "$output" "0:0" "stat /somedir"
+    expect_output "0:0"
     run_buildah --debug=false mount "$ctr"
     mnt="$output"
     run stat -c '%u:%g %a' "$mnt"/somedir/someotherfile
     [ $status -eq 0 ]
-    is "$output" "$rootuid:$rootgid 4700" "stat from host"
+    expect_output "$rootuid:$rootgid 4700"
     buildah run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
     run_buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
-    is "$output" "0:0 4700" "stat inside container"
+    expect_output "0:0 4700"
   done
 }
 

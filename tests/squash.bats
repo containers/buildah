@@ -7,10 +7,11 @@ function check_lengths() {
   local image=$1
   local expect=$2
 
+  # matrix test: check given .Docker.* and .OCIv1.* fields in image
   for which in Docker OCIv1; do
     for field in RootFS.DiffIDs History; do
       run_buildah --debug=false inspect -t image -f "{{len .$which.$field}}" $image
-      is "$output" "$expect" "len(.$which.$field) ($image)"
+      expect_output "$expect"
     done
   done
 }

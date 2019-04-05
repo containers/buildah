@@ -18,7 +18,7 @@ load helpers
   buildah rm "$cid"
   buildah rmi alpine
   run_buildah --debug=false images -q
-  is "$output" "" "images -q"
+  expect_output ""
 }
 
 @test "remove multiple images" {
@@ -30,14 +30,14 @@ load helpers
 
   buildah rmi -f alpine busybox
   run_buildah --debug=false images -q
-  is "$output" "" "images -q"
+  expect_output ""
 }
 
 @test "remove multiple non-existent images errors" {
   run_buildah 1 --debug=false rmi image1 image2 image3
-  is "${lines[0]}" "could not get image \"image1\": identifier is not an image" "output line 1"
-  is "${lines[1]}" "could not get image \"image2\": identifier is not an image" "output line 2"
-  is "${lines[2]}" "could not get image \"image3\": identifier is not an image" "output line 3"
+  expect_output --from="${lines[0]}" "could not get image \"image1\": identifier is not an image" "output line 1"
+  expect_output --from="${lines[1]}" "could not get image \"image2\": identifier is not an image" "output line 2"
+  expect_output --from="${lines[2]}" "could not get image \"image3\": identifier is not an image" "output line 3"
   [ $(wc -l <<< "$output") -gt 2 ]
 }
 
@@ -47,7 +47,7 @@ load helpers
   cid3=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
   buildah rmi -a -f
   run_buildah --debug=false images -q
-  is "$output" "" "images -q"
+  expect_output ""
 
   cid1=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
@@ -58,7 +58,7 @@ load helpers
 
   buildah rmi --all --force
   run_buildah --debug=false images -q
-  is "$output" "" "images -q"
+  expect_output ""
 }
 
 @test "use prune to remove dangling images" {
@@ -93,24 +93,24 @@ load helpers
 
   buildah rmi --all --force
   run_buildah --debug=false images -q
-  is "$output" "" "images -q"
+  expect_output ""
 }
 
 @test "use conflicting commands to remove images" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   run_buildah 1 --debug=false rmi -a alpine
-  is "$output" ".*when using the --all switch, you may not pass any images names or IDs" "rmi -a with name"
+  expect_output --substring "when using the --all switch, you may not pass any images names or IDs"
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   run_buildah 1 --debug=false rmi -p alpine
-  is "$output" ".*when using the --prune switch, you may not pass any images names or IDs" "rmi -p with name"
+  expect_output --substring "when using the --prune switch, you may not pass any images names or IDs"
 
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   run_buildah 1 --debug=false rmi -a -p
-  is "$output" ".*when using the --all switch, you may not use --prune switch" "rmi -a -p"
+  expect_output --substring "when using the --all switch, you may not use --prune switch"
   buildah rmi --all
 }
 
@@ -150,7 +150,7 @@ load helpers
   expect_line_count 2
   run_buildah --debug=false rmi test3
   run_buildah --debug=false images -a -q
-  is "$output" "" "images -a -q"
+  expect_output ""
 }
 
 @test "rmi image that is created from another named image" {

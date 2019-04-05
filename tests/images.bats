@@ -81,7 +81,7 @@ load helpers
   cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
   run_buildah --debug=false images -q --no-trunc
   expect_line_count 2
-  is "${lines[0]}" ".*sha256" "images --no-trunc"
+  expect_output --substring --from="${lines[0]}" "sha256"
   buildah rm -a
   buildah rmi -a -f
 }
@@ -135,7 +135,7 @@ load helpers
 
 @test "specify a nonexistent image" {
   run_buildah 1 --debug=false images alpine
-  is "${lines[0]}" "No such image alpine" "buildah images"
+  expect_output --from="${lines[0]}" "No such image alpine"
   expect_line_count 1
 }
 
@@ -147,11 +147,11 @@ load helpers
   expect_line_count 3
 
   run_buildah --debug=false images --filter dangling=true
-  is "$output" ".* <none> " "images ... dangling=true"
+  expect_output --substring " <none> "
   expect_line_count 2
 
   run_buildah --debug=false images --filter dangling=false
-  is "$output" ".* latest " "images ... dangling=false"
+  expect_output --substring " latest "
   expect_line_count 2
 
   buildah rm -a

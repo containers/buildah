@@ -218,7 +218,7 @@ load helpers
   fi
   cid=$(buildah from --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
-  is "$output" "5000" "cpu.cfs_period_us"
+  expect_output "5000"
   buildah rm $cid
 }
 
@@ -231,7 +231,7 @@ load helpers
   fi
   cid=$(buildah from --cpu-quota=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
-  is "$output" "5000" "cpu.cfs_quota_us"
+  expect_output "5000"
   buildah rm $cid
 }
 
@@ -244,7 +244,7 @@ load helpers
   fi
   cid=$(buildah from --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.shares
-  is "$output" "1024" "cpu.shares"
+  expect_output "1024"
   buildah rm $cid
 }
 
@@ -257,7 +257,7 @@ load helpers
   fi
   cid=$(buildah from --cpuset-cpus=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
-  is "$output" "0" "cpuset.cpus"
+  expect_output "0"
   buildah rm $cid
 }
 
@@ -270,7 +270,7 @@ load helpers
   fi
   cid=$(buildah from --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
-  is "$output" "0" "cpuset.mems"
+  expect_output "0"
   buildah rm $cid
 }
 
@@ -283,7 +283,7 @@ load helpers
   fi
   cid=$(buildah from --memory=40m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/memory/memory.limit_in_bytes
-  is "$output" "41943040" "memory.limit_in_bytes"
+  expect_output "41943040"
   buildah rm $cid
 }
 
@@ -293,7 +293,7 @@ load helpers
   fi
   cid=$(buildah from --volume=${TESTDIR}:/myvol --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid -- cat /proc/mounts
-  is "$output" ".* /myvol " "/proc/mounts"
+  expect_output --substring " /myvol "
   buildah rm $cid
 }
 
@@ -306,7 +306,7 @@ load helpers
   fi
   cid=$(buildah from --volume=${TESTDIR}:/myvol:ro --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid -- cat /proc/mounts
-  is "$output" ".* /myvol " "/proc/mounts"
+  expect_output --substring " /myvol "
   buildah rm $cid
 }
 
@@ -319,7 +319,7 @@ load helpers
   fi
   cid=$(buildah from --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid -- df -h
-  is "$output" ".* 80.0M " "df -h"
+  expect_output --substring " 80.0M "
   buildah rm $cid
 }
 
@@ -329,7 +329,7 @@ load helpers
   fi
   cid=$(buildah from --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah run $cid -- cat /etc/hosts
-  is "$output" ".*127.0.0.1 +localhost" "/etc/hosts"
+  expect_output --substring "127.0.0.1 +localhost"
   buildah rm $cid
 }
 

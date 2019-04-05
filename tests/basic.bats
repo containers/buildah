@@ -106,5 +106,5 @@ load helpers
   [ "$output" != "" ]
   run_buildah rmi -a
   run_buildah --debug=false images -q
-  is "$output" "" "output from buildah images -q"
+  expect_output ""
 }

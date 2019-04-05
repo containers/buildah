@@ -29,9 +29,9 @@ function teardown() {
     runc --version
     cid=$(buildah --default-mounts-file "$MOUNTS_PATH" --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
     run_buildah --debug=false run $cid ls /run/secrets
-    is "$output" ".*test.txt" "ls /run/secrets"
+    expect_output --substring "test.txt"
     run_buildah --debug run $cid ls /run/secrets/mysymlink
-    is "$output" ".*key.pem" "ls /run/secrets/mysymlink"
+    expect_output --substring "key.pem"
     buildah rm $cid
     rm -rf $TESTSDIR/containers
     rm -rf $TESTSDIR/rhel
