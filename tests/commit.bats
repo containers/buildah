@@ -67,38 +67,26 @@ load helpers
 }
 
 @test "commit-no-empty-created-by" {
-  if ! python -c 'import json, sys' 2> /dev/null ; then
+  if ! python3 -c 'import json, sys' 2> /dev/null ; then
     skip "python interpreter with json module not found"
   fi
   target=new-image
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 
-  run buildah --debug=false config --created-by "untracked actions" $cid
-  echo "$output"
-  [ "${status}" -eq 0 ]
-  run buildah --debug=false commit --signature-policy ${TESTSDIR}/policy.json $cid ${target}
-  echo "$output"
-  [ "${status}" -eq 0 ]
-  run buildah --debug=false inspect --format '{{.Config}}' ${target}
-  echo "$output"
-  [ "${status}" -eq 0 ]
+  run_buildah --debug=false config --created-by "untracked actions" $cid
+  run_buildah --debug=false commit --signature-policy ${TESTSDIR}/policy.json $cid ${target}
+  run_buildah --debug=false inspect --format '{{.Config}}' ${target}
   config="$output"
-  run python -c 'import json, sys; config = json.load(sys.stdin); print config["history"][len(config["history"])-1]["created_by"]' <<< "$config"
+  run python3 -c 'import json, sys; config = json.load(sys.stdin); print(config["history"][len(config["history"])-1]["created_by"])' <<< "$config"
   echo "$output"
   [ "${status}" -eq 0 ]
   [ "$output" == "untracked actions" ]
 
-  run buildah --debug=false config --created-by "" $cid
-  echo "$output"
-  [ "${status}" -eq 0 ]
-  run buildah --debug=false commit --signature-policy ${TESTSDIR}/policy.json $cid ${target}
-  echo "$output"
-  [ "${status}" -eq 0 ]
-  run buildah --debug=false inspect --format '{{.Config}}' ${target}
-  echo "$output"
-  [ "${status}" -eq 0 ]
+  run_buildah --debug=false config --created-by "" $cid
+  run_buildah --debug=false commit --signature-policy ${TESTSDIR}/policy.json $cid ${target}
+  run_buildah --debug=false inspect --format '{{.Config}}' ${target}
   config="$output"
-  run python -c 'import json, sys; config = json.load(sys.stdin); print config["history"][len(config["history"])-1]["created_by"]' <<< "$config"
+  run python3 -c 'import json, sys; config = json.load(sys.stdin); print(config["history"][len(config["history"])-1]["created_by"])' <<< "$config"
   echo "$output"
   [ "${status}" -eq 0 ]
   [ "$output" == "/bin/sh" ]
