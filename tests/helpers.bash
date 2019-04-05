@@ -80,6 +80,9 @@ function run_buildah() {
         '?')             expected_rc=  ; shift;;  # ignore exit code
     esac
 
+    # Remember command args, for possible use in later diagnostic messages
+    MOST_RECENT_BUILDAH_COMMAND="buildah $*"
+
     # stdout is only emitted upon error; this echo is to help a debugger
     echo "\$ $BUILDAH_BINARY $*"
     run timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} --debug --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
@@ -169,6 +172,32 @@ function is() {
     false
 }
 
+#######################
+#  expect_line_count  #  Check the expected number of output lines
+#######################
+#
+# ...from the most recent run_buildah command
+#
+function expect_line_count() {
+    local expect="$1"
+    local testname="${2:-${MOST_RECENT_BUILDAH_COMMAND:-[no test name given]}}"
+
+    local actual="${#lines[@]}"
+    if [ "$actual" -eq "$expect" ]; then
+        return
+    fi
+
+    printf "#/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\n"          >&2
+    printf "#| FAIL: $testname\n"                                       >&2
+    printf "#| Expected %d lines of output, got %d\n" $expect $actual   >&2
+    printf "#| Output was:\n"                                           >&2
+    local line
+    for line in "${lines[@]}"; do
+        printf "#| >%s\n" "$line"                                       >&2
+    done
+    printf "#\\^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"         >&2
+    false
+}
 
 function check_options_flag_err() {
     flag="$1"

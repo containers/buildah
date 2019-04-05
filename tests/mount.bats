@@ -53,7 +53,7 @@ load helpers
   is "${lines[0]}" ".*/tmp" "mount line 1 of 3"
   is "${lines[1]}" ".*/tmp" "mount line 2 of 3"
   is "${lines[2]}" ".*/tmp" "mount line 3 of 3"
-  [ $(wc -l <<< "$output") -eq 3 ]
+  expect_line_count 3
 
   buildah rm --all
   buildah rmi -f alpine

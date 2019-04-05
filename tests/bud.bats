@@ -39,10 +39,10 @@ load helpers
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  is "$(wc -l <<< "$output")" "6" "number of lines in images output"
+  expect_line_count 6
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 8 ]
+  expect_line_count 8
   run_buildah --debug=false  inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test2
   is "$output" "foo=bar" "ContainerConfig.Env"
   run_buildah --debug=false inspect --format "{{.Docker.ContainerConfig.ExposedPorts}}" test2
@@ -50,25 +50,25 @@ load helpers
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 10 ]
+  expect_line_count 10
 
   mkdir -p ${TESTDIR}/use-layers/mount/subdir
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test4 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 12 ]
+  expect_line_count 12
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test5 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 13 ]
+  expect_line_count 13
 
   touch ${TESTDIR}/use-layers/mount/subdir/file.txt
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test6 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 15 ]
+  expect_line_count 15
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test7 -f Dockerfile.2 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 16 ]
+  expect_line_count 16
 
   buildah rmi -a -f
 }
@@ -76,11 +76,11 @@ load helpers
 @test "bud with --layers and single and two line Dockerfiles" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.5 ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 3 ]
+  expect_line_count 3
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.6 ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 4 ]
+  expect_line_count 4
 
   buildah rmi -a -f
 }
@@ -95,27 +95,27 @@ load helpers
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 6 ]
+  expect_line_count 6
   [ "${status}" -eq 0 ]
   # The second time through, the layers should all get reused.
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 6 ]
+  expect_line_count 6
   # The third time through, the layers should all get reused, but we'll have a new line of output for the new name.
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 7 ]
+  expect_line_count 7
 
   # Both interim images will be different, and all of the layers in the final image will be different.
   uuidgen > ${TESTDIR}/use-layers/uuid/data
   date > ${TESTDIR}/use-layers/date/data
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 11 ]
+  expect_line_count 11
   # No leftover containers, just the header line.
   run_buildah --debug=false containers
-  [ $(wc -l <<< "$output") -eq 1 ]
+  expect_line_count 1
 
   ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json test3)
   mnt=$(buildah --debug=false mount ${ctr})
@@ -127,7 +127,7 @@ load helpers
   # Layers won't get reused because this build won't use caching.
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t test4 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 12 ]
+  expect_line_count 12
 
   buildah rmi -a -f
 }
@@ -138,16 +138,16 @@ load helpers
   ln -s hello.sh ${TESTDIR}/use-layers/hello_world.sh
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.4 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 4 ]
+  expect_line_count 4
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.4 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 5 ]
+  expect_line_count 5
 
   echo 'echo "Hello Cache!"' > ${TESTDIR}/use-layers/hello.sh
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.4 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  [ $(wc -l <<< "$output") -eq 7 ]
+  expect_line_count 7
 
   buildah rmi -a -f
 }
@@ -155,11 +155,11 @@ load helpers
 @test "bud with --rm flag" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false containers
-  [ $(wc -l <<< "$output") -eq 1 ]
+  expect_line_count 1
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --rm=false --layers -t test2 ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false containers
-  [ $(wc -l <<< "$output") -eq 5 ]
+  expect_line_count 5
 
   buildah rm -a
   buildah rmi -a -f
@@ -168,11 +168,11 @@ load helpers
 @test "bud with --force-rm flag" {
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --force-rm --layers -t test1 -f Dockerfile.fail-case ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false containers
-  [ $(wc -l <<< "$output") -eq 1 ]
+  expect_line_count 1
 
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.fail-case ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false containers
-  [ $(wc -l <<< "$output") -eq 2 ]
+  expect_line_count 2
 
   buildah rm -a
   buildah rmi -a -f
