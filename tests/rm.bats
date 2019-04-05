@@ -15,7 +15,7 @@ load helpers
   is "${lines[0]}" "error removing container \"mycontainer1\": error reading build container: container not known" "output line 1"
   is "${lines[1]}" "error removing container \"mycontainer2\": error reading build container: container not known" "output line 2"
   is "${lines[2]}" "error removing container \"mycontainer3\": error reading build container: container not known" "output line 3"
-  [ $(wc -l <<< "$output") -eq 3 ]
+  expect_line_count 3
 }
 
 @test "remove one container" {

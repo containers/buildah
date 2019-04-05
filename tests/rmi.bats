@@ -68,7 +68,7 @@ load helpers
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
 
   run_buildah --debug=false images -q
-  [ $(wc -l <<< "$output") -eq 1 ]
+  expect_line_count 1
 
   root=$(buildah mount $cid)
   cp ${TESTDIR}/randomfile $root/randomfile
@@ -76,7 +76,7 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
 
   run_buildah --debug=false images -q
-  [ $(wc -l <<< "$output") -eq 2 ]
+  expect_line_count 2
 
   root=$(buildah mount $cid)
   cp ${TESTDIR}/other-randomfile $root/other-randomfile
@@ -84,12 +84,12 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
 
   run_buildah --debug=false images -q
-  [ $(wc -l <<< "$output") -eq 3 ]
+  expect_line_count 3
 
   buildah rmi --prune
 
   run_buildah --debug=false images -q
-  [ $(wc -l <<< "$output") -eq 2 ]
+  expect_line_count 2
 
   buildah rmi --all --force
   run_buildah --debug=false images -q
@@ -121,11 +121,11 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
   buildah rm -a
   run_buildah 1 --debug=false rmi alpine
-  [ $(wc -l <<< "$output") -eq 2 ]
+  expect_line_count 2
   run_buildah --debug=false images -q
-  [ $(wc -l <<< "$output") -eq 1 ]
+  expect_line_count 1
   run_buildah --debug=false images -q -a
-  [ $(wc -l <<< "$output") -eq 2 ]
+  expect_line_count 2
   my_images=( $(buildah --debug=false images -a -q) )
   run_buildah 1 --debug=false rmi ${my_images[2]}
   buildah rmi new-image
@@ -135,19 +135,19 @@ load helpers
   buildah rmi -a -f
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false images -a -q
-  [ $(wc -l <<< "$output") -eq 5 ]
+  expect_line_count 5
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false images -a -q
-  [ $(wc -l <<< "$output") -eq 7 ]
+  expect_line_count 7
   run_buildah --debug=false rmi test2
   run_buildah --debug=false images -a -q
-  [ $(wc -l <<< "$output") -eq 5 ]
+  expect_line_count 5
   run_buildah --debug=false rmi test1
   run_buildah --debug=false images -a -q
-  [ $(wc -l <<< "$output") -eq 1 ]
+  expect_line_count 1
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
   run_buildah 1 --debug=false rmi alpine
-  [ $(wc -l <<< "$output") -eq 2 ]
+  expect_line_count 2
   run_buildah --debug=false rmi test3
   run_buildah --debug=false images -a -q
   is "$output" "" "images -a -q"
@@ -164,5 +164,5 @@ load helpers
   buildah rm -a
   run_buildah --debug=false rmi new-image-2
   run_buildah --debug=false images -q
-  [ $(wc -l <<< "$output") -eq 2 ]
+  expect_line_count 2
 }

@@ -25,7 +25,7 @@ load helpers
     lastid=
     for cid in $(buildah --debug=false containers -q) ; do
       run_buildah --debug=false inspect -f "{{.FromImageID}}" $cid
-      [ $(wc -l <<< "$output") -eq 1 ]
+      expect_line_count 1
       if [ "$lastid" != "" ] ; then
         is "$output" "$lastid" ".FromImageId"
       fi
