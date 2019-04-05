@@ -43,10 +43,10 @@ load helpers
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
   [ $(wc -l <<< "$output") -eq 8 ]
-  run_buildah inspect --format "{{.Docker.ContainerConfig.Env}}" test2
-  is "$output" "foo=bar" "ContainerConfig.Env"   # FIXME
-  run_buildah inspect --format "{{.Docker.ContainerConfig.ExposedPorts}}" test2
-  is "$output" "8080" "ContainerConfig.ExposedPorts"  # FIXME
+  run_buildah --debug=false  inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test2
+  is "$output" "foo=bar" "ContainerConfig.Env"
+  run_buildah --debug=false inspect --format "{{.Docker.ContainerConfig.ExposedPorts}}" test2
+  is "$output" "map[8080/tcp:{}]" "ContainerConfig.ExposedPorts"
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
@@ -186,10 +186,12 @@ load helpers
 @test "bud from base image should have base image ENV also" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t test -f Dockerfile.check-env ${TESTSDIR}/bud/env
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json test)
-  buildah config --env random=hello ${cid}
+  buildah config --env random=hello,goodbye ${cid}
   buildah commit --signature-policy ${TESTSDIR}/policy.json ${cid} test1
-  buildah --debug inspect test1 | grep foo=bar
-  buildah --debug  inspect test1 | grep random=hello
+  run_buildah --debug=false inspect --format '{{index .Docker.ContainerConfig.Env 1}}' test1
+  is "$output" "foo=bar" "image environment, index 1"
+  run_buildah --debug=false inspect --format '{{index .Docker.ContainerConfig.Env 2}}' test1
+  is "$output" "random=hello,goodbye" "image environment, index 2"
   buildah rm ${cid}
   buildah rmi -a -f
 }
@@ -226,9 +228,9 @@ load helpers
 
 @test "bud-from-scratch-annotation" {
   target=scratch-image
-  buildah bud --annotation "test=annotation" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  buildah bud --annotation "test=annotation1,annotation2=z" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   run_buildah --debug=false inspect --format '{{printf "%q" .ImageAnnotations}}' ${target}
-  is "$output" 'map["test":"annotation"]' "buildah inspect"
+  is "$output" 'map["test":"annotation1,annotation2=z"]' "buildah inspect"
   buildah rmi ${target}
 }
 

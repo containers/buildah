@@ -114,7 +114,7 @@ function check_matrix() {
    --os SOMEOS \
    --user likes:things \
    --port 12345 \
-   --env VARIABLE=VALUE \
+   --env VARIABLE=VALUE1,VALUE2 \
    --entrypoint /ENTRYPOINT \
    --cmd COMMAND-OR-ARGS \
    --comment INFORMATIVE \
@@ -124,7 +124,7 @@ function check_matrix() {
    --label LABEL=VALUE \
    --label exec='podman run -it --mount=type=bind,bind-propagation=Z,source=foo,destination=bar /script buz'\
    --stop-signal SIGINT \
-   --annotation ANNOTATION=VALUE \
+   --annotation ANNOTATION=VALUE1,VALUE2 \
    --shell /bin/arbitrarysh \
    --domainname mydomain.local \
    --hostname cleverhostname \
@@ -146,7 +146,7 @@ function check_matrix() {
 
   check_matrix 'Config.User'         'likes:things'
   check_matrix 'Config.ExposedPorts' 'map[12345:{}]'
-  check_matrix 'Config.Env'          '[VARIABLE=VALUE]'
+  check_matrix 'Config.Env'          '[VARIABLE=VALUE1,VALUE2]'
   check_matrix 'Config.Entrypoint'   '[/bin/sh -c /ENTRYPOINT]'
   check_matrix 'Config.Cmd'          '[COMMAND-OR-ARGS]'
   check_matrix 'Config.Volumes'      'map[/VOLUME:{}]'
@@ -161,8 +161,8 @@ function check_matrix() {
   buildah --debug=false inspect --type=image --format '{{(index .OCIv1.History 0).Comment}}' scratch-image-oci | grep PROBABLY-EMPTY
 
   # The following aren't part of the Docker v2 spec, so they're discarded when we save to Docker format.
-  buildah --debug=false inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci    | grep ANNOTATION:VALUE
-  buildah --debug=false inspect              --format '{{.ImageAnnotations}}'                      $cid                 | grep ANNOTATION:VALUE
+  buildah --debug=false inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci    | grep ANNOTATION:VALUE1,VALUE2
+  buildah --debug=false inspect              --format '{{.ImageAnnotations}}'                      $cid                 | grep ANNOTATION:VALUE1,VALUE2
   buildah --debug=false inspect --type=image --format '{{.Docker.Comment}}'                        scratch-image-docker | grep INFORMATIVE
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Domainname}}'              scratch-image-docker | grep mydomain.local
   buildah --debug=false inspect --type=image --format '{{.Docker.Config.Hostname}}'                scratch-image-docker | grep cleverhostname
