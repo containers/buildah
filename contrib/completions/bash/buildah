@@ -390,6 +390,9 @@ return 1
      --cpuset-cpus
      --cpuset-mems
      --creds
+     --dns-search
+     --dns
+     --dns-option
      -f
      --file
      --format

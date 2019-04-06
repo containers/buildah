@@ -2,6 +2,17 @@
 
 load helpers
 
+@test "bud with --dns* flags" {
+  run buildah bud --debug=false --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc  --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dns/Dockerfile  ${TESTSDIR}/bud/dns
+  echo "$output"
+  [[ "$output" =~ "search example.com" ]]
+  [[ "$output" =~ "nameserver 223.5.5.5" ]]
+  [[ "$output" =~ "options use-vc" ]]
+  [ "$status" -eq 0 ]
+  buildah rm -a
+  buildah rmi -a -f
+}
+
 @test "bud with .dockerignore" {
   # Remove containers and images before bud tests
   buildah rm --all

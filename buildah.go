@@ -284,6 +284,12 @@ type CommonBuildOptions struct {
 	CPUSetMems string
 	// Memory is the upper limit (in bytes) on how much memory running containers can use.
 	Memory int64
+	// DNSSearch is the list of DNS search domains to add to the build container's /etc/resolv.conf
+	DNSSearch []string
+	// DNSServers is the list of DNS servers to add to the build container's /etc/resolv.conf
+	DNSServers []string
+	// DNSOptions is the list of DNS
+	DNSOptions []string
 	// MemorySwap limits the amount of memory and swap together.
 	MemorySwap int64
 	// LabelOpts is the a slice of fields of an SELinux context, given in "field:pair" format, or "disable".
