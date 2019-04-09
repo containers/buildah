@@ -107,6 +107,8 @@ Print the version
 | buildah-info(1)       | Display Buildah system information.                                                                  |
 | buildah-inspect(1)    | Inspects the configuration of a container or image                                                   |
 | buildah-mount(1)      | Mount the working container's root filesystem.                                                       |
+| buildah-login(1)      | Login to a container registry.                                                                       |
+| buildah-logout(1)     | Logout of a container registry                                                                       |
 | buildah-pull(1)       | Pull an image from the specified location.                                                           |
 | buildah-push(1)       | Push an image from local storage to elsewhere.                                                       |
 | buildah-rename(1)     | Rename a local container.                                                                            |

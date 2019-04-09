@@ -2,6 +2,12 @@
 
 load helpers
 
+@test "login/logout" {
+  run_buildah 0 login --username testuserfoo --password testpassword docker.io
+
+  run_buildah 0 logout docker.io
+}
+
 @test "from-authenticate-cert-and-creds" {
 
   run_buildah from --pull --name "alpine" --signature-policy ${TESTSDIR}/policy.json alpine

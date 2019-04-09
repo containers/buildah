@@ -1,17 +1,17 @@
-#!/bin/bash 
+#!/bin/bash
 
 # author : ipbabble
 # Assumptions install buildah and podman
-# login to Quay.io using podman if you want to see the image push
+# login to Quay.io using buildah if you want to see the image push
 #   otherwise it will just fail the last step and no biggy.
-#   podman login quay.io
+#   buildah login quay.io
 # Set some of the variables below
 
 demoimg=myshdemo
 quayuser=ipbabble
 myname=WilliamHenry
 distrorelease=28
-pkgmgr=dnf   # switch to yum if using yum 
+pkgmgr=dnf   # switch to yum if using yum
 
 #Setting up some colors for helping read the demo output
 bold=$(tput bold)

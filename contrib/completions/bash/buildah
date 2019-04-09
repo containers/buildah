@@ -641,6 +641,54 @@ return 1
      esac
  }
 
+ _buildah_logout() {
+     local boolean_options="
+     --help
+     -h
+     --all
+     -a
+  "
+
+     local options_with_args="
+     --authfile
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_login() {
+     local boolean_options="
+     --help
+     -h
+     --get-login
+     --tls-verify
+  "
+
+     local options_with_args="
+     --authfile
+     --cert-dir
+     --password string
+     -p
+     --password-stdin
+     --username
+     -u
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
  _buildah_mount() {
      local boolean_options="
      --help
