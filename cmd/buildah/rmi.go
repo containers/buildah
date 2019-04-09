@@ -176,7 +176,7 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 				}
 			}
 
-			isParent, err := imageIsParent(store, image.TopLayer)
+			isParent, err := imageIsParent(ctx, systemContext, store, image)
 			if err != nil {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
@@ -197,7 +197,7 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 				lastError = errors.Errorf("unable to delete %q (cannot be forced) - image has dependent child images", image.ID)
 				continue
 			}
-			id, err := removeImage(store, image)
+			id, err := removeImage(ctx, systemContext, store, image)
 			if err != nil {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
@@ -256,8 +256,8 @@ func untagImage(imgArg string, store storage.Store, image *storage.Image) (strin
 	return removedName, nil
 }
 
-func removeImage(store storage.Store, image *storage.Image) (string, error) {
-	parent, err := getParent(store, image.TopLayer)
+func removeImage(ctx context.Context, systemContext *types.SystemContext, store storage.Store, image *storage.Image) (string, error) {
+	parent, err := getParent(ctx, systemContext, store, image)
 	if err != nil {
 		return "", err
 	}
@@ -265,17 +265,17 @@ func removeImage(store storage.Store, image *storage.Image) (string, error) {
 		return "", errors.Wrapf(err, "could not remove image %q", image.ID)
 	}
 	for parent != nil {
-		nextParent, err := getParent(store, parent.TopLayer)
+		nextParent, err := getParent(ctx, systemContext, store, parent)
 		if err != nil {
 			return image.ID, errors.Wrapf(err, "unable to get parent from image %q", image.ID)
 		}
-		children, err := getChildren(store, parent.TopLayer)
+		isParent, err := imageIsParent(ctx, systemContext, store, parent)
 		if err != nil {
-			return image.ID, errors.Wrapf(err, "unable to get children from image %q", image.ID)
+			return image.ID, errors.Wrapf(err, "unable to get check if image %q is a parent", image.ID)
 		}
 		// Do not remove if image is a base image and is not untagged, or if
 		// the image has more children.
-		if len(parent.Names) > 0 || len(children) > 0 {
+		if len(parent.Names) > 0 || isParent {
 			return image.ID, nil
 		}
 		id := parent.ID

@@ -30,7 +30,7 @@ load helpers
   expect_line_count 3
 
   run_buildah --debug=false images -a
-  expect_line_count 6
+  expect_line_count 8
 
   # create a no name image which should show up when doing buildah images without the --all flag
   buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/use-layers

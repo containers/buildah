@@ -50,36 +50,40 @@ load helpers
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  expect_line_count 6
+  expect_line_count 8
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  expect_line_count 8
-  run_buildah --debug=false  inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test2
+  expect_line_count 10
+  run_buildah --debug=false inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test1
   expect_output "foo=bar"
+  run_buildah --debug=false inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test2
+  expect_output "foo=bar"
+  run_buildah --debug=false inspect --format "{{.Docker.ContainerConfig.ExposedPorts}}" test1
+  expect_output "map[8080/tcp:{}]"
   run_buildah --debug=false inspect --format "{{.Docker.ContainerConfig.ExposedPorts}}" test2
   expect_output "map[8080/tcp:{}]"
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  expect_line_count 10
+  expect_line_count 12
 
   mkdir -p ${TESTDIR}/use-layers/mount/subdir
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test4 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  expect_line_count 12
+  expect_line_count 14
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test5 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  expect_line_count 13
+  expect_line_count 15
 
   touch ${TESTDIR}/use-layers/mount/subdir/file.txt
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test6 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  expect_line_count 15
+  expect_line_count 17
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test7 -f Dockerfile.2 ${TESTDIR}/use-layers
   run_buildah --debug=false images -a
-  expect_line_count 16
+  expect_line_count 18
 
   buildah rmi -a -f
 }
@@ -186,21 +190,25 @@ load helpers
 }
 
 @test "bud with --layers and --build-args" {
+  # base plus 3, plus the header line
   buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=0 --layers -t test -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false images -a
-  expect_line_count 4
+  expect_line_count 5
 
+  # two more, starting at the "echo $user" instruction
   buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test1 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
-  run_buildah --debug=false images -a
-  expect_line_count 6
-
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test2 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false images -a
   expect_line_count 7
 
+  # one more, because we added a new name to the same image
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test2 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
+  run_buildah --debug=false images -a
+  expect_line_count 8
+
+  # two more, starting at the "echo $user" instruction
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false images -a
-  expect_line_count 9
+  expect_line_count 10
 
   buildah rmi -a -f
 }
@@ -212,7 +220,7 @@ load helpers
 
   buildah bud --signature-policy ${TESTSDIR}/policy.json --rm=false --layers -t test2 ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false containers
-  expect_line_count 5
+  expect_line_count 7
 
   buildah rm -a
   buildah rmi -a -f
@@ -1086,7 +1094,7 @@ load helpers
 
 @test "bud with copy-from in Dockerfile no prior FROM" {
   target=php-image
-  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from ${TESTSDIR}/bud/copy-from
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from ${TESTSDIR}/bud/copy-from
 
   ctr=$(buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json ${target})
   mnt=$(buildah --debug=false mount ${ctr})
