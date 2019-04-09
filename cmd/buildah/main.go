@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/containers/buildah"
 	"os"
 
+	"github.com/containers/buildah"
 	"github.com/containers/buildah/pkg/unshare"
 	"github.com/containers/storage"
 	ispecs "github.com/opencontainers/image-spec/specs-go"

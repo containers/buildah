@@ -29,8 +29,14 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		options.GraphRoot = globalFlagResults.Root
 		options.RunRoot = globalFlagResults.RunRoot
 	}
-	if err := os.Setenv("XDG_RUNTIME_DIR", options.RunRoot); err != nil {
-		return nil, errors.New("could not set XDG_RUNTIME_DIR")
+	if unshare.IsRootless() && os.Getenv("XDG_RUNTIME_DIR") == "" {
+		runtimeDir, err := storage.GetRootlessRuntimeDir(unshare.GetRootlessUID())
+		if err != nil {
+			return nil, err
+		}
+		if err := os.Setenv("XDG_RUNTIME_DIR", runtimeDir); err != nil {
+			return nil, errors.New("could not set XDG_RUNTIME_DIR")
+		}
 	}
 
 	if c.Flag("storage-driver").Changed {
