@@ -56,6 +56,7 @@ type containerImageRef struct {
 	preferredManifestType string
 	exporting             bool
 	squash                bool
+	emptyLayer            bool
 	tarPath               func(path string) (io.ReadCloser, error)
 	parent                string
 	blobDirectory         string
@@ -290,6 +291,11 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to locate layer %q", layerID)
 		}
+		// If we're up to the final layer, but we don't want to include
+		// a diff for it, we're done.
+		if i.emptyLayer && layerID == i.layerID {
+			continue
+		}
 		// If we're not re-exporting the data, and we're reusing layers individually, reuse
 		// the blobsum and diff IDs.
 		if !i.exporting && !i.squash && layerID != i.layerID {
@@ -433,7 +439,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		CreatedBy:  i.createdBy,
 		Author:     oimage.Author,
 		Comment:    i.historyComment,
-		EmptyLayer: false,
+		EmptyLayer: i.emptyLayer,
 	}
 	oimage.History = append(oimage.History, onews)
 	dnews := docker.V2S2History{
@@ -441,7 +447,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		CreatedBy:  i.createdBy,
 		Author:     dimage.Author,
 		Comment:    i.historyComment,
-		EmptyLayer: false,
+		EmptyLayer: i.emptyLayer,
 	}
 	dimage.History = append(dimage.History, dnews)
 	appendHistory(i.postEmptyLayers)
@@ -700,6 +706,7 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 		preferredManifestType: manifestType,
 		exporting:             exporting,
 		squash:                options.Squash,
+		emptyLayer:            options.EmptyLayer,
 		tarPath:               b.tarPath(),
 		parent:                parent,
 		blobDirectory:         options.BlobDirectory,

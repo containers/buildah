@@ -135,13 +135,13 @@ load helpers
   buildah rmi -a -f
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false images -a -q
-  expect_line_count 5
+  expect_line_count 7
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false images -a -q
-  expect_line_count 7
+  expect_line_count 9
   run_buildah --debug=false rmi test2
   run_buildah --debug=false images -a -q
-  expect_line_count 5
+  expect_line_count 7
   run_buildah --debug=false rmi test1
   run_buildah --debug=false images -a -q
   expect_line_count 1

@@ -10,7 +10,9 @@ import (
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/formats"
+	"github.com/containers/buildah/pkg/parse"
 	is "github.com/containers/image/storage"
+	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
@@ -122,6 +124,11 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 		return err
 	}
 
+	systemContext, err := parse.SystemContextFromOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error building system context")
+	}
+
 	images, err := store.Images()
 	if err != nil {
 		return errors.Wrapf(err, "error reading images")
@@ -150,7 +157,7 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 		}
 	}
 
-	return outputImages(ctx, store, images, params, name, opts)
+	return outputImages(ctx, systemContext, store, images, params, name, opts)
 }
 
 func parseFilter(ctx context.Context, store storage.Store, images []storage.Image, filter string) (*filterParams, error) {
@@ -237,7 +244,7 @@ func outputHeader(opts imageOptions) string {
 
 type imagesSorted []imageOutputParams
 
-func outputImages(ctx context.Context, store storage.Store, images []storage.Image, filters *filterParams, argName string, opts imageOptions) error {
+func outputImages(ctx context.Context, systemContext *types.SystemContext, store storage.Store, images []storage.Image, filters *filterParams, argName string, opts imageOptions) error {
 	found := false
 	var imagesParams imagesSorted
 	jsonImages := []jsonImage{}
@@ -252,11 +259,12 @@ func outputImages(ctx context.Context, store storage.Store, images []storage.Ima
 		}
 		createdTime = createdTime.Local()
 
-		// If all is false and the image doesn't have a name, check to see if the top layer of the image is a parent
-		// to another image's top layer. If it is, then it is an intermediate image so don't print out if the --all flag
-		// is not set.
+		// If "all" is false and this image doesn't have a name, check
+		// to see if the image is the parent of any other image.  If it
+		// is, then it is an intermediate image, so don't list it if
+		// the --all flag is not set.
 		if !opts.all && len(image.Names) == 0 {
-			isParent, err := imageIsParent(store, image.TopLayer)
+			isParent, err := imageIsParent(ctx, systemContext, store, &image)
 			if err != nil {
 				logrus.Errorf("error checking if image is a parent %q: %v", image.ID, err)
 			}

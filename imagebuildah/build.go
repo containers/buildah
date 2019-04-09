@@ -870,9 +870,9 @@ func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, e
 	return imageRef, nil
 }
 
-// stepRequiresCommit indicates whether or not the step should be followed by
-// committing the in-progress container to create an intermediate image.
-func (*StageExecutor) stepRequiresCommit(step *imagebuilder.Step) bool {
+// stepRequiresLayer indicates whether or not the step should be followed by
+// committing a layer container when creating an intermediate image.
+func (*StageExecutor) stepRequiresLayer(step *imagebuilder.Step) bool {
 	switch strings.ToUpper(step.Command) {
 	case "ADD", "COPY", "RUN":
 		return true
@@ -951,7 +951,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// squash the contents of the base image.  Whichever is
 			// the case, we need to commit() to create a new image.
 			logCommit(s.output, -1)
-			if imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(nil), s.output); err != nil {
+			if imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(nil), false, s.output); err != nil {
 				return "", nil, errors.Wrapf(err, "error committing base container")
 			}
 		} else {
@@ -1032,7 +1032,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// if it's used as the basis for a later stage.
 				if lastStage || imageIsUsedLater {
 					logCommit(s.output, i)
-					imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(node), s.output)
+					imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(node), false, s.output)
 					if err != nil {
 						return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
 					}
@@ -1061,11 +1061,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 		// If we're using the cache, and we've managed to stick with
 		// cached images so far, look for one that matches what we
 		// expect to produce for this instruction.
-		// Only check at steps where we commit, so that we don't
-		// abandon the cache at this step just because we can't find an
-		// image with a history entry in it that we wouldn't have
-		// committed.
-		if checkForLayers && (s.stepRequiresCommit(step) || lastInstruction) && !(s.executor.squash && lastInstruction && lastStage) {
+		if checkForLayers && !(s.executor.squash && lastInstruction && lastStage) {
 			cacheID, err = s.layerExists(ctx, node, children[:i])
 			if err != nil {
 				return "", nil, errors.Wrap(err, "error checking if cached image exists from a previous build")
@@ -1085,8 +1081,8 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// the last step in this stage, add the name to the
 			// image.
 			imgID = cacheID
-			if commitName != "" && (s.stepRequiresCommit(step) || lastInstruction) {
-				logCommit(s.output, i)
+			if commitName != "" {
+				logCommit(commitName, i)
 				if imgID, ref, err = s.copyExistingImage(ctx, cacheID, commitName); err != nil {
 					return "", nil, err
 				}
@@ -1098,6 +1094,19 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// filesystem to match the image contents for the sake
 			// of a later stage that wants to copy content from it.
 			rebase = moreInstructions || rootfsIsUsedLater
+			// If the instruction would affect our configuration,
+			// process the configuration change so that, if we fall
+			// off the cache path, the filesystem changes from the
+			// last cache image will be all that we need, since we
+			// still don't want to restart using the image's
+			// configuration blob.
+			if !s.stepRequiresLayer(step) {
+				err := ib.Run(step, s, noRunsRemaining)
+				if err != nil {
+					logrus.Debugf("%v", errors.Wrapf(err, "error building at step %+v", *step))
+					return "", nil, errors.Wrapf(err, "error building at STEP \"%s\"", step.Message)
+				}
+			}
 		} else {
 			// If we didn't find a cached image that we could just reuse,
 			// process the instruction directly.
@@ -1106,32 +1115,20 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				logrus.Debugf("%v", errors.Wrapf(err, "error building at step %+v", *step))
 				return "", nil, errors.Wrapf(err, "error building at STEP \"%s\"", step.Message)
 			}
-			if s.stepRequiresCommit(step) || lastInstruction {
-				// Either this is the last instruction, or
-				// there are more instructions and we need to
-				// create a layer from this one before
-				// continuing.
-				logCommit(s.output, i)
-				imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(node), commitName)
-				if err != nil {
-					return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
-				}
-				logImageID(imgID)
-				// We only need to build a new container rootfs
-				// using this image if we plan on making
-				// further changes to it.  Subsequent stages
-				// that just want to use the rootfs as a source
-				// for COPY or ADD will be content with what we
-				// already have.
-				rebase = moreInstructions
-			} else {
-				// There are still more instructions to process
-				// for this stage, and we don't need to commit
-				// here.  Make a note of the instruction in the
-				// history for the next commit.
-				now := time.Now()
-				s.builder.AddPrependedEmptyLayer(&now, s.executor.getCreatedBy(node), "", "")
+			// Create a new image, maybe with a new layer.
+			logCommit(s.output, i)
+			imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(node), !s.stepRequiresLayer(step), commitName)
+			if err != nil {
+				return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
 			}
+			logImageID(imgID)
+			// We only need to build a new container rootfs
+			// using this image if we plan on making
+			// further changes to it.  Subsequent stages
+			// that just want to use the rootfs as a source
+			// for COPY or ADD will be content with what we
+			// already have.
+			rebase = moreInstructions
 		}
 
 		if rebase {
@@ -1217,7 +1214,7 @@ func (s *StageExecutor) layerExists(ctx context.Context, currNode *parser.Node, 
 		// it means that this image is potentially a cached intermediate image from a previous
 		// build. Next we double check that the history of this image is equivalent to the previous
 		// lines in the Dockerfile up till the point we are at in the build.
-		if layer.Parent == s.executor.topLayers[len(s.executor.topLayers)-1] {
+		if layer.Parent == s.executor.topLayers[len(s.executor.topLayers)-1] || layer.ID == s.executor.topLayers[len(s.executor.topLayers)-1] {
 			history, err := s.executor.getImageHistory(ctx, image.ID)
 			if err != nil {
 				return "", errors.Wrapf(err, "error getting history of %q", image.ID)
@@ -1398,7 +1395,7 @@ func urlContentModified(url string, historyTime *time.Time) (bool, error) {
 
 // commit writes the container's contents to an image, using a passed-in tag as
 // the name if there is one, generating a unique ID-based one otherwise.
-func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, createdBy, output string) (string, reference.Canonical, error) {
+func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, createdBy string, emptyLayer bool, output string) (string, reference.Canonical, error) {
 	var imageRef types.ImageReference
 	if output != "" {
 		imageRef2, err := s.executor.resolveNameToImageRef(output)
@@ -1488,6 +1485,7 @@ func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, cr
 		PreferredManifestType: s.executor.outputFormat,
 		SystemContext:         s.executor.systemContext,
 		Squash:                s.executor.squash,
+		EmptyLayer:            emptyLayer,
 		BlobDirectory:         s.executor.blobDirectory,
 	}
 	imgID, _, manifestDigest, err := s.builder.Commit(ctx, imageRef, options)

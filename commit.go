@@ -64,6 +64,9 @@ type CommitOptions struct {
 	// manifest of the new image will reference the blobs rather than
 	// on-disk layers.
 	BlobDirectory string
+	// EmptyLayer tells the builder to omit the diff for the working
+	// container.
+	EmptyLayer bool
 	// OmitTimestamp forces epoch 0 as created timestamp to allow for
 	// deterministic, content-addressable builds.
 	OmitTimestamp bool
