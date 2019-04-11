@@ -67,6 +67,8 @@ install:
     - docker run --entrypoint htpasswd registry:2 -Bbn testuser testpassword > /home/travis/auth/htpasswd
     - docker run -d -p 5000:5000 --name registry -v /home/travis/auth:/home/travis/auth:Z -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=/home/travis/auth/htpasswd -e REGISTRY_HTTP_TLS_CERTIFICATE=/home/travis/auth/domain.crt -e REGISTRY_HTTP_TLS_KEY=/home/travis/auth/domain.key registry:2
 script:
+    # Fail fast
+    - set -e
     # Let's do some docker stuff just for verification purposes
     - docker ps --all
     - docker images
@@ -89,12 +91,3 @@ script:
     - tmp=`mktemp -d`; mkdir $tmp/root $tmp/runroot; sudo PATH="$PATH" ./buildah.test -test.v --root $tmp/root --runroot $tmp/runroot --storage-driver vfs --signature-policy `pwd`/tests/policy.json --registries-conf `pwd`/tests/registries.conf
     - cd tests; sudo PATH="$PATH" ./test_runner.sh
     - cd ..
-after_script:
-    - echo "Run conformance tests in Fedora container..."
-    - echo "Travis/host environment:"
-    - env
-    - env TEST_GROUP=conformance
-    - echo
-    - echo "Running tests in SPC using ./hack/run_build.sh"
-    - "./hack/run_build.sh"
-
