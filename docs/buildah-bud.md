@@ -222,6 +222,16 @@ Recognized formats include *oci* (OCI image-spec v1.0, the default) and
 Note: You can also override the default format by setting the BUILDAH\_FORMAT
 environment variable.  `export BUILDAH_FORMAT=docker`
 
+**--http-proxy**
+
+By default proxy environment variables are passed into the container if set
+for the buildah process.  This can be disabled by setting the `--http-proxy`
+option to `false`.  The environment variables passed in include `http_proxy`,
+`https_proxy`, `ftp_proxy`, `no_proxy`, and also the upper case versions of
+those.
+
+Defaults to `true`
+
 **--iidfile** *ImageIDfile*
 
 Write the image ID to the file.

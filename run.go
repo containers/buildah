@@ -983,6 +983,24 @@ func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, opti
 
 func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions) {
 	g.ClearProcessEnv()
+	if b.CommonBuildOpts.HTTPProxy {
+		for _, envSpec := range []string{
+			"http_proxy",
+			"HTTP_PROXY",
+			"https_proxy",
+			"HTTPS_PROXY",
+			"ftp_proxy",
+			"FTP_PROXY",
+			"no_proxy",
+			"NO_PROXY",
+		} {
+			envVal := os.Getenv(envSpec)
+			if envVal != "" {
+				g.AddProcessEnv(envSpec, envVal)
+			}
+		}
+	}
+
 	for _, envSpec := range append(b.Env(), options.Env...) {
 		env := strings.SplitN(envSpec, "=", 2)
 		if len(env) > 1 {
