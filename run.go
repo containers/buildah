@@ -990,6 +990,13 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 		}
 	}
 
+	for _, envSpec := range []string{"http_proxy", "https_proxy", "no_proxy"} {
+		envVal := os.Getenv(envSpec)
+		if envVal != "" {
+			g.AddProcessEnv(envSpec, envVal)
+		}
+	}
+
 	for src, dest := range b.Args {
 		g.AddProcessEnv(src, dest)
 	}
