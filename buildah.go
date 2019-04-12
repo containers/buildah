@@ -282,6 +282,8 @@ type CommonBuildOptions struct {
 	CPUSetCPUs string
 	// CPUSetMems memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
 	CPUSetMems string
+	// HTTPProxy determines whether *_proxy env vars from the build host are passed into the container.
+	HTTPProxy bool
 	// Memory is the upper limit (in bytes) on how much memory running containers can use.
 	Memory int64
 	// DNSSearch is the list of DNS search domains to add to the build container's /etc/resolv.conf
