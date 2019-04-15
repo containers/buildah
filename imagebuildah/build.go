@@ -215,6 +215,8 @@ type Executor struct {
 	forceRmIntermediateCtrs        bool
 	imageMap                       map[string]string           // Used to map images that we create to handle the AS construct.
 	containerMap                   map[string]*buildah.Builder // Used to map from image names to only-created-for-the-rootfs containers.
+	baseMap                        map[string]bool             // Holds the names of every base image, as given.
+	rootfsMap                      map[string]bool             // Holds the names of every stage whose rootfs is referenced in a COPY or ADD instruction.
 	blobDirectory                  string
 	excludes                       []string
 	unusedArgs                     map[string]struct{}
@@ -656,6 +658,8 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 		forceRmIntermediateCtrs:        options.ForceRmIntermediateCtrs,
 		imageMap:                       make(map[string]string),
 		containerMap:                   make(map[string]*buildah.Builder),
+		baseMap:                        make(map[string]bool),
+		rootfsMap:                      make(map[string]bool),
 		blobDirectory:                  options.BlobDirectory,
 		unusedArgs:                     make(map[string]struct{}),
 	}
@@ -875,6 +879,10 @@ func (s *StageExecutor) getImageRootfs(ctx context.Context, stage imagebuilder.S
 func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, base string) (imgID string, ref reference.Canonical, err error) {
 	ib := stage.Builder
 	checkForLayers := s.executor.layers && s.executor.useCache
+	moreStages := s.index < s.stages-1
+	lastStage := !moreStages
+	imageIsUsedLater := moreStages && (s.executor.baseMap[stage.Name] || s.executor.baseMap[fmt.Sprintf("%d", stage.Position)])
+	rootfsIsUsedLater := moreStages && (s.executor.rootfsMap[stage.Name] || s.executor.rootfsMap[fmt.Sprintf("%d", stage.Position)])
 
 	// If the base image's name corresponds to the result of an earlier
 	// stage, substitute that image's ID for the base image's name here.
@@ -896,7 +904,8 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 	// A helper function to only log "COMMIT" as an explicit step if it's
 	// the very last step of a (possibly multi-stage) build.
 	logCommit := func(output string, instruction int) {
-		if instruction < len(children)-1 || s.index < s.stages-1 {
+		moreInstructions := instruction < len(children)-1
+		if moreInstructions || moreStages {
 			return
 		}
 		commitMessage := "COMMIT"
@@ -936,6 +945,8 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 	}
 
 	for i, node := range children {
+		moreInstructions := i < len(children)-1
+		lastInstruction := !moreInstructions
 		// Resolve any arguments in this instruction.
 		step := ib.Step()
 		if err := step.Resolve(node); err != nil {
@@ -984,7 +995,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 		// contents of any volumes declared between now and when we
 		// finish.
 		noRunsRemaining := false
-		if i < len(children)-1 {
+		if moreInstructions {
 			noRunsRemaining = !ib.RequiresStart(&parser.Node{Children: children[i+1:]})
 		}
 
@@ -996,7 +1007,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				logrus.Debugf("%v", errors.Wrapf(err, "error building at step %+v", *step))
 				return "", nil, errors.Wrapf(err, "error building at STEP \"%s\"", step.Message)
 			}
-			if i < len(children)-1 {
+			if moreInstructions {
 				// There are still more instructions to process
 				// for this stage.  Make a note of the
 				// instruction in the history that we'll write
@@ -1007,13 +1018,18 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			} else {
 				// This is the last instruction for this stage,
 				// so we should commit this container to create
-				// an image.
-				logCommit(s.output, i)
-				imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), s.output)
-				if err != nil {
-					return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
+				// an image, but only if it's the last one, or
+				// if it's used as the basis for a later stage.
+				if lastStage || imageIsUsedLater {
+					logCommit(s.output, i)
+					imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), s.output)
+					if err != nil {
+						return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
+					}
+					logImageID(imgID)
+				} else {
+					imgID = ""
 				}
-				logImageID(imgID)
 				break
 			}
 		}
@@ -1028,7 +1044,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 
 		// If we have to commit for this instruction, only assign the
 		// stage's configured output name to the last layer.
-		if i == len(children)-1 {
+		if lastInstruction {
 			commitName = s.output
 		}
 
@@ -1039,7 +1055,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 		// abandon the cache at this step just because we can't find an
 		// image with a history entry in it that we wouldn't have
 		// committed.
-		if checkForLayers && (s.stepRequiresCommit(step) || i == len(children)-1) && !(s.executor.squash && i == len(children)-1 && s.index == s.stages-1) {
+		if checkForLayers && (s.stepRequiresCommit(step) || lastInstruction) && !(s.executor.squash && lastInstruction && lastStage) {
 			cacheID, err = s.layerExists(ctx, node, children[:i])
 			if err != nil {
 				return "", nil, errors.Wrap(err, "error checking if cached image exists from a previous build")
@@ -1059,7 +1075,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// the last step in this stage, add the name to the
 			// image.
 			imgID = cacheID
-			if commitName != "" && (s.stepRequiresCommit(step) || i == len(children)-1) {
+			if commitName != "" && (s.stepRequiresCommit(step) || lastInstruction) {
 				logCommit(s.output, i)
 				if imgID, ref, err = s.copyExistingImage(ctx, cacheID, commitName); err != nil {
 					return "", nil, err
@@ -1067,9 +1083,11 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				logImageID(imgID)
 			}
 			// Update our working container to be based off of the
-			// cached image, in case we need to read content from
-			// its root filesystem.
-			rebase = true
+			// cached image, if we might need to use it as a basis
+			// for the next instruction, or if we need the root
+			// filesystem to match the image contents for the sake
+			// of a later stage that wants to copy content from it.
+			rebase = moreInstructions || rootfsIsUsedLater
 		} else {
 			// If we didn't find a cached image that we could just reuse,
 			// process the instruction directly.
@@ -1078,15 +1096,11 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				logrus.Debugf("%v", errors.Wrapf(err, "error building at step %+v", *step))
 				return "", nil, errors.Wrapf(err, "error building at STEP \"%s\"", step.Message)
 			}
-			if s.stepRequiresCommit(step) || i == len(children)-1 {
+			if s.stepRequiresCommit(step) || lastInstruction {
 				// Either this is the last instruction, or
 				// there are more instructions and we need to
 				// create a layer from this one before
 				// continuing.
-				// TODO: only commit for the last instruction
-				// case if we need to use this stage's image as
-				// a base image later, or if we're the final
-				// stage.
 				logCommit(s.output, i)
 				imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), commitName)
 				if err != nil {
@@ -1099,7 +1113,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// that just want to use the rootfs as a source
 				// for COPY or ADD will be content with what we
 				// already have.
-				rebase = i < len(children)-1
+				rebase = moreInstructions
 			} else {
 				// There are still more instructions to process
 				// for this stage, and we don't need to commit
@@ -1122,8 +1136,6 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// creating a new working container with the
 			// just-committed or updated cached image as its new
 			// base image.
-			// TODO: only create a new container if we know that
-			// we'll need the updated root filesystem.
 			if _, err := s.prepare(ctx, stage, imgID, false, true); err != nil {
 				return "", nil, errors.Wrap(err, "error preparing container for next step")
 			}
@@ -1511,6 +1523,46 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	}
 	defer cleanup()
 
+	// Build maps of every named base image and every referenced stage root
+	// filesystem.  Individual stages can use them to determine whether or
+	// not they can skip certain steps near the end of their stages.
+	for _, stage := range stages {
+		node := stage.Node // first line
+		for node != nil {  // each line
+			for _, child := range node.Children { // tokens on this line, though we only care about the first
+				switch strings.ToUpper(child.Value) { // first token - instruction
+				case "FROM":
+					if child.Next != nil { // second token on this line
+						base := child.Next.Value
+						if base != "scratch" {
+							// TODO: this didn't undergo variable and arg
+							// expansion, so if the AS clause in another
+							// FROM instruction uses argument values,
+							// we might not record the right value here.
+							b.baseMap[base] = true
+							logrus.Debugf("base: %q", base)
+						}
+					}
+				case "ADD", "COPY":
+					for _, flag := range child.Flags { // flags for this instruction
+						if strings.HasPrefix(flag, "--from=") {
+							// TODO: this didn't undergo variable and
+							// arg expansion, so if the previous stage
+							// was named using argument values, we might
+							// not record the right value here.
+							rootfs := flag[7:]
+							b.rootfsMap[rootfs] = true
+							logrus.Debugf("rootfs: %q", rootfs)
+						}
+					}
+				}
+				break
+			}
+			node = node.Next // next line
+		}
+	}
+
+	// Run through the build stages, one at a time.
 	for stageIndex, stage := range stages {
 		var lastErr error
 
@@ -1556,7 +1608,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 
 		// If this is an intermediate stage, make a note of the ID, so
 		// that we can look it up later.
-		if stageIndex < len(stages)-1 {
+		if stageIndex < len(stages)-1 && imageID != "" {
 			b.imageMap[stage.Name] = imageID
 			// We're not populating the cache with intermediate
 			// images, so add this one to the list of images that
