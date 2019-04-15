@@ -10,9 +10,9 @@ load helpers
 	if [ ! -d "${TESTSDIR}/../contrib/rpm" ]; then
 		skip "No source dir available"
 	fi
-	bversion=$(buildah version | awk '/^Version:/ { print $NF }')
+	bversion=$(buildah version | awk '/^Version:/ { print $NF }' | sed 's/-dev/dev/')
 	rversion=$(cat ${TESTSDIR}/../contrib/rpm/buildah.spec | awk '/^Version:/ { print $NF }')
-	run test "${bversion}" = "${rversion}" -o "${bversion}" = "${rversion}dev"
+	run test "${bversion}" = "${rversion}"
 	[ "$status" -eq 0 ]
 }
 
@@ -20,7 +20,7 @@ load helpers
 	if [ ! -d "${TESTSDIR}/../contrib/rpm" ]; then
 		skip "No source dir available"
 	fi
-	bversion=$(buildah version | awk '/^Version:/ { print $NF }')
-	run bash -c "grep -A1 ^%changelog ${TESTSDIR}/../contrib/rpm/buildah.spec | grep -q \" ${bversion}\(dev\)\?-.*$\""
+	bversion=$(buildah version | awk '/^Version:/ { print $NF }' | sed 's/-dev/dev/')
+	run bash -c "grep -A1 ^%changelog ${TESTSDIR}/../contrib/rpm/buildah.spec | grep -q \" ${bversion}-[0-9]\+$\""
 	[ "$status" -eq 0 ]
 }
