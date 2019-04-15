@@ -396,6 +396,7 @@ return 1
      -f
      --file
      --format
+     --http-proxy
      --iidfile
      --isolation
      --ipc
@@ -804,6 +805,7 @@ _buildah_containers() {
      --cpuset-cpus
      --cpuset-mems
      --creds
+     --http-proxy
      --ipc
      --isolation
      -m
