@@ -1070,3 +1070,28 @@ load helpers
 @test "bud-no-target-name" {
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/maintainer
 }
+
+@test "bud-multi-stage-nocache-nocommit" {
+  # pull the base image directly, so that we don't record it being written to local storage in the next step
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
+  # okay, build an image with two stages
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds
+  # debug messages should only record us creating one new image: the one for the second stage, since we don't base anything on the first
+  run grep "created new image ID" <<< "$output"
+  echo "$output"
+  test "${#lines[@]}" -eq 1
+}
+
+@test "bud-multi-stage-cache-nocontainer" {
+  # first time through, quite normal
+  run_buildah bud --layers -t base --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.rebase ${TESTSDIR}/bud/multi-stage-builds
+  # second time through, everything should be cached, and we shouldn't create a container based on the final image
+  run_buildah bud --layers -t base --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.rebase ${TESTSDIR}/bud/multi-stage-builds
+  # skip everything up through the final COMMIT step, and make sure we didn't log a "Container ID:" after it
+  run sed '0,/COMMIT base/ d' <<< "$output"
+  echo "$output"
+  test "${#lines[@]}" -gt 1
+  run grep "Container ID:" <<< "$output"
+  echo "$output"
+  test "${#lines[@]}" -eq 0
+}
