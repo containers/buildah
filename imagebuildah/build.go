@@ -1225,11 +1225,12 @@ func (b *Executor) getImageHistory(ctx context.Context, imageID string) ([]v1.Hi
 	}
 	ref, err := imageRef.NewImage(ctx, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "error creating new image from reference")
+		return nil, errors.Wrapf(err, "error creating new image from reference to image %q", imageID)
 	}
+	defer ref.Close()
 	oci, err := ref.OCIConfig(ctx)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error getting oci config of image %q", imageID)
+		return nil, errors.Wrapf(err, "error getting possibly-converted OCI config of image %q", imageID)
 	}
 	return oci.History, nil
 }
