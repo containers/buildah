@@ -154,6 +154,9 @@ func modTimeIsGreater(rootdir, path string, historyTime string) (bool, error) {
 		if info.Mode()&os.ModeSymlink == os.ModeSymlink {
 			// Evaluate any symlink that occurs to get updated modified information
 			resolvedPath, err := filepath.EvalSymlinks(path)
+			if err != nil && os.IsNotExist(err) {
+				return errors.Wrapf(errDanglingSymlink, "%q", path)
+			}
 			if err != nil {
 				return errors.Wrapf(err, "error evaluating symlink %q", path)
 			}
@@ -169,7 +172,12 @@ func modTimeIsGreater(rootdir, path string, historyTime string) (bool, error) {
 		}
 		return nil
 	})
+
 	if err != nil {
+		// if error is due to dangling symlink, ignore error and return nil
+		if errors.Cause(err) == errDanglingSymlink {
+			return false, nil
+		}
 		return false, errors.Wrapf(err, "error walking file tree %q", path)
 	}
 	return timeIsGreater, err

@@ -163,6 +163,28 @@ load helpers
   buildah rmi -a -f
 }
 
+@test "bud with --layers and dangling symlink" {
+  cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
+  mkdir ${TESTDIR}/use-layers/blah
+  ln -s ${TESTSDIR}/policy.json ${TESTDIR}/use-layers/blah/policy.json
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.dangling-symlink ${TESTDIR}/use-layers
+  run_buildah --debug=false images -a
+  expect_line_count 3
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.dangling-symlink ${TESTDIR}/use-layers
+  run_buildah --debug=false images -a
+  expect_line_count 4
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json test)
+	run_buildah --debug=false run $cid ls /tmp
+  expect_output "policy.json"
+
+  buildah rm -a
+  buildah rmi -a -f
+  rm -rf ${TESTDIR}/use-layers/blah
+}
+
 @test "bud with --rm flag" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false containers
