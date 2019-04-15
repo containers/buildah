@@ -98,6 +98,7 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 		DNSSearch:    dnsSearch,
 		DNSServers:   dnsServers,
 		DNSOptions:   dnsOptions,
+		HttpProxy:    c.Flag("http-proxy").Value.String() == "true",
 		Memory:       memoryLimit,
 		MemorySwap:   memorySwap,
 		ShmSize:      c.Flag("shm-size").Value.String(),
