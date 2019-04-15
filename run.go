@@ -150,8 +150,6 @@ type RunOptions struct {
 	Args []string
 	// NoPivot adds the --no-pivot runtime flag.
 	NoPivot bool
-	// HttpProxy determines whether proxy env vars are passed thru to the container.
-	HttpProxy bool
 	// Mounts are additional mount points which we want to provide.
 	Mounts []specs.Mount
 	// Env is additional environment variables to set.
@@ -985,7 +983,7 @@ func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, opti
 
 func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions) {
 	g.ClearProcessEnv()
-	if b.CommonBuildOpts.HttpProxy || options.HttpProxy {
+	if b.CommonBuildOpts.HttpProxy {
 		for _, envSpec := range []string{
 			"http_proxy",
 			"HTTP_PROXY",

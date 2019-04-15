@@ -21,7 +21,6 @@ type runInputOptions struct {
 	capAdd         []string
 	capDrop        []string
 	hostname       string
-	httpProxy      bool
 	isolation      string
 	runtime        string
 	runtimeFlag    []string
@@ -71,7 +70,6 @@ func init() {
 	flags.BoolVar(&opts.terminal, "tty", false, "allocate a pseudo-TTY in the container")
 	flags.MarkHidden("tty")
 	flags.StringSliceVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
-	flags.BoolVar(&opts.httpProxy, "http-proxy", true, "pass thru HTTP Proxy environment variables")
 
 	userFlags := getUserFlags()
 	namespaceFlags := buildahcli.GetNameSpaceFlags(&namespaceResults)
@@ -133,7 +131,6 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		NoPivot:          noPivot,
 		User:             c.Flag("user").Value.String(),
 		Isolation:        isolation,
-		HttpProxy:        iopts.httpProxy,
 		NamespaceOptions: namespaceOptions,
 		ConfigureNetwork: networkPolicy,
 		CNIPluginPath:    iopts.CNIPlugInPath,
