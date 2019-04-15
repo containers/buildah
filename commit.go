@@ -67,8 +67,6 @@ type CommitOptions struct {
 
 	// OnBuild is a list of commands to be run by images based on this image
 	OnBuild []string
-	// Parent is the base image that this image was created by.
-	Parent string
 
 	// OmitTimestamp forces epoch 0 as created timestamp to allow for
 	// deterministic, content-addressable builds.
@@ -169,7 +167,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		}
 	}
 	// Build an image reference from which we can copy the finished image.
-	src, err := b.makeImageRef(options.PreferredManifestType, options.Parent, exportBaseLayers, options.Squash, options.BlobDirectory, options.Compression, options.HistoryTimestamp, options.OmitTimestamp)
+	src, err := b.makeImageRef(options.PreferredManifestType, exportBaseLayers, options.Squash, options.BlobDirectory, options.Compression, options.HistoryTimestamp, options.OmitTimestamp)
 	if err != nil {
 		return imgID, nil, "", errors.Wrapf(err, "error computing layer digests and building metadata for container %q", b.ContainerID)
 	}

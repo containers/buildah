@@ -184,7 +184,7 @@ func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, 
 	if err := json.Unmarshal(i.dconfig, &dimage); err != nil {
 		return v1.Image{}, v1.Manifest{}, docker.V2Image{}, docker.V2S2Manifest{}, err
 	}
-	dimage.Parent = docker.ID(digest.FromString(i.parent))
+	dimage.Parent = docker.ID(i.parent)
 	// Always replace this value, since we're newer than our base image.
 	dimage.Created = created
 	// Clear the list of diffIDs, since we always repopulate it.
@@ -445,7 +445,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 	}
 	dimage.History = append(dimage.History, dnews)
 	appendHistory(i.postEmptyLayers)
-	dimage.Parent = docker.ID(digest.FromString(i.parent))
+	dimage.Parent = docker.ID(i.parent)
 
 	// Sanity check that we didn't just create a mismatch between non-empty layers in the
 	// history and the number of diffIDs.
@@ -636,7 +636,7 @@ func (i *containerImageSource) GetBlob(ctx context.Context, blob types.BlobInfo,
 	return ioutils.NewReadCloserWrapper(layerFile, closer), size, nil
 }
 
-func (b *Builder) makeImageRef(manifestType, parent string, exporting bool, squash bool, blobDirectory string, compress archive.Compression, historyTimestamp *time.Time, omitTimestamp bool) (types.ImageReference, error) {
+func (b *Builder) makeImageRef(manifestType string, exporting bool, squash bool, blobDirectory string, compress archive.Compression, historyTimestamp *time.Time, omitTimestamp bool) (types.ImageReference, error) {
 	var name reference.Named
 	container, err := b.store.Container(b.ContainerID)
 	if err != nil {
@@ -672,6 +672,14 @@ func (b *Builder) makeImageRef(manifestType, parent string, exporting bool, squa
 
 	if omitTimestamp {
 		created = time.Unix(0, 0)
+	}
+
+	parent := ""
+	if b.FromImageID != "" {
+		parentDigest := digest.NewDigestFromEncoded(digest.Canonical, b.FromImageID)
+		if parentDigest.Validate() == nil {
+			parent = parentDigest.String()
+		}
 	}
 
 	ref := &containerImageRef{
