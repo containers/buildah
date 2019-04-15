@@ -188,6 +188,8 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if err != nil {
 		return err
 	}
+	// TODO: move this into CommonBuildOptions() above
+	commonOpts.HttpProxy = iopts.HttpProxy
 
 	isolation, err := parse.IsolationOption(c)
 	if err != nil {
