@@ -1452,7 +1452,6 @@ func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, cr
 		SystemContext:         s.executor.systemContext,
 		Squash:                s.executor.squash,
 		BlobDirectory:         s.executor.blobDirectory,
-		Parent:                s.builder.FromImageID,
 	}
 	imgID, _, manifestDigest, err := s.builder.Commit(ctx, imageRef, options)
 	if err != nil {
