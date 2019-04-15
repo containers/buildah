@@ -872,7 +872,7 @@ func (s *StageExecutor) getImageRootfs(ctx context.Context, stage imagebuilder.S
 }
 
 // Execute runs each of the steps in the stage's parsed tree, in turn.
-func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, base string) (imgID string, ref reference.Canonical, err error) {
+func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, base string, forceCommit bool) (imgID string, ref reference.Canonical, err error) {
 	ib := stage.Builder
 	checkForLayers := s.executor.layers && s.executor.useCache
 
@@ -1008,12 +1008,14 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// This is the last instruction for this stage,
 				// so we should commit this container to create
 				// an image.
-				logCommit(s.output, i)
-				imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), s.output)
-				if err != nil {
-					return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
+				if forceCommit {
+					logCommit(s.output, i)
+					imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), s.output)
+					if err != nil {
+						return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
+					}
+					logImageID(imgID)
 				}
-				logImageID(imgID)
 				break
 			}
 		}
@@ -1078,19 +1080,11 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				logrus.Debugf("%v", errors.Wrapf(err, "error building at step %+v", *step))
 				return "", nil, errors.Wrapf(err, "error building at STEP \"%s\"", step.Message)
 			}
-			if s.stepRequiresCommit(step) || i == len(children)-1 {
-				// Either this is the last instruction, or
-				// there are more instructions and we need to
-				// create a layer from this one before
-				// continuing.
-				// TODO: only commit for the last instruction
-				// case if we need to use this stage's image as
-				// a base image later, or if we're the final
-				// stage.
+			_commit := func() error {
 				logCommit(s.output, i)
 				imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), commitName)
 				if err != nil {
-					return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
+					return errors.Wrapf(err, "error committing container for step %+v", *step)
 				}
 				logImageID(imgID)
 				// We only need to build a new container rootfs
@@ -1100,6 +1094,18 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// for COPY or ADD will be content with what we
 				// already have.
 				rebase = i < len(children)-1
+				return nil
+			}
+			if s.stepRequiresCommit(step) {
+				if err := _commit(); err != nil {
+					return "", nil, err
+				}
+			} else if i == len(children)-1 {
+				if forceCommit {
+					if err := _commit(); err != nil {
+						return "", nil, err
+					}
+				}
 			} else {
 				// There are still more instructions to process
 				// for this stage, and we don't need to commit
@@ -1538,8 +1544,22 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			cleanupStages[stage.Position] = stageExecutor
 		}
 
+		// ForceCommit the stage if this is the finalStage
+		// or if we need to use this stage's image as
+		// a base image later
+		forceCommit := stageIndex == len(stages)-1
+		if !forceCommit {
+			for index, value := range b.stages {
+				if value == stageExecutor {
+					continue
+				}
+				if index != stage.Name {
+					forceCommit = true
+				}
+			}
+		}
 		// Build this stage.
-		if imageID, ref, err = stageExecutor.Execute(ctx, stage, base); err != nil {
+		if imageID, ref, err = stageExecutor.Execute(ctx, stage, base, forceCommit); err != nil {
 			lastErr = err
 		}
 		if lastErr != nil {
