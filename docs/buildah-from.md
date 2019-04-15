@@ -171,6 +171,14 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
+**--http-proxy**
+
+By default proxy environment variables are passed into the container if set
+for the buildah process.  This can be disabled by setting the `--http-proxy`
+option to `false`.  The environment variables passed in include `http_proxy`,
+`https_proxy`, `ftp_proxy`, `no_proxy`, and also the upper case versions of
+those.
+
 **--ipc** *how*
 
 Sets the configuration for IPC namespaces when the container is subsequently
