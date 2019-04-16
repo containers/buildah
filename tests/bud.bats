@@ -1046,8 +1046,11 @@ load helpers
 
 @test "bud with unused build arg" {
   target=busybox-image
-  out=$(buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg foo=bar --build-arg foo2=bar2 -f ${TESTSDIR}/bud/build-arg ${TESTSDIR}/bud/build-arg | grep "Warning" | wc -l)
-  [ "$out" -ne 0 ]
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg foo=bar --build-arg foo2=bar2 -f ${TESTSDIR}/bud/build-arg ${TESTSDIR}/bud/build-arg
+  expect_output --substring "one or more build args were not consumed: \[foo2\]"
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg IMAGE=alpine -f ${TESTSDIR}/bud/build-arg/Dockerfile2 ${TESTSDIR}/bud/build-arg
+  ! expect_output --substring "one or more build args were not consumed: \[IMAGE\]"
+  expect_output --substring "FROM alpine"
 }
 
 @test "bud with copy-from and cache" {

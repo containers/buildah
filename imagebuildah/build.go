@@ -592,7 +592,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 // UnrecognizedInstruction is called when we encounter an instruction that the
 // imagebuilder parser didn't understand.
 func (s *StageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
-	errStr := fmt.Sprintf("Build error: Unknown instruction: %q ", step.Command)
+	errStr := fmt.Sprintf("Build error: Unknown instruction: %q ", strings.ToUpper(step.Command))
 	err := fmt.Sprintf(errStr+"%#v", step)
 	if s.executor.ignoreUnrecognizedInstructions {
 		logrus.Debugf(err)
@@ -612,7 +612,7 @@ func (s *StageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
-func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
+func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Node) (*Executor, error) {
 	excludes, err := imagebuilder.ParseDockerignore(options.ContextDirectory)
 	if err != nil {
 		return nil, err
@@ -681,6 +681,25 @@ func NewExecutor(store storage.Store, options BuildOptions) (*Executor, error) {
 	for arg := range options.Args {
 		if _, isBuiltIn := builtinAllowedBuildArgs[arg]; !isBuiltIn {
 			exec.unusedArgs[arg] = struct{}{}
+		}
+	}
+	for _, line := range mainNode.Children {
+		node := line
+		for node != nil { // tokens on this line, though we only care about the first
+			switch strings.ToUpper(node.Value) { // first token - instruction
+			case "ARG":
+				arg := node.Next
+				if arg != nil {
+					// We have to be careful here - it's either an argument
+					// and value, or just an argument, since they can be
+					// separated by either "=" or whitespace.
+					list := strings.SplitN(arg.Value, "=", 2)
+					if _, stillUnused := exec.unusedArgs[list[0]]; stillUnused {
+						delete(exec.unusedArgs, list[0])
+					}
+				}
+			}
+			break
 		}
 	}
 	return &exec, nil
@@ -957,30 +976,19 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			s.executor.log("%s", step.Original)
 		}
 
-		// If this instruction declares an argument, remove it from the
-		// set of arguments that we were passed but which we haven't
-		// yet seen used by the Dockerfile.
-		if step.Command == "arg" {
-			for _, Arg := range step.Args {
-				list := strings.SplitN(Arg, "=", 2)
-				if _, stillUnused := s.executor.unusedArgs[list[0]]; stillUnused {
-					delete(s.executor.unusedArgs, list[0])
-				}
-			}
-		}
-
 		// Check if there's a --from if the step command is COPY or
 		// ADD.  Set copyFrom to point to either the context directory
 		// or the root of the container from the specified stage.
 		s.copyFrom = s.executor.contextDir
 		for _, n := range step.Flags {
-			if strings.Contains(n, "--from") && (step.Command == "copy" || step.Command == "add") {
+			command := strings.ToUpper(step.Command)
+			if strings.Contains(n, "--from") && (command == "COPY" || command == "ADD") {
 				var mountPoint string
 				arr := strings.Split(n, "=")
 				otherStage, ok := s.executor.stages[arr[1]]
 				if !ok {
 					if mountPoint, err = s.getImageRootfs(ctx, stage, arr[1]); err != nil {
-						return "", nil, errors.Errorf("%s --from=%s: no stage or image found with that name", step.Command, arr[1])
+						return "", nil, errors.Errorf("%s --from=%s: no stage or image found with that name", command, arr[1])
 					}
 				} else {
 					mountPoint = otherStage.mountPoint
@@ -1724,7 +1732,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 		}
 		mainNode.Children = append(mainNode.Children, additionalNode.Children...)
 	}
-	exec, err := NewExecutor(store, options)
+	exec, err := NewExecutor(store, options, mainNode)
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "error creating build executor")
 	}
