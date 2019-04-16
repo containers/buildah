@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.7.3
+Version:        1.8-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,43 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Tue Mar 28, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8-dev-1
+* Tue Apr 16, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8-dev-1
+
+* Tue Apr 16, 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.3
+- imagebuildah: don't leak image structs
+- Add Dockerfiles for buildahimages
+- Bump to Replace golang 1.10 with 1.12
+- add --dns* flags to buildah bud
+- Add hack/build_speed.sh test speeds on building container images
+- Create buildahimage Dockerfile for Quay
+- rename 'is' to 'expect_output'
+- squash.bats: test squashing in multi-layered builds
+- bud.bats: test COPY --from in a Dockerfile while using the cache
+- commit: make target image names optional
+- Fix bud-args to allow comma separation
+- oops, missed some tests in commit.bats
+- new helper: expect_line_count
+- New tests for #1467 (string slices in cmdline opts)
+- Workarounds for dealing with travis; review feedback
+- BATS tests - extensive but minor cleanup
+- imagebuildah: defer pulling images for COPY --from
+- imagebuildah: centralize COMMIT and image ID output
+- Travis: do not use traviswait
+- imagebuildah: only initialize imagebuilder configuration once per stage
+- Make cleaner error on Dockerfile build errors
+- unshare: move to pkg/
+- unshare: move some code from cmd/buildah/unshare
+- Fix handling of Slices versus Arrays
+- imagebuildah: reorganize stage and per-stage logic
+- imagebuildah: add empty layers for instructions
+- Add missing step in installing into Ubuntu
+- fix bug in .dockerignore support
+- imagebuildah: deduplicate prepended "FROM" instructions
+- Touch up intro
+- commit: set created-by to the shell if it isn't set
+- commit: check that we always set a "created-by"
+- docs/buildah.md: add "containers-" prefixes under "SEE ALSO"
+- Bump back to 1.8-dev
 
 * Tue Mar 28, 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.2-1
 - mount: do not create automatically a namespace
