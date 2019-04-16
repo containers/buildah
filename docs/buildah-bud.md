@@ -230,6 +230,8 @@ option to `false`.  The environment variables passed in include `http_proxy`,
 `https_proxy`, `ftp_proxy`, `no_proxy`, and also the upper case versions of
 those.
 
+Defaults to `true`
+
 **--iidfile** *ImageIDfile*
 
 Write the image ID to the file.

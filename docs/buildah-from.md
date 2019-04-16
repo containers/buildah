@@ -179,6 +179,8 @@ option to `false`.  The environment variables passed in include `http_proxy`,
 `https_proxy`, `ftp_proxy`, `no_proxy`, and also the upper case versions of
 those.
 
+Defaults to `true`
+
 **--ipc** *how*
 
 Sets the configuration for IPC namespaces when the container is subsequently
