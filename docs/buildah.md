@@ -17,7 +17,7 @@ The Buildah package provides a command line tool which can be used to:
     * Delete a working container or an image.
     * Rename a local container.
 
-This tool needs to be run as the root user.
+This tool may need to be run as the root user on older versions of Linux.
 
 ## OPTIONS
 
