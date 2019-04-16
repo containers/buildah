@@ -185,6 +185,26 @@ load helpers
   rm -rf ${TESTDIR}/use-layers/blah
 }
 
+@test "bud with --layers and --build-args" {
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=0 --layers -t test -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
+  run_buildah --debug=false images -a
+  expect_line_count 4
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test1 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
+  run_buildah --debug=false images -a
+  expect_line_count 6
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test2 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
+  run_buildah --debug=false images -a
+  expect_line_count 7
+
+  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
+  run_buildah --debug=false images -a
+  expect_line_count 9
+
+  buildah rmi -a -f
+}
+
 @test "bud with --rm flag" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run_buildah --debug=false containers
