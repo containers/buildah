@@ -115,7 +115,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 func openBuilder(ctx context.Context, store storage.Store, name string) (builder *buildah.Builder, err error) {
 	if name != "" {
 		builder, err = buildah.OpenBuilder(store, name)
-		if os.IsNotExist(err) {
+		if os.IsNotExist(errors.Cause(err)) {
 			options := buildah.ImportOptions{
 				Container: name,
 			}
