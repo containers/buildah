@@ -10,7 +10,7 @@ FROM fedora
 
 # Install build and remove directories used by dnf that are just taking up
 # space.
-RUN yum -y install buildah; rm -rf /var/cache /var/log/dnf* /var/log/yum.*
+RUN yum -y install buildah && rm -rf /var/cache /var/log/dnf* /var/log/yum.*
 
 # Adjust storage.conf to enable Fuse storage.
 RUN sed 's|^#mount_program|mount_program|g' -i /etc/containers/storage.conf
