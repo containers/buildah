@@ -865,7 +865,7 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 		if err := g.AddOrReplaceLinuxNamespace(specs.UserNamespace, ""); err != nil {
 			return false, nil, false, errors.Wrapf(err, "error adding new %q namespace for run", string(specs.UserNamespace))
 		}
-		hostUidmap, hostGidmap, err := util.GetHostIDMappings("")
+		hostUidmap, hostGidmap, err := unshare.GetHostIDMappings("")
 		if err != nil {
 			return false, nil, false, err
 		}

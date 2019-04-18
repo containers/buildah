@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/containers/buildah/util"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -88,7 +87,7 @@ func report() {
 	}
 	report.OOMScoreAdj = oom
 
-	uidmap, gidmap, err := util.GetHostIDMappings("")
+	uidmap, gidmap, err := GetHostIDMappings("")
 	if err != nil {
 		logrus.Errorf("error reading current ID mappings: %v", err)
 		os.Exit(1)

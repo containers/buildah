@@ -9,7 +9,6 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/pkg/unshare"
-	"github.com/containers/buildah/util"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
@@ -67,7 +66,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		if len(gopts) == 0 {
 			return nil, errors.New("--userns-gid-map used with no mappings?")
 		}
-		uidmap, gidmap, err := util.ParseIDMappings(uopts, gopts)
+		uidmap, gidmap, err := unshare.ParseIDMappings(uopts, gopts)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +90,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		if len(gopts) == 0 {
 			return nil, errors.New("--userns-gid-map used with no mappings?")
 		}
-		uidmap, gidmap, err := util.ParseIDMappings(uopts, gopts)
+		uidmap, gidmap, err := unshare.ParseIDMappings(uopts, gopts)
 		if err != nil {
 			return nil, err
 		}
