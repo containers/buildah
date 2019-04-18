@@ -24,7 +24,7 @@ load helpers
 
   run_buildah run myctr ls -l test2.txt
 
-  run_buildah 1 run myctr ls -l test1.txt
+  run_buildah run myctr ls -l sub1.txt
 
   run_buildah run myctr ls -l subdir/sub1.txt
 
