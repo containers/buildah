@@ -1194,3 +1194,20 @@ load helpers
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
   expect_output --substring "/testdir"
 }
+@test "bud-copy-dot with --layers picks up changed file" {
+  cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
+
+  mkdir -p ${TESTDIR}/use-layers/subdir
+  touch ${TESTDIR}/use-layers/subdir/file.txt
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers --iidfile ${TESTDIR}/iid1 -f Dockerfile.7 ${TESTDIR}/use-layers
+
+  touch ${TESTDIR}/use-layers/subdir/file.txt
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers --iidfile ${TESTDIR}/iid2 -f Dockerfile.7 ${TESTDIR}/use-layers
+
+  if [[ $(cat ${TESTDIR}/iid1) = $(cat ${TESTDIR}/iid2) ]]; then
+    echo "Expected image id to change after touching a file copied into the image" >&2
+    false
+  fi
+
+  buildah rmi -a -f
+}
