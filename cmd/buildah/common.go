@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/buildah/pkg/unshare"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
@@ -200,7 +201,7 @@ func defaultFormat() string {
 	if format != "" {
 		return format
 	}
-	return buildah.OCI
+	return bopts.OCI
 }
 
 // imageIsParent goes through the layers in the store and checks if i.TopLayer is
@@ -267,10 +268,10 @@ func getImageOfTopLayer(images []storage.Image, layer string) []string {
 
 func getFormat(format string) (string, error) {
 	switch format {
-	case buildah.OCI:
-		return buildah.OCIv1ImageManifest, nil
-	case buildah.DOCKER:
-		return buildah.Dockerv2ImageManifest, nil
+	case bopts.OCI:
+		return bopts.OCIv1ImageManifest, nil
+	case bopts.DOCKER:
+		return bopts.Dockerv2ImageManifest, nil
 	default:
 		return "", errors.Errorf("unrecognized image type %q", format)
 	}

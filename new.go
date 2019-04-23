@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"strings"
 
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/buildah/util"
 	"github.com/containers/image/pkg/sysregistries"
 	is "github.com/containers/image/storage"
@@ -314,7 +315,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 
 	uidmap, gidmap := convertStorageIDMaps(container.UIDMap, container.GIDMap)
 
-	defaultNamespaceOptions, err := DefaultNamespaceOptions()
+	defaultNamespaceOptions, err := bopts.DefaultNamespaceOptions()
 	if err != nil {
 		return nil, err
 	}

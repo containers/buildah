@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah/docker"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/image"
 	"github.com/containers/image/manifest"
@@ -26,17 +27,6 @@ import (
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-)
-
-const (
-	// OCIv1ImageManifest is the MIME type of an OCIv1 image manifest,
-	// suitable for specifying as a value of the PreferredManifestType
-	// member of a CommitOptions structure.  It is also the default.
-	OCIv1ImageManifest = v1.MediaTypeImageManifest
-	// Dockerv2ImageManifest is the MIME type of a Docker v2s2 image
-	// manifest, suitable for specifying as a value of the
-	// PreferredManifestType member of a CommitOptions structure.
-	Dockerv2ImageManifest = manifest.DockerV2Schema2MediaType
 )
 
 type containerImageRef struct {
@@ -648,7 +638,7 @@ func (b *Builder) makeImageRef(manifestType string, exporting bool, squash bool,
 		}
 	}
 	if manifestType == "" {
-		manifestType = OCIv1ImageManifest
+		manifestType = bopts.OCIv1ImageManifest
 	}
 	oconfig, err := json.Marshal(&b.OCIv1)
 	if err != nil {

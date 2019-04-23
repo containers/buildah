@@ -21,6 +21,7 @@ import (
 	"github.com/containernetworking/cni/libcni"
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/chroot"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/buildah/pkg/secrets"
 	"github.com/containers/buildah/pkg/unshare"
 	"github.com/containers/buildah/util"
@@ -73,29 +74,6 @@ func (t TerminalPolicy) String() string {
 	}
 	return fmt.Sprintf("unrecognized terminal setting %d", t)
 }
-
-// NamespaceOption controls how we set up a namespace when launching processes.
-type NamespaceOption struct {
-	// Name specifies the type of namespace, typically matching one of the
-	// ...Namespace constants defined in
-	// github.com/opencontainers/runtime-spec/specs-go.
-	Name string
-	// Host is used to force our processes to use the host's namespace of
-	// this type.
-	Host bool
-	// Path is the path of the namespace to attach our process to, if Host
-	// is not set.  If Host is not set and Path is also empty, a new
-	// namespace will be created for the process that we're starting.
-	// If Name is specs.NetworkNamespace, if Path doesn't look like an
-	// absolute path, it is treated as a comma-separated list of CNI
-	// configuration names which will be selected from among all of the CNI
-	// network configurations which we find.
-	Path string
-}
-
-// NamespaceOptions provides some helper methods for a slice of NamespaceOption
-// structs.
-type NamespaceOptions []NamespaceOption
 
 // IDMappingOptions controls how we set up UID/GID mapping when we set up a
 // user namespace.
@@ -165,7 +143,7 @@ type RunOptions struct {
 	// Entrypoint is an override for the configured entry point.
 	Entrypoint []string
 	// NamespaceOptions controls how we set up the namespaces for the process.
-	NamespaceOptions NamespaceOptions
+	NamespaceOptions bopts.NamespaceOptions
 	// ConfigureNetwork controls whether or not network interfaces and
 	// routing are configured for a new network namespace (i.e., when not
 	// joining another's namespace and not just using the host's
@@ -203,62 +181,6 @@ type RunOptions struct {
 	DropCapabilities []string
 }
 
-// DefaultNamespaceOptions returns the default namespace settings from the
-// runtime-tools generator library.
-func DefaultNamespaceOptions() (NamespaceOptions, error) {
-	options := NamespaceOptions{
-		{Name: string(specs.CgroupNamespace), Host: true},
-		{Name: string(specs.IPCNamespace), Host: true},
-		{Name: string(specs.MountNamespace), Host: true},
-		{Name: string(specs.NetworkNamespace), Host: true},
-		{Name: string(specs.PIDNamespace), Host: true},
-		{Name: string(specs.UserNamespace), Host: true},
-		{Name: string(specs.UTSNamespace), Host: true},
-	}
-	g, err := generate.New("linux")
-	if err != nil {
-		return options, errors.Wrapf(err, "error generating new 'linux' runtime spec")
-	}
-	spec := g.Config
-	if spec.Linux != nil {
-		for _, ns := range spec.Linux.Namespaces {
-			options.AddOrReplace(NamespaceOption{
-				Name: string(ns.Type),
-				Path: ns.Path,
-			})
-		}
-	}
-	return options, nil
-}
-
-// Find the configuration for the namespace of the given type.  If there are
-// duplicates, find the _last_ one of the type, since we assume it was appended
-// more recently.
-func (n *NamespaceOptions) Find(namespace string) *NamespaceOption {
-	for i := range *n {
-		j := len(*n) - 1 - i
-		if (*n)[j].Name == namespace {
-			return &((*n)[j])
-		}
-	}
-	return nil
-}
-
-// AddOrReplace either adds or replaces the configuration for a given namespace.
-func (n *NamespaceOptions) AddOrReplace(options ...NamespaceOption) {
-nextOption:
-	for _, option := range options {
-		for i := range *n {
-			j := len(*n) - 1 - i
-			if (*n)[j].Name == option.Name {
-				(*n)[j] = option
-				continue nextOption
-			}
-		}
-		*n = append(*n, option)
-	}
-}
-
 func addRlimits(ulimit []string, g *generate.Generator) error {
 	var (
 		ul  *units.Ulimit
@@ -275,7 +197,7 @@ func addRlimits(ulimit []string, g *generate.Generator) error {
 	return nil
 }
 
-func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) error {
+func addCommonOptsToSpec(commonOpts *bopts.CommonBuildOptions, g *generate.Generator) error {
 	// Resources - CPU
 	if commonOpts.CPUPeriod != 0 {
 		g.SetLinuxResourcesCPUPeriod(commonOpts.CPUPeriod)
@@ -315,7 +237,7 @@ func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) 
 	return nil
 }
 
-func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions NamespaceOptions) error {
+func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions bopts.NamespaceOptions) error {
 	// Start building a new list of mounts.
 	var mounts []specs.Mount
 	haveMount := func(destination string) bool {
@@ -821,7 +743,7 @@ func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, termina
 	}
 }
 
-func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, idmapOptions IDMappingOptions, policy NetworkConfigurationPolicy) (configureNetwork bool, configureNetworks []string, configureUTS bool, err error) {
+func setupNamespaces(g *generate.Generator, namespaceOptions bopts.NamespaceOptions, idmapOptions IDMappingOptions, policy NetworkConfigurationPolicy) (configureNetwork bool, configureNetworks []string, configureUTS bool, err error) {
 	// Set namespace options in the container configuration.
 	configureUserns := false
 	specifiedNetwork := false
@@ -1014,7 +936,7 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 }
 
 func (b *Builder) configureNamespaces(g *generate.Generator, options RunOptions) (bool, []string, error) {
-	defaultNamespaceOptions, err := DefaultNamespaceOptions()
+	defaultNamespaceOptions, err := bopts.DefaultNamespaceOptions()
 	if err != nil {
 		return false, nil, err
 	}
@@ -1248,7 +1170,7 @@ func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) 
 		if ns := options.NamespaceOptions.Find(string(specs.IPCNamespace)); ns == nil || ns.Host {
 			logrus.Debugf("Forcing use of an IPC namespace.")
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.IPCNamespace)})
+		options.NamespaceOptions.AddOrReplace(bopts.NamespaceOption{Name: string(specs.IPCNamespace)})
 		_, err := exec.LookPath("slirp4netns")
 		hostNetworking := err != nil
 		networkNamespacePath := ""
@@ -1260,7 +1182,7 @@ func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) 
 				networkNamespacePath = ""
 			}
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{
+		options.NamespaceOptions.AddOrReplace(bopts.NamespaceOption{
 			Name: string(specs.NetworkNamespace),
 			Host: hostNetworking,
 			Path: networkNamespacePath,
@@ -1268,15 +1190,15 @@ func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) 
 		if ns := options.NamespaceOptions.Find(string(specs.PIDNamespace)); ns == nil || ns.Host {
 			logrus.Debugf("Forcing use of a PID namespace.")
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.PIDNamespace), Host: false})
+		options.NamespaceOptions.AddOrReplace(bopts.NamespaceOption{Name: string(specs.PIDNamespace), Host: false})
 		if ns := options.NamespaceOptions.Find(string(specs.UserNamespace)); ns == nil || ns.Host {
 			logrus.Debugf("Forcing use of a user namespace.")
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.UserNamespace)})
+		options.NamespaceOptions.AddOrReplace(bopts.NamespaceOption{Name: string(specs.UserNamespace)})
 		if ns := options.NamespaceOptions.Find(string(specs.UTSNamespace)); ns != nil && !ns.Host {
 			logrus.Debugf("Disabling UTS namespace.")
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.UTSNamespace), Host: true})
+		options.NamespaceOptions.AddOrReplace(bopts.NamespaceOption{Name: string(specs.UTSNamespace), Host: true})
 	case IsolationOCI:
 		pidns := options.NamespaceOptions.Find(string(specs.PIDNamespace))
 		userns := options.NamespaceOptions.Find(string(specs.UserNamespace))

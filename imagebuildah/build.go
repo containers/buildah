@@ -17,6 +17,7 @@ import (
 
 	"github.com/containers/buildah"
 	buildahdocker "github.com/containers/buildah/docker"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/buildah/util"
 	cp "github.com/containers/image/copy"
 	"github.com/containers/image/docker/reference"
@@ -116,7 +117,7 @@ type BuildOptions struct {
 	SystemContext *types.SystemContext
 	// NamespaceOptions controls how we set up namespaces processes that we
 	// might need when handling RUN instructions.
-	NamespaceOptions []buildah.NamespaceOption
+	NamespaceOptions []bopts.NamespaceOption
 	// ConfigureNetwork controls whether or not network interfaces and
 	// routing are configured for a new network namespace (i.e., when not
 	// joining another's namespace and not just using the host's
@@ -139,7 +140,7 @@ type BuildOptions struct {
 	// when handling RUN instructions. If a capability appears in both lists, it
 	// will be dropped.
 	DropCapabilities []string
-	CommonBuildOpts  *buildah.CommonBuildOptions
+	CommonBuildOpts  *bopts.CommonBuildOptions
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
 	DefaultMountsFilePath string
 	// IIDFile tells the builder to write the image ID to the specified file
@@ -196,12 +197,12 @@ type Executor struct {
 	systemContext                  *types.SystemContext
 	reportWriter                   io.Writer
 	isolation                      buildah.Isolation
-	namespaceOptions               []buildah.NamespaceOption
+	namespaceOptions               []bopts.NamespaceOption
 	configureNetwork               buildah.NetworkConfigurationPolicy
 	cniPluginPath                  string
 	cniConfigDir                   string
 	idmappingOptions               *buildah.IDMappingOptions
-	commonBuildOptions             *buildah.CommonBuildOptions
+	commonBuildOptions             *bopts.CommonBuildOptions
 	defaultMountsFilePath          string
 	iidfile                        string
 	squash                         bool
@@ -1480,7 +1481,7 @@ func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, cr
 	if s.executor.layers || !s.executor.useCache {
 		writer = nil
 	}
-	options := buildah.CommitOptions{
+	options := bopts.CommitOptions{
 		Compression:           s.executor.compression,
 		SignaturePolicyPath:   s.executor.signaturePolicyPath,
 		AdditionalTags:        s.executor.additionalTags,

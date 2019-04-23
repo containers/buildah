@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/containers/buildah"
+	bopts "github.com/containers/buildah/pkg/options"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
@@ -113,7 +114,7 @@ func pullTestImage(t *testing.T, imageName string) (string, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	commonOpts := &buildah.CommonBuildOptions{
+	commonOpts := &bopts.CommonBuildOptions{
 		LabelOpts: nil,
 	}
 	options := buildah.BuilderOptions{

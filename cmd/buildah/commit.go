@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/containers/buildah"
 	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/image/storage"
@@ -150,7 +150,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		}
 	}
 
-	options := buildah.CommitOptions{
+	options := bopts.CommitOptions{
 		PreferredManifestType: format,
 		Compression:           compress,
 		SignaturePolicyPath:   iopts.signaturePolicy,

@@ -3,12 +3,11 @@ package buildah
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"strings"
-	"time"
 
 	"github.com/containers/buildah/pkg/blobcache"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/buildah/util"
 	cp "github.com/containers/image/copy"
 	"github.com/containers/image/docker/reference"
@@ -25,93 +24,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// CommitOptions can be used to alter how an image is committed.
-type CommitOptions struct {
-	// PreferredManifestType is the preferred type of image manifest.  The
-	// image configuration format will be of a compatible type.
-	PreferredManifestType string
-	// Compression specifies the type of compression which is applied to
-	// layer blobs.  The default is to not use compression, but
-	// archive.Gzip is recommended.
-	Compression archive.Compression
-	// SignaturePolicyPath specifies an override location for the signature
-	// policy which should be used for verifying the new image as it is
-	// being written.  Except in specific circumstances, no value should be
-	// specified, indicating that the shared, system-wide default policy
-	// should be used.
-	SignaturePolicyPath string
-	// AdditionalTags is a list of additional names to add to the image, if
-	// the transport to which we're writing the image gives us a way to add
-	// them.
-	AdditionalTags []string
-	// ReportWriter is an io.Writer which will be used to log the writing
-	// of the new image.
-	ReportWriter io.Writer
-	// HistoryTimestamp is the timestamp used when creating new items in the
-	// image's history.  If unset, the current time will be used.
-	HistoryTimestamp *time.Time
-	// github.com/containers/image/types SystemContext to hold credentials
-	// and other authentication/authorization information.
-	SystemContext *types.SystemContext
-	// IIDFile tells the builder to write the image ID to the specified file
-	IIDFile string
-	// Squash tells the builder to produce an image with a single layer
-	// instead of with possibly more than one layer.
-	Squash bool
-	// BlobDirectory is the name of a directory in which we'll look for
-	// prebuilt copies of layer blobs that we might otherwise need to
-	// regenerate from on-disk layers.  If blobs are available, the
-	// manifest of the new image will reference the blobs rather than
-	// on-disk layers.
-	BlobDirectory string
-
-	// OnBuild is a list of commands to be run by images based on this image
-	OnBuild []string
-
-	// OmitTimestamp forces epoch 0 as created timestamp to allow for
-	// deterministic, content-addressable builds.
-	OmitTimestamp bool
-}
-
-// PushOptions can be used to alter how an image is copied somewhere.
-type PushOptions struct {
-	// Compression specifies the type of compression which is applied to
-	// layer blobs.  The default is to not use compression, but
-	// archive.Gzip is recommended.
-	Compression archive.Compression
-	// SignaturePolicyPath specifies an override location for the signature
-	// policy which should be used for verifying the new image as it is
-	// being written.  Except in specific circumstances, no value should be
-	// specified, indicating that the shared, system-wide default policy
-	// should be used.
-	SignaturePolicyPath string
-	// ReportWriter is an io.Writer which will be used to log the writing
-	// of the new image.
-	ReportWriter io.Writer
-	// Store is the local storage store which holds the source image.
-	Store storage.Store
-	// github.com/containers/image/types SystemContext to hold credentials
-	// and other authentication/authorization information.
-	SystemContext *types.SystemContext
-	// ManifestType is the format to use when saving the imge using the 'dir' transport
-	// possible options are oci, v2s1, and v2s2
-	ManifestType string
-	// BlobDirectory is the name of a directory in which we'll look for
-	// prebuilt copies of layer blobs that we might otherwise need to
-	// regenerate from on-disk layers, substituting them in the list of
-	// blobs to copy whenever possible.
-	BlobDirectory string
-	// Quiet is a boolean value that determines if minimal output to
-	// the user will be displayed, this is best used for logging.
-	// The default is false.
-	Quiet bool
-}
-
 // Commit writes the contents of the container, along with its updated
 // configuration, to a new image in the specified location, and if we know how,
 // add any additional tags that were specified. Returns the ID of the new image
 // if commit was successful and the image destination was local.
-func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options CommitOptions) (string, reference.Canonical, digest.Digest, error) {
+func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options bopts.CommitOptions) (string, reference.Canonical, digest.Digest, error) {
 	var imgID string
 
 	// If we weren't given a name, build a destination reference using a
@@ -267,7 +184,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 }
 
 // Push copies the contents of the image to a new location.
-func Push(ctx context.Context, image string, dest types.ImageReference, options PushOptions) (reference.Canonical, digest.Digest, error) {
+func Push(ctx context.Context, image string, dest types.ImageReference, options bopts.PushOptions) (reference.Canonical, digest.Digest, error) {
 	systemContext := getSystemContext(options.Store, options.SystemContext, options.SignaturePolicyPath)
 
 	if options.Quiet {

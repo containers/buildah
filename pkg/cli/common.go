@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/containers/buildah"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/buildah/util"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -217,7 +217,7 @@ func DefaultFormat() string {
 	if format != "" {
 		return format
 	}
-	return buildah.OCI
+	return bopts.OCI
 }
 
 // DefaultIsolation returns the default image format
@@ -226,7 +226,7 @@ func DefaultIsolation() string {
 	if isolation != "" {
 		return isolation
 	}
-	return buildah.OCI
+	return bopts.OCI
 }
 
 // DefaultHistory returns the default add-history setting

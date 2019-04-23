@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah/docker"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/transports"
 	"github.com/containers/image/types"
@@ -108,7 +109,7 @@ func (b *Builder) fixupConfig() {
 	if b.Architecture() == "" {
 		b.SetArchitecture(runtime.GOARCH)
 	}
-	if b.Format == Dockerv2ImageManifest && b.Hostname() == "" {
+	if b.Format == bopts.Dockerv2ImageManifest && b.Hostname() == "" {
 		b.SetHostname(stringid.TruncateID(stringid.GenerateRandomID()))
 	}
 }
@@ -219,7 +220,7 @@ func (b *Builder) ClearOnBuild() {
 // Note: this setting is not present in the OCIv1 image format, so it is
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetOnBuild(onBuild string) {
-	if onBuild != "" && b.Format != Dockerv2ImageManifest {
+	if onBuild != "" && b.Format != bopts.Dockerv2ImageManifest {
 		logrus.Errorf("ONBUILD is not supported for OCI image format, %s will be ignored. Must use `docker` format", onBuild)
 	}
 	b.Docker.Config.OnBuild = append(b.Docker.Config.OnBuild, onBuild)
@@ -251,7 +252,7 @@ func (b *Builder) Shell() []string {
 // Note: this setting is not present in the OCIv1 image format, so it is
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetShell(shell []string) {
-	if len(shell) > 0 && b.Format != Dockerv2ImageManifest {
+	if len(shell) > 0 && b.Format != bopts.Dockerv2ImageManifest {
 		logrus.Errorf("SHELL is not supported for OCI image format, %s will be ignored. Must use `docker` format", shell)
 	}
 
@@ -488,7 +489,7 @@ func (b *Builder) Domainname() string {
 // Note: this setting is not present in the OCIv1 image format, so it is
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetDomainname(name string) {
-	if name != "" && b.Format != Dockerv2ImageManifest {
+	if name != "" && b.Format != bopts.Dockerv2ImageManifest {
 		logrus.Errorf("DOMAINNAME is not supported for OCI image format, domainname %s will be ignored. Must use `docker` format", name)
 	}
 	b.Docker.Config.Domainname = name
@@ -510,7 +511,7 @@ func (b *Builder) Comment() string {
 // Note: this setting is not present in the OCIv1 image format, so it is
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetComment(comment string) {
-	if comment != "" && b.Format != Dockerv2ImageManifest {
+	if comment != "" && b.Format != bopts.Dockerv2ImageManifest {
 		logrus.Errorf("COMMENT is not supported for OCI image format, comment %s will be ignored. Must use `docker` format", comment)
 	}
 	b.Docker.Comment = comment

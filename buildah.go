@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah/docker"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/buildah/util"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
@@ -154,7 +155,7 @@ type Builder struct {
 	// Isolation controls how we handle "RUN" statements and the Run() method.
 	Isolation Isolation
 	// NamespaceOptions controls how we set up the namespaces for processes that we run in the container.
-	NamespaceOptions NamespaceOptions
+	NamespaceOptions bopts.NamespaceOptions
 	// ConfigureNetwork controls whether or not network interfaces and
 	// routing are configured for a new network namespace (i.e., when not
 	// joining another's namespace and not just using the host's
@@ -186,7 +187,7 @@ type Builder struct {
 	// committing.
 	AppendedEmptyLayers []v1.History
 
-	CommonBuildOpts *CommonBuildOptions
+	CommonBuildOpts *bopts.CommonBuildOptions
 	// TopLayer is the top layer of the image
 	TopLayer string
 	// Format for the build Image
@@ -211,7 +212,7 @@ type BuilderInfo struct {
 	Docker                docker.V2Image
 	DefaultMountsFilePath string
 	Isolation             string
-	NamespaceOptions      NamespaceOptions
+	NamespaceOptions      bopts.NamespaceOptions
 	ConfigureNetwork      string
 	CNIPluginPath         string
 	CNIConfigDir          string
@@ -266,65 +267,6 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 	}
 }
 
-// CommonBuildOptions are resources that can be defined by flags for both buildah from and build-using-dockerfile
-type CommonBuildOptions struct {
-	// AddHost is the list of hostnames to add to the build container's /etc/hosts.
-	AddHost []string
-	// CgroupParent is the path to cgroups under which the cgroup for the container will be created.
-	CgroupParent string
-	// CPUPeriod limits the CPU CFS (Completely Fair Scheduler) period
-	CPUPeriod uint64
-	// CPUQuota limits the CPU CFS (Completely Fair Scheduler) quota
-	CPUQuota int64
-	// CPUShares (relative weight
-	CPUShares uint64
-	// CPUSetCPUs in which to allow execution (0-3, 0,1)
-	CPUSetCPUs string
-	// CPUSetMems memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
-	CPUSetMems string
-	// HTTPProxy determines whether *_proxy env vars from the build host are passed into the container.
-	HTTPProxy bool
-	// Memory is the upper limit (in bytes) on how much memory running containers can use.
-	Memory int64
-	// DNSSearch is the list of DNS search domains to add to the build container's /etc/resolv.conf
-	DNSSearch []string
-	// DNSServers is the list of DNS servers to add to the build container's /etc/resolv.conf
-	DNSServers []string
-	// DNSOptions is the list of DNS
-	DNSOptions []string
-	// MemorySwap limits the amount of memory and swap together.
-	MemorySwap int64
-	// LabelOpts is the a slice of fields of an SELinux context, given in "field:pair" format, or "disable".
-	// Recognized field names are "role", "type", and "level".
-	LabelOpts []string
-	// SeccompProfilePath is the pathname of a seccomp profile.
-	SeccompProfilePath string
-	// ApparmorProfile is the name of an apparmor profile.
-	ApparmorProfile string
-	// ShmSize is the "size" value to use when mounting an shmfs on the container's /dev/shm directory.
-	ShmSize string
-	// Ulimit specifies resource limit options, in the form type:softlimit[:hardlimit].
-	// These types are recognized:
-	// "core": maximimum core dump size (ulimit -c)
-	// "cpu": maximum CPU time (ulimit -t)
-	// "data": maximum size of a process's data segment (ulimit -d)
-	// "fsize": maximum size of new files (ulimit -f)
-	// "locks": maximum number of file locks (ulimit -x)
-	// "memlock": maximum amount of locked memory (ulimit -l)
-	// "msgqueue": maximum amount of data in message queues (ulimit -q)
-	// "nice": niceness adjustment (nice -n, ulimit -e)
-	// "nofile": maximum number of open files (ulimit -n)
-	// "nproc": maximum number of processes (ulimit -u)
-	// "rss": maximum size of a process's (ulimit -m)
-	// "rtprio": maximum real-time scheduling priority (ulimit -r)
-	// "rttime": maximum amount of real-time execution between blocking syscalls
-	// "sigpending": maximum number of pending signals (ulimit -i)
-	// "stack": maximum stack size (ulimit -s)
-	Ulimit []string
-	// Volumes to bind mount into the container
-	Volumes []string
-}
-
 // BuilderOptions are used to initialize a new Builder.
 type BuilderOptions struct {
 	// Args define variables that users can pass at build-time to the builder
@@ -371,7 +313,7 @@ type BuilderOptions struct {
 	Isolation Isolation
 	// NamespaceOptions controls how we set up namespaces for processes that
 	// we might need to run using the container's root filesystem.
-	NamespaceOptions NamespaceOptions
+	NamespaceOptions bopts.NamespaceOptions
 	// ConfigureNetwork controls whether or not network interfaces and
 	// routing are configured for a new network namespace (i.e., when not
 	// joining another's namespace and not just using the host's
@@ -394,7 +336,7 @@ type BuilderOptions struct {
 	// container.  If a capability appears in both lists, it will be dropped.
 	DropCapabilities []string
 
-	CommonBuildOpts *CommonBuildOptions
+	CommonBuildOpts *bopts.CommonBuildOptions
 	// Format for the container image
 	Format string
 }

@@ -11,13 +11,6 @@ import (
 	"github.com/containers/storage"
 )
 
-const (
-	// OCI used to define the "oci" image format
-	OCI = "oci"
-	// DOCKER used to define the "docker" image format
-	DOCKER = "docker"
-)
-
 func getCopyOptions(store storage.Store, reportWriter io.Writer, sourceReference types.ImageReference, sourceSystemContext *types.SystemContext, destinationReference types.ImageReference, destinationSystemContext *types.SystemContext, manifestType string) *cp.Options {
 	sourceCtx := getSystemContext(store, nil, "")
 	if sourceSystemContext != nil {

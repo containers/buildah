@@ -10,6 +10,7 @@ import (
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/docker"
 	buildahcli "github.com/containers/buildah/pkg/cli"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -236,7 +237,7 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 	}
 	if c.Flag("hostname").Changed {
 		name := iopts.hostname
-		if name != "" && builder.Format == buildah.OCIv1ImageManifest {
+		if name != "" && builder.Format == bopts.OCIv1ImageManifest {
 			logrus.Errorf("HOSTNAME is not supported for OCI V1 image format, hostname %s will be ignored. Must use `docker` format", name)
 		}
 		builder.SetHostname(name)

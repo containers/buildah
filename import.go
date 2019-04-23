@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/containers/buildah/docker"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/buildah/util"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
@@ -47,7 +48,7 @@ func importBuilderDataFromImage(ctx context.Context, store storage.Store, system
 		}
 	}
 
-	defaultNamespaceOptions, err := DefaultNamespaceOptions()
+	defaultNamespaceOptions, err := bopts.DefaultNamespaceOptions()
 	if err != nil {
 		return nil, err
 	}

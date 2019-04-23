@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	"github.com/containers/buildah"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/docker/go-units"
@@ -33,7 +34,7 @@ const (
 )
 
 // CommonBuildOptions parses the build options from the bud cli
-func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
+func CommonBuildOptions(c *cobra.Command) (*bopts.CommonBuildOptions, error) {
 	var (
 		memoryLimit int64
 		memorySwap  int64
@@ -88,7 +89,7 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 	cpuShares, _ := c.Flags().GetUint64("cpu-shared")
 	httpProxy, _ := c.Flags().GetBool("http-proxy")
 	ulimit, _ := c.Flags().GetStringSlice("ulimit")
-	commonOpts := &buildah.CommonBuildOptions{
+	commonOpts := &bopts.CommonBuildOptions{
 		AddHost:      addHost,
 		CgroupParent: c.Flag("cgroup-parent").Value.String(),
 		CPUPeriod:    cpuPeriod,
@@ -113,7 +114,7 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 	return commonOpts, nil
 }
 
-func parseSecurityOpts(securityOpts []string, commonOpts *buildah.CommonBuildOptions) error {
+func parseSecurityOpts(securityOpts []string, commonOpts *bopts.CommonBuildOptions) error {
 	for _, opt := range securityOpts {
 		if opt == "no-new-privileges" {
 			return errors.Errorf("no-new-privileges is not supported")
@@ -329,7 +330,7 @@ func getDockerAuth(creds string) (*types.DockerAuthConfig, error) {
 }
 
 // IDMappingOptions parses the build options related to user namespaces and ID mapping.
-func IDMappingOptions(c *cobra.Command, isolation buildah.Isolation) (usernsOptions buildah.NamespaceOptions, idmapOptions *buildah.IDMappingOptions, err error) {
+func IDMappingOptions(c *cobra.Command, isolation buildah.Isolation) (usernsOptions bopts.NamespaceOptions, idmapOptions *buildah.IDMappingOptions, err error) {
 	user := c.Flag("userns-uid-map-user").Value.String()
 	group := c.Flag("userns-gid-map-group").Value.String()
 	// If only the user or group was specified, use the same value for the
@@ -404,7 +405,7 @@ func IDMappingOptions(c *cobra.Command, isolation buildah.Isolation) (usernsOpti
 
 	// By default, having mappings configured means we use a user
 	// namespace.  Otherwise, we don't.
-	usernsOption := buildah.NamespaceOption{
+	usernsOption := bopts.NamespaceOption{
 		Name: string(specs.UserNamespace),
 		Host: len(uidmap) == 0 && len(gidmap) == 0,
 	}
@@ -425,14 +426,14 @@ func IDMappingOptions(c *cobra.Command, isolation buildah.Isolation) (usernsOpti
 			usernsOption.Path = how
 		}
 	}
-	usernsOptions = buildah.NamespaceOptions{usernsOption}
+	usernsOptions = bopts.NamespaceOptions{usernsOption}
 
 	// Because --net and --network are technically two different flags, we need
 	// to check each for nil and .Changed
 	usernet := c.Flags().Lookup("net")
 	usernetwork := c.Flags().Lookup("network")
 	if (usernet != nil && usernetwork != nil) && (!usernet.Changed && !usernetwork.Changed) {
-		usernsOptions = append(usernsOptions, buildah.NamespaceOption{
+		usernsOptions = append(usernsOptions, bopts.NamespaceOption{
 			Name: string(specs.NetworkNamespace),
 			Host: usernsOption.Host,
 		})
@@ -477,8 +478,8 @@ func parseIDMap(spec []string) (m [][3]uint32, err error) {
 }
 
 // NamespaceOptions parses the build options for all namespaces except for user namespace.
-func NamespaceOptions(c *cobra.Command) (namespaceOptions buildah.NamespaceOptions, networkPolicy buildah.NetworkConfigurationPolicy, err error) {
-	options := make(buildah.NamespaceOptions, 0, 7)
+func NamespaceOptions(c *cobra.Command) (namespaceOptions bopts.NamespaceOptions, networkPolicy buildah.NetworkConfigurationPolicy, err error) {
+	options := make(bopts.NamespaceOptions, 0, 7)
 	policy := buildah.NetworkDefault
 	for _, what := range []string{string(specs.IPCNamespace), "net", "network", string(specs.PIDNamespace), string(specs.UTSNamespace)} {
 		if c.Flags().Lookup(what) != nil && c.Flag(what).Changed {
@@ -490,19 +491,19 @@ func NamespaceOptions(c *cobra.Command) (namespaceOptions buildah.NamespaceOptio
 			switch how {
 			case "", "container":
 				logrus.Debugf("setting %q namespace to %q", what, "")
-				options.AddOrReplace(buildah.NamespaceOption{
+				options.AddOrReplace(bopts.NamespaceOption{
 					Name: what,
 				})
 			case "host":
 				logrus.Debugf("setting %q namespace to host", what)
-				options.AddOrReplace(buildah.NamespaceOption{
+				options.AddOrReplace(bopts.NamespaceOption{
 					Name: what,
 					Host: true,
 				})
 			default:
 				if what == specs.NetworkNamespace {
 					if how == "none" {
-						options.AddOrReplace(buildah.NamespaceOption{
+						options.AddOrReplace(bopts.NamespaceOption{
 							Name: what,
 						})
 						policy = buildah.NetworkDisabled
@@ -510,7 +511,7 @@ func NamespaceOptions(c *cobra.Command) (namespaceOptions buildah.NamespaceOptio
 						break
 					}
 					if !filepath.IsAbs(how) {
-						options.AddOrReplace(buildah.NamespaceOption{
+						options.AddOrReplace(bopts.NamespaceOption{
 							Name: what,
 							Path: how,
 						})
@@ -523,7 +524,7 @@ func NamespaceOptions(c *cobra.Command) (namespaceOptions buildah.NamespaceOptio
 					return nil, buildah.NetworkDefault, errors.Wrapf(err, "error checking for %s namespace at %q", what, how)
 				}
 				logrus.Debugf("setting %q namespace to %q", what, how)
-				options.AddOrReplace(buildah.NamespaceOption{
+				options.AddOrReplace(bopts.NamespaceOption{
 					Name: what,
 					Path: how,
 				})

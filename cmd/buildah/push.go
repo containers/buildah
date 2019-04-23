@@ -8,6 +8,7 @@ import (
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
+	bopts "github.com/containers/buildah/pkg/options"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/image/manifest"
@@ -148,7 +149,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushResults) error {
 		}
 	}
 
-	options := buildah.PushOptions{
+	options := bopts.PushOptions{
 		Compression:         compress,
 		ManifestType:        manifestType,
 		SignaturePolicyPath: iopts.signaturePolicy,
