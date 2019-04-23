@@ -13,10 +13,15 @@ FROM fedora
 # Don't include container-selinux and remove 
 # directories used by dnf that are just taking
 # up space.
-RUN yum -y install buildah --exclude container-selinux --enablerepo updates-testing; rm -rf /var/cache /var/log/dnf* /var/log/yum.*
+RUN yum -y install buildah fuse-overlayfs --exclude container-selinux --enablerepo updates-testing; rm -rf /var/cache /var/log/dnf* /var/log/yum.*
 
 # Adjust storage.conf to enable Fuse storage.
-RUN sed 's|^#mount_program|mount_program|g' -i /etc/containers/storage.conf
+RUN sed -i -e 's|^#mount_program|mount_program|g' -e '/additionalimage.*/a "/var/lib/shared",' /etc/containers/storage.conf
+RUN mkdir -p /var/lib/shared/overlay-images /var/lib/shared/overlay-layers; touch /var/lib/shared/overlay-images/images.lock; touch /var/lib/shared/overlay-layers/layers.lock
+
+# This needs to be fixed in buildah and container/storage, but for now
+# this hack works.
+RUN mkdir /root/.config && ln -s /etc/containers /root/.config/containers
 
 # Set up environment variables to note that this is
 # not starting with usernamespace and default to 
