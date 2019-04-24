@@ -1,7 +1,7 @@
 # buildah-pull "1" "July 2018" "buildah"
 
 ## NAME
-buildah\-pull - Creates a new working container using a specified image as a starting point.
+buildah\-pull - Pull an image from a registry.
 
 ## SYNOPSIS
 **buildah pull** [*options*] *image*
