@@ -167,7 +167,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		}
 	}
 	// Build an image reference from which we can copy the finished image.
-	src, err := b.makeImageRef(options.PreferredManifestType, exportBaseLayers, options.Squash, options.BlobDirectory, options.Compression, options.HistoryTimestamp, options.OmitTimestamp)
+	src, err := b.makeImageRef(options, exportBaseLayers)
 	if err != nil {
 		return imgID, nil, "", errors.Wrapf(err, "error computing layer digests and building metadata for container %q", b.ContainerID)
 	}

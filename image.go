@@ -636,7 +636,7 @@ func (i *containerImageSource) GetBlob(ctx context.Context, blob types.BlobInfo,
 	return ioutils.NewReadCloserWrapper(layerFile, closer), size, nil
 }
 
-func (b *Builder) makeImageRef(manifestType string, exporting bool, squash bool, blobDirectory string, compress archive.Compression, historyTimestamp *time.Time, omitTimestamp bool) (types.ImageReference, error) {
+func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.ImageReference, error) {
 	var name reference.Named
 	container, err := b.store.Container(b.ContainerID)
 	if err != nil {
@@ -647,6 +647,7 @@ func (b *Builder) makeImageRef(manifestType string, exporting bool, squash bool,
 			name = parsed
 		}
 	}
+	manifestType := options.PreferredManifestType
 	if manifestType == "" {
 		manifestType = OCIv1ImageManifest
 	}
@@ -659,8 +660,8 @@ func (b *Builder) makeImageRef(manifestType string, exporting bool, squash bool,
 		return nil, errors.Wrapf(err, "error encoding docker-format image configuration %#v", b.Docker)
 	}
 	created := time.Now().UTC()
-	if historyTimestamp != nil {
-		created = historyTimestamp.UTC()
+	if options.HistoryTimestamp != nil {
+		created = options.HistoryTimestamp.UTC()
 	}
 	createdBy := b.CreatedBy()
 	if createdBy == "" {
@@ -670,7 +671,7 @@ func (b *Builder) makeImageRef(manifestType string, exporting bool, squash bool,
 		}
 	}
 
-	if omitTimestamp {
+	if options.OmitTimestamp {
 		created = time.Unix(0, 0)
 	}
 
@@ -684,7 +685,7 @@ func (b *Builder) makeImageRef(manifestType string, exporting bool, squash bool,
 
 	ref := &containerImageRef{
 		store:                 b.store,
-		compression:           compress,
+		compression:           options.Compression,
 		name:                  name,
 		names:                 container.Names,
 		containerID:           container.ID,
@@ -698,10 +699,10 @@ func (b *Builder) makeImageRef(manifestType string, exporting bool, squash bool,
 		annotations:           b.Annotations(),
 		preferredManifestType: manifestType,
 		exporting:             exporting,
-		squash:                squash,
+		squash:                options.Squash,
 		tarPath:               b.tarPath(),
 		parent:                parent,
-		blobDirectory:         blobDirectory,
+		blobDirectory:         options.BlobDirectory,
 		preEmptyLayers:        b.PrependedEmptyLayers,
 		postEmptyLayers:       b.AppendedEmptyLayers,
 	}
