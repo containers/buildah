@@ -28,7 +28,7 @@ import (
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/openshift/imagebuilder"
 	"github.com/openshift/imagebuilder/dockerfile/parser"
@@ -220,6 +220,7 @@ type Executor struct {
 	blobDirectory                  string
 	excludes                       []string
 	unusedArgs                     map[string]struct{}
+	buildArgs                      map[string]string
 }
 
 // StageExecutor bundles up what we need to know when executing one stage of a
@@ -662,6 +663,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		rootfsMap:                      make(map[string]bool),
 		blobDirectory:                  options.BlobDirectory,
 		unusedArgs:                     make(map[string]struct{}),
+		buildArgs:                      options.Args,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -949,7 +951,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// squash the contents of the base image.  Whichever is
 			// the case, we need to commit() to create a new image.
 			logCommit(s.output, -1)
-			if imgID, ref, err = s.commit(ctx, ib, getCreatedBy(nil), s.output); err != nil {
+			if imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(nil), s.output); err != nil {
 				return "", nil, errors.Wrapf(err, "error committing base container")
 			}
 		} else {
@@ -1021,7 +1023,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// instruction in the history that we'll write
 				// for the image when we eventually commit it.
 				now := time.Now()
-				s.builder.AddPrependedEmptyLayer(&now, getCreatedBy(node), "", "")
+				s.builder.AddPrependedEmptyLayer(&now, s.executor.getCreatedBy(node), "", "")
 				continue
 			} else {
 				// This is the last instruction for this stage,
@@ -1030,7 +1032,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// if it's used as the basis for a later stage.
 				if lastStage || imageIsUsedLater {
 					logCommit(s.output, i)
-					imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), s.output)
+					imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(node), s.output)
 					if err != nil {
 						return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
 					}
@@ -1110,7 +1112,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// create a layer from this one before
 				// continuing.
 				logCommit(s.output, i)
-				imgID, ref, err = s.commit(ctx, ib, getCreatedBy(node), commitName)
+				imgID, ref, err = s.commit(ctx, ib, s.executor.getCreatedBy(node), commitName)
 				if err != nil {
 					return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
 				}
@@ -1128,7 +1130,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				// here.  Make a note of the instruction in the
 				// history for the next commit.
 				now := time.Now()
-				s.builder.AddPrependedEmptyLayer(&now, getCreatedBy(node), "", "")
+				s.builder.AddPrependedEmptyLayer(&now, s.executor.getCreatedBy(node), "", "")
 			}
 		}
 
@@ -1221,7 +1223,7 @@ func (s *StageExecutor) layerExists(ctx context.Context, currNode *parser.Node, 
 				return "", errors.Wrapf(err, "error getting history of %q", image.ID)
 			}
 			// children + currNode is the point of the Dockerfile we are currently at.
-			if historyMatches(append(children, currNode), history) {
+			if s.executor.historyMatches(append(children, currNode), history) {
 				// This checks if the files copied during build have been changed if the node is
 				// a COPY or ADD command.
 				filesMatch, err := s.copiedFilesMatch(currNode, history[len(history)-1].Created)
@@ -1256,11 +1258,15 @@ func (b *Executor) getImageHistory(ctx context.Context, imageID string) ([]v1.Hi
 }
 
 // getCreatedBy returns the command the image at node will be created by.
-func getCreatedBy(node *parser.Node) string {
+func (b *Executor) getCreatedBy(node *parser.Node) string {
 	if node == nil {
 		return "/bin/sh"
 	}
 	if node.Value == "run" {
+		buildArgs := b.getBuildArgs()
+		if buildArgs != "" {
+			return "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " /bin/sh -c " + node.Original[4:]
+		}
 		return "/bin/sh -c " + node.Original[4:]
 	}
 	return "/bin/sh -c #(nop) " + node.Original
@@ -1270,12 +1276,23 @@ func getCreatedBy(node *parser.Node) string {
 // in the Dockerfile till the point of build we are at.
 // Used to verify whether a cache of the intermediate image exists and whether
 // to run the build again.
-func historyMatches(children []*parser.Node, history []v1.History) bool {
+func (b *Executor) historyMatches(children []*parser.Node, history []v1.History) bool {
 	i := len(history) - 1
 	for j := len(children) - 1; j >= 0; j-- {
 		instruction := children[j].Original
 		if children[j].Value == "run" {
 			instruction = instruction[4:]
+			buildArgs := b.getBuildArgs()
+			// If a previous image was built with some build-args but the new build process doesn't have any build-args
+			// specified, so compare the lengths of the old instruction with the current one
+			// 11 is the length of "/bin/sh -c " that is used to run the run commands
+			if buildArgs == "" && len(history[i].CreatedBy) > len(instruction)+11 {
+				return false
+			}
+			// There are build-args, so check if anything with the build-args has changed
+			if buildArgs != "" && !strings.Contains(history[i].CreatedBy, buildArgs) {
+				return false
+			}
 		}
 		if !strings.Contains(history[i].CreatedBy, instruction) {
 			return false
@@ -1283,6 +1300,18 @@ func historyMatches(children []*parser.Node, history []v1.History) bool {
 		i--
 	}
 	return true
+}
+
+// getBuildArgs returns a string of the build-args specified during the build process
+// it excludes any build-args that were not used in the build process
+func (b *Executor) getBuildArgs() string {
+	var buildArgs []string
+	for k, v := range b.buildArgs {
+		if _, ok := b.unusedArgs[k]; !ok {
+			buildArgs = append(buildArgs, k+"="+v)
+		}
+	}
+	return strings.Join(buildArgs, " ")
 }
 
 // getFilesToCopy goes through node to get all the src files that are copied, added or downloaded.
