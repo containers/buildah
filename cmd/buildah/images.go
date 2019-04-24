@@ -150,7 +150,7 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 		}
 	}
 
-	return outputImages(ctx, images, store, params, name, opts)
+	return outputImages(ctx, store, images, params, name, opts)
 }
 
 func parseFilter(ctx context.Context, store storage.Store, images []storage.Image, filter string) (*filterParams, error) {
@@ -237,13 +237,13 @@ func outputHeader(opts imageOptions) string {
 
 type imagesSorted []imageOutputParams
 
-func outputImages(ctx context.Context, images []storage.Image, store storage.Store, filters *filterParams, argName string, opts imageOptions) error {
+func outputImages(ctx context.Context, store storage.Store, images []storage.Image, filters *filterParams, argName string, opts imageOptions) error {
 	found := false
 	var imagesParams imagesSorted
 	jsonImages := []jsonImage{}
 	for _, image := range images {
 		createdTime := image.Created
-		inspectedTime, digest, size, _ := getDateAndDigestAndSize(ctx, image, store)
+		inspectedTime, digest, size, _ := getDateAndDigestAndSize(ctx, store, image)
 		if !inspectedTime.IsZero() {
 			if createdTime != inspectedTime {
 				logrus.Debugf("image record and configuration disagree on the image's creation time for %q, using the one from the configuration", image)
@@ -278,7 +278,7 @@ func outputImages(ctx context.Context, images []storage.Image, store storage.Sto
 				}
 				found = true
 
-				if !matchesFilter(ctx, image, store, name+":"+tag, filters) {
+				if !matchesFilter(ctx, store, image, name+":"+tag, filters) {
 					continue
 				}
 				if opts.json {
@@ -349,13 +349,13 @@ func imagesToGeneric(templParams []imageOutputParams) (genericParams []interface
 	return genericParams
 }
 
-func matchesFilter(ctx context.Context, image storage.Image, store storage.Store, name string, params *filterParams) bool {
+func matchesFilter(ctx context.Context, store storage.Store, image storage.Image, name string, params *filterParams) bool {
 	if params == nil {
 		return true
 	}
 	if params.dangling != "" && !matchesDangling(name, params.dangling) {
 		return false
-	} else if params.label != "" && !matchesLabel(ctx, image, store, params.label) {
+	} else if params.label != "" && !matchesLabel(ctx, store, image, params.label) {
 		return false
 	} else if params.beforeImage != "" && !matchesBeforeImage(image, name, params) {
 		return false
@@ -376,7 +376,7 @@ func matchesDangling(name string, dangling string) bool {
 	return false
 }
 
-func matchesLabel(ctx context.Context, image storage.Image, store storage.Store, label string) bool {
+func matchesLabel(ctx context.Context, store storage.Store, image storage.Image, label string) bool {
 	storeRef, err := is.Transport.ParseStoreReference(store, image.ID)
 	if err != nil {
 		return false

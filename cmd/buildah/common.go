@@ -149,7 +149,7 @@ func openImage(ctx context.Context, sc *types.SystemContext, store storage.Store
 	return builder, nil
 }
 
-func getDateAndDigestAndSize(ctx context.Context, image storage.Image, store storage.Store) (time.Time, string, int64, error) {
+func getDateAndDigestAndSize(ctx context.Context, store storage.Store, image storage.Image) (time.Time, string, int64, error) {
 	created := time.Time{}
 	is.Transport.SetStore(store)
 	storeRef, err := is.Transport.ParseStoreReference(store, image.ID)

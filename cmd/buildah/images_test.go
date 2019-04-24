@@ -106,7 +106,7 @@ func TestOutputImagesQuietNotTruncated(t *testing.T) {
 
 	// Tests quiet and non-truncated output
 	output, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:1], store, nil, "", opts)
+		return outputImages(getContext(), store, images[:1], nil, "", opts)
 	})
 	expectedOutput := fmt.Sprintf("sha256:%s\n", images[0].ID)
 	if err != nil {
@@ -144,7 +144,7 @@ func TestOutputImagesFormatString(t *testing.T) {
 
 	// Tests output with format template
 	output, err := captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:1], store, nil, "", opts)
+		return outputImages(getContext(), store, images[:1], nil, "", opts)
 	})
 	expectedOutput := images[0].ID
 	if err != nil {
@@ -183,7 +183,7 @@ func TestOutputImagesArgNoMatch(t *testing.T) {
 	// because all images in the repository must have a tag, and here the tag is an
 	// empty string
 	_, err = captureOutputWithError(func() error {
-		return outputImages(getContext(), images[:1], store, nil, "foo:", opts)
+		return outputImages(getContext(), store, images[:1], nil, "foo:", opts)
 	})
 	if err == nil || err.Error() != "No such image foo:" {
 		t.Fatalf("expected error arg no match")
