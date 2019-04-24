@@ -483,6 +483,19 @@ func (s *StageExecutor) volumeCacheRestore() error {
 // imagebuilder tells us the instruction was "ADD" and not "COPY".
 func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) error {
 	for _, copy := range copies {
+		// If the file exists, check to see if it's a symlink.
+		// If it is a symlink, convert to it's target otherwise
+		// the symlink will be overwritten.
+		fileDest, _ := os.Stat(s.mountPoint + copy.Dest)
+		if fileDest != nil {
+			if !(fileDest.Mode()&os.ModeSymlink == os.ModeSymlink) {
+				if symLink, err := resolveSymlink(s.mountPoint, copy.Dest); err == nil {
+					copy.Dest = symLink
+				} else {
+					return errors.Wrapf(err, "error reading symbolic link to %q", copy.Dest)
+				}
+			}
+		}
 		if copy.Download {
 			logrus.Debugf("ADD %#v, %#v", excludes, copy)
 		} else {
