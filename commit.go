@@ -64,10 +64,6 @@ type CommitOptions struct {
 	// manifest of the new image will reference the blobs rather than
 	// on-disk layers.
 	BlobDirectory string
-
-	// OnBuild is a list of commands to be run by images based on this image
-	OnBuild []string
-
 	// OmitTimestamp forces epoch 0 as created timestamp to allow for
 	// deterministic, content-addressable builds.
 	OmitTimestamp bool
