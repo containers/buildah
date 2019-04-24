@@ -103,7 +103,7 @@ func rmiCmd(c *cobra.Command, args []string, iopts rmiResults) error {
 func deleteImages(ctx context.Context, systemContext *types.SystemContext, store storage.Store, imagesToDelete []string, removeAll, force bool) error {
 	var lastError error
 	for _, id := range imagesToDelete {
-		image, err := getImage(ctx, systemContext, id, store)
+		image, err := getImage(ctx, systemContext, store, id)
 		if err != nil || image == nil {
 			if lastError != nil {
 				fmt.Fprintln(os.Stderr, lastError)
@@ -115,7 +115,7 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 			continue
 		}
 		if image != nil {
-			ctrIDs, err := runningContainers(image, store)
+			ctrIDs, err := runningContainers(store, image)
 			if err != nil {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
@@ -155,7 +155,7 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 				// If it is forced, we have to untag the image so that it can be deleted
 				image.Names = image.Names[:0]
 			} else {
-				name, err2 := untagImage(id, image, store)
+				name, err2 := untagImage(id, store, image)
 				if err2 != nil {
 					if lastError != nil {
 						fmt.Fprintln(os.Stderr, lastError)
@@ -167,7 +167,7 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 
 				// Need to fetch the image state again after making changes to it i.e untag
 				// because only a copy of the image state is returned
-				image, err = getImage(ctx, systemContext, image.ID, store)
+				image, err = getImage(ctx, systemContext, store, image.ID)
 				if err != nil || image == nil {
 					if lastError != nil {
 						fmt.Fprintln(os.Stderr, lastError)
@@ -197,7 +197,7 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 				lastError = errors.Errorf("unable to delete %q (cannot be forced) - image has dependent child images", image.ID)
 				continue
 			}
-			id, err := removeImage(image, store)
+			id, err := removeImage(store, image)
 			if err != nil {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
@@ -212,7 +212,7 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 	return lastError
 }
 
-func getImage(ctx context.Context, systemContext *types.SystemContext, id string, store storage.Store) (*storage.Image, error) {
+func getImage(ctx context.Context, systemContext *types.SystemContext, store storage.Store, id string) (*storage.Image, error) {
 	var ref types.ImageReference
 	ref, err := properImageRef(ctx, id)
 	if err != nil {
@@ -238,7 +238,7 @@ func getImage(ctx context.Context, systemContext *types.SystemContext, id string
 	return nil, err
 }
 
-func untagImage(imgArg string, image *storage.Image, store storage.Store) (string, error) {
+func untagImage(imgArg string, store storage.Store, image *storage.Image) (string, error) {
 	newNames := []string{}
 	removedName := ""
 	for _, name := range image.Names {
@@ -256,7 +256,7 @@ func untagImage(imgArg string, image *storage.Image, store storage.Store) (strin
 	return removedName, nil
 }
 
-func removeImage(image *storage.Image, store storage.Store) (string, error) {
+func removeImage(store storage.Store, image *storage.Image) (string, error) {
 	parent, err := getParent(store, image.TopLayer)
 	if err != nil {
 		return "", err
@@ -290,7 +290,7 @@ func removeImage(image *storage.Image, store storage.Store) (string, error) {
 }
 
 // Returns a list of running containers associated with the given ImageReference
-func runningContainers(image *storage.Image, store storage.Store) ([]string, error) {
+func runningContainers(store storage.Store, image *storage.Image) ([]string, error) {
 	ctrIDs := []string{}
 	containers, err := store.Containers()
 	if err != nil {

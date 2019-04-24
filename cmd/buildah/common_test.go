@@ -93,7 +93,7 @@ func TestGetSize(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 
-	_, _, _, err = getDateAndDigestAndSize(getContext(), images[0], store)
+	_, _, _, err = getDateAndDigestAndSize(getContext(), store, images[0])
 	if err != nil {
 		t.Error(err)
 	}
