@@ -6,7 +6,7 @@
 # This image can be used to create a secured container
 # that runs safely with privileges within the container.
 #
-FROM fedora
+FROM fedora:latest
 
 # Don't include container-selinux and remove
 # directories used by dnf that are just taking

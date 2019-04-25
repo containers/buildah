@@ -8,11 +8,16 @@
 # The containers created by this image also come with a
 # Buildah development environment in /root/buildah.
 #
-FROM fedora
+FROM fedora:latest
 ENV GOPATH=/root/buildah
 
 # Install the software required to build Buildah.
-RUN dnf -y install --enablerepo=updates-testing --exclude=container-selinux \
+# Then create a directory and clone from the Buildah
+# GitHub repository, make and install Buildah
+# to the container.
+# Finally remove the buildah directory and a few other packages
+# that are needed for building but not running Buildah
+RUN dnf -y install --enablerepo=updates-testing \
      make \
      golang \
      bats \
@@ -29,16 +34,15 @@ RUN dnf -y install --enablerepo=updates-testing --exclude=container-selinux \
      runc \
      fuse-overlayfs \
      fuse3 \
-     containers-common;
-
-# Create a directory and clone from the Buildah
-# GitHub repository, then make and install Buildah
-# to the container.
-RUN mkdir /root/buildah; \
+     containers-common; \
+     mkdir /root/buildah; \
      git clone https://github.com/containers/buildah /root/buildah/src/github.com/containers/buildah; \
      cd /root/buildah/src/github.com/containers/buildah; \
      make;\
-     make install
+     make install;\
+     rm -rf /root/buildah/*; \
+     dnf -y remove bats git golang go-md2man make; \
+     dnf clean all;
 
 # Adjust storage.conf to enable Fuse storage.
 RUN sed -i -e 's|^#mount_program|mount_program|g' -e '/additionalimage.*/a "/var/lib/shared",' /etc/containers/storage.conf
@@ -52,4 +56,3 @@ RUN mkdir /root/.config && ln -s /etc/containers /root/.config/containers
 # not starting with usernamespace and default to 
 # isolate the filesystem with chroot.
 ENV _BUILDAH_STARTED_IN_USERNS="" BUILDAH_ISOLATION=chroot
-
