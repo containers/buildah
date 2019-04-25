@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/containers/buildah"
@@ -12,10 +11,9 @@ import (
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -99,10 +97,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		options.GIDMap = gidmap
 	}
 
-	oldUmask := syscall.Umask(0022)
-	if (oldUmask & ^0022) != 0 {
-		logrus.Debugf("umask value too restrictive.  Forcing it to 022")
-	}
+	checkUmask()
 
 	store, err := storage.GetStore(options)
 	if store != nil {
