@@ -1812,12 +1812,25 @@ func (b *Executor) deleteSuccessfulIntermediateCtrs() error {
 }
 
 func (s *StageExecutor) EnsureContainerPath(path string) error {
-	_, err := os.Stat(filepath.Join(s.mountPoint, path))
+	// Check the path to see if it's a symlink, if
+	// so convert it to it's target for processing.
+	targetPath := filepath.Join(s.mountPoint, path)
+	fileDest, _ := os.Lstat(targetPath)
+	if fileDest != nil {
+		if fileDest.Mode()&os.ModeSymlink != 0 {
+			if symLink, err := resolveSymlink(s.mountPoint, path); err == nil {
+				targetPath = symLink
+			} else {
+				return errors.Wrapf(err, "error reading symbolic link to %q", targetPath)
+			}
+		}
+	}
+	_, err := os.Stat(targetPath)
 	if err != nil && os.IsNotExist(err) {
-		err = os.MkdirAll(filepath.Join(s.mountPoint, path), 0755)
+		err = os.MkdirAll(targetPath, 0755)
 	}
 	if err != nil {
-		return errors.Wrapf(err, "error ensuring container path %q", path)
+		return errors.Wrapf(err, "error ensuring container path %q", targetPath)
 	}
 	return nil
 }

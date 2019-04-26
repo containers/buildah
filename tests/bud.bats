@@ -1164,3 +1164,19 @@ load helpers
   run_buildah --debug=false run ${ctr} ls -alF /usr/local/hbase 
   expect_output --substring "Dockerfile"
 }
+
+@test "bud WORKDIR isa symlink" {
+  target=alpine-image
+  ctr=alpine-ctr
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/workdir-symlink
+  expect_output --substring "STEP 3: RUN ln -sf "
+
+  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
+  expect_output --substring ${ctr}
+
+  run_buildah --debug=false run ${ctr} ls -alF /tempest
+  expect_output --substring "/tempest -> /var/lib/tempest/"
+
+  run_buildah --debug=false run ${ctr} ls -alF /etc/notareal.conf 
+  expect_output --substring "\-rw\-rw\-r\-\-"
+}
