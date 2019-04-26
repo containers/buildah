@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.8-dev
+Version:        1.8
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,28 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Tue Apr 16, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8-dev-1
+* Thu Apr 25, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8-1
+  * Resolve symlink when checking container path
+  * commit: commit on every instruction, but not always with layers
+  * CommitOptions: drop the unused OnBuild field
+  * makeImageRef: pass in the whole CommitOptions structure
+  * cmd: API cleanup: stores before images
+  * run: check if SELinux is enabled
+  * Fix buildahimages Dockerfiles to include support for additionalimages mounted from host.
+  * Detect changes in rootdir
+  * Fix typo in buildah-pull(1)
+  * Vendor in latest containers/storage
+  * Keep track of any build-args used during buildah bud --layers
+  * commit: always set a parent ID
+  * imagebuildah: rework unused-argument detection
+  * fix bug dest path when COPY .dockerignore
+  * Move Host IDMAppings code from util to unshare
+  * Add BUILDAH_ISOLATION rootless back
+  * Travis CI: fail fast, upon error in any step
+  * imagebuildah: only commit images for intermediate stages if we have to
+  * Use errors.Cause() when checking for IsNotExist errors
+  * auto pass http_proxy to container
+  * Bump back to 1.8-dev
 
 * Tue Apr 16, 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.3
 - imagebuildah: don't leak image structs
