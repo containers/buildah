@@ -1180,3 +1180,8 @@ load helpers
   run_buildah --debug=false run ${ctr} ls -alF /etc/notareal.conf 
   expect_output --substring "\-rw\-rw\-r\-\-"
 }
+
+@test "buidah bud --volume" {
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
+  expect_output --substring "/testdir"
+}

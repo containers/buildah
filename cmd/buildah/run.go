@@ -10,7 +10,6 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
-	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -153,21 +152,11 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	}
 
 	for _, volumeSpec := range iopts.volumes {
-		volSpec := strings.Split(volumeSpec, ":")
-		if len(volSpec) >= 2 {
-			var mountOptions string
-			if len(volSpec) >= 3 {
-				mountOptions = volSpec[2]
-			}
-			mountOpts := strings.Split(mountOptions, ",")
-			mount := specs.Mount{
-				Source:      volSpec[0],
-				Destination: volSpec[1],
-				Type:        "bind",
-				Options:     mountOpts,
-			}
-			options.Mounts = append(options.Mounts, mount)
+		mount, err := parse.ParseVolume(volumeSpec)
+		if err != nil {
+			return err
 		}
+		options.Mounts = append(options.Mounts, mount)
 	}
 	runerr := builder.Run(args, options)
 	if runerr != nil {
