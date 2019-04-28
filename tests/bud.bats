@@ -278,8 +278,8 @@ load helpers
 
 @test "bud-from-scratch-iid" {
   target=scratch-image
-  buildah bud --iidfile output.iid --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
-  iid=$(cat output.iid)
+  buildah bud --iidfile ${TESTDIR}/output.iid --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  iid=$(cat ${TESTDIR}/output.iid)
   cid=$(buildah from ${iid})
   buildah rm ${cid}
   buildah rmi $(buildah --debug=false images -q)
