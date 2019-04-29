@@ -191,6 +191,8 @@ type Builder struct {
 	TopLayer string
 	// Format for the build Image
 	Format string
+	// TempVolumes are temporary mount points created during container runs
+	TempVolumes map[string]bool
 }
 
 // BuilderInfo are used as objects to display container information

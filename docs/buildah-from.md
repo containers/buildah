@@ -174,7 +174,7 @@ value can be entered.  The password is entered without echo.
 **--http-proxy**
 
 By default proxy environment variables are passed into the container if set
-for the buildah process.  This can be disabled by setting the `--http-proxy`
+for the Buildah process.  This can be disabled by setting the `--http-proxy`
 option to `false`.  The environment variables passed in include `http_proxy`,
 `https_proxy`, `ftp_proxy`, `no_proxy`, and also the upper case versions of
 those.
@@ -187,7 +187,7 @@ Sets the configuration for IPC namespaces when the container is subsequently
 used for `buildah run`.
 The configured value can be "" (the empty string) or "container" to indicate
 that a new IPC namespace should be created, or it can be "host" to indicate
-that the IPC namespace in which `buildah` itself is being run should be reused,
+that the IPC namespace in which `Buildah` itself is being run should be reused,
 or it can be the path to an IPC namespace which is already in use by
 another process.
 
@@ -237,7 +237,7 @@ Sets the configuration for network namespaces when the container is subsequently
 used for `buildah run`.
 The configured value can be "" (the empty string) or "container" to indicate
 that a new network namespace should be created, or it can be "host" to indicate
-that the network namespace in which `buildah` itself is being run should be
+that the network namespace in which `Buildah` itself is being run should be
 reused, or it can be the path to a network namespace which is already in use by
 another process.
 
@@ -247,7 +247,7 @@ Sets the configuration for PID namespaces when the container is subsequently
 used for `buildah run`.
 The configured value can be "" (the empty string) or "container" to indicate
 that a new PID namespace should be created, or it can be "host" to indicate
-that the PID namespace in which `buildah` itself is being run should be reused,
+that the PID namespace in which `Buildah` itself is being run should be reused,
 or it can be the path to a PID namespace which is already in use by another
 process.
 
@@ -329,7 +329,7 @@ Sets the configuration for user namespaces when the container is subsequently
 used for `buildah run`.
 The configured value can be "" (the empty string) or "container" to indicate
 that a new user namespace should be created, it can be "host" to indicate that
-the user namespace in which `buildah` itself is being run should be reused, or
+the user namespace in which `Buildah` itself is being run should be reused, or
 it can be the path to an user namespace which is already in use by another
 process.
 
@@ -383,7 +383,7 @@ filesytem level, on the container's contents, can be found in entries in the
 Commands run using `buildah run` will default to being run in their own user
 namespaces, configured using the UID and GID maps.
 If --userns-gid-map-group is specified, but --userns-uid-map-user is not
-specified, `buildah` will assume that the specified group name is also a
+specified, `Buildah` will assume that the specified group name is also a
 suitable user name to use as the default setting for this option.
 
 **--userns-gid-map-group** *group*
@@ -394,7 +394,7 @@ filesytem level, on the container's contents, can be found in entries in the
 Commands run using `buildah run` will default to being run in their own user
 namespaces, configured using the UID and GID maps.
 If --userns-uid-map-user is specified, but --userns-gid-map-group is not
-specified, `buildah` will assume that the specified user name is also a
+specified, `Buildah` will assume that the specified user name is also a
 suitable group name to use as the default setting for this option.
 
 **--uts** *how*
@@ -403,7 +403,7 @@ Sets the configuration for UTS namespaces when the container is subsequently
 used for `buildah run`.
 The configured value can be "" (the empty string) or "container" to indicate
 that a new UTS namespace should be created, or it can be "host" to indicate
-that the UTS namespace in which `buildah` itself is being run should be reused,
+that the UTS namespace in which `Buildah` itself is being run should be reused,
 or it can be the path to a UTS namespace which is already in use by another
 process.
 
@@ -414,7 +414,7 @@ process.
    container. The `OPTIONS` are a comma delimited list and can be:
 
    * [rw|ro]
-   * [z|Z]
+   * [z|Z|O]
    * [`[r]shared`|`[r]slave`|`[r]private`|`[r]unbindable`]
 
 The `CONTAINER-DIR` must be an absolute path such as `/src/docs`. The `HOST-DIR`
@@ -430,6 +430,8 @@ You can add the `:ro` or `:rw` suffix to a volume to mount it read-only or
 read-write mode, respectively. By default, the volumes are mounted read-write.
 See examples.
 
+  `Labeling Volume Mounts`
+
 Labeling systems like SELinux require that proper labels are placed on volume
 content mounted into a container. Without a label, the security system might
 prevent the processes running inside the container from using the content. By
@@ -442,6 +444,21 @@ share the volume content. As a result, Buildah labels the content with a shared
 content label. Shared volume labels allow all containers to read/write content.
 The `Z` option tells Buildah to label the content with a private unshared label.
 Only the current container can use a private volume.
+
+  `Overlay Volume Mounts`
+
+   The `:O` flag tells Buildah to mount the directory from the host as a temporary storage using the Overlay file system. The `RUN` command containers are allowed to modify contents within the mountpoint and are stored in the container storage in a separate directory.  In Ovelay FS terms the source directory will be the lower, and the container storage directory will be the upper. Modifications to the mount point are destroyed when the `RUN` command finishes executing, similar to a tmpfs mount point.
+
+  Any subsequent execution of `RUN` commands sees the original source directory content, any changes from previous RUN commands no longer exists.
+
+  One use case of the `overlay` mount is sharing the package cache from the host into the container to allow speeding up builds.
+
+  Note:
+
+     - Overlay mounts are not currently supported in rootless mode.
+     - The `O` flag is not allowed to be specified with the `Z` or `z` flags. Content mounted into the container is labeled with the private label.
+       On SELinux systems, labels in the source directory needs to be readable by the container label. If not, SELinux container separation must be disabled for the container to work.
+     - Modification of the directory volume mounted into the container with an overlay mount can cause unexpected failures.  It is recommended that you do not modify the directory until the container finishes running.
 
 By default bind mounted volumes are `private`. That means any mounts done
 inside container will not be visible on the host and vice versa. This behavior can
@@ -501,6 +518,8 @@ buildah from --memory 40m --cpu-shares 2 --cpuset-cpus 0,2 --security-opt label=
 buildah from --ulimit nofile=1024:1028 --cgroup-parent /path/to/cgroup/parent myregistry/myrepository/imagename:imagetag
 
 buildah from --volume /home/test:/myvol:ro,Z myregistry/myrepository/imagename:imagetag
+
+buildah from -v /var/lib/yum:/var/lib/yum:O myregistry/myrepository/imagename:imagetag
 
 ## Files
 
