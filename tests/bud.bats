@@ -147,6 +147,15 @@ load helpers
   buildah rmi -a -f
 }
 
+@test "bud-multistage-reused" {
+  target=foo
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.reused ${TESTSDIR}/bud/multi-stage-builds
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json ${target}
+  run_buildah rmi -f ${target}
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --layers -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.reused ${TESTSDIR}/bud/multi-stage-builds
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json ${target}
+}
+
 @test "bud with --layers and symlink file" {
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
   echo 'echo "Hello World!"' > ${TESTDIR}/use-layers/hello.sh

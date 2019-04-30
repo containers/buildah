@@ -1558,6 +1558,9 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		// stages.
 		for i := range cleanupImages {
 			removeID := cleanupImages[len(cleanupImages)-i-1]
+			if removeID == imageID {
+				continue
+			}
 			if _, err := b.store.DeleteImage(removeID, true); err != nil {
 				logrus.Debugf("failed to remove intermediate image %q: %v", removeID, err)
 				if b.forceRmIntermediateCtrs || errors.Cause(err) != storage.ErrImageUsedByContainer {
@@ -1663,6 +1666,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			if !b.layers {
 				cleanupImages = append(cleanupImages, imageID)
 			}
+			imageID = ""
 		}
 	}
 
