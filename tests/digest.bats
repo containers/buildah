@@ -16,7 +16,7 @@ fromreftest() {
 }
 
 @test "from-by-digest-s1" {
-  fromreftest kubernetes/pause@sha256:f8cd50c5a287dd8c5f226cf69c60c737d34ed43726c14b8a746d9de2d23eda2b
+  fromreftest k8s.gcr.io/pause@sha256:bbeaef1d40778579b7b86543fe03e1ec041428a50d21f7a7b25630e357ec9247
 }
 
 @test "from-by-digest-s1-a-discarded-layer" {
@@ -24,11 +24,7 @@ fromreftest() {
 }
 
 @test "from-by-tag-s1" {
-  fromreftest kubernetes/pause:go
-}
-
-@test "from-by-repo-only-s1" {
-  fromreftest kubernetes/pause
+  fromreftest k8s.gcr.io/pause:0.8.0
 }
 
 @test "from-by-digest-s2" {

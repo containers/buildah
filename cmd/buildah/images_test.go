@@ -32,48 +32,48 @@ func TestSizeFormatting(t *testing.T) {
 }
 
 func TestMatchWithTag(t *testing.T) {
-	isMatch := matchesReference("docker.io/kubernetes/pause:latest", "pause:latest")
+	isMatch := matchesReference("gcr.io/pause:latest", "pause:latest")
 	if !isMatch {
 		t.Error("expected match, got not match")
 	}
 
-	isMatch = matchesReference("docker.io/kubernetes/pause:latest", "kubernetes/pause:latest")
-	if !isMatch {
-		t.Error("expected match, got no match")
+	isMatch = matchesReference("gcr.io/pause:latest", "kubernetes/pause:latest")
+	if isMatch {
+		t.Error("expected not match, got match")
 	}
 }
 
 func TestNoMatchesReferenceWithTag(t *testing.T) {
-	isMatch := matchesReference("docker.io/kubernetes/pause:latest", "redis:latest")
+	isMatch := matchesReference("gcr.io/pause:latest", "redis:latest")
 	if isMatch {
 		t.Error("expected no match, got match")
 	}
 
-	isMatch = matchesReference("docker.io/kubernetes/pause:latest", "kubernetes/redis:latest")
+	isMatch = matchesReference("gcr.io/pause:latest", "kubernetes/redis:latest")
 	if isMatch {
 		t.Error("expected no match, got match")
 	}
 }
 
 func TestMatchesReferenceWithoutTag(t *testing.T) {
-	isMatch := matchesReference("docker.io/kubernetes/pause:latest", "pause")
+	isMatch := matchesReference("gcr.io/pause:latest", "pause")
 	if !isMatch {
 		t.Error("expected match, got not match")
 	}
 
-	isMatch = matchesReference("docker.io/kubernetes/pause:latest", "kubernetes/pause")
-	if !isMatch {
-		t.Error("expected match, got no match")
+	isMatch = matchesReference("gcr.io/pause:latest", "kubernetes/pause")
+	if isMatch {
+		t.Error("expected not match, got match")
 	}
 }
 
 func TestNoMatchesReferenceWithoutTag(t *testing.T) {
-	isMatch := matchesReference("docker.io/kubernetes/pause:latest", "redis")
+	isMatch := matchesReference("gcr.io/pause:latest", "redis")
 	if isMatch {
 		t.Error("expected no match, got match")
 	}
 
-	isMatch = matchesReference("docker.io/kubernetes/pause:latest", "kubernetes/redis")
+	isMatch = matchesReference("gcr.io/pause:latest", "kubernetes/redis")
 	if isMatch {
 		t.Error("expected no match, got match")
 	}

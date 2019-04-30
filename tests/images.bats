@@ -41,9 +41,9 @@ load helpers
 }
 
 @test "images filter test" {
-  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json kubernetes/pause)
+  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json k8s.gcr.io/pause)
   cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
-  run_buildah --debug=false images --noheading --filter since=kubernetes/pause
+  run_buildah --debug=false images --noheading --filter since=k8s.gcr.io/pause
   expect_line_count 1
   buildah rm -a
   buildah rmi -a -f
