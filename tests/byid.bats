@@ -55,7 +55,7 @@ load helpers
 }
 
 @test "push-by-id" {
-  for image in busybox kubernetes/pause ; do
+  for image in busybox k8s.gcr.io/pause ; do
     echo pulling/pushing image $image
 
     TARGET=${TESTDIR}/subdir-$(basename $image)
