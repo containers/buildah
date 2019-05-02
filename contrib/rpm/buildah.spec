@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.9.0-dev
+Version:        1.8.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,16 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Fri Apr 26, 2019 Tom Sweeney <tsweeney@redhat.com> 1.9.0-dev-1
+* Wed May 01, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.1-1
+- Don't create directory on container
+- Replace kubernetes/pause in tests with k8s.gcr.io/pause
+- imagebuildah: don't remove intermediate images if we need them
+- Rework buildahimagegit to buildahimageupstream
+- Fix Transient Mounts
+- Handle WORKDIRs that are symlinks
+- allow podman to build a client for windows
+- Touch up 1.9-dev to 1.9.0-dev
+- Bump to 1.9-dev
 
 * Fri Apr 26, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.0
 - Resolve symlink when checking container path
