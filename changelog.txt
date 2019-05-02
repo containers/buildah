@@ -1,3 +1,9 @@
+- Changelog for v1.8.2 (2019-05-02)
+  * Vendor Storage 1.12.6
+  * Create scratch file in TESTDIR
+  * Test bud-copy-dot with --layers picks up changed file
+  * Bump back to 1.9.0-dev
+
 - Changelog for v1.8.1 (2019-05-01)
   * Don't create directory on container
   * Replace kubernetes/pause in tests with k8s.gcr.io/pause

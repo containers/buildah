@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.9.0-dev
+Version:        1.8.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,11 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Wed May 01, 2019 Tom Sweeney <tsweeney@redhat.com> 1.9.0-dev-1
+* Thu May 02, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.2-1
+- Vendor Storage 1.12.6
+- Create scratch file in TESTDIR
+- Test bud-copy-dot with --layers picks up changed file
+- Bump back to 1.9.0-dev
 
 * Wed May 01, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.1
 - Don't create directory on container
