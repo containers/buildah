@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.8.1
+Version:        1.9.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Wed May 01, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.1-1
+* Wed May 01, 2019 Tom Sweeney <tsweeney@redhat.com> 1.9.0-dev-1
+
+* Wed May 01, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.1
 - Don't create directory on container
 - Replace kubernetes/pause in tests with k8s.gcr.io/pause
 - imagebuildah: don't remove intermediate images if we need them
