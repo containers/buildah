@@ -1,3 +1,14 @@
+- Changelog for v1.8.1 (2019-05-01)
+  * Don't create directory on container
+  * Replace kubernetes/pause in tests with k8s.gcr.io/pause
+  * imagebuildah: don't remove intermediate images if we need them
+  * Rework buildahimagegit to buildahimageupstream
+  * Fix Transient Mounts
+  * Handle WORKDIRs that are symlinks
+  * allow podman to build a client for windows
+  * Touch up 1.9-dev to 1.9.0-dev
+  * Bump to 1.9-dev
+
 - Changelog for v1.8.0 (2019-04-26)
   * Resolve symlink when checking container path
   * commit: commit on every instruction, but not always with layers
