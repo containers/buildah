@@ -1198,7 +1198,48 @@ load helpers
   run_buildah --debug=false run ${ctr} ls -alF /tempest
   expect_output --substring "/tempest -> /var/lib/tempest/"
 
-  run_buildah --debug=false run ${ctr} ls -alF /etc/notareal.conf 
+  run_buildah --debug=false run ${ctr} ls -alF /etc/notareal.conf
+  expect_output --substring "\-rw\-rw\-r\-\-"
+}
+
+@test "bud WORKDIR isa symlink no target dir" {
+  target=alpine-image
+  ctr=alpine-ctr
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile-2 ${TESTSDIR}/bud/workdir-symlink
+  expect_output --substring "STEP 2: RUN ln -sf "
+
+  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
+  expect_output --substring ${ctr}
+
+  run_buildah --debug=false run ${ctr} ls -alF /tempest
+  expect_output --substring "/tempest -> /var/lib/tempest/"
+
+  run_buildah --debug=false run ${ctr} ls /tempest
+  expect_output --substring "Dockerfile-2"
+
+  run_buildah --debug=false run ${ctr} ls -alF /etc/notareal.conf
+  expect_output --substring "\-rw\-rw\-r\-\-"
+}
+
+@test "bud WORKDIR isa symlink no target dir and follow on dir" {
+  target=alpine-image
+  ctr=alpine-ctr
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile-3 ${TESTSDIR}/bud/workdir-symlink
+  expect_output --substring "STEP 2: RUN ln -sf "
+
+  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
+  expect_output --substring ${ctr}
+
+  run_buildah --debug=false run ${ctr} ls -alF /tempest
+  expect_output --substring "/tempest -> /var/lib/tempest/"
+
+  run_buildah --debug=false run ${ctr} ls /tempest
+  expect_output --substring "Dockerfile-3"
+
+  run_buildah --debug=false run ${ctr} ls /tempest/lowerdir
+  expect_output --substring "Dockerfile-3"
+
+  run_buildah --debug=false run ${ctr} ls -alF /etc/notareal.conf
   expect_output --substring "\-rw\-rw\-r\-\-"
 }
 
