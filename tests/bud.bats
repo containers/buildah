@@ -304,6 +304,16 @@ load helpers
   buildah rmi ${target}
 }
 
+@test "bud-from-scratch-layers" {
+  target=scratch-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f  ${TESTSDIR}/bud/from-scratch/Dockerfile2 -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f  ${TESTSDIR}/bud/from-scratch/Dockerfile2 -t ${target} ${TESTSDIR}/bud/from-scratch
+  cid=$(buildah from ${target})
+  run_buildah --debug=false images
+  run_buildah rm ${cid}
+  expect_line_count 2
+}
+
 @test "bud-from-multiple-files-one-from" {
   target=scratch-image
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files
