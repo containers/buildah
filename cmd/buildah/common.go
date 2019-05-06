@@ -271,9 +271,12 @@ func getParent(ctx context.Context, sc *types.SystemContext, store storage.Store
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to retrieve image list from store")
 	}
-	childLayer, err := store.Layer(child.TopLayer)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to retrieve layer list from store")
+	var childTopLayer *storage.Layer
+	if child.TopLayer != "" {
+		childTopLayer, err = store.Layer(child.TopLayer)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to retrieve information about layer %s from store", child.TopLayer)
+		}
 	}
 	childConfig, err := getImageConfig(ctx, sc, store, child.ID)
 	if err != nil {
@@ -283,7 +286,7 @@ func getParent(ctx context.Context, sc *types.SystemContext, store storage.Store
 		if parent.ID == child.ID {
 			continue
 		}
-		if parent.TopLayer != childLayer.Parent && parent.TopLayer != childLayer.ID {
+		if childTopLayer != nil && parent.TopLayer != childTopLayer.Parent && parent.TopLayer != childTopLayer.ID {
 			continue
 		}
 		parentConfig, err := getImageConfig(ctx, sc, store, parent.ID)
@@ -331,12 +334,15 @@ func getChildren(ctx context.Context, sc *types.SystemContext, store storage.Sto
 		if child.ID == parent.ID {
 			continue
 		}
-		childLayer, err := store.Layer(child.TopLayer)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to retrieve information about layer %q from store", child.TopLayer)
-		}
-		if childLayer.Parent != parent.TopLayer && childLayer.ID != parent.TopLayer {
-			continue
+		var childTopLayer *storage.Layer
+		if child.TopLayer != "" {
+			childTopLayer, err = store.Layer(child.TopLayer)
+			if err != nil {
+				return nil, errors.Wrapf(err, "unable to retrieve information about layer %q from store", child.TopLayer)
+			}
+			if childTopLayer.Parent != parent.TopLayer && childTopLayer.ID != parent.TopLayer {
+				continue
+			}
 		}
 		childConfig, err := getImageConfig(ctx, sc, store, child.ID)
 		if err != nil {
