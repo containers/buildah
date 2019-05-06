@@ -1219,9 +1219,9 @@ func (s *StageExecutor) layerExists(ctx context.Context, currNode *parser.Node, 
 		return "", errors.Wrap(err, "error getting image list from store")
 	}
 	for _, image := range images {
-		var layer *storage.Layer
+		var imageTopLayer *storage.Layer
 		if image.TopLayer != "" {
-			layer, err = s.executor.store.Layer(image.TopLayer)
+			imageTopLayer, err = s.executor.store.Layer(image.TopLayer)
 			if err != nil {
 				return "", errors.Wrapf(err, "error getting top layer info")
 			}
@@ -1230,7 +1230,7 @@ func (s *StageExecutor) layerExists(ctx context.Context, currNode *parser.Node, 
 		// it means that this image is potentially a cached intermediate image from a previous
 		// build. Next we double check that the history of this image is equivalent to the previous
 		// lines in the Dockerfile up till the point we are at in the build.
-		if layer == nil || layer.Parent == s.executor.topLayers[len(s.executor.topLayers)-1] || layer.ID == s.executor.topLayers[len(s.executor.topLayers)-1] {
+		if imageTopLayer == nil || imageTopLayer.Parent == s.executor.topLayers[len(s.executor.topLayers)-1] || imageTopLayer.ID == s.executor.topLayers[len(s.executor.topLayers)-1] {
 			history, err := s.executor.getImageHistory(ctx, image.ID)
 			if err != nil {
 				return "", errors.Wrapf(err, "error getting history of %q", image.ID)
