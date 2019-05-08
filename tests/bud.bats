@@ -28,6 +28,8 @@ load helpers
 
   run_buildah run myctr ls -l subdir/sub1.txt
 
+  run_buildah bud -t testbud2 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore2
+
   buildah rmi -a -f
 }
 
