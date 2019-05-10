@@ -635,6 +635,42 @@ load helpers
   expect_output ""
 }
 
+@test "bud-shell during build in Docker format" {
+  target=alpine-image
+  run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-default ${TESTSDIR}/bud/shell
+  expect_output --substring "SHELL=/bin/sh"
+  buildah rmi -a
+  run_buildah --debug=false images -q
+  expect_output ""
+}
+
+@test "bud-shell during build in OCI format" {
+  target=alpine-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-default ${TESTSDIR}/bud/shell
+  expect_output --substring "SHELL=/bin/sh"
+  buildah rmi -a
+  run_buildah --debug=false images -q
+  expect_output ""
+}
+
+@test "bud-shell changed during build in Docker format" {
+  target=ubuntu-image
+  run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-custom ${TESTSDIR}/bud/shell
+  expect_output --substring "SHELL=/bin/bash"
+  buildah rmi -a
+  run_buildah --debug=false images -q
+  expect_output ""
+}
+
+@test "bud-shell changed during build in OCI format" {
+  target=ubuntu-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-custom ${TESTSDIR}/bud/shell
+  expect_output --substring "SHELL=/bin/sh"
+  buildah rmi -a
+  run_buildah --debug=false images -q
+  expect_output ""
+}
+
 @test "bud with symlinks" {
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/symlink
