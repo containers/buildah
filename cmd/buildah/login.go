@@ -64,25 +64,18 @@ func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
-	if !iopts.getLogin {
-		user, err := config.GetUserLoggedIn(systemContext, server)
-		if err != nil {
-			return errors.Wrapf(err, "unable to check for login user")
-		}
-
-		if user == "" {
-			return errors.Errorf("not logged into %s", server)
-		}
-		fmt.Printf("%s\n", user)
-		return nil
-	}
-
 	// username of user logged in to server (if one exists)
 	userFromAuthFile, passFromAuthFile, err := config.GetAuthentication(systemContext, server)
 	if err != nil {
 		return errors.Wrapf(err, "error reading auth file")
 	}
-
+	if !iopts.getLogin {
+		if userFromAuthFile == "" {
+			return errors.Errorf("not logged into %s", server)
+		}
+		fmt.Printf("%s\n", userFromAuthFile)
+		return nil
+	}
 	ctx := getContext()
 	password := iopts.password
 
