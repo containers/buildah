@@ -590,7 +590,11 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 
 	args := run.Args
 	if run.Shell {
-		args = append([]string{"/bin/sh", "-c"}, args...)
+		if len(config.Shell) > 0 && s.builder.Format == buildah.Dockerv2ImageManifest {
+			args = append(config.Shell, args...)
+		} else {
+			args = append([]string{"/bin/sh", "-c"}, args...)
+		}
 	}
 	if err := s.volumeCacheSave(); err != nil {
 		return err
