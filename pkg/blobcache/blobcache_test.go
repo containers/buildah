@@ -21,7 +21,7 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -128,11 +128,11 @@ func TestBlobCache(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error opening source image for writing: %v", err)
 				}
-				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(blobBytes), blobInfo, none.NoCache, false)
+				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(blobBytes), blobInfo, 0, none.NoCache, false, nil)
 				if err != nil {
 					t.Fatalf("error writing layer blob to source image: %v", err)
 				}
-				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(configBytes), configInfo, none.NoCache, true)
+				_, err = destImage.PutBlob(context.TODO(), bytes.NewReader(configBytes), configInfo, 0, none.NoCache, true, nil)
 				if err != nil {
 					t.Fatalf("error writing config blob to source image: %v", err)
 				}
