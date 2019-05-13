@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/image/docker"
 	"github.com/containers/image/pkg/docker/config"
@@ -42,7 +43,7 @@ func init() {
 
 	flags := loginCommand.Flags()
 	flags.SetInterspersed(false)
-	flags.StringVar(&opts.authfile, "authfile", "", "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. Use REGISTRY_AUTH_FILE environment variable to override")
+	flags.StringVar(&opts.authfile, "authfile", buildahcli.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVarP(&opts.password, "password", "p", "", "Password for registry")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")

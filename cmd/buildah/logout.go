@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/image/pkg/docker/config"
 	"github.com/pkg/errors"
@@ -32,7 +33,7 @@ func init() {
 
 	flags := logoutCommand.Flags()
 	flags.SetInterspersed(false)
-	flags.StringVar(&opts.authfile, "authfile", "", "path of the authentication file. Default is ${XDG_RUNTIME_DIR}/containers/auth.json. Use REGISTRY_AUTH_FILE environment variable to override")
+	flags.StringVar(&opts.authfile, "authfile", buildahcli.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.BoolVarP(&opts.all, "all", "a", false, "Remove the cached credentials for all registries in the auth file")
 	rootCmd.AddCommand(logoutCommand)
 }
