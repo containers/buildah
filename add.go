@@ -100,7 +100,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 		}
 	}()
 	// Find out which user (and group) the destination should belong to.
-	user, err := b.user(mountPoint, options.Chown)
+	user, _, err := b.user(mountPoint, options.Chown)
 	if err != nil {
 		return err
 	}
@@ -153,12 +153,12 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 }
 
 // user returns the user (and group) information which the destination should belong to.
-func (b *Builder) user(mountPoint string, userspec string) (specs.User, error) {
+func (b *Builder) user(mountPoint string, userspec string) (specs.User, string, error) {
 	if userspec == "" {
 		userspec = b.User()
 	}
 
-	uid, gid, err := chrootuser.GetUser(mountPoint, userspec)
+	uid, gid, homeDir, err := chrootuser.GetUser(mountPoint, userspec)
 	u := specs.User{
 		UID:      uid,
 		GID:      gid,
@@ -175,7 +175,7 @@ func (b *Builder) user(mountPoint string, userspec string) (specs.User, error) {
 		}
 
 	}
-	return u, err
+	return u, homeDir, err
 }
 
 // dockerIgnore struct keep info from .dockerignore
