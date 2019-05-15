@@ -131,7 +131,8 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return err
 	}
 
-	if err := b.configureUIDGID(g, mountPoint, options); err != nil {
+	homeDir, err := b.configureUIDGID(g, mountPoint, options)
+	if err != nil {
 		return err
 	}
 
@@ -210,7 +211,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		}
 		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, Package+"-"+filepath.Base(path))
 	case IsolationChroot:
-		err = chroot.RunUsingChroot(spec, path, options.Stdin, options.Stdout, options.Stderr)
+		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr)
 	case IsolationOCIRootless:
 		moreCreateArgs := []string{"--no-new-keyring"}
 		if options.NoPivot {
@@ -1775,14 +1776,14 @@ func getDNSIP(dnsServers []string) (dns []net.IP, err error) {
 	return dns, nil
 }
 
-func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, options RunOptions) error {
+func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, options RunOptions) (string, error) {
 	// Set the user UID/GID/supplemental group list/capabilities lists.
-	user, err := b.user(mountPoint, options.User)
+	user, homeDir, err := b.user(mountPoint, options.User)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := setupCapabilities(g, b.AddCapabilities, b.DropCapabilities, options.AddCapabilities, options.DropCapabilities); err != nil {
-		return err
+		return "", err
 	}
 	g.SetProcessUID(user.UID)
 	g.SetProcessGID(user.GID)
@@ -1797,7 +1798,7 @@ func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, opti
 		g.Config.Process.Capabilities.Bounding = bounding
 	}
 
-	return nil
+	return homeDir, nil
 }
 
 func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions) {

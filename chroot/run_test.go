@@ -90,7 +90,7 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 	}
 
 	output := new(bytes.Buffer)
-	if err := RunUsingChroot(g.Config, bundleDir, new(bytes.Buffer), output, output); err != nil {
+	if err := RunUsingChroot(g.Config, bundleDir, "/", new(bytes.Buffer), output, output); err != nil {
 		t.Fatalf("run: %v: %s", err, output.String())
 	}
 
