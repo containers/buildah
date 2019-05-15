@@ -1218,6 +1218,13 @@ func (s *StageExecutor) layerExists(ctx context.Context, currNode *parser.Node, 
 	if err != nil {
 		return "", errors.Wrap(err, "error getting image list from store")
 	}
+	var baseHistory []v1.History
+	if s.builder.FromImageID != "" {
+		baseHistory, err = s.executor.getImageHistory(ctx, s.builder.FromImageID)
+		if err != nil {
+			return "", errors.Wrapf(err, "error getting history of base image %q", s.builder.FromImageID)
+		}
+	}
 	for _, image := range images {
 		var imageTopLayer *storage.Layer
 		if image.TopLayer != "" {
@@ -1236,7 +1243,7 @@ func (s *StageExecutor) layerExists(ctx context.Context, currNode *parser.Node, 
 				return "", errors.Wrapf(err, "error getting history of %q", image.ID)
 			}
 			// children + currNode is the point of the Dockerfile we are currently at.
-			if s.executor.historyMatches(append(children, currNode), history) {
+			if s.executor.historyMatches(baseHistory, currNode, history) {
 				// This checks if the files copied during build have been changed if the node is
 				// a COPY or ADD command.
 				filesMatch, err := s.copiedFilesMatch(currNode, history[len(history)-1].Created)
@@ -1285,32 +1292,60 @@ func (b *Executor) getCreatedBy(node *parser.Node) string {
 	return "/bin/sh -c #(nop) " + node.Original
 }
 
-// historyMatches returns true if the history of the image matches the lines
-// in the Dockerfile till the point of build we are at.
+// historyMatches returns true if a candidate history matches the history of our
+// base image (if we have one), plus the current instruction.
 // Used to verify whether a cache of the intermediate image exists and whether
 // to run the build again.
-func (b *Executor) historyMatches(children []*parser.Node, history []v1.History) bool {
-	i := len(history) - 1
-	for j := len(children) - 1; j >= 0; j-- {
-		instruction := children[j].Original
-		if children[j].Value == "run" {
-			instruction = instruction[4:]
-			buildArgs := b.getBuildArgs()
-			// If a previous image was built with some build-args but the new build process doesn't have any build-args
-			// specified, so compare the lengths of the old instruction with the current one
-			// 11 is the length of "/bin/sh -c " that is used to run the run commands
-			if buildArgs == "" && len(history[i].CreatedBy) > len(instruction)+11 {
-				return false
-			}
-			// There are build-args, so check if anything with the build-args has changed
-			if buildArgs != "" && !strings.Contains(history[i].CreatedBy, buildArgs) {
-				return false
-			}
-		}
-		if !strings.Contains(history[i].CreatedBy, instruction) {
+func (b *Executor) historyMatches(baseHistory []v1.History, child *parser.Node, history []v1.History) bool {
+	if len(baseHistory) >= len(history) {
+		return false
+	}
+	if len(history)-len(baseHistory) != 1 {
+		return false
+	}
+	for i := range baseHistory {
+		if baseHistory[i].CreatedBy != history[i].CreatedBy {
 			return false
 		}
-		i--
+		if baseHistory[i].Comment != history[i].Comment {
+			return false
+		}
+		if baseHistory[i].Author != history[i].Author {
+			return false
+		}
+		if baseHistory[i].EmptyLayer != history[i].EmptyLayer {
+			return false
+		}
+		if baseHistory[i].Created != nil && history[i].Created == nil {
+			return false
+		}
+		if baseHistory[i].Created == nil && history[i].Created != nil {
+			return false
+		}
+		if baseHistory[i].Created != nil && history[i].Created != nil && *baseHistory[i].Created != *history[i].Created {
+			return false
+		}
+	}
+	instruction := child.Original
+	switch strings.ToUpper(child.Value) {
+	case "RUN":
+		instruction = instruction[4:]
+		buildArgs := b.getBuildArgs()
+		// If a previous image was built with some build-args but the new build process doesn't have any build-args
+		// specified, the command might be expanded differently, so compare the lengths of the old instruction with
+		// the current one.  11 is the length of "/bin/sh -c " that is used to run the run commands.
+		if buildArgs == "" && len(history[len(baseHistory)].CreatedBy) > len(instruction)+11 {
+			return false
+		}
+		// There are build-args, so check if anything with the build-args has changed
+		if buildArgs != "" && !strings.Contains(history[len(baseHistory)].CreatedBy, buildArgs) {
+			return false
+		}
+		fallthrough
+	default:
+		if !strings.Contains(history[len(baseHistory)].CreatedBy, instruction) {
+			return false
+		}
 	}
 	return true
 }

@@ -158,6 +158,19 @@ load helpers
   run_buildah from --signature-policy ${TESTSDIR}/policy.json ${target}
 }
 
+@test "bud-multistage-cache" {
+  target=foo
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.extended ${TESTSDIR}/bud/multi-stage-builds
+  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json ${target}
+  cid="$output"
+  run_buildah --debug=false mount "$cid"
+  root="$output"
+  # cache should have used this one
+  test -r "$root"/tmp/preCommit
+  # cache should not have used this one
+  ! test -r "$root"/tmp/postCommit
+}
+
 @test "bud with --layers and symlink file" {
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
   echo 'echo "Hello World!"' > ${TESTDIR}/use-layers/hello.sh
