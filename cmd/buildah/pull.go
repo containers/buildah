@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/containers/buildah"
@@ -93,5 +94,10 @@ func pullCmd(c *cobra.Command, args []string, iopts pullResults) error {
 		options.ReportWriter = nil // Turns off logging output
 	}
 
-	return buildah.Pull(getContext(), args[0], options)
+	id, err := buildah.Pull(getContext(), args[0], options)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%s\n", id)
+	return nil
 }

@@ -338,6 +338,5 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 			logrus.Warnf("error generating canonical reference with name %q and digest %s: %v", name, manifestDigest.String(), err)
 		}
 	}
-	fmt.Printf("Successfully pushed %s@%s\n", dest.StringWithinTransport(), manifestDigest.String())
 	return ref, manifestDigest, nil
 }
