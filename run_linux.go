@@ -214,7 +214,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		if options.NoPivot {
 			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
 		}
-		if err := setupRootlessSpecChanges(spec, path, rootUID, rootGID); err != nil {
+		if err := setupRootlessSpecChanges(spec, path, rootUID, rootGID, b.CommonBuildOpts.ShmSize); err != nil {
 			return err
 		}
 		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, Package+"-"+filepath.Base(path))
@@ -1809,7 +1809,7 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 	}
 }
 
-func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, rootUID, rootGID uint32) error {
+func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, rootUID, rootGID uint32, shmSize string) error {
 	spec.Hostname = ""
 	spec.Process.User.AdditionalGids = nil
 	spec.Linux.Resources = nil
@@ -1843,7 +1843,7 @@ func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, rootUID, rootG
 			Source:      "shm",
 			Destination: "/dev/shm",
 			Type:        "tmpfs",
-			Options:     []string{"private", "nodev", "noexec", "nosuid", "mode=1777", "size=65536k"},
+			Options:     []string{"private", "nodev", "noexec", "nosuid", "mode=1777", fmt.Sprintf("size=%s", shmSize)},
 		},
 		{
 			Source:      "/proc",
