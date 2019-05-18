@@ -30,7 +30,7 @@ buildah run $ctrid ls /
 ########
 ctr=$(buildah from scratch)
 mnt=$(buildah mount $ctr)
-dnf -y install --installroot=$mnt --releasever=29 httpd
+dnf -y install --installroot=$mnt --releasever=30 httpd
 buildah run $ctr touch /test
 
 ########
@@ -90,9 +90,9 @@ scratchmnt=$(buildah mount $newcontainer)
 echo $scratchmnt
 
 ########
-# Install Fedora 29 bash and coreutils
+# Install Fedora 30 bash and coreutils
 ########
-dnf install --installroot $scratchmnt --release 29 bash coreutils --setopt install_weak_deps=false -y
+dnf install --installroot $scratchmnt --release 30 bash coreutils --setopt install_weak_deps=false -y
 
 ########
 # Check /usr/bin on the new container
@@ -123,7 +123,7 @@ buildah run $newcontainer /usr/bin/runecho.sh
 # Add configuration information
 ########
 buildah config --created-by "ipbabble"  $newcontainer
-buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora29-bashecho $newcontainer
+buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora30-bashecho $newcontainer
 
 ########
 # Inspect the container, verifying above was put into it
