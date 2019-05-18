@@ -3,7 +3,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
-#include <linux/memfd.h>
+#include <sys/mman.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <sched.h>
