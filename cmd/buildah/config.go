@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -179,6 +180,19 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 		for _, envSpec := range iopts.env {
 			env := strings.SplitN(envSpec, "=", 2)
 			if len(env) > 1 {
+				var unexpanded []string
+				getenv := func(name string) string {
+					for _, envvar := range builder.Env() {
+						val := strings.SplitN(envvar, "=", 2)
+						if len(val) == 2 && val[0] == name {
+							return val[1]
+						}
+					}
+					logrus.Errorf("error expanding variable %q: no value set in configuration", name)
+					unexpanded = append(unexpanded, name)
+					return name
+				}
+				env[1] = os.Expand(env[1], getenv)
 				builder.SetEnv(env[0], env[1])
 			} else {
 				builder.UnsetEnv(env[0])
