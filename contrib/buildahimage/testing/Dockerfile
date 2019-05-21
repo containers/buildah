@@ -19,10 +19,6 @@ RUN yum -y install buildah fuse-overlayfs --exclude container-selinux --enablere
 RUN sed -i -e 's|^#mount_program|mount_program|g' -e '/additionalimage.*/a "/var/lib/shared",' /etc/containers/storage.conf
 RUN mkdir -p /var/lib/shared/overlay-images /var/lib/shared/overlay-layers; touch /var/lib/shared/overlay-images/images.lock; touch /var/lib/shared/overlay-layers/layers.lock
 
-# This needs to be fixed in buildah and container/storage, but for now
-# this hack works.
-RUN mkdir /root/.config && ln -s /etc/containers /root/.config/containers
-
 # Set up environment variables to note that this is
 # not starting with usernamespace and default to 
 # isolate the filesystem with chroot.
