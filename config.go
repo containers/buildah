@@ -278,12 +278,12 @@ func (b *Builder) SetEnv(k string, v string) {
 			}
 			return name
 		}
+		v = os.Expand(v, getenv)
 		n := []string{}
 		for i := range *s {
 			if !strings.HasPrefix((*s)[i], k+"=") {
 				n = append(n, (*s)[i])
 			}
-			v = os.Expand(v, getenv)
 		}
 		n = append(n, k+"="+v)
 		*s = n
