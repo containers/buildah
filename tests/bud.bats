@@ -832,6 +832,16 @@ load helpers
   buildah rmi -a -f
 }
 
+@test "bud ENV preserves special characters after commit" {
+  from_target=special-chars
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${from_target} -f ${TESTSDIR}/bud/env/Dockerfile.special-chars ${TESTSDIR}/bud/env
+  cid=$(buildah from ${from_target})
+  run_buildah run ${cid} env
+  expect_output --substring "LIB=\\$\(PREFIX\)/lib"
+  buildah rm ${cid}
+  buildah rmi -a -f
+}
+
 @test "bud with Dockerfile from valid URL" {
   target=url-image
   url=https://raw.githubusercontent.com/containers/buildah/master/tests/bud/from-scratch/Dockerfile
