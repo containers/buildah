@@ -64,6 +64,7 @@ func (c *Cmd) Start() error {
 	if os.Geteuid() != 0 {
 		c.Env = append(c.Env, "_CONTAINERS_USERNS_CONFIGURED=done")
 		c.Env = append(c.Env, fmt.Sprintf("_CONTAINERS_ROOTLESS_UID=%d", os.Geteuid()))
+		c.Env = append(c.Env, fmt.Sprintf("_CONTAINERS_ROOTLESS_GID=%d", os.Getegid()))
 	}
 
 	// Create the pipe for reading the child's PID.
