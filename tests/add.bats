@@ -104,3 +104,39 @@ load helpers
   cmp ${TESTDIR}/tarball4/tarball4.random2 $newroot/tarball4/tarball4.random2
   run_buildah rm $newcid
 }
+
+@test "add single file creates absolute path with correct permissions" {
+  imgName=ubuntu-image
+  createrandom ${TESTDIR}/distutils.cfg
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ubuntu)
+  run_buildah add $cid ${TESTDIR}/distutils.cfg /usr/lib/python3.7/distutils
+  run_buildah run $cid stat -c "%a" /usr/lib/python3.7/distutils
+  root=$(buildah mount $cid)
+  expect_output --substring "755"
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:${imgName}
+  run_buildah rm $cid
+
+  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${imgName})
+  run_buildah run $newcid stat -c "%a" /usr/lib/python3.7/distutils
+  expect_output --substring "755"
+  run_buildah rm $newcid
+}
+
+@test "add single file creates relative path with correct permissions" {
+  imgName=ubuntu-image
+  createrandom ${TESTDIR}/distutils.cfg
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ubuntu)
+  run_buildah add $cid ${TESTDIR}/distutils.cfg lib/custom
+  run_buildah run $cid stat -c "%a" lib/custom
+  root=$(buildah mount $cid)
+  expect_output --substring "755"
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:${imgName}
+  run_buildah rm $cid
+
+  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${imgName})
+  run_buildah run $newcid stat -c "%a" lib/custom
+  expect_output --substring "755"
+  run_buildah rm $newcid
+}
