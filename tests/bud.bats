@@ -1106,6 +1106,76 @@ load helpers
   expect_output --substring "/var/file2"
 }
 
+@test "bud with COPY of single file creates absolute path with correct permissions" {
+  imgName=ubuntu-image
+  ctrName=ubuntu-copy
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-create-absolute-path
+  expect_output --substring "permissions=755"
+
+  run_buildah --debug=false from --name ${ctrName} ${imgName}
+  run_buildah --debug=false run ${ctrName} -- stat -c "%a" /usr/lib/python3.7/distutils
+  expect_output --substring "755"
+}
+
+@test "bud with COPY of single file creates relative path with correct permissions" {
+  imgName=ubuntu-image
+  ctrName=ubuntu-copy
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-create-relative-path
+  expect_output --substring "permissions=755"
+
+  run_buildah --debug=false from --name ${ctrName} ${imgName}
+  run_buildah --debug=false run ${ctrName} -- stat -c "%a" lib/custom
+  expect_output --substring "755"
+}
+
+@test "bud with ADD of single file creates absolute path with correct permissions" {
+  imgName=ubuntu-image
+  ctrName=ubuntu-copy
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/add-create-absolute-path
+  expect_output --substring "permissions=755"
+
+  run_buildah --debug=false from --name ${ctrName} ${imgName}
+  run_buildah --debug=false run ${ctrName} -- stat -c "%a" /usr/lib/python3.7/distutils
+  expect_output --substring "755"
+}
+
+@test "bud with ADD of single file creates relative path with correct permissions" {
+  imgName=ubuntu-image
+  ctrName=ubuntu-copy
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/add-create-relative-path
+  expect_output --substring "permissions=755"
+
+  run_buildah --debug=false from --name ${ctrName} ${imgName}
+  run_buildah --debug=false run ${ctrName} -- stat -c "%a" lib/custom
+  expect_output --substring "755"
+}
+
+@test "bud multi-stage COPY creates absolute path with correct permissions" {
+  imgName=ubuntu-image
+  ctrName=ubuntu-copy
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.absolute -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths
+  expect_output --substring "permissions=755"
+
+  run_buildah --debug=false from --name ${ctrName} ${imgName}
+  run_buildah --debug=false run ${ctrName} -- stat -c "%a" /my/bin
+  expect_output --substring "755"
+}
+
+@test "bud multi-stage COPY creates relative path with correct permissions" {
+  imgName=ubuntu-image
+  ctrName=ubuntu-copy
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.relative -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths
+  expect_output --substring "permissions=755"
+
+  run_buildah --debug=false from --name ${ctrName} ${imgName}
+  run_buildah --debug=false run ${ctrName} -- stat -c "%a" my/bin
+  expect_output --substring "755"
+}
+
+@test "bud COPY to root succeeds" {
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-root
+}
+
 @test "bud with FROM AS construct" {
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
   run_buildah --debug=false images -a
@@ -1283,6 +1353,22 @@ load helpers
   expect_output --substring "/etc/hbase -> /usr/local/hbase/"
 
   run_buildah --debug=false run ${ctr} ls -alF /usr/local/hbase 
+  expect_output --substring "Dockerfile"
+}
+
+@test "bud copy to dangling symlink" {
+  target=ubuntu-image
+  ctr=ubuntu-ctr
+  run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-symlink-dangling
+  expect_output --substring "STEP 3: RUN ln -s "
+
+  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
+  expect_output --substring ${ctr}
+
+  run_buildah --debug=false run ${ctr} ls -alF /src
+  expect_output --substring "/src -> /symlink"
+
+  run_buildah --debug=false run ${ctr} ls -alF /symlink
   expect_output --substring "Dockerfile"
 }
 

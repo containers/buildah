@@ -120,6 +120,12 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	hostOwner := idtools.IDPair{UID: int(hostUID), GID: int(hostGID)}
 	dest := mountPoint
 	if destination != "" && filepath.IsAbs(destination) {
+		dir := filepath.Dir(destination)
+		if dir != "." && dir != "/" {
+			if err = idtools.MkdirAllAndChownNew(filepath.Join(dest, dir), 0755, hostOwner); err != nil {
+				return errors.Wrapf(err, "error creating directory %q", filepath.Join(dest, dir))
+			}
+		}
 		dest = filepath.Join(dest, destination)
 	} else {
 		if err = idtools.MkdirAllAndChownNew(filepath.Join(dest, b.WorkDir()), 0755, hostOwner); err != nil {
