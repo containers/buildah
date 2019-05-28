@@ -487,6 +487,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		// Check the file and see if part of it is a symlink.
 		// Convert it to the target if so.  To be ultrasafe
 		// do the same for the mountpoint.
+		hadFinalPathSeparator := len(copy.Dest) > 0 && copy.Dest[len(copy.Dest)-1] == os.PathSeparator
 		secureMountPoint, err := securejoin.SecureJoin("", s.mountPoint)
 		finalPath, err := securejoin.SecureJoin(secureMountPoint, copy.Dest)
 		if err != nil {
@@ -496,6 +497,11 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			return errors.Wrapf(err, "error resolving copy destination %s", copy.Dest)
 		}
 		copy.Dest = strings.TrimPrefix(finalPath, secureMountPoint)
+		if len(copy.Dest) == 0 || copy.Dest[len(copy.Dest)-1] != os.PathSeparator {
+			if hadFinalPathSeparator {
+				copy.Dest += string(os.PathSeparator)
+			}
+		}
 
 		if copy.Download {
 			logrus.Debugf("ADD %#v, %#v", excludes, copy)
