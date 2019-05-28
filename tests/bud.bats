@@ -149,6 +149,14 @@ load helpers
   buildah rmi -a -f
 }
 
+@test "bud-multistage-copy-final-slash" {
+  target=foo
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-final-slash
+  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json ${target}
+  cid="$output"
+  run_buildah run ${cid} /test/ls -lR /test/ls
+}
+
 @test "bud-multistage-reused" {
   target=foo
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.reused ${TESTSDIR}/bud/multi-stage-builds
