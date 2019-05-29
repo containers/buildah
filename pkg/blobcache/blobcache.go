@@ -18,7 +18,7 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/ioutils"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -379,7 +379,9 @@ func saveStream(wg *sync.WaitGroup, decompressReader io.ReadCloser, tempFile *os
 		_, err3 = io.Copy(io.MultiWriter(tempFile, digester.Hash()), decompressed)
 	} else {
 		// Drain the pipe to keep from stalling the PutBlob() thread.
-		io.Copy(ioutil.Discard, decompressReader)
+		if _, err := io.Copy(ioutil.Discard, decompressReader); err != nil {
+			logrus.Debugf("error draining the pipe: %v", err)
+		}
 	}
 	decompressReader.Close()
 	decompressed.Close()
