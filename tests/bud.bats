@@ -26,9 +26,19 @@ load helpers
 
   run_buildah run myctr ls -l sub1.txt
 
+  run_buildah 1 run myctr ls -l sub2.txt
+
   run_buildah run myctr ls -l subdir/sub1.txt
 
+  run_buildah 1 run myctr ls -l subdir/sub2.txt
+
   run_buildah bud -t testbud2 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore2
+
+  run_buildah bud -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
+
+  run sed -e '/^CUT HERE/,/^CUT HERE/p' -e 'd' <<< "$output"
+  run sed '/CUT HERE/d' <<< "$output"
+  expect_output "$(cat ${TESTSDIR}/bud/dockerignore3/manifest)"
 
   buildah rmi -a -f
 }
