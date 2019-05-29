@@ -508,7 +508,11 @@ func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io
 	}
 	defer func() {
 		if undoErr := undoIntermediates(); undoErr != nil {
-			err = errors.Wrap(err, undoErr.Error())
+			if err == nil {
+				err = undoErr
+			} else {
+				err = errors.Wrap(err, undoErr.Error())
+			}
 		}
 	}()
 
@@ -519,7 +523,11 @@ func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io
 	}
 	defer func() {
 		if undoErr := undoChroots(); undoErr != nil {
-			err = errors.Wrap(err, undoErr.Error())
+			if err == nil {
+				err = undoErr
+			} else {
+				err = errors.Wrap(err, undoErr.Error())
+			}
 		}
 	}()
 
