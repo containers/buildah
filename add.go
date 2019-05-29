@@ -381,7 +381,15 @@ func addHelperSymlink(src, dest string, info os.FileInfo, hostOwner idtools.IDPa
 		return errors.Wrapf(err, "error reading contents of symbolic link at %q", src)
 	}
 	if err = os.Symlink(linkContents, dest); err != nil {
-		return errors.Wrapf(err, "error creating symbolic link to %q at %q", linkContents, dest)
+		if !os.IsExist(err) {
+			return errors.Wrapf(err, "error creating symbolic link to %q at %q", linkContents, dest)
+		}
+		if err = os.RemoveAll(dest); err != nil {
+			return errors.Wrapf(err, "error clearing symbolic link target %q", dest)
+		}
+		if err = os.Symlink(linkContents, dest); err != nil {
+			return errors.Wrapf(err, "error creating symbolic link to %q at %q (second try)", linkContents, dest)
+		}
 	}
 	if err = idtools.SafeLchown(dest, hostOwner.UID, hostOwner.GID); err != nil {
 		return errors.Wrapf(err, "error setting owner of symbolic link %q to %d:%d", dest, hostOwner.UID, hostOwner.GID)
