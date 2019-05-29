@@ -507,7 +507,9 @@ func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io
 		return 1, err
 	}
 	defer func() {
-		undoIntermediates()
+		if undoErr := undoIntermediates(); undoErr != nil {
+			err = errors.Wrap(err, undoErr.Error())
+		}
 	}()
 
 	// Bind mount in our filesystems.
@@ -516,7 +518,9 @@ func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io
 		return 1, err
 	}
 	defer func() {
-		undoChroots()
+		if undoErr := undoChroots(); undoErr != nil {
+			err = errors.Wrap(err, undoErr.Error())
+		}
 	}()
 
 	// Create a pipe for passing configuration down to the next process.
