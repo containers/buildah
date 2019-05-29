@@ -208,7 +208,6 @@ type Executor struct {
 	squash                         bool
 	labels                         []string
 	annotations                    []string
-	onbuild                        []string
 	layers                         bool
 	useCache                       bool
 	removeIntermediateCtrs         bool
