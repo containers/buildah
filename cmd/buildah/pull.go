@@ -52,10 +52,14 @@ func init() {
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
-	flags.MarkHidden("signature-policy")
+	if err := flags.MarkHidden("signature-policy"); err != nil {
+		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
+	}
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pulling images")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
-	flags.MarkHidden("blob-cache")
+	if err := flags.MarkHidden("blob-cache"); err != nil {
+		panic(fmt.Sprintf("error marking blob-cache as hidden: %v", err))
+	}
 
 	rootCmd.AddCommand(pullCommand)
 }
