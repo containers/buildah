@@ -519,9 +519,7 @@ func captureOutputWithError(f func() error) (string, error) {
 	w.Close()
 	os.Stdout = old
 	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, r); err != nil {
-		return "", err
-	}
+	io.Copy(&buf, r) //nolint
 	return buf.String(), err
 }
 
