@@ -66,7 +66,10 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 	if err != nil {
 		t.Fatalf("open(%q): %v", filepath.Join(rootDir, reportCommand), err)
 	}
-	io.Copy(specBinary, specBinarySource)
+
+	if _, err := io.Copy(specBinary, specBinarySource); err != nil {
+		t.Fatalf("io.Copy error: %v", err)
+	}
 	specBinary.Close()
 
 	g.SetRootPath(rootDir)
@@ -236,11 +239,21 @@ func TestProcessCapabilities(t *testing.T) {
 	testMinimal(t,
 		func(g *generate.Generator, rootDir, bundleDir string) {
 			g.ClearProcessCapabilities()
-			g.AddProcessCapabilityEffective("CAP_IPC_LOCK")
-			g.AddProcessCapabilityPermitted("CAP_IPC_LOCK")
-			g.AddProcessCapabilityInheritable("CAP_IPC_LOCK")
-			g.AddProcessCapabilityBounding("CAP_IPC_LOCK")
-			g.AddProcessCapabilityAmbient("CAP_IPC_LOCK")
+			if err := g.AddProcessCapabilityEffective("CAP_IPC_LOCK"); err != nil {
+				t.Fatalf("%v", err)
+			}
+			if err := g.AddProcessCapabilityPermitted("CAP_IPC_LOCK"); err != nil {
+				t.Fatalf("%v", err)
+			}
+			if err := g.AddProcessCapabilityInheritable("CAP_IPC_LOCK"); err != nil {
+				t.Fatalf("%v", err)
+			}
+			if err := g.AddProcessCapabilityBounding("CAP_IPC_LOCK"); err != nil {
+				t.Fatalf("%v", err)
+			}
+			if err := g.AddProcessCapabilityAmbient("CAP_IPC_LOCK"); err != nil {
+				t.Fatalf("%v", err)
+			}
 		},
 		func(t *testing.T, report *types.TestReport) {
 			if len(report.Spec.Process.Capabilities.Permitted) != 1 {
