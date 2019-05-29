@@ -1220,7 +1220,15 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 	if err != nil {
 		return "", nil, err
 	}
-	defer policyContext.Destroy()
+	defer func() {
+		if destroyErr := policyContext.Destroy(); destroyErr != nil {
+			if err == nil {
+				err = destroyErr
+			} else {
+				err = errors.Wrap(err, destroyErr.Error())
+			}
+		}
+	}()
 
 	// Look up the source image, expecting it to be in local storage
 	src, err := is.Transport.ParseStoreReference(s.executor.store, cacheID)
@@ -1629,7 +1637,16 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		cleanupImages = nil
 		return lastErr
 	}
-	defer cleanup()
+
+	defer func() {
+		if cleanupErr := cleanup(); cleanupErr != nil {
+			if err == nil {
+				err = cleanupErr
+			} else {
+				err = errors.Wrap(err, cleanupErr.Error())
+			}
+		}
+	}()
 
 	// Build maps of every named base image and every referenced stage root
 	// filesystem.  Individual stages can use them to determine whether or
