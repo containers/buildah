@@ -166,13 +166,6 @@ type V2Image struct {
 	History    []V2S2History `json:"history,omitempty"`
 	OSVersion  string        `json:"os.version,omitempty"`
 	OSFeatures []string      `json:"os.features,omitempty"`
-
-	// rawJSON caches the immutable JSON associated with this image.
-	rawJSON []byte
-
-	// computedID is the ID computed from the hash of the image config.
-	// Not to be confused with the legacy V1 ID in V1Image.
-	computedID ID
 }
 
 // github.com/docker/distribution/manifest/versioned.go
