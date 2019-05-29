@@ -1358,3 +1358,18 @@ load helpers
   run_buildah bud --signature-policy ${TESTSDIR}/deny.json -t dir:${TESTDIR}/mount -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
   run_buildah rmi -a -f
 }
+
+@test "bud-copy-replace-symlink" {
+  mkdir -p ${TESTDIR}/top
+  cp ${TESTSDIR}/bud/symlink/Dockerfile.replace-symlink ${TESTDIR}/top/
+  ln -s Dockerfile.replace-symlink ${TESTDIR}/top/symlink
+  echo foo > ${TESTDIR}/top/.dockerignore
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/top/Dockerfile.replace-symlink ${TESTDIR}/top
+}
+
+@test "bud-copy-recurse" {
+  mkdir -p ${TESTDIR}/recurse
+  cp ${TESTSDIR}/bud/recurse/Dockerfile ${TESTDIR}/recurse
+  echo foo > ${TESTDIR}/recurse/.dockerignore
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTDIR}/recurse
+}
