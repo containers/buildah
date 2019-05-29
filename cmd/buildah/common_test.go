@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"github.com/spf13/cobra"
 	"os"
 	"os/user"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -58,7 +58,9 @@ func TestGetStore(t *testing.T) {
 	flags.String("runroot", storeOptions.RunRoot, "")
 	flags.String("storage-driver", storeOptions.GraphDriverName, "")
 	flags.String("signature-policy", "", "")
-	flags.MarkHidden("signature-policy")
+	if err := flags.MarkHidden("signature-policy"); err != nil {
+		t.Error(err)
+	}
 	// The following flags had to be added or we get panics in common.go when
 	// the lookups occur
 	flags.StringSlice("storage-opt", []string{}, "")

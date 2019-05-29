@@ -68,7 +68,9 @@ func init() {
 	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if named image is present in store (supersedes pull option)")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pulling images")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
-	flags.MarkHidden("signature-policy")
+	if err := flags.MarkHidden("signature-policy"); err != nil {
+		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
+	}
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 
 	// Add in the common flags
