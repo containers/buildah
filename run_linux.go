@@ -1564,6 +1564,15 @@ func (b *Builder) cleanupTempVolumes() {
 
 func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string, optionMounts []specs.Mount, rootUID, rootGID int) (mounts []specs.Mount, Err error) {
 
+	// Make sure the overlay directory is clean before running
+	containerDir, err := b.store.ContainerDirectory(b.ContainerID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error looking up container directory for %s", b.ContainerID)
+	}
+	if err := overlay.CleanupContent(containerDir); err != nil {
+		return nil, errors.Wrapf(err, "error cleaning up overlay content for %s", b.ContainerID)
+	}
+
 	parseMount := func(host, container string, options []string) (specs.Mount, error) {
 		var foundrw, foundro, foundz, foundZ, foundO bool
 		var rootProp string
