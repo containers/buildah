@@ -513,29 +513,32 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		}
 		sources := []string{}
 		for _, src := range copy.Src {
+			contextDir := s.executor.contextDir
+			copyExcludes := excludes
 			if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
 				sources = append(sources, src)
 			} else if len(copy.From) > 0 {
 				if other, ok := s.executor.stages[copy.From]; ok && other.index < s.index {
 					sources = append(sources, filepath.Join(other.mountPoint, src))
+					contextDir = other.mountPoint
 				} else if builder, ok := s.executor.containerMap[copy.From]; ok {
 					sources = append(sources, filepath.Join(builder.MountPoint, src))
+					contextDir = builder.MountPoint
 				} else {
 					return errors.Errorf("the stage %q has not been built", copy.From)
 				}
 			} else {
 				sources = append(sources, filepath.Join(s.executor.contextDir, src))
+				copyExcludes = append(s.executor.excludes, excludes...)
 			}
-		}
-
-		options := buildah.AddAndCopyOptions{
-			Chown:      copy.Chown,
-			ContextDir: s.executor.contextDir,
-			Excludes:   s.executor.excludes,
-		}
-
-		if err := s.builder.Add(copy.Dest, copy.Download, options, sources...); err != nil {
-			return err
+			options := buildah.AddAndCopyOptions{
+				Chown:      copy.Chown,
+				ContextDir: contextDir,
+				Excludes:   copyExcludes,
+			}
+			if err := s.builder.Add(copy.Dest, copy.Download, options, sources...); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
