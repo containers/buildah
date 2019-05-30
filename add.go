@@ -34,10 +34,14 @@ type AddAndCopyOptions struct {
 	// If the sources include directory trees, Hasher will be passed
 	// tar-format archives of the directory trees.
 	Hasher io.Writer
-	// Exludes contents in the .dockerignore file
+	// Excludes is the contents of the .dockerignore file
 	Excludes []string
-	// current directory on host
+	// The base directory for Excludes and data to copy in
 	ContextDir string
+	// ID mapping options to use when contents to be copied are part of
+	// another container, and need ownerships to be mapped from the host to
+	// that container's values before copying them into the container.
+	IDMappingOptions *IDMappingOptions
 }
 
 // addURL copies the contents of the source URL to the destination.  This is
@@ -146,8 +150,8 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	if len(source) > 1 && (destfi == nil || !destfi.IsDir()) {
 		return errors.Errorf("destination %q is not a directory", dest)
 	}
-	copyFileWithTar := b.copyFileWithTar(&containerOwner, options.Hasher)
-	copyWithTar := b.copyWithTar(&containerOwner, options.Hasher)
+	copyFileWithTar := b.copyFileWithTar(options.IDMappingOptions, &containerOwner, options.Hasher)
+	copyWithTar := b.copyWithTar(options.IDMappingOptions, &containerOwner, options.Hasher)
 	untarPath := b.untarPath(nil, options.Hasher)
 	err = addHelper(excludes, extract, dest, destfi, hostOwner, options, copyFileWithTar, copyWithTar, untarPath, source...)
 	if err != nil {
