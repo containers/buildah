@@ -434,7 +434,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
-	copyWithTar := b.copyWithTar(nil, nil)
+	copyWithTar := b.copyWithTar(nil, nil, nil)
 	builtins, err := runSetupBuiltinVolumes(b.MountLabel, mountPoint, cdir, copyWithTar, builtinVolumes, int(rootUID), int(rootGID))
 	if err != nil {
 		return err
