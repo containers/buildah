@@ -293,8 +293,8 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 					mtime := info.ModTime()
 					atime := mtime
 					times := []syscall.Timespec{
-						{Sec: atime.Unix(), Nsec: atime.UnixNano() % 1000000000},
-						{Sec: mtime.Unix(), Nsec: mtime.UnixNano() % 1000000000},
+						syscall.NsecToTimespec(atime.Unix()),
+						syscall.NsecToTimespec(mtime.Unix()),
 					}
 					if info.IsDir() {
 						return addHelperDirectory(esrc, path, filepath.Join(dest, fpath), info, hostOwner, times)
