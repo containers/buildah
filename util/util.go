@@ -106,13 +106,19 @@ func ResolveName(name string, firstRegistry string, sc *types.SystemContext, sto
 
 	// Figure out the list of registries.
 	var registries []string
-	searchRegistries, err := sysregistriesv2.FindUnqualifiedSearchRegistries(sc)
+	searchRegistries, err := sysregistriesv2.UnqualifiedSearchRegistries(sc)
 	if err != nil {
 		logrus.Debugf("unable to read configured registries to complete %q: %v", name, err)
+		searchRegistries = nil
 	}
 	for _, registry := range searchRegistries {
-		if !registry.Blocked {
-			registries = append(registries, registry.Location)
+		reg, err := sysregistriesv2.FindRegistry(sc, registry)
+		if err != nil {
+			logrus.Debugf("unable to read registry configuraitno for %#v: %v", registry, err)
+			continue
+		}
+		if reg == nil || !reg.Blocked {
+			registries = append(registries, registry)
 		}
 	}
 	searchRegistriesAreEmpty := len(registries) == 0
