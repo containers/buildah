@@ -547,6 +547,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 						if err := s.builder.Add(filepath.Join(copy.Dest, srcName), copy.Download, options, srcSecure); err != nil {
 							return err
 						}
+						continue
 					}
 				}
 				sources = append(sources, srcSecure)
