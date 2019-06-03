@@ -23,7 +23,7 @@ import (
 	"github.com/containers/image/types"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/opencontainers/go-digest"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -84,27 +84,27 @@ type dockerClient struct {
 	sys      *types.SystemContext
 	registry string
 
+	// tlsClientConfig is setup by newDockerClient and will be used and updated
+	// by detectProperties(). Callers can edit tlsClientConfig.InsecureSkipVerify in the meantime.
+	tlsClientConfig *tls.Config
 	// The following members are not set by newDockerClient and must be set by callers if needed.
 	username      string
 	password      string
 	signatureBase signatureStorageBase
 	scope         authScope
+
 	// The following members are detected registry properties:
 	// They are set after a successful detectProperties(), and never change afterwards.
-	scheme             string // Empty value also used to indicate detectProperties() has not yet succeeded.
+	client             *http.Client
+	scheme             string
 	challenges         []challenge
 	supportsSignatures bool
-	// The tlsClientConfig is setup during the creation of the dockerClient and
-	// will be updated by detectPropertiesHelper(). Any HTTP request the
-	// dockerClient does will be done by this TLS client configuration.
-	tlsClientConfig *tls.Config
 
 	// Private state for setupRequestAuth (key: string, value: bearerToken)
 	tokenCache sync.Map
-	// detectPropertiesError caches the initial error.
-	detectPropertiesError error
-	// detectPropertiesOnce is used to execuute detectProperties() at most once in in makeRequest().
-	detectPropertiesOnce sync.Once
+	// Private state for detectProperties:
+	detectPropertiesOnce  sync.Once // detectPropertiesOnce is used to execute detectProperties() at most once.
+	detectPropertiesError error     // detectPropertiesError caches the initial error.
 }
 
 type authScope struct {
@@ -439,18 +439,11 @@ func (c *dockerClient) makeRequestToResolvedURL(ctx context.Context, method, url
 		}
 	}
 	logrus.Debugf("%s %s", method, url)
-
-	// Build the transport and do the request by using the clients tlsclientconfig
-	return c.doHTTP(req)
-}
-
-// doHttp uses the clients internal TLS configuration for doing the
-// provided HTTP request.  It returns the response and an error on failure.
-func (c *dockerClient) doHTTP(req *http.Request) (*http.Response, error) {
-	tr := tlsclientconfig.NewTransport()
-	tr.TLSClientConfig = c.tlsClientConfig
-	httpClient := &http.Client{Transport: tr}
-	return httpClient.Do(req)
+	res, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // we're using the challenges from the /v2/ ping response and not the one from the destination
@@ -558,15 +551,14 @@ func (c *dockerClient) getBearerToken(ctx context.Context, challenge challenge, 
 // detectPropertiesHelper performs the work of detectProperties which executes
 // it at most once.
 func (c *dockerClient) detectPropertiesHelper(ctx context.Context) error {
-	if c.scheme != "" {
-		return nil
-	}
-
 	// We overwrite the TLS clients `InsecureSkipVerify` only if explicitly
 	// specified by the system context
 	if c.sys != nil && c.sys.DockerInsecureSkipTLSVerify != types.OptionalBoolUndefined {
 		c.tlsClientConfig.InsecureSkipVerify = c.sys.DockerInsecureSkipTLSVerify == types.OptionalBoolTrue
 	}
+	tr := tlsclientconfig.NewTransport()
+	tr.TLSClientConfig = c.tlsClientConfig
+	c.client = &http.Client{Transport: tr}
 
 	ping := func(scheme string) error {
 		url := fmt.Sprintf(resolvedPingV2URL, scheme, c.registry)
