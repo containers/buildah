@@ -608,6 +608,29 @@ load helpers
   expect_output ""
 }
 
+@test "bud-additional-tags-cached" {
+  target=tagged-image
+  target2=another-tagged-image
+  target3=yet-another-tagged-image
+  target4=still-another-tagged-image
+  run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/addtl-tags
+  run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t ${target2} -t ${target3} -t ${target4} ${TESTSDIR}/bud/addtl-tags
+  run_buildah --debug=false inspect -f '{{.FromImageID}}' busybox
+  busyboxid="$output"
+  run_buildah --debug=false inspect -f '{{.FromImageID}}' ${target}
+  targetid="$output"
+  [ "$targetid" != "$busyboxid" ]
+  run_buildah --debug=false inspect -f '{{.FromImageID}}' ${target2}
+  targetid2="$output"
+  [ "$targetid2" = "$targetid" ]
+  run_buildah --debug=false inspect -f '{{.FromImageID}}' ${target3}
+  targetid3="$output"
+  [ "$targetid3" = "$targetid2" ]
+  run_buildah --debug=false inspect -f '{{.FromImageID}}' ${target4}
+  targetid4="$output"
+  [ "$targetid4" = "$targetid3" ]
+}
+
 @test "bud-volume-perms" {
   # This Dockerfile needs us to be able to handle a working RUN instruction.
   if ! which runc ; then
