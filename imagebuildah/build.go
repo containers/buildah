@@ -985,7 +985,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			// We don't need to squash the base image, so just
 			// reuse the base image.
 			logCommit(s.output, -1)
-			if imgID, ref, err = s.copyExistingImage(ctx, s.builder.FromImageID, s.output); err != nil {
+			if imgID, ref, err = s.tagExistingImage(ctx, s.builder.FromImageID, s.output); err != nil {
 				return "", nil, err
 			}
 		}
@@ -1110,7 +1110,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			imgID = cacheID
 			if commitName != "" {
 				logCommit(commitName, i)
-				if imgID, ref, err = s.copyExistingImage(ctx, cacheID, commitName); err != nil {
+				if imgID, ref, err = s.tagExistingImage(ctx, cacheID, commitName); err != nil {
 					return "", nil, err
 				}
 				logImageID(imgID)
@@ -1179,8 +1179,8 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 	return imgID, ref, nil
 }
 
-// copyExistingImage creates a copy of an image already in the store
-func (s *StageExecutor) copyExistingImage(ctx context.Context, cacheID, output string) (string, reference.Canonical, error) {
+// tagExistingImage adds names to an image already in the store
+func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output string) (string, reference.Canonical, error) {
 	// If we don't need to attach a name to the image, just return the cache ID.
 	if output == "" {
 		return cacheID, nil, nil
@@ -1545,7 +1545,6 @@ func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, cr
 	options := buildah.CommitOptions{
 		Compression:           s.executor.compression,
 		SignaturePolicyPath:   s.executor.signaturePolicyPath,
-		AdditionalTags:        s.executor.additionalTags,
 		ReportWriter:          writer,
 		PreferredManifestType: s.executor.outputFormat,
 		SystemContext:         s.executor.systemContext,
@@ -1729,6 +1728,24 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 		sort.Strings(unusedList)
 		fmt.Fprintf(b.out, "[Warning] one or more build args were not consumed: %v\n", unusedList)
+	}
+
+	if len(b.additionalTags) > 0 {
+		if dest, err := b.resolveNameToImageRef(b.output); err == nil {
+			switch dest.Transport().Name() {
+			case is.Transport.Name():
+				img, err := is.Transport.GetStoreImage(b.store, dest)
+				if err != nil {
+					return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
+				}
+				if err = util.AddImageNames(b.store, "", b.systemContext, img, b.additionalTags); err != nil {
+					return imageID, ref, errors.Wrapf(err, "error setting image names to %v", append(img.Names, b.additionalTags...))
+				}
+				logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
+			default:
+				logrus.Warnf("don't know how to add tags to images stored in %q transport", dest.Transport().Name())
+			}
+		}
 	}
 
 	if err := cleanup(); err != nil {
