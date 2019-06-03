@@ -117,7 +117,12 @@ func getMounts(filePath string) []string {
 	}
 	var mounts []string
 	for scanner.Scan() {
-		mounts = append(mounts, scanner.Text())
+		if strings.HasPrefix(strings.TrimSpace(scanner.Text()), "/") {
+			mounts = append(mounts, scanner.Text())
+		} else {
+			logrus.Debugf("skipping unrecognized mount in %v: %q",
+				filePath, scanner.Text())
+		}
 	}
 	return mounts
 }
