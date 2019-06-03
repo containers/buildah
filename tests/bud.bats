@@ -223,7 +223,7 @@ load helpers
   expect_line_count 4
 
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json test)
-	run_buildah --debug=false run $cid ls /tmp
+  run_buildah --debug=false run $cid ls /tmp
   expect_output "policy.json"
 
   buildah rm -a
@@ -1382,4 +1382,16 @@ load helpers
   cp ${TESTSDIR}/bud/recurse/Dockerfile ${TESTDIR}/recurse
   echo foo > ${TESTDIR}/recurse/.dockerignore
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTDIR}/recurse
+}
+
+@test "bud-copy-workdir" {
+  target=testimage
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/copy-workdir
+  run_buildah --debug=false from ${target}
+  cid="$output"
+  run_buildah --debug=false mount "${cid}"
+  root="$output"
+  test -s "${root}"/file1.txt
+  test -d "${root}"/subdir
+  test -s "${root}"/subdir/file2.txt
 }
