@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.8.3
+Version:        1.9.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Mon Jun 03, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.3-1
+* Mon Jun 03, 2019 Tom Sweeney <tsweeney@redhat.com> 1.9.0-dev-1
+
+* Mon Jun 03, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.3
 - allow 32bit builds
 - fix tutorial instructions
 - imagebuilder: pass the right contextDir to Add()
