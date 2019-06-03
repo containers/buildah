@@ -27,7 +27,7 @@ import (
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
-	"github.com/cyphar/filepath-securejoin"
+	securejoin "github.com/cyphar/filepath-securejoin"
 	docker "github.com/fsouza/go-dockerclient"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -518,15 +518,39 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
 				sources = append(sources, src)
 			} else if len(copy.From) > 0 {
+				var srcRoot string
 				if other, ok := s.executor.stages[copy.From]; ok && other.index < s.index {
-					sources = append(sources, filepath.Join(other.mountPoint, src))
+					srcRoot = other.mountPoint
 					contextDir = other.mountPoint
 				} else if builder, ok := s.executor.containerMap[copy.From]; ok {
-					sources = append(sources, filepath.Join(builder.MountPoint, src))
+					srcRoot = builder.MountPoint
 					contextDir = builder.MountPoint
 				} else {
 					return errors.Errorf("the stage %q has not been built", copy.From)
 				}
+				srcSecure, err := securejoin.SecureJoin(srcRoot, src)
+				if err != nil {
+					return err
+				}
+				// If destination is a folder, we need to take extra care to
+				// ensure that files are copied with correct names (since
+				// resolving a symlink may result in a different name).
+				if hadFinalPathSeparator {
+					_, srcName := filepath.Split(src)
+					_, srcNameSecure := filepath.Split(srcSecure)
+					if srcName != srcNameSecure {
+						options := buildah.AddAndCopyOptions{
+							Chown:      copy.Chown,
+							ContextDir: contextDir,
+							Excludes:   copyExcludes,
+						}
+						if err := s.builder.Add(filepath.Join(copy.Dest, srcName), copy.Download, options, srcSecure); err != nil {
+							return err
+						}
+					}
+				}
+				sources = append(sources, srcSecure)
+
 			} else {
 				sources = append(sources, filepath.Join(s.executor.contextDir, src))
 				copyExcludes = append(s.executor.excludes, excludes...)
