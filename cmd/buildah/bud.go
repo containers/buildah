@@ -14,6 +14,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/containerd/containerd/platforms"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type budResults struct {
@@ -90,6 +92,18 @@ func getDockerfiles(files []string) []string {
 	return dockerfiles
 }
 
+type argArray map[string]string
+
+func (args argArray) setArch(p specs.Platform) {
+	args["TARGETPLATFORM"] = p.OS + "/" + p.Architecture
+	args["TARGETOS"] = p.OS
+	args["TARGETARCH"] = p.Architecture
+	args["TARGETVARIANT"] = p.Variant
+	if p.Variant != "" {
+		args["TARGETPLATFORM"] = args["TARGETPLATFORM"] + "/" + p.Variant
+	}
+}
+
 func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	output := ""
 	tags := []string{}
@@ -116,12 +130,36 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	}
 	logrus.Debugf("Pull Policy for pull [%v]", pullPolicy)
 
-	args := make(map[string]string)
+	args := make(argArray)
+
+	p := platforms.DefaultSpec()
+	if c.Flag("platform").Changed {
+		var err error
+		p, err = platforms.Parse(iopts.Platform)
+		if err != nil {
+			return errors.Wrapf(err, "error parsing --platform argument")
+		}
+	}
+	args.setArch(p)
+
 	if c.Flag("build-arg").Changed {
 		for _, arg := range iopts.BuildArg {
 			av := strings.SplitN(arg, "=", 2)
 			if len(av) > 1 {
 				args[av[0]] = av[1]
+				if av[0] == "TARGETPLATFORM" {
+					var err error
+					var p specs.Platform
+					if av[1] != "" {
+						p, err = platforms.Parse(av[1])
+					} else {
+						p, err = platforms.Parse(iopts.Platform)
+					}
+					if err != nil {
+						return errors.Wrapf(err, "error parsing --platform argument")
+					}
+					args.setArch(p)
+				}
 			} else {
 				delete(args, av[0])
 			}
