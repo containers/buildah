@@ -97,6 +97,28 @@ func (c *Cmd) Start() error {
 		c.ExtraFiles = append(c.ExtraFiles, c.Ctty)
 	}
 
+	// Check if uidmap tools are available
+	useNewgidmap := c.UseNewgidmap
+	useNewuidmap := c.UseNewuidmap
+	if useNewgidmap {
+		if err := checkGIDMap(); err != nil {
+			useNewgidmap = false
+			logrus.Warnf("%v", err)
+		}
+	}
+	if useNewuidmap {
+		if err := checkUIDMap(); err != nil {
+			useNewuidmap = false
+			logrus.Warnf("%v", err)
+		}
+	}
+
+	// Set environment variable if uidmap tools are not available
+	if (c.UseNewgidmap && !useNewgidmap) || (c.UseNewuidmap && !useNewuidmap) {
+		c.Env = append(c.Env, "_CONTAINERS_SINGLE_MAPPING=0")
+		logrus.Warnf("falling back to single mapping")
+	}
+
 	// Make sure we clean up our pipes.
 	defer func() {
 		if pidRead != nil {
@@ -184,24 +206,32 @@ func (c *Cmd) Start() error {
 			for _, m := range c.GidMappings {
 				fmt.Fprintf(g, "%d %d %d\n", m.ContainerID, m.HostID, m.Size)
 			}
-			gidmapSet := false
 			// Set the GID map.
-			if c.UseNewgidmap {
+			if useNewgidmap {
 				cmd := exec.Command("newgidmap", append([]string{pidString}, strings.Fields(strings.Replace(g.String(), "\n", " ", -1))...)...)
 				g.Reset()
 				cmd.Stdout = g
 				cmd.Stderr = g
 				err := cmd.Run()
-				if err == nil {
-					gidmapSet = true
-				} else {
+				if err != nil {
 					fmt.Fprintf(continueWrite, "error running newgidmap: %v: %s", err, g.String())
-					fmt.Fprintf(continueWrite, "falling back to single mapping\n")
+					return errors.Wrapf(err, "error running newgidmap: %s", g.String())
+				}
+			} else {
+				if c.UseNewgidmap {
 					g.Reset()
 					g.Write([]byte(fmt.Sprintf("0 %d 1\n", os.Getegid())))
+					setgroups, err := os.OpenFile(fmt.Sprintf("/proc/%s/setgroups", pidString), os.O_TRUNC|os.O_WRONLY, 0)
+					if err != nil {
+						fmt.Fprintf(continueWrite, "error opening /proc/%s/setgroups: %v", pidString, err)
+						return errors.Wrapf(err, "error opening /proc/%s/setgroups", pidString)
+					}
+					defer setgroups.Close()
+					if _, err := fmt.Fprintf(setgroups, "deny"); err != nil {
+						fmt.Fprintf(continueWrite, "error writing 'deny' to /proc/%s/setgroups: %v", pidString, err)
+						return errors.Wrapf(err, "error writing 'deny' to /proc/%s/setgroups", pidString)
+					}
 				}
-			}
-			if !gidmapSet {
 				gidmap, err := os.OpenFile(fmt.Sprintf("/proc/%s/gid_map", pidString), os.O_TRUNC|os.O_WRONLY, 0)
 				if err != nil {
 					fmt.Fprintf(continueWrite, "error opening /proc/%s/gid_map: %v", pidString, err)
@@ -221,24 +251,22 @@ func (c *Cmd) Start() error {
 			for _, m := range c.UidMappings {
 				fmt.Fprintf(u, "%d %d %d\n", m.ContainerID, m.HostID, m.Size)
 			}
-			uidmapSet := false
-			// Set the GID map.
-			if c.UseNewuidmap {
+			// Set the UID map.
+			if useNewuidmap {
 				cmd := exec.Command("newuidmap", append([]string{pidString}, strings.Fields(strings.Replace(u.String(), "\n", " ", -1))...)...)
 				u.Reset()
 				cmd.Stdout = u
 				cmd.Stderr = u
 				err := cmd.Run()
-				if err == nil {
-					uidmapSet = true
-				} else {
+				if err != nil {
 					fmt.Fprintf(continueWrite, "error running newuidmap: %v: %s", err, u.String())
-					fmt.Fprintf(continueWrite, "falling back to single mapping\n")
+					return errors.Wrapf(err, "error running newuidmap: %s", u.String())
+				}
+			} else {
+				if c.UseNewuidmap {
 					u.Reset()
 					u.Write([]byte(fmt.Sprintf("0 %d 1\n", os.Geteuid())))
 				}
-			}
-			if !uidmapSet {
 				uidmap, err := os.OpenFile(fmt.Sprintf("/proc/%s/uid_map", pidString), os.O_TRUNC|os.O_WRONLY, 0)
 				if err != nil {
 					fmt.Fprintf(continueWrite, "error opening /proc/%s/uid_map: %v", pidString, err)
@@ -557,4 +585,26 @@ func ParseIDMappings(uidmap, gidmap []string) ([]idtools.IDMap, []idtools.IDMap,
 		return nil, nil, err
 	}
 	return uid, gid, nil
+}
+
+func checkGIDMap() error {
+	cmd := exec.Command("which", "newgidmap")
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "command 'which newgidmap' failed. Is newgidmap in $PATH?")
+	}
+	return nil
+}
+
+func checkUIDMap() error {
+	cmd := exec.Command("which", "newuidmap")
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "command 'which newuidmap' failed. Is newuidmap in $PATH?")
+	}
+	return nil
 }
