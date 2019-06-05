@@ -1340,26 +1340,8 @@ func (b *Executor) historyMatches(baseHistory []v1.History, child *parser.Node, 
 			return false
 		}
 	}
-	instruction := child.Original
-	switch strings.ToUpper(child.Value) {
-	case "RUN":
-		instruction = instruction[4:]
-		buildArgs := b.getBuildArgs()
-		// If a previous image was built with some build-args but the new build process doesn't have any build-args
-		// specified, the command might be expanded differently, so compare the lengths of the old instruction with
-		// the current one.  11 is the length of "/bin/sh -c " that is used to run the run commands.
-		if buildArgs == "" && len(history[len(baseHistory)].CreatedBy) > len(instruction)+11 {
-			return false
-		}
-		// There are build-args, so check if anything with the build-args has changed
-		if buildArgs != "" && !strings.Contains(history[len(baseHistory)].CreatedBy, buildArgs) {
-			return false
-		}
-		fallthrough
-	default:
-		if !strings.Contains(history[len(baseHistory)].CreatedBy, instruction) {
-			return false
-		}
+	if history[len(baseHistory)].CreatedBy != b.getCreatedBy(child) {
+		return false
 	}
 	return true
 }
