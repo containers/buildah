@@ -210,7 +210,6 @@ type Executor struct {
 	annotations                    []string
 	onbuild                        []string
 	layers                         bool
-	topLayers                      []string
 	useCache                       bool
 	removeIntermediateCtrs         bool
 	forceRmIntermediateCtrs        bool
@@ -860,9 +859,6 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 		// Make this our "current" working container.
 		s.mountPoint = mountPoint
 		s.builder = builder
-		// Add the top layer of this image to b.topLayers so we can
-		// keep track of them when building with cached images.
-		s.executor.topLayers = append(s.executor.topLayers, builder.TopLayer)
 	}
 	logrus.Debugln("Container ID:", builder.ContainerID)
 	return builder, nil
@@ -1247,11 +1243,11 @@ func (s *StageExecutor) layerExists(ctx context.Context, currNode *parser.Node, 
 				return "", errors.Wrapf(err, "error getting top layer info")
 			}
 		}
-		// If the parent of the top layer of an image is equal to the last entry in b.topLayers
+		// If the parent of the top layer of an image is equal to the current build image's top layer,
 		// it means that this image is potentially a cached intermediate image from a previous
 		// build. Next we double check that the history of this image is equivalent to the previous
 		// lines in the Dockerfile up till the point we are at in the build.
-		if imageTopLayer == nil || imageTopLayer.Parent == s.executor.topLayers[len(s.executor.topLayers)-1] || imageTopLayer.ID == s.executor.topLayers[len(s.executor.topLayers)-1] {
+		if imageTopLayer == nil || (s.builder.TopLayer != "" && (imageTopLayer.Parent == s.builder.TopLayer || imageTopLayer.ID == s.builder.TopLayer)) {
 			history, err := s.executor.getImageHistory(ctx, image.ID)
 			if err != nil {
 				return "", errors.Wrapf(err, "error getting history of %q", image.ID)
