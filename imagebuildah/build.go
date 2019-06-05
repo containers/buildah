@@ -1355,6 +1355,7 @@ func (b *Executor) getBuildArgs() string {
 			buildArgs = append(buildArgs, k+"="+v)
 		}
 	}
+	sort.Strings(buildArgs)
 	return strings.Join(buildArgs, " ")
 }
 
