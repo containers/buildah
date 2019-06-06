@@ -1418,3 +1418,33 @@ load helpers
   test -d "${root}"/subdir
   test -s "${root}"/subdir/file2.txt
 }
+
+@test "bud-build-arg-cache" {
+  target=derived-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 ${TESTSDIR}/bud/build-arg
+  run_buildah --debug=false inspect -f '{{.FromImageID}}' ${target}
+  targetid="$output"
+
+  # With build args, we should not find the previous build as a cached result.
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup --build-arg=PGDATA=/pgdata ${TESTSDIR}/bud/build-arg
+  run_buildah --debug=false inspect -f '{{.FromImageID}}' ${target}
+  argsid="$output"
+  [[ "$argsid" != "$targetid" ]]
+
+  # With build args, even in a different order, we should end up using the previous build as a cached result.
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup --build-arg=PGDATA=/pgdata ${TESTSDIR}/bud/build-arg
+  run_buildah --debug=false inspect -f '{{.FromImageID}}' ${target}
+  [[ "$output" == "$argsid" ]]
+
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup --build-arg=PGDATA=/pgdata --build-arg=UID=17122 ${TESTSDIR}/bud/build-arg
+  run_buildah --debug=false inspect -f '{{.FromImageID}}' ${target}
+  [[ "$output" == "$argsid" ]]
+
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=USERNAME=praiskup --build-arg=PGDATA=/pgdata --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend ${TESTSDIR}/bud/build-arg
+  run_buildah --debug=false inspect -f '{{.FromImageID}}' ${target}
+  [[ "$output" == "$argsid" ]]
+
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=PGDATA=/pgdata --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup ${TESTSDIR}/bud/build-arg
+  run_buildah --debug=false inspect -f '{{.FromImageID}}' ${target}
+  [[ "$output" == "$argsid" ]]
+}
