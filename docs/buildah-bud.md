@@ -189,6 +189,10 @@ soley for scripting compatibility.
 
 Set custom DNS servers
 
+This option can be used to override the DNS configuration passed to the container. Typically this is necessary when the host DNS configuration is invalid for the container (e.g., 127.0.0.1). When this is the case the `--dns` flag is necessary for every run.
+
+The special value **none** can be specified to disable creation of /etc/resolv.conf in the container by Buildah. The /etc/resolv.conf file in the image will be used without changes.
+
 **--dns-option**=[]
 
 Set custom DNS options

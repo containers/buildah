@@ -174,7 +174,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		bindFiles["/etc/hosts"] = hostFile
 	}
 
-	if !contains(volumes, "/etc/resolv.conf") {
+	if !(contains(volumes, "/etc/resolv.conf") || (len(b.CommonBuildOpts.DNSServers) == 1 && strings.ToLower(b.CommonBuildOpts.DNSServers[0]) == "none")) {
 		resolvFile, err := b.addNetworkConfig(path, "/etc/resolv.conf", rootIDPair, b.CommonBuildOpts.DNSServers, b.CommonBuildOpts.DNSSearch, b.CommonBuildOpts.DNSOptions)
 		if err != nil {
 			return err
