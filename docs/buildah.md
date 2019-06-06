@@ -54,6 +54,10 @@ Default root dir is configured in /etc/containers/storage.conf
 Storage state dir (default: "/var/run/containers/storage" for UID 0, "/var/run/user/$UID" for other users)
 Default state dir is configured in /etc/containers/storage.conf
 
+**--single-user-mapping**
+
+Avoids using uidmap tools and will only map the current user to root in the container. Note that this does not work if running buildah as root already.
+
 **--storage-driver** **value**
 
 Storage driver.  The default storage driver for UID 0 is configured in /etc/containers/storage.conf (`$HOME/.config/containers/storage.conf` in rootless mode), and is *vfs* for other users.  The `STORAGE_DRIVER` environment variable overrides the default.  The --storage-driver specified driver overrides all.

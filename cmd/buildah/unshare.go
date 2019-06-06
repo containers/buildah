@@ -42,7 +42,7 @@ func unshareCmd(c *cobra.Command, args []string) error {
 	}
 
 	// force reexec using the configured ID mappings
-	unshare.MaybeReexecUsingUserNamespace(true)
+	unshare.MaybeReexecUsingUserNamespace(true, globalFlagResults.SingleUserMap)
 	// exec the specified command, if there is one
 	if len(args) < 1 {
 		// try to exec the shell, if one's set

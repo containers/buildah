@@ -35,6 +35,7 @@ type Cmd struct {
 	UseNewgidmap               bool
 	GidMappings                []specs.LinuxIDMapping
 	GidMappingsEnableSetgroups bool
+	SingleUserMap              bool
 	Setsid                     bool
 	Setpgrp                    bool
 	Ctty                       *os.File
@@ -97,26 +98,9 @@ func (c *Cmd) Start() error {
 		c.ExtraFiles = append(c.ExtraFiles, c.Ctty)
 	}
 
-	// Check if uidmap tools are available
-	useNewgidmap := c.UseNewgidmap
-	useNewuidmap := c.UseNewuidmap
-	if useNewgidmap {
-		if err := checkGIDMap(); err != nil {
-			useNewgidmap = false
-			logrus.Warnf("%v", err)
-		}
-	}
-	if useNewuidmap {
-		if err := checkUIDMap(); err != nil {
-			useNewuidmap = false
-			logrus.Warnf("%v", err)
-		}
-	}
-
-	// Set environment variable if uidmap tools are not available
-	if (c.UseNewgidmap && !useNewgidmap) || (c.UseNewuidmap && !useNewuidmap) {
+	// Set environment variable if single-user-mapping flag is enabled
+	if c.SingleUserMap {
 		c.Env = append(c.Env, "_CONTAINERS_SINGLE_MAPPING=0")
-		logrus.Warnf("falling back to single mapping")
 	}
 
 	// Make sure we clean up our pipes.
@@ -207,7 +191,7 @@ func (c *Cmd) Start() error {
 				fmt.Fprintf(g, "%d %d %d\n", m.ContainerID, m.HostID, m.Size)
 			}
 			// Set the GID map.
-			if useNewgidmap {
+			if c.UseNewgidmap {
 				cmd := exec.Command("newgidmap", append([]string{pidString}, strings.Fields(strings.Replace(g.String(), "\n", " ", -1))...)...)
 				g.Reset()
 				cmd.Stdout = g
@@ -218,20 +202,6 @@ func (c *Cmd) Start() error {
 					return errors.Wrapf(err, "error running newgidmap: %s", g.String())
 				}
 			} else {
-				if c.UseNewgidmap {
-					g.Reset()
-					g.Write([]byte(fmt.Sprintf("0 %d 1\n", os.Getegid())))
-					setgroups, err := os.OpenFile(fmt.Sprintf("/proc/%s/setgroups", pidString), os.O_TRUNC|os.O_WRONLY, 0)
-					if err != nil {
-						fmt.Fprintf(continueWrite, "error opening /proc/%s/setgroups: %v", pidString, err)
-						return errors.Wrapf(err, "error opening /proc/%s/setgroups", pidString)
-					}
-					defer setgroups.Close()
-					if _, err := fmt.Fprintf(setgroups, "deny"); err != nil {
-						fmt.Fprintf(continueWrite, "error writing 'deny' to /proc/%s/setgroups: %v", pidString, err)
-						return errors.Wrapf(err, "error writing 'deny' to /proc/%s/setgroups", pidString)
-					}
-				}
 				gidmap, err := os.OpenFile(fmt.Sprintf("/proc/%s/gid_map", pidString), os.O_TRUNC|os.O_WRONLY, 0)
 				if err != nil {
 					fmt.Fprintf(continueWrite, "error opening /proc/%s/gid_map: %v", pidString, err)
@@ -252,7 +222,7 @@ func (c *Cmd) Start() error {
 				fmt.Fprintf(u, "%d %d %d\n", m.ContainerID, m.HostID, m.Size)
 			}
 			// Set the UID map.
-			if useNewuidmap {
+			if c.UseNewuidmap {
 				cmd := exec.Command("newuidmap", append([]string{pidString}, strings.Fields(strings.Replace(u.String(), "\n", " ", -1))...)...)
 				u.Reset()
 				cmd.Stdout = u
@@ -263,10 +233,6 @@ func (c *Cmd) Start() error {
 					return errors.Wrapf(err, "error running newuidmap: %s", u.String())
 				}
 			} else {
-				if c.UseNewuidmap {
-					u.Reset()
-					u.Write([]byte(fmt.Sprintf("0 %d 1\n", os.Geteuid())))
-				}
 				uidmap, err := os.OpenFile(fmt.Sprintf("/proc/%s/uid_map", pidString), os.O_TRUNC|os.O_WRONLY, 0)
 				if err != nil {
 					fmt.Fprintf(continueWrite, "error opening /proc/%s/uid_map: %v", pidString, err)
@@ -368,7 +334,7 @@ func bailOnError(err error, format string, a ...interface{}) {
 }
 
 // MaybeReexecUsingUserNamespace re-exec the process in a new namespace
-func MaybeReexecUsingUserNamespace(evenForRoot bool) {
+func MaybeReexecUsingUserNamespace(evenForRoot bool, singleUserMap bool) {
 	// If we've already been through this once, no need to try again.
 	if os.Geteuid() == 0 && IsRootless() {
 		return
@@ -391,33 +357,39 @@ func MaybeReexecUsingUserNamespace(evenForRoot bool) {
 	// ID mappings to use to reexec ourselves.
 	var uidmap, gidmap []specs.LinuxIDMapping
 	if uidNum != 0 || evenForRoot {
-		// Read the set of ID mappings that we're allowed to use.  Each
-		// range in /etc/subuid and /etc/subgid file is a starting host
-		// ID and a range size.
-		uidmap, gidmap, err = GetSubIDMappings(me.Username, me.Username)
-		if err != nil {
-			logrus.Warnf("error reading allowed ID mappings: %v", err)
-		}
-		if len(uidmap) == 0 {
-			logrus.Warnf("Found no UID ranges set aside for user %q in /etc/subuid.", me.Username)
-		}
-		if len(gidmap) == 0 {
-			logrus.Warnf("Found no GID ranges set aside for user %q in /etc/subgid.", me.Username)
-		}
-		// Map our UID and GID, then the subuid and subgid ranges,
-		// consecutively, starting at 0, to get the mappings to use for
-		// a copy of ourselves.
-		uidmap = append([]specs.LinuxIDMapping{{HostID: uint32(uidNum), ContainerID: 0, Size: 1}}, uidmap...)
-		gidmap = append([]specs.LinuxIDMapping{{HostID: uint32(gidNum), ContainerID: 0, Size: 1}}, gidmap...)
-		var rangeStart uint32
-		for i := range uidmap {
-			uidmap[i].ContainerID = rangeStart
-			rangeStart += uidmap[i].Size
-		}
-		rangeStart = 0
-		for i := range gidmap {
-			gidmap[i].ContainerID = rangeStart
-			rangeStart += gidmap[i].Size
+		// If single-user-mapping flag is set, just map user to root
+		if singleUserMap {
+			uidmap = []specs.LinuxIDMapping{{HostID: uint32(uidNum), ContainerID: 0, Size: 1}}
+			gidmap = []specs.LinuxIDMapping{{HostID: uint32(gidNum), ContainerID: 0, Size: 1}}
+		} else {
+			// Read the set of ID mappings that we're allowed to use.  Each
+			// range in /etc/subuid and /etc/subgid file is a starting host
+			// ID and a range size.
+			uidmap, gidmap, err = GetSubIDMappings(me.Username, me.Username)
+			if err != nil {
+				logrus.Warnf("error reading allowed ID mappings: %v", err)
+			}
+			if len(uidmap) == 0 {
+				logrus.Warnf("Found no UID ranges set aside for user %q in /etc/subuid.", me.Username)
+			}
+			if len(gidmap) == 0 {
+				logrus.Warnf("Found no GID ranges set aside for user %q in /etc/subgid.", me.Username)
+			}
+			// Map our UID and GID, then the subuid and subgid ranges,
+			// consecutively, starting at 0, to get the mappings to use for
+			// a copy of ourselves.
+			uidmap = append([]specs.LinuxIDMapping{{HostID: uint32(uidNum), ContainerID: 0, Size: 1}}, uidmap...)
+			gidmap = append([]specs.LinuxIDMapping{{HostID: uint32(gidNum), ContainerID: 0, Size: 1}}, gidmap...)
+			var rangeStart uint32
+			for i := range uidmap {
+				uidmap[i].ContainerID = rangeStart
+				rangeStart += uidmap[i].Size
+			}
+			rangeStart = 0
+			for i := range gidmap {
+				gidmap[i].ContainerID = rangeStart
+				rangeStart += gidmap[i].Size
+			}
 		}
 	} else {
 		// If we have CAP_SYS_ADMIN, then we don't need to create a new namespace in order to be able
@@ -465,11 +437,41 @@ func MaybeReexecUsingUserNamespace(evenForRoot bool) {
 
 	// Set up a new user namespace with the ID mapping.
 	cmd.UnshareFlags = syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS
-	cmd.UseNewuidmap = uidNum != 0
+	if singleUserMap {
+		cmd.UseNewgidmap = false
+		cmd.UseNewuidmap = false
+		cmd.GidMappingsEnableSetgroups = false
+	} else {
+		cmd.UseNewgidmap = uidNum != 0
+		cmd.UseNewuidmap = uidNum != 0
+		cmd.GidMappingsEnableSetgroups = true
+	}
+
+	// Check if uidmap tools are available
+	if cmd.UseNewgidmap {
+		_, err := exec.LookPath("newgidmap")
+		if err != nil {
+			cmd.UseNewgidmap = false
+			logrus.Warnf("%v", err)
+			logrus.Warnf("falling back to single mapping")
+			cmd.GidMappingsEnableSetgroups = false
+			gidmap = []specs.LinuxIDMapping{{HostID: uint32(gidNum), ContainerID: 0, Size: 1}}
+		}
+	}
+	if cmd.UseNewuidmap {
+		_, err := exec.LookPath("newuidmap")
+		if err != nil {
+			cmd.UseNewuidmap = false
+			logrus.Warnf("%v", err)
+			logrus.Warnf("falling back to single mapping")
+			cmd.GidMappingsEnableSetgroups = false
+			uidmap = []specs.LinuxIDMapping{{HostID: uint32(uidNum), ContainerID: 0, Size: 1}}
+		}
+	}
+
 	cmd.UidMappings = uidmap
-	cmd.UseNewgidmap = uidNum != 0
 	cmd.GidMappings = gidmap
-	cmd.GidMappingsEnableSetgroups = true
+	cmd.SingleUserMap = singleUserMap
 
 	// Finish up.
 	logrus.Debugf("running %+v with environment %+v, UID map %+v, and GID map %+v", cmd.Cmd.Args, os.Environ(), cmd.UidMappings, cmd.GidMappings)
@@ -585,26 +587,4 @@ func ParseIDMappings(uidmap, gidmap []string) ([]idtools.IDMap, []idtools.IDMap,
 		return nil, nil, err
 	}
 	return uid, gid, nil
-}
-
-func checkGIDMap() error {
-	cmd := exec.Command("which", "newgidmap")
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	err := cmd.Run()
-	if err != nil {
-		return errors.Wrapf(err, "command 'which newgidmap' failed. Is newgidmap in $PATH?")
-	}
-	return nil
-}
-
-func checkUIDMap() error {
-	cmd := exec.Command("which", "newuidmap")
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	err := cmd.Run()
-	if err != nil {
-		return errors.Wrapf(err, "command 'which newuidmap' failed. Is newuidmap in $PATH?")
-	}
-	return nil
 }

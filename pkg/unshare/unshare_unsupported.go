@@ -30,7 +30,7 @@ func RootlessEnv() []string {
 }
 
 // MaybeReexecUsingUserNamespace re-exec the process in a new namespace
-func MaybeReexecUsingUserNamespace(evenForRoot bool) {
+func MaybeReexecUsingUserNamespace(evenForRoot bool, singleUserMap bool) {
 }
 
 // GetHostIDMappings reads mappings for the specified process (or the current

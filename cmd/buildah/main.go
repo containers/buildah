@@ -15,6 +15,7 @@ import (
 
 type globalFlags struct {
 	Debug             bool
+	SingleUserMap     bool
 	Root              string
 	RunRoot           string
 	StorageDriver     string
@@ -67,6 +68,7 @@ func init() {
 	//rootCmd.TraverseChildren = true
 	rootCmd.Version = fmt.Sprintf("%s (image-spec %s, runtime-spec %s)", buildah.Version, ispecs.Version, rspecs.Version)
 	rootCmd.PersistentFlags().BoolVar(&globalFlagResults.Debug, "debug", false, "print debugging information")
+	rootCmd.PersistentFlags().BoolVar(&globalFlagResults.SingleUserMap, "single-user-mapping", false, "avoids using uidmap tools by doing single user mapping")
 	// TODO Need to allow for environment variable
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.RegistriesConf, "registries-conf", "", "path to registries.conf file (not usually used)")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.RegistriesConfDir, "registries-conf-dir", "", "path to registries.conf.d directory (not usually used)")
@@ -103,7 +105,7 @@ func before(cmd *cobra.Command, args []string) error {
 	case "", "help", "version", "mount":
 		return nil
 	}
-	unshare.MaybeReexecUsingUserNamespace(false)
+	unshare.MaybeReexecUsingUserNamespace(false, globalFlagResults.SingleUserMap)
 	return nil
 }
 
