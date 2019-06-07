@@ -35,56 +35,67 @@ type AddAndCopyOptions struct {
 	Hasher io.Writer
 	// Excludes is the contents of the .dockerignore file
 	Excludes []string
-	// The base directory for Excludes and data to copy in
+	// ContextDir is the base directory for Excludes for content being copied
 	ContextDir string
 	// ID mapping options to use when contents to be copied are part of
 	// another container, and need ownerships to be mapped from the host to
 	// that container's values before copying them into the container.
 	IDMappingOptions *IDMappingOptions
+	// DryRun indicates that the content should be digested, but not actually
+	// copied into the container.
+	DryRun bool
 }
 
 // addURL copies the contents of the source URL to the destination.  This is
 // its own function so that deferred closes happen after we're done pulling
 // down each item of potentially many.
-func addURL(destination, srcurl string, owner idtools.IDPair, hasher io.Writer) error {
-	logrus.Debugf("saving %q to %q", srcurl, destination)
+func addURL(destination, srcurl string, owner idtools.IDPair, hasher io.Writer, dryRun bool) error {
 	resp, err := http.Get(srcurl)
 	if err != nil {
 		return errors.Wrapf(err, "error getting %q", srcurl)
 	}
 	defer resp.Body.Close()
-	f, err := os.Create(destination)
-	if err != nil {
-		return errors.Wrapf(err, "error creating %q", destination)
-	}
-	if err = f.Chown(owner.UID, owner.GID); err != nil {
-		return errors.Wrapf(err, "error setting owner of %q to %d:%d", destination, owner.UID, owner.GID)
-	}
-	if last := resp.Header.Get("Last-Modified"); last != "" {
-		if mtime, err2 := time.Parse(time.RFC1123, last); err2 != nil {
-			logrus.Debugf("error parsing Last-Modified time %q: %v", last, err2)
+
+	thisWriter := hasher
+
+	if !dryRun {
+		logrus.Debugf("saving %q to %q", srcurl, destination)
+		f, err := os.Create(destination)
+		if err != nil {
+			return errors.Wrapf(err, "error creating %q", destination)
+		}
+		defer f.Close()
+		if err = f.Chown(owner.UID, owner.GID); err != nil {
+			return errors.Wrapf(err, "error setting owner of %q to %d:%d", destination, owner.UID, owner.GID)
+		}
+		if last := resp.Header.Get("Last-Modified"); last != "" {
+			if mtime, err2 := time.Parse(time.RFC1123, last); err2 != nil {
+				logrus.Debugf("error parsing Last-Modified time %q: %v", last, err2)
+			} else {
+				defer func() {
+					if err3 := os.Chtimes(destination, time.Now(), mtime); err3 != nil {
+						logrus.Debugf("error setting mtime on %q to Last-Modified time %q: %v", destination, last, err3)
+					}
+				}()
+			}
+		}
+		defer func() {
+			if err2 := f.Chmod(0600); err2 != nil {
+				logrus.Debugf("error setting permissions on %q: %v", destination, err2)
+			}
+		}()
+		if thisWriter != nil {
+			thisWriter = io.MultiWriter(f, thisWriter)
 		} else {
-			defer func() {
-				if err3 := os.Chtimes(destination, time.Now(), mtime); err3 != nil {
-					logrus.Debugf("error setting mtime on %q to Last-Modified time %q: %v", destination, last, err3)
-				}
-			}()
+			thisWriter = f
 		}
 	}
-	defer f.Close()
-	bodyReader := io.Reader(resp.Body)
-	if hasher != nil {
-		bodyReader = io.TeeReader(bodyReader, hasher)
-	}
-	n, err := io.Copy(f, bodyReader)
+	n, err := io.Copy(thisWriter, resp.Body)
 	if err != nil {
 		return errors.Wrapf(err, "error reading contents for %q from %q", destination, srcurl)
 	}
 	if resp.ContentLength >= 0 && n != resp.ContentLength {
 		return errors.Errorf("error reading contents for %q from %q: wrong length (%d != %d)", destination, srcurl, n, resp.ContentLength)
-	}
-	if err := f.Chmod(0600); err != nil {
-		return errors.Wrapf(err, "error setting permissions on %q", destination)
 	}
 	return nil
 }
@@ -118,31 +129,34 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	}
 	hostOwner := idtools.IDPair{UID: int(hostUID), GID: int(hostGID)}
 	dest := mountPoint
-	if destination != "" && filepath.IsAbs(destination) {
-		dir := filepath.Dir(destination)
-		if dir != "." && dir != "/" {
-			if err = idtools.MkdirAllAndChownNew(filepath.Join(dest, dir), 0755, hostOwner); err != nil {
-				return errors.Wrapf(err, "error creating directory %q", filepath.Join(dest, dir))
+	if !options.DryRun {
+		// Resolve the destination if it was specified as a relative path.
+		if destination != "" && filepath.IsAbs(destination) {
+			dir := filepath.Dir(destination)
+			if dir != "." && dir != "/" {
+				if err = idtools.MkdirAllAndChownNew(filepath.Join(dest, dir), 0755, hostOwner); err != nil {
+					return errors.Wrapf(err, "error creating directory %q", filepath.Join(dest, dir))
+				}
+			}
+			dest = filepath.Join(dest, destination)
+		} else {
+			if err = idtools.MkdirAllAndChownNew(filepath.Join(dest, b.WorkDir()), 0755, hostOwner); err != nil {
+				return errors.Wrapf(err, "error creating directory %q", filepath.Join(dest, b.WorkDir()))
+			}
+			dest = filepath.Join(dest, b.WorkDir(), destination)
+		}
+		// If the destination was explicitly marked as a directory by ending it
+		// with a '/', create it so that we can be sure that it's a directory,
+		// and any files we're copying will be placed in the directory.
+		if len(destination) > 0 && destination[len(destination)-1] == os.PathSeparator {
+			if err = idtools.MkdirAllAndChownNew(dest, 0755, hostOwner); err != nil {
+				return errors.Wrapf(err, "error creating directory %q", dest)
 			}
 		}
-		dest = filepath.Join(dest, destination)
-	} else {
-		if err = idtools.MkdirAllAndChownNew(filepath.Join(dest, b.WorkDir()), 0755, hostOwner); err != nil {
-			return errors.Wrapf(err, "error creating directory %q", filepath.Join(dest, b.WorkDir()))
+		// Make sure the destination's parent directory is usable.
+		if destpfi, err2 := os.Stat(filepath.Dir(dest)); err2 == nil && !destpfi.IsDir() {
+			return errors.Errorf("%q already exists, but is not a subdirectory)", filepath.Dir(dest))
 		}
-		dest = filepath.Join(dest, b.WorkDir(), destination)
-	}
-	// If the destination was explicitly marked as a directory by ending it
-	// with a '/', create it so that we can be sure that it's a directory,
-	// and any files we're copying will be placed in the directory.
-	if len(destination) > 0 && destination[len(destination)-1] == os.PathSeparator {
-		if err = idtools.MkdirAllAndChownNew(dest, 0755, hostOwner); err != nil {
-			return errors.Wrapf(err, "error creating directory %q", dest)
-		}
-	}
-	// Make sure the destination's parent directory is usable.
-	if destpfi, err2 := os.Stat(filepath.Dir(dest)); err2 == nil && !destpfi.IsDir() {
-		return errors.Errorf("%q already exists, but is not a subdirectory)", filepath.Dir(dest))
 	}
 	// Now look at the destination itself.
 	destfi, err := os.Stat(dest)
@@ -155,9 +169,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	if len(source) > 1 && (destfi == nil || !destfi.IsDir()) {
 		return errors.Errorf("destination %q is not a directory", dest)
 	}
-	copyFileWithTar := b.copyFileWithTar(options.IDMappingOptions, &containerOwner, options.Hasher)
-	copyWithTar := b.copyWithTar(options.IDMappingOptions, &containerOwner, options.Hasher)
-	untarPath := b.untarPath(nil, options.Hasher)
+	copyFileWithTar := b.copyFileWithTar(options.IDMappingOptions, &containerOwner, options.Hasher, options.DryRun)
+	copyWithTar := b.copyWithTar(options.IDMappingOptions, &containerOwner, options.Hasher, options.DryRun)
+	untarPath := b.untarPath(nil, options.Hasher, options.DryRun)
 	err = addHelper(excludes, extract, dest, destfi, hostOwner, options, copyFileWithTar, copyWithTar, untarPath, source...)
 	if err != nil {
 		return err
@@ -245,7 +259,7 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 			if destfi != nil && destfi.IsDir() {
 				d = filepath.Join(dest, path.Base(url.Path))
 			}
-			if err = addURL(d, src, hostOwner, options.Hasher); err != nil {
+			if err = addURL(d, src, hostOwner, options.Hasher, options.DryRun); err != nil {
 				return err
 			}
 			continue
@@ -273,8 +287,10 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 				// the source directory into the target directory.  Try
 				// to create it first, so that if there's a problem,
 				// we'll discover why that won't work.
-				if err = idtools.MkdirAllAndChownNew(dest, 0755, hostOwner); err != nil {
-					return errors.Wrapf(err, "error creating directory %q", dest)
+				if !options.DryRun {
+					if err = idtools.MkdirAllAndChownNew(dest, 0755, hostOwner); err != nil {
+						return errors.Wrapf(err, "error creating directory %q", dest)
+					}
 				}
 				logrus.Debugf("copying %q to %q", esrc+string(os.PathSeparator)+"*", dest+string(os.PathSeparator)+"*")
 				if excludes == nil || !excludes.Exclusions() {

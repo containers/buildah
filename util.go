@@ -3,6 +3,7 @@ package buildah
 import (
 	"archive/tar"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -112,7 +113,7 @@ func convertRuntimeIDMaps(UIDMap, GIDMap []rspec.LinuxIDMapping) ([]idtools.IDMa
 // of any container, or another container, into our working container, mapping
 // read permissions using the passed-in ID maps, writing using the container's
 // ID mappings, possibly overridden using the passed-in chownOpts
-func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOpts *idtools.IDPair, hasher io.Writer) func(src, dest string) error {
+func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOpts *idtools.IDPair, hasher io.Writer, dryRun bool) func(src, dest string) error {
 	if tarIDMappingOptions == nil {
 		tarIDMappingOptions = &IDMappingOptions{
 			HostUIDMapping: true,
@@ -207,7 +208,7 @@ func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOp
 			pipeWriter = nil
 		}(f)
 
-		untar := b.untar(chownOpts, hasher)
+		untar := b.untar(chownOpts, hasher, dryRun)
 		err = untar(pipeReader, b.MountPoint)
 		if err == nil {
 			err = copyErr
@@ -224,9 +225,9 @@ func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOp
 // our container or from another container, into our working container, mapping
 // permissions at read-time using the container's ID maps, with ownership at
 // write-time possibly overridden using the passed-in chownOpts
-func (b *Builder) copyWithTar(tarIDMappingOptions *IDMappingOptions, chownOpts *idtools.IDPair, hasher io.Writer) func(src, dest string) error {
+func (b *Builder) copyWithTar(tarIDMappingOptions *IDMappingOptions, chownOpts *idtools.IDPair, hasher io.Writer, dryRun bool) func(src, dest string) error {
 	tar := b.tarPath(tarIDMappingOptions)
-	untar := b.untar(chownOpts, hasher)
+	untar := b.untar(chownOpts, hasher, dryRun)
 	return func(src, dest string) error {
 		rc, err := tar(src)
 		if err != nil {
@@ -239,8 +240,22 @@ func (b *Builder) copyWithTar(tarIDMappingOptions *IDMappingOptions, chownOpts *
 // untarPath returns a function which extracts an archive in a specified
 // location into our working container, mapping permissions using the
 // container's ID maps, possibly overridden using the passed-in chownOpts
-func (b *Builder) untarPath(chownOpts *idtools.IDPair, hasher io.Writer) func(src, dest string) error {
+func (b *Builder) untarPath(chownOpts *idtools.IDPair, hasher io.Writer, dryRun bool) func(src, dest string) error {
 	convertedUIDMap, convertedGIDMap := convertRuntimeIDMaps(b.IDMappingOptions.UIDMap, b.IDMappingOptions.GIDMap)
+	if dryRun {
+		return func(src, dest string) error {
+			if hasher == nil {
+				hasher = ioutil.Discard
+			}
+			f, err := os.Open(src)
+			if err != nil {
+				return errors.Wrapf(err, "error opening %q", src)
+			}
+			defer f.Close()
+			_, err = io.Copy(hasher, f)
+			return err
+		}
+	}
 	return chrootarchive.UntarPathAndChown(chownOpts, hasher, convertedUIDMap, convertedGIDMap)
 }
 
@@ -272,7 +287,7 @@ func (b *Builder) tarPath(idMappingOptions *IDMappingOptions) func(path string) 
 // untar returns a function which extracts an archive stream to a specified
 // location in the container's filesystem, mapping permissions using the
 // container's ID maps, possibly overridden using the passed-in chownOpts
-func (b *Builder) untar(chownOpts *idtools.IDPair, hasher io.Writer) func(tarArchive io.ReadCloser, dest string) error {
+func (b *Builder) untar(chownOpts *idtools.IDPair, hasher io.Writer, dryRun bool) func(tarArchive io.ReadCloser, dest string) error {
 	convertedUIDMap, convertedGIDMap := convertRuntimeIDMaps(b.IDMappingOptions.UIDMap, b.IDMappingOptions.GIDMap)
 	untarMappings := idtools.NewIDMappingsFromMaps(convertedUIDMap, convertedGIDMap)
 	options := &archive.TarOptions{
@@ -281,6 +296,14 @@ func (b *Builder) untar(chownOpts *idtools.IDPair, hasher io.Writer) func(tarArc
 		ChownOpts: chownOpts,
 	}
 	untar := chrootarchive.Untar
+	if dryRun {
+		untar = func(tarArchive io.Reader, dest string, options *archive.TarOptions) error {
+			if _, err := io.Copy(ioutil.Discard, tarArchive); err != nil {
+				return errors.Wrapf(err, "error digesting tar stream")
+			}
+			return nil
+		}
+	}
 	if hasher != nil {
 		originalUntar := untar
 		untar = func(tarArchive io.Reader, dest string, options *archive.TarOptions) error {
