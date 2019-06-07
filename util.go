@@ -119,6 +119,8 @@ func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOp
 			HostGIDMapping: true,
 		}
 	}
+
+	var hardlinkChecker util.HardlinkChecker
 	return func(src, dest string) error {
 		var f *os.File
 
@@ -144,22 +146,30 @@ func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOp
 		if err != nil {
 			return errors.Wrapf(err, "error generating tar header for: %q", src)
 		}
-		hdr.Name = filepath.Base(dest)
+		chrootedDest, err := filepath.Rel(b.MountPoint, dest)
+		if err != nil {
+			return errors.Wrapf(err, "error generating relative-to-chroot target name for %q", dest)
+		}
+		hdr.Name = chrootedDest
 		hdr.Uid = int(containerUID)
 		hdr.Gid = int(containerGID)
 
 		if fi.Mode().IsRegular() && hdr.Typeflag == tar.TypeReg {
-			f, err = os.Open(src)
-			if err != nil {
-				return errors.Wrapf(err, "error opening %q to copy its contents", src)
-			}
-			defer func() {
-				if f != nil {
-					if err := f.Close(); err != nil {
-						logrus.Debugf("error closing %s: %v", f.Name(), err)
-					}
+			if linkname := hardlinkChecker.Check(fi); linkname != "" {
+				hdr.Typeflag = tar.TypeLink
+				hdr.Linkname = linkname
+			} else {
+				hardlinkChecker.Add(fi, chrootedDest)
+				f, err = os.Open(src)
+				if err != nil {
+					return errors.Wrapf(err, "error opening %q to copy its contents", src)
 				}
-			}()
+				defer func() {
+					if err := f.Close(); err != nil {
+						logrus.Debugf("error closing %s: %v", fi.Name(), err)
+					}
+				}()
+			}
 		}
 
 		if fi.Mode()&os.ModeSymlink == os.ModeSymlink && hdr.Typeflag == tar.TypeSymlink {
@@ -186,19 +196,19 @@ func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOp
 					logrus.Debugf("expected to write %d bytes for %s, wrote %d instead", hdr.Size, srcFile.Name(), n)
 				}
 				if err != nil {
-					logrus.Debugf("error copying contents of %s: %v", srcFile.Name(), err)
+					logrus.Debugf("error copying contents of %s: %v", fi.Name(), err)
 					copyErr = err
 				}
 			}
 			if err = writer.Close(); err != nil {
-				logrus.Debugf("error closing write pipe for %s: %v", srcFile.Name(), err)
+				logrus.Debugf("error closing write pipe for %s: %v", hdr.Name, err)
 			}
 			pipeWriter.Close()
 			pipeWriter = nil
 		}(f)
 
 		untar := b.untar(chownOpts, hasher)
-		err = untar(pipeReader, filepath.Dir(dest))
+		err = untar(pipeReader, b.MountPoint)
 		if err == nil {
 			err = copyErr
 		}
