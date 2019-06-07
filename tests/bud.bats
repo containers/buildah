@@ -1586,3 +1586,26 @@ load helpers
   run_buildah --debug=false images -q
   expect_line_count 2 
 }
+
+@test "bud-copy-dockerignore-hardlinks" {
+  target=image
+  mkdir -p ${TESTDIR}/hardlinks/subdir
+  cp ${TESTSDIR}/bud/recurse/Dockerfile ${TESTDIR}/hardlinks
+  echo foo > ${TESTDIR}/hardlinks/.dockerignore
+  echo test1 > ${TESTDIR}/hardlinks/subdir/test1.txt
+  ln ${TESTDIR}/hardlinks/subdir/test1.txt ${TESTDIR}/hardlinks/subdir/test2.txt
+  ln ${TESTDIR}/hardlinks/subdir/test2.txt ${TESTDIR}/hardlinks/test3.txt
+  ln ${TESTDIR}/hardlinks/test3.txt ${TESTDIR}/hardlinks/test4.txt
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTDIR}/hardlinks
+  run_buildah --debug=false from ${target}
+  ctrid="$output"
+  run_buildah --debug=false mount "$ctrid"
+  root="$output"
+  id1=$(stat -c "%d:%i" ${root}/subdir/test1.txt)
+  id2=$(stat -c "%d:%i" ${root}/subdir/test2.txt)
+  id3=$(stat -c "%d:%i" ${root}/test3.txt)
+  id4=$(stat -c "%d:%i" ${root}/test4.txt)
+  [[ "$id1" == "$id2" ]]
+  [[ "$id2" == "$id3" ]]
+  [[ "$id3" == "$id4" ]]
+}
