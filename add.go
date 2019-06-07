@@ -16,7 +16,6 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
-	"github.com/containers/storage/pkg/system"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -295,25 +294,10 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 					if skip {
 						return nil
 					}
-					// combine the filename with the dest directory
+					// combine the source's basename with the dest directory
 					fpath, err := filepath.Rel(esrc, path)
 					if err != nil {
 						return errors.Wrapf(err, "error converting %s to a path relative to %s", path, esrc)
-					}
-					mtime := info.ModTime()
-					atime := mtime
-					times := []syscall.Timespec{
-						syscall.NsecToTimespec(atime.Unix()),
-						syscall.NsecToTimespec(mtime.Unix()),
-					}
-					if info.IsDir() {
-						return addHelperDirectory(esrc, path, filepath.Join(dest, fpath), info, hostOwner, times)
-					}
-					if info.Mode()&os.ModeSymlink == os.ModeSymlink {
-						return addHelperSymlink(path, filepath.Join(dest, fpath), hostOwner, times)
-					}
-					if !info.Mode().IsRegular() {
-						return errors.Errorf("error copying %q to %q: source is not a regular file; file mode is %s", path, dest, info.Mode())
 					}
 					if err = copyFileWithTar(path, filepath.Join(dest, fpath)); err != nil {
 						return errors.Wrapf(err, "error copying %q to %q", path, dest)
@@ -349,47 +333,5 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 			}
 		}
 	}
-	return nil
-}
-
-func addHelperDirectory(esrc, path, dest string, info os.FileInfo, hostOwner idtools.IDPair, times []syscall.Timespec) error {
-	if err := idtools.MkdirAllAndChownNew(dest, info.Mode().Perm(), hostOwner); err != nil {
-		// discard only EEXIST on the top directory, which would have been created earlier in the caller
-		if !os.IsExist(err) || path != esrc {
-			return errors.Errorf("error creating directory %q", dest)
-		}
-	}
-	if err := idtools.SafeLchown(dest, hostOwner.UID, hostOwner.GID); err != nil {
-		return errors.Wrapf(err, "error setting owner of directory %q to %d:%d", dest, hostOwner.UID, hostOwner.GID)
-	}
-	if err := system.LUtimesNano(dest, times); err != nil {
-		return errors.Wrapf(err, "error setting dates on directory %q", dest)
-	}
-	return nil
-}
-
-func addHelperSymlink(src, dest string, hostOwner idtools.IDPair, times []syscall.Timespec) error {
-	linkContents, err := os.Readlink(src)
-	if err != nil {
-		return errors.Wrapf(err, "error reading contents of symbolic link at %q", src)
-	}
-	if err = os.Symlink(linkContents, dest); err != nil {
-		if !os.IsExist(err) {
-			return errors.Wrapf(err, "error creating symbolic link to %q at %q", linkContents, dest)
-		}
-		if err = os.RemoveAll(dest); err != nil {
-			return errors.Wrapf(err, "error clearing symbolic link target %q", dest)
-		}
-		if err = os.Symlink(linkContents, dest); err != nil {
-			return errors.Wrapf(err, "error creating symbolic link to %q at %q (second try)", linkContents, dest)
-		}
-	}
-	if err = idtools.SafeLchown(dest, hostOwner.UID, hostOwner.GID); err != nil {
-		return errors.Wrapf(err, "error setting owner of symbolic link %q to %d:%d", dest, hostOwner.UID, hostOwner.GID)
-	}
-	if err = system.LUtimesNano(dest, times); err != nil {
-		return errors.Wrapf(err, "error setting dates on symbolic link %q", dest)
-	}
-	logrus.Debugf("Symlink(%s, %s)", linkContents, dest)
 	return nil
 }

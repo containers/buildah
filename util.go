@@ -120,16 +120,13 @@ func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOp
 		}
 	}
 	return func(src, dest string) error {
+		var f *os.File
+
 		logrus.Debugf("copyFileWithTar(%s, %s)", src, dest)
-		f, err := os.Open(src)
+		fi, err := os.Lstat(src)
 		if err != nil {
-			return errors.Wrapf(err, "error opening %q to copy its contents", src)
+			return errors.Wrapf(err, "error reading attributes of %q", src)
 		}
-		defer func() {
-			if f != nil {
-				f.Close()
-			}
-		}()
 
 		sysfi, err := system.Lstat(src)
 		if err != nil {
@@ -143,11 +140,6 @@ func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOp
 			return errors.Wrapf(err, "error mapping owner IDs of %q: %d/%d", src, hostUID, hostGID)
 		}
 
-		fi, err := os.Lstat(src)
-		if err != nil {
-			return errors.Wrapf(err, "error reading attributes of %q", src)
-		}
-
 		hdr, err := tar.FileInfoHeader(fi, filepath.Base(src))
 		if err != nil {
 			return errors.Wrapf(err, "error generating tar header for: %q", src)
@@ -155,6 +147,29 @@ func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOp
 		hdr.Name = filepath.Base(dest)
 		hdr.Uid = int(containerUID)
 		hdr.Gid = int(containerGID)
+
+		if fi.Mode().IsRegular() && hdr.Typeflag == tar.TypeReg {
+			f, err = os.Open(src)
+			if err != nil {
+				return errors.Wrapf(err, "error opening %q to copy its contents", src)
+			}
+			defer func() {
+				if f != nil {
+					if err := f.Close(); err != nil {
+						logrus.Debugf("error closing %s: %v", f.Name(), err)
+					}
+				}
+			}()
+		}
+
+		if fi.Mode()&os.ModeSymlink == os.ModeSymlink && hdr.Typeflag == tar.TypeSymlink {
+			hdr.Typeflag = tar.TypeSymlink
+			linkName, err := os.Readlink(src)
+			if err != nil {
+				return errors.Wrapf(err, "error reading destination from symlink %q", src)
+			}
+			hdr.Linkname = linkName
+		}
 
 		pipeReader, pipeWriter := io.Pipe()
 		writer := tar.NewWriter(pipeWriter)
@@ -165,19 +180,18 @@ func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOp
 				logrus.Debugf("error writing header for %s: %v", srcFile.Name(), err)
 				copyErr = err
 			}
-			n, err := pools.Copy(writer, srcFile)
-			if n != hdr.Size {
-				logrus.Debugf("expected to write %d bytes for %s, wrote %d instead", hdr.Size, srcFile.Name(), n)
-			}
-			if err != nil {
-				logrus.Debugf("error reading %s: %v", srcFile.Name(), err)
-				copyErr = err
+			if srcFile != nil {
+				n, err := pools.Copy(writer, srcFile)
+				if n != hdr.Size {
+					logrus.Debugf("expected to write %d bytes for %s, wrote %d instead", hdr.Size, srcFile.Name(), n)
+				}
+				if err != nil {
+					logrus.Debugf("error copying contents of %s: %v", srcFile.Name(), err)
+					copyErr = err
+				}
 			}
 			if err = writer.Close(); err != nil {
 				logrus.Debugf("error closing write pipe for %s: %v", srcFile.Name(), err)
-			}
-			if err = srcFile.Close(); err != nil {
-				logrus.Debugf("error closing %s: %v", srcFile.Name(), err)
 			}
 			pipeWriter.Close()
 			pipeWriter = nil
