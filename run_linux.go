@@ -1155,12 +1155,6 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 			}
 			// If the POLLIN flag isn't set, then there's no data to be read from this descriptor.
 			if pollFd.Revents&unix.POLLIN == 0 {
-				// If we're using pipes and it's our stdin and it's closed, close the writing
-				// end of the corresponding pipe.
-				if copyPipes && int(pollFd.Fd) == unix.Stdin && pollFd.Revents&unix.POLLHUP != 0 {
-					unix.Close(stdioPipe[unix.Stdin][1])
-					stdioPipe[unix.Stdin][1] = -1
-				}
 				continue
 			}
 			// Read whatever there is to be read.
@@ -1175,10 +1169,8 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 				// using pipes, it's an EOF, so close the stdin
 				// pipe's writing end.
 				if n == 0 && copyPipes && int(pollFd.Fd) == unix.Stdin {
-					unix.Close(stdioPipe[unix.Stdin][1])
-					stdioPipe[unix.Stdin][1] = -1
-				}
-				if n > 0 {
+					removes[int(pollFd.Fd)] = struct{}{}
+				} else if n > 0 {
 					// Buffer the data in case we get blocked on where they need to go.
 					nwritten, err := relayBuffer[writeFD].Write(buf[:n])
 					if err != nil {
@@ -1229,6 +1221,11 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 		}
 		// Remove any descriptors which we don't need to poll any more from the poll descriptor list.
 		for remove := range removes {
+			if copyPipes && remove == unix.Stdin {
+				logrus.Debugf("closing stdin")
+				unix.Close(stdioPipe[unix.Stdin][1])
+				stdioPipe[unix.Stdin][1] = -1
+			}
 			delete(relayMap, remove)
 		}
 		// If the we-can-return pipe had anything for us, we're done.
