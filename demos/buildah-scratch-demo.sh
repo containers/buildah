@@ -78,7 +78,7 @@ buildah commit $newcontainer $demoimg
 read -p "${green}List the images we have.${reset}"
 buildah images
 read -p "${blue}Run the container using Podman.${reset}"
-podman run $demoimg
+podman run -t $demoimg
 read -p "${green}Make sure you are already logged into your account on Quay.io. Or use Quay creds.${reset}"
 buildah push $demoimg docker://quay.io/$quayuser/$demoimg
 echo -e "${red}We are done!${reset}"
