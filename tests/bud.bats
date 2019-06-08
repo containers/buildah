@@ -798,6 +798,19 @@ load helpers
   buildah rmi ${target}
 }
 
+@test "bud multi-stage with dir symlink to absolute path" {
+  target=ubuntu-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.absolute-dir-symlink ${TESTSDIR}/bud/symlink
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
+  root=$(buildah mount ${cid})
+  run ls $root/data
+  echo "$output"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ myexe ]]
+  buildah rm ${cid}
+  buildah rmi ${target}
+}
+
 @test "bud with ENTRYPOINT and RUN" {
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.entrypoint-run ${TESTSDIR}/bud/run-scenarios
