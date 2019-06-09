@@ -28,7 +28,7 @@ We can also see that there are also no containers by running:
 
     # buildah containers
 
-When you build a working container from an existing image, Buildah defaults to appending '-working-container' to the image's name to construct a name for the container. The Buildah CLI conveniently returns the name of the new container. You can take advantage of this by assigning the returned value to a shell varible using standard shell assignment :
+When you build a working container from an existing image, Buildah defaults to appending '-working-container' to the image's name to construct a name for the container. The Buildah CLI conveniently returns the name of the new container. You can take advantage of this by assigning the returned value to a shell variable using standard shell assignment :
 
     # container=$(buildah from fedora)
 
