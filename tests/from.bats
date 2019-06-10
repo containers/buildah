@@ -244,7 +244,7 @@ load helpers
   fi
   cid=$(buildah from --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.shares
-  expect_output "1024"
+  expect_output "2"
   buildah rm $cid
 }
 
