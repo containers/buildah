@@ -80,7 +80,7 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 	}
 	cpuPeriod, _ := c.Flags().GetUint64("cpu-period")
 	cpuQuota, _ := c.Flags().GetInt64("cpu-quota")
-	cpuShares, _ := c.Flags().GetUint64("cpu-shared")
+	cpuShares, _ := c.Flags().GetUint64("cpu-shares")
 	httpProxy, _ := c.Flags().GetBool("http-proxy")
 	ulimit, _ := c.Flags().GetStringSlice("ulimit")
 	commonOpts := &buildah.CommonBuildOptions{
