@@ -1453,7 +1453,7 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 			}
 		}
 	}
-	if configureNetwork {
+	if configureNetwork && !unshare.IsRootless() {
 		for name, val := range util.DefaultNetworkSysctl {
 			// Check that the sysctl we are adding is actually supported
 			// by the kernel
