@@ -992,7 +992,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 	}
 	logImageID := func(imgID string) {
 		if s.executor.iidfile == "" {
-			fmt.Fprintf(s.executor.out, "--> %s\n", imgID)
+			fmt.Fprintf(s.executor.out, "%s\n", imgID)
 		}
 	}
 
