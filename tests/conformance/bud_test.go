@@ -171,7 +171,7 @@ var _ = Describe("Buildah build conformance test", func() {
 		},
 		Entry("shell test", BuildTest{
 			Dockerfile:   "Dockerfile.shell",
-			BuildahRegex: "(?s)--> [0-9a-z]+(.*)--",
+			BuildahRegex: "(?s)[0-9a-z]+(.*)--",
 			DockerRegex:  "(?s)RUN env.*?Running in [0-9a-z]+(.*?)---",
 			IsFile:       true,
 			ExtraOptions: []string{"--no-cache"},
