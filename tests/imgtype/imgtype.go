@@ -89,7 +89,7 @@ func main() {
 
 	errors := false
 	defer func() {
-		store.Shutdown(false)
+		_, _ = store.Shutdown(false)
 		if errors {
 			os.Exit(1)
 		}

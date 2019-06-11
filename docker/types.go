@@ -168,11 +168,11 @@ type V2Image struct {
 	OSFeatures []string      `json:"os.features,omitempty"`
 
 	// rawJSON caches the immutable JSON associated with this image.
-	rawJSON []byte
+	//rawJSON []byte //unused per golangci-lint
 
 	// computedID is the ID computed from the hash of the image config.
 	// Not to be confused with the legacy V1 ID in V1Image.
-	computedID ID
+	//computedID ID //unused per golangci-lint
 }
 
 // github.com/docker/distribution/manifest/versioned.go

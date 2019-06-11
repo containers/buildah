@@ -58,7 +58,7 @@ func init() {
 	flags.StringVar(&opts.authfile, "authfile", buildahcli.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
 
-	flags.MarkHidden("blob-cache")
+	_ = flags.MarkHidden("blob-cache")
 
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
@@ -69,11 +69,11 @@ func init() {
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when writing images")
 	flags.StringVar(&opts.referenceTime, "reference-time", "", "set the timestamp on the image to match the named `file`")
 
-	flags.MarkHidden("reference-time")
+	_ = flags.MarkHidden("reference-time")
 
 	flags.BoolVar(&opts.rm, "rm", false, "remove the container and its content after committing it to an image. Default leaves the container and its content in place.")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
-	flags.MarkHidden("signature-policy")
+	_ = flags.MarkHidden("signature-policy")
 	flags.BoolVar(&opts.squash, "squash", false, "produce an image with only one layer")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "Require HTTPS and verify certificates when accessing the registry")
 

@@ -379,7 +379,7 @@ func saveStream(wg *sync.WaitGroup, decompressReader io.ReadCloser, tempFile *os
 		_, err3 = io.Copy(io.MultiWriter(tempFile, digester.Hash()), decompressed)
 	} else {
 		// Drain the pipe to keep from stalling the PutBlob() thread.
-		io.Copy(ioutil.Discard, decompressReader)
+		_, _ = io.Copy(ioutil.Discard, decompressReader)
 	}
 	decompressReader.Close()
 	decompressed.Close()

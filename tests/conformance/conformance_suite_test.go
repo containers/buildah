@@ -19,7 +19,6 @@ import (
 )
 
 var (
-	TESTDATA_DIR       = "./testdata"
 	defaultWaitTimeout = 240
 	GLOBALOPTIONS      = []string{"--root",
 		"--runroot",
@@ -115,9 +114,9 @@ func envSeted(key string) bool {
 
 // BuildahCreate a BuildAhTest instance for the tests
 func BuildahCreate(tempDir string) BuildAhTest {
-	var globalOptions map[string]string
 	var option string
 	var envKey string
+	globalOptions := make(map[string]string)
 	buildahCmdOptions := make(map[string][]string)
 	cwd, _ := os.Getwd()
 
@@ -431,16 +430,6 @@ func InspectCompareResult(miss, left, diff []string) string {
 // WaitWithDefaultTimeout wait for command exit with defaultWaitTimeout.
 func (s *BuildahTestSession) WaitWithDefaultTimeout() {
 	s.Wait(defaultWaitTimeout)
-}
-
-// StringInSlice determines if a string is in a string slice, returns bool
-func StringInSlice(s string, sl []string) bool {
-	for _, i := range sl {
-		if i == s {
-			return true
-		}
-	}
-	return false
 }
 
 // LineInOutputStartsWith returns true if a line in a

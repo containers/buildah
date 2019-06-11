@@ -208,7 +208,6 @@ type Executor struct {
 	squash                         bool
 	labels                         []string
 	annotations                    []string
-	onbuild                        []string
 	layers                         bool
 	useCache                       bool
 	removeIntermediateCtrs         bool
@@ -487,7 +486,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		// Convert it to the target if so.  To be ultrasafe
 		// do the same for the mountpoint.
 		hadFinalPathSeparator := len(copy.Dest) > 0 && copy.Dest[len(copy.Dest)-1] == os.PathSeparator
-		secureMountPoint, err := securejoin.SecureJoin("", s.mountPoint)
+		secureMountPoint, _ := securejoin.SecureJoin("", s.mountPoint)
 		finalPath, err := securejoin.SecureJoin(secureMountPoint, copy.Dest)
 		if err != nil {
 			return errors.Wrapf(err, "error resolving symlinks for copy destination %s", copy.Dest)
@@ -784,8 +783,6 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 	if asImageName != "" {
 		if _, err := strconv.Atoi(asImageName); err != nil {
 			displayFrom = from + " AS " + asImageName
-		} else {
-			asImageName = ""
 		}
 	}
 
@@ -1365,10 +1362,7 @@ func (b *Executor) historyMatches(baseHistory []v1.History, child *parser.Node, 
 			return false
 		}
 	}
-	if history[len(baseHistory)].CreatedBy != b.getCreatedBy(child) {
-		return false
-	}
-	return true
+	return (history[len(baseHistory)].CreatedBy != b.getCreatedBy(child))
 }
 
 // getBuildArgs returns a string of the build-args specified during the build process
@@ -1800,11 +1794,11 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 		} else {
 			// If the Dockerfile isn't found try prepending the
 			// context directory to it.
-			dinfo, err := os.Stat(dfile)
+			_, err := os.Stat(dfile)
 			if os.IsNotExist(err) {
 				dfile = filepath.Join(options.ContextDirectory, dfile)
 			}
-			dinfo, err = os.Stat(dfile)
+			dinfo, err := os.Stat(dfile)
 			if err != nil {
 				return "", nil, errors.Wrapf(err, "error reading info about %q", dfile)
 			}
@@ -1893,8 +1887,8 @@ func (b *Executor) deleteSuccessfulIntermediateCtrs() error {
 }
 
 func (s *StageExecutor) EnsureContainerPath(path string) error {
-	targetPath, err := securejoin.SecureJoin(s.mountPoint, path)
-	_, err = os.Lstat(targetPath)
+	targetPath, _ := securejoin.SecureJoin(s.mountPoint, path)
+	_, err := os.Lstat(targetPath)
 	if err != nil && os.IsNotExist(err) {
 		err = os.MkdirAll(targetPath, 0755)
 	}

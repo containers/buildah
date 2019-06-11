@@ -325,7 +325,7 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 	}
 	imagesParams = sortImagesOutput(imagesParams)
 	out := formats.StdoutTemplateArray{Output: imagesToGeneric(imagesParams), Template: outputHeader(opts), Fields: imagesHeader}
-	formats.Writer(out).Out()
+	_ = formats.Writer(out).Out()
 	return nil
 }
 

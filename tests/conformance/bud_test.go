@@ -68,7 +68,7 @@ var _ = Describe("Buildah build conformance test", func() {
 			if test.IsFile {
 				dst = filepath.Join(buildahtest.TempDir, "Dockerfile")
 			}
-			CopyFiles(dockerfilePath, dst)
+			_ = CopyFiles(dockerfilePath, dst)
 
 			buildahoptions := []string{"bud", "-t", "buildahimage", buildDir}
 			dockeroptions := []string{"build", "-t", "docker.io/dockerimage", buildDir}
@@ -161,8 +161,8 @@ var _ = Describe("Buildah build conformance test", func() {
 				//Check fs with container-diff
 				fscheck := SystemExec("container-diff", []string{"diff", "daemon://buildahimage", "daemon://dockerimage", "--type=file"})
 				fscheck.WaitWithDefaultTimeout()
-				fsr := regexp.MustCompile("/[a-zA-Z0-9/.\\-_]+[ ]+[0-9]+")
-				fsrignore := regexp.MustCompile("/[a-zA-Z0-9/.\\-_]+[ ]+0")
+				fsr := regexp.MustCompile(`/[a-zA-Z0-9/.\\-_]+[ ]+[0-9]+`)
+				fsrignore := regexp.MustCompile(`/[a-zA-Z0-9/.\\-_]+[ ]+0`)
 				Expect(len(fsr.FindAllString(fscheck.OutputToString(),
 					-1))).To(Equal(len(fsrignore.FindAllString(fscheck.OutputToString(), -1))),
 					strings.Replace(errMsg, "FAILEDREASON", "Files inside image is different.", -1))
