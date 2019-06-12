@@ -1049,6 +1049,18 @@ func runConfigureNetwork(isolation Isolation, options RunOptions, configureNetwo
 	return teardown, nil
 }
 
+func setNonblock(fd int, description string, nonblocking bool) error {
+	err := unix.SetNonblock(fd, nonblocking)
+	if err != nil {
+		if nonblocking {
+			logrus.Errorf("error setting %s to nonblocking: %v", description, err)
+		} else {
+			logrus.Errorf("error setting descriptor %s blocking: %v", description, err)
+		}
+	}
+	return err
+}
+
 func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copyConsole bool, consoleListener *net.UnixListener, finishCopy []int, finishedCopy chan struct{}, spec *specs.Spec) {
 	defer func() {
 		unix.Close(finishCopy[0])
@@ -1116,14 +1128,16 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 	}
 	// Set our reading descriptors to non-blocking.
 	for rfd, wfd := range relayMap {
-		if err := unix.SetNonblock(rfd, true); err != nil {
-			logrus.Errorf("error setting %s to nonblocking: %v", readDesc[rfd], err)
+		if err := setNonblock(rfd, readDesc[rfd], true); err != nil {
 			return
 		}
-		if err := unix.SetNonblock(wfd, false); err != nil {
-			logrus.Errorf("error setting descriptor %d (%s) blocking: %v", wfd, writeDesc[wfd], err)
-		}
+		setNonblock(wfd, writeDesc[wfd], false)
 	}
+
+	setNonblock(stdioPipe[unix.Stdin][1], writeDesc[stdioPipe[unix.Stdin][1]], true)
+
+	closeStdin := false
+
 	// Pass data back and forth.
 	pollTimeout := -1
 	for len(relayMap) > 0 {
@@ -1214,6 +1228,11 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 				if n > 0 {
 					relayBuffer[writeFD].Next(n)
 				}
+				if closeStdin && stdioPipe[unix.Stdin][1] >= 0 && relayBuffer[stdioPipe[unix.Stdin][1]].Len() == 0 {
+					logrus.Debugf("closing stdin")
+					unix.Close(stdioPipe[unix.Stdin][1])
+					stdioPipe[unix.Stdin][1] = -1
+				}
 			}
 			if relayBuffer[writeFD].Len() > 0 {
 				pollTimeout = 100
@@ -1222,9 +1241,12 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 		// Remove any descriptors which we don't need to poll any more from the poll descriptor list.
 		for remove := range removes {
 			if copyPipes && remove == unix.Stdin {
-				logrus.Debugf("closing stdin")
-				unix.Close(stdioPipe[unix.Stdin][1])
-				stdioPipe[unix.Stdin][1] = -1
+				closeStdin = true
+				if relayBuffer[stdioPipe[unix.Stdin][1]].Len() == 0 {
+					logrus.Debugf("closing stdin")
+					unix.Close(stdioPipe[unix.Stdin][1])
+					stdioPipe[unix.Stdin][1] = -1
+				}
 			}
 			delete(relayMap, remove)
 		}

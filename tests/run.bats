@@ -21,6 +21,8 @@ load helpers
 	test -s $root/tmp/other-randomfile
 	cmp ${TESTDIR}/randomfile $root/tmp/other-randomfile
 
+	seq 100000 | buildah run $cid -- sh -c 'while read i; do echo $i; done'
+
 	buildah unmount $cid
 	buildah rm $cid
 }
