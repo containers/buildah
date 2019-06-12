@@ -218,7 +218,12 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 	if c.Flag("volume").Changed {
 		if volSpec := iopts.volume; len(volSpec) > 0 {
 			for _, spec := range volSpec {
-				builder.AddVolume(spec)
+				if strings.HasSuffix(spec, "-") {
+					spec := strings.TrimRight(spec, "-")
+					builder.RemoveVolume(spec)
+				} else {
+					builder.AddVolume(spec)
+				}
 				conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) VOLUME %s", spec)
 			}
 		}

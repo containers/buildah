@@ -440,8 +440,18 @@ func (b *Builder) AddVolume(v string) {
 // mounted from outside of the container when a container based on an image
 // built from this container is run.
 func (b *Builder) RemoveVolume(v string) {
-	delete(b.OCIv1.Config.Volumes, v)
-	delete(b.Docker.Config.Volumes, v)
+	_, OCIv1Volume := b.OCIv1.Config.Volumes[v]
+	_, DockerVolume := b.Docker.Config.Volumes[v]
+	if OCIv1Volume == false {
+		logrus.Errorf("Volume \"%s\" cannot be removed from OCIv1 config because it was not set.", v)
+	} else {
+		delete(b.OCIv1.Config.Volumes, v)
+	}
+	if DockerVolume == false {
+		logrus.Errorf("Volume \"%s\" cannot be removed from Docker config because it was not set.", v)
+	} else {
+		delete(b.Docker.Config.Volumes, v)
+	}
 }
 
 // ClearVolumes removes all locations from the image's list of locations which
