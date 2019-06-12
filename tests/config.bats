@@ -107,6 +107,7 @@ function check_matrix() {
 }
 
 @test "config" {
+  mkdir ${TESTSDIR}/VOLUME
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config \
    --author TESTAUTHOR \
@@ -120,7 +121,7 @@ function check_matrix() {
    --cmd COMMAND-OR-ARGS \
    --comment INFORMATIVE \
    --history-comment PROBABLY-EMPTY \
-   --volume /VOLUME \
+   --volume ${TESTSDIR}/VOLUME \
    --workingdir /tmp \
    --label LABEL=VALUE \
    --label exec='podman run -it --mount=type=bind,bind-propagation=Z,source=foo,destination=bar /script buz'\
@@ -153,7 +154,7 @@ function check_matrix() {
   check_matrix 'Config.Labels.LABEL' 'VALUE'
   check_matrix 'Config.StopSignal'   'SIGINT'
   check_matrix 'Config.User'         'likes:things'
-  check_matrix 'Config.Volumes'      'map[/VOLUME:{}]'
+  check_matrix 'Config.Volumes'      "map[${TESTSDIR}/VOLUME:{}]"
   check_matrix 'Config.WorkingDir'   '/tmp'
 
   buildah --debug=false inspect --type=image --format '{{(index .Docker.History 0).Comment}}' scratch-image-docker | grep PROBABLY-EMPTY
@@ -173,6 +174,7 @@ function check_matrix() {
   buildah --debug=false inspect               -f      '{{.Docker.Config.Healthcheck.Interval}}'    scratch-image-docker | grep 6
   buildah --debug=false inspect               -f      '{{.Docker.Config.Healthcheck.Timeout}}'     scratch-image-docker | grep 7
   buildah --debug=false inspect               -f      '{{.Docker.Config.Healthcheck.Retries}}'     scratch-image-docker | grep 8
+  rm -rf ${TESTSDIR}/VOLUME
 }
 
 @test "config env using --env expansion" {
@@ -206,4 +208,56 @@ function check_matrix() {
   expect_output "$bndoutput"
 
   buildah rm $cid
+}
+
+@test "remove volume using '-' syntax" {
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  mkdir ${TESTSDIR}/VOLUME
+  buildah config \
+   --created-by COINCIDENCE \
+   --volume ${TESTSDIR}/VOLUME \
+  $cid
+
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  buildah --debug=false inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
+
+  check_matrix 'Config.Volumes'      "map[${TESTSDIR}/VOLUME:{}]"
+
+  buildah config \
+   --created-by COINCIDENCE \
+   --volume ${TESTSDIR}/VOLUME- \
+  $cid
+
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  buildah --debug=false inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
+  check_matrix 'Config.Volumes'      'map[]'
+
+  rm -rf ${TESTSDIR}/VOLUME
+
+  run_buildah config \
+   --created-by COINCIDENCE \
+   --volume ${TESTSDIR}/VOLUME- \
+  $cid
+  expect_output --substring "level=error"
+
+
+  mkdir ${TESTSDIR}/VOLUME-
+  buildah config \
+   --created-by COINCIDENCE \
+   --volume ${TESTSDIR}/VOLUME- \
+  $cid
+
+  buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  buildah --debug=false inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
+
+  check_matrix 'Config.Volumes'      "map[${TESTSDIR}/VOLUME-:{}]"
+
+
+
+  rm -rf ${TESTSDIR}/VOLUME-
+  buildah rm $cid
+
 }
