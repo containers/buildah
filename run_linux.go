@@ -1228,7 +1228,7 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 				if n > 0 {
 					relayBuffer[writeFD].Next(n)
 				}
-				if closeStdin && stdioPipe[unix.Stdin][1] >= 0 && relayBuffer[stdioPipe[unix.Stdin][1]].Len() == 0 {
+				if closeStdin && writeFD == stdioPipe[unix.Stdin][1] && stdioPipe[unix.Stdin][1] >= 0 && relayBuffer[stdioPipe[unix.Stdin][1]].Len() == 0 {
 					logrus.Debugf("closing stdin")
 					unix.Close(stdioPipe[unix.Stdin][1])
 					stdioPipe[unix.Stdin][1] = -1
