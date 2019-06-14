@@ -1134,7 +1134,9 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 		setNonblock(wfd, writeDesc[wfd], false)
 	}
 
-	setNonblock(stdioPipe[unix.Stdin][1], writeDesc[stdioPipe[unix.Stdin][1]], true)
+	if copyPipes {
+		setNonblock(stdioPipe[unix.Stdin][1], writeDesc[stdioPipe[unix.Stdin][1]], true)
+	}
 
 	closeStdin := false
 
