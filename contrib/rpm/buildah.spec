@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.8.4
+Version:        1.9.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,36 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Tue Jun 04, 2019 Tom Sweeney <tsweeney@redhat.com> 1.9.0-dev-1
+* Tue Jun 13, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.0-dev-1
+
+* Tue Jun 13, 2019 Dan Walsh <dwalsh@redhat.com> 1.8.4
+- Update containers/image to v2.0.0
+- run: fix hang with run and --isolation=chroot
+- run: fix hang when using run
+- chroot: drop unused function call
+- remove --> before imgageID on build
+- Always close stdin pipe
+- Write deny to setgroups when doing single user mapping
+- Avoid including linux/memfd.h
+- Add a test for the symlink pointing to a directory
+- Add missing continue
+- Fix the handling of symlinks to absolute paths
+- Only set default network sysctls if not rootless
+- Support --dns=none like podman
+- fix bug --cpu-shares parsing typo
+- Fix validate complaint
+- Update vendor on containers/storage to v1.12.10
+- Create directory paths for COPY thereby ensuring correct perms
+- imagebuildah: use a stable sort for comparing build args
+- imagebuildah: tighten up cache checking
+- bud.bats: add a test verying the order of --build-args
+- add -t to podman run
+- imagebuildah: simplify screening by top layers
+- imagebuildah: handle ID mappings for COPY --from
+- imagebuildah: apply additionalTags ourselves
+- bud.bats: test additional tags with cached images
+- bud.bats: add a test for WORKDIR and COPY with absolute destinations
+- Cleanup Overlay Mounts content
 
 * Tue Jun 04, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.3
 - Add support for file secret mounts
