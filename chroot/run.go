@@ -1285,12 +1285,11 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 			}
 			isReadOnly := statfs.Flags&unix.MS_RDONLY != 0
 			// Check if any of the IDs we're mapping could read it.
-			isAccessible := true
 			var stat unix.Stat_t
 			if err = unix.Stat(target, &stat); err != nil {
 				return undoBinds, errors.Wrapf(err, "error checking permissions on directory %q", target)
 			}
-			isAccessible = false
+			isAccessible := false
 			if stat.Mode&unix.S_IROTH|unix.S_IXOTH != 0 {
 				isAccessible = true
 			}
