@@ -32,8 +32,6 @@ var (
 	ARTIFACT_DIR       = "/tmp/.artifacts"
 	CACHE_IMAGES       = []string{"alpine", "busybox", FEDORA_MINIMAL}
 	RESTORE_IMAGES     = []string{"alpine", "busybox"}
-	ALPINE             = "docker.io/library/alpine:latest"
-	BB_GLIBC           = "docker.io/library/busybox:glibc"
 	FEDORA_MINIMAL     = "registry.fedoraproject.org/fedora-minimal:latest"
 	defaultWaitTimeout = 90
 )
@@ -292,16 +290,6 @@ func (p *BuildAhTest) RestoreAllArtifacts() error {
 		}
 	}
 	return nil
-}
-
-// StringInSlice determines if a string is in a string slice, returns bool
-func StringInSlice(s string, sl []string) bool {
-	for _, i := range sl {
-		if i == s {
-			return true
-		}
-	}
-	return false
 }
 
 //LineInOutputStartsWith returns true if a line in a
