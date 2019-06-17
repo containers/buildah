@@ -487,6 +487,9 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		// do the same for the mountpoint.
 		hadFinalPathSeparator := len(copy.Dest) > 0 && copy.Dest[len(copy.Dest)-1] == os.PathSeparator
 		secureMountPoint, err := securejoin.SecureJoin("", s.mountPoint)
+		if err != nil {
+			return errors.Wrapf(err, "error resolving symlinks for copy destination %s", copy.Dest)
+		}
 		finalPath, err := securejoin.SecureJoin(secureMountPoint, copy.Dest)
 		if err != nil {
 			return errors.Wrapf(err, "error resolving symlinks for copy destination %s", copy.Dest)
@@ -783,8 +786,6 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 	if asImageName != "" {
 		if _, err := strconv.Atoi(asImageName); err != nil {
 			displayFrom = from + " AS " + asImageName
-		} else {
-			asImageName = ""
 		}
 	}
 

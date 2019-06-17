@@ -72,6 +72,9 @@ func TestBlobCache(t *testing.T) {
 			for _, layerCompression := range []archive.Compression{archive.Uncompressed, archive.Gzip} {
 				// Create a layer with the specified layerCompression.
 				blobBytes, diffID, err := makeLayer(fmt.Sprintf("layer-content-%d", int(layerCompression)), repeat, layerCompression)
+				if err != nil {
+					t.Fatalf("error making layer: %v", err)
+				}
 				blobInfo := types.BlobInfo{
 					Digest: digest.FromBytes(blobBytes),
 					Size:   int64(len(blobBytes)),
