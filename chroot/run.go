@@ -508,11 +508,7 @@ func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io
 	}
 	defer func() {
 		if undoErr := undoIntermediates(); undoErr != nil {
-			if err == nil {
-				err = undoErr
-			} else {
-				err = errors.Wrap(err, undoErr.Error())
-			}
+			logrus.Debugf("error cleaning up intermediate mount NS: %v", err)
 		}
 	}()
 
@@ -523,11 +519,7 @@ func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io
 	}
 	defer func() {
 		if undoErr := undoChroots(); undoErr != nil {
-			if err == nil {
-				err = undoErr
-			} else {
-				err = errors.Wrap(err, undoErr.Error())
-			}
+			logrus.Debugf("error cleaning up intermediate chroot bind mounts: %v", err)
 		}
 	}()
 
