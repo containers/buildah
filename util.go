@@ -182,7 +182,6 @@ func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOp
 			}
 			pipeWriter.Close()
 			pipeWriter = nil
-			return
 		}(f)
 
 		untar := b.untar(chownOpts, hasher)
