@@ -445,5 +445,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	json.NewEncoder(os.Stdout).Encode(r)
+	if err := json.NewEncoder(os.Stdout).Encode(r); err != nil {
+		logrus.Errorf("%v", err)
+		os.Exit(1)
+	}
 }
