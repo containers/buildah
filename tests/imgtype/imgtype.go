@@ -16,7 +16,7 @@ import (
 	"github.com/containers/image/transports/alltransports"
 	"github.com/containers/image/types"
 	"github.com/containers/storage"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -89,7 +89,7 @@ func main() {
 
 	errors := false
 	defer func() {
-		store.Shutdown(false)
+		store.Shutdown(false) // nolint:errcheck
 		if errors {
 			os.Exit(1)
 		}
