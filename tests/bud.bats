@@ -1563,3 +1563,12 @@ load helpers
   run_buildah --debug=false inspect -f '{{.FromImageID}}' ${target}
   [[ "$output" == "$argsid" ]]
 }
+
+@test "bud test RUN with a priv'd command" {
+  target=alpinepriv
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-privd/Dockerfile ${TESTSDIR}/bud/run-privd
+  [ "${status}" -eq 0 ]
+  expect_output --substring "STEP 3: COMMIT"
+  run_buildah --debug=false images -q
+  expect_line_count 2 
+}
