@@ -944,8 +944,8 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 	}
 
 	return func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		cmd.Process.Kill() // nolint:errcheck
+		cmd.Wait()         // nolint:errcheck
 	}, nil
 }
 
@@ -1131,11 +1131,11 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 		if err := setNonblock(rfd, readDesc[rfd], true); err != nil {
 			return
 		}
-		setNonblock(wfd, writeDesc[wfd], false)
+		setNonblock(wfd, writeDesc[wfd], false) // nolint:errcheck
 	}
 
 	if copyPipes {
-		setNonblock(stdioPipe[unix.Stdin][1], writeDesc[stdioPipe[unix.Stdin][1]], true)
+		setNonblock(stdioPipe[unix.Stdin][1], writeDesc[stdioPipe[unix.Stdin][1]], true) // nolint:errcheck
 	}
 
 	runCopyStdioPassData(stdio, copyPipes, stdioPipe, copyConsole, consoleListener, finishCopy, finishedCopy, spec, relayMap, relayBuffer, readDesc, writeDesc)
