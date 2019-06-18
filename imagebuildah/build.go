@@ -322,7 +322,7 @@ func (s *StageExecutor) Preserve(path string) error {
 	}
 	cacheFile := filepath.Join(cacheDir, fmt.Sprintf("volume%d.tar", s.preserved))
 	// Save info about the top level of the location that we'll be archiving.
-	archivedPath := filepath.Join(s.mountPoint, path)
+	var archivedPath string
 
 	// Try and resolve the symlink (if one exists)
 	// Set archivedPath and path based on whether a symlink is found or not
