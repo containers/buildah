@@ -95,7 +95,10 @@ func report() {
 	report.UIDMappings = append(report.UIDMappings, uidmap...)
 	report.GIDMappings = append(report.GIDMappings, gidmap...)
 
-	json.NewEncoder(os.Stdout).Encode(report)
+	if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
+		logrus.Error(err.Error())
+		os.Exit(1)
+	}
 }
 
 func TestUnshareNamespaces(t *testing.T) {

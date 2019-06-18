@@ -128,7 +128,9 @@ func (c *Cmd) Start() error {
 	// Read the child's PID from the pipe.
 	pidString := ""
 	b := new(bytes.Buffer)
-	io.Copy(b, pidRead)
+	if _, err := io.Copy(b, pidRead); err != nil {
+		return errors.Wrapf(err, "error reading child PID")
+	}
 	pidString = b.String()
 	pid, err := strconv.Atoi(pidString)
 	if err != nil {
