@@ -114,99 +114,98 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 			lastError = errors.Wrapf(err, "could not get image %q", id)
 			continue
 		}
-		if image != nil {
-			ctrIDs, err := runningContainers(store, image)
-			if err != nil {
-				if lastError != nil {
-					fmt.Fprintln(os.Stderr, lastError)
-				}
-				lastError = errors.Wrapf(err, "error getting running containers for image %q", id)
-				continue
-			}
-			if len(ctrIDs) > 0 && len(image.Names) <= 1 {
-				if force {
-					err = removeContainers(ctrIDs, store)
-					if err != nil {
-						if lastError != nil {
-							fmt.Fprintln(os.Stderr, lastError)
-						}
-						lastError = errors.Wrapf(err, "error removing containers %v for image %q", ctrIDs, id)
-						continue
-					}
-				} else {
-					for _, ctrID := range ctrIDs {
-						if lastError != nil {
-							fmt.Fprintln(os.Stderr, lastError)
-						}
-						lastError = errors.Wrapf(storage.ErrImageUsedByContainer, "Could not remove image %q (must force) - container %q is using its reference image", id, ctrID)
-					}
-					continue
-				}
-			}
-			// If the user supplied an ID, we cannot delete the image if it is referred to by multiple tags
-			if matchesID(image.ID, id) {
-				if len(image.Names) > 1 && !force {
-					if lastError != nil {
-						fmt.Fprintln(os.Stderr, lastError)
-					}
-					lastError = errors.Errorf("unable to delete %s (must force) - image is referred to in multiple tags", image.ID)
-					continue
-				}
-				// If it is forced, we have to untag the image so that it can be deleted
-				image.Names = image.Names[:0]
-			} else {
-				name, err2 := untagImage(id, store, image)
-				if err2 != nil {
-					if lastError != nil {
-						fmt.Fprintln(os.Stderr, lastError)
-					}
-					lastError = errors.Wrapf(err2, "error removing tag %q from image %q", id, image.ID)
-					continue
-				}
-				fmt.Printf("untagged: %s\n", name)
 
-				// Need to fetch the image state again after making changes to it i.e untag
-				// because only a copy of the image state is returned
-				image, err = getImage(ctx, systemContext, store, image.ID)
-				if err != nil || image == nil {
-					if lastError != nil {
-						fmt.Fprintln(os.Stderr, lastError)
-					}
-					lastError = errors.Wrapf(err, "error getting image after untag %q", image.ID)
-				}
+		ctrIDs, err := runningContainers(store, image)
+		if err != nil {
+			if lastError != nil {
+				fmt.Fprintln(os.Stderr, lastError)
 			}
-
-			isParent, err := imageIsParent(ctx, systemContext, store, image)
-			if err != nil {
-				if lastError != nil {
-					fmt.Fprintln(os.Stderr, lastError)
-				}
-				lastError = errors.Wrapf(err, "error determining if the image %q is a parent", image.ID)
-				continue
-			}
-			// If the --all flag is not set and the image has named references or is
-			// a parent, do not delete image.
-			if len(image.Names) > 0 && !removeAll {
-				continue
-			}
-
-			if isParent && len(image.Names) == 0 && !removeAll {
-				if lastError != nil {
-					fmt.Fprintln(os.Stderr, lastError)
-				}
-				lastError = errors.Errorf("unable to delete %q (cannot be forced) - image has dependent child images", image.ID)
-				continue
-			}
-			id, err := removeImage(ctx, systemContext, store, image)
-			if err != nil {
-				if lastError != nil {
-					fmt.Fprintln(os.Stderr, lastError)
-				}
-				lastError = errors.Wrapf(err, "error removing image %q", image.ID)
-				continue
-			}
-			fmt.Printf("%s\n", id)
+			lastError = errors.Wrapf(err, "error getting running containers for image %q", id)
+			continue
 		}
+		if len(ctrIDs) > 0 && len(image.Names) <= 1 {
+			if force {
+				err = removeContainers(ctrIDs, store)
+				if err != nil {
+					if lastError != nil {
+						fmt.Fprintln(os.Stderr, lastError)
+					}
+					lastError = errors.Wrapf(err, "error removing containers %v for image %q", ctrIDs, id)
+					continue
+				}
+			} else {
+				for _, ctrID := range ctrIDs {
+					if lastError != nil {
+						fmt.Fprintln(os.Stderr, lastError)
+					}
+					lastError = errors.Wrapf(storage.ErrImageUsedByContainer, "Could not remove image %q (must force) - container %q is using its reference image", id, ctrID)
+				}
+				continue
+			}
+		}
+		// If the user supplied an ID, we cannot delete the image if it is referred to by multiple tags
+		if matchesID(image.ID, id) {
+			if len(image.Names) > 1 && !force {
+				if lastError != nil {
+					fmt.Fprintln(os.Stderr, lastError)
+				}
+				lastError = errors.Errorf("unable to delete %s (must force) - image is referred to in multiple tags", image.ID)
+				continue
+			}
+			// If it is forced, we have to untag the image so that it can be deleted
+			image.Names = image.Names[:0]
+		} else {
+			name, err2 := untagImage(id, store, image)
+			if err2 != nil {
+				if lastError != nil {
+					fmt.Fprintln(os.Stderr, lastError)
+				}
+				lastError = errors.Wrapf(err2, "error removing tag %q from image %q", id, image.ID)
+				continue
+			}
+			fmt.Printf("untagged: %s\n", name)
+
+			// Need to fetch the image state again after making changes to it i.e untag
+			// because only a copy of the image state is returned
+			image, err = getImage(ctx, systemContext, store, image.ID)
+			if err != nil || image == nil {
+				if lastError != nil {
+					fmt.Fprintln(os.Stderr, lastError)
+				}
+				lastError = errors.Wrapf(err, "error getting image after untag %q", image.ID)
+			}
+		}
+
+		isParent, err := imageIsParent(ctx, systemContext, store, image)
+		if err != nil {
+			if lastError != nil {
+				fmt.Fprintln(os.Stderr, lastError)
+			}
+			lastError = errors.Wrapf(err, "error determining if the image %q is a parent", image.ID)
+			continue
+		}
+		// If the --all flag is not set and the image has named references or is
+		// a parent, do not delete image.
+		if len(image.Names) > 0 && !removeAll {
+			continue
+		}
+
+		if isParent && len(image.Names) == 0 && !removeAll {
+			if lastError != nil {
+				fmt.Fprintln(os.Stderr, lastError)
+			}
+			lastError = errors.Errorf("unable to delete %q (cannot be forced) - image has dependent child images", image.ID)
+			continue
+		}
+		id, err := removeImage(ctx, systemContext, store, image)
+		if err != nil {
+			if lastError != nil {
+				fmt.Fprintln(os.Stderr, lastError)
+			}
+			lastError = errors.Wrapf(err, "error removing image %q", image.ID)
+			continue
+		}
+		fmt.Printf("%s\n", id)
 	}
 
 	return lastError
