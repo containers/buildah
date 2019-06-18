@@ -68,7 +68,7 @@ var _ = Describe("Buildah build conformance test", func() {
 			if test.IsFile {
 				dst = filepath.Join(buildahtest.TempDir, "Dockerfile")
 			}
-			CopyFiles(dockerfilePath, dst)
+			Expect(CopyFiles(dockerfilePath, dst)).Should(BeNil())
 
 			buildahoptions := []string{"bud", "-t", "buildahimage", buildDir}
 			dockeroptions := []string{"build", "-t", "docker.io/dockerimage", buildDir}
