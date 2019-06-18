@@ -107,14 +107,14 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 	}
 }
 
-func testNoop(t *testing.T) {
+func TestNoop(t *testing.T) {
 	if syscall.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
 	testMinimal(t, nil, nil)
 }
 
-func testMinimalSkeleton(t *testing.T) {
+func TestMinimalSkeleton(t *testing.T) {
 	if syscall.Getuid() != 0 {
 		t.Skip("tests need to be run as root")
 	}
