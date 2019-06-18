@@ -1908,6 +1908,9 @@ func (b *Executor) deleteSuccessfulIntermediateCtrs() error {
 
 func (s *StageExecutor) EnsureContainerPath(path string) error {
 	targetPath, err := securejoin.SecureJoin(s.mountPoint, path)
+	if err != nil {
+		return errors.Wrapf(err, "error ensuring container path %q", path)
+	}
 	_, err = os.Lstat(targetPath)
 	if err != nil && os.IsNotExist(err) {
 		err = os.MkdirAll(targetPath, 0755)
