@@ -1820,10 +1820,10 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 			dinfo, err := os.Stat(dfile)
 			if os.IsNotExist(err) {
 				dfile = filepath.Join(options.ContextDirectory, dfile)
-			}
-			dinfo, err = os.Stat(dfile)
-			if err != nil {
-				return "", nil, errors.Wrapf(err, "error reading info about %q", dfile)
+				dinfo, err = os.Stat(dfile)
+				if err != nil {
+					return "", nil, errors.Wrapf(err, "error reading info about %q", dfile)
+				}
 			}
 			// If given a directory, add '/Dockerfile' to it.
 			if dinfo.Mode().IsDir() {
