@@ -1373,10 +1373,7 @@ func (b *Executor) historyMatches(baseHistory []v1.History, child *parser.Node, 
 			return false
 		}
 	}
-	if history[len(baseHistory)].CreatedBy != b.getCreatedBy(child) {
-		return false
-	}
-	return true
+	return history[len(baseHistory)].CreatedBy == b.getCreatedBy(child)
 }
 
 // getBuildArgs returns a string of the build-args specified during the build process
