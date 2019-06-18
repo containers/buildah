@@ -114,10 +114,10 @@ func envSeted(key string) bool {
 
 // BuildahCreate a BuildAhTest instance for the tests
 func BuildahCreate(tempDir string) BuildAhTest {
-	var globalOptions map[string]string
 	var option string
 	var envKey string
 	buildahCmdOptions := make(map[string][]string)
+	globalOptions := make(map[string]string)
 	cwd, _ := os.Getwd()
 
 	for _, n := range GLOBALOPTIONS {
