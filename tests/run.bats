@@ -248,6 +248,8 @@ function configure_and_check_user() {
 	mkdir -p ${TESTDIR}/was-empty
 	# As a baseline, this should succeed.
 	run_buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty${zflag:+:${zflag}}     $cid touch /var/not-empty/testfile
+	# Parsing options that with comma, this should succeed.
+	run_buildah --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty:rw,rshared${zflag:+,${zflag}}     $cid touch /var/not-empty/testfile
 	# If we're parsing the options at all, this should be read-only, so it should fail.
 	run_buildah 1 --debug=false run -v ${TESTDIR}/was-empty:/var/not-empty:ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
 	# Even if the parent directory doesn't exist yet, this should succeed.

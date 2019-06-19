@@ -71,7 +71,7 @@ func init() {
 	if err := flags.MarkHidden("tty"); err != nil {
 		panic(fmt.Sprintf("error marking tty flag as hidden: %v", err))
 	}
-	flags.StringSliceVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
+	flags.StringArrayVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
 
 	userFlags := getUserFlags()
 	namespaceFlags := buildahcli.GetNameSpaceFlags(&namespaceResults)
