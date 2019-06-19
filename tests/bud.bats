@@ -1327,8 +1327,8 @@ load helpers
 @test "bud-target" {
   target=target
   run_buildah bud --debug=false --signature-policy ${TESTSDIR}/policy.json -t ${target} --target mytarget ${TESTSDIR}/bud/target
-  expect_output --substring "STEP 1: FROM ubuntu:latest"
-  expect_output --substring "STEP 3: FROM alpine:latest AS mytarget"
+  expect_output --substring "STEP 1/7: FROM ubuntu:latest"
+  expect_output --substring "STEP 3/7: FROM alpine:latest AS mytarget"
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
   run ls ${root}/2
@@ -1373,7 +1373,7 @@ load helpers
   target=alpine-image
   ctr=alpine-ctr
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-symlink
-  expect_output --substring "STEP 5: RUN ln -s "
+  expect_output --substring "STEP 5/7: RUN ln -s "
 
   run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
   expect_output --substring ${ctr}
@@ -1389,7 +1389,7 @@ load helpers
   target=ubuntu-image
   ctr=ubuntu-ctr
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-symlink-dangling
-  expect_output --substring "STEP 3: RUN ln -s "
+  expect_output --substring "STEP 3/5: RUN ln -s "
 
   run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
   expect_output --substring ${ctr}
@@ -1405,7 +1405,7 @@ load helpers
   target=alpine-image
   ctr=alpine-ctr
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/workdir-symlink
-  expect_output --substring "STEP 3: RUN ln -sf "
+  expect_output --substring "STEP 3/7: RUN ln -sf "
 
   run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
   expect_output --substring ${ctr}
@@ -1421,7 +1421,7 @@ load helpers
   target=alpine-image
   ctr=alpine-ctr
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile-2 ${TESTSDIR}/bud/workdir-symlink
-  expect_output --substring "STEP 2: RUN ln -sf "
+  expect_output --substring "STEP 2/7: RUN ln -sf "
 
   run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
   expect_output --substring ${ctr}
@@ -1440,7 +1440,7 @@ load helpers
   target=alpine-image
   ctr=alpine-ctr
   run_buildah --debug=false bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile-3 ${TESTSDIR}/bud/workdir-symlink
-  expect_output --substring "STEP 2: RUN ln -sf "
+  expect_output --substring "STEP 2/10: RUN ln -sf "
 
   run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
   expect_output --substring ${ctr}
