@@ -258,6 +258,30 @@ function configure_and_check_user() {
 	run_buildah --debug=false run -v ${TESTDIR}/was-empty/testfile:/var/different-multi-level/subdirectory/testfile        $cid touch /var/different-multi-level/subdirectory/testfile
 }
 
+@test "run --mount" {
+	if ! which runc ; then
+		skip "no runc in PATH"
+	fi
+	zflag=
+	if which selinuxenabled > /dev/null 2> /dev/null ; then
+		if selinuxenabled ; then
+			zflag=z
+		fi
+	fi
+	runc --version
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	mkdir -p ${TESTDIR}/was:empty
+	# As a baseline, this should succeed.
+	run_buildah --debug=false run --mount type=tmpfs,dst=/var/tmpfs-not-empty${zflag:+,${zflag}}     $cid touch /var/tmpfs-not-empty/testfile
+	run_buildah --debug=false run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/not-empty${zflag:+,${zflag}}     $cid touch /var/not-empty/testfile
+	# If we're parsing the options at all, this should be read-only, so it should fail.
+	run_buildah 1 --debug=false run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/not-empty,ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
+	# Even if the parent directory doesn't exist yet, this should succeed.
+	run_buildah --debug=false run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/multi-level/subdirectory        $cid touch /var/multi-level/subdirectory/testfile
+	# And check the same for file volumes.
+	run_buildah --debug=false run --mount type=bind,src=${TESTDIR}/was:empty/testfile,dst=/var/different-multi-level/subdirectory/testfile        $cid touch /var/different-multi-level/subdirectory/testfile
+}
+
 @test "run symlinks" {
 	if ! which runc ; then
 		skip "no runc in PATH"

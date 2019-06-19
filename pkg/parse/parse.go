@@ -30,6 +30,17 @@ const (
 	SeccompDefaultPath = "/usr/share/containers/seccomp.json"
 	// SeccompOverridePath if this exists it overrides the default seccomp path
 	SeccompOverridePath = "/etc/crio/seccomp.json"
+	// TypeBind is the type for mounting host dir
+	TypeBind = "bind"
+	// TypeTmpfs is the type for mounting tmpfs
+	TypeTmpfs = "tmpfs"
+)
+
+var (
+	errBadMntOption  = errors.Errorf("invalid mount option")
+	errDuplicateDest = errors.Errorf("duplicate mount destination")
+	optionArgError   = errors.Errorf("must provide an argument for option")
+	noDestError      = errors.Errorf("must set volume destination")
 )
 
 // CommonBuildOptions parses the build options from the bud cli
@@ -168,13 +179,14 @@ func parseSecurityOpts(securityOpts []string, commonOpts *buildah.CommonBuildOpt
 	return nil
 }
 
+// ParseVolume parses the input of --volume
 func ParseVolume(volume string) (specs.Mount, error) {
 	mount := specs.Mount{}
 	arr := strings.SplitN(volume, ":", 3)
 	if len(arr) < 2 {
 		return mount, errors.Errorf("incorrect volume format %q, should be host-dir:ctr-dir[:option]", volume)
 	}
-	if err := ValidateVolumeHostDir(arr[0]); err != nil {
+	if err := validateVolumeMountHostDir(arr[0]); err != nil {
 		return mount, err
 	}
 	if err := ValidateVolumeCtrDir(arr[1]); err != nil {
@@ -208,7 +220,227 @@ func ParseVolumes(volumes []string) error {
 	return nil
 }
 
+func getVolumeMounts(volumes []string) (map[string]specs.Mount, error) {
+	finalVolumeMounts := make(map[string]specs.Mount)
+
+	for _, volume := range volumes {
+		volumeMount, err := ParseVolume(volume)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := finalVolumeMounts[volumeMount.Destination]; ok {
+			return nil, errors.Wrapf(errDuplicateDest, volumeMount.Destination)
+		}
+		finalVolumeMounts[volumeMount.Destination] = volumeMount
+	}
+	return finalVolumeMounts, nil
+}
+
+// GetVolumes gets the volumes from --volume and --mount
+func GetVolumes(volumes []string, mounts []string) ([]specs.Mount, error) {
+	unifiedMounts, err := getMounts(mounts)
+	if err != nil {
+		return nil, err
+	}
+	volumeMounts, err := getVolumeMounts(volumes)
+	if err != nil {
+		return nil, err
+	}
+	for dest, mount := range volumeMounts {
+		if _, ok := unifiedMounts[dest]; ok {
+			return nil, errors.Wrapf(errDuplicateDest, dest)
+		}
+		unifiedMounts[dest] = mount
+	}
+
+	finalMounts := make([]specs.Mount, 0, len(unifiedMounts))
+	for _, mount := range unifiedMounts {
+		finalMounts = append(finalMounts, mount)
+	}
+	return finalMounts, nil
+}
+
+// getMounts takes user-provided input from the --mount flag and creates OCI
+// spec mounts.
+// buildah run --mount type=bind,src=/etc/resolv.conf,target=/etc/resolv.conf ...
+// buildah run --mount type=tmpfs,target=/dev/shm ...
+func getMounts(mounts []string) (map[string]specs.Mount, error) {
+	finalMounts := make(map[string]specs.Mount)
+
+	errInvalidSyntax := errors.Errorf("incorrect mount format: should be --mount type=<bind|tmpfs>,[src=<host-dir>,]target=<ctr-dir>[,options]")
+
+	// TODO(vrothberg): the manual parsing can be replaced with a regular expression
+	//                  to allow a more robust parsing of the mount format and to give
+	//                  precise errors regarding supported format versus suppored options.
+	for _, mount := range mounts {
+		arr := strings.SplitN(mount, ",", 2)
+		if len(arr) < 2 {
+			return nil, errors.Wrapf(errInvalidSyntax, "%q", mount)
+		}
+		kv := strings.Split(arr[0], "=")
+		// TODO: type is not explicitly required in Docker.
+		// If not specified, it defaults to "volume".
+		if len(kv) != 2 || kv[0] != "type" {
+			return nil, errors.Wrapf(errInvalidSyntax, "%q", mount)
+		}
+
+		tokens := strings.Split(arr[1], ",")
+		switch kv[1] {
+		case TypeBind:
+			mount, err := GetBindMount(tokens)
+			if err != nil {
+				return nil, err
+			}
+			if _, ok := finalMounts[mount.Destination]; ok {
+				return nil, errors.Wrapf(errDuplicateDest, mount.Destination)
+			}
+			finalMounts[mount.Destination] = mount
+		case TypeTmpfs:
+			mount, err := GetTmpfsMount(tokens)
+			if err != nil {
+				return nil, err
+			}
+			if _, ok := finalMounts[mount.Destination]; ok {
+				return nil, errors.Wrapf(errDuplicateDest, mount.Destination)
+			}
+			finalMounts[mount.Destination] = mount
+		default:
+			return nil, errors.Errorf("invalid filesystem type %q", kv[1])
+		}
+	}
+
+	return finalMounts, nil
+}
+
+// GetBindMount parses a single bind mount entry from the --mount flag.
+func GetBindMount(args []string) (specs.Mount, error) {
+	newMount := specs.Mount{
+		Type: TypeBind,
+	}
+
+	setSource := false
+	setDest := false
+
+	for _, val := range args {
+		kv := strings.Split(val, "=")
+		switch kv[0] {
+		case "bind-nonrecursive":
+			newMount.Options = append(newMount.Options, "bind")
+		case "ro", "nosuid", "nodev", "noexec":
+			// TODO: detect duplication of these options.
+			// (Is this necessary?)
+			newMount.Options = append(newMount.Options, kv[0])
+		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z":
+			newMount.Options = append(newMount.Options, kv[0])
+		case "bind-propagation":
+			if len(kv) == 1 {
+				return newMount, errors.Wrapf(optionArgError, kv[0])
+			}
+			newMount.Options = append(newMount.Options, kv[1])
+		case "src", "source":
+			if len(kv) == 1 {
+				return newMount, errors.Wrapf(optionArgError, kv[0])
+			}
+			if err := ValidateVolumeHostDir(kv[1]); err != nil {
+				return newMount, err
+			}
+			newMount.Source = kv[1]
+			setSource = true
+		case "target", "dst", "destination":
+			if len(kv) == 1 {
+				return newMount, errors.Wrapf(optionArgError, kv[0])
+			}
+			if err := ValidateVolumeCtrDir(kv[1]); err != nil {
+				return newMount, err
+			}
+			newMount.Destination = kv[1]
+			setDest = true
+		default:
+			return newMount, errors.Wrapf(errBadMntOption, kv[0])
+		}
+	}
+
+	if !setDest {
+		return newMount, noDestError
+	}
+
+	if !setSource {
+		newMount.Source = newMount.Destination
+	}
+
+	opts, err := ValidateVolumeOpts(newMount.Options)
+	if err != nil {
+		return newMount, err
+	}
+	newMount.Options = opts
+
+	return newMount, nil
+}
+
+// GetTmpfsMount parses a single tmpfs mount entry from the --mount flag
+func GetTmpfsMount(args []string) (specs.Mount, error) {
+	newMount := specs.Mount{
+		Type:   TypeTmpfs,
+		Source: TypeTmpfs,
+	}
+
+	setDest := false
+
+	for _, val := range args {
+		kv := strings.Split(val, "=")
+		switch kv[0] {
+		case "ro", "nosuid", "nodev", "noexec":
+			newMount.Options = append(newMount.Options, kv[0])
+		case "tmpfs-mode":
+			if len(kv) == 1 {
+				return newMount, errors.Wrapf(optionArgError, kv[0])
+			}
+			newMount.Options = append(newMount.Options, fmt.Sprintf("mode=%s", kv[1]))
+		case "tmpfs-size":
+			if len(kv) == 1 {
+				return newMount, errors.Wrapf(optionArgError, kv[0])
+			}
+			newMount.Options = append(newMount.Options, fmt.Sprintf("size=%s", kv[1]))
+		case "src", "source":
+			return newMount, errors.Errorf("source is not supported with tmpfs mounts")
+		case "target", "dst", "destination":
+			if len(kv) == 1 {
+				return newMount, errors.Wrapf(optionArgError, kv[0])
+			}
+			if err := ValidateVolumeCtrDir(kv[1]); err != nil {
+				return newMount, err
+			}
+			newMount.Destination = kv[1]
+			setDest = true
+		default:
+			return newMount, errors.Wrapf(errBadMntOption, kv[0])
+		}
+	}
+
+	if !setDest {
+		return newMount, noDestError
+	}
+
+	return newMount, nil
+}
+
+// ValidateVolumeHostDir validates a volume mount's source directory
 func ValidateVolumeHostDir(hostDir string) error {
+	if len(hostDir) == 0 {
+		return errors.Errorf("host directory cannot be empty")
+	}
+	if filepath.IsAbs(hostDir) {
+		if _, err := os.Stat(hostDir); err != nil {
+			return errors.Wrapf(err, "error checking path %q", hostDir)
+		}
+	}
+	// If hostDir is not an absolute path, that means the user wants to create a
+	// named volume. This will be done later on in the code.
+	return nil
+}
+
+// validates the host path of buildah --volume
+func validateVolumeMountHostDir(hostDir string) error {
 	if !filepath.IsAbs(hostDir) {
 		return errors.Errorf("invalid host path, must be an absolute path %q", hostDir)
 	}
@@ -218,9 +450,13 @@ func ValidateVolumeHostDir(hostDir string) error {
 	return nil
 }
 
+// ValidateVolumeCtrDir validates a volume mount's destination directory.
 func ValidateVolumeCtrDir(ctrDir string) error {
+	if len(ctrDir) == 0 {
+		return errors.Errorf("container directory cannot be empty")
+	}
 	if !filepath.IsAbs(ctrDir) {
-		return errors.Errorf("invalid container path, must be an absolute path %q", ctrDir)
+		return errors.Errorf("invalid container path %q, must be an absolute path", ctrDir)
 	}
 	return nil
 }

@@ -468,6 +468,7 @@ return 1
      --hostname
      --ipc
      --isolation
+     --mount
      --net
      --network
      --pid
