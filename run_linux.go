@@ -1608,7 +1608,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 		return nil, errors.Wrapf(err, "error cleaning up overlay content for %s", b.ContainerID)
 	}
 
-	parseMount := func(host, container string, options []string) (specs.Mount, error) {
+	parseMount := func(mountType, host, container string, options []string) (specs.Mount, error) {
 		var foundrw, foundro, foundz, foundZ, foundO bool
 		var rootProp string
 		for _, opt := range options {
@@ -1651,18 +1651,22 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 		if rootProp == "" {
 			options = append(options, "private")
 		}
+		if mountType != "tmpfs" {
+			mountType = "bind"
+			options = append(options, "rbind")
+		}
 		return specs.Mount{
 			Destination: container,
-			Type:        "bind",
+			Type:        mountType,
 			Source:      host,
-			Options:     append(options, "rbind"),
+			Options:     options,
 		}, nil
 	}
 
 	// Bind mount volumes specified for this particular Run() invocation
 	for _, i := range optionMounts {
 		logrus.Debugf("setting up mounted volume at %q", i.Destination)
-		mount, err := parseMount(i.Source, i.Destination, i.Options)
+		mount, err := parseMount(i.Type, i.Source, i.Destination, i.Options)
 		if err != nil {
 			return nil, err
 		}
@@ -1676,7 +1680,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 			options = strings.Split(spliti[2], ",")
 		}
 		options = append(options, "rbind")
-		mount, err := parseMount(spliti[0], spliti[1], options)
+		mount, err := parseMount("bind", spliti[0], spliti[1], options)
 		if err != nil {
 			return nil, err
 		}

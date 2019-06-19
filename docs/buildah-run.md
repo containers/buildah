@@ -84,6 +84,37 @@ that leans more toward chroot(1) than container technology).
 Note: You can also override the default isolation type by setting the
 BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
+**--mount**=*type=TYPE,TYPE-SPECIFIC-OPTION[,...]*
+
+Attach a filesystem mount to the container
+
+Current supported mount TYPES are bind, and tmpfs.
+
+       e.g.
+
+       type=bind,source=/path/on/host,destination=/path/in/container
+
+       type=tmpfs,tmpfs-size=512M,destination=/path/in/container
+
+       Common Options:
+
+              · src, source: mount source spec for bind and volume. Mandatory for bind.
+
+              · dst, destination, target: mount destination spec.
+
+              · ro, read-only: true or false (default).
+
+       Options specific to bind:
+
+              · bind-propagation: shared, slave, private, rshared, rslave, or rprivate(default). See also mount(2).
+              . bind-nonrecursive: do not setup a recursive bind mount.  By default it is recursive.
+
+       Options specific to tmpfs:
+
+              · tmpfs-size: Size of the tmpfs mount in bytes. Unlimited by default in Linux.
+
+              · tmpfs-mode: File mode of the tmpfs in octal. (e.g. 700 or 0700.) Defaults to 1777 in Linux.
+
 **--net** *how*
 **--network** *how*
 
@@ -239,6 +270,8 @@ buildah run --tty containerID /bin/bash
 buildah run --tty=false containerID ls /
 
 buildah run --volume /path/on/host:/path/in/container:ro,z containerID sh
+
+buildah run --mount type=bind,src=/tmp/on:host,dst=/in:container,ro containerID sh
 
 ## SEE ALSO
 buildah(1), namespaces(7), pid\_namespaces(7)
