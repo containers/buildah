@@ -83,6 +83,20 @@ func (b *Builder) initConfig(ctx context.Context, img types.Image) error {
 			b.ImageAnnotations = v1Manifest.Annotations
 		}
 	}
+	if b.Args["TARGETOS"] != "" {
+		b.SetOS(b.Args["TARGETOS"])
+	} else if b.OS() == "" {
+		b.SetOS(runtime.GOOS)
+	}
+	if b.Args["TARGETARCH"] != "" {
+		b.SetArchitecture(b.Args["TARGETARCH"])
+	} else if b.Architecture() == "" {
+		b.SetArchitecture(runtime.GOARCH)
+	}
+	if b.Args["TARGETVARIANT"] != "" {
+		b.SetVariant(b.Args["TARGETVARIANT"])
+		// TODO else set based on detection
+	}
 
 	b.fixupConfig()
 	return nil
@@ -101,12 +115,6 @@ func (b *Builder) fixupConfig() {
 	}
 	if b.OCIv1.Created == nil || b.OCIv1.Created.IsZero() {
 		b.OCIv1.Created = &now
-	}
-	if b.OS() == "" {
-		b.SetOS(runtime.GOOS)
-	}
-	if b.Architecture() == "" {
-		b.SetArchitecture(runtime.GOARCH)
 	}
 	if b.Format == Dockerv2ImageManifest && b.Hostname() == "" {
 		b.SetHostname(stringid.TruncateID(stringid.GenerateRandomID()))
@@ -176,6 +184,20 @@ func (b *Builder) Architecture() string {
 func (b *Builder) SetArchitecture(arch string) {
 	b.OCIv1.Architecture = arch
 	b.Docker.Architecture = arch
+}
+
+// Variant returns the variant of the architecture on which the container, or
+// a container build using an image build from this container, is intended to
+// be run.
+func (b *Builder) Variant() string {
+	return b.Docker.Variant
+}
+
+// SetVariant sets the variant of the architecture on which the container, or
+// a container built using an image built from this container, is intended to
+// be run.
+func (b *Builder) SetVariant(variant string) {
+	b.Docker.Variant = variant
 }
 
 // Maintainer returns contact information for the person who built the image.

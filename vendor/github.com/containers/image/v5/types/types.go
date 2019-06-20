@@ -486,6 +486,8 @@ type SystemContext struct {
 	LegacyFormatAuthFilePath string
 	// If not "", overrides the use of platform.GOARCH when choosing an image or verifying architecture match.
 	ArchitectureChoice string
+	// If not "", overrides the use of Architecture variant when choosing an image or verifying architecture match.
+	VariantChoice string
 	// If not "", overrides the use of platform.GOOS when choosing an image or verifying OS match.
 	OSChoice string
 	// If not "", overrides the system's default directory containing a blob info cache.

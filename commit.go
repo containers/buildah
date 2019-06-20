@@ -202,6 +202,9 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	}
 
 	systemContext := getSystemContext(b.store, options.SystemContext, options.SignaturePolicyPath)
+	systemContext.ArchitectureChoice = b.Architecture()
+	systemContext.OSChoice = b.OS()
+	systemContext.VariantChoice = b.Variant()
 
 	blocked, err := isReferenceBlocked(dest, systemContext)
 	if err != nil {
