@@ -655,6 +655,7 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 			Container:       builder.Container,
 			Author:          builder.Maintainer(),
 			Architecture:    builder.Architecture(),
+			OS:              builder.OS(),
 			RootFS:          rootfs,
 		}
 		dImage.Config = &dImage.ContainerConfig
