@@ -13,7 +13,7 @@ GO110 := 1.10
 GOVERSION := $(findstring $(GO110),$(shell go version))
 GIT_COMMIT ?= $(if $(shell git rev-parse --short HEAD),$(shell git rev-parse --short HEAD),$(error "git failed"))
 BUILD_INFO := $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
-CNI_COMMIT := $(if $(shell sed -e '\,github.com/containernetworking/cni, !d' -e 's,.* ,,g' vendor.conf),$(shell sed -e '\,github.com/containernetworking/cni, !d' -e 's,.* ,,g' vendor.conf),$(error "sed failed"))
+CNI_COMMIT := $(shell GO111MODULE=on go list -m github.com/containernetworking/cni | awk '{ print $$2 }')
 STATIC_STORAGETAGS = "containers_image_ostree_stub containers_image_openpgp exclude_graphdriver_devicemapper $(STORAGE_TAGS)"
 
 RUNC_COMMIT := 2c632d1a2de0192c3f18a2542ccb6f30a8719b1f
@@ -133,11 +133,9 @@ test-unit: tests/testreport/testreport
 	mkdir -p $$tmp/root $$tmp/runroot; \
 	$(GO) test -v -tags "$(STORAGETAGS) $(SECURITYTAGS)" ./cmd/buildah -args -root $$tmp/root -runroot $$tmp/runroot -storage-driver vfs -signature-policy $(shell pwd)/tests/policy.json -registries-conf $(shell pwd)/tests/registries.conf
 
-.PHONY: .install.vndr
-.install.vndr:
-	$(GO) get -u github.com/LK4D4/vndr
-
 .PHONY: vendor
-vendor: vendor.conf .install.vndr
-	$(GOPATH)/bin/vndr \
-		-whitelist "github.com/onsi/gomega"
+vendor:
+	export GO111MODULE=on \
+		$(GO) mod tidy && \
+		$(GO) mod vendor && \
+		$(GO) mod verify
