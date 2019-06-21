@@ -47,7 +47,7 @@ clean:
 	$(MAKE) -C docs clean
 
 .PHONY: docs
-docs: ## build the docs on the host
+docs: install.tools ## build the docs on the host
 	$(MAKE) -C docs
 
 # For vendoring to work right, the checkout directory must be such that our top
@@ -62,7 +62,7 @@ deps: gopath
 	env GOPATH=$(shell cd ../../../.. ; pwd) vndr
 
 .PHONY: validate
-validate:
+validate: install.tools
 	# Run gofmt on version 1.11 and higher
 ifneq ($(GO110),$(GOVERSION))
 	@./tests/validate/gofmt.sh
@@ -74,11 +74,11 @@ endif
 
 .PHONY: install.tools
 install.tools:
-	$(GO) get -u $(BUILDFLAGS) github.com/cpuguy83/go-md2man
-	$(GO) get -u $(BUILDFLAGS) github.com/vbatts/git-validation
-	$(GO) get -u $(BUILDFLAGS) github.com/onsi/ginkgo/ginkgo
-	$(GO) get -u $(BUILDFLAGS) gopkg.in/alecthomas/gometalinter.v1
-	$(GOPATH)/bin/gometalinter.v1 -i
+	env GO111MODULE=off \
+		$(GO) get -u gopkg.in/alecthomas/gometalinter.v1
+	env GO111MODULE=off \
+		gometalinter.v1 -i
+	make build -C tests/tools
 
 .PHONY: runc
 runc: gopath
@@ -119,8 +119,8 @@ install.runc:
 	install -m 755 ../../opencontainers/runc/runc $(DESTDIR)/$(BINDIR)/
 
 .PHONY: test-integration
-test-integration:
-	ginkgo -v tests/e2e/.
+test-integration: install.tools
+	./tests/tools/ginkgo -v tests/e2e/.
 	cd tests; ./test_runner.sh
 
 tests/testreport/testreport: tests/testreport/testreport.go
