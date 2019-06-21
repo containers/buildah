@@ -1,7 +1,7 @@
 PREFIX := /usr/local
 DATADIR := ${PREFIX}/share
 MANDIR := $(DATADIR)/man
-GOMD2MAN = go-md2man
+GOMD2MAN = ../tests/tools/build/go-md2man
 
 docs: $(patsubst %.md,%.1,$(wildcard *.md))
 

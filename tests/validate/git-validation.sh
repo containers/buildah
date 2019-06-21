@@ -1,9 +1,8 @@
 #!/bin/bash
-export PATH=${GOPATH%%:*}/bin:${PATH}
+export PATH=tests/tools/build:${PATH}
 if ! which git-validation > /dev/null 2> /dev/null ; then
-	echo git-validation is not installed.
-	echo Try installing it with \"make install.tools\" or with
-	echo \"go get -u github.com/vbatts/git-validation\"
+	echo git-validation is not in PATH.
+	echo Make sure to call this script from the project root.
 	exit 1
 fi
 if test "$TRAVIS" != true ; then
