@@ -175,7 +175,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 
 	if !(contains(volumes, "/etc/resolv.conf") || (len(b.CommonBuildOpts.DNSServers) == 1 && strings.ToLower(b.CommonBuildOpts.DNSServers[0]) == "none")) {
-		resolvFile, err := b.addNetworkConfig(path, "/etc/resolv.conf", rootIDPair, b.CommonBuildOpts.DNSServers, b.CommonBuildOpts.DNSSearch, b.CommonBuildOpts.DNSOptions)
+		resolvFile, err := b.addNetworkConfig(path, "/etc/resolv.conf", rootIDPair, b.CommonBuildOpts.DNSServers, b.CommonBuildOpts.DNSSearch, b.CommonBuildOpts.DNSOptions, namespaceOptions)
 		if err != nil {
 			return err
 		}
@@ -462,7 +462,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 }
 
 // addNetworkConfig copies files from host and sets them up to bind mount into container
-func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDPair, dnsServers, dnsSearch, dnsOptions []string) (string, error) {
+func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDPair, dnsServers, dnsSearch, dnsOptions []string, namespaceOptions NamespaceOptions) (string, error) {
 	stat, err := os.Stat(hostPath)
 	if err != nil {
 		return "", errors.Wrapf(err, "error statting %q for container %q", hostPath, b.ContainerID)
@@ -479,6 +479,16 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 	if len(dnsSearch) > 0 {
 		search = dnsSearch
 	}
+
+	if b.Isolation == IsolationOCIRootless {
+		ns := namespaceOptions.Find(string(specs.NetworkNamespace))
+		if ns != nil && !ns.Host && ns.Path == "" {
+			// if we are using slirp4netns, also add the built-in DNS server.
+			logrus.Debugf("adding slirp4netns 10.0.2.3 built-in DNS server")
+			nameservers = append([]string{"10.0.2.3"}, nameservers...)
+		}
+	}
+
 	if len(dnsServers) != 0 {
 		dns, err := getDNSIP(dnsServers)
 		if err != nil {
