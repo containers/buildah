@@ -74,7 +74,7 @@ Login Succeeded!
 ```
 
 ```
-$ $ buildah login --authfile ./auth.json docker.io
+$ buildah login --authfile ./auth.json docker.io
 Username: qiwanredhat
 Password:
 Login Succeeded!
