@@ -15,7 +15,7 @@ require (
 	github.com/docker/distribution v0.0.0-20170817175659-5f6282db7d65
 	github.com/docker/docker-credential-helpers v0.6.1 // indirect
 	github.com/docker/go-units v0.3.3
-	github.com/docker/libnetwork v0.8.0-dev.2.0.20180608203834-19279f049241
+	github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/etcd-io/bbolt v1.3.2
 	github.com/fsouza/go-dockerclient v1.3.0
@@ -24,7 +24,7 @@ require (
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/imdario/mergo v0.3.6 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/ishidawataru/sctp v0.0.0-20180213033435-07191f837fed // indirect
+	github.com/ishidawataru/sctp v0.0.0-20180918013207-6e2cb1366111 // indirect
 	github.com/klauspost/compress v1.4.1 // indirect
 	github.com/klauspost/cpuid v1.2.0 // indirect
 	github.com/klauspost/pgzip v1.2.1 // indirect
