@@ -36,6 +36,8 @@ github.com/docker/go-units v0.3.3 h1:Xk8S3Xj5sLGlG5g67hJmYMmUgXv5N4PhkjJHHqrwnTk
 github.com/docker/go-units v0.3.3/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
 github.com/docker/libnetwork v0.8.0-dev.2.0.20180608203834-19279f049241 h1:+ebE/hCU02srkeIg8Vp/vlUp182JapYWtXzV+bCeR2I=
 github.com/docker/libnetwork v0.8.0-dev.2.0.20180608203834-19279f049241/go.mod h1:93m0aTqz6z+g32wla4l4WxTrdtvBRmVzYRkYvasA5Z8=
+github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316 h1:moehPjPiGUaWdwgOl92xRyFHJyaqXDHcCyW9M6nmCK4=
+github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316/go.mod h1:93m0aTqz6z+g32wla4l4WxTrdtvBRmVzYRkYvasA5Z8=
 github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 h1:UhxFibDNY/bfvqU5CAUmr9zpesgbU6SWc8/B4mflAE4=
 github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7/go.mod h1:cyGadeNEkKy96OOhEzfZl+yxihPEzKnqJwvfuSUqbZE=
 github.com/etcd-io/bbolt v1.3.2 h1:RLRQ0TKLX7DlBRXAJHvbmXL17Q3KNnTBtZ9B6Qo+/Y0=
@@ -66,6 +68,8 @@ github.com/inconshreveable/mousetrap v1.0.0 h1:Z8tu5sraLXCXIcARxBp/8cbvlwVa7Z1NH
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/ishidawataru/sctp v0.0.0-20180213033435-07191f837fed h1:3MJOWnAfq3T9eoCQTarEY2DMlUWYcBkBLf03dAMvEb8=
 github.com/ishidawataru/sctp v0.0.0-20180213033435-07191f837fed/go.mod h1:DM4VvS+hD/kDi1U1QsX2fnZowwBhqD0Dk3bRPKF/Oc8=
+github.com/ishidawataru/sctp v0.0.0-20180918013207-6e2cb1366111 h1:NAAiV9ass6VReWFjuxqrMIq12WKlSULI6Gs3PxQghLA=
+github.com/ishidawataru/sctp v0.0.0-20180918013207-6e2cb1366111/go.mod h1:DM4VvS+hD/kDi1U1QsX2fnZowwBhqD0Dk3bRPKF/Oc8=
 github.com/klauspost/compress v1.4.1 h1:8VMb5+0wMgdBykOV96DwNwKFQ+WTI4pzYURP99CcB9E=
 github.com/klauspost/compress v1.4.1/go.mod h1:RyIbtBH6LamlWaDj8nUwkbUhJ87Yi3uG0guNDohfE1A=
 github.com/klauspost/cpuid v1.2.0 h1:NMpwD2G9JSFOE1/TJjGSo5zG7Yb2bTe7eq1jH+irmeE=
