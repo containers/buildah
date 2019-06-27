@@ -1,3 +1,5 @@
+export GO111MODULE=off
+
 SELINUXTAG := $(shell ./selinux_tag.sh)
 STORAGETAGS := $(shell ./btrfs_tag.sh) $(shell ./btrfs_installed_tag.sh) $(shell ./libdm_tag.sh) $(shell ./ostree_tag.sh)
 SECURITYTAGS ?= seccomp $(SELINUXTAG)
