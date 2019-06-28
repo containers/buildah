@@ -183,7 +183,7 @@ func ParseVolume(volume string) (specs.Mount, error) {
 	mountOptions := ""
 	if len(arr) > 2 {
 		mountOptions = arr[2]
-		if err := ValidateVolumeOpts(arr[2]); err != nil {
+		if _, err := ValidateVolumeOpts(strings.Split(arr[2], ",")); err != nil {
 			return mount, err
 		}
 	}
@@ -225,34 +225,49 @@ func ValidateVolumeCtrDir(ctrDir string) error {
 	return nil
 }
 
-func ValidateVolumeOpts(option string) error {
-	var foundRootPropagation, foundRWRO, foundLabelChange int
-	options := strings.Split(option, ",")
+// ValidateVolumeOpts validates a volume's options
+func ValidateVolumeOpts(options []string) ([]string, error) {
+	var foundRootPropagation, foundRWRO, foundLabelChange, bindType int
+	finalOpts := make([]string, 0, len(options))
 	for _, opt := range options {
 		switch opt {
 		case "rw", "ro":
 			if foundRWRO > 1 {
-				return errors.Errorf("invalid options %q, can only specify 1 'rw' or 'ro' option", option)
+				return nil, errors.Errorf("invalid options %q, can only specify 1 'rw' or 'ro' option", strings.Join(options, ", "))
 			}
 			foundRWRO++
 		case "z", "Z", "O":
 			if opt == "O" && unshare.IsRootless() {
-				return errors.Errorf("invalid options %q, overlay mounts not supported in rootless mode", option)
+				return nil, errors.Errorf("invalid options %q, overlay mounts not supported in rootless mode", strings.Join(options, ", "))
 			}
 			if foundLabelChange > 1 {
-				return errors.Errorf("invalid options %q, can only specify 1 'z', 'Z', or 'O' option", option)
+				return nil, errors.Errorf("invalid options %q, can only specify 1 'z', 'Z', or 'O' option", strings.Join(options, ", "))
 			}
 			foundLabelChange++
 		case "private", "rprivate", "shared", "rshared", "slave", "rslave", "unbindable", "runbindable":
 			if foundRootPropagation > 1 {
-				return errors.Errorf("invalid options %q, can only specify 1 '[r]shared', '[r]private', '[r]slave' or '[r]unbindable' option", option)
+				return nil, errors.Errorf("invalid options %q, can only specify 1 '[r]shared', '[r]private', '[r]slave' or '[r]unbindable' option", strings.Join(options, ", "))
 			}
 			foundRootPropagation++
+		case "bind", "rbind":
+			bindType++
+			if bindType > 1 {
+				return nil, errors.Errorf("invalid options %q, can only specify 1 '[r]bind' option", strings.Join(options, ", "))
+			}
+		case "cached", "delegated":
+			// The discarded ops are OS X specific volume options
+			// introduced in a recent Docker version.
+			// They have no meaning on Linux, so here we silently
+			// drop them. This matches Docker's behavior (the options
+			// are intended to be always safe to use, even not on OS
+			// X).
+			continue
 		default:
-			return errors.Errorf("invalid option type %q", option)
+			return nil, errors.Errorf("invalid option type %q", opt)
 		}
+		finalOpts = append(finalOpts, opt)
 	}
-	return nil
+	return finalOpts, nil
 }
 
 // validateExtraHost validates that the specified string is a valid extrahost and returns it.
