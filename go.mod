@@ -4,13 +4,14 @@ go 1.12
 
 require (
 	github.com/BurntSushi/toml v0.2.0 // indirect
+	github.com/DataDog/zstd v1.4.0 // indirect
 	github.com/Microsoft/hcsshim v0.8.3 // indirect
 	github.com/VividCortex/ewma v1.1.1 // indirect
 	github.com/blang/semver v3.5.0+incompatible // indirect
 	github.com/containerd/continuity v0.0.0-20181203112020-004b46473808 // indirect
 	github.com/containernetworking/cni v0.7.0-rc2
 	github.com/containers/image v2.0.0+incompatible
-	github.com/containers/storage v1.12.10
+	github.com/containers/storage v1.12.13
 	github.com/cyphar/filepath-securejoin v0.2.1
 	github.com/docker/distribution v0.0.0-20170817175659-5f6282db7d65
 	github.com/docker/docker-credential-helpers v0.6.1 // indirect
