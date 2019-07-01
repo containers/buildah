@@ -119,6 +119,9 @@ type Builder struct {
 	// FromImageID is the ID of the source image which was used to create
 	// the container, if one was used.  It should not be modified.
 	FromImageID string `json:"image-id"`
+	// FromImageDigest is the digest of the source image which was used to
+	// create the container, if one was used.  It should not be modified.
+	FromImageDigest string `json:"image-digest"`
 	// Config is the source image's configuration.  It should not be
 	// modified.
 	Config []byte `json:"config,omitempty"`
@@ -200,6 +203,7 @@ type BuilderInfo struct {
 	Type                  string
 	FromImage             string
 	FromImageID           string
+	FromImageDigest       string
 	Config                string
 	Manifest              string
 	Container             string
@@ -243,6 +247,7 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 		Type:                  b.Type,
 		FromImage:             b.FromImage,
 		FromImageID:           b.FromImageID,
+		FromImageDigest:       b.FromImageDigest,
 		Config:                string(b.Config),
 		Manifest:              string(b.Manifest),
 		Container:             b.Container,
