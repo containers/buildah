@@ -79,7 +79,7 @@ install.tools:
 	env GO111MODULE=off \
 		$(GO) get -u gopkg.in/alecthomas/gometalinter.v1
 	env GO111MODULE=off \
-		gometalinter.v1 -i
+		$(GOPATH)/bin/gometalinter.v1 -i
 	make build -C tests/tools
 
 .PHONY: runc
