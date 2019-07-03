@@ -983,6 +983,18 @@ func makeReadOnly(mntpoint string, flags uintptr) error {
 	return nil
 }
 
+func isDevNull(dev os.FileInfo) bool {
+	if dev.Mode()&os.ModeCharDevice != 0 {
+		stat, _ := dev.Sys().(*syscall.Stat_t)
+		nullStat := syscall.Stat_t{}
+		syscall.Stat(os.DevNull, &nullStat)
+		if stat.Rdev == nullStat.Rdev {
+			return true
+		}
+	}
+	return false
+}
+
 // setupChrootBindMounts actually bind mounts things under the rootfs, and returns a
 // callback that will clean up its work.
 func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func() error, err error) {
@@ -1263,11 +1275,6 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 		if err != nil {
 			target = t
 		}
-		// Get some info about the null device.
-		nullinfo, err := os.Stat(os.DevNull)
-		if err != nil {
-			return undoBinds, errors.Wrapf(err, "error examining %q for masking in mount namespace", os.DevNull)
-		}
 		// Get some info about the target.
 		targetinfo, err := os.Stat(target)
 		if err != nil {
@@ -1355,8 +1362,8 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 				}
 			}
 		} else {
-			// The target's not a directory, so bind mount os.DevNull over it, unless it's already os.DevNull.
-			if !os.SameFile(nullinfo, targetinfo) {
+			// If the target's is not a directory or os.DevNull, bind mount os.DevNull over it.
+			if isDevNull(targetinfo) {
 				if err = unix.Mount(os.DevNull, target, "", uintptr(syscall.MS_BIND|syscall.MS_RDONLY|syscall.MS_PRIVATE), ""); err != nil {
 					return undoBinds, errors.Wrapf(err, "error masking non-directory %q in mount namespace", target)
 				}
