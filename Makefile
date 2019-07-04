@@ -72,14 +72,9 @@ endif
 	@./tests/validate/whitespace.sh
 	@./tests/validate/govet.sh
 	@./tests/validate/git-validation.sh
-	@./tests/validate/gometalinter.sh . cmd/buildah
 
 .PHONY: install.tools
 install.tools:
-	env GO111MODULE=off \
-		$(GO) get -u gopkg.in/alecthomas/gometalinter.v1
-	env GO111MODULE=off \
-		$(GOPATH)/bin/gometalinter.v1 -i
 	make build -C tests/tools
 
 .PHONY: runc
@@ -141,3 +136,7 @@ vendor:
 		$(GO) mod tidy && \
 		$(GO) mod vendor && \
 		$(GO) mod verify
+
+.PHONY: lint
+lint: install.tools
+	./tests/tools/build/golangci-lint run
