@@ -1143,6 +1143,7 @@ func urlContentModified(url string, historyTime *time.Time) (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "error getting %q", url)
 	}
+	defer resp.Body.Close()
 	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
 		lastModifiedTime, err := time.Parse(time.RFC1123, lastModified)
 		if err != nil {

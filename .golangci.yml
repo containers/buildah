@@ -10,6 +10,7 @@ run:
 linters:
   disable-all: true
   enable:
+    - bodyclose
     - deadcode
     - depguard
     - dupl
@@ -23,7 +24,6 @@ linters:
     - typecheck
     - unused
     - varcheck
-    # - bodyclose
     # - errcheck
     # - gochecknoglobals
     # - gochecknoinits
