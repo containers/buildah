@@ -31,6 +31,7 @@ const (
 	Gzip         = archive.Gzip
 	Bzip2        = archive.Bzip2
 	Xz           = archive.Xz
+	Zstd         = archive.Zstd
 	Uncompressed = archive.Uncompressed
 )
 
