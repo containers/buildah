@@ -75,7 +75,7 @@ endif
 
 .PHONY: install.tools
 install.tools:
-	make build -C tests/tools
+	make -C tests/tools
 
 .PHONY: runc
 runc: gopath
