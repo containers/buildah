@@ -14,6 +14,7 @@ linters:
     - deadcode
     - depguard
     - dupl
+    - errcheck
     - gofmt
     - gosimple
     - govet
@@ -24,7 +25,6 @@ linters:
     - typecheck
     - unused
     - varcheck
-    # - errcheck
     # - gochecknoglobals
     # - gochecknoinits
     # - goconst
