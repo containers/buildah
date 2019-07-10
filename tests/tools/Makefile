@@ -1,3 +1,5 @@
+export GO111MODULE=off
+
 GO := go
 
 BUILDDIR := build
