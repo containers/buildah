@@ -278,7 +278,7 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 					return errors.Wrapf(err, "error creating directory %q", dest)
 				}
 				logrus.Debugf("copying %q to %q", esrc+string(os.PathSeparator)+"*", dest+string(os.PathSeparator)+"*")
-				if excludes == nil {
+				if excludes == nil || !excludes.Exclusions() {
 					if err = copyWithTar(esrc, dest); err != nil {
 						return errors.Wrapf(err, "error copying %q to %q", esrc, dest)
 					}
