@@ -894,6 +894,7 @@ _buildah_containers() {
      "
 
      local options_with_args="
+     --mount
      "
  }
 
