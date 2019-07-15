@@ -117,7 +117,7 @@ install.runc:
 
 .PHONY: test-integration
 test-integration: install.tools
-	./tests/tools/ginkgo -v tests/e2e/.
+	./tests/tools/ginkgo $(BUILDFLAGS) -v tests/e2e/.
 	cd tests; ./test_runner.sh
 
 tests/testreport/testreport: tests/testreport/testreport.go
