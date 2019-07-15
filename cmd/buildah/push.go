@@ -97,6 +97,9 @@ func pushCmd(c *cobra.Command, args []string, iopts pushResults) error {
 	case 2:
 		src = args[0]
 		destSpec = args[1]
+		if src == "" {
+			return errors.Errorf(`Invalid image name "%s"`, args[0])
+		}
 	default:
 		return errors.New("Only two arguments are necessary to push: source and destination")
 	}
