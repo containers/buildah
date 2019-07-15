@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/containers/buildah"
@@ -9,6 +10,10 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+)
+
+var (
+	errTlsUnexpectedMsg = errors.New("tls: unexpected message")
 )
 
 type pullResults struct {
@@ -100,6 +105,11 @@ func pullCmd(c *cobra.Command, args []string, iopts pullResults) error {
 
 	id, err := buildah.Pull(getContext(), args[0], options)
 	if err != nil {
+		cause := errors.Cause(err)
+		_, isNetErr := cause.(net.Error)
+		if isNetErr || cause == errTlsUnexpectedMsg {
+			exitCode = 129
+		}
 		return err
 	}
 	fmt.Printf("%s\n", id)

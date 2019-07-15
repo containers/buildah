@@ -44,6 +44,7 @@ var rootCmd = &cobra.Command{
 
 var (
 	globalFlagResults globalFlags
+	exitCode          = 1
 )
 
 func init() {
