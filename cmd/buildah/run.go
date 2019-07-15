@@ -58,7 +58,7 @@ func init() {
 	flags := runCommand.Flags()
 	flags.SetInterspersed(false)
 	flags.BoolVar(&opts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
-	flags.StringSliceVar(&opts.capAdd, "cap-add", []string{}, "add the specified capability (default []")
+	flags.StringSliceVar(&opts.capAdd, "cap-add", []string{}, "add the specified capability (default [])")
 	flags.StringSliceVar(&opts.capDrop, "cap-drop", []string{}, "drop the specified capability (default [])")
 	flags.StringVar(&opts.hostname, "hostname", "", "set the hostname inside of the container")
 	flags.StringVar(&opts.isolation, "isolation", buildahcli.DefaultIsolation(), "`type` of process isolation to use. Use BUILDAH_ISOLATION environment variable to override.")
