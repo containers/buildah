@@ -218,7 +218,7 @@ func getImage(ctx context.Context, systemContext *types.SystemContext, store sto
 		logrus.Debug(err)
 	}
 	if ref == nil {
-		if ref, err = storageImageRef(ctx, systemContext, store, id); err != nil {
+		if ref, err = storageImageRef(systemContext, store, id); err != nil {
 			logrus.Debug(err)
 		}
 	}
@@ -328,7 +328,7 @@ func properImageRef(ctx context.Context, id string) (types.ImageReference, error
 
 // If it's looks like an image reference that's relative to our storage, parse
 // it and check if it corresponds to an image that actually exists.
-func storageImageRef(ctx context.Context, systemContext *types.SystemContext, store storage.Store, id string) (types.ImageReference, error) {
+func storageImageRef(systemContext *types.SystemContext, store storage.Store, id string) (types.ImageReference, error) {
 	ref, _, err := util.FindImage(store, "", systemContext, id)
 	if err != nil {
 		if ref != nil {
