@@ -1446,7 +1446,7 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 
 	// If we've got mappings, we're going to have to create a user namespace.
 	if len(idmapOptions.UIDMap) > 0 || len(idmapOptions.GIDMap) > 0 || configureUserns {
-		if err := g.AddOrReplaceLinuxNamespace(specs.UserNamespace, ""); err != nil {
+		if err := g.AddOrReplaceLinuxNamespace(string(specs.UserNamespace), ""); err != nil {
 			return false, nil, false, errors.Wrapf(err, "error adding new %q namespace for run", string(specs.UserNamespace))
 		}
 		hostUidmap, hostGidmap, err := unshare.GetHostIDMappings("")
@@ -1470,17 +1470,17 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 			}
 		}
 		if !specifiedNetwork {
-			if err := g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, ""); err != nil {
+			if err := g.AddOrReplaceLinuxNamespace(string(specs.NetworkNamespace), ""); err != nil {
 				return false, nil, false, errors.Wrapf(err, "error adding new %q namespace for run", string(specs.NetworkNamespace))
 			}
 			configureNetwork = (policy != NetworkDisabled)
 		}
 	} else {
-		if err := g.RemoveLinuxNamespace(specs.UserNamespace); err != nil {
+		if err := g.RemoveLinuxNamespace(string(specs.UserNamespace)); err != nil {
 			return false, nil, false, errors.Wrapf(err, "error removing %q namespace for run", string(specs.UserNamespace))
 		}
 		if !specifiedNetwork {
-			if err := g.RemoveLinuxNamespace(specs.NetworkNamespace); err != nil {
+			if err := g.RemoveLinuxNamespace(string(specs.NetworkNamespace)); err != nil {
 				return false, nil, false, errors.Wrapf(err, "error removing %q namespace for run", string(specs.NetworkNamespace))
 			}
 		}
