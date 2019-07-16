@@ -21,9 +21,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func getVersion(r *types.TestReport) error {
+func getVersion(r *types.TestReport) {
 	r.Spec.Version = fmt.Sprintf("%d.%d.%d%s", specs.VersionMajor, specs.VersionMinor, specs.VersionPatch, specs.VersionDev)
-	return nil
 }
 
 func getHostname(r *types.TestReport) error {
@@ -424,10 +423,7 @@ func main() {
 	if r.Spec == nil {
 		r.Spec = new(specs.Spec)
 	}
-	if err := getVersion(&r); err != nil {
-		logrus.Errorf("%v", err)
-		os.Exit(1)
-	}
+	getVersion(&r)
 	if err := getProcess(&r); err != nil {
 		logrus.Errorf("%v", err)
 		os.Exit(1)

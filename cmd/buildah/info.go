@@ -29,7 +29,7 @@ func init() {
 		Short: "Display Buildah system information",
 		Long:  infoDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return infoCmd(cmd, args, opts)
+			return infoCmd(cmd, opts)
 		},
 		Args:    cobra.NoArgs,
 		Example: `buildah info`,
@@ -42,7 +42,7 @@ func init() {
 	rootCmd.AddCommand(infoCommand)
 }
 
-func infoCmd(c *cobra.Command, args []string, iopts infoResults) error {
+func infoCmd(c *cobra.Command, iopts infoResults) error {
 	info := map[string]interface{}{}
 
 	store, err := getStore(c)

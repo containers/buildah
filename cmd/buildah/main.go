@@ -33,10 +33,10 @@ var rootCmd = &cobra.Command{
 		return cmd.Help()
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return before(cmd, args)
+		return before(cmd)
 	},
 	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-		return after(cmd, args)
+		return after(cmd)
 	},
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -88,7 +88,7 @@ func initConfig() {
 	// time if we ever want to take advantage.
 }
 
-func before(cmd *cobra.Command, args []string) error {
+func before(cmd *cobra.Command) error {
 	llFlag := cmd.Flags().Lookup("log-level")
 	llFlagNum := 0
 	if llFlag != nil {
@@ -107,7 +107,7 @@ func before(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func after(cmd *cobra.Command, args []string) error {
+func after(cmd *cobra.Command) error {
 	if needToShutdownStore {
 		store, err := getStore(cmd)
 		if err != nil {

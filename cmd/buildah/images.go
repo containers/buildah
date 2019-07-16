@@ -364,9 +364,9 @@ func matchesFilter(ctx context.Context, store storage.Store, image storage.Image
 		return false
 	} else if params.label != "" && !matchesLabel(ctx, store, image, params.label) {
 		return false
-	} else if params.beforeImage != "" && !matchesBeforeImage(image, name, params) {
+	} else if params.beforeImage != "" && !matchesBeforeImage(image, params) {
 		return false
-	} else if params.sinceImage != "" && !matchesSinceImage(image, name, params) {
+	} else if params.sinceImage != "" && !matchesSinceImage(image, params) {
 		return false
 	} else if params.referencePattern != "" && !matchesReference(name, params.referencePattern) {
 		return false
@@ -415,13 +415,13 @@ func matchesLabel(ctx context.Context, store storage.Store, image storage.Image,
 
 // Returns true if the image was created since the filter image.  Returns
 // false otherwise
-func matchesBeforeImage(image storage.Image, name string, params *filterParams) bool {
+func matchesBeforeImage(image storage.Image, params *filterParams) bool {
 	return image.Created.IsZero() || image.Created.Before(params.beforeDate)
 }
 
 // Returns true if the image was created since the filter image.  Returns
 // false otherwise
-func matchesSinceImage(image storage.Image, name string, params *filterParams) bool {
+func matchesSinceImage(image storage.Image, params *filterParams) bool {
 	return image.Created.IsZero() || image.Created.After(params.sinceDate)
 }
 

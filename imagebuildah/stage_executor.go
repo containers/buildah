@@ -756,7 +756,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 		// cached images so far, look for one that matches what we
 		// expect to produce for this instruction.
 		if checkForLayers && !(s.executor.squash && lastInstruction && lastStage) {
-			cacheID, err = s.layerExists(ctx, node, children[:i])
+			cacheID, err = s.layerExists(ctx, node)
 			if err != nil {
 				return "", nil, errors.Wrap(err, "error checking if cached image exists from a previous build")
 			}
@@ -901,7 +901,7 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 
 // layerExists returns true if an intermediate image of currNode exists in the image store from a previous build.
 // It verifies this by checking the parent of the top layer of the image and the history.
-func (s *StageExecutor) layerExists(ctx context.Context, currNode *parser.Node, children []*parser.Node) (string, error) {
+func (s *StageExecutor) layerExists(ctx context.Context, currNode *parser.Node) (string, error) {
 	// Get the list of images available in the image store
 	images, err := s.executor.store.Images()
 	if err != nil {

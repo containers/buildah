@@ -23,6 +23,7 @@ linters:
     - staticcheck
     - structcheck
     - typecheck
+    - unparam
     - unused
     - varcheck
     # - gochecknoglobals
@@ -41,4 +42,3 @@ linters:
     # - scopelint
     # - stylecheck
     # - unconvert
-    # - unparam

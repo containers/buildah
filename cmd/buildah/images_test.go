@@ -94,10 +94,7 @@ func TestOutputImagesQuietNotTruncated(t *testing.T) {
 	}
 
 	// Pull an image so that we know we have at least one
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 
 	images, err := store.Images()
 	if err != nil {
@@ -132,10 +129,7 @@ func TestOutputImagesFormatString(t *testing.T) {
 	}
 
 	// Pull an image so that we know we have at least one
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 
 	images, err := store.Images()
 	if err != nil {
@@ -169,10 +163,7 @@ func TestOutputImagesArgNoMatch(t *testing.T) {
 	}
 
 	// Pull an image so that we know we have at least one
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 
 	images, err := store.Images()
 	if err != nil {
@@ -205,10 +196,7 @@ func TestParseFilterAllParams(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 
 	label := "dangling=true,label=a=b,before=busybox:latest,since=busybox:latest,reference=abcdef"
 	params, err := parseFilter(getContext(), store, images, label)
@@ -259,10 +247,7 @@ func TestParseFilterInvalidDangling(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 
 	label := "dangling=NO,label=a=b,before=busybox:latest,since=busybox:latest,reference=abcdef"
 	_, err = parseFilter(getContext(), store, images, label)
@@ -286,10 +271,7 @@ func TestParseFilterInvalidBefore(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 
 	label := "dangling=false,label=a=b,before=:,since=busybox:latest,reference=abcdef"
 	_, err = parseFilter(getContext(), store, images, label)
@@ -313,10 +295,7 @@ func TestParseFilterInvalidSince(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 
 	label := "dangling=false,label=a=b,before=busybox:latest,since=:,reference=abcdef"
 	_, err = parseFilter(getContext(), store, images, label)
@@ -340,10 +319,7 @@ func TestParseFilterInvalidFilter(t *testing.T) {
 		t.Fatalf("Error reading images: %v", err)
 	}
 	// Pull an image so we know we have it
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 
 	label := "foo=bar"
 	_, err = parseFilter(getContext(), store, images, label)
@@ -392,10 +368,7 @@ func TestMatchesBeforeImageTrue(t *testing.T) {
 	}
 
 	// Pull an image so that we know we have at least one
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 
 	images, err := store.Images()
 	if err != nil {
@@ -406,7 +379,7 @@ func TestMatchesBeforeImageTrue(t *testing.T) {
 	params := new(filterParams)
 	params.beforeDate = time.Now()
 	params.beforeImage = "foo:bar"
-	if !matchesBeforeImage(images[0], ":", params) {
+	if !matchesBeforeImage(images[0], params) {
 		t.Error("should have matched beforeImage")
 	}
 }
@@ -422,10 +395,7 @@ func TestMatchesBeforeImageFalse(t *testing.T) {
 		is.Transport.SetStore(store)
 	}
 	// Pull an image so that we know we have at least one
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 	images, err := store.Images()
 	if err != nil {
 		t.Fatalf("Error reading images: %v", err)
@@ -436,7 +406,7 @@ func TestMatchesBeforeImageFalse(t *testing.T) {
 	params.beforeDate = time.Time{}
 	params.beforeImage = "foo:bar"
 	// Should return false because the image has been seen
-	if matchesBeforeImage(images[0], ":", params) {
+	if matchesBeforeImage(images[0], params) {
 		t.Error("should not have matched beforeImage")
 	}
 }
@@ -452,10 +422,7 @@ func TestMatchesSinceeImageTrue(t *testing.T) {
 		is.Transport.SetStore(store)
 	}
 	// Pull an image so that we know we have at least one
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 	images, err := store.Images()
 	if err != nil {
 		t.Fatalf("Error reading images: %v", err)
@@ -465,7 +432,7 @@ func TestMatchesSinceeImageTrue(t *testing.T) {
 	params := new(filterParams)
 	params.sinceDate = time.Time{}
 	params.sinceImage = "foo:bar"
-	if !matchesSinceImage(images[0], ":", params) {
+	if !matchesSinceImage(images[0], params) {
 		t.Error("should have matched SinceImage")
 	}
 }
@@ -481,10 +448,7 @@ func TestMatchesSinceImageFalse(t *testing.T) {
 		is.Transport.SetStore(store)
 	}
 	// Pull an image so that we know we have at least one
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
 	images, err := store.Images()
 	if err != nil {
 		t.Fatalf("Error reading images: %v", err)
@@ -495,12 +459,8 @@ func TestMatchesSinceImageFalse(t *testing.T) {
 	params.sinceDate = time.Now()
 	params.sinceImage = "foo:bar"
 	// Should return false because the image has been seen
-	if matchesSinceImage(images[0], ":", params) {
+	if matchesSinceImage(images[0], params) {
 		t.Error("should not have matched sinceImage")
-	}
-
-	if matchesSinceImage(images[0], "foo:bar", params) {
-		t.Error("image should have been filtered out")
 	}
 }
 

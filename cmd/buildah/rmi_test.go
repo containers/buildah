@@ -10,10 +10,8 @@ import (
 
 func TestProperImageRefTrue(t *testing.T) {
 	// Pull an image so we know we have it
-	_, err := pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove")
-	}
+	pullTestImage(t)
+
 	// This should match a url path
 	imgRef, err := properImageRef(getContext(), "docker://busybox:latest")
 	if err != nil {
@@ -25,10 +23,8 @@ func TestProperImageRefTrue(t *testing.T) {
 
 func TestProperImageRefFalse(t *testing.T) {
 	// Pull an image so we know we have it
-	_, err := pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatal("could not pull image to remove")
-	}
+	pullTestImage(t)
+
 	// This should match a url path
 	imgRef, _ := properImageRef(getContext(), "docker://:")
 	if imgRef != nil {
@@ -48,11 +44,9 @@ func TestStorageImageRefTrue(t *testing.T) {
 		t.Fatalf("could not get store: %v", err)
 	}
 	// Pull an image so we know we have it
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
-	imgRef, err := storageImageRef(getContext(), &testSystemContext, store, "busybox")
+	pullTestImage(t)
+
+	imgRef, err := storageImageRef(&testSystemContext, store, "busybox")
 	if err != nil {
 		t.Errorf("could not match image: %v", err)
 	} else if imgRef == nil {
@@ -72,11 +66,9 @@ func TestStorageImageRefFalse(t *testing.T) {
 		t.Fatalf("could not get store: %v", err)
 	}
 	// Pull an image so we know we have it
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
-	imgRef, _ := storageImageRef(getContext(), &testSystemContext, store, "")
+	pullTestImage(t)
+
+	imgRef, _ := storageImageRef(&testSystemContext, store, "")
 	if imgRef != nil {
 		t.Error("should not have found an Image Reference")
 	}
@@ -94,10 +86,8 @@ func TestStorageImageIDTrue(t *testing.T) {
 		t.Fatalf("could not get store: %v", err)
 	}
 	// Pull an image so we know we have it
-	_, err = pullTestImage(t, "busybox:latest")
-	if err != nil {
-		t.Fatalf("could not pull image to remove: %v", err)
-	}
+	pullTestImage(t)
+
 	//Somehow I have to get the id of the image I just pulled
 	images, err := store.Images()
 	if err != nil {
