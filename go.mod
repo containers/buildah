@@ -38,7 +38,7 @@ require (
 	github.com/onsi/gomega v1.4.3
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/opencontainers/image-spec v1.0.1
-	github.com/opencontainers/runc v1.0.0-rc6
+	github.com/opencontainers/runc v1.0.0-rc8
 	github.com/opencontainers/runtime-spec v0.1.2-0.20190618234442-a950415649c7
 	github.com/opencontainers/runtime-tools v0.9.0
 	github.com/opencontainers/selinux v1.2.2

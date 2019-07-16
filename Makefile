@@ -18,7 +18,7 @@ BUILD_INFO := $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
 CNI_COMMIT := $(shell GO111MODULE=on go list -m github.com/containernetworking/cni | awk '{ print $$2 }')
 STATIC_STORAGETAGS = "containers_image_ostree_stub containers_image_openpgp exclude_graphdriver_devicemapper $(STORAGE_TAGS)"
 
-RUNC_COMMIT := 2c632d1a2de0192c3f18a2542ccb6f30a8719b1f
+RUNC_COMMIT := v1.0.0-rc8
 LIBSECCOMP_COMMIT := release-2.3
 
 EXTRALDFLAGS :=
