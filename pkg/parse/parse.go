@@ -789,7 +789,7 @@ func NamespaceOptions(c *cobra.Command) (namespaceOptions buildah.NamespaceOptio
 					Host: true,
 				})
 			default:
-				if what == specs.NetworkNamespace {
+				if what == string(specs.NetworkNamespace) {
 					if how == "none" {
 						options.AddOrReplace(buildah.NamespaceOption{
 							Name: what,
