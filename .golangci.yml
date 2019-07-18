@@ -22,6 +22,7 @@ linters:
     - nakedret
     - staticcheck
     - structcheck
+    - stylecheck
     - typecheck
     - unconvert
     - unparam
@@ -41,4 +42,3 @@ linters:
     # - misspell
     # - prealloc
     # - scopelint
-    # - stylecheck

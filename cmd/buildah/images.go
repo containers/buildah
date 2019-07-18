@@ -220,7 +220,7 @@ func setFilterDate(ctx context.Context, store storage.Store, images []storage.Im
 			}
 		}
 	}
-	return time.Time{}, fmt.Errorf("Could not locate image %q", imgName)
+	return time.Time{}, fmt.Errorf("could not locate image %q", imgName)
 }
 
 func outputHeader(opts imageOptions) string {
