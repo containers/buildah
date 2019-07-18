@@ -18,7 +18,7 @@ import (
 	"github.com/containers/storage/pkg/pools"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/system"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"

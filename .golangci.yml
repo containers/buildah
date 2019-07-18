@@ -16,6 +16,7 @@ linters:
     - dupl
     - errcheck
     - gofmt
+    - goimports
     - gosimple
     - govet
     - ineffassign
@@ -33,7 +34,6 @@ linters:
     # - goconst
     # - gocritic
     # - gocyclo
-    # - goimports
     # - golint
     # - gosec
     # - interfacer
