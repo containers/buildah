@@ -569,7 +569,7 @@ func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io
 	cmd.UnshareFlags = syscall.CLONE_NEWUTS | syscall.CLONE_NEWNS
 	requestedUserNS := false
 	for _, ns := range spec.Linux.Namespaces {
-		if ns.Type == specs.LinuxNamespaceType(specs.UserNamespace) {
+		if ns.Type == specs.UserNamespace {
 			requestedUserNS = true
 		}
 	}
