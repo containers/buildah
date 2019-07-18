@@ -20,6 +20,7 @@ linters:
     - gosimple
     - govet
     - ineffassign
+    - misspell
     - nakedret
     - staticcheck
     - structcheck
@@ -39,6 +40,5 @@ linters:
     # - interfacer
     # - lll
     # - maligned
-    # - misspell
     # - prealloc
     # - scopelint
