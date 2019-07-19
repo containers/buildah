@@ -90,10 +90,10 @@ load helpers
   cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
   run_buildah --debug=false images --json
-  expect_line_count 14
+  expect_line_count 24
 
   run_buildah --debug=false images --json alpine
-  expect_line_count 8
+  expect_line_count 13
   buildah rm -a
   buildah rmi -a -f
 }
