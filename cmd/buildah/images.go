@@ -21,8 +21,13 @@ import (
 )
 
 type jsonImage struct {
-	ID    string   `json:"id"`
-	Names []string `json:"names"`
+	ID           string    `json:"id"`
+	Names        []string  `json:"names"`
+	Digest       string    `json:"digest"`
+	CreatedAt    string    `json:"createdat"`
+	Size         string    `json:"size"`
+	CreatedAtRaw time.Time `json:"createdatraw"`
+	ReadOnly     bool      `json:"readonly"`
 }
 
 type imageOutputParams struct {
@@ -33,6 +38,7 @@ type imageOutputParams struct {
 	CreatedAt    string
 	Size         string
 	CreatedAtRaw time.Time
+	ReadOnly     bool
 }
 
 type imageOptions struct {
@@ -43,6 +49,7 @@ type imageOptions struct {
 	noHeading bool
 	truncate  bool
 	quiet     bool
+	readOnly  bool
 }
 
 type filterParams struct {
@@ -53,6 +60,7 @@ type filterParams struct {
 	beforeDate       time.Time
 	sinceDate        time.Time
 	referencePattern string
+	readOnly         string
 }
 
 type imageResults struct {
@@ -66,6 +74,7 @@ var imagesHeader = map[string]string{
 	"ID":        "IMAGE ID",
 	"CreatedAt": "CREATED",
 	"Size":      "SIZE",
+	"ReadOnly":  "R/O",
 }
 
 func init() {
@@ -190,6 +199,12 @@ func parseFilter(ctx context.Context, store storage.Store, images []storage.Imag
 			params.sinceImage = pair[1]
 		case "reference":
 			params.referencePattern = pair[1]
+		case "readonly":
+			if pair[1] == "true" || pair[1] == "false" {
+				params.readOnly = pair[1]
+			} else {
+				return nil, fmt.Errorf("invalid filter: '%s=[%s]'", pair[0], pair[1])
+			}
 		default:
 			return nil, fmt.Errorf("invalid filter: '%s'", pair[0])
 		}
@@ -239,6 +254,9 @@ func outputHeader(opts imageOptions) string {
 		format += "{{.Digest}}\t"
 	}
 	format += "{{.ID}}\t{{.CreatedAt}}\t{{.Size}}"
+	if opts.readOnly {
+		format += "\t{{.ReadOnly}}"
+	}
 	return format
 }
 
@@ -249,6 +267,9 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 	var imagesParams imagesSorted
 	jsonImages := []jsonImage{}
 	for _, image := range images {
+		if image.ReadOnly {
+			opts.readOnly = true
+		}
 		createdTime := image.Created
 		inspectedTime, digest, size, _ := getDateAndDigestAndSize(ctx, store, image)
 		if !inspectedTime.IsZero() {
@@ -290,7 +311,15 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 					continue
 				}
 				if opts.json {
-					jsonImages = append(jsonImages, jsonImage{ID: image.ID, Names: image.Names})
+					jsonImages = append(jsonImages,
+						jsonImage{ID: image.ID,
+							Names:        image.Names,
+							Digest:       digest,
+							CreatedAtRaw: createdTime,
+							CreatedAt:    units.HumanDuration(time.Since((createdTime))) + " ago",
+							Size:         formattedSize(size),
+							ReadOnly:     image.ReadOnly,
+						})
 					// We only want to print each id once
 					break outer
 				}
@@ -302,6 +331,7 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 					CreatedAtRaw: createdTime,
 					CreatedAt:    units.HumanDuration(time.Since((createdTime))) + " ago",
 					Size:         formattedSize(size),
+					ReadOnly:     image.ReadOnly,
 				}
 				imagesParams = append(imagesParams, params)
 				if opts.quiet {
@@ -323,6 +353,7 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 		fmt.Printf("%s\n", data)
 		return nil
 	}
+
 	imagesParams = sortImagesOutput(imagesParams)
 	out := formats.StdoutTemplateArray{Output: imagesToGeneric(imagesParams), Template: outputHeader(opts), Fields: imagesHeader}
 	return formats.Writer(out).Out()
@@ -362,13 +393,20 @@ func matchesFilter(ctx context.Context, store storage.Store, image storage.Image
 	}
 	if params.dangling != "" && !matchesDangling(name, params.dangling) {
 		return false
-	} else if params.label != "" && !matchesLabel(ctx, store, image, params.label) {
+	}
+	if params.label != "" && !matchesLabel(ctx, store, image, params.label) {
 		return false
-	} else if params.beforeImage != "" && !matchesBeforeImage(image, params) {
+	}
+	if params.beforeImage != "" && !matchesBeforeImage(image, params) {
 		return false
-	} else if params.sinceImage != "" && !matchesSinceImage(image, params) {
+	}
+	if params.sinceImage != "" && !matchesSinceImage(image, params) {
 		return false
-	} else if params.referencePattern != "" && !matchesReference(name, params.referencePattern) {
+	}
+	if params.referencePattern != "" && !matchesReference(name, params.referencePattern) {
+		return false
+	}
+	if params.readOnly != "" && !matchesReadOnly(image, params.readOnly) {
 		return false
 	}
 	return true
@@ -377,7 +415,17 @@ func matchesFilter(ctx context.Context, store storage.Store, image storage.Image
 func matchesDangling(name string, dangling string) bool {
 	if dangling == "false" && !strings.Contains(name, "<none>") {
 		return true
-	} else if dangling == "true" && strings.Contains(name, "<none>") {
+	}
+	if dangling == "true" && strings.Contains(name, "<none>") {
+		return true
+	}
+	return false
+}
+func matchesReadOnly(image storage.Image, readOnly string) bool {
+	if readOnly == "false" && !image.ReadOnly {
+		return true
+	}
+	if readOnly == "true" && image.ReadOnly {
 		return true
 	}
 	return false
