@@ -19,6 +19,14 @@ manually clearing storage and other data related to images and containers.
 It is also useful if you want to use the `buildah mount` command.  If an unprivileged users wants to mount and work with a container, then they need to execute
 buildah unshare.  Executing `buildah mount` fails for unprivileged users unless the user is running inside a `buildah unshare` session.
 
+## OPTIONS
+**--mount** [*VARIABLE=]containerNameOrID*
+
+Mount the *containerNameOrID* container while running *command*, and set the
+environment variable *VARIABLE* to the path of the mountpoint.  If *VARIABLE*
+is not specified, it defaults to *containerNameOrID*, which may not be a valid
+name for an environment variable.
+
 ## EXAMPLE
 
 buildah unshare id
@@ -28,6 +36,8 @@ buildah unshare pwd
 buildah unshare cat /proc/self/uid\_map /proc/self/gid\_map
 
 buildah unshare rm -fr $HOME/.local/share/containers/storage /var/run/user/\`id -u\`/run
+
+buildah unshare --mount containerID sh -c 'cat ${containerID}/etc/os-release'
 
 If you want to use buildah with a mount command then you can create a script that looks something like:
 
