@@ -1,3 +1,22 @@
+- Changelog for v1.9.2 (2019-07-19)
+  * from/import: record the base image's digest, if it has one
+  * Fix CNI version retrieval to not require network connection
+  * Add misspell linter and apply fixes
+  * Add goimports linter and apply fixes
+  * Add stylecheck linter and apply fixes
+  * Add unconvert linter and apply fixes
+  * image: make sure we don't try to use zstd compression
+  * run.bats: skip the "z" flag when testing --mount
+  * Update to runc v1.0.0-rc8
+  * Update to match updated runtime-tools API
+  * bump github.com/opencontainers/runtime-tools to v0.9.0
+  * Build e2e tests using the proper build tags
+  * Add unparam linter and apply fixes
+  * Run: correct a typo in the --cap-add help text
+  * unshare: add a --mount flag
+  * fix push check image name is not empty
+  * Bump to v1.9.2-dev
+
 - Changelog for v1.9.1 (2019-07-12)
   * add: fix slow copy with no excludes
   * Add errcheck linter and fix missing error check
