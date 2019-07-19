@@ -15,10 +15,10 @@ GO110 := 1.10
 GOVERSION := $(findstring $(GO110),$(shell go version))
 GIT_COMMIT ?= $(if $(shell git rev-parse --short HEAD),$(shell git rev-parse --short HEAD),$(error "git failed"))
 BUILD_INFO := $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
-CNI_COMMIT := $(shell GO111MODULE=on go list -m github.com/containernetworking/cni | awk '{ print $$2 }')
 STATIC_STORAGETAGS = "containers_image_ostree_stub containers_image_openpgp exclude_graphdriver_devicemapper $(STORAGE_TAGS)"
 
-RUNC_COMMIT := v1.0.0-rc8
+CNI_COMMIT := $(shell sed -n 's;\tgithub.com/containernetworking/cni \([^ \n]*\).*$\;\1;p' go.mod)
+RUNC_COMMIT := $(shell sed -n 's;\tgithub.com/opencontainers/runc \([^ \n]*\).*$\;\1;p' go.mod)
 LIBSECCOMP_COMMIT := release-2.3
 
 EXTRALDFLAGS :=
