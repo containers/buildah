@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        v1.9.2
+Version:        v1.9.3
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,8 +100,26 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Fri Jul 12, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.2-dev-1
-- Bump to 1.9.2-dev
+* Fri Jul 19, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.3-dev-1
+-- Bump to 1.9.2-dev
+
+* Fri Jul 19, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.2-1
+- from/import: record the base image's digest, if it has one
+- Fix CNI version retrieval to not require network connection
+- Add misspell linter and apply fixes
+- Add goimports linter and apply fixes
+- Add stylecheck linter and apply fixes
+- Add unconvert linter and apply fixes
+- image: make sure we don't try to use zstd compression
+- run.bats: skip the "z" flag when testing --mount
+- Update to runc v1.0.0-rc8
+- Update to match updated runtime-tools API
+- bump github.com/opencontainers/runtime-tools to v0.9.0
+- Build e2e tests using the proper build tags
+- Add unparam linter and apply fixes
+- Run: correct a typo in the --cap-add help text
+- unshare: add a --mount flag
+- fix push check image name is not empty
 
 * Fri Jul 12, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.1-1
 - add: fix slow copy with no excludes
