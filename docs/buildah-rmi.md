@@ -20,7 +20,7 @@ If _imageID_ is a name, but does not include a registry name, buildah will attem
 **--all, -a**
 
 All local images will be removed from the system that do not have containers using the image as a reference image.
-An image name or id cannot be provided when this option is used.
+An image name or id cannot be provided when this option is used.  Read/Only images configured by modifying the  "additionalimagestores" in the /etc/containers/storage.conf file, can not be removed.
 
 **--prune, -p**
 
@@ -51,5 +51,11 @@ buildah rmi imageID1 imageID2 imageID3
 
 registries.conf is the configuration file which specifies which container registries should be consulted when completing image names which do not include a registry or domain portion.
 
+**storage.conf** (`/etc/containers/storage.conf`)
+
+storage.conf is the storage configuration file for all tools using containers/storage
+
+The storage configuration file specifies all of the available container storage options for tools using shared container storage.
+
 ## SEE ALSO
-buildah(1), registries.conf(5)
+buildah(1), registries.conf(5), containers-storage.conf(5)
