@@ -83,7 +83,7 @@ func makeFilename(blobSum digest.Digest, isConfig bool) string {
 
 // NewBlobCache creates a new blob cache that wraps an image reference.  Any blobs which are
 // written to the destination image created from the resulting reference will also be stored
-// as-is to the specifed directory or a temporary directory.  The cache directory's contents
+// as-is to the specified directory or a temporary directory.  The cache directory's contents
 // can be cleared by calling the returned BlobCache()'s ClearCache() method.
 // The compress argument controls whether or not the cache will try to substitute a compressed
 // or different version of a blob when preparing the list of layers when reading an image.

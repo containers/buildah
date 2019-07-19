@@ -411,7 +411,7 @@ func diffDebug(k string, a, b interface{}) string {
 	return fmt.Sprintf("%v\t\t%v\t\t%v\n", k, a, b)
 }
 
-// InspectCompareResult give the compare results from inpsect.
+// InspectCompareResult give the compare results from inspect.
 func InspectCompareResult(miss, left, diff []string) string {
 	msg := `Inspect Error Messages:
 	Item missing in buildah output: MISSKEYS
