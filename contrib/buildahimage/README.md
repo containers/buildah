@@ -31,7 +31,7 @@ mkdir /var/lib/mycontainer
 # Run the image detached using the host's network in a container name
 # buildahctr, turn off label and seccomp confinement in the container
 # and then do a little shell hackery to keep the container up and running.
-podman run --detach --name=buildahctr --net=host --security-opt label=disable --security-opt seccomp=unconfined --device /dev/fuse:rw -v /var/lib/mycontainer:/var/lib/containers:Z  stable sh -c 'while true ;do wait; done'
+podman run --detach --name=buildahctr --net=host --security-opt label=disable --security-opt seccomp=unconfined --device /dev/fuse:rw -v /var/lib/mycontainer:/var/lib/containers:Z  stable sh -c 'while true ;do sleep 100000 ; done'
 
 podman exec -it  buildahctr /bin/sh
 
