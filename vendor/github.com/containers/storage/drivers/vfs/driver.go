@@ -118,7 +118,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	return d.create(id, parent, opts, true)
 }
 
-func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, ro bool) error {
+func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, ro bool) (retErr error) {
 	if opts != nil && len(opts.StorageOpt) != 0 {
 		return fmt.Errorf("--storage-opt is not supported for vfs")
 	}
@@ -133,6 +133,13 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts, ro bool
 	if err := idtools.MkdirAllAndChown(filepath.Dir(dir), 0700, rootIDs); err != nil {
 		return err
 	}
+
+	defer func() {
+		if retErr != nil {
+			os.RemoveAll(dir)
+		}
+	}()
+
 	if parent != "" {
 		st, err := system.Stat(d.dir(parent))
 		if err != nil {
