@@ -84,7 +84,7 @@ var _ = Describe("Buildah build conformance test", func() {
 			}
 
 			dockerfile, _ := ioutil.ReadFile(filepath.Join(buildDir, "Dockerfile"))
-			errMsg := strings.Replace(ERR_MSG, "DOCKERFILECONTENT",
+			errMsg := strings.Replace(errorMessage, "DOCKERFILECONTENT",
 				strings.Replace(string(dockerfile), "\n", "\n\t", -1), -1)
 			buildahcmds := strings.Join(append([]string{buildahtest.BuildAhBinary},
 				buildahtest.MakeOptions(buildahoptions)...), " ")

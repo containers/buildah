@@ -237,7 +237,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	defaultsMountFile, _ := c.PersistentFlags().GetString("defaults-mount-file")
 	transientMounts := []imagebuildah.Mount{}
 	for _, volume := range iopts.Volumes {
-		mount, err := parse.ParseVolume(volume)
+		mount, err := parse.Volume(volume)
 		if err != nil {
 			return err
 		}
