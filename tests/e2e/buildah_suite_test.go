@@ -26,13 +26,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	storageOptions = "--storage-driver vfs"
+	artifactDir    = "/tmp/.artifacts"
+)
+
 var (
-	INTEGRATION_ROOT   string
-	STORAGE_OPTIONS    = "--storage-driver vfs"
-	ARTIFACT_DIR       = "/tmp/.artifacts"
-	CACHE_IMAGES       = []string{"alpine", "busybox", FEDORA_MINIMAL}
-	RESTORE_IMAGES     = []string{"alpine", "busybox"}
-	FEDORA_MINIMAL     = "registry.fedoraproject.org/fedora-minimal:latest"
+	integrationRoot    string
+	cacheImages        = []string{"alpine", "busybox", "registry.fedoraproject.org/fedora-minimal:latest"}
+	restoreImages      = []string{"alpine", "busybox"}
 	defaultWaitTimeout = 90
 )
 
@@ -65,16 +67,16 @@ func TestBuildAh(t *testing.T) {
 var _ = BeforeSuite(func() {
 	//Cache images
 	cwd, _ := os.Getwd()
-	INTEGRATION_ROOT = filepath.Join(cwd, "../../")
+	integrationRoot = filepath.Join(cwd, "../../")
 	buildah := BuildahCreate("/tmp")
-	buildah.ArtifactPath = ARTIFACT_DIR
-	if _, err := os.Stat(ARTIFACT_DIR); os.IsNotExist(err) {
-		if err = os.Mkdir(ARTIFACT_DIR, 0777); err != nil {
+	buildah.ArtifactPath = artifactDir
+	if _, err := os.Stat(artifactDir); os.IsNotExist(err) {
+		if err = os.Mkdir(artifactDir, 0777); err != nil {
 			fmt.Printf("%q\n", err)
 			os.Exit(1)
 		}
 	}
-	for _, image := range CACHE_IMAGES {
+	for _, image := range cacheImages {
 		fmt.Printf("Caching %s...\n", image)
 		if err := buildah.CreateArtifact(image); err != nil {
 			fmt.Printf("%q\n", err)
@@ -97,17 +99,17 @@ func BuildahCreate(tempDir string) BuildAhTest {
 	if os.Getenv("BUILDAH_BINARY") != "" {
 		buildAhBinary = os.Getenv("BUILDAH_BINARY")
 	}
-	storageOptions := STORAGE_OPTIONS
+	storageOpts := storageOptions
 	if os.Getenv("STORAGE_OPTIONS") != "" {
-		storageOptions = os.Getenv("STORAGE_OPTIONS")
+		storageOpts = os.Getenv("STORAGE_OPTIONS")
 	}
 
 	return BuildAhTest{
 		BuildAhBinary:  buildAhBinary,
 		RunRoot:        filepath.Join(tempDir, "runroot"),
 		Root:           filepath.Join(tempDir, "root"),
-		StorageOptions: storageOptions,
-		ArtifactPath:   ARTIFACT_DIR,
+		StorageOptions: storageOpts,
+		ArtifactPath:   artifactDir,
 		TempDir:        tempDir,
 		SignaturePath:  "../../tests/policy.json",
 		RegistriesConf: "../../registries.conf",
@@ -284,7 +286,7 @@ func (p *BuildAhTest) RestoreArtifact(image string) error {
 
 // RestoreAllArtifacts unpacks all cached images
 func (p *BuildAhTest) RestoreAllArtifacts() error {
-	for _, image := range RESTORE_IMAGES {
+	for _, image := range restoreImages {
 		if err := p.RestoreArtifact(image); err != nil {
 			return err
 		}

@@ -16,9 +16,9 @@ import (
 // MountTemp creates a subdir of the contentDir based on the source directory
 // from the source system.  It then mounds up the source directory on to the
 // generated mount point and returns the mount point to the caller.
-func MountTemp(store storage.Store, containerId, source, dest string, rootUID, rootGID int) (mount specs.Mount, contentDir string, Err error) {
+func MountTemp(store storage.Store, containerID, source, dest string, rootUID, rootGID int) (mount specs.Mount, contentDir string, Err error) {
 
-	containerDir, err := store.ContainerDirectory(containerId)
+	containerDir, err := store.ContainerDirectory(containerID)
 	if err != nil {
 		return mount, "", err
 	}
