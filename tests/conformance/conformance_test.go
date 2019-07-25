@@ -709,10 +709,10 @@ type FSHeader struct {
 	Typeflag byte              `json:"typeflag,omitempty"`
 	Name     string            `json:"name,omitempty"`
 	Linkname string            `json:"linkname,omitempty"`
-	Size     int64             `json:"size,omitempty"`
+	Size     int64             `json:"size"`
 	Mode     int64             `json:"mode,omitempty"`
-	UID      int               `json:"uid,omitempty"`
-	GID      int               `json:"gid,omitempty"`
+	UID      int               `json:"uid"`
+	GID      int               `json:"gid"`
 	ModTime  time.Time         `json:"mtime,omitempty"`
 	Devmajor int64             `json:"devmanor,omitempty"`
 	Devminor int64             `json:"devminor,omitempty"`

@@ -23,8 +23,14 @@ load helpers
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
+  # copy ${TESTDIR}/randomfile to a file of the same name in the container's working directory
   run_buildah copy $cid ${TESTDIR}/randomfile
-  run_buildah 125 copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
+  # copy ${TESTDIR}/other-randomfile and ${TESTDIR}/third-randomfile to a new directory named ${TESTDIR}/randomfile in the container
+  run_buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
+  # try to copy ${TESTDIR}/other-randomfile and ${TESTDIR}/third-randomfile to a /randomfile, which already exists and is a file
+  run_buildah 125 copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile /randomfile
+  # copy ${TESTDIR}/other-randomfile and ${TESTDIR}/third-randomfile to previously-created directory named ${TESTDIR}/randomfile in the container
+  run_buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
   run_buildah rm $cid
 
   _prefetch alpine

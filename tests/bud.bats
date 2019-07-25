@@ -1738,12 +1738,20 @@ _EOF
 
   run stat -c "%d:%i" ${root}/subdir/test1.txt
   id1=$output
+  run stat -c "%h" ${root}/subdir/test1.txt
+  expect_output 4
   run stat -c "%d:%i" ${root}/subdir/test2.txt
   expect_output $id1 "stat(test2) == stat(test1)"
+  run stat -c "%h" ${root}/subdir/test2.txt
+  expect_output 4
   run stat -c "%d:%i" ${root}/test3.txt
   expect_output $id1 "stat(test3) == stat(test1)"
+  run stat -c "%h" ${root}/test3.txt
+  expect_output 4
   run stat -c "%d:%i" ${root}/test4.txt
   expect_output $id1 "stat(test4) == stat(test1)"
+  run stat -c "%h" ${root}/test4.txt
+  expect_output 4
 }
 
 @test "bud without any arguments should succeed" {

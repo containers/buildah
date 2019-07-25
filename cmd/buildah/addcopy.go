@@ -5,7 +5,6 @@ import (
 
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -98,20 +97,25 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, extractLocalArc
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
-	digester := digest.Canonical.Digester()
+	builder.ContentDigester.Restart()
+
 	options := buildah.AddAndCopyOptions{
-		Chown:  iopts.chown,
-		Hasher: digester.Hash(),
+		Chown: iopts.chown,
 	}
 
-	if err := builder.Add(dest, extractLocalArchives, options, args...); err != nil {
+	err = builder.Add(dest, extractLocalArchives, options, args...)
+	if err != nil {
 		return errors.Wrapf(err, "error adding content to container %q", builder.Container)
 	}
 
+	contentType, digest := builder.ContentDigester.Digest()
 	if !iopts.quiet {
-		fmt.Printf("%s\n", digester.Digest().Hex())
+		fmt.Printf("%s\n", digest.Hex())
 	}
-	conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) %s file:%s", verb, digester.Digest().Hex())
+	if contentType != "" {
+		contentType = contentType + ":"
+	}
+	conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) %s %s%s", verb, contentType, digest.Hex())
 	return builder.Save()
 }
 

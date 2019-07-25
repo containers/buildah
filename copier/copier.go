@@ -452,7 +452,7 @@ func copierWithoutSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req req
 }
 
 func closeIfNotNilYet(f **os.File, what string) {
-	if f != nil {
+	if f != nil && *f != nil {
 		err := (*f).Close()
 		*f = nil
 		if err != nil {
