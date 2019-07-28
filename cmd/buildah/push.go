@@ -175,8 +175,6 @@ func pushCmd(c *cobra.Command, args []string, iopts pushResults) error {
 	} else {
 		logrus.Debugf("pushed image with digest %s", digest.String())
 	}
-	fmt.Printf("Successfully pushed %s@%s\n", dest.StringWithinTransport(), digest.String())
-
 	return nil
 }
 
