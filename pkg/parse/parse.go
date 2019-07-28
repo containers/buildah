@@ -14,7 +14,6 @@ import (
 	"unicode"
 
 	"github.com/containers/buildah"
-	"github.com/containers/buildah/pkg/unshare"
 	"github.com/containers/image/types"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/docker/go-units"
@@ -473,9 +472,6 @@ func ValidateVolumeOpts(options []string) ([]string, error) {
 			}
 			foundRWRO++
 		case "z", "Z", "O":
-			if opt == "O" && unshare.IsRootless() {
-				return nil, errors.Errorf("invalid options %q, overlay mounts not supported in rootless mode", strings.Join(options, ", "))
-			}
 			if foundLabelChange > 1 {
 				return nil, errors.Errorf("invalid options %q, can only specify 1 'z', 'Z', or 'O' option", strings.Join(options, ", "))
 			}
