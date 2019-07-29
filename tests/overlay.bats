@@ -3,8 +3,8 @@
 load helpers
 
 @test "overlay specific level" {
-  if test -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
+  if test \! -e /usr/bin/fuse-overlays -a  "$BUILDAH_ISOLATION" = "rootless"; then
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION" and no /usr/bin/fuse-overlayfs present
   fi
   image=alpine
   mkdir ${TESTDIR}/lower
