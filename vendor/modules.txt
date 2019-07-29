@@ -38,7 +38,7 @@ github.com/containernetworking/cni/pkg/invoke
 github.com/containernetworking/cni/pkg/types
 github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
-# github.com/containers/image v2.0.0+incompatible
+# github.com/containers/image v2.0.1+incompatible
 github.com/containers/image/copy
 github.com/containers/image/directory
 github.com/containers/image/docker
@@ -318,7 +318,7 @@ github.com/ulikunitz/xz/internal/hash
 github.com/vbatts/tar-split/tar/asm
 github.com/vbatts/tar-split/tar/storage
 github.com/vbatts/tar-split/archive/tar
-# github.com/vbauerster/mpb v3.3.4+incompatible
+# github.com/vbauerster/mpb v3.4.0+incompatible
 github.com/vbauerster/mpb
 github.com/vbauerster/mpb/decor
 github.com/vbauerster/mpb/cwriter
