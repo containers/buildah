@@ -7,7 +7,7 @@ require (
 	github.com/blang/semver v3.5.0+incompatible // indirect
 	github.com/containerd/continuity v0.0.0-20181203112020-004b46473808 // indirect
 	github.com/containernetworking/cni v0.7.0-rc2
-	github.com/containers/image v2.0.0+incompatible
+	github.com/containers/image v2.0.1+incompatible
 	github.com/containers/storage v1.12.15
 	github.com/cyphar/filepath-securejoin v0.2.1
 	github.com/docker/distribution v0.0.0-20170817175659-5f6282db7d65
@@ -44,7 +44,7 @@ require (
 	github.com/spf13/pflag v1.0.3
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	github.com/ulikunitz/xz v0.5.5 // indirect
-	github.com/vbauerster/mpb v3.3.4+incompatible // indirect
+	github.com/vbauerster/mpb v3.4.0+incompatible // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
