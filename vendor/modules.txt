@@ -74,7 +74,7 @@ github.com/containers/image/tarball
 github.com/containers/image/pkg/blobinfocache/boltdb
 github.com/containers/image/pkg/blobinfocache/memory
 github.com/containers/image/pkg/blobinfocache/internal/prioritize
-# github.com/containers/storage v1.12.15
+# github.com/containers/storage v1.12.16
 github.com/containers/storage
 github.com/containers/storage/pkg/archive
 github.com/containers/storage/pkg/chrootarchive

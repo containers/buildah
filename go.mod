@@ -8,7 +8,7 @@ require (
 	github.com/containerd/continuity v0.0.0-20181203112020-004b46473808 // indirect
 	github.com/containernetworking/cni v0.7.0-rc2
 	github.com/containers/image v2.0.1+incompatible
-	github.com/containers/storage v1.12.15
+	github.com/containers/storage v1.12.16
 	github.com/cyphar/filepath-securejoin v0.2.1
 	github.com/docker/distribution v0.0.0-20170817175659-5f6282db7d65
 	github.com/docker/docker-credential-helpers v0.6.1 // indirect

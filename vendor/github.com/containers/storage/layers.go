@@ -387,6 +387,19 @@ func (r *layerStore) loadMounts() error {
 	}
 	layerMounts := []layerMountPoint{}
 	if err = json.Unmarshal(data, &layerMounts); len(data) == 0 || err == nil {
+		// Clear all of our mount information.  If another process
+		// unmounted something, it (along with its zero count) won't
+		// have been encoded into the version of mountpoints.json that
+		// we're loading, so our count could fall out of sync with it
+		// if we don't, and if we subsequently change something else,
+		// we'd pass that error along to other process that reloaded
+		// the data after we saved it.
+		for _, layer := range r.layers {
+			layer.MountPoint = ""
+			layer.MountCount = 0
+		}
+		// All of the non-zero count values will have been encoded, so
+		// we reset the still-mounted ones based on the contents.
 		for _, mount := range layerMounts {
 			if mount.MountPoint != "" {
 				if layer, ok := r.lookup(mount.ID); ok {
@@ -1261,7 +1274,12 @@ func (r *layerStore) ApplyDiff(to string, diff io.Reader) (size int64, err error
 	if err != nil {
 		return -1, err
 	}
-	size, err = r.driver.ApplyDiff(layer.ID, r.layerMappings(layer), layer.Parent, layer.MountLabel, payload)
+	options := drivers.ApplyDiffOpts{
+		Diff:       payload,
+		Mappings:   r.layerMappings(layer),
+		MountLabel: layer.MountLabel,
+	}
+	size, err = r.driver.ApplyDiff(layer.ID, layer.Parent, options)
 	if err != nil {
 		return -1, err
 	}
