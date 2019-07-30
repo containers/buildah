@@ -22,10 +22,11 @@ Defaults to false.
 Note: You can also override the default value of --add-history by setting the
 BUILDAH\_HISTORY environment variable. `export BUILDAH_HISTORY=true`
 
-**--annotation** *annotation*
+**--annotation** *annotation*=*annotation*
 
 Add an image *annotation* (e.g. annotation=*annotation*) to the image manifest
 of any images which will be built using the specified container. Can be used multiple times.
+If *annotation* has a trailing `-`, then the *annotation* is removed from the config.
 
 **--arch** *architecture*
 
@@ -75,10 +76,11 @@ ignore the `cmd` value of the container image.  However if you use the array
 form, then the cmd will be appended onto the end of the entrypoint cmd and be
 executed together.
 
-**--env** *var=value*
+**--env** *env=value*
 
-Add a value (e.g. name=*value*) to the environment for containers based on any
+Add a value (e.g. env=*value*) to the environment for containers based on any
 images which will be built using the specified container. Can be used multiple times.
+If *env* has a trailing `-`, then the *env* is removed from the config.
 
 **--healthcheck** *command*
 
@@ -136,10 +138,11 @@ the specified container.
 
 Note: this setting is not present in the OCIv1 image format, so it is discarded when writing images using OCIv1 formats.
 
-**--label** *label*
+**--label** *label*=*value*
 
 Add an image *label* (e.g. label=*value*) to the image configuration of any
 images which will be built using the specified container. Can be used multiple times.
+If *label* has a trailing `-`, then the *label* is removed from the config.
 
 **--onbuild** *onbuild command*
 
@@ -180,7 +183,7 @@ If names are used, the container should include entries for those names in its
 
 **--volume** *volume*
 
-Add a location in the directory tree which should be marked as a *volume* in any images which will be built using the specified container. Can be used multiple times. If *volume* has a trailing `-`, and does not exist on disk, then the volume is removed from the config.
+Add a location in the directory tree which should be marked as a *volume* in any images which will be built using the specified container. Can be used multiple times. If *volume* has a trailing `-`, and does not exist on disk, then the *volume* is removed from the config.
 
 **--workingdir** *directory*
 
@@ -197,7 +200,20 @@ buildah config --entrypoint '[ "/entrypoint.sh", "dev" ]' containerID
 
 buildah config --env foo=bar --env PATH=$PATH containerID
 
+buildah config --env foo- containerID
+
 buildah config --label Name=Mycontainer --label  Version=1.0 containerID
+
+buildah config --label Name- containerID
+
+buildah config --annotation note=myNote containerID
+
+buildah config --annotation note-
+
+buildah config --volume /usr/myvol containerID
+
+buildah config --volume /usr/myvol- containerID
+
 
 ## SEE ALSO
 buildah(1)
