@@ -85,12 +85,13 @@ const (
 )
 
 type overlayOptions struct {
-	imageStores   []string
-	quota         quota.Quota
-	mountProgram  string
-	ostreeRepo    string
-	skipMountHome bool
-	mountOptions  string
+	imageStores       []string
+	quota             quota.Quota
+	mountProgram      string
+	ostreeRepo        string
+	skipMountHome     bool
+	mountOptions      string
+	ignoreChownErrors bool
 }
 
 // Driver contains information about the home directory and the list of active mounts that are created using this driver.
@@ -253,8 +254,7 @@ func Init(home string, options graphdriver.Options) (graphdriver.Driver, error) 
 		convert:       make(map[string]bool),
 	}
 
-	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, d)
-
+	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, graphdriver.NewNaiveLayerIDMapUpdater(d))
 	if backingFs == "xfs" {
 		// Try to enable project quota support over xfs.
 		if d.quotaCtl, err = quota.NewControl(home); err == nil {
@@ -322,6 +322,12 @@ func parseOptions(options []string) (*overlayOptions, error) {
 				return nil, fmt.Errorf("overlay: ostree_repo specified but support for ostree is missing")
 			}
 			o.ostreeRepo = val
+		case "overlay2.ignore_chown_errors", "overlay.ignore_chown_errors":
+			logrus.Debugf("overlay: ignore_chown_errors=%s", val)
+			o.ignoreChownErrors, err = strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
 		case "overlay2.skip_mount_home", "overlay.skip_mount_home", ".skip_mount_home":
 			logrus.Debugf("overlay: skip_mount_home=%s", val)
 			o.skipMountHome, err = strconv.ParseBool(val)
@@ -1005,7 +1011,7 @@ func (d *Driver) Put(id string) error {
 	if _, err := os.Stat(dir); err != nil {
 		return err
 	}
-	mountpoint := path.Join(d.dir(id), "merged")
+	mountpoint := path.Join(dir, "merged")
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
 	}
@@ -1062,11 +1068,16 @@ func (d *Driver) getWhiteoutFormat() archive.WhiteoutFormat {
 }
 
 // ApplyDiff applies the new layer into a root
-func (d *Driver) ApplyDiff(id string, idMappings *idtools.IDMappings, parent string, mountLabel string, diff io.Reader) (size int64, err error) {
+func (d *Driver) ApplyDiff(id, parent string, options graphdriver.ApplyDiffOpts) (size int64, err error) {
+
 	if !d.isParent(id, parent) {
-		return d.naiveDiff.ApplyDiff(id, idMappings, parent, mountLabel, diff)
+		if d.options.ignoreChownErrors {
+			options.IgnoreChownErrors = d.options.ignoreChownErrors
+		}
+		return d.naiveDiff.ApplyDiff(id, parent, options)
 	}
 
+	idMappings := options.Mappings
 	if idMappings == nil {
 		idMappings = &idtools.IDMappings{}
 	}
@@ -1075,11 +1086,12 @@ func (d *Driver) ApplyDiff(id string, idMappings *idtools.IDMappings, parent str
 
 	logrus.Debugf("Applying tar in %s", applyDir)
 	// Overlay doesn't need the parent id to apply the diff
-	if err := untar(diff, applyDir, &archive.TarOptions{
-		UIDMaps:        idMappings.UIDs(),
-		GIDMaps:        idMappings.GIDs(),
-		WhiteoutFormat: d.getWhiteoutFormat(),
-		InUserNS:       rsystem.RunningInUserNS(),
+	if err := untar(options.Diff, applyDir, &archive.TarOptions{
+		UIDMaps:           idMappings.UIDs(),
+		GIDMaps:           idMappings.GIDs(),
+		IgnoreChownErrors: d.options.ignoreChownErrors,
+		WhiteoutFormat:    d.getWhiteoutFormat(),
+		InUserNS:          rsystem.RunningInUserNS(),
 	}); err != nil {
 		return 0, err
 	}

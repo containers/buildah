@@ -37,6 +37,8 @@ github.com/containers/storage v1.12.14 h1:S1QGlC15gj5JOvB73W5tpVBApS4I7b/6rvxffl
 github.com/containers/storage v1.12.14/go.mod h1:QsZp4XMJjyPNNbQHZeyNW3OmhwsWviI+7S6iOcu6a4c=
 github.com/containers/storage v1.12.15 h1:nN/RxtEe4ejasGVJqzy+y5++pIYp54XPXzRO46xXnns=
 github.com/containers/storage v1.12.15/go.mod h1:QsZp4XMJjyPNNbQHZeyNW3OmhwsWviI+7S6iOcu6a4c=
+github.com/containers/storage v1.12.16 h1:zePYS1GiG8CuRqLCeA0ufx4X27K06HcJLV50DdojL+Y=
+github.com/containers/storage v1.12.16/go.mod h1:QsZp4XMJjyPNNbQHZeyNW3OmhwsWviI+7S6iOcu6a4c=
 github.com/cyphar/filepath-securejoin v0.2.1 h1:5DPkzz/0MwUpvR4fxASKzgApeq2OMFY5FfYtrX28Coo=
 github.com/cyphar/filepath-securejoin v0.2.1/go.mod h1:FpkQEhXnPnOthhzymB7CGsFk2G9VLXONKD9G7QGMM+4=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
