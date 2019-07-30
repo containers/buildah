@@ -210,12 +210,15 @@ function check_matrix() {
   buildah rm $cid
 }
 
-@test "remove volume using '-' syntax" {
+@test "remove configs using '-' syntax" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
   mkdir ${TESTSDIR}/VOLUME
   buildah config \
    --created-by COINCIDENCE \
    --volume ${TESTSDIR}/VOLUME \
+   --env VARIABLE=VALUE1,VALUE2 \
+   --label LABEL=VALUE \
+   --annotation ANNOTATION=VALUE1,VALUE2 \
   $cid
 
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
@@ -223,16 +226,27 @@ function check_matrix() {
   buildah --debug=false inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
 
   check_matrix 'Config.Volumes'      "map[${TESTSDIR}/VOLUME:{}]"
+  check_matrix 'Config.Env'          '[VARIABLE=VALUE1,VALUE2]'
+  check_matrix 'Config.Labels.LABEL' 'VALUE'
+  buildah --debug=false inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci    | grep ANNOTATION:VALUE1,VALUE2
+  buildah --debug=false inspect              --format '{{.ImageAnnotations}}'                      $cid                 | grep ANNOTATION:VALUE1,VALUE2
 
   buildah config \
    --created-by COINCIDENCE \
    --volume ${TESTSDIR}/VOLUME- \
+   --env VARIABLE- \
+   --label LABEL- \
+   --annotation ANNOTATION- \
   $cid
 
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
   buildah --debug=false inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
   check_matrix 'Config.Volumes'      'map[]'
+  check_matrix 'Config.Env'          '[]'
+  check_matrix 'Config.Labels.LABEL' '<no value>'
+  buildah --debug=false inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci    | grep "map\[\]"
+  buildah --debug=false inspect              --format '{{.ImageAnnotations}}'                      $cid                 | grep "map\[\]"
 
   rm -rf ${TESTSDIR}/VOLUME
 
@@ -247,6 +261,9 @@ function check_matrix() {
   buildah config \
    --created-by COINCIDENCE \
    --volume ${TESTSDIR}/VOLUME- \
+   --env VARIABLE=VALUE1,VALUE2 \
+   --label LABEL=VALUE \
+   --annotation ANNOTATION=VALUE1,VALUE2 \
   $cid
 
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
@@ -254,10 +271,8 @@ function check_matrix() {
   buildah --debug=false inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
 
   check_matrix 'Config.Volumes'      "map[${TESTSDIR}/VOLUME-:{}]"
-
-
-
   rm -rf ${TESTSDIR}/VOLUME-
+
   buildah rm $cid
 
 }
