@@ -70,7 +70,7 @@ func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 	if err != nil {
 		return errors.Wrapf(err, "error reading auth file")
 	}
-	if !iopts.getLogin {
+	if c.Flag("get-login").Changed {
 		if userFromAuthFile == "" {
 			return errors.Errorf("not logged into %s", server)
 		}
