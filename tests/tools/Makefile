@@ -1,6 +1,10 @@
-export GO111MODULE=off
-
 GO := go
+# test for go module support
+ifeq ($(shell go help mod >/dev/null 2>&1 && echo true), true)
+export GO_BUILD=GO111MODULE=on $(GO) build -mod=vendor
+else
+export GO_BUILD=$(GO) build
+endif
 
 BUILDDIR := build
 
@@ -14,7 +18,7 @@ vendor:
 		$(GO) mod verify
 
 define go-build
-	$(shell cd `pwd` && $(GO) build -o $(BUILDDIR)/$(shell basename $(1)) $(1))
+	$(shell cd `pwd` && $(GO_BUILD) -o $(BUILDDIR)/$(shell basename $(1)) $(1))
 	@echo > /dev/null
 endef
 
