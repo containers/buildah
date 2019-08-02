@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.9.3
+Version:        1.10.0
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,10 +100,23 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Fri Jul 19, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.3-dev-1
--- Bump to 1.9.2-dev
+* Fri Aug 2, 2019 Tom Sweeney <tsweeney@redhat.com> 1.10.0-1
+- vendor github.com/containers/image@v3.0.0
+- Remove GO111MODULE in favor of `-mod=vendor`
+- Vendor in containers/storage v1.12.16
+- Add '-' minus syntax for removal of config values
+- tests: enable overlay tests for rootless
+- rootless, overlay: use fuse-overlayfs
+- vendor github.com/containers/image@v2.0.1
+- Added '-' syntax to remove volume config option
+- delete `successfully pushed` message
+- Add golint linter and apply fixes
+- vendor github.com/containers/storage@v1.12.15
+- Change wait to sleep in buildahimage readme
+- Handle ReadOnly images when deleting images
+- Add support for listing read/only images
 
-* Fri Jul 19, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.2-1
+* Fri Jul 19, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.2
 - from/import: record the base image's digest, if it has one
 - Fix CNI version retrieval to not require network connection
 - Add misspell linter and apply fixes
@@ -121,7 +134,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - unshare: add a --mount flag
 - fix push check image name is not empty
 
-* Fri Jul 12, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.1-1
+* Fri Jul 12, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.1
 - add: fix slow copy with no excludes
 - Add errcheck linter and fix missing error check
 - Improve tests/tools/Makefile parallelism and abstraction
@@ -184,7 +197,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - util: use strings.ContainsRune instead of index check
 - Cirrus: Initial implementation
 
-* Sat Jun 15, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.0-1
+* Sat Jun 15, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.0
 - Fix crash and bump major version
 
 * Thu Jun 13, 2019 Dan Walsh <dwalsh@redhat.com> 1.8.4
