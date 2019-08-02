@@ -107,20 +107,36 @@ type PushOptions struct {
 }
 
 var (
-	// commitPolicy bypasses any signing requirements when committing containers to images
-	commitPolicy = &signature.Policy{
-		Default: []signature.PolicyRequirement{signature.NewPRReject()},
-		Transports: map[string]signature.PolicyTransportScopes{
-			is.Transport.Name(): {
-				"": []signature.PolicyRequirement{
-					signature.NewPRInsecureAcceptAnything(),
-				},
-			},
+	// storageAllowedPolicyScopes overrides the policy for local storage
+	// to ensure that we can read images from it.
+	storageAllowedPolicyScopes = signature.PolicyTransportScopes{
+		"": []signature.PolicyRequirement{
+			signature.NewPRInsecureAcceptAnything(),
 		},
 	}
-	// pushPolicy bypasses any signing requirements when pushing (copying) images from local storage
-	pushPolicy = commitPolicy
 )
+
+// referenceOnlyImage wraps a reference in an UnparsedImage with methods that
+// always return no manifest and no signatures.  This is enough to be able to
+// speculatively evaluate "insecureAcceptAnything" and "reject" policies for
+// images which don't actually exist yet (i.e., references for which NewImage()
+// would fail).  Attempts to evaluate "signedBy" policies will fail because we
+// don't support retrieving signature information.
+type referenceOnlyImage struct {
+	dest types.ImageReference
+}
+
+func (r *referenceOnlyImage) Reference() types.ImageReference {
+	return r.dest
+}
+
+func (r *referenceOnlyImage) Manifest(ctx context.Context) ([]byte, string, error) {
+	return nil, "", errors.New("manifest retrieval not implemented for images which have not been pushed")
+}
+
+func (r *referenceOnlyImage) Signatures(ctx context.Context) ([][]byte, error) {
+	return nil, errors.New("signature retrieval not implemented for images which have not been pushed")
+}
 
 // Commit writes the contents of the container, along with its updated
 // configuration, to a new image in the specified location, and if we know how,
@@ -157,6 +173,15 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		return "", nil, "", errors.Errorf("commit access to registry for %q is blocked by configuration", transports.ImageName(dest))
 	}
 
+	// Load the system signing policy.
+	commitPolicy, err := signature.DefaultPolicy(systemContext)
+	if err != nil {
+		return "", nil, "", errors.Wrapf(err, "error obtaining default signature policy")
+	}
+	// Override the settings for local storage to make sure that we can always read the source "image".
+	// TODO: what to do with scopes that require signatures, which we can't read until after pushing?
+	commitPolicy.Transports[is.Transport.Name()] = storageAllowedPolicyScopes
+
 	policyContext, err := signature.NewPolicyContext(commitPolicy)
 	if err != nil {
 		return imgID, nil, "", errors.Wrapf(err, "error creating new signature policy context")
@@ -166,6 +191,17 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 			logrus.Debugf("error destroying signature policy context: %v", err2)
 		}
 	}()
+
+	// Check if we'd be allowed to run an image from the destination location.
+	allowed, err := policyContext.IsRunningImageAllowed(ctx, &referenceOnlyImage{dest: dest})
+	if err != nil {
+		return "", nil, "", errors.Wrapf(err, "running image with reference %q would not be allowed by policy, denying commit", transports.ImageName(dest))
+	}
+	if !allowed {
+		return "", nil, "", errors.Errorf("running image with reference %q would not be allowed by policy, denying commit", transports.ImageName(dest))
+	}
+	logrus.Debugf("running image with reference %q is allowed by policy", transports.ImageName(dest))
+
 	// Check if the base image is already in the destination and it's some kind of local
 	// storage.  If so, we can skip recompressing any layers that come from the base image.
 	exportBaseLayers := true
@@ -292,10 +328,25 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 		return nil, "", errors.Errorf("push access to registry for %q is blocked by configuration", transports.ImageName(dest))
 	}
 
+	// Load the system signing policy.
+	pushPolicy, err := signature.DefaultPolicy(systemContext)
+	if err != nil {
+		return nil, "", errors.Wrapf(err, "error obtaining default signature policy")
+	}
+	// Override the settings for local storage to make sure that we can always read the source "image".
+	// TODO: what to do with scopes that require signatures, which we can't read until after pushing?
+	pushPolicy.Transports[is.Transport.Name()] = storageAllowedPolicyScopes
+
 	policyContext, err := signature.NewPolicyContext(pushPolicy)
 	if err != nil {
 		return nil, "", errors.Wrapf(err, "error creating new signature policy context")
 	}
+	defer func() {
+		if err2 := policyContext.Destroy(); err2 != nil {
+			logrus.Debugf("error destroying signature policy context: %v", err2)
+		}
+	}()
+
 	// Look up the image.
 	src, _, err := util.FindImage(options.Store, "", systemContext, image)
 	if err != nil {
@@ -313,6 +364,17 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 		}
 		maybeCachedSrc = cache
 	}
+
+	// Check if we'd be allowed to run an image from the destination location.
+	allowed, err := policyContext.IsRunningImageAllowed(ctx, &referenceOnlyImage{dest: dest})
+	if err != nil {
+		return nil, "", errors.Wrapf(err, "running image with reference %q would not be allowed by policy, denying push", transports.ImageName(dest))
+	}
+	if !allowed {
+		return nil, "", errors.Errorf("running image with reference %q would not be allowed by policy, denying push", transports.ImageName(dest))
+	}
+	logrus.Debugf("running image with reference %q would be allowed by policy", transports.ImageName(dest))
+
 	// Copy everything.
 	switch options.Compression {
 	case archive.Uncompressed:

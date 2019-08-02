@@ -68,3 +68,19 @@ load helpers
   expect_output --substring "docker://busybox"
   buildah rmi busybox
 }
+
+@test "push denied by policy" {
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json --quiet busybox)
+  run_buildah 1 commit --signature-policy ${TESTSDIR}/deny.json ${cid} docker://registry.example.com/busierbox
+  expect_output --substring "running image with reference .* would not be allowed by policy, denying commit"
+
+  buildah pull --signature-policy ${TESTSDIR}/policy.json --quiet busybox
+  run_buildah 1 push --signature-policy ${TESTSDIR}/deny.json busybox docker://registry.example.com/evenbusierbox
+  expect_output --substring "running image with reference .* would not be allowed by policy, denying push"
+  expect_output --substring "image .* is rejected by policy"
+
+  buildah pull --signature-policy ${TESTSDIR}/policy.json --quiet busybox
+  run_buildah 1 push --signature-policy ${TESTSDIR}/mustbesigned.json busybox docker://registry.example.com/somuchbusierbox
+  expect_output --substring "running image with reference .* would not be allowed by policy, denying push"
+  expect_output --substring "signature retrieval not implemented for images which have not been pushed"
+}
