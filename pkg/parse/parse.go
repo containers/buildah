@@ -571,11 +571,25 @@ func SystemContextFromOptions(c *cobra.Command) (*types.SystemContext, error) {
 	return ctx, nil
 }
 
+func dontUseKeyring(authfile string) bool {
+	return strings.ToLower(authfile) == "nokeyring"
+}
+
 func getAuthFile(authfile string) string {
-	if authfile != "" {
-		return authfile
+	if authfile == "" || dontUseKeyring(authfile) {
+		authfileEnv := os.Getenv("REGISTRY_AUTH_FILE")
+		if authfileEnv != "" && !dontUseKeyring(authfileEnv) {
+			return authfileEnv
+		}
+
+		if dontUseKeyring(authfileEnv) || dontUseKeyring(authfile) {
+			runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
+			if runtimeDir != "" {
+				return filepath.Join(runtimeDir, "containers/auth.json")
+			}
+		}
 	}
-	return os.Getenv("REGISTRY_AUTH_FILE")
+	return authfile
 }
 
 func parseCreds(creds string) (string, string) {

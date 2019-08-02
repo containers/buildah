@@ -54,8 +54,10 @@ Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option c
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `buildah login`.
+Path of the authentication file. By default, the authentication storage is the kernel keyring. If the system does not support kernel keyring, Buildah will use the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `buildah login`.
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
+
+Note: The default path of the authentication file can also be overridden by setting the REGISTRY_AUTH_FILE environment variable. `export REGISTRY_AUTH_FILE=path`
 
 **--cap-add**=*CAP\_xxx*
 
