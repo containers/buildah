@@ -38,7 +38,7 @@ github.com/containernetworking/cni/pkg/invoke
 github.com/containernetworking/cni/pkg/types
 github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
-# github.com/containers/image v2.0.1+incompatible
+# github.com/containers/image v3.0.0+incompatible
 github.com/containers/image/copy
 github.com/containers/image/directory
 github.com/containers/image/docker
@@ -49,7 +49,6 @@ github.com/containers/image/image
 github.com/containers/image/manifest
 github.com/containers/image/oci/archive
 github.com/containers/image/oci/layout
-github.com/containers/image/pkg/sysregistries
 github.com/containers/image/pkg/sysregistriesv2
 github.com/containers/image/signature
 github.com/containers/image/storage
@@ -71,6 +70,7 @@ github.com/containers/image/docker/daemon
 github.com/containers/image/openshift
 github.com/containers/image/ostree
 github.com/containers/image/tarball
+github.com/containers/image/pkg/keyctl
 github.com/containers/image/pkg/blobinfocache/boltdb
 github.com/containers/image/pkg/blobinfocache/memory
 github.com/containers/image/pkg/blobinfocache/internal/prioritize
