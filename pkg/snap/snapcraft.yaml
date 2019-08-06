@@ -1,0 +1,53 @@
+name: buildah
+summary: command line tool.
+description: Buildah - a tool that facilitates building Open Container Initiative (OCI) container images.
+  
+confinement: devmode
+base: core18
+
+architectures:
+  - build-on: i386
+  - build-on: amd64
+  - build-on: armhf
+  - build-on: arm64
+
+apps:
+  buildah:
+    command: bin/buildah
+    plugs:
+      - home
+      - network
+      - removable-media
+      
+
+parts:
+  buildah:
+    plugin: go
+    source: https://github.com/containers/buildah.git
+    source-type: git
+    override-pull: |
+      git clone https://github.com/containers/buildah.git src/github.com/containers/buildah
+      cd src/github.com/containers/buildah
+      last_committed_tag="$(git describe --tags --abbrev=0)"
+      last_committed_tag_ver="$(echo ${last_committed_tag} | sed 's/v//')"
+      last_released_tag="$(snap info $SNAPCRAFT_PROJECT_NAME | awk '$1 == "beta:" { print $2 }')"
+      # If the latest tag from the upstream project has not been released to
+      # beta, build that tag instead of master.
+      if [ "${last_committed_tag_ver}" != "${last_released_tag}" ]; then
+        git fetch
+        git checkout "${last_committed_tag}"
+      fi
+      snapcraftctl set-version "$(git describe --tags | sed 's/v//')"
+    override-build: |
+      export GOPATH=$PWD
+      cd src/github.com/containers/buildah
+      env CGO_ENABLED=0 GOOS=linux \
+      go build --ldflags "-s -w \
+        -X 'github.com/containers/buildah/version.GitCommit=$(git rev-list -1 HEAD)' \
+        -X 'github.com/containers/buildah/version.Version=$(git describe --tags --abbrev=0)'" \
+        -a -installsuffix cgo -o $SNAPCRAFT_PART_INSTALL/bin/buildah
+    build-snaps:
+      - go
+    build-packages:
+      - git
+      - sed
