@@ -38,7 +38,7 @@ github.com/containernetworking/cni/pkg/invoke
 github.com/containernetworking/cni/pkg/types
 github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
-# github.com/containers/image v3.0.0+incompatible
+# github.com/containers/image v3.0.1+incompatible
 github.com/containers/image/copy
 github.com/containers/image/directory
 github.com/containers/image/docker
@@ -74,7 +74,7 @@ github.com/containers/image/pkg/keyctl
 github.com/containers/image/pkg/blobinfocache/boltdb
 github.com/containers/image/pkg/blobinfocache/memory
 github.com/containers/image/pkg/blobinfocache/internal/prioritize
-# github.com/containers/storage v1.12.16
+# github.com/containers/storage v1.13.0
 github.com/containers/storage
 github.com/containers/storage/pkg/archive
 github.com/containers/storage/pkg/chrootarchive
@@ -294,6 +294,8 @@ github.com/ostreedev/ostree-go/pkg/otbuiltin
 github.com/pkg/errors
 # github.com/pquerna/ffjson v0.0.0-20181028064349-e517b90714f7
 github.com/pquerna/ffjson/fflib/v1
+github.com/pquerna/ffjson/inception
+github.com/pquerna/ffjson/shared
 github.com/pquerna/ffjson/fflib/v1/internal
 # github.com/seccomp/containers-golang v0.0.0-20180629143253-cdfdaa7543f4
 github.com/seccomp/containers-golang
@@ -315,9 +317,9 @@ github.com/ulikunitz/xz/internal/xlog
 github.com/ulikunitz/xz/lzma
 github.com/ulikunitz/xz/internal/hash
 # github.com/vbatts/tar-split v0.11.1
+github.com/vbatts/tar-split/archive/tar
 github.com/vbatts/tar-split/tar/asm
 github.com/vbatts/tar-split/tar/storage
-github.com/vbatts/tar-split/archive/tar
 # github.com/vbauerster/mpb v3.4.0+incompatible
 github.com/vbauerster/mpb
 github.com/vbauerster/mpb/decor
