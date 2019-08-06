@@ -183,7 +183,7 @@ If names are used, the container should include entries for those names in its
 
 **--volume** *volume*
 
-Add a location in the directory tree which should be marked as a *volume* in any images which will be built using the specified container. Can be used multiple times. If *volume* has a trailing `-`, and does not exist on disk, then the *volume* is removed from the config.
+Add a location in the directory tree which should be marked as a *volume* in any images which will be built using the specified container. Can be used multiple times. If *volume* has a trailing `-`, and is already set, then the *volume* is removed from the config.
 
 **--workingdir** *directory*
 

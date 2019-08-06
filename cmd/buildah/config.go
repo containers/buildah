@@ -221,14 +221,16 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 	if c.Flag("volume").Changed {
 		if volSpec := iopts.volume; len(volSpec) > 0 {
 			for _, volVal := range volSpec {
-				_, err := os.Stat(volVal) //check if volume exists on disk
-				if err == nil {
-					builder.AddVolume(volVal)
-				} else if strings.HasSuffix(volVal, "-") {
+				if strings.HasSuffix(volVal, "-") {
 					rmVol := strings.TrimSuffix(volVal, "-")
-					builder.RemoveVolume(rmVol)
+					if builder.CheckVolume(rmVol) {
+						builder.RemoveVolume(rmVol)
+					} else {
+						fmt.Printf("volume %s cannot be removed because it does not exist, adding volume %s\n", rmVol, volVal)
+						builder.AddVolume(volVal)
+					}
 				} else {
-					logrus.Errorf("Volume cannot be added because it does not exist on disk.")
+					builder.AddVolume(volVal)
 				}
 				conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) VOLUME %s", volVal)
 			}
