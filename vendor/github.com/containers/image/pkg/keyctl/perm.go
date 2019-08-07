@@ -6,6 +6,10 @@
 
 package keyctl
 
+import (
+	"golang.org/x/sys/unix"
+)
+
 // KeyPerm represents in-kernel access control permission to keys and keyrings
 // as a 32-bit integer broken up into four permission sets, one per byte.
 // In MSB order, the perms are: Processor, User, Group, Other.
@@ -24,6 +28,6 @@ const (
 
 // SetPerm sets the permissions on a key or keyring.
 func SetPerm(k ID, p KeyPerm) error {
-	_, _, err := keyctl(keyctlSetPerm, uintptr(k.ID()), uintptr(p))
+	err := unix.KeyctlSetperm(int(k.ID()), uint32(p))
 	return err
 }
