@@ -3,12 +3,11 @@
 // license that can be found in the LICENSE file.
 
 // +build linux
-// +build 386 amd64
 
 package keyctl
 
 import (
-	"unsafe"
+	"golang.org/x/sys/unix"
 )
 
 // Key represents a single key linked to one or more kernel keyrings.
@@ -41,7 +40,7 @@ func (k *Key) Get() ([]byte, error) {
 	b = make([]byte, int(size))
 	sizeRead = size + 1
 	for sizeRead > size {
-		r1, _, err := keyctl(keyctlRead, uintptr(k.id), uintptr(unsafe.Pointer(&b[0])), uintptr(size))
+		r1, err := unix.KeyctlBuffer(unix.KEYCTL_READ, int(k.id), b, size)
 		if err != nil {
 			return nil, err
 		}
@@ -60,6 +59,6 @@ func (k *Key) Get() ([]byte, error) {
 // Unlink a key from the keyring it was loaded from (or added to). If the key
 // is not linked to any other keyrings, it is destroyed.
 func (k *Key) Unlink() error {
-	_, _, err := keyctl(keyctlUnlink, uintptr(k.id), uintptr(k.ring))
+	_, err := unix.KeyctlInt(unix.KEYCTL_UNLINK, int(k.id), int(k.ring), 0, 0)
 	return err
 }
