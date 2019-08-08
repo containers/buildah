@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.11.0-dev
+Version:        1.10.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,9 +100,17 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Fri Aug 2, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.0-dev-1
+* Thu Aug 8, 2019 Tom Sweeney <tsweeney@redhat.com> 1.10.1-1
+- Bump containers/image to v3.0.2 to fix keyring issue
+- Bug fix for volume minus syntax
+- Bump container/storage v1.13.1 and containers/image v3.0.1
+- bump github.com/containernetworking/cni to v0.7.1
+- Add overlayfs to fuse-overlayfs tip
+- Add automatic apparmor tag discovery
+- Fix bug whereby --get-login has no effect
+- Bump to v1.11.0-dev
 
-* Fri Aug 2, 2019 Tom Sweeney <tsweeney@redhat.com> 1.10.0
+* Fri Aug 2, 2019 Tom Sweeney <tsweeney@redhat.com> 1.10.0-1
 - vendor github.com/containers/image@v3.0.0
 - Remove GO111MODULE in favor of `-mod=vendor`
 - Vendor in containers/storage v1.12.16
@@ -118,7 +126,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Handle ReadOnly images when deleting images
 - Add support for listing read/only images
 
-* Fri Jul 19, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.2
+* Fri Jul 19, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.2-1
 - from/import: record the base image's digest, if it has one
 - Fix CNI version retrieval to not require network connection
 - Add misspell linter and apply fixes
@@ -136,7 +144,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - unshare: add a --mount flag
 - fix push check image name is not empty
 
-* Fri Jul 12, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.1
+* Fri Jul 12, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.1-1
 - add: fix slow copy with no excludes
 - Add errcheck linter and fix missing error check
 - Improve tests/tools/Makefile parallelism and abstraction
@@ -199,10 +207,10 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - util: use strings.ContainsRune instead of index check
 - Cirrus: Initial implementation
 
-* Sat Jun 15, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.0
+* Sat Jun 15, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.0-1
 - Fix crash and bump major version
 
-* Thu Jun 13, 2019 Dan Walsh <dwalsh@redhat.com> 1.8.4
+* Thu Jun 13, 2019 Dan Walsh <dwalsh@redhat.com> 1.8.4-1
 - Update containers/image to v2.0.0
 - run: fix hang with run and --isolation=chroot
 - run: fix hang when using run
@@ -231,7 +239,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - bud.bats: add a test for WORKDIR and COPY with absolute destinations
 - Cleanup Overlay Mounts content
 
-* Tue Jun 04, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.3
+* Tue Jun 04, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.3-1
 - Add support for file secret mounts
 - Add ability to skip secrets in mounts file
 - allow 32bit builds
@@ -276,13 +284,13 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Change image names to stable, testing and upstream
 - Bump back to v1.9.0-dev
 
-* Thu May 02, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.2
+* Thu May 02, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.2-1
 - Vendor Storage 1.12.6
 - Create scratch file in TESTDIR
 - Test bud-copy-dot with --layers picks up changed file
 - Bump back to 1.9.0-dev
 
-* Wed May 01, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.1
+* Wed May 01, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.1-1
 - Don't create directory on container
 - Replace kubernetes/pause in tests with k8s.gcr.io/pause
 - imagebuildah: don't remove intermediate images if we need them
@@ -293,7 +301,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Touch up 1.9-dev to 1.9.0-dev
 - Bump to 1.9-dev
 
-* Fri Apr 26, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.0
+* Fri Apr 26, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.0-1
 - Resolve symlink when checking container path
 - commit: commit on every instruction, but not always with layers
 - CommitOptions: drop the unused OnBuild field
@@ -316,7 +324,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - auto pass http_proxy to container
 - Bump back to 1.8-dev
 
-* Tue Apr 16, 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.3
+* Tue Apr 16, 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.3-1
 - imagebuildah: don't leak image structs
 - Add Dockerfiles for buildahimages
 - Bump to Replace golang 1.10 with 1.12
@@ -422,7 +430,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - UPdate gitvalidation epoch
 - Bump back to 1.8-dev
 
-* Tue Feb 26 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.1
+* Tue Feb 26 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.1-1
 - vendor containers/image v1.5
 - Move secrets code from libpod into buildah
 - Update CHANGELOG.md with the past changes
@@ -435,7 +443,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - install.md: add section about vendoring
 - Bump to 1.8-dev
 
-* Thu Feb 21 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.0
+* Thu Feb 21 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.0-1
 - vendor containers/image v1.4
 - Make "images --all" faster
 - Remove a misleading comment
