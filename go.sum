@@ -35,6 +35,8 @@ github.com/containers/image v3.0.0+incompatible h1:pdUHY//H+3jYNnoTt+rqY8NsStX4Z
 github.com/containers/image v3.0.0+incompatible/go.mod h1:8Vtij257IWSanUQKe1tAeNOm2sRVkSqQTVQ1IlwI3+M=
 github.com/containers/image v3.0.1+incompatible h1:VlNEQUI1JHa1SJfJ4jz/GBt7gpk+aRYGR6TUKsxXMkU=
 github.com/containers/image v3.0.1+incompatible/go.mod h1:8Vtij257IWSanUQKe1tAeNOm2sRVkSqQTVQ1IlwI3+M=
+github.com/containers/image v3.0.2+incompatible h1:B1lqAE8MUPCrsBLE86J0gnXleeRq8zJnQryhiiGQNyE=
+github.com/containers/image v3.0.2+incompatible/go.mod h1:8Vtij257IWSanUQKe1tAeNOm2sRVkSqQTVQ1IlwI3+M=
 github.com/containers/storage v1.12.10-0.20190725063046-8038df61d6f6 h1:c7Fq9bbRl0Ua6swRHAH8rkrK2fSt6K+ZBrXHD50kDR4=
 github.com/containers/storage v1.12.10-0.20190725063046-8038df61d6f6/go.mod h1:QsZp4XMJjyPNNbQHZeyNW3OmhwsWviI+7S6iOcu6a4c=
 github.com/containers/storage v1.12.13 h1:GtaLCY8p1Drlk1Oew581jGvB137UaO+kpz0HII67T0A=
