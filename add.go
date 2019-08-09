@@ -49,14 +49,21 @@ type AddAndCopyOptions struct {
 // addURL copies the contents of the source URL to the destination.  This is
 // its own function so that deferred closes happen after we're done pulling
 // down each item of potentially many.
-func addURL(destination, srcurl string, owner idtools.IDPair, hasher io.Writer, dryRun bool) error {
+func (b *Builder) addURL(destination, srcurl string, owner idtools.IDPair, hasher io.Writer, dryRun bool) error {
 	resp, err := http.Get(srcurl)
 	if err != nil {
 		return errors.Wrapf(err, "error getting %q", srcurl)
 	}
 	defer resp.Body.Close()
 
-	thisWriter := hasher
+	thisHasher := hasher
+	if thisHasher != nil && b.ContentDigester.Hash() != nil {
+		thisHasher = io.MultiWriter(thisHasher, b.ContentDigester.Hash())
+	}
+	if thisHasher == nil {
+		thisHasher = b.ContentDigester.Hash()
+	}
+	thisWriter := thisHasher
 
 	if !dryRun {
 		logrus.Debugf("saving %q to %q", srcurl, destination)
@@ -84,12 +91,9 @@ func addURL(destination, srcurl string, owner idtools.IDPair, hasher io.Writer, 
 				logrus.Debugf("error setting permissions on %q: %v", destination, err2)
 			}
 		}()
-		if thisWriter != nil {
-			thisWriter = io.MultiWriter(f, thisWriter)
-		} else {
-			thisWriter = f
-		}
+		thisWriter = io.MultiWriter(f, thisWriter)
 	}
+
 	n, err := io.Copy(thisWriter, resp.Body)
 	if err != nil {
 		return errors.Wrapf(err, "error reading contents for %q from %q", destination, srcurl)
@@ -172,7 +176,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	copyFileWithTar := b.copyFileWithTar(options.IDMappingOptions, &containerOwner, options.Hasher, options.DryRun)
 	copyWithTar := b.copyWithTar(options.IDMappingOptions, &containerOwner, options.Hasher, options.DryRun)
 	untarPath := b.untarPath(nil, options.Hasher, options.DryRun)
-	err = addHelper(excludes, extract, dest, destfi, hostOwner, options, copyFileWithTar, copyWithTar, untarPath, source...)
+	err = b.addHelper(excludes, extract, dest, destfi, hostOwner, options, copyFileWithTar, copyWithTar, untarPath, source...)
 	if err != nil {
 		return err
 	}
@@ -243,9 +247,10 @@ func dockerIgnoreMatcher(lines []string, contextDir string) (*fileutils.PatternM
 	return matcher, nil
 }
 
-func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, destfi os.FileInfo, hostOwner idtools.IDPair, options AddAndCopyOptions, copyFileWithTar, copyWithTar, untarPath func(src, dest string) error, source ...string) error {
-	for _, src := range source {
+func (b *Builder) addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, destfi os.FileInfo, hostOwner idtools.IDPair, options AddAndCopyOptions, copyFileWithTar, copyWithTar, untarPath func(src, dest string) error, source ...string) error {
+	for n, src := range source {
 		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
+			b.ContentDigester.Start("")
 			// We assume that source is a file, and we're copying
 			// it to the destination.  If the destination is
 			// already a directory, create a file inside of it.
@@ -259,7 +264,7 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 			if destfi != nil && destfi.IsDir() {
 				d = filepath.Join(dest, path.Base(url.Path))
 			}
-			if err = addURL(d, src, hostOwner, options.Hasher, options.DryRun); err != nil {
+			if err = b.addURL(d, src, hostOwner, options.Hasher, options.DryRun); err != nil {
 				return err
 			}
 			continue
@@ -283,6 +288,7 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 				return errors.Wrapf(err, "error reading %q", esrc)
 			}
 			if srcfi.IsDir() {
+				b.ContentDigester.Start("dir")
 				// The source is a directory, so copy the contents of
 				// the source directory into the target directory.  Try
 				// to create it first, so that if there's a problem,
@@ -292,7 +298,7 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 						return errors.Wrapf(err, "error creating directory %q", dest)
 					}
 				}
-				logrus.Debugf("copying %q to %q", esrc+string(os.PathSeparator)+"*", dest+string(os.PathSeparator)+"*")
+				logrus.Debugf("copying[%d] %q to %q", n, esrc+string(os.PathSeparator)+"*", dest+string(os.PathSeparator)+"*")
 				if excludes == nil || !excludes.Exclusions() {
 					if err = copyWithTar(esrc, dest); err != nil {
 						return errors.Wrapf(err, "error copying %q to %q", esrc, dest)
@@ -326,6 +332,8 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 				continue
 			}
 
+			b.ContentDigester.Start("file")
+
 			if !extract || !archive.IsArchivePath(esrc) {
 				// This source is a file, and either it's not an
 				// archive, or we don't care whether or not it's an
@@ -335,7 +343,7 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 					d = filepath.Join(dest, filepath.Base(gsrc))
 				}
 				// Copy the file, preserving attributes.
-				logrus.Debugf("copying %q to %q", esrc, d)
+				logrus.Debugf("copying[%d] %q to %q", n, esrc, d)
 				if err = copyFileWithTar(esrc, d); err != nil {
 					return errors.Wrapf(err, "error copying %q to %q", esrc, d)
 				}
@@ -343,7 +351,7 @@ func addHelper(excludes *fileutils.PatternMatcher, extract bool, dest string, de
 			}
 
 			// We're extracting an archive into the destination directory.
-			logrus.Debugf("extracting contents of %q into %q", esrc, dest)
+			logrus.Debugf("extracting contents[%d] of %q into %q", n, esrc, dest)
 			if err = untarPath(esrc, dest); err != nil {
 				return errors.Wrapf(err, "error extracting %q into %q", esrc, dest)
 			}

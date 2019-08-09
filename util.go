@@ -227,8 +227,15 @@ func (b *Builder) copyFileWithTar(tarIDMappingOptions *IDMappingOptions, chownOp
 // write-time possibly overridden using the passed-in chownOpts
 func (b *Builder) copyWithTar(tarIDMappingOptions *IDMappingOptions, chownOpts *idtools.IDPair, hasher io.Writer, dryRun bool) func(src, dest string) error {
 	tar := b.tarPath(tarIDMappingOptions)
-	untar := b.untar(chownOpts, hasher, dryRun)
 	return func(src, dest string) error {
+		thisHasher := hasher
+		if thisHasher != nil && b.ContentDigester.Hash() != nil {
+			thisHasher = io.MultiWriter(thisHasher, b.ContentDigester.Hash())
+		}
+		if thisHasher == nil {
+			thisHasher = b.ContentDigester.Hash()
+		}
+		untar := b.untar(chownOpts, thisHasher, dryRun)
 		rc, err := tar(src)
 		if err != nil {
 			return errors.Wrapf(err, "error archiving %q for copy", src)
@@ -241,6 +248,12 @@ func (b *Builder) copyWithTar(tarIDMappingOptions *IDMappingOptions, chownOpts *
 // location into our working container, mapping permissions using the
 // container's ID maps, possibly overridden using the passed-in chownOpts
 func (b *Builder) untarPath(chownOpts *idtools.IDPair, hasher io.Writer, dryRun bool) func(src, dest string) error {
+	if hasher != nil && b.ContentDigester.Hash() != nil {
+		hasher = io.MultiWriter(hasher, b.ContentDigester.Hash())
+	}
+	if hasher == nil {
+		hasher = b.ContentDigester.Hash()
+	}
 	convertedUIDMap, convertedGIDMap := convertRuntimeIDMaps(b.IDMappingOptions.UIDMap, b.IDMappingOptions.GIDMap)
 	if dryRun {
 		return func(src, dest string) error {
@@ -304,14 +317,23 @@ func (b *Builder) untar(chownOpts *idtools.IDPair, hasher io.Writer, dryRun bool
 			return nil
 		}
 	}
-	if hasher != nil {
-		originalUntar := untar
-		untar = func(tarArchive io.Reader, dest string, options *archive.TarOptions) error {
-			return originalUntar(io.TeeReader(tarArchive, hasher), dest, options)
+	originalUntar := untar
+	untarWithHasher := func(tarArchive io.Reader, dest string, options *archive.TarOptions, untarHasher io.Writer) error {
+		reader := tarArchive
+		if untarHasher != nil {
+			reader = io.TeeReader(tarArchive, untarHasher)
 		}
+		return originalUntar(reader, dest, options)
 	}
 	return func(tarArchive io.ReadCloser, dest string) error {
-		err := untar(tarArchive, dest, options)
+		thisHasher := hasher
+		if thisHasher != nil && b.ContentDigester.Hash() != nil {
+			thisHasher = io.MultiWriter(thisHasher, b.ContentDigester.Hash())
+		}
+		if thisHasher == nil {
+			thisHasher = b.ContentDigester.Hash()
+		}
+		err := untarWithHasher(tarArchive, dest, options, thisHasher)
 		if err2 := tarArchive.Close(); err2 != nil {
 			if err == nil {
 				err = err2

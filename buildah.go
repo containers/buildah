@@ -196,6 +196,8 @@ type Builder struct {
 	Format string
 	// TempVolumes are temporary mount points created during container runs
 	TempVolumes map[string]bool
+	// ContentDigester counts the digest of all Add()ed content
+	ContentDigester CompositeDigester
 }
 
 // BuilderInfo are used as objects to display container information
