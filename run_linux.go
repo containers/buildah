@@ -343,7 +343,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	net := namespaceOptions.Find(string(specs.NetworkNamespace))
 	hostNetwork := net == nil || net.Host
 	user := namespaceOptions.Find(string(specs.UserNamespace))
-	hostUser := user == nil || user.Host
+	hostUser := (user == nil || user.Host) && !unshare.IsRootless()
 
 	// Copy mounts from the generated list.
 	mountCgroups := true
