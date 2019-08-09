@@ -159,6 +159,20 @@ load helpers
   buildah rmi -a -f
 }
 
+@test "bud-multistage-partial-cache" {
+  target=foo
+  # build the first stage
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -f ${TESTSDIR}/bud/cache-stages/Dockerfile.1 ${TESTSDIR}/bud/cache-stages
+  # expect alpine + 1 image record for the first stage
+  run_buildah --debug=false images -a
+  expect_line_count 3
+  # build the second stage, itself not cached, when the first stage is found in the cache
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -f ${TESTSDIR}/bud/cache-stages/Dockerfile.2 -t ${target} ${TESTSDIR}/bud/cache-stages
+  # expect alpine + 1 image record for the first stage, then two more image records for the second stage
+  run_buildah --debug=false images -a
+  expect_line_count 5
+}
+
 @test "bud-multistage-copy-final-slash" {
   target=foo
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-final-slash

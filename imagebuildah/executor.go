@@ -406,13 +406,12 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							// arg expansion, so if the previous stage
 							// was named using argument values, we might
 							// not record the right value here.
-							rootfs := flag[7:]
+							rootfs := strings.TrimPrefix(flag, "--from=")
 							b.rootfsMap[rootfs] = true
 							logrus.Debugf("rootfs: %q", rootfs)
 						}
 					}
 				}
-				break
 			}
 			node = node.Next // next line
 		}
