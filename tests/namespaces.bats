@@ -2,6 +2,20 @@
 
 load helpers
 
+@test "already-in-userns" {
+  if test "$BUILDAH_ISOLATION" != "rootless" -o $UID == 0 ; then
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
+  fi
+
+  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
+  [ "$output" != "" ]
+  ctr="$output"
+
+  run_buildah unshare buildah run --isolation=oci "$ctr" echo hello
+  [ $status -eq 0 ]
+  [ "$output" == "hello" ]
+}
+
 @test "user-and-network-namespace" {
   if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
     skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
