@@ -18,6 +18,7 @@ apps:
       - home
       - network
       - removable-media
+      - docker
       
 
 parts:
