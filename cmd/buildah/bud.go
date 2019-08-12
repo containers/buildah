@@ -23,9 +23,11 @@ type budResults struct {
 }
 
 func init() {
-	var (
-		budDescription = "\n  Builds an OCI image using instructions in one or more Dockerfiles."
-	)
+	budDescription := `
+  Builds an OCI image using instructions in one or more Dockerfiles.
+
+  If no arguments specified, it will assume the current working directory as
+  build context, which should contain the Dockerfile.`
 
 	layerFlagsResults := buildahcli.LayerResults{}
 	budFlagResults := buildahcli.BudResults{}
@@ -49,7 +51,8 @@ func init() {
 			}
 			return budCmd(cmd, args, br)
 		},
-		Example: `buildah bud -f Dockerfile.simple .
+		Example: `buildah bud
+  buildah bud -f Dockerfile.simple .
   buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
   buildah bud -f Dockerfile.simple -f Dockerfile.notsosimple .`,
 	}
@@ -123,30 +126,37 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	}
 	contextDir := ""
 	cliArgs := inputArgs
+
+	// Nothing provided, we assume the current working directory as build
+	// context
 	if len(cliArgs) == 0 {
-		return errors.Errorf("no context directory or URL specified")
-	}
-	// The context directory could be a URL.  Try to handle that.
-	tempDir, subDir, err := imagebuildah.TempDirForURL("", "buildah", cliArgs[0])
-	if err != nil {
-		return errors.Wrapf(err, "error prepping temporary context directory")
-	}
-	if tempDir != "" {
-		// We had to download it to a temporary directory.
-		// Delete it later.
-		defer func() {
-			if err = os.RemoveAll(tempDir); err != nil {
-				logrus.Errorf("error removing temporary directory %q: %v", contextDir, err)
-			}
-		}()
-		contextDir = filepath.Join(tempDir, subDir)
-	} else {
-		// Nope, it was local.  Use it as is.
-		absDir, err := filepath.Abs(cliArgs[0])
+		contextDir, err = os.Getwd()
 		if err != nil {
-			return errors.Wrapf(err, "error determining path to directory %q", cliArgs[0])
+			return errors.Wrapf(err, "unable to choose current working directory as build context")
 		}
-		contextDir = absDir
+	} else {
+		// The context directory could be a URL.  Try to handle that.
+		tempDir, subDir, err := imagebuildah.TempDirForURL("", "buildah", cliArgs[0])
+		if err != nil {
+			return errors.Wrapf(err, "error prepping temporary context directory")
+		}
+		if tempDir != "" {
+			// We had to download it to a temporary directory.
+			// Delete it later.
+			defer func() {
+				if err = os.RemoveAll(tempDir); err != nil {
+					logrus.Errorf("error removing temporary directory %q: %v", contextDir, err)
+				}
+			}()
+			contextDir = filepath.Join(tempDir, subDir)
+		} else {
+			// Nope, it was local.  Use it as is.
+			absDir, err := filepath.Abs(cliArgs[0])
+			if err != nil {
+				return errors.Wrapf(err, "error determining path to directory %q", cliArgs[0])
+			}
+			contextDir = absDir
+		}
 	}
 	cliArgs = Tail(cliArgs)
 
