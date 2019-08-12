@@ -4,9 +4,9 @@
 buildah\-bud - Build an image using instructions from Dockerfiles.
 
 ## SYNOPSIS
-**buildah build-using-dockerfile** [*options*] *context*
+**buildah build-using-dockerfile** [*options*] [*context*]
 
-**buildah bud** [*options*] *context*
+**buildah bud** [*options*] [*context*]
 
 **bud** is an alias for **build-using-dockerfile**.
 
@@ -15,6 +15,8 @@ Builds an image using instructions from one or more Dockerfiles and a specified
 build context directory.
 
 The build context directory can be specified as the http(s) URL of an archive, git repository or Dockerfile.
+
+If no context directory is specified, then buildah will assume the current working directory as build context, which should contain the Dockerfile.`
 
 Dockerfiles ending with a ".in" suffix will be preprocessed via CPP(1).  This can be useful to decompose Dockerfiles into several reusable parts that can be used via CPP's **#include** directive.  Notice, a Dockerfile.in file can still be used by other tools when manually preprocessing them via `cpp -E`.
 
