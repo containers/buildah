@@ -56,6 +56,7 @@ type containerImageRef struct {
 	preferredManifestType string
 	exporting             bool
 	squash                bool
+	maxLayers             uint
 	emptyLayer            bool
 	tarPath               func(path string) (io.ReadCloser, error)
 	parent                string
@@ -139,23 +140,23 @@ func computeLayerMIMEType(what string, layerCompression archive.Compression) (om
 	return omediaType, dmediaType, nil
 }
 
-// Extract the container's whole filesystem as if it were a single layer.
-func (i *containerImageRef) extractRootfs() (io.ReadCloser, error) {
-	mountPoint, err := i.store.Mount(i.containerID, i.mountLabel)
+// Extract the container or layer id whole filesystem as if it were a single layer.
+func (i *containerImageRef) extractRootfs(id string) (io.ReadCloser, error) {
+	mountPoint, err := i.store.Mount(id, i.mountLabel)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error mounting container %q", i.containerID)
+		return nil, errors.Wrapf(err, "error mounting container %q", id)
 	}
 	rc, err := i.tarPath(mountPoint)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error extracting rootfs from container %q", i.containerID)
+		return nil, errors.Wrapf(err, "error extracting rootfs from container %q", id)
 	}
 	return ioutils.NewReadCloserWrapper(rc, func() error {
 		if err = rc.Close(); err != nil {
-			err = errors.Wrapf(err, "error closing tar archive of container %q", i.containerID)
+			err = errors.Wrapf(err, "error closing tar archive of container %q", id)
 		}
-		if _, err2 := i.store.Unmount(i.containerID, false); err == nil {
+		if _, err2 := i.store.Unmount(id, false); err == nil {
 			if err2 != nil {
-				err2 = errors.Wrapf(err2, "error unmounting container %q", i.containerID)
+				err2 = errors.Wrapf(err2, "error unmounting container %q", id)
 			}
 			err = err2
 		}
@@ -167,6 +168,11 @@ func (i *containerImageRef) extractRootfs() (io.ReadCloser, error) {
 // without making unintended changes to the original Builder.
 func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, docker.V2Image, docker.V2S2Manifest, error) {
 	created := i.created
+
+	if i.maxLayers < 1 {
+		// max layers was left un-initialized, thus set it to the maximum value.
+		i.maxLayers = ^uint(0)
+	}
 
 	// Build an empty image, and then decode over it.
 	oimage := v1.Image{}
@@ -180,8 +186,31 @@ func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, 
 	oimage.RootFS.DiffIDs = []digest.Digest{}
 	// Only clear the history if we're squashing, otherwise leave it be so that we can append
 	// entries to it.
-	if i.squash {
-		oimage.History = []v1.History{}
+	if i.squash || i.maxLayers != ^uint(0) {
+		newHistory := []v1.History{}
+		if !i.squash && i.maxLayers > 1 {
+			// We are going to squash old history exceeding maxLayers count
+			// We need to use maxLayers-1 as the commit may produce a new layer.
+			maxHistory := i.maxLayers - 1
+			// if old history is going to be rewritten, then create a new entry
+			if uint(len(oimage.History)) > maxHistory {
+				newHistory = append(newHistory, v1.History{
+					Created:   &i.created,
+					CreatedBy: "buildah",
+					Author:    oimage.Author,
+					Comment:   "old layer squashed",
+				})
+				maxHistory--
+			}
+			// Walk history from oldest to most recent
+			for idx, hist := range oimage.History {
+				// Only keep the most recent ones
+				if uint(len(oimage.History)-idx-1) < maxHistory {
+					newHistory = append(newHistory, hist)
+				}
+			}
+		}
+		oimage.History = newHistory
 	}
 
 	// Build an empty image, and then decode over it.
@@ -198,8 +227,31 @@ func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, 
 	dimage.RootFS.DiffIDs = []digest.Digest{}
 	// Only clear the history if we're squashing, otherwise leave it be so that we can append
 	// entries to it.
-	if i.squash {
-		dimage.History = []docker.V2S2History{}
+	if i.squash || i.maxLayers != ^uint(0) {
+		newHistory := []docker.V2S2History{}
+		if !i.squash && i.maxLayers > 1 {
+			// We are going to squash old history exceeding maxLayers count
+			// We need to use maxLayers-1 as the commit may produce a new layer.
+			maxHistory := i.maxLayers - 1
+			// if old history is going to be rewritten, then create a new entry
+			if uint(len(dimage.History)) > maxHistory {
+				newHistory = append(newHistory, docker.V2S2History{
+					Created:   i.created,
+					CreatedBy: "buildah",
+					Author:    dimage.Author,
+					Comment:   "old layer squashed",
+				})
+				maxHistory--
+			}
+			// Walk history from oldest to most recent
+			for idx, hist := range dimage.History {
+				// Only keep the most recent ones
+				if uint(len(dimage.History)-idx-1) < maxHistory {
+					newHistory = append(newHistory, hist)
+				}
+			}
+		}
+		dimage.History = newHistory
 	}
 
 	// Build empty manifests.  The Layers lists will be populated later.
@@ -229,6 +281,11 @@ func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, 
 }
 
 func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.SystemContext) (src types.ImageSource, err error) {
+	if i.maxLayers < 1 {
+		// max layers was left un-initialized, thus set it to the maximum value.
+		i.maxLayers = ^uint(0)
+	}
+
 	// Decide which type of manifest and configuration output we're going to provide.
 	manifestType := i.preferredManifestType
 	// If it's not a format we support, return an error.
@@ -245,8 +302,18 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 	}
 	// Walk the list of parent layers, prepending each as we go.  If we're squashing,
 	// stop at the layer ID of the top layer, which we won't really be using anyway.
+	layerCount := uint(0)
+	oldestLayerToSquash := ""
 	for layer != nil {
 		layers = append(append([]string{}, layerID), layers...)
+		layerCount++
+		// When layerCount exceed the image maxLayers we can stop now,
+		// the oldest layer is already added to the layers list
+		if layerCount >= i.maxLayers {
+			oldestLayerToSquash = layerID
+			err = nil
+			break
+		}
 		layerID = layer.Parent
 		if layerID == "" || i.squash {
 			err = nil
@@ -258,6 +325,11 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		}
 	}
 	logrus.Debugf("layer list: %q", layers)
+
+	toBeSquashed := func(layerID string) bool {
+		// Return true if this layer needs to be squashed
+		return i.squash || (oldestLayerToSquash != "" && oldestLayerToSquash == layerID)
+	}
 
 	// Make a temporary directory to hold blobs.
 	path, err := ioutil.TempDir(os.TempDir(), Package)
@@ -302,7 +374,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		}
 		// If we're not re-exporting the data, and we're reusing layers individually, reuse
 		// the blobsum and diff IDs.
-		if !i.exporting && !i.squash && layerID != i.layerID {
+		if !i.exporting && !toBeSquashed(layerID) && layerID != i.layerID {
 			if layer.UncompressedDigest == "" {
 				return nil, errors.Errorf("unable to look up size of layer %q", layerID)
 			}
@@ -338,9 +410,15 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			Compression: &noCompression,
 		}
 		var rc io.ReadCloser
-		if i.squash {
+		if toBeSquashed(layerID) {
+			var id string
+			if i.squash {
+				id = i.containerID
+			} else {
+				id = layerID
+			}
 			// Extract the root filesystem as a single layer.
-			rc, err = i.extractRootfs()
+			rc, err = i.extractRootfs(id)
 			if err != nil {
 				return nil, err
 			}
@@ -710,6 +788,7 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 		preferredManifestType: manifestType,
 		exporting:             exporting,
 		squash:                options.Squash,
+		maxLayers:             options.MaxLayers,
 		emptyLayer:            options.EmptyLayer && !options.Squash,
 		tarPath:               b.tarPath(&b.IDMappingOptions),
 		parent:                parent,

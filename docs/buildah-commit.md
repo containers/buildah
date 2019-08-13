@@ -64,7 +64,12 @@ Default leaves the container and its content in place.
 
 **--squash**
 
-Squash all of the new image's layers (including those inherited from a base image) into a single new layer.
+Squash all of the new image's layers (including those inherited from a base image** into a single new layer. This conflicts when **--max-layers** is set to more than 1.
+
+**--max-layers** *uint-value*
+
+Squash any older layers so that the new image's layer count doesn't exceed
+the max layers parameter value. This conflicts with **--squash** when set to more than 1.
 
 **--tls-verify** *bool-value*
 

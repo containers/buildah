@@ -32,6 +32,7 @@ type commitInputOptions struct {
 	rm                 bool
 	signaturePolicy    string
 	squash             bool
+	maxLayers          uint
 	tlsVerify          bool
 }
 
@@ -83,6 +84,7 @@ func init() {
 	}
 
 	flags.BoolVar(&opts.squash, "squash", false, "produce an image with only one layer")
+	flags.UintVar(&opts.maxLayers, "max-layers", ^uint(0), "produce an image with at most N layer")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "Require HTTPS and verify certificates when accessing the registry")
 
 	rootCmd.AddCommand(commitCommand)
@@ -100,7 +102,12 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	if err := buildahcli.CheckAuthFile(iopts.authfile); err != nil {
 		return err
 	}
-
+	if iopts.maxLayers != ^uint(0) && iopts.squash && iopts.maxLayers != 1 {
+		return errors.Errorf("--squash and --max-layers are mutually exclusive")
+	}
+	if iopts.maxLayers < 1 {
+		return errors.Errorf("--max-layers can't be set to 0")
+	}
 	name := args[0]
 	args = Tail(args)
 	if len(args) > 1 {
@@ -170,6 +177,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		SystemContext:         systemContext,
 		IIDFile:               iopts.iidfile,
 		Squash:                iopts.squash,
+		MaxLayers:             iopts.maxLayers,
 		BlobDirectory:         iopts.blobCache,
 		OmitTimestamp:         iopts.omitTimestamp,
 	}

@@ -1189,6 +1189,7 @@ func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, cr
 		PreferredManifestType: s.executor.outputFormat,
 		SystemContext:         s.executor.systemContext,
 		Squash:                s.executor.squash,
+		MaxLayers:             s.executor.maxLayers,
 		EmptyLayer:            emptyLayer,
 		BlobDirectory:         s.executor.blobDirectory,
 	}

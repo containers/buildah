@@ -62,6 +62,9 @@ type CommitOptions struct {
 	// Squash tells the builder to produce an image with a single layer
 	// instead of with possibly more than one layer.
 	Squash bool
+	// MaxLayers tells the builder to produce an image with a maximum
+	// number of layers by squashing any remaining oldest layers.
+	MaxLayers uint
 	// BlobDirectory is the name of a directory in which we'll look for
 	// prebuilt copies of layer blobs that we might otherwise need to
 	// regenerate from on-disk layers.  If blobs are available, the

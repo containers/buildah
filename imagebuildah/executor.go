@@ -77,6 +77,7 @@ type Executor struct {
 	defaultMountsFilePath          string
 	iidfile                        string
 	squash                         bool
+	maxLayers                      uint
 	labels                         []string
 	annotations                    []string
 	layers                         bool
@@ -135,6 +136,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		defaultMountsFilePath:          options.DefaultMountsFilePath,
 		iidfile:                        options.IIDFile,
 		squash:                         options.Squash,
+		maxLayers:                      options.MaxLayers,
 		labels:                         append([]string{}, options.Labels...),
 		annotations:                    append([]string{}, options.Annotations...),
 		layers:                         options.Layers,

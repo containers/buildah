@@ -137,6 +137,9 @@ type BuildOptions struct {
 	// Squash tells the builder to produce an image with a single layer
 	// instead of with possibly more than one layer.
 	Squash bool
+	// MaxLayers tells the builder to produce an image with a maximum
+	// number of layers by squashing any remaining oldest layers.
+	MaxLayers uint
 	// Labels metadata for an image
 	Labels []string
 	// Annotation metadata for an image
