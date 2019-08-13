@@ -26,8 +26,9 @@ func init() {
 	budDescription := `
   Builds an OCI image using instructions in one or more Dockerfiles.
 
-  If no arguments specified, it will assume the current working directory as
-  build context, which should contain the Dockerfile.`
+  If no arguments are specified, Buildah will use the current working directory
+  as the build context and look for a Dockerfile. The build fails if no
+  Dockerfile is present.`
 
 	layerFlagsResults := buildahcli.LayerResults{}
 	budFlagResults := buildahcli.BudResults{}
