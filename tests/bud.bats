@@ -1395,7 +1395,7 @@ load helpers
   run_buildah --debug=false run ${ctr} ls -alF /etc/hbase
   expect_output --substring "/etc/hbase -> /usr/local/hbase/"
 
-  run_buildah --debug=false run ${ctr} ls -alF /usr/local/hbase 
+  run_buildah --debug=false run ${ctr} ls -alF /usr/local/hbase
   expect_output --substring "Dockerfile"
 }
 
@@ -1584,7 +1584,7 @@ load helpers
   [ "${status}" -eq 0 ]
   expect_output --substring "STEP 3: COMMIT"
   run_buildah --debug=false images -q
-  expect_line_count 2 
+  expect_line_count 2
 }
 
 @test "bud-copy-dockerignore-hardlinks" {
@@ -1608,4 +1608,14 @@ load helpers
   [[ "$id1" == "$id2" ]]
   [[ "$id2" == "$id3" ]]
   [[ "$id3" == "$id4" ]]
+}
+
+@test "bud without any arguments should succeed" {
+  cd ${TESTSDIR}/bud/from-scratch
+  run_buildah bud
+}
+
+@test "bud without any arguments should fail when no Dockerfile exist" {
+  cd $(mktemp -d)
+  run_buildah 1 bud
 }
