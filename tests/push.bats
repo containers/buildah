@@ -68,3 +68,25 @@ load helpers
   expect_output --substring "docker://busybox"
   buildah rmi busybox
 }
+
+@test "push-denied-by-registry-sources" {
+  export BUILD_REGISTRY_SOURCES='{"blockedRegistries": ["registry.example.com"]}'
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json --quiet busybox)
+  run_buildah 1 commit --signature-policy ${TESTSDIR}/policy.json ${cid} docker://registry.example.com/busierbox
+  expect_output --substring 'commit to registry at "registry.example.com" denied by policy: it is in the blocked registries list'
+
+  buildah pull --signature-policy ${TESTSDIR}/policy.json --quiet busybox
+  run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json busybox docker://registry.example.com/evenbusierbox
+  expect_output --substring 'push to registry at "registry.example.com" denied by policy: it is in the blocked registries list'
+
+  export BUILD_REGISTRY_SOURCES='{"allowedRegistries": ["some-other-registry.example.com"]}'
+
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json --quiet busybox)
+  run_buildah 1 commit --signature-policy ${TESTSDIR}/policy.json ${cid} docker://registry.example.com/busierbox
+  expect_output --substring 'commit to registry at "registry.example.com" denied by policy: not in allowed registries list'
+
+  buildah pull --signature-policy ${TESTSDIR}/policy.json --quiet busybox
+  run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json busybox docker://registry.example.com/evenbusierbox
+  expect_output --substring 'push to registry at "registry.example.com" denied by policy: not in allowed registries list'
+}

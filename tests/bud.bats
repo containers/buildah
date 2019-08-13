@@ -1506,7 +1506,8 @@ load helpers
 
   # A docker-only policy should allow us to pull the base image and commit.
   run_buildah bud --signature-policy ${TESTSDIR}/docker.json -t ${target} -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
-  # A deny-all policy shouldn't break pushing.
+  # A deny-all policy shouldn't break pushing, since policy is only evaluated
+  # on the source image, and we force it to allow local storage.
   run_buildah push --signature-policy ${TESTSDIR}/deny.json ${target} dir:${TESTDIR}/mount
   run_buildah rmi -a -f
 
@@ -1514,9 +1515,10 @@ load helpers
   run_buildah pull --signature-policy ${TESTSDIR}/docker.json alpine
   # ... and since we don't need to pull the base image, a deny-all policy shouldn't break a build.
   run_buildah bud --signature-policy ${TESTSDIR}/deny.json -t ${target} -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
-  # A deny-all policy shouldn't break pushing.
+  # A deny-all policy shouldn't break pushing, since policy is only evaluated
+  # on the source image, and we force it to allow local storage.
   run_buildah push --signature-policy ${TESTSDIR}/deny.json ${target} dir:${TESTDIR}/mount
-  # A deny-all policy shouldn't break committing directly to other storage.
+  # Similarly, a deny-all policy shouldn't break committing directly to other locations.
   run_buildah bud --signature-policy ${TESTSDIR}/deny.json -t dir:${TESTDIR}/mount -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
   run_buildah rmi -a -f
 }

@@ -149,3 +149,21 @@ load helpers
 @test "pull-with-alltags-from-registry" {
   run_buildah pull --all-tags --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx
 }
+
+@test "pull-denied-by-registry-sources" {
+  export BUILD_REGISTRY_SOURCES='{"blockedRegistries": ["docker.io"]}'
+
+  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  expect_output --substring 'pull from registry at "docker.io" denied by policy: it is in the blocked registries list'
+
+  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  expect_output --substring 'pull from registry at "docker.io" denied by policy: it is in the blocked registries list'
+
+  export BUILD_REGISTRY_SOURCES='{"allowedRegistries": ["some-other-registry.example.com"]}'
+
+  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  expect_output --substring 'pull from registry at "docker.io" denied by policy: not in allowed registries list'
+
+  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  expect_output --substring 'pull from registry at "docker.io" denied by policy: not in allowed registries list'
+}
