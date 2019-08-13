@@ -101,7 +101,22 @@ This example commits the container to the image on the local registry using cred
 This example commits the container to the image on the local registry using credentials from the /tmp/auths/myauths.json file and certificates for authentication.
  `buildah commit --authfile /tmp/auths/myauths.json --cert-dir ~/auth  --tls-verify=true --creds=username:password containerID docker://localhost:5000/imageName`
 
-## Files
+## ENVIRONMENT
+
+**BUILD\_REGISTRY\_SOURCES**
+
+BUILD\_REGISTRY\_SOURCES, if set, is treated as a JSON object which contains
+lists of registry names under the keys `insecureRegistries`,
+`blockedRegistries`, and `allowedRegistries`.
+
+When committing an image, if the image is to be given a name, the portion of
+the name that corresponds to a registry is compared to the items in the
+`blockedRegistries` list, and if it matches any of them, the commit attempt is
+denied.  If there are registries in the `allowedRegistries` list, and the
+portion of the name that corresponds to the registry is not in the list, the
+commit attempt is denied.
+
+## FILES
 
 **registries.conf** (`/etc/containers/registries.conf`)
 

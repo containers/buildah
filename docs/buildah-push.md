@@ -121,7 +121,22 @@ This example pushes the image specified by the imageID and puts it into the regi
 This example pushes the image specified by the imageID and puts it into the registry on the localhost using credentials and certificates for authentication.
  `# buildah push --cert-dir ~/auth --tls-verify=true --creds=username:password imageID docker://localhost:5000/my-imageID`
 
-## Files
+## ENVIRONMENT
+
+**BUILD\_REGISTRY\_SOURCES**
+
+BUILD\_REGISTRY\_SOURCES, if set, is treated as a JSON object which contains
+lists of registry names under the keys `insecureRegistries`,
+`blockedRegistries`, and `allowedRegistries`.
+
+When pushing an image to a registry, if the portion of the destination image
+name that corresponds to a registry is compared to the items in the
+`blockedRegistries` list, and if it matches any of them, the push attempt is
+denied.  If there are registries in the `allowedRegistries` list, and the
+portion of the name that corresponds to the registry is not in the list, the
+push attempt is denied.
+
+## FILES
 
 **registries.conf** (`/etc/containers/registries.conf`)
 

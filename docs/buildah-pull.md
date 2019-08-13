@@ -100,8 +100,20 @@ buildah pull --creds=myusername:mypassword --cert-dir ~/auth myregistry/myreposi
 
 buildah pull --authfile=/tmp/auths/myauths.json myregistry/myrepository/imagename:imagetag
 
+## ENVIRONMENT
 
-## Files
+**BUILD\_REGISTRY\_SOURCES**
+
+BUILD\_REGISTRY\_SOURCES, if set, is treated as a JSON object which contains
+lists of registry names under the keys `insecureRegistries`,
+`blockedRegistries`, and `allowedRegistries`.
+
+When pulling an image from a registry, if the name of the registry matches any
+of the items in the `blockedRegistries` list, the image pull attempt is denied.
+If there are registries in the `allowedRegistries` list, and the registry's
+name is not in the list, the pull attempt is denied.
+
+## FILES
 
 **registries.conf** (`/etc/containers/registries.conf`)
 
