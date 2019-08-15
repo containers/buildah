@@ -1619,3 +1619,25 @@ load helpers
   cd $(mktemp -d)
   run_buildah 1 bud
 }
+
+@test "bud with specified context should fail if directory contains no Dockerfile" {
+  DIR=$(mktemp -d)
+  run_buildah 1 bud "$DIR"
+}
+
+@test "bud with specified context should fail if assumed Dockerfile is a directory" {
+  DIR=$(mktemp -d)
+  mkdir -p "$DIR"/Dockerfile
+  run_buildah 1 bud "$DIR"
+}
+
+@test "bud with specified context should fail if context contains not-existing Dockerfile" {
+  DIR=$(mktemp -d)
+  run_buildah 1 bud "$DIR"/Dockerfile
+}
+
+@test "bud with specified context should succeed if context contains existing Dockerfile" {
+  DIR=$(mktemp -d)
+  touch "$DIR"/Dockerfile
+  run_buildah 0 bud "$DIR"/Dockerfile
+}
