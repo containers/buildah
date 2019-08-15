@@ -164,8 +164,15 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	if err := buildahcli.VerifyFlagsArgsOrder(cliArgs); err != nil {
 		return err
 	}
+
 	if len(dockerfiles) == 0 {
-		dockerfiles = append(dockerfiles, filepath.Join(contextDir, "Dockerfile"))
+		// Try to find the Dockerfile within the contextDir
+		dockerFile, err := discoverDockerfile(contextDir)
+		if err != nil {
+			return err
+		}
+		dockerfiles = append(dockerfiles, dockerFile)
+		contextDir = filepath.Dir(dockerFile)
 	}
 
 	var stdin, stdout, stderr, reporter *os.File
@@ -302,4 +309,38 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 
 	_, _, err = imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)
 	return err
+}
+
+// discoverDockerfile tries to find a Dockerfile within the provided `path`.
+func discoverDockerfile(path string) (foundDockerfile string, err error) {
+	// Test for existence of the file
+	target, err := os.Stat(path)
+	if err != nil {
+		return "", errors.Wrap(err, "discovering Dockerfile")
+	}
+
+	switch mode := target.Mode(); {
+	case mode.IsDir():
+		// If the path is a real directory, we assume a Dockerfile within it
+		dockerfile := filepath.Join(path, "Dockerfile")
+
+		// Test for existence of the new file
+		file, err := os.Stat(dockerfile)
+		if err != nil {
+			return "", errors.Wrap(err, "finding assumed Dockerfile")
+		}
+
+		// The file exists, now verify the correct mode
+		if mode := file.Mode(); mode.IsRegular() {
+			foundDockerfile = dockerfile
+		} else {
+			return "", errors.Errorf("assumed Dockerfile %q is not a file", dockerfile)
+		}
+
+	case mode.IsRegular():
+		// If the context dir is a file, we assume this as Dockerfile
+		foundDockerfile = path
+	}
+
+	return foundDockerfile, nil
 }
