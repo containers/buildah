@@ -61,6 +61,10 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
+**--digestfile** *Digestfile*
+
+After copying the image, write the digest of the resulting image to the file.
+
 **--disable-compression, -D**
 
 Don't compress copies of filesystem layers which will be pushed.
@@ -79,38 +83,42 @@ Require HTTPS and verify certificates when talking to container registries (defa
 
 ## EXAMPLE
 
-This example extracts the imageID image to a local directory in docker format.
+This example pushes the image specified by the imageID to a local directory in docker format.
 
  `# buildah push imageID dir:/path/to/image`
 
-This example extracts the imageID image to a local directory in oci format.
+This example pushes the image specified by the imageID to a local directory in oci format.
 
  `# buildah push imageID oci:/path/to/layout:image:tag`
 
-This example extracts the imageID image to a tar archive in oci format.
+This example pushes the image specifed by the imageID to a tar archive in oci format.
 
   `# buildah push imageID oci-archive:/path/to/archive:image:tag`
 
-This example extracts the imageID image to a container registry named registry.example.com.
+This example pushes the image specified by the imageID to a container registry named registry.example.com.
 
  `# buildah push imageID docker://registry.example.com/repository:tag`
+
+This example pushes the image specified by the imageID to a container registry named registry.example.com and saves the digest in the specified digestfile.
+
+ `# buildah push --digestfile=/tmp/mydigest imageID docker://registry.example.com/repository:tag`
 
 This example works like **docker push**, assuming *registry.example.com/my_image* is a local image.
 
  `# buildah push registry.example.com/my_image`
 
-This example extracts the imageID image to a private container registry named registry.example.com with authentication from /tmp/auths/myauths.json.
+This example pushes the image specified by the imageID to a private container registry named registry.example.com with authentication from /tmp/auths/myauths.json.
 
  `# buildah push --authfile /tmp/auths/myauths.json imageID docker://registry.example.com/repository:tag`
 
-This example extracts the imageID image and puts into the local docker container store.
+This example pushes the image specified by the imageID and puts into the local docker container store.
 
  `# buildah push imageID docker-daemon:image:tag`
 
-This example extracts the imageID image and puts it into the registry on the localhost while turning off tls verification.
+This example pushes the image specified by the imageID and puts it into the registry on the localhost while turning off tls verification.
  `# buildah push --tls-verify=false imageID docker://localhost:5000/my-imageID`
 
-This example extracts the imageID image and puts it into the registry on the localhost using credentials and certificates for authentication.
+This example pushes the image specified by the imageID and puts it into the registry on the localhost using credentials and certificates for authentication.
  `# buildah push --cert-dir ~/auth --tls-verify=true --creds=username:password imageID docker://localhost:5000/my-imageID`
 
 ## Files

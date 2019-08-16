@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -24,6 +25,7 @@ type pushResults struct {
 	blobCache          string
 	certDir            string
 	creds              string
+	digestfile         string
 	disableCompression bool
 	format             string
 	quiet              bool
@@ -65,6 +67,7 @@ func init() {
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
+	flags.StringVar(&opts.digestfile, "digestfile", "", "after copying the image, write the digest of the resulting image to the file")
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", false, "don't compress layers")
 	flags.StringVarP(&opts.format, "format", "f", "", "manifest type (oci, v2s1, or v2s2) to use when saving image using the 'dir:' transport (default is manifest type of source)")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pushing images")
@@ -175,6 +178,15 @@ func pushCmd(c *cobra.Command, args []string, iopts pushResults) error {
 	} else {
 		logrus.Debugf("pushed image with digest %s", digest.String())
 	}
+
+	logrus.Debugf("Successfully pushed %s with digest %s", transports.ImageName(dest), digest.String())
+
+	if iopts.digestfile != "" {
+		if err = ioutil.WriteFile(iopts.digestfile, []byte(digest.String()), 0644); err != nil {
+			return util.GetFailureCause(err, errors.Wrapf(err, "failed to write digest to file %q", iopts.digestfile))
+		}
+	}
+
 	return nil
 }
 
