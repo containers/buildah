@@ -62,6 +62,17 @@ load helpers
   rm -rf my-dir
 }
 
+@test "push with imageid and digest file" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  imageid=$(buildah images -q)
+  run_buildah push --digestfile=${TESTDIR}/digest.txt --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
+  cat ${TESTDIR}/digest.txt
+  test -s ${TESTDIR}/digest.txt
+  buildah rm "$cid"
+  buildah rmi alpine
+  rm -rf my-dir
+}
+
 @test "push without destination" {
   buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json busybox
