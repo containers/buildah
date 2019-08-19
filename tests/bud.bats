@@ -1614,32 +1614,36 @@ load helpers
 
 @test "bud without any arguments should succeed" {
   cd ${TESTSDIR}/bud/from-scratch
-  run_buildah bud
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json
 }
 
 @test "bud without any arguments should fail when no Dockerfile exist" {
   cd $(mktemp -d)
-  run_buildah 1 bud
+  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json
+  [[ "$output" =~ "no such file or directory" ]]
 }
 
 @test "bud with specified context should fail if directory contains no Dockerfile" {
   DIR=$(mktemp -d)
-  run_buildah 1 bud "$DIR"
+  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"
+  [[ "$output" =~ "no such file or directory" ]]
 }
 
 @test "bud with specified context should fail if assumed Dockerfile is a directory" {
   DIR=$(mktemp -d)
   mkdir -p "$DIR"/Dockerfile
-  run_buildah 1 bud "$DIR"
+  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"
+  [[ "$output" =~ "is not a file" ]]
 }
 
 @test "bud with specified context should fail if context contains not-existing Dockerfile" {
   DIR=$(mktemp -d)
-  run_buildah 1 bud "$DIR"/Dockerfile
+  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"/Dockerfile
+  [[ "$output" =~ "no such file or directory" ]]
 }
 
 @test "bud with specified context should succeed if context contains existing Dockerfile" {
   DIR=$(mktemp -d)
   touch "$DIR"/Dockerfile
-  run_buildah 0 bud "$DIR"/Dockerfile
+  run_buildah 0 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"/Dockerfile
 }
