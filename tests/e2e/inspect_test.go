@@ -27,7 +27,7 @@ var _ = Describe("Podman load", func() {
 	})
 
 	It("buildah inspect json", func() {
-		b := buildahtest.BuildAh([]string{"from", "--pull=false", "scratch"})
+		b := buildahtest.BuildAh([]string{"from", "--pull=never", "scratch"})
 		b.WaitWithDefaultTimeout()
 		Expect(b.ExitCode()).To(Equal(0))
 		cid := b.OutputToString()
@@ -38,7 +38,7 @@ var _ = Describe("Podman load", func() {
 	})
 
 	It("buildah inspect format", func() {
-		b := buildahtest.BuildAh([]string{"from", "--pull=false", "scratch"})
+		b := buildahtest.BuildAh([]string{"from", "--pull=never", "scratch"})
 		b.WaitWithDefaultTimeout()
 		Expect(b.ExitCode()).To(Equal(0))
 		cid := b.OutputToString()
@@ -48,7 +48,7 @@ var _ = Describe("Podman load", func() {
 	})
 
 	It("buildah inspect image", func() {
-		b := buildahtest.BuildAh([]string{"from", "--pull=false", "scratch"})
+		b := buildahtest.BuildAh([]string{"from", "--pull=never", "scratch"})
 		b.WaitWithDefaultTimeout()
 		Expect(b.ExitCode()).To(Equal(0))
 		cid := b.OutputToString()
@@ -68,7 +68,7 @@ var _ = Describe("Podman load", func() {
 	})
 
 	It("buildah HTML escaped", func() {
-		b := buildahtest.BuildAh([]string{"from", "--pull=false", "scratch"})
+		b := buildahtest.BuildAh([]string{"from", "--pull=never", "scratch"})
 		b.WaitWithDefaultTimeout()
 		Expect(b.ExitCode()).To(Equal(0))
 		cid := b.OutputToString()

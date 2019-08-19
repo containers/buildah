@@ -118,7 +118,7 @@ Okay, so we don't have a fedora-bashecho anymore. Let's pull the image from Dock
 
     # buildah from ipbabble/fedora-bashecho
 
-If you don't want to bother doing the remove image step (`rmi`) you can use the flag `--pull-always` to force the image to be pulled again and overwrite any corresponding local image.
+If you don't want to bother doing the remove image step (`rmi`) you can use the flag `--pull always` to force the image to be pulled again and overwrite any corresponding local image.
 
 Now check that image is in the local containers-storage:
 

@@ -15,7 +15,7 @@ load helpers
 
         # Build a container to use for building the binaries.
         image=registry.centos.org/centos/centos:centos7
-        cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        cid=$(buildah --debug=false from --pull missing --signature-policy ${TESTSDIR}/policy.json $image)
         root=$(buildah --debug=false mount $cid)
         commit=$(git log --format=%H -n 1)
         shortcommit=$(echo ${commit} | cut -c-7)
@@ -33,7 +33,7 @@ load helpers
         buildah --debug=false run $cid -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
 
         # Build a second new container.
-        cid2=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        cid2=$(buildah --debug=false from --pull missing --signature-policy ${TESTSDIR}/policy.json $image)
         root2=$(buildah --debug=false mount $cid2)
 
         # Copy the binary packages from the first container to the second one, and build a list of
@@ -70,7 +70,7 @@ load helpers
 
         # Build a container to use for building the binaries.
         image=registry.fedoraproject.org/fedora:latest
-        cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        cid=$(buildah --debug=false from --pull missing --signature-policy ${TESTSDIR}/policy.json $image)
         root=$(buildah --debug=false mount $cid)
         commit=$(git log --format=%H -n 1)
         shortcommit=$(echo ${commit} | cut -c-7)
@@ -88,7 +88,7 @@ load helpers
         buildah --debug=false run $cid -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
 
         # Build a second new container.
-        cid2=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        cid2=$(buildah --debug=false from --pull missing --signature-policy ${TESTSDIR}/policy.json $image)
         root2=$(buildah --debug=false mount $cid2)
 
         # Copy the binary packages from the first container to the second one, and build a list of

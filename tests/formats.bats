@@ -3,7 +3,7 @@
 load helpers
 
 @test "write-formats" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --pull=never --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-default
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci

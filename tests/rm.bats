@@ -19,7 +19,7 @@ load helpers
 }
 
 @test "remove one container" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false rm "$cid"
   run_buildah rmi alpine
 }
@@ -40,7 +40,7 @@ load helpers
 }
 
 @test "use conflicting commands to remove containers" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah 1 --debug=false rm -a "$cid"
   expect_output --substring "when using the --all switch, you may not pass any containers names or IDs"
   run_buildah rm "$cid"

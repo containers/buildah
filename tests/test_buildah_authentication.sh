@@ -68,7 +68,7 @@ buildah images
 # Buildah from (pull) using certs and cached Docker creds.
 # Should show two alpine images and containers when done.
 ########
-ctrid=$(buildah from --cert-dir /root/auth localhost:5000/my-alpine) 
+ctrid=$(buildah from --cert-dir /root/auth localhost:5000/my-alpine)
 
 buildah containers
 
@@ -171,12 +171,12 @@ buildah commit --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpas
 ########
 # Use bad password on from/pull, this should FAIL
 ########
-buildah from --pull-always --cert-dir /root/auth  --tls-verify=true --creds=testuser:badpassword localhost:5000/my-commit-alpine
+buildah from --pull always --cert-dir /root/auth  --tls-verify=true --creds=testuser:badpassword localhost:5000/my-commit-alpine
 
 ########
 # Pull the new image that we just commited
 ########
-buildah from --pull-always --cert-dir /root/auth --tls-verify=true --creds=testuser:testpassword localhost:5000/my-commit-alpine
+buildah from --pull always --cert-dir /root/auth --tls-verify=true --creds=testuser:testpassword localhost:5000/my-commit-alpine
 
 ########
 # Show stuff
@@ -190,7 +190,7 @@ buildah containers
 buildah images
 
 ########
-# Create Dockerfile 
+# Create Dockerfile
 ########
 FILE=./Dockerfile
 /bin/cat <<EOM >$FILE
@@ -205,12 +205,12 @@ buildah rm --all
 buildah rmi -f $(buildah --debug=false images -q)
 
 ########
-# Try Buildah bud with creds but no auth, this should FAIL 
+# Try Buildah bud with creds but no auth, this should FAIL
 ########
 buildah bud -f ./Dockerfile --tls-verify=true --creds=testuser:testpassword
 
 ########
-# Try Buildah bud with creds and auth, this should work 
+# Try Buildah bud with creds and auth, this should work
 ########
 buildah bud -f ./Dockerfile --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpassword
 

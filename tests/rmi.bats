@@ -14,7 +14,7 @@ load helpers
 }
 
 @test "remove one image" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   buildah rmi alpine
   run_buildah --debug=false images -q
@@ -97,17 +97,17 @@ load helpers
 }
 
 @test "use conflicting commands to remove images" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   run_buildah 1 --debug=false rmi -a alpine
   expect_output --substring "when using the --all switch, you may not pass any images names or IDs"
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   run_buildah 1 --debug=false rmi -p alpine
   expect_output --substring "when using the --prune switch, you may not pass any images names or IDs"
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   run_buildah 1 --debug=false rmi -a -p
   expect_output --substring "when using the --all switch, you may not use --prune switch"
@@ -116,7 +116,7 @@ load helpers
 
 @test "remove image that is a parent of another image" {
   buildah rmi -a -f
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=missing --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
   buildah rm -a
@@ -155,10 +155,10 @@ load helpers
 
 @test "rmi image that is created from another named image" {
   buildah rmi -a -f
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=missing --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json new-image)
+  cid=$(buildah from --pull=missing --signature-policy ${TESTSDIR}/policy.json new-image)
   buildah config --env 'foo=bar' $cid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image-2
   buildah rm -a

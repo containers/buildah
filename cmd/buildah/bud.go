@@ -96,12 +96,21 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 			tags = tags[1:]
 		}
 	}
+
+	pullType, err := buildahcli.ValidatePullType(iopts.Pull)
+	if err != nil {
+		return err
+	}
+
 	pullPolicy := imagebuildah.PullNever
-	if iopts.Pull {
+	if pullType == buildahcli.PullImageMissing {
 		pullPolicy = imagebuildah.PullIfMissing
 	}
-	if iopts.PullAlways {
+	if pullType == buildahcli.PullImageAlways || iopts.PullAlways {
 		pullPolicy = imagebuildah.PullAlways
+	}
+	if iopts.PullAlways && pullType != buildahcli.PullImageAlways {
+		return errors.Errorf("--pull-ways does not match pull type from --pull %q", iopts.Pull)
 	}
 
 	args := make(map[string]string)

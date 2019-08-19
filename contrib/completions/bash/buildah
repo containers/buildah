@@ -366,7 +366,6 @@ return 1
      --layers
      --no-cache
      --pull
-     --pull-always
      --quiet
      -q
      --squash
@@ -832,7 +831,6 @@ _buildah_containers() {
      --help
      -h
      --pull
-     --pull-always
      --quiet
      -q
      --tls-verify

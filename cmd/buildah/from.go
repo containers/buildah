@@ -21,7 +21,7 @@ type fromReply struct {
 	creds           string
 	format          string
 	name            string
-	pull            bool
+	pull            string
 	pullAlways      bool
 	quiet           bool
 	signaturePolicy string
@@ -50,7 +50,7 @@ func init() {
 			opts.NameSpaceResults = &namespaceResults
 			return fromCmd(cmd, args, opts)
 		},
-		Example: `buildah from --pull imagename
+		Example: `buildah from --pull missing imagename
   buildah from docker-daemon:imagename:imagetag
   buildah from --name "myimagename" myregistry/myrepository/imagename:imagetag`,
 	}
@@ -64,12 +64,16 @@ func init() {
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
 	flags.StringVar(&opts.name, "name", "", "`name` for the working container")
-	flags.BoolVar(&opts.pull, "pull", true, "pull the image if not present")
+	flags.StringVar(&opts.pull, "pull", "missing", `Pull image before building ("always"|"missing"|"never") (default "missing")`)
+
 	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if named image is present in store (supersedes pull option)")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pulling images")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
+	}
+	if err := flags.MarkHidden("pull-always"); err != nil {
+		panic(fmt.Sprintf("error marking pull-always as hidden: %v", err))
 	}
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 
@@ -171,10 +175,19 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
+	pullType, err := buildahcli.ValidatePullType(iopts.pull)
+	if err != nil {
+		return err
+	}
+
 	pullPolicy := buildah.PullNever
-	if iopts.pull {
+	if pullType == buildahcli.PullImageMissing {
 		pullPolicy = buildah.PullIfMissing
 	}
+	if pullType == buildahcli.PullImageAlways {
+		pullPolicy = buildah.PullAlways
+	}
+
 	if iopts.pullAlways {
 		pullPolicy = buildah.PullAlways
 	}

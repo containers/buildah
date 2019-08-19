@@ -6,7 +6,7 @@ load helpers
   image=busybox
 
   # Pull down the image, if we have to.
-  cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+  cid=$(buildah --debug=false from --pull "missing" --signature-policy ${TESTSDIR}/policy.json $image)
   [ $? -eq 0 ]
   [ $(wc -l <<< "$cid") -eq 1 ]
   buildah rm $cid
@@ -17,13 +17,13 @@ load helpers
   iid="$output"
 
   # Use the image's ID to create a container.
-  run_buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json ${iid}
+  run_buildah --debug=false from --pull "missing" --signature-policy ${TESTSDIR}/policy.json ${iid}
   expect_line_count 1
   cid="$output"
   buildah rm $cid
 
   # Use a truncated form of the image's ID to create a container.
-  run_buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json ${iid:0:6}
+  run_buildah --debug=false from --pull "missing" --signature-policy ${TESTSDIR}/policy.json ${iid:0:6}
   expect_line_count 1
   cid="$output"
   buildah rm $cid
@@ -35,7 +35,7 @@ load helpers
   image=busybox
 
   # Pull down the image, if we have to.
-  cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+  cid=$(buildah --debug=false from --pull "missing" --signature-policy ${TESTSDIR}/policy.json $image)
   [ $? -eq 0 ]
   [ $(wc -l <<< "$cid") -eq 1 ]
   buildah rm $cid
@@ -62,7 +62,7 @@ load helpers
     mkdir -p $TARGET $TARGET-truncated
 
     # Pull down the image, if we have to.
-    cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+    cid=$(buildah --debug=false from --pull "missing" --signature-policy ${TESTSDIR}/policy.json $image)
     [ $? -eq 0 ]
     [ $(wc -l <<< "$cid") -eq 1 ]
     buildah rm $cid
@@ -87,7 +87,7 @@ load helpers
   image=busybox
 
   # Pull down the image, if we have to.
-  cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+  cid=$(buildah --debug=false from --pull "missing" --signature-policy ${TESTSDIR}/policy.json $image)
   [ $? -eq 0 ]
   [ $(wc -l <<< "$cid") -eq 1 ]
   buildah rm $cid

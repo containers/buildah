@@ -166,7 +166,7 @@ load helpers
 	target=new-image
 	# Build an image while pulling the base image.  Compress the layers so that they get added
 	# to the blob cache in their compressed forms.
-	run_buildah build-using-dockerfile -t ${target} --pull-always --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} --disable-compression=false ${TESTSDIR}/bud/add-file
+	run_buildah build-using-dockerfile -t ${target} --pull always --signature-policy ${TESTSDIR}/policy.json --blob-cache=${blobcachedir} --disable-compression=false ${TESTSDIR}/bud/add-file
 	# Now try to push the image using the blob cache.  The blob cache will only suggest the
 	# compressed version of a blob if it's been told that we want to compress things, so
 	# we also request compression here to avoid having the copy logic just compress the
@@ -202,7 +202,7 @@ load helpers
 	mkdir -p ${blobcachedir}
 	target=new-image
 	# Build an image while pulling the base image.
-	run_buildah build-using-dockerfile -t ${target} -D --pull-always --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/add-file
+	run_buildah build-using-dockerfile -t ${target} -D --pull always --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/add-file
 	# Now try to push the image using the blob cache.
 	destdir=${TESTDIR}/dest
 	mkdir -p ${destdir}
@@ -237,7 +237,7 @@ load helpers
 	destdir=${TESTDIR}/dest
 	mkdir -p ${destdir}
 	# Build an image while pulling the base image, implicitly pushing while writing.
-	run_buildah build-using-dockerfile -t dir:${destdir} --pull-always --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/add-file
+	run_buildah build-using-dockerfile -t dir:${destdir} --pull always --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/add-file
 	# Look for layer blobs in the destination that match the ones in the cache.
 	matched=0
 	unmatched=0
@@ -268,7 +268,7 @@ load helpers
 	destdir=${TESTDIR}/dest
 	mkdir -p ${destdir}
 	# Build an image while pulling the base image, implicitly pushing while writing.
-	run_buildah build-using-dockerfile -t dir:${destdir} -D --pull-always --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/add-file
+	run_buildah build-using-dockerfile -t dir:${destdir} -D --pull always --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/add-file
 	# Look for layer blobs in the destination that match the ones in the cache.
 	matched=0
 	unmatched=0

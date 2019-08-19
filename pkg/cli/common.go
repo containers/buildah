@@ -61,7 +61,7 @@ type BudResults struct {
 	Loglevel            int
 	NoCache             bool
 	Platform            string
-	Pull                bool
+	Pull                string
 	PullAlways          bool
 	Quiet               bool
 	Rm                  bool
@@ -156,8 +156,11 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringVar(&flags.Logfile, "logfile", "", "log to `file` instead of stdout/stderr")
 	fs.IntVar(&flags.Loglevel, "loglevel", 0, "adjust logging level (range from -2 to 3)")
 	fs.StringVar(&flags.Platform, "platform", "", "CLI compatibility: no action or effect")
-	fs.BoolVar(&flags.Pull, "pull", true, "pull the image if not present")
+	fs.StringVar(&flags.Pull, "pull", "missing", `Pull image before building ("always"|"missing"|"never") (default "missing")`)
 	fs.BoolVar(&flags.PullAlways, "pull-always", false, "pull the image, even if a version is present")
+	if err := fs.MarkHidden("pull-always"); err != nil {
+		panic(fmt.Sprintf("error marking pull-always flag as hidden: %v", err))
+	}
 	fs.BoolVarP(&flags.Quiet, "quiet", "q", false, "refrain from announcing build instructions and image read/write progress")
 	fs.BoolVar(&flags.Rm, "rm", true, "Remove intermediate containers after a successful build")
 	fs.StringVar(&flags.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
@@ -262,4 +265,33 @@ func GetDefaultAuthFile() string {
 		return filepath.Join(runtimeDir, "containers/auth.json")
 	}
 	return ""
+}
+
+// PullType whether to pull new image
+type PullType int
+
+const (
+	// PullImageAlways always try to pull new image when create or run
+	PullImageAlways PullType = iota
+	// PullImageMissing pulls image if it is not locally
+	PullImageMissing
+	// PullImageNever will never pull new image
+	PullImageNever
+)
+
+// ValidatePullType check if the pullType from CLI is valid and returns the valid enum type
+// if the value from CLI is invalid returns the error
+func ValidatePullType(pullType string) (PullType, error) {
+	switch pullType {
+	case "always":
+		return PullImageAlways, nil
+	case "missing":
+		return PullImageMissing, nil
+	case "never":
+		return PullImageNever, nil
+	case "":
+		return PullImageMissing, nil
+	default:
+		return PullImageMissing, errors.Errorf("invalid pull type %q", pullType)
+	}
 }

@@ -8,7 +8,7 @@
 # The baseline test is then run on this vm and then the
 # newly created BUILDAH rpm is installed and the baseline
 # test is rerun.
-# 
+#
 
 ########
 # Setup
@@ -36,7 +36,7 @@ cd $GITROOT
 ########
 # Build a container to use for building the binaries.
 ########
-CTRID=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $IMAGE)
+CTRID=$(buildah --debug=false from --pull missing --signature-policy ${TESTSDIR}/policy.json $IMAGE)
 ROOTMNT=$(buildah --debug=false mount $CTRID)
 COMMIT=$(git log --format=%H -n 1)
 SHORTCOMMIT=$(echo ${COMMIT} | cut -c-7)
@@ -62,19 +62,19 @@ buildah --debug=false run $CTRID -- rpmbuild --define "_topdir /rpmbuild" -ba /r
 ########
 # Build a second new container.
 ########
-CTRID2=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $IMAGE)
+CTRID2=$(buildah --debug=false from --pull missing --signature-policy ${TESTSDIR}/policy.json $IMAGE)
 ROOTMNT2=$(buildah --debug=false mount $CTRID2)
 
 ########
-# Copy the binary packages from the first container to the second one and to 
+# Copy the binary packages from the first container to the second one and to
 # /tmp.  Also build a list of their filenames.
 ########
 rpms=
 mkdir -p ${ROOTMNT2}/${PACKAGES}
-mkdir -p ${PACKAGES} 
+mkdir -p ${PACKAGES}
 for rpm in ${ROOTMNT}/rpmbuild/RPMS/*/*.rpm ; do
 	cp $rpm ${ROOTMNT2}/${PACKAGES}
-	cp $rpm ${PACKAGES} 
+	cp $rpm ${PACKAGES}
 	rpms="$rpms "${PACKAGES}/$(basename $rpm)
 done
 
@@ -103,19 +103,19 @@ buildah rm $(buildah containers -q)
 buildah rmi -f $(buildah --debug=false images -q)
 
 ########
-# Kick off baseline testing against the installed Buildah 
+# Kick off baseline testing against the installed Buildah
 ########
 /bin/bash -v ${TESTSDIR}/test_buildah_baseline.sh
 
 ########
-# Install the Buildah we just built locally and run 
+# Install the Buildah we just built locally and run
 # the baseline tests again.
 ########
 ${PACKAGER} -y install ${PACKAGES}/*.rpm
 /bin/bash -v ${TESTSDIR}/test_buildah_baseline.sh
 
 ########
-# Clean up 
+# Clean up
 ########
 rm -rf ${SBOX}
 rm -rf ${PACKAGES}

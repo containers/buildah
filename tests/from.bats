@@ -6,8 +6,8 @@ load helpers
   run_buildah 1 from scratch -q
   check_options_flag_err "-q"
 
-  run_buildah 1 from scratch --pull
-  check_options_flag_err "--pull"
+  run_buildah 1 from scratch --pull=missing
+  check_options_flag_err "--pull=missing"
 
   run_buildah 1 from scratch --ulimit=1024
   check_options_flag_err "--ulimit=1024"
@@ -23,27 +23,27 @@ load helpers
   elsewhere=${TESTDIR}/elsewhere-img
   mkdir -p ${elsewhere}
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --pull missing --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
   buildah rm $cid
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
+  cid=$(buildah from --pull missing --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
   [ "$cid" = elsewhere-img-working-container ]
 
-  cid=$(buildah from --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
+  cid=$(buildah from --pull always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
   [ "$cid" = `basename ${elsewhere}`-working-container ]
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --pull missing --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
   buildah rm $cid
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
+  cid=$(buildah from --pull missing --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
   [ "$cid" = elsewhere-img-working-container ]
 
-  cid=$(buildah from --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
+  cid=$(buildah from --pull always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
   [ "$cid" = `basename ${elsewhere}`-working-container ]
 }
@@ -127,7 +127,7 @@ load helpers
 
 @test "from-tagged-image" {
   # Github #396: Make sure the container name starts with the correct image even when it's tagged.
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --pull=never --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" scratch2
   buildah rm $cid
   buildah tag scratch2 scratch3
@@ -137,7 +137,7 @@ load helpers
   buildah rmi scratch2 scratch3
 
   # Github https://github.com/containers/buildah/issues/396#issuecomment-360949396
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=missing --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm $cid
   buildah tag alpine alpine2
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json localhost/alpine2)
@@ -145,25 +145,25 @@ load helpers
   buildah rm ${cid}
   buildah rmi alpine alpine2
 
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
+  cid=$(buildah from --pull=missing --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
   buildah rm ${cid}
   buildah rmi docker.io/alpine
 
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine:latest)
+  cid=$(buildah from --pull=missing --signature-policy ${TESTSDIR}/policy.json docker.io/alpine:latest)
   buildah rm ${cid}
   buildah rmi docker.io/alpine:latest
 
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:7)
+  cid=$(buildah from --pull=missing --signature-policy ${TESTSDIR}/policy.json docker.io/centos:7)
   buildah rm ${cid}
   buildah rmi docker.io/centos:7
 
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:latest)
+  cid=$(buildah from --pull=missing --signature-policy ${TESTSDIR}/policy.json docker.io/centos:latest)
   buildah rm ${cid}
   buildah rmi docker.io/centos:latest
 }
 
 @test "from the following transports: docker-archive, oci-archive, and dir" {
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=missing --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm $cid
   buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:docker-alp.tar:alpine
   buildah push --signature-policy ${TESTSDIR}/policy.json alpine oci-archive:oci-alp.tar:alpine
@@ -190,7 +190,7 @@ load helpers
 }
 
 @test "from the following transports: docker-archive and oci-archive with no image reference" {
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=missing --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm $cid
   buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:docker-alp.tar
   buildah push --signature-policy ${TESTSDIR}/policy.json alpine oci-archive:oci-alp.tar
@@ -216,7 +216,7 @@ load helpers
   if ! which runc ; then
     skip "no runc in PATH"
   fi
-  cid=$(buildah from --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --cpu-period=5000 --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
   expect_output "5000"
   buildah rm $cid
@@ -229,7 +229,7 @@ load helpers
   if ! which runc ; then
     skip "no runc in PATH"
   fi
-  cid=$(buildah from --cpu-quota=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --cpu-quota=5000 --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
   expect_output "5000"
   buildah rm $cid
@@ -242,7 +242,7 @@ load helpers
   if ! which runc ; then
     skip "no runc in PATH"
   fi
-  cid=$(buildah from --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --cpu-shares=2 --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.shares
   expect_output "2"
   buildah rm $cid
@@ -255,7 +255,7 @@ load helpers
   if ! which runc ; then
     skip "no runc in PATH"
   fi
-  cid=$(buildah from --cpuset-cpus=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --cpuset-cpus=0 --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
   expect_output "0"
   buildah rm $cid
@@ -268,7 +268,7 @@ load helpers
   if ! which runc ; then
     skip "no runc in PATH"
   fi
-  cid=$(buildah from --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --cpuset-mems=0 --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
   expect_output "0"
   buildah rm $cid
@@ -281,7 +281,7 @@ load helpers
   if ! which runc ; then
     skip "no runc in PATH"
   fi
-  cid=$(buildah from --memory=40m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --memory=40m --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid cat /sys/fs/cgroup/memory/memory.limit_in_bytes
   expect_output "41943040"
   buildah rm $cid
@@ -291,7 +291,7 @@ load helpers
   if ! which runc ; then
     skip "no runc in PATH"
   fi
-  cid=$(buildah from --volume=${TESTDIR}:/myvol --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --volume=${TESTDIR}:/myvol --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
   buildah rm $cid
@@ -304,7 +304,7 @@ load helpers
   if ! which runc ; then
     skip "no runc in PATH"
   fi
-  cid=$(buildah from --volume=${TESTDIR}:/myvol:ro --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --volume=${TESTDIR}:/myvol:ro --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
   buildah rm $cid
@@ -317,7 +317,7 @@ load helpers
   if ! which runc ; then
     skip "no runc in PATH"
   fi
-  cid=$(buildah from --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --shm-size=80m --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --debug=false run $cid -- df -h /dev/shm
   expect_output --substring " 80.0M "
   buildah rm $cid
@@ -327,7 +327,7 @@ load helpers
   if ! which runc ; then
     skip "no runc in PATH"
   fi
-  cid=$(buildah from --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --add-host=localhost:127.0.0.1 --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah run $cid -- cat /etc/hosts
   expect_output --substring "127.0.0.1 +localhost"
   buildah rm $cid
@@ -335,12 +335,12 @@ load helpers
 
 @test "from name test" {
   container_name=mycontainer
-  cid=$(buildah from --name=${container_name} --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --name=${container_name} --pull missing --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah --debug=false inspect --format '{{.Container}}' ${container_name}
 }
 
 @test "from cidfile test" {
-  buildah from --cidfile output.cid --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  buildah from --cidfile output.cid --pull missing --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$(cat output.cid)
   run_buildah --debug=false containers -f id=${cid}
   buildah rm ${cid}

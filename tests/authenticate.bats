@@ -10,7 +10,7 @@ load helpers
 
 @test "from-authenticate-cert-and-creds" {
 
-  run_buildah from --pull --name "alpine" --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --pull "missing" --name "alpine" --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword alpine localhost:5000/my-alpine
 
   # This should fail
