@@ -75,7 +75,7 @@ load helpers
   run_buildah rmi alpine
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
-  expect_output --substring "buildahtest"
+  expect_output --substring "localhost${TESTDIR}/buildahtest:latest"
   run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
   run rm -rf ${TESTDIR}/buildahtest
   echo "$output"
@@ -139,7 +139,7 @@ load helpers
   run_buildah rmi alpine
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
   run_buildah images --format "{{.Name}}:{{.Tag}}"
-  expect_output --substring "alpine"
+  expect_output --substring "localhost${TESTDIR}/alpine:latest"
   run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
   run rm -rf ${TESTDIR}/alpine
   echo "$output"
