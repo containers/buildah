@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 export PATH=tests/tools/build:${PATH}
 if ! which git-validation > /dev/null 2> /dev/null ; then
 	echo git-validation is not in PATH.

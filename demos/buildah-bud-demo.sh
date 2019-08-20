@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/usr/bin/env bash 
 
 # buildah-bud-demo.sh
 # author : ipbabble

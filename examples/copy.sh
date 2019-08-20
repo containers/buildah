@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/usr/bin/env bash -x
 set -e
 : "[1m Build a temporary directory; make sure ocid is running.[0m"
 export PATH=`pwd`:$PATH

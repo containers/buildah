@@ -110,7 +110,7 @@ Let's try it out (showing the prompt in this example to demonstrate the differen
 
 Notice we have a `/usr/bin` directory in the newcontainer's image layer. Let's first copy a simple file from our host into the container. Create a file called runecho.sh which contains the following:
 
-    #!/bin/bash
+    #!/usr/bin/env bash
     for i in `seq 0 9`;
     do
     	echo "This is a new container from ipbabble [" $i "]"

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 while ! test -x ./btrfs_tag.sh ; do
 	cd ..
 done
