@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # author : ipbabble
 # Assumptions install buildah and podman
@@ -53,7 +53,7 @@ buildah run $newcontainer bash
 read -p "${cyan}Let's look at the program${yellow}"
 FILE=./runecho.sh
 /bin/cat <<EOM >$FILE
-#!/bin/bash
+#!/usr/bin/env bash
 for i in {1..9};
 do
     echo "This is a new cloud native container using Buildah [" \$i "]"

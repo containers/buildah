@@ -119,7 +119,7 @@ result-container
 For this example the ONBUILD instructions in the primary container image will be used to copy a shell script and then run it in the secondary container image.  For the script, we'll make use of the shell script from the [Introduction Tutorial][].  First create a file in the local directory called `runecho.sh` containing the following:
 
 ```
-#!/bin/bash
+#!/usr/bin/env bash
 
 for i in `seq 0 9`;
 do

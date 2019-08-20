@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/usr/bin/env bash -x
 set -e
 read
 export PATH=`pwd`:$PATH

@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/usr/bin/env bash -x
 
 ctr1=$(buildah from "${1:-fedora}")
 

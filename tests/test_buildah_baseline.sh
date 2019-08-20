@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # test_buildah_baseline.sh 
 # A script to be run at the command line with Buildah installed.
 # This should be run against a new kit to provide base level testing
@@ -104,7 +104,7 @@ buildah run $newcontainer -- ls -alF /usr/bin
 ########
 FILE=./runecho.sh
 /bin/cat <<EOM >$FILE
-#!/bin/bash
+#!/usr/bin/env bash
 for i in {1..9};
 do
     echo "This is a new container from ipbabble [" \$i "]"

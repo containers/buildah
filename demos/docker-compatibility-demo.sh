@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/usr/bin/env bash 
 
 # docker-compatibility-demo.sh
 # author : ipbabble
