@@ -21,7 +21,7 @@ export GO_BUILD=$(GO) build
 endif
 
 GIT_COMMIT ?= $(if $(shell git rev-parse --short HEAD),$(shell git rev-parse --short HEAD),$(error "git failed"))
-BUILD_INFO := $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
+SOURCE_DATE_EPOCH ?= $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
 STATIC_STORAGETAGS = "containers_image_ostree_stub containers_image_openpgp exclude_graphdriver_devicemapper $(STORAGE_TAGS)"
 
 CNI_COMMIT := $(shell sed -n 's;\tgithub.com/containernetworking/cni \([^ \n]*\).*$\;\1;p' go.mod)
@@ -29,7 +29,7 @@ RUNC_COMMIT := $(shell sed -n 's;\tgithub.com/opencontainers/runc \([^ \n]*\).*$
 LIBSECCOMP_COMMIT := release-2.3
 
 EXTRALDFLAGS :=
-LDFLAGS := -ldflags '-X main.GitCommit=$(GIT_COMMIT) -X main.buildInfo=$(BUILD_INFO) -X main.cniVersion=$(CNI_COMMIT)' $(EXTRALDFLAGS)
+LDFLAGS := -ldflags '-X main.GitCommit=$(GIT_COMMIT) -X main.buildInfo=$(SOURCE_DATE_EPOCH) -X main.cniVersion=$(CNI_COMMIT)' $(EXTRALDFLAGS)
 SOURCES=*.go imagebuildah/*.go bind/*.go chroot/*.go cmd/buildah/*.go docker/*.go pkg/blobcache/*.go pkg/cli/*.go pkg/parse/*.go pkg/unshare/*.c pkg/unshare/*.go util/*.go
 
 all: buildah imgtype docs
