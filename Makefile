@@ -77,7 +77,6 @@ ifneq ($(GO110),$(GOVERSION))
 	@./tests/validate/gofmt.sh
 endif
 	@./tests/validate/whitespace.sh
-	@./tests/validate/govet.sh
 	@./tests/validate/git-validation.sh
 
 .PHONY: install.tools
