@@ -65,11 +65,6 @@ docs: install.tools ## build the docs on the host
 gopath:
 	test $(shell pwd) = $(shell cd ../../../../src/github.com/containers/buildah ; pwd)
 
-# We use https://github.com/lk4d4/vndr to manage dependencies.
-.PHONY: deps
-deps: gopath
-	env GOPATH=$(shell cd ../../../.. ; pwd) vndr
-
 .PHONY: validate
 validate: install.tools
 	@./tests/validate/whitespace.sh
