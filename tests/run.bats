@@ -362,3 +362,11 @@ function configure_and_check_user() {
 	# Double-check that the mountpoint is there.
 	test -d "$mnt"/var/lib/registry
 }
+
+@test "run-exit-status" {
+	if ! which runc ; then
+		skip "no runc in PATH"
+	fi
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah 42 run ${cid} sh -c 'exit 42'
+}

@@ -158,7 +158,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	if runerr != nil {
 		logrus.Debugf("error running %v in container %q: %v", args, builder.Container, runerr)
 	}
-	if ee, ok := runerr.(*exec.ExitError); ok {
+	if ee, ok := (errors.Cause(runerr)).(*exec.ExitError); ok {
 		if w, ok := ee.Sys().(syscall.WaitStatus); ok {
 			os.Exit(w.ExitStatus())
 		}
