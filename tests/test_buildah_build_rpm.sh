@@ -36,8 +36,8 @@ cd $GITROOT
 ########
 # Build a container to use for building the binaries.
 ########
-CTRID=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $IMAGE)
-ROOTMNT=$(buildah --debug=false mount $CTRID)
+CTRID=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $IMAGE)
+ROOTMNT=$(buildah mount $CTRID)
 COMMIT=$(git log --format=%H -n 1)
 SHORTCOMMIT=$(echo ${COMMIT} | cut -c-7)
 mkdir -p ${ROOTMNT}/rpmbuild/{SOURCES,SPECS}
@@ -55,15 +55,15 @@ sed s:REPLACEWITHCOMMITID:${COMMIT}:g ${GITROOT}/contrib/rpm/buildah.spec > ${RO
 ########
 # Install build dependencies and build binary packages.
 ########
-buildah --debug=false run $CTRID -- dnf -y install 'dnf-command(builddep)' rpm-build
-buildah --debug=false run $CTRID -- dnf -y builddep --spec /rpmbuild/SPECS/buildah.spec
-buildah --debug=false run $CTRID -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
+buildah run $CTRID -- dnf -y install 'dnf-command(builddep)' rpm-build
+buildah run $CTRID -- dnf -y builddep --spec /rpmbuild/SPECS/buildah.spec
+buildah run $CTRID -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
 
 ########
 # Build a second new container.
 ########
-CTRID2=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $IMAGE)
-ROOTMNT2=$(buildah --debug=false mount $CTRID2)
+CTRID2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $IMAGE)
+ROOTMNT2=$(buildah mount $CTRID2)
 
 ########
 # Copy the binary packages from the first container to the second one and to 
@@ -81,14 +81,14 @@ done
 ########
 # Install the binary packages into the second container.
 ########
-buildah --debug=false run $CTRID2 -- dnf -y install $rpms
+buildah run $CTRID2 -- dnf -y install $rpms
 
 ########
 # Run the binary package and compare its self-identified version to the one we tried to build.
 ########
-id=$(buildah --debug=false run $CTRID2 -- buildah version | awk '/^Git Commit:/ { print $NF }')
-bv=$(buildah --debug=false run $CTRID2 -- buildah version | awk '/^Version:/ { print $NF }')
-rv=$(buildah --debug=false run $CTRID2 -- rpm -q --queryformat '%{version}' buildah)
+id=$(buildah run $CTRID2 -- buildah version | awk '/^Git Commit:/ { print $NF }')
+bv=$(buildah run $CTRID2 -- buildah version | awk '/^Version:/ { print $NF }')
+rv=$(buildah run $CTRID2 -- rpm -q --queryformat '%{version}' buildah)
 echo "short commit: $SHORTCOMMIT"
 echo "id: $id"
 echo "buildah version: $bv"
@@ -100,7 +100,7 @@ test $bv = $rv
 # Clean up Buildah
 ########
 buildah rm $(buildah containers -q)
-buildah rmi -f $(buildah --debug=false images -q)
+buildah rmi -f $(buildah images -q)
 
 ########
 # Kick off baseline testing against the installed Buildah 

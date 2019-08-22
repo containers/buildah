@@ -10,7 +10,7 @@ function check_lengths() {
   # matrix test: check given .Docker.* and .OCIv1.* fields in image
   for which in Docker OCIv1; do
     for field in RootFS.DiffIDs History; do
-      run_buildah --debug=false inspect -t image -f "{{len .$which.$field}}" $image
+      run_buildah --log-level=error inspect -t image -f "{{len .$which.$field}}" $image
       expect_output "$expect"
     done
   done
@@ -80,16 +80,16 @@ function check_lengths() {
 	done
 
 	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
-	run_buildah --debug=false inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
+	run_buildah --log-level=error inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
 
 	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
 	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
-	run_buildah --debug=false inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
+	run_buildah --log-level=error inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
 
 	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
 	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
-	run_buildah --debug=false inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
+	run_buildah --log-level=error inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
 }

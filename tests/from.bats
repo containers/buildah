@@ -66,7 +66,7 @@ load helpers
 
 #  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth)
 #  buildah rm $ctrid
-#  buildah rmi -f $(buildah --debug=false images -q)
+#  buildah rmi -f $(buildah --log-level=error images -q)
 
   # This should work
 #  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true)
@@ -82,7 +82,7 @@ load helpers
 #  docker rmi -f localhost:5000/my-alpine
 #  docker rmi -f $(docker images -q)
 #  buildah rm $ctrid
-#  buildah rmi -f $(buildah --debug=false images -q)
+#  buildah rmi -f $(buildah --log-level=error images -q)
 }
 
 @test "from-authenticate-cert-and-creds" {
@@ -105,7 +105,7 @@ load helpers
 
 #  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth)
 #  buildah rm $ctrid
-#  buildah rmi -f $(buildah --debug=false images -q)
+#  buildah rmi -f $(buildah --log-level=error images -q)
 
 #  docker logout localhost:5000
 
@@ -122,7 +122,7 @@ load helpers
 #  docker rmi -f localhost:5000/my-alpine
 #  docker rmi -f $(docker images -q)
 #  buildah rm $ctrid
-#  buildah rmi -f $(buildah --debug=false images -q)
+#  buildah rmi -f $(buildah --log-level=error images -q)
 }
 
 @test "from-tagged-image" {
@@ -217,7 +217,7 @@ load helpers
     skip "no runc in PATH"
   fi
   cid=$(buildah from --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
+  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
   expect_output "5000"
   buildah rm $cid
 }
@@ -230,7 +230,7 @@ load helpers
     skip "no runc in PATH"
   fi
   cid=$(buildah from --cpu-quota=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
+  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
   expect_output "5000"
   buildah rm $cid
 }
@@ -243,7 +243,7 @@ load helpers
     skip "no runc in PATH"
   fi
   cid=$(buildah from --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpu/cpu.shares
+  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.shares
   expect_output "2"
   buildah rm $cid
 }
@@ -256,7 +256,7 @@ load helpers
     skip "no runc in PATH"
   fi
   cid=$(buildah from --cpuset-cpus=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
+  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
   expect_output "0"
   buildah rm $cid
 }
@@ -269,7 +269,7 @@ load helpers
     skip "no runc in PATH"
   fi
   cid=$(buildah from --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --debug=false run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
+  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
   expect_output "0"
   buildah rm $cid
 }
@@ -282,7 +282,7 @@ load helpers
     skip "no runc in PATH"
   fi
   cid=$(buildah from --memory=40m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --debug=false run $cid cat /sys/fs/cgroup/memory/memory.limit_in_bytes
+  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/memory/memory.limit_in_bytes
   expect_output "41943040"
   buildah rm $cid
 }
@@ -292,7 +292,7 @@ load helpers
     skip "no runc in PATH"
   fi
   cid=$(buildah from --volume=${TESTDIR}:/myvol --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --debug=false run $cid -- cat /proc/mounts
+  run_buildah --log-level=error run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
   buildah rm $cid
 }
@@ -305,7 +305,7 @@ load helpers
     skip "no runc in PATH"
   fi
   cid=$(buildah from --volume=${TESTDIR}:/myvol:ro --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --debug=false run $cid -- cat /proc/mounts
+  run_buildah --log-level=error run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
   buildah rm $cid
 }
@@ -318,7 +318,7 @@ load helpers
     skip "no runc in PATH"
   fi
   cid=$(buildah from --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --debug=false run $cid -- df -h /dev/shm
+  run_buildah --log-level=error run $cid -- df -h /dev/shm
   expect_output --substring " 80.0M "
   buildah rm $cid
 }
@@ -336,12 +336,12 @@ load helpers
 @test "from name test" {
   container_name=mycontainer
   cid=$(buildah from --name=${container_name} --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  buildah --debug=false inspect --format '{{.Container}}' ${container_name}
+  buildah --log-level=error inspect --format '{{.Container}}' ${container_name}
 }
 
 @test "from cidfile test" {
   buildah from --cidfile output.cid --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$(cat output.cid)
-  run_buildah --debug=false containers -f id=${cid}
+  run_buildah --log-level=error containers -f id=${cid}
   buildah rm ${cid}
 }

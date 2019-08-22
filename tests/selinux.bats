@@ -12,18 +12,18 @@ load helpers
   image=alpine
 
   # Create a container and read its context as a baseline.
-  cid=$(buildah --debug=false from --quiet --signature-policy ${TESTSDIR}/policy.json $image)
-  run_buildah --debug=false run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
+  cid=$(buildah --log-level=error from --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  run_buildah --log-level=error run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
   [ "$output" != "" ]
   firstlabel="$output"
 
   # Ensure that we label the same container consistently across multiple "run" instructions.
-  run_buildah --debug=false run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
+  run_buildah --log-level=error run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
   expect_output "$firstlabel" "label of second container == first"
 
   # Ensure that different containers get different labels.
-  cid1=$(buildah --debug=false from --quiet --signature-policy ${TESTSDIR}/policy.json $image)
-  run_buildah --debug=false run $cid1 sh -c 'tr \\0 \\n < /proc/self/attr/current'
+  cid1=$(buildah --log-level=error from --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  run_buildah --log-level=error run $cid1 sh -c 'tr \\0 \\n < /proc/self/attr/current'
   if [ "$output" = "$firstlabel" ]; then
       die "Second container has the same label as first (both '$output')"
   fi
@@ -44,8 +44,8 @@ load helpers
       firstlabel="unconfined_u:system_r:spc_t:s0-s0:c0.c1023"
   fi
   # Create a container and read its context as a baseline.
-  cid=$(buildah --debug=false from --security-opt label=disable --quiet --signature-policy ${TESTSDIR}/policy.json $image)
-  run_buildah --debug=false run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
+  cid=$(buildah --log-level=error from --security-opt label=disable --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  run_buildah --log-level=error run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
   expect_output "$firstlabel" "container context matches our own"
 }
 
@@ -60,13 +60,13 @@ load helpers
 
   firstlabel="system_u:system_r:container_t:s0:c1,c2"
   # Create a container and read its context as a baseline.
-  cid=$(buildah --debug=false from --security-opt label="level:s0:c1,c2" --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  cid=$(buildah --log-level=error from --security-opt label="level:s0:c1,c2" --quiet --signature-policy ${TESTSDIR}/policy.json $image)
 
   # Inspect image
-  run_buildah --debug=false inspect  --format '{{.ProcessLabel}}' $cid
+  run_buildah --log-level=error inspect  --format '{{.ProcessLabel}}' $cid
   expect_output "$firstlabel"
 
   # Check actual running context
-  run_buildah --debug=false run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
+  run_buildah --log-level=error run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
   expect_output "$firstlabel" "running container context"
 }

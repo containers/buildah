@@ -54,7 +54,7 @@ __buildah_pos_first_nonflag() {
     fi
 
     # Bash splits words at "=", retaining "=" as a word, examples:
-    # "--debug=false" => 3 words, "--log-opt syslog-facility=daemon" => 4 words
+    # "--log-level=error" => 3 words, "--log-opt syslog-facility=daemon" => 4 words
     while [ "${words[$counter + 1]}" = "=" ] ; do
       counter=$(( counter + 2))
     done
@@ -157,7 +157,6 @@ return 1
  # global options that may appear after the buildah command
  _buildah_buildah() {
      local boolean_options="
-         --debug
          --help -h
          --version -v
          "
@@ -783,7 +782,7 @@ _buildah_containers() {
 
  _buildah_info() {
      local options_with_args="
-       --debug
+       --log-level
        --D
        --format
      "

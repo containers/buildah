@@ -27,10 +27,10 @@ function teardown() {
 		skip "no runc in PATH"
     fi
     runc --version
-    cid=$(buildah --default-mounts-file "$MOUNTS_PATH" --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-    run_buildah --debug=false run $cid ls /run/secrets
+    cid=$(buildah --default-mounts-file "$MOUNTS_PATH" --log-level=error from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+    run_buildah --log-level=error run $cid ls /run/secrets
     expect_output --substring "test.txt"
-    run_buildah --debug run $cid ls /run/secrets/mysymlink
+    run_buildah run $cid ls /run/secrets/mysymlink
     expect_output --substring "key.pem"
     buildah rm $cid
     rm -rf $TESTSDIR/containers

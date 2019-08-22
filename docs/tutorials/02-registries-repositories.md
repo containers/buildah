@@ -21,9 +21,9 @@ Then we need to start the registry. You should start the registry in a separate 
 
 If you would like to see more details as to what is going on inside the registry, especially if you are having problems with the registry, you can run the registry container in debug mode as follows:
 
-    # buildah --debug run $registry
+    # buildah --log-level=debug run $registry
 
-You can use `--debug` on any Buildah command.
+You can use `--log-level=debug` on any Buildah command.
 
 The registry is running and is waiting for requests to process. Notice that this registry is a Docker registry that we pulled from Docker hub and we are running it for this example using `buildah run`. There is no Docker daemon running at this time.
 

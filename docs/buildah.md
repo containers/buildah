@@ -20,9 +20,9 @@ The Buildah package provides a command line tool which can be used to:
 
 ## OPTIONS
 
-**--debug**
+**--log-level** **value**
 
-Print debugging information
+The log level to be used. Either "debug", "info", "warn" or "error", per default "error".
 
 **--help, -h**
 

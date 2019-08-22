@@ -102,9 +102,9 @@ load helpers
   run_buildah rmi remove-container-image
   run_buildah rmi containers-storage:other-new-image
   run_buildah rmi another-new-image
-  run_buildah --debug=false images -q
+  run_buildah --log-level=error images -q
   [ "$output" != "" ]
   run_buildah rmi -a
-  run_buildah --debug=false images -q
+  run_buildah --log-level=error images -q
   expect_output ""
 }
