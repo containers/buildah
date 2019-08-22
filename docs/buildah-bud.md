@@ -272,7 +272,7 @@ Add an image *label* (e.g. label=*value*) to the image metadata. Can be used mul
 **--loglevel** *number*
 
 Adjust the logging level up or down.  Valid option values range from -2 to 3,
-with 3 being roughly equivalent to using the global *--debug* option, and
+with 3 being roughly equivalent to using the global *--log-level=debug* option, and
 values below 0 omitting even error messages which accompany fatal errors.
 
 **--layers** *bool-value*

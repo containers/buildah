@@ -136,7 +136,7 @@ buildah images
 # Clean up Buildah
 ########
 buildah rm $ctrid
-buildah rmi -f $(buildah --debug=false images -q)
+buildah rmi -f $(buildah images -q)
 
 ########
 # Pull alpine
@@ -202,7 +202,7 @@ chmod +x $FILE
 # Clean up Buildah
 ########
 buildah rm --all
-buildah rmi -f $(buildah --debug=false images -q)
+buildah rmi -f $(buildah images -q)
 
 ########
 # Try Buildah bud with creds but no auth, this should FAIL 
@@ -235,4 +235,4 @@ rm -rf ${TESTDIR}/auth
 docker rm -f $(docker ps --all -q)
 docker rmi -f $(docker images -q)
 buildah rm $(buildah containers -q)
-buildah rmi -f $(buildah --debug=false images -q)
+buildah rmi -f $(buildah images -q)

@@ -9,12 +9,14 @@ import (
 	"github.com/containers/storage"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 type globalFlags struct {
 	Debug             bool
+	LogLevel          string
 	Root              string
 	RunRoot           string
 	StorageDriver     string
@@ -77,9 +79,13 @@ func init() {
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.UserNSUID, "userns-uid-map", []string{}, "default `ctrID:hostID:length` UID mapping to use")
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.UserNSGID, "userns-gid-map", []string{}, "default `ctrID:hostID:length` GID mapping to use")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.DefaultMountsFile, "default-mounts-file", "", "path to default mounts file")
+	rootCmd.PersistentFlags().StringVar(&globalFlagResults.LogLevel, logLevel, "error", `The log level to be used. Either "debug", "info", "warn" or "error".`)
 
+	if err := rootCmd.PersistentFlags().MarkHidden("debug"); err != nil {
+		logrus.Fatalf("unable to mark debug flag as hidden: %v", err)
+	}
 	if err := rootCmd.PersistentFlags().MarkHidden("default-mounts-file"); err != nil {
-		fmt.Println("unable to setup menu")
+		logrus.Fatalf("unable to mark default-mounts-file flag as hidden: %v", err)
 	}
 }
 
@@ -88,13 +94,18 @@ func initConfig() {
 	// time if we ever want to take advantage.
 }
 
+const logLevel = "log-level"
+
 func before(cmd *cobra.Command) error {
-	llFlag := cmd.Flags().Lookup("log-level")
-	llFlagNum := 0
-	if llFlag != nil {
-		llFlagNum, _ = cmd.Flags().GetInt("log-level")
+	strLvl, err := cmd.Flags().GetString(logLevel)
+	if err != nil {
+		return err
 	}
-	logrus.SetLevel(logrus.ErrorLevel + logrus.Level(llFlagNum))
+	logrusLvl, err := logrus.ParseLevel(strLvl)
+	if err != nil {
+		return errors.Wrapf(err, "unable to parse log level")
+	}
+	logrus.SetLevel(logrusLvl)
 	if globalFlagResults.Debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}

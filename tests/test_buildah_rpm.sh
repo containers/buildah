@@ -15,8 +15,8 @@ load helpers
 
         # Build a container to use for building the binaries.
         image=registry.centos.org/centos/centos:centos7
-        cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
-        root=$(buildah --debug=false mount $cid)
+        cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        root=$(buildah mount $cid)
         commit=$(git log --format=%H -n 1)
         shortcommit=$(echo ${commit} | cut -c-7)
         mkdir -p ${root}/rpmbuild/{SOURCES,SPECS}
@@ -28,13 +28,13 @@ load helpers
         sed s:REPLACEWITHCOMMITID:${commit}:g ${TESTSDIR}/../contrib/rpm/buildah.spec > ${root}/rpmbuild/SPECS/buildah.spec
 
         # Install build dependencies and build binary packages.
-        buildah --debug=false run $cid -- yum -y install rpm-build yum-utils
-        buildah --debug=false run $cid -- yum-builddep -y rpmbuild/SPECS/buildah.spec
-        buildah --debug=false run $cid -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
+        buildah run $cid -- yum -y install rpm-build yum-utils
+        buildah run $cid -- yum-builddep -y rpmbuild/SPECS/buildah.spec
+        buildah run $cid -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
 
         # Build a second new container.
-        cid2=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
-        root2=$(buildah --debug=false mount $cid2)
+        cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        root2=$(buildah mount $cid2)
 
         # Copy the binary packages from the first container to the second one, and build a list of
         # their filenames relative to the root of the second container.
@@ -46,12 +46,12 @@ load helpers
         done
 
         # Install the binary packages into the second container.
-        buildah --debug=false run $cid2 -- yum -y install $rpms
+        buildah run $cid2 -- yum -y install $rpms
 
         # Run the binary package and compare its self-identified version to the one we tried to build.
-        id=$(buildah --debug=false run $cid2 -- buildah version | awk '/^Git Commit:/ { print $NF }')
-        bv=$(buildah --debug=false run $cid2 -- buildah version | awk '/^Version:/ { print $NF }')
-        rv=$(buildah --debug=false run $cid2 -- rpm -q --queryformat '%{version}' buildah)
+        id=$(buildah run $cid2 -- buildah version | awk '/^Git Commit:/ { print $NF }')
+        bv=$(buildah run $cid2 -- buildah version | awk '/^Version:/ { print $NF }')
+        rv=$(buildah run $cid2 -- rpm -q --queryformat '%{version}' buildah)
         echo "short commit: $shortcommit"
         echo "id: $id"
         echo "buildah version: $bv"
@@ -60,7 +60,7 @@ load helpers
         test $bv = ${rv} -o $bv = ${rv}-dev
 
         # Clean up.
-        buildah --debug=false rm $cid $cid2
+        buildah rm $cid $cid2
 }
 
 @test "rpm-build Fedora latest" {
@@ -70,8 +70,8 @@ load helpers
 
         # Build a container to use for building the binaries.
         image=registry.fedoraproject.org/fedora:latest
-        cid=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
-        root=$(buildah --debug=false mount $cid)
+        cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        root=$(buildah mount $cid)
         commit=$(git log --format=%H -n 1)
         shortcommit=$(echo ${commit} | cut -c-7)
         mkdir -p ${root}/rpmbuild/{SOURCES,SPECS}
@@ -83,13 +83,13 @@ load helpers
         sed s:REPLACEWITHCOMMITID:${commit}:g ${TESTSDIR}/../contrib/rpm/buildah.spec > ${root}/rpmbuild/SPECS/buildah.spec
 
         # Install build dependencies and build binary packages.
-        buildah --debug=false run $cid -- dnf -y install 'dnf-command(builddep)' rpm-build
-        buildah --debug=false run $cid -- dnf -y builddep --spec rpmbuild/SPECS/buildah.spec
-        buildah --debug=false run $cid -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
+        buildah run $cid -- dnf -y install 'dnf-command(builddep)' rpm-build
+        buildah run $cid -- dnf -y builddep --spec rpmbuild/SPECS/buildah.spec
+        buildah run $cid -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
 
         # Build a second new container.
-        cid2=$(buildah --debug=false from --pull --signature-policy ${TESTSDIR}/policy.json $image)
-        root2=$(buildah --debug=false mount $cid2)
+        cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        root2=$(buildah mount $cid2)
 
         # Copy the binary packages from the first container to the second one, and build a list of
         # their filenames relative to the root of the second container.
@@ -101,12 +101,12 @@ load helpers
         done
 
         # Install the binary packages into the second container.
-        buildah --debug=false run $cid2 -- dnf -y install $rpms
+        buildah run $cid2 -- dnf -y install $rpms
 
         # Run the binary package and compare its self-identified version to the one we tried to build.
-        id=$(buildah --debug=false run $cid2 -- buildah version | awk '/^Git Commit:/ { print $NF }')
-        bv=$(buildah --debug=false run $cid2 -- buildah version | awk '/^Version:/ { print $NF }')
-        rv=$(buildah --debug=false run $cid2 -- rpm -q --queryformat '%{version}' buildah)
+        id=$(buildah run $cid2 -- buildah version | awk '/^Git Commit:/ { print $NF }')
+        bv=$(buildah run $cid2 -- buildah version | awk '/^Version:/ { print $NF }')
+        rv=$(buildah run $cid2 -- rpm -q --queryformat '%{version}' buildah)
         echo "short commit: $shortcommit"
         echo "id: $id"
         echo "buildah version: $bv"
@@ -115,5 +115,5 @@ load helpers
 	test $bv = ${rv} -o $bv = ${rv}-dev
 
         # Clean up.
-        buildah --debug=false rm $cid $cid2
+        buildah rm $cid $cid2
 }

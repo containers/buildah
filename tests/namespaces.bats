@@ -7,7 +7,7 @@ load helpers
     skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
 
-  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
+  run_buildah --log-level=error from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
   [ "$output" != "" ]
   ctr="$output"
 
@@ -38,36 +38,36 @@ load helpers
   gidsize=$((${RANDOM}+1024))
 
   # Create a container that uses that mapping.
-  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize alpine
+  run_buildah --log-level=error from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize alpine
   [ "$output" != "" ]
   ctr="$output"
 
   # Check that with settings that require a user namespace, we also get a new network namespace by default.
   buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
-  run_buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/net
+  run_buildah --log-level=error run $RUNOPTS "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" != "$mynetns" ]
 
   # Check that with settings that require a user namespace, we can still try to use the host's network namespace.
   buildah run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
-  run_buildah --debug=false run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
+  run_buildah --log-level=error run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" == "$mynetns" ]
 
   # Create a container that doesn't use that mapping.
-  run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
+  run_buildah --log-level=error from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
   [ "$output" != "" ]
   ctr="$output"
 
   # Check that with settings that don't require a user namespace, we don't get a new network namespace by default.
   buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
-  run_buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/net
+  run_buildah --log-level=error run $RUNOPTS "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" == "$mynetns" ]
 
   # Check that with settings that don't require a user namespace, we can request to use a per-container network namespace.
   buildah run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
-  run_buildah --debug=false run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
+  run_buildah --log-level=error run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" != "$mynetns" ]
 }
@@ -165,13 +165,13 @@ load helpers
   for i in $(seq 0 "$((${#maps[*]}-1))") ; do
     # Create a container using these mappings.
     echo "Building container with --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine"
-    run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine
+    run_buildah --log-level=error from --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine
     [ "$output" != "" ]
     ctr="$output"
 
     # If we specified mappings, expect to be in a different namespace by default.
     buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/user
-    run_buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/user
+    run_buildah --log-level=error run $RUNOPTS "$ctr" readlink /proc/self/ns/user
     [ "$output" != "" ]
     case x"$map" in
     x)
@@ -185,11 +185,11 @@ load helpers
     esac
     # Check that we got the mappings that we expected.
     buildah run $RUNOPTS "$ctr" cat /proc/self/uid_map
-    run_buildah --debug=false run $RUNOPTS "$ctr" cat /proc/self/uid_map
+    run_buildah --log-level=error run $RUNOPTS "$ctr" cat /proc/self/uid_map
     [ "$output" != "" ]
     uidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$output")
     buildah run $RUNOPTS "$ctr" cat /proc/self/gid_map
-    run_buildah --debug=false run $RUNOPTS "$ctr" cat /proc/self/gid_map
+    run_buildah --log-level=error run $RUNOPTS "$ctr" cat /proc/self/gid_map
     [ "$output" != "" ]
     gidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$output")
     echo With settings "$map", expected UID map "${uidmaps[$i]}", got UID map "${uidmap}", expected GID map "${gidmaps[$i]}", got GID map "${gidmap}".
@@ -201,21 +201,21 @@ load helpers
     # Check that if we copy a file into the container, it gets the right permissions.
     run_buildah copy --chown 1:1 "$ctr" ${TESTDIR}/somefile /
     buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
-    run_buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
+    run_buildah --log-level=error run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
     expect_output "1:1"
 
     # Check that if we copy a directory into the container, its contents get the right permissions.
     run_buildah copy "$ctr" ${TESTDIR}/somedir /somedir
     buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
-    run_buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
+    run_buildah --log-level=error run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
     expect_output "0:0"
-    run_buildah --debug=false mount "$ctr"
+    run_buildah --log-level=error mount "$ctr"
     mnt="$output"
     run stat -c '%u:%g %a' "$mnt"/somedir/someotherfile
     [ $status -eq 0 ]
     expect_output "$rootuid:$rootgid 4700"
     buildah run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
-    run_buildah --debug=false run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
+    run_buildah --log-level=error run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
     expect_output "0:0 4700"
   done
 }
@@ -243,12 +243,12 @@ general_namespace() {
 
   for namespace in "${types[@]}" ; do
     # Specify the setting for this namespace for this container.
-    run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet --"$nsflag"=$namespace alpine
+    run_buildah --log-level=error from --signature-policy ${TESTSDIR}/policy.json --quiet --"$nsflag"=$namespace alpine
     [ "$output" != "" ]
     ctr="$output"
 
     # Check that, unless we override it, we get that setting in "run".
-    run_buildah --debug=false run $RUNOPTS "$ctr" readlink /proc/self/ns/"$nstype"
+    run_buildah --log-level=error run $RUNOPTS "$ctr" readlink /proc/self/ns/"$nstype"
     [ "$output" != "" ]
     case "$namespace" in
     ""|container)
@@ -264,7 +264,7 @@ general_namespace() {
 
     for different in $types ; do
       # Check that, if we override it, we get what we specify for "run".
-      run_buildah --debug=false run $RUNOPTS --"$nsflag"=$different "$ctr" readlink /proc/self/ns/"$nstype"
+      run_buildah --log-level=error run $RUNOPTS --"$nsflag"=$different "$ctr" readlink /proc/self/ns/"$nstype"
       [ "$output" != "" ]
       case "$different" in
       ""|container)
@@ -341,17 +341,17 @@ general_namespace() {
             fi
 
             echo "buildah from --signature-policy ${TESTSDIR}/policy.json --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts alpine"
-            run_buildah --debug=false from --signature-policy ${TESTSDIR}/policy.json --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts alpine
+            run_buildah --log-level=error from --signature-policy ${TESTSDIR}/policy.json --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts alpine
             [ "$output" != "" ]
             ctr="$output"
             buildah run $ctr pwd
-            run_buildah --debug=false run $ctr pwd
+            run_buildah --log-level=error run $ctr pwd
             [ "$output" != "" ]
             buildah run --tty=true  $ctr pwd
-            run_buildah --debug=false run --tty=true  $ctr pwd
+            run_buildah --log-level=error run --tty=true  $ctr pwd
             [ "$output" != "" ]
             buildah run --tty=false $ctr pwd
-            run_buildah --debug=false run --tty=false $ctr pwd
+            run_buildah --log-level=error run --tty=false $ctr pwd
             [ "$output" != "" ]
           done
         done

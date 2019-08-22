@@ -10,17 +10,17 @@ load helpers
   mkdir ${TESTDIR}/lower
   touch ${TESTDIR}/lower/foo
 
-cid=$(buildah --debug=false from -v ${TESTDIR}/lower:/lower:O --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+cid=$(buildah --log-level=error from -v ${TESTDIR}/lower:/lower:O --quiet --signature-policy ${TESTSDIR}/policy.json $image)
 
   # This should succeed
-  run_buildah --debug=false run $cid ls /lower/foo
+  run_buildah --log-level=error run $cid ls /lower/foo
 
   # Create and remove content in the overlay directory, should succeed
-  run_buildah --debug=false run $cid touch /lower/bar
-  run_buildah --debug=false run $cid rm /lower/foo
+  run_buildah --log-level=error run $cid touch /lower/bar
+  run_buildah --log-level=error run $cid rm /lower/foo
 
   # This should fail, second runs of containers go back to original
-  run_buildah 1 --debug=false run $cid ls /lower/bar
+  run_buildah 1 --log-level=error run $cid ls /lower/bar
 
   # This should fail
   run ls ${TESTDIR}/lower/bar
