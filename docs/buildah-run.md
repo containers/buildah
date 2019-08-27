@@ -137,16 +137,15 @@ process.
 
 **--runtime** *path*
 
-The *path* to an alternate OCI-compatible runtime. Default is runc.
+The *path* to an alternate OCI-compatible runtime. Default is `runc`, or `crun` when machine is configured to use cgroups V2.
 
 Note: You can also override the default runtime by setting the BUILDAH\_RUNTIME
-environment variable.  `export BUILDAH_RUNTIME=/usr/local/bin/runc`
+environment variable.  `export BUILDAH_RUNTIME=/usr/bin/crun`
 
 **--runtime-flag** *flag*
 
 Adds global flags for the container runtime. To list the supported flags, please
-consult the manpages of the selected container runtime (`runc` is the default
-runtime, the manpage to consult is `runc(8)`).
+consult the manpages of the selected container runtime.
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah run, the option given would be `--runtime-flag log-format=json`.
 
@@ -275,4 +274,4 @@ buildah run --volume /path/on/host:/path/in/container:ro,z containerID sh
 buildah run --mount type=bind,src=/tmp/on:host,dst=/in:container,ro containerID sh
 
 ## SEE ALSO
-buildah(1), namespaces(7), pid\_namespaces(7)
+buildah(1), buildah-from(1), buildah-config(1), namespaces(7), pid\_namespaces(7), crun(1), runc(8)
