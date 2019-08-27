@@ -368,16 +368,15 @@ Remove intermediate containers after a successful build (default true).
 **--runtime** *path*
 
 The *path* to an alternate OCI-compatible runtime, which will be used to run
-commands specified by the **RUN** instruction. Default is runc.
+commands specified by the **RUN** instruction. Default is `runc`, or `crun` when machine is configured to use cgroups V2.
 
 Note: You can also override the default runtime by setting the BUILDAH\_RUNTIME
-environment variable.  `export BUILDAH_RUNTIME=/usr/local/bin/runc`
+environment variable.  `export BUILDAH_RUNTIME=/usr/bin/crun`
 
 **--runtime-flag** *flag*
 
 Adds global flags for the container rutime. To list the supported flags, please
-consult the manpages of the selected container runtime (`runc` is the default
-runtime, the manpage to consult is `runc(8)`).
+consult the manpages of the selected container runtime.
 
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah bud, the option given would be `--runtime-flag log-format=json`.
@@ -682,4 +681,4 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), CPP(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), policy.json(5), registries.conf(5), user\_namespaces(7)
+buildah(1), CPP(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), policy.json(5), registries.conf(5), user\_namespaces(7), crun(1), runc(8)
