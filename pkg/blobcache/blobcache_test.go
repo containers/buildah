@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	cp "github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/pkg/blobinfocache/none"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -67,6 +68,8 @@ func TestBlobCache(t *testing.T) {
 		}
 	}()
 
+	systemContext := types.SystemContext{}
+
 	for _, repeat := range []int{1, 10, 100, 1000, 10000} {
 		for _, desiredCompression := range []types.LayerCompression{types.PreserveOriginal, types.Compress, types.Decompress} {
 			for _, layerCompression := range []archive.Compression{archive.Uncompressed, archive.Gzip} {
@@ -100,12 +103,14 @@ func TestBlobCache(t *testing.T) {
 						SchemaVersion: 2,
 					},
 					Config: v1.Descriptor{
-						Digest: configInfo.Digest,
-						Size:   configInfo.Size,
+						MediaType: v1.MediaTypeImageConfig,
+						Digest:    configInfo.Digest,
+						Size:      configInfo.Size,
 					},
 					Layers: []v1.Descriptor{{
-						Digest: blobInfo.Digest,
-						Size:   blobInfo.Size,
+						MediaType: v1.MediaTypeImageLayer,
+						Digest:    blobInfo.Digest,
+						Size:      blobInfo.Size,
 					}},
 				}
 				manifestBytes, err := json.Marshal(&manifest)
@@ -139,11 +144,21 @@ func TestBlobCache(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error writing config blob to source image: %v", err)
 				}
-				err = destImage.PutManifest(context.TODO(), manifestBytes)
+				srcImage, err := srcRef.NewImageSource(context.TODO(), &systemContext)
+				if err != nil {
+					t.Fatalf("error opening source image: %v", err)
+				}
+				defer func() {
+					err := srcImage.Close()
+					if err != nil {
+						t.Fatalf("error closing source image: %v", err)
+					}
+				}()
+				err = destImage.PutManifest(context.TODO(), manifestBytes, nil)
 				if err != nil {
 					t.Fatalf("error writing manifest to source image: %v", err)
 				}
-				err = destImage.Commit(context.TODO())
+				err = destImage.Commit(context.TODO(), image.UnparsedInstance(srcImage, nil))
 				if err != nil {
 					t.Fatalf("error committing source image: %v", err)
 				}
@@ -210,7 +225,6 @@ func TestBlobCache(t *testing.T) {
 				if err != nil {
 					t.Fatalf("error parsing destination image name %q: %v", destName, err)
 				}
-				systemContext := types.SystemContext{}
 				options := cp.Options{
 					SourceCtx:      &systemContext,
 					DestinationCtx: &systemContext,
