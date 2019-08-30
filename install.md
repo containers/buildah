@@ -396,3 +396,5 @@ If you wish to vendor in your personal fork to try changes out (assuming contain
 To revert
  * `go mod edit -dropreplace github.com/containers/storage`
  * `make vendor`
+
+To speed up fetching dependencies, you can use a [Go Module Proxy](https://proxy.golang.org) by setting `GOPROXY=https://proxy.golang.org`.
