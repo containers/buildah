@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/pkg/umask"
 	"github.com/containers/buildah/pkg/unshare"
 	is "github.com/containers/image/storage"
 	"github.com/containers/image/types"
@@ -103,7 +104,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		options.GIDMap = gidmap
 	}
 
-	checkUmask()
+	umask.CheckUmask()
 
 	store, err := storage.GetStore(options)
 	if store != nil {
