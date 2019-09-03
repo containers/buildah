@@ -264,7 +264,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 // dockerfile content and will use ctxDir as the base include path.
 //
 // Note: we cannot use cmd.StdoutPipe() as cmd.Wait() closes it.
-func preprocessDockerfileContents(r io.ReadCloser, ctxDir string) (rdrCloser *io.ReadCloser, err error) {
+func preprocessDockerfileContents(r io.Reader, ctxDir string) (rdrCloser *io.ReadCloser, err error) {
 	cppPath := "/usr/bin/cpp"
 	if _, err = os.Stat(cppPath); err != nil {
 		if os.IsNotExist(err) {
