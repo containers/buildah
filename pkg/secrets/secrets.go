@@ -130,10 +130,13 @@ func getMounts(filePath string) []string {
 // getHostAndCtrDir separates the host:container paths
 func getMountsMap(path string) (string, string, error) {
 	arr := strings.SplitN(path, ":", 2)
-	if len(arr) == 2 {
+	switch len(arr) {
+	case 1:
+		return arr[0], arr[0], nil
+	case 2:
 		return arr[0], arr[1], nil
 	}
-	return "", "", errors.Errorf("unable to get host and container dir")
+	return "", "", errors.Errorf("unable to get host and container dir from path: %s", path)
 }
 
 // SecretMounts copies, adds, and mounts the secrets to the container root filesystem
@@ -162,7 +165,7 @@ func SecretMountsWithUIDGID(mountLabel, containerWorkingDir, mountFile, mountPre
 		if _, err := os.Stat(file); err == nil {
 			mounts, err := addSecretsFromMountsFile(file, mountLabel, containerWorkingDir, mountPrefix, uid, gid)
 			if err != nil {
-				logrus.Warnf("error mounting secrets, skipping: %v", err)
+				logrus.Warnf("error mounting secrets, skipping entry in %s: %v", file, err)
 			}
 			secretMounts = mounts
 			break
