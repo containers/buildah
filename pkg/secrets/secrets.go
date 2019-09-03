@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containers/buildah/pkg/umask"
 	"github.com/containers/storage/pkg/idtools"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -28,20 +29,22 @@ var (
 
 // secretData stores the name of the file and the content read from it
 type secretData struct {
-	name string
-	data []byte
+	name    string
+	data    []byte
+	mode    os.FileMode
+	dirMode os.FileMode
 }
 
 // saveTo saves secret data to given directory
 func (s secretData) saveTo(dir string) error {
 	path := filepath.Join(dir, s.name)
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(filepath.Dir(path), s.dirMode); err != nil && !os.IsExist(err) {
 		return err
 	}
-	return ioutil.WriteFile(path, s.data, 0700)
+	return ioutil.WriteFile(path, s.data, s.mode)
 }
 
-func readAll(root, prefix string) ([]secretData, error) {
+func readAll(root, prefix string, parentMode os.FileMode) ([]secretData, error) {
 	path := filepath.Join(root, prefix)
 
 	data := []secretData{}
@@ -56,7 +59,7 @@ func readAll(root, prefix string) ([]secretData, error) {
 	}
 
 	for _, f := range files {
-		fileData, err := readFile(root, filepath.Join(prefix, f.Name()))
+		fileData, err := readFileOrDir(root, filepath.Join(prefix, f.Name()), parentMode)
 		if err != nil {
 			// If the file did not exist, might be a dangling symlink
 			// Ignore the error
@@ -71,7 +74,7 @@ func readAll(root, prefix string) ([]secretData, error) {
 	return data, nil
 }
 
-func readFile(root, name string) ([]secretData, error) {
+func readFileOrDir(root, name string, parentMode os.FileMode) ([]secretData, error) {
 	path := filepath.Join(root, name)
 
 	s, err := os.Stat(path)
@@ -80,7 +83,7 @@ func readFile(root, name string) ([]secretData, error) {
 	}
 
 	if s.IsDir() {
-		dirData, err := readAll(root, name)
+		dirData, err := readAll(root, name, s.Mode())
 		if err != nil {
 			return nil, err
 		}
@@ -90,12 +93,17 @@ func readFile(root, name string) ([]secretData, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []secretData{{name: name, data: bytes}}, nil
+	return []secretData{{
+		name:    name,
+		data:    bytes,
+		mode:    s.Mode(),
+		dirMode: parentMode,
+	}}, nil
 }
 
-func getHostSecretData(hostDir string) ([]secretData, error) {
+func getHostSecretData(hostDir string, mode os.FileMode) ([]secretData, error) {
 	var allSecrets []secretData
-	hostSecrets, err := readAll(hostDir, "")
+	hostSecrets, err := readAll(hostDir, "", mode)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read secrets from %q", hostDir)
 	}
@@ -223,12 +231,16 @@ func addSecretsFromMountsFile(filePath, mountLabel, containerWorkingDir, mountPr
 				return nil, err
 			}
 
+			// Don't let the umask have any influence on the file and directory creation
+			oldUmask := umask.SetUmask(0)
+			defer umask.SetUmask(oldUmask)
+
 			switch mode := fileInfo.Mode(); {
 			case mode.IsDir():
-				if err = os.MkdirAll(ctrDirOrFileOnHost, 0755); err != nil {
+				if err = os.MkdirAll(ctrDirOrFileOnHost, mode.Perm()); err != nil {
 					return nil, errors.Wrapf(err, "making container directory %q failed", ctrDirOrFileOnHost)
 				}
-				data, err := getHostSecretData(hostDirOrFile)
+				data, err := getHostSecretData(hostDirOrFile, mode.Perm())
 				if err != nil {
 					return nil, errors.Wrapf(err, "getting host secret data failed")
 				}
@@ -238,16 +250,16 @@ func addSecretsFromMountsFile(filePath, mountLabel, containerWorkingDir, mountPr
 					}
 				}
 			case mode.IsRegular():
-				data, err := readFile("", hostDirOrFile)
+				data, err := readFileOrDir("", hostDirOrFile, mode.Perm())
 				if err != nil {
 					return nil, errors.Wrapf(err, "error reading file %q", hostDirOrFile)
 
 				}
 				for _, s := range data {
-					if err := os.MkdirAll(filepath.Dir(ctrDirOrFileOnHost), 0700); err != nil {
+					if err := os.MkdirAll(filepath.Dir(ctrDirOrFileOnHost), s.dirMode); err != nil {
 						return nil, err
 					}
-					if err := ioutil.WriteFile(ctrDirOrFileOnHost, s.data, 0700); err != nil {
+					if err := ioutil.WriteFile(ctrDirOrFileOnHost, s.data, s.mode); err != nil {
 						return nil, errors.Wrapf(err, "error saving data to container filesystem on host %q", ctrDirOrFileOnHost)
 					}
 				}
