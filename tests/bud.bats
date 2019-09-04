@@ -1647,3 +1647,34 @@ load helpers
   touch "$DIR"/Dockerfile
   run_buildah 0 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"/Dockerfile
 }
+
+@test "bud-no-change" {
+  parent=alpine
+  target=no-change-image
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
+  run_buildah --log-level=error inspect --format '{{printf "%q" .FromImageDigest}}' ${parent}
+  parentid="$output"
+  run_buildah --log-level=error inspect --format '{{printf "%q" .FromImageDigest}}' ${target}
+  [[ "$output" == "$parentid" ]]
+
+  buildah rmi ${target}
+}
+
+@test "bud-no-change-label" {
+  parent=alpine
+  target=no-change-image
+  buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
+  run_buildah --log-level=error inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
+  expect_output 'map["test":"label"]'
+
+  buildah rmi ${target}
+}
+
+@test "bud-no-change-annotation" {
+  target=no-change-image
+  buildah bud --annotation "test=annotation" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
+  run_buildah --log-level=error inspect --format '{{printf "%q" .ImageAnnotations}}' ${target}
+  expect_output 'map["test":"annotation"]'
+
+  buildah rmi ${target}
+}
