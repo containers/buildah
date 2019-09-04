@@ -87,9 +87,27 @@ function check_lengths() {
 	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah --log-level=error inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
+	echo USER root >> ${TESTDIR}/squashed/Dockerfile
+	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah --log-level=error inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
+	[ "$output" -eq 1 ]
+	echo COPY file / >> ${TESTDIR}/squashed/Dockerfile
+	echo COPY file / > ${TESTDIR}/squashed/file
+	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah --log-level=error inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
+	[ "$output" -eq 1 ]
 
 	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
 	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
+	run_buildah --log-level=error inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
+	[ "$output" -eq 1 ]
+	echo USER root >> ${TESTDIR}/squashed/Dockerfile
+	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah --log-level=error inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
+	[ "$output" -eq 1 ]
+	echo COPY file / >> ${TESTDIR}/squashed/Dockerfile
+	echo COPY file / > ${TESTDIR}/squashed/file
+	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah --log-level=error inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
 }
