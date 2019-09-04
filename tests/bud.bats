@@ -1678,3 +1678,7 @@ load helpers
 
   buildah rmi ${target}
 }
+
+@test "bud-squash-layers" {
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --squash ${TESTSDIR}/bud/layers-squash
+}
