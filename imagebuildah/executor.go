@@ -409,6 +409,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 	}()
 
+	var lastFromStage imagebuilder.Stage
 	// Build maps of every named base image and every referenced stage root
 	// filesystem.  Individual stages can use them to determine whether or
 	// not they can skip certain steps near the end of their stages.
@@ -426,6 +427,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							// FROM instruction uses argument values,
 							// we might not record the right value here.
 							b.baseMap[base] = true
+							lastFromStage = stage
 							logrus.Debugf("base: %q", base)
 						}
 					}
@@ -445,6 +447,16 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			}
 			node = node.Next // next line
 		}
+	}
+
+	// TODO: crude - needs derive from image received(?)
+	// we're assuming subsequent stages on a multistage image is the target stage.
+	// Ideally a user should be explicit like FROM --platform =$TARGETPLATFORM
+	// and we should handle this.
+	if lastFromStage.Builder != nil {
+		b.systemContext.ArchitectureChoice = lastFromStage.Builder.Args["TARGETARCH"]
+		b.systemContext.OSChoice = lastFromStage.Builder.Args["TARGETOS"]
+		b.systemContext.VariantChoice = lastFromStage.Builder.Args["TARGETVARIANT"]
 	}
 
 	// Run through the build stages, one at a time.
