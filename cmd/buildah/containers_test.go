@@ -67,14 +67,15 @@ func TestContainerFormatStringOutput(t *testing.T) {
 		ContainerID:   "e477836657bb",
 		Builder:       " ",
 		ImageID:       "f975c5035748",
-		ImageName:     "test/image:latest",
+		ImageName:     "test/with/this/very/long/image:latest",
 		ContainerName: "test-container",
 	}
+	const trimmedImageName = "test/with/this/very/long/imag..."
 
 	output := captureOutput(func() {
 		containerOutputUsingFormatString(true, params)
 	})
-	expectedOutput := fmt.Sprintf("%-12.12s  %-8s %-12.12s %-32s %s\n", params.ContainerID, params.Builder, params.ImageID, params.ImageName, params.ContainerName)
+	expectedOutput := fmt.Sprintf("%-12.12s  %-8s %-12.12s %-32s %s\n", params.ContainerID, params.Builder, params.ImageID, trimmedImageName, params.ContainerName)
 	if output != expectedOutput {
 		t.Errorf("Error outputting using format string:\n\texpected: %s\n\treceived: %s\n", expectedOutput, output)
 	}

@@ -54,7 +54,7 @@ Omit the table headings from the listing of containers.
 
 **--notruncate**
 
-Do not truncate IDs in output.
+Do not truncate IDs and image names in the output.
 
 **--quiet, -q**
 
