@@ -1,4 +1,4 @@
-package storage
+package lockfile
 
 import (
 	"path/filepath"
@@ -92,10 +92,10 @@ func getLockfile(path string, ro bool) (Locker, error) {
 		}
 		return locker, nil
 	}
-	locker, err := createLockerForPath(path, ro) // platform-dependent locker
+	locker, err := createLockerForPath(cleanPath, ro) // platform-dependent locker
 	if err != nil {
 		return nil, err
 	}
-	lockfiles[filepath.Clean(path)] = locker
+	lockfiles[cleanPath] = locker
 	return locker, nil
 }

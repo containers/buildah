@@ -30,10 +30,10 @@ const builtinRegistriesConfPath = "/etc/containers/registries.conf"
 // Endpoint describes a remote location of a registry.
 type Endpoint struct {
 	// The endpoint's remote location.
-	Location string `toml:"location"`
+	Location string `toml:"location,omitempty"`
 	// If true, certs verification will be skipped and HTTP (non-TLS)
 	// connections will be allowed.
-	Insecure bool `toml:"insecure"`
+	Insecure bool `toml:"insecure,omitempty"`
 }
 
 // rewriteReference will substitute the provided reference `prefix` to the
@@ -56,22 +56,22 @@ func (e *Endpoint) rewriteReference(ref reference.Named, prefix string) (referen
 
 // Registry represents a registry.
 type Registry struct {
-	// A registry is an Endpoint too
-	Endpoint
-	// The registry's mirrors.
-	Mirrors []Endpoint `toml:"mirror"`
-	// If true, pulling from the registry will be blocked.
-	Blocked bool `toml:"blocked"`
-	// If true, mirrors will only be used for digest pulls. Pulling images by
-	// tag can potentially yield different images, depending on which endpoint
-	// we pull from.  Forcing digest-pulls for mirrors avoids that issue.
-	MirrorByDigestOnly bool `toml:"mirror-by-digest-only"`
 	// Prefix is used for matching images, and to translate one namespace to
 	// another.  If `Prefix="example.com/bar"`, `location="example.com/foo/bar"`
 	// and we pull from "example.com/bar/myimage:latest", the image will
 	// effectively be pulled from "example.com/foo/bar/myimage:latest".
 	// If no Prefix is specified, it defaults to the specified location.
 	Prefix string `toml:"prefix"`
+	// A registry is an Endpoint too
+	Endpoint
+	// The registry's mirrors.
+	Mirrors []Endpoint `toml:"mirror,omitempty"`
+	// If true, pulling from the registry will be blocked.
+	Blocked bool `toml:"blocked,omitempty"`
+	// If true, mirrors will only be used for digest pulls. Pulling images by
+	// tag can potentially yield different images, depending on which endpoint
+	// we pull from.  Forcing digest-pulls for mirrors avoids that issue.
+	MirrorByDigestOnly bool `toml:"mirror-by-digest-only,omitempty"`
 }
 
 // PullSource consists of an Endpoint and a Reference. Note that the reference is
@@ -303,9 +303,8 @@ func (config *V2RegistriesConf) postProcess() error {
 	return nil
 }
 
-// getConfigPath returns the system-registries config path if specified.
-// Otherwise, systemRegistriesConfPath is returned.
-func getConfigPath(ctx *types.SystemContext) string {
+// ConfigPath returns the path to the system-wide registry configuration file.
+func ConfigPath(ctx *types.SystemContext) string {
 	confPath := systemRegistriesConfPath
 	if ctx != nil {
 		if ctx.SystemRegistriesConfPath != "" {
@@ -336,14 +335,27 @@ func InvalidateCache() {
 
 // getConfig returns the config object corresponding to ctx, loading it if it is not yet cached.
 func getConfig(ctx *types.SystemContext) (*V2RegistriesConf, error) {
-	configPath := getConfigPath(ctx)
+	configPath := ConfigPath(ctx)
+
+	configMutex.Lock()
+	// if the config has already been loaded, return the cached registries
+	if config, inCache := configCache[configPath]; inCache {
+		configMutex.Unlock()
+		return config, nil
+	}
+	configMutex.Unlock()
+
+	return TryUpdatingCache(ctx)
+}
+
+// TryUpdatingCache loads the configuration from the provided `SystemContext`
+// without using the internal cache. On success, the loaded configuration will
+// be added into the internal registry cache.
+func TryUpdatingCache(ctx *types.SystemContext) (*V2RegistriesConf, error) {
+	configPath := ConfigPath(ctx)
 
 	configMutex.Lock()
 	defer configMutex.Unlock()
-	// if the config has already been loaded, return the cached registries
-	if config, inCache := configCache[configPath]; inCache {
-		return config, nil
-	}
 
 	// load the config
 	config, err := loadRegistryConf(configPath)

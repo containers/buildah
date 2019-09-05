@@ -1,6 +1,6 @@
 // +build windows
 
-package storage
+package lockfile
 
 import (
 	"os"

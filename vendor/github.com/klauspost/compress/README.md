@@ -1,19 +1,39 @@
 # compress
 
-This package is based on an optimized Deflate function, which is used by gzip/zip/zlib packages.
+This package provides various compression algorithms.
 
-It offers slightly better compression at lower compression settings, and up to 3x faster encoding at highest compression level.
-
-* [High Throughput Benchmark](http://blog.klauspost.com/go-gzipdeflate-benchmarks/).
-* [Small Payload/Webserver Benchmarks](http://blog.klauspost.com/gzip-performance-for-go-webservers/).
-* [Linear Time Compression](http://blog.klauspost.com/constant-time-gzipzip-compression/).
-* [Re-balancing Deflate Compression Levels](https://blog.klauspost.com/rebalancing-deflate-compression-levels/)
+* [zstandard](https://github.com/klauspost/compress/tree/master/zstd#zstd) compression and decompression in pure Go.
+* [S2](https://github.com/klauspost/compress/tree/master/s2#s2-compression) is a high performance replacement for Snappy.
+* Optimized [deflate](https://godoc.org/github.com/klauspost/compress/flate) packages which can be used as a dropin replacement for [gzip](https://godoc.org/github.com/klauspost/compress/gzip), [zip](https://godoc.org/github.com/klauspost/compress/zip) and [zlib](https://godoc.org/github.com/klauspost/compress/zlib).
+* [huff0](https://github.com/klauspost/compress/tree/master/huff0) and [FSE](https://github.com/klauspost/compress/tree/master/fse) implementations for raw entropy encoding.
 
 [![Build Status](https://travis-ci.org/klauspost/compress.svg?branch=master)](https://travis-ci.org/klauspost/compress)
 [![Sourcegraph Badge](https://sourcegraph.com/github.com/klauspost/compress/-/badge.svg)](https://sourcegraph.com/github.com/klauspost/compress?badge)
+[![fuzzit](https://app.fuzzit.dev/badge?org_id=klauspost)](https://fuzzit.dev)
 
 # changelog
-
+* Aug 26, 2019: (v1.8.1) S2: 1-2% compression increase in "better" compression mode.
+* Aug 26, 2019: zstd: Check maximum size of Huffman 1X compressed literals while decoding.
+* Aug 24, 2019: (v1.8.0) Added [S2 compression](https://github.com/klauspost/compress/tree/master/s2#s2-compression), a high performance replacement for Snappy. 
+* Aug 21, 2019: (v1.7.6) Fixed minor issues found by fuzzer. One could lead to zstd not decompressing.
+* Aug 18, 2019: Add [fuzzit](https://fuzzit.dev/) continuous fuzzing.
+* Aug 14, 2019: zstd: Skip incompressible data 2x faster.  [#147](https://github.com/klauspost/compress/pull/147)
+* Aug 4, 2019 (v1.7.5): Better literal compression. [#146](https://github.com/klauspost/compress/pull/146)
+* Aug 4, 2019: Faster zstd compression. [#143](https://github.com/klauspost/compress/pull/143) [#144](https://github.com/klauspost/compress/pull/144)
+* Aug 4, 2019: Faster zstd decompression. [#145](https://github.com/klauspost/compress/pull/145) [#143](https://github.com/klauspost/compress/pull/143) [#142](https://github.com/klauspost/compress/pull/142)
+* July 15, 2019 (v1.7.4): Fix double EOF block in rare cases on zstd encoder.
+* July 15, 2019 (v1.7.3): Minor speedup/compression increase in default zstd encoder.
+* July 14, 2019: zstd decoder: Fix decompression error on multiple uses with mixed content.
+* July 7, 2019 (v1.7.2): Snappy update, zstd decoder potential race fix.
+* June 17, 2019: zstd decompression bugfix.
+* June 17, 2019: fix 32 bit builds.
+* June 17, 2019: Easier use in modules (less dependencies).
+* June 9, 2019: New stronger "default" [zstd](https://github.com/klauspost/compress/tree/master/zstd#zstd) compression mode. Matches zstd default compression ratio.
+* June 5, 2019: 20-40% throughput in [zstandard](https://github.com/klauspost/compress/tree/master/zstd#zstd) compression and better compression.
+* June 5, 2019: deflate/gzip compression: Reduce memory usage of lower compression levels.
+* June 2, 2019: Added [zstandard](https://github.com/klauspost/compress/tree/master/zstd#zstd) compression!
+* May 25, 2019: deflate/gzip: 10% faster bit writer, mostly visible in lower levels.
+* Apr 22, 2019: [zstd](https://github.com/klauspost/compress/tree/master/zstd#zstd) decompression added.
 * Aug 1, 2018: Added [huff0 README](https://github.com/klauspost/compress/tree/master/huff0#huff0-entropy-compression).
 * Jul 8, 2018: Added [Performance Update 2018](#performance-update-2018) below.
 * Jun 23, 2018: Merged [Go 1.11 inflate optimizations](https://go-review.googlesource.com/c/go/+/102235). Go 1.9 is now required. Backwards compatible version tagged with [v1.3.0](https://github.com/klauspost/compress/releases/tag/v1.3.0).
@@ -51,7 +71,12 @@ It offers slightly better compression at lower compression settings, and up to 3
 * Nov 11 2015: Merged [CL 16669](https://go-review.googlesource.com/#/c/16669/4): archive/zip: enable overriding (de)compressors per file
 * Oct 15 2015: Added skipping on uncompressible data. Random data speed up >5x.
 
-# usage
+# deflate usage
+
+* [High Throughput Benchmark](http://blog.klauspost.com/go-gzipdeflate-benchmarks/).
+* [Small Payload/Webserver Benchmarks](http://blog.klauspost.com/gzip-performance-for-go-webservers/).
+* [Linear Time Compression](http://blog.klauspost.com/constant-time-gzipzip-compression/).
+* [Re-balancing Deflate Compression Levels](https://blog.klauspost.com/rebalancing-deflate-compression-levels/)
 
 The packages are drop-in replacements for standard libraries. Simply replace the import path to use them:
 
@@ -76,7 +101,7 @@ The raw results are in my [updated spreadsheet](https://docs.google.com/spreadsh
 
 The columns to take note of are: *MB/s* - the throughput. *Reduction* - the data size reduction in percent of the original. *Rel Speed* relative speed compared to the standard libary at the same level. *Smaller* - how many percent smaller is the compressed output compared to stdlib. Negative means the output was bigger. *Loss* means the loss (or gain) in compression as a percentage difference of the input.
 
-The `gzstd` (standard library gzip) and `gzkp` (this package gzip) only uses one CPU core. [`pgzip`](https://github.com/klauspost/pgzip), [`bgzf`](https://github.com/biogo/hts/bgzf) uses all 4 cores. [`zstd`](https://github.com/DataDog/zstd) uses one core, and is a beast (but not Go, yet).
+The `gzstd` (standard library gzip) and `gzkp` (this package gzip) only uses one CPU core. [`pgzip`](https://github.com/klauspost/pgzip), [`bgzf`](https://github.com/biogo/hts/tree/master/bgzf) uses all 4 cores. [`zstd`](https://github.com/DataDog/zstd) uses one core, and is a beast (but not Go, yet).
 
 
 ## Overall differences.

@@ -36,14 +36,15 @@ type (
 
 	// TarOptions wraps the tar options.
 	TarOptions struct {
-		IncludeFiles     []string
-		ExcludePatterns  []string
-		Compression      Compression
-		NoLchown         bool
-		UIDMaps          []idtools.IDMap
-		GIDMaps          []idtools.IDMap
-		ChownOpts        *idtools.IDPair
-		IncludeSourceDir bool
+		IncludeFiles      []string
+		ExcludePatterns   []string
+		Compression       Compression
+		NoLchown          bool
+		UIDMaps           []idtools.IDMap
+		GIDMaps           []idtools.IDMap
+		IgnoreChownErrors bool
+		ChownOpts         *idtools.IDPair
+		IncludeSourceDir  bool
 		// WhiteoutFormat is the expected on disk format for whiteout files.
 		// This format will be converted to the standard format on pack
 		// and from the standard format on unpack.
@@ -98,6 +99,8 @@ const (
 	Gzip
 	// Xz is xz compression algorithm.
 	Xz
+	// Zstd is zstd compression algorithm.
+	Zstd
 )
 
 const (
@@ -141,6 +144,7 @@ func DetectCompression(source []byte) Compression {
 		Bzip2: {0x42, 0x5A, 0x68},
 		Gzip:  {0x1F, 0x8B, 0x08},
 		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
+		Zstd:  {0x28, 0xb5, 0x2f, 0xfd},
 	} {
 		if len(source) < len(m) {
 			logrus.Debug("Len too short")
@@ -200,6 +204,8 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 			<-chdone
 			return readBufWrapper.Close()
 		}), nil
+	case Zstd:
+		return zstdReader(buf)
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
@@ -217,6 +223,8 @@ func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, er
 		gzWriter := gzip.NewWriter(dest)
 		writeBufWrapper := p.NewWriteCloserWrapper(buf, gzWriter)
 		return writeBufWrapper, nil
+	case Zstd:
+		return zstdWriter(dest)
 	case Bzip2, Xz:
 		// archive/bzip2 does not support writing, and there is no xz support at all
 		// However, this is not a problem as docker only currently generates gzipped tars
@@ -324,6 +332,8 @@ func (compression *Compression) Extension() string {
 		return "tar.gz"
 	case Xz:
 		return "tar.xz"
+	case Zstd:
+		return "tar.zst"
 	}
 	return ""
 }
@@ -554,7 +564,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.IDPair, inUserns bool) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *idtools.IDPair, inUserns, ignoreChownErrors bool) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -636,8 +646,13 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		if chownOpts == nil {
 			chownOpts = &idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid}
 		}
-		if err := idtools.SafeLchown(path, chownOpts.UID, chownOpts.GID); err != nil {
-			return err
+		err := idtools.SafeLchown(path, chownOpts.UID, chownOpts.GID)
+		if err != nil {
+			if ignoreChownErrors {
+				fmt.Fprintf(os.Stderr, "Chown error detected. Ignoring due to ignoreChownErrors flag: %v\n", err)
+			} else {
+				return err
+			}
 		}
 	}
 
@@ -984,7 +999,7 @@ loop:
 			chownOpts = &idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid}
 		}
 
-		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, chownOpts, options.InUserNS); err != nil {
+		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, chownOpts, options.InUserNS, options.IgnoreChownErrors); err != nil {
 			return err
 		}
 
