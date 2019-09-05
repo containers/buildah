@@ -8,7 +8,7 @@
 demoimg=mymultidemo
 quayuser=myquauuser
 myname=MyName
-distrorelease=28
+distrorelease=30
 pkgmgr=dnf   # switch to yum if using yum 
 
 #Setting up some colors for helping read the demo output
