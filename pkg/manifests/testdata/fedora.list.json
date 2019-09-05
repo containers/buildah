@@ -1,0 +1,43 @@
+{
+    "manifests": [
+        {
+            "digest": "sha256:f81f09918379d5442d20dff82a298f29698197035e737f76e511d5af422cabd7",
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            },
+            "size": 529
+        },
+        {
+            "digest": "sha256:c829b1810d2dbb456e74a695fd3847530c8319e5a95dca623e9f1b1b89020d8b",
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux",
+                "variant": "v8"
+            },
+            "size": 529
+        },
+        {
+            "digest": "sha256:68b26da78d8790df143479ec2e3174c57cedb1c2e84ce1b2675d942d6848f2da",
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "platform": {
+                "architecture": "ppc64le",
+                "os": "linux"
+            },
+            "size": 529
+        },
+        {
+            "digest": "sha256:15352d97781ffdf357bf3459c037be3efac4133dc9070c2dce7eca7c05c3e736",
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "platform": {
+                "architecture": "s390x",
+                "os": "linux"
+            },
+            "size": 529
+        }
+    ],
+    "mediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
+    "schemaVersion": 2
+}
