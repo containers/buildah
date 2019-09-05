@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/util"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -261,7 +262,7 @@ func containerOutputUsingTemplate(format string, params containerOutputParams) e
 
 func containerOutputUsingFormatString(truncate bool, params containerOutputParams) {
 	if truncate {
-		fmt.Printf("%-12.12s  %-8s %-12.12s %-32s %s\n", params.ContainerID, params.Builder, params.ImageID, params.ImageName, params.ContainerName)
+		fmt.Printf("%-12.12s  %-8s %-12.12s %-32s %s\n", params.ContainerID, params.Builder, params.ImageID, util.TruncateString(params.ImageName, 32), params.ContainerName)
 	} else {
 		fmt.Printf("%-64s %-8s %-64s %-32s %s\n", params.ContainerID, params.Builder, params.ImageID, params.ImageName, params.ContainerName)
 	}
