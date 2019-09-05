@@ -1,6 +1,6 @@
 // +build linux solaris darwin freebsd
 
-package storage
+package lockfile
 
 import (
 	"fmt"
@@ -122,11 +122,10 @@ func (l *lockfile) lock(l_type int16, recursive bool) {
 	l.counter++
 }
 
-// Lock locks the lockfile as a writer.  Note that RLock() will be called if
-// the lock is a read-only one.
+// Lock locks the lockfile as a writer.  Panic if the lock is a read-only one.
 func (l *lockfile) Lock() {
 	if l.ro {
-		l.RLock()
+		panic("can't take write lock on read-only lock file")
 	} else {
 		l.lock(unix.F_WRLCK, false)
 	}
@@ -150,13 +149,6 @@ func (l *lockfile) RLock() {
 
 // Unlock unlocks the lockfile.
 func (l *lockfile) Unlock() {
-	lk := unix.Flock_t{
-		Type:   unix.F_UNLCK,
-		Whence: int16(os.SEEK_SET),
-		Start:  0,
-		Len:    0,
-		Pid:    int32(os.Getpid()),
-	}
 	l.stateMutex.Lock()
 	if l.locked == false {
 		// Panic when unlocking an unlocked lock.  That's a violation
@@ -175,10 +167,8 @@ func (l *lockfile) Unlock() {
 		// avoid releasing read-locks too early; a given process may
 		// acquire a read lock multiple times.
 		l.locked = false
-		for unix.FcntlFlock(l.fd, unix.F_SETLKW, &lk) != nil {
-			time.Sleep(10 * time.Millisecond)
-		}
-		// Close the file descriptor on the last unlock.
+		// Close the file descriptor on the last unlock, releasing the
+		// file lock.
 		unix.Close(int(l.fd))
 	}
 	if l.locktype == unix.F_RDLCK || l.recursive {
