@@ -32,7 +32,7 @@ There are several variables you will want to set that are listed at the top of t
     demoimg=myshdemo
     quayuser=UserNameHere
     myname=YourNameHere
-    distrorelease=28
+    distrorelease=30
     pkgmgr=dnf   # switch to yum if using yum
 
 ## Buildah and Docker compatibility demo
@@ -47,7 +47,7 @@ There are several variables you will want to set that are listed at the top of t
     quayuser=UsernameHere
     myname=YourNameHear
     distro=fedora
-    distrorelease=28
+    distrorelease=30
     pkgmgr=dnf   # switch to yum if using yum
 
 ## Buildah build using Docker demo
@@ -62,5 +62,5 @@ There are several variables you will want to set that are listed at the top of t
     quayuser=UsernameHere
     myname=YourNameHear
     distro=fedora
-    distrorelease=28
+    distrorelease=30
     pkgmgr=dnf   # switch to yum if using yum

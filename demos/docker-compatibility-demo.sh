@@ -10,7 +10,7 @@ demoimg=dockercompatibilitydemo
 quayuser=ipbabble
 myname="William Henry"
 distro=fedora
-distrorelease=28
+distrorelease=30
 pkgmgr=dnf   # switch to yum if using yum 
 
 #Setting up some colors for helping read the demo output
