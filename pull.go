@@ -195,7 +195,9 @@ func Pull(ctx context.Context, imageName string, options PullOptions) (imageID s
 				return "", errors.Wrapf(err, "internal error creating docker.Transport reference for %s", tagged.String())
 			}
 			if options.ReportWriter != nil {
-				options.ReportWriter.Write([]byte("Pulling " + tagged.String() + "\n"))
+				if _, err := options.ReportWriter.Write([]byte("Pulling " + tagged.String() + "\n")); err != nil {
+					return "", errors.Wrapf(err, "error writing pull report")
+				}
 			}
 			ref, err := pullImage(ctx, options.Store, taggedRef, options, systemContext)
 			if err != nil {

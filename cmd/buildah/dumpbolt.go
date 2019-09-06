@@ -6,6 +6,7 @@ import (
 
 	bolt "github.com/etcd-io/bbolt"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -33,9 +34,13 @@ func dumpBoltCmd(c *cobra.Command, args []string) error {
 		var b strings.Builder
 		for i := range value {
 			if value[i] <= 32 || value[i] >= 127 {
-				b.WriteString(fmt.Sprintf("\\%03o", value[i]))
+				if _, err := b.WriteString(fmt.Sprintf("\\%03o", value[i])); err != nil {
+					logrus.Errorf("Error writing char %02x in octal: %v", value[i], err)
+				}
 			} else {
-				b.WriteByte(value[i])
+				if err := b.WriteByte(value[i]); err != nil {
+					logrus.Errorf("Error writing byte %02x: %v", value[i], err)
+				}
 			}
 		}
 		return b.String()
