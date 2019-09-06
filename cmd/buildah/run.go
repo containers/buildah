@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -67,7 +68,11 @@ func init() {
 	// TODO add-third alias for tty
 	flags.BoolVarP(&opts.terminal, "terminal", "t", false, "allocate a pseudo-TTY in the container")
 	flags.BoolVar(&opts.terminal, "tty", false, "allocate a pseudo-TTY in the container")
-	flags.MarkHidden("tty")
+
+	if err := flags.MarkHidden("tty"); err != nil {
+		panic(fmt.Sprintf("error marking tty as hidden: %v", err))
+	}
+
 	flags.StringSliceVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
 
 	userFlags := getUserFlags()

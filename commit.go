@@ -184,8 +184,8 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	}
 	// In case we're using caching, decide how to handle compression for a cache.
 	// If we're using blob caching, set it up for the source.
-	var maybeCachedSrc = types.ImageReference(src)
-	var maybeCachedDest = types.ImageReference(dest)
+	maybeCachedSrc := src
+	maybeCachedDest := dest
 	if options.BlobDirectory != "" {
 		compress := types.PreserveOriginal
 		if options.Compression != archive.Uncompressed {
@@ -301,7 +301,7 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 	if err != nil {
 		return nil, "", err
 	}
-	var maybeCachedSrc = types.ImageReference(src)
+	maybeCachedSrc := src
 	if options.BlobDirectory != "" {
 		compress := types.PreserveOriginal
 		if options.Compression != archive.Uncompressed {

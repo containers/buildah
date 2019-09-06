@@ -325,7 +325,9 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 	}
 	imagesParams = sortImagesOutput(imagesParams)
 	out := formats.StdoutTemplateArray{Output: imagesToGeneric(imagesParams), Template: outputHeader(opts), Fields: imagesHeader}
-	formats.Writer(out).Out()
+	if err := formats.Writer(out).Out(); err != nil {
+		panic(fmt.Sprintf("error outputting image information: %v", err))
+	}
 	return nil
 }
 
