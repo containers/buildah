@@ -4,7 +4,8 @@ branches:
   - try
 
 host:
-  distro: fedora/30/atomic
+  # 29 is the highest level of atomic
+  distro: fedora/29/atomic
 
 required: true
 
