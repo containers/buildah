@@ -380,3 +380,30 @@ function configure_and_check_user() {
 	run_buildah --log-level=error run $cid ls -1 /run/.containerenv
 	expect_output --substring "/run/.containerenv"
 }
+
+@test "run-device" {
+	if ! which runc ; then
+		skip "no runc in PATH"
+	fi
+	cid=$(buildah from --pull --device /dev/fuse --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah 0 run ${cid} ls /dev/fuse
+
+	cid=$(buildah from --pull --device /dev/fuse:/dev/fuse:rm --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah 0 run ${cid} ls /dev/fuse
+
+	cid=$(buildah from --pull --device /dev/fuse:/dev/fuse:rwm --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah 0 run ${cid} ls /dev/fuse
+
+}
+
+@test "run-device-Rename" {
+	if ! which runc ; then
+		skip "no runc in PATH"
+	fi
+	if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
+	    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
+	fi
+
+	cid=$(buildah from --pull --device /dev/fuse:/dev/fuse1 --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah 0 run ${cid} ls /dev/fuse1
+}

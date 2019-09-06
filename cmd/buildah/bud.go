@@ -9,6 +9,7 @@ import (
 	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -263,6 +264,15 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		transientMounts = append(transientMounts, imagebuildah.Mount(mount))
 	}
 
+	devices := []configs.Device{}
+	for _, device := range iopts.Devices {
+		dev, err := parse.DeviceFromPath(device)
+		if err != nil {
+			return err
+		}
+		devices = append(devices, dev)
+	}
+
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:        contextDir,
 		PullPolicy:              pullPolicy,
@@ -301,6 +311,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		BlobDirectory:           iopts.BlobCache,
 		Target:                  iopts.Target,
 		TransientMounts:         transientMounts,
+		Devices:                 devices,
 	}
 
 	if iopts.Quiet {

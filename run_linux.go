@@ -36,6 +36,7 @@ import (
 	"github.com/docker/libnetwork/types"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
@@ -119,6 +120,20 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		g.SetProcessArgs(command)
 	} else {
 		g.SetProcessArgs(nil)
+	}
+
+	for _, d := range b.Devices {
+		sDev := spec.LinuxDevice{
+			Type:     string(d.Type),
+			Path:     d.Path,
+			Major:    d.Major,
+			Minor:    d.Minor,
+			FileMode: &d.FileMode,
+			UID:      &d.Uid,
+			GID:      &d.Gid,
+		}
+		g.AddDevice(sDev)
+		g.AddLinuxResourcesDevice(true, string(d.Type), &d.Major, &d.Minor, d.Permissions)
 	}
 
 	setupMaskedPaths(g)

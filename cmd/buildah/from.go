@@ -9,6 +9,7 @@ import (
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -211,6 +212,15 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return err
 	}
 
+	devices := []configs.Device{}
+	for _, device := range iopts.Devices {
+		dev, err := parse.DeviceFromPath(device)
+		if err != nil {
+			return err
+		}
+		devices = append(devices, dev)
+	}
+
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
 		Container:             iopts.name,
@@ -229,6 +239,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		CommonBuildOpts:       commonOpts,
 		Format:                format,
 		BlobDirectory:         iopts.BlobCache,
+		Devices:               devices,
 	}
 
 	if !iopts.quiet {

@@ -1682,3 +1682,12 @@ load helpers
 @test "bud-squash-layers" {
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --squash ${TESTSDIR}/bud/layers-squash
 }
+
+@test "bud with additional device" {
+  target=alpine-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --device /dev/fuse -t ${target} -f ${TESTSDIR}/bud/device/Dockerfile ${TESTSDIR}/bud/device
+  [ "${status}" -eq 0 ]
+  expect_output --substring "/dev/fuse"
+
+  buildah rmi ${target}
+}
