@@ -389,6 +389,7 @@ return 1
      --cpuset-cpus
      --cpuset-mems
      --creds
+     --device
      --dns-search
      --dns
      --dns-option
@@ -853,6 +854,7 @@ _buildah_containers() {
      --cpuset-cpus
      --cpuset-mems
      --creds
+     --device
      --http-proxy
      --ipc
      --isolation

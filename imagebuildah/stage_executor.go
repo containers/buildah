@@ -585,6 +585,9 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 		CommonBuildOpts:       s.executor.commonBuildOptions,
 		DefaultMountsFilePath: s.executor.defaultMountsFilePath,
 		Format:                s.executor.outputFormat,
+		AddCapabilities:       s.executor.addCapabilities,
+		DropCapabilities:      s.executor.dropCapabilities,
+		Devices:               s.executor.devices,
 	}
 
 	// Check and see if the image is a pseudonym for the end result of a
