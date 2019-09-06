@@ -370,3 +370,13 @@ function configure_and_check_user() {
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run_buildah 42 run ${cid} sh -c 'exit 42'
 }
+
+@test "Verify /run/.containerenv exist" {
+	if ! which runc ; then
+		skip "no runc in PATH"
+	fi
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	# test a standard mount to /run/.containerenv
+	run_buildah --log-level=error run $cid ls -1 /run/.containerenv
+	expect_output --substring "/run/.containerenv"
+}

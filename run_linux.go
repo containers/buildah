@@ -181,6 +181,24 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		}
 		bindFiles["/etc/resolv.conf"] = resolvFile
 	}
+	// Empty file, so no need to recreate if it exists
+	if _, ok := bindFiles["/run/.containerenv"]; !ok {
+		// Empty string for now, but we may consider populating this later
+		containerenvPath := filepath.Join(path, "/run/.containerenv")
+		if err = os.MkdirAll(filepath.Dir(containerenvPath), 0755); err != nil && !os.IsExist(err) {
+			return err
+		}
+		emptyFile, err := os.Create(containerenvPath)
+		if err != nil {
+			return err
+		}
+		emptyFile.Close()
+		if err := label.Relabel(containerenvPath, b.MountLabel, false); err != nil {
+			return errors.Wrapf(err, "error relabeling %q in container %q", containerenvPath, b.ContainerID)
+		}
+
+		bindFiles["/run/.containerenv"] = containerenvPath
+	}
 
 	err = b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, volumes, b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, namespaceOptions)
 	if err != nil {
