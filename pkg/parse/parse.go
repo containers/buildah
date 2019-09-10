@@ -583,6 +583,12 @@ func SystemContextFromOptions(c *cobra.Command) (*types.SystemContext, error) {
 		ctx.RegistriesDirPath = regConfDir
 	}
 	ctx.DockerRegistryUserAgent = fmt.Sprintf("Buildah/%s", buildah.Version)
+	if os, err := c.Flags().GetString("override-os"); err == nil {
+		ctx.OSChoice = os
+	}
+	if arch, err := c.Flags().GetString("override-arch"); err == nil {
+		ctx.ArchitectureChoice = arch
+	}
 	return ctx, nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/containers/buildah"
@@ -95,6 +96,8 @@ type FromAndBudResults struct {
 	Isolation    string
 	Memory       string
 	MemorySwap   string
+	OverrideArch string
+	OverrideOS   string
 	SecurityOpt  []string
 	ShmSize      string
 	Ulimit       []string
@@ -194,6 +197,14 @@ func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, 
 	fs.StringVar(&flags.Isolation, "isolation", DefaultIsolation(), "`type` of process isolation to use. Use BUILDAH_ISOLATION environment variable to override.")
 	fs.StringVarP(&flags.Memory, "memory", "m", "", "memory limit (format: <number>[<unit>], where unit = b, k, m or g)")
 	fs.StringVar(&flags.MemorySwap, "memory-swap", "", "swap limit equal to memory plus swap: '-1' to enable unlimited swap")
+	fs.StringVar(&flags.OverrideOS, "override-os", runtime.GOOS, "prefer `OS` instead of the running OS when pulling images")
+	if err := fs.MarkHidden("override-os"); err != nil {
+		panic(fmt.Sprintf("error marking override-os as hidden: %v", err))
+	}
+	fs.StringVar(&flags.OverrideArch, "override-arch", runtime.GOARCH, "prefer `ARCH` instead of the architecture of the machine when pulling images")
+	if err := fs.MarkHidden("override-arch"); err != nil {
+		panic(fmt.Sprintf("error marking override-arch as hidden: %v", err))
+	}
 	fs.StringArrayVar(&flags.SecurityOpt, "security-opt", []string{}, "security options (default [])")
 	fs.StringVar(&flags.ShmSize, "shm-size", "65536k", "size of '/dev/shm'. The format is `<number><unit>`.")
 	fs.StringSliceVar(&flags.Ulimit, "ulimit", []string{}, "ulimit options (default [])")

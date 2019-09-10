@@ -271,7 +271,7 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 			opts.readOnly = true
 		}
 		createdTime := image.Created
-		inspectedTime, digest, size, _ := getDateAndDigestAndSize(ctx, store, image)
+		inspectedTime, digest, size, _ := getDateAndDigestAndSize(ctx, systemContext, store, image)
 		if !inspectedTime.IsZero() {
 			if createdTime != inspectedTime {
 				logrus.Debugf("image record and configuration disagree on the image's creation time for %q, using the configuration creation time: %s", image.ID, inspectedTime)
