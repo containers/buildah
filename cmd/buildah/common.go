@@ -9,6 +9,7 @@ import (
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/pkg/umask"
 	"github.com/containers/buildah/pkg/unshare"
+	"github.com/containers/image/v5/image"
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
@@ -152,37 +153,38 @@ func openImage(ctx context.Context, sc *types.SystemContext, store storage.Store
 	return builder, nil
 }
 
-func getDateAndDigestAndSize(ctx context.Context, store storage.Store, image storage.Image) (time.Time, string, int64, error) {
+func getDateAndDigestAndSize(ctx context.Context, sys *types.SystemContext, store storage.Store, storeImage storage.Image) (time.Time, string, int64, error) {
 	created := time.Time{}
 	is.Transport.SetStore(store)
-	storeRef, err := is.Transport.ParseStoreReference(store, image.ID)
+	storeRef, err := is.Transport.ParseStoreReference(store, storeImage.ID)
 	if err != nil {
 		return created, "", -1, err
 	}
-	img, err := storeRef.NewImage(ctx, nil)
+	img, err := storeRef.NewImageSource(ctx, nil)
 	if err != nil {
 		return created, "", -1, err
 	}
 	defer img.Close()
-	imgSize, sizeErr := img.Size()
+	imgSize, sizeErr := store.ImageSize(storeImage.ID)
 	if sizeErr != nil {
 		imgSize = -1
 	}
-	manifest, _, manifestErr := img.Manifest(ctx)
+	manifest, _, manifestErr := img.GetManifest(ctx, nil)
 	manifestDigest := ""
 	if manifestErr == nil && len(manifest) > 0 {
 		manifestDigest = digest.Canonical.FromBytes(manifest).String()
 	}
-	inspectInfo, inspectErr := img.Inspect(ctx)
-	if inspectErr == nil && inspectInfo != nil {
-		created = *inspectInfo.Created
+	inspectable, inspectableErr := image.FromUnparsedImage(ctx, sys, image.UnparsedInstance(img, nil))
+	if inspectableErr == nil && inspectable != nil {
+		inspectInfo, inspectErr := inspectable.Inspect(ctx)
+		if inspectErr == nil && inspectInfo != nil {
+			created = *inspectInfo.Created
+		}
 	}
 	if sizeErr != nil {
 		err = sizeErr
 	} else if manifestErr != nil {
 		err = manifestErr
-	} else if inspectErr != nil {
-		err = inspectErr
 	}
 	return created, manifestDigest, imgSize, err
 }
@@ -224,6 +226,9 @@ func getImageConfig(ctx context.Context, sc *types.SystemContext, store storage.
 	}
 	image, err := ref.NewImage(ctx, sc)
 	if err != nil {
+		if img, err2 := store.Image(imageID); err2 == nil && img.ID == imageID {
+			return nil, nil
+		}
 		return nil, errors.Wrapf(err, "unable to open image %q", imageID)
 	}
 	config, err := image.OCIConfig(ctx)
@@ -283,6 +288,9 @@ func getParent(ctx context.Context, sc *types.SystemContext, store storage.Store
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to read configuration from image %q", child.ID)
 	}
+	if childConfig == nil {
+		return nil, nil
+	}
 	for _, parent := range images {
 		if parent.ID == child.ID {
 			continue
@@ -293,6 +301,9 @@ func getParent(ctx context.Context, sc *types.SystemContext, store storage.Store
 		parentConfig, err := getImageConfig(ctx, sc, store, parent.ID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to read configuration from image %q", parent.ID)
+		}
+		if parentConfig == nil {
+			continue
 		}
 		if len(parentConfig.History)+1 != len(childConfig.History) {
 			continue
@@ -331,6 +342,9 @@ func getChildren(ctx context.Context, sc *types.SystemContext, store storage.Sto
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to read configuration from image %q", parent.ID)
 	}
+	if parentConfig == nil {
+		return nil, nil
+	}
 	for _, child := range images {
 		if child.ID == parent.ID {
 			continue
@@ -348,6 +362,9 @@ func getChildren(ctx context.Context, sc *types.SystemContext, store storage.Sto
 		childConfig, err := getImageConfig(ctx, sc, store, child.ID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to read configuration from image %q", child.ID)
+		}
+		if childConfig == nil {
+			continue
 		}
 		if len(parentConfig.History)+1 != len(childConfig.History) {
 			continue
