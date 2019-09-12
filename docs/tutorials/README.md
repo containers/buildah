@@ -17,4 +17,6 @@ Learn how Buildah can be used to move OCI compliant images in and out of private
 
 Learn how Buildah can use the ONBUILD instruction in either a Dockerfile or via the `buildah config --onbuild` command to configure an image to run those instructions when the container is created.  In this manner you can front load setup of the container inside the image and minimalize the steps needed to create one or more containers that share a number of initial settings, but need a few differentiators between each.
 
+**[Include Buildah in your build tool](04-include-in-your-build-tool.md)**
 
+Learn how to include Buildah as a library in your build tool.
