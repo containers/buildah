@@ -100,7 +100,24 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Thu Aug 29, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+* Wed Sep 11, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+
+* Wed Sep 11, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.1-1
+- Add --devices flag to bud and from
+- Downgrade .papr to highest atomic verion
+- Add support for /run/.containerenv
+- Truncate output of too long image names
+- Preserve file and directory mount permissions
+- Bump fedora version from 28 to 30
+- makeImageRef: ignore EmptyLayer if Squash is set
+- Set TMPDIR to /var/tmp by default
+- replace --debug=false with --log-level=error
+- Allow mounts.conf entries for equal source and destination paths
+- fix label and annotation for 1-line Dockerfiles
+- Enable interfacer linter and fix lints
+- install.md: mention goproxy
+- Makefile: use go proxy
+- Bump to v1.12.0-dev
 
 * Thu Aug 29, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.0-1
 - tests/bud.bats: add --signature-policy to some tests
