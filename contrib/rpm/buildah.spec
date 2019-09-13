@@ -100,7 +100,12 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Wed Sep 11, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+* Fri Sep 13, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+
+* Fri Sep 13, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.2-1
+- Add some cleanup code
+- Move devices code to unit specific directory.
+- Bump back to v1.12.0-dev
 
 * Wed Sep 11, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.1-1
 - Add --devices flag to bud and from
