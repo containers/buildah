@@ -167,8 +167,8 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	}
 
 	if len(dockerfiles) == 0 {
-		// Try to find the Dockerfile within the contextDir
-		dockerFile, err := discoverDockerfile(contextDir)
+		// Try to find the Containerfile/Dockerfile within the contextDir
+		dockerFile, err := discoverContainerfile(contextDir)
 		if err != nil {
 			return err
 		}
@@ -322,36 +322,43 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	return err
 }
 
-// discoverDockerfile tries to find a Dockerfile within the provided `path`.
-func discoverDockerfile(path string) (foundDockerfile string, err error) {
+// discoverContainerfile tries to find a Containerfile or a Dockerfile within the provided `path`.
+func discoverContainerfile(path string) (foundCtrFile string, err error) {
 	// Test for existence of the file
 	target, err := os.Stat(path)
 	if err != nil {
-		return "", errors.Wrap(err, "discovering Dockerfile")
+		return "", errors.Wrap(err, "discovering Containerfile")
 	}
 
 	switch mode := target.Mode(); {
 	case mode.IsDir():
-		// If the path is a real directory, we assume a Dockerfile within it
-		dockerfile := filepath.Join(path, "Dockerfile")
+		// If the path is a real directory, we assume a Containerfile or a Dockerfile within it
+		ctrfile := filepath.Join(path, "Containerfile")
 
-		// Test for existence of the new file
-		file, err := os.Stat(dockerfile)
+		// Test for existence of the Containerfile file
+		file, err := os.Stat(ctrfile)
 		if err != nil {
-			return "", errors.Wrap(err, "finding assumed Dockerfile")
+			// See if we have a Dockerfile within it
+			ctrfile = filepath.Join(path, "Dockerfile")
+
+			// Test for existence of the Dockerfile file
+			file, err = os.Stat(ctrfile)
+			if err != nil {
+				return "", errors.Wrap(err, "cannot find Containerfile or Dockerfile in context directory")
+			}
 		}
 
 		// The file exists, now verify the correct mode
 		if mode := file.Mode(); mode.IsRegular() {
-			foundDockerfile = dockerfile
+			foundCtrFile = ctrfile
 		} else {
-			return "", errors.Errorf("assumed Dockerfile %q is not a file", dockerfile)
+			return "", errors.Errorf("assumed Containerfile %q is not a file", ctrfile)
 		}
 
 	case mode.IsRegular():
-		// If the context dir is a file, we assume this as Dockerfile
-		foundDockerfile = path
+		// If the context dir is a file, we assume this as Containerfile
+		foundCtrFile = path
 	}
 
-	return foundDockerfile, nil
+	return foundCtrFile, nil
 }
