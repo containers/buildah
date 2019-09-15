@@ -1,9 +1,10 @@
 # buildah-bud "1" "April 2017" "buildah"
 
 ## NAME
-buildah\-bud - Build an image using instructions from Dockerfiles.
+buildah\-bud - Build an image using instructions from Containerfiles
 
 ## SYNOPSIS
+
 **buildah build-using-dockerfile** [*options*] [*context*]
 
 **buildah bud** [*options*] [*context*]
@@ -11,18 +12,19 @@ buildah\-bud - Build an image using instructions from Dockerfiles.
 **bud** is an alias for **build-using-dockerfile**.
 
 ## DESCRIPTION
-Builds an image using instructions from one or more Dockerfiles and a specified
-build context directory.
+Builds an image using instructions from one or more Containerfiles or Dockerfiles and a specified
+build context directory.  A Containerfile uses the same syntax as a Dockerfile internally.  For this
+document, a file referred to as a Containerfile can be a file named either 'Containerfile' or 'Dockerfile'.
 
-The build context directory can be specified as the http(s) URL of an archive, git repository or Dockerfile.
+The build context directory can be specified as the http(s) URL of an archive, git repository or Containerfile.
 
-If no context directory is specified, then buildah will assume the current working directory as build context, which should contain the Dockerfile.`
+If no context directory is specified, then Buildah will assume the current working directory as build context, which should contain a Containerfile.
 
-Dockerfiles ending with a ".in" suffix will be preprocessed via CPP(1).  This can be useful to decompose Dockerfiles into several reusable parts that can be used via CPP's **#include** directive.  Notice, a Dockerfile.in file can still be used by other tools when manually preprocessing them via `cpp -E`.
+Containerfiles ending with a ".in" suffix will be preprocessed via CPP(1).  This can be useful to decompose Containerfiles into several reusable parts that can be used via CPP's **#include** directive.  Notice, a Containerfile.in file can still be used by other tools when manually preprocessing them via `cpp -E`.
 
 When the URL is an archive, the contents of the URL is downloaded to a temporary location and extracted before execution.
 
-When the URL is an Dockerfile, the Dockerfile is downloaded to a temporary location.
+When the URL is a Containerfile, the file is downloaded to a temporary location.
 
 When a Git repository is set as the URL, the repository is cloned locally and then set as the context.
 
@@ -48,7 +50,7 @@ If the authorization state is not found there, $HOME/.docker/config.json is chec
 **--build-arg** *arg=value*
 
 Specifies a build argument and its value, which will be interpolated in
-instructions read from the Dockerfiles in the same way that environment
+instructions read from the Containerfiles in the same way that environment
 variables are, but which will not be added to environment variable list in the
 resulting image's configuration.
 
@@ -206,17 +208,17 @@ Set custom DNS options
 
 Set custom DNS search domains
 
-**--file, -f** *Dockerfile*
+**--file, -f** *Containerfile*
 
-Specifies a Dockerfile which contains instructions for building the image,
+Specifies a Containerfile which contains instructions for building the image,
 either a local file or an **http** or **https** URL.  If more than one
-Dockerfile is specified, *FROM* instructions will only be accepted from the
+Containerfile is specified, *FROM* instructions will only be accepted from the
 first specified file.
 
-If a local file is specified as the Dockerfile and it does not exist, the
+If a local file is specified as the Containerfile and it does not exist, the
 context directory will be prepended to the local file value.
 
-If you specify `-f -`, the Dockerfile contents will be read from stdin.
+If you specify `-f -`, the Containerfile contents will be read from stdin.
 
 **--force-rm** *bool-value*
 
@@ -419,7 +421,7 @@ If _imageName_ does not include a registry name, the registry name *localhost* w
 
 **--target** *stageName*
 
-Set the target build stage to build.  When building a Dockerfile with multiple build stages, --target
+Set the target build stage to build.  When building a Containerfile with multiple build stages, --target
 can be used to specify an intermediate build stage by name as the final stage for the resulting image.
 Commands after the target stage will be skipped.
 
@@ -618,11 +620,11 @@ mount can be changed directly. For instance if `/` is the source mount for
 
 ## EXAMPLE
 
-### Build an image using local Dockerfiles
+### Build an image using local Containerfiles
 
 buildah bud .
 
-buildah bud -f Dockerfile.simple .
+buildah bud -f Containerfile .
 
 cat ~/Dockerfile | buildah bud -f - .
 
@@ -636,7 +638,7 @@ buildah bud --tls-verify=false -t imageName .
 
 buildah bud --runtime-flag log-format=json .
 
-buildah bud --runtime-flag debug .
+buildah bud -f Containerfile --runtime-flag debug .
 
 buildah bud --authfile /tmp/auths/myauths.json --cert-dir ~/auth --tls-verify=true --creds=username:password -t imageName -f Dockerfile.simple .
 
@@ -652,7 +654,7 @@ buildah bud --layers -t imageName .
 
 buildah bud --no-cache -t imageName .
 
-buildah bud --layers --force-rm -t imageName .
+buildah bud -f Containerfile --layers --force-rm -t imageName .
 
 buildah bud --no-cache --rm=false -t imageName .
 
@@ -660,16 +662,16 @@ buildah bud --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
 
 ### Building an image using a URL
 
-  This will clone the specified GitHub repository from the URL and use it as context. The Dockerfile at the root of the repository is used as Dockerfile. This only works if the GitHub repository is a dedicated repository.
+  This will clone the specified GitHub repository from the URL and use it as context. The Containerfile or Dockerfile at the root of the repository is used as the context of the build. This only works if the GitHub repository is a dedicated repository.
 
   buildah bud github.com/scollier/purpletest
 
   Note: You can set an arbitrary Git repository via the git:// scheme.
 
 ### Building an image using a URL to a tarball'ed context
-  Buildah will fetch the tarball archive, decompress it and use its contents as the build context.  The Dockerfile at the root of the archive and the rest of the archive will get used as the context of the build. If you pass an -f PATH/Dockerfile option as well, the system will look for that file inside the contents of the tarball.
+  Buildah will fetch the tarball archive, decompress it and use its contents as the build context.  The Containerfile or Dockerfile at the root of the archive and the rest of the archive will get used as the context of the build. If you pass an -f PATH/Containerfile option as well, the system will look for that file inside the contents of the tarball.
 
-  buildah bud -f dev/Dockerfile https://10.10.10.1/docker/context.tar.gz
+  buildah bud -f dev/Containerfile https://10.10.10.1/docker/context.tar.gz
 
   Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
 

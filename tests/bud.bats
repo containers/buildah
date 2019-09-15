@@ -1691,3 +1691,42 @@ load helpers
 
   buildah rmi ${target}
 }
+
+@test "bud with Containerfile" {
+  target=alpine-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM alpine"
+
+  buildah rmi ${target}
+}
+
+@test "bud with Dockerfile" {
+  target=alpine-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dockerfile
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM alpine"
+
+  buildah rmi ${target}
+}
+
+@test "bud with Containerfile and Dockerfile" {
+  target=alpine-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containeranddockerfile
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM alpine"
+
+  buildah rmi ${target}
+}
+
+@test "bud-http-context-with-Containerfile" {
+  starthttpd ${TESTSDIR}/bud/http-context-containerfile
+  target=scratch-image
+  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
+  stophttpd
+  cid=$(buildah from ${target})
+  buildah rm ${cid}
+  buildah rmi $(buildah --log-level=error images -q)
+  run_buildah --log-level=error images -q
+  expect_output ""
+}
