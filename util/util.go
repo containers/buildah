@@ -115,7 +115,7 @@ func ResolveName(name string, firstRegistry string, sc *types.SystemContext, sto
 	for _, registry := range searchRegistries {
 		reg, err := sysregistriesv2.FindRegistry(sc, registry)
 		if err != nil {
-			logrus.Debugf("unable to read registry configuraitno for %#v: %v", registry, err)
+			logrus.Debugf("unable to read registry configuration for %#v: %v", registry, err)
 			continue
 		}
 		if reg == nil || !reg.Blocked {
