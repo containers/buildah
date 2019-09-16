@@ -56,6 +56,8 @@ github.com/containers/storage v1.13.1 h1:rjVirLS9fCGkUFlLDZEoGDDUugtIf46DufWvJu0
 github.com/containers/storage v1.13.1/go.mod h1:6D8nK2sU9V7nEmAraINRs88ZEscM5C5DK+8Npp27GeA=
 github.com/containers/storage v1.13.2 h1:UXZ0Ckmk6+6+4vj2M2ywruVtH97pnRoAhTG8ctd+yQI=
 github.com/containers/storage v1.13.2/go.mod h1:6D8nK2sU9V7nEmAraINRs88ZEscM5C5DK+8Npp27GeA=
+github.com/containers/storage v1.13.3 h1:9EzTXZXG/8SGD9MnkSCe/jLq3QldcE1QlgW7vePEsjw=
+github.com/containers/storage v1.13.3/go.mod h1:6D8nK2sU9V7nEmAraINRs88ZEscM5C5DK+8Npp27GeA=
 github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/cyphar/filepath-securejoin v0.2.1 h1:5DPkzz/0MwUpvR4fxASKzgApeq2OMFY5FfYtrX28Coo=
 github.com/cyphar/filepath-securejoin v0.2.1/go.mod h1:FpkQEhXnPnOthhzymB7CGsFk2G9VLXONKD9G7QGMM+4=
