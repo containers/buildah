@@ -1730,3 +1730,31 @@ load helpers
   run_buildah --log-level=error images -q
   expect_output ""
 }
+
+@test "bud with Dockerfile from stdin" {
+  target=df-stdin
+  cat ${TESTSDIR}/bud/context-from-stdin/Dockerfile | buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -
+  [ "$?" -eq 0 ]
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  run test -s $root/etc/alpine-release
+  echo "$output"
+  buildah rm ${cid}
+  buildah rmi $(buildah --log-level=error images -q)
+  run_buildah --log-level=error images -q
+  expect_output ""
+}
+
+@test "bud with Dockerfile from stdin tar" {
+  target=df-stdin
+  tar -c -C ${TESTSDIR}/bud/context-from-stdin . | buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -
+  [ "$?" -eq 0 ]
+  cid=$(buildah from ${target})
+  root=$(buildah mount ${cid})
+  run test -s $root/etc/alpine-release
+  echo "$output"
+  buildah rm ${cid}
+  buildah rmi $(buildah --log-level=error images -q)
+  run_buildah --log-level=error images -q
+  expect_output ""
+}
