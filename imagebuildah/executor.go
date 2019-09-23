@@ -164,7 +164,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 			stepCounter++
 			prefix := fmt.Sprintf("STEP %d: ", stepCounter)
 			suffix := "\n"
-			fmt.Fprintf(exec.err, prefix+format+suffix, args...)
+			fmt.Fprintf(exec.out, prefix+format+suffix, args...)
 		}
 	}
 	for arg := range options.Args {
