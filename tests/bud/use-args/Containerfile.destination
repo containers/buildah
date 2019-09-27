@@ -1,0 +1,6 @@
+FROM centos
+ARG testArg
+ARG destination
+RUN echo ${testArg}
+RUN echo ${destination}
+COPY ${testArg} ${destination}
