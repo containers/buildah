@@ -345,3 +345,28 @@ load helpers
   run_buildah --log-level=error containers -f id=${cid}
   buildah rm ${cid}
 }
+
+@test "from pull never" {
+  run_buildah 1 from --signature-policy ${TESTSDIR}/policy.json --pull-never alpine
+  echo "$output"
+  expect_output --substring "no such image"
+
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull alpine
+  echo "$output"
+  expect_output --substring "alpine-working-container"
+
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull-never alpine
+  echo "$output"
+  expect_output --substring "alpine-working-container"
+
+  buildah rmi --all --force
+}
+
+@test "from pull false no local image" {
+  target=my-alpine
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull=false alpine
+  echo "$output"
+  expect_output --substring "alpine-working-container"
+
+  buildah rmi --all --force
+}

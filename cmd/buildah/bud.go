@@ -100,13 +100,17 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 			tags = tags[1:]
 		}
 	}
-	pullPolicy := imagebuildah.PullNever
+	pullPolicy := imagebuildah.PullIfMissing
 	if iopts.Pull {
-		pullPolicy = imagebuildah.PullIfMissing
+		pullPolicy = imagebuildah.PullIfNewer
 	}
 	if iopts.PullAlways {
 		pullPolicy = imagebuildah.PullAlways
 	}
+	if iopts.PullNever {
+		pullPolicy = imagebuildah.PullNever
+	}
+	logrus.Debugf("Pull Policy for pull [%v]", pullPolicy)
 
 	args := make(map[string]string)
 	if c.Flag("build-arg").Changed {
@@ -219,6 +223,21 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	commonOpts, err := parse.CommonBuildOptions(c)
 	if err != nil {
 		return err
+	}
+
+	pullFlagsCount := 0
+	if c.Flag("pull").Changed {
+		pullFlagsCount++
+	}
+	if c.Flag("pull-always").Changed {
+		pullFlagsCount++
+	}
+	if c.Flag("pull-never").Changed {
+		pullFlagsCount++
+	}
+
+	if pullFlagsCount > 1 {
+		return errors.Errorf("can only set one of 'pull' or 'pull-always' or 'pull-never'")
 	}
 
 	if c.Flag("layers").Changed && c.Flag("no-cache").Changed {

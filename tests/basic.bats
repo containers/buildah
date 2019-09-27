@@ -24,7 +24,7 @@ load helpers
 }
 
 @test "from-nopull" {
-  run_buildah 1 from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah 1 from --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
 }
 
 @test "mount" {

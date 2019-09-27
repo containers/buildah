@@ -1030,7 +1030,6 @@ load helpers
 @test "bud-logfile" {
   rm -f ${TESTDIR}/logfile
   run_buildah bud --logfile ${TESTDIR}/logfile --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/preserve-volumes
-  expect_output ""
   test -s ${TESTDIR}/logfile
 }
 
@@ -1788,6 +1787,31 @@ load helpers
 
   rm ${TESTSDIR}/bud/use-args/abc.txt
   buildah rm --all
+}
+
+@test "bud pull never" {
+  target=pull
+  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull-never ${TESTSDIR}/bud/pull
+  echo "$output"
+  expect_output --substring "no such image"
+
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull ${TESTSDIR}/bud/pull
+  echo "$output"
+  expect_output --substring "COMMIT pull"
+
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull-never ${TESTSDIR}/bud/pull
+  echo "$output"
+  expect_output --substring "COMMIT pull"
+
+  buildah rmi --all --force
+}
+
+@test "bud pull false no local image" {
+  target=pull
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull=false ${TESTSDIR}/bud/pull
+  echo "$output"
+  expect_output --substring "COMMIT pull"
+
   buildah rmi --all --force
 }
 
