@@ -253,7 +253,7 @@ func (s *StageExecutor) volumeCacheRestore() error {
 // don't care about the details of where in the filesystem the content actually
 // goes, because we're not actually going to add it here, so this is less
 // involved than Copy().
-func (s *StageExecutor) digestSpecifiedContent(node *parser.Node) (string, error) {
+func (s *StageExecutor) digestSpecifiedContent(node *parser.Node, argValues []string) (string, error) {
 	// No instruction: done.
 	if node == nil {
 		return "", nil
@@ -297,7 +297,15 @@ func (s *StageExecutor) digestSpecifiedContent(node *parser.Node) (string, error
 			}
 		}
 	}
+
 	for _, src := range srcs {
+		// If src has an argument within it, resolve it to its
+		// value.  Otherwise just return the value found.
+		name, err := imagebuilder.ProcessWord(src, argValues)
+		if err != nil {
+			return "", errors.Wrapf(err, "unable to resolve source %q", src)
+		}
+		src = name
 		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
 			// Source is a URL.  TODO: cache this content
 			// somewhere, so that we can avoid pulling it down
@@ -334,7 +342,14 @@ func (s *StageExecutor) digestSpecifiedContent(node *parser.Node) (string, error
 	}
 	s.builder.ContentDigester.Restart()
 	download := strings.ToUpper(node.Value) == "ADD"
-	err := s.builder.Add(destination.Value, download, options, sources...)
+
+	// If destination.Value has an argument within it, resolve it to its
+	// value.  Otherwise just return the value found.
+	destValue, destErr := imagebuilder.ProcessWord(destination.Value, argValues)
+	if destErr != nil {
+		return "", errors.Wrapf(destErr, "unable to resolve destination %q", destination.Value)
+	}
+	err := s.builder.Add(destValue, download, options, sources...)
 	if err != nil {
 		return "", errors.Wrapf(err, "error dry-running %q", node.Original)
 	}
@@ -832,7 +847,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				return "", nil, errors.Wrapf(err, "error building at STEP \"%s\"", step.Message)
 			}
 			// In case we added content, retrieve its digest.
-			addedContentDigest, err := s.digestSpecifiedContent(node)
+			addedContentDigest, err := s.digestSpecifiedContent(node, ib.Arguments())
 			if err != nil {
 				return "", nil, err
 			}
@@ -881,7 +896,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 		// cached images so far, look for one that matches what we
 		// expect to produce for this instruction.
 		if checkForLayers && !(s.executor.squash && lastInstruction && lastStage) {
-			addedContentDigest, err := s.digestSpecifiedContent(node)
+			addedContentDigest, err := s.digestSpecifiedContent(node, ib.Arguments())
 			if err != nil {
 				return "", nil, err
 			}
@@ -939,7 +954,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 				return "", nil, errors.Wrapf(err, "error building at STEP \"%s\"", step.Message)
 			}
 			// In case we added content, retrieve its digest.
-			addedContentDigest, err := s.digestSpecifiedContent(node)
+			addedContentDigest, err := s.digestSpecifiedContent(node, ib.Arguments())
 			if err != nil {
 				return "", nil, err
 			}

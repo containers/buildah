@@ -1758,3 +1758,35 @@ load helpers
   run_buildah --log-level=error images -q
   expect_output ""
 }
+
+@test "bud containerfile with args" {
+  target=use-args
+  touch ${TESTSDIR}/bud/use-args/abc.txt
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg=abc.txt ${TESTSDIR}/bud/use-args
+  echo "$output"
+  expect_output --substring "COMMIT use-args"
+  ctrID=$(buildah from ${target})
+  run_buildah run $ctrID ls abc.txt
+  echo "$output"
+  expect_output --substring "abc.txt"
+
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Containerfile.destination --build-arg=testArg=abc.txt --build-arg=destination=/tmp ${TESTSDIR}/bud/use-args
+  echo "$output"
+  expect_output --substring "COMMIT use-args"
+  ctrID=$(buildah from ${target})
+  run_buildah run $ctrID ls /tmp/abc.txt
+  echo "$output"
+  expect_output --substring "abc.txt"
+
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Containerfile.dest_nobrace --build-arg=testArg=abc.txt --build-arg=destination=/tmp ${TESTSDIR}/bud/use-args
+  echo "$output"
+  expect_output --substring "COMMIT use-args"
+  ctrID=$(buildah from ${target})
+  run_buildah run $ctrID ls /tmp/abc.txt
+  echo "$output"
+  expect_output --substring "abc.txt"
+
+  rm ${TESTSDIR}/bud/use-args/abc.txt 
+  buildah rm --all
+  buildah rmi --all --force
+}
