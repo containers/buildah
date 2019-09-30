@@ -76,7 +76,7 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 	if strings.HasPrefix(url, "git://") || strings.HasSuffix(url, ".git") {
 		err = cloneToDirectory(url, name)
 		if err != nil {
-			if err2 := os.Remove(name); err2 != nil {
+			if err2 := os.RemoveAll(name); err2 != nil {
 				logrus.Debugf("error removing temporary directory %q: %v", name, err2)
 			}
 			return "", "", err
@@ -92,7 +92,7 @@ func TempDirForURL(dir, prefix, url string) (name string, subdir string, err err
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
 		err = downloadToDirectory(url, name)
 		if err != nil {
-			if err2 := os.Remove(name); err2 != nil {
+			if err2 := os.RemoveAll(name); err2 != nil {
 				logrus.Debugf("error removing temporary directory %q: %v", name, err2)
 			}
 			return "", subdir, err
