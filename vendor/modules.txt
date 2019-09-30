@@ -175,7 +175,7 @@ github.com/docker/libnetwork/resolvconf/dns
 github.com/docker/libnetwork/ipamutils
 # github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7
 github.com/docker/libtrust
-# github.com/etcd-io/bbolt v1.3.2
+# github.com/etcd-io/bbolt v1.3.3
 github.com/etcd-io/bbolt
 # github.com/fsouza/go-dockerclient v1.3.0
 github.com/fsouza/go-dockerclient
