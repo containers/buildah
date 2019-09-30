@@ -18,7 +18,7 @@ require (
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
-	github.com/etcd-io/bbolt v1.3.2
+	github.com/etcd-io/bbolt v1.3.3
 	github.com/fsouza/go-dockerclient v1.3.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/hashicorp/go-multierror v1.0.0
