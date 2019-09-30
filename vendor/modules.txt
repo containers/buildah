@@ -74,7 +74,7 @@ github.com/containers/image/pkg/keyctl
 github.com/containers/image/pkg/blobinfocache/boltdb
 github.com/containers/image/pkg/blobinfocache/memory
 github.com/containers/image/pkg/blobinfocache/internal/prioritize
-# github.com/containers/storage v1.13.3
+# github.com/containers/storage v1.13.4
 github.com/containers/storage
 github.com/containers/storage/pkg/archive
 github.com/containers/storage/pkg/chrootarchive
