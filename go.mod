@@ -42,7 +42,7 @@ require (
 	github.com/openshift/imagebuilder v1.1.0
 	github.com/pkg/errors v0.8.1
 	github.com/seccomp/containers-golang v0.0.0-20180629143253-cdfdaa7543f4
-	github.com/seccomp/libseccomp-golang v0.9.0
+	github.com/seccomp/libseccomp-golang v0.9.1
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3

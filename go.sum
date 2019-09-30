@@ -220,6 +220,8 @@ github.com/seccomp/containers-golang v0.0.0-20180629143253-cdfdaa7543f4 h1:rOG9o
 github.com/seccomp/containers-golang v0.0.0-20180629143253-cdfdaa7543f4/go.mod h1:f/98/SnvAzhAEFQJ3u836FePXvcbE8BS0YGMQNn4mhA=
 github.com/seccomp/libseccomp-golang v0.9.0 h1:S1pmhdFh5spQtVojA+4GUdWBqvI8ydYHxrx8iR6xN8o=
 github.com/seccomp/libseccomp-golang v0.9.0/go.mod h1:GbW5+tmTXfcxTToHLXlScSlAvWlF4P2Ca7zGrPiEpWo=
+github.com/seccomp/libseccomp-golang v0.9.1 h1:NJjM5DNFOs0s3kYE1WUOr6G8V97sdt46rlXTMfXGWBo=
+github.com/seccomp/libseccomp-golang v0.9.1/go.mod h1:GbW5+tmTXfcxTToHLXlScSlAvWlF4P2Ca7zGrPiEpWo=
 github.com/sirupsen/logrus v1.0.6/go.mod h1:pMByvHTf9Beacp5x1UXfOR9xyW/9antXMhjMPG0dEzc=
 github.com/sirupsen/logrus v1.4.2 h1:SPIRibHv4MatM3XXNO2BJeFLZwZ2LvZgfQ5+UNI2im4=
 github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6MwdIuYE2rE=
