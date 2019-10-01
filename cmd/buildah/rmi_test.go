@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	is "github.com/containers/image/storage"
+	is "github.com/containers/image/v4/storage"
 	"github.com/containers/storage"
 )
 

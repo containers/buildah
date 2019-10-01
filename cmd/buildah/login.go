@@ -8,8 +8,8 @@ import (
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/image/docker"
-	"github.com/containers/image/pkg/docker/config"
+	"github.com/containers/image/v4/docker"
+	"github.com/containers/image/v4/pkg/docker/config"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
