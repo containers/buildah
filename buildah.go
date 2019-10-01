@@ -12,7 +12,7 @@ import (
 
 	"github.com/containers/buildah/docker"
 	"github.com/containers/buildah/util"
-	"github.com/containers/image/types"
+	"github.com/containers/image/v4/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/ioutils"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"

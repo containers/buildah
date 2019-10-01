@@ -102,8 +102,8 @@ import (
 	"fmt"
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/pkg/unshare"
-	"github.com/containers/image/transports/alltransports"
-	"github.com/containers/image/types"
+	"github.com/containers/image/v4/transports/alltransports"
+	"github.com/containers/image/v4/types"
 	"github.com/containers/storage"
 )
 
