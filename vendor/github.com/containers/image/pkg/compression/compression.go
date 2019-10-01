@@ -3,18 +3,51 @@ package compression
 import (
 	"bytes"
 	"compress/bzip2"
+	"fmt"
 	"io"
 	"io/ioutil"
 
+	"github.com/containers/image/pkg/compression/internal"
+	"github.com/containers/image/pkg/compression/types"
 	"github.com/klauspost/pgzip"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/ulikunitz/xz"
 )
 
+// Algorithm is a compression algorithm that can be used for CompressStream.
+type Algorithm = types.Algorithm
+
+var (
+	// Gzip compression.
+	Gzip = internal.NewAlgorithm("gzip", []byte{0x1F, 0x8B, 0x08}, GzipDecompressor, gzipCompressor)
+	// Bzip2 compression.
+	Bzip2 = internal.NewAlgorithm("bzip2", []byte{0x42, 0x5A, 0x68}, Bzip2Decompressor, bzip2Compressor)
+	// Xz compression.
+	Xz = internal.NewAlgorithm("Xz", []byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00}, XzDecompressor, xzCompressor)
+	// Zstd compression.
+	Zstd = internal.NewAlgorithm("zstd", []byte{0x28, 0xb5, 0x2f, 0xfd}, ZstdDecompressor, zstdCompressor)
+
+	compressionAlgorithms = map[string]Algorithm{
+		Gzip.Name():  Gzip,
+		Bzip2.Name(): Bzip2,
+		Xz.Name():    Xz,
+		Zstd.Name():  Zstd,
+	}
+)
+
+// AlgorithmByName returns the compressor by its name
+func AlgorithmByName(name string) (Algorithm, error) {
+	algorithm, ok := compressionAlgorithms[name]
+	if ok {
+		return algorithm, nil
+	}
+	return Algorithm{}, fmt.Errorf("cannot find compressor for %q", name)
+}
+
 // DecompressorFunc returns the decompressed stream, given a compressed stream.
 // The caller must call Close() on the decompressed stream (even if the compressed input stream does not need closing!).
-type DecompressorFunc func(io.Reader) (io.ReadCloser, error)
+type DecompressorFunc = internal.DecompressorFunc
 
 // GzipDecompressor is a DecompressorFunc for the gzip compression algorithm.
 func GzipDecompressor(r io.Reader) (io.ReadCloser, error) {
@@ -35,33 +68,48 @@ func XzDecompressor(r io.Reader) (io.ReadCloser, error) {
 	return ioutil.NopCloser(r), nil
 }
 
-// compressionAlgos is an internal implementation detail of DetectCompression
-var compressionAlgos = map[string]struct {
-	prefix       []byte
-	decompressor DecompressorFunc
-}{
-	"gzip":  {[]byte{0x1F, 0x8B, 0x08}, GzipDecompressor},                 // gzip (RFC 1952)
-	"bzip2": {[]byte{0x42, 0x5A, 0x68}, Bzip2Decompressor},                // bzip2 (decompress.c:BZ2_decompress)
-	"xz":    {[]byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00}, XzDecompressor}, // xz (/usr/share/doc/xz/xz-file-format.txt)
+// gzipCompressor is a CompressorFunc for the gzip compression algorithm.
+func gzipCompressor(r io.Writer, level *int) (io.WriteCloser, error) {
+	if level != nil {
+		return pgzip.NewWriterLevel(r, *level)
+	}
+	return pgzip.NewWriter(r), nil
 }
 
-// DetectCompression returns a DecompressorFunc if the input is recognized as a compressed format, nil otherwise.
+// bzip2Compressor is a CompressorFunc for the bzip2 compression algorithm.
+func bzip2Compressor(r io.Writer, level *int) (io.WriteCloser, error) {
+	return nil, fmt.Errorf("bzip2 compression not supported")
+}
+
+// xzCompressor is a CompressorFunc for the xz compression algorithm.
+func xzCompressor(r io.Writer, level *int) (io.WriteCloser, error) {
+	return xz.NewWriter(r)
+}
+
+// CompressStream returns the compressor by its name
+func CompressStream(dest io.Writer, algo Algorithm, level *int) (io.WriteCloser, error) {
+	return internal.AlgorithmCompressor(algo)(dest, level)
+}
+
+// DetectCompressionFormat returns a DecompressorFunc if the input is recognized as a compressed format, nil otherwise.
 // Because it consumes the start of input, other consumers must use the returned io.Reader instead to also read from the beginning.
-func DetectCompression(input io.Reader) (DecompressorFunc, io.Reader, error) {
+func DetectCompressionFormat(input io.Reader) (Algorithm, DecompressorFunc, io.Reader, error) {
 	buffer := [8]byte{}
 
 	n, err := io.ReadAtLeast(input, buffer[:], len(buffer))
 	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 		// This is a “real” error. We could just ignore it this time, process the data we have, and hope that the source will report the same error again.
 		// Instead, fail immediately with the original error cause instead of a possibly secondary/misleading error returned later.
-		return nil, nil, err
+		return Algorithm{}, nil, nil, err
 	}
 
+	var retAlgo Algorithm
 	var decompressor DecompressorFunc
-	for name, algo := range compressionAlgos {
-		if bytes.HasPrefix(buffer[:n], algo.prefix) {
-			logrus.Debugf("Detected compression format %s", name)
-			decompressor = algo.decompressor
+	for _, algo := range compressionAlgorithms {
+		if bytes.HasPrefix(buffer[:n], internal.AlgorithmPrefix(algo)) {
+			logrus.Debugf("Detected compression format %s", algo.Name())
+			retAlgo = algo
+			decompressor = internal.AlgorithmDecompressor(algo)
 			break
 		}
 	}
@@ -69,7 +117,14 @@ func DetectCompression(input io.Reader) (DecompressorFunc, io.Reader, error) {
 		logrus.Debugf("No compression detected")
 	}
 
-	return decompressor, io.MultiReader(bytes.NewReader(buffer[:n]), input), nil
+	return retAlgo, decompressor, io.MultiReader(bytes.NewReader(buffer[:n]), input), nil
+}
+
+// DetectCompression returns a DecompressorFunc if the input is recognized as a compressed format, nil otherwise.
+// Because it consumes the start of input, other consumers must use the returned io.Reader instead to also read from the beginning.
+func DetectCompression(input io.Reader) (DecompressorFunc, io.Reader, error) {
+	_, d, r, e := DetectCompressionFormat(input)
+	return d, r, e
 }
 
 // AutoDecompress takes a stream and returns an uncompressed version of the
