@@ -11,7 +11,7 @@ require (
 	github.com/containers/image v3.0.2+incompatible
 	github.com/containers/storage v1.13.4
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f // indirect
-	github.com/cyphar/filepath-securejoin v0.2.1
+	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker-credential-helpers v0.6.1 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect

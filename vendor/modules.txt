@@ -117,7 +117,7 @@ github.com/containers/storage/drivers/quota
 github.com/containers/storage/pkg/fsutils
 github.com/containers/storage/pkg/ostree
 github.com/containers/storage/drivers/copy
-# github.com/cyphar/filepath-securejoin v0.2.1
+# github.com/cyphar/filepath-securejoin v0.2.2
 github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
