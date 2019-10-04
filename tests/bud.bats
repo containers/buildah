@@ -1850,3 +1850,117 @@ load helpers
   target=alpine-image
   run_buildah 1 bud --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
 }
+
+@test "bud with --platform" {
+  target=test_platform
+  # --platform args are parsed through to TARGET{PLATFORM|OS|ARCH}
+  buildah --log-level=error bud --platform linux/ppc64le/fakevariant -t "${target}" --layers -f Dockerfile.platformargs ${TESTSDIR}/bud/build-arg
+
+  # metadata
+  run_buildah --log-level=error inspect --format "{{ .Docker.Architecture }}"  "${target}"
+  expect_output "ppc64le"
+  run_buildah --log-level=error inspect --format "{{ .OCIv1.Architecture }}"  "${target}"
+  expect_output "ppc64le"
+  run_buildah --log-level=error inspect --format "{{ .Docker.OS }}"  "${target}"
+  expect_output "linux"
+  run_buildah --log-level=error inspect --format "{{ .OCIv1.OS }}"  "${target}"
+  expect_output "linux"
+
+  # environment
+  # build platform takes default values from native platform
+  native_os=$(OS=$(uname -o); case $OS in GNU/Linux) echo linux ;; *) echo $OS ;; esac)
+  native_arch=$(ARCH=$(uname -m); case $ARCH in x86_64) echo amd64 ;; i?86) echo 386 ;; armv?l) echo arm ;; *) echo $ARCH ;; esac)
+  native_variant=$(ARCH=$(uname -m); case $ARCH in armv?l) echo /v${ARCH//[^0-9]/} ;; arm64) echo /v8 ;; esac)
+
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 1 }}"  "${target}"
+  expect_output "BUILDPLATFORM=${native_os}/${native_arch}${native_variant}"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 1 }}"  "${target}"
+  expect_output "BUILDPLATFORM=${native_os}/${native_arch}${native_variant}"
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 2 }}"  "${target}"
+  expect_output "BUILDOS=${native_os}"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 2 }}"  "${target}"
+  expect_output "BUILDOS=${native_os}"
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 3 }}"  "${target}"
+  expect_output "BUILDARCH=${native_arch}"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 3 }}"  "${target}"
+  expect_output "BUILDARCH=${native_arch}"
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 4 }}"  "${target}"
+  expect_output "BUILDVARIANT=${native_variant:1}"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 4 }}"  "${target}"
+  expect_output "BUILDVARIANT=${native_variant:1}"
+
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 5 }}"  "${target}"
+  expect_output "TARGETPLATFORM=linux/ppc64le/fakevariant"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 5 }}"  "${target}"
+  expect_output "TARGETPLATFORM=linux/ppc64le/fakevariant"
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 6 }}"  "${target}"
+  expect_output "TARGETOS=linux"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 6 }}"  "${target}"
+  expect_output "TARGETOS=linux"
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 7 }}"  "${target}"
+  expect_output "TARGETARCH=ppc64le"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 7 }}"  "${target}"
+  expect_output "TARGETARCH=ppc64le"
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 8 }}"  "${target}"
+  expect_output "TARGETVARIANT=fakevariant"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 8 }}"  "${target}"
+  expect_output "TARGETVARIANT=fakevariant"
+
+  buildah rmi "${target}"
+}
+
+@test "bud with --build-arg TARGETPLATFORM=..." {
+  target=test_platform_buildarg
+  buildah --log-level=error bud --build-arg TARGETPLATFORM=linux/arm64/v7 --layers -t "${target}"  -f Dockerfile.platformargs ${TESTSDIR}/bud/build-arg
+  # currently doesn't expand BUILDPLATFORM -> BUILDOS .... 
+  # if so we want to we'd change vendor/github.com/openshift/imagebuilder/dispatchers.go
+
+  run_buildah --log-level=error inspect --format "{{ .Docker.Architecture }}"  "${target}"
+  expect_output "arm64"
+  run_buildah --log-level=error inspect --format "{{ .OCIv1.Architecture }}"  "${target}"
+  expect_output "arm64"
+  run_buildah --log-level=error inspect --format "{{ .Docker.OS }}"  "${target}"
+  expect_output "linux"
+  run_buildah --log-level=error inspect --format "{{ .OCIv1.OS }}"  "${target}"
+  expect_output "linux"
+
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 5 }}"  "${target}"
+  expect_output "TARGETPLATFORM=linux/arm64/v7"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 5 }}"  "${target}"
+  expect_output "TARGETPLATFORM=linux/arm64/v7"
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 6 }}"  "${target}"
+  expect_output "TARGETOS=linux"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 6 }}"  "${target}"
+  expect_output "TARGETOS=linux"
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 7 }}"  "${target}"
+  expect_output "TARGETARCH=arm64"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 7 }}"  "${target}"
+  expect_output "TARGETARCH=arm64"
+  run_buildah --log-level=error inspect --format "{{ index .Docker.Config.Env 8 }}"  "${target}"
+  expect_output "TARGETVARIANT=v7"
+  run_buildah --log-level=error inspect --format "{{ index .OCIv1.Config.Env 8 }}"  "${target}"
+  expect_output "TARGETVARIANT=v7"
+
+  buildah rmi "${target}"
+}
+
+@test "bud-multi-stage-platform" {
+  target=test_multi_stage_platform
+  buildah --log-level=error bud --platform linux/ppc64le -t "${target}" --layers -f Dockerfile.platform_multistage ${TESTSDIR}/bud/build-arg
+  #  --platform args effects the final image and second stage downloaded (ubuntu)
+  run_buildah --log-level=error inspect --format "{{ .Docker.Architecture }}" "${target}"
+  expect_output "ppc64le"
+  run_buildah --log-level=error inspect --format "{{ .OCIv1.Architecture }}" "${target}"
+  expect_output "ppc64le"
+  run_buildah --log-level=error inspect --format "{{ .Docker.Architecture }}" docker.io/library/ubuntu:latest
+  expect_output "ppc64le"
+  run_buildah --log-level=error inspect --format "{{ .OCIv1.Architecture }}" docker.io/library/ubuntu:latest
+  expect_output "ppc64le"
+
+  run_buildah --log-level=error inspect --format "{{ .Docker.OS }}" "${target}"
+  expect_output "linux"
+  run_buildah --log-level=error inspect --format "{{ .OCIv1.OS }}" "${target}"
+  expect_output "linux"
+
+  buildah rmi "${target}" docker.io/library/ubuntu:latest
+}
