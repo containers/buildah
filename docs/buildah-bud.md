@@ -336,11 +336,10 @@ that the PID namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a PID namespace which is already in use by another
 process.
 
-**--platform**="Linux"
+**--platform**="OS[/arch[/variant]]"
 
-This option has no effect on the build. Other container engines use this option
-to control the execution platform for the build (e.g., Windows, Linux) which is
-not required for Buildah as it supports only Linux.
+Defines the platform for the destination, OS (e.g., Windows, Linux), arch (e.g.
+x86_64, ppc64le, arm64), and variant (e.g. v7, for arm64).
 
 **--pull**
 
