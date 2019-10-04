@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.11.3
+Version:        1.12.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Fri Oct 10, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.3-1
+* Fri Oct 4, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+
+* Fri Oct 4, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.3-1
 - Update c/image to v4.0.1
 - Bump github.com/spf13/pflag from 1.0.3 to 1.0.5
 - Fix --build-args handling
