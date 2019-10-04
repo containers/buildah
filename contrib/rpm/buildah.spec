@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.12.0-dev
+Version:        1.11.3
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,31 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Fri Sep 13, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+* Fri Oct 10, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.3-1
+- Update c/image to v4.0.1
+- Bump github.com/spf13/pflag from 1.0.3 to 1.0.5
+- Fix --build-args handling
+- Bump github.com/spf13/cobra from 0.0.3 to 0.0.5
+- Bump github.com/cyphar/filepath-securejoin from 0.2.1 to 0.2.2
+- Bump github.com/onsi/ginkgo from 1.8.0 to 1.10.1
+- Bump github.com/fsouza/go-dockerclient from 1.3.0 to 1.4.4
+- Add support for retrieving context from stdin "-"
+- Ensure bud remote context cleans up on error
+- info: add cgroups2
+- Bump github.com/seccomp/libseccomp-golang from 0.9.0 to 0.9.1
+- Bump github.com/mattn/go-shellwords from 1.0.5 to 1.0.6
+- Bump github.com/stretchr/testify from 1.3.0 to 1.4.0
+- Bump github.com/opencontainers/selinux from 1.2.2 to 1.3.0
+- Bump github.com/etcd-io/bbolt from 1.3.2 to 1.3.3
+- Bump github.com/onsi/gomega from 1.5.0 to 1.7.0
+- update c/storage to v1.13.4
+- Print build 'STEP' line to stdout, not stderr
+- Fix travis-ci on forks
+- Vendor c/storage v1.13.3
+- Use Containerfile by default
+- Added tutorial on how to include Buildah as library
+- util/util: Fix "configuraitno" -> "configuration" log typo
+- Bump back to v1.12.0-dev
 
 * Fri Sep 13, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.2-1
 - Add some cleanup code
