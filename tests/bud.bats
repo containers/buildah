@@ -1215,6 +1215,13 @@ load helpers
   expect_output --substring "755"
 }
 
+@test "bud multi-stage COPY with invalid from statement" {
+  imgName=ubuntu-image
+  ctrName=ubuntu-copy
+  run_buildah --log-level=error bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.invalid_from -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths || true
+  expect_output --substring "COPY: invalid --from flag, should be --from=<name|index>"
+}
+
 @test "bud COPY to root succeeds" {
   run_buildah --log-level=error bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-root
 }
