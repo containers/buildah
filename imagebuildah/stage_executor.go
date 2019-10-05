@@ -816,6 +816,9 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			if strings.Contains(n, "--from") && (command == "COPY" || command == "ADD") {
 				var mountPoint string
 				arr := strings.Split(n, "=")
+				if len(arr) != 2 {
+					return "", nil, errors.Errorf("%s: invalid --from flag, should be --from=<name|index>", command)
+				}
 				otherStage, ok := s.executor.stages[arr[1]]
 				if !ok {
 					if mountPoint, err = s.getImageRootfs(ctx, stage, arr[1]); err != nil {
