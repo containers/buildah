@@ -42,6 +42,12 @@ type NameSpaceResults struct {
 	UTS           string
 }
 
+// PodmanBuildResults represents the results for Podman Build flags
+// that are unique to Podman
+type PodmanBuildResults struct {
+	SquashAll bool
+}
+
 // BudResults represents the results for Bud flags
 type BudResults struct {
 	Annotation          []string
@@ -134,6 +140,14 @@ func GetLayerFlags(flags *LayerResults) pflag.FlagSet {
 	fs := pflag.FlagSet{}
 	fs.BoolVar(&flags.ForceRm, "force-rm", false, "Always remove intermediate containers after a build, even if the build is unsuccessful.")
 	fs.BoolVar(&flags.Layers, "layers", UseLayers(), fmt.Sprintf("cache intermediate layers during build. Use BUILDAH_LAYERS environment variable to override."))
+	return fs
+}
+
+// GetPodmanBuildFlags flags used only by `podman build` and not by
+// `buildah bud`.
+func GetPodmanBuildFlags(flags *PodmanBuildResults) pflag.FlagSet {
+	fs := pflag.FlagSet{}
+	fs.BoolVar(&flags.SquashAll, "squash-all", false, "Squash all layers into a single layer.")
 	return fs
 }
 
