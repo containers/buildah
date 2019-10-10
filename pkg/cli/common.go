@@ -161,7 +161,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.BoolVar(&flags.PullAlways, "pull-always", false, "pull the image, even if a version is present")
 	fs.BoolVarP(&flags.Quiet, "quiet", "q", false, "refrain from announcing build instructions and image read/write progress")
 	fs.BoolVar(&flags.Rm, "rm", true, "Remove intermediate containers after a successful build")
-	fs.StringVar(&flags.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
+	// "runtime" definition moved to avoid name collision in podman build.  Defined in cmd/buildah/bud.go.
 	fs.StringSliceVar(&flags.RuntimeFlags, "runtime-flag", []string{}, "add global flags for the container runtime")
 	fs.StringVar(&flags.SignaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	fs.BoolVar(&flags.Squash, "squash", false, "Squash newly built layers into a single new layer.")
