@@ -690,6 +690,163 @@ return 1
      esac
  }
 
+ _buildah_manifest() {
+     local boolean_options="
+     --help
+     -h
+     --all
+  "
+     subcommands="
+        add
+        annotate
+        create
+        inspect
+        push
+        remove
+     "
+     __buildah_subcommands "$subcommands" && return
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options " -- "$cur"))
+             ;;
+         *)
+             COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+             ;;
+     esac
+
+}
+ _buildah_manifest_add() {
+     local boolean_options="
+     --help
+     -h
+     --all
+  "
+
+     local options_with_args="
+     --annotation
+     --arch
+     --features
+     --os
+     --os-features
+     --os-version
+     --variant
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_manifest_annotate() {
+     local boolean_options="
+     --help
+     -h
+  "
+
+     local options_with_args="
+     --annotation
+     --arch
+     --features
+     --os
+     --os-features
+     --os-version
+     --variant
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_manifest_create() {
+     local boolean_options="
+     --help
+     -h
+     --all
+  "
+
+     local options_with_args="
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_manifest_inspect() {
+     local boolean_options="
+     --help
+     -h
+  "
+
+     local options_with_args="
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_manifest_push() {
+     local boolean_options="
+     --help
+     -h
+     --all
+  "
+
+     local options_with_args="
+     --authfile
+     --cert-dir
+     --creds
+     --digestfile
+     --purge
+     --tls-verify
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_manifest_remove() {
+     local boolean_options="
+     --help
+     -h
+  "
+
+     local options_with_args="
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
  _buildah_mount() {
      local boolean_options="
      --help
@@ -938,6 +1095,7 @@ _buildah_containers() {
        inspect
        list
        ls
+       manifest
        mount
        pull
        push
