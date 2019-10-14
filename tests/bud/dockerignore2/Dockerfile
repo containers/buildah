@@ -1,2 +1,3 @@
-FROM scratch
+FROM alpine
+
 COPY . .

@@ -34,6 +34,10 @@ load helpers
 
   run_buildah bud -t testbud2 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore2
 
+  run_buildah from --name myctr2 testbud2
+  run_buildah 1 run myctr2 ls -l unmatched
+  run_buildah run myctr2 ls -l matched
+
   run_buildah bud -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
 
   run sed -e '/^CUT HERE/,/^CUT HERE/p' -e 'd' <<< "$output"

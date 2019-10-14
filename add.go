@@ -299,7 +299,7 @@ func (b *Builder) addHelper(excludes *fileutils.PatternMatcher, extract bool, de
 					}
 				}
 				logrus.Debugf("copying[%d] %q to %q", n, esrc+string(os.PathSeparator)+"*", dest+string(os.PathSeparator)+"*")
-				if excludes == nil || !excludes.Exclusions() {
+				if excludes == nil || len(excludes.Patterns()) == 0 {
 					if err = copyWithTar(esrc, dest); err != nil {
 						return errors.Wrapf(err, "error copying %q to %q", esrc, dest)
 					}
