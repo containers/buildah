@@ -80,7 +80,7 @@ github.com/containers/image/v4/pkg/compression/internal
 github.com/containers/image/v4/pkg/blobinfocache/internal/prioritize
 # github.com/containers/libtrust v0.0.0-20190913040956-14b96171aa3b
 github.com/containers/libtrust
-# github.com/containers/storage v1.13.4
+# github.com/containers/storage v1.13.5
 github.com/containers/storage
 github.com/containers/storage/pkg/archive
 github.com/containers/storage/pkg/chrootarchive
@@ -119,7 +119,6 @@ github.com/containers/storage/pkg/parsers/kernel
 github.com/containers/storage/drivers/overlayutils
 github.com/containers/storage/drivers/quota
 github.com/containers/storage/pkg/fsutils
-github.com/containers/storage/pkg/ostree
 github.com/containers/storage/drivers/copy
 # github.com/cyphar/filepath-securejoin v0.2.2
 github.com/cyphar/filepath-securejoin

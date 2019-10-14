@@ -6,7 +6,7 @@ require (
 	github.com/blang/semver v3.5.0+incompatible // indirect
 	github.com/containernetworking/cni v0.7.1
 	github.com/containers/image/v4 v4.0.1
-	github.com/containers/storage v1.13.4
+	github.com/containers/storage v1.13.5
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker-credential-helpers v0.6.1 // indirect
