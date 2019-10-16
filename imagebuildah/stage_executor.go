@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -1085,11 +1086,81 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 			}
 			// children + currNode is the point of the Dockerfile we are currently at.
 			if s.executor.historyMatches(baseHistory, currNode, history, addedContentDigest) {
-				return image.ID, nil
+				// a COPY or ADD command.
+				filesMatch, err := s.copiedFilesMatch(currNode, history[len(history)-1].Created)
+				if err != nil {
+					return "", errors.Wrapf(err, "error checking if copied files match")
+				}
+				if filesMatch {
+					return image.ID, nil
+				}
 			}
 		}
 	}
 	return "", nil
+}
+
+// getFilesToCopy goes through node to get all the src files that are copied, added or downloaded.
+// It is possible for the Dockerfile to have src as hom*, which means all files that have hom as a prefix.
+// Another format is hom?.txt, which means all files that have that name format with the ? replaced by another character.
+func (s *StageExecutor) getFilesToCopy(node *parser.Node) ([]string, error) {
+	currNode := node.Next
+	var src []string
+	for currNode.Next != nil {
+		if strings.HasPrefix(currNode.Value, "http://") || strings.HasPrefix(currNode.Value, "https://") {
+			src = append(src, currNode.Value)
+			currNode = currNode.Next
+			continue
+		}
+		matches, err := filepath.Glob(filepath.Join(s.copyFrom, currNode.Value))
+		if err != nil {
+			return nil, errors.Wrapf(err, "error finding match for pattern %q", currNode.Value)
+		}
+		src = append(src, matches...)
+		currNode = currNode.Next
+	}
+	return src, nil
+}
+
+// copiedFilesMatch checks to see if the node instruction is a COPY or ADD.
+// If it is either of those two it checks the timestamps on all the files copied/added
+// by the dockerfile. If the host version has a time stamp greater than the time stamp
+// of the build, the build will not use the cached version and will rebuild.
+func (s *StageExecutor) copiedFilesMatch(node *parser.Node, historyTime *time.Time) (bool, error) {
+	if node.Value != "add" && node.Value != "copy" {
+		return true, nil
+	}
+
+	src, err := s.getFilesToCopy(node)
+	if err != nil {
+		return false, err
+	}
+	for _, item := range src {
+		// for urls, check the Last-Modified field in the header.
+		if strings.HasPrefix(item, "http://") || strings.HasPrefix(item, "https://") {
+			urlContentNew, err := urlContentModified(item, historyTime)
+			if err != nil {
+				return false, err
+			}
+			if urlContentNew {
+				return false, nil
+			}
+			continue
+		}
+		// Walks the file tree for local files and uses chroot to ensure we don't escape out of the allowed path
+		// when resolving any symlinks.
+		// Change the time format to ensure we don't run into a parsing error when converting again from string
+		// to time.Time. It is a known Go issue that the conversions cause errors sometimes, so specifying a particular
+		// time format here when converting to a string.
+		timeIsGreater, err := resolveModifiedTime(s.copyFrom, item, historyTime.Format(time.RFC3339Nano))
+		if err != nil {
+			return false, errors.Wrapf(err, "error resolving symlinks and comparing modified times: %q", item)
+		}
+		if timeIsGreater {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // commit writes the container's contents to an image, using a passed-in tag as
@@ -1214,4 +1285,24 @@ func (s *StageExecutor) EnsureContainerPath(path string) error {
 		return errors.Wrapf(err, "error ensuring container path %q", path)
 	}
 	return nil
+}
+
+// urlContentModified sends a get request to the url and checks if the header has a value in
+// Last-Modified, and if it does compares the time stamp to that of the history of the cached image.
+// returns true if there is no Last-Modified value in the header.
+func urlContentModified(url string, historyTime *time.Time) (bool, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return false, errors.Wrapf(err, "error getting %q", url)
+	}
+	defer resp.Body.Close()
+	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
+		lastModifiedTime, err := time.Parse(time.RFC1123, lastModified)
+		if err != nil {
+			return false, errors.Wrapf(err, "error parsing time for %q", url)
+		}
+		return lastModifiedTime.After(*historyTime), nil
+	}
+	logrus.Debugf("Response header did not have Last-Modified %q, will rebuild.", url)
+	return true, nil
 }

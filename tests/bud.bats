@@ -1797,3 +1797,29 @@ load helpers
   buildah rm --all
   buildah rmi --all --force
 }
+
+@test "bud containerfile with tar archive in copy" {
+  # First check to verify cache is uses if the tar file does not change
+  target=copy-archive
+  date>bud/${target}/test; tar cJf - bud/${target}/test > bud/${target}/test.tar.xz
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} ${TESTSDIR}/bud/${target}
+  expect_output --substring "COMMIT copy-archive"
+
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} ${TESTSDIR}/bud/${target}
+  expect_output --substring " Using cache"
+  expect_output --substring "COMMIT copy-archive"
+
+  # Now test that we do NOT use cache if the tar file changes
+  date>bud/${target}/test; tar cJf - bud/${target}/test > bud/${target}/test.tar.xz
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} ${TESTSDIR}/bud/${target}
+  expect_output --substring "COMMIT copy-archive"
+
+  date>bud/${target}/test; tar cJf - bud/${target}/test > bud/${target}/test.tar.xz
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} ${TESTSDIR}/bud/${target}
+  if [[ "$output" =~ " Using cache" ]]; then
+      is "$output" "[no instance of 'Using cache']" "no cache used"
+  fi
+  expect_output --substring "COMMIT copy-archive"
+
+  rm bud/${target}/test*
+}
