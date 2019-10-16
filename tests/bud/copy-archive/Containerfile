@@ -1,0 +1,2 @@
+FROM docker.io/busybox
+ADD test.tar.xz /
