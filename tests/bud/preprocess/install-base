@@ -1,3 +1,0 @@
-RUN apk update
-
-RUN apk add git curl

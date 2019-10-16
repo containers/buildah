@@ -1,2 +1,0 @@
-FROM busybox
-EXPOSE 3469

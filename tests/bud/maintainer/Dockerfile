@@ -1,2 +1,0 @@
-FROM alpine
-MAINTAINER kilroy

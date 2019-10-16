@@ -1,4 +1,0 @@
-FROM centos
-ARG testArg
-RUN echo ${testArg}
-COPY ${testArg} .

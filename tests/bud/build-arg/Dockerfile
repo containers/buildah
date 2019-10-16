@@ -1,3 +1,0 @@
-FROM busybox
-
-ARG foo

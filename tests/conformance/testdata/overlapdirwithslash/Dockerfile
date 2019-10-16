@@ -1,2 +1,0 @@
-FROM busybox
-COPY existing/ .

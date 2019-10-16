@@ -1,3 +1,0 @@
-#define RUNHELLO RUN echo "Hello world!"
-
-RUN touch /etc/hello-world.txt
