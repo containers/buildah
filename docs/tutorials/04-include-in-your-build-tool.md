@@ -81,7 +81,7 @@ imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOpt
 
 ## Rootless mode
 
-To enable rootless mode, import `github.com/containers/buildah/pkg/unshare` and add this code at the beginning of your main method:
+To enable rootless mode, import `github.com/containers/common/pkg/unshare` and add this code at the beginning of your main method:
 
 ```go
 if buildah.InitReexec() {

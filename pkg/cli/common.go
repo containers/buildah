@@ -11,8 +11,12 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/pkg/config"
+	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
@@ -175,7 +179,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	return fs
 }
 
-func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, namespaceResults *NameSpaceResults) pflag.FlagSet {
+func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, namespaceResults *NameSpaceResults, defaultConfig *config.Config) pflag.FlagSet {
 	fs := pflag.FlagSet{}
 	fs.StringSliceVar(&flags.AddHost, "add-host", []string{}, "add a custom host-to-IP mapping (`host:ip`) (default [])")
 	fs.StringVar(&flags.BlobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
@@ -190,7 +194,7 @@ func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, 
 	fs.Uint64VarP(&flags.CPUShares, "cpu-shares", "c", 0, "CPU shares (relative weight)")
 	fs.StringVar(&flags.CPUSetCPUs, "cpuset-cpus", "", "CPUs in which to allow execution (0-3, 0,1)")
 	fs.StringVar(&flags.CPUSetMems, "cpuset-mems", "", "memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.")
-	fs.StringArrayVar(&flags.Devices, "device", []string{}, "Additional devices to be used within containers (default [])")
+	fs.StringArrayVar(&flags.Devices, "device", defaultConfig.ContainersConfig.AdditionalDevices, "Additional devices to be used within containers (default [])")
 	fs.StringSliceVar(&flags.DNSSearch, "dns-search", []string{}, "Set custom DNS search domains")
 	fs.StringSliceVar(&flags.DNSServers, "dns", []string{}, "Set custom DNS servers or disable it completely by setting it to 'none', which prevents the automatic creation of `/etc/resolv.conf`.")
 	fs.StringSliceVar(&flags.DNSOptions, "dns-option", []string{}, "Set custom DNS options")
@@ -205,6 +209,16 @@ func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, 
 	fs.StringVar(&flags.OverrideArch, "override-arch", runtime.GOARCH, "prefer `ARCH` instead of the architecture of the machine when pulling images")
 	if err := fs.MarkHidden("override-arch"); err != nil {
 		panic(fmt.Sprintf("error marking override-arch as hidden: %v", err))
+	}
+	securityOpts := []string{}
+	if defaultConfig.ContainersConfig.SeccompProfile != "" && defaultConfig.ContainersConfig.SeccompProfile != parse.SeccompDefaultPath {
+		securityOpts = append(securityOpts, fmt.Sprintf("seccomp=%s", defaultConfig.ContainersConfig.SeccompProfile))
+	}
+	if apparmor.IsEnabled() && defaultConfig.ContainersConfig.ApparmorProfile != "" {
+		securityOpts = append(securityOpts, fmt.Sprintf("apparmor=%s", defaultConfig.ContainersConfig.ApparmorProfile))
+	}
+	if selinux.GetEnabled() && !defaultConfig.ContainersConfig.SELinux {
+		securityOpts = append(securityOpts, fmt.Sprintf("label=%s", selinux.DisableSecOpt()[0]))
 	}
 	fs.StringArrayVar(&flags.SecurityOpt, "security-opt", []string{}, "security options (default [])")
 	fs.StringVar(&flags.ShmSize, "shm-size", "65536k", "size of '/dev/shm'. The format is `<number><unit>`.")

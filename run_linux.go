@@ -25,8 +25,8 @@ import (
 	"github.com/containers/buildah/chroot"
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/secrets"
-	"github.com/containers/buildah/pkg/unshare"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
@@ -1891,6 +1891,7 @@ func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, opti
 
 func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions) {
 	g.ClearProcessEnv()
+
 	if b.CommonBuildOpts.HTTPProxy {
 		for _, envSpec := range []string{
 			"http_proxy",

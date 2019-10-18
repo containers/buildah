@@ -76,8 +76,9 @@ func init() {
 	}
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 
+	defaultConfig := getDefaultConfig()
 	// Add in the common flags
-	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
+	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults, defaultConfig)
 	flags.AddFlagSet(&fromAndBudFlags)
 
 	rootCmd.AddCommand(fromCommand)
@@ -264,6 +265,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		Format:                format,
 		BlobDirectory:         iopts.BlobCache,
 		Devices:               devices,
+		DefaultEnv:            getDefaultConfig().ContainersConfig.Env,
 	}
 
 	if !iopts.quiet {

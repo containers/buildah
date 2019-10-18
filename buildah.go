@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/containers/buildah/docker"
-	"github.com/containers/buildah/util"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/ioutils"
@@ -233,7 +232,6 @@ type BuilderInfo struct {
 	CNIPluginPath         string
 	CNIConfigDir          string
 	IDMappingOptions      IDMappingOptions
-	DefaultCapabilities   []string
 	AddCapabilities       []string
 	DropCapabilities      []string
 	History               []v1.History
@@ -278,7 +276,6 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 		CNIPluginPath:         b.CNIPluginPath,
 		CNIConfigDir:          b.CNIConfigDir,
 		IDMappingOptions:      b.IDMappingOptions,
-		DefaultCapabilities:   append([]string{}, util.DefaultCapabilities...),
 		AddCapabilities:       append([]string{}, b.AddCapabilities...),
 		DropCapabilities:      append([]string{}, b.DropCapabilities...),
 		History:               history,
@@ -419,6 +416,8 @@ type BuilderOptions struct {
 	Format string
 	// Devices are the additional devices to add to the containers
 	Devices []configs.Device
+	//DefaultEnv for containers
+	DefaultEnv []string
 }
 
 // ImportOptions are used to initialize a Builder from an existing container

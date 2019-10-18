@@ -18,8 +18,8 @@ import (
 	"unsafe"
 
 	"github.com/containers/buildah/bind"
-	"github.com/containers/buildah/pkg/unshare"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/reexec"

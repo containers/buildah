@@ -160,6 +160,8 @@ type BuildOptions struct {
 	Target string
 	// Devices are the additional devices to add to the containers
 	Devices []configs.Device
+	//DefaultEnv for containers
+	DefaultEnv []string
 }
 
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be
@@ -250,6 +252,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 		return "", nil, errors.Wrapf(err, "error creating build executor")
 	}
 	b := imagebuilder.NewBuilder(options.Args)
+	b.Env = append(b.Env, options.DefaultEnv...)
 	stages, err := imagebuilder.NewStages(mainNode, b)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "error reading multiple stages")
