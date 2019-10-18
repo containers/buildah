@@ -6,8 +6,7 @@
 
 **[Introduction Tutorial](01-intro.md)**
 
-Learn how to build container images compliant with the [Open Container Initiative](https://www.opencontainers.org/) (OCI) [image specification](https://github.com/opencontainers/image-spec) using Buildah.
-
+Learn how to build container images compliant with the [Open Container Initiative](https://www.opencontainers.org/) (OCI) [image specification](https://github.com/opencontainers/image-spec) using Buildah.  This tutorial shows how to [Configure and Setup](01-intro.md#configure-and-install-buildah) Buildah, how to [build containers using a Dockerfile](01-intro.md#using-dockerfiles-with-buildah) and how to [build containers from scratch](01-intro.md#building-a-container-from-scratch).
 
 **[Buildah and Registries Tutorial](02-registries-repositories.md)**
 
