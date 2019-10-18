@@ -115,10 +115,8 @@ load helpers
   root=$(buildah mount $cid)
   test -s $root/urlfile
   cmp ${TESTDIR}/randomfile $root/urlfile
-  run test -nt ${TESTDIR}/randomfile $root/urlfile
-  [ "$status" -ne 0 ]
-  run test -ot ${TESTDIR}/randomfile $root/urlfile
-  [ "$status" -ne 0 ]
+  test ! -nt ${TESTDIR}/randomfile $root/urlfile
+  test ! -ot ${TESTDIR}/randomfile $root/urlfile
   buildah rm $cid
 }
 

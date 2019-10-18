@@ -3,12 +3,11 @@
 load helpers
 
 @test "bud with --dns* flags" {
-  run buildah bud --log-level=error --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc  --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dns/Dockerfile  ${TESTSDIR}/bud/dns
-  echo "$output"
-  [[ "$output" =~ "search example.com" ]]
-  [[ "$output" =~ "nameserver 223.5.5.5" ]]
-  [[ "$output" =~ "options use-vc" ]]
-  [ "$status" -eq 0 ]
+  run_buildah bud --log-level=error --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc  --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dns/Dockerfile  ${TESTSDIR}/bud/dns
+  expect_output --substring "search example.com"
+  expect_output --substring "nameserver 223.5.5.5"
+  expect_output --substring "options use-vc"
+
   buildah rm -a
   buildah rmi -a -f
 }
@@ -35,6 +34,7 @@ load helpers
   run_buildah bud -t testbud2 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore2
 
   run_buildah bud -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
+  expect_output --substring "CUT HERE"
 
   run sed -e '/^CUT HERE/,/^CUT HERE/p' -e 'd' <<< "$output"
   run sed '/CUT HERE/d' <<< "$output"
@@ -60,10 +60,10 @@ load helpers
 @test "bud with --layers and --no-cache flags" {
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 8
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 10
   run_buildah --log-level=error inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test1
@@ -75,25 +75,25 @@ load helpers
   run_buildah --log-level=error inspect --format "{{.Docker.ContainerConfig.ExposedPorts}}" test2
   expect_output "map[8080/tcp:{}]"
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 12
 
   mkdir -p ${TESTDIR}/use-layers/mount/subdir
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test4 -f Dockerfile.3 ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test4 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 14
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test5 -f Dockerfile.3 ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test5 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 15
 
   touch ${TESTDIR}/use-layers/mount/subdir/file.txt
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test6 -f Dockerfile.3 ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test6 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 17
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test7 -f Dockerfile.2 ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test7 -f Dockerfile.2 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 18
 
@@ -101,11 +101,11 @@ load helpers
 }
 
 @test "bud with --layers and single and two line Dockerfiles" {
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.5 ${TESTSDIR}/bud/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.5 ${TESTSDIR}/bud/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 3
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.6 ${TESTSDIR}/bud/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.6 ${TESTSDIR}/bud/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 4
 
@@ -120,24 +120,23 @@ load helpers
   mkdir -p ${TESTDIR}/use-layers/date
   date > ${TESTDIR}/use-layers/date/data
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 6
-  [ "${status}" -eq 0 ]
   # The second time through, the layers should all get reused.
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 6
   # The third time through, the layers should all get reused, but we'll have a new line of output for the new name.
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 7
 
   # Both interim images will be different, and all of the layers in the final image will be different.
   uuidgen > ${TESTDIR}/use-layers/uuid/data
   date > ${TESTDIR}/use-layers/date/data
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 11
   # No leftover containers, just the header line.
@@ -152,7 +151,7 @@ load helpers
   [ "${status}" -eq 0 ]
 
   # Layers won't get reused because this build won't use caching.
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t test4 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t test4 -f Dockerfile.multistage-copy ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 12
 
@@ -207,16 +206,16 @@ load helpers
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
   echo 'echo "Hello World!"' > ${TESTDIR}/use-layers/hello.sh
   ln -s hello.sh ${TESTDIR}/use-layers/hello_world.sh
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.4 ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.4 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 4
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.4 ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.4 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 5
 
   echo 'echo "Hello Cache!"' > ${TESTDIR}/use-layers/hello.sh
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.4 ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.4 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 7
 
@@ -228,11 +227,11 @@ load helpers
   mkdir ${TESTDIR}/use-layers/blah
   ln -s ${TESTSDIR}/policy.json ${TESTDIR}/use-layers/blah/policy.json
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.dangling-symlink ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.dangling-symlink ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 3
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.dangling-symlink ${TESTDIR}/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.dangling-symlink ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 4
 
@@ -247,22 +246,22 @@ load helpers
 
 @test "bud with --layers and --build-args" {
   # base plus 3, plus the header line
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=0 --layers -t test -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=0 --layers -t test -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 5
 
   # two more, starting at the "echo $user" instruction
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test1 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test1 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 7
 
   # one more, because we added a new name to the same image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test2 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test2 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 8
 
   # two more, starting at the "echo $user" instruction
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah --log-level=error images -a
   expect_line_count 10
 
@@ -270,11 +269,11 @@ load helpers
 }
 
 @test "bud with --rm flag" {
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run_buildah --log-level=error containers
   expect_line_count 1
 
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --rm=false --layers -t test2 ${TESTSDIR}/bud/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --rm=false --layers -t test2 ${TESTSDIR}/bud/use-layers
   run_buildah --log-level=error containers
   expect_line_count 7
 
@@ -301,10 +300,10 @@ load helpers
 }
 
 @test "bud from base image should have base image ENV also" {
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t test -f Dockerfile.check-env ${TESTSDIR}/bud/env
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t test -f Dockerfile.check-env ${TESTSDIR}/bud/env
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json test)
-  buildah config --env random=hello,goodbye ${cid}
-  buildah commit --signature-policy ${TESTSDIR}/policy.json ${cid} test1
+  run_buildah config --env random=hello,goodbye ${cid}
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json ${cid} test1
   run_buildah --log-level=error inspect --format '{{index .Docker.ContainerConfig.Env 1}}' test1
   expect_output "foo=bar"
   run_buildah --log-level=error inspect --format '{{index .Docker.ContainerConfig.Env 2}}' test1
@@ -315,7 +314,7 @@ load helpers
 
 @test "bud-from-scratch" {
   target=scratch-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   cid=$(buildah from ${target})
   buildah rm ${cid}
   buildah rmi $(buildah --log-level=error images -q)
@@ -325,7 +324,7 @@ load helpers
 
 @test "bud-from-scratch-iid" {
   target=scratch-image
-  buildah bud --iidfile ${TESTDIR}/output.iid --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah bud --iidfile ${TESTDIR}/output.iid --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   iid=$(cat ${TESTDIR}/output.iid)
   cid=$(buildah from ${iid})
   buildah rm ${cid}
@@ -336,7 +335,7 @@ load helpers
 
 @test "bud-from-scratch-label" {
   target=scratch-image
-  buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   run_buildah --log-level=error inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
   expect_output 'map["test":"label"]'
 
@@ -345,7 +344,7 @@ load helpers
 
 @test "bud-from-scratch-annotation" {
   target=scratch-image
-  buildah bud --annotation "test=annotation1,annotation2=z" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah bud --annotation "test=annotation1,annotation2=z" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   run_buildah --log-level=error inspect --format '{{printf "%q" .ImageAnnotations}}' ${target}
   expect_output 'map["test":"annotation1,annotation2=z"]'
   buildah rmi ${target}
@@ -363,28 +362,24 @@ load helpers
 
 @test "bud-from-multiple-files-one-from" {
   target=scratch-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
   cmp $root/Dockerfile1 ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch
   cmp $root/Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.nofrom
-  run test -s $root/etc/passwd
-  echo "$output"
-  [ "$status" -ne 0 ]
+  test ! -s $root/etc/passwd
   buildah rm ${cid}
   buildah rmi $(buildah --log-level=error images -q)
   run_buildah --log-level=error images -q
   expect_output ""
 
   target=alpine-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.alpine -f Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.alpine -f Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
   cmp $root/Dockerfile1 ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.alpine
   cmp $root/Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.nofrom
-  run test -s $root/etc/passwd
-  echo "$output"
-  [ "$status" -eq 0 ]
+  test -s $root/etc/passwd
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --log-level=error images -q
@@ -393,32 +388,24 @@ load helpers
 
 @test "bud-from-multiple-files-two-froms" {
   target=scratch-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.scratch -f Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.scratch -f Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
-  run test -s $root/Dockerfile1
-  echo "$output"
-  [ "$status" -ne 0 ]
+  test ! -s $root/Dockerfile1
   cmp $root/Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
-  run test -s $root/etc/passwd
-  echo "$output"
-  [ "$status" -eq 0 ]
+  test -s $root/etc/passwd
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --log-level=error images -q
   expect_output ""
 
   target=alpine-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.alpine -f Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.alpine -f Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
-  run test -s $root/Dockerfile1
-  echo "$output"
-  [ "$status" -ne 0 ]
+  test ! -s $root/Dockerfile1
   cmp $root/Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
-  run test -s $root/etc/passwd
-  echo "$output"
-  [ "$status" -eq 0 ]
+  test -s $root/etc/passwd
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --log-level=error images -q
@@ -432,8 +419,7 @@ load helpers
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
   cmp $root/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.index
-  run test -s $root/etc/passwd
-  [ "$status" -eq 0 ]
+  test -s $root/etc/passwd
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --log-level=error images -q
@@ -444,8 +430,7 @@ load helpers
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
   cmp $root/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.name
-  run test -s $root/etc/passwd
-  [ "$status" -ne 0 ]
+  test ! -s $root/etc/passwd
   buildah rm ${cid}
   buildah rmi $(buildah --log-level=error images -q)
   run_buildah --log-level=error images -q
@@ -470,8 +455,7 @@ load helpers
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
   cmp $root/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.index
-  run test -s $root/etc/passwd
-  [ "$status" -eq 0 ]
+  test -s $root/etc/passwd
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --log-level=error images -q
@@ -482,8 +466,7 @@ load helpers
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
   cmp $root/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.name
-  run test -s $root/etc/passwd
-  [ "$status" -ne 0 ]
+  test ! -s $root/etc/passwd
   buildah rm ${cid}
   buildah rmi $(buildah --log-level=error images -q)
   run_buildah --log-level=error images -q
@@ -512,13 +495,11 @@ load helpers
   cid=$(buildah from ${target})
   root=$(buildah mount ${cid})
   test -s $root/vol/subvol/subsubvol/subsubvolfile
-  run test -s $root/vol/subvol/subvolfile
-  [ "$status" -ne 0 ]
+  test ! -s $root/vol/subvol/subvolfile
   test -s $root/vol/volfile
   test -s $root/vol/Dockerfile
   test -s $root/vol/Dockerfile2
-  run test -s $root/vol/anothervolfile
-  [ "$status" -ne 0 ]
+  test ! -s $root/vol/anothervolfile
   buildah rm ${cid}
   buildah rmi -a
   run_buildah --log-level=error images -q
@@ -654,8 +635,7 @@ load helpers
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/volume-perms
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
   root=$(buildah mount ${cid})
-  run test -s $root/vol/subvol/subvolfile
-  [ "$status" -ne 0 ]
+  test ! -s $root/vol/subvol/subvolfile
   run stat -c %f $root/vol/subvol
   echo "$output"
   [ "$status" -eq 0 ]
@@ -860,7 +840,7 @@ load helpers
 @test "bud with ENTRYPOINT and empty RUN" {
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.entrypoint-empty-run ${TESTSDIR}/bud/run-scenarios
-  expect_output --substring "error building at step"
+  expect_output --substring "error building at STEP"
 }
 
 @test "bud with CMD and RUN" {
@@ -875,7 +855,7 @@ load helpers
 @test "bud with CMD and empty RUN" {
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.cmd-empty-run ${TESTSDIR}/bud/run-scenarios
-  expect_output --substring "error building at step"
+  expect_output --substring "error building at STEP"
 }
 
 @test "bud with ENTRYPOINT, CMD and RUN" {
@@ -1340,9 +1320,7 @@ load helpers
   ctr=$(buildah --log-level=error from --signature-policy ${TESTSDIR}/policy.json ${target})
   mnt=$(buildah --log-level=error mount ${ctr})
 
-  run test -e $mnt/usr/local/bin/composer
-  echo "$output"
-  [ "$status" -eq 0 ]
+  test -e $mnt/usr/local/bin/composer
 }
 
 @test "bud-target" {

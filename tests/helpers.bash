@@ -44,7 +44,7 @@ function createrandom() {
 }
 
 function buildah() {
-	${BUILDAH_BINARY} --log-level=debug --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
+	${BUILDAH_BINARY} --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
 }
 
 function imgtype() {
@@ -85,7 +85,7 @@ function run_buildah() {
 
     # stdout is only emitted upon error; this echo is to help a debugger
     echo "\$ $BUILDAH_BINARY $*"
-    run timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} --log-level=debug --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
+    run timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
     # without "quotes", multiple lines are glommed together into one
     if [ -n "$output" ]; then
         echo "$output"
@@ -190,7 +190,7 @@ function expect_output() {
     local -a actual_split
     readarray -t actual_split <<<"$actual"
     printf "#/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\n" >&2
-    printf "#|     FAIL: $testname\n"                          >&2
+    printf "#|     FAIL: %s\n" "$testname"                     >&2
     printf "#| expected: '%s'\n" "$expect"                     >&2
     printf "#|   actual: '%s'\n" "${actual_split[0]}"          >&2
     local line
