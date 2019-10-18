@@ -412,6 +412,8 @@ type BuilderOptions struct {
 	Format string
 	// Devices are the additional devices to add to the containers
 	Devices []configs.Device
+	//DefaultEnv for containers
+	DefaultEnv []string
 }
 
 // ImportOptions are used to initialize a Builder from an existing container

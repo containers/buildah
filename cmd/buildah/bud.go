@@ -69,7 +69,8 @@ func init() {
 	budFlags.StringVar(&budFlagResults.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
 
 	layerFlags := buildahcli.GetLayerFlags(&layerFlagsResults)
-	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
+	defaultConfig := getDefaultConfig()
+	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults, defaultConfig)
 
 	flags.AddFlagSet(&budFlags)
 	flags.AddFlagSet(&layerFlags)
@@ -315,6 +316,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		Target:                  iopts.Target,
 		TransientMounts:         transientMounts,
 		Devices:                 devices,
+		DefaultEnv:              getDefaultConfig().ContainersConfig.Env,
 	}
 
 	if iopts.Quiet {

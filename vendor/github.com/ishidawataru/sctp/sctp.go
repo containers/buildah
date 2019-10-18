@@ -1,3 +1,18 @@
+// Copyright 2019 Wataru Ishida. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+// implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package sctp
 
 import (
@@ -677,4 +692,20 @@ func (c *SCTPSndRcvInfoWrappedConn) SetReadDeadline(t time.Time) error {
 
 func (c *SCTPSndRcvInfoWrappedConn) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
+}
+
+func (c *SCTPSndRcvInfoWrappedConn) SetWriteBuffer(bytes int) error {
+	return c.conn.SetWriteBuffer(bytes)
+}
+
+func (c *SCTPSndRcvInfoWrappedConn) GetWriteBuffer() (int, error) {
+	return c.conn.GetWriteBuffer()
+}
+
+func (c *SCTPSndRcvInfoWrappedConn) SetReadBuffer(bytes int) error {
+	return c.conn.SetReadBuffer(bytes)
+}
+
+func (c *SCTPSndRcvInfoWrappedConn) GetReadBuffer() (int, error) {
+	return c.conn.GetReadBuffer()
 }

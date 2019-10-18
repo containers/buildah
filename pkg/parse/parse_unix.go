@@ -5,7 +5,7 @@ package parse
 import (
 	"fmt"
 
-	"github.com/containers/buildah/pkg/unshare"
+	"github.com/containers/common/pkg/unshare"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/pkg/errors"

@@ -25,8 +25,8 @@ import (
 	"github.com/containers/buildah/chroot"
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/secrets"
-	"github.com/containers/buildah/pkg/unshare"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
@@ -1789,9 +1789,10 @@ func setupCapDrop(g *generate.Generator, caps ...string) error {
 	return nil
 }
 
-func setupCapabilities(g *generate.Generator, firstAdds, firstDrops, secondAdds, secondDrops []string) error {
+func setupCapabilities(g *generate.Generator, firstAdds, firstDrops, secondAdds, secondDrops, defaultCapabilities []string) error {
 	g.ClearProcessCapabilities()
-	if err := setupCapAdd(g, util.DefaultCapabilities...); err != nil {
+	// use default capabilities from containers.conf
+	if err := setupCapAdd(g, defaultCapabilities...); err != nil {
 		return err
 	}
 	if err := setupCapAdd(g, firstAdds...); err != nil {
@@ -1870,7 +1871,7 @@ func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, opti
 	if err != nil {
 		return "", err
 	}
-	if err := setupCapabilities(g, b.AddCapabilities, b.DropCapabilities, options.AddCapabilities, options.DropCapabilities); err != nil {
+	if err := setupCapabilities(g, b.AddCapabilities, b.DropCapabilities, options.AddCapabilities, options.DropCapabilities, options.DefaultCapabilities); err != nil {
 		return "", err
 	}
 	g.SetProcessUID(user.UID)
@@ -1891,6 +1892,7 @@ func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, opti
 
 func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions) {
 	g.ClearProcessEnv()
+
 	if b.CommonBuildOpts.HTTPProxy {
 		for _, envSpec := range []string{
 			"http_proxy",

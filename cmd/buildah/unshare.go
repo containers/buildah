@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/containers/buildah/pkg/unshare"
+	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

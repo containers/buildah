@@ -5,7 +5,8 @@ import (
 	"os"
 
 	"github.com/containers/buildah"
-	"github.com/containers/buildah/pkg/unshare"
+	"github.com/containers/common/pkg/config"
+	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
@@ -96,6 +97,20 @@ func initConfig() {
 }
 
 const logLevel = "log-level"
+
+var globalDefaultConfig *config.Config
+
+func getDefaultConfig() *config.Config {
+	var err error
+	if globalDefaultConfig == nil {
+		globalDefaultConfig, err = config.New("")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
+	}
+	return globalDefaultConfig
+}
 
 func before(cmd *cobra.Command) error {
 	strLvl, err := cmd.Flags().GetString(logLevel)

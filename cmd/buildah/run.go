@@ -125,19 +125,23 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		return errors.Wrapf(err, "error parsing namespace-related options")
 	}
 
+	defautlConfig := getDefaultConfig()
+
 	options := buildah.RunOptions{
-		Hostname:         iopts.hostname,
-		Runtime:          iopts.runtime,
-		Args:             runtimeFlags,
-		NoPivot:          noPivot,
-		User:             c.Flag("user").Value.String(),
-		Isolation:        isolation,
-		NamespaceOptions: namespaceOptions,
-		ConfigureNetwork: networkPolicy,
-		CNIPluginPath:    iopts.CNIPlugInPath,
-		CNIConfigDir:     iopts.CNIConfigDir,
-		AddCapabilities:  iopts.capAdd,
-		DropCapabilities: iopts.capDrop,
+		Env:                 defautlConfig.ContainersConfig.Env,
+		Hostname:            iopts.hostname,
+		Runtime:             iopts.runtime,
+		Args:                runtimeFlags,
+		NoPivot:             noPivot,
+		User:                c.Flag("user").Value.String(),
+		Isolation:           isolation,
+		NamespaceOptions:    namespaceOptions,
+		ConfigureNetwork:    networkPolicy,
+		CNIPluginPath:       iopts.CNIPlugInPath,
+		CNIConfigDir:        iopts.CNIConfigDir,
+		AddCapabilities:     iopts.capAdd,
+		DropCapabilities:    iopts.capDrop,
+		DefaultCapabilities: defautlConfig.ContainersConfig.DefaultCapabilities,
 	}
 
 	if c.Flag("terminal").Changed {

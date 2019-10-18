@@ -170,6 +170,8 @@ type RunOptions struct {
 	DropCapabilities []string
 	// Devices are the additional devices to add to the containers
 	Devices []configs.Device
+
+	DefaultCapabilities []string
 }
 
 // Find the configuration for the namespace of the given type.  If there are
