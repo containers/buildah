@@ -7,6 +7,10 @@ The purpose of this tutorial is to demonstrate how Buildah can be used to build 
 
 In brief the `containers/image` project provides mechanisms to copy, push, pull, inspect and sign container images. The `containers/storage` project provides mechanisms for storing filesystem layers, container images, and containers. Buildah is a CLI that takes advantage of these underlying projects and therefore allows you to build, move, and manage container images and containers.
 
+Buildah works on a number of Linux distributions, but is not supported on Windows or Mac platforms at this time.  Buildah specializes in building OCI images and [Podman](https://podman.io) specializes in all of the commands and functions that help you to maintain, modify and run OCI images and containers.  For more informaton on the difference between the projects please refer to the [Buildah and Podman relationship](https://github.com/containers/buildah#buildah-and-podman-relationship) section on the main README.md.
+
+## Configure and Install Buildah
+
 Note that installation instructions below assume you are running a Linux distro that uses `dnf` as its package manager, and have all prerequisites fulfilled. See Buildah's [installation instructions][buildah-install] for a full list of prerequisites, and the `buildah` installation section in the [official Red Hat documentation][rh-repo-docs] for RHEL-specific instructions.
 
 [buildah-install]:../../install.md
@@ -19,6 +23,12 @@ First step is to install Buildah. Run as root because you will need to be root f
 Then install buildah by running:
 
     # dnf -y install buildah
+
+## Rootless User Configuration
+
+If you plan to run Buildah as a user without root privileges, i.e. a "rootless user", the administrator of the system might have to do a bit of additional configuration beforehand.  The setup required for this is listed on the Podman GitHub site [here](https://github.com/containers/libpod/blob/master/docs/tutorials/rootless_tutorial.md).  Buildah has the same setup and configuration requirements that Podman does for rootless users.
+
+## Post Installation Verification
 
 After installing Buildah we can see there are no images installed. The `buildah images` command will list all the images:
 
