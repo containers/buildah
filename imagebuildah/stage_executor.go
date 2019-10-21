@@ -759,6 +759,12 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			s.executor.log(commitMessage)
 		}
 	}
+	logCacheHit := func(cacheID string) {
+		if !s.executor.quiet {
+			cacheHitMessage := "--> Using cache"
+			fmt.Fprintf(s.executor.out, "%s %s\n", cacheHitMessage, cacheID)
+		}
+	}
 	logImageID := func(imgID string) {
 		if s.executor.iidfile == "" {
 			fmt.Fprintf(s.executor.out, "%s\n", imgID)
@@ -909,7 +915,7 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			}
 			if cacheID != "" {
 				// Note the cache hit.
-				fmt.Fprintf(s.executor.out, "--> Using cache %s\n", cacheID)
+				logCacheHit(cacheID)
 			} else {
 				// We're not going to find any more cache hits.
 				checkForLayers = false
