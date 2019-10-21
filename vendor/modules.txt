@@ -302,7 +302,7 @@ github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 # github.com/openshift/api v3.9.1-0.20190810003144-27fb16909b15+incompatible
 github.com/openshift/api/config/v1
-# github.com/openshift/imagebuilder v1.1.0
+# github.com/openshift/imagebuilder v1.1.1
 github.com/openshift/imagebuilder
 github.com/openshift/imagebuilder/dockerfile/parser
 github.com/openshift/imagebuilder/dockerfile/command
