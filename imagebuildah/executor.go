@@ -91,8 +91,7 @@ type Executor struct {
 	excludes                       []string
 	unusedArgs                     map[string]struct{}
 	buildArgs                      map[string]string
-	addCapabilities                []string
-	dropCapabilities               []string
+	capabilities                   []string
 	devices                        []configs.Device
 }
 
@@ -148,8 +147,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		blobDirectory:                  options.BlobDirectory,
 		unusedArgs:                     make(map[string]struct{}),
 		buildArgs:                      options.Args,
-		addCapabilities:                options.AddCapabilities,
-		dropCapabilities:               options.DropCapabilities,
+		capabilities:                   options.Capabilities,
 		devices:                        options.Devices,
 	}
 	if exec.err == nil {

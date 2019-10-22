@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/containers/buildah/docker"
@@ -179,13 +180,8 @@ type Builder struct {
 	CNIConfigDir string
 	// ID mapping options to use when running processes in the container with non-host user namespaces.
 	IDMappingOptions IDMappingOptions
-	// AddCapabilities is a list of capabilities to add to the default set when running
-	// commands in the container.
-	AddCapabilities []string
-	// DropCapabilities is a list of capabilities to remove from the default set,
-	// after processing the AddCapabilities set, when running commands in the container.
-	// If a capability appears in both lists, it will be dropped.
-	DropCapabilities []string
+	// Capabilities is a list of capabilities to use when running commands in the container.
+	Capabilities []string
 	// PrependedEmptyLayers are history entries that we'll add to a
 	// committed image, after any history items that we inherit from a base
 	// image, but before the history item for the layer that we're
@@ -228,12 +224,11 @@ type BuilderInfo struct {
 	DefaultMountsFilePath string
 	Isolation             string
 	NamespaceOptions      NamespaceOptions
+	Capabilities          []string
 	ConfigureNetwork      string
 	CNIPluginPath         string
 	CNIConfigDir          string
 	IDMappingOptions      IDMappingOptions
-	AddCapabilities       []string
-	DropCapabilities      []string
 	History               []v1.History
 	Devices               []configs.Device
 }
@@ -253,6 +248,7 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 		EmptyLayer: false,
 	})
 	history = append(history, copyHistory(b.AppendedEmptyLayers)...)
+	sort.Strings(b.Capabilities)
 	return BuilderInfo{
 		Type:                  b.Type,
 		FromImage:             b.FromImage,
@@ -276,8 +272,7 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 		CNIPluginPath:         b.CNIPluginPath,
 		CNIConfigDir:          b.CNIConfigDir,
 		IDMappingOptions:      b.IDMappingOptions,
-		AddCapabilities:       append([]string{}, b.AddCapabilities...),
-		DropCapabilities:      append([]string{}, b.DropCapabilities...),
+		Capabilities:          b.Capabilities,
 		History:               history,
 		Devices:               b.Devices,
 	}
@@ -403,14 +398,9 @@ type BuilderOptions struct {
 	CNIConfigDir string
 	// ID mapping options to use if we're setting up our own user namespace.
 	IDMappingOptions *IDMappingOptions
-	// AddCapabilities is a list of capabilities to add to the default set when
+	// Capabilities is a list of capabilities to use when
 	// running commands in the container.
-	AddCapabilities []string
-	// DropCapabilities is a list of capabilities to remove from the default set,
-	// after processing the AddCapabilities set, when running commands in the
-	// container.  If a capability appears in both lists, it will be dropped.
-	DropCapabilities []string
-
+	Capabilities    []string
 	CommonBuildOpts *CommonBuildOptions
 	// Format for the container image
 	Format string

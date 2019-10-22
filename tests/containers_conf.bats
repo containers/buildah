@@ -9,7 +9,7 @@ load helpers
     cp containers.conf $CONFIGDIR
 
     # check env foo=bar from containers.conf
-    cid=$(buildah from --pull=true docker.io/alpine)
+    cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
     run_buildah --log-level=error run $cid env | grep "foo=bar"
 
 }

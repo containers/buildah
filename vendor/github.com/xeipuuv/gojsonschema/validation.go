@@ -35,29 +35,42 @@ import (
 	"unicode/utf8"
 )
 
-// Validate loads and validates a JSON schema
 func Validate(ls JSONLoader, ld JSONLoader) (*Result, error) {
+
+	var err error
+
 	// load schema
+
 	schema, err := NewSchema(ls)
 	if err != nil {
 		return nil, err
 	}
+
+	// begine validation
+
 	return schema.Validate(ld)
+
 }
 
-// Validate loads and validates a JSON document
 func (v *Schema) Validate(l JSONLoader) (*Result, error) {
+
+	// load document
+
 	root, err := l.LoadJSON()
 	if err != nil {
 		return nil, err
 	}
+
 	return v.validateDocument(root), nil
 }
 
 func (v *Schema) validateDocument(root interface{}) *Result {
+	// begin validation
+
 	result := &Result{}
 	context := NewJsonContext(STRING_CONTEXT_ROOT, nil)
 	v.rootSchema.validateRecursive(v.rootSchema, root, result, context)
+
 	return result
 }
 
@@ -73,19 +86,6 @@ func (v *subSchema) validateRecursive(currentSubSchema *subSchema, currentNode i
 	if internalLogEnabled {
 		internalLog("validateRecursive %s", context.String())
 		internalLog(" %v", currentNode)
-	}
-
-	// Handle true/false schema as early as possible as all other fields will be nil
-	if currentSubSchema.pass != nil {
-		if !*currentSubSchema.pass {
-			result.addInternalError(
-				new(FalseError),
-				context,
-				currentNode,
-				ErrorDetails{},
-			)
-		}
-		return
 	}
 
 	// Handle referenced schemas, returns directly when a $ref is found
@@ -114,11 +114,11 @@ func (v *subSchema) validateRecursive(currentSubSchema *subSchema, currentNode i
 
 	} else { // Not a null value
 
-		if isJSONNumber(currentNode) {
+		if isJsonNumber(currentNode) {
 
 			value := currentNode.(json.Number)
 
-			isInt := checkJSONInteger(value)
+			isInt := checkJsonInteger(value)
 
 			validType := currentSubSchema.types.Contains(TYPE_NUMBER) || (isInt && currentSubSchema.types.Contains(TYPE_INTEGER))
 
@@ -424,11 +424,11 @@ func (v *subSchema) validateCommon(currentSubSchema *subSchema, value interface{
 
 	// enum:
 	if len(currentSubSchema.enum) > 0 {
-		vString, err := marshalWithoutNumber(value)
+		has, err := currentSubSchema.ContainsEnum(value)
 		if err != nil {
 			result.addInternalError(new(InternalError), context, value, ErrorDetails{"error": err})
 		}
-		if !isStringInSlice(currentSubSchema.enum, *vString) {
+		if !has {
 			result.addInternalError(
 				new(EnumError),
 				context,
@@ -516,13 +516,13 @@ func (v *subSchema) validateArray(currentSubSchema *subSchema, value []interface
 
 	// uniqueItems:
 	if currentSubSchema.uniqueItems {
-		var stringifiedItems = make(map[string]int)
+		var stringifiedItems []string
 		for j, v := range value {
 			vString, err := marshalWithoutNumber(v)
 			if err != nil {
 				result.addInternalError(new(InternalError), context, value, ErrorDetails{"err": err})
 			}
-			if i, ok := stringifiedItems[*vString]; ok {
+			if i := indexStringInSlice(stringifiedItems, *vString); i > -1 {
 				result.addInternalError(
 					new(ItemsMustBeUniqueError),
 					context,
@@ -530,7 +530,7 @@ func (v *subSchema) validateArray(currentSubSchema *subSchema, value []interface
 					ErrorDetails{"type": TYPE_ARRAY, "i": i, "j": j},
 				)
 			}
-			stringifiedItems[*vString] = j
+			stringifiedItems = append(stringifiedItems, *vString)
 		}
 	}
 
@@ -614,37 +614,101 @@ func (v *subSchema) validateObject(currentSubSchema *subSchema, value map[string
 	}
 
 	// additionalProperty & patternProperty:
-	for pk := range value {
+	if currentSubSchema.additionalProperties != nil {
 
-		// Check whether this property is described by "properties"
-		found := false
-		for _, spValue := range currentSubSchema.propertiesChildren {
-			if pk == spValue.property {
-				found = true
+		switch currentSubSchema.additionalProperties.(type) {
+		case bool:
+
+			if !currentSubSchema.additionalProperties.(bool) {
+
+				for pk := range value {
+
+					found := false
+					for _, spValue := range currentSubSchema.propertiesChildren {
+						if pk == spValue.property {
+							found = true
+						}
+					}
+
+					pp_has, pp_match := v.validatePatternProperty(currentSubSchema, pk, value[pk], result, context)
+
+					if found {
+
+						if pp_has && !pp_match {
+							result.addInternalError(
+								new(AdditionalPropertyNotAllowedError),
+								context,
+								value[pk],
+								ErrorDetails{"property": pk},
+							)
+						}
+
+					} else {
+
+						if !pp_has || !pp_match {
+							result.addInternalError(
+								new(AdditionalPropertyNotAllowedError),
+								context,
+								value[pk],
+								ErrorDetails{"property": pk},
+							)
+						}
+
+					}
+				}
 			}
-		}
 
-		//  Check whether this property is described by "patternProperties"
-		ppMatch := v.validatePatternProperty(currentSubSchema, pk, value[pk], result, context)
+		case *subSchema:
 
-		// If it is not described by neither "properties" nor "patternProperties" it must pass "additionalProperties"
-		if !found && !ppMatch {
-			switch ap := currentSubSchema.additionalProperties.(type) {
-			case bool:
-				// Handle the boolean case separately as it's cleaner to return a specific error than failing to pass the false schema
-				if !ap {
-					result.addInternalError(
-						new(AdditionalPropertyNotAllowedError),
-						context,
-						value[pk],
-						ErrorDetails{"property": pk},
-					)
+			additionalPropertiesSchema := currentSubSchema.additionalProperties.(*subSchema)
+			for pk := range value {
+
+				found := false
+				for _, spValue := range currentSubSchema.propertiesChildren {
+					if pk == spValue.property {
+						found = true
+					}
+				}
+
+				pp_has, pp_match := v.validatePatternProperty(currentSubSchema, pk, value[pk], result, context)
+
+				if found {
+
+					if pp_has && !pp_match {
+						validationResult := additionalPropertiesSchema.subValidateWithContext(value[pk], context)
+						result.mergeErrors(validationResult)
+					}
+
+				} else {
+
+					if !pp_has || !pp_match {
+						validationResult := additionalPropertiesSchema.subValidateWithContext(value[pk], context)
+						result.mergeErrors(validationResult)
+					}
 
 				}
-			case *subSchema:
-				validationResult := ap.subValidateWithContext(value[pk], NewJsonContext(pk, context))
-				result.mergeErrors(validationResult)
+
 			}
+		}
+	} else {
+
+		for pk := range value {
+
+			pp_has, pp_match := v.validatePatternProperty(currentSubSchema, pk, value[pk], result, context)
+
+			if pp_has && !pp_match {
+
+				result.addInternalError(
+					new(InvalidPropertyPatternError),
+					context,
+					value[pk],
+					ErrorDetails{
+						"property": pk,
+						"pattern":  currentSubSchema.PatternPropertiesString(),
+					},
+				)
+			}
+
 		}
 	}
 
@@ -666,36 +730,40 @@ func (v *subSchema) validateObject(currentSubSchema *subSchema, value map[string
 	result.incrementScore()
 }
 
-func (v *subSchema) validatePatternProperty(currentSubSchema *subSchema, key string, value interface{}, result *Result, context *JsonContext) bool {
+func (v *subSchema) validatePatternProperty(currentSubSchema *subSchema, key string, value interface{}, result *Result, context *JsonContext) (has bool, matched bool) {
 
 	if internalLogEnabled {
 		internalLog("validatePatternProperty %s", context.String())
 		internalLog(" %s %v", key, value)
 	}
 
-	validated := false
+	has = false
+
+	validatedkey := false
 
 	for pk, pv := range currentSubSchema.patternProperties {
 		if matches, _ := regexp.MatchString(pk, key); matches {
-			validated = true
+			has = true
 			subContext := NewJsonContext(key, context)
 			validationResult := pv.subValidateWithContext(value, subContext)
 			result.mergeErrors(validationResult)
+			validatedkey = true
 		}
 	}
 
-	if !validated {
-		return false
+	if !validatedkey {
+		return has, false
 	}
 
 	result.incrementScore()
-	return true
+
+	return has, true
 }
 
 func (v *subSchema) validateString(currentSubSchema *subSchema, value interface{}, result *Result, context *JsonContext) {
 
 	// Ignore JSON numbers
-	if isJSONNumber(value) {
+	if isJsonNumber(value) {
 		return
 	}
 
@@ -764,7 +832,7 @@ func (v *subSchema) validateString(currentSubSchema *subSchema, value interface{
 func (v *subSchema) validateNumber(currentSubSchema *subSchema, value interface{}, result *Result, context *JsonContext) {
 
 	// Ignore non numbers
-	if !isJSONNumber(value) {
+	if !isJsonNumber(value) {
 		return
 	}
 
@@ -782,10 +850,8 @@ func (v *subSchema) validateNumber(currentSubSchema *subSchema, value interface{
 			result.addInternalError(
 				new(MultipleOfError),
 				context,
-				number,
-				ErrorDetails{
-					"multiple": new(big.Float).SetRat(currentSubSchema.multipleOf),
-				},
+				resultErrorFormatJsonNumber(number),
+				ErrorDetails{"multiple": new(big.Float).SetRat(currentSubSchema.multipleOf)},
 			)
 		}
 	}
@@ -796,9 +862,9 @@ func (v *subSchema) validateNumber(currentSubSchema *subSchema, value interface{
 			result.addInternalError(
 				new(NumberLTEError),
 				context,
-				number,
+				resultErrorFormatJsonNumber(number),
 				ErrorDetails{
-					"max": new(big.Float).SetRat(currentSubSchema.maximum),
+					"max": currentSubSchema.maximum,
 				},
 			)
 		}
@@ -808,9 +874,9 @@ func (v *subSchema) validateNumber(currentSubSchema *subSchema, value interface{
 			result.addInternalError(
 				new(NumberLTError),
 				context,
-				number,
+				resultErrorFormatJsonNumber(number),
 				ErrorDetails{
-					"max": new(big.Float).SetRat(currentSubSchema.exclusiveMaximum),
+					"max": currentSubSchema.exclusiveMaximum,
 				},
 			)
 		}
@@ -822,21 +888,22 @@ func (v *subSchema) validateNumber(currentSubSchema *subSchema, value interface{
 			result.addInternalError(
 				new(NumberGTEError),
 				context,
-				number,
+				resultErrorFormatJsonNumber(number),
 				ErrorDetails{
-					"min": new(big.Float).SetRat(currentSubSchema.minimum),
+					"min": currentSubSchema.minimum,
 				},
 			)
 		}
 	}
 	if currentSubSchema.exclusiveMinimum != nil {
 		if float64Value.Cmp(currentSubSchema.exclusiveMinimum) <= 0 {
+			// if float64Value <= *currentSubSchema.minimum {
 			result.addInternalError(
 				new(NumberGTError),
 				context,
-				number,
+				resultErrorFormatJsonNumber(number),
 				ErrorDetails{
-					"min": new(big.Float).SetRat(currentSubSchema.exclusiveMinimum),
+					"min": currentSubSchema.exclusiveMinimum,
 				},
 			)
 		}

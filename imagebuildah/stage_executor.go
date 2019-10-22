@@ -600,8 +600,7 @@ func (s *StageExecutor) prepare(ctx context.Context, stage imagebuilder.Stage, f
 		CommonBuildOpts:       s.executor.commonBuildOptions,
 		DefaultMountsFilePath: s.executor.defaultMountsFilePath,
 		Format:                s.executor.outputFormat,
-		AddCapabilities:       s.executor.addCapabilities,
-		DropCapabilities:      s.executor.dropCapabilities,
+		Capabilities:          s.executor.capabilities,
 		Devices:               s.executor.devices,
 	}
 

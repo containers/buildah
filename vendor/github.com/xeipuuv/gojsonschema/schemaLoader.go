@@ -21,7 +21,6 @@ import (
 	"github.com/xeipuuv/gojsonreference"
 )
 
-// SchemaLoader is used to load schemas
 type SchemaLoader struct {
 	pool       *schemaPool
 	AutoDetect bool
@@ -29,7 +28,6 @@ type SchemaLoader struct {
 	Draft      Draft
 }
 
-// NewSchemaLoader creates a new NewSchemaLoader
 func NewSchemaLoader() *SchemaLoader {
 
 	ps := &SchemaLoader{
@@ -143,7 +141,6 @@ func (sl *SchemaLoader) AddSchema(url string, loader JSONLoader) error {
 	return sl.pool.parseReferences(doc, ref, true)
 }
 
-// Compile loads and compiles a schema
 func (sl *SchemaLoader) Compile(rootSchema JSONLoader) (*Schema, error) {
 
 	ref, err := rootSchema.JsonReference()

@@ -14,6 +14,7 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/config"
+	"github.com/docker/docker/oci/caps"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	selinux "github.com/opencontainers/selinux/go-selinux"
@@ -292,4 +293,33 @@ func CheckAuthFile(authfile string) error {
 		return errors.Wrapf(err, "error checking authfile path %s", authfile)
 	}
 	return nil
+}
+
+// GetCapabilities returns the capabilities added to container
+func GetCapabilities(defaultCapabilities, addCapabilities, dropCapabilities []string) []string {
+	var capabilities []string
+	mapCap := make(map[string]bool, len(defaultCapabilities))
+	for _, c := range addCapabilities {
+		if strings.ToLower(c) == "all" {
+			defaultCapabilities = caps.GetAllCapabilities()
+			addCapabilities = nil
+			break
+		}
+	}
+
+	for _, c := range append(defaultCapabilities, addCapabilities...) {
+		mapCap[c] = true
+	}
+	for _, c := range dropCapabilities {
+		if "all" == strings.ToLower(c) {
+			return capabilities
+		}
+		mapCap[c] = false
+	}
+	for cap, add := range mapCap {
+		if add {
+			capabilities = append(capabilities, cap)
+		}
+	}
+	return capabilities
 }

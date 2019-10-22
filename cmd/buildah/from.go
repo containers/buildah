@@ -245,7 +245,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		}
 		devices = append(devices, dev...)
 	}
-
+	capabilities := buildahcli.GetCapabilities(getDefaultConfig().ContainersConfig.DefaultCapabilities, iopts.CapAdd, iopts.CapDrop)
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
 		Container:             iopts.name,
@@ -259,8 +259,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		CNIPluginPath:         iopts.CNIPlugInPath,
 		CNIConfigDir:          iopts.CNIConfigDir,
 		IDMappingOptions:      idmappingOptions,
-		AddCapabilities:       iopts.CapAdd,
-		DropCapabilities:      iopts.CapDrop,
+		Capabilities:          capabilities,
 		CommonBuildOpts:       commonOpts,
 		Format:                format,
 		BlobDirectory:         iopts.BlobCache,

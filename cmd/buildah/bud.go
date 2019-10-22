@@ -300,6 +300,8 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		devices = append(devices, dev...)
 	}
 
+	capabilities := buildahcli.GetCapabilities(getDefaultConfig().ContainersConfig.DefaultCapabilities, iopts.CapAdd, iopts.CapDrop)
+
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:        contextDir,
 		PullPolicy:              pullPolicy,
@@ -323,8 +325,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		CNIPluginPath:           iopts.CNIPlugInPath,
 		CNIConfigDir:            iopts.CNIConfigDir,
 		IDMappingOptions:        idmappingOptions,
-		AddCapabilities:         iopts.CapAdd,
-		DropCapabilities:        iopts.CapDrop,
+		Capabilities:            capabilities,
 		CommonBuildOpts:         commonOpts,
 		DefaultMountsFilePath:   defaultsMountFile,
 		IIDFile:                 iopts.Iidfile,
