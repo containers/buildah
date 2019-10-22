@@ -273,7 +273,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		if err != nil {
 			return err
 		}
-		devices = append(devices, dev)
+		devices = append(devices, dev...)
 	}
 
 	options := imagebuildah.BuildOptions{

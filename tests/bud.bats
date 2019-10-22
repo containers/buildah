@@ -1690,6 +1690,21 @@ load helpers
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --squash ${TESTSDIR}/bud/layers-squash
 }
 
+@test "bud with additional directory of devices" {
+  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
+  fi
+  target=alpine-image
+  mkdir ${TESTSDIR}/foo
+  mknod ${TESTSDIR}/foo/null c 1 3
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --device ${TESTSDIR}/foo:/dev/fuse  -t ${target} -f ${TESTSDIR}/bud/device/Dockerfile ${TESTSDIR}/bud/device
+  [ "${status}" -eq 0 ]
+  expect_output --substring "null"
+
+  buildah rmi ${target}
+  rm -rf ${TESTSDIR}/foo
+}
+
 @test "bud with additional device" {
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --device /dev/fuse -t ${target} -f ${TESTSDIR}/bud/device/Dockerfile ${TESTSDIR}/bud/device
@@ -1793,7 +1808,7 @@ load helpers
   echo "$output"
   expect_output --substring "abc.txt"
 
-  rm ${TESTSDIR}/bud/use-args/abc.txt 
+  rm ${TESTSDIR}/bud/use-args/abc.txt
   buildah rm --all
   buildah rmi --all --force
 }
