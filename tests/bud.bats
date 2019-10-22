@@ -1797,3 +1797,9 @@ load helpers
   buildah rm --all
   buildah rmi --all --force
 }
+
+@test "bud using gitrepo and branch" {
+  target=gittarget
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} git://github.com/containers/BuildSourceImage#master
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} git://github.com/containers/BuildSourceImage
+}
