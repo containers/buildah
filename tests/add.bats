@@ -140,3 +140,24 @@ load helpers
   expect_output "644"
   run_buildah rm $newcid
 }
+
+@test "add with chown" {
+  createrandom ${TESTDIR}/randomfile
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah add --chown bin:bin $cid ${TESTDIR}/randomfile /tmp/random
+  run_buildah run $cid ls -l /tmp/random
+
+  expect_output --substring bin.*bin
+  buildah rm $cid
+}
+
+@test "add url" {
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah add $cid https://github.com/containers/buildah/raw/master/README.md
+  run_buildah run $cid ls /README.md
+
+  run_buildah add $cid https://github.com/containers/buildah/raw/master/README.md /home
+  run_buildah run $cid ls /home/README.md
+
+  buildah rm $cid
+}
