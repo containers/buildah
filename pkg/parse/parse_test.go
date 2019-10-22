@@ -74,17 +74,22 @@ func TestDeviceFromPath(t *testing.T) {
 	// Path is valid
 	dev, err := DeviceFromPath("/dev/null")
 	assert.NoError(t, err)
-	assert.Equal(t, dev.Major, int64(1))
-	assert.Equal(t, dev.Minor, int64(3))
-	assert.Equal(t, dev.Permissions, "rwm")
-	assert.Equal(t, dev.Uid, uint32(0))
-	assert.Equal(t, dev.Gid, uint32(0))
+	assert.Equal(t, len(dev), 1)
+	assert.Equal(t, dev[0].Major, int64(1))
+	assert.Equal(t, dev[0].Minor, int64(3))
+	assert.Equal(t, dev[0].Permissions, "rwm")
+	assert.Equal(t, dev[0].Uid, uint32(0))
+	assert.Equal(t, dev[0].Gid, uint32(0))
 
 	// Path does not exists
 	_, err = DeviceFromPath("/dev/BOGUS")
 	assert.Error(t, err)
 
-	// Path exists but is not a device
+	// Path is a directory of devices
 	_, err = DeviceFromPath("/dev/pts")
+	assert.NoError(t, err)
+
+	// path of directory has no device
+	_, err = DeviceFromPath("/etc/passwd")
 	assert.Error(t, err)
 }

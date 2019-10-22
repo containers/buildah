@@ -176,7 +176,7 @@ value can be entered.  The password is entered without echo.
 
 **--device**=*device*
 
-Add a host device to the container. The format is `<device-on-host>[:<device-on-container>][:<permissions>]` (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
+Add a host device or devices under a directory to the container. The format is `<device-on-host>[:<device-on-container>][:<permissions>]` (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
 
 **--disable-compression, -D**
 Don't compress filesystem layers when building the image unless it is required

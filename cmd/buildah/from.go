@@ -218,7 +218,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		if err != nil {
 			return err
 		}
-		devices = append(devices, dev)
+		devices = append(devices, dev...)
 	}
 
 	options := buildah.BuilderOptions{
