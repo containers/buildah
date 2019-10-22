@@ -1882,3 +1882,11 @@ EOM
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy/Dockerfile.url ${TESTSDIR}/bud/copy
   rm -r ${TESTSDIR}/bud/copy
 }
+
+@test "bud quiet" {
+  run_buildah bud --format docker -t quiet-test --signature-policy ${TESTSDIR}/policy.json -q ${TESTSDIR}/bud/shell
+  expect_line_count 1
+  expect_output --substring "^[0-9a-z]{64}$"
+
+  buildah rmi quiet-test
+}
