@@ -11,6 +11,7 @@ import (
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/pkg/docker/config"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -116,15 +117,15 @@ func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 			return err
 		}
 	}
-	switch err {
-	case nil:
+	if err == nil {
 		fmt.Println("Login Succeeded!")
 		return nil
-	case docker.ErrUnauthorizedForCredentials:
-		return errors.Errorf("error logging into %q: invalid username/password", server)
-	default:
-		return errors.Wrapf(err, "error authenticating creds for %q", server)
 	}
+	if unauthorized, ok := err.(docker.ErrUnauthorizedForCredentials); ok {
+		logrus.Debugf("error logging into %q: %v", server, unauthorized)
+		return errors.Errorf("error logging into %q: invalid username/password", server)
+	}
+	return errors.Wrapf(err, "error authenticating creds for %q", server)
 }
 
 // GetUserAndPass gets the username and password from STDIN if not given
