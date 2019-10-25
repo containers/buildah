@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah/util"
-	is "github.com/containers/image/v4/storage"
+	is "github.com/containers/image/v5/storage"
 	"github.com/containers/storage"
 )
 
