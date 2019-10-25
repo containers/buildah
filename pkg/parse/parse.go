@@ -14,7 +14,7 @@ import (
 	"unicode"
 
 	"github.com/containers/buildah"
-	"github.com/containers/image/v4/types"
+	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
 	units "github.com/docker/go-units"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
