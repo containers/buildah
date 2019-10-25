@@ -8,6 +8,7 @@ import (
 
 	cniversion "github.com/containernetworking/cni/pkg/version"
 	"github.com/containers/buildah"
+	iversion "github.com/containers/image/v5/version"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/spf13/cobra"
@@ -38,6 +39,7 @@ func versionCmd(c *cobra.Command, args []string) error {
 	fmt.Println("Runtime Spec:   ", rspecs.Version)
 	fmt.Println("CNI Spec:       ", cniversion.Current())
 	fmt.Println("libcni Version: ", cniVersion)
+	fmt.Println("image Version:  ", iversion.Version)
 	fmt.Println("Git Commit:     ", GitCommit)
 
 	//Prints out the build time in readable format

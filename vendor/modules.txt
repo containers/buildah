@@ -62,6 +62,7 @@ github.com/containers/image/v5/transports
 github.com/containers/image/v5/transports/alltransports
 github.com/containers/image/v5/types
 github.com/containers/image/v5/pkg/docker/config
+github.com/containers/image/v5/version
 github.com/containers/image/v5/pkg/strslice
 github.com/containers/image/v5/pkg/blobinfocache
 github.com/containers/image/v5/pkg/compression
@@ -71,7 +72,6 @@ github.com/containers/image/v5/pkg/blobinfocache/none
 github.com/containers/image/v5/pkg/tlsclientconfig
 github.com/containers/image/v5/internal/tmpdir
 github.com/containers/image/v5/oci/internal
-github.com/containers/image/v5/version
 github.com/containers/image/v5/docker/daemon
 github.com/containers/image/v5/openshift
 github.com/containers/image/v5/ostree
