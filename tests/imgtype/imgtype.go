@@ -83,7 +83,7 @@ func main() {
 	store, err := storage.GetStore(storeOptions)
 	if err != nil {
 		logrus.Errorf("error opening storage: %v", err)
-		return
+		os.Exit(1)
 	}
 	is.Transport.SetStore(store)
 
