@@ -103,3 +103,20 @@ load helpers
   buildah rm $cid
   buildah rmi -a
 }
+
+@test "commit with name" {
+  buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
+  run_buildah --log-level=error commit --signature-policy ${TESTSDIR}/policy.json busyboxc commitbyname/busyboxbyname
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json localhost/commitbyname/busyboxbyname)
+  run_buildah inspect --format '{{.Container}}' $cid
+  expect_output $cid
+  buildah rm busyboxc $cid
+  buildah rmi commitbyname/busyboxbyname
+}
+
+@test "commit to docker-distribution" {
+  buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword busyboxc docker://localhost:5000/commit/busybox
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name fromdocker --tls-verify=false --creds testuser:testpassword docker://localhost:5000/commit/busybox
+  buildah rm busyboxc fromdocker
+}
