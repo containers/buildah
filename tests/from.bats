@@ -327,6 +327,7 @@ load helpers
   container_name=mycontainer
   cid=$(buildah from --name=${container_name} --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah --log-level=error inspect --format '{{.Container}}' ${container_name}
+  buildah rm $cid
 }
 
 @test "from cidfile test" {
@@ -363,4 +364,20 @@ load helpers
 
 @test "from should fail with nonexist authfil" {
   run_buildah 1 from --authfile /tmp/nonexist --pull --signature-policy ${TESTSDIR}/policy.json alpine
+}
+
+@test "from pull always test" {
+  run buildah pull --signature-policy ${TESTSDIR}/policy.json docker.io/busybox
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc --pull-always docker.io/busybox
+  expect_output --substring "Getting"
+  buildah commit --signature-policy ${TESTSDIR}/policy.json busyboxc fakename-img
+  run_buildah 1 from --signature-policy ${TESTSDIR}/policy.json --pull-always fakename-img
+  buildah rm busyboxc
+  buildah rmi fakename-img
+}
+
+@test "from quiet test" {
+  run buildah rmi docker.io/busybox
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet docker.io/busybox
+  [[ "$output" != "Getting"* ]]
 }
