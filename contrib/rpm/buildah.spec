@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.11.4
+Version:        1.12.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,29 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Fri Oct 4, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+* Mon Oct 28, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+
+* Mon Oct 28, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.4-dev-1
+- buildah: add a "manifest" command
+- manifests: add the module
+- pkg/supplemented: add a package for grouping images together
+- pkg/manifests: add a manifest list build/manipulation API
+- Update for ErrUnauthorizedForCredentials API change in containers/image
+- Update for manifest-lists API changes in containers/image
+- version: also note the version of containers/image
+- Move to containers/image v5.0.0
+- Enable --device directory as src device
+- Fix git build with branch specified
+- Bump github.com/openshift/imagebuilder from 1.1.0 to 1.1.1
+- Bump github.com/fsouza/go-dockerclient from 1.4.4 to 1.5.0
+- Add clarification to the Tutorial for new users
+- Silence "using cache" to ensure -q is fully quiet
+- Add OWNERS File to Buildah
+- Bump github.com/containers/storage from 1.13.4 to 1.13.5
+- Move runtime flag to bud from common
+- Commit: check for storage.ErrImageUnknown using errors.Cause()
+- Fix crash when invalid COPY --from flag is specified.
+- Bump back to v1.12.0-dev
 
 * Fri Oct 4, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.3-1
 - Update c/image to v4.0.1
