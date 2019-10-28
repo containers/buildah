@@ -113,13 +113,13 @@ load helpers
   run_buildah add $cid ${TESTDIR}/distutils.cfg /usr/lib/python3.7/distutils
   run_buildah run $cid stat -c "%a" /usr/lib/python3.7/distutils
   root=$(buildah mount $cid)
-  expect_output --substring "755"
+  expect_output "644"
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:${imgName}
   run_buildah rm $cid
 
   newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${imgName})
   run_buildah run $newcid stat -c "%a" /usr/lib/python3.7/distutils
-  expect_output --substring "755"
+  expect_output "644"
   run_buildah rm $newcid
 }
 
@@ -131,12 +131,12 @@ load helpers
   run_buildah add $cid ${TESTDIR}/distutils.cfg lib/custom
   run_buildah run $cid stat -c "%a" lib/custom
   root=$(buildah mount $cid)
-  expect_output --substring "755"
+  expect_output "644"
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:${imgName}
   run_buildah rm $cid
 
   newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${imgName})
   run_buildah run $newcid stat -c "%a" lib/custom
-  expect_output --substring "755"
+  expect_output "644"
   run_buildah rm $newcid
 }
