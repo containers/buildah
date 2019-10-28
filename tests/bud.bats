@@ -356,8 +356,9 @@ load helpers
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f  ${TESTSDIR}/bud/from-scratch/Dockerfile2 -t ${target} ${TESTSDIR}/bud/from-scratch
   cid=$(buildah from ${target})
   run_buildah --log-level=error images
+  expect_line_count 3
   run_buildah rm ${cid}
-  expect_line_count 2
+  expect_line_count 1
 }
 
 @test "bud-from-multiple-files-one-from" {
@@ -870,7 +871,7 @@ load helpers
 @test "bud with ENTRYPOINT, CMD and empty RUN" {
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-empty-run ${TESTSDIR}/bud/run-scenarios
-  expect_output --substring "error building at step"
+  expect_output --substring "error building at STEP"
 }
 
 # Determines if a variable set with ENV is available to following commands in the Dockerfile
@@ -1347,18 +1348,17 @@ load helpers
   # pull the base image directly, so that we don't record it being written to local storage in the next step
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
   # okay, build an image with two stages
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds
+  run_buildah --log-level=debug bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds
   # debug messages should only record us creating one new image: the one for the second stage, since we don't base anything on the first
   run grep "created new image ID" <<< "$output"
-  echo "$output"
-  test "${#lines[@]}" -eq 1
+  expect_line_count 1
 }
 
 @test "bud-multi-stage-cache-nocontainer" {
   # first time through, quite normal
   run_buildah bud --layers -t base --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.rebase ${TESTSDIR}/bud/multi-stage-builds
   # second time through, everything should be cached, and we shouldn't create a container based on the final image
-  run_buildah bud --layers -t base --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.rebase ${TESTSDIR}/bud/multi-stage-builds
+  run_buildah --log-level=debug bud --layers -t base --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.rebase ${TESTSDIR}/bud/multi-stage-builds
   # skip everything up through the final COMMIT step, and make sure we didn't log a "Container ID:" after it
   run sed '0,/COMMIT base/ d' <<< "$output"
   echo "$output"
@@ -1673,10 +1673,10 @@ load helpers
     skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
   target=alpine-image
-  mkdir ${TESTSDIR}/foo
+  rm -rf ${TESTSDIR}/foo
+  mkdir -p ${TESTSDIR}/foo
   mknod ${TESTSDIR}/foo/null c 1 3
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --device ${TESTSDIR}/foo:/dev/fuse  -t ${target} -f ${TESTSDIR}/bud/device/Dockerfile ${TESTSDIR}/bud/device
-  [ "${status}" -eq 0 ]
   expect_output --substring "null"
 
   buildah rmi ${target}

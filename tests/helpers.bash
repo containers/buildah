@@ -48,7 +48,7 @@ function buildah() {
 }
 
 function imgtype() {
-	${IMGTYPE_BINARY} -debug -root ${TESTDIR}/root -runroot ${TESTDIR}/runroot -storage-driver ${STORAGE_DRIVER} "$@"
+	${IMGTYPE_BINARY} -root ${TESTDIR}/root -runroot ${TESTDIR}/runroot -storage-driver ${STORAGE_DRIVER} "$@"
 }
 
 #################
