@@ -274,7 +274,7 @@ The build steps on Debian are otherwise the same as Ubuntu, above.
 
 ## Vendoring - Dependency Management
 
-This project is using [go modules](https://github.com/golang/go/wiki/Modules) for dependency management.  If the CI is complaining about a pull request leaving behind an unclean state, it is very likely right about it.  After changing dependencies, make sure to run `make vendor` to synchronize the code with the go module and repopulate the `./vendor` directory.
+This project is using [go modules](https://github.com/golang/go/wiki/Modules) for dependency management.  If the CI is complaining about a pull request leaving behind an unclean state, it is very likely right about it.  After changing dependencies, make sure to run `make vendor-in-container` to synchronize the code with the go module and repopulate the `./vendor` directory.
 
 ## Configuration files
 
@@ -381,7 +381,7 @@ Buildah uses Go Modules for vendoring purposes.  If you need to update or add a 
  * Enter into your sandbox `src/github.com/containers/buildah` and ensure that the GOPATH variable is set to the directory prior as noted above.
  * `export GO111MODULE=on`
  * Assuming you want to 'bump' the `github.com/containers/storage` package to version 1.12.13, use this command: `go get github.com/containers/storage@v1.12.13`
- * `make vendor`
+ * `make vendor-in-container`
  * `make`
  * `make install`
  * Then add any updated or added files with `git add` then do a `git commit` and create a PR.
@@ -391,10 +391,10 @@ Buildah uses Go Modules for vendoring purposes.  If you need to update or add a 
 If you wish to vendor in your personal fork to try changes out (assuming containers/storage in the below example):
 
  * `go mod edit -replace github.com/containers/storage=github.com/{mygithub_username}/storage@YOUR_BRANCH`
- * `make vendor`
+ * `make vendor-in-container`
 
 To revert
  * `go mod edit -dropreplace github.com/containers/storage`
- * `make vendor`
+ * `make vendor-in-container`
 
 To speed up fetching dependencies, you can use a [Go Module Proxy](https://proxy.golang.org) by setting `GOPROXY=https://proxy.golang.org`.

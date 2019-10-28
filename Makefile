@@ -130,6 +130,9 @@ test-unit: tests/testreport/testreport
 	mkdir -p $$tmp/root $$tmp/runroot; \
 	$(GO) test -v -tags "$(STORAGETAGS) $(SECURITYTAGS)" ./cmd/buildah -args -root $$tmp/root -runroot $$tmp/runroot -storage-driver vfs -signature-policy $(shell pwd)/tests/policy.json -registries-conf $(shell pwd)/tests/registries.conf
 
+vendor-in-container:
+	podman run --privileged --rm --env HOME=/root -v `pwd`:/src -w /src docker.io/library/golang:1.13 make vendor
+
 .PHONY: vendor
 vendor:
 	export GO111MODULE=on \
