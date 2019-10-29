@@ -105,7 +105,10 @@ load helpers
 }
 
 @test "copy-url-mtime" {
+  # Create a file with random content and a non-now timestamp (so we can
+  # can trust that buildah correctly set mtime on copy)
   createrandom ${TESTDIR}/randomfile
+  touch -t 201910310123.45 ${TESTDIR}/randomfile
 
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --workingdir / $cid
@@ -115,8 +118,16 @@ load helpers
   root=$(buildah mount $cid)
   test -s $root/urlfile
   cmp ${TESTDIR}/randomfile $root/urlfile
-  test ! -nt ${TESTDIR}/randomfile $root/urlfile
-  test ! -ot ${TESTDIR}/randomfile $root/urlfile
+
+  # Compare timestamps. Display them in human-readable form, so if there's
+  # a mismatch it will be shown in the test log.
+  mtime_randomfile=$(stat --format %y ${TESTDIR}/randomfile)
+  mtime_urlfile=$(stat --format %y $root/urlfile)
+
+  echo "mtime[randomfile] = $mtime_randomfile"
+  echo "mtime[urlfile]    = $mtime_urlfile"
+  test "$mtime_randomfile" = "$mtime_urlfile"
+
   buildah rm $cid
 }
 
