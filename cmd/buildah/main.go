@@ -16,6 +16,7 @@ import (
 )
 
 type globalFlags struct {
+	ContainersConf    string
 	Debug             bool
 	LogLevel          string
 	Root              string
@@ -72,6 +73,7 @@ func init() {
 	rootCmd.Version = fmt.Sprintf("%s (image-spec %s, runtime-spec %s)", buildah.Version, ispecs.Version, rspecs.Version)
 	rootCmd.PersistentFlags().BoolVar(&globalFlagResults.Debug, "debug", false, "print debugging information")
 	// TODO Need to allow for environment variable
+	rootCmd.PersistentFlags().StringVar(&globalFlagResults.ContainersConf, "containers-conf", "", "path to containers.conf file (not usually used)")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.RegistriesConf, "registries-conf", "", "path to registries.conf file (not usually used)")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.RegistriesConfDir, "registries-conf-dir", "", "path to registries.conf.d directory (not usually used)")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.Root, "root", storageOptions.GraphRoot, "storage root dir")
@@ -98,18 +100,15 @@ func initConfig() {
 
 const logLevel = "log-level"
 
-var globalDefaultConfig *config.Config
-
-func getDefaultConfig() *config.Config {
+func getDefaultConfig(path string) *config.Config {
 	var err error
-	if globalDefaultConfig == nil {
-		globalDefaultConfig, err = config.New("")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
-		}
+	defaultConfig, err := config.New(path)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
 	}
-	return globalDefaultConfig
+	return defaultConfig
 }
 
 func before(cmd *cobra.Command) error {

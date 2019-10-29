@@ -10,8 +10,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/containers/common/pkg/unshare"
-	"github.com/containers/image/pkg/sysregistriesv2"
-	"github.com/containers/image/types"
 	units "github.com/docker/go-units"
 	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
@@ -23,7 +21,7 @@ const (
 	DefaultApparmorProfile = "container-default"
 	// DefaultPidsLimit is the default value for maximum number of processes
 	// allowed inside a container
-	DefaultPidsLimit = 1024
+	DefaultPidsLimit = 2048
 	// DefaultLogSizeMax is the default value for the maximum log size
 	// allowed for a container. Negative values mean that no limit is imposed.
 	DefaultLogSizeMax = -1
@@ -128,13 +126,12 @@ var DefaultCapabilities = []string{
 }
 
 // DefaultHooksDirs defines the default hooks directory
-var DefaultHooksDirs = []string{"/etc/containers/oci/hooks.d"}
+var DefaultHooksDirs = []string{"/usr/share/containers/oci/hooks.d"}
 
 // New generates a Config from the containers.conf file path
 func New(path string) (*Config, error) {
 	defaultConfig := DefaultConfig()
 	if path != "" {
-		// return defaultConfig, defaultConfig.UpdateFromFile(path)
 		err := defaultConfig.UpdateFromFile(path)
 		if err != nil {
 			return nil, err
@@ -157,7 +154,7 @@ func New(path string) (*Config, error) {
 			}
 		}
 	}
-	if err := defaultConfig.Validate(nil, true); err != nil {
+	if err := defaultConfig.Validate(true); err != nil {
 		return nil, err
 	}
 
@@ -184,6 +181,7 @@ func DefaultConfig() *Config {
 			SeccompProfile:      DefaultSeccompPath,
 			SELinux:             selinuxEnabled(),
 			ShmSize:             DefaultShmSize,
+			HooksDir:            DefaultHooksDirs,
 		},
 		NetworkConfig: NetworkConfig{
 			NetworkDir: cniConfigDir,
@@ -237,9 +235,9 @@ func (c *Config) UpdateFromFile(path string) error {
 // The parameter `onExecution` specifies if the validation should include
 // execution checks. It returns an `error` on validation failure, otherwise
 // `nil`.
-func (c *Config) Validate(systemContext *types.SystemContext, onExecution bool) error {
+func (c *Config) Validate(onExecution bool) error {
 
-	if err := c.ContainersConfig.Validate(systemContext, onExecution); err != nil {
+	if err := c.ContainersConfig.Validate(); err != nil {
 		return errors.Wrapf(err, "containers config")
 	}
 
@@ -255,17 +253,10 @@ func (c *Config) Validate(systemContext *types.SystemContext, onExecution bool) 
 	return nil
 }
 
-// Validate is the main entry point for runtime configuration validation
-// The parameter `onExecution` specifies if the validation should include
-// execution checks. It returns an `error` on validation failure, otherwise
+// Validate is the main entry point for containers configuration validation
+// It returns an `error` on validation failure, otherwise
 // `nil`.
-func (c *ContainersConfig) Validate(systemContext *types.SystemContext, onExecution bool) error {
-	// This is somehow duplicated with server.getUlimitsFromConfig under server/utils.go
-	// but I don't want to export that function for the sake of validation here
-	// so, keep it in mind if things start to blow up.
-	// Reason for having this here is that I don't want people to start crio
-	// with invalid ulimits but realize that only after starting a couple of
-	// containers and watching them fail.
+func (c *ContainersConfig) Validate() error {
 	for _, u := range c.DefaultUlimits {
 		ul, err := units.ParseUlimit(u)
 		if err != nil {
@@ -290,21 +281,6 @@ func (c *ContainersConfig) Validate(systemContext *types.SystemContext, onExecut
 
 	if _, err := units.FromHumanSize(c.ShmSize); err != nil {
 		return fmt.Errorf("invalid --shm-size %s, %q", c.ShmSize, err)
-	}
-
-	// check for validation on execution
-	if onExecution {
-
-		// Validate the system registries configuration
-		if _, err := sysregistriesv2.GetRegistries(systemContext); err != nil {
-			return errors.Wrapf(err, "invalid registries")
-		}
-
-		for _, hooksDir := range c.HooksDir {
-			if err := IsDirectory(hooksDir); err != nil {
-				return errors.Wrapf(err, "invalid hooks_dir: %s", err)
-			}
-		}
 	}
 
 	return nil
@@ -370,13 +346,12 @@ func Device(device string) (string, string, string, error) {
 		permissions = split[2]
 		fallthrough
 	case 2:
-		if (len(split) == 2 && !IsValidDeviceMode(split[1])) ||
-			(len(split) == 3 && (IsValidDeviceMode(split[1]) || !strings.HasPrefix(split[1], "/dev/"))) {
-			return "", "", "", fmt.Errorf("invalid device mode: %s", split[1])
-		}
-		if len(split) == 2 {
+		if IsValidDeviceMode(split[1]) {
 			permissions = split[1]
 		} else {
+			if len(split[1]) == 0 || split[1][0] != '/' {
+				return "", "", "", fmt.Errorf("invalid device mode: %s", split[1])
+			}
 			dst = split[1]
 		}
 		fallthrough

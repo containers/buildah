@@ -76,9 +76,8 @@ func init() {
 	}
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 
-	defaultConfig := getDefaultConfig()
 	// Add in the common flags
-	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults, defaultConfig)
+	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults, getDefaultConfig(""))
 	flags.AddFlagSet(&fromAndBudFlags)
 
 	rootCmd.AddCommand(fromCommand)
@@ -173,6 +172,16 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if err := buildahcli.CheckAuthFile(iopts.authfile); err != nil {
 		return err
 	}
+	if c.Flag("containers-conf").Changed {
+		path, err := c.Flags().GetString("containers-conf")
+		if err != nil {
+			return err
+		}
+		err = buildahcli.SetDefaultConfig(c, getDefaultConfig(path))
+		if err != nil {
+			return errors.Wrapf(err, "error setting default values from containers.conf")
+		}
+	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
@@ -245,7 +254,8 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		}
 		devices = append(devices, dev...)
 	}
-	capabilities := buildahcli.GetCapabilities(getDefaultConfig().ContainersConfig.DefaultCapabilities, iopts.CapAdd, iopts.CapDrop)
+
+	capabilities := buildahcli.GetCapabilities(getDefaultConfig(globalFlagResults.ContainersConf).ContainersConfig.DefaultCapabilities, iopts.CapAdd, iopts.CapDrop)
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
 		Container:             iopts.name,
@@ -264,7 +274,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		Format:                format,
 		BlobDirectory:         iopts.BlobCache,
 		Devices:               devices,
-		DefaultEnv:            getDefaultConfig().ContainersConfig.Env,
+		DefaultEnv:            getDefaultConfig(globalFlagResults.ContainersConf).ContainersConfig.Env,
 	}
 
 	if !iopts.quiet {

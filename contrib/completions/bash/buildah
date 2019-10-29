@@ -161,6 +161,7 @@ return 1
          --version -v
          "
      local options_with_args="
+         --containers-conf
          --registries-conf
          --registries-conf-dir
          --root

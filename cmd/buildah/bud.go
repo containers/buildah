@@ -69,8 +69,7 @@ func init() {
 	budFlags.StringVar(&budFlagResults.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
 
 	layerFlags := buildahcli.GetLayerFlags(&layerFlagsResults)
-	defaultConfig := getDefaultConfig()
-	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults, defaultConfig)
+	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults, getDefaultConfig(""))
 
 	flags.AddFlagSet(&budFlags)
 	flags.AddFlagSet(&layerFlags)
@@ -92,6 +91,17 @@ func getDockerfiles(files []string) []string {
 }
 
 func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
+	if c.Flag("containers-conf").Changed {
+		path, err := c.Flags().GetString("containers-conf")
+		if err != nil {
+			return err
+		}
+		err = buildahcli.SetDefaultConfig(c, getDefaultConfig(path))
+		if err != nil {
+			return errors.Wrapf(err, "error setting default values from containers.conf")
+		}
+	}
+
 	output := ""
 	tags := []string{}
 	if c.Flag("tag").Changed {
@@ -300,7 +310,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		devices = append(devices, dev...)
 	}
 
-	capabilities := buildahcli.GetCapabilities(getDefaultConfig().ContainersConfig.DefaultCapabilities, iopts.CapAdd, iopts.CapDrop)
+	capabilities := buildahcli.GetCapabilities(getDefaultConfig(globalFlagResults.ContainersConf).ContainersConfig.DefaultCapabilities, iopts.CapAdd, iopts.CapDrop)
 
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:        contextDir,
@@ -340,7 +350,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		Target:                  iopts.Target,
 		TransientMounts:         transientMounts,
 		Devices:                 devices,
-		DefaultEnv:              getDefaultConfig().ContainersConfig.Env,
+		DefaultEnv:              getDefaultConfig(globalFlagResults.ContainersConf).ContainersConfig.Env,
 	}
 
 	if iopts.Quiet {

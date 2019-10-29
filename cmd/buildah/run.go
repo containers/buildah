@@ -125,7 +125,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		return errors.Wrapf(err, "error parsing namespace-related options")
 	}
 
-	defautlConfig := getDefaultConfig()
+	defautlConfig := getDefaultConfig(globalFlagResults.ContainersConf)
 
 	options := buildah.RunOptions{
 		Env:              defautlConfig.ContainersConfig.Env,

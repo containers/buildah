@@ -19,6 +19,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -211,19 +212,9 @@ func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, 
 	if err := fs.MarkHidden("override-arch"); err != nil {
 		panic(fmt.Sprintf("error marking override-arch as hidden: %v", err))
 	}
-	securityOpts := []string{}
-	if defaultConfig.ContainersConfig.SeccompProfile != "" && defaultConfig.ContainersConfig.SeccompProfile != parse.SeccompDefaultPath {
-		securityOpts = append(securityOpts, fmt.Sprintf("seccomp=%s", defaultConfig.ContainersConfig.SeccompProfile))
-	}
-	if apparmor.IsEnabled() && defaultConfig.ContainersConfig.ApparmorProfile != "" {
-		securityOpts = append(securityOpts, fmt.Sprintf("apparmor=%s", defaultConfig.ContainersConfig.ApparmorProfile))
-	}
-	if selinux.GetEnabled() && !defaultConfig.ContainersConfig.SELinux {
-		securityOpts = append(securityOpts, fmt.Sprintf("label=%s", selinux.DisableSecOpt()[0]))
-	}
 	fs.StringArrayVar(&flags.SecurityOpt, "security-opt", []string{}, "security options (default [])")
-	fs.StringVar(&flags.ShmSize, "shm-size", "65536k", "size of '/dev/shm'. The format is `<number><unit>`.")
-	fs.StringSliceVar(&flags.Ulimit, "ulimit", []string{}, "ulimit options (default [])")
+	fs.StringVar(&flags.ShmSize, "shm-size", defaultConfig.ContainersConfig.ShmSize, "size of '/dev/shm'. The format is `<number><unit>`.")
+	fs.StringSliceVar(&flags.Ulimit, "ulimit", defaultConfig.ContainersConfig.DefaultUlimits, "ulimit options (default [])")
 	fs.StringSliceVarP(&flags.Volumes, "volume", "v", []string{}, "bind mount a volume into the container (default [])")
 
 	// Add in the usernamespace and namespaceflags
@@ -233,6 +224,45 @@ func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, 
 	fs.AddFlagSet(&namespaceFlags)
 
 	return fs
+}
+
+func SetDefaultConfig(cmd *cobra.Command, defaultConfig *config.Config) error {
+	if !cmd.Flag("security-opt").Changed {
+		securityOpts := []string{}
+		if defaultConfig.ContainersConfig.SeccompProfile != "" && defaultConfig.ContainersConfig.SeccompProfile != parse.SeccompDefaultPath {
+			securityOpts = append(securityOpts, fmt.Sprintf("seccomp=%s", defaultConfig.ContainersConfig.SeccompProfile))
+		}
+		if apparmor.IsEnabled() && defaultConfig.ContainersConfig.ApparmorProfile != "" {
+			securityOpts = append(securityOpts, fmt.Sprintf("apparmor=%s", defaultConfig.ContainersConfig.ApparmorProfile))
+		}
+		if selinux.GetEnabled() && !defaultConfig.ContainersConfig.SELinux {
+			securityOpts = append(securityOpts, fmt.Sprintf("label=%s", selinux.DisableSecOpt()[0]))
+		}
+		err := cmd.Flags().Set("security-opt", strings.Join(securityOpts, ","))
+		if err != nil {
+			return err
+		}
+
+	}
+	if !cmd.Flag("device").Changed && len(defaultConfig.ContainersConfig.AdditionalDevices) != 0 {
+		err := cmd.Flags().Set("device", strings.Join(defaultConfig.ContainersConfig.AdditionalDevices, ","))
+		if err != nil {
+			return err
+		}
+	}
+	if !cmd.Flag("shm-size").Changed {
+		err := cmd.Flags().Set("shm-size", defaultConfig.ContainersConfig.ShmSize)
+		if err != nil {
+			return err
+		}
+	}
+	if !cmd.Flag("ulimit").Changed && len(defaultConfig.ContainersConfig.DefaultUlimits) != 0 {
+		err := cmd.Flags().Set("ulimit", strings.Join(defaultConfig.ContainersConfig.DefaultUlimits, ","))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UseLayers returns true if BUILDAH_LAYERS is set to "1" or "true"

@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/containernetworking/cni v0.7.1
-	github.com/containers/common v0.0.1
+	github.com/containers/common v0.0.2
 	github.com/containers/image/v5 v5.0.0
 	github.com/containers/storage v1.14.0
 	github.com/cyphar/filepath-securejoin v0.2.2
@@ -41,6 +41,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
+	github.com/vishvananda/netlink v1.0.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20190625233234-7109fa855b0f // indirect
 	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
 	golang.org/x/crypto v0.0.0-20190927123631-a832865fa7ad
@@ -50,4 +51,4 @@ require (
 	k8s.io/api v0.0.0-20191010143144-fbf594f18f80 // indirect
 )
 
-replace github.com/openshift/imagebuilder => github.com/QiWang19/imagebuilder v1.1.1-0.20191017214150-d13d5340b885
+replace github.com/containers/common => github.com/QiWang19/common v0.0.0-20191109180558-1d049e239abc
