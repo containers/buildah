@@ -109,3 +109,43 @@ load helpers
   run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json busybox docker://registry.example.com/evenbusierbox
   expect_output --substring 'push to registry at "registry.example.com" denied by policy: not in allowed registries list'
 }
+
+
+@test "buildah push image to containers-storage" {
+  buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json busybox containers-storage:newimage:latest
+  run_buildah images
+  expect_output --substring "newimage"
+  buildah rmi newimage busybox
+}
+
+@test "buildah push image to docker-archive and oci-archive" {
+  buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  for dest in docker-archive oci-archive; do
+    mkdir ${TESTDIR}/tmp
+    run_buildah push --signature-policy ${TESTSDIR}/policy.json busybox $dest:${TESTDIR}/tmp/busybox.tar:latest
+    ls ${TESTDIR}/tmp/busybox.tar
+    rm -rf ${TESTDIR}/tmp
+  done
+}
+
+@test "buildah push image to docker and docker registry" {
+  run which docker
+  if [[ $status -ne 0 ]]; then
+    skip "docker is not installed"
+  fi
+
+  buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json busybox docker-daemon:buildah/busybox:latest
+  run docker images
+  expect_output --substring "buildah/busybox"
+  docker rmi buildah/busybox
+
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword docker.io/busybox:latest docker://localhost:5000/buildah/busybox:latest
+  docker login localhost:5000 --username testuser --password testpassword
+  docker pull localhost:5000/buildah/busybox:latest
+  output=$(docker images)
+  expect_output --substring "buildah/busybox"
+  docker rmi localhost:5000/buildah/busybox:latest
+  docker logout localhost:5000
+}
