@@ -20,7 +20,6 @@ UBUNTU_PACKAGES="
     libdevmapper-dev
     libglib2.0-dev
     libgpgme11-dev
-    libostree-dev
     libseccomp-dev
     libselinux-dev
     openssl
@@ -45,7 +44,6 @@ FEDORA_PACKAGES="
     gpgme-devel
     libassuan-devel
     libseccomp-devel
-    ostree-devel
     podman
     runc
     skopeo-containers

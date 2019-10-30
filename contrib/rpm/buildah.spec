@@ -44,7 +44,6 @@ BuildRequires:  btrfs-progs-devel
 BuildRequires:  libassuan-devel
 BuildRequires:  libseccomp-devel
 BuildRequires:  glib2-devel
-BuildRequires:  ostree-devel
 BuildRequires:  make
 Requires:       runc >= 1.0.0-6
 %if 0%{?rhel} == 7

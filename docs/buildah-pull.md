@@ -31,9 +31,6 @@ Multiple transports are supported:
   **oci-archive:**_path_**:**_tag_
   An image _tag_ in a directory compliant with "Open Container Image Layout Specification" at _path_.
 
-  **ostree:**_image_[**@**_/absolute/repo/path_]
-  An image in local OSTree repository.  _/absolute/repo/path_ defaults to _/ostree/repo_.
-
 ### DEPENDENCIES
 
 Buildah resolves the path to the registry to pull from by using the /etc/containers/registries.conf
