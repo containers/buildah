@@ -27,7 +27,6 @@ RUN dnf -y install --enablerepo=updates-testing \
      gpgme-devel \
      libassuan-devel \
      libseccomp-devel \
-     ostree-devel \
      git \
      bzip2 \
      go-md2man \

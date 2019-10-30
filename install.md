@@ -139,7 +139,6 @@ Prior to installing Buildah, install the following packages on your Linux distro
 * glib2-devel
 * libassuan-devel
 * libseccomp-devel
-* ostree-devel
 * runc (Requires version 1.0 RC4 or higher.)
 * containers-common
 
@@ -158,7 +157,6 @@ In Fedora, you can use this command:
     gpgme-devel \
     libassuan-devel \
     libseccomp-devel \
-    ostree-devel \
     git \
     bzip2 \
     go-md2man \
@@ -196,7 +194,6 @@ run this command:
     gpgme-devel \
     libassuan-devel \
     libseccomp-devel \
-    ostree-devel \
     git \
     bzip2 \
     go-md2man \
@@ -241,7 +238,7 @@ In Ubuntu zesty and xenial, you can use these commands:
   add-apt-repository -y ppa:gophers/archive
   apt-add-repository -y ppa:projectatomic/ppa
   apt-get -y -qq update
-  apt-get -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libostree-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
+  apt-get -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
   apt-get -y install golang-1.10
 ```
 Then to install Buildah on Ubuntu follow the steps in this example:
@@ -266,7 +263,7 @@ gpg --recv-keys 0x018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D
 gpg --export 0x018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D >> /usr/share/keyrings/projectatomic-ppa.gpg
 echo 'deb [signed-by=/usr/share/keyrings/projectatomic-ppa.gpg] http://ppa.launchpad.net/projectatomic/ppa/ubuntu zesty main' > /etc/apt/sources.list.d/projectatomic-ppa.list
 apt update
-apt -y install -t stretch-backports libostree-dev golang
+apt -y install -t stretch-backports golang
 apt -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
 ```
 

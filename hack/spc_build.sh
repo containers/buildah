@@ -32,8 +32,8 @@ make clean
 mv vendor src
 mkdir -p $(pwd)/_build/src/github.com/containers
 ln -s $(pwd) $(pwd)/_build/src/github.com/containers/buildah
-make GOPATH=$(pwd)/_build:$(pwd) all TAGS="seccomp containers_image_ostree_stub"
-GOPATH=$(pwd)/_build:$(pwd) go test -c -tags "seccomp `./btrfs_tag.sh` `./btrfs_installed_tag.sh` `./libdm_tag.sh` `./ostree_tag.sh` `./selinux_tag.sh`" ./cmd/buildah
+make GOPATH=$(pwd)/_build:$(pwd) all TAGS="seccomp"
+GOPATH=$(pwd)/_build:$(pwd) go test -c -tags "seccomp `./btrfs_tag.sh` `./btrfs_installed_tag.sh` `./libdm_tag.sh` `./selinux_tag.sh`" ./cmd/buildah
 tmp=$(mktemp -d); mkdir $tmp/root $tmp/runroot; PATH="$PATH" ./buildah.test -test.v -root $tmp/root -runroot $tmp/runroot -storage-driver vfs -signature-policy $(pwd)/tests/policy.json -registries-conf $(pwd)/tests/registries.conf
 
 echo "Logging in to local registry..."

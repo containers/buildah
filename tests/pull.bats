@@ -105,26 +105,6 @@ load helpers
   [ "$status" -eq 0 ]
 }
 
-@test "pull-from-ostree" {
-  run command -v ostree
-  if [[ $status -ne 0 ]]
-  then
-     skip "Skip the test as ostree command is not avaible"
-  fi
-
-  mkdir ${TESTDIR}/ostree-repo
-  run ostree --repo=${TESTDIR}/ostree-repo init
-  echo "$output"
-  [ "$status" -eq 0 ]
-  run_buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json alpine
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine ostree:alpine@${TESTDIR}/ostree-repo
-  run_buildah rmi alpine
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json ostree:alpine@${TESTDIR}/ostree-repo
-  run_buildah images --format "{{.Name}}:{{.Tag}}"
-  expect_output --substring "ostree-repo:latest"
-}
-
-
 @test "pull-all-tags" {
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json --all-tags alpine
   expect_output --substring "alpine:latest"
