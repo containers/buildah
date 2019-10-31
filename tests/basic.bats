@@ -3,11 +3,11 @@
 load helpers
 
 @test "from" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah rm $cid
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   run_buildah rm $cid
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --name i-love-naming-things alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json --name i-love-naming-things alpine)
   run_buildah rm i-love-naming-things
 }
 
@@ -24,11 +24,11 @@ load helpers
 }
 
 @test "from-nopull" {
-  run_buildah 1 from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah 1 from --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
 }
 
 @test "mount" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   root=$(buildah mount $cid)
   run_buildah unmount $cid
   root=$(buildah mount $cid)
@@ -38,7 +38,7 @@ load helpers
 }
 
 @test "by-name" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json --name scratch-working-image-for-test scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json --name scratch-working-image-for-test scratch)
   root=$(buildah mount scratch-working-image-for-test)
   run_buildah unmount scratch-working-image-for-test
   run_buildah rm scratch-working-image-for-test
@@ -48,7 +48,7 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   root=$(buildah mount $cid)
   cp ${TESTDIR}/randomfile $root/randomfile
   run_buildah unmount $cid

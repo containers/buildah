@@ -286,6 +286,11 @@ Defaults to *true*.
 Pull the image from the first registry it is found in as listed in registries.conf.
 Raise an error if not found in the registries, even if the image is present locally.
 
+**--pull-never**
+
+Do not pull the image from the registry, use only the local version. Raise an error
+if the image is not present locally.
+
 **--quiet, -q**
 
 If an image needs to be pulled from the registry, suppress progress output.

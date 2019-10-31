@@ -4,7 +4,7 @@ load helpers
 
 @test "rename" {
   new_name=test-container
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   old_name=$(buildah containers --format "{{.ContainerName}}")
   buildah rename ${cid} ${new_name}
 
@@ -19,7 +19,7 @@ load helpers
 }
 
 @test "rename same name as current name" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah 1 --log-level=error rename ${cid} ${cid}
   expect_output 'renaming a container with the same name as its current name'
 
@@ -28,8 +28,8 @@ load helpers
 }
 
 @test "rename same name as other container name" {
-  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json busybox)
+  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
   run_buildah 1 --log-level=error rename ${cid1} ${cid2}
   expect_output --substring " already in use by "
 

@@ -38,7 +38,7 @@ load helpers
 }
 
 @test "push with manifest type conversion" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah push --signature-policy ${TESTSDIR}/policy.json --format oci alpine dir:my-dir
   manifest=$(cat my-dir/manifest.json)
   run grep "application/vnd.oci.image.config.v1+json" <<< "$manifest"
@@ -54,7 +54,7 @@ load helpers
 }
 
 @test "push with imageid" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   imageid=$(buildah images -q)
   run_buildah push --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
   buildah rm "$cid"
@@ -63,7 +63,7 @@ load helpers
 }
 
 @test "push with imageid and digest file" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   imageid=$(buildah images -q)
   run_buildah push --digestfile=${TESTDIR}/digest.txt --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
   cat ${TESTDIR}/digest.txt

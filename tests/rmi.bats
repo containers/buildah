@@ -14,7 +14,7 @@ load helpers
 }
 
 @test "remove one image" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   buildah rmi alpine
   run_buildah --log-level=error images -q
@@ -97,17 +97,17 @@ load helpers
 }
 
 @test "use conflicting commands to remove images" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   run_buildah 1 --log-level=error rmi -a alpine
   expect_output --substring "when using the --all switch, you may not pass any images names or IDs"
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   run_buildah 1 --log-level=error rmi -p alpine
   expect_output --substring "when using the --prune switch, you may not pass any images names or IDs"
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   run_buildah 1 --log-level=error rmi -a -p
   expect_output --substring "when using the --all switch, you may not use --prune switch"

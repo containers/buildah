@@ -16,10 +16,10 @@ load helpers
     done
 
     # Create a container by specifying the image with one name.
-    buildah from --pull --signature-policy ${TESTSDIR}/policy.json $image
+    buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json $image
 
     # Create a container by specifying the image with another name.
-    buildah from --pull --signature-policy ${TESTSDIR}/policy.json $imagename
+    buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json $imagename
 
     # Get their image IDs.  They should be the same one.
     lastid=

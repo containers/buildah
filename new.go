@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/containers/buildah/util"
 	"github.com/containers/image/v5/image"
@@ -156,23 +157,47 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 		if destImage == "" {
 			return nil, "", nil, errors.Errorf("error computing local image name for %q", transports.ImageName(srcRef))
 		}
-
 		ref, err := is.Transport.ParseStoreReference(store, destImage)
 		if err != nil {
 			return nil, "", nil, errors.Wrapf(err, "error parsing reference to image %q", destImage)
 		}
-		img, err := is.Transport.GetStoreImage(store, ref)
-		if err == nil {
-			return ref, transport, img, nil
-		}
 
-		if errors.Cause(err) == storage.ErrImageUnknown && options.PullPolicy != PullIfMissing {
-			logrus.Debugf("no such image %q: %v", transports.ImageName(ref), err)
-			failures = append(failures, failure{
-				resolvedImageName: image,
-				err:               fmt.Errorf("no such image %q", transports.ImageName(ref)),
-			})
-			continue
+		if options.PullPolicy == PullIfNewer {
+			img, err := is.Transport.GetStoreImage(store, ref)
+			if err == nil {
+				// Let's see if this image is on the repository and if it's there
+				// then note it's Created date.
+				var repoImageCreated time.Time
+				repoImageFound := false
+				repoImage, err := srcRef.NewImage(ctx, systemContext)
+				if err == nil {
+					inspect, err := repoImage.Inspect(ctx)
+					if err == nil {
+						repoImageFound = true
+						repoImageCreated = *inspect.Created
+					}
+					repoImage.Close()
+				}
+				if !repoImageFound || repoImageCreated == img.Created {
+					// The image is only local or the same date is on the
+					// local and repo versions of the image, no need to pull.
+					return ref, transport, img, nil
+				}
+			}
+		} else {
+			// Get the image from the store if present for PullNever and PullIfMissing
+			img, err := is.Transport.GetStoreImage(store, ref)
+			if err == nil {
+				return ref, transport, img, nil
+			}
+			if errors.Cause(err) == storage.ErrImageUnknown && options.PullPolicy == PullNever {
+				logrus.Debugf("no such image %q: %v", transports.ImageName(ref), err)
+				failures = append(failures, failure{
+					resolvedImageName: image,
+					err:               fmt.Errorf("no such image %q", transports.ImageName(ref)),
+				})
+				continue
+			}
 		}
 
 		pulledImg, pulledReference, err := pullAndFindImage(ctx, store, srcRef, options, systemContext)
