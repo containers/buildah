@@ -3,6 +3,7 @@
 load helpers
 
 IMAGE_LIST=docker://k8s.gcr.io/pause:3.1
+IMAGE_LIST_DIGEST=docker://k8s.gcr.io/pause@sha256:f78411e19d84a252e53bff71a4407a5686c46983a2c2eeed83929b888179acea
 IMAGE_LIST_INSTANCE=docker://k8s.gcr.io/pause@sha256:f365626a556e58189fc21d099fc64603db0f440bff07f77c740989515c544a39
 IMAGE_LIST_AMD64_INSTANCE_DIGEST=sha256:59eec8837a4d942cc19a52b8c09ea75121acc38114a2c68b98983ce9356b8610
 IMAGE_LIST_ARM_INSTANCE_DIGEST=sha256:c84b0a3a07b628bc4d62e5047d0f8dff80f7c00979e1e28a821a033ecda8fe53
@@ -94,4 +95,28 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah manifest inspect foo
     run_buildah manifest push --signature-policy ${TESTSDIR}/policy.json --purge foo dir:${TESTDIR}/pushed
     run_buildah 1 manifest inspect foo
+}
+
+@test "manifest-from-tag" {
+    run_buildah from --signature-policy ${TESTSDIR}/policy.json --name test-container ${IMAGE_LIST}
+    run_buildah inspect --format ''{{.OCIv1.Architecture}}' ${IMAGE_LIST}
+    expect_output --substring $(go env GOARCH)
+    run_buildah inspect --format ''{{.OCIv1.Architecture}}' test-container
+    expect_output --substring $(go env GOARCH)
+}
+
+@test "manifest-from-digest" {
+    run_buildah from --signature-policy ${TESTSDIR}/policy.json --name test-container ${IMAGE_LIST_DIGEST}
+    run_buildah inspect --format ''{{.OCIv1.Architecture}}' ${IMAGE_LIST_DIGEST}
+    expect_output --substring $(go env GOARCH)
+    run_buildah inspect --format ''{{.OCIv1.Architecture}}' test-container
+    expect_output --substring $(go env GOARCH)
+}
+
+@test "manifest-from-instance" {
+    run_buildah from --signature-policy ${TESTSDIR}/policy.json --name test-container ${IMAGE_LIST_INSTANCE}
+    run_buildah inspect --format ''{{.OCIv1.Architecture}}' ${IMAGE_LIST_INSTANCE}
+    expect_output --substring arm64
+    run_buildah inspect --format ''{{.OCIv1.Architecture}}' test-container
+    expect_output --substring arm64
 }

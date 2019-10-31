@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/containers/buildah/util"
+	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/sysregistriesv2"
 	is "github.com/containers/image/v5/storage"
@@ -14,6 +15,7 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/openshift/imagebuilder"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -253,35 +255,53 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 			return nil, err
 		}
 	}
-	image := options.FromImage
+	imageSpec := options.FromImage
 	imageID := ""
 	imageDigest := ""
 	topLayer := ""
 	if img != nil {
-		image = getImageName(imageNamePrefix(image), img)
+		imageSpec = getImageName(imageNamePrefix(imageSpec), img)
 		imageID = img.ID
 		topLayer = img.TopLayer
 	}
-	var src types.ImageCloser
+	var src types.Image
 	if ref != nil {
-		src, err = ref.NewImage(ctx, systemContext)
+		srcSrc, err := ref.NewImageSource(ctx, systemContext)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error instantiating image for %q", transports.ImageName(ref))
 		}
-		if manifestBytes, _, err := src.Manifest(ctx); err == nil {
-			if manifestDigest, err := manifest.Digest(manifestBytes); err == nil {
-				imageDigest = manifestDigest.String()
-			}
+		defer srcSrc.Close()
+		manifestBytes, manifestType, err := srcSrc.GetManifest(ctx, nil)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error loading image manifest for %q", transports.ImageName(ref))
 		}
-		defer src.Close()
+		if manifestDigest, err := manifest.Digest(manifestBytes); err == nil {
+			imageDigest = manifestDigest.String()
+		}
+		var instanceDigest *digest.Digest
+		if manifest.MIMETypeIsMultiImage(manifestType) {
+			list, err := manifest.ListFromBlob(manifestBytes, manifestType)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error parsing image manifest for %q as list", transports.ImageName(ref))
+			}
+			instance, err := list.ChooseInstance(systemContext)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error finding an appropriate image in manifest list %q", transports.ImageName(ref))
+			}
+			instanceDigest = &instance
+		}
+		src, err = image.FromUnparsedImage(ctx, systemContext, image.UnparsedInstance(srcSrc, instanceDigest))
+		if err != nil {
+			return nil, errors.Wrapf(err, "error instantiating image for %q instance %q", transports.ImageName(ref), instanceDigest)
+		}
 	}
 
 	name := "working-container"
 	if options.Container != "" {
 		name = options.Container
 	} else {
-		if image != "" {
-			name = imageNamePrefix(image) + "-" + name
+		if imageSpec != "" {
+			name = imageNamePrefix(imageSpec) + "-" + name
 		}
 	}
 	var container *storage.Container
@@ -332,7 +352,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 	builder := &Builder{
 		store:                 store,
 		Type:                  containerType,
-		FromImage:             image,
+		FromImage:             imageSpec,
 		FromImageID:           imageID,
 		FromImageDigest:       imageDigest,
 		Container:             name,
