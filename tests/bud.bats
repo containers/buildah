@@ -1797,10 +1797,12 @@ load helpers
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} git://github.com/containers/BuildSourceImage
 }
 
+# Fixes #1906: buildah was not detecting changed tarfile
 @test "bud containerfile with tar archive in copy" {
-  # First check to verify cache is uses if the tar file does not change
+  # First check to verify cache is used if the tar file does not change
   target=copy-archive
-  date>bud/${target}/test; tar cJf - bud/${target}/test > bud/${target}/test.tar.xz
+  date > ${TESTSDIR}/bud/${target}/test
+  tar -C $TESTSDIR -cJf ${TESTSDIR}/bud/${target}/test.tar.xz bud/${target}/test
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} ${TESTSDIR}/bud/${target}
   expect_output --substring "COMMIT copy-archive"
 
@@ -1809,16 +1811,13 @@ load helpers
   expect_output --substring "COMMIT copy-archive"
 
   # Now test that we do NOT use cache if the tar file changes
-  date>bud/${target}/test; tar cJf - bud/${target}/test > bud/${target}/test.tar.xz
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} ${TESTSDIR}/bud/${target}
-  expect_output --substring "COMMIT copy-archive"
-
-  date>bud/${target}/test; tar cJf - bud/${target}/test > bud/${target}/test.tar.xz
+  echo This is a change >> ${TESTSDIR}/bud/${target}/test
+  tar -C $TESTSDIR -cJf ${TESTSDIR}/bud/${target}/test.tar.xz bud/${target}/test
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} ${TESTSDIR}/bud/${target}
   if [[ "$output" =~ " Using cache" ]]; then
-      is "$output" "[no instance of 'Using cache']" "no cache used"
+      expect_output "[no instance of 'Using cache']" "no cache used"
   fi
   expect_output --substring "COMMIT copy-archive"
 
-  rm bud/${target}/test*
+  rm -f ${TESTSDIR}/bud/${target}/test*
 }
