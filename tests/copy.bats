@@ -18,21 +18,21 @@ load helpers
   createrandom ${TESTDIR}/other-randomfile
   createrandom ${TESTDIR}/third-randomfile
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   root=$(buildah mount $cid)
   buildah config --workingdir / $cid
   buildah copy $cid ${TESTDIR}/randomfile
   run_buildah 1 copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
   buildah rm $cid
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   root=$(buildah mount $cid)
   buildah config --workingdir / $cid
   buildah copy $cid ${TESTDIR}/randomfile
   buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile /etc
   buildah rm $cid
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   root=$(buildah mount $cid)
   buildah config --workingdir / $cid
   buildah copy $cid "${TESTDIR}/*randomfile" /etc
@@ -45,7 +45,7 @@ load helpers
   createrandom ${TESTDIR}/other-randomfile
   createrandom ${TESTDIR}/third-randomfile
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   root=$(buildah mount $cid)
   buildah config --workingdir / $cid
   buildah copy $cid ${TESTDIR}/randomfile
@@ -140,7 +140,7 @@ load helpers
   createrandom ${TESTDIR}/other-subdir/randomfile
   createrandom ${TESTDIR}/other-subdir/other-randomfile
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah config --workingdir / $cid
   buildah copy --chown 1:1 $cid ${TESTDIR}/randomfile
   buildah copy --chown root:1 $cid ${TESTDIR}/randomfile /randomfile2
@@ -163,7 +163,7 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   ln -s ${TESTDIR}/randomfile ${TESTDIR}/link-randomfile
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   root=$(buildah mount $cid)
   buildah config --workingdir / $cid
   buildah copy $cid ${TESTDIR}/link-randomfile

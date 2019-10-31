@@ -14,7 +14,7 @@ load helpers
 }
 
 @test "mount one container" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error mount "$cid"
   buildah rm $cid
   buildah rmi -f alpine
@@ -25,29 +25,29 @@ load helpers
 }
 
 @test "mount multi images" {
-  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid3=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid2=$(buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid3=$(buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah mount "$cid1" "$cid2" "$cid3"
   buildah rm --all
   buildah rmi -f alpine
 }
 
 @test "mount multi images one bad" {
-  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid3=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid2=$(buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid3=$(buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah 1 mount "$cid1" badcontainer "$cid2" "$cid3"
   buildah rm --all
   buildah rmi -f alpine
 }
 
 @test "list currently mounted containers" {
-  cid1=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid1"
-  cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid2=$(buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid2"
-  cid3=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid3=$(buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid3"
   run_buildah --log-level=error mount
   expect_output --from="${lines[0]}" --substring "/tmp" "mount line 1 of 3"

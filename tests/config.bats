@@ -30,7 +30,7 @@ function check_matrix() {
 }
 
 @test "config entrypoint using single element in JSON array (exec form)" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
@@ -42,7 +42,7 @@ function check_matrix() {
 }
 
 @test "config entrypoint using multiple elements in JSON array (exec form)" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --entrypoint '[ "/ENTRYPOINT", "ELEMENT2" ]' $cid
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
@@ -54,7 +54,7 @@ function check_matrix() {
 }
 
 @test "config entrypoint using string (shell form)" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --entrypoint /ENTRYPOINT $cid
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
@@ -66,7 +66,7 @@ function check_matrix() {
 }
 
 @test "config set empty entrypoint doesn't wipe cmd" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --cmd "command" $cid
   buildah config --entrypoint "" $cid
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
@@ -79,7 +79,7 @@ function check_matrix() {
 }
 
 @test "config entrypoint with cmd" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config \
    --entrypoint /ENTRYPOINT \
    --cmd COMMAND-OR-ARGS \
@@ -107,7 +107,7 @@ function check_matrix() {
 }
 
 @test "config" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config \
    --author TESTAUTHOR \
    --created-by COINCIDENCE \
@@ -177,7 +177,7 @@ function check_matrix() {
 }
 
 @test "config env using --env expansion" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config --env 'foo=bar' --env 'foo1=bar1' $cid
   buildah config --env 'combined=$foo/${foo1}' $cid
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid env-image-docker
@@ -210,7 +210,7 @@ function check_matrix() {
 }
 
 @test "remove configs using '-' syntax" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   buildah config \
    --created-by COINCIDENCE \
    --volume /VOLUME \

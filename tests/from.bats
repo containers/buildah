@@ -27,7 +27,7 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
   buildah rm $cid
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
   [ "$cid" = elsewhere-img-working-container ]
 
@@ -39,7 +39,7 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
   buildah rm $cid
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
+  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
   buildah rm $cid
   [ "$cid" = elsewhere-img-working-container ]
 
@@ -98,7 +98,7 @@ load helpers
 #  docker run -d -p 5000:5000 --name registry -v ${TESTDIR}/auth:${TESTDIR}/auth:Z -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=${TESTDIR}/auth/htpasswd -e REGISTRY_HTTP_TLS_CERTIFICATE=${TESTDIR}/auth/domain.crt -e REGISTRY_HTTP_TLS_KEY=${TESTDIR}/auth/domain.key registry:2
 
   # When more buildah auth is in place convert the below.
-#  docker pull alpine
+#  docker pull=false alpine
 #  docker login localhost:5000 --username testuser --password testpassword
 #  docker tag alpine localhost:5000/my-alpine
 #  docker push localhost:5000/my-alpine
@@ -227,7 +227,7 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2
 
-  cid=$(buildah from --cpu-quota=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --cpu-quota=5000 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
   expect_output "5000"
   buildah rm $cid
@@ -251,7 +251,7 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2 "cgroupsv2: fails with EPERM on writing cpuset.cpus"
 
-  cid=$(buildah from --cpuset-cpus=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --cpuset-cpus=0 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
   expect_output "0"
   buildah rm $cid
@@ -273,7 +273,7 @@ load helpers
   skip_if_chroot
   skip_if_rootless
 
-  cid=$(buildah from --memory=40m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --memory=40m --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
 
   # Life is much more complicated under cgroups v2
   mpath='/sys/fs/cgroup/memory/memory.limit_in_bytes'
@@ -298,7 +298,7 @@ load helpers
   skip_if_chroot
   skip_if_no_runtime
 
-  cid=$(buildah from --volume=${TESTDIR}:/myvol:ro --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah from --volume=${TESTDIR}:/myvol:ro --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
   buildah rm $cid
@@ -330,8 +330,33 @@ load helpers
 }
 
 @test "from cidfile test" {
-  buildah from --cidfile output.cid --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  buildah from --cidfile output.cid --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$(cat output.cid)
   run_buildah --log-level=error containers -f id=${cid}
   buildah rm ${cid}
+}
+
+@test "from pull never" {
+  run_buildah 1 from --signature-policy ${TESTSDIR}/policy.json --pull-never busybox
+  echo "$output"
+  expect_output --substring "no such image"
+
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull=false busybox
+  echo "$output"
+  expect_output --substring "busybox-working-container"
+
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull-never busybox
+  echo "$output"
+  expect_output --substring "busybox-working-container"
+
+  buildah rmi --all --force
+}
+
+@test "from pull false no local image" {
+  target=my-busybox
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull=false busybox
+  echo "$output"
+  expect_output --substring "busybox-working-container"
+
+  buildah rmi --all --force
 }

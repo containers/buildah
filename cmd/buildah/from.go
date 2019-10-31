@@ -24,6 +24,7 @@ type fromReply struct {
 	name            string
 	pull            bool
 	pullAlways      bool
+	pullNever       bool
 	quiet           bool
 	signaturePolicy string
 	tlsVerify       bool
@@ -65,8 +66,9 @@ func init() {
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
 	flags.StringVar(&opts.name, "name", "", "`name` for the working container")
-	flags.BoolVar(&opts.pull, "pull", true, "pull the image if not present")
-	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if named image is present in store (supersedes pull option)")
+	flags.BoolVar(&opts.pull, "pull", true, "pull the image from the registry if newer or not present in store, if false, only pull the image if not present")
+	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if the named image is present in store")
+	flags.BoolVar(&opts.pullNever, "pull-never", false, "do not pull the image, use the image present in store if available")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pulling images")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	if err := flags.MarkHidden("signature-policy"); err != nil {
@@ -172,12 +174,30 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	pullPolicy := buildah.PullNever
+	pullFlagsCount := 0
+	if c.Flag("pull").Changed {
+		pullFlagsCount++
+	}
+	if c.Flag("pull-always").Changed {
+		pullFlagsCount++
+	}
+	if c.Flag("pull-never").Changed {
+		pullFlagsCount++
+	}
+
+	if pullFlagsCount > 1 {
+		return errors.Errorf("can only set one of 'pull' or 'pull-always' or 'pull-never'")
+	}
+
+	pullPolicy := buildah.PullIfMissing
 	if iopts.pull {
-		pullPolicy = buildah.PullIfMissing
+		pullPolicy = buildah.PullIfNewer
 	}
 	if iopts.pullAlways {
 		pullPolicy = buildah.PullAlways
+	}
+	if iopts.pullNever {
+		pullPolicy = buildah.PullNever
 	}
 
 	signaturePolicy := iopts.signaturePolicy
