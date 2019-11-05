@@ -213,6 +213,7 @@ load helpers
   skip_if_chroot
   skip_if_rootless
   skip_if_no_runtime
+  skip_if_cgroupsv2
 
   cid=$(buildah from --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
@@ -224,6 +225,7 @@ load helpers
   skip_if_chroot
   skip_if_rootless
   skip_if_no_runtime
+  skip_if_cgroupsv2
 
   cid=$(buildah from --cpu-quota=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
@@ -235,6 +237,7 @@ load helpers
   skip_if_chroot
   skip_if_rootless
   skip_if_no_runtime
+  skip_if_cgroupsv2
 
   cid=$(buildah from --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.shares
@@ -246,6 +249,7 @@ load helpers
   skip_if_chroot
   skip_if_rootless
   skip_if_no_runtime
+  skip_if_cgroupsv2 "cgroupsv2: fails with EPERM on writing cpuset.cpus"
 
   cid=$(buildah from --cpuset-cpus=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
@@ -257,6 +261,7 @@ load helpers
   skip_if_chroot
   skip_if_rootless
   skip_if_no_runtime
+  skip_if_cgroupsv2 "cgroupsv2: fails with EPERM on writing cpuset.mems"
 
   cid=$(buildah from --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
@@ -269,8 +274,14 @@ load helpers
   skip_if_rootless
 
   cid=$(buildah from --memory=40m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/memory/memory.limit_in_bytes
-  expect_output "41943040"
+
+  # Life is much more complicated under cgroups v2
+  mpath='/sys/fs/cgroup/memory/memory.limit_in_bytes'
+  if is_cgroupsv2; then
+      mpath="/sys/fs/cgroup\$(awk -F: '{print \$3}' /proc/self/cgroup)/memory.max"
+  fi
+  run_buildah --log-level=error run $cid sh -c "cat $mpath"
+  expect_output "41943040" "$mpath"
   buildah rm $cid
 }
 

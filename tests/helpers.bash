@@ -265,3 +265,20 @@ function skip_if_no_runtime() {
 
     skip "runtime '$runtime' not found"
 }
+
+##################
+#  is_cgroupsv2  #  Returns true if host system has cgroupsv2 enabled
+##################
+function is_cgroupsv2() {
+    local cgroupfs_t=$(stat -f -c %T /sys/fs/cgroup)
+    test "$cgroupfs_t" = "cgroup2fs"
+}
+
+#######################
+#  skip_if_cgroupsv2  #  Some tests don't work with cgroupsv2
+#######################
+function skip_if_cgroupsv2() {
+    if is_cgroupsv2; then
+        skip "${1:-test does not work with cgroups v2}"
+    fi
+}
