@@ -1036,23 +1036,23 @@ load helpers
 
 @test "bud with ARGS" {
   target=alpine-image
-  run_buildah --log-level=error bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.args ${TESTSDIR}/bud/run-scenarios
+  run_buildah --log-level=error bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.args ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "arg_value"
 }
 
 @test "bud with unused ARGS" {
   target=alpine-image
-  run_buildah --log-level=error bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=USED_VALUE ${TESTSDIR}/bud/run-scenarios
+  run_buildah --log-level=error bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=USED_VALUE ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "USED_VALUE"
   [[ ! "$output" =~ "one or more build args were not consumed: [UNUSED_ARG]" ]]
-  run_buildah --log-level=error bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=USED_VALUE --build-arg UNUSED_ARG=whaaaat ${TESTSDIR}/bud/run-scenarios
+  run_buildah --log-level=error bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=USED_VALUE --build-arg UNUSED_ARG=whaaaat ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "USED_VALUE"
   expect_output --substring "one or more build args were not consumed: \[UNUSED_ARG\]"
 }
 
 @test "bud with multi-value ARGS" {
   target=alpine-image
-  run_buildah --log-level=error bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=plugin1,plugin2,plugin3 ${TESTSDIR}/bud/run-scenarios
+  run_buildah --log-level=error bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=plugin1,plugin2,plugin3 ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "plugin1,plugin2,plugin3"
   [[ ! "$output" =~ "one or more build args were not consumed: [UNUSED_ARG]" ]]
 }
@@ -1285,7 +1285,7 @@ load helpers
 
 @test "bud-with-healthcheck" {
   target=alpine-image
-  buildah --log-level=error bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} --format docker ${TESTSDIR}/bud/healthcheck
+  buildah --log-level=error bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --format docker ${TESTSDIR}/bud/healthcheck
   run_buildah --log-level=error inspect -f '{{printf "%q" .Docker.Config.Healthcheck.Test}} {{printf "%d" .Docker.Config.Healthcheck.StartPeriod}} {{printf "%d" .Docker.Config.Healthcheck.Interval}} {{printf "%d" .Docker.Config.Healthcheck.Timeout}} {{printf "%d" .Docker.Config.Healthcheck.Retries}}' ${target}
   second=1000000000
   threeseconds=$(( 3 * $second ))
