@@ -233,3 +233,35 @@ function check_options_flag_err() {
     [ "$status" -eq 1 ]
     [[ $output = *"No options ($flag) can be specified after"* ]]
 }
+
+####################
+#  skip_if_chroot  #
+####################
+function skip_if_chroot() {
+    if test "$BUILDAH_ISOLATION" = "chroot"; then
+        skip "${1:-test does not work when \$BUILDAH_ISOLATION = chroot}"
+    fi
+}
+
+######################
+#  skip_if_rootless  #
+######################
+function skip_if_rootless() {
+    if test "$BUILDAH_ISOLATION" = "rootless"; then
+        skip "${1:-test does not work when \$BUILDAH_ISOLATION = rootless}"
+    fi
+}
+
+########################
+#  skip_if_no_runtime  #  'buildah run' can't work without a runtime
+########################
+function skip_if_no_runtime() {
+    # FIXME: if #1964 gets fixed, use 'buildah info' to determine runtime
+    # FIXME: right now we just rely on runc
+    runtime=runc
+    if type -p $runtime &> /dev/null; then
+        return
+    fi
+
+    skip "runtime '$runtime' not found"
+}

@@ -49,9 +49,8 @@ function teardown() {
 }
 
 @test "bind secrets mounts to container" {
-    if ! which runc ; then
-        skip "no runc in PATH"
-    fi
+    skip_if_no_runtime
+
     runc --version
 
 

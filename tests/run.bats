@@ -3,9 +3,8 @@
 load helpers
 
 @test "run" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	runc --version
 	createrandom ${TESTDIR}/randomfile
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
@@ -28,9 +27,8 @@ load helpers
 }
 
 @test "run--args" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 
 	# This should fail, because buildah run doesn't have a -n flag.
@@ -56,9 +54,8 @@ load helpers
 }
 
 @test "run-cmd" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	buildah config --workingdir /tmp $cid
 
@@ -170,9 +167,8 @@ function configure_and_check_user() {
 }
 
 @test "run-user" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	eval $(go env)
 	echo CGO_ENABLED=${CGO_ENABLED}
 	if test "$CGO_ENABLED" -ne 1; then
@@ -218,12 +214,9 @@ function configure_and_check_user() {
 }
 
 @test "run --hostname" {
-	if test "$BUILDAH_ISOLATION" = "rootless" ; then
-		skip "rootless"
-	fi
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_rootless
+	skip_if_no_runtime
+
 	runc --version
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run_buildah --log-level=error run $cid hostname
@@ -234,9 +227,8 @@ function configure_and_check_user() {
 }
 
 @test "run --volume" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	zflag=
 	if which selinuxenabled > /dev/null 2> /dev/null ; then
 		if selinuxenabled ; then
@@ -259,9 +251,8 @@ function configure_and_check_user() {
 }
 
 @test "run --mount" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	zflag=
 	if which selinuxenabled > /dev/null 2> /dev/null ; then
 		if selinuxenabled ; then
@@ -283,9 +274,8 @@ function configure_and_check_user() {
 }
 
 @test "run symlinks" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	runc --version
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	mkdir -p ${TESTDIR}/tmp
@@ -295,9 +285,8 @@ function configure_and_check_user() {
 }
 
 @test "run --cap-add/--cap-drop" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	runc --version
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	# Try with default caps.
@@ -321,9 +310,8 @@ function configure_and_check_user() {
 }
 
 @test "Check if containers run with correct open files/processes limits" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run_buildah --log-level=error run $cid awk '/open files/{print $4}' /proc/self/limits
 	expect_output "1048576" "limits: open files (unlimited)"
@@ -364,17 +352,15 @@ function configure_and_check_user() {
 }
 
 @test "run-exit-status" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run_buildah 42 run ${cid} sh -c 'exit 42'
 }
 
 @test "Verify /run/.containerenv exist" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	# test a standard mount to /run/.containerenv
 	run_buildah --log-level=error run $cid ls -1 /run/.containerenv
@@ -382,9 +368,8 @@ function configure_and_check_user() {
 }
 
 @test "run-device" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
+	skip_if_no_runtime
+
 	cid=$(buildah from --pull --device /dev/fuse --signature-policy ${TESTSDIR}/policy.json alpine)
 	run_buildah 0 run ${cid} ls /dev/fuse
 
@@ -397,12 +382,9 @@ function configure_and_check_user() {
 }
 
 @test "run-device-Rename" {
-	if ! which runc ; then
-		skip "no runc in PATH"
-	fi
-	if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-	    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
-	fi
+	skip_if_no_runtime
+	skip_if_chroot
+	skip_if_rootless
 
 	cid=$(buildah from --pull --device /dev/fuse:/dev/fuse1 --signature-policy ${TESTSDIR}/policy.json alpine)
 	run_buildah 0 run ${cid} ls /dev/fuse1

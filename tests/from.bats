@@ -210,12 +210,10 @@ load helpers
 }
 
 @test "from cpu-period test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
-  fi
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_chroot
+  skip_if_rootless
+  skip_if_no_runtime
+
   cid=$(buildah from --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
   expect_output "5000"
@@ -223,12 +221,10 @@ load helpers
 }
 
 @test "from cpu-quota test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
-  fi
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_chroot
+  skip_if_rootless
+  skip_if_no_runtime
+
   cid=$(buildah from --cpu-quota=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
   expect_output "5000"
@@ -236,12 +232,10 @@ load helpers
 }
 
 @test "from cpu-shares test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
-  fi
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_chroot
+  skip_if_rootless
+  skip_if_no_runtime
+
   cid=$(buildah from --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.shares
   expect_output "2"
@@ -249,12 +243,10 @@ load helpers
 }
 
 @test "from cpuset-cpus test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
-  fi
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_chroot
+  skip_if_rootless
+  skip_if_no_runtime
+
   cid=$(buildah from --cpuset-cpus=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
   expect_output "0"
@@ -262,12 +254,10 @@ load helpers
 }
 
 @test "from cpuset-mems test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
-  fi
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_chroot
+  skip_if_rootless
+  skip_if_no_runtime
+
   cid=$(buildah from --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
   expect_output "0"
@@ -275,12 +265,9 @@ load helpers
 }
 
 @test "from memory test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
-  fi
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_chroot
+  skip_if_rootless
+
   cid=$(buildah from --memory=40m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid cat /sys/fs/cgroup/memory/memory.limit_in_bytes
   expect_output "41943040"
@@ -288,9 +275,8 @@ load helpers
 }
 
 @test "from volume test" {
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_no_runtime
+
   cid=$(buildah from --volume=${TESTDIR}:/myvol --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
@@ -298,12 +284,9 @@ load helpers
 }
 
 @test "from volume ro test" {
-  if test "$BUILDAH_ISOLATION" = "chroot" ; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
-  fi
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_chroot
+  skip_if_no_runtime
+
   cid=$(buildah from --volume=${TESTDIR}:/myvol:ro --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
@@ -311,12 +294,9 @@ load helpers
 }
 
 @test "from shm-size test" {
-  if test "$BUILDAH_ISOLATION" = "chroot"; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
-  fi
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_chroot
+  skip_if_no_runtime
+
   cid=$(buildah from --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah --log-level=error run $cid -- df -h /dev/shm
   expect_output --substring " 80.0M "
@@ -324,9 +304,8 @@ load helpers
 }
 
 @test "from add-host test" {
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_no_runtime
+
   cid=$(buildah from --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah run $cid -- cat /etc/hosts
   expect_output --substring "127.0.0.1 +localhost"
