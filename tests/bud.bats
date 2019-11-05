@@ -488,9 +488,8 @@ load helpers
 
 @test "bud-preserve-subvolumes" {
   # This Dockerfile needs us to be able to handle a working RUN instruction.
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_no_runtime
+
   target=volume-image
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/preserve-volumes
   cid=$(buildah from ${target})
@@ -629,9 +628,8 @@ load helpers
 
 @test "bud-volume-perms" {
   # This Dockerfile needs us to be able to handle a working RUN instruction.
-  if ! which runc ; then
-    skip "no runc in PATH"
-  fi
+  skip_if_no_runtime
+
   target=volume-image
   buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/volume-perms
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${target})
@@ -1669,9 +1667,9 @@ load helpers
 }
 
 @test "bud with additional directory of devices" {
-  if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
-  fi
+  skip_if_chroot
+  skip_if_rootless
+
   target=alpine-image
   rm -rf ${TESTSDIR}/foo
   mkdir -p ${TESTSDIR}/foo
