@@ -49,6 +49,9 @@ func logoutCmd(c *cobra.Command, args []string, iopts *logoutReply) error {
 	if len(args) == 1 {
 		server = parse.ScrubServer(args[0])
 	}
+	if err := buildahcli.CheckAuthFile(iopts.authfile); err != nil {
+		return err
+	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {

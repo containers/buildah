@@ -267,9 +267,15 @@ func VerifyFlagsArgsOrder(args []string) error {
 }
 
 func GetDefaultAuthFile() string {
-	authfile := os.Getenv("REGISTRY_AUTH_FILE")
-	if authfile != "" {
-		return authfile
+	return os.Getenv("REGISTRY_AUTH_FILE")
+}
+
+func CheckAuthFile(authfile string) error {
+	if authfile == "" {
+		return nil
 	}
-	return ""
+	if _, err := os.Stat(authfile); err != nil {
+		return errors.Wrapf(err, "error checking authfile path %s", authfile)
+	}
+	return nil
 }

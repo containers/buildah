@@ -360,3 +360,7 @@ load helpers
 
   buildah rmi --all --force
 }
+
+@test "from should fail with nonexist authfil" {
+  run_buildah 1 from --authfile /tmp/nonexist --pull --signature-policy ${TESTSDIR}/policy.json alpine
+}

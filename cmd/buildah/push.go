@@ -89,6 +89,9 @@ func pushCmd(c *cobra.Command, args []string, iopts pushResults) error {
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
+	if err := buildahcli.CheckAuthFile(iopts.authfile); err != nil {
+		return err
+	}
 
 	switch len(args) {
 	case 0:

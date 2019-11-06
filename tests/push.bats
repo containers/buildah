@@ -80,6 +80,14 @@ load helpers
   buildah rmi busybox
 }
 
+@test "push should fail with nonexist authfile" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  imageid=$(buildah images -q)
+  run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json --authfile /tmp/nonexsit $imageid dir:my-dir
+  buildah rm "$cid"
+  buildah rmi alpine
+}
+
 @test "push-denied-by-registry-sources" {
   export BUILD_REGISTRY_SOURCES='{"blockedRegistries": ["registry.example.com"]}'
 
