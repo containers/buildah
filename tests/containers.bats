@@ -27,6 +27,8 @@ load helpers
   cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
   run_buildah --log-level=error containers --format "{{.ContainerName}}"
   expect_line_count 2
+  expect_output --from="${lines[0]}" "alpine-working-container"
+  expect_output --from="${lines[1]}" "busybox-working-container"
 
   buildah rm -a
   buildah rmi -a -f
@@ -45,6 +47,7 @@ load helpers
   cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
   run_buildah --log-level=error containers --noheading
   expect_line_count 2
+  [[ "$output" != "NAME"* ]]
 
   buildah rm -a
   buildah rmi -a -f
@@ -55,6 +58,9 @@ load helpers
   cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
   run_buildah --log-level=error containers --quiet
   expect_line_count 2
+
+  [[ "${lines[0]}" != "$cid1"* ]]
+  [[ "${lines[1]}" != "$cid2"* ]]
 
   buildah rm -a
   buildah rmi -a -f

@@ -134,6 +134,7 @@ load helpers
   containerid=$(buildah inspect --format '{{.Docker.Container}}' alpine-image)
   echo recorded container ID: "$containerid"
   [ "$containerid" = "$cid" ]
+}
 
 @test "commit with name" {
   buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
