@@ -21,6 +21,17 @@ load helpers
 	out2=$(buildah inspect --type image --format '{{.OCIv1.Config}}' alpine-image)
 	[ "$out1" != "" ]
 	[ "$out1" = "$out2" ]
+
+	imageid=$(buildah images -q alpine-image)
+	containerid=$(buildah containers -q)
+
+	out3=$(buildah inspect --format '{{.OCIv1.Config}}' $containerid)
+	out4=$(buildah inspect --type image --format '{{.OCIv1.Config}}' $imageid)
+	[ "$out3" = "$out1" ]
+	[ "$out4" = "$out1" ]
+
+	buildah rm $cid
+	buildah rmi alpine-image alpine
 }
 
 @test "inspect-config-is-json" {
