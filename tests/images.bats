@@ -157,3 +157,9 @@ load helpers
   buildah rm -a
   buildah rmi -a -f
 }
+
+@test "image digest test" {
+  buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah images --digests
+  expect_output --substring "sha256:"
+}
