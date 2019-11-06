@@ -8,6 +8,14 @@ load helpers
   run_buildah 0 logout docker.io
 }
 
+@test "logout should fail with nonexist authfile" {
+  run_buildah 0 login --username testuserfoo --password testpassword docker.io
+
+  run_buildah 1 logout --authfile /tmp/nonexist docker.io
+
+  run_buildah 0 logout docker.io
+}
+
 @test "from-authenticate-cert-and-creds" {
 
   run_buildah from --pull --name "alpine" --signature-policy ${TESTSDIR}/policy.json alpine

@@ -97,6 +97,14 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah 1 manifest inspect foo
 }
 
+@test "manifest-push should fail with nonexist authfile" {
+    run_buildah manifest create foo
+    run_buildah manifest add --override-arch=arm64 foo ${IMAGE_LIST}
+    run_buildah manifest inspect foo
+    run_buildah 1 manifest push --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json --purge foo dir:${TESTDIR}/pushed
+
+}
+
 @test "manifest-from-tag" {
     run_buildah from --signature-policy ${TESTSDIR}/policy.json --name test-container ${IMAGE_LIST}
     run_buildah inspect --format ''{{.OCIv1.Architecture}}' ${IMAGE_LIST}

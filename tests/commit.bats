@@ -96,3 +96,10 @@ load helpers
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid
 }
+
+@test "commit should fail with nonexist authfile" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah 1 commit --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
+  buildah rm $cid
+  buildah rmi -a
+}

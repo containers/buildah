@@ -97,6 +97,10 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
+	if err := buildahcli.CheckAuthFile(iopts.authfile); err != nil {
+		return err
+	}
+
 	name := args[0]
 	args = Tail(args)
 	if len(args) > 1 {

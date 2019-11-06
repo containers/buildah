@@ -147,3 +147,7 @@ load helpers
   run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
   expect_output --substring 'pull from registry at "docker.io" denied by policy: not in allowed registries list'
 }
+
+@test "pull should fail with nonexist authfile" {
+  run_buildah 1 pull --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json alpine
+}

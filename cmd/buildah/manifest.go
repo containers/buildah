@@ -586,6 +586,10 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 }
 
 func manifestPushCmd(c *cobra.Command, args []string, opts manifestPushOpts) error {
+	if err := buildahcli.CheckAuthFile(opts.authfile); err != nil {
+		return err
+	}
+
 	listImageSpec := ""
 	destSpec := ""
 	switch len(args) {

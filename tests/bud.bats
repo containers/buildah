@@ -1845,3 +1845,8 @@ load helpers
   buildah rmi --all --force
   buildah rmi --all --force
 }
+
+@test "bud with Containerfile should fail with nonexist authfile" {
+  target=alpine-image
+  run_buildah 1 bud --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
+}

@@ -100,6 +100,10 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 			tags = tags[1:]
 		}
 	}
+	if err := buildahcli.CheckAuthFile(iopts.BudResults.Authfile); err != nil {
+		return err
+	}
+
 	pullPolicy := imagebuildah.PullIfMissing
 	if iopts.Pull {
 		pullPolicy = imagebuildah.PullIfNewer
