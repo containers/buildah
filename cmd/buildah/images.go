@@ -72,6 +72,7 @@ type imageResults struct {
 var imagesHeader = map[string]string{
 	"Name":      "REPOSITORY",
 	"Tag":       "TAG",
+	"Digest":    "DIGEST",
 	"ID":        "IMAGE ID",
 	"CreatedAt": "CREATED",
 	"Size":      "SIZE",
