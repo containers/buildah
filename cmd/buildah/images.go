@@ -11,6 +11,7 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/formats"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/image/v5/docker/reference"
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
@@ -490,10 +491,8 @@ func matchesReference(name, argName string) bool {
 	return strings.HasSuffix(splitName[0], argName)
 }
 
-/*
-According to  https://en.wikipedia.org/wiki/Binary_prefix
-We should be return numbers based on 1000, rather then 1024
-*/
+// According to  https://en.wikipedia.org/wiki/Binary_prefix
+// We should be return numbers based on 1000, rather then 1024
 func formattedSize(size int64) string {
 	suffixes := [5]string{"B", "KB", "MB", "GB", "TB"}
 
@@ -506,27 +505,34 @@ func formattedSize(size int64) string {
 	return fmt.Sprintf("%.3g %s", formattedSize, suffixes[count])
 }
 
-// reposToMap parses the specified repotags and returns a map with repositories
-// as keys and the corresponding arrays of tags as values.
-func imageReposToMap(repotags []string) map[string][]string {
-	// map format is repo -> tag
+// imageReposToMap parses the specified names list and returns a map with repositories
+// as keys and a slice of tags and digests as values.
+func imageReposToMap(names []string) map[string][]string {
+	// map format is repo -> []tagOrDigest
 	repos := make(map[string][]string)
-	for _, repo := range repotags {
-		var repository, tag string
-		if strings.Contains(repo, ":") {
-			li := strings.LastIndex(repo, ":")
-			repository = repo[0:li]
-			tag = repo[li+1:]
-		} else if len(repo) > 0 {
-			repository = repo
-			tag = "<none>"
-		} else {
+	for _, name := range names {
+		if name == "" {
 			logrus.Warnf("Found image with empty name")
+			continue
 		}
-		repos[repository] = append(repos[repository], tag)
-	}
-	if len(repos) == 0 {
-		repos["<none>"] = []string{"<none>"}
+		named, err := reference.ParseNormalizedNamed(name)
+		if err != nil {
+			logrus.Warnf("Error parsing name %q: %v", name, err)
+			continue
+		}
+		if named.Name() != name {
+			logrus.Debugf("Name %q wasn't already in its normalized form (%q).", name, named.Name())
+		}
+		var repository, tagOrDigest string
+		repository = reference.TrimNamed(named).Name()
+		if tagged, ok := named.(reference.Tagged); ok {
+			tagOrDigest = tagged.Tag()
+		}
+		if digested, ok := named.(reference.Digested); ok {
+			digest := digested.Digest()
+			tagOrDigest = digest.String()
+		}
+		repos[repository] = append(repos[repository], tagOrDigest)
 	}
 	return repos
 }
