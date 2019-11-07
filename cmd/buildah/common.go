@@ -13,7 +13,6 @@ import (
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
-	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -153,26 +152,21 @@ func openImage(ctx context.Context, sc *types.SystemContext, store storage.Store
 	return builder, nil
 }
 
-func getDateAndDigestAndSize(ctx context.Context, sys *types.SystemContext, store storage.Store, storeImage storage.Image) (time.Time, string, int64, error) {
+func getDateAndSize(ctx context.Context, sys *types.SystemContext, store storage.Store, storeImage storage.Image) (time.Time, int64, error) {
 	created := time.Time{}
 	is.Transport.SetStore(store)
 	storeRef, err := is.Transport.ParseStoreReference(store, storeImage.ID)
 	if err != nil {
-		return created, "", -1, err
+		return created, -1, err
 	}
 	img, err := storeRef.NewImageSource(ctx, nil)
 	if err != nil {
-		return created, "", -1, err
+		return created, -1, err
 	}
 	defer img.Close()
 	imgSize, sizeErr := store.ImageSize(storeImage.ID)
 	if sizeErr != nil {
 		imgSize = -1
-	}
-	manifest, _, manifestErr := img.GetManifest(ctx, nil)
-	manifestDigest := ""
-	if manifestErr == nil && len(manifest) > 0 {
-		manifestDigest = digest.Canonical.FromBytes(manifest).String()
 	}
 	inspectable, inspectableErr := image.FromUnparsedImage(ctx, sys, image.UnparsedInstance(img, nil))
 	if inspectableErr == nil && inspectable != nil {
@@ -183,10 +177,8 @@ func getDateAndDigestAndSize(ctx context.Context, sys *types.SystemContext, stor
 	}
 	if sizeErr != nil {
 		err = sizeErr
-	} else if manifestErr != nil {
-		err = manifestErr
 	}
-	return created, manifestDigest, imgSize, err
+	return created, imgSize, err
 }
 
 // getContext returns a context.TODO

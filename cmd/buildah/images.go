@@ -23,8 +23,9 @@ import (
 
 type jsonImage struct {
 	ID           string    `json:"id"`
-	Names        []string  `json:"names"`
-	Digest       string    `json:"digest"`
+	Names        []string  `json:"names,omitempty"`
+	Digest       string    `json:"digest,omitempty"`
+	Digests      []string  `json:"digests,omitempty"`
 	CreatedAt    string    `json:"createdat"`
 	Size         string    `json:"size"`
 	CreatedAtRaw time.Time `json:"createdatraw"`
@@ -32,10 +33,11 @@ type jsonImage struct {
 }
 
 type imageOutputParams struct {
-	Tag          string
 	ID           string
 	Name         string
+	Tag          string
 	Digest       string
+	Digests      []string
 	CreatedAt    string
 	Size         string
 	CreatedAtRaw time.Time
@@ -247,9 +249,9 @@ func outputHeader(opts imageOptions) string {
 	if opts.quiet {
 		return formats.IDString
 	}
-	format := "table {{.Name}}\t{{.Tag}}\t"
-	if opts.noHeading {
-		format = "{{.Name}}\t{{.Tag}}\t"
+	format := "{{if .Name}}{{.Name}}{{else}}<none>{{end}}\t{{if .Tag}}{{.Tag}}{{else}}<none>{{end}}\t"
+	if !opts.noHeading {
+		format = "table " + format
 	}
 
 	if opts.digests {
@@ -268,12 +270,13 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 	found := false
 	var imagesParams imagesSorted
 	jsonImages := []jsonImage{}
+
 	for _, image := range images {
 		if image.ReadOnly {
 			opts.readOnly = true
 		}
 		createdTime := image.Created
-		inspectedTime, digest, size, _ := getDateAndDigestAndSize(ctx, systemContext, store, image)
+		inspectedTime, size, _ := getDateAndSize(ctx, systemContext, store, image)
 		if !inspectedTime.IsZero() {
 			if createdTime != inspectedTime {
 				logrus.Debugf("image record and configuration disagree on the image's creation time for %q, using the configuration creation time: %s", image.ID, inspectedTime)
@@ -301,45 +304,94 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 			imageID = shortID(image.ID)
 		}
 
-	outer:
-		for name, tags := range imageReposToMap(image.Names) {
-			for _, tag := range tags {
-				if !matchesReference(name+":"+tag, argName) {
-					continue
-				}
-				found = true
+		filterMatched := false
 
-				if !matchesFilter(ctx, store, image, name+":"+tag, filters) {
-					continue
+		var imageReposAndTags [][2]string
+		var imageDigests []string
+		for _, imageDigest := range image.Digests {
+			imageDigests = append(imageDigests, imageDigest.String())
+		}
+
+		for _, name := range image.Names {
+			if name == "" {
+				logrus.Warnf("Found image with empty name")
+				continue
+			}
+			named, err := reference.ParseNormalizedNamed(name)
+			if err != nil {
+				logrus.Warnf("Error parsing name %q: %v", name, err)
+				continue
+			}
+			if name != named.String() {
+				logrus.Debugf("Image name %q wasn't already in its normalized form (%q).", name, named.String())
+			}
+
+			if !matchesReference(name, argName) {
+				continue
+			}
+			found = true
+
+			if digested, ok := named.(reference.Digested); ok {
+				digest := digested.Digest()
+				digestPresent := false
+				for _, imageDigest := range imageDigests {
+					if imageDigest == digest.String() {
+						digestPresent = true
+					}
 				}
-				if opts.json {
-					jsonImages = append(jsonImages,
-						jsonImage{ID: image.ID,
-							Names:        image.Names,
-							Digest:       digest,
-							CreatedAtRaw: createdTime,
-							CreatedAt:    units.HumanDuration(time.Since((createdTime))) + " ago",
-							Size:         formattedSize(size),
-							ReadOnly:     image.ReadOnly,
-						})
-					// We only want to print each id once
-					break outer
+				if !digestPresent {
+					imageDigests = append(imageDigests)
 				}
-				params := imageOutputParams{
-					Tag:          tag,
-					ID:           imageID,
-					Name:         name,
-					Digest:       digest,
-					CreatedAtRaw: createdTime,
-					CreatedAt:    units.HumanDuration(time.Since((createdTime))) + " ago",
-					Size:         formattedSize(size),
-					ReadOnly:     image.ReadOnly,
-				}
-				imagesParams = append(imagesParams, params)
-				if opts.quiet {
-					// We only want to print each id once
-					break outer
-				}
+			}
+
+			if !matchesFilter(ctx, store, image, name, filters) {
+				continue
+			}
+			filterMatched = true
+
+			if tagged, ok := named.(reference.Tagged); ok {
+				imageReposAndTags = append(imageReposAndTags, [2]string{named.Name(), tagged.Tag()})
+			} else {
+				imageReposAndTags = append(imageReposAndTags, [2]string{named.Name(), ""})
+			}
+		}
+		if len(image.Names) == 0 && matchesFilter(ctx, store, image, "", filters) {
+			filterMatched = true
+		}
+		if !filterMatched {
+			continue
+		}
+
+		if opts.json {
+			jsonImages = append(jsonImages, jsonImage{
+				ID:           image.ID,
+				Names:        image.Names,
+				Digest:       string(image.Digest),
+				Digests:      imageDigests,
+				CreatedAtRaw: createdTime,
+				CreatedAt:    units.HumanDuration(time.Since((createdTime))) + " ago",
+				Size:         formattedSize(size),
+				ReadOnly:     image.ReadOnly,
+			})
+			continue
+		}
+		if len(imageReposAndTags) == 0 {
+			imageReposAndTags = [][2]string{{"", ""}}
+		}
+		for _, imageRepoAndTag := range imageReposAndTags {
+			imagesParams = append(imagesParams, imageOutputParams{
+				ID:           imageID,
+				Name:         imageRepoAndTag[0],
+				Tag:          imageRepoAndTag[1],
+				Digest:       string(image.Digest),
+				Digests:      imageDigests,
+				CreatedAtRaw: createdTime,
+				CreatedAt:    units.HumanDuration(time.Since((createdTime))) + " ago",
+				Size:         formattedSize(size),
+				ReadOnly:     image.ReadOnly,
+			})
+			if opts.quiet {
+				break
 			}
 		}
 	}
@@ -415,10 +467,10 @@ func matchesFilter(ctx context.Context, store storage.Store, image storage.Image
 }
 
 func matchesDangling(name string, dangling string) bool {
-	if dangling == "false" && !strings.Contains(name, "<none>") {
+	if dangling == "false" && name != "" {
 		return true
 	}
-	if dangling == "true" && strings.Contains(name, "<none>") {
+	if dangling == "true" && name == "" {
 		return true
 	}
 	return false
@@ -479,17 +531,27 @@ func matchesID(imageID, argID string) bool {
 	return strings.HasPrefix(imageID, argID)
 }
 
-func matchesReference(name, argName string) bool {
+func matchesReference(imageName, argName string) bool {
 	if argName == "" {
 		return true
 	}
-	splitName := strings.Split(name, ":")
-	// If the arg contains a tag, we handle it differently than if it does not
+	if imageName == "" {
+		return false
+	}
+	named, err := reference.ParseNormalizedNamed(imageName)
+	if err != nil {
+		logrus.Warnf("Error parsing image name %q: %v", imageName, err)
+		return false
+	}
+	// If the arg contains a tag, we handle it differently than if it does not: the tag must match exactly
 	if strings.Contains(argName, ":") {
 		splitArg := strings.Split(argName, ":")
-		return strings.HasSuffix(splitName[0], splitArg[0]) && (splitName[1] == splitArg[1])
+		if tagged, ok := named.(reference.Tagged); ok {
+			return (named.Name() == splitArg[0] || strings.HasSuffix(named.Name(), "/"+splitArg[0])) && (tagged.Tag() == splitArg[1])
+		}
+		return false
 	}
-	return strings.HasSuffix(splitName[0], argName)
+	return named.Name() == argName || strings.HasSuffix(named.Name(), "/"+argName)
 }
 
 // According to  https://en.wikipedia.org/wiki/Binary_prefix
@@ -504,36 +566,4 @@ func formattedSize(size int64) string {
 		count++
 	}
 	return fmt.Sprintf("%.3g %s", formattedSize, suffixes[count])
-}
-
-// imageReposToMap parses the specified names list and returns a map with repositories
-// as keys and a slice of tags and digests as values.
-func imageReposToMap(names []string) map[string][]string {
-	// map format is repo -> []tagOrDigest
-	repos := make(map[string][]string)
-	for _, name := range names {
-		if name == "" {
-			logrus.Warnf("Found image with empty name")
-			continue
-		}
-		named, err := reference.ParseNormalizedNamed(name)
-		if err != nil {
-			logrus.Warnf("Error parsing name %q: %v", name, err)
-			continue
-		}
-		if named.Name() != name {
-			logrus.Debugf("Name %q wasn't already in its normalized form (%q).", name, named.Name())
-		}
-		var repository, tagOrDigest string
-		repository = reference.TrimNamed(named).Name()
-		if tagged, ok := named.(reference.Tagged); ok {
-			tagOrDigest = tagged.Tag()
-		}
-		if digested, ok := named.(reference.Digested); ok {
-			digest := digested.Digest()
-			tagOrDigest = digest.String()
-		}
-		repos[repository] = append(repos[repository], tagOrDigest)
-	}
-	return repos
 }

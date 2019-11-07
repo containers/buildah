@@ -31,13 +31,16 @@ keywords are 'before', 'dangling', 'label', 'readonly' and 'since' .
     Filter on images created before the given time.Time.
 
   **dangling=true|false**
-    Show dangling images. Dangling images are a file system layer that was used in a previous build of an image and is no longer referenced by any active images. They are denoted with the <none> tag, consume disk space and serve no active purpose.
+    Show dangling images.  Dangling images are file system layers that were used in a previous build of an image and are no longer referenced by any active images.  They are denoted with the <none> name and tag, consume disk space and serve no active purpose.
 
   **label**
     Filter by images labels key and/or value.
 
   **readonly=true|false**
-     Show only read only images or Read/Write images. The default is to show both.  Read/Only images can be configured by modifying the  "additionalimagestores" in the /etc/containers/storage.conf file.
+    Show only read only images or Read/Write images. The default is to show both.  Read/Only images can be configured by modifying the  "additionalimagestores" in the /etc/containers/storage.conf file.
+
+  **reference=repo[:tag]**
+    Show only images whose names, or suffixes of names, match the specified repository name.  If the specified value includes a tag, the image must match it as well.
 
   **since==TIMESTRING**
     Filter on images created since the given time.Time.
