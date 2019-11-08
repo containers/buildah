@@ -68,24 +68,30 @@ echo "Setting up $OS_RELEASE_ID $OS_RELEASE_VER"  # STUB: Add VM setup instructi
 cd $GOSRC
 case "$OS_REL_VER" in
     fedora-*)
-        # When the fedora repos go down, it tends to last quite a while :(
-        timeout_attempt_delay_command 120s 3 120s dnf install -y \
+        # Filling up cache is very slow and failures can last quite a while :(
+        $LONG_DNFY install \
              '@C Development Tools and Libraries' '@Development Tools' \
             $FEDORA_PACKAGES
+        # Executing tests in a container requires SELinux boolean set on the host
+        if [[ "$IN_PODMAN" == "true" ]]
+        then
+            setsebool -P container_manage_cgroup true
+        fi
         ;;
     ubuntu-*)
         $SHORT_APTGET update
         $LONG_APTGET upgrade
+        $SHORT_APTGET install software-properties-common
+        ppas=(ppa:projectatomic/ppa)
         if [[ "$OS_RELEASE_VER" == "18" ]]
         then
-            echo "(Enabling newer golang on Ubuntu LTS version)"
-            $SHORT_APTGET install software-properties-common
-            $SHORT_APTGET update
-            for ppa in ppa:longsleep/golang-backports ppa:projectatomic/ppa; do
-                timeout_attempt_delay_command 30 2 30 \
-                    add-apt-repository --yes $ppa
-            done
+            ppas+=(ppa:longsleep/golang-backports)  # newer golang
         fi
+        for ppa in ${ppas[@]}; do
+            timeout_attempt_delay_command 30 2 30 \
+                add-apt-repository --yes $ppa
+        done
+        $SHORT_APTGET update
         $LONG_APTGET install \
             build-essential \
             $UBUNTU_PACKAGES
@@ -98,5 +104,21 @@ esac
 # Previously, golang was not installed
 source $(dirname $0)/lib.sh
 
-echo "Installing buildah tooling"
-showrun make install.tools
+show_env_vars
+
+if [[ -z "$CROSS_TARGET" ]]
+then
+    comment_out_storage_mountopt  # workaround issue 1945 (remove when resolved)
+
+    execute_local_registry  # checks for existing port 5000 listener
+
+    if [[ "$IN_PODMAN" == "true" ]]
+    then
+        req_env_var IN_PODMAN_IMAGE IN_PODMAN_NAME
+        echo "Setting up image to use for \$IN_PODMAN=true testing"
+        cd $GOSRC
+        in_podman $IN_PODMAN_IMAGE $0
+        showrun podman commit $IN_PODMAN_NAME $IN_PODMAN_NAME
+        showrun podman rm -f $IN_PODMAN_NAME
+    fi
+fi

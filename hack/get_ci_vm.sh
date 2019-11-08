@@ -95,7 +95,7 @@ parse_args(){
         show_usage "This script must be run as a regular user."
     fi
 
-    ENVS='GOPATH="/var/tmp/go"
+    ENVS='GOPATH="/var/tmp/go" IN_PODMAN="false" CROSS_TARGET=""'
     IMAGE_NAME="$1"
     if [[ -z "$IMAGE_NAME" ]]
     then

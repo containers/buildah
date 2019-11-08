@@ -11,6 +11,8 @@ export USER="$(whoami)"
 export HOME="$(getent passwd $USER | cut -d : -f 6)"
 [[ -n "$UID" ]] || export UID=$(getent passwd $USER | cut -d : -f 3)
 export GID=$(getent passwd $USER | cut -d : -f 4)
+# Not cross-compiling by default
+CROSS_TARGET="${CROSS_TARGET:-}"
 
 # Essential default paths, many are overridden when executing under Cirrus-CI
 # others are duplicated here, to assist in debugging.
@@ -56,15 +58,25 @@ OS_RELEASE_VER="$(source /etc/os-release; echo $VERSION_ID | cut -d '.' -f 1)"
 # Combined to ease soe usage
 OS_REL_VER="${OS_RELEASE_ID}-${OS_RELEASE_VER}"
 
+# for in-container testing
+IN_PODMAN_IMAGE="$OS_RELEASE_ID:$OS_RELEASE_VER"
+IN_PODMAN_NAME="in_podman_$CIRRUS_TASK_ID"
+IN_PODMAN="${IN_PODMAN:-false}"
+
 # Working with apt under Debian/Ubuntu automation is a PITA, make it easy
 # Avoid some ways of getting stuck waiting for user input
 export DEBIAN_FRONTEND=noninteractive
 # Short-cut for frequently used base command
 export APTGET='apt-get -qq --yes'
-# Short list of packages or quick-running command
+# Short timeout for quick-running packaging command
 SHORT_APTGET="timeout_attempt_delay_command 24s 5 30s $APTGET"
-# Long list / long-running command
+SHORT_DNFY="timeout_attempt_delay_command 60s 2 5s dnf -y"
+# Short timeout for quick-running packaging command
 LONG_APTGET="timeout_attempt_delay_command 300s 5 30s $APTGET"
+LONG_DNFY="timeout_attempt_delay_command 300s 3 60s dnf -y"
+
+# Allow easy substitution for debugging if needed
+CONTAINER_RUNTIME="showrun ${CONTAINER_RUNTIME:-podman}"
 
 # Pass in a list of one or more envariable names; exit non-zero with
 # helpful error message if any value is empty
@@ -152,16 +164,118 @@ install_ooe() {
 }
 
 showrun() {
-    if [[ "$1" == "--background" ]]
+    local context
+    context=($(caller 0))
+    echo '+ '$(printf " %q" "$@")"  # ${context[2]}:${context[0]} in ${context[1]}()" > /dev/stderr
+    "$@"
+}
+
+comment_out_storage_mountopt() {
+    local FILEPATH=/etc/containers/storage.conf
+    echo ">>>>>"
+    echo ">>>>> Warning: comment_out_storage_mountopt() is modifying $FILEPATH"
+    echo ">>>>>"
+    sed -i -r -e 's/^(mountopt = .+)/#\1/' $FILEPATH
+}
+
+in_podman() {
+    req_env_var IN_PODMAN_NAME GOSRC HOME OS_RELEASE_ID
+    [[ -n "$@" ]] || \
+        die 7 "Must specify FQIN and command with arguments to execute"
+    local envargs
+    local envname
+    local envvalue
+    local envrx='(^CIRRUS_.+)|(^BUILDAH_+)|(^STOTAGE_)|(^CI$)|(^CROSS_TARGET$)|(^IN_PODMAN_.+)'
+    for envname in $(awk 'BEGIN{for(v in ENVIRON) print v}' | \
+                     egrep "$envrx" | \
+                     egrep -v "CIRRUS_.+_MESSAGE" | \
+                     egrep -v "$SECRET_ENV_RE")
+    do
+        envvalue="${!envname}"
+        [[ -z "$envname" ]] || [[ -z "$envvalue" ]] || \
+            envargs="${envargs:+$envargs }-e $envname=$envvalue"
+    done
+    # Back in the days of testing under PAPR, containers were run with super-privledges.
+    # That behavior is preserved here with a few updates for modern podman behaviors.
+    # The only other additions/changes are passthrough of CI-related env. vars ($envargs),
+    # some path related updates, and mounting cgroups RW instead of the RO default.
+    showrun podman run -i --name $IN_PODMAN_NAME \
+                   $envargs \
+                   --net=host \
+                   --net="container:registry" \
+                   --security-opt label=disable \
+                   --security-opt seccomp=unconfined \
+                   --cap-add=all \
+                   -e "GOPATH=$GOPATH" \
+                   -e "IN_PODMAN=false" \
+                   -e "DIST=$OS_RELEASE_ID" \
+                   -e "CGROUP_MANAGER=cgroupfs" \
+                   -v "$GOSRC:$GOSRC:z" \
+                   --workdir "$GOSRC" \
+                   -v "$HOME/auth:$HOME/auth:ro" \
+                   -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+                   -v /dev/fuse:/dev/fuse:rw \
+                   $@
+}
+
+execute_local_registry() {
+    if nc -4 -z 127.0.0.1 5000
     then
-        shift
-        # Properly escape any nested spaces, so command can be copy-pasted
-        echo '+ '$(printf " %q" "$@")' &' > /dev/stderr
-        "$@" &
-        echo -e "${RED}<backgrounded>${NOR}"
-    else
-        echo '--------------------------------------------------'
-        echo '+ '$(printf " %q" "$@") > /dev/stderr
-        "$@"
+        echo "Warning: Found listener on localhost:5000, NOT starting up local registry server."
+        return 0
     fi
+    req_env_var CONTAINER_RUNTIME GOSRC
+    local authdirpath=$HOME/auth
+    local certdirpath=/etc/docker/certs.d
+    cd $GOSRC
+
+    echo "Creating a self signed certificate and get it in the right places"
+    mkdir -p $authdirpath
+    openssl req \
+        -newkey rsa:4096 -nodes -sha256 -x509 -days 2 \
+        -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=localhost" \
+        -keyout $authdirpath/domain.key \
+        -out $authdirpath/domain.crt
+
+    cp $authdirpath/domain.crt $authdirpath/domain.cert
+    mkdir -p $certdirpath/docker.io/
+    cp $authdirpath/domain.crt $certdirpath/docker.io/ca.crt
+    mkdir -p $certdirpath/localhost:5000/
+    cp $authdirpath/domain.crt $certdirpath/localhost:5000/ca.crt
+    cp $authdirpath/domain.crt $certdirpath/localhost:5000/domain.crt
+
+    echo "Creating http credentials file"
+    podman run --entrypoint htpasswd registry:2 \
+        -Bbn testuser testpassword \
+        > $authdirpath/htpasswd
+
+    echo "Starting up the local 'registry' container"
+    podman run -d -p 5000:5000 --name registry \
+        -v $authdirpath:$authdirpath:Z \
+        -e "REGISTRY_AUTH=htpasswd" \
+        -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" \
+        -e REGISTRY_AUTH_HTPASSWD_PATH=$authdirpath/htpasswd \
+        -e REGISTRY_HTTP_TLS_CERTIFICATE=$authdirpath/domain.crt \
+        -e REGISTRY_HTTP_TLS_KEY=$authdirpath/domain.key \
+        registry:2
+
+    echo "Verifying local 'registry' container is operational"
+    showrun podman version
+    showrun podman info
+    showrun podman ps --all
+    showrun podman images
+    showrun ls -alF $HOME/auth
+    showrun podman pull alpine
+    showrun podman login localhost:5000 --username testuser --password testpassword
+    showrun podman tag alpine localhost:5000/my-alpine
+    showrun podman push --creds=testuser:testpassword localhost:5000/my-alpine
+    showrun podman ps --all
+    showrun podman images
+    showrun podman rmi docker.io/alpine
+    showrun podman rmi localhost:5000/my-alpine
+    showrun podman pull --creds=testuser:testpassword localhost:5000/my-alpine
+    showrun podman ps --all
+    showrun podman images
+    echo "Success, cleaning up."
+    showrun podman rmi localhost:5000/my-alpine
 }
