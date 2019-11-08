@@ -25,25 +25,26 @@ then
     # Ensure compiled tooling is reachable
     export PATH="$PATH:$GOPATH/bin"
 fi
-CIRRUS_WORKING_DIR="${CIRRUS_WORKING_DIR:-$GOPATH/src/github.com/containers/buildah}"
+export CIRRUS_WORKING_DIR="${CIRRUS_WORKING_DIR:-$GOPATH/src/github.com/containers/buildah}"
 export GOSRC="${GOSRC:-$CIRRUS_WORKING_DIR}"
-export PATH="$HOME/bin:$GOPATH/bin:/usr/local/bin:$PATH"
-SCRIPT_BASE=${GOSRC}/contrib/cirrus
+export PATH="$GOSRC/tests/tools/build:$HOME/bin:$GOPATH/bin:/usr/local/bin:$PATH"
+SCRIPT_BASE=${SCRIPT_BASE:-./contrib/cirrus}
 
 cd $GOSRC
 if type -P git &> /dev/null
 then
     CIRRUS_CHANGE_IN_REPO=${CIRRUS_CHANGE_IN_REPO:-$(git show-ref --hash=8 HEAD || date +%s)}
 else # pick something unique and obviously not from Cirrus
-    CIRRUS_CHANGE_IN_REPO=${CIRRUS_CHANGE_IN_REPO:-no_git_$(date +%s)}
+    CIRRUS_CHANGE_IN_REPO=${CIRRUS_CHANGE_IN_REPO:-unknown$(date +%s)}
 fi
 
 export CI="${CI:-false}"
 CIRRUS_CI="${CIRRUS_CI:-false}"
 CONTINUOUS_INTEGRATION="${CONTINUOUS_INTEGRATION:-false}"
 CIRRUS_REPO_NAME=${CIRRUS_REPO_NAME:-buildah}
-CIRRUS_BASE_SHA=${CIRRUS_BASE_SHA:-unknown$(date +%s)}  # difficult to reliably discover
-CIRRUS_BUILD_ID=${CIRRUS_BUILD_ID:-$RANDOM$(date +%s)}  # must be short and unique
+CIRRUS_BASE_SHA=${CIRRUS_BASE_SHA:-unknown$(date +%d)}  # difficult to reliably discover
+CIRRUS_BUILD_ID=${CIRRUS_BUILD_ID:-unknown$(date +%s)}  # must be short and unique
+CIRRUS_TASK_ID=${CIRRUS_BUILD_ID:-unknown$(date +%d)}
 
 # Unsafe env. vars for display
 SECRET_ENV_RE='(IRCID)|(ACCOUNT)|(^GC[EP]..+)|(SSH)'

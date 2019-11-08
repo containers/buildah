@@ -7,7 +7,6 @@ set -e
 #      '@C Development Tools and Libraries' and '@Development Tools'
 #      are similar.
 
-# TODO: FIXME: Arbitrary list of packages, adjustment likely required.
 UBUNTU_PACKAGES="
     aufs-tools
     bats
@@ -23,36 +22,45 @@ UBUNTU_PACKAGES="
     libseccomp-dev
     libselinux-dev
     openssl
+    podman
+    netcat
     rsync
     scons
     vim
     wget
     yum-utils
     zlib1g-dev
+    xz-utils
 "
 
-# TODO: FIXME: Slightly arbitrary list of packages, adjustment possibly required.
 FEDORA_PACKAGES="
     bats
     btrfs-progs-devel
+    bzip2
     containers-common
     device-mapper-devel
+    findutils
     git
     glib2-devel
+    glibc-static
+    gnupg
     go-md2man
     golang
     gpgme-devel
     libassuan-devel
     libseccomp-devel
+    make
+    nmap-ncat
+    ostree-devel
     podman
+    rsync
     runc
     skopeo-containers
     wget
+    xz
 "
 
 source $(dirname $0)/lib.sh
-
-show_env_vars
 
 install_ooe
 
@@ -73,8 +81,10 @@ case "$OS_REL_VER" in
             echo "(Enabling newer golang on Ubuntu LTS version)"
             $SHORT_APTGET install software-properties-common
             $SHORT_APTGET update
-            timeout_attempt_delay_command 30 2 30 \
-                add-apt-repository --yes ppa:longsleep/golang-backports
+            for ppa in ppa:longsleep/golang-backports ppa:projectatomic/ppa; do
+                timeout_attempt_delay_command 30 2 30 \
+                    add-apt-repository --yes $ppa
+            done
         fi
         $LONG_APTGET install \
             build-essential \
