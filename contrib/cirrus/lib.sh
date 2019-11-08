@@ -83,6 +83,8 @@ LONG_DNFY="timeout_attempt_delay_command 300s 3 60s dnf -y"
 # Allow easy substitution for debugging if needed
 CONTAINER_RUNTIME="showrun ${CONTAINER_RUNTIME:-podman}"
 
+source $GOSRC/$SCRIPT_BASE/packages.sh
+
 # Pass in a list of one or more envariable names; exit non-zero with
 # helpful error message if any value is empty
 req_env_var() {
@@ -125,6 +127,10 @@ die() {
     echo ">>>>> ${2:-FATAL ERROR (but no message given!) in ${FUNCNAME[1]}()}"
     echo "************************************************"
     exit ${1:-1}
+}
+
+warn() {
+    echo ">>>>> WARNING: ${1:-WARNING (but no message given!) in ${FUNCNAME[1]}()}" > /dev/stderr
 }
 
 bad_os_id_ver() {
@@ -178,9 +184,7 @@ showrun() {
 # workaround issue 1945 (remove when resolved)
 remove_storage_mountopt() {
     local FILEPATH=/etc/containers/storage.conf
-    echo ">>>>>"
-    echo ">>>>> Warning: remove_storage_mountopt() is overwriting $FILEPATH"
-    echo ">>>>>"
+    warn "remove_storage_mountopt() is overwriting $FILEPATH"
     # This file normally comes from containers-common package
     cat <<EOF> $FILEPATH
 [storage]
@@ -259,7 +263,7 @@ verify_local_registry(){
 execute_local_registry() {
     if nc -4 -z 127.0.0.1 5000
     then
-        echo "Warning: Found listener on localhost:5000, NOT starting up local registry server."
+        warn "Found listener on localhost:5000, NOT starting up local registry server."
         verify_local_registry
         return 0
     fi
