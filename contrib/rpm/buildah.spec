@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.11.5
+Version:        1.12.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,8 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Nov 11, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+
 * Mon Nov 11, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.5-1
 - Enhance error on unsafe symbolic link targets
 - Add OCIRuntime to info
