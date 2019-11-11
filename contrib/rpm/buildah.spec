@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.12.0-dev
+Version:        1.11.5
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,9 +99,34 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Mon Oct 28, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+* Mon Nov 11, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.5-1
+- Enhance error on unsafe symbolic link targets
+- Add OCIRuntime to info
+- Check nonexsit authfile
+- Only output image id if running buildah bud --quiet
+- Fix --pull=true||false and add --pull-never to bud and from (retry)
+- cgroups v2: tweak or skip tests
+- Prepwork: new 'skip' helpers for tests
+- Handle configuration blobs for manifest lists
+- unmarshalConvertedConfig: avoid using the updated image's ref
+- Add completions for Manifest commands
+- Add disableFips option to secrets pkg
+- Update bud.bats test archive test
+- Add test for caching based on content digest
+- Builder.untarPath(): always evaluate b.ContentDigester.Hash()
+- Bump github.com/onsi/ginkgo from 1.10.1 to 1.10.2
+- Fix another broken test: copy-url-mtime
+- yet more fixes
+- Actual bug fix for 'add' test: fix the expected mode
+- BATS tests - lots of mostly minor cleanup
+- build: drop support for ostree
+- Add support for make vendor-in-container
+- imgtype: exit with error if storage fails
+- remove XDG_RUNTIME_DIR from default authfile path
+- fix troubleshooting redirect instructions
+- Bump back to v1.12.0-dev
 
-* Mon Oct 28, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.4-dev-1
+* Mon Oct 28, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.4-1
 - buildah: add a "manifest" command
 - manifests: add the module
 - pkg/supplemented: add a package for grouping images together
