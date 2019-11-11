@@ -424,37 +424,37 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		for _, src := range copy.Src {
 			if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
 				// Source is a URL.
-				sources = append(sources, src)
-			} else {
-				// Treat the source, which is not a URL, as a
-				// location relative to the
-				// all-content-comes-from-below-this-directory
-				// directory.
-				srcSecure, err := securejoin.SecureJoin(contextDir, src)
-				if err != nil {
-					return errors.Wrapf(err, "forbidden path for %q, it is outside of the build context %q", src, contextDir)
-				}
-				if hadFinalPathSeparator {
-					// If destination is a folder, we need to take extra care to
-					// ensure that files are copied with correct names (since
-					// resolving a symlink may result in a different name).
-					_, srcName := filepath.Split(src)
-					_, srcNameSecure := filepath.Split(srcSecure)
-					if srcName != srcNameSecure {
-						options := buildah.AddAndCopyOptions{
-							Chown:            copy.Chown,
-							ContextDir:       contextDir,
-							Excludes:         copyExcludes,
-							IDMappingOptions: idMappingOptions,
-						}
-						if err := s.builder.Add(filepath.Join(copy.Dest, srcName), copy.Download, options, srcSecure); err != nil {
-							return err
-						}
-						continue
-					}
-				}
-				sources = append(sources, srcSecure)
+				// returns an error to be compatible with docker
+				return errors.Errorf("source can't be a URL for COPY")
 			}
+			// Treat the source, which is not a URL, as a
+			// location relative to the
+			// all-content-comes-from-below-this-directory
+			// directory.
+			srcSecure, err := securejoin.SecureJoin(contextDir, src)
+			if err != nil {
+				return errors.Wrapf(err, "forbidden path for %q, it is outside of the build context %q", src, contextDir)
+			}
+			if hadFinalPathSeparator {
+				// If destination is a folder, we need to take extra care to
+				// ensure that files are copied with correct names (since
+				// resolving a symlink may result in a different name).
+				_, srcName := filepath.Split(src)
+				_, srcNameSecure := filepath.Split(srcSecure)
+				if srcName != srcNameSecure {
+					options := buildah.AddAndCopyOptions{
+						Chown:            copy.Chown,
+						ContextDir:       contextDir,
+						Excludes:         copyExcludes,
+						IDMappingOptions: idMappingOptions,
+					}
+					if err := s.builder.Add(filepath.Join(copy.Dest, srcName), copy.Download, options, srcSecure); err != nil {
+						return err
+					}
+					continue
+				}
+			}
+			sources = append(sources, srcSecure)
 		}
 		options := buildah.AddAndCopyOptions{
 			Chown:            copy.Chown,
