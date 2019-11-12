@@ -14,11 +14,13 @@ load helpers
 }
 
 @test "inspect" {
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 	run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" alpine-image
-
+	
+	buildah_version=$(buildah --version | awk '{ print $3 }')
 	out1=$(buildah inspect --format '{{.OCIv1.Config}}' alpine)
-	out2=$(buildah inspect --type image --format '{{.OCIv1.Config}}' alpine-image)
+	out2=$(buildah inspect --type image --format '{{.OCIv1.Config}}' alpine-image | sed "s/io.buildah.version:${buildah_version}//g")
+
 	[ "$out1" != "" ]
 	[ "$out1" = "$out2" ]
 }

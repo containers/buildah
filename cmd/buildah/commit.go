@@ -162,6 +162,9 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		}
 	}
 
+	// Add builder identity information.
+	builder.SetLabel(buildah.BuilderIdentityAnnotation, buildah.Version)
+
 	options := buildah.CommitOptions{
 		PreferredManifestType: format,
 		Compression:           compress,
