@@ -6,7 +6,7 @@ The conformance test for `buildah bud` is used to verify the images built with B
 
 ## Installing dependencies
 
-The dependencies for comformance testing include two parts:
+The dependencies for conformance testing include two parts:
 * Binary required by the conformance test suite:
   * docker
   * podman
@@ -24,7 +24,7 @@ Conformance tests use Docker CE to check the images built with Buildah. Install 
 
 ### Install Podman
 
-[Podman](https://github.com/containers/libpod) is used to push images built with Buildah to the docker deamon. It can be installed with dnf or yum in Fedora, RHEL and CentOS, it also can be installed from source code. If you want to install Podman from source code, please follow the [libpod Installation Instructions](https://github.com/containers/libpod/blob/master/install.md).
+[Podman](https://github.com/containers/libpod) is used to push images built with Buildah to the docker daemon. It can be installed with dnf or yum in Fedora, RHEL and CentOS, it also can be installed from source code. If you want to install Podman from source code, please follow the [libpod Installation Instructions](https://github.com/containers/libpod/blob/master/install.md).
 
 ### Install container-diff
 
@@ -55,7 +55,7 @@ or
 go test -v ./tests/conformance
 ```
 
-If you wan to run one of the test cases you can use flag "-focus":
+If you want to run one of the test cases you can use flag "-focus":
 ```
 ginkgo -v -focus "shell test" test/conformance
 ```
@@ -65,15 +65,15 @@ go test -c ./tests/conformance
 ./conformance.test -ginkgo.v -ginkgo.focus "shell test"
 ```
 
-There are also some environment varibles that can be set during the test:
+There are also some environment variables that can be set during the test:
 
-| Varible Name              | Useage  |
+| Variable Name              | Usage  |
 | :------------------------ | :-------------------------------------------------------- |
 | BUILDAH\_BINARY | Used to set the Buildah binary path. Can be used for test installed rpm |
 | TEST\_DATA\_DIR | Test data directory include the Dockerfiles and related files |
 | DOCKER\_BINARY | Docker binary path. |
 | BUILDAH\_$SUBCMD\_OPTIONS | Command line options for each Buildah command. $SUBCMD is the short command from "buildah -h". |
-| $GLOBALOPTIONS | Global options from "buildah -h". The Varible Name is the option name which replace "-" with "\_" and with upper case |
+| $GLOBALOPTIONS | Global options from "buildah -h". The Variable Name is the option name which replace "-" with "\_" and with upper case |
 
 Example to run conformance test for buildah bud with --format=docker:
 ```

@@ -88,7 +88,7 @@ This example pushes the image specified by the imageID to a local directory in o
 
  `# buildah push imageID oci:/path/to/layout:image:tag`
 
-This example pushes the image specifed by the imageID to a tar archive in oci format.
+This example pushes the image specified by the imageID to a tar archive in oci format.
 
   `# buildah push imageID oci-archive:/path/to/archive:image:tag`
 

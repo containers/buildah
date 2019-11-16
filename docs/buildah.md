@@ -70,7 +70,7 @@ Storage driver option, Default storage driver options are configured in /etc/con
 **--userns-uid-map** *mapping*
 
 Specifies UID mappings which should be used to set ownership, at the
-filesytem level, on the contents of images and containers.
+filesystem level, on the contents of images and containers.
 Entries in this map take the form of one or more triples of a starting
 in-container UID, a corresponding starting host-level UID, and the number of
 consecutive IDs which the map entry represents.
@@ -80,7 +80,7 @@ This option overrides the *remap-uids* setting in the *options* section of
 **--userns-gid-map** *mapping*
 
 Specifies GID mappings which should be used to set ownership, at the
-filesytem level, on the contents of images and containers.
+filesystem level, on the contents of images and containers.
 Entries in this map take the form of one or more triples of a starting
 in-container GID, a corresponding starting host-level GID, and the number of
 consecutive IDs which the map entry represents.

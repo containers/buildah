@@ -51,7 +51,7 @@ load helpers
 @test "from-authenticate-cert" {
 
   mkdir -p ${TESTDIR}/auth
-  # Create certifcate via openssl
+  # Create certificate via openssl
   openssl req -newkey rsa:4096 -nodes -sha256 -keyout ${TESTDIR}/auth/domain.key -x509 -days 2 -out ${TESTDIR}/auth/domain.crt -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=localhost"
   # Skopeo and buildah both require *.cert file
   cp ${TESTDIR}/auth/domain.crt ${TESTDIR}/auth/domain.cert
@@ -89,7 +89,7 @@ load helpers
   mkdir -p  ${TESTDIR}/auth
   # Create creds and store in ${TESTDIR}/auth/htpasswd
 #  docker run --entrypoint htpasswd registry:2 -Bbn testuser testpassword > ${TESTDIR}/auth/htpasswd
-  # Create certifcate via openssl
+  # Create certificate via openssl
   openssl req -newkey rsa:4096 -nodes -sha256 -keyout ${TESTDIR}/auth/domain.key -x509 -days 2 -out ${TESTDIR}/auth/domain.crt -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=localhost"
   # Skopeo and buildah both require *.cert file
   cp ${TESTDIR}/auth/domain.crt ${TESTDIR}/auth/domain.cert
