@@ -327,7 +327,7 @@ Require HTTPS and verify certificates when talking to container registries (defa
 Specifies resource limits to apply to processes launched during `buildah run`.
 This option can be specified multiple times.  Recognized resource types
 include:
-  "core": maximimum core dump size (ulimit -c)
+  "core": maximum core dump size (ulimit -c)
   "cpu": maximum CPU time (ulimit -t)
   "data": maximum size of a process's data segment (ulimit -d)
   "fsize": maximum size of new files (ulimit -f)
@@ -358,7 +358,7 @@ process.
 **--userns-uid-map** *mapping*
 
 Directly specifies a UID mapping which should be used to set ownership, at the
-filesytem level, on the container's contents.
+filesystem level, on the container's contents.
 Commands run using `buildah run` will default to being run in their own user
 namespaces, configured using the UID and GID maps.
 
@@ -379,7 +379,7 @@ use the same numeric values as the GID map.
 **--userns-gid-map** *mapping*
 
 Directly specifies a GID mapping which should be used to set ownership, at the
-filesytem level, on the container's contents.
+filesystem level, on the container's contents.
 Commands run using `buildah run` will default to being run in their own user
 namespaces, configured using the UID and GID maps.
 
@@ -400,7 +400,7 @@ use the same numeric values as the UID map.
 **--userns-uid-map-user** *user*
 
 Specifies that a UID mapping which should be used to set ownership, at the
-filesytem level, on the container's contents, can be found in entries in the
+filesystem level, on the container's contents, can be found in entries in the
 `/etc/subuid` file which correspond to the specified user.
 Commands run using `buildah run` will default to being run in their own user
 namespaces, configured using the UID and GID maps.
@@ -411,7 +411,7 @@ suitable user name to use as the default setting for this option.
 **--userns-gid-map-group** *group*
 
 Specifies that a GID mapping which should be used to set ownership, at the
-filesytem level, on the container's contents, can be found in entries in the
+filesystem level, on the container's contents, can be found in entries in the
 `/etc/subgid` file which correspond to the specified group.
 Commands run using `buildah run` will default to being run in their own user
 namespaces, configured using the UID and GID maps.

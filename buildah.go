@@ -325,7 +325,7 @@ type CommonBuildOptions struct {
 	ShmSize string
 	// Ulimit specifies resource limit options, in the form type:softlimit[:hardlimit].
 	// These types are recognized:
-	// "core": maximimum core dump size (ulimit -c)
+	// "core": maximum core dump size (ulimit -c)
 	// "cpu": maximum CPU time (ulimit -t)
 	// "data": maximum size of a process's data segment (ulimit -d)
 	// "fsize": maximum size of new files (ulimit -f)

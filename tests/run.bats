@@ -96,7 +96,7 @@ load helpers
 	run_buildah 1 --log-level=error run $cid --
 	expect_output --substring "command must be specified" "entrypoint, no args, --"
 
-	# cofigured cmd only, empty run arguments
+	# configured cmd only, empty run arguments
 	buildah config --cmd pwd $cid
 	run_buildah 1 --log-level=error run $cid
 	expect_output --substring "command must be specified" "cmd, no args"
@@ -139,7 +139,7 @@ load helpers
         run_buildah --log-level=error run $cid -- pwd
 	expect_output "/tmp" "invalid entrypoint, no cmd(??), pwd"
 
-        # cofigured cmd only, configured run arguments
+        # configured cmd only, configured run arguments
         buildah config --cmd "/invalid/cmd" $cid
         run_buildah --log-level=error run $cid -- pwd
 	expect_output "/tmp" "invalid cmd, no entrypoint(??), pwd"

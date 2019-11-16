@@ -174,7 +174,7 @@ buildah commit --cert-dir /root/auth  --tls-verify=true --creds=testuser:testpas
 buildah from --pull-always --cert-dir /root/auth  --tls-verify=true --creds=testuser:badpassword localhost:5000/my-commit-alpine
 
 ########
-# Pull the new image that we just commited
+# Pull the new image that we just committed
 ########
 buildah from --pull-always --cert-dir /root/auth --tls-verify=true --creds=testuser:testpassword localhost:5000/my-commit-alpine
 

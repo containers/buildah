@@ -7,7 +7,7 @@ The purpose of this tutorial is to demonstrate how Buildah can be used to build 
 
 In brief the `containers/image` project provides mechanisms to copy, push, pull, inspect and sign container images. The `containers/storage` project provides mechanisms for storing filesystem layers, container images, and containers. Buildah is a CLI that takes advantage of these underlying projects and therefore allows you to build, move, and manage container images and containers.
 
-Buildah works on a number of Linux distributions, but is not supported on Windows or Mac platforms at this time.  Buildah specializes in building OCI images and [Podman](https://podman.io) specializes in all of the commands and functions that help you to maintain, modify and run OCI images and containers.  For more informaton on the difference between the projects please refer to the [Buildah and Podman relationship](https://github.com/containers/buildah#buildah-and-podman-relationship) section on the main README.md.
+Buildah works on a number of Linux distributions, but is not supported on Windows or Mac platforms at this time.  Buildah specializes in building OCI images and [Podman](https://podman.io) specializes in all of the commands and functions that help you to maintain, modify and run OCI images and containers.  For more information on the difference between the projects please refer to the [Buildah and Podman relationship](https://github.com/containers/buildah#buildah-and-podman-relationship) section on the main README.md.
 
 ## Configure and Install Buildah
 

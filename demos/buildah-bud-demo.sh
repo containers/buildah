@@ -3,7 +3,7 @@
 # buildah-bud-demo.sh
 # author : ipbabble
 # Assumptions install buildah, podman & docker
-# Do NOT start the docker deamon
+# Do NOT start the docker daemon
 # Set some of the variables below
 
 demoimg=buildahbuddemo
@@ -64,7 +64,7 @@ podman stop $containernum
 podman rm $containernum                                                                              
 read -p "${cyan}Check that nginx is down${reset}"
 curl localhost
-read -p "${cyan}Start the Docker daemon. Using restart incase it is already started${reset}"
+read -p "${cyan}Start the Docker daemon. Using restart in case it is already started${reset}"
 systemctl restart docker
 read -p "${red}List the Docker images in the repository - should be empty${reset}"
 docker images                                                                          

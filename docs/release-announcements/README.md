@@ -22,6 +22,6 @@ Features: SHELL command support in Dockerfiles, added support for three transpor
 
 **[Buildah Alpha v0.12 RA](v0.12.md) - February 21, 2018**
 
-Features: Set the default certificate directory to /etc/containers/certs.d, improved lookups for a variety of image name formats, added pruning capabilty to the rmi command, provided authentication to `buildah bud` and other enhancements and bug fixes.
+Features: Set the default certificate directory to /etc/containers/certs.d, improved lookups for a variety of image name formats, added pruning capability to the rmi command, provided authentication to `buildah bud` and other enhancements and bug fixes.
 
 ## Buildah == Simplicity

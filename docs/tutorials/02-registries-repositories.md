@@ -11,7 +11,7 @@ First we must pull down a registry. As a shortcut we will save the container nam
 
     # registry=$(buildah from registry)
 
-It is worth pointing out that the `from` command can also use other protocols beyond the default (and implicity assumed) order that first looks in local containers-storage (containers-storage:) and then looks in the Docker hub (docker:). For example, if you already had a registry container image in a local Docker registry then you could use the following:
+It is worth pointing out that the `from` command can also use other protocols beyond the default (and implicitly assumed) order that first looks in local containers-storage (containers-storage:) and then looks in the Docker hub (docker:). For example, if you already had a registry container image in a local Docker registry then you could use the following:
 
     # registry=$(buildah from docker-daemon:registry:latest)
 
