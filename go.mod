@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/blang/semver v3.5.0+incompatible // indirect
+	github.com/containerd/containerd v1.3.0
 	github.com/containernetworking/cni v0.7.1
 	github.com/containers/image/v5 v5.0.0
 	github.com/containers/storage v1.13.5
@@ -30,7 +31,7 @@ require (
 	github.com/opencontainers/runtime-tools v0.9.0
 	github.com/opencontainers/selinux v1.3.0
 	github.com/openshift/api v3.9.1-0.20190810003144-27fb16909b15+incompatible
-	github.com/openshift/imagebuilder v1.1.1
+	github.com/openshift/imagebuilder v1.1.1-0.20191118051649-22563141c8d6
 	github.com/pkg/errors v0.8.1
 	github.com/seccomp/containers-golang v0.0.0-20180629143253-cdfdaa7543f4
 	github.com/seccomp/libseccomp-golang v0.9.1

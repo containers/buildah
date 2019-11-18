@@ -21,11 +21,33 @@ import (
 
 	"github.com/openshift/imagebuilder/signal"
 	"github.com/openshift/imagebuilder/strslice"
+	"github.com/containerd/containerd/platforms"
 )
 
 var (
 	obRgex = regexp.MustCompile(`(?i)^\s*ONBUILD\s*`)
 )
+
+var localspec = platforms.DefaultSpec()
+
+// https://docs.docker.com/engine/reference/builder/#automatic-platform-args-in-the-global-scope
+var builtinBuildArgs = map[string]string{
+	"TARGETPLATFORM": localspec.OS + "/" + localspec.Architecture,
+	"TARGETOS":       localspec.OS,
+	"TARGETARCH":     localspec.Architecture,
+	"TARGETVARIANT":  localspec.Variant,
+	"BUILDPLATFORM":  localspec.OS + "/" + localspec.Architecture,
+	"BUILDOS":        localspec.OS,
+	"BUILDARCH":      localspec.Architecture,
+	"BUILDVARIANT":   localspec.Variant,
+}
+
+func init() {
+	if localspec.Variant != "" {
+		builtinBuildArgs["TARGETPLATFORM"] = builtinBuildArgs["TARGETPLATFORM"] + "/" + localspec.Variant
+		builtinBuildArgs["BUILDPLATFORM"] = builtinBuildArgs["BUILDPLATFORM"] + "/" + localspec.Variant
+	}
+}
 
 // ENV foo bar
 //
@@ -516,6 +538,9 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, flagArgs
 	return nil
 }
 
+
+var targetArgs = []string {"TARGETOS", "TARGETARCH", "TARGETVARIANT"}
+
 // ARG name[=value]
 //
 // Adds the variable foo to the trusted list of variables that can be passed
@@ -542,6 +567,26 @@ func arg(b *Builder, args []string, attributes map[string]bool, flagArgs []strin
 		parts := strings.SplitN(arg, "=", 2)
 		name = parts[0]
 		value = parts[1]
+		hasDefault = true
+		if name == "TARGETPLATFORM" {
+			p, err := platforms.Parse(value)
+			if err != nil {
+				return fmt.Errorf("error parsing TARGETPLATFORM argument")
+			}
+			for _, val := range targetArgs {
+				b.AllowedArgs[val] = true
+			}
+			b.Args["TARGETPLATFORM"] = p.OS + "/" + p.Architecture
+			b.Args["TARGETOS"] = p.OS
+			b.Args["TARGETARCH"] = p.Architecture
+			b.Args["TARGETVARIANT"] = p.Variant
+			if p.Variant != "" {
+				b.Args["TARGETPLATFORM"] = b.Args["TARGETPLATFORM"] + "/" + p.Variant
+			}
+		}
+	} else if val, ok := builtinBuildArgs[arg]; ok {
+		name = arg
+		value = val
 		hasDefault = true
 	} else {
 		name = arg
