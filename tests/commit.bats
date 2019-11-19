@@ -115,3 +115,23 @@ load helpers
 	buildah rm $cid
 	buildah rmi -f alpine-image
 }
+
+@test "commit-parent-id" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  iid=$(buildah inspect --format '{{.FromImageID}}' $cid)
+  echo image ID: "$iid"
+  buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker $cid alpine-image
+  parentid=$(buildah inspect --format '{{.Docker.Parent}}' alpine-image)
+  echo parent ID: "$parentid"
+  [ "$parentid" = sha256:"$iid" ]
+}
+
+@test "commit-container-id" {
+  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  cid=$(buildah containers --format '{{.ContainerID}}:{{.ContainerName}}' | grep :"$cid"'$' | cut -f1 -d:)
+  echo container ID: "$cid"
+  buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker $cid alpine-image
+  containerid=$(buildah inspect --format '{{.Docker.Container}}' alpine-image)
+  echo recorded container ID: "$containerid"
+  [ "$containerid" = "$cid" ]
+}
