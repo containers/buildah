@@ -103,3 +103,15 @@ load helpers
   buildah rm $cid
   buildah rmi -a
 }
+
+@test "commit-builder-identity" {
+	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
+
+	buildah_version=$(buildah --version | awk '{ print $3 }')
+	version=$(buildah inspect --format '{{ index .Docker.Config.Labels "io.buildah.version"}}' alpine-image)
+
+	[ "$version" == "$buildah_version" ]
+	buildah rm $cid
+	buildah rmi -f alpine-image
+}
