@@ -3,14 +3,14 @@
 load helpers
 
 @test "overlay specific level" {
-  if test \! -e /usr/bin/fuse-overlays -a  "$BUILDAH_ISOLATION" = "rootless"; then
+  if test \! -e /usr/bin/fuse-overlayfs -a "$BUILDAH_ISOLATION" = "rootless"; then
     skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION" and no /usr/bin/fuse-overlayfs present
   fi
   image=alpine
   mkdir ${TESTDIR}/lower
   touch ${TESTDIR}/lower/foo
 
-cid=$(buildah --log-level=error from -v ${TESTDIR}/lower:/lower:O --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  cid=$(buildah --log-level=error from -v ${TESTDIR}/lower:/lower:O --quiet --signature-policy ${TESTSDIR}/policy.json $image)
 
   # This should succeed
   run_buildah --log-level=error run $cid ls /lower/foo
