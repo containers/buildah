@@ -26,6 +26,12 @@ github.com/QiWang19/common v0.0.0-20191109173704-2f2efcd02f71 h1:kUx9GYijJ8kPbPs
 github.com/QiWang19/common v0.0.0-20191109173704-2f2efcd02f71/go.mod h1:ZGkKUTYQ21Ntes8QfUpu41vlutcwwPLB/DptMsPyo8I=
 github.com/QiWang19/common v0.0.0-20191109180558-1d049e239abc h1:LvXNTSDOc5BMKvhTiB0JmtyTVvPvRjOxrUnWOHhlcl0=
 github.com/QiWang19/common v0.0.0-20191109180558-1d049e239abc/go.mod h1:ZGkKUTYQ21Ntes8QfUpu41vlutcwwPLB/DptMsPyo8I=
+github.com/QiWang19/common v0.0.0-20191125210821-4c75e2516b37 h1:6ljLlG/AmG+MHrimiPhSMQdsjsib8LO6mKOt2V6lxSY=
+github.com/QiWang19/common v0.0.0-20191125210821-4c75e2516b37/go.mod h1:f3KsSzFwDzo4ayXPgcVmzvMTo0yzpwOqe/o2223FsQE=
+github.com/QiWang19/common v0.0.0-20191126141658-b12daff50df8 h1:h53zM7CJSh4RSFYIaVRd+clQwMmKS8wxKdu1CxcSLcY=
+github.com/QiWang19/common v0.0.0-20191126141658-b12daff50df8/go.mod h1:f3KsSzFwDzo4ayXPgcVmzvMTo0yzpwOqe/o2223FsQE=
+github.com/QiWang19/common v0.0.0-20191126190113-44f6c05daf29 h1:k3DaOIAUyJeMgtWC2B7gkn5BLW6WegnUJmbijvOKrzA=
+github.com/QiWang19/common v0.0.0-20191126190113-44f6c05daf29/go.mod h1:f3KsSzFwDzo4ayXPgcVmzvMTo0yzpwOqe/o2223FsQE=
 github.com/VividCortex/ewma v1.1.1 h1:MnEK4VOv6n0RSY4vtRe3h11qjxL3+t0B8yOL8iMXdcM=
 github.com/VividCortex/ewma v1.1.1/go.mod h1:2Tkkvm3sRDVXaiyucHiACn4cqf7DpdyLvmxzcbUokwA=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
@@ -516,6 +522,7 @@ k8s.io/klog v0.0.0-20181102134211-b9b56d5dfc92/go.mod h1:Gq+BEi5rUBO/HRz0bTSXDUc
 k8s.io/klog v1.0.0 h1:Pt+yjF5aB1xDSVbau4VsWe+dQNzA0qv1LlXdC2dF6Q8=
 k8s.io/klog v1.0.0/go.mod h1:4Bi6QPql/J/LkTDqv7R/cd3hPo4k2DG6Ptcz060Ez5I=
 k8s.io/kube-openapi v0.0.0-20190709113604-33be087ad058/go.mod h1:nfDlWeOsu3pUf4yWGL+ERqohP4YsZcBJXWMK+gkzOA4=
+k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf/go.mod h1:1TqjTSzOxsLGIKfj0lK8EeCP7K1iUG65v09OM0/WG5E=
 k8s.io/kubernetes v1.13.0/go.mod h1:ocZa8+6APFNC2tX1DZASIbocyYT5jHzqFVsY5aoB7Jk=
 sigs.k8s.io/structured-merge-diff v0.0.0-20190525122527-15d366b2352e/go.mod h1:wWxsB5ozmmv/SG7nM11ayaAW51xMvak/t1r0CSlcokI=
 sigs.k8s.io/yaml v1.1.0 h1:4A07+ZFc2wgJwo8YNlQpr1rVlgUDlxXHhPJciaPY5gs=

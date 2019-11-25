@@ -102,7 +102,7 @@ const logLevel = "log-level"
 
 func getDefaultConfig(path string) *config.Config {
 	var err error
-	defaultConfig, err := config.New(path)
+	defaultConfig, err := config.NewConfig(path)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

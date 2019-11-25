@@ -48,7 +48,7 @@ github.com/containernetworking/cni/pkg/types
 github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.0.2 => github.com/QiWang19/common v0.0.0-20191109180558-1d049e239abc
+# github.com/containers/common v0.0.2 => github.com/QiWang19/common v0.0.0-20191126190113-44f6c05daf29
 github.com/containers/common/pkg/config
 github.com/containers/common/pkg/unshare
 # github.com/containers/image/v5 v5.0.0

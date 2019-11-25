@@ -235,7 +235,7 @@ func SetDefaultConfig(cmd *cobra.Command, defaultConfig *config.Config) error {
 		if apparmor.IsEnabled() && defaultConfig.ContainersConfig.ApparmorProfile != "" {
 			securityOpts = append(securityOpts, fmt.Sprintf("apparmor=%s", defaultConfig.ContainersConfig.ApparmorProfile))
 		}
-		if selinux.GetEnabled() && !defaultConfig.ContainersConfig.SELinux {
+		if selinux.GetEnabled() && !defaultConfig.ContainersConfig.EnableLabeling {
 			securityOpts = append(securityOpts, fmt.Sprintf("label=%s", selinux.DisableSecOpt()[0]))
 		}
 		err := cmd.Flags().Set("security-opt", strings.Join(securityOpts, ","))

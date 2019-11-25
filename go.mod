@@ -10,7 +10,7 @@ require (
 	github.com/containers/storage v1.14.0
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/docker v1.4.2-0.20190927142053-ada3c14355ce
+	github.com/docker/docker v1.4.2-0.20191101170500-ac7306503d23
 	github.com/docker/docker-credential-helpers v0.6.3 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.4.0
@@ -51,4 +51,4 @@ require (
 	k8s.io/api v0.0.0-20191010143144-fbf594f18f80 // indirect
 )
 
-replace github.com/containers/common => github.com/QiWang19/common v0.0.0-20191109180558-1d049e239abc
+replace github.com/containers/common => github.com/QiWang19/common v0.0.0-20191126190113-44f6c05daf29
