@@ -1099,6 +1099,13 @@ load helpers
   expect_output --substring "3267"
 }
 
+@test "bud with chown copy with bad chown flag in Dockerfile with --layers" {
+  imgName=alpine-image
+  ctrName=alpine-chown
+  run_buildah 1 --log-level=error bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/copy-chown/Dockerfile.bad ${TESTSDIR}/bud/copy-chown
+  expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
+}
+
 @test "bud with chown add" {
   imgName=alpine-image
   ctrName=alpine-chown
@@ -1112,6 +1119,13 @@ load helpers
   run_buildah --log-level=error run alpine-chown -- stat -c '%g' /tmp/addchown.txt
   # Validate that output starts with "3267"
   expect_output --substring "3267"
+}
+
+@test "bud with chown add with bad chown flag in Dockerfile with --layers" {
+  imgName=alpine-image
+  ctrName=alpine-chown
+  run_buildah 1 --log-level=error bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/add-chown/Dockerfile.bad ${TESTSDIR}/bud/add-chown
+  expect_output --substring "ADD only supports the --chown=<uid:gid> flag"
 }
 
 @test "bud with ADD file construct" {
@@ -1197,7 +1211,7 @@ load helpers
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah --log-level=error bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.invalid_from -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths || true
-  expect_output --substring "COPY: invalid --from flag, should be --from=<name|index>"
+  expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
 }
 
 @test "bud COPY to root succeeds" {
@@ -1319,6 +1333,12 @@ load helpers
   mnt=$(buildah --log-level=error mount ${ctr})
 
   test -e $mnt/usr/local/bin/composer
+}
+
+@test "bud with copy-from with bad from flag in Dockerfile with --layers" {
+  target=php-image
+  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile.bad ${TESTSDIR}/bud/copy-from
+  expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
 }
 
 @test "bud-target" {
