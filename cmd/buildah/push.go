@@ -173,6 +173,8 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		BlobDirectory:       iopts.blobCache,
 		RemoveSignatures:    iopts.removeSignatures,
 		SignBy:              iopts.signBy,
+		MaxRetries:          maxPullPushRetries,
+		RetryDelay:          pullPushRetryDelay,
 	}
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr

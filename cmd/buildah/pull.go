@@ -109,6 +109,8 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		AllTags:             iopts.allTags,
 		ReportWriter:        os.Stderr,
 		RemoveSignatures:    iopts.removeSignatures,
+		MaxRetries:          maxPullPushRetries,
+		RetryDelay:          pullPushRetryDelay,
 	}
 
 	if iopts.quiet {

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/pkg/parse"
@@ -98,6 +99,8 @@ type Executor struct {
 	signBy                         string
 	architecture                   string
 	os                             string
+	maxPullPushRetries             int
+	retryPullPushDelay             time.Duration
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
@@ -176,12 +179,14 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		rootfsMap:                      make(map[string]bool),
 		blobDirectory:                  options.BlobDirectory,
 		unusedArgs:                     make(map[string]struct{}),
-		buildArgs:                      options.Args,
+		buildArgs:                      copyStringStringMap(options.Args),
 		capabilities:                   capabilities,
 		devices:                        devices,
 		signBy:                         options.SignBy,
 		architecture:                   options.Architecture,
 		os:                             options.OS,
+		maxPullPushRetries:             options.MaxPullPushRetries,
+		retryPullPushDelay:             options.PullPushRetryDelay,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
