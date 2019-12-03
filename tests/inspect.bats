@@ -14,26 +14,38 @@ load helpers
 }
 
 @test "inspect" {
-	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-	run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" alpine-image
-	
-	buildah_version=$(buildah --version | awk '{ print $3 }')
-	out1=$(buildah inspect --format '{{.OCIv1.Config}}' alpine)
-	out2=$(buildah inspect --type image --format '{{.OCIv1.Config}}' alpine-image | sed "s/io.buildah.version:${buildah_version}//g")
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" alpine-image
 
-	[ "$out1" != "" ]
-	[ "$out1" = "$out2" ]
+  # e.g. { map[] [PATH=/....] [] [/bin/sh] map[]  map[] }
+  run_buildah inspect --format '{{.OCIv1.Config}}' alpine
+  expect_output --substring "map.*PATH=.*/bin/sh.*map"
+  inspect_basic=$output
 
-	imageid=$(buildah images -q alpine-image)
-	containerid=$(buildah containers -q)
+  # Now inspect the committed image. Output should be _mostly_ the same...
+  run_buildah inspect --type image --format '{{.OCIv1.Config}}' alpine-image
+  inspect_after_commit=$output
 
-	out3=$(buildah inspect --format '{{.OCIv1.Config}}' $containerid)
-	out4=$(buildah inspect --type image --format '{{.OCIv1.Config}}' $imageid)
-	[ "$out3" = "$out1" ]
-	[ "$out4" = "$out1" ]
+  # ...except that at some point in November 2019 buildah-inspect started
+  # including version. Strip it out,
+  buildah_version=$(buildah --version | awk '{ print $3 }')
+  inspect_cleaned=$(echo "$inspect_after_commit" | sed "s/io.buildah.version:${buildah_version}//g")
+  expect_output --from="$inspect_cleaned" "$inspect_basic"
 
-	buildah rm $cid
-	buildah rmi alpine-image alpine
+  imageid=$(buildah images -q alpine-image)
+  containerid=$(buildah containers -q)
+
+  # This one should not include buildah version
+  run_buildah inspect --format '{{.OCIv1.Config}}' $containerid
+  expect_output "$inspect_basic"
+
+  # This one should.
+  run_buildah inspect --type image --format '{{.OCIv1.Config}}' $imageid
+  expect_output "$inspect_after_commit"
+
+  buildah rm $cid
+  buildah rmi alpine-image alpine
 }
 
 @test "inspect-config-is-json" {

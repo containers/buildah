@@ -362,22 +362,25 @@ load helpers
   buildah rmi --all --force
 }
 
-@test "from should fail with nonexist authfil" {
-  run_buildah 1 from --authfile /tmp/nonexist --pull --signature-policy ${TESTSDIR}/policy.json alpine
+@test "from with nonexistent authfile: fails" {
+  run_buildah 1 from --authfile /no/such/file --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  expect_output "error checking authfile path /no/such/file: stat /no/such/file: no such file or directory"
 }
 
-@test "from pull always test" {
+@test "from --pull-always: emits 'Getting' even if image is cached" {
   run buildah pull --signature-policy ${TESTSDIR}/policy.json docker.io/busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc --pull-always docker.io/busybox
   expect_output --substring "Getting"
   buildah commit --signature-policy ${TESTSDIR}/policy.json busyboxc fakename-img
   run_buildah 1 from --signature-policy ${TESTSDIR}/policy.json --pull-always fakename-img
-  buildah rm busyboxc
-  buildah rmi fakename-img
+  run_buildah rm busyboxc
+  run_buildah rmi fakename-img
 }
 
-@test "from quiet test" {
-  run buildah rmi docker.io/busybox
+@test "from --quiet: should not emit progress messages" {
+  # Force a pull. Normally this would say 'Getting image ...' and other
+  # progress messages. With --quiet, we should see only the container name.
+  run_buildah '?' rmi busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet docker.io/busybox
-  [[ "$output" != "Getting"* ]]
+  expect_output "busybox-working-container"
 }

@@ -1886,7 +1886,7 @@ EOM
 @test "bud quiet" {
   run_buildah bud --format docker -t quiet-test --signature-policy ${TESTSDIR}/policy.json -q ${TESTSDIR}/bud/shell
   expect_line_count 1
-  expect_output --substring "^[0-9a-z]{64}$"
+  expect_output --substring '^[0-9a-f]{64}$'
 
   buildah rmi quiet-test
 }

@@ -47,7 +47,9 @@ load helpers
   cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
   run_buildah --log-level=error containers --noheading
   expect_line_count 2
-  [[ "$output" != "NAME"* ]]
+  if [[ $output =~ "NAME" ]]; then
+      expect_output "[no instance of 'NAME']" "'NAME' header should be absent"
+  fi
 
   buildah rm -a
   buildah rmi -a -f
@@ -59,8 +61,9 @@ load helpers
   run_buildah --log-level=error containers --quiet
   expect_line_count 2
 
-  [[ "${lines[0]}" != "$cid1"* ]]
-  [[ "${lines[1]}" != "$cid2"* ]]
+  # Both lines should be CIDs and nothing else.
+  expect_output --substring --from="${lines[0]}" '^[0-9a-f]{64}$'
+  expect_output --substring --from="${lines[1]}" '^[0-9a-f]{64}$'
 
   buildah rm -a
   buildah rmi -a -f
