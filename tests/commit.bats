@@ -137,13 +137,22 @@ load helpers
 }
 
 @test "commit with name" {
-  buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
-  run_buildah --log-level=error commit --signature-policy ${TESTSDIR}/policy.json busyboxc commitbyname/busyboxbyname
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json localhost/commitbyname/busyboxbyname)
-  run_buildah inspect --format '{{.Container}}' $cid
-  expect_output $cid
-  buildah rm busyboxc $cid
-  buildah rmi commitbyname/busyboxbyname
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
+  expect_output "busyboxc"
+
+  # Commit with a new name
+  newname="commitbyname/busyboxname"
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json busyboxc $newname
+
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json localhost/$newname
+  expect_output "busyboxname-working-container"
+
+  cname=$output
+  run_buildah inspect --format '{{.FromImage}}' $cname
+  expect_output "localhost/$newname:latest"
+
+  buildah rm busyboxc $cname
+  buildah rmi $newname
 }
 
 @test "commit to docker-distribution" {
