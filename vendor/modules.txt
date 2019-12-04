@@ -8,7 +8,7 @@ github.com/Microsoft/go-winio
 github.com/Microsoft/go-winio/archive/tar
 github.com/Microsoft/go-winio/backuptar
 github.com/Microsoft/go-winio/pkg/guid
-# github.com/Microsoft/hcsshim v0.8.7-0.20191101173118-65519b62243c
+# github.com/Microsoft/hcsshim v0.8.7
 github.com/Microsoft/hcsshim
 github.com/Microsoft/hcsshim/internal/cow
 github.com/Microsoft/hcsshim/internal/hcs
@@ -88,7 +88,7 @@ github.com/containers/image/v5/types
 github.com/containers/image/v5/version
 # github.com/containers/libtrust v0.0.0-20190913040956-14b96171aa3b
 github.com/containers/libtrust
-# github.com/containers/storage v1.15.1
+# github.com/containers/storage v1.15.2
 github.com/containers/storage
 github.com/containers/storage/drivers
 github.com/containers/storage/drivers/aufs
@@ -230,7 +230,7 @@ github.com/imdario/mergo
 github.com/inconshreveable/mousetrap
 # github.com/ishidawataru/sctp v0.0.0-20180918013207-6e2cb1366111
 github.com/ishidawataru/sctp
-# github.com/klauspost/compress v1.9.3
+# github.com/klauspost/compress v1.9.4
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
