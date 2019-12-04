@@ -20,6 +20,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const none = "<none>"
+
 type jsonImage struct {
 	ID           string    `json:"id"`
 	Names        []string  `json:"names"`
@@ -28,6 +30,7 @@ type jsonImage struct {
 	Size         string    `json:"size"`
 	CreatedAtRaw time.Time `json:"createdatraw"`
 	ReadOnly     bool      `json:"readonly"`
+	History      []string  `json:"history"`
 }
 
 type imageOutputParams struct {
@@ -39,6 +42,7 @@ type imageOutputParams struct {
 	Size         string
 	CreatedAtRaw time.Time
 	ReadOnly     bool
+	History      string
 }
 
 type imageOptions struct {
@@ -50,6 +54,7 @@ type imageOptions struct {
 	truncate  bool
 	quiet     bool
 	readOnly  bool
+	history   bool
 }
 
 type filterParams struct {
@@ -61,6 +66,7 @@ type filterParams struct {
 	sinceDate        time.Time
 	referencePattern string
 	readOnly         string
+	history          string
 }
 
 type imageResults struct {
@@ -75,6 +81,7 @@ var imagesHeader = map[string]string{
 	"CreatedAt": "CREATED",
 	"Size":      "SIZE",
 	"ReadOnly":  "R/O",
+	"History":   "HISTORY",
 }
 
 func init() {
@@ -106,6 +113,7 @@ func init() {
 	// TODO needs alias here -- to `notruncate`
 	flags.BoolVar(&opts.truncate, "no-trunc", false, "do not truncate output")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "display only image IDs")
+	flags.BoolVarP(&opts.history, "history", "", false, "display the image name history")
 
 	rootCmd.AddCommand(imagesCommand)
 }
@@ -155,6 +163,7 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 		noHeading: iopts.noHeading,
 		truncate:  !iopts.truncate,
 		quiet:     iopts.quiet,
+		history:   iopts.history,
 	}
 	ctx := getContext()
 
@@ -257,6 +266,9 @@ func outputHeader(opts imageOptions) string {
 	if opts.readOnly {
 		format += "\t{{.ReadOnly}}"
 	}
+	if opts.history {
+		format += "\t{{.History}}"
+	}
 	return format
 }
 
@@ -319,6 +331,7 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 							CreatedAt:    units.HumanDuration(time.Since((createdTime))) + " ago",
 							Size:         formattedSize(size),
 							ReadOnly:     image.ReadOnly,
+							History:      image.NamesHistory,
 						})
 					// We only want to print each id once
 					break outer
@@ -332,6 +345,7 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 					CreatedAt:    units.HumanDuration(time.Since((createdTime))) + " ago",
 					Size:         formattedSize(size),
 					ReadOnly:     image.ReadOnly,
+					History:      formatHistory(image.NamesHistory, name, tag),
 				}
 				imagesParams = append(imagesParams, params)
 				if opts.quiet {
@@ -357,6 +371,20 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 	imagesParams = sortImagesOutput(imagesParams)
 	out := formats.StdoutTemplateArray{Output: imagesToGeneric(imagesParams), Template: outputHeader(opts), Fields: imagesHeader}
 	return formats.Writer(out).Out()
+}
+
+func formatHistory(history []string, name, tag string) string {
+	if len(history) == 0 {
+		return none
+	}
+	// Skip the first history entry if already existing as name
+	if fmt.Sprintf("%s:%s", name, tag) == history[0] {
+		if len(history) == 1 {
+			return none
+		}
+		return strings.Join(history[1:], ", ")
+	}
+	return strings.Join(history, ", ")
 }
 
 func shortID(id string) string {
@@ -409,14 +437,17 @@ func matchesFilter(ctx context.Context, store storage.Store, image storage.Image
 	if params.readOnly != "" && !matchesReadOnly(image, params.readOnly) {
 		return false
 	}
+	if params.history != "" && !matchesHistory(image, params.history) {
+		return false
+	}
 	return true
 }
 
 func matchesDangling(name string, dangling string) bool {
-	if dangling == "false" && !strings.Contains(name, "<none>") {
+	if dangling == "false" && !strings.Contains(name, none) {
 		return true
 	}
-	if dangling == "true" && strings.Contains(name, "<none>") {
+	if dangling == "true" && strings.Contains(name, none) {
 		return true
 	}
 	return false
@@ -426,6 +457,16 @@ func matchesReadOnly(image storage.Image, readOnly string) bool {
 		return true
 	}
 	if readOnly == "true" && image.ReadOnly {
+		return true
+	}
+	return false
+}
+
+func matchesHistory(image storage.Image, readOnly string) bool {
+	if readOnly == "false" && len(image.NamesHistory) == 0 {
+		return true
+	}
+	if readOnly == "true" && len(image.NamesHistory) > 0 {
 		return true
 	}
 	return false
@@ -519,14 +560,14 @@ func imageReposToMap(repotags []string) map[string][]string {
 			tag = repo[li+1:]
 		} else if len(repo) > 0 {
 			repository = repo
-			tag = "<none>"
+			tag = none
 		} else {
 			logrus.Warnf("Found image with empty name")
 		}
 		repos[repository] = append(repos[repository], tag)
 	}
 	if len(repos) == 0 {
-		repos["<none>"] = []string{"<none>"}
+		repos[none] = []string{none}
 	}
 	return repos
 }

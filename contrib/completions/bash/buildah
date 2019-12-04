@@ -915,6 +915,7 @@ _buildah_containers() {
      --digests
      --help
      -h
+     --history
      --json
      --quiet
      -q

@@ -497,3 +497,26 @@ func captureOutput(f func()) string {
 	io.Copy(&buf, r) //nolint
 	return buf.String()
 }
+
+func TestFormatImages(t *testing.T) {
+	for i, test := range []struct {
+		history     []string
+		name, tag   string
+		expectation string
+	}{
+		{history: nil, name: "", tag: "", expectation: none},
+		{history: []string{"image:tag"}, name: "", tag: "", expectation: "image:tag"},
+		{history: []string{"image:tag"}, name: "image", tag: "tag", expectation: none},
+		{history: []string{"image1:tag", "image2:tag"}, name: "image1", tag: "tag", expectation: "image2:tag"},
+		{history: []string{"image1:tag", "image2:tag"}, name: "image3", tag: "tag", expectation: "image1:tag, image2:tag"},
+	} {
+		result := formatHistory(test.history, test.name, test.tag)
+		if result != test.expectation {
+			t.Errorf(
+				"error in formatHistory [%d]: expected '%s' got '%s'",
+				i, test.expectation, result,
+			)
+		}
+	}
+
+}

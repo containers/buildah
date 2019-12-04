@@ -58,6 +58,10 @@ Valid placeholders for the Go template are listed below:
 | .CreatedAtRaw   | Creation date in raw format              |
 | .ReadOnly       | Indicates if image came from a R/O store |
 
+**--history**
+
+Display the image name history.
+
 **--json**
 
 Display the output in JSON format.
