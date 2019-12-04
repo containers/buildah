@@ -17,6 +17,8 @@ github.com/Microsoft/hcsshim v0.8.6 h1:ZfF0+zZeYdzMIVMZHKtDKJvLHj76XCuVae/jNkjj0
 github.com/Microsoft/hcsshim v0.8.6/go.mod h1:Op3hHsoHPAvb6lceZHDtd9OkTew38wNoXnJs8iY7rUg=
 github.com/Microsoft/hcsshim v0.8.7-0.20191101173118-65519b62243c h1:YMP6olTU903X3gxQJckdmiP8/zkSMq4kN3uipsU9XjU=
 github.com/Microsoft/hcsshim v0.8.7-0.20191101173118-65519b62243c/go.mod h1:7xhjOwRV2+0HXGmM0jxaEu+ZiXJFoVZOTfL/dmqbrD8=
+github.com/Microsoft/hcsshim v0.8.7 h1:ptnOoufxGSzauVTsdE+wMYnCWA301PdoN4xg5oRdZpg=
+github.com/Microsoft/hcsshim v0.8.7/go.mod h1:OHd7sQqRFrYd3RmSgbgji+ctCwkbq2wbEYNSzOYtcBQ=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/PuerkitoBio/purell v1.0.0/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20160726150825-5bd2802263f2/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
@@ -68,6 +70,8 @@ github.com/containers/storage v1.14.0 h1:LbX6WZaDmkXt4DT4xWIg3YXAWd6oA4K9Fi6/KG1
 github.com/containers/storage v1.14.0/go.mod h1:qGPsti/qC1xxX+xcpHfiTMT+8ThVE2Jf83wFHHqkDAY=
 github.com/containers/storage v1.15.1 h1:yE0lkMG/sIj+dvc/FDGT9KmPi/wXTKGqoLJnNy1tL/c=
 github.com/containers/storage v1.15.1/go.mod h1:6BYP6xBTstj0E9dY6mYFgn3BRBRPRSVqfhAqKIWkGpE=
+github.com/containers/storage v1.15.2 h1:hLgafU4tuyQk/smMkXZfHTS8FtAQsqQvfWCp4bsgjuw=
+github.com/containers/storage v1.15.2/go.mod h1:v0lq/3f+cXH3Y/HiDaFYRR0zilwDve7I4W7U5xQxvF8=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-etcd v2.0.0+incompatible/go.mod h1:Jez6KQU2B/sWsbdaef3ED8NzMklzPG4d5KIOhIy30Tk=
 github.com/coreos/go-semver v0.2.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
@@ -201,6 +205,8 @@ github.com/klauspost/compress v1.9.2 h1:LfVyl+ZlLlLDeQ/d2AqfGIIH4qEDu0Ed2S5GyhCW
 github.com/klauspost/compress v1.9.2/go.mod h1:RyIbtBH6LamlWaDj8nUwkbUhJ87Yi3uG0guNDohfE1A=
 github.com/klauspost/compress v1.9.3 h1:hkFELABwacUEgBfiguNeQydKv3M9pawBq8o24Ypw9+M=
 github.com/klauspost/compress v1.9.3/go.mod h1:RyIbtBH6LamlWaDj8nUwkbUhJ87Yi3uG0guNDohfE1A=
+github.com/klauspost/compress v1.9.4 h1:xhvAeUPQ2drNUhKtrGdTGNvV9nNafHMUkRyLkzxJoB4=
+github.com/klauspost/compress v1.9.4/go.mod h1:RyIbtBH6LamlWaDj8nUwkbUhJ87Yi3uG0guNDohfE1A=
 github.com/klauspost/cpuid v1.2.1 h1:vJi+O/nMdFt0vqm8NZBI6wzALWdA2X+egi0ogNyrC/w=
 github.com/klauspost/cpuid v1.2.1/go.mod h1:Pj4uuM528wm8OyEC2QMXAi2YiTZ96dNQPGgoMS4s3ek=
 github.com/klauspost/pgzip v1.2.1 h1:oIPZROsWuPHpOdMVWLuJZXwgjhrW8r1yEX8UqMyeNHM=
@@ -341,6 +347,12 @@ github.com/saschagrunert/storage v1.12.3-0.20191114093559-52adfaa6f31e h1:iX1xFl
 github.com/saschagrunert/storage v1.12.3-0.20191114093559-52adfaa6f31e/go.mod h1:apitPTJaaw4MMr0U+Z3WwpX86dwUMOlV/lp0NgZhXTU=
 github.com/saschagrunert/storage v1.12.3-0.20191116170926-5e07044cf0e2 h1:azd4fIVaZqFbBcgbMSuP9YyskvNwRdiV+SO2Z1qJfA8=
 github.com/saschagrunert/storage v1.12.3-0.20191116170926-5e07044cf0e2/go.mod h1:apitPTJaaw4MMr0U+Z3WwpX86dwUMOlV/lp0NgZhXTU=
+github.com/saschagrunert/storage v1.12.3-0.20191204100010-fb36c82c86cf h1:zEhK8b4BuleUudosaE3JGawKtHHchx7eKodv1NqMbG4=
+github.com/saschagrunert/storage v1.12.3-0.20191204100010-fb36c82c86cf/go.mod h1:/Lild6FqQu2HwAVjVC9d5EAls3Mqwoxx67XpnR4UgEY=
+github.com/saschagrunert/storage v1.12.3-0.20191204100312-941968b40828 h1:bHO3vvwwptY0SQpmrB5gLd/+UvgzcZvmrf4sP+JCm50=
+github.com/saschagrunert/storage v1.12.3-0.20191204100312-941968b40828/go.mod h1:/Lild6FqQu2HwAVjVC9d5EAls3Mqwoxx67XpnR4UgEY=
+github.com/saschagrunert/storage v1.12.3-0.20191204101521-aca03d333c53 h1:CBWb8W8lkcjV3cPtMYqXWkFslNCR76MXD8H9WlMVWJw=
+github.com/saschagrunert/storage v1.12.3-0.20191204101521-aca03d333c53/go.mod h1:/Lild6FqQu2HwAVjVC9d5EAls3Mqwoxx67XpnR4UgEY=
 github.com/seccomp/containers-golang v0.0.0-20180629143253-cdfdaa7543f4 h1:rOG9oHVIndNR14f3HRyBy9UPQYmIPniWqTU1TDdHhq4=
 github.com/seccomp/containers-golang v0.0.0-20180629143253-cdfdaa7543f4/go.mod h1:f/98/SnvAzhAEFQJ3u836FePXvcbE8BS0YGMQNn4mhA=
 github.com/seccomp/libseccomp-golang v0.9.1 h1:NJjM5DNFOs0s3kYE1WUOr6G8V97sdt46rlXTMfXGWBo=
