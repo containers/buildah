@@ -137,6 +137,12 @@ func main() {
 			continue
 		}
 
+		if expectedManifestType != "" && manifestType != expectedManifestType {
+			logrus.Errorf("expected manifest type %q in %q, got %q", expectedManifestType, image, manifestType)
+			errors = true
+			continue
+		}
+
 		switch expectedManifestType {
 		case buildah.OCIv1ImageManifest:
 			err = json.Unmarshal(manifest, &oManifest)
@@ -169,11 +175,7 @@ func main() {
 			manifestType = dManifest.MediaType
 			configType = dManifest.Config.MediaType
 		}
-		if expectedManifestType != "" && manifestType != expectedManifestType {
-			logrus.Errorf("expected manifest type %q in %q, got %q", expectedManifestType, image, manifestType)
-			errors = true
-			continue
-		}
+
 		switch manifestType {
 		case buildah.OCIv1ImageManifest:
 			if rebuildm != nil && *rebuildm {
