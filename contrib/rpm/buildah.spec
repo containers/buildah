@@ -99,7 +99,20 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Mon Nov 11, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+* Tue Dec 3, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+
+* Tue Dec 3, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.6-1
+- Handle missing equal sign in --from and --chown flags for COPY/ADD
+- bud COPY does not download URL
+- Bump github.com/onsi/gomega from 1.7.0 to 1.7.1
+- Fix .dockerignore exclude regression
+- Ran buildah through codespell
+- commit(docker): always set ContainerID and ContainerConfig
+- Touch up commit man page image parameter
+- Add builder identity annotations.
+- info: use util.Runtime()
+- Bump github.com/onsi/ginkgo from 1.10.2 to 1.10.3
+- Bump back to v1.12.0-dev
 
 * Mon Nov 11, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.5-1
 - Enhance error on unsafe symbolic link targets
