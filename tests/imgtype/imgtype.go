@@ -68,6 +68,7 @@ func main() {
 	}
 	if driver != nil {
 		storeOptions.GraphDriverName = *driver
+		storeOptions.GraphDriverOptions = nil
 	}
 	if opts != nil && *opts != "" {
 		storeOptions.GraphDriverOptions = strings.Split(*opts, ",")
