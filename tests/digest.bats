@@ -3,6 +3,7 @@
 load helpers
 
 fromreftest() {
+  _prefetch $1
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json $1
   cid=$output
   pushdir=${TESTDIR}/fromreftest

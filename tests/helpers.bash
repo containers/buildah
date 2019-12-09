@@ -44,6 +44,37 @@ function teardown() {
 	rm -fr ${TESTDIR}
 }
 
+function _prefetch() {
+	if [ -z "${_BUILDAH_IMAGE_CACHEDIR}" ]; then
+            _pgid=$(sed -ne 's/^NSpgid:\s*//p' /proc/$$/status)
+            export _BUILDAH_IMAGE_CACHEDIR=${BATS_TMPDIR}/buildah-image-cache.$_pgid
+            mkdir -p ${_BUILDAH_IMAGE_CACHEDIR}
+        fi
+
+        local _podman_opts="--root ${TESTDIR}/root --storage-driver ${STORAGE_DRIVER}"
+
+        for img in "$@"; do
+            echo "# [checking for: $img]" >&2
+            fname=$(tr -c a-zA-Z0-9.- - <<< "$img")
+            if [ -e $_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]; then
+                echo "# [restoring from cache: $_BUILDAH_IMAGE_CACHEDIR / $img]" >&2
+                podman $_podman_opts load -i $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
+            else
+                echo "# [podman pull $img]" >&2
+                podman $_podman_opts pull $img || (
+                    echo "Retrying:"
+                    podman $_podman_opts pull $img || (
+                        echo "Re-retrying:"
+                        podman $_podman_opts pull $img
+                    )
+                )
+                rm -f $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
+                echo "# [podman save $img >$_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]" >&2
+                podman $_podman_opts save --output=${_BUILDAH_IMAGE_CACHEDIR}/$fname.tar $img
+            fi
+        done
+}
+
 function createrandom() {
 	dd if=/dev/urandom bs=1 count=${2:-256} of=${1:-${BATS_TMPDIR}/randomfile} status=none
 }

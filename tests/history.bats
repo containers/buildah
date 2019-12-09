@@ -98,6 +98,7 @@ function testconfighistory() {
 }
 
 @test "history-run" {
+  _prefetch busybox
   run_buildah from --name runctr --format docker --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah run --add-history runctr -- uname -a
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json runctr runimg

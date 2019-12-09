@@ -164,6 +164,7 @@ load helpers
 }
 
 @test "from the following transports: docker-archive, oci-archive, and dir" {
+  _prefetch alpine
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah rm $output
 
@@ -187,6 +188,7 @@ load helpers
 }
 
 @test "from the following transports: docker-archive and oci-archive with no image reference" {
+  _prefetch alpine
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah rm $output
 
@@ -211,6 +213,7 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2
 
+  _prefetch alpine
   run_buildah from --quiet --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
@@ -223,6 +226,7 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2
 
+  _prefetch alpine
   run_buildah from --quiet --cpu-quota=5000 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
@@ -235,6 +239,7 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2
 
+  _prefetch alpine
   run_buildah from --quiet --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.shares
@@ -247,6 +252,7 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2 "cgroupsv2: fails with EPERM on writing cpuset.cpus"
 
+  _prefetch alpine
   run_buildah from --quiet --cpuset-cpus=0 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
@@ -259,6 +265,7 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2 "cgroupsv2: fails with EPERM on writing cpuset.mems"
 
+  _prefetch alpine
   run_buildah from --quiet --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
@@ -269,6 +276,7 @@ load helpers
   skip_if_chroot
   skip_if_rootless
 
+  _prefetch alpine
   run_buildah from --quiet --memory=40m --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
 
@@ -284,6 +292,7 @@ load helpers
 @test "from volume test" {
   skip_if_no_runtime
 
+  _prefetch alpine
   run_buildah from --quiet --volume=${TESTDIR}:/myvol --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid -- cat /proc/mounts
@@ -294,6 +303,7 @@ load helpers
   skip_if_chroot
   skip_if_no_runtime
 
+  _prefetch alpine
   run_buildah from --quiet --volume=${TESTDIR}:/myvol:ro --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid -- cat /proc/mounts
@@ -304,6 +314,7 @@ load helpers
   skip_if_chroot
   skip_if_no_runtime
 
+  _prefetch alpine
   run_buildah from --quiet --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid -- df -h /dev/shm
@@ -313,6 +324,7 @@ load helpers
 @test "from add-host test" {
   skip_if_no_runtime
 
+  _prefetch alpine
   run_buildah from --quiet --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid -- cat /etc/hosts
@@ -320,6 +332,7 @@ load helpers
 }
 
 @test "from name test" {
+  _prefetch alpine
   container_name=mycontainer
   run_buildah from --quiet --name=${container_name} --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
@@ -327,6 +340,7 @@ load helpers
 }
 
 @test "from cidfile test" {
+  _prefetch alpine
   run_buildah from --cidfile output.cid --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$(cat output.cid)
   run_buildah containers -f id=${cid}
@@ -347,6 +361,7 @@ load helpers
 }
 
 @test "from pull false no local image" {
+  _prefetch busybox
   target=my-busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull=false busybox
   echo "$output"
@@ -359,6 +374,7 @@ load helpers
 }
 
 @test "from --pull-always: emits 'Getting' even if image is cached" {
+  _prefetch docker.io/busybox
   run buildah pull --signature-policy ${TESTSDIR}/policy.json docker.io/busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc --pull-always docker.io/busybox
   expect_output --substring "Getting"

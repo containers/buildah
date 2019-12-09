@@ -3,6 +3,7 @@
 load helpers
 
 @test "containers" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah containers
@@ -10,6 +11,7 @@ load helpers
 }
 
 @test "containers filter test" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
@@ -19,6 +21,7 @@ load helpers
 }
 
 @test "containers format test" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah containers --format "{{.ContainerName}}"
@@ -28,12 +31,14 @@ load helpers
 }
 
 @test "containers json test" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah containers --json
   expect_output --substring '\{'
 }
 
 @test "containers noheading test" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah containers --noheading
@@ -44,6 +49,7 @@ load helpers
 }
 
 @test "containers quiet test" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah containers --quiet

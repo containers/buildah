@@ -186,6 +186,7 @@ function check_matrix() {
 }
 
 @test "user" {
+  _prefetch alpine
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid grep CapBnd /proc/self/status

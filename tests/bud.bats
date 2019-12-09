@@ -3,6 +3,7 @@
 load helpers
 
 @test "bud with --dns* flags" {
+  _prefetch alpine
   run_buildah bud --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc  --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dns/Dockerfile  ${TESTSDIR}/bud/dns
   expect_output --substring "search example.com"
   expect_output --substring "nameserver 223.5.5.5"
@@ -10,6 +11,7 @@ load helpers
 }
 
 @test "bud with .dockerignore" {
+  _prefetch alpine busybox
   run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
 
   run_buildah from --name myctr testbud
@@ -49,6 +51,7 @@ load helpers
 }
 
 @test "bud with --layers and --no-cache flags" {
+  _prefetch alpine
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
 
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTDIR}/use-layers
@@ -90,6 +93,7 @@ load helpers
 }
 
 @test "bud with --layers and single and two line Dockerfiles" {
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.5 ${TESTSDIR}/bud/use-layers
   run_buildah images -a
   expect_line_count 3
@@ -100,6 +104,7 @@ load helpers
 }
 
 @test "bud with --layers, multistage, and COPY with --from" {
+  _prefetch alpine
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
 
   mkdir -p ${TESTDIR}/use-layers/uuid
@@ -144,6 +149,7 @@ load helpers
 }
 
 @test "bud-multistage-partial-cache" {
+  _prefetch alpine
   target=foo
   # build the first stage
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -f ${TESTSDIR}/bud/cache-stages/Dockerfile.1 ${TESTSDIR}/bud/cache-stages
@@ -158,6 +164,7 @@ load helpers
 }
 
 @test "bud-multistage-copy-final-slash" {
+  _prefetch busybox
   target=foo
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-final-slash
   run_buildah from --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -166,6 +173,7 @@ load helpers
 }
 
 @test "bud-multistage-reused" {
+  _prefetch alpine busybox
   target=foo
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.reused ${TESTSDIR}/bud/multi-stage-builds
   run_buildah from --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -175,6 +183,7 @@ load helpers
 }
 
 @test "bud-multistage-cache" {
+  _prefetch alpine busybox
   target=foo
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.extended ${TESTSDIR}/bud/multi-stage-builds
   run_buildah from --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -188,6 +197,7 @@ load helpers
 }
 
 @test "bud with --layers and symlink file" {
+  _prefetch alpine
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
   echo 'echo "Hello World!"' > ${TESTDIR}/use-layers/hello.sh
   ln -s hello.sh ${TESTDIR}/use-layers/hello_world.sh
@@ -206,6 +216,7 @@ load helpers
 }
 
 @test "bud with --layers and dangling symlink" {
+  _prefetch alpine
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
   mkdir ${TESTDIR}/use-layers/blah
   ln -s ${TESTSDIR}/policy.json ${TESTDIR}/use-layers/blah/policy.json
@@ -225,6 +236,7 @@ load helpers
 }
 
 @test "bud with --layers and --build-args" {
+  _prefetch alpine
   # base plus 3, plus the header line
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=0 --layers -t test -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah images -a
@@ -247,6 +259,7 @@ load helpers
 }
 
 @test "bud with --rm flag" {
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run_buildah containers
   expect_line_count 1
@@ -257,6 +270,7 @@ load helpers
 }
 
 @test "bud with --force-rm flag" {
+  _prefetch alpine
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --force-rm --layers -t test1 -f Dockerfile.fail-case ${TESTSDIR}/bud/use-layers
   run_buildah containers
   expect_line_count 1
@@ -267,11 +281,13 @@ load helpers
 }
 
 @test "bud --layers with non-existent/down registry" {
+  _prefetch alpine
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --force-rm --layers -t test1 -f Dockerfile.non-existent-registry ${TESTSDIR}/bud/use-layers
   expect_output --substring "no such host"
 }
 
 @test "bud from base image should have base image ENV also" {
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t test -f Dockerfile.check-env ${TESTSDIR}/bud/env
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json test
   cid=$output
@@ -337,6 +353,7 @@ load helpers
   run_buildah rm ${cid}
   run_buildah rmi -a
 
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.alpine -f Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files
   run_buildah from --quiet ${target}
@@ -349,6 +366,7 @@ load helpers
 }
 
 @test "bud-from-multiple-files-two-froms" {
+  _prefetch alpine
   target=scratch-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.scratch -f Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files
   run_buildah from --quiet ${target}
@@ -361,6 +379,7 @@ load helpers
   run_buildah rm ${cid}
   run_buildah rmi -a
 
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.alpine -f Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files
   run_buildah from --quiet ${target}
@@ -373,6 +392,7 @@ load helpers
 }
 
 @test "bud-multi-stage-builds" {
+  _prefetch alpine
   target=multi-stage-index
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds
   run_buildah from --quiet ${target}
@@ -384,6 +404,7 @@ load helpers
   run_buildah rm ${cid}
   run_buildah rmi -a
 
+  _prefetch alpine
   target=multi-stage-name
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds
   run_buildah from --quiet ${target}
@@ -407,6 +428,7 @@ load helpers
 }
 
 @test "bud-multi-stage-builds-small-as" {
+  _prefetch alpine
   target=multi-stage-index
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds-small-as
   run_buildah from --quiet ${target}
@@ -418,6 +440,7 @@ load helpers
   run_buildah rm ${cid}
   run_buildah rmi -a
 
+  _prefetch alpine
   target=multi-stage-name
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds-small-as
   run_buildah from --quiet ${target}
@@ -444,6 +467,7 @@ load helpers
   # This Dockerfile needs us to be able to handle a working RUN instruction.
   skip_if_no_runtime
 
+  _prefetch alpine
   target=volume-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/preserve-volumes
   run_buildah from --quiet ${target}
@@ -483,6 +507,7 @@ load helpers
 }
 
 @test "bud-http-context-dir-with-Dockerfile-post" {
+  # FIXME FIXME FIXME: this is 100% identical to the -pre test above.
   starthttpd ${TESTSDIR}/bud/http-context-subdir
   target=scratch-image
   run_buildah bud  --signature-policy ${TESTSDIR}/policy.json -t ${target} -f context/Dockerfile http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
@@ -526,9 +551,18 @@ load helpers
   cid=$output
   run_buildah rm ${cid}
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target3}:latest
+  run_buildah rm $output
+
+  run_buildah rmi $target3 $target2 $target
+  expect_line_count 4
+  for i in 0 1 2;do
+      expect_output --substring --from="${lines[$i]}" "untagged: "
+  done
+  expect_output --substring --from="${lines[3]}" '^[0-9a-f]{64}$'
 }
 
 @test "bud-additional-tags-cached" {
+  _prefetch busybox
   target=tagged-image
   target2=another-tagged-image
   target3=yet-another-tagged-image
@@ -552,6 +586,7 @@ load helpers
   # This Dockerfile needs us to be able to handle a working RUN instruction.
   skip_if_no_runtime
 
+  _prefetch alpine
   target=volume-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/volume-perms
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -565,6 +600,7 @@ load helpers
 }
 
 @test "bud-from-glob" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile2.glob ${TESTSDIR}/bud/from-multiple-files
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -576,6 +612,7 @@ load helpers
 }
 
 @test "bud-maintainer" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/maintainer
   run_buildah inspect --type=image --format '{{.Docker.Author}}' ${target}
@@ -585,12 +622,14 @@ load helpers
 }
 
 @test "bud-unrecognized-instruction" {
+  _prefetch alpine
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/unrecognized
   expect_output --substring "BOGUS"
 }
 
 @test "bud-shell" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/shell
   run_buildah inspect --type=image --format '{{printf "%q" .Docker.Config.Shell}}' ${target}
@@ -603,30 +642,35 @@ load helpers
 }
 
 @test "bud-shell during build in Docker format" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-default ${TESTSDIR}/bud/shell
   expect_output --substring "SHELL=/bin/sh"
 }
 
 @test "bud-shell during build in OCI format" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-default ${TESTSDIR}/bud/shell
   expect_output --substring "SHELL=/bin/sh"
 }
 
 @test "bud-shell changed during build in Docker format" {
+  _prefetch ubuntu
   target=ubuntu-image
   run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-custom ${TESTSDIR}/bud/shell
   expect_output --substring "SHELL=/bin/bash"
 }
 
 @test "bud-shell changed during build in OCI format" {
+  _prefetch ubuntu
   target=ubuntu-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-custom ${TESTSDIR}/bud/shell
   expect_output --substring "SHELL=/bin/sh"
 }
 
 @test "bud with symlinks" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/symlink
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -645,6 +689,7 @@ load helpers
 }
 
 @test "bud with symlinks to relative path" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.relative-symlink ${TESTSDIR}/bud/symlink
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -662,6 +707,7 @@ load helpers
 }
 
 @test "bud with multiple symlinks in a path" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.multiple-symlinks ${TESTSDIR}/bud/symlink
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -687,11 +733,13 @@ load helpers
 }
 
 @test "bud with multiple symlink pointing to itself" {
+  _prefetch alpine
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.symlink-points-to-itself ${TESTSDIR}/bud/symlink
 }
 
 @test "bud multi-stage with symlink to absolute path" {
+  _prefetch ubuntu
   target=ubuntu-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.absolute-symlink ${TESTSDIR}/bud/symlink
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -708,6 +756,7 @@ load helpers
 }
 
 @test "bud multi-stage with dir symlink to absolute path" {
+  _prefetch ubuntu
   target=ubuntu-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.absolute-dir-symlink ${TESTSDIR}/bud/symlink
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -720,6 +769,7 @@ load helpers
 }
 
 @test "bud with ENTRYPOINT and RUN" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.entrypoint-run ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "unique.test.string"
@@ -727,12 +777,14 @@ load helpers
 }
 
 @test "bud with ENTRYPOINT and empty RUN" {
+  _prefetch alpine
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.entrypoint-empty-run ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "error building at STEP"
 }
 
 @test "bud with CMD and RUN" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.cmd-run ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "unique.test.string"
@@ -740,12 +792,14 @@ load helpers
 }
 
 @test "bud with CMD and empty RUN" {
+  _prefetch alpine
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.cmd-empty-run ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "error building at STEP"
 }
 
 @test "bud with ENTRYPOINT, CMD and RUN" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-run ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "unique.test.string"
@@ -753,6 +807,7 @@ load helpers
 }
 
 @test "bud with ENTRYPOINT, CMD and empty RUN" {
+  _prefetch alpine
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-empty-run ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "error building at STEP"
@@ -760,6 +815,7 @@ load helpers
 
 # Determines if a variable set with ENV is available to following commands in the Dockerfile
 @test "bud access ENV variable defined in same source file" {
+  _prefetch alpine
   target=env-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/env/Dockerfile.env-same-file ${TESTSDIR}/bud/env
   expect_output --substring ":unique.test.string:"
@@ -768,6 +824,7 @@ load helpers
 
 # Determines if a variable set with ENV in an image is available to commands in downstream Dockerfile
 @test "bud access ENV variable defined in FROM image" {
+  _prefetch alpine
   from_target=env-from-image
   target=env-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${from_target} -f ${TESTSDIR}/bud/env/Dockerfile.env-same-file ${TESTSDIR}/bud/env
@@ -779,6 +836,7 @@ load helpers
 }
 
 @test "bud ENV preserves special characters after commit" {
+  _prefetch ubuntu
   from_target=special-chars
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${from_target} -f ${TESTSDIR}/bud/env/Dockerfile.special-chars ${TESTSDIR}/bud/env
   run_buildah from --quiet ${from_target}
@@ -855,6 +913,7 @@ load helpers
 }
 
 @test "bud-onbuild" {
+  _prefetch alpine
   target=onbuild
   run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/onbuild
   run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
@@ -893,6 +952,7 @@ load helpers
 }
 
 @test "bud-onbuild-layers" {
+  _prefetch alpine
   target=onbuild
   run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile2 ${TESTSDIR}/bud/onbuild
   run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
@@ -900,18 +960,21 @@ load helpers
 }
 
 @test "bud-logfile" {
+  _prefetch alpine
   rm -f ${TESTDIR}/logfile
   run_buildah bud --logfile ${TESTDIR}/logfile --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/preserve-volumes
   test -s ${TESTDIR}/logfile
 }
 
 @test "bud with ARGS" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.args ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "arg_value"
 }
 
 @test "bud with unused ARGS" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=USED_VALUE ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "USED_VALUE"
@@ -922,6 +985,7 @@ load helpers
 }
 
 @test "bud with multi-value ARGS" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=plugin1,plugin2,plugin3 ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "plugin1,plugin2,plugin3"
@@ -941,6 +1005,7 @@ load helpers
 }
 
 @test "bud with preprocessor" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Decomposed.in ${TESTSDIR}/bud/preprocess
 }
@@ -957,6 +1022,7 @@ load helpers
 }
 
 @test "bud with chown copy" {
+  _prefetch alpine
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-chown
@@ -972,6 +1038,7 @@ load helpers
 }
 
 @test "bud with chown copy with bad chown flag in Dockerfile with --layers" {
+  _prefetch alpine
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/copy-chown/Dockerfile.bad ${TESTSDIR}/bud/copy-chown
@@ -979,6 +1046,7 @@ load helpers
 }
 
 @test "bud with chown add" {
+  _prefetch alpine
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/add-chown
@@ -994,6 +1062,7 @@ load helpers
 }
 
 @test "bud with chown add with bad chown flag in Dockerfile with --layers" {
+  _prefetch alpine
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/add-chown/Dockerfile.bad ${TESTSDIR}/bud/add-chown
@@ -1001,6 +1070,7 @@ load helpers
 }
 
 @test "bud with ADD file construct" {
+  _prefetch busybox
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/add-file
   run_buildah images -a
   expect_output --substring "test1"
@@ -1015,6 +1085,7 @@ load helpers
 }
 
 @test "bud with COPY of single file creates absolute path with correct permissions" {
+  _prefetch ubuntu
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-create-absolute-path
@@ -1026,6 +1097,7 @@ load helpers
 }
 
 @test "bud with COPY of single file creates relative path with correct permissions" {
+  _prefetch ubuntu
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-create-relative-path
@@ -1037,6 +1109,7 @@ load helpers
 }
 
 @test "bud with ADD of single file creates absolute path with correct permissions" {
+  _prefetch ubuntu
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/add-create-absolute-path
@@ -1048,6 +1121,7 @@ load helpers
 }
 
 @test "bud with ADD of single file creates relative path with correct permissions" {
+  _prefetch ubuntu
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/add-create-relative-path
@@ -1059,6 +1133,7 @@ load helpers
 }
 
 @test "bud multi-stage COPY creates absolute path with correct permissions" {
+  _prefetch ubuntu
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.absolute -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths
@@ -1070,6 +1145,7 @@ load helpers
 }
 
 @test "bud multi-stage COPY creates relative path with correct permissions" {
+  _prefetch ubuntu
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.relative -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths
@@ -1081,6 +1157,7 @@ load helpers
 }
 
 @test "bud multi-stage COPY with invalid from statement" {
+  _prefetch ubuntu
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.invalid_from -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths || true
@@ -1088,10 +1165,12 @@ load helpers
 }
 
 @test "bud COPY to root succeeds" {
+  _prefetch ubuntu
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-root
 }
 
 @test "bud with FROM AS construct" {
+  _prefetch centos:7
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
   run_buildah images -a
   expect_output --substring "test1"
@@ -1106,6 +1185,7 @@ load helpers
 }
 
 @test "bud with FROM AS construct with layers" {
+  _prefetch centos:7
   run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
   run_buildah images -a
   expect_output --substring "test1"
@@ -1142,6 +1222,7 @@ load helpers
 }
 
 @test "bud with symlink Dockerfile not specified in file" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink ${TESTSDIR}/bud/symlink
   expect_output --substring "FROM alpine"
@@ -1160,16 +1241,19 @@ load helpers
 }
 
 @test "bud with ARG before FROM default value" {
+  _prefetch busybox
   target=leading-args-default
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/leading-args/Dockerfile ${TESTSDIR}/bud/leading-args
 }
 
 @test "bud with ARG before FROM" {
+  _prefetch busybox:musl
   target=leading-args
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg=VERSION=musl -f ${TESTSDIR}/bud/leading-args/Dockerfile ${TESTSDIR}/bud/leading-args
 }
 
 @test "bud-with-healthcheck" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --format docker ${TESTSDIR}/bud/healthcheck
   run_buildah inspect -f '{{printf "%q" .Docker.Config.Healthcheck.Test}} {{printf "%d" .Docker.Config.Healthcheck.StartPeriod}} {{printf "%d" .Docker.Config.Healthcheck.Interval}} {{printf "%d" .Docker.Config.Healthcheck.Timeout}} {{printf "%d" .Docker.Config.Healthcheck.Retries}}' ${target}
@@ -1181,6 +1265,7 @@ load helpers
 }
 
 @test "bud with unused build arg" {
+  _prefetch alpine busybox
   target=busybox-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg foo=bar --build-arg foo2=bar2 -f ${TESTSDIR}/bud/build-arg ${TESTSDIR}/bud/build-arg
   expect_output --substring "one or more build args were not consumed: \[foo2\]"
@@ -1190,6 +1275,7 @@ load helpers
 }
 
 @test "bud with copy-from and cache" {
+  _prefetch busybox
   target=busybox-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers --iidfile ${TESTDIR}/iid1 -f ${TESTSDIR}/bud/copy-from/Dockerfile2 ${TESTSDIR}/bud/copy-from
   cat ${TESTDIR}/iid1
@@ -1201,6 +1287,7 @@ load helpers
 }
 
 @test "bud with copy-from in Dockerfile no prior FROM" {
+  _prefetch php:7.2
   target=php-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from ${TESTSDIR}/bud/copy-from
 
@@ -1213,12 +1300,14 @@ load helpers
 }
 
 @test "bud with copy-from with bad from flag in Dockerfile with --layers" {
+  _prefetch php:7.2
   target=php-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile.bad ${TESTSDIR}/bud/copy-from
   expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
 }
 
 @test "bud-target" {
+  _prefetch alpine ubuntu
   target=target
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --target mytarget ${TESTSDIR}/bud/target
   expect_output --substring "STEP 1: FROM ubuntu:latest"
@@ -1232,10 +1321,12 @@ load helpers
 }
 
 @test "bud-no-target-name" {
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/maintainer
 }
 
 @test "bud-multi-stage-nocache-nocommit" {
+  _prefetch alpine
   # pull the base image directly, so that we don't record it being written to local storage in the next step
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
   # okay, build an image with two stages
@@ -1246,6 +1337,7 @@ load helpers
 }
 
 @test "bud-multi-stage-cache-nocontainer" {
+  _prefetch alpine
   # first time through, quite normal
   run_buildah bud --layers -t base --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.rebase ${TESTSDIR}/bud/multi-stage-builds
   # second time through, everything should be cached, and we shouldn't create a container based on the final image
@@ -1259,6 +1351,7 @@ load helpers
 }
 
 @test "bud copy to symlink" {
+  _prefetch alpine
   target=alpine-image
   ctr=alpine-ctr
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-symlink
@@ -1275,6 +1368,7 @@ load helpers
 }
 
 @test "bud copy to dangling symlink" {
+  _prefetch ubuntu
   target=ubuntu-image
   ctr=ubuntu-ctr
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-symlink-dangling
@@ -1291,6 +1385,7 @@ load helpers
 }
 
 @test "bud WORKDIR isa symlink" {
+  _prefetch alpine
   target=alpine-image
   ctr=alpine-ctr
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/workdir-symlink
@@ -1307,6 +1402,7 @@ load helpers
 }
 
 @test "bud WORKDIR isa symlink no target dir" {
+  _prefetch alpine
   target=alpine-image
   ctr=alpine-ctr
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile-2 ${TESTSDIR}/bud/workdir-symlink
@@ -1326,6 +1422,7 @@ load helpers
 }
 
 @test "bud WORKDIR isa symlink no target dir and follow on dir" {
+  _prefetch alpine
   target=alpine-image
   ctr=alpine-ctr
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile-3 ${TESTSDIR}/bud/workdir-symlink
@@ -1351,6 +1448,7 @@ load helpers
   voldir=${TESTDIR}/bud-volume
   mkdir -p ${voldir}
 
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -v ${voldir}:/testdir ${TESTSDIR}/bud/mount
   expect_output --substring "/testdir"
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -v ${voldir}:/testdir:rw ${TESTSDIR}/bud/mount
@@ -1360,6 +1458,7 @@ load helpers
 }
 
 @test "bud-copy-dot with --layers picks up changed file" {
+  _prefetch alpine
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
 
   mkdir -p ${TESTDIR}/use-layers/subdir
@@ -1379,17 +1478,15 @@ load helpers
   target=foo
 
   # A deny-all policy should prevent us from pulling the base image.
-  run_buildah '?' bud --signature-policy ${TESTSDIR}/deny.json -t ${target} -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
-  [ "$status" -ne 0 ]
+  run_buildah 1 bud --signature-policy ${TESTSDIR}/deny.json -t ${target} -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
   expect_output --substring 'Source image rejected: Running image .* rejected by policy.'
-  run_buildah rmi -a -f
 
   # A docker-only policy should allow us to pull the base image and commit.
   run_buildah bud --signature-policy ${TESTSDIR}/docker.json -t ${target} -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
   # A deny-all policy shouldn't break pushing, since policy is only evaluated
   # on the source image, and we force it to allow local storage.
   run_buildah push --signature-policy ${TESTSDIR}/deny.json ${target} dir:${TESTDIR}/mount
-  run_buildah rmi -a -f
+  run_buildah rmi ${target}
 
   # A docker-only policy should allow us to pull the base image first...
   run_buildah pull --signature-policy ${TESTSDIR}/docker.json alpine
@@ -1430,6 +1527,7 @@ load helpers
 }
 
 @test "bud-build-arg-cache" {
+  _prefetch busybox
   target=derived-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' ${target}
@@ -1460,9 +1558,9 @@ load helpers
 }
 
 @test "bud test RUN with a priv'd command" {
+  _prefetch alpine
   target=alpinepriv
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-privd/Dockerfile ${TESTSDIR}/bud/run-privd
-  [ "${status}" -eq 0 ]
   expect_output --substring "STEP 3: COMMIT"
   run_buildah images -q
   expect_line_count 2
@@ -1530,6 +1628,7 @@ load helpers
 }
 
 @test "bud-no-change" {
+  _prefetch alpine
   parent=alpine
   target=no-change-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
@@ -1540,6 +1639,7 @@ load helpers
 }
 
 @test "bud-no-change-label" {
+  _prefetch alpine
   parent=alpine
   target=no-change-image
   run_buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
@@ -1548,6 +1648,7 @@ load helpers
 }
 
 @test "bud-no-change-annotation" {
+  _prefetch alpine
   target=no-change-image
   run_buildah bud --annotation "test=annotation" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
   run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' ${target}
@@ -1555,6 +1656,7 @@ load helpers
 }
 
 @test "bud-squash-layers" {
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --squash ${TESTSDIR}/bud/layers-squash
 }
 
@@ -1562,6 +1664,7 @@ load helpers
   skip_if_chroot
   skip_if_rootless
 
+  _prefetch alpine
   target=alpine-image
   rm -rf ${TESTSDIR}/foo
   mkdir -p ${TESTSDIR}/foo
@@ -1571,6 +1674,7 @@ load helpers
 }
 
 @test "bud with additional device" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --device /dev/fuse -t ${target} -f ${TESTSDIR}/bud/device/Dockerfile ${TESTSDIR}/bud/device
   [ "${status}" -eq 0 ]
@@ -1578,6 +1682,7 @@ load helpers
 }
 
 @test "bud with Containerfile" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
   [ "${status}" -eq 0 ]
@@ -1585,6 +1690,7 @@ load helpers
 }
 
 @test "bud with Dockerfile" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dockerfile
   [ "${status}" -eq 0 ]
@@ -1592,6 +1698,7 @@ load helpers
 }
 
 @test "bud with Containerfile and Dockerfile" {
+  _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containeranddockerfile
   [ "${status}" -eq 0 ]
@@ -1607,6 +1714,7 @@ load helpers
 }
 
 @test "bud with Dockerfile from stdin" {
+  _prefetch alpine
   target=df-stdin
   cat ${TESTSDIR}/bud/context-from-stdin/Dockerfile | buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -
   [ "$?" -eq 0 ]
@@ -1624,6 +1732,7 @@ load helpers
 }
 
 @test "bud with Dockerfile from stdin tar" {
+  _prefetch alpine
   target=df-stdin
   tar -c -C ${TESTSDIR}/bud/context-from-stdin . | buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -
   [ "$?" -eq 0 ]
@@ -1641,6 +1750,7 @@ load helpers
 }
 
 @test "bud containerfile with args" {
+  _prefetch centos
   target=use-args
   touch ${TESTSDIR}/bud/use-args/abc.txt
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg=abc.txt ${TESTSDIR}/bud/use-args
@@ -1669,12 +1779,14 @@ load helpers
 
 @test "bud using gitrepo and branch" {
   target=gittarget
+  # FIXME: this test takes a really long time. Is it necessary to do twice?
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} git://github.com/containers/BuildSourceImage#master
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} git://github.com/containers/BuildSourceImage
 }
 
 # Fixes #1906: buildah was not detecting changed tarfile
 @test "bud containerfile with tar archive in copy" {
+  _prefetch busybox
   # First check to verify cache is used if the tar file does not change
   target=copy-archive
   date > ${TESTSDIR}/bud/${target}/test
@@ -1734,12 +1846,14 @@ EOM
 }
 
 @test "bud quiet" {
+  _prefetch alpine
   run_buildah bud --format docker -t quiet-test --signature-policy ${TESTSDIR}/policy.json -q ${TESTSDIR}/bud/shell
   expect_line_count 1
   expect_output --substring '^[0-9a-f]{64}$'
 }
 
 @test "bud COPY with Env Var in Containerfile" {
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t testctr ${TESTSDIR}/bud/copy-envvar
   run_buildah from testctr
   run_buildah run testctr-working-container ls /file-0.0.1.txt
@@ -1797,6 +1911,7 @@ EOM
 }
 
 @test "bud Add with linked tarball" {
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/symlink/Containerfile.add-tar-with-link -t testctr ${TESTSDIR}/bud/symlink
   run_buildah from testctr
   run_buildah run testctr-working-container ls /tmp/testdir/testfile.txt

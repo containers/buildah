@@ -3,6 +3,7 @@
 load helpers
 
 @test "rename" {
+  _prefetch alpine
   new_name=test-container
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
@@ -18,6 +19,7 @@ load helpers
 }
 
 @test "rename same name as current name" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah 1 rename ${cid} ${cid}
@@ -25,6 +27,7 @@ load helpers
 }
 
 @test "rename same name as other container name" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox

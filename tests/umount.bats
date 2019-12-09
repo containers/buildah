@@ -14,6 +14,7 @@ load helpers
 }
 
 @test "umount one image" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah mount "$cid"
@@ -25,6 +26,7 @@ load helpers
 }
 
 @test "umount multi images" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah mount "$cid1"
@@ -38,6 +40,7 @@ load helpers
 }
 
 @test "umount all images" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah mount "$cid1"
@@ -51,6 +54,7 @@ load helpers
 }
 
 @test "umount multi images one bad" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah mount "$cid1"

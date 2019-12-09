@@ -3,6 +3,7 @@
 load helpers
 
 @test "from" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah rm $cid
@@ -15,6 +16,7 @@ load helpers
 }
 
 @test "from-defaultpull" {
+  _prefetch alpine
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah rm $cid

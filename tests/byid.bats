@@ -4,6 +4,7 @@ load helpers
 
 @test "from-by-id" {
   image=busybox
+  _prefetch $image
 
   # Pull down the image, if we have to.
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
@@ -33,6 +34,7 @@ load helpers
 
 @test "inspect-by-id" {
   image=busybox
+  _prefetch $image
 
   # Pull down the image, if we have to.
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
@@ -57,6 +59,7 @@ load helpers
 @test "push-by-id" {
   for image in busybox k8s.gcr.io/pause ; do
     echo pulling/pushing image $image
+    _prefetch $image
 
     TARGET=${TESTDIR}/subdir-$(basename $image)
     mkdir -p $TARGET $TARGET-truncated
@@ -84,6 +87,7 @@ load helpers
 
 @test "rmi-by-id" {
   image=busybox
+  _prefetch $image
 
   # Pull down the image, if we have to.
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image

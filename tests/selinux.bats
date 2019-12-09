@@ -10,6 +10,7 @@ load helpers
   fi
 
   image=alpine
+  _prefetch $image
 
   # Create a container and read its context as a baseline.
   run_buildah from --quiet --quiet --signature-policy ${TESTSDIR}/policy.json $image
@@ -39,6 +40,7 @@ load helpers
   fi
 
   image=alpine
+  _prefetch $image
 
   # Create a container and read its context as a baseline.
   run_buildah from --quiet --security-opt label=disable --quiet --signature-policy ${TESTSDIR}/policy.json $image
@@ -67,6 +69,7 @@ load helpers
   fi
 
   image=alpine
+  _prefetch $image
 
   firstlabel="system_u:system_r:container_t:s0:c1,c2"
   # Create a container and read its context as a baseline.

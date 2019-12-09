@@ -34,6 +34,7 @@ function _gpg_setup() {
 
 @test "commit-pull-push-signatures" {
   _gpg_setup
+  _prefetch alpine
 
   mkdir -p ${TESTDIR}/signed-image ${TESTDIR}/unsigned-image
 
