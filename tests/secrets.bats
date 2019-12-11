@@ -55,31 +55,31 @@ function teardown() {
 
 
     # setup the test container
-    cid=$(buildah --default-mounts-file "$MOUNTS_PATH" --log-level=error \
+    cid=$(buildah --default-mounts-file "$MOUNTS_PATH" \
         from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
 
     # test a standard mount to /run/secrets
-    run_buildah --log-level=error run $cid ls /run/secrets
+    run_buildah run $cid ls /run/secrets
     expect_output --substring "test.txt"
 
     # test a mount without destination
-    run_buildah --log-level=error run $cid ls "$TESTSDIR"/rhel/secrets
+    run_buildah run $cid ls "$TESTSDIR"/rhel/secrets
     expect_output --substring "test.txt"
 
     # test a file-based mount
-    run_buildah --log-level=error run $cid cat /test.txt
+    run_buildah run $cid cat /test.txt
     expect_output --substring $TESTFILE_CONTENT
 
     # test permissions for a file-based mount
-    run_buildah --log-level=error run $cid stat -c %a /run/secrets/file.txt
+    run_buildah run $cid stat -c %a /run/secrets/file.txt
     expect_output --substring 604
 
     # test permissions for a directory-based mount
-    run_buildah --log-level=error run $cid stat -c %a /run/secrets/test-dir
+    run_buildah run $cid stat -c %a /run/secrets/test-dir
     expect_output --substring 704
 
     # test permissions for a file-based mount within a sub-directory
-    run_buildah --log-level=error run $cid stat -c %a /run/secrets/test-dir/file.txt
+    run_buildah run $cid stat -c %a /run/secrets/test-dir/file.txt
     expect_output --substring 777
 
     # test a symlink

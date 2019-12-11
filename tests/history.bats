@@ -86,7 +86,7 @@ function testconfighistory() {
 @test "history-copy" {
   createrandom ${TESTDIR}/randomfile
   buildah from --name copyctr --format docker scratch
-  run_buildah --log-level=error copy --add-history copyctr ${TESTDIR}/randomfile
+  run_buildah copy --add-history copyctr ${TESTDIR}/randomfile
   digest="$output"
   buildah commit --signature-policy ${TESTSDIR}/policy.json copyctr copyimg
   buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' copyimg

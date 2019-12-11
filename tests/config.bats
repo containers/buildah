@@ -23,7 +23,7 @@ function check_matrix() {
   # matrix test: all permutations of .Docker.* and .OCIv1.* in all image types
   for image in docker oci; do
       for which in Docker OCIv1; do
-        run_buildah --log-level=error inspect --type=image --format "{{.$which.$setting}}" scratch-image-$image
+        run_buildah inspect --type=image --format "{{.$which.$setting}}" scratch-image-$image
         expect_output "$expect"
     done
   done
@@ -143,7 +143,7 @@ function check_matrix() {
   check_matrix 'Architecture' 'SOMEARCH'
   check_matrix 'OS'           'SOMEOS'
 
-  buildah --log-level=error inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
+  buildah inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
 
   check_matrix 'Config.Cmd'          '[COMMAND-OR-ARGS]'
   check_matrix 'Config.Entrypoint'   '[/bin/sh -c /ENTRYPOINT]'
@@ -156,23 +156,23 @@ function check_matrix() {
   check_matrix 'Config.Volumes'      "map[/VOLUME:{}]"
   check_matrix 'Config.WorkingDir'   '/tmp'
 
-  buildah --log-level=error inspect --type=image --format '{{(index .Docker.History 0).Comment}}' scratch-image-docker | grep PROBABLY-EMPTY
-  buildah --log-level=error inspect --type=image --format '{{(index .OCIv1.History 0).Comment}}' scratch-image-docker | grep PROBABLY-EMPTY
-  buildah --log-level=error inspect --type=image --format '{{(index .Docker.History 0).Comment}}' scratch-image-oci | grep PROBABLY-EMPTY
-  buildah --log-level=error inspect --type=image --format '{{(index .OCIv1.History 0).Comment}}' scratch-image-oci | grep PROBABLY-EMPTY
+  buildah inspect --type=image --format '{{(index .Docker.History 0).Comment}}' scratch-image-docker | grep PROBABLY-EMPTY
+  buildah inspect --type=image --format '{{(index .OCIv1.History 0).Comment}}' scratch-image-docker | grep PROBABLY-EMPTY
+  buildah inspect --type=image --format '{{(index .Docker.History 0).Comment}}' scratch-image-oci | grep PROBABLY-EMPTY
+  buildah inspect --type=image --format '{{(index .OCIv1.History 0).Comment}}' scratch-image-oci | grep PROBABLY-EMPTY
 
   # The following aren't part of the Docker v2 spec, so they're discarded when we save to Docker format.
-  buildah --log-level=error inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci    | grep ANNOTATION:VALUE1,VALUE2
-  buildah --log-level=error inspect              --format '{{.ImageAnnotations}}'                      $cid                 | grep ANNOTATION:VALUE1,VALUE2
-  buildah --log-level=error inspect --type=image --format '{{.Docker.Comment}}'                        scratch-image-docker | grep INFORMATIVE
-  buildah --log-level=error inspect --type=image --format '{{.Docker.Config.Domainname}}'              scratch-image-docker | grep mydomain.local
-  buildah --log-level=error inspect --type=image --format '{{.Docker.Config.Hostname}}'                scratch-image-docker | grep cleverhostname
-  buildah --log-level=error inspect --type=image --format '{{.Docker.Config.Shell}}'                   scratch-image-docker | grep /bin/arbitrarysh
-  buildah --log-level=error inspect               -f      '{{.Docker.Config.Healthcheck.Test}}'        scratch-image-docker | grep true
-  buildah --log-level=error inspect               -f      '{{.Docker.Config.Healthcheck.StartPeriod}}' scratch-image-docker | grep 5
-  buildah --log-level=error inspect               -f      '{{.Docker.Config.Healthcheck.Interval}}'    scratch-image-docker | grep 6
-  buildah --log-level=error inspect               -f      '{{.Docker.Config.Healthcheck.Timeout}}'     scratch-image-docker | grep 7
-  buildah --log-level=error inspect               -f      '{{.Docker.Config.Healthcheck.Retries}}'     scratch-image-docker | grep 8
+  buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci    | grep ANNOTATION:VALUE1,VALUE2
+  buildah inspect              --format '{{.ImageAnnotations}}'                      $cid                 | grep ANNOTATION:VALUE1,VALUE2
+  buildah inspect --type=image --format '{{.Docker.Comment}}'                        scratch-image-docker | grep INFORMATIVE
+  buildah inspect --type=image --format '{{.Docker.Config.Domainname}}'              scratch-image-docker | grep mydomain.local
+  buildah inspect --type=image --format '{{.Docker.Config.Hostname}}'                scratch-image-docker | grep cleverhostname
+  buildah inspect --type=image --format '{{.Docker.Config.Shell}}'                   scratch-image-docker | grep /bin/arbitrarysh
+  buildah inspect               -f      '{{.Docker.Config.Healthcheck.Test}}'        scratch-image-docker | grep true
+  buildah inspect               -f      '{{.Docker.Config.Healthcheck.StartPeriod}}' scratch-image-docker | grep 5
+  buildah inspect               -f      '{{.Docker.Config.Healthcheck.Interval}}'    scratch-image-docker | grep 6
+  buildah inspect               -f      '{{.Docker.Config.Healthcheck.Timeout}}'     scratch-image-docker | grep 7
+  buildah inspect               -f      '{{.Docker.Config.Healthcheck.Retries}}'     scratch-image-docker | grep 8
   rm -rf /VOLUME
 }
 
@@ -183,10 +183,10 @@ function check_matrix() {
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid env-image-docker
   buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid env-image-oci
 
-  run_buildah --log-level=error inspect --type=image --format '{{.Docker.Config.Env}}' env-image-docker
+  run_buildah inspect --type=image --format '{{.Docker.Config.Env}}' env-image-docker
   expect_output --substring "combined=bar/bar1"
 
-  run_buildah --log-level=error inspect --type=image --format '{{.OCIv1.Config.Env}}' env-image-docker
+  run_buildah inspect --type=image --format '{{.OCIv1.Config.Env}}' env-image-docker
   expect_output --substring "combined=bar/bar1"
 
   buildah rm $cid
@@ -195,15 +195,15 @@ function check_matrix() {
 
 @test "user" {
   cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  bndoutput=$(buildah --log-level=error run $cid grep CapBnd /proc/self/status)
+  bndoutput=$(buildah run $cid grep CapBnd /proc/self/status)
   buildah config --user 1000 $cid
-  run_buildah --log-level=error run $cid id -u
+  run_buildah run $cid id -u
   expect_output "1000"
 
-  run_buildah --log-level=error run $cid sh -c "grep CapEff /proc/self/status | cut -f2"
+  run_buildah run $cid sh -c "grep CapEff /proc/self/status | cut -f2"
   expect_output "0000000000000000"
 
-  run_buildah --log-level=error run $cid grep CapBnd /proc/self/status
+  run_buildah run $cid grep CapBnd /proc/self/status
   expect_output "$bndoutput"
 
   buildah rm $cid
@@ -221,13 +221,13 @@ function check_matrix() {
 
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
-  buildah --log-level=error inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
+  buildah inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
 
   check_matrix 'Config.Volumes'      "map[/VOLUME:{}]"
   check_matrix 'Config.Env'          '[VARIABLE=VALUE1,VALUE2]'
   check_matrix 'Config.Labels.LABEL' 'VALUE'
-  buildah --log-level=error inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci    | grep ANNOTATION:VALUE1,VALUE2
-  buildah --log-level=error inspect              --format '{{.ImageAnnotations}}'                      $cid                 | grep ANNOTATION:VALUE1,VALUE2
+  buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci    | grep ANNOTATION:VALUE1,VALUE2
+  buildah inspect              --format '{{.ImageAnnotations}}'                      $cid                 | grep ANNOTATION:VALUE1,VALUE2
 
   buildah config \
    --created-by COINCIDENCE \
@@ -239,12 +239,12 @@ function check_matrix() {
 
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
-  buildah --log-level=error inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
+  buildah inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
   check_matrix 'Config.Volumes'      'map[]'
   check_matrix 'Config.Env'          '[]'
   check_matrix 'Config.Labels.LABEL' '<no value>'
-  buildah --log-level=error inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci    | grep "map\[\]"
-  buildah --log-level=error inspect              --format '{{.ImageAnnotations}}'                      $cid                 | grep "map\[\]"
+  buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci    | grep "map\[\]"
+  buildah inspect              --format '{{.ImageAnnotations}}'                      $cid                 | grep "map\[\]"
 
 
 
@@ -258,7 +258,7 @@ function check_matrix() {
 
   buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
-  buildah --log-level=error inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
+  buildah inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
 
   check_matrix 'Config.Volumes'      "map[/VOLUME-:{}]"
 

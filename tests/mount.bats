@@ -15,13 +15,13 @@ load helpers
 
 @test "mount one container" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --log-level=error mount "$cid"
+  run_buildah mount "$cid"
   buildah rm $cid
   buildah rmi -f alpine
 }
 
 @test "mount bad container" {
-  run_buildah 1 --log-level=error mount badcontainer
+  run_buildah 1 mount badcontainer
 }
 
 @test "mount multi images" {
@@ -49,7 +49,7 @@ load helpers
   buildah mount "$cid2"
   cid3=$(buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah mount "$cid3"
-  run_buildah --log-level=error mount
+  run_buildah mount
   expect_output --from="${lines[0]}" --substring "/tmp" "mount line 1 of 3"
   expect_output --from="${lines[1]}" --substring "/tmp" "mount line 2 of 3"
   expect_output --from="${lines[2]}" --substring "/tmp" "mount line 3 of 3"

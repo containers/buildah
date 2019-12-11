@@ -5,7 +5,7 @@ load helpers
 @test "containers" {
   cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
-  run_buildah --log-level=error containers
+  run_buildah containers
   expect_line_count 3
 
   buildah rm -a
@@ -15,7 +15,7 @@ load helpers
 @test "containers filter test" {
   cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
-  run_buildah --log-level=error containers --filter name=$cid1
+  run_buildah containers --filter name=$cid1
   expect_line_count 2
 
   buildah rm -a
@@ -25,7 +25,7 @@ load helpers
 @test "containers format test" {
   cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
-  run_buildah --log-level=error containers --format "{{.ContainerName}}"
+  run_buildah containers --format "{{.ContainerName}}"
   expect_line_count 2
   expect_output --from="${lines[0]}" "alpine-working-container"
   expect_output --from="${lines[1]}" "busybox-working-container"
@@ -36,7 +36,7 @@ load helpers
 
 @test "containers json test" {
   cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  out=$(buildah --log-level=error containers --json | grep "{" | wc -l)
+  out=$(buildah containers --json | grep "{" | wc -l)
   [ "$out" -ne "0" ]
   buildah rm -a
   buildah rmi -a -f
@@ -45,7 +45,7 @@ load helpers
 @test "containers noheading test" {
   cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
-  run_buildah --log-level=error containers --noheading
+  run_buildah containers --noheading
   expect_line_count 2
   if [[ $output =~ "NAME" ]]; then
       expect_output "[no instance of 'NAME']" "'NAME' header should be absent"
@@ -58,7 +58,7 @@ load helpers
 @test "containers quiet test" {
   cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
-  run_buildah --log-level=error containers --quiet
+  run_buildah containers --quiet
   expect_line_count 2
 
   # Both lines should be CIDs and nothing else.

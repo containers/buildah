@@ -30,7 +30,7 @@ load helpers
 	blobcachedir=${TESTDIR}/cache
 	mkdir -p ${blobcachedir}
 	# Pull an image using a fresh directory for the blob cache.
-	run_buildah --log-level=error from --quiet --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json k8s.gcr.io/pause
+	run_buildah from --quiet --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json k8s.gcr.io/pause
 	ctr="$output"
 	run_buildah add ${ctr} ${TESTSDIR}/bud/add-file/file /
 	# Commit the image without using the blob cache, using compression so that uncompressed blobs
@@ -97,7 +97,7 @@ load helpers
 	blobcachedir=${TESTDIR}/cache
 	mkdir -p ${blobcachedir}
 	# Pull an image using a fresh directory for the blob cache.
-	run_buildah --log-level=error from --quiet --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json k8s.gcr.io/pause
+	run_buildah from --quiet --blob-cache=${blobcachedir} --signature-policy ${TESTSDIR}/policy.json k8s.gcr.io/pause
 	ctr="$output"
 	run_buildah add ${ctr} ${TESTSDIR}/bud/add-file/file /
 	# Commit the image using the blob cache.
