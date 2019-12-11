@@ -18,12 +18,10 @@ load helpers
   cid=$output
   run_buildah mount "$cid"
   run_buildah umount "$cid"
-  run_buildah rm --all
 }
 
 @test "umount bad image" {
   run_buildah 1 umount badcontainer
-  run_buildah rm --all
 }
 
 @test "umount multi images" {
@@ -37,7 +35,6 @@ load helpers
   cid3=$output
   run_buildah mount "$cid3"
   run_buildah umount "$cid1" "$cid2" "$cid3"
-  run_buildah rm --all
 }
 
 @test "umount all images" {
@@ -51,7 +48,6 @@ load helpers
   cid3=$output
   run_buildah mount "$cid3"
   run_buildah umount --all
-  run_buildah rm --all
 }
 
 @test "umount multi images one bad" {
@@ -65,5 +61,4 @@ load helpers
   cid3=$output
   run_buildah mount "$cid3"
   run_buildah 1 umount "$cid1" badcontainer "$cid2" "$cid3"
-  run_buildah rm --all
 }

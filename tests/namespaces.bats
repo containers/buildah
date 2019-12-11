@@ -8,12 +8,11 @@ load helpers
   fi
 
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
-  [ "$output" != "" ]
+  expect_output "alpine-working-container"
   ctr="$output"
 
   run_buildah unshare buildah run --isolation=oci "$ctr" echo hello
-  [ $status -eq 0 ]
-  [ "$output" == "hello" ]
+  expect_output "hello"
 }
 
 @test "user-and-network-namespace" {
@@ -24,10 +23,10 @@ load helpers
   RUNOPTS="--cni-config-dir=${TESTDIR}/no-cni-configs ${RUNC_BINARY:+--runtime $RUNC_BINARY}"
   # Check if we're running in an environment that can even test this.
   run readlink /proc/self/ns/user
-  echo "$output"
+  echo "readlink /proc/self/ns/user -> $output"
   [ $status -eq 0 ] || skip "user namespaces not supported"
   run readlink /proc/self/ns/net
-  echo "$output"
+  echo "readlink /proc/self/ns/net -> $output"
   [ $status -eq 0 ] || skip "network namespaces not supported"
   mynetns="$output"
 
@@ -39,37 +38,31 @@ load helpers
 
   # Create a container that uses that mapping.
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize alpine
-  [ "$output" != "" ]
   ctr="$output"
 
   # Check that with settings that require a user namespace, we also get a new network namespace by default.
   run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
-  run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
-  [ "$output" != "" ]
-  [ "$output" != "$mynetns" ]
+  if [[ $output == $mynetns ]]; then
+      expect_output "[output should not be '$mynetns']"
+  fi
 
   # Check that with settings that require a user namespace, we can still try to use the host's network namespace.
   run_buildah run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
-  run_buildah run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
-  [ "$output" != "" ]
-  [ "$output" == "$mynetns" ]
+  expect_output "$mynetns"
 
   # Create a container that doesn't use that mapping.
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
-  [ "$output" != "" ]
   ctr="$output"
 
   # Check that with settings that don't require a user namespace, we don't get a new network namespace by default.
   run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
-  run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
-  [ "$output" != "" ]
-  [ "$output" == "$mynetns" ]
+  expect_output "$mynetns"
 
   # Check that with settings that don't require a user namespace, we can request to use a per-container network namespace.
   run_buildah run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
-  run_buildah run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
-  [ "$output" != "" ]
-  [ "$output" != "$mynetns" ]
+  if [[ $output == $mynetns ]]; then
+      expect_output "[output should not be '$mynetns']"
+  fi
 }
 
 @test "idmapping" {
@@ -78,7 +71,7 @@ load helpers
 
   # Check if we're running in an environment that can even test this.
   run readlink /proc/self/ns/user
-  echo "$output"
+  echo "readlink /proc/self/ns/user -> $output"
   [ $status -eq 0 ] || skip "user namespaces not supported"
   mynamespace="$output"
 
@@ -166,17 +159,15 @@ load helpers
     # Create a container using these mappings.
     echo "Building container with --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine"
     run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine
-    [ "$output" != "" ]
     ctr="$output"
 
     # If we specified mappings, expect to be in a different namespace by default.
-    run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/user
     run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/user
     [ "$output" != "" ]
     case x"$map" in
     x)
       if test "$BUILDAH_ISOLATION" != "chroot" -a "$BUILDAH_ISOLATION" != "rootless" ; then
-        [ "$output" == "$mynamespace" ]
+        expect_output "$mynamespace"
       fi
       ;;
     *)
@@ -185,28 +176,24 @@ load helpers
     esac
     # Check that we got the mappings that we expected.
     run_buildah run $RUNOPTS "$ctr" cat /proc/self/uid_map
-    run_buildah run $RUNOPTS "$ctr" cat /proc/self/uid_map
     [ "$output" != "" ]
     uidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$output")
-    run_buildah run $RUNOPTS "$ctr" cat /proc/self/gid_map
     run_buildah run $RUNOPTS "$ctr" cat /proc/self/gid_map
     [ "$output" != "" ]
     gidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$output")
     echo With settings "$map", expected UID map "${uidmaps[$i]}", got UID map "${uidmap}", expected GID map "${gidmaps[$i]}", got GID map "${gidmap}".
-    [ "$uidmap" == "${uidmaps[$i]}" ]
-    [ "$gidmap" == "${gidmaps[$i]}" ]
+    expect_output --from=$uidmap "${uidmaps[$i]}"
+    expect_output --from=$gidmap "${gidmaps[$i]}"
     rootuid=$(sed -E -e 's,^([^ ]*) (.*) ([^ ]*),\2,' <<< "$uidmap")
     rootgid=$(sed -E -e 's,^([^ ]*) (.*) ([^ ]*),\2,' <<< "$gidmap")
 
     # Check that if we copy a file into the container, it gets the right permissions.
     run_buildah copy --chown 1:1 "$ctr" ${TESTDIR}/somefile /
     run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
-    run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
     expect_output "1:1"
 
     # Check that if we copy a directory into the container, its contents get the right permissions.
     run_buildah copy "$ctr" ${TESTDIR}/somedir /somedir
-    run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
     run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
     expect_output "0:0"
     run_buildah mount "$ctr"
@@ -214,7 +201,6 @@ load helpers
     run stat -c '%u:%g %a' "$mnt"/somedir/someotherfile
     [ $status -eq 0 ]
     expect_output "$rootuid:$rootgid 4700"
-    run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
     run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
     expect_output "0:0 4700"
   done
@@ -231,7 +217,7 @@ general_namespace() {
 
   # Check if we're running in an environment that can even test this.
   run readlink /proc/self/ns/"$nstype"
-  echo "$output"
+  echo "readlink /proc/self/ns/$nstype -> $output"
   [ $status -eq 0 ] || skip "$nstype namespaces not supported"
   mynamespace="$output"
 
@@ -255,10 +241,10 @@ general_namespace() {
       [ "$output" != "$mynamespace" ]
       ;;
     host)
-      [ "$output" == "$mynamespace" ]
+      expect_output "$mynamespace"
       ;;
     /*)
-      [ "$output" == $(readlink "$namespace") ]
+      expect_output "$(readlink $namespace)"
       ;;
     esac
 
@@ -271,10 +257,10 @@ general_namespace() {
         [ "$output" != "$mynamespace" ]
         ;;
       host)
-        [ "$output" == "$mynamespace" ]
+        expect_output "$mynamespace"
         ;;
       /*)
-        [ "$output" == $(readlink "$namespace") ]
+        expect_output "$(readlink $namespace)"
         ;;
       esac
     done
@@ -345,12 +331,9 @@ general_namespace() {
             [ "$output" != "" ]
             ctr="$output"
             run_buildah run $ctr pwd
-            run_buildah run $ctr pwd
             [ "$output" != "" ]
             run_buildah run --tty=true  $ctr pwd
-            run_buildah run --tty=true  $ctr pwd
             [ "$output" != "" ]
-            run_buildah run --tty=false $ctr pwd
             run_buildah run --tty=false $ctr pwd
             [ "$output" != "" ]
           done
@@ -372,11 +355,10 @@ general_namespace() {
 	run_buildah mount $cid
 	mountpoint=$output
 	run stat -c %u:%g $mountpoint/randomfile
-	echo "$output"
 	[ "$status" -eq 0 ]
-	[ "$output" = 0:0 ]
+        expect_output "0:0"
+
 	run stat -c %u:%g $mountpoint/randomfile2
-	echo "$output"
 	[ "$status" -eq 0 ]
-	[ "$output" = 1:1 ]
+        expect_output "1:1"
 }

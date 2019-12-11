@@ -3,11 +3,9 @@
 load helpers
 
 @test "info" {
-  run_buildah info | grep "host" | wc -l
-  out1=$output
-  [ "$out1" -ne "0" ]
+  run_buildah info
+  expect_output --substring "host"
 
   run_buildah info --format='{{.store}}'
-  out2=$output
-  [ "$out2" != "" ]
+  expect_output --substring 'map.*ContainerStore.*GraphDriverName.*GraphRoot:.*RunRoot:'
 }

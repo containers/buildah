@@ -7,9 +7,8 @@ load helpers
 
   # Pull down the image, if we have to.
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
+  expect_output "$image-working-container"
   cid=$output
-  [ $? -eq 0 ]
-  [ $(wc -l <<< "$cid") -eq 1 ]
   run_buildah rm $cid
 
   # Get the image's ID.
@@ -37,9 +36,8 @@ load helpers
 
   # Pull down the image, if we have to.
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
+  expect_output "$image-working-container"
   cid=$output
-  [ $? -eq 0 ]
-  [ $(wc -l <<< "$cid") -eq 1 ]
   run_buildah rm $cid
 
   # Get the image's ID.
@@ -65,14 +63,12 @@ load helpers
 
     # Pull down the image, if we have to.
     run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
-    cid=$output
-    [ $? -eq 0 ]
-    [ $(wc -l <<< "$cid") -eq 1 ]
-    run_buildah rm $cid
+    expect_output "${image##*/}-working-container"  # image, w/o registry prefix
+    run_buildah rm $output
 
     # Get the image's ID.
-    run_buildah images -q $IMAGE
-    expect_line_count 1
+    run_buildah images -q $image
+    expect_output --substring '^[0-9a-f]{12,64}$'
     iid="$output"
 
     # Use the image's ID to push it.
@@ -91,14 +87,12 @@ load helpers
 
   # Pull down the image, if we have to.
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
-  cid=$output
-  [ $? -eq 0 ]
-  [ $(wc -l <<< "$cid") -eq 1 ]
-  run_buildah rm $cid
+  expect_output "$image-working-container"
+  run_buildah rm $output
 
   # Get the image's ID.
   run_buildah images -q $image
-  expect_line_count 1
+  expect_output --substring '^[0-9a-f]{12,64}$'
   iid="$output"
 
   # Use a truncated copy of the image's ID to remove it.

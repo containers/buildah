@@ -29,8 +29,9 @@ load helpers
 
   # ...except that at some point in November 2019 buildah-inspect started
   # including version. Strip it out,
-  run_buildah --version | awk '{ print $3 }'
-  buildah_version=$output
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
   inspect_cleaned=$(echo "$inspect_after_commit" | sed "s/io.buildah.version:${buildah_version}//g")
   expect_output --from="$inspect_cleaned" "$inspect_basic"
 
@@ -46,95 +47,60 @@ load helpers
   # This one should.
   run_buildah inspect --type image --format '{{.OCIv1.Config}}' $imageid
   expect_output "$inspect_after_commit"
-
-  run_buildah rm $cid
-  run_buildah rmi alpine-image alpine
 }
 
 @test "inspect-config-is-json" {
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
-	run_buildah inspect alpine | grep "Config" | grep "{" | wc -l
-	out=$output
-	# if there is "{" it's a JSON string
-	[ "$out" -ne "0" ]
-	run_buildah rm $cid
-	run_buildah rmi -f alpine
+	run_buildah inspect alpine
+        expect_output --substring 'Config.*\{'
 }
 
 @test "inspect-manifest-is-json" {
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
-	run_buildah inspect alpine | grep "Manifest" | grep "{" | wc -l
-	out=$output
-	# if there is "{" it's a JSON string
-	[ "$out" -ne "0" ]
-	run_buildah rm $cid
-	run_buildah rmi -f alpine
+	run_buildah inspect alpine
+        expect_output --substring 'Manifest.*\{'
 }
 
 @test "inspect-ociv1-is-json" {
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
-	run_buildah inspect alpine | grep "OCIv1" | grep "{" | wc -l
-	out=$output
-	# if there is "{" it's a JSON string
-	[ "$out" -ne "0" ]
-	run_buildah rm $cid
-	run_buildah rmi -f alpine
+	run_buildah inspect alpine
+        expect_output --substring 'OCIv1.*\{'
 }
 
 @test "inspect-docker-is-json" {
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
-	run_buildah inspect alpine | grep "Docker" | grep "{" | wc -l
-	out=$output
-	# if there is "{" it's a JSON string
-	[ "$out" -ne "0" ]
-	run_buildah rm $cid
-	run_buildah rmi -f alpine
+	run_buildah inspect alpine
+        expect_output --substring 'Docker.*\{'
 }
 
 @test "inspect-format-config-is-json" {
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
-	run_buildah inspect --format "{{.Config}}" alpine | grep "{" | wc -l
-	out=$output
-	# if there is "{" it's a JSON string
-	[ "$out" -ne "0" ]
-	run_buildah rm $cid
-	run_buildah rmi -f alpine
+	run_buildah inspect --format "{{.Config}}" alpine
+        expect_output --substring '\{'
 }
 
 @test "inspect-format-manifest-is-json" {
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
-	run_buildah inspect --format "{{.Manifest}}" alpine |  grep "{" | wc -l
-	out=$output
-	# if there is "{" it's a JSON string
-	[ "$out" -ne "0" ]
-	run_buildah rm $cid
-	run_buildah rmi -f alpine
+	run_buildah inspect --format "{{.Manifest}}" alpine
+        expect_output --substring '\{'
 }
 
 @test "inspect-format-ociv1-is-json" {
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
-	run_buildah inspect --format "{{.OCIv1}}" alpine |  grep "{" | wc -l
-	out=$output
-	# if there is "{" it's a JSON string
-	[ "$out" -ne "0" ]
-	run_buildah rm $cid
-	run_buildah rmi -f alpine
+	run_buildah inspect --format "{{.OCIv1}}" alpine
+        expect_output --substring '\{'
 }
 
 @test "inspect-format-docker-is-json" {
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
-	run_buildah inspect --format "{{.Docker}}" alpine |  grep "{" | wc -l
-	out=$output
-	# if there is "{" it's a JSON string
-	[ "$out" -ne "0" ]
-	run_buildah rm $cid
-	run_buildah rmi -f alpine
+	run_buildah inspect --format "{{.Docker}}" alpine
+        expect_output --substring '\{'
 }

@@ -26,8 +26,4 @@ load helpers
   expect_output "localhost/busybox1:latest"
   run_buildah inspect --format '{{ .FromImageID }}' busybox1-working-container
   expect_output $id
-
-  # Clean up
-  run_buildah rm busybox1-working-container
-  run_buildah rmi busybox1
 }

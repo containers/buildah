@@ -22,8 +22,6 @@ load helpers
   cid2=$output
   run_buildah images
   expect_line_count 3
-  run_buildah rm -a
-  run_buildah rmi -a -f
 }
 
 @test "images all test" {
@@ -38,8 +36,6 @@ load helpers
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/use-layers
   run_buildah images
   expect_line_count 4
-
-  run_buildah rmi -a -f
 }
 
 @test "images filter test" {
@@ -49,8 +45,6 @@ load helpers
   cid2=$output
   run_buildah images --noheading --filter since=k8s.gcr.io/pause
   expect_line_count 1
-  run_buildah rm -a
-  run_buildah rmi -a -f
 }
 
 @test "images format test" {
@@ -60,8 +54,6 @@ load helpers
   cid2=$output
   run_buildah images --format "{{.Name}}"
   expect_line_count 2
-  run_buildah rm -a
-  run_buildah rmi -a -f
 }
 
 @test "images noheading test" {
@@ -71,8 +63,6 @@ load helpers
   cid2=$output
   run_buildah images --noheading
   expect_line_count 2
-  run_buildah rm -a
-  run_buildah rmi -a -f
 }
 
 @test "images quiet test" {
@@ -82,8 +72,6 @@ load helpers
   cid2=$output
   run_buildah images --quiet
   expect_line_count 2
-  run_buildah rm -a
-  run_buildah rmi -a -f
 }
 
 @test "images no-trunc test" {
@@ -94,8 +82,6 @@ load helpers
   run_buildah images -q --no-trunc
   expect_line_count 2
   expect_output --substring --from="${lines[0]}" "sha256"
-  run_buildah rm -a
-  run_buildah rmi -a -f
 }
 
 @test "images json test" {
@@ -108,8 +94,6 @@ load helpers
 
   run_buildah images --json alpine
   expect_line_count 16
-  run_buildah rm -a
-  run_buildah rmi -a -f
 }
 
 @test "images json dup test" {
@@ -119,10 +103,7 @@ load helpers
   run_buildah tag test new-name
 
   run_buildah images --json
-  [ $(grep '"id": "' <<< "$output" | wc -l) -eq 1 ]
-
-  run_buildah rm -a
-  run_buildah rmi -a -f
+  expect_output --substring '"id": '
 }
 
 @test "images json valid" {
@@ -136,9 +117,6 @@ load helpers
   run_buildah images --json
   run python3 -m json.tool <<< "$output"
   [ "${status}" -eq 0 ]
-
-  run_buildah rm -a
-  run_buildah rmi -a -f
 }
 
 @test "specify an existing image" {
@@ -148,8 +126,6 @@ load helpers
   cid2=$output
   run_buildah images alpine
   expect_line_count 2
-  run_buildah rm -a
-  run_buildah rmi -a -f
 }
 
 @test "specify a nonexistent image" {
@@ -173,9 +149,6 @@ load helpers
   run_buildah images --filter dangling=false
   expect_output --substring " latest "
   expect_line_count 2
-
-  run_buildah rm -a
-  run_buildah rmi -a -f
 }
 
 @test "image digest test" {
