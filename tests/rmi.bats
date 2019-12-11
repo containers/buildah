@@ -17,7 +17,7 @@ load helpers
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
   buildah rmi alpine
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   expect_output ""
 }
 
@@ -25,16 +25,16 @@ load helpers
   cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
   cid3=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
   run_buildah 1 rmi alpine busybox
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   [ "$output" != "" ]
 
   buildah rmi -f alpine busybox
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   expect_output ""
 }
 
 @test "remove multiple non-existent images errors" {
-  run_buildah 1 --log-level=error rmi image1 image2 image3
+  run_buildah 1 rmi image1 image2 image3
   expect_output --from="${lines[0]}" "could not get image \"image1\": identifier is not an image" "output line 1"
   expect_output --from="${lines[1]}" "could not get image \"image2\": identifier is not an image" "output line 2"
   expect_output --from="${lines[2]}" "could not get image \"image3\": identifier is not an image" "output line 3"
@@ -46,18 +46,18 @@ load helpers
   cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
   cid3=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
   buildah rmi -a -f
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   expect_output ""
 
   cid1=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
   cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
   cid3=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
   run_buildah 1 rmi --all
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   [ "$output" != "" ]
 
   buildah rmi --all --force
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   expect_output ""
 }
 
@@ -67,7 +67,7 @@ load helpers
 
   cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
 
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   expect_line_count 1
 
   root=$(buildah mount $cid)
@@ -75,7 +75,7 @@ load helpers
   buildah unmount $cid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
 
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   expect_line_count 2
 
   root=$(buildah mount $cid)
@@ -83,33 +83,33 @@ load helpers
   buildah unmount $cid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
 
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   expect_line_count 3
 
   buildah rmi --prune
 
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   expect_line_count 2
 
   buildah rmi --all --force
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   expect_output ""
 }
 
 @test "use conflicting commands to remove images" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
-  run_buildah 1 --log-level=error rmi -a alpine
+  run_buildah 1 rmi -a alpine
   expect_output --substring "when using the --all switch, you may not pass any images names or IDs"
 
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
-  run_buildah 1 --log-level=error rmi -p alpine
+  run_buildah 1 rmi -p alpine
   expect_output --substring "when using the --prune switch, you may not pass any images names or IDs"
 
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah rm "$cid"
-  run_buildah 1 --log-level=error rmi -a -p
+  run_buildah 1 rmi -a -p
   expect_output --substring "when using the --all switch, you may not use --prune switch"
   buildah rmi --all
 }
@@ -120,36 +120,36 @@ load helpers
   buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
   buildah rm -a
-  run_buildah 1 --log-level=error rmi alpine
+  run_buildah 1 rmi alpine
   expect_line_count 2
-  run_buildah --log-level=error images -q
+  run_buildah images -q
   expect_line_count 1
-  run_buildah --log-level=error images -q -a
+  run_buildah images -q -a
   expect_line_count 2
-  my_images=( $(buildah --log-level=error images -a -q) )
-  run_buildah 1 --log-level=error rmi ${my_images[2]}
+  my_images=( $(buildah images -a -q) )
+  run_buildah 1 rmi ${my_images[2]}
   buildah rmi new-image
 }
 
 @test "rmi with cached images" {
   buildah rmi -a -f
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
-  run_buildah --log-level=error images -a -q
+  run_buildah images -a -q
   expect_line_count 7
   buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
-  run_buildah --log-level=error images -a -q
+  run_buildah images -a -q
   expect_line_count 9
-  run_buildah --log-level=error rmi test2
-  run_buildah --log-level=error images -a -q
+  run_buildah rmi test2
+  run_buildah images -a -q
   expect_line_count 7
-  run_buildah --log-level=error rmi test1
-  run_buildah --log-level=error images -a -q
+  run_buildah rmi test1
+  run_buildah images -a -q
   expect_line_count 1
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
-  run_buildah 1 --log-level=error rmi alpine
+  run_buildah 1 rmi alpine
   expect_line_count 2
-  run_buildah --log-level=error rmi test3
-  run_buildah --log-level=error images -a -q
+  run_buildah rmi test3
+  run_buildah images -a -q
   expect_output ""
 }
 
@@ -162,7 +162,7 @@ load helpers
   buildah config --env 'foo=bar' $cid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image-2
   buildah rm -a
-  run_buildah --log-level=error rmi new-image-2
-  run_buildah --log-level=error images -q
+  run_buildah rmi new-image-2
+  run_buildah images -q
   expect_line_count 2
 }

@@ -8,10 +8,10 @@ load helpers
     imagename=$2
 
     # Clean up.
-    for id in $(buildah --log-level=error containers -q) ; do
+    for id in $(buildah containers -q) ; do
       buildah rm ${id}
     done
-    for id in $(buildah --log-level=error images -q) ; do
+    for id in $(buildah images -q) ; do
       buildah rmi ${id}
     done
 
@@ -23,8 +23,8 @@ load helpers
 
     # Get their image IDs.  They should be the same one.
     lastid=
-    for cid in $(buildah --log-level=error containers -q) ; do
-      run_buildah --log-level=error inspect -f "{{.FromImageID}}" $cid
+    for cid in $(buildah containers -q) ; do
+      run_buildah inspect -f "{{.FromImageID}}" $cid
       expect_line_count 1
       if [ "$lastid" != "" ] ; then
         expect_output "$lastid"
@@ -36,10 +36,10 @@ load helpers
     run_buildah images
 
     # Clean up.
-    for id in $(buildah --log-level=error containers -q) ; do
+    for id in $(buildah containers -q) ; do
       buildah rm ${id}
     done
-    for id in $(buildah --log-level=error images -q) ; do
+    for id in $(buildah images -q) ; do
       buildah rmi ${id}
     done
   }

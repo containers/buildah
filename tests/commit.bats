@@ -29,15 +29,15 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-oci
   buildah commit --format docker --disable-compression=false --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-docker
 
-  buildah --log-level=error inspect --type=image --format '{{.Manifest}}' alpine-image-oci | grep "application/vnd.oci.image.layer.v1.tar"
-  buildah --log-level=error inspect --type=image --format '{{.Manifest}}' alpine-image-docker | grep "application/vnd.docker.image.rootfs.diff.tar.gzip"
+  buildah inspect --type=image --format '{{.Manifest}}' alpine-image-oci | grep "application/vnd.oci.image.layer.v1.tar"
+  buildah inspect --type=image --format '{{.Manifest}}' alpine-image-docker | grep "application/vnd.docker.image.rootfs.diff.tar.gzip"
   buildah rm $cid
   buildah rmi -a
 }
 
 @test "commit quiet test" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --log-level=error commit --iidfile /dev/null --signature-policy ${TESTSDIR}/policy.json -q $cid alpine-image
+  run_buildah commit --iidfile /dev/null --signature-policy ${TESTSDIR}/policy.json -q $cid alpine-image
   expect_output ""
   buildah rm $cid
   buildah rmi -a
@@ -46,7 +46,7 @@ load helpers
 @test "commit rm test" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
   buildah commit --signature-policy ${TESTSDIR}/policy.json --rm $cid alpine-image
-  run_buildah 1 --log-level=error rm $cid
+  run_buildah 1 rm $cid
   expect_output --substring "error removing container \"alpine-working-container\": error reading build container: container not known"
   buildah rmi -a
 }
@@ -62,7 +62,7 @@ load helpers
 
 @test "commit-rejected-name" {
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah 1 --log-level=error commit --signature-policy ${TESTSDIR}/policy.json $cid ThisNameShouldBeRejected
+  run_buildah 1 commit --signature-policy ${TESTSDIR}/policy.json $cid ThisNameShouldBeRejected
   expect_output --substring "must be lower"
 }
 
@@ -73,18 +73,18 @@ load helpers
   target=new-image
   cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
 
-  run_buildah --log-level=error config --created-by "untracked actions" $cid
-  run_buildah --log-level=error commit --signature-policy ${TESTSDIR}/policy.json $cid ${target}
-  run_buildah --log-level=error inspect --format '{{.Config}}' ${target}
+  run_buildah config --created-by "untracked actions" $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid ${target}
+  run_buildah inspect --format '{{.Config}}' ${target}
   config="$output"
   run python3 -c 'import json, sys; config = json.load(sys.stdin); print(config["history"][len(config["history"])-1]["created_by"])' <<< "$config"
   echo "$output"
   [ "${status}" -eq 0 ]
   [ "$output" == "untracked actions" ]
 
-  run_buildah --log-level=error config --created-by "" $cid
-  run_buildah --log-level=error commit --signature-policy ${TESTSDIR}/policy.json $cid ${target}
-  run_buildah --log-level=error inspect --format '{{.Config}}' ${target}
+  run_buildah config --created-by "" $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid ${target}
+  run_buildah inspect --format '{{.Config}}' ${target}
   config="$output"
   run python3 -c 'import json, sys; config = json.load(sys.stdin); print(config["history"][len(config["history"])-1]["created_by"])' <<< "$config"
   echo "$output"

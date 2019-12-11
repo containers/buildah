@@ -66,7 +66,7 @@ load helpers
 
 #  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth)
 #  buildah rm $ctrid
-#  buildah rmi -f $(buildah --log-level=error images -q)
+#  buildah rmi -f $(buildah images -q)
 
   # This should work
 #  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true)
@@ -82,7 +82,7 @@ load helpers
 #  docker rmi -f localhost:5000/my-alpine
 #  docker rmi -f $(docker images -q)
 #  buildah rm $ctrid
-#  buildah rmi -f $(buildah --log-level=error images -q)
+#  buildah rmi -f $(buildah images -q)
 }
 
 @test "from-authenticate-cert-and-creds" {
@@ -105,7 +105,7 @@ load helpers
 
 #  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth)
 #  buildah rm $ctrid
-#  buildah rmi -f $(buildah --log-level=error images -q)
+#  buildah rmi -f $(buildah images -q)
 
 #  docker logout localhost:5000
 
@@ -122,7 +122,7 @@ load helpers
 #  docker rmi -f localhost:5000/my-alpine
 #  docker rmi -f $(docker images -q)
 #  buildah rm $ctrid
-#  buildah rmi -f $(buildah --log-level=error images -q)
+#  buildah rmi -f $(buildah images -q)
 }
 
 @test "from-tagged-image" {
@@ -216,7 +216,7 @@ load helpers
   skip_if_cgroupsv2
 
   cid=$(buildah from --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
+  run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
   expect_output "5000"
   buildah rm $cid
 }
@@ -228,7 +228,7 @@ load helpers
   skip_if_cgroupsv2
 
   cid=$(buildah from --cpu-quota=5000 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
+  run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
   expect_output "5000"
   buildah rm $cid
 }
@@ -240,7 +240,7 @@ load helpers
   skip_if_cgroupsv2
 
   cid=$(buildah from --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpu/cpu.shares
+  run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.shares
   expect_output "2"
   buildah rm $cid
 }
@@ -252,7 +252,7 @@ load helpers
   skip_if_cgroupsv2 "cgroupsv2: fails with EPERM on writing cpuset.cpus"
 
   cid=$(buildah from --cpuset-cpus=0 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
+  run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
   expect_output "0"
   buildah rm $cid
 }
@@ -264,7 +264,7 @@ load helpers
   skip_if_cgroupsv2 "cgroupsv2: fails with EPERM on writing cpuset.mems"
 
   cid=$(buildah from --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --log-level=error run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
+  run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
   expect_output "0"
   buildah rm $cid
 }
@@ -280,7 +280,7 @@ load helpers
   if is_cgroupsv2; then
       mpath="/sys/fs/cgroup\$(awk -F: '{print \$3}' /proc/self/cgroup)/memory.max"
   fi
-  run_buildah --log-level=error run $cid sh -c "cat $mpath"
+  run_buildah run $cid sh -c "cat $mpath"
   expect_output "41943040" "$mpath"
   buildah rm $cid
 }
@@ -289,7 +289,7 @@ load helpers
   skip_if_no_runtime
 
   cid=$(buildah from --volume=${TESTDIR}:/myvol --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --log-level=error run $cid -- cat /proc/mounts
+  run_buildah run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
   buildah rm $cid
 }
@@ -299,7 +299,7 @@ load helpers
   skip_if_no_runtime
 
   cid=$(buildah from --volume=${TESTDIR}:/myvol:ro --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --log-level=error run $cid -- cat /proc/mounts
+  run_buildah run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
   buildah rm $cid
 }
@@ -309,7 +309,7 @@ load helpers
   skip_if_no_runtime
 
   cid=$(buildah from --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  run_buildah --log-level=error run $cid -- df -h /dev/shm
+  run_buildah run $cid -- df -h /dev/shm
   expect_output --substring " 80.0M "
   buildah rm $cid
 }
@@ -326,14 +326,14 @@ load helpers
 @test "from name test" {
   container_name=mycontainer
   cid=$(buildah from --name=${container_name} --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  buildah --log-level=error inspect --format '{{.Container}}' ${container_name}
+  buildah inspect --format '{{.Container}}' ${container_name}
   buildah rm $cid
 }
 
 @test "from cidfile test" {
   buildah from --cidfile output.cid --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$(cat output.cid)
-  run_buildah --log-level=error containers -f id=${cid}
+  run_buildah containers -f id=${cid}
   buildah rm ${cid}
 }
 
