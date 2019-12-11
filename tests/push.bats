@@ -24,17 +24,17 @@ load helpers
     for format in "" docker oci ; do
       mkdir -p ${TESTDIR}/committed${format:+.${format}}
       # Force no compression to generate what we push.
-      buildah commit -D ${format:+--format ${format}} --reference-time ${TESTDIR}/reference-time-file --signature-policy ${TESTSDIR}/policy.json "$cid" scratch-image${format:+-${format}}
-      buildah commit -D ${format:+--format ${format}} --reference-time ${TESTDIR}/reference-time-file --signature-policy ${TESTSDIR}/policy.json "$cid" dir:${TESTDIR}/committed${format:+.${format}}
+      run_buildah commit -D ${format:+--format ${format}} --reference-time ${TESTDIR}/reference-time-file --signature-policy ${TESTSDIR}/policy.json "$cid" scratch-image${format:+-${format}}
+      run_buildah commit -D ${format:+--format ${format}} --reference-time ${TESTDIR}/reference-time-file --signature-policy ${TESTSDIR}/policy.json "$cid" dir:${TESTDIR}/committed${format:+.${format}}
       mkdir -p ${TESTDIR}/pushed${format:+.${format}}
-      buildah push -D --signature-policy ${TESTSDIR}/policy.json scratch-image${format:+-${format}} dir:${TESTDIR}/pushed${format:+.${format}}
+      run_buildah push -D --signature-policy ${TESTSDIR}/policy.json scratch-image${format:+-${format}} dir:${TESTDIR}/pushed${format:+.${format}}
       # Re-encode the manifest to lose variations due to different encoders or definitions of structures.
       imgtype -expected-manifest-type "*" -rebuild-manifest -show-manifest dir:${TESTDIR}/committed${format:+.${format}} > ${TESTDIR}/manifest.committed${format:+.${format}}
       imgtype -expected-manifest-type "*" -rebuild-manifest -show-manifest dir:${TESTDIR}/pushed${format:+.${format}} > ${TESTDIR}/manifest.pushed${format:+.${format}}
       diff -u ${TESTDIR}/manifest.committed${format:+.${format}} ${TESTDIR}/manifest.pushed${format:+.${format}}
       [ "$output" = "" ]
     done
-    buildah rm "$cid"
+    run_buildah rm "$cid"
   done
 }
 
@@ -50,8 +50,8 @@ load helpers
   run grep "application/vnd.docker.distribution.manifest.v2+json" my-dir/manifest.json
   echo "$output"
   [ "$status" -eq 0 ]
-  buildah rm "$cid"
-  buildah rmi alpine
+  run_buildah rm "$cid"
+  run_buildah rmi alpine
   rm -rf my-dir
 }
 
@@ -61,8 +61,8 @@ load helpers
   run_buildah images -q
   imageid=$output
   run_buildah push --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
-  buildah rm "$cid"
-  buildah rmi alpine
+  run_buildah rm "$cid"
+  run_buildah rmi alpine
   rm -rf my-dir
 }
 
@@ -74,16 +74,16 @@ load helpers
   run_buildah push --digestfile=${TESTDIR}/digest.txt --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
   cat ${TESTDIR}/digest.txt
   test -s ${TESTDIR}/digest.txt
-  buildah rm "$cid"
-  buildah rmi alpine
+  run_buildah rm "$cid"
+  run_buildah rmi alpine
   rm -rf my-dir
 }
 
 @test "push without destination" {
-  buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json busybox
   expect_output --substring "docker://busybox"
-  buildah rmi busybox
+  run_buildah rmi busybox
 }
 
 @test "push should fail with nonexist authfile" {
@@ -92,8 +92,8 @@ load helpers
   run_buildah images -q
   imageid=$output
   run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json --authfile /tmp/nonexsit $imageid dir:my-dir
-  buildah rm "$cid"
-  buildah rmi alpine
+  run_buildah rm "$cid"
+  run_buildah rmi alpine
 }
 
 @test "push-denied-by-registry-sources" {
@@ -104,7 +104,7 @@ load helpers
   run_buildah 1 commit --signature-policy ${TESTSDIR}/policy.json ${cid} docker://registry.example.com/busierbox
   expect_output --substring 'commit to registry at "registry.example.com" denied by policy: it is in the blocked registries list'
 
-  buildah pull --signature-policy ${TESTSDIR}/policy.json --quiet busybox
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json --quiet busybox
   run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json busybox docker://registry.example.com/evenbusierbox
   expect_output --substring 'push to registry at "registry.example.com" denied by policy: it is in the blocked registries list'
 
@@ -115,22 +115,22 @@ load helpers
   run_buildah 1 commit --signature-policy ${TESTSDIR}/policy.json ${cid} docker://registry.example.com/busierbox
   expect_output --substring 'commit to registry at "registry.example.com" denied by policy: not in allowed registries list'
 
-  buildah pull --signature-policy ${TESTSDIR}/policy.json --quiet busybox
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json --quiet busybox
   run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json busybox docker://registry.example.com/evenbusierbox
   expect_output --substring 'push to registry at "registry.example.com" denied by policy: not in allowed registries list'
 }
 
 
 @test "buildah push image to containers-storage" {
-  buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah push --signature-policy ${TESTSDIR}/policy.json busybox containers-storage:newimage:latest
   run_buildah images
   expect_output --substring "newimage"
-  buildah rmi newimage busybox
+  run_buildah rmi newimage busybox
 }
 
 @test "buildah push image to docker-archive and oci-archive" {
-  buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   for dest in docker-archive oci-archive; do
     mkdir ${TESTDIR}/tmp
     run_buildah push --signature-policy ${TESTSDIR}/policy.json busybox $dest:${TESTDIR}/tmp/busybox.tar:latest
@@ -145,7 +145,7 @@ load helpers
     skip "docker is not installed"
   fi
 
-  buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah push --signature-policy ${TESTSDIR}/policy.json busybox docker-daemon:buildah/busybox:latest
   run docker images
   expect_output --substring "buildah/busybox"

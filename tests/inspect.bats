@@ -47,8 +47,8 @@ load helpers
   run_buildah inspect --type image --format '{{.OCIv1.Config}}' $imageid
   expect_output "$inspect_after_commit"
 
-  buildah rm $cid
-  buildah rmi alpine-image alpine
+  run_buildah rm $cid
+  run_buildah rmi alpine-image alpine
 }
 
 @test "inspect-config-is-json" {
@@ -58,8 +58,8 @@ load helpers
 	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
-	buildah rm $cid
-	buildah rmi -f alpine
+	run_buildah rm $cid
+	run_buildah rmi -f alpine
 }
 
 @test "inspect-manifest-is-json" {
@@ -69,8 +69,8 @@ load helpers
 	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
-	buildah rm $cid
-	buildah rmi -f alpine
+	run_buildah rm $cid
+	run_buildah rmi -f alpine
 }
 
 @test "inspect-ociv1-is-json" {
@@ -80,8 +80,8 @@ load helpers
 	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
-	buildah rm $cid
-	buildah rmi -f alpine
+	run_buildah rm $cid
+	run_buildah rmi -f alpine
 }
 
 @test "inspect-docker-is-json" {
@@ -91,8 +91,8 @@ load helpers
 	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
-	buildah rm $cid
-	buildah rmi -f alpine
+	run_buildah rm $cid
+	run_buildah rmi -f alpine
 }
 
 @test "inspect-format-config-is-json" {
@@ -102,8 +102,8 @@ load helpers
 	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
-	buildah rm $cid
-	buildah rmi -f alpine
+	run_buildah rm $cid
+	run_buildah rmi -f alpine
 }
 
 @test "inspect-format-manifest-is-json" {
@@ -113,8 +113,8 @@ load helpers
 	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
-	buildah rm $cid
-	buildah rmi -f alpine
+	run_buildah rm $cid
+	run_buildah rmi -f alpine
 }
 
 @test "inspect-format-ociv1-is-json" {
@@ -124,8 +124,8 @@ load helpers
 	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
-	buildah rm $cid
-	buildah rmi -f alpine
+	run_buildah rm $cid
+	run_buildah rmi -f alpine
 }
 
 @test "inspect-format-docker-is-json" {
@@ -135,6 +135,6 @@ load helpers
 	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
-	buildah rm $cid
-	buildah rmi -f alpine
+	run_buildah rm $cid
+	run_buildah rmi -f alpine
 }

@@ -16,54 +16,54 @@ load helpers
 @test "umount one image" {
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah mount "$cid"
+  run_buildah mount "$cid"
   run_buildah umount "$cid"
-  buildah rm --all
+  run_buildah rm --all
 }
 
 @test "umount bad image" {
   run_buildah 1 umount badcontainer
-  buildah rm --all
+  run_buildah rm --all
 }
 
 @test "umount multi images" {
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
-  buildah mount "$cid1"
+  run_buildah mount "$cid1"
   run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
   cid2=$output
-  buildah mount "$cid2"
+  run_buildah mount "$cid2"
   run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
   cid3=$output
-  buildah mount "$cid3"
+  run_buildah mount "$cid3"
   run_buildah umount "$cid1" "$cid2" "$cid3"
-  buildah rm --all
+  run_buildah rm --all
 }
 
 @test "umount all images" {
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
-  buildah mount "$cid1"
+  run_buildah mount "$cid1"
   run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
   cid2=$output
-  buildah mount "$cid2"
+  run_buildah mount "$cid2"
   run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
   cid3=$output
-  buildah mount "$cid3"
+  run_buildah mount "$cid3"
   run_buildah umount --all
-  buildah rm --all
+  run_buildah rm --all
 }
 
 @test "umount multi images one bad" {
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
-  buildah mount "$cid1"
+  run_buildah mount "$cid1"
   run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
   cid2=$output
-  buildah mount "$cid2"
+  run_buildah mount "$cid2"
   run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
   cid3=$output
-  buildah mount "$cid3"
+  run_buildah mount "$cid3"
   run_buildah 1 umount "$cid1" badcontainer "$cid2" "$cid3"
-  buildah rm --all
+  run_buildah rm --all
 }

@@ -16,8 +16,8 @@ load helpers
 @test "remove one image" {
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah rm "$cid"
-  buildah rmi alpine
+  run_buildah rm "$cid"
+  run_buildah rmi alpine
   run_buildah images -q
   expect_output ""
 }
@@ -31,7 +31,7 @@ load helpers
   run_buildah images -q
   [ "$output" != "" ]
 
-  buildah rmi -f alpine busybox
+  run_buildah rmi -f alpine busybox
   run_buildah images -q
   expect_output ""
 }
@@ -51,7 +51,7 @@ load helpers
   cid2=$output
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid3=$output
-  buildah rmi -a -f
+  run_buildah rmi -a -f
   run_buildah images -q
   expect_output ""
 
@@ -65,7 +65,7 @@ load helpers
   run_buildah images -q
   [ "$output" != "" ]
 
-  buildah rmi --all --force
+  run_buildah rmi --all --force
   run_buildah images -q
   expect_output ""
 }
@@ -83,8 +83,8 @@ load helpers
   run_buildah mount $cid
   root=$output
   cp ${TESTDIR}/randomfile $root/randomfile
-  buildah unmount $cid
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah unmount $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
 
   run_buildah images -q
   expect_line_count 2
@@ -92,18 +92,18 @@ load helpers
   run_buildah mount $cid
   root=$output
   cp ${TESTDIR}/other-randomfile $root/other-randomfile
-  buildah unmount $cid
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah unmount $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
 
   run_buildah images -q
   expect_line_count 3
 
-  buildah rmi --prune
+  run_buildah rmi --prune
 
   run_buildah images -q
   expect_line_count 2
 
-  buildah rmi --all --force
+  run_buildah rmi --all --force
   run_buildah images -q
   expect_output ""
 }
@@ -111,31 +111,31 @@ load helpers
 @test "use conflicting commands to remove images" {
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah rm "$cid"
+  run_buildah rm "$cid"
   run_buildah 1 rmi -a alpine
   expect_output --substring "when using the --all switch, you may not pass any images names or IDs"
 
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah rm "$cid"
+  run_buildah rm "$cid"
   run_buildah 1 rmi -p alpine
   expect_output --substring "when using the --prune switch, you may not pass any images names or IDs"
 
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah rm "$cid"
+  run_buildah rm "$cid"
   run_buildah 1 rmi -a -p
   expect_output --substring "when using the --all switch, you may not use --prune switch"
-  buildah rmi --all
+  run_buildah rmi --all
 }
 
 @test "remove image that is a parent of another image" {
-  buildah rmi -a -f
+  run_buildah rmi -a -f
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
-  buildah rm -a
+  run_buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
+  run_buildah rm -a
   run_buildah 1 rmi alpine
   expect_line_count 2
   run_buildah images -q
@@ -144,15 +144,15 @@ load helpers
   expect_line_count 2
   my_images=( $(buildah images -a -q) )
   run_buildah 1 rmi ${my_images[2]}
-  buildah rmi new-image
+  run_buildah rmi new-image
 }
 
 @test "rmi with cached images" {
-  buildah rmi -a -f
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
+  run_buildah rmi -a -f
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run_buildah images -a -q
   expect_line_count 7
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
   run_buildah images -a -q
   expect_line_count 9
   run_buildah rmi test2
@@ -170,16 +170,16 @@ load helpers
 }
 
 @test "rmi image that is created from another named image" {
-  buildah rmi -a -f
+  run_buildah rmi -a -f
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
+  run_buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json new-image
   cid=$output
-  buildah config --env 'foo=bar' $cid
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image-2
-  buildah rm -a
+  run_buildah config --env 'foo=bar' $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image-2
+  run_buildah rm -a
   run_buildah rmi new-image-2
   run_buildah images -q
   expect_line_count 2

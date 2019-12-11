@@ -8,7 +8,7 @@ load helpers
   cid=$output
   run_buildah containers --format "{{.ContainerName}}"
   old_name=$output
-  buildah rename ${cid} ${new_name}
+  run_buildah rename ${cid} ${new_name}
 
   run_buildah containers --format "{{.ContainerName}}"
   expect_output --substring "test-container"
@@ -16,7 +16,7 @@ load helpers
   run_buildah containers --quiet -f name=${old_name}
   expect_output ""
 
-  buildah rm ${new_name}
+  run_buildah rm ${new_name}
   [ "$status" -eq 0 ]
 }
 
@@ -26,8 +26,8 @@ load helpers
   run_buildah 1 rename ${cid} ${cid}
   expect_output 'renaming a container with the same name as its current name'
 
-  buildah rm $cid
-  buildah rmi -f alpine
+  run_buildah rm $cid
+  run_buildah rmi -f alpine
 }
 
 @test "rename same name as other container name" {
@@ -38,6 +38,6 @@ load helpers
   run_buildah 1 rename ${cid1} ${cid2}
   expect_output --substring " already in use by "
 
-  buildah rm $cid1 $cid2
-  buildah rmi -f alpine busybox
+  run_buildah rm $cid1 $cid2
+  run_buildah rmi -f alpine busybox
 }

@@ -8,14 +8,14 @@ load helpers
   expect_output --substring "nameserver 223.5.5.5"
   expect_output --substring "options use-vc"
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "bud with .dockerignore" {
   # Remove containers and images before bud tests
-  buildah rm --all
-  buildah rmi -f --all
+  run_buildah rm --all
+  run_buildah rmi -f --all
 
   run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
 
@@ -40,7 +40,7 @@ load helpers
   run sed '/CUT HERE/d' <<< "$output"
   expect_output "$(cat ${TESTSDIR}/bud/dockerignore3/manifest)"
 
-  buildah rmi -a -f
+  run_buildah rmi -a -f
 }
 
 @test "bud-flags-order-verification" {
@@ -97,7 +97,7 @@ load helpers
   run_buildah images -a
   expect_line_count 18
 
-  buildah rmi -a -f
+  run_buildah rmi -a -f
 }
 
 @test "bud with --layers and single and two line Dockerfiles" {
@@ -109,7 +109,7 @@ load helpers
   run_buildah images -a
   expect_line_count 4
 
-  buildah rmi -a -f
+  run_buildah rmi -a -f
 }
 
 @test "bud with --layers, multistage, and COPY with --from" {
@@ -157,7 +157,7 @@ load helpers
   run_buildah images -a
   expect_line_count 12
 
-  buildah rmi -a -f
+  run_buildah rmi -a -f
 }
 
 @test "bud-multistage-partial-cache" {
@@ -221,7 +221,7 @@ load helpers
   run_buildah images -a
   expect_line_count 7
 
-  buildah rmi -a -f
+  run_buildah rmi -a -f
 }
 
 @test "bud with --layers and dangling symlink" {
@@ -242,8 +242,8 @@ load helpers
   run_buildah run $cid ls /tmp
   expect_output "policy.json"
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
   rm -rf ${TESTDIR}/use-layers/blah
 }
 
@@ -268,7 +268,7 @@ load helpers
   run_buildah images -a
   expect_line_count 10
 
-  buildah rmi -a -f
+  run_buildah rmi -a -f
 }
 
 @test "bud with --rm flag" {
@@ -280,8 +280,8 @@ load helpers
   run_buildah containers
   expect_line_count 7
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "bud with --force-rm flag" {
@@ -293,8 +293,8 @@ load helpers
   run_buildah containers
   expect_line_count 2
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "bud --layers with non-existent/down registry" {
@@ -312,8 +312,8 @@ load helpers
   expect_output "foo=bar"
   run_buildah inspect --format '{{index .Docker.ContainerConfig.Env 2}}' test1
   expect_output "random=hello,goodbye"
-  buildah rm ${cid}
-  buildah rmi -a -f
+  run_buildah rm ${cid}
+  run_buildah rmi -a -f
 }
 
 @test "bud-from-scratch" {
@@ -321,8 +321,8 @@ load helpers
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -333,8 +333,8 @@ load helpers
   iid=$(cat ${TESTDIR}/output.iid)
   run_buildah from --quiet ${iid}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -345,7 +345,7 @@ load helpers
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
   expect_output 'map["test":"label"]'
 
-  buildah rmi ${target}
+  run_buildah rmi ${target}
 }
 
 @test "bud-from-scratch-annotation" {
@@ -353,7 +353,7 @@ load helpers
   run_buildah bud --annotation "test=annotation1,annotation2=z" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' ${target}
   expect_output 'map["test":"annotation1,annotation2=z"]'
-  buildah rmi ${target}
+  run_buildah rmi ${target}
 }
 
 @test "bud-from-scratch-layers" {
@@ -378,8 +378,8 @@ load helpers
   cmp $root/Dockerfile1 ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch
   cmp $root/Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.nofrom
   test ! -s $root/etc/passwd
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 
@@ -392,8 +392,8 @@ load helpers
   cmp $root/Dockerfile1 ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.alpine
   cmp $root/Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.nofrom
   test -s $root/etc/passwd
-  buildah rm ${cid}
-  buildah rmi -a
+  run_buildah rm ${cid}
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 }
@@ -408,8 +408,8 @@ load helpers
   test ! -s $root/Dockerfile1
   cmp $root/Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
   test -s $root/etc/passwd
-  buildah rm ${cid}
-  buildah rmi -a
+  run_buildah rm ${cid}
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 
@@ -422,8 +422,8 @@ load helpers
   test ! -s $root/Dockerfile1
   cmp $root/Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
   test -s $root/etc/passwd
-  buildah rm ${cid}
-  buildah rmi -a
+  run_buildah rm ${cid}
+  run_buildah rmi -a
   run_buildah images -q
   echo "$output"
   expect_output ""
@@ -431,33 +431,33 @@ load helpers
 
 @test "bud-multi-stage-builds" {
   target=multi-stage-index
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
   root=$output
   cmp $root/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.index
   test -s $root/etc/passwd
-  buildah rm ${cid}
-  buildah rmi -a
+  run_buildah rm ${cid}
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 
   target=multi-stage-name
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
   root=$output
   cmp $root/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.name
   test ! -s $root/etc/passwd
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 
   target=multi-stage-mixed
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.mixed ${TESTSDIR}/bud/multi-stage-builds
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.mixed ${TESTSDIR}/bud/multi-stage-builds
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
@@ -465,41 +465,41 @@ load helpers
   cmp $root/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.name
   cmp $root/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.index
   cmp $root/Dockerfile.mixed ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.mixed
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
 
 @test "bud-multi-stage-builds-small-as" {
   target=multi-stage-index
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds-small-as
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds-small-as
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
   root=$output
   cmp $root/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.index
   test -s $root/etc/passwd
-  buildah rm ${cid}
-  buildah rmi -a
+  run_buildah rm ${cid}
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 
   target=multi-stage-name
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds-small-as
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds-small-as
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
   root=$output
   cmp $root/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.name
   test ! -s $root/etc/passwd
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 
   target=multi-stage-mixed
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.mixed ${TESTSDIR}/bud/multi-stage-builds-small-as
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.mixed ${TESTSDIR}/bud/multi-stage-builds-small-as
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
@@ -507,8 +507,8 @@ load helpers
   cmp $root/Dockerfile.name ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.name
   cmp $root/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.index
   cmp $root/Dockerfile.mixed ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.mixed
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -518,7 +518,7 @@ load helpers
   skip_if_no_runtime
 
   target=volume-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/preserve-volumes
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/preserve-volumes
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
@@ -529,8 +529,8 @@ load helpers
   test -s $root/vol/Dockerfile
   test -s $root/vol/Dockerfile2
   test ! -s $root/vol/anothervolfile
-  buildah rm ${cid}
-  buildah rmi -a
+  run_buildah rm ${cid}
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 }
@@ -538,12 +538,12 @@ load helpers
 @test "bud-http-Dockerfile" {
   starthttpd ${TESTSDIR}/bud/from-scratch
   target=scratch-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} http://0.0.0.0:${HTTP_SERVER_PORT}/Dockerfile
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} http://0.0.0.0:${HTTP_SERVER_PORT}/Dockerfile
   stophttpd
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -551,12 +551,12 @@ load helpers
 @test "bud-http-context-with-Dockerfile" {
   starthttpd ${TESTSDIR}/bud/http-context
   target=scratch-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
   stophttpd
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -564,12 +564,12 @@ load helpers
 @test "bud-http-context-dir-with-Dockerfile-pre" {
   starthttpd ${TESTSDIR}/bud/http-context-subdir
   target=scratch-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f context/Dockerfile http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f context/Dockerfile http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
   stophttpd
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -577,12 +577,12 @@ load helpers
 @test "bud-http-context-dir-with-Dockerfile-post" {
   starthttpd ${TESTSDIR}/bud/http-context-subdir
   target=scratch-image
-  buildah bud  --signature-policy ${TESTSDIR}/policy.json -t ${target} -f context/Dockerfile http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
+  run_buildah bud  --signature-policy ${TESTSDIR}/policy.json -t ${target} -f context/Dockerfile http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
   stophttpd
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -598,11 +598,11 @@ load helpers
   target=giturl-image
   # Any repo should do, but this one is small and is FROM: scratch.
   gitrepo=git://github.com/projectatomic/nulecule-library
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} "${gitrepo}"
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} "${gitrepo}"
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -611,12 +611,12 @@ load helpers
   target=github-image
   # Any repo should do, but this one is small and is FROM: scratch.
   gitrepo=github.com/projectatomic/nulecule-library
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} "${gitrepo}"
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} "${gitrepo}"
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah images -q
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah images -q
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -625,18 +625,18 @@ load helpers
   target=scratch-image
   target2=another-scratch-image
   target3=so-many-scratch-images
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -t docker.io/${target2} -t ${target3} ${TESTSDIR}/bud/from-scratch
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -t docker.io/${target2} -t ${target3} ${TESTSDIR}/bud/from-scratch
   run_buildah images
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
+  run_buildah rm ${cid}
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json library/${target2}
   cid=$output
-  buildah rm ${cid}
+  run_buildah rm ${cid}
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target3}:latest
   cid=$output
-  buildah rm ${cid}
-  buildah rmi -f $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi -f $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -669,7 +669,7 @@ load helpers
   skip_if_no_runtime
 
   target=volume-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/volume-perms
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/volume-perms
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
   cid=$output
   run_buildah mount ${cid}
@@ -679,35 +679,35 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   [ "$output" = 41ed ]
-  buildah rm ${cid}
-  buildah rmi -a
+  run_buildah rm ${cid}
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 }
 
 @test "bud-from-glob" {
   target=alpine-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile2.glob ${TESTSDIR}/bud/from-multiple-files
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile2.glob ${TESTSDIR}/bud/from-multiple-files
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
   cid=$output
   run_buildah mount ${cid}
   root=$output
   cmp $root/Dockerfile1.alpine ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.alpine
   cmp $root/Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.withfrom
-  buildah rm ${cid}
-  buildah rmi -a
+  run_buildah rm ${cid}
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 }
 
 @test "bud-maintainer" {
   target=alpine-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/maintainer
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/maintainer
   run_buildah inspect --type=image --format '{{.Docker.Author}}' ${target}
   expect_output "kilroy"
   run_buildah inspect --type=image --format '{{.OCIv1.Author}}' ${target}
   expect_output "kilroy"
-  buildah rmi -a
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 }
@@ -716,14 +716,14 @@ load helpers
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/unrecognized
   expect_output --substring "BOGUS"
-  buildah rmi $(buildah images -q)
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
 
 @test "bud-shell" {
   target=alpine-image
-  buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/shell
+  run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/shell
   run_buildah inspect --type=image --format '{{printf "%q" .Docker.Config.Shell}}' ${target}
   expect_output '["/bin/sh" "-c"]' ".Docker.Config.Shell (original)"
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -731,8 +731,8 @@ load helpers
   run_buildah config --shell "/bin/bash -c" ${ctr}
   run_buildah inspect --type=container --format '{{printf "%q" .Docker.Config.Shell}}' ${ctr}
   expect_output '["/bin/bash" "-c"]' ".Docker.Config.Shell (changed)"
-  buildah rm ${ctr}
-  buildah rmi -a
+  run_buildah rm ${ctr}
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 }
@@ -741,7 +741,7 @@ load helpers
   target=alpine-image
   run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-default ${TESTSDIR}/bud/shell
   expect_output --substring "SHELL=/bin/sh"
-  buildah rmi -a
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 }
@@ -750,7 +750,7 @@ load helpers
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-default ${TESTSDIR}/bud/shell
   expect_output --substring "SHELL=/bin/sh"
-  buildah rmi -a
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 }
@@ -759,7 +759,7 @@ load helpers
   target=ubuntu-image
   run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-custom ${TESTSDIR}/bud/shell
   expect_output --substring "SHELL=/bin/bash"
-  buildah rmi -a
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 }
@@ -768,7 +768,7 @@ load helpers
   target=ubuntu-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-custom ${TESTSDIR}/bud/shell
   expect_output --substring "SHELL=/bin/sh"
-  buildah rmi -a
+  run_buildah rmi -a
   run_buildah images -q
   expect_output ""
 }
@@ -790,8 +790,8 @@ load helpers
   [ "$status" -eq 0 ]
   [[ "$output" =~ "test-log -> /data/log" ]]
   [[ "$output" =~ "blah -> /test-log" ]]
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud with symlinks to relative path" {
@@ -810,8 +810,8 @@ load helpers
   [ "$status" -eq 0 ]
   [[ "$output" =~ "test-log -> ../log" ]]
   test -r $root/var/data/empty
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud with multiple symlinks in a path" {
@@ -838,8 +838,8 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" =~ "foo -> /data/log" ]]
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud with multiple symlink pointing to itself" {
@@ -861,8 +861,8 @@ load helpers
   run cat $root/bin/myexe
   [ "$status" -eq 0 ]
   [[ "$output" == "symlink-test" ]]
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud multi-stage with dir symlink to absolute path" {
@@ -876,8 +876,8 @@ load helpers
   echo "$output"
   [ "$status" -eq 0 ]
   [[ "$output" =~ myexe ]]
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud with ENTRYPOINT and RUN" {
@@ -886,8 +886,8 @@ load helpers
   expect_output --substring "unique.test.string"
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud with ENTRYPOINT and empty RUN" {
@@ -902,8 +902,8 @@ load helpers
   expect_output --substring "unique.test.string"
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud with CMD and empty RUN" {
@@ -918,8 +918,8 @@ load helpers
   expect_output --substring "unique.test.string"
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud with ENTRYPOINT, CMD and empty RUN" {
@@ -935,8 +935,8 @@ load helpers
   expect_output --substring ":unique.test.string:"
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 # Determines if a variable set with ENV in an image is available to commands in downstream Dockerfile
@@ -950,8 +950,8 @@ load helpers
   from_cid=$output
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${from_cid} ${cid}
-  buildah rmi -a -f
+  run_buildah rm ${from_cid} ${cid}
+  run_buildah rmi -a -f
 }
 
 @test "bud ENV preserves special characters after commit" {
@@ -961,8 +961,8 @@ load helpers
   cid=$output
   run_buildah run ${cid} env
   expect_output --substring "LIB=\\$\(PREFIX\)/lib"
-  buildah rm ${cid}
-  buildah rmi -a -f
+  run_buildah rm ${cid}
+  run_buildah rmi -a -f
 }
 
 @test "bud with Dockerfile from valid URL" {
@@ -971,8 +971,8 @@ load helpers
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${url}
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud with Dockerfile from invalid URL" {
@@ -987,8 +987,8 @@ load helpers
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.noop-flags ${TESTSDIR}/bud/run-scenarios
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 # Following flags are configured to result in noop but should not affect buildiah bud behavior
@@ -997,8 +997,8 @@ load helpers
   run_buildah bud --cache-from=invalidimage --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.noop-flags ${TESTSDIR}/bud/run-scenarios
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud with --compress noop flag" {
@@ -1006,8 +1006,8 @@ load helpers
   run_buildah bud --compress --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.noop-flags ${TESTSDIR}/bud/run-scenarios
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud with --cpu-shares flag, no argument" {
@@ -1026,8 +1026,8 @@ load helpers
   run_buildah bud --cpu-shares 2 --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud with --cpu-shares short flag (-c), no argument" {
@@ -1046,13 +1046,13 @@ load helpers
   run_buildah bud -c 2 --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi ${target}
+  run_buildah rm ${cid}
+  run_buildah rmi ${target}
 }
 
 @test "bud-onbuild" {
   target=onbuild
-  buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/onbuild
+  run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/onbuild
   run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
   expect_output '["RUN touch /onbuild1" "RUN touch /onbuild2"]'
   run_buildah from --quiet ${target}
@@ -1062,11 +1062,11 @@ load helpers
   run ls ${root}/onbuild1 ${root}/onbuild2
   echo "$output"
   [ "$status" -eq 0 ]
-  buildah umount ${cid}
-  buildah rm ${cid}
+  run_buildah umount ${cid}
+  run_buildah rm ${cid}
 
   target=onbuild-image2
-  buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1 ${TESTSDIR}/bud/onbuild
+  run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1 ${TESTSDIR}/bud/onbuild
   run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
   expect_output '["RUN touch /onbuild3"]'
   run_buildah from --quiet ${target}
@@ -1076,21 +1076,21 @@ load helpers
   run ls ${root}/onbuild1 ${root}/onbuild2 ${root}/onbuild3
   echo "$output"
   [ "$status" -eq 0 ]
-  buildah umount ${cid}
+  run_buildah umount ${cid}
 
   run_buildah config --onbuild "RUN touch /onbuild4" ${cid}
 
   target=onbuild-image3
-  buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker ${cid} ${target}
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker ${cid} ${target}
   run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
   expect_output '["RUN touch /onbuild4"]'
-  buildah rm ${cid}
-  buildah rmi --all
+  run_buildah rm ${cid}
+  run_buildah rmi --all
 }
 
 @test "bud-onbuild-layers" {
   target=onbuild
-  buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile2 ${TESTSDIR}/bud/onbuild
+  run_buildah bud --format docker --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile2 ${TESTSDIR}/bud/onbuild
   run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
   expect_output '["RUN touch /onbuild1" "RUN touch /onbuild2"]'
 }
@@ -1134,8 +1134,8 @@ load helpers
   run test -s $root/Dockerfile1
   echo "$output"
   [ "$status" -eq 0 ]
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -1201,7 +1201,7 @@ load helpers
 }
 
 @test "bud with ADD file construct" {
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/add-file
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/add-file
   run_buildah images -a
   expect_output --substring "test1"
 
@@ -1292,7 +1292,7 @@ load helpers
 }
 
 @test "bud with FROM AS construct" {
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
   run_buildah images -a
   expect_output --substring "test1"
 
@@ -1306,7 +1306,7 @@ load helpers
 }
 
 @test "bud with FROM AS construct with layers" {
-  buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
+  run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
   run_buildah images -a
   expect_output --substring "test1"
 
@@ -1373,7 +1373,7 @@ load helpers
 
 @test "bud-with-healthcheck" {
   target=alpine-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --format docker ${TESTSDIR}/bud/healthcheck
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --format docker ${TESTSDIR}/bud/healthcheck
   run_buildah inspect -f '{{printf "%q" .Docker.Config.Healthcheck.Test}} {{printf "%d" .Docker.Config.Healthcheck.StartPeriod}} {{printf "%d" .Docker.Config.Healthcheck.Interval}} {{printf "%d" .Docker.Config.Healthcheck.Timeout}} {{printf "%d" .Docker.Config.Healthcheck.Retries}}' ${target}
   second=1000000000
   threeseconds=$(( 3 * $second ))
@@ -1434,8 +1434,8 @@ load helpers
   [ "$status" -eq 0 ]
   run ls ${root}/3
   [ "$status" -ne 0 ]
-  buildah umount ${cid}
-  buildah rm ${cid}
+  run_buildah umount ${cid}
+  run_buildah rm ${cid}
 }
 
 @test "bud-no-target-name" {
@@ -1575,7 +1575,7 @@ load helpers
     false
   fi
 
-  buildah rmi -a -f
+  run_buildah rmi -a -f
 }
 
 @test "buildah-bud-policy" {
@@ -1734,32 +1734,32 @@ load helpers
 @test "bud-no-change" {
   parent=alpine
   target=no-change-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
   run_buildah inspect --format '{{printf "%q" .FromImageDigest}}' ${parent}
   parentid="$output"
   run_buildah inspect --format '{{printf "%q" .FromImageDigest}}' ${target}
   [[ "$output" == "$parentid" ]]
 
-  buildah rmi ${target}
+  run_buildah rmi ${target}
 }
 
 @test "bud-no-change-label" {
   parent=alpine
   target=no-change-image
-  buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
+  run_buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
   expect_output 'map["test":"label"]'
 
-  buildah rmi ${target}
+  run_buildah rmi ${target}
 }
 
 @test "bud-no-change-annotation" {
   target=no-change-image
-  buildah bud --annotation "test=annotation" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
+  run_buildah bud --annotation "test=annotation" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
   run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' ${target}
   expect_output 'map["test":"annotation"]'
 
-  buildah rmi ${target}
+  run_buildah rmi ${target}
 }
 
 @test "bud-squash-layers" {
@@ -1777,7 +1777,7 @@ load helpers
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --device ${TESTSDIR}/foo:/dev/fuse  -t ${target} -f ${TESTSDIR}/bud/device/Dockerfile ${TESTSDIR}/bud/device
   expect_output --substring "null"
 
-  buildah rmi ${target}
+  run_buildah rmi ${target}
   rm -rf ${TESTSDIR}/foo
 }
 
@@ -1787,7 +1787,7 @@ load helpers
   [ "${status}" -eq 0 ]
   expect_output --substring "/dev/fuse"
 
-  buildah rmi ${target}
+  run_buildah rmi ${target}
 }
 
 @test "bud with Containerfile" {
@@ -1796,7 +1796,7 @@ load helpers
   [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
 
-  buildah rmi ${target}
+  run_buildah rmi ${target}
 }
 
 @test "bud with Dockerfile" {
@@ -1805,7 +1805,7 @@ load helpers
   [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
 
-  buildah rmi ${target}
+  run_buildah rmi ${target}
 }
 
 @test "bud with Containerfile and Dockerfile" {
@@ -1814,18 +1814,18 @@ load helpers
   [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
 
-  buildah rmi ${target}
+  run_buildah rmi ${target}
 }
 
 @test "bud-http-context-with-Containerfile" {
   starthttpd ${TESTSDIR}/bud/http-context-containerfile
   target=scratch-image
-  buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
   stophttpd
   run_buildah from --quiet ${target}
   cid=$output
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -1840,8 +1840,8 @@ load helpers
   root=$output
   run test -s $root/etc/alpine-release
   echo "$output"
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -1856,8 +1856,8 @@ load helpers
   root=$output
   run test -s $root/etc/alpine-release
   echo "$output"
-  buildah rm ${cid}
-  buildah rmi $(buildah images -q)
+  run_buildah rm ${cid}
+  run_buildah rmi $(buildah images -q)
   run_buildah images -q
   expect_output ""
 }
@@ -1893,8 +1893,8 @@ load helpers
   expect_output --substring "abc.txt"
 
   rm ${TESTSDIR}/bud/use-args/abc.txt
-  buildah rm --all
-  buildah rmi --all --force
+  run_buildah rm --all
+  run_buildah rmi --all --force
 }
 
 @test "bud using gitrepo and branch" {
@@ -1942,7 +1942,7 @@ load helpers
   echo "$output"
   expect_output --substring "COMMIT pull"
 
-  buildah rmi --all --force
+  run_buildah rmi --all --force
 }
 
 @test "bud pull false no local image" {
@@ -1951,8 +1951,8 @@ load helpers
   echo "$output"
   expect_output --substring "COMMIT pull"
 
-  buildah rmi --all --force
-  buildah rmi --all --force
+  run_buildah rmi --all --force
+  run_buildah rmi --all --force
 }
 
 @test "bud with Containerfile should fail with nonexist authfile" {
@@ -1977,5 +1977,5 @@ EOM
   expect_line_count 1
   expect_output --substring '^[0-9a-f]{64}$'
 
-  buildah rmi quiet-test
+  run_buildah rmi quiet-test
 }

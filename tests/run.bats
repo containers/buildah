@@ -11,21 +11,21 @@ load helpers
 	cid=$output
 	run_buildah mount $cid
 	root=$output
-	buildah config --workingdir /tmp $cid
+	run_buildah config --workingdir /tmp $cid
 	run_buildah run $cid pwd
 	expect_output "/tmp"
-	buildah config --workingdir /root $cid
+	run_buildah config --workingdir /root $cid
 	run_buildah run        $cid pwd
 	expect_output "/root"
 	cp ${TESTDIR}/randomfile $root/tmp/
-	buildah run        $cid cp /tmp/randomfile /tmp/other-randomfile
+	run_buildah run        $cid cp /tmp/randomfile /tmp/other-randomfile
 	test -s $root/tmp/other-randomfile
 	cmp ${TESTDIR}/randomfile $root/tmp/other-randomfile
 
 	seq 100000 | buildah run $cid -- sh -c 'while read i; do echo $i; done'
 
-	buildah unmount $cid
-	buildah rm $cid
+	run_buildah unmount $cid
+	run_buildah rm $cid
 }
 
 @test "run--args" {
@@ -53,7 +53,7 @@ load helpers
 	run_buildah run $cid -- echo -n "test"
 	expect_output "test"
 
-	buildah rm $cid
+	run_buildah rm $cid
 }
 
 @test "run-cmd" {
@@ -61,64 +61,64 @@ load helpers
 
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
-	buildah config --workingdir /tmp $cid
+	run_buildah config --workingdir /tmp $cid
 
 
 	# Configured entrypoint/cmd shouldn't modify behaviour of run with no arguments
 
 	# empty entrypoint, configured cmd, empty run arguments
-	buildah config --entrypoint "" $cid
-	buildah config --cmd pwd $cid
+	run_buildah config --entrypoint "" $cid
+	run_buildah config --cmd pwd $cid
 	run_buildah 1 run $cid
 	expect_output --substring "command must be specified" "empty entrypoint, cmd, no args"
 
 	# empty entrypoint, configured cmd, empty run arguments, end parsing option
-	buildah config --entrypoint "" $cid
-	buildah config --cmd pwd $cid
+	run_buildah config --entrypoint "" $cid
+	run_buildah config --cmd pwd $cid
 	run_buildah 1 run $cid --
 	expect_output --substring "command must be specified" "empty entrypoint, cmd, no args, --"
 
 	# configured entrypoint, empty cmd, empty run arguments
-	buildah config --entrypoint pwd $cid
-	buildah config --cmd "" $cid
+	run_buildah config --entrypoint pwd $cid
+	run_buildah config --cmd "" $cid
 	run_buildah 1 run $cid
 	expect_output --substring "command must be specified" "entrypoint, empty cmd, no args"
 
 	# configured entrypoint, empty cmd, empty run arguments, end parsing option
-	buildah config --entrypoint pwd $cid
-	buildah config --cmd "" $cid
+	run_buildah config --entrypoint pwd $cid
+	run_buildah config --cmd "" $cid
 	run_buildah 1 run $cid --
 	expect_output --substring "command must be specified" "entrypoint, empty cmd, no args, --"
 
 	# configured entrypoint only, empty run arguments
-	buildah config --entrypoint pwd $cid
+	run_buildah config --entrypoint pwd $cid
 	run_buildah 1 run $cid
 	expect_output --substring "command must be specified" "entrypoint, no args"
 
 	# configured entrypoint only, empty run arguments, end parsing option
-	buildah config --entrypoint pwd $cid
+	run_buildah config --entrypoint pwd $cid
 	run_buildah 1 run $cid --
 	expect_output --substring "command must be specified" "entrypoint, no args, --"
 
 	# configured cmd only, empty run arguments
-	buildah config --cmd pwd $cid
+	run_buildah config --cmd pwd $cid
 	run_buildah 1 run $cid
 	expect_output --substring "command must be specified" "cmd, no args"
 
 	# configured cmd only, empty run arguments, end parsing option
-	buildah config --cmd pwd $cid
+	run_buildah config --cmd pwd $cid
 	run_buildah 1 run $cid --
 	expect_output --substring "command must be specified" "cmd, no args, --"
 
 	# configured entrypoint, configured cmd, empty run arguments
-	buildah config --entrypoint "pwd" $cid
-	buildah config --cmd "whoami" $cid
+	run_buildah config --entrypoint "pwd" $cid
+	run_buildah config --cmd "whoami" $cid
 	run_buildah 1 run $cid
 	expect_output --substring "command must be specified" "entrypoint, cmd, no args"
 
 	# configured entrypoint, configured cmd, empty run arguments, end parsing option
-	buildah config --entrypoint "pwd" $cid
-	buildah config --cmd "whoami" $cid
+	run_buildah config --entrypoint "pwd" $cid
+	run_buildah config --cmd "whoami" $cid
 	run_buildah 1 run $cid --
 	expect_output --substring "command must be specified"  "entrypoint, cmd, no args"
 
@@ -127,34 +127,34 @@ load helpers
 	# Note: entrypoint and cmd can be invalid in below tests as they should never execute
 
 	# empty entrypoint, configured cmd, configured run arguments
-	buildah config --entrypoint "" $cid
-	buildah config --cmd "/invalid/cmd" $cid
+	run_buildah config --entrypoint "" $cid
+	run_buildah config --cmd "/invalid/cmd" $cid
 	run_buildah run $cid -- pwd
 	expect_output "/tmp" "empty entrypoint, invalid cmd, pwd"
 
         # configured entrypoint, empty cmd, configured run arguments
-        buildah config --entrypoint "/invalid/entrypoint" $cid
-        buildah config --cmd "" $cid
+        run_buildah config --entrypoint "/invalid/entrypoint" $cid
+        run_buildah config --cmd "" $cid
         run_buildah run $cid -- pwd
 	expect_output "/tmp" "invalid entrypoint, empty cmd, pwd"
 
         # configured entrypoint only, configured run arguments
-        buildah config --entrypoint "/invalid/entrypoint" $cid
+        run_buildah config --entrypoint "/invalid/entrypoint" $cid
         run_buildah run $cid -- pwd
 	expect_output "/tmp" "invalid entrypoint, no cmd(??), pwd"
 
         # configured cmd only, configured run arguments
-        buildah config --cmd "/invalid/cmd" $cid
+        run_buildah config --cmd "/invalid/cmd" $cid
         run_buildah run $cid -- pwd
 	expect_output "/tmp" "invalid cmd, no entrypoint(??), pwd"
 
         # configured entrypoint, configured cmd, configured run arguments
-        buildah config --entrypoint "/invalid/entrypoint" $cid
-        buildah config --cmd "/invalid/cmd" $cid
+        run_buildah config --entrypoint "/invalid/entrypoint" $cid
+        run_buildah config --cmd "/invalid/cmd" $cid
         run_buildah run $cid -- pwd
 	expect_output "/tmp" "invalid cmd & entrypoint, pwd"
 
-	buildah rm $cid
+	run_buildah rm $cid
 }
 
 function configure_and_check_user() {
@@ -203,20 +203,20 @@ function configure_and_check_user() {
         configure_and_check_user "${testuser}:${testgroupid}"   $testuid      $testgroupid
         configure_and_check_user "${testuid}:${testgroupid}"    $testuid      $testgroupid
 
-        buildah config -u ${testbogususer} $cid
+        run_buildah config -u ${testbogususer} $cid
         run_buildah 1 run -- $cid id -u
         expect_output --substring "unknown user" "id -u (bogus user)"
         run_buildah 1 run -- $cid id -g
         expect_output --substring "unknown user" "id -g (bogus user)"
 
 	ln -vsf /etc/passwd $root/etc/passwd
-	buildah config -u ${testuser}:${testgroup} $cid
+	run_buildah config -u ${testuser}:${testgroup} $cid
 	run_buildah 1 run -- $cid id -u
 	echo "$output"
 	expect_output --substring "unknown user" "run as unknown user"
 
-	buildah unmount $cid
-	buildah rm $cid
+	run_buildah unmount $cid
+	run_buildah rm $cid
 }
 
 @test "run --hostname" {
@@ -230,7 +230,7 @@ function configure_and_check_user() {
 	[ "$output" != "foobar" ]
 	run_buildah run --hostname foobar $cid hostname
 	expect_output "foobar"
-	buildah rm $cid
+	run_buildah rm $cid
 }
 
 @test "run --volume" {
@@ -329,7 +329,7 @@ function configure_and_check_user() {
 	expect_output "1048576" "limits: open files (unlimited)"
 	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
 	expect_output "1048576" "limits: processes (unlimited)"
-	buildah rm $cid
+	run_buildah rm $cid
 
 	run_buildah from --quiet --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
@@ -337,7 +337,7 @@ function configure_and_check_user() {
 	expect_output "300" "limits: open files (w/file limit)"
 	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
 	expect_output "1048576" "limits: processes (w/file limit)"
-	buildah rm $cid
+	run_buildah rm $cid
 
 	run_buildah from --quiet --ulimit nproc=100:200 --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
@@ -345,7 +345,7 @@ function configure_and_check_user() {
 	expect_output "300" "limits: open files (w/file & proc limits)"
 	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
 	expect_output "100" "limits: processes (w/file & proc limits)"
-	buildah rm $cid
+	run_buildah rm $cid
 }
 
 @test "run-builtin-volume-omitted" {

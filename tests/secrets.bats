@@ -39,7 +39,7 @@ function setup() {
 }
 
 function teardown() {
-    buildah rm $cid
+    run_buildah rm $cid
     rm -rf $TESTSDIR/containers
     rm -rf $TESTSDIR/rhel
     rm -rf $TESTSDIR/symlink

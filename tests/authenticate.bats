@@ -38,8 +38,8 @@ EOM
   chmod +x $FILE
 
   # Remove containers and images before bud tests
-  buildah rm --all
-  buildah rmi -f --all
+  run_buildah rm --all
+  run_buildah rmi -f --all
 
   # bud test bad password should fail
   run_buildah 1 bud -f ./Dockerfile --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:badpassword
@@ -49,6 +49,6 @@ EOM
 
   # Clean up
   rm -f ./Dockerfile
-  buildah rm -a
-  buildah rmi -f --all
+  run_buildah rm -a
+  run_buildah rmi -f --all
 }

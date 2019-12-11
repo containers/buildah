@@ -118,7 +118,7 @@ load helpers
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
   newcid=$output
-  buildah commit --rm --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:remove-container-image
+  run_buildah commit --rm --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:remove-container-image
   run_buildah 1 mount $newcid
 
   run_buildah rmi remove-container-image

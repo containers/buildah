@@ -19,22 +19,22 @@ load helpers
 @test "commit" {
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
   run_buildah images alpine-image
-  buildah rm $cid
-  buildah rmi -a
+  run_buildah rm $cid
+  run_buildah rmi -a
 }
 
 @test "commit format test" {
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-oci
-  buildah commit --format docker --disable-compression=false --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-docker
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-oci
+  run_buildah commit --format docker --disable-compression=false --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-docker
 
-  buildah inspect --type=image --format '{{.Manifest}}' alpine-image-oci | grep "application/vnd.oci.image.layer.v1.tar"
-  buildah inspect --type=image --format '{{.Manifest}}' alpine-image-docker | grep "application/vnd.docker.image.rootfs.diff.tar.gzip"
-  buildah rm $cid
-  buildah rmi -a
+  run_buildah inspect --type=image --format '{{.Manifest}}' alpine-image-oci | grep "application/vnd.oci.image.layer.v1.tar"
+  run_buildah inspect --type=image --format '{{.Manifest}}' alpine-image-docker | grep "application/vnd.docker.image.rootfs.diff.tar.gzip"
+  run_buildah rm $cid
+  run_buildah rmi -a
 }
 
 @test "commit quiet test" {
@@ -42,17 +42,17 @@ load helpers
   cid=$output
   run_buildah commit --iidfile /dev/null --signature-policy ${TESTSDIR}/policy.json -q $cid alpine-image
   expect_output ""
-  buildah rm $cid
-  buildah rmi -a
+  run_buildah rm $cid
+  run_buildah rmi -a
 }
 
 @test "commit rm test" {
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah commit --signature-policy ${TESTSDIR}/policy.json --rm $cid alpine-image
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --rm $cid alpine-image
   run_buildah 1 rm $cid
   expect_output --substring "error removing container \"alpine-working-container\": error reading build container: container not known"
-  buildah rmi -a
+  run_buildah rmi -a
 }
 
 @test "commit-alternate-storage" {
@@ -60,9 +60,9 @@ load helpers
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json openshift/hello-openshift
   cid=$output
   echo COMMIT
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid "containers-storage:[vfs@${TESTDIR}/root2+${TESTDIR}/runroot2]newimage"
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid "containers-storage:[vfs@${TESTDIR}/root2+${TESTDIR}/runroot2]newimage"
   echo FROM
-  buildah --storage-driver vfs --root ${TESTDIR}/root2 --runroot ${TESTDIR}/runroot2 from --signature-policy ${TESTSDIR}/policy.json newimage
+  run_buildah --storage-driver vfs --root ${TESTDIR}/root2 --runroot ${TESTDIR}/runroot2 from --signature-policy ${TESTSDIR}/policy.json newimage
 }
 
 @test "commit-rejected-name" {
@@ -109,14 +109,14 @@ load helpers
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah 1 commit --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
-  buildah rm $cid
-  buildah rmi -a
+  run_buildah rm $cid
+  run_buildah rmi -a
 }
 
 @test "commit-builder-identity" {
 	run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
-	buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
+	run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
 
 	run_buildah --version | awk '{ print $3 }'
 	buildah_version=$output
@@ -124,8 +124,8 @@ load helpers
 	version=$output
 
 	[ "$version" == "$buildah_version" ]
-	buildah rm $cid
-	buildah rmi -f alpine-image
+	run_buildah rm $cid
+	run_buildah rmi -f alpine-image
 }
 
 @test "commit-parent-id" {
@@ -134,7 +134,7 @@ load helpers
   run_buildah inspect --format '{{.FromImageID}}' $cid
   iid=$output
   echo image ID: "$iid"
-  buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker $cid alpine-image
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker $cid alpine-image
   run_buildah inspect --format '{{.Docker.Parent}}' alpine-image
   parentid=$output
   echo parent ID: "$parentid"
@@ -147,7 +147,7 @@ load helpers
   run_buildah containers --format '{{.ContainerID}}:{{.ContainerName}}' | grep :"$cid"'$' | cut -f1 -d:
   cid=$output
   echo container ID: "$cid"
-  buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker $cid alpine-image
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker $cid alpine-image
   run_buildah inspect --format '{{.Docker.Container}}' alpine-image
   containerid=$output
   echo recorded container ID: "$containerid"
@@ -169,13 +169,13 @@ load helpers
   run_buildah inspect --format '{{.FromImage}}' $cname
   expect_output "localhost/$newname:latest"
 
-  buildah rm busyboxc $cname
-  buildah rmi $newname
+  run_buildah rm busyboxc $cname
+  run_buildah rmi $newname
 }
 
 @test "commit to docker-distribution" {
-  buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword busyboxc docker://localhost:5000/commit/busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name fromdocker --tls-verify=false --creds testuser:testpassword docker://localhost:5000/commit/busybox
-  buildah rm busyboxc fromdocker
+  run_buildah rm busyboxc fromdocker
 }

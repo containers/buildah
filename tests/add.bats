@@ -165,7 +165,7 @@ load helpers
   run_buildah run $cid ls -l /tmp/random
 
   expect_output --substring bin.*bin
-  buildah rm $cid
+  run_buildah rm $cid
 }
 
 @test "add url" {
@@ -177,5 +177,5 @@ load helpers
   run_buildah add $cid https://github.com/containers/buildah/raw/master/README.md /home
   run_buildah run $cid ls /home/README.md
 
-  buildah rm $cid
+  run_buildah rm $cid
 }

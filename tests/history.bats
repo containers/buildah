@@ -7,13 +7,13 @@ function testconfighistory() {
   expected="$2"
   container=$(echo "c$config" | sed -E -e 's|[[:blank:]]|_|g' -e "s,[-=/:'],_,g" | tr '[A-Z]' '[a-z]')
   image=$(echo "i$config" | sed -E -e 's|[[:blank:]]|_|g' -e "s,[-=/:'],_,g" | tr '[A-Z]' '[a-z]')
-  buildah from --name "$container" --format docker scratch
-  buildah config $config --add-history "$container"
-  buildah commit --signature-policy ${TESTSDIR}/policy.json "$container" "$image"
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' "$image"
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' "$image" | grep "$expected"
+  run_buildah from --name "$container" --format docker scratch
+  run_buildah config $config --add-history "$container"
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$container" "$image"
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' "$image"
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' "$image" | grep "$expected"
   if test "$3" != "not-oci" ; then
-    buildah inspect --format '{{range .OCIv1.History}}{{println .CreatedBy}}{{end}}' "$image" | grep "$expected"
+    run_buildah inspect --format '{{range .OCIv1.History}}{{println .CreatedBy}}{{end}}' "$image" | grep "$expected"
   fi
 }
 
@@ -30,11 +30,11 @@ function testconfighistory() {
 }
 
 @test "history-healthcheck" {
-  buildah from --name healthcheckctr --format docker scratch
-  buildah config --healthcheck "CMD /foo" --healthcheck-timeout=10s --healthcheck-interval=20s --healthcheck-retries=7 --healthcheck-start-period=30s --add-history healthcheckctr
-  buildah commit --signature-policy ${TESTSDIR}/policy.json healthcheckctr healthcheckimg
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' healthcheckimg
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' healthcheckimg | grep "HEALTHCHECK --interval=20s --retries=7 --start-period=30s --timeout=10s CMD /foo"
+  run_buildah from --name healthcheckctr --format docker scratch
+  run_buildah config --healthcheck "CMD /foo" --healthcheck-timeout=10s --healthcheck-interval=20s --healthcheck-retries=7 --healthcheck-start-period=30s --add-history healthcheckctr
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json healthcheckctr healthcheckimg
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' healthcheckimg
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' healthcheckimg | grep "HEALTHCHECK --interval=20s --retries=7 --start-period=30s --timeout=10s CMD /foo"
 }
 
 @test "history-label" {
@@ -42,11 +42,11 @@ function testconfighistory() {
 }
 
 @test "history-onbuild" {
-  buildah from --name onbuildctr --format docker scratch
-  buildah config --onbuild "CMD /foo" --add-history onbuildctr
-  buildah commit --signature-policy ${TESTSDIR}/policy.json onbuildctr onbuildimg
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' onbuildimg
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' onbuildimg | grep "ONBUILD CMD /foo"
+  run_buildah from --name onbuildctr --format docker scratch
+  run_buildah config --onbuild "CMD /foo" --add-history onbuildctr
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json onbuildctr onbuildimg
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' onbuildimg
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' onbuildimg | grep "ONBUILD CMD /foo"
 }
 
 @test "history-port" {
@@ -75,28 +75,28 @@ function testconfighistory() {
 
 @test "history-add" {
   createrandom ${TESTDIR}/randomfile
-  buildah from --name addctr --format docker scratch
+  run_buildah from --name addctr --format docker scratch
   run_buildah add --add-history addctr ${TESTDIR}/randomfile
   digest="$output"
-  buildah commit --signature-policy ${TESTSDIR}/policy.json addctr addimg
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' addimg
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' addimg | grep "ADD file:$digest"
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json addctr addimg
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' addimg
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' addimg | grep "ADD file:$digest"
 }
 
 @test "history-copy" {
   createrandom ${TESTDIR}/randomfile
-  buildah from --name copyctr --format docker scratch
+  run_buildah from --name copyctr --format docker scratch
   run_buildah copy --add-history copyctr ${TESTDIR}/randomfile
   digest="$output"
-  buildah commit --signature-policy ${TESTSDIR}/policy.json copyctr copyimg
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' copyimg
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' copyimg | grep "COPY file:$digest"
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json copyctr copyimg
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' copyimg
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' copyimg | grep "COPY file:$digest"
 }
 
 @test "history-run" {
-  buildah from --name runctr --format docker --signature-policy ${TESTSDIR}/policy.json busybox
-  buildah run --add-history runctr -- uname -a
-  buildah commit --signature-policy ${TESTSDIR}/policy.json runctr runimg
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' runimg
-  buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' runimg | grep "/bin/sh -c uname -a"
+  run_buildah from --name runctr --format docker --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah run --add-history runctr -- uname -a
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json runctr runimg
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' runimg
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' runimg | grep "/bin/sh -c uname -a"
 }

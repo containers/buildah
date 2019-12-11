@@ -9,17 +9,17 @@ load helpers
 
     # Clean up.
     for id in $(buildah containers -q) ; do
-      buildah rm ${id}
+      run_buildah rm ${id}
     done
     for id in $(buildah images -q) ; do
-      buildah rmi ${id}
+      run_buildah rmi ${id}
     done
 
     # Create a container by specifying the image with one name.
-    buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json $image
+    run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json $image
 
     # Create a container by specifying the image with another name.
-    buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json $imagename
+    run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json $imagename
 
     # Get their image IDs.  They should be the same one.
     lastid=
@@ -37,10 +37,10 @@ load helpers
 
     # Clean up.
     for id in $(buildah containers -q) ; do
-      buildah rm ${id}
+      run_buildah rm ${id}
     done
     for id in $(buildah images -q) ; do
-      buildah rmi ${id}
+      run_buildah rmi ${id}
     done
   }
   # Test with pairs of short and fully-qualified names that should be the same image.
