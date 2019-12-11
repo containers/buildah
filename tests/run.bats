@@ -7,8 +7,10 @@ load helpers
 
 	runc --version
 	createrandom ${TESTDIR}/randomfile
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-	root=$(buildah mount $cid)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah mount $cid
+	root=$output
 	buildah config --workingdir /tmp $cid
 	run_buildah run $cid pwd
 	expect_output "/tmp"
@@ -29,7 +31,8 @@ load helpers
 @test "run--args" {
 	skip_if_no_runtime
 
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 
 	# This should fail, because buildah run doesn't have a -n flag.
 	run_buildah 1 run -n $cid echo test
@@ -56,7 +59,8 @@ load helpers
 @test "run-cmd" {
 	skip_if_no_runtime
 
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	buildah config --workingdir /tmp $cid
 
 
@@ -174,8 +178,10 @@ function configure_and_check_user() {
 	if test "$CGO_ENABLED" -ne 1; then
 		skip "CGO_ENABLED = '$CGO_ENABLED'"
 	fi
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-	root=$(buildah mount $cid)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah mount $cid
+	root=$output
 
 	testuser=jimbo
 	testbogususer=nosuchuser
@@ -218,7 +224,8 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	runc --version
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	run_buildah run $cid hostname
 	[ "$output" != "foobar" ]
 	run_buildah run --hostname foobar $cid hostname
@@ -236,7 +243,8 @@ function configure_and_check_user() {
 		fi
 	fi
 	runc --version
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	mkdir -p ${TESTDIR}/was-empty
 	# As a baseline, this should succeed.
 	run_buildah run -v ${TESTDIR}/was-empty:/var/not-empty${zflag:+:${zflag}}     $cid touch /var/not-empty/testfile
@@ -260,7 +268,8 @@ function configure_and_check_user() {
 		fi
 	fi
 	runc --version
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	mkdir -p ${TESTDIR}/was:empty
 	# As a baseline, this should succeed.
 	run_buildah run --mount type=tmpfs,dst=/var/tmpfs-not-empty                                           $cid touch /var/tmpfs-not-empty/testfile
@@ -277,7 +286,8 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	runc --version
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	mkdir -p ${TESTDIR}/tmp
 	ln -s tmp ${TESTDIR}/tmp2
 	export TMPDIR=${TESTDIR}/tmp2
@@ -288,7 +298,8 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	runc --version
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	# Try with default caps.
 	run_buildah run $cid grep ^CapEff /proc/self/status
 	defaultcaps="$output"
@@ -312,21 +323,24 @@ function configure_and_check_user() {
 @test "Check if containers run with correct open files/processes limits" {
 	skip_if_no_runtime
 
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
 	expect_output "1048576" "limits: open files (unlimited)"
 	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
 	expect_output "1048576" "limits: processes (unlimited)"
 	buildah rm $cid
 
-	cid=$(buildah from --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
 	expect_output "300" "limits: open files (w/file limit)"
 	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
 	expect_output "1048576" "limits: processes (w/file limit)"
 	buildah rm $cid
 
-	cid=$(buildah from --ulimit nproc=100:200 --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --ulimit nproc=100:200 --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
 	expect_output "300" "limits: open files (w/file & proc limits)"
 	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
@@ -337,8 +351,10 @@ function configure_and_check_user() {
 @test "run-builtin-volume-omitted" {
 	# This image is known to include a volume, but not include the mountpoint
 	# in the image.
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json docker.io/library/registry@sha256:a25e4660ed5226bdb59a5e555083e08ded157b1218282840e55d25add0223390)
-	mnt=$(buildah mount $cid)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json docker.io/library/registry@sha256:a25e4660ed5226bdb59a5e555083e08ded157b1218282840e55d25add0223390
+	cid=$output
+	run_buildah mount $cid
+	mnt=$output
 	# By default, the mountpoint should not be there.
 	run test -d "$mnt"/var/lib/registry
 	echo "$output"
@@ -354,14 +370,16 @@ function configure_and_check_user() {
 @test "run-exit-status" {
 	skip_if_no_runtime
 
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	run_buildah 42 run ${cid} sh -c 'exit 42'
 }
 
 @test "Verify /run/.containerenv exist" {
 	skip_if_no_runtime
 
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	# test a standard mount to /run/.containerenv
 	run_buildah run $cid ls -1 /run/.containerenv
 	expect_output --substring "/run/.containerenv"
@@ -370,13 +388,16 @@ function configure_and_check_user() {
 @test "run-device" {
 	skip_if_no_runtime
 
-	cid=$(buildah from --pull=false --device /dev/fuse --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --device /dev/fuse --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	run_buildah 0 run ${cid} ls /dev/fuse
 
-	cid=$(buildah from --pull=false --device /dev/fuse:/dev/fuse:rm --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --device /dev/fuse:/dev/fuse:rm --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	run_buildah 0 run ${cid} ls /dev/fuse
 
-	cid=$(buildah from --pull=false --device /dev/fuse:/dev/fuse:rwm --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --device /dev/fuse:/dev/fuse:rwm --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	run_buildah 0 run ${cid} ls /dev/fuse
 
 }
@@ -386,6 +407,7 @@ function configure_and_check_user() {
 	skip_if_chroot
 	skip_if_rootless
 
-	cid=$(buildah from --pull=false --device /dev/fuse:/dev/fuse1 --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull=false --device /dev/fuse:/dev/fuse1 --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	run_buildah 0 run ${cid} ls /dev/fuse1
 }

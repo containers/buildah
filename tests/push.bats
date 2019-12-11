@@ -19,7 +19,8 @@ load helpers
 @test "push" {
   touch ${TESTDIR}/reference-time-file
   for source in scratch scratch-image; do
-    cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json ${source})
+    run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json ${source}
+    cid=$output
     for format in "" docker oci ; do
       mkdir -p ${TESTDIR}/committed${format:+.${format}}
       # Force no compression to generate what we push.
@@ -38,7 +39,8 @@ load helpers
 }
 
 @test "push with manifest type conversion" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah push --signature-policy ${TESTSDIR}/policy.json --format oci alpine dir:my-dir
   manifest=$(cat my-dir/manifest.json)
   run grep "application/vnd.oci.image.config.v1+json" <<< "$manifest"
@@ -54,8 +56,10 @@ load helpers
 }
 
 @test "push with imageid" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  imageid=$(buildah images -q)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah images -q
+  imageid=$output
   run_buildah push --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
   buildah rm "$cid"
   buildah rmi alpine
@@ -63,8 +67,10 @@ load helpers
 }
 
 @test "push with imageid and digest file" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  imageid=$(buildah images -q)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah images -q
+  imageid=$output
   run_buildah push --digestfile=${TESTDIR}/digest.txt --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
   cat ${TESTDIR}/digest.txt
   test -s ${TESTDIR}/digest.txt
@@ -81,8 +87,10 @@ load helpers
 }
 
 @test "push should fail with nonexist authfile" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  imageid=$(buildah images -q)
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah images -q
+  imageid=$output
   run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json --authfile /tmp/nonexsit $imageid dir:my-dir
   buildah rm "$cid"
   buildah rmi alpine
@@ -91,7 +99,8 @@ load helpers
 @test "push-denied-by-registry-sources" {
   export BUILD_REGISTRY_SOURCES='{"blockedRegistries": ["registry.example.com"]}'
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json --quiet busybox)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json --quiet busybox
+  cid=$output
   run_buildah 1 commit --signature-policy ${TESTSDIR}/policy.json ${cid} docker://registry.example.com/busierbox
   expect_output --substring 'commit to registry at "registry.example.com" denied by policy: it is in the blocked registries list'
 
@@ -101,7 +110,8 @@ load helpers
 
   export BUILD_REGISTRY_SOURCES='{"allowedRegistries": ["some-other-registry.example.com"]}'
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json --quiet busybox)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json --quiet busybox
+  cid=$output
   run_buildah 1 commit --signature-policy ${TESTSDIR}/policy.json ${cid} docker://registry.example.com/busierbox
   expect_output --substring 'commit to registry at "registry.example.com" denied by policy: not in allowed registries list'
 

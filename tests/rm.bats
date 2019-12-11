@@ -19,28 +19,35 @@ load helpers
 }
 
 @test "remove one container" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah rm "$cid"
   run_buildah rmi alpine
 }
 
 @test "remove multiple containers" {
-  cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid3=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  cid2=$output
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  cid3=$output
   run_buildah rm "$cid2" "$cid3"
   run_buildah rmi alpine busybox
 }
 
 @test "remove all containers" {
-  cid1=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
-  cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid3=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid1=$output
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  cid2=$output
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  cid3=$output
   run_buildah rm -a
   run_buildah rmi --all
 }
 
 @test "use conflicting commands to remove containers" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah 1 rm -a "$cid"
   expect_output --substring "when using the --all switch, you may not pass any containers names or IDs"
   run_buildah rm "$cid"

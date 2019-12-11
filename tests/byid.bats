@@ -6,7 +6,8 @@ load helpers
   image=busybox
 
   # Pull down the image, if we have to.
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json $image)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
+  cid=$output
   [ $? -eq 0 ]
   [ $(wc -l <<< "$cid") -eq 1 ]
   buildah rm $cid
@@ -35,7 +36,8 @@ load helpers
   image=busybox
 
   # Pull down the image, if we have to.
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json $image)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
+  cid=$output
   [ $? -eq 0 ]
   [ $(wc -l <<< "$cid") -eq 1 ]
   buildah rm $cid
@@ -62,7 +64,8 @@ load helpers
     mkdir -p $TARGET $TARGET-truncated
 
     # Pull down the image, if we have to.
-    cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json $image)
+    run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
+    cid=$output
     [ $? -eq 0 ]
     [ $(wc -l <<< "$cid") -eq 1 ]
     buildah rm $cid
@@ -87,7 +90,8 @@ load helpers
   image=busybox
 
   # Pull down the image, if we have to.
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json $image)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
+  cid=$output
   [ $? -eq 0 ]
   [ $(wc -l <<< "$cid") -eq 1 ]
   buildah rm $cid

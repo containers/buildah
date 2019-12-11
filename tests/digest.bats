@@ -3,7 +3,8 @@
 load helpers
 
 fromreftest() {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $1)
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json $1
+  cid=$output
   pushdir=${TESTDIR}/fromreftest
   mkdir -p ${pushdir}/{1,2,3}
   buildah push --signature-policy ${TESTSDIR}/policy.json $1 dir:${pushdir}/1

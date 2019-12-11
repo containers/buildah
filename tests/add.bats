@@ -17,8 +17,10 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
-  root=$(buildah mount $cid)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
   mkdir $root/subdir $root/other-subdir
   # Copy a file to the working directory
   run_buildah config --workingdir=/ $cid
@@ -37,8 +39,10 @@ load helpers
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   run_buildah rm $cid
 
-  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
-  newroot=$(buildah mount $newcid)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
   test -s $newroot/randomfile
   cmp ${TESTDIR}/randomfile $newroot/randomfile
   test -s $newroot/subdir/randomfile
@@ -57,8 +61,10 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
-  root=$(buildah mount $cid)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
   dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/random1
   dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/random2
   tar -c -C ${TESTDIR}    -f ${TESTDIR}/tarball1.tar random1 random2
@@ -84,8 +90,10 @@ load helpers
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   run_buildah rm $cid
 
-  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
-  newroot=$(buildah mount $newcid)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
   test -s $newroot/random1
   cmp ${TESTDIR}/random1 $newroot/random1
   test -s $newroot/random2
@@ -110,15 +118,18 @@ load helpers
   createrandom ${TESTDIR}/distutils.cfg
   permission=$(stat -c "%a" ${TESTDIR}/distutils.cfg)
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ubuntu)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ubuntu
+  cid=$output
   run_buildah add $cid ${TESTDIR}/distutils.cfg /usr/lib/python3.7/distutils
   run_buildah run $cid stat -c "%a" /usr/lib/python3.7/distutils
-  root=$(buildah mount $cid)
+  run_buildah mount $cid
+  root=$output
   expect_output $permission
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:${imgName}
   run_buildah rm $cid
 
-  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${imgName})
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${imgName}
+  newcid=$output
   run_buildah run $newcid stat -c "%a" /usr/lib/python3.7/distutils
   expect_output $permission
   run_buildah rm $newcid
@@ -129,15 +140,18 @@ load helpers
   createrandom ${TESTDIR}/distutils.cfg
   permission=$(stat -c "%a" ${TESTDIR}/distutils.cfg)
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ubuntu)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ubuntu
+  cid=$output
   run_buildah add $cid ${TESTDIR}/distutils.cfg lib/custom
   run_buildah run $cid stat -c "%a" lib/custom
-  root=$(buildah mount $cid)
+  run_buildah mount $cid
+  root=$output
   expect_output $permission
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:${imgName}
   run_buildah rm $cid
 
-  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json ${imgName})
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${imgName}
+  newcid=$output
   run_buildah run $newcid stat -c "%a" lib/custom
   expect_output $permission
   run_buildah rm $newcid
@@ -145,7 +159,8 @@ load helpers
 
 @test "add with chown" {
   createrandom ${TESTDIR}/randomfile
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
   run_buildah add --chown bin:bin $cid ${TESTDIR}/randomfile /tmp/random
   run_buildah run $cid ls -l /tmp/random
 
@@ -154,7 +169,8 @@ load helpers
 }
 
 @test "add url" {
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
   run_buildah add $cid https://github.com/containers/buildah/raw/master/README.md
   run_buildah run $cid ls /README.md
 

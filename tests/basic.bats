@@ -3,23 +3,29 @@
 load helpers
 
 @test "from" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah rm $cid
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   run_buildah rm $cid
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json --name i-love-naming-things alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json --name i-love-naming-things alpine
+  cid=$output
   run_buildah rm i-love-naming-things
 }
 
 @test "from-defaultpull" {
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah rm $cid
 }
 
 @test "from-scratch" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   run_buildah rm $cid
-  cid=$(buildah from --pull=true  --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --pull=true  --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   run_buildah rm $cid
 }
 
@@ -28,18 +34,23 @@ load helpers
 }
 
 @test "mount" {
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
-  root=$(buildah mount $cid)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
   run_buildah unmount $cid
-  root=$(buildah mount $cid)
+  run_buildah mount $cid
+  root=$output
   touch $root/foobar
   run_buildah unmount $cid
   run_buildah rm $cid
 }
 
 @test "by-name" {
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json --name scratch-working-image-for-test scratch)
-  root=$(buildah mount scratch-working-image-for-test)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name scratch-working-image-for-test scratch
+  cid=$output
+  run_buildah mount scratch-working-image-for-test
+  root=$output
   run_buildah unmount scratch-working-image-for-test
   run_buildah rm scratch-working-image-for-test
 }
@@ -48,8 +59,10 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
-  root=$(buildah mount $cid)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
   cp ${TESTDIR}/randomfile $root/randomfile
   run_buildah unmount $cid
   run_buildah commit --iidfile output.iid --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
@@ -57,8 +70,10 @@ load helpers
   run_buildah rmi $iid
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   run_buildah rm $cid
-  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
-  newroot=$(buildah mount $newcid)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
   test -s $newroot/randomfile
   cmp ${TESTDIR}/randomfile $newroot/randomfile
   cp ${TESTDIR}/other-randomfile $newroot/other-randomfile
@@ -71,31 +86,38 @@ load helpers
   run_buildah unmount $newcid
   run_buildah rm $newcid
 
-  othernewcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json other-new-image)
-  othernewroot=$(buildah mount $othernewcid)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json other-new-image
+  othernewcid=$output
+  run_buildah mount $othernewcid
+  othernewroot=$output
   test -s $othernewroot/randomfile
   cmp ${TESTDIR}/randomfile $othernewroot/randomfile
   test -s $othernewroot/other-randomfile
   cmp ${TESTDIR}/other-randomfile $othernewroot/other-randomfile
   run_buildah rm $othernewcid
 
-  anothernewcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json another-new-image)
-  anothernewroot=$(buildah mount $anothernewcid)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json another-new-image
+  anothernewcid=$output
+  run_buildah mount $anothernewcid
+  anothernewroot=$output
   test -s $anothernewroot/randomfile
   cmp ${TESTDIR}/randomfile $anothernewroot/randomfile
   test -s $anothernewroot/other-randomfile
   cmp ${TESTDIR}/other-randomfile $anothernewroot/other-randomfile
   run_buildah rm $anothernewcid
 
-  yetanothernewcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json yet-another-new-image)
-  yetanothernewroot=$(buildah mount $yetanothernewcid)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json yet-another-new-image
+  yetanothernewcid=$output
+  run_buildah mount $yetanothernewcid
+  yetanothernewroot=$output
   test -s $yetanothernewroot/randomfile
   cmp ${TESTDIR}/randomfile $yetanothernewroot/randomfile
   test -s $yetanothernewroot/other-randomfile
   cmp ${TESTDIR}/other-randomfile $yetanothernewroot/other-randomfile
   run_buildah delete $yetanothernewcid
 
-  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  newcid=$output
   buildah commit --rm --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:remove-container-image
   run_buildah 1 mount $newcid
 

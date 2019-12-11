@@ -29,12 +29,15 @@ load helpers
 
   # ...except that at some point in November 2019 buildah-inspect started
   # including version. Strip it out,
-  buildah_version=$(buildah --version | awk '{ print $3 }')
+  run_buildah --version | awk '{ print $3 }'
+  buildah_version=$output
   inspect_cleaned=$(echo "$inspect_after_commit" | sed "s/io.buildah.version:${buildah_version}//g")
   expect_output --from="$inspect_cleaned" "$inspect_basic"
 
-  imageid=$(buildah images -q alpine-image)
-  containerid=$(buildah containers -q)
+  run_buildah images -q alpine-image
+  imageid=$output
+  run_buildah containers -q
+  containerid=$output
 
   # This one should not include buildah version
   run_buildah inspect --format '{{.OCIv1.Config}}' $containerid
@@ -49,8 +52,10 @@ load helpers
 }
 
 @test "inspect-config-is-json" {
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-	out=$(buildah inspect alpine | grep "Config" | grep "{" | wc -l)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah inspect alpine | grep "Config" | grep "{" | wc -l
+	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
 	buildah rm $cid
@@ -58,8 +63,10 @@ load helpers
 }
 
 @test "inspect-manifest-is-json" {
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-	out=$(buildah inspect alpine | grep "Manifest" | grep "{" | wc -l)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah inspect alpine | grep "Manifest" | grep "{" | wc -l
+	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
 	buildah rm $cid
@@ -67,8 +74,10 @@ load helpers
 }
 
 @test "inspect-ociv1-is-json" {
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-	out=$(buildah inspect alpine | grep "OCIv1" | grep "{" | wc -l)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah inspect alpine | grep "OCIv1" | grep "{" | wc -l
+	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
 	buildah rm $cid
@@ -76,8 +85,10 @@ load helpers
 }
 
 @test "inspect-docker-is-json" {
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-	out=$(buildah inspect alpine | grep "Docker" | grep "{" | wc -l)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah inspect alpine | grep "Docker" | grep "{" | wc -l
+	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
 	buildah rm $cid
@@ -85,8 +96,10 @@ load helpers
 }
 
 @test "inspect-format-config-is-json" {
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-	out=$(buildah inspect --format "{{.Config}}" alpine | grep "{" | wc -l)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah inspect --format "{{.Config}}" alpine | grep "{" | wc -l
+	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
 	buildah rm $cid
@@ -94,8 +107,10 @@ load helpers
 }
 
 @test "inspect-format-manifest-is-json" {
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-	out=$(buildah inspect --format "{{.Manifest}}" alpine |  grep "{" | wc -l)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah inspect --format "{{.Manifest}}" alpine |  grep "{" | wc -l
+	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
 	buildah rm $cid
@@ -103,8 +118,10 @@ load helpers
 }
 
 @test "inspect-format-ociv1-is-json" {
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-	out=$(buildah inspect --format "{{.OCIv1}}" alpine |  grep "{" | wc -l)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah inspect --format "{{.OCIv1}}" alpine |  grep "{" | wc -l
+	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
 	buildah rm $cid
@@ -112,8 +129,10 @@ load helpers
 }
 
 @test "inspect-format-docker-is-json" {
-	cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-	out=$(buildah inspect --format "{{.Docker}}" alpine |  grep "{" | wc -l)
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah inspect --format "{{.Docker}}" alpine |  grep "{" | wc -l
+	out=$output
 	# if there is "{" it's a JSON string
 	[ "$out" -ne "0" ]
 	buildah rm $cid
