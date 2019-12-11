@@ -3,8 +3,10 @@
 load helpers
 
 @test "containers" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah containers
   expect_line_count 3
 
@@ -13,8 +15,10 @@ load helpers
 }
 
 @test "containers filter test" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah containers --filter name=$cid1
   expect_line_count 2
 
@@ -23,8 +27,10 @@ load helpers
 }
 
 @test "containers format test" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah containers --format "{{.ContainerName}}"
   expect_line_count 2
   expect_output --from="${lines[0]}" "alpine-working-container"
@@ -35,16 +41,20 @@ load helpers
 }
 
 @test "containers json test" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  out=$(buildah containers --json | grep "{" | wc -l)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah containers --json | grep "{" | wc -l
+  out=$output
   [ "$out" -ne "0" ]
   buildah rm -a
   buildah rmi -a -f
 }
 
 @test "containers noheading test" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah containers --noheading
   expect_line_count 2
   if [[ $output =~ "NAME" ]]; then
@@ -56,8 +66,10 @@ load helpers
 }
 
 @test "containers quiet test" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah containers --quiet
   expect_line_count 2
 

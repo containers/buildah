@@ -12,7 +12,8 @@ load helpers
   image=alpine
 
   # Create a container and read its context as a baseline.
-  cid=$(buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  run_buildah from --quiet --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  cid=$output
   run_buildah run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
   [ "$output" != "" ]
   firstlabel="$output"
@@ -22,7 +23,8 @@ load helpers
   expect_output "$firstlabel" "label of second container == first"
 
   # Ensure that different containers get different labels.
-  cid1=$(buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  run_buildah from --quiet --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  cid1=$output
   run_buildah run $cid1 sh -c 'tr \\0 \\n < /proc/self/attr/current'
   if [ "$output" = "$firstlabel" ]; then
       die "Second container has the same label as first (both '$output')"
@@ -44,7 +46,8 @@ load helpers
       firstlabel="unconfined_u:system_r:spc_t:s0-s0:c0.c1023"
   fi
   # Create a container and read its context as a baseline.
-  cid=$(buildah from --security-opt label=disable --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  run_buildah from --quiet --security-opt label=disable --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  cid=$output
   run_buildah run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
   expect_output "$firstlabel" "container context matches our own"
 }
@@ -60,7 +63,8 @@ load helpers
 
   firstlabel="system_u:system_r:container_t:s0:c1,c2"
   # Create a container and read its context as a baseline.
-  cid=$(buildah from --security-opt label="level:s0:c1,c2" --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  run_buildah from --quiet --security-opt label="level:s0:c1,c2" --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  cid=$output
 
   # Inspect image
   run_buildah inspect  --format '{{.ProcessLabel}}' $cid

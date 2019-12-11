@@ -10,7 +10,8 @@ load helpers
   mkdir ${TESTDIR}/lower
   touch ${TESTDIR}/lower/foo
 
-  cid=$(buildah from -v ${TESTDIR}/lower:/lower:O --quiet --signature-policy ${TESTSDIR}/policy.json $image)
+  run_buildah from --quiet -v ${TESTDIR}/lower:/lower:O --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  cid=$output
 
   # This should succeed
   run_buildah run $cid ls /lower/foo

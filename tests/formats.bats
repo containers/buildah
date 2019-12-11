@@ -46,7 +46,8 @@ function check_imgtype() {
 
 
 @test "write-formats" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-default
   run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci

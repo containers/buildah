@@ -16,8 +16,10 @@ load helpers
 }
 
 @test "images" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah images
   expect_line_count 3
   buildah rm -a
@@ -41,8 +43,10 @@ load helpers
 }
 
 @test "images filter test" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json k8s.gcr.io/pause)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json k8s.gcr.io/pause
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah images --noheading --filter since=k8s.gcr.io/pause
   expect_line_count 1
   buildah rm -a
@@ -50,8 +54,10 @@ load helpers
 }
 
 @test "images format test" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah images --format "{{.Name}}"
   expect_line_count 2
   buildah rm -a
@@ -59,8 +65,10 @@ load helpers
 }
 
 @test "images noheading test" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah images --noheading
   expect_line_count 2
   buildah rm -a
@@ -68,8 +76,10 @@ load helpers
 }
 
 @test "images quiet test" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah images --quiet
   expect_line_count 2
   buildah rm -a
@@ -77,8 +87,10 @@ load helpers
 }
 
 @test "images no-trunc test" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah images -q --no-trunc
   expect_line_count 2
   expect_output --substring --from="${lines[0]}" "sha256"
@@ -87,8 +99,10 @@ load helpers
 }
 
 @test "images json test" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah images --json
   expect_line_count 30
 
@@ -99,7 +113,8 @@ load helpers
 }
 
 @test "images json dup test" {
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
   buildah tag test new-name
 
@@ -111,8 +126,10 @@ load helpers
 }
 
 @test "images json valid" {
-  cid1=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
-  cid2=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid1=$output
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid2=$output
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid1 test
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid2 test2
 
@@ -125,8 +142,10 @@ load helpers
 }
 
 @test "specify an existing image" {
-  cid1=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid2=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json busybox)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid1=$output
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid2=$output
   run_buildah images alpine
   expect_line_count 2
   buildah rm -a
@@ -140,7 +159,8 @@ load helpers
 }
 
 @test "Test dangling images" {
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
   run_buildah images

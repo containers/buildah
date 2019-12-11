@@ -17,7 +17,8 @@ load helpers
 }
 
 @test "commit" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
   run_buildah images alpine-image
   buildah rm $cid
@@ -25,7 +26,8 @@ load helpers
 }
 
 @test "commit format test" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-oci
   buildah commit --format docker --disable-compression=false --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-docker
 
@@ -36,7 +38,8 @@ load helpers
 }
 
 @test "commit quiet test" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah commit --iidfile /dev/null --signature-policy ${TESTSDIR}/policy.json -q $cid alpine-image
   expect_output ""
   buildah rm $cid
@@ -44,7 +47,8 @@ load helpers
 }
 
 @test "commit rm test" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   buildah commit --signature-policy ${TESTSDIR}/policy.json --rm $cid alpine-image
   run_buildah 1 rm $cid
   expect_output --substring "error removing container \"alpine-working-container\": error reading build container: container not known"
@@ -53,7 +57,8 @@ load helpers
 
 @test "commit-alternate-storage" {
   echo FROM
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json openshift/hello-openshift)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json openshift/hello-openshift
+  cid=$output
   echo COMMIT
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid "containers-storage:[vfs@${TESTDIR}/root2+${TESTDIR}/runroot2]newimage"
   echo FROM
@@ -61,7 +66,8 @@ load helpers
 }
 
 @test "commit-rejected-name" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah 1 commit --signature-policy ${TESTSDIR}/policy.json $cid ThisNameShouldBeRejected
   expect_output --substring "must be lower"
 }
@@ -71,7 +77,8 @@ load helpers
     skip "python interpreter with json module not found"
   fi
   target=new-image
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
 
   run_buildah config --created-by "untracked actions" $cid
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid ${target}
@@ -93,23 +100,28 @@ load helpers
 }
 
 @test "commit-no-name" {
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid
 }
 
 @test "commit should fail with nonexist authfile" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah 1 commit --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
   buildah rm $cid
   buildah rmi -a
 }
 
 @test "commit-builder-identity" {
-	cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+	run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
 	buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
 
-	buildah_version=$(buildah --version | awk '{ print $3 }')
-	version=$(buildah inspect --format '{{ index .Docker.Config.Labels "io.buildah.version"}}' alpine-image)
+	run_buildah --version | awk '{ print $3 }'
+	buildah_version=$output
+	run_buildah inspect --format '{{ index .Docker.Config.Labels "io.buildah.version"}}' alpine-image
+	version=$output
 
 	[ "$version" == "$buildah_version" ]
 	buildah rm $cid
@@ -117,21 +129,27 @@ load helpers
 }
 
 @test "commit-parent-id" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  iid=$(buildah inspect --format '{{.FromImageID}}' $cid)
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah inspect --format '{{.FromImageID}}' $cid
+  iid=$output
   echo image ID: "$iid"
   buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker $cid alpine-image
-  parentid=$(buildah inspect --format '{{.Docker.Parent}}' alpine-image)
+  run_buildah inspect --format '{{.Docker.Parent}}' alpine-image
+  parentid=$output
   echo parent ID: "$parentid"
   [ "$parentid" = sha256:"$iid" ]
 }
 
 @test "commit-container-id" {
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine)
-  cid=$(buildah containers --format '{{.ContainerID}}:{{.ContainerName}}' | grep :"$cid"'$' | cut -f1 -d:)
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah containers --format '{{.ContainerID}}:{{.ContainerName}}' | grep :"$cid"'$' | cut -f1 -d:
+  cid=$output
   echo container ID: "$cid"
   buildah commit --signature-policy ${TESTSDIR}/policy.json --format docker $cid alpine-image
-  containerid=$(buildah inspect --format '{{.Docker.Container}}' alpine-image)
+  run_buildah inspect --format '{{.Docker.Container}}' alpine-image
+  containerid=$output
   echo recorded container ID: "$containerid"
   [ "$containerid" = "$cid" ]
 }

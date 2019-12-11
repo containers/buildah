@@ -18,26 +18,31 @@ function check_lengths() {
 
 @test "squash" {
 	createrandom ${TESTDIR}/randomfile
-	cid=$(buildah from scratch)
+	run_buildah from scratch
+	cid=$output
 	image=stage0
 	remove=(8 5)
 	for stage in $(seq 10) ; do
 		buildah copy "$cid" ${TESTDIR}/randomfile /layer${stage}
 		image=stage${stage}
 		if test $stage -eq ${remove[0]} ; then
-			mountpoint=$(buildah mount "$cid")
+			run_buildah mount "$cid"
+			mountpoint=$output
 			rm -f ${mountpoint}/layer${remove[1]}
 		fi
 		buildah commit --signature-policy ${TESTSDIR}/policy.json --rm "$cid" ${image}
                 check_lengths $image $stage
-		cid=$(buildah from ${image})
+		run_buildah from --quiet ${image}
+		cid=$output
 	done
 	buildah commit --signature-policy ${TESTSDIR}/policy.json --rm --squash "$cid" squashed
 
         check_lengths squashed 1
 
-	cid=$(buildah from squashed)
-	mountpoint=$(buildah mount $cid)
+	run_buildah from --quiet squashed
+	cid=$output
+	run_buildah mount $cid
+	mountpoint=$output
 	for stage in $(seq 10) ; do
 		if test $stage -eq ${remove[1]} ; then
 			if test -e $mountpoint/layer${remove[1]} ; then
@@ -73,8 +78,10 @@ function check_lengths() {
 
         check_lengths squashed 1
 
-	cid=$(buildah from squashed)
-	mountpoint=$(buildah mount $cid)
+	run_buildah from --quiet squashed
+	cid=$output
+	run_buildah mount $cid
+	mountpoint=$output
 	for stage in $(seq 10) ; do
 		cmp $mountpoint/layer${stage} ${TESTDIR}/randomfile
 	done

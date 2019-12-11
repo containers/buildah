@@ -3,9 +3,11 @@
 load helpers
 
 @test "info" {
-  out1=$(buildah info | grep "host" | wc -l)
+  run_buildah info | grep "host" | wc -l
+  out1=$output
   [ "$out1" -ne "0" ]
 
-  out2=$(buildah info --format='{{.store}}')
+  run_buildah info --format='{{.store}}'
+  out2=$output
   [ "$out2" != "" ]
 }

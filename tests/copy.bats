@@ -18,22 +18,28 @@ load helpers
   createrandom ${TESTDIR}/other-randomfile
   createrandom ${TESTDIR}/third-randomfile
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
-  root=$(buildah mount $cid)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
   buildah config --workingdir / $cid
   buildah copy $cid ${TESTDIR}/randomfile
   run_buildah 1 copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
   buildah rm $cid
 
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  root=$(buildah mount $cid)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah mount $cid
+  root=$output
   buildah config --workingdir / $cid
   buildah copy $cid ${TESTDIR}/randomfile
   buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile /etc
   buildah rm $cid
 
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
-  root=$(buildah mount $cid)
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah mount $cid
+  root=$output
   buildah config --workingdir / $cid
   buildah copy $cid "${TESTDIR}/*randomfile" /etc
   (cd ${TESTDIR}; for i in *randomfile; do cmp $i ${root}/etc/$i; done)
@@ -45,8 +51,10 @@ load helpers
   createrandom ${TESTDIR}/other-randomfile
   createrandom ${TESTDIR}/third-randomfile
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
-  root=$(buildah mount $cid)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
   buildah config --workingdir / $cid
   buildah copy $cid ${TESTDIR}/randomfile
   buildah copy $cid ${TESTDIR}/other-randomfile
@@ -54,8 +62,10 @@ load helpers
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   buildah rm $cid
 
-  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
-  newroot=$(buildah mount $newcid)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
   test -s $newroot/randomfile
   cmp ${TESTDIR}/randomfile $newroot/randomfile
   test -s $newroot/other-randomfile
@@ -68,10 +78,12 @@ load helpers
   createrandom ${TESTDIR}/subdir/randomfile
   createrandom ${TESTDIR}/subdir/other-randomfile
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   buildah config --workingdir /container-subdir $cid
   buildah copy $cid ${TESTDIR}/subdir
-  root=$(buildah mount $cid)
+  run_buildah mount $cid
+  root=$output
   test -s $root/container-subdir/randomfile
   cmp ${TESTDIR}/subdir/randomfile $root/container-subdir/randomfile
   test -s $root/container-subdir/other-randomfile
@@ -87,18 +99,22 @@ load helpers
 @test "copy-local-force-directory" {
   createrandom ${TESTDIR}/randomfile
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   buildah config --workingdir / $cid
   buildah copy $cid ${TESTDIR}/randomfile /randomfile
-  root=$(buildah mount $cid)
+  run_buildah mount $cid
+  root=$output
   test -s $root/randomfile
   cmp ${TESTDIR}/randomfile $root/randomfile
   buildah rm $cid
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   buildah config --workingdir / $cid
   buildah copy $cid ${TESTDIR}/randomfile /randomsubdir/
-  root=$(buildah mount $cid)
+  run_buildah mount $cid
+  root=$output
   test -s $root/randomsubdir/randomfile
   cmp ${TESTDIR}/randomfile $root/randomsubdir/randomfile
   buildah rm $cid
@@ -110,12 +126,14 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   touch -t 201910310123.45 ${TESTDIR}/randomfile
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   buildah config --workingdir / $cid
   starthttpd ${TESTDIR}
   buildah copy $cid http://0.0.0.0:${HTTP_SERVER_PORT}/randomfile /urlfile
   stophttpd
-  root=$(buildah mount $cid)
+  run_buildah mount $cid
+  root=$output
   test -s $root/urlfile
   cmp ${TESTDIR}/randomfile $root/urlfile
 
@@ -140,7 +158,8 @@ load helpers
   createrandom ${TESTDIR}/other-subdir/randomfile
   createrandom ${TESTDIR}/other-subdir/other-randomfile
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   buildah config --workingdir / $cid
   buildah copy --chown 1:1 $cid ${TESTDIR}/randomfile
   buildah copy --chown root:1 $cid ${TESTDIR}/randomfile /randomfile2
@@ -163,16 +182,20 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   ln -s ${TESTDIR}/randomfile ${TESTDIR}/link-randomfile
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch)
-  root=$(buildah mount $cid)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
   buildah config --workingdir / $cid
   buildah copy $cid ${TESTDIR}/link-randomfile
   buildah unmount $cid
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   buildah rm $cid
 
-  newcid=$(buildah from --signature-policy ${TESTSDIR}/policy.json new-image)
-  newroot=$(buildah mount $newcid)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
   test -s $newroot/link-randomfile
   test -f $newroot/link-randomfile
   cmp ${TESTDIR}/randomfile $newroot/link-randomfile

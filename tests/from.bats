@@ -23,27 +23,33 @@ load helpers
   elsewhere=${TESTDIR}/elsewhere-img
   mkdir -p ${elsewhere}
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
   buildah rm $cid
 
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
+  cid=$output
   buildah rm $cid
   [ "$cid" = elsewhere-img-working-container ]
 
-  cid=$(buildah from --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
+  run_buildah from --quiet --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
+  cid=$output
   buildah rm $cid
   [ "$cid" = `basename ${elsewhere}`-working-container ]
 
-  cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
   buildah rm $cid
 
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
+  cid=$output
   buildah rm $cid
   [ "$cid" = elsewhere-img-working-container ]
 
-  cid=$(buildah from --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere})
+  run_buildah from --quiet --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
+  cid=$output
   buildah rm $cid
   [ "$cid" = `basename ${elsewhere}`-working-container ]
 }
@@ -127,62 +133,74 @@ load helpers
 
 @test "from-tagged-image" {
   # Github #396: Make sure the container name starts with the correct image even when it's tagged.
-  cid=$(buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch)
+  run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" scratch2
   buildah rm $cid
   buildah tag scratch2 scratch3
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json scratch3)
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch3
+  cid=$output
   [ "$cid" == scratch3-working-container ]
   buildah rm ${cid}
   buildah rmi scratch2 scratch3
 
   # Github https://github.com/containers/buildah/issues/396#issuecomment-360949396
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   buildah rm $cid
   buildah tag alpine alpine2
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json localhost/alpine2)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json localhost/alpine2
+  cid=$output
   [ "$cid" == alpine2-working-container ]
   buildah rm ${cid}
   buildah rmi alpine alpine2
 
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
+  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
+  cid=$output
   buildah rm ${cid}
   buildah rmi docker.io/alpine
 
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine:latest)
+  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine:latest
+  cid=$output
   buildah rm ${cid}
   buildah rmi docker.io/alpine:latest
 
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:7)
+  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:7
+  cid=$output
   buildah rm ${cid}
   buildah rmi docker.io/centos:7
 
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:latest)
+  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:latest
+  cid=$output
   buildah rm ${cid}
   buildah rmi docker.io/centos:latest
 }
 
 @test "from the following transports: docker-archive, oci-archive, and dir" {
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   buildah rm $cid
   buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:docker-alp.tar:alpine
   buildah push --signature-policy ${TESTSDIR}/policy.json alpine oci-archive:oci-alp.tar:alpine
   buildah push --signature-policy ${TESTSDIR}/policy.json alpine dir:alp-dir
   buildah rmi alpine
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json docker-archive:docker-alp.tar)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json docker-archive:docker-alp.tar
+  cid=$output
   [ "$cid" == alpine-working-container ]
   buildah rm ${cid}
   buildah rmi alpine
   rm -f docker-alp.tar
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json oci-archive:oci-alp.tar)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json oci-archive:oci-alp.tar
+  cid=$output
   [ "$cid" == alpine-working-container ]
   buildah rm ${cid}
   buildah rmi alpine
   rm -f oci-alp.tar
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json dir:alp-dir)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json dir:alp-dir
+  cid=$output
   [ "$cid" == alp-dir-working-container ]
   buildah rm ${cid}
   buildah rmi alp-dir
@@ -190,19 +208,22 @@ load helpers
 }
 
 @test "from the following transports: docker-archive and oci-archive with no image reference" {
-  cid=$(buildah from --pull=true --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   buildah rm $cid
   buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:docker-alp.tar
   buildah push --signature-policy ${TESTSDIR}/policy.json alpine oci-archive:oci-alp.tar
   buildah rmi alpine
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json docker-archive:docker-alp.tar)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json docker-archive:docker-alp.tar
+  cid=$output
   [ "$cid" == docker-archive-working-container ]
   buildah rm ${cid}
   buildah rmi -a
   rm -f docker-alp.tar
 
-  cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json oci-archive:oci-alp.tar)
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json oci-archive:oci-alp.tar
+  cid=$output
   [ "$cid" == oci-archive-working-container ]
   buildah rm ${cid}
   buildah rmi -a
@@ -215,7 +236,8 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2
 
-  cid=$(buildah from --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
   expect_output "5000"
   buildah rm $cid
@@ -227,7 +249,8 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2
 
-  cid=$(buildah from --cpu-quota=5000 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --cpu-quota=5000 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
   expect_output "5000"
   buildah rm $cid
@@ -239,7 +262,8 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2
 
-  cid=$(buildah from --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.shares
   expect_output "2"
   buildah rm $cid
@@ -251,7 +275,8 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2 "cgroupsv2: fails with EPERM on writing cpuset.cpus"
 
-  cid=$(buildah from --cpuset-cpus=0 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --cpuset-cpus=0 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
   expect_output "0"
   buildah rm $cid
@@ -263,7 +288,8 @@ load helpers
   skip_if_no_runtime
   skip_if_cgroupsv2 "cgroupsv2: fails with EPERM on writing cpuset.mems"
 
-  cid=$(buildah from --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
   expect_output "0"
   buildah rm $cid
@@ -273,7 +299,8 @@ load helpers
   skip_if_chroot
   skip_if_rootless
 
-  cid=$(buildah from --memory=40m --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --memory=40m --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
 
   # Life is much more complicated under cgroups v2
   mpath='/sys/fs/cgroup/memory/memory.limit_in_bytes'
@@ -288,7 +315,8 @@ load helpers
 @test "from volume test" {
   skip_if_no_runtime
 
-  cid=$(buildah from --volume=${TESTDIR}:/myvol --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --volume=${TESTDIR}:/myvol --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
   buildah rm $cid
@@ -298,7 +326,8 @@ load helpers
   skip_if_chroot
   skip_if_no_runtime
 
-  cid=$(buildah from --volume=${TESTDIR}:/myvol:ro --pull=false --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --volume=${TESTDIR}:/myvol:ro --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
   buildah rm $cid
@@ -308,7 +337,8 @@ load helpers
   skip_if_chroot
   skip_if_no_runtime
 
-  cid=$(buildah from --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah run $cid -- df -h /dev/shm
   expect_output --substring " 80.0M "
   buildah rm $cid
@@ -317,7 +347,8 @@ load helpers
 @test "from add-host test" {
   skip_if_no_runtime
 
-  cid=$(buildah from --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   run_buildah run $cid -- cat /etc/hosts
   expect_output --substring "127.0.0.1 +localhost"
   buildah rm $cid
@@ -325,7 +356,8 @@ load helpers
 
 @test "from name test" {
   container_name=mycontainer
-  cid=$(buildah from --name=${container_name} --pull --signature-policy ${TESTSDIR}/policy.json alpine)
+  run_buildah from --quiet --name=${container_name} --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
   buildah inspect --format '{{.Container}}' ${container_name}
   buildah rm $cid
 }

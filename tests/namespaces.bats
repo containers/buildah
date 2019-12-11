@@ -362,12 +362,15 @@ general_namespace() {
 
 @test "idmapping-and-squash" {
 	createrandom ${TESTDIR}/randomfile
-	cid=$(buildah from --userns-uid-map 0:32:16 --userns-gid-map 0:48:16 scratch)
+	run_buildah from --userns-uid-map 0:32:16 --userns-gid-map 0:48:16 scratch
+	cid=$output
 	buildah copy "$cid" ${TESTDIR}/randomfile /
 	buildah copy --chown 1:1 "$cid" ${TESTDIR}/randomfile /randomfile2
 	buildah commit --squash --signature-policy ${TESTSDIR}/policy.json --rm "$cid" squashed
-	cid=$(buildah from squashed)
-	mountpoint=$(buildah mount $cid)
+	run_buildah from --quiet squashed
+	cid=$output
+	run_buildah mount $cid
+	mountpoint=$output
 	run stat -c %u:%g $mountpoint/randomfile
 	echo "$output"
 	[ "$status" -eq 0 ]
