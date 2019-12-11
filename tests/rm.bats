@@ -22,7 +22,6 @@ load helpers
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah rm "$cid"
-  run_buildah rmi alpine
 }
 
 @test "remove multiple containers" {
@@ -31,7 +30,6 @@ load helpers
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid3=$output
   run_buildah rm "$cid2" "$cid3"
-  run_buildah rmi alpine busybox
 }
 
 @test "remove all containers" {
@@ -42,7 +40,6 @@ load helpers
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid3=$output
   run_buildah rm -a
-  run_buildah rmi --all
 }
 
 @test "use conflicting commands to remove containers" {
@@ -50,6 +47,4 @@ load helpers
   cid=$output
   run_buildah 1 rm -a "$cid"
   expect_output --substring "when using the --all switch, you may not pass any containers names or IDs"
-  run_buildah rm "$cid"
-  run_buildah rmi alpine
 }

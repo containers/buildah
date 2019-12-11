@@ -88,33 +88,37 @@ function check_lengths() {
 
 	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
-	[ "$output" -eq 1 ]
+        expect_output "1" "len(DiffIDs) - simple image"
 
 	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
 	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
-	[ "$output" -eq 1 ]
+        expect_output "1" "len(DiffIDs) - image with FROM"
+
 	echo USER root >> ${TESTDIR}/squashed/Dockerfile
 	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
-	[ "$output" -eq 1 ]
+        expect_output "1" "len(DiffIDs) - image with FROM and USER"
+
 	echo COPY file / >> ${TESTDIR}/squashed/Dockerfile
 	echo COPY file / > ${TESTDIR}/squashed/file
 	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
-	[ "$output" -eq 1 ]
+        expect_output "1" "len(DiffIDs) - image with FROM, USER, and 2xCOPY"
 
 	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
 	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
-	[ "$output" -eq 1 ]
+        expect_output "1" "len(DiffIDs) - image with FROM (--layers)"
+
 	echo USER root >> ${TESTDIR}/squashed/Dockerfile
 	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
-	[ "$output" -eq 1 ]
+        expect_output "1" "len(DiffIDs) - image with FROM and USER (--layers)"
+
 	echo COPY file / >> ${TESTDIR}/squashed/Dockerfile
 	echo COPY file / > ${TESTDIR}/squashed/file
 	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
-	[ "$output" -eq 1 ]
+        expect_output "1" "len(DiffIDs) - image with FROM, USER, and 2xCOPY (--layers)"
 }

@@ -39,7 +39,7 @@ load helpers
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   run_buildah rm $cid
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json new-image
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
@@ -63,8 +63,7 @@ load helpers
 
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
-  run_buildah mount $cid
-  root=$output
+
   dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/random1
   dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/random2
   tar -c -C ${TESTDIR}    -f ${TESTDIR}/tarball1.tar random1 random2
@@ -86,11 +85,10 @@ load helpers
   run_buildah add $cid ${TESTDIR}/tarball2.tar.gz
   run_buildah add $cid ${TESTDIR}/tarball3.tar.bz2
   run_buildah add $cid ${TESTDIR}/tarball4.tar.bz2
-  run_buildah unmount $cid
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   run_buildah rm $cid
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json new-image
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
@@ -110,7 +108,6 @@ load helpers
   cmp ${TESTDIR}/tarball4/tarball4.random1 $newroot/tarball4/tarball4.random1
   test -s $newroot/tarball4/tarball4.random2
   cmp ${TESTDIR}/tarball4/tarball4.random2 $newroot/tarball4/tarball4.random2
-  run_buildah rm $newcid
 }
 
 @test "add single file creates absolute path with correct permissions" {
@@ -122,8 +119,6 @@ load helpers
   cid=$output
   run_buildah add $cid ${TESTDIR}/distutils.cfg /usr/lib/python3.7/distutils
   run_buildah run $cid stat -c "%a" /usr/lib/python3.7/distutils
-  run_buildah mount $cid
-  root=$output
   expect_output $permission
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:${imgName}
   run_buildah rm $cid
@@ -132,7 +127,6 @@ load helpers
   newcid=$output
   run_buildah run $newcid stat -c "%a" /usr/lib/python3.7/distutils
   expect_output $permission
-  run_buildah rm $newcid
 }
 
 @test "add single file creates relative path with correct permissions" {
@@ -144,8 +138,6 @@ load helpers
   cid=$output
   run_buildah add $cid ${TESTDIR}/distutils.cfg lib/custom
   run_buildah run $cid stat -c "%a" lib/custom
-  run_buildah mount $cid
-  root=$output
   expect_output $permission
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:${imgName}
   run_buildah rm $cid
@@ -154,7 +146,6 @@ load helpers
   newcid=$output
   run_buildah run $newcid stat -c "%a" lib/custom
   expect_output $permission
-  run_buildah rm $newcid
 }
 
 @test "add with chown" {
@@ -165,7 +156,6 @@ load helpers
   run_buildah run $cid ls -l /tmp/random
 
   expect_output --substring bin.*bin
-  run_buildah rm $cid
 }
 
 @test "add url" {
@@ -176,6 +166,4 @@ load helpers
 
   run_buildah add $cid https://github.com/containers/buildah/raw/master/README.md /home
   run_buildah run $cid ls /home/README.md
-
-  run_buildah rm $cid
 }

@@ -37,9 +37,6 @@ function check_matrix() {
   run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
 
   check_matrix "Config.Entrypoint" '[/ENTRYPOINT]'
-
-  run_buildah rm $cid
-  run_buildah rmi scratch-image-{docker,oci}
 }
 
 @test "config entrypoint using multiple elements in JSON array (exec form)" {
@@ -50,9 +47,6 @@ function check_matrix() {
   run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
 
   check_matrix 'Config.Entrypoint' '[/ENTRYPOINT ELEMENT2]'
-
-  run_buildah rm $cid
-  run_buildah rmi scratch-image-{docker,oci}
 }
 
 @test "config entrypoint using string (shell form)" {
@@ -63,9 +57,6 @@ function check_matrix() {
   run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
 
   check_matrix 'Config.Entrypoint' '[/bin/sh -c /ENTRYPOINT]'
-
-  run_buildah rm $cid
-  run_buildah rmi scratch-image-{docker,oci}
 }
 
 @test "config set empty entrypoint doesn't wipe cmd" {
@@ -77,9 +68,6 @@ function check_matrix() {
   run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
 
   check_matrix 'Config.Cmd' '[command]'
-
-  run_buildah rm $cid
-  run_buildah rmi scratch-image-{docker,oci}
 }
 
 @test "config entrypoint with cmd" {
@@ -195,9 +183,6 @@ function check_matrix() {
 
   run_buildah inspect --type=image --format '{{.OCIv1.Config.Env}}' env-image-docker
   expect_output --substring "combined=bar/bar1"
-
-  run_buildah rm $cid
-  run_buildah rmi env-image-docker env-image-oci
 }
 
 @test "user" {
@@ -214,8 +199,6 @@ function check_matrix() {
 
   run_buildah run $cid grep CapBnd /proc/self/status
   expect_output "$bndoutput"
-
-  run_buildah rm $cid
 }
 
 @test "remove configs using '-' syntax" {
@@ -271,7 +254,4 @@ function check_matrix() {
   run_buildah inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
 
   check_matrix 'Config.Volumes'      "map[/VOLUME-:{}]"
-
-  run_buildah rm $cid
-
 }

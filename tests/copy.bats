@@ -43,7 +43,6 @@ load helpers
   run_buildah config --workingdir / $cid
   run_buildah copy $cid "${TESTDIR}/*randomfile" /etc
   (cd ${TESTDIR}; for i in *randomfile; do cmp $i ${root}/etc/$i; done)
-  run_buildah rm $cid
 }
 
 @test "copy-local-plain" {
@@ -70,7 +69,6 @@ load helpers
   cmp ${TESTDIR}/randomfile $newroot/randomfile
   test -s $newroot/other-randomfile
   cmp ${TESTDIR}/other-randomfile $newroot/other-randomfile
-  run_buildah rm $newcid
 }
 
 @test "copy-local-subdirectory" {
@@ -93,7 +91,6 @@ load helpers
   cmp ${TESTDIR}/subdir/randomfile $root/other-subdir/randomfile
   test -s $root/other-subdir/other-randomfile
   cmp ${TESTDIR}/subdir/other-randomfile $root/other-subdir/other-randomfile
-  run_buildah rm $cid
 }
 
 @test "copy-local-force-directory" {
@@ -117,7 +114,6 @@ load helpers
   root=$output
   test -s $root/randomsubdir/randomfile
   cmp ${TESTDIR}/randomfile $root/randomsubdir/randomfile
-  run_buildah rm $cid
 }
 
 @test "copy-url-mtime" {
@@ -142,11 +138,7 @@ load helpers
   mtime_randomfile=$(stat --format %y ${TESTDIR}/randomfile)
   mtime_urlfile=$(stat --format %y $root/urlfile)
 
-  echo "mtime[randomfile] = $mtime_randomfile"
-  echo "mtime[urlfile]    = $mtime_urlfile"
-  test "$mtime_randomfile" = "$mtime_urlfile"
-
-  run_buildah rm $cid
+  expect_output --from="$mtime_randomfile" "$mtime_urlfile" "mtime[randomfile] == mtime[urlfile]"
 }
 
 @test "copy --chown" {
@@ -166,16 +158,27 @@ load helpers
   run_buildah copy --chown nobody $cid ${TESTDIR}/randomfile /randomfile3
   run_buildah copy --chown nobody:root $cid ${TESTDIR}/subdir /subdir
   run_buildah run $cid stat -c "%u:%g" /randomfile
-  test $(buildah run $cid stat -c "%u:%g" /randomfile) = "1:1"
+  expect_output "1:1" "stat ug /randomfile"
+
   run_buildah run $cid stat -c "%U:%g" /randomfile2
-  test $(buildah run $cid stat -c "%U:%g" /randomfile2) = "root:1"
+  expect_output "root:1" "stat Ug /randomfile2"
+
   run_buildah run $cid stat -c "%U" /randomfile3
-  test $(buildah run $cid stat -c "%U" /randomfile3) = "nobody"
-  (for i in randomfile other-randomfile ; do test $(buildah run $cid stat -c "%U:%G" /subdir/$i) = "nobody:root"; done)
+  expect_output "nobody" "stat U /randomfile3"
+
+  for i in randomfile other-randomfile ; do
+      run_buildah run $cid stat -c "%U:%G" /subdir/$i
+      expect_output "nobody:root" "stat UG /subdir/$i"
+  done
+
   run_buildah copy --chown root:root $cid ${TESTDIR}/other-subdir /subdir
-  (for i in randomfile other-randomfile ; do test $(buildah run $cid stat -c "%U:%G" /subdir/$i) = "root:root"; done)
+  for i in randomfile other-randomfile ; do
+      run_buildah run $cid stat -c "%U:%G" /subdir/$i
+      expect_output "root:root" "stat UG /subdir/$i (after chown)"
+  done
+
   run_buildah run $cid stat -c "%U:%G" /subdir
-  test $(buildah run $cid stat -c "%U:%G" /subdir) = "nobody:root"
+  expect_output "nobody:root" "stat UG /subdir"
 }
 
 @test "copy-symlink" {
@@ -199,5 +202,4 @@ load helpers
   test -s $newroot/link-randomfile
   test -f $newroot/link-randomfile
   cmp ${TESTDIR}/randomfile $newroot/link-randomfile
-  run_buildah rm $newcid
 }

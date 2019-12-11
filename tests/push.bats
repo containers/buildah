@@ -32,58 +32,54 @@ load helpers
       imgtype -expected-manifest-type "*" -rebuild-manifest -show-manifest dir:${TESTDIR}/committed${format:+.${format}} > ${TESTDIR}/manifest.committed${format:+.${format}}
       imgtype -expected-manifest-type "*" -rebuild-manifest -show-manifest dir:${TESTDIR}/pushed${format:+.${format}} > ${TESTDIR}/manifest.pushed${format:+.${format}}
       diff -u ${TESTDIR}/manifest.committed${format:+.${format}} ${TESTDIR}/manifest.pushed${format:+.${format}}
-      [ "$output" = "" ]
     done
     run_buildah rm "$cid"
   done
 }
 
 @test "push with manifest type conversion" {
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p $mytmpdir
+
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --format oci alpine dir:my-dir
-  manifest=$(cat my-dir/manifest.json)
-  run grep "application/vnd.oci.image.config.v1+json" <<< "$manifest"
-  echo "$output"
-  [ "$status" -eq 0 ]
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --format v2s2 alpine dir:my-dir
-  run grep "application/vnd.docker.distribution.manifest.v2+json" my-dir/manifest.json
-  echo "$output"
-  [ "$status" -eq 0 ]
-  run_buildah rm "$cid"
-  run_buildah rmi alpine
-  rm -rf my-dir
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --format oci alpine dir:$mytmpdir
+  run cat $mytmpdir/manifest.json
+  expect_output --substring "application/vnd.oci.image.config.v1\\+json"
+
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --format v2s2 alpine dir:$mytmpdir
+  run cat $mytmpdir/manifest.json
+  expect_output --substring "application/vnd.docker.distribution.manifest.v2\\+json"
 }
 
 @test "push with imageid" {
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p $mytmpdir
+
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah images -q
   imageid=$output
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
-  run_buildah rm "$cid"
-  run_buildah rmi alpine
-  rm -rf my-dir
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json $imageid dir:$mytmpdir
 }
 
 @test "push with imageid and digest file" {
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p $mytmpdir
+
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah images -q
   imageid=$output
-  run_buildah push --digestfile=${TESTDIR}/digest.txt --signature-policy ${TESTSDIR}/policy.json $imageid dir:my-dir
+  run_buildah push --digestfile=${TESTDIR}/digest.txt --signature-policy ${TESTSDIR}/policy.json $imageid dir:$mytmpdir
   cat ${TESTDIR}/digest.txt
   test -s ${TESTDIR}/digest.txt
-  run_buildah rm "$cid"
-  run_buildah rmi alpine
-  rm -rf my-dir
 }
 
 @test "push without destination" {
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json busybox
   expect_output --substring "docker://busybox"
-  run_buildah rmi busybox
 }
 
 @test "push should fail with nonexist authfile" {
@@ -91,9 +87,7 @@ load helpers
   cid=$output
   run_buildah images -q
   imageid=$output
-  run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json --authfile /tmp/nonexsit $imageid dir:my-dir
-  run_buildah rm "$cid"
-  run_buildah rmi alpine
+  run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json --authfile /tmp/nonexsit $imageid dir:${TESTDIR}/my-tmp-dir
 }
 
 @test "push-denied-by-registry-sources" {
@@ -126,7 +120,6 @@ load helpers
   run_buildah push --signature-policy ${TESTSDIR}/policy.json busybox containers-storage:newimage:latest
   run_buildah images
   expect_output --substring "newimage"
-  run_buildah rmi newimage busybox
 }
 
 @test "buildah push image to docker-archive and oci-archive" {

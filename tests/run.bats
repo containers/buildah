@@ -23,9 +23,6 @@ load helpers
 	cmp ${TESTDIR}/randomfile $root/tmp/other-randomfile
 
 	seq 100000 | buildah run $cid -- sh -c 'while read i; do echo $i; done'
-
-	run_buildah unmount $cid
-	run_buildah rm $cid
 }
 
 @test "run--args" {
@@ -52,8 +49,6 @@ load helpers
 	# This should succeed, because buildah run stops caring at the --.
 	run_buildah run $cid -- echo -n "test"
 	expect_output "test"
-
-	run_buildah rm $cid
 }
 
 @test "run-cmd" {
@@ -153,8 +148,6 @@ load helpers
         run_buildah config --cmd "/invalid/cmd" $cid
         run_buildah run $cid -- pwd
 	expect_output "/tmp" "invalid cmd & entrypoint, pwd"
-
-	run_buildah rm $cid
 }
 
 function configure_and_check_user() {
@@ -214,9 +207,6 @@ function configure_and_check_user() {
 	run_buildah 1 run -- $cid id -u
 	echo "$output"
 	expect_output --substring "unknown user" "run as unknown user"
-
-	run_buildah unmount $cid
-	run_buildah rm $cid
 }
 
 @test "run --hostname" {
@@ -230,7 +220,6 @@ function configure_and_check_user() {
 	[ "$output" != "foobar" ]
 	run_buildah run --hostname foobar $cid hostname
 	expect_output "foobar"
-	run_buildah rm $cid
 }
 
 @test "run --volume" {
@@ -345,7 +334,6 @@ function configure_and_check_user() {
 	expect_output "300" "limits: open files (w/file & proc limits)"
 	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
 	expect_output "100" "limits: processes (w/file & proc limits)"
-	run_buildah rm $cid
 }
 
 @test "run-builtin-volume-omitted" {

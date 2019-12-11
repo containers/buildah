@@ -34,7 +34,8 @@ function testconfighistory() {
   run_buildah config --healthcheck "CMD /foo" --healthcheck-timeout=10s --healthcheck-interval=20s --healthcheck-retries=7 --healthcheck-start-period=30s --add-history healthcheckctr
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json healthcheckctr healthcheckimg
   run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' healthcheckimg
-  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' healthcheckimg | grep "HEALTHCHECK --interval=20s --retries=7 --start-period=30s --timeout=10s CMD /foo"
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' healthcheckimg
+  expect_output --substring "HEALTHCHECK --interval=20s --retries=7 --start-period=30s --timeout=10s CMD /foo"
 }
 
 @test "history-label" {
@@ -46,7 +47,8 @@ function testconfighistory() {
   run_buildah config --onbuild "CMD /foo" --add-history onbuildctr
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json onbuildctr onbuildimg
   run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' onbuildimg
-  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' onbuildimg | grep "ONBUILD CMD /foo"
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' onbuildimg
+  expect_output --substring "ONBUILD CMD /foo"
 }
 
 @test "history-port" {
@@ -80,7 +82,8 @@ function testconfighistory() {
   digest="$output"
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json addctr addimg
   run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' addimg
-  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' addimg | grep "ADD file:$digest"
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' addimg
+  expect_output --substring "ADD file:$digest"
 }
 
 @test "history-copy" {
@@ -90,7 +93,8 @@ function testconfighistory() {
   digest="$output"
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json copyctr copyimg
   run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' copyimg
-  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' copyimg | grep "COPY file:$digest"
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' copyimg
+  expect_output --substring "COPY file:$digest"
 }
 
 @test "history-run" {
@@ -98,5 +102,6 @@ function testconfighistory() {
   run_buildah run --add-history runctr -- uname -a
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json runctr runimg
   run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' runimg
-  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' runimg | grep "/bin/sh -c uname -a"
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' runimg
+  expect_output --substring "/bin/sh -c uname -a"
 }

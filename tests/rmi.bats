@@ -142,8 +142,10 @@ load helpers
   expect_line_count 1
   run_buildah images -q -a
   expect_line_count 2
-  my_images=( $(buildah images -a -q) )
-  run_buildah 1 rmi ${my_images[2]}
+
+  local try_to_delete=${lines[1]}
+  run_buildah 1 rmi $try_to_delete
+  expect_output --substring "unable to delete \"$try_to_delete.*\" \(cannot be forced\) - image has dependent child images"
   run_buildah rmi new-image
 }
 
