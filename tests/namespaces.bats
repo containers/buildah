@@ -43,13 +43,13 @@ load helpers
   ctr="$output"
 
   # Check that with settings that require a user namespace, we also get a new network namespace by default.
-  buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
+  run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
   run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" != "$mynetns" ]
 
   # Check that with settings that require a user namespace, we can still try to use the host's network namespace.
-  buildah run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
+  run_buildah run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
   run_buildah run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" == "$mynetns" ]
@@ -60,13 +60,13 @@ load helpers
   ctr="$output"
 
   # Check that with settings that don't require a user namespace, we don't get a new network namespace by default.
-  buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
+  run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
   run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" == "$mynetns" ]
 
   # Check that with settings that don't require a user namespace, we can request to use a per-container network namespace.
-  buildah run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
+  run_buildah run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
   run_buildah run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
   [ "$output" != "" ]
   [ "$output" != "$mynetns" ]
@@ -170,7 +170,7 @@ load helpers
     ctr="$output"
 
     # If we specified mappings, expect to be in a different namespace by default.
-    buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/user
+    run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/user
     run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/user
     [ "$output" != "" ]
     case x"$map" in
@@ -184,11 +184,11 @@ load helpers
       ;;
     esac
     # Check that we got the mappings that we expected.
-    buildah run $RUNOPTS "$ctr" cat /proc/self/uid_map
+    run_buildah run $RUNOPTS "$ctr" cat /proc/self/uid_map
     run_buildah run $RUNOPTS "$ctr" cat /proc/self/uid_map
     [ "$output" != "" ]
     uidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$output")
-    buildah run $RUNOPTS "$ctr" cat /proc/self/gid_map
+    run_buildah run $RUNOPTS "$ctr" cat /proc/self/gid_map
     run_buildah run $RUNOPTS "$ctr" cat /proc/self/gid_map
     [ "$output" != "" ]
     gidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$output")
@@ -200,13 +200,13 @@ load helpers
 
     # Check that if we copy a file into the container, it gets the right permissions.
     run_buildah copy --chown 1:1 "$ctr" ${TESTDIR}/somefile /
-    buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
+    run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
     run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somefile
     expect_output "1:1"
 
     # Check that if we copy a directory into the container, its contents get the right permissions.
     run_buildah copy "$ctr" ${TESTDIR}/somedir /somedir
-    buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
+    run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
     run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
     expect_output "0:0"
     run_buildah mount "$ctr"
@@ -214,7 +214,7 @@ load helpers
     run stat -c '%u:%g %a' "$mnt"/somedir/someotherfile
     [ $status -eq 0 ]
     expect_output "$rootuid:$rootgid 4700"
-    buildah run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
+    run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
     run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
     expect_output "0:0 4700"
   done
@@ -344,13 +344,13 @@ general_namespace() {
             run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts alpine
             [ "$output" != "" ]
             ctr="$output"
-            buildah run $ctr pwd
+            run_buildah run $ctr pwd
             run_buildah run $ctr pwd
             [ "$output" != "" ]
-            buildah run --tty=true  $ctr pwd
+            run_buildah run --tty=true  $ctr pwd
             run_buildah run --tty=true  $ctr pwd
             [ "$output" != "" ]
-            buildah run --tty=false $ctr pwd
+            run_buildah run --tty=false $ctr pwd
             run_buildah run --tty=false $ctr pwd
             [ "$output" != "" ]
           done
@@ -364,9 +364,9 @@ general_namespace() {
 	createrandom ${TESTDIR}/randomfile
 	run_buildah from --userns-uid-map 0:32:16 --userns-gid-map 0:48:16 scratch
 	cid=$output
-	buildah copy "$cid" ${TESTDIR}/randomfile /
-	buildah copy --chown 1:1 "$cid" ${TESTDIR}/randomfile /randomfile2
-	buildah commit --squash --signature-policy ${TESTSDIR}/policy.json --rm "$cid" squashed
+	run_buildah copy "$cid" ${TESTDIR}/randomfile /
+	run_buildah copy --chown 1:1 "$cid" ${TESTDIR}/randomfile /randomfile2
+	run_buildah commit --squash --signature-policy ${TESTSDIR}/policy.json --rm "$cid" squashed
 	run_buildah from --quiet squashed
 	cid=$output
 	run_buildah mount $cid

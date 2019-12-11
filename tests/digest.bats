@@ -7,12 +7,12 @@ fromreftest() {
   cid=$output
   pushdir=${TESTDIR}/fromreftest
   mkdir -p ${pushdir}/{1,2,3}
-  buildah push --signature-policy ${TESTSDIR}/policy.json $1 dir:${pushdir}/1
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
-  buildah push --signature-policy ${TESTSDIR}/policy.json new-image dir:${pushdir}/2
-  buildah rmi new-image
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${pushdir}/3
-  buildah rm $cid
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json $1 dir:${pushdir}/1
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json new-image dir:${pushdir}/2
+  run_buildah rmi new-image
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${pushdir}/3
+  run_buildah rm $cid
   rm -fr ${pushdir}
 }
 

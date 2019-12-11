@@ -25,32 +25,32 @@ load helpers
 
   run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
-  buildah rm $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
+  run_buildah rm $cid
 
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
   cid=$output
-  buildah rm $cid
+  run_buildah rm $cid
   [ "$cid" = elsewhere-img-working-container ]
 
   run_buildah from --quiet --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
   cid=$output
-  buildah rm $cid
+  run_buildah rm $cid
   [ "$cid" = `basename ${elsewhere}`-working-container ]
 
   run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
-  buildah rm $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
+  run_buildah rm $cid
 
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
   cid=$output
-  buildah rm $cid
+  run_buildah rm $cid
   [ "$cid" = elsewhere-img-working-container ]
 
   run_buildah from --quiet --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
   cid=$output
-  buildah rm $cid
+  run_buildah rm $cid
   [ "$cid" = `basename ${elsewhere}`-working-container ]
 }
 
@@ -135,98 +135,98 @@ load helpers
   # Github #396: Make sure the container name starts with the correct image even when it's tagged.
   run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
-  buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" scratch2
-  buildah rm $cid
-  buildah tag scratch2 scratch3
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" scratch2
+  run_buildah rm $cid
+  run_buildah tag scratch2 scratch3
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch3
   cid=$output
   [ "$cid" == scratch3-working-container ]
-  buildah rm ${cid}
-  buildah rmi scratch2 scratch3
+  run_buildah rm ${cid}
+  run_buildah rmi scratch2 scratch3
 
   # Github https://github.com/containers/buildah/issues/396#issuecomment-360949396
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah rm $cid
-  buildah tag alpine alpine2
+  run_buildah rm $cid
+  run_buildah tag alpine alpine2
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json localhost/alpine2
   cid=$output
   [ "$cid" == alpine2-working-container ]
-  buildah rm ${cid}
-  buildah rmi alpine alpine2
+  run_buildah rm ${cid}
+  run_buildah rmi alpine alpine2
 
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
   cid=$output
-  buildah rm ${cid}
-  buildah rmi docker.io/alpine
+  run_buildah rm ${cid}
+  run_buildah rmi docker.io/alpine
 
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine:latest
   cid=$output
-  buildah rm ${cid}
-  buildah rmi docker.io/alpine:latest
+  run_buildah rm ${cid}
+  run_buildah rmi docker.io/alpine:latest
 
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:7
   cid=$output
-  buildah rm ${cid}
-  buildah rmi docker.io/centos:7
+  run_buildah rm ${cid}
+  run_buildah rmi docker.io/centos:7
 
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:latest
   cid=$output
-  buildah rm ${cid}
-  buildah rmi docker.io/centos:latest
+  run_buildah rm ${cid}
+  run_buildah rmi docker.io/centos:latest
 }
 
 @test "from the following transports: docker-archive, oci-archive, and dir" {
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah rm $cid
-  buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:docker-alp.tar:alpine
-  buildah push --signature-policy ${TESTSDIR}/policy.json alpine oci-archive:oci-alp.tar:alpine
-  buildah push --signature-policy ${TESTSDIR}/policy.json alpine dir:alp-dir
-  buildah rmi alpine
+  run_buildah rm $cid
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:docker-alp.tar:alpine
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine oci-archive:oci-alp.tar:alpine
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine dir:alp-dir
+  run_buildah rmi alpine
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json docker-archive:docker-alp.tar
   cid=$output
   [ "$cid" == alpine-working-container ]
-  buildah rm ${cid}
-  buildah rmi alpine
+  run_buildah rm ${cid}
+  run_buildah rmi alpine
   rm -f docker-alp.tar
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json oci-archive:oci-alp.tar
   cid=$output
   [ "$cid" == alpine-working-container ]
-  buildah rm ${cid}
-  buildah rmi alpine
+  run_buildah rm ${cid}
+  run_buildah rmi alpine
   rm -f oci-alp.tar
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json dir:alp-dir
   cid=$output
   [ "$cid" == alp-dir-working-container ]
-  buildah rm ${cid}
-  buildah rmi alp-dir
+  run_buildah rm ${cid}
+  run_buildah rmi alp-dir
   rm -rf alp-dir
 }
 
 @test "from the following transports: docker-archive and oci-archive with no image reference" {
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah rm $cid
-  buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:docker-alp.tar
-  buildah push --signature-policy ${TESTSDIR}/policy.json alpine oci-archive:oci-alp.tar
-  buildah rmi alpine
+  run_buildah rm $cid
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:docker-alp.tar
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine oci-archive:oci-alp.tar
+  run_buildah rmi alpine
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json docker-archive:docker-alp.tar
   cid=$output
   [ "$cid" == docker-archive-working-container ]
-  buildah rm ${cid}
-  buildah rmi -a
+  run_buildah rm ${cid}
+  run_buildah rmi -a
   rm -f docker-alp.tar
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json oci-archive:oci-alp.tar
   cid=$output
   [ "$cid" == oci-archive-working-container ]
-  buildah rm ${cid}
-  buildah rmi -a
+  run_buildah rm ${cid}
+  run_buildah rmi -a
   rm -f oci-alp.tar
 }
 
@@ -240,7 +240,7 @@ load helpers
   cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
   expect_output "5000"
-  buildah rm $cid
+  run_buildah rm $cid
 }
 
 @test "from cpu-quota test" {
@@ -253,7 +253,7 @@ load helpers
   cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
   expect_output "5000"
-  buildah rm $cid
+  run_buildah rm $cid
 }
 
 @test "from cpu-shares test" {
@@ -266,7 +266,7 @@ load helpers
   cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.shares
   expect_output "2"
-  buildah rm $cid
+  run_buildah rm $cid
 }
 
 @test "from cpuset-cpus test" {
@@ -279,7 +279,7 @@ load helpers
   cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
   expect_output "0"
-  buildah rm $cid
+  run_buildah rm $cid
 }
 
 @test "from cpuset-mems test" {
@@ -292,7 +292,7 @@ load helpers
   cid=$output
   run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
   expect_output "0"
-  buildah rm $cid
+  run_buildah rm $cid
 }
 
 @test "from memory test" {
@@ -309,7 +309,7 @@ load helpers
   fi
   run_buildah run $cid sh -c "cat $mpath"
   expect_output "41943040" "$mpath"
-  buildah rm $cid
+  run_buildah rm $cid
 }
 
 @test "from volume test" {
@@ -319,7 +319,7 @@ load helpers
   cid=$output
   run_buildah run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
-  buildah rm $cid
+  run_buildah rm $cid
 }
 
 @test "from volume ro test" {
@@ -330,7 +330,7 @@ load helpers
   cid=$output
   run_buildah run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
-  buildah rm $cid
+  run_buildah rm $cid
 }
 
 @test "from shm-size test" {
@@ -341,7 +341,7 @@ load helpers
   cid=$output
   run_buildah run $cid -- df -h /dev/shm
   expect_output --substring " 80.0M "
-  buildah rm $cid
+  run_buildah rm $cid
 }
 
 @test "from add-host test" {
@@ -351,22 +351,22 @@ load helpers
   cid=$output
   run_buildah run $cid -- cat /etc/hosts
   expect_output --substring "127.0.0.1 +localhost"
-  buildah rm $cid
+  run_buildah rm $cid
 }
 
 @test "from name test" {
   container_name=mycontainer
   run_buildah from --quiet --name=${container_name} --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  buildah inspect --format '{{.Container}}' ${container_name}
-  buildah rm $cid
+  run_buildah inspect --format '{{.Container}}' ${container_name}
+  run_buildah rm $cid
 }
 
 @test "from cidfile test" {
-  buildah from --cidfile output.cid --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --cidfile output.cid --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$(cat output.cid)
   run_buildah containers -f id=${cid}
-  buildah rm ${cid}
+  run_buildah rm ${cid}
 }
 
 @test "from pull never" {
@@ -382,7 +382,7 @@ load helpers
   echo "$output"
   expect_output --substring "busybox-working-container"
 
-  buildah rmi --all --force
+  run_buildah rmi --all --force
 }
 
 @test "from pull false no local image" {
@@ -391,7 +391,7 @@ load helpers
   echo "$output"
   expect_output --substring "busybox-working-container"
 
-  buildah rmi --all --force
+  run_buildah rmi --all --force
 }
 
 @test "from with nonexistent authfile: fails" {
@@ -403,7 +403,7 @@ load helpers
   run buildah pull --signature-policy ${TESTSDIR}/policy.json docker.io/busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc --pull-always docker.io/busybox
   expect_output --substring "Getting"
-  buildah commit --signature-policy ${TESTSDIR}/policy.json busyboxc fakename-img
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json busyboxc fakename-img
   run_buildah 1 from --signature-policy ${TESTSDIR}/policy.json --pull-always fakename-img
   run_buildah rm busyboxc
   run_buildah rmi fakename-img

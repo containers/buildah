@@ -10,7 +10,7 @@ load helpers
   cid=$output
   [ $? -eq 0 ]
   [ $(wc -l <<< "$cid") -eq 1 ]
-  buildah rm $cid
+  run_buildah rm $cid
 
   # Get the image's ID.
   run_buildah images -q $image
@@ -21,15 +21,15 @@ load helpers
   run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json ${iid}
   expect_line_count 1
   cid="$output"
-  buildah rm $cid
+  run_buildah rm $cid
 
   # Use a truncated form of the image's ID to create a container.
   run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json ${iid:0:6}
   expect_line_count 1
   cid="$output"
-  buildah rm $cid
+  run_buildah rm $cid
 
-  buildah rmi $iid
+  run_buildah rmi $iid
 }
 
 @test "inspect-by-id" {
@@ -40,7 +40,7 @@ load helpers
   cid=$output
   [ $? -eq 0 ]
   [ $(wc -l <<< "$cid") -eq 1 ]
-  buildah rm $cid
+  run_buildah rm $cid
 
   # Get the image's ID.
   run_buildah images -q $image
@@ -53,7 +53,7 @@ load helpers
   # Use a truncated copy of the image's ID to inspect it.
   run_buildah inspect --type=image ${iid:0:6}
 
-  buildah rmi $iid
+  run_buildah rmi $iid
 }
 
 @test "push-by-id" {
@@ -68,7 +68,7 @@ load helpers
     cid=$output
     [ $? -eq 0 ]
     [ $(wc -l <<< "$cid") -eq 1 ]
-    buildah rm $cid
+    run_buildah rm $cid
 
     # Get the image's ID.
     run_buildah images -q $IMAGE
@@ -82,7 +82,7 @@ load helpers
     run_buildah push --signature-policy ${TESTSDIR}/policy.json ${iid:0:6} dir:$TARGET-truncated
 
     # Use the image's complete ID to remove it.
-    buildah rmi $iid
+    run_buildah rmi $iid
   done
 }
 
@@ -94,7 +94,7 @@ load helpers
   cid=$output
   [ $? -eq 0 ]
   [ $(wc -l <<< "$cid") -eq 1 ]
-  buildah rm $cid
+  run_buildah rm $cid
 
   # Get the image's ID.
   run_buildah images -q $image

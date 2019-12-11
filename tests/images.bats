@@ -22,12 +22,12 @@ load helpers
   cid2=$output
   run_buildah images
   expect_line_count 3
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "images all test" {
-  buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test ${TESTSDIR}/bud/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test ${TESTSDIR}/bud/use-layers
   run_buildah images
   expect_line_count 3
 
@@ -35,11 +35,11 @@ load helpers
   expect_line_count 8
 
   # create a no name image which should show up when doing buildah images without the --all flag
-  buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/use-layers
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/use-layers
   run_buildah images
   expect_line_count 4
 
-  buildah rmi -a -f
+  run_buildah rmi -a -f
 }
 
 @test "images filter test" {
@@ -49,8 +49,8 @@ load helpers
   cid2=$output
   run_buildah images --noheading --filter since=k8s.gcr.io/pause
   expect_line_count 1
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "images format test" {
@@ -60,8 +60,8 @@ load helpers
   cid2=$output
   run_buildah images --format "{{.Name}}"
   expect_line_count 2
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "images noheading test" {
@@ -71,8 +71,8 @@ load helpers
   cid2=$output
   run_buildah images --noheading
   expect_line_count 2
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "images quiet test" {
@@ -82,8 +82,8 @@ load helpers
   cid2=$output
   run_buildah images --quiet
   expect_line_count 2
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "images no-trunc test" {
@@ -94,8 +94,8 @@ load helpers
   run_buildah images -q --no-trunc
   expect_line_count 2
   expect_output --substring --from="${lines[0]}" "sha256"
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "images json test" {
@@ -108,21 +108,21 @@ load helpers
 
   run_buildah images --json alpine
   expect_line_count 16
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "images json dup test" {
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
-  buildah tag test new-name
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
+  run_buildah tag test new-name
 
   run_buildah images --json
   [ $(grep '"id": "' <<< "$output" | wc -l) -eq 1 ]
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "images json valid" {
@@ -130,15 +130,15 @@ load helpers
   cid1=$output
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
   cid2=$output
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid1 test
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid2 test2
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid1 test
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid2 test2
 
   run_buildah images --json
   run python3 -m json.tool <<< "$output"
   [ "${status}" -eq 0 ]
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "specify an existing image" {
@@ -148,8 +148,8 @@ load helpers
   cid2=$output
   run_buildah images alpine
   expect_line_count 2
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "specify a nonexistent image" {
@@ -161,8 +161,8 @@ load helpers
 @test "Test dangling images" {
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
-  buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
   run_buildah images
   expect_line_count 3
 
@@ -174,12 +174,12 @@ load helpers
   expect_output --substring " latest "
   expect_line_count 2
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "image digest test" {
-  buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah images --digests
   expect_output --substring "sha256:"
 }

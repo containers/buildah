@@ -23,19 +23,19 @@ function check_lengths() {
 	image=stage0
 	remove=(8 5)
 	for stage in $(seq 10) ; do
-		buildah copy "$cid" ${TESTDIR}/randomfile /layer${stage}
+		run_buildah copy "$cid" ${TESTDIR}/randomfile /layer${stage}
 		image=stage${stage}
 		if test $stage -eq ${remove[0]} ; then
 			run_buildah mount "$cid"
 			mountpoint=$output
 			rm -f ${mountpoint}/layer${remove[1]}
 		fi
-		buildah commit --signature-policy ${TESTSDIR}/policy.json --rm "$cid" ${image}
+		run_buildah commit --signature-policy ${TESTSDIR}/policy.json --rm "$cid" ${image}
                 check_lengths $image $stage
 		run_buildah from --quiet ${image}
 		cid=$output
 	done
-	buildah commit --signature-policy ${TESTSDIR}/policy.json --rm --squash "$cid" squashed
+	run_buildah commit --signature-policy ${TESTSDIR}/policy.json --rm --squash "$cid" squashed
 
         check_lengths squashed 1
 
@@ -66,7 +66,7 @@ function check_lengths() {
 		echo COPY randomfile /layer${stage} >> ${TESTDIR}/stage${stage}/Dockerfile
 		image=stage${stage}
 		from=${image}
-		buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t ${image} ${TESTDIR}/stage${stage}
+		run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t ${image} ${TESTDIR}/stage${stage}
                 check_lengths $image $stage
 	done
 
@@ -74,7 +74,7 @@ function check_lengths() {
 	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
 	cp ${TESTDIR}/randomfile ${TESTDIR}/squashed/
 	echo COPY randomfile /layer-squashed >> ${TESTDIR}/stage${stage}/Dockerfile
-	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 
         check_lengths squashed 1
 
@@ -86,35 +86,35 @@ function check_lengths() {
 		cmp $mountpoint/layer${stage} ${TESTDIR}/randomfile
 	done
 
-	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
 
 	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
-	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
 	echo USER root >> ${TESTDIR}/squashed/Dockerfile
-	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
 	echo COPY file / >> ${TESTDIR}/squashed/Dockerfile
 	echo COPY file / > ${TESTDIR}/squashed/file
-	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
 
 	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
-	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
 	echo USER root >> ${TESTDIR}/squashed/Dockerfile
-	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
 	echo COPY file / >> ${TESTDIR}/squashed/Dockerfile
 	echo COPY file / > ${TESTDIR}/squashed/file
-	buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
 	[ "$output" -eq 1 ]
 }

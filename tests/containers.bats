@@ -10,8 +10,8 @@ load helpers
   run_buildah containers
   expect_line_count 3
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "containers filter test" {
@@ -22,8 +22,8 @@ load helpers
   run_buildah containers --filter name=$cid1
   expect_line_count 2
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "containers format test" {
@@ -36,8 +36,8 @@ load helpers
   expect_output --from="${lines[0]}" "alpine-working-container"
   expect_output --from="${lines[1]}" "busybox-working-container"
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "containers json test" {
@@ -46,8 +46,8 @@ load helpers
   run_buildah containers --json | grep "{" | wc -l
   out=$output
   [ "$out" -ne "0" ]
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "containers noheading test" {
@@ -61,8 +61,8 @@ load helpers
       expect_output "[no instance of 'NAME']" "'NAME' header should be absent"
   fi
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
 
 @test "containers quiet test" {
@@ -77,6 +77,6 @@ load helpers
   expect_output --substring --from="${lines[0]}" '^[0-9a-f]{64}$'
   expect_output --substring --from="${lines[1]}" '^[0-9a-f]{64}$'
 
-  buildah rm -a
-  buildah rmi -a -f
+  run_buildah rm -a
+  run_buildah rmi -a -f
 }
