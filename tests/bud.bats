@@ -65,7 +65,7 @@ load helpers
   expect_line_count 8
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
-  expect_line_count 9
+  expect_line_count 10 
   run_buildah --log-level=error inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test1
   expect_output "foo=bar"
   run_buildah --log-level=error inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test2
@@ -77,25 +77,25 @@ load helpers
 
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
-  expect_line_count 11
+  expect_line_count 12
 
   mkdir -p ${TESTDIR}/use-layers/mount/subdir
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test4 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
-  expect_line_count 13
+  expect_line_count 14
 
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test5 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
-  expect_line_count 14
+  expect_line_count 15
 
   touch ${TESTDIR}/use-layers/mount/subdir/file.txt
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test6 -f Dockerfile.3 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
-  expect_line_count 16
+  expect_line_count 17
 
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --no-cache -t test7 -f Dockerfile.2 ${TESTDIR}/use-layers
   run_buildah --log-level=error images -a
-  expect_line_count 17
+  expect_line_count 18
 
   buildah rmi -a -f
 }
