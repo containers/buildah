@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.12.0-dev
+Version:        1.11.7
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,7 +99,31 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Tue Dec 3, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-dev-1
+* Fri Dec 13, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.7-1
+- Allow ADD to use http src
+- Bump to c/storage v.1.15.3
+- install.md: update golang dependency
+- imgtype: reset storage opts if driver overridden
+- Start using containers/common
+- overlay.bats typo: fuse-overlays should be fuse-overlayfs
+- chroot: Unmount with MNT_DETACH instead of UnmountMountpoints()
+- bind: don't complain about missing mountpoints
+- imgtype: check earlier for expected manifest type
+- Vendor containers/storage fix
+- Vendor containers/storage v1.15.1
+- Add history names support
+- PR takeover of #1966
+- Tests: Add inspect test check steps
+- Tests: Add container name and id check in containers test steps
+- Test: Get permission in add test
+- Tests: Add a test for tag by id
+- Tests: Add test cases for push test
+- Tests: Add image digest test
+- Tests: Add some buildah from tests
+- Tests: Add two commit test
+- Tests: Add buildah bud with --quiet test
+- Tests: Add two test for buildah add
+- Bump back to v1.12.0-dev
 
 * Tue Dec 3, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.6-1
 - Handle missing equal sign in --from and --chown flags for COPY/ADD
