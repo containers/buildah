@@ -54,6 +54,8 @@ github.com/containernetworking/cni v0.7.1 h1:fE3r16wpSEyaqY4Z4oFrLMmIGfBYIKpPrHK
 github.com/containernetworking/cni v0.7.1/go.mod h1:LGwApLUm2FpoOfxTDEeq8T9ipbpZ61X79hmU3w8FmsY=
 github.com/containers/common v0.0.3 h1:C2Zshb0w720FqPa42MCRuiGfbW0kwbURRwvK1EWIC5I=
 github.com/containers/common v0.0.3/go.mod h1:CaOgMRiwi2JJHISMZ6VPPZhQYFUDRv3YYVss2RqUCMg=
+github.com/containers/common v0.0.5 h1:Hi4+eyUZx8hXB4reLNPbdT6XT8MGMAzdlbg8V+WifkQ=
+github.com/containers/common v0.0.5/go.mod h1:lhWV3MLhO1+KGE2x6v9+K38MxpjXGso+edmpkFnCOqI=
 github.com/containers/image/v4 v4.0.1 h1:idNGHChj0Pyv3vLrxul2oSVMZLeFqpoq3CjLeVgapSQ=
 github.com/containers/image/v4 v4.0.1/go.mod h1:0ASJH1YgJiX/eqFZObqepgsvIA4XjCgpyfwn9pDGafA=
 github.com/containers/image/v5 v5.0.0 h1:arnXgbt1ucsC/ndtSpiQY87rA0UjhF+/xQnPzqdBDn4=
