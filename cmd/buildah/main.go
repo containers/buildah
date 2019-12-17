@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
@@ -134,10 +135,10 @@ func main() {
 	if buildah.InitReexec() {
 		return
 	}
-	// Hard code TMPDIR functions to use /var/tmp, if user did not override
-	if _, ok := os.LookupEnv("TMPDIR"); !ok {
-		os.Setenv("TMPDIR", "/var/tmp")
-	}
+
+	// Hard code TMPDIR functions to use $TMPDIR or /var/tmp
+	os.Setenv("TMPDIR", parse.GetTempDir())
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)

@@ -133,6 +133,10 @@ denied.  If there are registries in the `allowedRegistries` list, and the
 portion of the name that corresponds to the registry is not in the list, the
 push attempt is denied.
 
+**TMPDIR**
+The TMPDIR environment variable allows the user to specify where temporary files
+are stored while pulling and pushing images.  Defaults to '/var/tmp'.
+
 ## FILES
 
 **registries.conf** (`/etc/containers/registries.conf`)

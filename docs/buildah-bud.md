@@ -680,6 +680,23 @@ buildah bud --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
 
   Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
 
+## ENVIRONMENT
+
+**BUILD\_REGISTRY\_SOURCES**
+
+BUILD\_REGISTRY\_SOURCES, if set, is treated as a JSON object which contains
+lists of registry names under the keys `insecureRegistries`,
+`blockedRegistries`, and `allowedRegistries`.
+
+When pulling an image from a registry, if the name of the registry matches any
+of the items in the `blockedRegistries` list, the image pull attempt is denied.
+If there are registries in the `allowedRegistries` list, and the registry's
+name is not in the list, the pull attempt is denied.
+
+**TMPDIR**
+The TMPDIR environment variable allows the user to specify where temporary files
+are stored while pulling and pushing images.  Defaults to '/var/tmp'.
+
 ## Files
 
 **registries.conf** (`/etc/containers/registries.conf`)

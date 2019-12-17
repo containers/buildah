@@ -110,6 +110,10 @@ of the items in the `blockedRegistries` list, the image pull attempt is denied.
 If there are registries in the `allowedRegistries` list, and the registry's
 name is not in the list, the pull attempt is denied.
 
+**TMPDIR**
+The TMPDIR environment variable allows the user to specify where temporary files
+are stored while pulling and pushing images.  Defaults to '/var/tmp'.
+
 ## FILES
 
 **registries.conf** (`/etc/containers/registries.conf`)
