@@ -111,8 +111,8 @@ function check_matrix() {
   buildah config \
    --author TESTAUTHOR \
    --created-by COINCIDENCE \
-   --arch SOMEARCH \
-   --os SOMEOS \
+   --arch amd64 \
+   --os linux \
    --user likes:things \
    --port 12345 \
    --env VARIABLE=VALUE1,VALUE2 \
@@ -140,8 +140,8 @@ function check_matrix() {
   buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
 
   check_matrix 'Author'       'TESTAUTHOR'
-  check_matrix 'Architecture' 'SOMEARCH'
-  check_matrix 'OS'           'SOMEOS'
+  check_matrix 'Architecture' 'amd64'
+  check_matrix 'OS'           'linux'
 
   buildah --log-level=error inspect --format '{{.ImageCreatedBy}}' $cid | grep COINCIDENCE
 

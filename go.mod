@@ -6,11 +6,10 @@ require (
 	github.com/blang/semver v3.5.0+incompatible // indirect
 	github.com/containernetworking/cni v0.7.1
 	github.com/containers/common v0.0.5
-	github.com/containers/image/v5 v5.0.0
+	github.com/containers/image/v5 v5.1.0
 	github.com/containers/storage v1.15.3
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/docker-credential-helpers v0.6.1 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316
@@ -18,7 +17,6 @@ require (
 	github.com/fsouza/go-dockerclient v1.6.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/hashicorp/go-multierror v1.0.0
-	github.com/imdario/mergo v0.3.6 // indirect
 	github.com/ishidawataru/sctp v0.0.0-20180918013207-6e2cb1366111 // indirect
 	github.com/mattn/go-shellwords v1.0.6
 	github.com/morikuni/aec v1.0.0 // indirect
@@ -43,10 +41,9 @@ require (
 	github.com/vishvananda/netlink v1.0.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20190625233234-7109fa855b0f // indirect
 	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
-	golang.org/x/crypto v0.0.0-20190927123631-a832865fa7ad
+	golang.org/x/crypto v0.0.0-20191112222119-e1110fd1c708
 	golang.org/x/sys v0.0.0-20191127021746-63cb32ae39b2
 	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0 // indirect
-	google.golang.org/grpc v1.24.0 // indirect
 	k8s.io/api v0.0.0-20190813020757-36bff7324fb7 // indirect
 	k8s.io/client-go v0.0.0-20181219152756-3dd551c0f083 // indirect
 )
