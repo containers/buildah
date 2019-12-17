@@ -50,9 +50,7 @@ load helpers
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine"
   run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
-  run rm -rf ${TESTDIR}/alp.tar
-  echo "$output"
-  [ "$status" -eq 0 ]
+  expect_output "Non-docker transport is not supported, for --all-tags pulling"
 }
 
 @test "pull-from-oci-archive" {
@@ -63,9 +61,7 @@ load helpers
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine"
   run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/alp.tar
-  run rm -rf ${TESTDIR}/alp.tar
-  echo "$output"
-  [ "$status" -eq 0 ]
+  expect_output "Non-docker transport is not supported, for --all-tags pulling"
 }
 
 @test "pull-from-local-directory" {
@@ -77,9 +73,7 @@ load helpers
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "localhost${TESTDIR}/buildahtest:latest"
   run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
-  run rm -rf ${TESTDIR}/buildahtest
-  echo "$output"
-  [ "$status" -eq 0 ]
+  expect_output "Non-docker transport is not supported, for --all-tags pulling"
 }
 
 @test "pull-from-docker-deamon" {
@@ -100,17 +94,45 @@ load helpers
   expect_output --substring "alpine:latest"
   run_buildah rmi alpine
   run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-daemon:docker.io/library/alpine:latest
-  run docker rmi -f alpine:latest
-  echo "$output"
-  [ "$status" -eq 0 ]
+  expect_output --substring "Non-docker transport is not supported, for --all-tags pulling"
 }
 
 @test "pull-all-tags" {
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json --all-tags alpine
-  expect_output --substring "alpine:latest"
+  declare -a tags=(0.9 0.9.1 1.1 alpha beta gamma2.0 latest)
+
+  # setup: pull alpine, and push it repeatedly to localhost using those tags
+  opts="--signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword"
+  run_buildah pull --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  for tag in "${tags[@]}"; do
+      run_buildah push $opts alpine localhost:5000/myalpine:$tag
+  done
 
   run_buildah images -q
-  [ $(wc -l <<< "$output") -ge 3 ]
+  expect_line_count 1 "There's only one actual image ID"
+  alpine_iid=$output
+
+  # Remove it, and confirm.
+  run_buildah rmi alpine
+  run_buildah images -q
+  expect_output "" "After buildah rmi, there are no locally stored images"
+
+  # Now pull with --all-tags, and confirm that we see all expected tag strings
+  run_buildah pull $opts --all-tags localhost:5000/myalpine
+  for tag in "${tags[@]}"; do
+      expect_output --substring "Pulling localhost:5000/myalpine:$tag"
+  done
+
+  # Confirm that 'images -a' lists all of them. <Brackets> help confirm
+  # that tag names are exact, e.g we don't confuse 0.9 and 0.9.1
+  run_buildah images -a --format '<{{.Tag}}>'
+  expect_line_count "${#tags[@]}" "number of tagged images"
+  for tag in "${tags[@]}"; do
+      expect_output --substring "<$tag>"
+  done
+
+  # Finally, make sure that there's actually one and exactly one image
+  run_buildah images -q
+  expect_output $alpine_iid "Pulled image has the same IID as original alpine"
 }
 
 @test "pull-from-oci-directory" {
@@ -121,13 +143,7 @@ load helpers
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "localhost${TESTDIR}/alpine:latest"
   run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
-  run rm -rf ${TESTDIR}/alpine
-  echo "$output"
-  [ "$status" -eq 0 ]
-}
-
-@test "pull-with-alltags-from-registry" {
-  run_buildah pull --all-tags --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx
+  expect_output "Non-docker transport is not supported, for --all-tags pulling"
 }
 
 @test "pull-denied-by-registry-sources" {
