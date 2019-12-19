@@ -2,7 +2,6 @@ package archive
 
 import (
 	"context"
-
 	"github.com/containers/image/v5/docker/tarfile"
 	"github.com/containers/image/v5/types"
 	"github.com/sirupsen/logrus"
@@ -15,11 +14,11 @@ type archiveImageSource struct {
 
 // newImageSource returns a types.ImageSource for the specified image reference.
 // The caller must call .Close() on the returned ImageSource.
-func newImageSource(ctx context.Context, sys *types.SystemContext, ref archiveReference) (types.ImageSource, error) {
+func newImageSource(ctx context.Context, ref archiveReference) (types.ImageSource, error) {
 	if ref.destinationRef != nil {
 		logrus.Warnf("docker-archive: references are not supported for sources (ignoring)")
 	}
-	src, err := tarfile.NewSourceFromFileWithContext(sys, ref.path)
+	src, err := tarfile.NewSourceFromFile(ref.path)
 	if err != nil {
 		return nil, err
 	}

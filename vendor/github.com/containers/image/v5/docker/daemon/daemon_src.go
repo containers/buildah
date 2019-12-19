@@ -13,6 +13,11 @@ type daemonImageSource struct {
 	*tarfile.Source // Implements most of types.ImageSource
 }
 
+type layerInfo struct {
+	path string
+	size int64
+}
+
 // newImageSource returns a types.ImageSource for the specified image reference.
 // The caller must call .Close() on the returned ImageSource.
 //
@@ -35,7 +40,7 @@ func newImageSource(ctx context.Context, sys *types.SystemContext, ref daemonRef
 	}
 	defer inputStream.Close()
 
-	src, err := tarfile.NewSourceFromStreamWithSystemContext(sys, inputStream)
+	src, err := tarfile.NewSourceFromStream(inputStream)
 	if err != nil {
 		return nil, err
 	}

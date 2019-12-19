@@ -19,7 +19,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/http2"
 	"k8s.io/client-go/util/homedir"
 )
@@ -138,8 +137,9 @@ func (config *deferredLoadingClientConfig) createClientConfig() (clientConfig, e
 			return nil, err
 		}
 
+		var mergedClientConfig clientConfig
 		// REMOVED: Interactive fallback support.
-		mergedClientConfig := newNonInteractiveClientConfig(*mergedConfig)
+		mergedClientConfig = newNonInteractiveClientConfig(*mergedConfig)
 
 		config.clientConfig = mergedClientConfig
 	}
@@ -210,17 +210,13 @@ func (config *directClientConfig) ClientConfig() (*restConfig, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = mergo.MergeWithOverwrite(clientConfig, userAuthPartialConfig); err != nil {
-			return nil, err
-		}
+		mergo.MergeWithOverwrite(clientConfig, userAuthPartialConfig)
 
 		serverAuthPartialConfig, err := getServerIdentificationPartialConfig(configAuthInfo, configClusterInfo)
 		if err != nil {
 			return nil, err
 		}
-		if err = mergo.MergeWithOverwrite(clientConfig, serverAuthPartialConfig); err != nil {
-			return nil, err
-		}
+		mergo.MergeWithOverwrite(clientConfig, serverAuthPartialConfig)
 	}
 
 	return clientConfig, nil
@@ -241,9 +237,7 @@ func getServerIdentificationPartialConfig(configAuthInfo clientcmdAuthInfo, conf
 	configClientConfig.CAFile = configClusterInfo.CertificateAuthority
 	configClientConfig.CAData = configClusterInfo.CertificateAuthorityData
 	configClientConfig.Insecure = configClusterInfo.InsecureSkipTLSVerify
-	if err := mergo.MergeWithOverwrite(mergedConfig, configClientConfig); err != nil {
-		return nil, err
-	}
+	mergo.MergeWithOverwrite(mergedConfig, configClientConfig)
 
 	return mergedConfig, nil
 }
@@ -276,6 +270,14 @@ func getUserIdentificationPartialConfig(configAuthInfo clientcmdAuthInfo) (*rest
 
 	// REMOVED: prompting for missing information.
 	return mergedConfig, nil
+}
+
+// canIdentifyUser is a modified copy of k8s.io/kubernetes/pkg/client/unversioned/clientcmd.canIdentifyUser
+func canIdentifyUser(config restConfig) bool {
+	return len(config.Username) > 0 ||
+		(len(config.CertFile) > 0 || len(config.CertData) > 0) ||
+		len(config.BearerToken) > 0
+
 }
 
 // ConfirmUsable is a modified copy of k8s.io/kubernetes/pkg/client/unversioned/clientcmd.DirectClientConfig.ConfirmUsable.
@@ -318,9 +320,7 @@ func (config *directClientConfig) getContext() clientcmdContext {
 
 	var mergedContext clientcmdContext
 	if configContext, exists := contexts[contextName]; exists {
-		if err := mergo.MergeWithOverwrite(&mergedContext, configContext); err != nil {
-			logrus.Debugf("Can't merge configContext: %v", err)
-		}
+		mergo.MergeWithOverwrite(&mergedContext, configContext)
 	}
 	// REMOVED: overrides support
 
@@ -332,17 +332,6 @@ var (
 	// message is for consistency with old behavior
 	errEmptyCluster = errors.New("cluster has no server defined")
 )
-
-//helper for checking certificate/key/CA
-func validateFileIsReadable(name string) error {
-	answer, err := os.Open(name)
-	defer func() {
-		if err := answer.Close(); err != nil {
-			logrus.Debugf("Error closing %v: %v", name, err)
-		}
-	}()
-	return err
-}
 
 // validateClusterInfo is a modified copy of k8s.io/kubernetes/pkg/client/unversioned/clientcmd.DirectClientConfig.validateClusterInfo.
 // validateClusterInfo looks for conflicts and errors in the cluster info
@@ -365,7 +354,8 @@ func validateClusterInfo(clusterName string, clusterInfo clientcmdCluster) []err
 		validationErrors = append(validationErrors, errors.Errorf("certificate-authority-data and certificate-authority are both specified for %v. certificate-authority-data will override", clusterName))
 	}
 	if len(clusterInfo.CertificateAuthority) != 0 {
-		err := validateFileIsReadable(clusterInfo.CertificateAuthority)
+		clientCertCA, err := os.Open(clusterInfo.CertificateAuthority)
+		defer clientCertCA.Close()
 		if err != nil {
 			validationErrors = append(validationErrors, errors.Errorf("unable to read certificate-authority %v for %v due to %v", clusterInfo.CertificateAuthority, clusterName, err))
 		}
@@ -403,13 +393,15 @@ func validateAuthInfo(authInfoName string, authInfo clientcmdAuthInfo) []error {
 		}
 
 		if len(authInfo.ClientCertificate) != 0 {
-			err := validateFileIsReadable(authInfo.ClientCertificate)
+			clientCertFile, err := os.Open(authInfo.ClientCertificate)
+			defer clientCertFile.Close()
 			if err != nil {
 				validationErrors = append(validationErrors, errors.Errorf("unable to read client-cert %v for %v due to %v", authInfo.ClientCertificate, authInfoName, err))
 			}
 		}
 		if len(authInfo.ClientKey) != 0 {
-			err := validateFileIsReadable(authInfo.ClientKey)
+			clientKeyFile, err := os.Open(authInfo.ClientKey)
+			defer clientKeyFile.Close()
 			if err != nil {
 				validationErrors = append(validationErrors, errors.Errorf("unable to read client-key %v for %v due to %v", authInfo.ClientKey, authInfoName, err))
 			}
@@ -431,9 +423,7 @@ func (config *directClientConfig) getAuthInfo() clientcmdAuthInfo {
 
 	var mergedAuthInfo clientcmdAuthInfo
 	if configAuthInfo, exists := authInfos[authInfoName]; exists {
-		if err := mergo.MergeWithOverwrite(&mergedAuthInfo, configAuthInfo); err != nil {
-			logrus.Debugf("Can't merge configAuthInfo: %v", err)
-		}
+		mergo.MergeWithOverwrite(&mergedAuthInfo, configAuthInfo)
 	}
 	// REMOVED: overrides support
 
@@ -446,16 +436,10 @@ func (config *directClientConfig) getCluster() clientcmdCluster {
 	clusterInfoName := config.getClusterName()
 
 	var mergedClusterInfo clientcmdCluster
-	if err := mergo.MergeWithOverwrite(&mergedClusterInfo, defaultCluster); err != nil {
-		logrus.Debugf("Can't merge defaultCluster: %v", err)
-	}
-	if err := mergo.MergeWithOverwrite(&mergedClusterInfo, envVarCluster); err != nil {
-		logrus.Debugf("Can't merge envVarCluster: %v", err)
-	}
+	mergo.MergeWithOverwrite(&mergedClusterInfo, defaultCluster)
+	mergo.MergeWithOverwrite(&mergedClusterInfo, envVarCluster)
 	if configClusterInfo, exists := clusterInfos[clusterInfoName]; exists {
-		if err := mergo.MergeWithOverwrite(&mergedClusterInfo, configClusterInfo); err != nil {
-			logrus.Debugf("Can't merge configClusterInfo: %v", err)
-		}
+		mergo.MergeWithOverwrite(&mergedClusterInfo, configClusterInfo)
 	}
 	// REMOVED: overrides support
 
@@ -589,9 +573,7 @@ func (rules *clientConfigLoadingRules) Load() (*clientcmdConfig, error) {
 	// first merge all of our maps
 	mapConfig := clientcmdNewConfig()
 	for _, kubeconfig := range kubeconfigs {
-		if err := mergo.MergeWithOverwrite(mapConfig, kubeconfig); err != nil {
-			return nil, err
-		}
+		mergo.MergeWithOverwrite(mapConfig, kubeconfig)
 	}
 
 	// merge all of the struct values in the reverse order so that priority is given correctly
@@ -599,20 +581,14 @@ func (rules *clientConfigLoadingRules) Load() (*clientcmdConfig, error) {
 	nonMapConfig := clientcmdNewConfig()
 	for i := len(kubeconfigs) - 1; i >= 0; i-- {
 		kubeconfig := kubeconfigs[i]
-		if err := mergo.MergeWithOverwrite(nonMapConfig, kubeconfig); err != nil {
-			return nil, err
-		}
+		mergo.MergeWithOverwrite(nonMapConfig, kubeconfig)
 	}
 
 	// since values are overwritten, but maps values are not, we can merge the non-map config on top of the map config and
 	// get the values we expect.
 	config := clientcmdNewConfig()
-	if err := mergo.MergeWithOverwrite(config, mapConfig); err != nil {
-		return nil, err
-	}
-	if err := mergo.MergeWithOverwrite(config, nonMapConfig); err != nil {
-		return nil, err
-	}
+	mergo.MergeWithOverwrite(config, mapConfig)
+	mergo.MergeWithOverwrite(config, nonMapConfig)
 
 	// REMOVED: Possibility to skip this.
 	if err := resolveLocalPaths(config); err != nil {

@@ -85,6 +85,7 @@ type PolicyContext struct {
 type policyContextState string
 
 const (
+	pcInvalid      policyContextState = ""
 	pcInitializing policyContextState = "Initializing"
 	pcReady        policyContextState = "Ready"
 	pcInUse        policyContextState = "InUse"
