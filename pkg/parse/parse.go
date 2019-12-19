@@ -589,6 +589,7 @@ func SystemContextFromOptions(c *cobra.Command) (*types.SystemContext, error) {
 	if arch, err := c.Flags().GetString("override-arch"); err == nil {
 		ctx.ArchitectureChoice = arch
 	}
+	ctx.BigFilesTemporaryDir = GetTempDir()
 	return ctx, nil
 }
 
@@ -955,4 +956,11 @@ func isValidDeviceMode(mode string) bool {
 		legalDeviceMode[c] = false
 	}
 	return true
+}
+
+func GetTempDir() string {
+	if tmpdir, ok := os.LookupEnv("TMPDIR"); ok {
+		return tmpdir
+	}
+	return "/var/tmp"
 }
