@@ -1731,3 +1731,24 @@ EOM
   expect_line_count 1
   expect_output --substring '^[0-9a-f]{64}$'
 }
+
+@test "bud with --from" {
+  target=from-new-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --from "busybox" -t ${target} ${TESTSDIR}/bud/from-new
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM busybox"
+
+  buildah rmi ${target}
+}
+
+@test "bud with --from and variable" {
+  target=from-new-multi-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --from "alpine" --build-arg ARG=scratch -t ${target} -f ${TESTSDIR}/bud/from-new/Dockerfile.mixed ${TESTSDIR}/bud/from-new
+  [ "${status}" -eq 0 ]
+  expect_output --substring "STEP 1: FROM alpine AS myname"
+  expect_output --substring "STEP 3: FROM alpine AS myname2"
+  expect_output --substring "STEP 5: FROM scratch"
+  expect_output --substring "STEP 7: FROM alpine"
+
+  buildah rmi ${target}
+}

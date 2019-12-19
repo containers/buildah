@@ -94,6 +94,7 @@ type Executor struct {
 	addCapabilities                []string
 	dropCapabilities               []string
 	devices                        []configs.Device
+	newFromImage                   string // Image name specified by user via --from to replace the image name in the Dockerfile
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
@@ -151,6 +152,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		addCapabilities:                options.AddCapabilities,
 		dropCapabilities:               options.DropCapabilities,
 		devices:                        options.Devices,
+		newFromImage:                   options.NewFromImage,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -411,6 +413,11 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				switch strings.ToUpper(child.Value) { // first token - instruction
 				case "FROM":
 					if child.Next != nil { // second token on this line
+						// If the user used the newFrom option, replace the image name
+						// unless it is a variable.
+						if b.newFromImage != "" && !strings.HasPrefix(child.Next.Value, "$") {
+							child.Next.Value = b.newFromImage
+						}
 						base := child.Next.Value
 						if base != "scratch" {
 							// TODO: this didn't undergo variable and arg

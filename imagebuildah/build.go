@@ -160,6 +160,9 @@ type BuildOptions struct {
 	Target string
 	// Devices are the additional devices to add to the containers
 	Devices []configs.Device
+	// NewFromImage is the image specified by the --from option on the command line.
+	// It replaces any image names next to a FROM statement found in the Dockerfile.
+	NewFromImage string
 }
 
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be

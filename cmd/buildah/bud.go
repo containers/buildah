@@ -338,6 +338,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		Target:                  iopts.Target,
 		TransientMounts:         transientMounts,
 		Devices:                 devices,
+		NewFromImage:            iopts.NewFromImage,
 	}
 
 	if iopts.Quiet {

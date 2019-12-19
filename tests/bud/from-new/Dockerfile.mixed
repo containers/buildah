@@ -1,0 +1,13 @@
+FROM scratch AS myname
+COPY myname.txt /
+
+FROM scratch AS myname2
+COPY myindex.txt /
+
+FROM $ARG 
+COPY Dockerfile.mixed /
+
+FROM scratch
+COPY --from=myname /myname.txt /myname.txt
+COPY --from=1 /myindex.txt /myindex.txt
+COPY --from=2 /Dockerfile.mixed /Dockerfile.mixed

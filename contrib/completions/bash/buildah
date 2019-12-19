@@ -360,6 +360,11 @@ return 1
 
  _buildah_bud() {
      local boolean_options="
+     --cache-from
+     --compress
+     --disable-compression
+     --disable-content-trust
+     -D
      --help
      -h
      --layers
@@ -369,6 +374,7 @@ return 1
      --pull-never
      --quiet
      -q
+     --rm
      --squash
      --tls-verify
   "
@@ -378,6 +384,7 @@ return 1
      --annotation
      --authfile
      --build-arg
+     -c
      --cap-add
      --cap-drop
      --cert-dir
@@ -391,17 +398,19 @@ return 1
      --cpuset-mems
      --creds
      --device
-     --dns-search
      --dns
      --dns-option
+     --dns-search
      -f
      --file
+     --force-rm
      --format
      --http-proxy
      --iidfile
-     --isolation
      --ipc
+     --isolation
      --label
+     --logfile
      --loglevel
      -m
      --memory

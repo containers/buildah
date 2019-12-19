@@ -233,6 +233,14 @@ Recognized formats include *oci* (OCI image-spec v1.0, the default) and
 Note: You can also override the default format by setting the BUILDAH\_FORMAT
 environment variable.  `export BUILDAH_FORMAT=docker`
 
+**--from**
+
+When processing the Dockerfile, replace any image name found after a FROM
+statement with the supplied value.  If the value in the FROM statement starts
+with a '$' symbol indicating a variable, it will not be replaced.  Any changes
+occur only during processing and do not change the on file version of the
+Dockerfile.
+
 **--http-proxy**
 
 By default proxy environment variables are passed into the container if set
@@ -274,12 +282,6 @@ BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
 
-**--loglevel** *number*
-
-Adjust the logging level up or down.  Valid option values range from -2 to 3,
-with 3 being roughly equivalent to using the global *--log-level=debug* option, and
-values below 0 omitting even error messages which accompany fatal errors.
-
 **--layers** *bool-value*
 
 Cache intermediate images during the build process (Default is `false`).
@@ -291,6 +293,12 @@ environment variable. `export BUILDAH_LAYERS=true`
 
 Log output which would be sent to standard output and standard error to the
 specified file instead of to standard output and standard error.
+
+**--loglevel** *number*
+
+Adjust the logging level up or down.  Valid option values range from -2 to 3,
+with 3 being roughly equivalent to using the global *--log-level=debug* option, and
+values below 0 omitting even error messages which accompany fatal errors.
 
 **--memory, -m**=""
 
@@ -664,6 +672,8 @@ buildah bud -f Containerfile --layers --force-rm -t imageName .
 buildah bud --no-cache --rm=false -t imageName .
 
 buildah bud --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
+
+buildah bud --from busybox .
 
 ### Building an image using a URL
 
