@@ -17,7 +17,7 @@ ENV GOPATH=/root/buildah
 # to the container.
 # Finally remove the buildah directory and a few other packages
 # that are needed for building but not running Buildah
-RUN dnf -y install --enablerepo=updates-testing \
+RUN useradd build; yum -y update; yum -y reinstall shadow-utils; yum -y install --enablerepo=updates-testing \
      make \
      golang \
      bats \
@@ -40,8 +40,8 @@ RUN dnf -y install --enablerepo=updates-testing \
      make;\
      make install;\
      rm -rf /root/buildah/*; \
-     dnf -y remove bats git golang go-md2man make; \
-     dnf clean all;
+     yum -y remove bats git golang go-md2man make; \
+     yum clean all;
 
 # Adjust storage.conf to enable Fuse storage.
 RUN sed -i -e 's|^#mount_program|mount_program|g' -e '/additionalimage.*/a "/var/lib/shared",' /etc/containers/storage.conf
