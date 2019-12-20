@@ -45,8 +45,9 @@ CIRRUS_CI="${CIRRUS_CI:-false}"
 CONTINUOUS_INTEGRATION="${CONTINUOUS_INTEGRATION:-false}"
 CIRRUS_REPO_NAME=${CIRRUS_REPO_NAME:-buildah}
 CIRRUS_BASE_SHA=${CIRRUS_BASE_SHA:-unknown$(date +%d)}  # difficult to reliably discover
-CIRRUS_BUILD_ID=${CIRRUS_BUILD_ID:-unknown$(date +%s)}  # must be short and unique
-CIRRUS_TASK_ID=${CIRRUS_BUILD_ID:-unknown$(date +%d)}
+CIRRUS_BUILD_ID=${CIRRUS_BUILD_ID:-unknown$(date +%s)}  # must be short and unique enough
+CIRRUS_TASK_ID=${CIRRUS_BUILD_ID:-unknown$(date +%d)}   # to prevent state thrashing when
+                                                        # debugging with `hack/get_ci_vm.sh`
 
 # Unsafe env. vars for display
 SECRET_ENV_RE='(IRCID)|(ACCOUNT)|(^GC[EP]..+)|(SSH)'
@@ -71,7 +72,7 @@ export APTGET='apt-get -qq --yes'
 # Short timeout for quick-running packaging command
 SHORT_APTGET="timeout_attempt_delay_command 24s 5 30s $APTGET"
 SHORT_DNFY="timeout_attempt_delay_command 60s 2 5s dnf -y"
-# Short timeout for quick-running packaging command
+# Longer timeout for long-running packaging command
 LONG_APTGET="timeout_attempt_delay_command 300s 5 30s $APTGET"
 LONG_DNFY="timeout_attempt_delay_command 300s 3 60s dnf -y"
 
@@ -164,9 +165,9 @@ install_ooe() {
 }
 
 showrun() {
-    local context
+    local -a context
     context=($(caller 0))
-    echo '+ '$(printf " %q" "$@")"  # ${context[2]}:${context[0]} in ${context[1]}()" > /dev/stderr
+    echo "+ $@  # ${context[2]}:${context[0]} in ${context[1]}()" > /dev/stderr
     "$@"
 }
 
@@ -185,7 +186,7 @@ in_podman() {
     local envargs
     local envname
     local envvalue
-    local envrx='(^CIRRUS_.+)|(^BUILDAH_+)|(^STOTAGE_)|(^CI$)|(^CROSS_TARGET$)|(^IN_PODMAN_.+)'
+    local envrx='(^CIRRUS_.+)|(^BUILDAH_+)|(^STORAGE_)|(^CI$)|(^CROSS_TARGET$)|(^IN_PODMAN_.+)'
     for envname in $(awk 'BEGIN{for(v in ENVIRON) print v}' | \
                      egrep "$envrx" | \
                      egrep -v "CIRRUS_.+_MESSAGE" | \
@@ -215,7 +216,7 @@ in_podman() {
                    -v "$HOME/auth:$HOME/auth:ro" \
                    -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
                    -v /dev/fuse:/dev/fuse:rw \
-                   $@
+                   "$@"
 }
 
 execute_local_registry() {

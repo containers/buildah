@@ -84,7 +84,7 @@ meta_task:
 
 gate_task:
 
-    timeout_in: 20m
+    timeout_in: 30m
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
