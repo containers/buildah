@@ -1350,6 +1350,10 @@ load helpers
 @test "buidah bud --volume" {
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
   expect_output --substring "/testdir"
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -v ${TESTSDIR}:/testdir:rw ${TESTSDIR}/bud/mount
+  expect_output --substring "/testdir"
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -v ${TESTSDIR}:/testdir:rw,z ${TESTSDIR}/bud/mount
+  expect_output --substring "/testdir"
 }
 
 @test "bud-copy-dot with --layers picks up changed file" {
