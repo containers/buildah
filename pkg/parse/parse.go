@@ -102,7 +102,7 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 	if _, err := units.FromHumanSize(c.Flag("shm-size").Value.String()); err != nil {
 		return nil, errors.Wrapf(err, "invalid --shm-size")
 	}
-	volumes, _ := c.Flags().GetStringSlice("volume")
+	volumes, _ := c.Flags().GetStringArray("volume")
 	if err := Volumes(volumes); err != nil {
 		return nil, err
 	}
