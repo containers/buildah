@@ -3,6 +3,23 @@
 # Changelog
 
 
+## v1.13.0 (2019-12-24)
+    Update container/storage to v1.15.4
+    Fix option handling for volumes in build
+    Rework overlay pkg for use with libpod
+    Fix buildahimage builds for buildah
+    Add support for FIPS-Mode backends
+    Set the TMPDIR for pulling/pushing image to $TMPDIR
+    WIP: safer test for pull --all-tags
+    BATS major cleanup: blobcache.bats: refactor
+    BATS major cleanup: part 4: manual stuff
+    BATS major cleanup, step 3: yet more run_buildah
+    BATS major cleanup, part 2: use more run_buildah
+    BATS major cleanup, part 1: log-level
+    Bump github.com/containers/image/v5 from 5.0.0 to 5.1.0
+    Bump github.com/containers/common from 0.0.3 to 0.0.5
+    Bump to v1.13.0-dev
+
 ## v1.12.0 (2019-12-13)
     Allow ADD to use http src
     Bump to c/storage v.1.15.3
