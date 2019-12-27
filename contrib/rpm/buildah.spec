@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.13.0-dev
+Version:        1.13.0
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,7 +99,23 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Fri Dec 13, 2019 Tom Sweeney <tsweeney@redhat.com> 1.13.0-dev-1
+* Fri Dec 27, 2019 Tom Sweeney <tsweeney@redhat.com> 1.13.0-1
+- Bump to c/storage v1.15.5
+- Update container/storage to v1.15.4
+- Fix option handling for volumes in build
+- Rework overlay pkg for use with libpod
+- Fix buildahimage builds for buildah
+- Add support for FIPS-Mode backends
+- Set the TMPDIR for pulling/pushing image to $TMPDIR
+- WIP: safer test for pull --all-tags
+- BATS major cleanup: blobcache.bats: refactor
+- BATS major cleanup: part 4: manual stuff
+- BATS major cleanup, step 3: yet more run_buildah
+- BATS major cleanup, part 2: use more run_buildah
+- BATS major cleanup, part 1: log-level
+- Bump github.com/containers/image/v5 from 5.0.0 to 5.1.0
+- Bump github.com/containers/common from 0.0.3 to 0.0.5
+- Bump to v1.13.0-dev
 
 * Fri Dec 13, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-1
 - Allow ADD to use http src
