@@ -9,11 +9,20 @@ import (
 	"text/template"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/pkg/formats"
 	"github.com/containers/buildah/util"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
+
+var containersHeader = map[string]string{
+	"ContainerName": "CONTAINER NAME",
+	"ContainerID":   "CONTAINER ID",
+	"Builder":       "BUILDER",
+	"ImageID":       "IMAGE ID",
+	"ImageName":     "IMAGE NAME",
+}
 
 type jsonContainer struct {
 	ID            string `json:"id"`
@@ -224,20 +233,28 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 		return nil
 	}
 
+	if opts.format != "" {
+		out := formats.StdoutTemplateArray{Output: containersToGeneric(containerOutput), Template: opts.format, Fields: containersHeader}
+		return formats.Writer(out).Out()
+	}
+
 	for _, ctr := range containerOutput {
 		if opts.quiet {
 			fmt.Printf("%-64s\n", ctr.ContainerID)
 			continue
 		}
-		if opts.format != "" {
-			if err := containerOutputUsingTemplate(opts.format, ctr); err != nil {
-				return err
-			}
-			continue
-		}
 		containerOutputUsingFormatString(!opts.noTruncate, ctr)
 	}
 	return nil
+}
+
+func containersToGeneric(templParams []containerOutputParams) (genericParams []interface{}) {
+	if len(templParams) > 0 {
+		for _, v := range templParams {
+			genericParams = append(genericParams, interface{}(v))
+		}
+	}
+	return genericParams
 }
 
 func containerOutputUsingTemplate(format string, params containerOutputParams) error {
