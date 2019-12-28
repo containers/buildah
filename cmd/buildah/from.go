@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -83,14 +84,16 @@ func init() {
 	rootCmd.AddCommand(fromCommand)
 }
 
-func onBuild(builder *buildah.Builder) error {
+func onBuild(builder *buildah.Builder, quiet bool) error {
 	ctr := 0
 	for _, onBuildSpec := range builder.OnBuild() {
 		ctr = ctr + 1
 		commands := strings.Split(onBuildSpec, " ")
 		command := strings.ToUpper(commands[0])
 		args := commands[1:]
-		fmt.Fprintf(os.Stderr, "STEP %d: %s\n", ctr, onBuildSpec)
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "STEP %d: %s\n", ctr, onBuildSpec)
+		}
 		switch command {
 		case "ADD":
 		case "COPY":
@@ -137,7 +140,11 @@ func onBuild(builder *buildah.Builder) error {
 		case "ONBUILD":
 			builder.SetOnBuild(strings.Join(args, " "))
 		case "RUN":
-			if err := builder.Run(args, buildah.RunOptions{}); err != nil {
+			var stdout io.Writer
+			if quiet {
+				stdout = ioutil.Discard
+			}
+			if err := builder.Run(args, buildah.RunOptions{Stdout: stdout}); err != nil {
 				return err
 			}
 		case "SHELL":
@@ -275,7 +282,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return err
 	}
 
-	if err := onBuild(builder); err != nil {
+	if err := onBuild(builder, iopts.quiet); err != nil {
 		return err
 	}
 
