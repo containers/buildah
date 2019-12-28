@@ -860,7 +860,7 @@ load helpers
   run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
   expect_output '["RUN touch /onbuild1" "RUN touch /onbuild2"]'
   run_buildah from --quiet ${target}
-  cid=${lines[2]}              # FIXME FIXME FIXME: see issue #2014
+  cid=${lines[0]}
   run_buildah mount ${cid}
   root=$output
 
@@ -875,7 +875,7 @@ load helpers
   run_buildah inspect --format '{{printf "%q" .Docker.Config.OnBuild}}' ${target}
   expect_output '["RUN touch /onbuild3"]'
   run_buildah from --quiet ${target}
-  cid=${lines[1]}              # FIXME FIXME FIXME: see issue #2014
+  cid=${lines[0]}
   run_buildah mount ${cid}
   root=$output
 
