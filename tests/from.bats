@@ -195,12 +195,12 @@ load helpers
   run_buildah rmi alpine
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/docker-alp.tar
-  expect_output "docker-alp.tar-working-container"       # 2028
+  expect_output "docker-archive-working-container"
   run_buildah rm $output
   run_buildah rmi -a
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/oci-alp.tar
-  expect_output "oci-alp.tar-working-container"
+  expect_output "oci-archive-working-container"
   run_buildah rm $output
   run_buildah rmi -a
 }
