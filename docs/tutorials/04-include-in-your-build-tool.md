@@ -70,7 +70,7 @@ builder.SetCmd([]string{"node", "/home/node/script.js"})
 Before completing the build, create the image reference:
 
 ```go
-imageRef, err := alltransports.ParseImageName("docker.io/myusername/my-image")
+imageRef, err := is.Transport.ParseStoreReference(buildStore, "docker.io/myusername/my-image")
 ```
 
 Now you can run commit the build:
@@ -102,7 +102,7 @@ import (
 	"fmt"
 	"github.com/containers/buildah"
 	"github.com/containers/common/pkg/unshare"
-	"github.com/containers/image/v5/transports/alltransports"
+	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 )
@@ -147,7 +147,11 @@ func main() {
 
 	builder.SetCmd([]string{"node", "/home/node/script.js"})
 
-	imageRef, err := alltransports.ParseImageName("docker.io/myusername/my-image")
+	imageRef, err := is.Transport.ParseStoreReference(buildStore, "docker.io/myusername/my-image")
+
+	if err != nil {
+		panic(err)
+	}
 
 	imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOptions{})
 
