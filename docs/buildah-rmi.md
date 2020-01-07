@@ -58,4 +58,4 @@ storage.conf is the storage configuration file for all tools using containers/st
 The storage configuration file specifies all of the available container storage options for tools using shared container storage.
 
 ## SEE ALSO
-buildah(1), registries.conf(5), containers-storage.conf(5)
+buildah(1), containers-registries.conf(5), containers-storage.conf(5)

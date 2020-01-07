@@ -34,7 +34,7 @@ Multiple transports are supported:
 ### DEPENDENCIES
 
 Buildah resolves the path to the registry to pull from by using the /etc/containers/registries.conf
-file, registries.conf(5).  If the `buildah pull` command fails with an "image not known" error,
+file, containers-registries.conf(5).  If the `buildah pull` command fails with an "image not known" error,
 first verify that the registries.conf file is installed and configured appropriately.
 
 ## RETURN VALUE
@@ -125,4 +125,4 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), buildah-from(1), buildah-login(1), docker-login(1), policy.json(5), registries.conf(5)
+buildah(1), buildah-from(1), buildah-login(1), docker-login(1), containers-policy.json(5), containers-registries.conf(5)
