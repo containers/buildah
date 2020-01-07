@@ -329,7 +329,7 @@ github.com/opencontainers/runtime-tools/validate
 # github.com/opencontainers/selinux v1.3.0
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
-# github.com/openshift/api v3.9.1-0.20190810003144-27fb16909b15+incompatible
+# github.com/openshift/api v0.0.0-20200106203948-7ab22a2c8316
 github.com/openshift/api/config/v1
 # github.com/openshift/imagebuilder v1.1.1
 github.com/openshift/imagebuilder
@@ -417,7 +417,7 @@ golang.org/x/crypto/openpgp/packet
 golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20190628185345-da137c7871d7
+# golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
 golang.org/x/net/context
 golang.org/x/net/html
 golang.org/x/net/html/atom
@@ -465,7 +465,7 @@ google.golang.org/grpc/internal
 google.golang.org/grpc/status
 # gopkg.in/fsnotify.v1 v1.4.7
 gopkg.in/fsnotify.v1
-# gopkg.in/inf.v0 v0.9.0
+# gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
 # gopkg.in/square/go-jose.v2 v2.3.1
 gopkg.in/square/go-jose.v2
@@ -475,9 +475,9 @@ gopkg.in/square/go-jose.v2/json
 gopkg.in/tomb.v1
 # gopkg.in/yaml.v2 v2.2.4
 gopkg.in/yaml.v2
-# k8s.io/api v0.0.0-20190813020757-36bff7324fb7
+# k8s.io/api v0.17.0
 k8s.io/api/core/v1
-# k8s.io/apimachinery v0.0.0-20190809020650-423f5d784010
+# k8s.io/apimachinery v0.17.0
 k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/apis/meta/v1
 k8s.io/apimachinery/pkg/conversion
@@ -501,5 +501,5 @@ k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/reflect
 # k8s.io/client-go v0.0.0-20181219152756-3dd551c0f083
 k8s.io/client-go/util/homedir
-# k8s.io/klog v0.3.1
+# k8s.io/klog v1.0.0
 k8s.io/klog
