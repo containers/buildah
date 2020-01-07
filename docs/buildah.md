@@ -118,7 +118,6 @@ Print the version
 | buildah-umount(1)     | Unmount a working container's root file system.                                                      |
 | buildah-unshare(1)    | Launch a command in a user namespace with modified ID mappings.                                      |
 | buildah-version(1)    | Display the Buildah Version Information                                                              |
-| storage.conf(5)       | Syntax of Container Storage configuration file                                                       |
 
 
 ## Files

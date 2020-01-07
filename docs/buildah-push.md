@@ -148,4 +148,4 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), buildah-login(1), policy.json(5), docker-login(1), registries.conf(5)
+buildah(1), buildah-login(1), containers-policy.json(5), docker-login(1), containers-registries.conf(5)
