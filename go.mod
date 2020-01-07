@@ -28,7 +28,7 @@ require (
 	github.com/opencontainers/runtime-spec v0.1.2-0.20190618234442-a950415649c7
 	github.com/opencontainers/runtime-tools v0.9.0
 	github.com/opencontainers/selinux v1.3.0
-	github.com/openshift/api v3.9.1-0.20190810003144-27fb16909b15+incompatible
+	github.com/openshift/api v0.0.0-20200106203948-7ab22a2c8316
 	github.com/openshift/imagebuilder v1.1.1
 	github.com/pkg/errors v0.8.1
 	github.com/seccomp/containers-golang v0.0.0-20180629143253-cdfdaa7543f4
@@ -44,6 +44,5 @@ require (
 	golang.org/x/crypto v0.0.0-20191112222119-e1110fd1c708
 	golang.org/x/sys v0.0.0-20191127021746-63cb32ae39b2
 	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0 // indirect
-	k8s.io/api v0.0.0-20190813020757-36bff7324fb7 // indirect
 	k8s.io/client-go v0.0.0-20181219152756-3dd551c0f083 // indirect
 )
