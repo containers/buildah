@@ -137,7 +137,7 @@ func recreate(contentDir string) error {
 	return nil
 }
 
-// CleanupMount removes all temporary mountpoint conten
+// CleanupMount removes all temporary mountpoint content
 func CleanupMount(contentDir string) (Err error) {
 	if err := recreate(filepath.Join(contentDir, "upper")); err != nil {
 		return err

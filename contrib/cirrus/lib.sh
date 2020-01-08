@@ -12,7 +12,7 @@ export HOME="$(getent passwd $USER | cut -d : -f 6)"
 [[ -n "$UID" ]] || export UID=$(getent passwd $USER | cut -d : -f 3)
 export GID=$(getent passwd $USER | cut -d : -f 4)
 
-# Essential default paths, many are overriden when executing under Cirrus-CI
+# Essential default paths, many are overridden when executing under Cirrus-CI
 # others are duplicated here, to assist in debugging.
 export GOPATH="${GOPATH:-/var/tmp/go}"
 if type -P go &> /dev/null

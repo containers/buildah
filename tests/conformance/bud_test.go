@@ -114,8 +114,8 @@ var _ = Describe("Buildah build conformance test", func() {
 				Expect(br.MatchString(buildahoutput)).To(BeTrue(),
 					strings.Replace(errMsg, "FAILEDREASON", "Buildah Output is not as expect.", -1))
 				if test.BuildahErrRegex != "" {
-					bre := regexp.MustCompile(test.BuildahErrRegex)
-					Expect(bre.MatchString(buildaherr)).To(BeTrue(),
+					bregex := regexp.MustCompile(test.BuildahErrRegex)
+					Expect(bregex.MatchString(buildaherr)).To(BeTrue(),
 						strings.Replace(errMsg, "FAILEDREASON", "Buildah Output is not as expect", -1))
 				}
 			} else {
@@ -139,9 +139,9 @@ var _ = Describe("Buildah build conformance test", func() {
 					}
 				}
 				if test.BuildahErrRegex != "" {
-					bre := regexp.MustCompile(test.BuildahErrRegex)
+					bregex := regexp.MustCompile(test.BuildahErrRegex)
 					dre := regexp.MustCompile(test.DockerErrRegex)
-					buildaherrstrs := bre.FindAllStringSubmatch(buildaherr, -1)
+					buildaherrstrs := bregex.FindAllStringSubmatch(buildaherr, -1)
 					dockererrstrs := dre.FindAllStringSubmatch(dockererr, -1)
 					Expect(len(buildaherrstrs)).To(Equal(len(dockererrstrs)),
 						strings.Replace(errMsg, "FAILEDREASON", "Buildah output is different from docker.", -1))
