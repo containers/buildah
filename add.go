@@ -236,7 +236,7 @@ func dockerIgnoreMatcher(lines []string, contextDir string) (*fileutils.PatternM
 		patterns = append(patterns, includeFlag+filepath.Join(contextDir, ignoreSpec))
 	}
 	// if there are no patterns, save time by not constructing the object
-	if len(patterns) == 0 {
+	if len(patterns) == 1 {
 		return nil, nil
 	}
 	// return a matcher object
