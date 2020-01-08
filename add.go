@@ -349,7 +349,6 @@ func (b *Builder) addHelper(excludes *fileutils.PatternMatcher, extract bool, de
 				continue
 			}
 
-			b.ContentDigester.Start("file")
 			// This source is a file
 			// Check if the path matches the .dockerignore
 			if excludes != nil {
@@ -362,6 +361,8 @@ func (b *Builder) addHelper(excludes *fileutils.PatternMatcher, extract bool, de
 					return nil
 				}
 			}
+
+			b.ContentDigester.Start("file")
 
 			if !extract || !archive.IsArchivePath(esrc) {
 				// This source is a file, and either it's not an
