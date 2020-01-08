@@ -215,7 +215,12 @@ func dockerIgnoreMatcher(lines []string, contextDir string) (*fileutils.PatternM
 	if contextDir == "" {
 		return nil, nil
 	}
-	patterns := []string{".dockerignore"}
+	// If there's no .dockerignore file, then we don't have to add a
+	// pattern to tell copy logic to ignore it later.
+	var patterns []string
+	if _, err := os.Stat(filepath.Join(contextDir, ".dockerignore")); err == nil || !os.IsNotExist(err) {
+		patterns = []string{".dockerignore"}
+	}
 	for _, ignoreSpec := range lines {
 		ignoreSpec = strings.TrimSpace(ignoreSpec)
 		// ignore comments passed back from .dockerignore
@@ -224,7 +229,8 @@ func dockerIgnoreMatcher(lines []string, contextDir string) (*fileutils.PatternM
 		}
 		// if the spec starts with '!' it means the pattern
 		// should be included. make a note so that we can move
-		// it to the front of the updated pattern
+		// it to the front of the updated pattern, and insert
+		// the context dir's path in between
 		includeFlag := ""
 		if strings.HasPrefix(ignoreSpec, "!") {
 			includeFlag = "!"
@@ -236,7 +242,7 @@ func dockerIgnoreMatcher(lines []string, contextDir string) (*fileutils.PatternM
 		patterns = append(patterns, includeFlag+filepath.Join(contextDir, ignoreSpec))
 	}
 	// if there are no patterns, save time by not constructing the object
-	if len(patterns) == 1 {
+	if len(patterns) == 0 {
 		return nil, nil
 	}
 	// return a matcher object
