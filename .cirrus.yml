@@ -5,6 +5,8 @@ env:
     ####
     #### Global variables used for all tasks
     ####
+    # Name of the ultimate destination branch for this CI run, PR or post-merge.
+    DEST_BRANCH: "master"
     GOPATH: "/var/tmp/go"
     GOSRC: "${GOPATH}/src/github.com/containers/buildah"
     # Overrides default location (/tmp/cirrus) for repo clone
@@ -54,7 +56,12 @@ gce_instance:
 
 
 # Update metadata on VM images referenced by this repository state
-meta_task:
+'cirrus-ci/only_prs/meta_task':
+
+    # see bors.toml
+    skip: >-
+        $CIRRUS_BRANCH =~ ".*\.tmp" ||
+        $CIRRUS_BRANCH =~ ".*\.tmp"
 
     container:
         image: "quay.io/libpod/imgts:latest"  # see contrib/imgts
@@ -78,15 +85,39 @@ meta_task:
     script: '/usr/local/bin/entrypoint.sh |& ${_TIMESTAMP}'
 
 
-gate_task:
+'cirrus-ci/only_prs/gate_task':
+
+    # see bors.toml
+    skip: >-
+        $CIRRUS_BRANCH =~ ".*\.tmp" ||
+        $CIRRUS_BRANCH =~ ".*\.tmp"
 
     timeout_in: 30m
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
     validate_test_script: '${SCRIPT_BASE}/test.sh validate |& ${_TIMESTAMP}'
-    # FIXME: some tests broken
-    # unit_test_script: '${SCRIPT_BASE}/test.sh unit |& ${_TIMESTAMP}'
+
+    binary_artifacts:
+        path: ./bin/*
+
+
+'cirrus-ci/only_prs/unit_task':
+
+    # see .bors.toml
+    skip: >-
+        $CIRRUS_BRANCH =~ ".*\.tmp" ||
+        $CIRRUS_BRANCH =~ ".*\.tmp"
+
+    # not supported by bors-ng
+    # allow_failures: $CI == $CI
+
+    timeout_in: 30m
+
+    setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
+    build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
+    # FIXME: These tests mostly/always fail
+    unit_test_script: '${SCRIPT_BASE}/test.sh unit |& ${_TIMESTAMP} || true'
 
     binary_artifacts:
         path: ./bin/*
@@ -96,7 +127,12 @@ gate_task:
 # whether the git tree is clean.  The reasoning for that is to make sure
 # that the vendor.conf, the code and the vendored packages in ./vendor are
 # in sync at all times.
-vendor_task:
+'cirrus-ci/only_prs/vendor_task':
+
+    # see bors.toml
+    skip: >-
+        $CIRRUS_BRANCH =~ ".*\.tmp" ||
+        $CIRRUS_BRANCH =~ ".*\.tmp"
 
     env:
         CIRRUS_WORKING_DIR: "/var/tmp/go/src/github.com/containers/buildah"
@@ -116,11 +152,16 @@ vendor_task:
         - './hack/tree_status.sh'
 
 
-cross_task:
+'cirrus-ci/only_prs/cross_task':
+
+    # see bors.toml
+    skip: >-
+        $CIRRUS_BRANCH =~ ".*\.tmp" ||
+        $CIRRUS_BRANCH =~ ".*\.tmp"
 
     depends_on:
-        - gate
-        - vendor
+        - 'cirrus-ci/only_prs/gate'
+        - 'cirrus-ci/only_prs/vendor'
 
     container:
         image: registry.fedoraproject.org/fedora:30
@@ -136,14 +177,16 @@ cross_task:
         path: ./bin/*
 
 
-testing_task:
+'cirrus-ci/required/testing_task':
+
+    # see bors.toml
+    skip: >-
+        $CIRRUS_BRANCH == "staging.tmp" ||
+        $CIRRUS_BRANCH == "trying.tmp"
 
     depends_on:
-        - gate
-        - vendor
-
-    # TODO: Fix these to support removal of travis CI testing
-    allow_failures: $CI == 'true'  # always ignore failures
+        - 'cirrus-ci/only_prs/gate'
+        - 'cirrus-ci/only_prs/vendor'
 
     gce_instance:  # Only need to specify differences from defaults (above)
         matrix:  # Duplicate this task for each matrix product.
@@ -170,11 +213,16 @@ testing_task:
         package_versions_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh packages'
 
 
-testing_in_podman_task:
+'cirrus-ci/required/in_podman_task':
+
+    # see bors.toml
+    skip: >-
+        $CIRRUS_BRANCH == "staging.tmp" ||
+        $CIRRUS_BRANCH == "trying.tmp"
 
     depends_on:
-        - gate
-        - vendor
+        - 'cirrus-ci/only_prs/gate'
+        - 'cirrus-ci/only_prs/vendor'
 
     env:
         # This is key, it causes the scripts to re-execute themselves inside a container.

@@ -25,6 +25,7 @@ UBUNTU_PACKAGES="
     podman
     netcat
     rsync
+    runc
     scons
     vim
     wget
@@ -91,10 +92,26 @@ case "$OS_REL_VER" in
             timeout_attempt_delay_command 30 2 30 \
                 add-apt-repository --yes $ppa
         done
+        echo "Configuring/Instaling deps from Open build server"
+        . /etc/os-release
+        echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/x${NAME}_${VERSION_ID}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+        showrun curl -L -o /tmp/Release.key "https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/x${NAME}_${VERSION_ID}/Release.key"
+        apt-key add - < /tmp/Release.key
         $SHORT_APTGET update
         $LONG_APTGET install \
             build-essential \
             $UBUNTU_PACKAGES
+        if [[ "$OS_RELEASE_VER" -le "19" ]]; then
+            echo "Replacing old/buggy version of bats with newer package"
+            # An IFS related bug in the stock bats version will causes failures in 'run'
+            # Use newer/static package from https://launchpad.net/bats/trunk
+            apt-get -qq remove --yes bats
+            cd /tmp
+            BATS_URL='http://launchpadlibrarian.net/438140887/bats_1.1.0+git104-g1c83a1b-1_all.deb'
+            curl -L -O "$BATS_URL"
+            apt-get -qq install --yes /tmp/$(basename $BATS_URL)
+            cd -
+        fi
         ;;
     *)
         bad_os_id_ver
@@ -104,11 +121,19 @@ esac
 # Previously, golang was not installed
 source $(dirname $0)/lib.sh
 
+X="export GPG_TTY=/dev/null"
+echo "Setting $X in /etc/environment for proper GPG functioning under automation"
+echo "$X" >> /etc/environment
+
+echo "Configuring /etc/containers/registries.conf"
+mkdir -p /etc/containers
+echo -e "[registries.search]\nregistries = ['docker.io', 'quay.io']" | tee /etc/containers/registries.conf
+
 show_env_vars
 
 if [[ -z "$CROSS_TARGET" ]]
 then
-    comment_out_storage_mountopt  # workaround issue 1945 (remove when resolved)
+    remove_storage_mountopt  # workaround issue 1945 (remove when resolved)
 
     execute_local_registry  # checks for existing port 5000 listener
 

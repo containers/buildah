@@ -59,6 +59,10 @@ OS_RELEASE_VER="$(source /etc/os-release; echo $VERSION_ID | cut -d '.' -f 1)"
 # Combined to ease soe usage
 OS_REL_VER="${OS_RELEASE_ID}-${OS_RELEASE_VER}"
 
+# FQINs needed for testing
+REGISTRY_FQIN=${REGISTRY_FQIN:-docker.io/library/registry}
+ALPINE_FQIN=${ALPINE_FQIN:-docker.io/library/alpine}
+
 # for in-container testing
 IN_PODMAN_IMAGE="$OS_RELEASE_ID:$OS_RELEASE_VER"
 IN_PODMAN_NAME="in_podman_$CIRRUS_TASK_ID"
@@ -171,12 +175,21 @@ showrun() {
     "$@"
 }
 
-comment_out_storage_mountopt() {
+# workaround issue 1945 (remove when resolved)
+remove_storage_mountopt() {
     local FILEPATH=/etc/containers/storage.conf
     echo ">>>>>"
-    echo ">>>>> Warning: comment_out_storage_mountopt() is modifying $FILEPATH"
+    echo ">>>>> Warning: remove_storage_mountopt() is overwriting $FILEPATH"
     echo ">>>>>"
-    sed -i -r -e 's/^(mountopt = .+)/#\1/' $FILEPATH
+    # This file normally comes from containers-common package
+    cat <<EOF> $FILEPATH
+[storage]
+runroot = "/var/run/containers/storage"
+graphroot = "/var/lib/containers/storage"
+[storage.options]
+mountopt = ""
+EOF
+    cat $FILEPATH
 }
 
 in_podman() {
@@ -219,10 +232,35 @@ in_podman() {
                    "$@"
 }
 
+verify_local_registry(){
+    # On the unexpected/rare chance of a name-clash
+    local CUSTOM_FQIN=localhost:5000/my-alpine-$RANDOM
+    echo "Verifying local 'registry' container is operational"
+    showrun podman version
+    showrun podman info
+    showrun podman ps --all
+    showrun podman images
+    showrun ls -alF $HOME/auth
+    showrun podman pull $ALPINE_FQIN
+    showrun podman login localhost:5000 --username testuser --password testpassword
+    showrun podman tag $ALPINE_FQIN $CUSTOM_FQIN
+    showrun podman push --creds=testuser:testpassword $CUSTOM_FQIN
+    showrun podman ps --all
+    showrun podman images
+    showrun podman rmi $ALPINE_FQIN
+    showrun podman rmi $CUSTOM_FQIN
+    showrun podman pull --creds=testuser:testpassword $CUSTOM_FQIN
+    showrun podman ps --all
+    showrun podman images
+    echo "Success, local registry is working, cleaning up."
+    showrun podman rmi $CUSTOM_FQIN
+}
+
 execute_local_registry() {
     if nc -4 -z 127.0.0.1 5000
     then
         echo "Warning: Found listener on localhost:5000, NOT starting up local registry server."
+        verify_local_registry
         return 0
     fi
     req_env_var CONTAINER_RUNTIME GOSRC
@@ -246,7 +284,7 @@ execute_local_registry() {
     cp $authdirpath/domain.crt $certdirpath/localhost:5000/domain.crt
 
     echo "Creating http credentials file"
-    podman run --entrypoint htpasswd registry:2 \
+    podman run --entrypoint htpasswd $REGISTRY_FQIN \
         -Bbn testuser testpassword \
         > $authdirpath/htpasswd
 
@@ -258,25 +296,7 @@ execute_local_registry() {
         -e REGISTRY_AUTH_HTPASSWD_PATH=$authdirpath/htpasswd \
         -e REGISTRY_HTTP_TLS_CERTIFICATE=$authdirpath/domain.crt \
         -e REGISTRY_HTTP_TLS_KEY=$authdirpath/domain.key \
-        registry:2
+        $REGISTRY_FQIN
 
-    echo "Verifying local 'registry' container is operational"
-    showrun podman version
-    showrun podman info
-    showrun podman ps --all
-    showrun podman images
-    showrun ls -alF $HOME/auth
-    showrun podman pull alpine
-    showrun podman login localhost:5000 --username testuser --password testpassword
-    showrun podman tag alpine localhost:5000/my-alpine
-    showrun podman push --creds=testuser:testpassword localhost:5000/my-alpine
-    showrun podman ps --all
-    showrun podman images
-    showrun podman rmi docker.io/alpine
-    showrun podman rmi localhost:5000/my-alpine
-    showrun podman pull --creds=testuser:testpassword localhost:5000/my-alpine
-    showrun podman ps --all
-    showrun podman images
-    echo "Success, cleaning up."
-    showrun podman rmi localhost:5000/my-alpine
+    verify_local_registry
 }
