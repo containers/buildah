@@ -73,11 +73,11 @@ func TestAddRlimits(t *testing.T) {
 		},
 	}
 
-	for _, te := range tt {
+	for _, tst := range tt {
 		g, _ := generate.New("linux")
-		err := addRlimits(te.ulimit, &g)
-		if testErr := te.test(err, &g); testErr != nil {
-			t.Errorf("test %#v failed: %v", te.name, testErr)
+		err := addRlimits(tst.ulimit, &g)
+		if testErr := tst.test(err, &g); testErr != nil {
+			t.Errorf("test %#v failed: %v", tst.name, testErr)
 		}
 	}
 }

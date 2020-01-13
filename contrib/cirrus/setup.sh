@@ -2,7 +2,7 @@
 
 set -e
 
-# N/B: Most development-related packages are pulled in automaticly by
+# N/B: Most development-related packages are pulled in automatically by
 #      'build-essential' (on ubuntu), for Feodra the groups
 #      '@C Development Tools and Libraries' and '@Development Tools'
 #      are similar.
