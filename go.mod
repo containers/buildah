@@ -30,7 +30,7 @@ require (
 	github.com/opencontainers/selinux v1.3.0
 	github.com/openshift/api v0.0.0-20200106203948-7ab22a2c8316
 	github.com/openshift/imagebuilder v1.1.1
-	github.com/pkg/errors v0.8.1
+	github.com/pkg/errors v0.9.0
 	github.com/seccomp/containers-golang v0.0.0-20180629143253-cdfdaa7543f4
 	github.com/seccomp/libseccomp-golang v0.9.1
 	github.com/sirupsen/logrus v1.4.2
