@@ -8,6 +8,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/pkg/umask"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/image/v5/image"
 	is "github.com/containers/image/v5/storage"
@@ -20,7 +21,12 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var needToShutdownStore = false
+var (
+	// defaultContainerConfig structure defines the default container
+	// configuration, including customizations made in containers.conf
+	defaultContainerConfig = getDefaultConfig()
+	needToShutdownStore    = false
+)
 
 func getStore(c *cobra.Command) (storage.Store, error) {
 	options, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
@@ -423,4 +429,14 @@ Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
 {{end}}
 `
+}
+
+func getDefaultConfig() *config.Config {
+	var err error
+	conf, err := config.NewConfig("")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading container config %v\n", err)
+		os.Exit(1)
+	}
+	return conf
 }

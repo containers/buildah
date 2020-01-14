@@ -126,6 +126,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	}
 
 	options := buildah.RunOptions{
+		Env:              defaultContainerConfig.Containers.Env,
 		Hostname:         iopts.hostname,
 		Runtime:          iopts.runtime,
 		Args:             runtimeFlags,

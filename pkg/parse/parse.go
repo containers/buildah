@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	"github.com/containers/buildah"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
 	units "github.com/docker/go-units"
@@ -43,7 +44,7 @@ var (
 )
 
 // CommonBuildOptions parses the build options from the bud cli
-func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
+func CommonBuildOptions(c *cobra.Command, defaultConfig *config.Config) (*buildah.CommonBuildOptions, error) {
 	var (
 		memoryLimit int64
 		memorySwap  int64
@@ -80,6 +81,7 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 
 	noDNS = false
 	dnsServers, _ := c.Flags().GetStringSlice("dns")
+	dnsServers = append(defaultConfig.Containers.DNSServers, dnsServers...)
 	for _, server := range dnsServers {
 		if strings.ToLower(server) == "none" {
 			noDNS = true
@@ -90,11 +92,13 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 	}
 
 	dnsSearch, _ := c.Flags().GetStringSlice("dns-search")
+	dnsSearch = append(defaultConfig.Containers.DNSSearches, dnsSearch...)
 	if noDNS && len(dnsSearch) > 0 {
 		return nil, errors.Errorf("invalid --dns-search, --dns-search may not be used with --dns=none")
 	}
 
 	dnsOptions, _ := c.Flags().GetStringSlice("dns-option")
+	dnsOptions = append(defaultConfig.Containers.DNSOptions, dnsOptions...)
 	if noDNS && len(dnsOptions) > 0 {
 		return nil, errors.Errorf("invalid --dns-option, --dns-option may not be used with --dns=none")
 	}
@@ -111,6 +115,8 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 	cpuShares, _ := c.Flags().GetUint64("cpu-shares")
 	httpProxy, _ := c.Flags().GetBool("http-proxy")
 	ulimit, _ := c.Flags().GetStringSlice("ulimit")
+	ulimit = append(defaultConfig.Containers.DefaultUlimits, ulimit...)
+
 	commonOpts := &buildah.CommonBuildOptions{
 		AddHost:      addHost,
 		CgroupParent: c.Flag("cgroup-parent").Value.String(),
