@@ -69,7 +69,7 @@ func init() {
 	budFlags.StringVar(&budFlagResults.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
 
 	layerFlags := buildahcli.GetLayerFlags(&layerFlagsResults)
-	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
+	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults, defaultContainerConfig)
 
 	flags.AddFlagSet(&budFlags)
 	flags.AddFlagSet(&layerFlags)
@@ -224,7 +224,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
-	commonOpts, err := parse.CommonBuildOptions(c)
+	commonOpts, err := parse.CommonBuildOptions(c, defaultContainerConfig)
 	if err != nil {
 		return err
 	}
@@ -281,7 +281,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 
 	defaultsMountFile, _ := c.PersistentFlags().GetString("defaults-mount-file")
 	transientMounts := []imagebuildah.Mount{}
-	for _, volume := range iopts.Volumes {
+	for _, volume := range append(defaultContainerConfig.Containers.AdditionalVolumes, iopts.Volumes...) {
 		mount, err := parse.Volume(volume)
 		if err != nil {
 			return err
@@ -291,13 +291,15 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 	}
 
 	devices := []configs.Device{}
-	for _, device := range iopts.Devices {
+	for _, device := range append(defaultContainerConfig.Containers.AdditionalDevices, iopts.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {
 			return err
 		}
 		devices = append(devices, dev...)
 	}
+
+	capabilities := defaultContainerConfig.Capabilities("", iopts.CapAdd, iopts.CapDrop)
 
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:        contextDir,
@@ -322,8 +324,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		CNIPluginPath:           iopts.CNIPlugInPath,
 		CNIConfigDir:            iopts.CNIConfigDir,
 		IDMappingOptions:        idmappingOptions,
-		AddCapabilities:         iopts.CapAdd,
-		DropCapabilities:        iopts.CapDrop,
+		Capabilities:            capabilities,
 		CommonBuildOpts:         commonOpts,
 		DefaultMountsFilePath:   defaultsMountFile,
 		IIDFile:                 iopts.Iidfile,
@@ -338,6 +339,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		Target:                  iopts.Target,
 		TransientMounts:         transientMounts,
 		Devices:                 devices,
+		DefaultEnv:              defaultContainerConfig.GetDefaultEnv(),
 	}
 
 	if iopts.Quiet {

@@ -5,11 +5,12 @@ go 1.12
 require (
 	github.com/blang/semver v3.5.0+incompatible // indirect
 	github.com/containernetworking/cni v0.7.1
-	github.com/containers/common v0.0.7
+	github.com/containers/common v0.0.8-0.20200108114752-d87ce6ce296b
 	github.com/containers/image/v5 v5.1.0
 	github.com/containers/storage v1.15.5
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/docker v1.4.2-0.20191101170500-ac7306503d23
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316

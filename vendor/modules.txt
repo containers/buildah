@@ -48,8 +48,10 @@ github.com/containernetworking/cni/pkg/types
 github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.0.7
+# github.com/containers/common v0.0.8-0.20200108114752-d87ce6ce296b
+github.com/containers/common/pkg/caps
 github.com/containers/common/pkg/cgroups
+github.com/containers/common/pkg/config
 github.com/containers/common/pkg/unshare
 # github.com/containers/image/v5 v5.1.0
 github.com/containers/image/v5/copy
@@ -178,6 +180,7 @@ github.com/docker/docker/api/types/versions
 github.com/docker/docker/api/types/volume
 github.com/docker/docker/client
 github.com/docker/docker/errdefs
+github.com/docker/docker/oci/caps
 github.com/docker/docker/pkg/archive
 github.com/docker/docker/pkg/fileutils
 github.com/docker/docker/pkg/homedir

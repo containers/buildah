@@ -78,7 +78,7 @@ func init() {
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 
 	// Add in the common flags
-	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
+	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults, defaultContainerConfig)
 	flags.AddFlagSet(&fromAndBudFlags)
 
 	rootCmd.AddCommand(fromCommand)
@@ -179,7 +179,6 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if err := buildahcli.CheckAuthFile(iopts.authfile); err != nil {
 		return err
 	}
-
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
@@ -218,7 +217,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return err
 	}
 
-	commonOpts, err := parse.CommonBuildOptions(c)
+	commonOpts, err := parse.CommonBuildOptions(c, defaultContainerConfig)
 	if err != nil {
 		return err
 	}
@@ -244,7 +243,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	}
 
 	devices := []configs.Device{}
-	for _, device := range iopts.Devices {
+	for _, device := range append(defaultContainerConfig.Containers.AdditionalDevices, iopts.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {
 			return err
@@ -252,6 +251,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		devices = append(devices, dev...)
 	}
 
+	capabilities := defaultContainerConfig.Capabilities("", iopts.CapAdd, iopts.CapDrop)
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
 		Container:             iopts.name,
@@ -265,12 +265,12 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		CNIPluginPath:         iopts.CNIPlugInPath,
 		CNIConfigDir:          iopts.CNIConfigDir,
 		IDMappingOptions:      idmappingOptions,
-		AddCapabilities:       iopts.CapAdd,
-		DropCapabilities:      iopts.CapDrop,
+		Capabilities:          capabilities,
 		CommonBuildOpts:       commonOpts,
 		Format:                format,
 		BlobDirectory:         iopts.BlobCache,
 		Devices:               devices,
+		DefaultEnv:            defaultContainerConfig.GetDefaultEnv(),
 	}
 
 	if !iopts.quiet {
