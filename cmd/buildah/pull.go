@@ -12,22 +12,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type pullResults struct {
-	allTags         bool
-	authfile        string
-	blobCache       string
-	certDir         string
-	creds           string
-	overrideArch    string
-	overrideOS      string
-	signaturePolicy string
-	quiet           bool
-	tlsVerify       bool
+type pullOptions struct {
+	allTags          bool
+	authfile         string
+	blobCache        string
+	certDir          string
+	creds            string
+	overrideArch     string
+	overrideOS       string
+	signaturePolicy  string
+	quiet            bool
+	removeSignatures bool
+	tlsVerify        bool
 }
 
 func init() {
 	var (
-		opts pullResults
+		opts pullOptions
 
 		pullDescription = `  Pulls an image from a registry and stores it locally.
   An image can be pulled using its tag or digest. If a tag is not
@@ -54,6 +55,7 @@ func init() {
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "store copies of pulled image blobs in the specified directory")
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
+	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pulling image")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
@@ -75,7 +77,7 @@ func init() {
 	rootCmd.AddCommand(pullCommand)
 }
 
-func pullCmd(c *cobra.Command, args []string, iopts pullResults) error {
+func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 	if len(args) == 0 {
 		return errors.Errorf("an image name must be specified")
 	}
@@ -106,6 +108,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullResults) error {
 		BlobDirectory:       iopts.blobCache,
 		AllTags:             iopts.allTags,
 		ReportWriter:        os.Stderr,
+		RemoveSignatures:    iopts.removeSignatures,
 	}
 
 	if iopts.quiet {

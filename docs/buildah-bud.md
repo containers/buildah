@@ -414,6 +414,10 @@ Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater tha
 Unit is optional and can be `b` (bytes), `k` (kilobytes), `m`(megabytes), or `g` (gigabytes).
 If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
 
+**--sign-by** *fingerprint*
+
+Sign the built image using the GPG key that matches the specified fingerprint.
+
 **--squash**
 
 Squash all of the new image's layers (including those inherited from a base image) into a single new layer.

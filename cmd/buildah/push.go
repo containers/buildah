@@ -20,7 +20,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type pushResults struct {
+type pushOptions struct {
 	authfile           string
 	blobCache          string
 	certDir            string
@@ -29,13 +29,15 @@ type pushResults struct {
 	disableCompression bool
 	format             string
 	quiet              bool
+	removeSignatures   bool
 	signaturePolicy    string
+	signBy             string
 	tlsVerify          bool
 }
 
 func init() {
 	var (
-		opts            pushResults
+		opts            pushOptions
 		pushDescription = fmt.Sprintf(`
   Pushes an image to a specified location.
 
@@ -71,6 +73,8 @@ func init() {
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", false, "don't compress layers")
 	flags.StringVarP(&opts.format, "format", "f", "", "manifest type (oci, v2s1, or v2s2) to use when saving image using the 'dir:' transport (default is manifest type of source)")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pushing images")
+	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing image")
+	flags.StringVar(&opts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
@@ -83,7 +87,7 @@ func init() {
 	rootCmd.AddCommand(pushCommand)
 }
 
-func pushCmd(c *cobra.Command, args []string, iopts pushResults) error {
+func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	var src, destSpec string
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
@@ -167,6 +171,8 @@ func pushCmd(c *cobra.Command, args []string, iopts pushResults) error {
 		Store:               store,
 		SystemContext:       systemContext,
 		BlobDirectory:       iopts.blobCache,
+		RemoveSignatures:    iopts.removeSignatures,
+		SignBy:              iopts.signBy,
 	}
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr

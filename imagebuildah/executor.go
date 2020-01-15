@@ -93,6 +93,7 @@ type Executor struct {
 	buildArgs                      map[string]string
 	capabilities                   []string
 	devices                        []configs.Device
+	signBy                         string
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
@@ -149,6 +150,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		buildArgs:                      options.Args,
 		capabilities:                   options.Capabilities,
 		devices:                        options.Devices,
+		signBy:                         options.SignBy,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
