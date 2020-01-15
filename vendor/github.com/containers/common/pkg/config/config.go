@@ -350,7 +350,7 @@ type NetworkConfig struct {
 // might change in the future.
 func NewConfig(userConfigPath string) (*Config, error) {
 
-	// Genereate the default config for the system
+	// Generate the default config for the system
 	config, err := DefaultConfig()
 	if err != nil {
 		return nil, err
@@ -361,7 +361,7 @@ func NewConfig(userConfigPath string) (*Config, error) {
 	if userConfigPath != "" {
 		var err error
 		// ReadConfigFromFile reads in container config in the specified
-		// file and then merge changes with the current defauls.
+		// file and then merge changes with the current default.
 		config, err = ReadConfigFromFile(userConfigPath, config)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error reading user config %q", userConfigPath)
@@ -395,9 +395,9 @@ func NewConfig(userConfigPath string) (*Config, error) {
 }
 
 // ReadConfigFromFile reads the specified config file at `path` and attempts to
-// unmarshal its content into a Config. The config param specifies the previos
+// unmarshal its content into a Config. The config param specifies the previous
 // default config.  If the path, only specifies a few fields in the Toml file
-// the defaults from the config paramater will be used for all other fields.
+// the defaults from the config parameter will be used for all other fields.
 func ReadConfigFromFile(path string, config *Config) (*Config, error) {
 	logrus.Debugf("Reading configuration file %q", path)
 	_, err := toml.DecodeFile(path, config)
