@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"syscall"
 
-	"github.com/containers/common/pkg/cgroups"
 	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage"
 	"github.com/pkg/errors"
@@ -113,6 +113,22 @@ const (
 	SeccompDefaultPath = _installPrefix + "/share/containers/seccomp.json"
 )
 
+const (
+	cgroupRoot         = "/sys/fs/cgroup"
+	_cgroup2SuperMagic = 0x63677270
+)
+
+// isCgroup2UnifiedMode returns whether we are running in cgroup 2 cgroup2 mode.
+func isCgroup2UnifiedMode() (isUnified bool, isUnifiedErr error) {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(cgroupRoot, &st); err != nil {
+		isUnified, isUnifiedErr = false, err
+	} else {
+		isUnified, isUnifiedErr = st.Type == _cgroup2SuperMagic, nil
+	}
+	return
+}
+
 // DefaultConfig defines the default values from containers.conf
 func DefaultConfig() (*Config, error) {
 
@@ -207,7 +223,7 @@ func defaultConfigFromMemory() (*LibpodConfig, error) {
 
 	c.OCIRuntime = "runc"
 	// If we're running on cgroups v2, default to using crun.
-	if onCgroupsv2, _ := cgroups.IsCgroup2UnifiedMode(); onCgroupsv2 {
+	if onCgroupsv2, _ := isCgroup2UnifiedMode(); onCgroupsv2 {
 		c.OCIRuntime = "crun"
 	}
 
