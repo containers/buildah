@@ -70,6 +70,7 @@ type BudResults struct {
 	Runtime             string
 	RuntimeFlags        []string
 	SignaturePolicy     string
+	SignBy              string
 	Squash              bool
 	Tag                 []string
 	Target              string
@@ -168,8 +169,9 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.BoolVar(&flags.Rm, "rm", true, "Remove intermediate containers after a successful build")
 	// "runtime" definition moved to avoid name collision in podman build.  Defined in cmd/buildah/bud.go.
 	fs.StringSliceVar(&flags.RuntimeFlags, "runtime-flag", []string{}, "add global flags for the container runtime")
+	fs.StringVar(&flags.SignBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 	fs.StringVar(&flags.SignaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
-	fs.BoolVar(&flags.Squash, "squash", false, "Squash newly built layers into a single new layer.")
+	fs.BoolVar(&flags.Squash, "squash", false, "squash newly built layers into a single new layer")
 	fs.StringArrayVarP(&flags.Tag, "tag", "t", []string{}, "tagged `name` to apply to the built image")
 	fs.StringVar(&flags.Target, "target", "", "set the target build stage to build")
 	fs.BoolVar(&flags.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")

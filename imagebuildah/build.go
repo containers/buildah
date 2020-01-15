@@ -152,12 +152,14 @@ type BuildOptions struct {
 	ForceRmIntermediateCtrs bool
 	// BlobDirectory is a directory which we'll use for caching layer blobs.
 	BlobDirectory string
-	// Target the targeted FROM in the Dockerfile to build
+	// Target the targeted FROM in the Dockerfile to build.
 	Target string
-	// Devices are the additional devices to add to the containers
+	// Devices are the additional devices to add to the containers.
 	Devices []configs.Device
-	//DefaultEnv for containers
+	// DefaultEnv for containers.
 	DefaultEnv []string
+	// SignBy is the fingerprint of a GPG key to use for signing images.
+	SignBy string
 }
 
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be

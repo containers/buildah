@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type budResults struct {
+type budOptions struct {
 	*buildahcli.LayerResults
 	*buildahcli.BudResults
 	*buildahcli.UserNSResults
@@ -45,7 +45,7 @@ func init() {
 		Long:    budDescription,
 		//Flags:                  sortFlags(append(append(buildahcli.BudFlags, buildahcli.LayerFlags...), buildahcli.FromAndBudFlags...)),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			br := budResults{
+			br := budOptions{
 				&layerFlagsResults,
 				&budFlagResults,
 				&userNSResults,
@@ -90,7 +90,7 @@ func getDockerfiles(files []string) []string {
 	return dockerfiles
 }
 
-func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
+func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 	output := ""
 	tags := []string{}
 	if c.Flag("tag").Changed {
@@ -340,6 +340,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budResults) error {
 		TransientMounts:         transientMounts,
 		Devices:                 devices,
 		DefaultEnv:              defaultContainerConfig.GetDefaultEnv(),
+		SignBy:                  iopts.SignBy,
 	}
 
 	if iopts.Quiet {

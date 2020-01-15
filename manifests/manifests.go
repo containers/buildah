@@ -53,6 +53,8 @@ type PushOptions struct {
 	ImageListSelection cp.ImageListSelection // set to either CopySystemImage, CopyAllImages, or CopySpecificImages
 	Instances          []digest.Digest       // instances to copy if ImageListSelection == CopySpecificImages
 	ReportWriter       io.Writer             // will be used to log the writing of the list and any blobs
+	SignBy             string                // fingerprint of GPG key to use to sign images
+	RemoveSignatures   bool                  // true to discard signatures in images
 }
 
 // Create creates a new list containing information about the specified image,
@@ -211,6 +213,8 @@ func (l *list) Push(ctx context.Context, dest types.ImageReference, options Push
 		SourceCtx:          options.SystemContext,
 		DestinationCtx:     options.SystemContext,
 		ReportWriter:       options.ReportWriter,
+		RemoveSignatures:   options.RemoveSignatures,
+		SignBy:             options.SignBy,
 	}
 
 	// Copy whatever we were asked to copy.

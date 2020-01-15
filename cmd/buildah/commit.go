@@ -31,6 +31,7 @@ type commitInputOptions struct {
 	referenceTime      string
 	rm                 bool
 	signaturePolicy    string
+	signBy             string
 	squash             bool
 	tlsVerify          bool
 }
@@ -70,6 +71,7 @@ func init() {
 	flags.BoolVar(&opts.omitTimestamp, "omit-timestamp", false, "set created timestamp to epoch 0 to allow for deterministic builds")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when writing images")
 	flags.StringVar(&opts.referenceTime, "reference-time", "", "set the timestamp on the image to match the named `file`")
+	flags.StringVar(&opts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 
 	if err := flags.MarkHidden("reference-time"); err != nil {
 		panic(fmt.Sprintf("error marking reference-time as hidden: %v", err))
@@ -175,6 +177,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		Squash:                iopts.squash,
 		BlobDirectory:         iopts.blobCache,
 		OmitTimestamp:         iopts.omitTimestamp,
+		SignBy:                iopts.signBy,
 	}
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr

@@ -1,4 +1,4 @@
-# buildah-push"1" "June 2017" "buildah"
+# buildah-push "1" "June 2017" "buildah"
 
 ## NAME
 buildah\-push - Push an image from local storage to elsewhere.
@@ -73,6 +73,14 @@ Manifest Type (oci, v2s1, or v2s2) to use when saving image to directory using t
 **--quiet, -q**
 
 When writing the output image, suppress progress output.
+
+**--remove-signatures**
+
+Don't copy signatures when pushing images.
+
+**--sign-by** *fingerprint*
+
+Sign the pushed image using the GPG key that matches the specified fingerprint.
 
 **--tls-verify** *bool-value*
 

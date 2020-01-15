@@ -326,6 +326,7 @@ return 1
           --format
           -f
           --iidfile
+          --sign-by
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -415,6 +416,7 @@ return 1
      --runtime-flag
      --security-opt
      --shm-size
+     --sign-by
      -t
      --tag
      --target
@@ -577,6 +579,7 @@ return 1
      --quiet
      -q
      --tls-verify
+     --remove-signatures
   "
 
      local options_with_args="
@@ -603,6 +606,7 @@ return 1
           --quiet
           -q
           --tls-verify
+          --remove-signatures
   "
 
      local options_with_args="
@@ -611,6 +615,7 @@ return 1
           --creds
           --format
           -f
+          --sign-by
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -810,6 +815,7 @@ return 1
      --help
      -h
      --all
+     --remove-signatures
   "
 
      local options_with_args="
@@ -818,6 +824,7 @@ return 1
      --creds
      --digestfile
      --purge
+     --sign-by
      --tls-verify
   "
 

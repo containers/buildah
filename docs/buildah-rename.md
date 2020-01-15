@@ -1,4 +1,4 @@
-# buildah-rename "9" "July 2018" "buildah"
+# buildah-rename "1" "July 2018" "buildah"
 
 ## NAME
 buildah\-rename - Rename a local container.

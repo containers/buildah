@@ -66,6 +66,10 @@ value can be entered.  The password is entered without echo.
 
 If an image needs to be pulled from the registry, suppress progress output.
 
+**--remove-signatures**
+
+Don't copy signatures when pulling images.
+
 **--shm-size**=""
 
 Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.

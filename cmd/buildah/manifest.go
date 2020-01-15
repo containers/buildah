@@ -38,8 +38,8 @@ type manifestAnnotateOpts = struct {
 }
 type manifestInspectOpts = struct{}
 type manifestPushOpts = struct {
-	purge, quiet, all, tlsVerify                          bool
-	authfile, certDir, creds, digestfile, signaturePolicy string
+	purge, quiet, all, tlsVerify, removeSignatures                bool
+	authfile, certDir, creds, digestfile, signaturePolicy, signBy string
 }
 
 func init() {
@@ -194,6 +194,8 @@ func init() {
 	flags.StringVar(&manifestPushOpts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&manifestPushOpts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVar(&manifestPushOpts.digestfile, "digestfile", "", "after copying the image, write the digest of the resulting digest to the file")
+	flags.BoolVarP(&manifestPushOpts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing images")
+	flags.StringVar(&manifestPushOpts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 	flags.StringVar(&manifestPushOpts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
@@ -642,6 +644,8 @@ func manifestPushCmd(c *cobra.Command, args []string, opts manifestPushOpts) err
 		SystemContext:      systemContext,
 		ImageListSelection: cp.CopySpecificImages,
 		Instances:          nil,
+		RemoveSignatures:   opts.removeSignatures,
+		SignBy:             opts.signBy,
 	}
 	if opts.all {
 		options.ImageListSelection = cp.CopyAllImages

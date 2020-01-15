@@ -64,6 +64,10 @@ When writing the output image, suppress progress output.
 Remove the container and its content after committing it to an image.
 Default leaves the container and its content in place.
 
+**--sign-by** *fingerprint*
+
+Sign the new image using the GPG key that matches the specified fingerprint.
+
 **--squash**
 
 Squash all of the new image's layers (including those inherited from a base image) into a single new layer.
