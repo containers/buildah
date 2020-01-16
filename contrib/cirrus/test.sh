@@ -25,9 +25,8 @@ then
             export TRAVIS=true
             export GITVALIDATE_EPOCH="$CIRRUS_BASE_SHA"
             export GITVALIDATE_TIP="$CIRRUS_CHANGE_IN_REPO"
-            # The big 'Golint: can't lint 3 files...' warning puke, harmless and fixed in v1.20.0
-            showrun make lint
             # TODO: This will fail if PR HEAD != upstream branch head
+            showrun make lint LINTFLAGS="--deadline 20m --color=always --verbose"
             showrun make validate
             ;;
         unit)
