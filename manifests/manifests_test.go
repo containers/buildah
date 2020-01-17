@@ -19,11 +19,15 @@ import (
 )
 
 var (
-	_        List = &list{}
-	sys           = &types.SystemContext{}
-	amd64sys      = &types.SystemContext{ArchitectureChoice: "amd64"}
-	arm64sys      = &types.SystemContext{ArchitectureChoice: "arm64"}
-	ppc64sys      = &types.SystemContext{ArchitectureChoice: "ppc64le"}
+	_ List = &list{}
+
+	sys = &types.SystemContext{
+		SystemRegistriesConfPath: "../tests/registries.conf",
+		SignaturePolicyPath:      "../tests/policy.json",
+	}
+	amd64sys = &types.SystemContext{ArchitectureChoice: "amd64"}
+	arm64sys = &types.SystemContext{ArchitectureChoice: "arm64"}
+	ppc64sys = &types.SystemContext{ArchitectureChoice: "ppc64le"}
 )
 
 const (
@@ -49,6 +53,9 @@ func TestSaveLoad(t *testing.T) {
 	}
 	store, err := storage.GetStore(storeOptions)
 	assert.Nilf(t, err, "error opening store")
+	if store == nil {
+		return
+	}
 	defer func() {
 		if _, err := store.Shutdown(true); err != nil {
 			assert.Nilf(t, err, "error closing store")
@@ -154,6 +161,9 @@ func TestReference(t *testing.T) {
 	}
 	store, err := storage.GetStore(storeOptions)
 	assert.Nilf(t, err, "error opening store")
+	if store == nil {
+		return
+	}
 	defer func() {
 		if _, err := store.Shutdown(true); err != nil {
 			assert.Nilf(t, err, "error closing store")
@@ -248,6 +258,9 @@ func TestPush(t *testing.T) {
 	}
 	store, err := storage.GetStore(storeOptions)
 	assert.Nilf(t, err, "error opening store")
+	if store == nil {
+		return
+	}
 	defer func() {
 		if _, err := store.Shutdown(true); err != nil {
 			assert.Nilf(t, err, "error closing store")
