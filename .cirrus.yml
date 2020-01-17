@@ -58,6 +58,13 @@ testing_task:
             image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
             image_name: "${PRIOR_UBUNTU_CACHE_IMAGE_NAME}"
 
+    env:
+        STORAGE_DRIVER: vfs
+        matrix:
+            BUILDAH_ISOLATION: oci
+            BUILDAH_ISOLATION: rootless
+            BUILDAH_ISOLATION: chroot
+
     # Separate scripts for separate outputs, makes debugging easier.
     setup_script: '${CIRRUS_WORKING_DIR}/${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     build_and_test_script: '${CIRRUS_WORKING_DIR}/${SCRIPT_BASE}/build_and_test.sh |& ${_TIMESTAMP}'

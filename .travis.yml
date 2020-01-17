@@ -89,7 +89,11 @@ script:
     # Setting up  Docker Registry is complete, let's do Buildah testing!
     - make install.tools -j4
     - make install.libseccomp.sudo all runc validate lint SECURITYTAGS="apparmor seccomp"
-    - go test -c -tags "apparmor seccomp `./btrfs_tag.sh` `./libdm_tag.sh` `./selinux_tag.sh`" ./cmd/buildah
-    - tmp=`mktemp -d`; mkdir $tmp/root $tmp/runroot; sudo PATH="$PATH" ./buildah.test -test.v --root $tmp/root --runroot $tmp/runroot --storage-driver vfs --signature-policy `pwd`/tests/policy.json --registries-conf `pwd`/tests/registries.conf
+    - go test -c -covermode atomic -tags "apparmor seccomp `./btrfs_tag.sh` `./libdm_tag.sh` `./selinux_tag.sh`" ./cmd/buildah
+    - tmp=`mktemp -d`; mkdir $tmp/root $tmp/runroot; sudo PATH="$PATH" ./buildah.test -test.v -test.coverprofile=cmd/buildah/coverage.txt --root $tmp/root --runroot $tmp/runroot --storage-driver vfs --signature-policy `pwd`/tests/policy.json --registries-conf `pwd`/tests/registries.conf
+    - GO=$(go env GOROOT)/bin/go
+    - sudo PATH="$PATH" $GO test -v -covermode atomic -tags "apparmor seccomp `./btrfs_tag.sh` `./libdm_tag.sh` `./selinux_tag.sh`" .  ./manifests ./pkg/blobcache ./pkg/formats ./pkg/manifests ./pkg/parse ./pkg/supplemented
     - cd tests; sudo PATH="$PATH" ./test_runner.sh
-    - cd ..
+
+after_success:
+    - curl -o codecov.sh https://codecov.io/bash && bash ./codecov.sh
