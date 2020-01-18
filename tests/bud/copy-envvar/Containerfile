@@ -1,0 +1,3 @@
+FROM alpine 
+ENV VERSION=0.0.1
+COPY file-${VERSION}.txt /

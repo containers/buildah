@@ -1738,3 +1738,15 @@ EOM
   expect_line_count 1
   expect_output --substring '^[0-9a-f]{64}$'
 }
+
+@test "bud COPY with Env Var in Containerfile" {
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t testctr ${TESTSDIR}/bud/copy-envvar
+  run_buildah from testctr
+  run_buildah run testctr-working-container ls /file-0.0.1.txt
+  run_buildah rm -a
+
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t testctr ${TESTSDIR}/bud/copy-envvar
+  run_buildah from testctr
+  run_buildah run testctr-working-container ls /file-0.0.1.txt
+  run_buildah rm -a
+}
