@@ -1132,6 +1132,8 @@ func (s *StageExecutor) commit(ctx context.Context, ib *imagebuilder.Builder, cr
 	}
 	s.builder.SetHostname(config.Hostname)
 	s.builder.SetDomainname(config.Domainname)
+	s.builder.SetArchitecture(s.executor.architecture)
+	s.builder.SetOS(s.executor.os)
 	s.builder.SetUser(config.User)
 	s.builder.ClearPorts()
 	for p := range config.ExposedPorts {

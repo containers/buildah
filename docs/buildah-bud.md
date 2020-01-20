@@ -42,6 +42,10 @@ Add an image *annotation* (e.g. annotation=*value*) to the image metadata. Can b
 
 Note: this information is not present in Docker image formats, so it is discarded when writing images in Docker formats.
 
+**--arch**="ARCH"
+
+Set the ARCH instead of the architecture of the current machine in the image manifest and config.
+
 **--authfile** *path*
 
 Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `buildah login`.
@@ -327,6 +331,10 @@ another process.
 
 Do not use existing cached images for the container build. Build from the start with a new set of cached layers.
 
+**--os**="OS"
+
+Set the OS instead of the current operating system of the machine in the image manifest and config.
+
 **--pid** *how*
 
 Sets the configuration for PID namespaces when handling `RUN` instructions.
@@ -336,11 +344,11 @@ that the PID namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a PID namespace which is already in use by another
 process.
 
-**--platform**="Linux"
+**--platform**="OS/ARCH"
 
-This option has no effect on the build. Other container engines use this option
-to control the execution platform for the build (e.g., Windows, Linux) which is
-not required for Buildah as it supports only Linux.
+Set the OS/ARCH instead of the current operating system and architecture of the
+machine in the image manifest and config (for example `linux/arm`). If
+`--platform` is set, then the values of `--arch` and `--os` will be overwritten.
 
 **--pull**
 

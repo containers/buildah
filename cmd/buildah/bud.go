@@ -301,6 +301,11 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 
 	capabilities := defaultContainerConfig.Capabilities("", iopts.CapAdd, iopts.CapDrop)
 
+	os, arch, err := parse.PlatformFromOptions(c)
+	if err != nil {
+		return err
+	}
+
 	options := imagebuildah.BuildOptions{
 		ContextDirectory:        contextDir,
 		PullPolicy:              pullPolicy,
@@ -341,6 +346,8 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		Devices:                 devices,
 		DefaultEnv:              defaultContainerConfig.GetDefaultEnv(),
 		SignBy:                  iopts.SignBy,
+		Architecture:            arch,
+		OS:                      os,
 	}
 
 	if iopts.Quiet {

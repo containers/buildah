@@ -160,6 +160,10 @@ type BuildOptions struct {
 	DefaultEnv []string
 	// SignBy is the fingerprint of a GPG key to use for signing images.
 	SignBy string
+	// Architecture specifies the target architecture of the image to be built.
+	Architecture string
+	// OS is the specifies the operating system of the image to be built.
+	OS string
 }
 
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be

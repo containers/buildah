@@ -375,6 +375,7 @@ return 1
   "
 
      local options_with_args="
+     --arch
      --add-host
      --annotation
      --authfile
@@ -410,6 +411,7 @@ return 1
      --net
      --network
      --no-pivot
+     --os
      --pid
      --platform
      --runtime

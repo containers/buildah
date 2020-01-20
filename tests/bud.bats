@@ -1750,3 +1750,48 @@ EOM
   run_buildah run testctr-working-container ls /file-0.0.1.txt
   run_buildah rm -a
 }
+
+@test "bud with custom arch" {
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json \
+    -f ${TESTSDIR}/bud/from-scratch/Dockerfile \
+    -t arch-test \
+    --arch=arm
+
+  run_buildah inspect --format "{{ .Docker.Architecture }}" arch-test
+  expect_output arm
+
+  run_buildah inspect --format "{{ .OCIv1.Architecture }}" arch-test
+  expect_output arm
+}
+
+@test "bud with custom os" {
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json \
+    -f ${TESTSDIR}/bud/from-scratch/Dockerfile \
+    -t os-test \
+    --os=windows
+
+  run_buildah inspect --format "{{ .Docker.OS }}" os-test
+  expect_output windows
+
+  run_buildah inspect --format "{{ .OCIv1.OS }}" os-test
+  expect_output windows
+}
+
+@test "bud with custom platform" {
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json \
+    -f ${TESTSDIR}/bud/from-scratch/Dockerfile \
+    -t platform-test \
+    --platform=windows/arm
+
+  run_buildah inspect --format "{{ .Docker.OS }}" platform-test
+  expect_output windows
+
+  run_buildah inspect --format "{{ .OCIv1.OS }}" platform-test
+  expect_output windows
+
+  run_buildah inspect --format "{{ .Docker.Architecture }}" platform-test
+  expect_output arm
+
+  run_buildah inspect --format "{{ .OCIv1.Architecture }}" platform-test
+  expect_output arm
+}
