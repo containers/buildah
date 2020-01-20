@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"unicode"
@@ -604,6 +605,46 @@ func getAuthFile(authfile string) string {
 		return authfile
 	}
 	return os.Getenv("REGISTRY_AUTH_FILE")
+}
+
+// PlatformFromOptions parses the operating system (os) and architecture (arch)
+// from the provided command line options.
+func PlatformFromOptions(c *cobra.Command) (os, arch string, err error) {
+	os = runtime.GOOS
+	arch = runtime.GOARCH
+
+	if selectedOS, err := c.Flags().GetString("os"); err == nil && selectedOS != runtime.GOOS {
+		os = selectedOS
+	}
+	if selectedArch, err := c.Flags().GetString("arch"); err == nil && selectedArch != runtime.GOARCH {
+		arch = selectedArch
+	}
+
+	if pf, err := c.Flags().GetString("platform"); err == nil && pf != DefaultPlatform() {
+		selectedOS, selectedArch, err := parsePlatform(pf)
+		if err != nil {
+			return "", "", errors.Wrap(err, "unable to parse platform")
+		}
+		arch = selectedArch
+		os = selectedOS
+	}
+
+	return os, arch, nil
+}
+
+const platformSep = "/"
+
+// DefaultPlatform returns the standard platform for the current system
+func DefaultPlatform() string {
+	return runtime.GOOS + platformSep + runtime.GOARCH
+}
+
+func parsePlatform(platform string) (os, arch string, err error) {
+	split := strings.Split(platform, platformSep)
+	if len(split) != 2 {
+		return "", "", errors.Errorf("invalid platform syntax for %q (use OS/ARCH)", platform)
+	}
+	return split[0], split[1], nil
 }
 
 func parseCreds(creds string) (string, string) {

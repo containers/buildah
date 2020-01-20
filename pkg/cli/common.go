@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/config"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -46,6 +47,7 @@ type NameSpaceResults struct {
 // BudResults represents the results for Bud flags
 type BudResults struct {
 	Annotation          []string
+	Arch                string
 	Authfile            string
 	BuildArg            []string
 	CacheFrom           string
@@ -61,6 +63,7 @@ type BudResults struct {
 	Logfile             string
 	Loglevel            int
 	NoCache             bool
+	OS                  string
 	Platform            string
 	Pull                bool
 	PullAlways          bool
@@ -145,6 +148,7 @@ func GetLayerFlags(flags *LayerResults) pflag.FlagSet {
 // GetBudFlags returns common bud flags
 func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs := pflag.FlagSet{}
+	fs.StringVar(&flags.Arch, "arch", runtime.GOARCH, "set the ARCH instead of the architecture of the current machine in the image manifest and config")
 	fs.StringArrayVar(&flags.Annotation, "annotation", []string{}, "Set metadata for an image (default [])")
 	fs.StringVar(&flags.Authfile, "authfile", GetDefaultAuthFile(), "path of the authentication file.")
 	fs.StringArrayVar(&flags.BuildArg, "build-arg", []string{}, "`argument=value` to supply to the builder")
@@ -161,7 +165,8 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.BoolVar(&flags.NoCache, "no-cache", false, "Do not use existing cached images for the container build. Build from the start with a new set of cached layers.")
 	fs.StringVar(&flags.Logfile, "logfile", "", "log to `file` instead of stdout/stderr")
 	fs.IntVar(&flags.Loglevel, "loglevel", 0, "adjust logging level (range from -2 to 3)")
-	fs.StringVar(&flags.Platform, "platform", "", "CLI compatibility: no action or effect")
+	fs.StringVar(&flags.OS, "os", runtime.GOOS, "set the OS instead of the current operating system of the machine in the image manifest and config")
+	fs.StringVar(&flags.Platform, "platform", parse.DefaultPlatform(), "set the OS/ARCH instead of the current operating system and architecture of the machine in the image manifest and config (for example `linux/arm`)")
 	fs.BoolVar(&flags.Pull, "pull", true, "pull the image from the registry if newer or not present in store, if false, only pull the image if not present")
 	fs.BoolVar(&flags.PullAlways, "pull-always", false, "pull the image even if the named image is present in store")
 	fs.BoolVar(&flags.PullNever, "pull-never", false, "do not pull the image, use the image present in store if available")

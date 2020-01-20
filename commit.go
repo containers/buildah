@@ -300,6 +300,14 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	case archive.Gzip:
 		systemContext.DirForceCompress = true
 	}
+
+	if systemContext.ArchitectureChoice != b.Architecture() {
+		systemContext.ArchitectureChoice = b.Architecture()
+	}
+	if systemContext.OSChoice != b.OS() {
+		systemContext.OSChoice = b.OS()
+	}
+
 	var manifestBytes []byte
 	if manifestBytes, err = cp.Image(ctx, policyContext, maybeCachedDest, maybeCachedSrc, getCopyOptions(b.store, options.ReportWriter, nil, systemContext, "", false, options.SignBy)); err != nil {
 		return imgID, nil, "", errors.Wrapf(err, "error copying layers and metadata for container %q", b.ContainerID)
