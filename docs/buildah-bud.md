@@ -44,7 +44,7 @@ Note: this information is not present in Docker image formats, so it is discarde
 
 **--arch**="ARCH"
 
-Set the ARCH instead of the architecture of the current machine in the image manifest and config.
+Set the ARCH of the image to the provided value instead of using the architecture of the host.
 
 **--authfile** *path*
 
@@ -333,7 +333,7 @@ Do not use existing cached images for the container build. Build from the start 
 
 **--os**="OS"
 
-Set the OS instead of the current operating system of the machine in the image manifest and config.
+Set the OS of the image to the provided value instead of using the current operating system of the host.
 
 **--pid** *how*
 
@@ -346,9 +346,10 @@ process.
 
 **--platform**="OS/ARCH"
 
-Set the OS/ARCH instead of the current operating system and architecture of the
-machine in the image manifest and config (for example `linux/arm`). If
-`--platform` is set, then the values of `--arch` and `--os` will be overwritten.
+Set the OS/ARCH of the image to the provided value instead of using the current
+operating system and architecture of the host (for example `linux/arm`). If
+`--platform` is set, then the values of the `--arch` and `--os` options will be
+overridden.
 
 **--pull**
 
