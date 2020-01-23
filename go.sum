@@ -68,6 +68,8 @@ github.com/containers/common v0.0.8-0.20200108114752-d87ce6ce296b h1:G+DKyzrku0f
 github.com/containers/common v0.0.8-0.20200108114752-d87ce6ce296b/go.mod h1:ss8uGpUsaDE4DPmaVFOjzKrlgf5eUnSAWL+d/PYGaoM=
 github.com/containers/common v0.1.0 h1:RsAxx1yeepYhXXEasNpspi/nPC8KKP1AzzOgEuvfWXk=
 github.com/containers/common v0.1.0/go.mod h1:ss8uGpUsaDE4DPmaVFOjzKrlgf5eUnSAWL+d/PYGaoM=
+github.com/containers/common v0.1.2 h1:EYAgJsQgH3akh6kdlN4c2t09bqRgyzpxyWmlFTf1Igc=
+github.com/containers/common v0.1.2/go.mod h1:ss8uGpUsaDE4DPmaVFOjzKrlgf5eUnSAWL+d/PYGaoM=
 github.com/containers/image/v4 v4.0.1 h1:idNGHChj0Pyv3vLrxul2oSVMZLeFqpoq3CjLeVgapSQ=
 github.com/containers/image/v4 v4.0.1/go.mod h1:0ASJH1YgJiX/eqFZObqepgsvIA4XjCgpyfwn9pDGafA=
 github.com/containers/image/v5 v5.0.0 h1:arnXgbt1ucsC/ndtSpiQY87rA0UjhF+/xQnPzqdBDn4=
