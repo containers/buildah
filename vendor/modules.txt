@@ -48,7 +48,7 @@ github.com/containernetworking/cni/pkg/types
 github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.1.0
+# github.com/containers/common v0.1.2
 github.com/containers/common/pkg/caps
 github.com/containers/common/pkg/config
 github.com/containers/common/pkg/unshare
