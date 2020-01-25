@@ -203,3 +203,12 @@ load helpers
   test -f $newroot/link-randomfile
   cmp ${TESTDIR}/randomfile $newroot/link-randomfile
 }
+
+@test "copy-detect-missing-data" {
+  : > ${TESTDIR}/Dockerfile
+  echo FROM busybox AS builder                                >> ${TESTDIR}/Dockerfile
+  echo FROM scratch                                           >> ${TESTDIR}/Dockerfile
+  echo COPY --from=builder /bin/-no-such-file-error- /usr/bin >> ${TESTDIR}/Dockerfile
+  run_buildah 1 build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json ${TESTDIR}
+  expect_output --substring "no such file or directory"
+}
