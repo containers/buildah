@@ -1,0 +1,3 @@
+FROM alpine
+WORKDIR /
+ADD tarball_latest.tar.gz /tmp/

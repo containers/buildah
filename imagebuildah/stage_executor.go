@@ -453,6 +453,11 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 							Excludes:         copyExcludes,
 							IDMappingOptions: idMappingOptions,
 						}
+						// If we've a tar file, it will create a directory using the name of the tar
+						// file if we don't blank it out.
+						if strings.HasSuffix(srcName, ".tar") || strings.HasSuffix(srcName, ".gz") {
+							srcName = ""
+						}
 						if err := s.builder.Add(filepath.Join(copy.Dest, srcName), copy.Download, options, srcSecure); err != nil {
 							return err
 						}

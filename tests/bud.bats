@@ -1795,3 +1795,17 @@ EOM
   run_buildah inspect --format "{{ .OCIv1.Architecture }}" platform-test
   expect_output arm
 }
+
+@test "bud Add with linked tarball" {
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/symlink/Containerfile.add-tar-with-link -t testctr ${TESTSDIR}/bud/symlink
+  run_buildah from testctr
+  run_buildah run testctr-working-container ls /tmp/testdir/testfile.txt
+  run_buildah rm -a
+  run_buildah rmi -a -f
+
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/symlink/Containerfile.add-tar-gz-with-link -t testctr ${TESTSDIR}/bud/symlink
+  run_buildah from testctr
+  run_buildah run testctr-working-container ls /tmp/testdir/testfile.txt
+  run_buildah rm -a
+  run_buildah rmi -a -f
+}
