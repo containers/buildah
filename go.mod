@@ -19,7 +19,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/ishidawataru/sctp v0.0.0-20180918013207-6e2cb1366111 // indirect
-	github.com/mattn/go-shellwords v1.0.7
+	github.com/mattn/go-shellwords v1.0.9
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
@@ -28,7 +28,7 @@ require (
 	github.com/opencontainers/runc v1.0.0-rc9
 	github.com/opencontainers/runtime-spec v0.1.2-0.20190618234442-a950415649c7
 	github.com/opencontainers/runtime-tools v0.9.0
-	github.com/opencontainers/selinux v1.3.0
+	github.com/opencontainers/selinux v1.3.1
 	github.com/openshift/api v0.0.0-20200106203948-7ab22a2c8316
 	github.com/openshift/imagebuilder v1.1.1
 	github.com/pkg/errors v0.9.1
@@ -47,3 +47,5 @@ require (
 	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0 // indirect
 	k8s.io/client-go v0.0.0-20181219152756-3dd551c0f083 // indirect
 )
+
+replace github.com/containers/storage => github.com/saschagrunert/storage v1.12.3-0.20200130093958-dd3bd89fca5b
