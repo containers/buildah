@@ -11,10 +11,10 @@ import (
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/image/v5/image"
+	"github.com/containers/image/v5/manifest"
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
-	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -175,10 +175,14 @@ func getDateAndDigestAndSize(ctx context.Context, sys *types.SystemContext, stor
 	if sizeErr != nil {
 		imgSize = -1
 	}
-	manifest, _, manifestErr := img.GetManifest(ctx, nil)
+	manifestBytes, _, manifestErr := img.GetManifest(ctx, nil)
 	manifestDigest := ""
-	if manifestErr == nil && len(manifest) > 0 {
-		manifestDigest = digest.Canonical.FromBytes(manifest).String()
+	if manifestErr == nil && len(manifestBytes) > 0 {
+		mDigest, err := manifest.Digest(manifestBytes)
+		manifestErr = err
+		if manifestErr == nil {
+			manifestDigest = mDigest.String()
+		}
 	}
 	inspectable, inspectableErr := image.FromUnparsedImage(ctx, sys, image.UnparsedInstance(img, nil))
 	if inspectableErr == nil && inspectable != nil {
