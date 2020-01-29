@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.14.0-dev
+Version:        1.13.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,7 +99,30 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Tue Jan 14, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.0-dev-1
+* Wed Jan 29, 2020 Tom Sweeney <tsweeney@redhat.com> 1.13.2-1
+- sign.bats: set GPG_TTY=/dev/null
+- Fix parse_unsupported.go
+- getDateAndDigestAndSize(): use manifest.Digest
+- Bump github.com/opencontainers/selinux from 1.3.0 to 1.3.1
+- Bump github.com/containers/common from 0.1.0 to 0.1.2
+- Touch up os/arch doc
+- chroot: handle slightly broken seccomp defaults
+- buildahimage: specify fuse-overlayfs mount options
+- Bump github.com/mattn/go-shellwords from 1.0.7 to 1.0.9
+- copy.bats: make sure we detect failures due to missing source
+- parse: don't complain about not being able to rename something to itself
+- Makefile: use a $(GO_TEST) macro, fix a typo
+- manifests: unit test fix
+- Fix build for 32bit platforms
+- Allow users to set OS and architecture on bud
+- Fix COPY in containerfile with envvar
+- Bump c/storage to v1.15.7
+- add --sign-by to bud/commit/push, --remove-signatures for pull/push
+- Remove cut/paste error in CHANGELOG.md
+- Update vendor of containers/common to v0.1.0
+- update install instructions for Debian, Raspbian and Ubuntu
+- Add support for containers.conf
+- Bump back to v1.14.0-dev
 
 * Tue Jan 14, 2020 Tom Sweeney <tsweeney@redhat.com> 1.13.1-1
 - Bump github.com/containers/common from 0.0.5 to 0.0.7
@@ -123,23 +146,6 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - discard outputs coming from onbuild command on buildah-from --quiet
 - make --format columnizing consistent with buildah images
 - Bump to v1.14.0-dev
-- Bump to v1.13.0
-- Bump to c/storage v1.15.5
-- Update container/storage to v1.15.4
-- Fix option handling for volumes in build
-- Rework overlay pkg for use with libpod
-- Fix buildahimage builds for buildah
-- Add support for FIPS-Mode backends
-- Set the TMPDIR for pulling/pushing image to $TMPDIR
-- WIP: safer test for pull --all-tags
-- BATS major cleanup: blobcache.bats: refactor
-- BATS major cleanup: part 4: manual stuff
-- BATS major cleanup, step 3: yet more run_buildah
-- BATS major cleanup, part 2: use more run_buildah
-- BATS major cleanup, part 1: log-level
-- Bump github.com/containers/image/v5 from 5.0.0 to 5.1.0
-- Bump github.com/containers/common from 0.0.3 to 0.0.5
-- Bump to v1.13.0-dev
 
 * Fri Dec 27, 2019 Tom Sweeney <tsweeney@redhat.com> 1.13.0-1
 - Bump to c/storage v1.15.5
