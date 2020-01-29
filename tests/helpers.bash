@@ -9,6 +9,11 @@ PATH=$(dirname ${BASH_SOURCE})/..:${PATH}
 # Default timeout for a buildah command.
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 
+# We don't invoke gnupg directly in many places, but this avoids ENOTTY errors
+# when we invoke it directly in batch mode, and CI runs us without a terminal
+# attached.
+export GPG_TTY=/dev/null
+
 function setup() {
 	suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | od -An -tx1 | sed -e 's, ,,g')
 	TESTDIR=${BATS_TMPDIR}/tmp${suffix}
