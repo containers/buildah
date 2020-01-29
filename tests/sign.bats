@@ -2,23 +2,38 @@
 
 load helpers
 
-@test "commit-pull-push-signatures" {
+function _gpg_setup() {
   if ! which gpg > /dev/null 2> /dev/null ; then
     skip 'gpg command not found in $PATH'
   fi
 
   export GNUPGHOME=${TESTDIR}/.gnupg
+  mkdir -p --mode=0700 $GNUPGHOME
+
+  # gpg on f30 and above needs this, otherwise:
+  #   gpg: agent_genkey failed: Inappropriate ioctl for device
+  # ...but gpg on f29 (and, probably, Ubuntu) doesn't grok this
+  GPGOPTS='--pinentry-mode loopback'
+  if gpg --pinentry-mode asdf 2>&1 | grep -qi 'Invalid option'; then
+      GPGOPTS=
+  fi
+
   cat > genkey-answers <<- EOF
 	%echo Generating a basic OpenPGP key
 	Key-Type: RSA
-	Key-Length: 512
+	Key-Length: 2048
 	Name-Real: Amanda Lorian
 	Name-Comment: Mandy to her friends
 	Name-Email: amanda@localhost
 	%commit
 	%echo done
 	EOF
-  gpg --batch --gen-key < genkey-answers
+  gpg --batch $GPGOPTS --gen-key --passphrase '' < genkey-answers
+}
+
+
+@test "commit-pull-push-signatures" {
+  _gpg_setup
 
   mkdir -p ${TESTDIR}/signed-image ${TESTDIR}/unsigned-image
 
@@ -61,22 +76,7 @@ load helpers
 }
 
 @test "build-with-dockerfile-signatures" {
-  if ! which gpg > /dev/null 2> /dev/null ; then
-    skip 'gpg command not found in $PATH'
-  fi
-
-  export GNUPGHOME=${TESTDIR}/.gnupg
-  cat > genkey-answers <<- EOF
-	%echo Generating a basic OpenPGP key
-	Key-Type: RSA
-	Key-Length: 512
-	Name-Real: Amanda Lorian
-	Name-Comment: Mandy to her friends
-	Name-Email: amanda@localhost
-	%commit
-	%echo done
-	EOF
-  gpg --batch --gen-key < genkey-answers
+  _gpg_setup
 
   cat > Dockerfile <<- EOF
 	FROM scratch
