@@ -40,16 +40,23 @@ load helpers
 
   image=alpine
 
-  firstlabel=$(id -Z)
-  # Running from installed RPM?
-  if [ "$(secon --file $BUILDAH_BINARY -t)" = "bin_t" ]; then
-      firstlabel="unconfined_u:system_r:spc_t:s0-s0:c0.c1023"
-  fi
   # Create a container and read its context as a baseline.
   run_buildah from --quiet --security-opt label=disable --quiet --signature-policy ${TESTSDIR}/policy.json $image
   cid=$output
   run_buildah run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
-  expect_output "$firstlabel" "container context matches our own"
+  context=$output
+
+  # Role and Type should always be constant. (We don't check user)
+  role=$(awk -F: '{print $2}' <<<$context)
+  expect_output --from="$role" "system_r" "SELinux role"
+
+  type=$(awk -F: '{print $3}' <<<$context)
+  expect_output --from="$type" "spc_t" "SELinux type"
+
+  # Range should match that of the invoking process
+  my_range=$(id -Z |awk -F: '{print $4 ":" $5}')
+  container_range=$(awk -F: '{print $4 ":" $5}' <<<$context)
+  expect_output --from="$container_range" "$my_range" "SELinux range: container matches process"
 }
 
 @test "selinux specific level" {
