@@ -558,7 +558,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	if err := cleanup(); err != nil {
 		return "", nil, err
 	}
-
+	logrus.Debugf("printing final image id %q", imageID)
 	if b.iidfile != "" {
 		if err = ioutil.WriteFile(b.iidfile, []byte(imageID), 0644); err != nil {
 			return imageID, ref, errors.Wrapf(err, "failed to write image ID to file %q", b.iidfile)
@@ -568,7 +568,6 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			return imageID, ref, errors.Wrapf(err, "failed to write image ID to stdout")
 		}
 	}
-
 	return imageID, ref, nil
 }
 

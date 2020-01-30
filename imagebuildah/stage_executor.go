@@ -776,8 +776,12 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 		}
 	}
 	logImageID := func(imgID string) {
+		if len(imgID) > 11 {
+			imgID = imgID[0:11]
+		}
 		if s.executor.iidfile == "" {
-			fmt.Fprintf(s.executor.out, "%s\n", imgID)
+
+			fmt.Fprintf(s.executor.out, "--> %s\n", imgID)
 		}
 	}
 
@@ -1018,7 +1022,6 @@ func (s *StageExecutor) Execute(ctx context.Context, stage imagebuilder.Stage, b
 			}
 		}
 	}
-
 	return imgID, ref, nil
 }
 
