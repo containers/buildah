@@ -37,10 +37,6 @@ env:
     # Command to prefix every output line with a timestamp
     # (can't do inline awk script, Cirrus-CI or YAML mangles quoting)
     _TIMESTAMP: 'awk -f ${CIRRUS_WORKING_DIR}/${SCRIPT_BASE}/timestamp.awk'
-    _DFCMD: 'df -lhTx tmpfs'
-    _RAUDITCMD: 'cat /var/log/audit/audit.log'
-    _UAUDITCMD: 'cat /var/log/kern.log'
-    _JOURNALCMD: 'journalctl -b'
 
 gcp_credentials: ENCRYPTED[ae0bf7370f0b6e446bc61d0865a2c55d3e166b3fab9466eb0393e38e1c66a31ca4c71ddc7e0139d47d075c36dd6d3fd7]
 
@@ -165,10 +161,13 @@ testing_task:
         path: ./bin/*
 
     always: &standardlogs
-        df_script: '${_DFCMD} || true'
-        rh_audit_log_script: '${_RAUDITCMD} || true'
-        ubuntu_audit_log_script: '${_UAUDITCMD} || true'
-        journal_log_script: '${_JOURNALCMD} || true'
+        audit_log_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh audit'
+        df_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh df'
+        journal_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh journal'
+        podman_system_info_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh podman'
+        buildah_version_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh buildah_version'
+        buildah_info_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh buildah_info'
+        package_versions_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh packages'
 
 
 testing_in_podman_task:
