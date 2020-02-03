@@ -7,7 +7,7 @@ require (
 	github.com/containernetworking/cni v0.7.1
 	github.com/containers/common v0.1.2
 	github.com/containers/image/v5 v5.1.0
-	github.com/containers/storage v1.15.7
+	github.com/containers/storage v1.15.8
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v1.4.2-0.20191101170500-ac7306503d23
