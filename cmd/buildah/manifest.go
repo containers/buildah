@@ -17,6 +17,7 @@ import (
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
 	digest "github.com/opencontainers/go-digest"
+	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -38,8 +39,8 @@ type manifestAnnotateOpts = struct {
 }
 type manifestInspectOpts = struct{}
 type manifestPushOpts = struct {
-	purge, quiet, all, tlsVerify, removeSignatures                bool
-	authfile, certDir, creds, digestfile, signaturePolicy, signBy string
+	purge, quiet, all, tlsVerify, removeSignatures                        bool
+	authfile, certDir, creds, digestfile, format, signaturePolicy, signBy string
 }
 
 func init() {
@@ -194,6 +195,7 @@ func init() {
 	flags.StringVar(&manifestPushOpts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&manifestPushOpts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVar(&manifestPushOpts.digestfile, "digestfile", "", "after copying the image, write the digest of the resulting digest to the file")
+	flags.StringVarP(&manifestPushOpts.format, "format", "f", "", "manifest type (oci or v2s2) to attempt to use when pushing the manifest list (default is manifest type of source)")
 	flags.BoolVarP(&manifestPushOpts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing images")
 	flags.StringVar(&manifestPushOpts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 	flags.StringVar(&manifestPushOpts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
@@ -639,6 +641,18 @@ func manifestPushCmd(c *cobra.Command, args []string, opts manifestPushOpts) err
 		return err
 	}
 
+	var manifestType string
+	if opts.format != "" {
+		switch opts.format {
+		case "oci":
+			manifestType = imgspecv1.MediaTypeImageIndex
+		case "v2s2", "docker":
+			manifestType = manifest.DockerV2ListMediaType
+		default:
+			return fmt.Errorf("unknown format %q. Choose on of the supported formats: 'oci' or 'v2s2'", opts.format)
+		}
+	}
+
 	options := manifests.PushOptions{
 		Store:              store,
 		SystemContext:      systemContext,
@@ -646,6 +660,7 @@ func manifestPushCmd(c *cobra.Command, args []string, opts manifestPushOpts) err
 		Instances:          nil,
 		RemoveSignatures:   opts.removeSignatures,
 		SignBy:             opts.signBy,
+		ManifestType:       manifestType,
 	}
 	if opts.all {
 		options.ImageListSelection = cp.CopyAllImages

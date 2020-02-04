@@ -825,6 +825,8 @@ return 1
      --cert-dir
      --creds
      --digestfile
+     --format
+     -f
      --purge
      --sign-by
      --tls-verify

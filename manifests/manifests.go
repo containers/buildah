@@ -55,6 +55,7 @@ type PushOptions struct {
 	ReportWriter       io.Writer             // will be used to log the writing of the list and any blobs
 	SignBy             string                // fingerprint of GPG key to use to sign images
 	RemoveSignatures   bool                  // true to discard signatures in images
+	ManifestType       string                // the format to use when saving the list - possible options are oci, v2s1, and v2s2
 }
 
 // Create creates a new list containing information about the specified image,
@@ -208,13 +209,14 @@ func (l *list) Push(ctx context.Context, dest types.ImageReference, options Push
 		return nil, "", err
 	}
 	copyOptions := &cp.Options{
-		ImageListSelection: options.ImageListSelection,
-		Instances:          options.Instances,
-		SourceCtx:          options.SystemContext,
-		DestinationCtx:     options.SystemContext,
-		ReportWriter:       options.ReportWriter,
-		RemoveSignatures:   options.RemoveSignatures,
-		SignBy:             options.SignBy,
+		ImageListSelection:    options.ImageListSelection,
+		Instances:             options.Instances,
+		SourceCtx:             options.SystemContext,
+		DestinationCtx:        options.SystemContext,
+		ReportWriter:          options.ReportWriter,
+		RemoveSignatures:      options.RemoveSignatures,
+		SignBy:                options.SignBy,
+		ForceManifestMIMEType: options.ManifestType,
 	}
 
 	// Copy whatever we were asked to copy.
