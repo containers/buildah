@@ -254,21 +254,17 @@ func (l *list) Add(ctx context.Context, sys *types.SystemContext, ref types.Imag
 	var instanceInfos []instanceInfo
 	var manifestDigest digest.Digest
 
-	manifestBytes, manifestType, err := src.GetManifest(ctx, nil)
+	primaryManifestBytes, primaryManifestType, err := src.GetManifest(ctx, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "error reading manifest from %q", transports.ImageName(ref))
 	}
 
-	if manifest.MIMETypeIsMultiImage(manifestType) {
-		list, err := manifest.ListFromBlob(manifestBytes, manifestType)
+	if manifest.MIMETypeIsMultiImage(primaryManifestType) {
+		lists, err := manifests.FromBlob(primaryManifestBytes)
 		if err != nil {
 			return "", errors.Wrapf(err, "error parsing manifest list in %q", transports.ImageName(ref))
 		}
 		if all {
-			lists, err := manifests.FromBlob(manifestBytes)
-			if err != nil {
-				return "", errors.Wrapf(err, "error parsing manifest list in %q", transports.ImageName(ref))
-			}
 			for i, instance := range lists.OCIv1().Manifests {
 				platform := instance.Platform
 				if platform == nil {
@@ -288,13 +284,13 @@ func (l *list) Add(ctx context.Context, sys *types.SystemContext, ref types.Imag
 				instanceInfos = append(instanceInfos, instanceInfo)
 			}
 		} else {
+			list, err := manifest.ListFromBlob(primaryManifestBytes, primaryManifestType)
+			if err != nil {
+				return "", errors.Wrapf(err, "error parsing manifest list in %q", transports.ImageName(ref))
+			}
 			instanceDigest, err := list.ChooseInstance(sys)
 			if err != nil {
 				return "", errors.Wrapf(err, "error selecting image from manifest list in %q", transports.ImageName(ref))
-			}
-			lists, err := manifests.FromBlob(manifestBytes)
-			if err != nil {
-				return "", errors.Wrapf(err, "error parsing manifest list in %q", transports.ImageName(ref))
 			}
 			added := false
 			for i, instance := range lists.OCIv1().Manifests {
@@ -349,11 +345,11 @@ func (l *list) Add(ctx context.Context, sys *types.SystemContext, ref types.Imag
 				instanceInfo.Architecture = config.Architecture
 			}
 		}
+		manifestBytes, manifestType, err := src.GetManifest(ctx, instanceInfo.instanceDigest)
+		if err != nil {
+			return "", errors.Wrapf(err, "error reading manifest from %q, instance %q", transports.ImageName(ref), instanceInfo.instanceDigest)
+		}
 		if instanceInfo.instanceDigest == nil {
-			manifestBytes, manifestType, err = src.GetManifest(ctx, instanceInfo.instanceDigest)
-			if err != nil {
-				return "", errors.Wrapf(err, "error reading manifest from %q, instance %q", transports.ImageName(ref), instanceInfo.instanceDigest)
-			}
 			manifestDigest, err = manifest.Digest(manifestBytes)
 			if err != nil {
 				return "", errors.Wrapf(err, "error computing digest of manifest from %q", transports.ImageName(ref))
