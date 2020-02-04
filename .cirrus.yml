@@ -241,3 +241,29 @@ gce_instance:
 
     always:
         <<: *standardlogs
+
+# TODO: Bors-ng has trouble interpreting multiple status-checks as being required
+#       when their names contain wild-cards (like `testing%`).  Until that issue
+#       can be fixed, use a single "test" to represent pass/fail status of all
+#       required checks.
+'cirrus-ci/success_task':
+
+    # see bors.toml
+    skip: >-
+        $CIRRUS_BRANCH == "staging.tmp" ||
+        $CIRRUS_BRANCH == "trying.tmp"
+
+    depends_on:
+        - "cirrus-ci/required/testing"
+        - "cirrus-ci/required/in_podman"
+
+    env:
+        CIRRUS_WORKING_DIR: /tmp
+        CIRRUS_CLONE_DEPTH: 1  # no code is being used by this task
+
+    container:
+        image: "registry.fedoraproject.org/fedora-minimal:latest"
+        cpu: 1
+        memory: 1
+
+    script: /bin/true

@@ -24,14 +24,12 @@
 #
 # Note: The wild-card character '%' is available.
 status = [
-    "cirrus-ci/required/in_podman%",
-    "cirrus-ci/required/testing%",
+    "cirrus-ci/success",
 ]
 
 # Same as 'status' (above) but statuses that must pass on every PR
 pr_status = [
-    "cirrus-ci/required/%",
-    "cirrus-ci/only_prs/%",
+    "cirrus-ci/success",
 ]
 
 # Cirrus-CI Max Timeout is 60 * 60 * 2
