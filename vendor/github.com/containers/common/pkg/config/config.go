@@ -360,9 +360,9 @@ func NewConfig(userConfigPath string) (*Config, error) {
 	// rather then using the system defaults.
 	if userConfigPath != "" {
 		var err error
-		// ReadConfigFromFile reads in container config in the specified
+		// readConfigFromFile reads in container config in the specified
 		// file and then merge changes with the current default.
-		config, err = ReadConfigFromFile(userConfigPath, config)
+		config, err = readConfigFromFile(userConfigPath, config)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error reading user config %q", userConfigPath)
 		}
@@ -377,7 +377,7 @@ func NewConfig(userConfigPath string) (*Config, error) {
 		// Merge changes in later configs with the previous configs.
 		// Each config file that specified fields, will override the
 		// previous fields.
-		config, err := ReadConfigFromFile(path, config)
+		config, err := readConfigFromFile(path, config)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error reading system config %q", path)
 		}
@@ -387,18 +387,18 @@ func NewConfig(userConfigPath string) (*Config, error) {
 	config.checkCgroupsAndAdjustConfig()
 	config.addCAPPrefix()
 
-	if err := config.Validate(true); err != nil {
+	if err := config.Validate(); err != nil {
 		return nil, err
 	}
 
 	return config, nil
 }
 
-// ReadConfigFromFile reads the specified config file at `path` and attempts to
+// readConfigFromFile reads the specified config file at `path` and attempts to
 // unmarshal its content into a Config. The config param specifies the previous
 // default config.  If the path, only specifies a few fields in the Toml file
 // the defaults from the config parameter will be used for all other fields.
-func ReadConfigFromFile(path string, config *Config) (*Config, error) {
+func readConfigFromFile(path string, config *Config) (*Config, error) {
 	logrus.Debugf("Reading configuration file %q", path)
 	_, err := toml.DecodeFile(path, config)
 	if err != nil {
@@ -484,20 +484,12 @@ func (c *Config) addCAPPrefix() {
 }
 
 // Validate is the main entry point for library configuration validation.
-// The parameter `onExecution` specifies if the validation should include
-// execution checks. It returns an `error` on validation failure, otherwise
-// `nil`.
-func (c *Config) Validate(onExecution bool) error {
+func (c *Config) Validate() error {
 
 	if err := c.Containers.Validate(); err != nil {
 		return errors.Wrapf(err, "containers config")
 	}
 
-	if !unshare.IsRootless() {
-		if err := c.Network.Validate(onExecution); err != nil {
-			return errors.Wrapf(err, "network config")
-		}
-	}
 	if !c.Containers.EnableLabeling {
 		selinux.SetDisabled()
 	}
@@ -561,27 +553,26 @@ func (c *ContainersConfig) Validate() error {
 // The parameter `onExecution` specifies if the validation should include
 // execution checks. It returns an `error` on validation failure, otherwise
 // `nil`.
-func (c *NetworkConfig) Validate(onExecution bool) error {
-	if onExecution {
-		err := IsDirectory(c.NetworkConfigDir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				if err = os.MkdirAll(c.NetworkConfigDir, 0755); err != nil {
-					return errors.Wrapf(err, "Cannot create network_config_dir: %s", c.NetworkConfigDir)
-				}
-			} else {
-				return errors.Wrapf(err, "invalid network_config_dir: %s", c.NetworkConfigDir)
-			}
-		}
+func (c *NetworkConfig) Validate() error {
 
-		for _, pluginDir := range c.CNIPluginDirs {
-			if err := os.MkdirAll(pluginDir, 0755); err != nil {
-				return errors.Wrapf(err, "invalid cni_plugin_dirs entry")
-			}
+	if c.NetworkConfigDir != cniConfigDir {
+		err := isDirectory(c.NetworkConfigDir)
+		if err != nil {
+			return errors.Wrapf(err, "invalid network_config_dir: %s", c.NetworkConfigDir)
 		}
 	}
 
-	return nil
+	if stringsEq(c.CNIPluginDirs, cniBinDir) {
+		return nil
+	}
+
+	for _, pluginDir := range c.CNIPluginDirs {
+		if err := isDirectory(pluginDir); err == nil {
+			return nil
+		}
+	}
+
+	return errors.Errorf("invalid cni_plugin_dirs: %s", strings.Join(c.CNIPluginDirs, ","))
 }
 
 // DBConfig is a set of Libpod runtime configuration settings that are saved in
@@ -649,9 +640,9 @@ func (c *Config) MergeDBConfig(dbConfig *DBConfig) error {
 	return nil
 }
 
-// FindConmon iterates over (*Config).ConmonPath and returns the path to first
-// (version) matching conmon binary. If non is found, we try to do a path lookup
-// of "conmon".
+// FindConmon iterates over (*Config).ConmonPath and returns the path
+// to first (version) matching conmon binary. If non is found, we try
+// to do a path lookup of "conmon".
 func (c *Config) FindConmon() (string, error) {
 	foundOutdatedConmon := false
 	for _, path := range c.Libpod.ConmonPath {
@@ -817,9 +808,9 @@ func IsValidDeviceMode(mode string) bool {
 	return true
 }
 
-// IsDirectory tests whether the given path exists and is a directory. It
+// isDirectory tests whether the given path exists and is a directory. It
 // follows symlinks.
-func IsDirectory(path string) error {
+func isDirectory(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return err
@@ -844,4 +835,19 @@ func rootlessConfigPath() (string, error) {
 	}
 
 	return filepath.Join(home, UserOverrideContainersConfig), nil
+}
+
+func stringsEq(a, b []string) bool {
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
