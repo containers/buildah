@@ -66,6 +66,7 @@ func localImageNameForReference(ctx context.Context, store storage.Store, srcRef
 		if err != nil {
 			return "", errors.Wrapf(err, "error opening tarfile %q as a source image", file)
 		}
+		defer tarSource.Close()
 		manifest, err := tarSource.LoadTarManifest()
 		if err != nil {
 			return "", errors.Errorf("error retrieving manifest.json from tarfile %q: %v", file, err)
