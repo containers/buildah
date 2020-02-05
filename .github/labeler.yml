@@ -1,0 +1,19 @@
+---
+
+# Format Ref.: https://github.com/marketplace/actions/condition-based-pull-request-labeler#configuration
+
+'Work In Progress':
+    title: "^[Ww][Ii][Pp]\\s.+"
+
+'Not Mergeable':
+    mergeable: false
+
+'Change Size Small':
+    size-below: 10
+
+'Change Size Medium':
+    size-above: 9
+    size-below: 100
+
+'Change Size Large':
+    size-above: 100

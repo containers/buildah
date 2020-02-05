@@ -1,0 +1,16 @@
+---
+
+# Ref: https://github.com/marketplace/actions/condition-based-pull-request-labeler
+
+name: Automatic Pull Request Labeling
+
+on:
+    - pull_request
+
+jobs:
+    label:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: srvaroa/labeler@v0.2
+              env:
+                  GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
