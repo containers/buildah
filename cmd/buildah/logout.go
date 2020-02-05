@@ -45,6 +45,11 @@ func logoutCmd(c *cobra.Command, args []string, iopts *logoutReply) error {
 	if len(args) == 0 && !iopts.all {
 		return errors.Errorf("registry must be given")
 	}
+
+	if err := setXDGRuntimeDir(); err != nil {
+		return err
+	}
+
 	var server string
 	if len(args) == 1 {
 		server = parse.ScrubServer(args[0])

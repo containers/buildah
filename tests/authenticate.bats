@@ -8,6 +8,13 @@ load helpers
   run_buildah 0 logout docker.io
 }
 
+@test "login/logout should succeed with XDG_RUNTIME_DIR unset" {
+  unset XDG_RUNTIME_DIR
+  run_buildah 0 login --username testuserfoo --password testpassword docker.io
+
+  run_buildah 0 logout docker.io
+}
+
 @test "logout should fail with nonexist authfile" {
   run_buildah 0 login --username testuserfoo --password testpassword docker.io
 
