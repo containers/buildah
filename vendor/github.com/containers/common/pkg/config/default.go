@@ -107,7 +107,7 @@ const (
 	// OCIBufSize limits maximum LogSizeMax
 	OCIBufSize = 8192
 	// SeccompOverridePath if this exists it overrides the default seccomp path.
-	SeccompOverridePath = _etcDir + "/crio/seccomp.json"
+	SeccompOverridePath = _etcDir + "/containers/seccomp.json"
 	// SeccompDefaultPath defines the default seccomp path.
 	SeccompDefaultPath = _installPrefix + "/share/containers/seccomp.json"
 )
@@ -141,7 +141,7 @@ func DefaultConfig() (*Config, error) {
 			CgroupNS:            "private",
 			DefaultCapabilities: DefaultCapabilities,
 			DefaultSysctls:      []string{},
-			DefaultUlimits:      []string{},
+			DefaultUlimits:      getDefaultProcessLimits(),
 			DNSServers:          []string{},
 			DNSOptions:          []string{},
 			DNSSearches:         []string{},
@@ -156,7 +156,7 @@ func DefaultConfig() (*Config, error) {
 			IPCNS:               "private",
 			LogDriver:           DefaultLogDriver,
 			LogSizeMax:          DefaultLogSizeMax,
-			NetNS:               "private",
+			NetNS:               "bridge",
 			NoHosts:             false,
 			PidsLimit:           DefaultPidsLimit,
 			PidNS:               "private",
@@ -289,7 +289,7 @@ func defaultTmpDir() (string, error) {
 }
 
 // probeConmon calls conmon --version and verifies it is a new enough version for
-// the runtime expectations podman currently has.
+// the runtime expectations the container engine currently has.
 func probeConmon(conmonBinary string) error {
 	cmd := exec.Command(conmonBinary, "--version")
 	var out bytes.Buffer
