@@ -33,7 +33,7 @@ const (
 
 var (
 	integrationRoot    string
-	cacheImages        = []string{"alpine", "busybox", "registry.fedoraproject.org/fedora-minimal:latest"}
+	cacheImages        = []string{"alpine", "busybox", "quay.io/libpod/fedora-minimal:latest"}
 	restoreImages      = []string{"alpine", "busybox"}
 	defaultWaitTimeout = 90
 )
