@@ -48,7 +48,7 @@ github.com/containernetworking/cni/pkg/types
 github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/image/v5 v5.0.0
+# github.com/containers/image/v5 v5.0.1-0.20200205124631-82291c45f2b0
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
 github.com/containers/image/v5/directory/explicitfilepath
@@ -59,6 +59,7 @@ github.com/containers/image/v5/docker/policyconfiguration
 github.com/containers/image/v5/docker/reference
 github.com/containers/image/v5/docker/tarfile
 github.com/containers/image/v5/image
+github.com/containers/image/v5/internal/iolimits
 github.com/containers/image/v5/internal/pkg/keyctl
 github.com/containers/image/v5/internal/tmpdir
 github.com/containers/image/v5/manifest

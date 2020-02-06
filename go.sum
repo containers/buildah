@@ -54,6 +54,8 @@ github.com/containers/image/v4 v4.0.1 h1:idNGHChj0Pyv3vLrxul2oSVMZLeFqpoq3CjLeVg
 github.com/containers/image/v4 v4.0.1/go.mod h1:0ASJH1YgJiX/eqFZObqepgsvIA4XjCgpyfwn9pDGafA=
 github.com/containers/image/v5 v5.0.0 h1:arnXgbt1ucsC/ndtSpiQY87rA0UjhF+/xQnPzqdBDn4=
 github.com/containers/image/v5 v5.0.0/go.mod h1:MgiLzCfIeo8lrHi+4Lb8HP+rh513sm0Mlk6RrhjFOLY=
+github.com/containers/image/v5 v5.0.1-0.20200205124631-82291c45f2b0 h1:iV4aHKRoPcHp5BISsuiPMyaCjGJfLKp/FUMAG1NeqvE=
+github.com/containers/image/v5 v5.0.1-0.20200205124631-82291c45f2b0/go.mod h1:MgiLzCfIeo8lrHi+4Lb8HP+rh513sm0Mlk6RrhjFOLY=
 github.com/containers/libtrust v0.0.0-20190913040956-14b96171aa3b h1:Q8ePgVfHDplZ7U33NwHZkrVELsZP5fYj9pM5WBZB2GE=
 github.com/containers/libtrust v0.0.0-20190913040956-14b96171aa3b/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/storage v1.13.4 h1:j0bBaJDKbUHtAW1MXPFnwXJtqcH+foWeuXK1YaBV5GA=
