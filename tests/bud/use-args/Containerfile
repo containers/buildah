@@ -1,4 +1,4 @@
-FROM centos
+FROM alpine
 ARG testArg
 RUN echo ${testArg}
 COPY ${testArg} .

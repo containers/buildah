@@ -69,8 +69,8 @@ function _prefetch() {
                     )
                 )
                 rm -f $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
-                echo "# [podman save $img >$_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]" >&2
-                podman $_podman_opts save --output=${_BUILDAH_IMAGE_CACHEDIR}/$fname.tar $img
+                echo "# [podman save --format oci-archive $img >$_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]" >&2
+                podman $_podman_opts save --format oci-archive --output=${_BUILDAH_IMAGE_CACHEDIR}/$fname.tar $img
             fi
         done
 }

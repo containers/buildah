@@ -1170,7 +1170,7 @@ load helpers
 }
 
 @test "bud with FROM AS construct" {
-  _prefetch centos:7
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
   run_buildah images -a
   expect_output --substring "test1"
@@ -1185,7 +1185,7 @@ load helpers
 }
 
 @test "bud with FROM AS construct with layers" {
-  _prefetch centos:7
+  _prefetch alpine
   run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t test1 ${TESTSDIR}/bud/from-as
   run_buildah images -a
   expect_output --substring "test1"
@@ -1200,6 +1200,7 @@ load helpers
 }
 
 @test "bud with FROM AS skip FROM construct" {
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t test1 -f ${TESTSDIR}/bud/from-as/Dockerfile.skip ${TESTSDIR}/bud/from-as
   expect_output --substring "LOCAL=/1"
   expect_output --substring "LOCAL2=/2"
@@ -1750,7 +1751,7 @@ load helpers
 }
 
 @test "bud containerfile with args" {
-  _prefetch centos
+  _prefetch alpine
   target=use-args
   touch ${TESTSDIR}/bud/use-args/abc.txt
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg=abc.txt ${TESTSDIR}/bud/use-args
@@ -1918,6 +1919,7 @@ EOM
   run_buildah rm -a
   run_buildah rmi -a -f
 
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/symlink/Containerfile.add-tar-gz-with-link -t testctr ${TESTSDIR}/bud/symlink
   run_buildah from testctr
   run_buildah run testctr-working-container ls /tmp/testdir/testfile.txt

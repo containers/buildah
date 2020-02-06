@@ -94,14 +94,18 @@ load helpers
 @test "images json test" {
   _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-  cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
-  cid2=$output
-  run_buildah images --json
-  expect_line_count 30
 
-  run_buildah images --json alpine
-  expect_line_count 16
+  for img in '' alpine busybox; do
+      # e.g. [ { "id": "xx", ... },{ "id": "yy", ... } ]
+      # We check for the presence of some keys, but not (yet) their values.
+      # FIXME: once we can rely on 'jq' tool being present, improve this test!
+      run_buildah images --json $img
+      expect_output --from="${lines[0]}" "[" "first line of JSON output: array"
+      for key in id names digest createdat size readonly history; do
+          expect_output --substring "\"$key\": "
+      done
+  done
 }
 
 @test "images json dup test" {
