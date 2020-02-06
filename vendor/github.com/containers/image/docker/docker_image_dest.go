@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 
 	"github.com/containers/image/docker/reference"
+	"github.com/containers/image/internal/iolimits"
 	"github.com/containers/image/manifest"
 	"github.com/containers/image/types"
 	"github.com/docker/distribution/registry/api/errcode"
@@ -448,7 +449,7 @@ sigExists:
 		}
 		defer res.Body.Close()
 		if res.StatusCode != http.StatusCreated {
-			body, err := ioutil.ReadAll(res.Body)
+			body, err := iolimits.ReadAtMost(res.Body, iolimits.MaxErrorBodySize)
 			if err == nil {
 				logrus.Debugf("Error body %s", string(body))
 			}

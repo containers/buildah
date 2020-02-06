@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/containers/image/docker/reference"
+	"github.com/containers/image/internal/iolimits"
 	"github.com/containers/image/pkg/docker/config"
 	"github.com/containers/image/pkg/tlsclientconfig"
 	"github.com/containers/image/types"
@@ -497,7 +497,7 @@ func (c *dockerClient) getBearerToken(ctx context.Context, realm, service, scope
 	default:
 		return nil, errors.Errorf("unexpected http code: %d (%s), URL: %s", res.StatusCode, http.StatusText(res.StatusCode), authReq.URL)
 	}
-	tokenBlob, err := ioutil.ReadAll(res.Body)
+	tokenBlob, err := iolimits.ReadAtMost(res.Body, iolimits.MaxAuthTokenBodySize)
 	if err != nil {
 		return nil, err
 	}
@@ -576,7 +576,8 @@ func (c *dockerClient) getExtensionsSignatures(ctx context.Context, ref dockerRe
 	if res.StatusCode != http.StatusOK {
 		return nil, errors.Wrapf(client.HandleErrorResponse(res), "Error downloading signatures for %s in %s", manifestDigest, ref.ref.Name())
 	}
-	body, err := ioutil.ReadAll(res.Body)
+
+	body, err := iolimits.ReadAtMost(res.Body, iolimits.MaxSignatureListBodySize)
 	if err != nil {
 		return nil, err
 	}
