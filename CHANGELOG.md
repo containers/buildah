@@ -2,6 +2,15 @@
 
 # Changelog
 
+## v1.14.0 (2020-02-05)
+    bump github.com/mtrmac/gpgme
+    Update containers/common to v0.1.4
+    manifest push: add --format option
+    Bump github.com/onsi/gomega from 1.8.1 to 1.9.0
+    vendor github.com/containers/image/v5@v5.2.0
+    info test: deal with random key order
+    Bump back to v1.14.0-dev
+
 ## v1.13.2 (2020-01-29)
     sign.bats: set GPG_TTY=/dev/null
     Fix parse_unsupported.go
