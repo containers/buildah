@@ -29,7 +29,7 @@ then
                 export GITVALIDATE_EPOCH="$(git rev-parse upstream/$DEST_BRANCH)"
             else  # Testing a PR
                 echo "Testing a PR targeted at the $DEST_BRANCH branch"
-                export GITVALIDATE_EPOCH="$CIRRUS_BASE_SHA" # relative to $CIRRUS_BASE_BRANCH
+                export GITVALIDATE_EPOCH="$(git merge-base upstream/$DEST_BRANCH HEAD)"
             fi
             export GITVALIDATE_TIP="$CIRRUS_CHANGE_IN_REPO"
             echo "Linting & Validating from $GITVALIDATE_EPOCH to $GITVALIDATE_TIP"
