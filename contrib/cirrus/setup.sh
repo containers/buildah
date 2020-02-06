@@ -23,6 +23,7 @@ UBUNTU_PACKAGES="
     libselinux-dev
     openssl
     podman
+    jq
     netcat
     rsync
     runc
@@ -54,6 +55,7 @@ FEDORA_PACKAGES="
     nmap-ncat
     ostree-devel
     podman
+    jq
     rsync
     runc
     skopeo-containers
