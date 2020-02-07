@@ -37,14 +37,9 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		options.GraphRoot = globalFlagResults.Root
 		options.RunRoot = globalFlagResults.RunRoot
 	}
-	if unshare.IsRootless() && os.Getenv("XDG_RUNTIME_DIR") == "" {
-		runtimeDir, err := storage.GetRootlessRuntimeDir(unshare.GetRootlessUID())
-		if err != nil {
-			return nil, err
-		}
-		if err := os.Setenv("XDG_RUNTIME_DIR", runtimeDir); err != nil {
-			return nil, errors.New("could not set XDG_RUNTIME_DIR")
-		}
+
+	if err := setXDGRuntimeDir(); err != nil {
+		return nil, err
 	}
 
 	if c.Flag("storage-driver").Changed {
@@ -119,6 +114,20 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 	}
 	needToShutdownStore = true
 	return store, err
+}
+
+// setXDGRuntimeDir sets XDG_RUNTIME_DIR when if it is unset under rootless
+func setXDGRuntimeDir() error {
+	if unshare.IsRootless() && os.Getenv("XDG_RUNTIME_DIR") == "" {
+		runtimeDir, err := storage.GetRootlessRuntimeDir(unshare.GetRootlessUID())
+		if err != nil {
+			return err
+		}
+		if err := os.Setenv("XDG_RUNTIME_DIR", runtimeDir); err != nil {
+			return errors.New("could not set XDG_RUNTIME_DIR")
+		}
+	}
+	return nil
 }
 
 func openBuilder(ctx context.Context, store storage.Store, name string) (builder *buildah.Builder, err error) {

@@ -61,6 +61,11 @@ func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 	if len(args) == 0 {
 		return errors.Errorf("please specify a registry to login to")
 	}
+
+	if err := setXDGRuntimeDir(); err != nil {
+		return err
+	}
+
 	server := parse.RegistryFromFullName(parse.ScrubServer(args[0]))
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
