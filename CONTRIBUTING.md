@@ -131,10 +131,10 @@ is available, showing all PRs awaiting review and approval.
 
 (must be on a single comment-line, without any other extraneous text)
 
-* `bors r+` - Mark the PR as reviewed, and increment the approval number by one.
-  When the minimum number of approvals are met, the bors bot will add the PR into a
-  merge queue for testing and possible merging.  Both the testing-success and
-  minimum approval number are set in the configuration (see below).
+* `bors r+` - Check the current number of Github Code-review Approvals.
+  If the PR has that many approvals or more, the bot will add the PR into
+  the queue for testing and possible merging.  Both the success criteria
+  and minimum approval number are set in the configuration file (see below).
 * `bors retry` - Re-run whatever request was previously issued to the bot.  Useful
   when there was a testing flake upon attempted merge.
 * `bors try` - Optional / simulate the actions of `bors r+` (see above) having
