@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.14.0-dev
+Version:        1.15.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,7 +99,16 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Wed Jan 29, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.0-dev-1
+* Wed Feb 5, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+
+* Wed Feb 5, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.0-1
+- bump github.com/mtrmac/gpgme
+- Update containers/common to v0.1.4
+- manifest push: add --format option
+- Bump github.com/onsi/gomega from 1.8.1 to 1.9.0
+- vendor github.com/containers/image/v5@v5.2.0
+- info test: deal with random key order
+- Bump back to v1.14.0-dev
 
 * Wed Jan 29, 2020 Tom Sweeney <tsweeney@redhat.com> 1.13.2-1
 - sign.bats: set GPG_TTY=/dev/null
