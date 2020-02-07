@@ -59,9 +59,7 @@ gce_instance:
 'cirrus-ci/only_prs/meta_task':
 
     # see bors.toml
-    skip: >-
-        $CIRRUS_BRANCH =~ ".*\.tmp" ||
-        $CIRRUS_BRANCH =~ ".*\.tmp"
+    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     container:
         image: "quay.io/libpod/imgts:latest"  # see contrib/imgts
@@ -88,9 +86,7 @@ gce_instance:
 'cirrus-ci/only_prs/gate_task':
 
     # see bors.toml
-    skip: >-
-        $CIRRUS_BRANCH =~ ".*\.tmp" ||
-        $CIRRUS_BRANCH =~ ".*\.tmp"
+    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     timeout_in: 30m
 
@@ -104,10 +100,8 @@ gce_instance:
 
 'cirrus-ci/only_prs/unit_task':
 
-    # see .bors.toml
-    skip: >-
-        $CIRRUS_BRANCH =~ ".*\.tmp" ||
-        $CIRRUS_BRANCH =~ ".*\.tmp"
+    # see bors.toml
+    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     # not supported by bors-ng
     # allow_failures: $CI == $CI
@@ -130,9 +124,7 @@ gce_instance:
 'cirrus-ci/only_prs/vendor_task':
 
     # see bors.toml
-    skip: >-
-        $CIRRUS_BRANCH =~ ".*\.tmp" ||
-        $CIRRUS_BRANCH =~ ".*\.tmp"
+    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     env:
         CIRRUS_WORKING_DIR: "/var/tmp/go/src/github.com/containers/buildah"
@@ -155,9 +147,7 @@ gce_instance:
 'cirrus-ci/only_prs/cross_task':
 
     # see bors.toml
-    skip: >-
-        $CIRRUS_BRANCH =~ ".*\.tmp" ||
-        $CIRRUS_BRANCH =~ ".*\.tmp"
+    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     depends_on:
         - 'cirrus-ci/only_prs/gate'
@@ -180,9 +170,7 @@ gce_instance:
 'cirrus-ci/required/testing_task':
 
     # see bors.toml
-    skip: >-
-        $CIRRUS_BRANCH == "staging.tmp" ||
-        $CIRRUS_BRANCH == "trying.tmp"
+    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     depends_on:
         - 'cirrus-ci/only_prs/gate'
@@ -217,9 +205,7 @@ gce_instance:
 'cirrus-ci/required/in_podman_task':
 
     # see bors.toml
-    skip: >-
-        $CIRRUS_BRANCH == "staging.tmp" ||
-        $CIRRUS_BRANCH == "trying.tmp"
+    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     depends_on:
         - 'cirrus-ci/only_prs/gate'
@@ -250,9 +236,7 @@ gce_instance:
 'cirrus-ci/success_task':
 
     # see bors.toml
-    skip: >-
-        $CIRRUS_BRANCH == "staging.tmp" ||
-        $CIRRUS_BRANCH == "trying.tmp"
+    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     depends_on:
         - "cirrus-ci/required/testing"
