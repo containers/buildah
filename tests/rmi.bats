@@ -14,6 +14,7 @@ load helpers
 }
 
 @test "remove one image" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah rm "$cid"
@@ -23,6 +24,7 @@ load helpers
 }
 
 @test "remove multiple images" {
+  _prefetch alpine busybox
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
   cid2=$output
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
@@ -45,6 +47,7 @@ load helpers
 }
 
 @test "remove all images" {
+  _prefetch alpine busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
   cid1=$output
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
@@ -55,6 +58,7 @@ load helpers
   run_buildah images -q
   expect_output ""
 
+  _prefetch alpine busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
   cid1=$output
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
@@ -71,6 +75,8 @@ load helpers
 }
 
 @test "use prune to remove dangling images" {
+  _prefetch busybox
+
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
@@ -109,6 +115,7 @@ load helpers
 }
 
 @test "use conflicting commands to remove images" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah rm "$cid"
@@ -130,7 +137,7 @@ load helpers
 }
 
 @test "remove image that is a parent of another image" {
-  run_buildah rmi -a -f
+  _prefetch alpine
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
@@ -150,7 +157,7 @@ load helpers
 }
 
 @test "rmi with cached images" {
-  run_buildah rmi -a -f
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTSDIR}/bud/use-layers
   run_buildah images -a -q
   expect_line_count 7
@@ -172,7 +179,7 @@ load helpers
 }
 
 @test "rmi image that is created from another named image" {
-  run_buildah rmi -a -f
+  _prefetch alpine
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid

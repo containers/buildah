@@ -87,18 +87,6 @@ show_usage() {
     exit 1
 }
 
-get_env_vars() {
-    python -c '
-import yaml
-env=yaml.load(open(".cirrus.yml"), Loader=yaml.SafeLoader)["env"]
-keys=[k for k in env if "ENCRYPTED" not in str(env[k])]
-for k,v in env.items():
-    v=str(v)
-    if "ENCRYPTED" not in v:
-        print "{0}=\"{1}\"".format(k, v),
-    '
-}
-
 parse_args(){
     echo -e "$USAGE_WARNING"
 
@@ -107,14 +95,13 @@ parse_args(){
         show_usage "This script must be run as a regular user."
     fi
 
-    ENVS="$(get_env_vars)"
+    ENVS='GOPATH="/var/tmp/go" IN_PODMAN="false" CROSS_TARGET=""'
     IMAGE_NAME="$1"
     if [[ -z "$IMAGE_NAME" ]]
     then
         show_usage "No image-name specified."
     fi
 
-    ENVS="$ENVS SPECIALMODE=\"$SPECIALMODE\""
     SETUP_CMD="env $ENVS $GOSRC/contrib/cirrus/setup.sh"
     VMNAME="${VMNAME:-${USER}-${IMAGE_NAME}}"
     CREATE_CMD="$PGCLOUD compute instances create --zone=$ZONE --image-project=libpod-218412 --image=${IMAGE_NAME} --custom-cpu=$CPUS --custom-memory=$MEMORY --boot-disk-size=$DISK --labels=in-use-by=$USER $VMNAME"

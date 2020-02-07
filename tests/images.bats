@@ -16,6 +16,7 @@ load helpers
 }
 
 @test "images" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
@@ -25,6 +26,7 @@ load helpers
 }
 
 @test "images all test" {
+  _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test ${TESTSDIR}/bud/use-layers
   run_buildah images
   expect_line_count 3
@@ -39,6 +41,7 @@ load helpers
 }
 
 @test "images filter test" {
+  _prefetch k8s.gcr.io/pause busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json k8s.gcr.io/pause
   cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
@@ -48,6 +51,7 @@ load helpers
 }
 
 @test "images format test" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
@@ -57,6 +61,7 @@ load helpers
 }
 
 @test "images noheading test" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
@@ -66,6 +71,7 @@ load helpers
 }
 
 @test "images quiet test" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
@@ -75,6 +81,7 @@ load helpers
 }
 
 @test "images no-trunc test" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
@@ -85,15 +92,20 @@ load helpers
 }
 
 @test "images json test" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-  cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
-  cid2=$output
-  run_buildah images --json
-  expect_line_count 30
 
-  run_buildah images --json alpine
-  expect_line_count 16
+  for img in '' alpine busybox; do
+      # e.g. [ { "id": "xx", ... },{ "id": "yy", ... } ]
+      # We check for the presence of some keys, but not (yet) their values.
+      # FIXME: once we can rely on 'jq' tool being present, improve this test!
+      run_buildah images --json $img
+      expect_output --from="${lines[0]}" "[" "first line of JSON output: array"
+      for key in id names digest createdat size readonly history; do
+          expect_output --substring "\"$key\": "
+      done
+  done
 }
 
 @test "images json dup test" {
@@ -120,6 +132,7 @@ load helpers
 }
 
 @test "specify an existing image" {
+  _prefetch alpine busybox
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
@@ -152,6 +165,7 @@ load helpers
 }
 
 @test "image digest test" {
+  _prefetch busybox
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah images --digests
   expect_output --substring "sha256:"

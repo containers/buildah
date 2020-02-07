@@ -14,6 +14,7 @@ load helpers
 }
 
 @test "tag by id" {
+  _prefetch busybox
   run_buildah pull --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   id=$output
 

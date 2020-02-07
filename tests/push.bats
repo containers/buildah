@@ -41,6 +41,7 @@ load helpers
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p $mytmpdir
 
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah push --signature-policy ${TESTSDIR}/policy.json --format oci alpine dir:$mytmpdir
@@ -56,6 +57,7 @@ load helpers
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p $mytmpdir
 
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah images -q
@@ -67,6 +69,7 @@ load helpers
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p $mytmpdir
 
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah images -q
@@ -77,12 +80,14 @@ load helpers
 }
 
 @test "push without destination" {
+  _prefetch busybox
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json busybox
   expect_output --substring "docker://busybox"
 }
 
 @test "push should fail with nonexist authfile" {
+  _prefetch alpine
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah images -q
@@ -91,6 +96,8 @@ load helpers
 }
 
 @test "push-denied-by-registry-sources" {
+  _prefetch busybox
+
   export BUILD_REGISTRY_SOURCES='{"blockedRegistries": ["registry.example.com"]}'
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json --quiet busybox
@@ -116,14 +123,14 @@ load helpers
 
 
 @test "buildah push image to containers-storage" {
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  _prefetch busybox
   run_buildah push --signature-policy ${TESTSDIR}/policy.json busybox containers-storage:newimage:latest
   run_buildah images
   expect_output --substring "newimage"
 }
 
 @test "buildah push image to docker-archive and oci-archive" {
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  _prefetch busybox
   for dest in docker-archive oci-archive; do
     mkdir ${TESTDIR}/tmp
     run_buildah push --signature-policy ${TESTSDIR}/policy.json busybox $dest:${TESTDIR}/tmp/busybox.tar:latest
@@ -138,7 +145,7 @@ load helpers
     skip "docker is not installed"
   fi
 
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  _prefetch busybox
   run_buildah push --signature-policy ${TESTSDIR}/policy.json busybox docker-daemon:buildah/busybox:latest
   run docker images
   expect_output --substring "buildah/busybox"

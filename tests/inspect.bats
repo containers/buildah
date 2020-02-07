@@ -14,6 +14,7 @@ load helpers
 }
 
 @test "inspect" {
+  _prefetch alpine
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" alpine-image
@@ -50,6 +51,7 @@ load helpers
 }
 
 @test "inspect-config-is-json" {
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah inspect alpine
@@ -57,6 +59,7 @@ load helpers
 }
 
 @test "inspect-manifest-is-json" {
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah inspect alpine
@@ -64,6 +67,7 @@ load helpers
 }
 
 @test "inspect-ociv1-is-json" {
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah inspect alpine
@@ -71,6 +75,7 @@ load helpers
 }
 
 @test "inspect-docker-is-json" {
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah inspect alpine
@@ -78,6 +83,7 @@ load helpers
 }
 
 @test "inspect-format-config-is-json" {
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah inspect --format "{{.Config}}" alpine
@@ -85,6 +91,7 @@ load helpers
 }
 
 @test "inspect-format-manifest-is-json" {
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah inspect --format "{{.Manifest}}" alpine
@@ -92,6 +99,7 @@ load helpers
 }
 
 @test "inspect-format-ociv1-is-json" {
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah inspect --format "{{.OCIv1}}" alpine
@@ -99,6 +107,7 @@ load helpers
 }
 
 @test "inspect-format-docker-is-json" {
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah inspect --format "{{.Docker}}" alpine

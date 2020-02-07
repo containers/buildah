@@ -7,6 +7,7 @@ load helpers
     skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
   fi
 
+  _prefetch alpine
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
   expect_output "alpine-working-container"
   ctr="$output"
@@ -37,6 +38,7 @@ load helpers
   gidsize=$((${RANDOM}+1024))
 
   # Create a container that uses that mapping.
+  _prefetch alpine
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize alpine
   ctr="$output"
 
@@ -158,6 +160,7 @@ load helpers
   for i in $(seq 0 "$((${#maps[*]}-1))") ; do
     # Create a container using these mappings.
     echo "Building container with --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine"
+    _prefetch alpine
     run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine
     ctr="$output"
 
@@ -227,6 +230,7 @@ general_namespace() {
   types[2]=host
   types[3]=/proc/$$/ns/$nstype
 
+  _prefetch alpine
   for namespace in "${types[@]}" ; do
     # Specify the setting for this namespace for this container.
     run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --"$nsflag"=$namespace alpine
@@ -314,6 +318,7 @@ general_namespace() {
   skip_if_chroot
   skip_if_rootless
 
+  _prefetch alpine
   # mnt is always per-container, cgroup isn't a thing runc lets us configure
   for ipc in host container ; do
     for net in host container ; do

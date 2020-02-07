@@ -5,6 +5,8 @@ load helpers
 @test "overlay specific level" {
   if test \! -e /usr/bin/fuse-overlayfs -a "$BUILDAH_ISOLATION" = "rootless"; then
     skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION" and no /usr/bin/fuse-overlayfs present
+  elif test "$STORAGE_DRIVER" = "vfs"; then
+    skip "skipping overlay test because \$STORAGE_DRIVER = $STORAGE_DRIVER"
   fi
   image=alpine
   mkdir ${TESTDIR}/lower

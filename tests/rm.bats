@@ -19,12 +19,14 @@ load helpers
 }
 
 @test "remove one container" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah rm "$cid"
 }
 
 @test "remove multiple containers" {
+  _prefetch alpine busybox
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
   cid2=$output
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
@@ -33,6 +35,7 @@ load helpers
 }
 
 @test "remove all containers" {
+  _prefetch alpine busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
   cid1=$output
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
@@ -43,6 +46,7 @@ load helpers
 }
 
 @test "use conflicting commands to remove containers" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah 1 rm -a "$cid"

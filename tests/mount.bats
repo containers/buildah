@@ -14,6 +14,7 @@ load helpers
 }
 
 @test "mount one container" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah mount "$cid"
@@ -24,6 +25,7 @@ load helpers
 }
 
 @test "mount multi images" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
@@ -34,6 +36,7 @@ load helpers
 }
 
 @test "mount multi images one bad" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
@@ -44,6 +47,7 @@ load helpers
 }
 
 @test "list currently mounted containers" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
   run_buildah mount "$cid1"

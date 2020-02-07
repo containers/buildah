@@ -111,6 +111,7 @@ load helpers
 }
 
 @test "add single file creates absolute path with correct permissions" {
+  _prefetch ubuntu
   imgName=ubuntu-image
   createrandom ${TESTDIR}/distutils.cfg
   permission=$(stat -c "%a" ${TESTDIR}/distutils.cfg)
@@ -130,6 +131,7 @@ load helpers
 }
 
 @test "add single file creates relative path with correct permissions" {
+  _prefetch ubuntu
   imgName=ubuntu-image
   createrandom ${TESTDIR}/distutils.cfg
   permission=$(stat -c "%a" ${TESTDIR}/distutils.cfg)
@@ -149,6 +151,7 @@ load helpers
 }
 
 @test "add with chown" {
+  _prefetch busybox
   createrandom ${TESTDIR}/randomfile
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid=$output
@@ -159,6 +162,7 @@ load helpers
 }
 
 @test "add url" {
+  _prefetch busybox
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid=$output
   run_buildah add $cid https://github.com/containers/buildah/raw/master/README.md

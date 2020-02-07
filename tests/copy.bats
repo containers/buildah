@@ -27,6 +27,7 @@ load helpers
   run_buildah 1 copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
   run_buildah rm $cid
 
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah mount $cid
@@ -150,6 +151,7 @@ load helpers
   createrandom ${TESTDIR}/other-subdir/randomfile
   createrandom ${TESTDIR}/other-subdir/other-randomfile
 
+  _prefetch alpine
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah config --workingdir / $cid
@@ -205,6 +207,8 @@ load helpers
 }
 
 @test "copy-detect-missing-data" {
+  _prefetch busybox
+
   : > ${TESTDIR}/Dockerfile
   echo FROM busybox AS builder                                >> ${TESTDIR}/Dockerfile
   echo FROM scratch                                           >> ${TESTDIR}/Dockerfile

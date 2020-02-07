@@ -3,6 +3,7 @@
 load helpers
 
 fromreftest() {
+  _prefetch $1
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json $1
   cid=$output
   pushdir=${TESTDIR}/fromreftest
@@ -21,7 +22,7 @@ fromreftest() {
 }
 
 @test "from-by-digest-s1-a-discarded-layer" {
-  fromreftest docker/whalesay@sha256:178598e51a26abbc958b8a2e48825c90bc22e641de3d31e18aaf55f3258ba93b
+  fromreftest libpod/whalesay@sha256:2413c2ffc29fb01d51c27a91b804079995d6037eed9e4b632249fce8c8708eb4
 }
 
 @test "from-by-tag-s1" {

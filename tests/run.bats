@@ -5,6 +5,7 @@ load helpers
 @test "run" {
 	skip_if_no_runtime
 
+	_prefetch alpine
 	runc --version
 	createrandom ${TESTDIR}/randomfile
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
@@ -28,6 +29,7 @@ load helpers
 @test "run--args" {
 	skip_if_no_runtime
 
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 
@@ -54,6 +56,7 @@ load helpers
 @test "run-cmd" {
 	skip_if_no_runtime
 
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah config --workingdir /tmp $cid
@@ -171,6 +174,7 @@ function configure_and_check_user() {
 	if test "$CGO_ENABLED" -ne 1; then
 		skip "CGO_ENABLED = '$CGO_ENABLED'"
 	fi
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah mount $cid
@@ -213,6 +217,7 @@ function configure_and_check_user() {
 	skip_if_rootless
 	skip_if_no_runtime
 
+	_prefetch alpine
 	runc --version
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
@@ -232,6 +237,7 @@ function configure_and_check_user() {
 		fi
 	fi
 	runc --version
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	mkdir -p ${TESTDIR}/was-empty
@@ -257,6 +263,7 @@ function configure_and_check_user() {
 		fi
 	fi
 	runc --version
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	mkdir -p ${TESTDIR}/was:empty
@@ -275,6 +282,7 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	runc --version
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	mkdir -p ${TESTDIR}/tmp
@@ -287,6 +295,7 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	runc --version
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	# Try with default caps.
@@ -312,6 +321,7 @@ function configure_and_check_user() {
 @test "Check if containers run with correct open files/processes limits" {
 	skip_if_no_runtime
 
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
@@ -358,6 +368,7 @@ function configure_and_check_user() {
 @test "run-exit-status" {
 	skip_if_no_runtime
 
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah 42 run ${cid} sh -c 'exit 42'
@@ -366,6 +377,7 @@ function configure_and_check_user() {
 @test "Verify /run/.containerenv exist" {
 	skip_if_no_runtime
 
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	# test a standard mount to /run/.containerenv
@@ -376,6 +388,7 @@ function configure_and_check_user() {
 @test "run-device" {
 	skip_if_no_runtime
 
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --device /dev/fuse --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah 0 run ${cid} ls /dev/fuse
@@ -395,6 +408,7 @@ function configure_and_check_user() {
 	skip_if_chroot
 	skip_if_rootless
 
+	_prefetch alpine
 	run_buildah from --quiet --pull=false --device /dev/fuse:/dev/fuse1 --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah 0 run ${cid} ls /dev/fuse1

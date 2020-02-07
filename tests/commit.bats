@@ -17,6 +17,7 @@ load helpers
 }
 
 @test "commit" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
@@ -24,6 +25,7 @@ load helpers
 }
 
 @test "commit format test" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-oci
@@ -34,6 +36,7 @@ load helpers
 }
 
 @test "commit quiet test" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah commit --iidfile /dev/null --signature-policy ${TESTSDIR}/policy.json -q $cid alpine-image
@@ -41,6 +44,7 @@ load helpers
 }
 
 @test "commit rm test" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json --rm $cid alpine-image
@@ -59,6 +63,7 @@ load helpers
 }
 
 @test "commit-rejected-name" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah 1 commit --signature-policy ${TESTSDIR}/policy.json $cid ThisNameShouldBeRejected
@@ -70,6 +75,7 @@ load helpers
     skip "python interpreter with json module not found"
   fi
   target=new-image
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
 
@@ -93,18 +99,21 @@ load helpers
 }
 
 @test "commit-no-name" {
+  _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid
 }
 
 @test "commit should fail with nonexist authfile" {
+  _prefetch alpine
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah 1 commit --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
 }
 
 @test "commit-builder-identity" {
+	_prefetch alpine
 	run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
@@ -118,6 +127,7 @@ load helpers
 }
 
 @test "commit-parent-id" {
+  _prefetch alpine
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah inspect --format '{{.FromImageID}}' $cid
@@ -129,6 +139,7 @@ load helpers
 }
 
 @test "commit-container-id" {
+  _prefetch alpine
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
 
   # There is exactly one container. Get its ID.
@@ -141,6 +152,7 @@ load helpers
 }
 
 @test "commit with name" {
+  _prefetch busybox
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
   expect_output "busyboxc"
 
@@ -157,6 +169,7 @@ load helpers
 }
 
 @test "commit to docker-distribution" {
+  _prefetch busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword busyboxc docker://localhost:5000/commit/busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name fromdocker --tls-verify=false --creds testuser:testpassword docker://localhost:5000/commit/busybox
