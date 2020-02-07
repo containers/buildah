@@ -108,7 +108,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
-	isolation, err := parse.IsolationOption(c)
+	isolation, err := parse.IsolationOption(c.Flag("isolation").Value.String())
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,6 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	}
 
 	options := buildah.RunOptions{
-		Env:              defaultContainerConfig.Containers.Env,
 		Hostname:         iopts.hostname,
 		Runtime:          iopts.runtime,
 		Args:             runtimeFlags,

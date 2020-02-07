@@ -11,7 +11,9 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker/reference"
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports"
@@ -100,9 +102,34 @@ type Executor struct {
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
 func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Node) (*Executor, error) {
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get container config")
+	}
+
 	excludes, err := imagebuilder.ParseDockerignore(options.ContextDirectory)
 	if err != nil {
 		return nil, err
+	}
+	capabilities := defaultContainerConfig.Capabilities("", options.AddCapabilities, options.DropCapabilities)
+
+	devices := []configs.Device{}
+	for _, device := range append(defaultContainerConfig.Containers.AdditionalDevices, options.Devices...) {
+		dev, err := parse.DeviceFromPath(device)
+		if err != nil {
+			return nil, err
+		}
+		devices = append(dev, devices...)
+	}
+
+	transientMounts := []Mount{}
+	for _, volume := range append(defaultContainerConfig.Containers.AdditionalVolumes, options.TransientMounts...) {
+		mount, err := parse.Volume(volume)
+		if err != nil {
+			return nil, err
+		}
+
+		transientMounts = append([]Mount{Mount(mount)}, transientMounts...)
 	}
 
 	exec := Executor{
@@ -115,7 +142,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		quiet:                          options.Quiet,
 		runtime:                        options.Runtime,
 		runtimeArgs:                    options.RuntimeArgs,
-		transientMounts:                options.TransientMounts,
+		transientMounts:                transientMounts,
 		compression:                    options.Compression,
 		output:                         options.Output,
 		outputFormat:                   options.OutputFormat,
@@ -150,8 +177,8 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		blobDirectory:                  options.BlobDirectory,
 		unusedArgs:                     make(map[string]struct{}),
 		buildArgs:                      options.Args,
-		capabilities:                   options.Capabilities,
-		devices:                        options.Devices,
+		capabilities:                   capabilities,
+		devices:                        devices,
 		signBy:                         options.SignBy,
 		architecture:                   options.Architecture,
 		os:                             options.OS,

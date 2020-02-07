@@ -27,7 +27,7 @@ const (
 	oldMaxSize = uint64(1048576)
 )
 
-// getDefaultProcessLimits returns the nofile and nproc for the current process in ulimits format
+// getDefaultProcessLimits returns the nproc for the current process in ulimits format
 // Note that nfile sometimes cannot be set to unlimited, and the limit is hardcoded
 // to (oldMaxSize) 1048576 (2^20), see: http://stackoverflow.com/a/1213069/1811501
 // In rootless containers this will fail, and the process will just use its current limits
@@ -44,13 +44,6 @@ func getDefaultProcessLimits() []string {
 		}
 	}
 	defaultLimits := []string{}
-	if err := unix.Setrlimit(unix.RLIMIT_NOFILE, &rlim); err == nil {
-		defaultLimits = append(defaultLimits, fmt.Sprintf("nofile=%d:%d", rlim.Cur, rlim.Max))
-	} else {
-		if err := unix.Setrlimit(unix.RLIMIT_NOFILE, &oldrlim); err == nil {
-			defaultLimits = append(defaultLimits, fmt.Sprintf("nofile=%d:%d", oldrlim.Cur, oldrlim.Max))
-		}
-	}
 	if err := unix.Setrlimit(unix.RLIMIT_NPROC, &rlim); err == nil {
 		defaultLimits = append(defaultLimits, fmt.Sprintf("nproc=%d:%d", rlim.Cur, rlim.Max))
 	} else {

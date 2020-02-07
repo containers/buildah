@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/BurntSushi/toml"
@@ -850,4 +851,28 @@ func stringsEq(a, b []string) bool {
 	}
 
 	return true
+}
+
+var (
+	configOnce sync.Once
+	config     *Config
+)
+
+// Default returns the default container config.
+// Configuration files will be read in the following files:
+// * /usr/share/containers/containers.conf
+// * /etc/containers/containers.conf
+// * $HOME/.config/containers/containers.conf # When run in rootless mode
+// Fields in latter files override defaults set in previous files and the
+// default config.
+// None of these files are required, and not all fields need to be specified
+// in each file, only the fields you want to override.
+// The system defaults container config files can be overwritten using the
+// CONTAINERS_CONF environment variable.  This is usually done for testing.
+func Default() (*Config, error) {
+	var err error
+	configOnce.Do(func() {
+		config, err = NewConfig("")
+	})
+	return config, err
 }

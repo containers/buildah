@@ -10,6 +10,7 @@ import (
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/common/pkg/config"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -78,7 +79,11 @@ func init() {
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 
 	// Add in the common flags
-	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults, defaultContainerConfig)
+	fromAndBudFlags, err := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
+	if err != nil {
+		logrus.Errorf("failed to setup From and Bud flags: %e", err)
+		os.Exit(1)
+	}
 	flags.AddFlagSet(&fromAndBudFlags)
 
 	rootCmd.AddCommand(fromCommand)
@@ -166,6 +171,11 @@ func onBuild(builder *buildah.Builder, quiet bool) error {
 }
 
 func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get container config")
+	}
+
 	if len(args) == 0 {
 		return errors.Errorf("an image name (or \"scratch\") must be specified")
 	}
@@ -217,12 +227,12 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return err
 	}
 
-	commonOpts, err := parse.CommonBuildOptions(c, defaultContainerConfig)
+	commonOpts, err := parse.CommonBuildOptions(c)
 	if err != nil {
 		return err
 	}
 
-	isolation, err := parse.IsolationOption(c)
+	isolation, err := parse.IsolationOption(iopts.Isolation)
 	if err != nil {
 		return err
 	}
@@ -241,7 +251,6 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if err != nil {
 		return err
 	}
-
 	devices := []configs.Device{}
 	for _, device := range append(defaultContainerConfig.Containers.AdditionalDevices, iopts.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
@@ -252,6 +261,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	}
 
 	capabilities := defaultContainerConfig.Capabilities("", iopts.CapAdd, iopts.CapDrop)
+	commonOpts.Ulimit = append(defaultContainerConfig.Containers.DefaultUlimits, commonOpts.Ulimit...)
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
 		Container:             iopts.name,
@@ -270,7 +280,6 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		Format:                format,
 		BlobDirectory:         iopts.BlobCache,
 		Devices:               devices,
-		DefaultEnv:            defaultContainerConfig.GetDefaultEnv(),
 	}
 
 	if !iopts.quiet {

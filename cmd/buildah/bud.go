@@ -10,7 +10,6 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -69,7 +68,11 @@ func init() {
 	budFlags.StringVar(&budFlagResults.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
 
 	layerFlags := buildahcli.GetLayerFlags(&layerFlagsResults)
-	fromAndBudFlags := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults, defaultContainerConfig)
+	fromAndBudFlags, err := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
+	if err != nil {
+		logrus.Errorf("failed to setup From and Bud flags: %e", err)
+		os.Exit(1)
+	}
 
 	flags.AddFlagSet(&budFlags)
 	flags.AddFlagSet(&layerFlags)
@@ -214,7 +217,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	isolation, err := parse.IsolationOption(c)
+	isolation, err := parse.IsolationOption(iopts.Isolation)
 	if err != nil {
 		return err
 	}
@@ -224,7 +227,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		runtimeFlags = append(runtimeFlags, "--"+arg)
 	}
 
-	commonOpts, err := parse.CommonBuildOptions(c, defaultContainerConfig)
+	commonOpts, err := parse.CommonBuildOptions(c)
 	if err != nil {
 		return err
 	}
@@ -280,26 +283,6 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 	namespaceOptions.AddOrReplace(usernsOption...)
 
 	defaultsMountFile, _ := c.PersistentFlags().GetString("defaults-mount-file")
-	transientMounts := []imagebuildah.Mount{}
-	for _, volume := range append(defaultContainerConfig.Containers.AdditionalVolumes, iopts.Volumes...) {
-		mount, err := parse.Volume(volume)
-		if err != nil {
-			return err
-		}
-
-		transientMounts = append(transientMounts, imagebuildah.Mount(mount))
-	}
-
-	devices := []configs.Device{}
-	for _, device := range append(defaultContainerConfig.Containers.AdditionalDevices, iopts.Devices...) {
-		dev, err := parse.DeviceFromPath(device)
-		if err != nil {
-			return err
-		}
-		devices = append(devices, dev...)
-	}
-
-	capabilities := defaultContainerConfig.Capabilities("", iopts.CapAdd, iopts.CapDrop)
 
 	os, arch, err := parse.PlatformFromOptions(c)
 	if err != nil {
@@ -307,6 +290,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 	}
 
 	options := imagebuildah.BuildOptions{
+		AddCapabilities:         iopts.CapAdd,
 		AdditionalTags:          tags,
 		Annotations:             iopts.Annotation,
 		Architecture:            arch,
@@ -314,14 +298,13 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		BlobDirectory:           iopts.BlobCache,
 		CNIConfigDir:            iopts.CNIConfigDir,
 		CNIPluginPath:           iopts.CNIPlugInPath,
-		Capabilities:            capabilities,
 		CommonBuildOpts:         commonOpts,
 		Compression:             compression,
 		ConfigureNetwork:        networkPolicy,
 		ContextDirectory:        contextDir,
-		DefaultEnv:              defaultContainerConfig.GetDefaultEnv(),
 		DefaultMountsFilePath:   defaultsMountFile,
-		Devices:                 devices,
+		Devices:                 iopts.Devices,
+		DropCapabilities:        iopts.CapDrop,
 		Err:                     stderr,
 		ForceRmIntermediateCtrs: iopts.ForceRm,
 		IDMappingOptions:        idmappingOptions,
@@ -347,7 +330,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		Squash:                  iopts.Squash,
 		SystemContext:           systemContext,
 		Target:                  iopts.Target,
-		TransientMounts:         transientMounts,
+		TransientMounts:         iopts.Volumes,
 	}
 
 	if iopts.Quiet {

@@ -15,7 +15,6 @@ import (
 	"unicode"
 
 	"github.com/containers/buildah"
-	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
 	units "github.com/docker/go-units"
@@ -45,15 +44,13 @@ var (
 )
 
 // CommonBuildOptions parses the build options from the bud cli
-func CommonBuildOptions(c *cobra.Command, defaultConfig *config.Config) (*buildah.CommonBuildOptions, error) {
+func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 	var (
 		memoryLimit int64
 		memorySwap  int64
 		noDNS       bool
 		err         error
 	)
-
-	defaultLimits := getDefaultProcessLimits()
 
 	memVal, _ := c.Flags().GetString("memory")
 	if memVal != "" {
@@ -81,27 +78,33 @@ func CommonBuildOptions(c *cobra.Command, defaultConfig *config.Config) (*builda
 	}
 
 	noDNS = false
-	dnsServers, _ := c.Flags().GetStringSlice("dns")
-	dnsServers = append(defaultConfig.Containers.DNSServers, dnsServers...)
-	for _, server := range dnsServers {
-		if strings.ToLower(server) == "none" {
-			noDNS = true
+	dnsServers := []string{}
+	if c.Flag("dns").Changed {
+		dnsServers, _ = c.Flags().GetStringSlice("dns")
+		for _, server := range dnsServers {
+			if strings.ToLower(server) == "none" {
+				noDNS = true
+			}
+		}
+		if noDNS && len(dnsServers) > 1 {
+			return nil, errors.Errorf("invalid --dns, --dns=none may not be used with any other --dns options")
 		}
 	}
-	if noDNS && len(dnsServers) > 1 {
-		return nil, errors.Errorf("invalid --dns, --dns=none may not be used with any other --dns options")
+
+	dnsSearch := []string{}
+	if c.Flag("dns-search").Changed {
+		dnsSearch, _ = c.Flags().GetStringSlice("dns-search")
+		if noDNS && len(dnsSearch) > 0 {
+			return nil, errors.Errorf("invalid --dns-search, --dns-search may not be used with --dns=none")
+		}
 	}
 
-	dnsSearch, _ := c.Flags().GetStringSlice("dns-search")
-	dnsSearch = append(defaultConfig.Containers.DNSSearches, dnsSearch...)
-	if noDNS && len(dnsSearch) > 0 {
-		return nil, errors.Errorf("invalid --dns-search, --dns-search may not be used with --dns=none")
-	}
-
-	dnsOptions, _ := c.Flags().GetStringSlice("dns-option")
-	dnsOptions = append(defaultConfig.Containers.DNSOptions, dnsOptions...)
-	if noDNS && len(dnsOptions) > 0 {
-		return nil, errors.Errorf("invalid --dns-option, --dns-option may not be used with --dns=none")
+	dnsOptions := []string{}
+	if c.Flag("dns-search").Changed {
+		dnsOptions, _ = c.Flags().GetStringSlice("dns-option")
+		if noDNS && len(dnsOptions) > 0 {
+			return nil, errors.Errorf("invalid --dns-option, --dns-option may not be used with --dns=none")
+		}
 	}
 
 	if _, err := units.FromHumanSize(c.Flag("shm-size").Value.String()); err != nil {
@@ -115,8 +118,11 @@ func CommonBuildOptions(c *cobra.Command, defaultConfig *config.Config) (*builda
 	cpuQuota, _ := c.Flags().GetInt64("cpu-quota")
 	cpuShares, _ := c.Flags().GetUint64("cpu-shares")
 	httpProxy, _ := c.Flags().GetBool("http-proxy")
-	ulimit, _ := c.Flags().GetStringSlice("ulimit")
-	ulimit = append(defaultConfig.Containers.DefaultUlimits, ulimit...)
+
+	ulimit := []string{}
+	if c.Flag("ulimit").Changed {
+		ulimit, _ = c.Flags().GetStringSlice("ulimit")
+	}
 
 	commonOpts := &buildah.CommonBuildOptions{
 		AddHost:      addHost,
@@ -133,7 +139,7 @@ func CommonBuildOptions(c *cobra.Command, defaultConfig *config.Config) (*builda
 		Memory:       memoryLimit,
 		MemorySwap:   memorySwap,
 		ShmSize:      c.Flag("shm-size").Value.String(),
-		Ulimit:       append(defaultLimits, ulimit...),
+		Ulimit:       ulimit,
 		Volumes:      volumes,
 	}
 	securityOpts, _ := c.Flags().GetStringArray("security-opt")
@@ -905,8 +911,7 @@ func defaultIsolation() (buildah.Isolation, error) {
 }
 
 // IsolationOption parses the --isolation flag.
-func IsolationOption(c *cobra.Command) (buildah.Isolation, error) {
-	isolation, _ := c.Flags().GetString("isolation")
+func IsolationOption(isolation string) (buildah.Isolation, error) {
 	if isolation != "" {
 		switch strings.ToLower(isolation) {
 		case "oci":
