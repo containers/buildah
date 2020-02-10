@@ -6,7 +6,7 @@ require (
 	github.com/blang/semver v3.5.0+incompatible // indirect
 	github.com/containernetworking/cni v0.7.1
 	github.com/containers/common v0.2.0
-	github.com/containers/image/v5 v5.2.0
+	github.com/containers/image/v5 v5.2.1
 	github.com/containers/storage v1.15.8
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/distribution v2.7.1+incompatible
@@ -21,7 +21,6 @@ require (
 	github.com/ishidawataru/sctp v0.0.0-20180918013207-6e2cb1366111 // indirect
 	github.com/mattn/go-shellwords v1.0.9
 	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/mtrmac/gpgme v0.1.2 // indirect
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/opencontainers/go-digest v1.0.0-rc1
