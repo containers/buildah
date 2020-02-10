@@ -13,11 +13,11 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
-	"github.com/opencontainers/runc/libcontainer/configs"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/openshift/imagebuilder"
 	"github.com/pkg/errors"
@@ -66,7 +66,7 @@ type BuildOptions struct {
 	// RuntimeArgs adds global arguments for the runtime.
 	RuntimeArgs []string
 	// TransientMounts is a list of mounts that won't be kept in the image.
-	TransientMounts []Mount
+	TransientMounts []string
 	// Compression specifies the type of compression which is applied to
 	// layer blobs.  The default is to not use compression, but
 	// archive.Gzip is recommended.
@@ -122,10 +122,14 @@ type BuildOptions struct {
 	// ID mapping options to use if we're setting up our own user namespace
 	// when handling RUN instructions.
 	IDMappingOptions *buildah.IDMappingOptions
-	// Capabilities is a list of capabilities to use when
+	// AddCapabilities is a list of capabilities to add to the default set when
 	// handling RUN instructions.
-	Capabilities    []string
-	CommonBuildOpts *buildah.CommonBuildOptions
+	AddCapabilities []string
+	// DropCapabilities is a list of capabilities to remove from the default set
+	// when handling RUN instructions. If a capability appears in both lists, it
+	// will be dropped.
+	DropCapabilities []string
+	CommonBuildOpts  *buildah.CommonBuildOptions
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
 	DefaultMountsFilePath string
 	// IIDFile tells the builder to write the image ID to the specified file
@@ -155,9 +159,7 @@ type BuildOptions struct {
 	// Target the targeted FROM in the Dockerfile to build.
 	Target string
 	// Devices are the additional devices to add to the containers.
-	Devices []configs.Device
-	// DefaultEnv for containers.
-	DefaultEnv []string
+	Devices []string
 	// SignBy is the fingerprint of a GPG key to use for signing images.
 	SignBy string
 	// Architecture specifies the target architecture of the image to be built.
@@ -254,7 +256,11 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options BuildOpt
 		return "", nil, errors.Wrapf(err, "error creating build executor")
 	}
 	b := imagebuilder.NewBuilder(options.Args)
-	b.Env = append(options.DefaultEnv, b.Env...)
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return "", nil, errors.Wrapf(err, "failed to get container config")
+	}
+	b.Env = append(defaultContainerConfig.GetDefaultEnv(), b.Env...)
 	stages, err := imagebuilder.NewStages(mainNode, b)
 	if err != nil {
 		return "", nil, errors.Wrap(err, "error reading multiple stages")

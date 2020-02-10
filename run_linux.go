@@ -26,6 +26,7 @@ import (
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/secrets"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
@@ -90,7 +91,11 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return err
 	}
 
-	b.configureEnvironment(g, options)
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get container config")
+	}
+	b.configureEnvironment(g, options, defaultContainerConfig.Containers.Env)
 
 	if b.CommonBuildOpts == nil {
 		return errors.Errorf("Invalid format on container you must recreate the container")
@@ -292,8 +297,12 @@ func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) 
 		g.SetLinuxCgroupsPath(commonOpts.CgroupParent)
 	}
 
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get container config")
+	}
 	// Other process resource limits
-	if err := addRlimits(commonOpts.Ulimit, g); err != nil {
+	if err := addRlimits(commonOpts.Ulimit, g, defaultContainerConfig.Containers.DefaultUlimits); err != nil {
 		return err
 	}
 
@@ -507,6 +516,11 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 	nameservers := resolvconf.GetNameservers(contents, types.IP)
 	options := resolvconf.GetOptions(contents)
 
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get container config")
+	}
+	dnsSearch = append(defaultContainerConfig.Containers.DNSSearches, dnsSearch...)
 	if len(dnsSearch) > 0 {
 		search = dnsSearch
 	}
@@ -520,6 +534,7 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 		}
 	}
 
+	dnsServers = append(defaultContainerConfig.Containers.DNSServers, dnsServers...)
 	if len(dnsServers) != 0 {
 		dns, err := getDNSIP(dnsServers)
 		if err != nil {
@@ -531,6 +546,7 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 		}
 	}
 
+	dnsOptions = append(defaultContainerConfig.Containers.DNSOptions, dnsOptions...)
 	if len(dnsOptions) != 0 {
 		options = dnsOptions
 	}
@@ -1600,12 +1616,13 @@ func runSetupBoundFiles(bundlePath string, bindFiles map[string]string) (mounts 
 	return mounts
 }
 
-func addRlimits(ulimit []string, g *generate.Generator) error {
+func addRlimits(ulimit []string, g *generate.Generator, defaultUlimits []string) error {
 	var (
 		ul  *units.Ulimit
 		err error
 	)
 
+	ulimit = append(defaultUlimits, ulimit...)
 	for _, u := range ulimit {
 		if ul, err = units.ParseUlimit(u); err != nil {
 			return errors.Wrapf(err, "ulimit option %q requires name=SOFT:HARD, failed to be parsed", u)
@@ -1906,7 +1923,7 @@ func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, opti
 	return homeDir, nil
 }
 
-func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions) {
+func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions, defaultEnv []string) {
 	g.ClearProcessEnv()
 
 	if b.CommonBuildOpts.HTTPProxy {
@@ -1927,7 +1944,7 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 		}
 	}
 
-	for _, envSpec := range append(b.Env(), options.Env...) {
+	for _, envSpec := range append(b.Env(), append(defaultEnv, options.Env...)...) {
 		env := strings.SplitN(envSpec, "=", 2)
 		if len(env) > 1 {
 			g.AddProcessEnv(env[0], env[1])

@@ -74,6 +74,8 @@ github.com/containers/common v0.1.2 h1:EYAgJsQgH3akh6kdlN4c2t09bqRgyzpxyWmlFTf1I
 github.com/containers/common v0.1.2/go.mod h1:ss8uGpUsaDE4DPmaVFOjzKrlgf5eUnSAWL+d/PYGaoM=
 github.com/containers/common v0.1.4 h1:6tizbvX9BJTnJ0S3pe65Vcu8gJagbm6oFBCmwUIiOE4=
 github.com/containers/common v0.1.4/go.mod h1:ss8uGpUsaDE4DPmaVFOjzKrlgf5eUnSAWL+d/PYGaoM=
+github.com/containers/common v0.2.0 h1:umTbAiX39/0oNxHn10ia0RyXrZCs/CnjJQlRiTdiXb8=
+github.com/containers/common v0.2.0/go.mod h1:ss8uGpUsaDE4DPmaVFOjzKrlgf5eUnSAWL+d/PYGaoM=
 github.com/containers/image/v4 v4.0.1 h1:idNGHChj0Pyv3vLrxul2oSVMZLeFqpoq3CjLeVgapSQ=
 github.com/containers/image/v4 v4.0.1/go.mod h1:0ASJH1YgJiX/eqFZObqepgsvIA4XjCgpyfwn9pDGafA=
 github.com/containers/image/v5 v5.0.0 h1:arnXgbt1ucsC/ndtSpiQY87rA0UjhF+/xQnPzqdBDn4=
@@ -420,6 +422,10 @@ github.com/prometheus/procfs v0.0.3/go.mod h1:4A/X28fw3Fc593LaREMrKMqOKvUAntwMDa
 github.com/prometheus/procfs v0.0.5 h1:3+auTFlqw+ZaQYJARz6ArODtkaIwtvBTx3N2NehQlL8=
 github.com/prometheus/procfs v0.0.5/go.mod h1:4A/X28fw3Fc593LaREMrKMqOKvUAntwMDaekg4FpcdQ=
 github.com/remyoudompheng/bigfft v0.0.0-20170806203942-52369c62f446/go.mod h1:uYEyJGbgTkfkS4+E/PavXkNJcbFIpEtjt2B0KDQ5+9M=
+github.com/rhatdan/common v0.0.3-0.20200203010855-77d72c3e2feb h1:pABQ1OA6mO8XrdHran0oaTEvSb2aZpM+bI8+NfcjALQ=
+github.com/rhatdan/common v0.0.3-0.20200203010855-77d72c3e2feb/go.mod h1:ss8uGpUsaDE4DPmaVFOjzKrlgf5eUnSAWL+d/PYGaoM=
+github.com/rhatdan/common v0.0.3-0.20200208104512-837f7aa36449 h1:3uEI2WT7ZUWIKbbyKjm7etLgSSMOmdiJ4cqksVnuV9A=
+github.com/rhatdan/common v0.0.3-0.20200208104512-837f7aa36449/go.mod h1:ss8uGpUsaDE4DPmaVFOjzKrlgf5eUnSAWL+d/PYGaoM=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/saschagrunert/storage v1.12.3-0.20191015073819-a34ddea087da h1:5aEGhStFh+0r/t0kT0utSi5C6MIMHBgMHkeIu1JUvfA=

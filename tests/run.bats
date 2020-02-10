@@ -320,14 +320,14 @@ function configure_and_check_user() {
 
 @test "Check if containers run with correct open files/processes limits" {
 	skip_if_no_runtime
-
 	_prefetch alpine
+	maxpids=$(cat /proc/sys/kernel/pid_max)
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
-	expect_output "32768" "limits: open files (unlimited)"
+	expect_output 1024 "limits: open files (unlimited)"
 	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
-	expect_output "32768" "limits: processes (unlimited)"
+	expect_output ${maxpids} "limits: processes (unlimited)"
 	run_buildah rm $cid
 
 	run_buildah from --quiet --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
@@ -335,7 +335,7 @@ function configure_and_check_user() {
 	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
 	expect_output "300" "limits: open files (w/file limit)"
 	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
-	expect_output "32768" "limits: processes (w/file limit)"
+	expect_output ${maxpids} "limits: processes (w/file limit)"
 	run_buildah rm $cid
 
 	run_buildah from --quiet --ulimit nproc=100:200 --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
