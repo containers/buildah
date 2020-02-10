@@ -53,7 +53,7 @@ Not Available.  Must be installed via package layering.
 
 rpm-ostree install buildah
 
-Note: `[podman](https://podman.io) build` is available by default.
+Note: [`podman`](https://podman.io) build is available by default.
 
 ### [Gentoo](https://www.gentoo.org)
 
@@ -150,9 +150,9 @@ named `containernetworking-cni`).  If not, they will need to be installed,
 for example using:
 ```
   git clone https://github.com/containernetworking/plugins
-  ( cd ./plugins; ./build.sh )
-  mkdir -p /opt/cni/bin
-  install -v ./plugins/bin/* /opt/cni/bin
+  ( cd ./plugins; ./build_linux.sh )
+  sudo mkdir -p /opt/cni/bin
+  sudo install -v ./plugins/bin/* /opt/cni/bin
 ```
 
 The CNI library needs to be configured so that it will know which plugins to
@@ -276,13 +276,13 @@ The build steps for Buildah on SUSE / openSUSE are the same as for Fedora, above
 In Ubuntu zesty and xenial, you can use these commands:
 
 ```
-  apt-get -y install software-properties-common
-  add-apt-repository -y ppa:alexlarsson/flatpak
-  add-apt-repository -y ppa:gophers/archive
-  apt-add-repository -y ppa:projectatomic/ppa
-  apt-get -y -qq update
-  apt-get -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
-  apt-get -y install golang-1.12
+  sudo apt-get -y install software-properties-common
+  sudo add-apt-repository -y ppa:alexlarsson/flatpak
+  sudo add-apt-repository -y ppa:gophers/archive
+  sudo apt-add-repository -y ppa:projectatomic/ppa
+  sudo apt-get -y -qq update
+  sudo apt-get -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
+  sudo apt-get -y install golang-1.12
 ```
 Then to install Buildah on Ubuntu follow the steps in this example:
 
@@ -292,7 +292,7 @@ Then to install Buildah on Ubuntu follow the steps in this example:
   export GOPATH=`pwd`
   git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
   cd ./src/github.com/containers/buildah
-  PATH=/usr/lib/go-1.10/bin:$PATH make runc all SECURITYTAGS="apparmor seccomp"
+  PATH=/usr/lib/go-1.12/bin:$PATH make runc all SECURITYTAGS="apparmor seccomp"
   sudo make install install.runc
   buildah --help
 ```
@@ -303,11 +303,11 @@ To install the required dependencies, you can use those commands, tested under D
 
 ```
 gpg --recv-keys 0x018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D
-gpg --export 0x018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D >> /usr/share/keyrings/projectatomic-ppa.gpg
-echo 'deb [signed-by=/usr/share/keyrings/projectatomic-ppa.gpg] http://ppa.launchpad.net/projectatomic/ppa/ubuntu zesty main' > /etc/apt/sources.list.d/projectatomic-ppa.list
-apt update
-apt -y install -t stretch-backports golang
-apt -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
+sudo gpg --export 0x018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D >> /usr/share/keyrings/projectatomic-ppa.gpg
+sudo echo 'deb [signed-by=/usr/share/keyrings/projectatomic-ppa.gpg] http://ppa.launchpad.net/projectatomic/ppa/ubuntu zesty main' > /etc/apt/sources.list.d/projectatomic-ppa.list
+sudo apt update
+sudo apt -y install -t stretch-backports golang
+sudo apt -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
 ```
 
 The build steps on Debian are otherwise the same as Ubuntu, above.
