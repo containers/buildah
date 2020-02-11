@@ -101,7 +101,7 @@ install.libseccomp.sudo: gopath
 install.cni.sudo: gopath
 	rm -rf ../../containernetworking/plugins
 	git clone https://github.com/containernetworking/plugins ../../containernetworking/plugins
-	cd ../../containernetworking/plugins && ./build.sh && mkdir -p /opt/cni/bin && sudo install -v -m755 bin/* /opt/cni/bin/
+	cd ../../containernetworking/plugins && ./build_linux.sh && sudo install -D -v -m755 -t /opt/cni/bin/ bin/*
 
 .PHONY: install
 install:
