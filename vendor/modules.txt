@@ -54,7 +54,7 @@ github.com/containernetworking/cni/pkg/version
 github.com/containers/common/pkg/caps
 github.com/containers/common/pkg/config
 github.com/containers/common/pkg/unshare
-# github.com/containers/image/v5 v5.2.0
+# github.com/containers/image/v5 v5.2.1
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
 github.com/containers/image/v5/directory/explicitfilepath
