@@ -1,0 +1,3 @@
+This is a text file to be used in Buildah testing.
+This will be used to ensure that a file from above the context
+directory can not be copied during the build phase.

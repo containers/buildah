@@ -316,8 +316,12 @@ func (s *StageExecutor) digestSpecifiedContent(node *parser.Node, argValues []st
 		} else {
 			// Source is not a URL, so it's a location relative to
 			// the all-content-comes-from-below-this-directory
-			// directory.
+			// directory.  Also raise an error if the src escapes
+			// the context directory.
 			contextSrc, err := securejoin.SecureJoin(contextDir, src)
+			if err == nil && strings.HasPrefix(src, "../") {
+				err = errors.New("escaping context directory error")
+			}
 			if err != nil {
 				return "", errors.Wrapf(err, "forbidden path for %q, it is outside of the build context %q", src, contextDir)
 			}
@@ -435,8 +439,12 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 				// Treat the source, which is not a URL, as a
 				// location relative to the
 				// all-content-comes-from-below-this-directory
-				// directory.
+				// directory.  Also raise an error if the src
+				// escapes the context directory.
 				srcSecure, err := securejoin.SecureJoin(contextDir, src)
+				if err == nil && strings.HasPrefix(src, "../") {
+					err = errors.New("escaping context directory error")
+				}
 				if err != nil {
 					return errors.Wrapf(err, "forbidden path for %q, it is outside of the build context %q", src, contextDir)
 				}

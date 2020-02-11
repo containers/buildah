@@ -1926,3 +1926,8 @@ EOM
   run_buildah rm -a
   run_buildah rmi -a -f
 }
+
+@test "bud file above context direcotry" {
+  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t testctr ${TESTSDIR}/bud/context-escape-dir/testdir
+  expect_output --substring "escaping context directory error"
+}
