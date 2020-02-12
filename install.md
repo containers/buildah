@@ -10,6 +10,18 @@
 sudo pacman -S buildah
 ```
 
+#### [CentOS 7](https://www.centos.org) & [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/)
+
+The [Kubic project](https://build.opensuse.org/project/show/devel:kubic:libcontainers:stable)
+provides packages for CentOS 7 and binary compatible forks of RHEL 7 including Amazon Linux 2.
+
+```bash
+# CentOS 7, Amazon Linux 2 and RHEL 7 forks
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/CentOS_7/devel:kubic:libcontainers:stable.repo
+yum install buildah
+```
+
 #### [Debian](https://debian.org)
 
 The buildah package is [being worked on](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=928083)
