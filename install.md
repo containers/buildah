@@ -4,23 +4,59 @@
 
 ## Installing packaged versions of buildah
 
+#### [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/)
+
+The [Kubic project](https://build.opensuse.org/project/show/devel:kubic:libcontainers:stable)
+provides updated packages for CentOS 7 which can be used unmodified on Amazon Linux 2.
+
+```bash
+cd /etc/yum.repos.d/
+sudo wget https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/CentOS_7/devel:kubic:libcontainers:stable.repo
+sudo yum -y install buildah
+```
+
 ### [Arch Linux](https://www.archlinux.org)
 
 ```bash
 sudo pacman -S buildah
 ```
 
-#### [CentOS 7](https://www.centos.org) & [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/)
+#### [CentOS](https://www.centos.org)
 
-The [Kubic project](https://build.opensuse.org/project/show/devel:kubic:libcontainers:stable)
-provides packages for CentOS 7 and binary compatible forks of RHEL 7 including Amazon Linux 2.
+Buildah is available in the default Extras repos for CentOS 7 and in
+the AppStream repo for CentOS 8 and Stream, however the available version often
+lags the upstream release.
 
 ```bash
-# CentOS 7, Amazon Linux 2 and RHEL 7 forks
-cd /etc/yum.repos.d/
-wget https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/CentOS_7/devel:kubic:libcontainers:stable.repo
-yum install buildah
+sudo yum -y install buildah
 ```
+
+The [Kubic project](https://build.opensuse.org/project/show/devel:kubic:libcontainers:stable)
+provides updated packages for CentOS 7, 8 and Stream.
+
+```bash
+# CentOS 7
+cd /etc/yum.repos.d/
+sudo wget https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/CentOS_7/devel:kubic:libcontainers:stable.repo
+sudo yum -y install buildah
+
+# CentOS 8
+sudo dnf -y module disable container-tools
+sudo dnf -y install 'dnf-command(copr)'
+sudo dnf -y copr enable rhcontainerbot/container-selinux
+cd /etc/yum.repos.d
+sudo wget https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/CentOS_8/devel:kubic:libcontainers:stable.repo
+sudo dnf -y install buildah
+
+# CentOS Stream
+sudo dnf -y module disable container-tools
+sudo dnf -y install 'dnf-command(copr)'
+sudo dnf -y copr enable rhcontainerbot/container-selinux
+cd /etc/yum.repos.d
+sudo wget https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/CentOS_8_Stream/devel:kubic:libcontainers:stable.repo
+sudo dnf -y install buildah
+```
+
 
 #### [Debian](https://debian.org)
 
