@@ -10,6 +10,18 @@
 sudo pacman -S buildah
 ```
 
+#### [CentOS 7](https://www.centos.org) & [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/)
+
+The [Kubic project](https://build.opensuse.org/project/show/devel:kubic:libcontainers:stable)
+provides packages for CentOS 7 and binary compatible forks of RHEL 7 including Amazon Linux 2.
+
+```bash
+# CentOS 7, Amazon Linux 2 and RHEL 7 forks
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/CentOS_7/devel:kubic:libcontainers:stable.repo
+yum install buildah
+```
+
 #### [Debian](https://debian.org)
 
 The buildah package is [being worked on](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=928083)
@@ -102,12 +114,12 @@ sudo yum module install -y buildah
 
 ### [Ubuntu](https://www.ubuntu.com)
 
-The Kubic project provides packages for Ubuntu 18.04, 19.04 and 19.10.
+The Kubic project provides packages for Ubuntu 18.04, 19.04 and 19.10 (it should also work with direct derivatives like Pop!\_OS).
 
 ```bash
 . /etc/os-release
-sudo sh -c "echo 'deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/x${NAME}_${VERSION_ID}/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
-wget -nv https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/x${NAME}_${VERSION_ID}/Release.key -O Release.key
+sudo sh -c "echo 'deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/x${ID^}_${VERSION_ID}/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
+wget -nv https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/x${ID^}_${VERSION_ID}/Release.key -O Release.key
 sudo apt-key add - < Release.key
 sudo apt-get update -qq
 sudo apt-get -qq -y install buildah
