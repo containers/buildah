@@ -170,3 +170,93 @@ load helpers
   run_buildah images --digests
   expect_output --substring "sha256:"
 }
+
+@test "images in OCI format with no creation dates" {
+  mkdir -p $TESTDIR/blobs/sha256
+
+  # Create a layer.
+  dd if=/dev/zero bs=512 count=2 of=$TESTDIR/blob
+  layerdigest=$(sha256sum $TESTDIR/blob | awk '{print $1}')
+  layersize=$(stat -c %s $TESTDIR/blob)
+  mv $TESTDIR/blob $TESTDIR/blobs/sha256/${layerdigest}
+
+  # Create a configuration blob that doesn't include a "created" date.
+  now=$(TZ=UTC date +%Y-%m-%dT%H:%M:%S.%NZ)
+  arch=$(go env GOARCH)
+  cat > $TESTDIR/blob << EOF
+  {
+    "architecture": "$arch",
+    "os": "linux",
+    "config": {
+        "Env": [
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ],
+        "Cmd": [
+            "sh"
+        ]
+    },
+    "rootfs": {
+        "type": "layers",
+        "diff_ids": [
+            "sha256:${layerdigest}"
+        ]
+    },
+    "history": [
+        {
+            "created": "${now}",
+            "created_by": "/bin/sh -c #(nop) ADD file:${layerdigest} in / "
+        }
+    ]
+  }
+EOF
+  configdigest=$(sha256sum $TESTDIR/blob | awk '{print $1}')
+  configsize=$(stat -c %s $TESTDIR/blob)
+  mv $TESTDIR/blob $TESTDIR/blobs/sha256/${configdigest}
+
+  # Create a manifest for that configuration blob and layer.
+  cat > $TESTDIR/blob << EOF
+  {
+    "schemaVersion": 2,
+    "config": {
+        "mediaType": "application/vnd.oci.image.config.v1+json",
+        "digest": "sha256:${configdigest}",
+        "size": ${configsize}
+    },
+    "layers": [
+        {
+            "mediaType": "application/vnd.oci.image.layer.v1.tar",
+            "digest": "sha256:${layerdigest}",
+            "size": ${layersize}
+        }
+    ]
+  }
+EOF
+  manifestdigest=$(sha256sum $TESTDIR/blob | awk '{print $1}')
+  manifestsize=$(stat -c %s $TESTDIR/blob)
+  mv $TESTDIR/blob $TESTDIR/blobs/sha256/${manifestdigest}
+
+  # Add the manifest to the image index.
+  cat > $TESTDIR/index.json << EOF
+  {
+    "schemaVersion": 2,
+    "manifests": [
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:${manifestdigest}",
+            "size": ${manifestsize}
+        }
+    ]
+  }
+EOF
+
+  # Mark the directory as a layout directory.
+  echo -n '{"imageLayoutVersion": "1.0.0"}' > $TESTDIR/oci-layout
+
+  # Import the image.
+  run_buildah pull oci:$TESTDIR
+
+  # Inspect the image.  We shouldn't crash.
+  run_buildah inspect ${configdigest}
+  # List images.  We shouldn't crash.
+  run_buildah images
+}
