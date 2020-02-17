@@ -121,6 +121,7 @@ func DefaultConfig() (*Config, error) {
 	}
 
 	var signaturePolicyPath string
+	netns := "bridge"
 	if unshare.IsRootless() {
 		home, err := unshare.HomeDir()
 		if err != nil {
@@ -130,6 +131,7 @@ func DefaultConfig() (*Config, error) {
 		if _, err := os.Stat(sigPath); err == nil {
 			signaturePolicyPath = sigPath
 		}
+		netns = "slirp4netns"
 	}
 
 	return &Config{
@@ -156,7 +158,7 @@ func DefaultConfig() (*Config, error) {
 			IPCNS:               "private",
 			LogDriver:           DefaultLogDriver,
 			LogSizeMax:          DefaultLogSizeMax,
-			NetNS:               "bridge",
+			NetNS:               netns,
 			NoHosts:             false,
 			PidsLimit:           DefaultPidsLimit,
 			PidNS:               "private",
