@@ -1944,7 +1944,7 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 		}
 	}
 
-	for _, envSpec := range append(b.Env(), append(defaultEnv, options.Env...)...) {
+	for _, envSpec := range append(append(defaultEnv, b.Env()...), options.Env...) {
 		env := strings.SplitN(envSpec, "=", 2)
 		if len(env) > 1 {
 			g.AddProcessEnv(env[0], env[1])
