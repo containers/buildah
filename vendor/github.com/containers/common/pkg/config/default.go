@@ -15,7 +15,6 @@ import (
 )
 
 const (
-
 	// _conmonMinMajorVersion is the major version required for conmon.
 	_conmonMinMajorVersion = 2
 
@@ -98,6 +97,7 @@ const (
 	// DefaultPidsLimit is the default value for maximum number of processes
 	// allowed inside a container
 	DefaultPidsLimit = 2048
+	// DefaultRootlessSignaturePolicyPath is the default value for the
 	// rootless policy.json file.
 	DefaultRootlessSignaturePolicyPath = ".config/containers/policy.json"
 	// DefaultShmSize default value
@@ -136,18 +136,19 @@ func DefaultConfig() (*Config, error) {
 
 	return &Config{
 		Containers: ContainersConfig{
-			AdditionalDevices:   []string{},
-			AdditionalVolumes:   []string{},
-			ApparmorProfile:     DefaultApparmorProfile,
-			CgroupManager:       SystemdCgroupsManager,
-			CgroupNS:            "private",
-			DefaultCapabilities: DefaultCapabilities,
-			DefaultSysctls:      []string{},
-			DefaultUlimits:      getDefaultProcessLimits(),
-			DNSServers:          []string{},
-			DNSOptions:          []string{},
-			DNSSearches:         []string{},
-			EnableLabeling:      selinuxEnabled(),
+			AdditionalDevices:     []string{},
+			AdditionalVolumes:     []string{},
+			AdditionalAnnotations: []string{},
+			ApparmorProfile:       DefaultApparmorProfile,
+			CgroupManager:         SystemdCgroupsManager,
+			CgroupNS:              "private",
+			DefaultCapabilities:   DefaultCapabilities,
+			DefaultSysctls:        []string{},
+			DefaultUlimits:        getDefaultProcessLimits(),
+			DNSServers:            []string{},
+			DNSOptions:            []string{},
+			DNSSearches:           []string{},
+			EnableLabeling:        selinuxEnabled(),
 			Env: []string{
 				"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 			},

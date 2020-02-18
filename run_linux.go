@@ -26,13 +26,13 @@ import (
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/secrets"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/pkg/capabilities"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/stringid"
-	"github.com/docker/docker/oci/caps"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
@@ -1824,7 +1824,7 @@ func setupCapabilities(g *generate.Generator, defaultCapabilities, adds, drops [
 	}
 	for _, c := range adds {
 		if strings.ToLower(c) == "all" {
-			adds = caps.GetAllCapabilities()
+			adds = capabilities.AllCapabilities()
 			break
 		}
 	}
