@@ -70,7 +70,7 @@ func init() {
 	layerFlags := buildahcli.GetLayerFlags(&layerFlagsResults)
 	fromAndBudFlags, err := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
 	if err != nil {
-		logrus.Errorf("failed to setup From and Bud flags: %e", err)
+		logrus.Errorf("failed to setup From and Bud flags: %v", err)
 		os.Exit(1)
 	}
 
