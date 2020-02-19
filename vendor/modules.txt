@@ -33,7 +33,7 @@ github.com/VividCortex/ewma
 github.com/acarl005/stripansi
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
-# github.com/blang/semver v3.5.0+incompatible
+# github.com/blang/semver v3.5.1+incompatible
 github.com/blang/semver
 # github.com/containerd/cgroups v0.0.0-20190919134610-bf292b21730f
 github.com/containerd/cgroups/stats/v1
@@ -43,15 +43,16 @@ github.com/containerd/containerd/errdefs
 github.com/containerd/continuity/fs
 github.com/containerd/continuity/syscallx
 github.com/containerd/continuity/sysx
-# github.com/containernetworking/cni v0.7.1
+# github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
 github.com/containernetworking/cni/libcni
 github.com/containernetworking/cni/pkg/invoke
 github.com/containernetworking/cni/pkg/types
 github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
+github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.2.1
-github.com/containers/common/pkg/caps
+# github.com/containers/common v0.3.0
+github.com/containers/common/pkg/capabilities
 github.com/containers/common/pkg/config
 github.com/containers/common/pkg/unshare
 # github.com/containers/image/v5 v5.2.1
@@ -161,7 +162,7 @@ github.com/docker/distribution/registry/client/auth/challenge
 github.com/docker/distribution/registry/client/transport
 github.com/docker/distribution/registry/storage/cache
 github.com/docker/distribution/registry/storage/cache/memory
-# github.com/docker/docker v1.4.2-0.20191101170500-ac7306503d23
+# github.com/docker/docker v1.4.2-0.20191219165747-a9416c67da9f
 github.com/docker/docker/api
 github.com/docker/docker/api/types
 github.com/docker/docker/api/types/blkiodev
@@ -180,7 +181,6 @@ github.com/docker/docker/api/types/versions
 github.com/docker/docker/api/types/volume
 github.com/docker/docker/client
 github.com/docker/docker/errdefs
-github.com/docker/docker/oci/caps
 github.com/docker/docker/pkg/archive
 github.com/docker/docker/pkg/fileutils
 github.com/docker/docker/pkg/homedir
@@ -364,7 +364,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/seccomp/containers-golang v0.0.0-20180629143253-cdfdaa7543f4
+# github.com/seccomp/containers-golang v0.0.0-20190312124753-8ca8945ccf5f
 github.com/seccomp/containers-golang
 # github.com/seccomp/libseccomp-golang v0.9.1
 github.com/seccomp/libseccomp-golang
@@ -459,7 +459,7 @@ golang.org/x/text/unicode/norm
 # golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/genproto v0.0.0-20190425155659-357c62f0e4bb
+# google.golang.org/genproto v0.0.0-20190620144150-6af8c5fc6601
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.24.0
 google.golang.org/grpc/codes
@@ -477,11 +477,11 @@ gopkg.in/square/go-jose.v2/cipher
 gopkg.in/square/go-jose.v2/json
 # gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 gopkg.in/tomb.v1
-# gopkg.in/yaml.v2 v2.2.4
+# gopkg.in/yaml.v2 v2.2.8
 gopkg.in/yaml.v2
-# k8s.io/api v0.17.0
+# k8s.io/api v0.17.2
 k8s.io/api/core/v1
-# k8s.io/apimachinery v0.17.0
+# k8s.io/apimachinery v0.17.2
 k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/apis/meta/v1
 k8s.io/apimachinery/pkg/conversion
@@ -503,7 +503,7 @@ k8s.io/apimachinery/pkg/util/validation
 k8s.io/apimachinery/pkg/util/validation/field
 k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/reflect
-# k8s.io/client-go v0.0.0-20181219152756-3dd551c0f083
+# k8s.io/client-go v0.0.0-20190620085101-78d2af792bab
 k8s.io/client-go/util/homedir
 # k8s.io/klog v1.0.0
 k8s.io/klog
