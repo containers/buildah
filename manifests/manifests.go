@@ -203,6 +203,18 @@ func (l *list) Push(ctx context.Context, dest types.ImageReference, options Push
 		}
 	}()
 
+	// If we were given a media type that corresponds to a multiple-images
+	// type, reset it to a valid corresponding single-image type, since we
+	// already expect the image library to infer the list type from the
+	// image type that we're telling it to force.
+	singleImageManifestType := options.ManifestType
+	switch singleImageManifestType {
+	case v1.MediaTypeImageIndex:
+		singleImageManifestType = v1.MediaTypeImageManifest
+	case manifest.DockerV2ListMediaType:
+		singleImageManifestType = manifest.DockerV2Schema2MediaType
+	}
+
 	// Build a source reference for our list and grab bag full of blobs.
 	src, err := l.Reference(options.Store, options.ImageListSelection, options.Instances)
 	if err != nil {
@@ -216,7 +228,7 @@ func (l *list) Push(ctx context.Context, dest types.ImageReference, options Push
 		ReportWriter:          options.ReportWriter,
 		RemoveSignatures:      options.RemoveSignatures,
 		SignBy:                options.SignBy,
-		ForceManifestMIMEType: options.ManifestType,
+		ForceManifestMIMEType: singleImageManifestType,
 	}
 
 	// Copy whatever we were asked to copy.

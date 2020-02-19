@@ -645,9 +645,9 @@ func manifestPushCmd(c *cobra.Command, args []string, opts manifestPushOpts) err
 	if opts.format != "" {
 		switch opts.format {
 		case "oci":
-			manifestType = imgspecv1.MediaTypeImageIndex
+			manifestType = imgspecv1.MediaTypeImageManifest
 		case "v2s2", "docker":
-			manifestType = manifest.DockerV2ListMediaType
+			manifestType = manifest.DockerV2Schema2MediaType
 		default:
 			return fmt.Errorf("unknown format %q. Choose on of the supported formats: 'oci' or 'v2s2'", opts.format)
 		}
