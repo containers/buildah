@@ -38,5 +38,7 @@ timeout_sec = 7200
 # List of strings: PR Labels that must NOT be present
 block_labels = []
 
-# The number of required `bors r+` needed for a PR to merge
-required_approvals = 1
+# The number of required GitHub code reviews set 'Approve'
+# before 'bors r+' will allow merging.  Does not require
+# the reviewer being in the 'Reviewers' list for the PR.
+required_approvals = 0
