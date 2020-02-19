@@ -19,6 +19,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -555,31 +556,60 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	ref, _, err := util.FindImage(store, "", systemContext, imageSpec)
+	refs, err := util.ResolveNameToReferences(store, systemContext, imageSpec)
 	if err != nil {
-		if ref, err = alltransports.ParseImageName(imageSpec); err != nil {
-			return err
-		}
+		return errors.Wrapf(err, "error resolving image names")
+	}
+
+	if ref, _, err := util.FindImage(store, "", systemContext, imageSpec); err == nil {
+		refs = append(refs, ref)
+	} else if ref, err := alltransports.ParseImageName(imageSpec); err == nil {
+		refs = append(refs, ref)
 	}
 
 	ctx := getContext()
+	var (
+		latestErr error
+		result    []byte
+	)
 
-	src, err := ref.NewImageSource(ctx, systemContext)
-	if err != nil {
-		return errors.Wrapf(err, "error reading image %q", transports.ImageName(ref))
+	appendErr := func(e error) {
+		if latestErr == nil {
+			latestErr = e
+		} else {
+			latestErr = errors.Wrapf(latestErr, "tried %v\n", e)
+		}
 	}
-	defer src.Close()
 
-	manifestBytes, manifestType, err := src.GetManifest(ctx, nil)
-	if err != nil {
-		return errors.Wrapf(err, "error loading manifest from image %q", transports.ImageName(ref))
+	for _, ref := range refs {
+		logrus.Debugf("Testing reference %q for possible manifest", transports.ImageName(ref))
+
+		src, err := ref.NewImageSource(ctx, systemContext)
+		if err != nil {
+			appendErr(errors.Wrapf(err, "reading image %q", transports.ImageName(ref)))
+			continue
+		}
+		defer src.Close()
+
+		manifestBytes, manifestType, err := src.GetManifest(ctx, nil)
+		if err != nil {
+			appendErr(errors.Wrapf(err, "loading manifest %q", transports.ImageName(ref)))
+			continue
+		}
+
+		if !manifest.MIMETypeIsMultiImage(manifestType) {
+			appendErr(errors.Errorf("manifest is of type %s (not a list type)", manifestType))
+			continue
+		}
+		result = manifestBytes
+		break
 	}
-	if !manifest.MIMETypeIsMultiImage(manifestType) {
-		return errors.Errorf("manifest from image %q is of type %q, which is not a list type", transports.ImageName(ref), manifestType)
+	if len(result) == 0 && latestErr != nil {
+		return latestErr
 	}
 
 	var b bytes.Buffer
-	err = json.Indent(&b, manifestBytes, "", "    ")
+	err = json.Indent(&b, result, "", "    ")
 	if err != nil {
 		return errors.Wrapf(err, "error rendering manifest for display")
 	}
