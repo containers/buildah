@@ -46,7 +46,7 @@ and image verification when pulling images along with resource isolation of cont
 
 Skopeo is a command line tool that performs a variety of operations on container images and image repositories.
 Skopeo can work on either OCI or Docker images.  Skopeo can be used to copy images from and to various
-container storage mehchanisms including container registries.  Skopeo also allows you to inspect an image
+container storage mechanisms including container registries.  Skopeo also allows you to inspect an image
 showing its layers without requiring that the image be pulled.  Skopeo also allows you to delete an image
 from a repository.  When required by the repository, Skopeo can pass appropriate certificates and credentials
 for authentication.
@@ -89,7 +89,7 @@ Some of the commands between the projects overlap:
 The `podman build` and `buildah bud` commands have significant overlap as Podman borrows large pieces of the `podman build` implementation from Buildah.
 
 * run
-The `buildah run` and `podman run` commands are similar but different.  As explained above Podman and Buildah have a different concept of a container.  An easy way to think of it is the `buildah run` command emulates the RUN command in a Dockerfile while the `podman run` command emulates the `docker run` command in functionality.  As Buildah and Podman have some what different concepts of containers, you can not see Podman containers from within Buildah or vice versa.
+The `buildah run` and `podman run` commands are similar but different.  As explained above Podman and Buildah have a different concept of a container.  An easy way to think of it is the `buildah run` command emulates the RUN command in a Dockerfile while the `podman run` command emulates the `docker run` command in functionality.  As Buildah and Podman have somewhat different concepts of containers, you can not see Podman containers from within Buildah or vice versa.
 
 * pull, push
 These commands are basically the same between the two and either could be used.
