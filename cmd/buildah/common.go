@@ -25,6 +25,11 @@ var (
 	needToShutdownStore = false
 )
 
+const (
+	maxPullPushRetries = 3
+	pullPushRetryDelay = 2 * time.Second
+)
+
 func getStore(c *cobra.Command) (storage.Store, error) {
 	options, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
 	if err != nil {
