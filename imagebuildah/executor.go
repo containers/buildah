@@ -117,7 +117,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 	capabilities := defaultContainerConfig.Capabilities("", options.AddCapabilities, options.DropCapabilities)
 
 	devices := []configs.Device{}
-	for _, device := range append(defaultContainerConfig.Containers.AdditionalDevices, options.Devices...) {
+	for _, device := range append(defaultContainerConfig.Containers.Devices, options.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {
 			return nil, err
@@ -126,7 +126,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 	}
 
 	transientMounts := []Mount{}
-	for _, volume := range append(defaultContainerConfig.Containers.AdditionalVolumes, options.TransientMounts...) {
+	for _, volume := range append(defaultContainerConfig.Containers.Volumes, options.TransientMounts...) {
 		mount, err := parse.Volume(volume)
 		if err != nil {
 			return nil, err

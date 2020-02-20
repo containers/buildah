@@ -319,14 +319,10 @@ func (d *decoder) prepare(n *node, out reflect.Value) (newout reflect.Value, unm
 }
 
 const (
-	// 400,000 decode operations is ~500kb of dense object declarations, or
-	// ~5kb of dense object declarations with 10000% alias expansion
+	// 400,000 decode operations is ~500kb of dense object declarations, or ~5kb of dense object declarations with 10000% alias expansion
 	alias_ratio_range_low = 400000
-
-	// 4,000,000 decode operations is ~5MB of dense object declarations, or
-	// ~4.5MB of dense object declarations with 10% alias expansion
+	// 4,000,000 decode operations is ~5MB of dense object declarations, or ~4.5MB of dense object declarations with 10% alias expansion
 	alias_ratio_range_high = 4000000
-
 	// alias_ratio_range is the range over which we scale allowed alias ratios
 	alias_ratio_range = float64(alias_ratio_range_high - alias_ratio_range_low)
 )
@@ -788,7 +784,8 @@ func (d *decoder) merge(n *node, out reflect.Value) {
 	case mappingNode:
 		d.unmarshal(n, out)
 	case aliasNode:
-		if n.alias != nil && n.alias.kind != mappingNode {
+		an, ok := d.doc.anchors[n.value]
+		if ok && an.kind != mappingNode {
 			failWantMap()
 		}
 		d.unmarshal(n, out)
@@ -797,7 +794,8 @@ func (d *decoder) merge(n *node, out reflect.Value) {
 		for i := len(n.children) - 1; i >= 0; i-- {
 			ni := n.children[i]
 			if ni.kind == aliasNode {
-				if ni.alias != nil && ni.alias.kind != mappingNode {
+				an, ok := d.doc.anchors[ni.value]
+				if ok && an.kind != mappingNode {
 					failWantMap()
 				}
 			} else if ni.kind != mappingNode {

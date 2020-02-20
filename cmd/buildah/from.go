@@ -252,7 +252,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return err
 	}
 	devices := []configs.Device{}
-	for _, device := range append(defaultContainerConfig.Containers.AdditionalDevices, iopts.Devices...) {
+	for _, device := range append(defaultContainerConfig.Containers.Devices, iopts.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {
 			return err

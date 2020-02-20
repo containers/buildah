@@ -53,7 +53,7 @@ load helpers
     run_buildah 1 --log-level=error run $cid ls /dev/foo1
     buildah rm $cid
 
-    sed '/additional_devices.*/a "/dev/foo:\/dev\/foo1:rmw",' ${TESTSDIR}/containers.conf > ${TESTSDIR}/containers1.conf
+    sed '/^devices.*/a "/dev/foo:\/dev\/foo1:rmw",' ${TESTSDIR}/containers.conf > ${TESTSDIR}/containers1.conf
     rm -f /dev/foo; mknod /dev/foo c 1 1
     export CONTAINERS_CONF=${TESTSDIR}/containers1.conf
     cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
@@ -67,7 +67,7 @@ load helpers
     cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
     run_buildah --log-level=error run $cid sh -c 'grep  CapEff /proc/self/status | cut -f2'
     CapEff=$output
-    expect_output "00000000280425fb"
+    expect_output "00000000a80425fb"
     buildah rm $cid
 
     sed "/AUDIT_WRITE/d" ${TESTSDIR}/containers.conf > ${TESTSDIR}/containers1.conf
