@@ -9,6 +9,7 @@ BUILDTAGS += $(TAGS)
 PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR = $(PREFIX)/share/bash-completion/completions
+ZSHINSTALLDIR = $(PREFIX)/share/zsh/site-functions
 BUILDFLAGS := -tags "$(BUILDTAGS)"
 BUILDAH := buildah
 
@@ -113,10 +114,21 @@ uninstall:
 	rm -f $(DESTDIR)/$(BINDIR)/buildah
 	rm -f $(PREFIX)/share/man/man1/buildah*.1
 	rm -f $(DESTDIR)/$(BASHINSTALLDIR)/buildah
+	rm -f $(DESTDIR)/$(ZSHINSTALLDIR)/buildah
+
+.PHONY: completions
+completions: contrib/completions/bash/buildah contrib/completions/zsh/buildah
+
+contrib/completions/bash/buildah: binary
+	./buildah bash-completion > $@
+
+contrib/completions/zsh/buildah: binary
+	./buildah zsh-completion > $@
 
 .PHONY: install.completions
 install.completions:
 	install -m 644 -D contrib/completions/bash/buildah $(DESTDIR)/$(BASHINSTALLDIR)/buildah
+	install -m 644 -D contrib/completions/zsh/buildah $(DESTDIR)/$(ZSHINSTALLDIR)/buildah
 
 .PHONY: install.runc
 install.runc:

@@ -113,7 +113,7 @@ func before(cmd *cobra.Command) error {
 	}
 
 	switch cmd.Use {
-	case "", "help", "version", "mount":
+	case "", "help", "version", "mount", "bash-completion", "zsh-completion":
 		return nil
 	}
 	unshare.MaybeReexecUsingUserNamespace(false)
