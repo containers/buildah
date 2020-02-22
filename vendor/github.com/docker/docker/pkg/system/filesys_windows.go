@@ -11,6 +11,7 @@ import (
 	"time"
 	"unsafe"
 
+	winio "github.com/Microsoft/go-winio"
 	"golang.org/x/sys/windows"
 )
 
@@ -102,13 +103,13 @@ func mkdirall(path string, applyACL bool, sddl string) error {
 // and Local System.
 func mkdirWithACL(name string, sddl string) error {
 	sa := windows.SecurityAttributes{Length: 0}
-	sd, err := windows.SecurityDescriptorFromString(sddl)
+	sd, err := winio.SddlToSecurityDescriptor(sddl)
 	if err != nil {
 		return &os.PathError{Op: "mkdir", Path: name, Err: err}
 	}
 	sa.Length = uint32(unsafe.Sizeof(sa))
 	sa.InheritHandle = 1
-	sa.SecurityDescriptor = sd
+	sa.SecurityDescriptor = uintptr(unsafe.Pointer(&sd[0]))
 
 	namep, err := windows.UTF16PtrFromString(name)
 	if err != nil {
@@ -235,7 +236,7 @@ func windowsOpenSequential(path string, mode int, _ uint32) (fd windows.Handle, 
 		createmode = windows.OPEN_EXISTING
 	}
 	// Use FILE_FLAG_SEQUENTIAL_SCAN rather than FILE_ATTRIBUTE_NORMAL as implemented in golang.
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
+	//https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
 	const fileFlagSequentialScan = 0x08000000 // FILE_FLAG_SEQUENTIAL_SCAN
 	h, e := windows.CreateFile(pathp, access, sharemode, sa, createmode, fileFlagSequentialScan, 0)
 	return h, e
