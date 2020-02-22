@@ -10,7 +10,6 @@ import (
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/buildah/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -62,7 +61,8 @@ func init() {
 	flags.StringSliceVar(&opts.capDrop, "cap-drop", []string{}, "drop the specified capability (default [])")
 	flags.StringVar(&opts.hostname, "hostname", "", "set the hostname inside of the container")
 	flags.StringVar(&opts.isolation, "isolation", buildahcli.DefaultIsolation(), "`type` of process isolation to use. Use BUILDAH_ISOLATION environment variable to override.")
-	flags.StringVar(&opts.runtime, "runtime", util.Runtime(), "`path` to an alternate OCI runtime")
+	// Do not set a default runtime here, we'll do that later in the processing.
+	flags.StringVar(&opts.runtime, "runtime", "", "`path` to an alternate OCI runtime")
 	flags.StringSliceVar(&opts.runtimeFlag, "runtime-flag", []string{}, "add global flags for the container runtime")
 	flags.BoolVar(&opts.noPivot, "no-pivot", false, "do not use pivot root to jail process inside rootfs")
 	flags.StringArrayVar(&opts.securityOption, "security-opt", []string{}, "security options (default [])")
