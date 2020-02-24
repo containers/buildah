@@ -34,7 +34,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	golang.org/x/crypto v0.0.0-20191112222119-e1110fd1c708
 	golang.org/x/sys v0.0.0-20191127021746-63cb32ae39b2
