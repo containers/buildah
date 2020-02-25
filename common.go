@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/containers/common/pkg/unshare"
@@ -20,7 +21,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -94,8 +94,8 @@ func isRetryable(err error) bool {
 	if url, ok := err.(*url.Error); ok {
 		return isRetryable(url.Err)
 	}
-	if errno, ok := err.(unix.Errno); ok {
-		if errno == unix.ECONNREFUSED {
+	if errno, ok := err.(syscall.Errno); ok {
+		if errno == syscall.ECONNREFUSED {
 			return false
 		}
 	}
