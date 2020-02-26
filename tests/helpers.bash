@@ -41,6 +41,16 @@ function stophttpd() {
 
 function teardown() {
 	stophttpd
+
+        # Workaround for #1991 - buildah + overlayfs leaks mount points.
+        # Many tests leave behind /var/tmp/.../root/overlay and sub-mounts;
+        # let's find those and clean them up, otherwise 'rm -rf' fails.
+        # 'sort -r' guarantees that we umount deepest subpaths first.
+        mount |\
+            awk '$3 ~ testdir { print $3 }' testdir="^${TESTDIR}/" |\
+            sort -r |\
+            xargs --no-run-if-empty --max-lines=1 umount
+
 	rm -fr ${TESTDIR}
 }
 
