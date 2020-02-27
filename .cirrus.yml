@@ -110,8 +110,8 @@ gce_instance:
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
-    # FIXME: These tests mostly/always fail
     unit_test_script: '${SCRIPT_BASE}/test.sh unit |& ${_TIMESTAMP} || true'
+    stub_script: echo "FIXME, These tests mostly/always fail, ignoring status."
 
     binary_artifacts:
         path: ./bin/*
