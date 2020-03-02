@@ -101,6 +101,8 @@ github.com/containers/common v0.4.0 h1:LpX2J19cZKSpn4PBtbLX/tTk3JzTtaqRWbaEoX5YG
 github.com/containers/common v0.4.0/go.mod h1:AiPCv0ZcBOVshnup/X6MuaqkySZQZ3iBWfInjJFIl40=
 github.com/containers/common v0.4.1 h1:Uu7f2ZDM/5xsqOkZwIEVKSjUI3YxKjvNIY5x57kjaKo=
 github.com/containers/common v0.4.1/go.mod h1:m62kenckrWi5rZx32kaLje2Og0hpf6NsaTBn6+b+Oys=
+github.com/containers/common v0.4.2 h1:O5d1gj/xdpQdZi0MEivRQ/7AeRaVeHdbSP/bvShw458=
+github.com/containers/common v0.4.2/go.mod h1:m62kenckrWi5rZx32kaLje2Og0hpf6NsaTBn6+b+Oys=
 github.com/containers/conmon v2.0.10+incompatible/go.mod h1:hgwZ2mtuDrppv78a/cOBNiCm6O0UMWGx1mu7P00nu5I=
 github.com/containers/image/v4 v4.0.1 h1:idNGHChj0Pyv3vLrxul2oSVMZLeFqpoq3CjLeVgapSQ=
 github.com/containers/image/v4 v4.0.1/go.mod h1:0ASJH1YgJiX/eqFZObqepgsvIA4XjCgpyfwn9pDGafA=
