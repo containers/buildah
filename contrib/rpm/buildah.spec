@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.15.0-dev
+Version:        1.14.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,7 +99,14 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Thu Feb 27, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+* Tue Mar 3, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.2-1
+- Add Buildah pull request template
+- Bump to containers/storage v1.16.1
+- run_linux: fix tight loop if file is not pollable
+- Bump github.com/opencontainers/selinux from 1.3.2 to 1.3.3
+- Bump github.com/containers/common from 0.4.1 to 0.4.2
+- Bump back to v1.15.0-dev
+- Add Containerfile to build a versioned stable image on quay.io
 
 * Thu Feb 27, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.1-1
 - Search for local runtime per values in containers.conf
