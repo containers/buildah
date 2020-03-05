@@ -94,7 +94,7 @@ case "$OS_REL_VER" in
             timeout_attempt_delay_command 30 2 30 \
                 add-apt-repository --yes $ppa
         done
-        echo "Configuring/Instaling deps from Open build server"
+        echo "Configuring/Installing deps from Open build server"
         . /etc/os-release
         echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/x${NAME}_${VERSION_ID}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
         showrun curl -L -o /tmp/Release.key "https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/x${NAME}_${VERSION_ID}/Release.key"

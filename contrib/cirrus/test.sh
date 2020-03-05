@@ -25,7 +25,7 @@ then
             showrun ooe.sh git remote update
             if [[ -z "$CIRRUS_PR" ]]
             then
-                echo "Testing a branch, assumed or based on the $DEST_BRANCH brach from .cirrus.yml"
+                echo "Testing a branch, assumed or based on the $DEST_BRANCH branch from .cirrus.yml"
                 export GITVALIDATE_EPOCH="$(git rev-parse upstream/$DEST_BRANCH)"
             else  # Testing a PR
                 echo "Testing a PR targeted at the $DEST_BRANCH branch"
