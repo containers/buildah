@@ -455,7 +455,7 @@ func FindLocalRuntime(runtime string) string {
 		logrus.Debugf("Error loading container config when searching for local runtime.")
 		return localRuntime
 	}
-	for _, val := range conf.Libpod.OCIRuntimes[runtime] {
+	for _, val := range conf.Engine.OCIRuntimes[runtime] {
 		if fileExistsAndNotADir(val) {
 			localRuntime = val
 			break
