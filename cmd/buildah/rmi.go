@@ -174,12 +174,14 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 
 			// Need to fetch the image state again after making changes to it i.e untag
 			// because only a copy of the image state is returned
-			image, err = getImage(ctx, systemContext, store, image.ID)
-			if err != nil || image == nil {
+			image1, err := getImage(ctx, systemContext, store, image.ID)
+			if err != nil || image1 == nil {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
 				}
 				lastError = errors.Wrapf(err, "error getting image after untag %q", image.ID)
+			} else {
+				image = image1
 			}
 		}
 
