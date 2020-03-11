@@ -599,6 +599,18 @@ load helpers
   expect_output "41ed" "stat($root/vol/subvol) [0x41ed = 040755]"
 }
 
+@test "bud-volume-ownership" {
+  # This Dockerfile needs us to be able to handle a working RUN instruction.
+  skip_if_no_runtime
+
+  _prefetch alpine
+  target=volume-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/volume-ownership
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
+  cid=$output
+  run_buildah run $cid test-ownership
+}
+
 @test "bud-from-glob" {
   _prefetch alpine
   target=alpine-image
