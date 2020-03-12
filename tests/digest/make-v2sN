@@ -22,7 +22,7 @@ test -n "$schemaversion"    || die "Could not find 'v2s[12]' in basename"
 test "$schemaversion" = "N" && die "Script must be invoked via symlink"
 
 dup=
-if expr "$ME" : ".*-dup" >&/dev/null; then
+if expr "$ME" : ".*-dup" &>/dev/null; then
     dup="_with_dups"
 fi
 
@@ -78,17 +78,7 @@ buildah umount $cid2
 buildah commit -q $cid2 interim2
 
 layers="interim2 interim1"
-
-# If a dup layer is requested, create it now
-if [ -n "$dup" ]; then
-    cid3=$(buildah from interim2)
-    buildah commit -q $cid3 interim3
-    layers="interim3 $layers"
-
-    buildah tag interim3 my_image
-else
-    buildah tag interim2 my_image
-fi
+buildah tag interim2 my_image
 
 ###############################################################################
 #
@@ -109,9 +99,26 @@ buildah push $push_flags my_image dir:${TMPDIR}/${IMGNAME}
 buildah rm -a
 buildah rmi -f my_image $layers
 
+if [ -n "$dup" ]; then
+    manifest=${TMPDIR}/${IMGNAME}/manifest.json
+    cat $manifest |
+        jq -c '.fsLayers |= [.[0]] + .' |
+        jq -c '.history |= [.[0]] + .'  |
+        tr -d '\012' >$manifest.tmp
+    mv               $manifest $manifest.BAK
+    mv $manifest.tmp $manifest
+fi
+
+# Delete possibly-existing image, because 'buildah pull' will not overwrite it
+buildah rmi -f localhost/${IMGNAME}:latest &>/dev/null || true
+
 # Reload the image
 (cd $TMPDIR && buildah pull dir:${IMGNAME})
-rm -rf ${TMPDIR}
+
+# Leave the tmpdir behind for the -dup image!
+if [ -z "$dup" ]; then
+    rm -rf ${TMPDIR}
+fi
 
 ###############################################################################
 #
@@ -131,18 +138,17 @@ if type -p jq >&/dev/null; then
         die "Expected .schemaVersion $schemaversion, got '$actual_schemaversion'"
     fi
 
-    if [ -n "$dup" ]; then
-        # Check that there's one layer listed twice
-        dup_layers=$(jq .fsLayers <<<"$manifest" | grep blobSum | sort | uniq -cd)
-        if [ -z "$dup_layers" ]; then
-            die "Did not find any duplicate layers in image"
-        fi
-    fi
-
     echo "Image localhost/${IMGNAME} looks OK; feel free to:"
     echo
-    echo "    buildah push localhost/${IMGNAME} quay.io/libpod/${IMGNAME}:$(date +%Y%m%d)"
-    echo "    buildah push localhost/${IMGNAME} quay.io/libpod/${IMGNAME}:latest"
+
+    if [ -n "$dup" ]; then
+        echo "    \$SKOPEO copy dir:${TMPDIR}/${IMGNAME} docker://quay.io/libpod/${IMGNAME}:\$(date +%Y%m%d)"
+        echo "    ^^^^^^^--- must be specially-crafted skopeo(*), see below"
+    else
+        echo "    buildah push localhost/${IMGNAME} quay.io/libpod/${IMGNAME}:$(date +%Y%m%d)"
+        echo "    buildah push localhost/${IMGNAME} quay.io/libpod/${IMGNAME}:latest"
+    fi
+
     echo
     echo "You may then need to log in to the https://quay.io/ web UI"
     echo "make those images public, then update tags and/or SHAs"
@@ -158,6 +164,17 @@ if type -p jq >&/dev/null; then
     echo "NOTE: the first push to quay.io sometimes fails with some sort of"
     echo "500 error, trying to reuse blob, blah blah. Just ignore it and"
     echo "retry. IME it works the second time."
+
+    if [ -n "$dup" ]; then
+        echo
+        echo "(*) skopeo WILL NOT push an image with dup layers. To get it to"
+        echo "    do that, build a custom skopeo using the patch here:"
+        echo "      https://gist.github.com/nalind/b491204ff05c3c3f3b6ef014b333a60c"
+        echo "    ...then use that skopeo in the above 'copy' command."
+        # And, for posterity should the gist ever disappear:
+        #   vendor/github.com/containers/image/v5/manifest/docker_schema1.go
+        #   - remove lines 66-68 ('if ... s1.fixManifestLayers()...')
+    fi
 else
     echo "WARNING: 'jq' not found; unable to verify built image" >&2
 fi
