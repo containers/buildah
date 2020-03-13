@@ -56,6 +56,9 @@ type PullOptions struct {
 	MaxRetries int
 	// RetryDelay is how long to wait before retrying a pull attempt.
 	RetryDelay time.Duration
+	// PullAlways is a boolean value that determines if the image is always
+	// pulled from the container repository.  The default is false.
+	PullAlways bool
 }
 
 func localImageNameForReference(ctx context.Context, store storage.Store, srcRef types.ImageReference) (string, error) {
@@ -275,7 +278,7 @@ func pullImage(ctx context.Context, store storage.Store, srcRef types.ImageRefer
 	}()
 
 	logrus.Debugf("copying %q to %q", transports.ImageName(srcRef), destName)
-	if _, err := retryCopyImage(ctx, policyContext, maybeCachedDestRef, srcRef, srcRef, "pull", getCopyOptions(store, options.ReportWriter, sc, nil, "", options.RemoveSignatures, ""), options.MaxRetries, options.RetryDelay); err != nil {
+	if _, err := retryCopyImage(ctx, policyContext, maybeCachedDestRef, srcRef, srcRef, "pull", getCopyOptions(store, options.ReportWriter, sc, nil, "", options.RemoveSignatures, "", options.PullAlways), options.MaxRetries, options.RetryDelay); err != nil {
 		logrus.Debugf("error copying src image [%q] to dest image [%q] err: %v", transports.ImageName(srcRef), destName, err)
 		return nil, err
 	}

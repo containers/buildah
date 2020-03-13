@@ -184,6 +184,8 @@ type Options struct {
 	// OciDecryptConfig contains the config that can be used to decrypt an image if it is
 	// encrypted if non-nil. If nil, it does not attempt to decrypt an image.
 	OciDecryptConfig *encconfig.DecryptConfig
+	// PullAlways force the pulling of the image and digests from teh repository
+	PullAlways bool
 }
 
 // validateImageListSelection returns an error if the passed-in value is not one that we recognize as a valid ImageListSelection value
@@ -632,7 +634,7 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 	// If encrypted and decryption keys provided, we should try to decrypt
 	ic.diffIDsAreNeeded = ic.diffIDsAreNeeded || (isEncrypted(src) && ic.ociDecryptConfig != nil) || ic.ociEncryptConfig != nil
 
-	if err := ic.copyLayers(ctx); err != nil {
+	if err := ic.copyLayers(ctx, options); err != nil {
 		return nil, "", "", err
 	}
 
@@ -770,7 +772,7 @@ func isTTY(w io.Writer) bool {
 }
 
 // copyLayers copies layers from ic.src/ic.c.rawSource to dest, using and updating ic.manifestUpdates if necessary and ic.canModifyManifest.
-func (ic *imageCopier) copyLayers(ctx context.Context) error {
+func (ic *imageCopier) copyLayers(ctx context.Context, options *Options) error {
 	srcInfos := ic.src.LayerInfos()
 	numLayers := len(srcInfos)
 	updatedSrcInfos, err := ic.src.LayerInfosForCopy(ctx)
@@ -822,7 +824,7 @@ func (ic *imageCopier) copyLayers(ctx context.Context) error {
 				logrus.Debugf("Skipping foreign layer %q copy to %s", cld.destInfo.Digest, ic.c.dest.Reference().Transport().Name())
 			}
 		} else {
-			cld.destInfo, cld.diffID, cld.err = ic.copyLayer(ctx, srcLayer, toEncrypt, pool)
+			cld.destInfo, cld.diffID, cld.err = ic.copyLayer(ctx, srcLayer, toEncrypt, pool, options)
 		}
 		data[index] = cld
 	}
@@ -1039,11 +1041,10 @@ type diffIDResult struct {
 
 // copyLayer copies a layer with srcInfo (with known Digest and Annotations and possibly known Size) in src to dest, perhaps compressing it if canCompress,
 // and returns a complete blobInfo of the copied layer, and a value for LayerDiffIDs if diffIDIsNeeded
-func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, toEncrypt bool, pool *mpb.Progress) (types.BlobInfo, digest.Digest, error) {
+func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, toEncrypt bool, pool *mpb.Progress, options *Options) (types.BlobInfo, digest.Digest, error) {
 	cachedDiffID := ic.c.blobInfoCache.UncompressedDigest(srcInfo.Digest) // May be ""
 	// Diffs are needed if we are encrypting an image or trying to decrypt an image
-	diffIDIsNeeded := ic.diffIDsAreNeeded && cachedDiffID == "" || toEncrypt || (isOciEncrypted(srcInfo.MediaType) && ic.ociDecryptConfig != nil)
-
+	diffIDIsNeeded := options.PullAlways || ic.diffIDsAreNeeded && cachedDiffID == "" || toEncrypt || (isOciEncrypted(srcInfo.MediaType) && ic.ociDecryptConfig != nil)
 	// If we already have the blob, and we don't need to compute the diffID, then we don't need to read it from the source.
 	if !diffIDIsNeeded {
 		reused, blobInfo, err := ic.c.dest.TryReusingBlob(ctx, srcInfo, ic.c.blobInfoCache, ic.canSubstituteBlobs)

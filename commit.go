@@ -319,7 +319,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	}
 
 	var manifestBytes []byte
-	if manifestBytes, err = retryCopyImage(ctx, policyContext, maybeCachedDest, maybeCachedSrc, dest, "push", getCopyOptions(b.store, options.ReportWriter, nil, systemContext, "", false, options.SignBy), options.MaxRetries, options.RetryDelay); err != nil {
+	if manifestBytes, err = retryCopyImage(ctx, policyContext, maybeCachedDest, maybeCachedSrc, dest, "push", getCopyOptions(b.store, options.ReportWriter, nil, systemContext, "", false, options.SignBy, false), options.MaxRetries, options.RetryDelay); err != nil {
 		return imgID, nil, "", errors.Wrapf(err, "error copying layers and metadata for container %q", b.ContainerID)
 	}
 	// If we've got more names to attach, and we know how to do that for
@@ -451,7 +451,7 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 		systemContext.DirForceCompress = true
 	}
 	var manifestBytes []byte
-	if manifestBytes, err = retryCopyImage(ctx, policyContext, dest, maybeCachedSrc, dest, "push", getCopyOptions(options.Store, options.ReportWriter, nil, systemContext, options.ManifestType, options.RemoveSignatures, options.SignBy), options.MaxRetries, options.RetryDelay); err != nil {
+	if manifestBytes, err = retryCopyImage(ctx, policyContext, dest, maybeCachedSrc, dest, "push", getCopyOptions(options.Store, options.ReportWriter, nil, systemContext, options.ManifestType, options.RemoveSignatures, options.SignBy, false), options.MaxRetries, options.RetryDelay); err != nil {
 		return nil, "", errors.Wrapf(err, "error copying layers and metadata from %q to %q", transports.ImageName(maybeCachedSrc), transports.ImageName(dest))
 	}
 	if options.ReportWriter != nil {

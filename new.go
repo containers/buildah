@@ -36,6 +36,10 @@ func pullAndFindImage(ctx context.Context, store storage.Store, srcRef types.Ima
 		BlobDirectory: options.BlobDirectory,
 		MaxRetries:    options.MaxPullRetries,
 		RetryDelay:    options.PullRetryDelay,
+		PullAlways:    false,
+	}
+	if options.PullPolicy == PullAlways {
+		pullOptions.PullAlways = true
 	}
 	ref, err := pullImage(ctx, store, srcRef, pullOptions, sc)
 	if err != nil {
