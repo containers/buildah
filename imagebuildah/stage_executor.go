@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/containers/buildah"
@@ -242,8 +241,8 @@ func (s *StageExecutor) volumeCacheRestore() error {
 			uid := 0
 			gid := 0
 			if st.Sys() != nil {
-				uid = int(st.Sys().(*syscall.Stat_t).Uid)
-				gid = int(st.Sys().(*syscall.Stat_t).Gid)
+				uid = util.UID(st)
+				gid = util.GID(st)
 			}
 			if err := os.Chown(archivedPath, uid, gid); err != nil {
 				return errors.Wrapf(err, "error setting ownership on %q", archivedPath)
