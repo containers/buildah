@@ -7,6 +7,7 @@ import (
 
 	"github.com/containers/storage/pkg/mount"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // EnsureRemoveAll wraps `os.RemoveAll` to check for specific errors that can
@@ -29,12 +30,14 @@ func EnsureRemoveAll(dir string) error {
 	maxRetry := 100
 
 	// Attempt to unmount anything beneath this dir first
-	mount.RecursiveUnmount(dir)
+	if err := mount.RecursiveUnmount(dir); err != nil {
+		logrus.Debugf("RecusiveUnmount on %s failed: %v", dir, err)
+	}
 
 	for {
 		err := os.RemoveAll(dir)
 		if err == nil {
-			return err
+			return nil
 		}
 
 		pe, ok := err.(*os.PathError)
@@ -63,12 +66,8 @@ func EnsureRemoveAll(dir string) error {
 			return err
 		}
 
-		if mounted, _ := mount.Mounted(pe.Path); mounted {
-			if e := mount.Unmount(pe.Path); e != nil {
-				if mounted, _ := mount.Mounted(pe.Path); mounted {
-					return errors.Wrapf(e, "error while removing %s", dir)
-				}
-			}
+		if e := mount.Unmount(pe.Path); e != nil {
+			return errors.Wrapf(e, "error while removing %s", dir)
 		}
 
 		if exitOnErr[pe.Path] == maxRetry {
