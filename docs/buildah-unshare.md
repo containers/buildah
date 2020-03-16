@@ -43,12 +43,13 @@ If you want to use buildah with a mount command then you can create a script tha
 
 ```
 cat buildah-script.sh << _EOF
+#!/bin/sh
 ctr=$(buildah from scratch)
 mnt=$(buildah mount $ctr)
 dnf -y install --installroot=$mnt PACKAGES
 dnf -y clean all --installroot=$mnt
 buildah config --entrypoint="/bin/PACKAGE" --env "FOO=BAR" $ctr
-buildah commit $ctr IMAGENAME
+buildah commit $ctr imagename
 buildah unmount $ctr
 _EOF
 ```
