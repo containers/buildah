@@ -516,6 +516,8 @@ github.com/openshift/imagebuilder v1.1.0 h1:oT704SkwMEzmIMU/+Uv1Wmvt+p10q3v2WuYM
 github.com/openshift/imagebuilder v1.1.0/go.mod h1:9aJRczxCH0mvT6XQ+5STAQaPWz7OsWcU5/mRkt8IWeo=
 github.com/openshift/imagebuilder v1.1.1 h1:KAUR31p8UBJdfVO42azWgb+LeMAed2zaKQ19e0C0X2I=
 github.com/openshift/imagebuilder v1.1.1/go.mod h1:9aJRczxCH0mvT6XQ+5STAQaPWz7OsWcU5/mRkt8IWeo=
+github.com/openshift/imagebuilder v1.1.2 h1:vCO8hZQR/4uzo+j0PceBH5aKFcvCDM43UzUGOYQN+Go=
+github.com/openshift/imagebuilder v1.1.2/go.mod h1:9aJRczxCH0mvT6XQ+5STAQaPWz7OsWcU5/mRkt8IWeo=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/ostreedev/ostree-go v0.0.0-20190702140239-759a8c1ac913 h1:TnbXhKzrTOyuvWrjI8W6pcoI9XPbLHFXCdN2dtUw7Rw=
 github.com/ostreedev/ostree-go v0.0.0-20190702140239-759a8c1ac913/go.mod h1:J6OG6YJVEWopen4avK3VNQSnALmmjvniMmni/YFYAwc=
