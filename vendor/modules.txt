@@ -39,6 +39,8 @@ github.com/blang/semver
 github.com/containerd/cgroups/stats/v1
 # github.com/containerd/containerd v1.3.0
 github.com/containerd/containerd/errdefs
+github.com/containerd/containerd/log
+github.com/containerd/containerd/platforms
 # github.com/containerd/continuity v0.0.0-20190426062206-aaeac12a7ffc
 github.com/containerd/continuity/fs
 github.com/containerd/continuity/syscallx
@@ -333,7 +335,7 @@ github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalk
 # github.com/openshift/api v0.0.0-20200106203948-7ab22a2c8316
 github.com/openshift/api/config/v1
-# github.com/openshift/imagebuilder v1.1.1
+# github.com/openshift/imagebuilder v1.1.2
 github.com/openshift/imagebuilder
 github.com/openshift/imagebuilder/dockerfile/command
 github.com/openshift/imagebuilder/dockerfile/parser
