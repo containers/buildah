@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.15.0-dev
+Version:        1.14.3
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,7 +99,21 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Tue Mar 3, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+* Tue Mar 17, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.3-1
+- Update containers/storage to v1.16.5
+- Bump github.com/containers/storage from 1.16.2 to 1.16.4
+- Bump github.com/openshift/imagebuilder from 1.1.1 to 1.1.2
+- Update github.com/openshift/imagebuilder vendoring
+- Update unshare man page to fix script example
+- Fix compilation errors on non linux platforms
+- Bump containers/common and opencontainers/selinux versions
+- Add tests for volume ownership
+- Preserve volume uid and gid through subsequent commands
+- Fix FORWARD_NULL errors found by Coverity
+- Bump github.com/containers/storage from 1.16.1 to 1.16.2
+- Fix errors found by codespell
+- Bump back to v1.15.0-dev
+- Add Pull Request Template
 
 * Tue Mar 3, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.2-1
 - Add Buildah pull request template
