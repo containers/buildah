@@ -1,6 +1,0 @@
-#!/bin/sh
-
-set -e
-
-MY_USER=$(stat -c "%U" /vol/subvol) && [[ "$MY_USER" == "testuser" ]]
-MY_GROUP=$(stat -c "%G" /vol/subvol) && [[ "$MY_GROUP" == "testgroup" ]]

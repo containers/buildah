@@ -608,7 +608,8 @@ load helpers
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/volume-ownership
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
   cid=$output
-  run_buildah run $cid test-ownership
+  run_buildah run $cid stat -c "%U %G" /vol/subvol
+  expect_output "testuser testgroup"
 }
 
 @test "bud-from-glob" {
