@@ -1528,6 +1528,51 @@ load helpers
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTDIR}/recurse
 }
 
+@test "bud copy with .dockerignore #1" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p $mytmpdir/stuff/huge/usr/bin/
+  (cd $mytmpdir/stuff/huge/usr/bin/; touch file1 file2)
+  (cd $mytmpdir/stuff/huge/usr/; touch file3)
+
+  cat > $mytmpdir/.dockerignore << _EOF
+stuff/huge/*
+!stuff/huge/usr/bin/*
+_EOF
+
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+COPY stuff /tmp/stuff
+RUN find /tmp/stuff -type f
+_EOF
+
+  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json ${mytmpdir}
+  expect_output --substring "file1"
+  expect_output --substring "file2"
+  ! expect_output --substring "file3"
+}
+
+@test "bud copy with .dockerignore #2" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir1
+  mkdir -p $mytmpdir/stuff/huge/usr/bin/
+  (cd $mytmpdir/stuff/huge/usr/bin/; touch file1 file2)
+
+  cat > $mytmpdir/.dockerignore << _EOF
+stuff/huge/*
+_EOF
+
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+COPY stuff /tmp/stuff
+RUN find /tmp/stuff -type f
+_EOF
+
+  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json ${mytmpdir}
+  ! expect_output --substring "file1"
+  ! expect_output --substring "file2"
+}
+
 @test "bud-copy-workdir" {
   target=testimage
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/copy-workdir
