@@ -71,16 +71,19 @@ func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
-	// username of user logged in to server (if one exists)
-	userFromAuthFile, passFromAuthFile, err := config.GetAuthentication(systemContext, server)
+
+	authConfig, err := config.GetCredentials(systemContext, server)
 	if err != nil {
 		return errors.Wrapf(err, "error reading auth file")
 	}
+	if authConfig.IdentityToken != "" {
+		return errors.Errorf("currently logged in, auth file contains an Identity token")
+	}
 	if c.Flag("get-login").Changed {
-		if userFromAuthFile == "" {
+		if authConfig.Username == "" {
 			return errors.Errorf("not logged into %s", server)
 		}
-		fmt.Printf("%s\n", userFromAuthFile)
+		fmt.Printf("%s\n", authConfig.Username)
 		return nil
 	}
 	ctx := getContext()
@@ -102,16 +105,16 @@ func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 	}
 
 	// If no username and no password is specified, try to use existing ones.
-	if iopts.username == "" && password == "" && userFromAuthFile != "" && passFromAuthFile != "" {
+	if iopts.username == "" && password == "" && authConfig.Username != "" && authConfig.Password != "" {
 		fmt.Println("Authenticating with existing credentials...")
-		if err := docker.CheckAuth(ctx, systemContext, userFromAuthFile, passFromAuthFile, server); err == nil {
+		if err := docker.CheckAuth(ctx, systemContext, authConfig.Username, authConfig.Password, server); err == nil {
 			fmt.Println("Existing credentials are valid. Already logged in to", server)
 			return nil
 		}
 		fmt.Println("Existing credentials are invalid, please enter valid username and password")
 	}
 
-	username, password, err := GetUserAndPass(iopts.username, password, userFromAuthFile)
+	username, password, err := GetUserAndPass(iopts.username, password, authConfig.Username)
 	if err != nil {
 		return errors.Wrapf(err, "error getting username and password")
 	}
