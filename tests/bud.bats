@@ -1989,3 +1989,11 @@ EOM
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t testctr ${TESTSDIR}/bud/context-escape-dir/testdir
   expect_output --substring "escaping context directory error"
 }
+
+@test "bud-multi-stage-args" {
+  _prefetch alpine
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t multi-stage-args --build-arg SECRET=secretthings -f Dockerfile.arg ${TESTSDIR}/bud/multi-stage-builds
+  run_buildah from --name test-container multi-stage-args
+  run_buildah run test-container -- cat test_file
+  expect_output ""
+}
