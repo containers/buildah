@@ -1990,10 +1990,26 @@ EOM
   expect_output --substring "escaping context directory error"
 }
 
-@test "bud-multi-stage-args" {
+@test "bud-multi-stage-args-scope" {
   _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t multi-stage-args --build-arg SECRET=secretthings -f Dockerfile.arg ${TESTSDIR}/bud/multi-stage-builds
   run_buildah from --name test-container multi-stage-args
   run_buildah run test-container -- cat test_file
+  expect_output ""
+}
+
+@test "bud-multi-stage-args-history" {
+  _prefetch alpine
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t multi-stage-args --build-arg SECRET=secretthings -f Dockerfile.arg ${TESTSDIR}/bud/multi-stage-builds
+  run_buildah inspect --format '{{range .History}}{{println .CreatedBy}}{{end}}' multi-stage-args
+  run grep "secretthings" <<< "$output"
+  expect_output ""
+
+  run_buildah inspect --format '{{range .OCIv1.History}}{{println .CreatedBy}}{{end}}' multi-stage-args
+  run grep "secretthings" <<< "$output"
+  expect_output ""
+
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' multi-stage-args
+  run grep "secretthings" <<< "$output"
   expect_output ""
 }
