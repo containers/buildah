@@ -1,0 +1,180 @@
+#!/bin/bash
+#
+# make-v2sN - create a v2sN image, possibly with dups
+#
+# This is a helper script used for creating custom images for buildah testing.
+# The images are used in the digest.bats test.
+#
+ME=$(basename $0)
+
+die() {
+    echo "$ME: $*" >&2
+    exit 1
+}
+
+###############################################################################
+#
+# From the script name, determine the desired schema version (1 or 2) and
+# whether or not we want duplicate layers.
+
+schemaversion=$(expr "$ME" : ".*-v2s\([12]\)")
+test -n "$schemaversion"    || die "Could not find 'v2s[12]' in basename"
+test "$schemaversion" = "N" && die "Script must be invoked via symlink"
+
+dup=
+if expr "$ME" : ".*-dup" &>/dev/null; then
+    dup="_with_dups"
+fi
+
+IMGNAME=testdigest_v2s${schemaversion}${dup}
+
+###############################################################################
+# Create the image.
+
+set -e
+
+# First layer
+cid=$(buildah from scratch)
+buildah commit -q $cid interim1
+
+# Create a second layer containing this script and a README
+cid2=$(buildah from interim1)
+mp=$(buildah mount $cid2)
+cp $0 $mp/
+cat <<EOF >$mp/README
+This is a test image used for buildah testing.
+
+EOF
+
+# In the README include creation timestamp, user, script name, git tree state
+function add_to_readme() {
+    printf " %-12s : %s\n" "$1" "$2" >>$mp/README
+}
+
+add_to_readme "Created" "$(date --iso-8601=seconds)"
+
+# FIXME: do we really need to know? Will it ever, in practice, be non-root?
+user=$(id -un)
+if [ -n "$user" -a "$user" != "root" ]; then
+    add_to_readme "By (user)" "$user"
+fi
+
+create_script=$(cd $(dirname $0) && git ls-files --full-name $ME)
+if [ -z "$create_script" ]; then
+    create_script=$0
+fi
+add_to_readme "By (script)" "$create_script"
+
+git_state=$(cd $(dirname $0) && git describe --dirty)
+if [ -n "$git_state" ]; then
+    add_to_readme "git state" "$git_state"
+fi
+
+echo "-----------------------------------------------------------------"
+cat $mp/README
+echo "-----------------------------------------------------------------"
+
+buildah umount $cid2
+buildah commit -q $cid2 interim2
+
+layers="interim2 interim1"
+buildah tag interim2 my_image
+
+###############################################################################
+#
+# Push/pull the image to/from a tempdir. This is a kludge allowing us to
+# clean up interim layers. It's also necessary for dealing with v2s1 layers.
+
+TMPDIR=$(mktemp --tmpdir -d $(basename $0).XXXXXXX)
+push_flags=
+if [[ $schemaversion -eq 1 ]]; then
+    # buildah can't actually create a v2s1 image; only v2s2. To create v2s1,
+    # dir-push it to a tmpdir using '--format v2s1'; that will be inherited
+    # when we reload it
+    push_flags="--format v2s1"
+fi
+buildah push $push_flags my_image dir:${TMPDIR}/${IMGNAME}
+
+# Clean up containers and images
+buildah rm -a
+buildah rmi -f my_image $layers
+
+if [ -n "$dup" ]; then
+    manifest=${TMPDIR}/${IMGNAME}/manifest.json
+    cat $manifest |
+        jq -c '.fsLayers |= [.[0]] + .' |
+        jq -c '.history |= [.[0]] + .'  |
+        tr -d '\012' >$manifest.tmp
+    mv               $manifest $manifest.BAK
+    mv $manifest.tmp $manifest
+fi
+
+# Delete possibly-existing image, because 'buildah pull' will not overwrite it
+buildah rmi -f localhost/${IMGNAME}:latest &>/dev/null || true
+
+# Reload the image
+(cd $TMPDIR && buildah pull dir:${IMGNAME})
+
+# Leave the tmpdir behind for the -dup image!
+if [ -z "$dup" ]; then
+    rm -rf ${TMPDIR}
+fi
+
+###############################################################################
+#
+# We should now have a 'localhost/IMGNAME' image with desired SchemaVersion
+# and other features as requested.
+#
+# Now verify what we have what we intended.
+echo
+if type -p jq >&/dev/null; then
+    # Manifest is embedded in the image but as a string, not actual JSON;
+    # the eval-echo converts it to usable JSON
+    manifest=$(eval echo $(buildah inspect ${IMGNAME} | jq .Manifest))
+
+    # Check desired schema version:
+    actual_schemaversion=$(jq .schemaVersion <<<"$manifest")
+    if [[ $actual_schemaversion -ne $schemaversion ]]; then
+        die "Expected .schemaVersion $schemaversion, got '$actual_schemaversion'"
+    fi
+
+    echo "Image localhost/${IMGNAME} looks OK; feel free to:"
+    echo
+
+    if [ -n "$dup" ]; then
+        echo "    \$SKOPEO copy dir:${TMPDIR}/${IMGNAME} docker://quay.io/libpod/${IMGNAME}:\$(date +%Y%m%d)"
+        echo "    ^^^^^^^--- must be specially-crafted skopeo(*), see below"
+    else
+        echo "    buildah push localhost/${IMGNAME} quay.io/libpod/${IMGNAME}:$(date +%Y%m%d)"
+        echo "    buildah push localhost/${IMGNAME} quay.io/libpod/${IMGNAME}:latest"
+    fi
+
+    echo
+    echo "You may then need to log in to the https://quay.io/ web UI"
+    echo "make those images public, then update tags and/or SHAs"
+    echo "in test/digest.bats."
+    echo
+    echo "Note that the Digest SHA on quay.io != the SHA on the locally"
+    echo "created image. You can get the real SHA on quay.io by clicking"
+    echo "on the image name, then the luggage-tag icon on the left,"
+    echo "then the gray box with the text 'SHA256' (not the actual"
+    echo "hash shown in blue to its right), and copy-pasting the SHA"
+    echo "from the popup window."
+    echo
+    echo "NOTE: the first push to quay.io sometimes fails with some sort of"
+    echo "500 error, trying to reuse blob, blah blah. Just ignore it and"
+    echo "retry. IME it works the second time."
+
+    if [ -n "$dup" ]; then
+        echo
+        echo "(*) skopeo WILL NOT push an image with dup layers. To get it to"
+        echo "    do that, build a custom skopeo using the patch here:"
+        echo "      https://gist.github.com/nalind/b491204ff05c3c3f3b6ef014b333a60c"
+        echo "    ...then use that skopeo in the above 'copy' command."
+        # And, for posterity should the gist ever disappear:
+        #   vendor/github.com/containers/image/v5/manifest/docker_schema1.go
+        #   - remove lines 66-68 ('if ... s1.fixManifestLayers()...')
+    fi
+else
+    echo "WARNING: 'jq' not found; unable to verify built image" >&2
+fi
