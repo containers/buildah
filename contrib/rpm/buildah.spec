@@ -99,7 +99,19 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Tue Mar 17, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+* Wed Mar 25, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+
+* Wed Mar 25, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.4-1
+- Fix fips-mode check for RHEL8 boxes
+- Fix potential CVE in tarfile w/ symlink
+- Fix .dockerignore with globs and ! commands
+- update install steps for Amazon Linux 2
+- Bump github.com/openshift/imagebuilder from 1.1.2 to 1.1.3
+- Add comment for RUN command in volume ownership test
+- Run stat command directly for volume ownership test
+- vendor in containers/common v0.6.1
+- Cleanup go.sum
+- Bump back to v1.15.0-dev
 
 * Tue Mar 17, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.3-1
 - Update containers/storage to v1.16.5
