@@ -2,6 +2,12 @@
 
 # Changelog
 
+## v1.14.5 (2020-03-26)
+    revert #2246 FIPS mode change
+    Bump back to v1.15.0-dev
+    image with dup layers: we now have one on quay
+    digest test : make more robust
+
 ## v1.14.4 (2020-03-25)
     Fix fips-mode check for RHEL8 boxes
     Fix potential CVE in tarfile w/ symlink
