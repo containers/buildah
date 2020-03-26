@@ -265,6 +265,10 @@ github.com/openshift/imagebuilder v1.1.2 h1:vCO8hZQR/4uzo+j0PceBH5aKFcvCDM43UzUG
 github.com/openshift/imagebuilder v1.1.2/go.mod h1:9aJRczxCH0mvT6XQ+5STAQaPWz7OsWcU5/mRkt8IWeo=
 github.com/openshift/imagebuilder v1.1.3 h1:8TiphsD2wboU7tygtGZ5ZBfCP9FH2ZtvEAli67V2PJ4=
 github.com/openshift/imagebuilder v1.1.3/go.mod h1:9aJRczxCH0mvT6XQ+5STAQaPWz7OsWcU5/mRkt8IWeo=
+github.com/openshift/imagebuilder v1.1.4-0.20200325224900-8de717452756 h1:bLnwfDdZrktbiPp6tGNiaU4wvlhwSysHibmSJVO4j7o=
+github.com/openshift/imagebuilder v1.1.4-0.20200325224900-8de717452756/go.mod h1:9aJRczxCH0mvT6XQ+5STAQaPWz7OsWcU5/mRkt8IWeo=
+github.com/openshift/imagebuilder v1.1.4 h1:LUg8aTjyXMtlDx6IbtvaqofFGZ6aYqe+VIeATE735LM=
+github.com/openshift/imagebuilder v1.1.4/go.mod h1:9aJRczxCH0mvT6XQ+5STAQaPWz7OsWcU5/mRkt8IWeo=
 github.com/ostreedev/ostree-go v0.0.0-20190702140239-759a8c1ac913 h1:TnbXhKzrTOyuvWrjI8W6pcoI9XPbLHFXCdN2dtUw7Rw=
 github.com/ostreedev/ostree-go v0.0.0-20190702140239-759a8c1ac913/go.mod h1:J6OG6YJVEWopen4avK3VNQSnALmmjvniMmni/YFYAwc=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
