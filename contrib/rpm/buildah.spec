@@ -99,7 +99,13 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Wed Mar 25, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+* Thu Mar 26, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+
+* Thu Mar 26, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.5-1
+- revert #2246 FIPS mode change
+- Bump back to v1.15.0-dev
+- image with dup layers: we now have one on quay
+- digest test : make more robust
 
 * Wed Mar 25, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.4-1
 - Fix fips-mode check for RHEL8 boxes
