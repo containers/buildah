@@ -1972,10 +1972,6 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 			g.AddProcessEnv(env[0], env[1])
 		}
 	}
-
-	for src, dest := range b.Args {
-		g.AddProcessEnv(src, dest)
-	}
 }
 
 func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, shmSize string) error {

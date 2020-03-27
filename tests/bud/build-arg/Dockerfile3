@@ -10,4 +10,6 @@ ARG CODE
 ARG PGDATA
 ARG PORT=55555
 
+RUN echo this-should-not-be-cached-when-args-change
+
 CMD ["/container-run"]
