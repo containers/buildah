@@ -8,10 +8,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sort"
 	"time"
 
 	"github.com/containers/buildah/docker"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/ioutils"
@@ -39,6 +39,8 @@ const (
 	// one of our build containers.
 	stateFile = Package + ".json"
 )
+
+var defaultContainerConfig = containerConfig()
 
 // PullPolicy takes the value PullIfMissing, PullAlways, PullIfNewer, or PullNever.
 type PullPolicy int
@@ -180,8 +182,13 @@ type Builder struct {
 	CNIConfigDir string
 	// ID mapping options to use when running processes in the container with non-host user namespaces.
 	IDMappingOptions IDMappingOptions
-	// Capabilities is a list of capabilities to use when running commands in the container.
-	Capabilities []string
+	// AddCapabilities is a list of capabilities to add to the default set when running
+	// commands in the container.
+	AddCapabilities []string
+	// DropCapabilities is a list of capabilities to remove from the default set,
+	// after processing the AddCapabilities set, when running commands in the container.
+	// If a capability appears in both lists, it will be dropped.
+	DropCapabilities []string
 	// PrependedEmptyLayers are history entries that we'll add to a
 	// committed image, after any history items that we inherit from a base
 	// image, but before the history item for the layer that we're
@@ -224,11 +231,13 @@ type BuilderInfo struct {
 	DefaultMountsFilePath string
 	Isolation             string
 	NamespaceOptions      NamespaceOptions
-	Capabilities          []string
 	ConfigureNetwork      string
 	CNIPluginPath         string
 	CNIConfigDir          string
 	IDMappingOptions      IDMappingOptions
+	AddCapabilities       []string
+	DropCapabilities      []string
+	Capabilities          []string
 	History               []v1.History
 	Devices               []configs.Device
 }
@@ -248,7 +257,6 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 		EmptyLayer: false,
 	})
 	history = append(history, copyHistory(b.AppendedEmptyLayers)...)
-	sort.Strings(b.Capabilities)
 	return BuilderInfo{
 		Type:                  b.Type,
 		FromImage:             b.FromImage,
@@ -272,7 +280,9 @@ func GetBuildInfo(b *Builder) BuilderInfo {
 		CNIPluginPath:         b.CNIPluginPath,
 		CNIConfigDir:          b.CNIConfigDir,
 		IDMappingOptions:      b.IDMappingOptions,
-		Capabilities:          b.Capabilities,
+		AddCapabilities:       append([]string{}, b.AddCapabilities...),
+		DropCapabilities:      append([]string{}, b.DropCapabilities...),
+		Capabilities:          defaultContainerConfig.Capabilities("", b.AddCapabilities, b.DropCapabilities),
 		History:               history,
 		Devices:               b.Devices,
 	}
@@ -398,9 +408,14 @@ type BuilderOptions struct {
 	CNIConfigDir string
 	// ID mapping options to use if we're setting up our own user namespace.
 	IDMappingOptions *IDMappingOptions
-	// Capabilities is a list of capabilities to use when
+	// AddCapabilities is a list of capabilities to add to the default set when
 	// running commands in the container.
-	Capabilities    []string
+	AddCapabilities []string
+	// DropCapabilities is a list of capabilities to remove from the default set,
+	// after processing the AddCapabilities set, when running commands in the
+	// container.  If a capability appears in both lists, it will be dropped.
+	DropCapabilities []string
+
 	CommonBuildOpts *CommonBuildOptions
 	// Format for the container image
 	Format string
@@ -580,4 +595,12 @@ func (b *Builder) Save() error {
 		return errors.Wrapf(err, "error saving builder state to %q", filepath.Join(cdir, stateFile))
 	}
 	return nil
+}
+
+func containerConfig() *config.Config {
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		logrus.Errorf("failed to get container config: %v", err)
+	}
+	return defaultContainerConfig
 }

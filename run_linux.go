@@ -27,7 +27,6 @@ import (
 	"github.com/containers/buildah/pkg/secrets"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/capabilities"
-	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
@@ -91,10 +90,6 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return err
 	}
 
-	defaultContainerConfig, err := config.Default()
-	if err != nil {
-		return errors.Wrapf(err, "failed to get container config")
-	}
 	b.configureEnvironment(g, options, defaultContainerConfig.Containers.Env)
 
 	if b.CommonBuildOpts == nil {
@@ -297,10 +292,6 @@ func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) 
 		g.SetLinuxCgroupsPath(commonOpts.CgroupParent)
 	}
 
-	defaultContainerConfig, err := config.Default()
-	if err != nil {
-		return errors.Wrapf(err, "failed to get container config")
-	}
 	// Other process resource limits
 	if err := addRlimits(commonOpts.Ulimit, g, defaultContainerConfig.Containers.DefaultUlimits); err != nil {
 		return err
@@ -516,10 +507,6 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 	nameservers := resolvconf.GetNameservers(contents, types.IP)
 	options := resolvconf.GetOptions(contents)
 
-	defaultContainerConfig, err := config.Default()
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to get container config")
-	}
 	dnsSearch = append(defaultContainerConfig.Containers.DNSSearches, dnsSearch...)
 	if len(dnsSearch) > 0 {
 		search = dnsSearch
@@ -1926,7 +1913,7 @@ func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, opti
 	if err != nil {
 		return "", err
 	}
-	if err := setupCapabilities(g, b.Capabilities, options.AddCapabilities, options.DropCapabilities); err != nil {
+	if err := setupCapabilities(g, defaultContainerConfig.Containers.DefaultCapabilities, options.AddCapabilities, options.DropCapabilities); err != nil {
 		return "", err
 	}
 	g.SetProcessUID(user.UID)

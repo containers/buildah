@@ -93,7 +93,8 @@ type Executor struct {
 	blobDirectory                  string
 	excludes                       []string
 	unusedArgs                     map[string]struct{}
-	capabilities                   []string
+	addCapabilities                []string
+	dropCapabilities               []string
 	devices                        []configs.Device
 	signBy                         string
 	architecture                   string
@@ -113,7 +114,6 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 	if err != nil {
 		return nil, err
 	}
-	capabilities := defaultContainerConfig.Capabilities("", options.AddCapabilities, options.DropCapabilities)
 
 	devices := []configs.Device{}
 	for _, device := range append(defaultContainerConfig.Containers.Devices, options.Devices...) {
@@ -178,7 +178,8 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		rootfsMap:                      make(map[string]bool),
 		blobDirectory:                  options.BlobDirectory,
 		unusedArgs:                     make(map[string]struct{}),
-		capabilities:                   capabilities,
+		addCapabilities:                options.AddCapabilities,
+		dropCapabilities:               options.DropCapabilities,
 		devices:                        devices,
 		signBy:                         options.SignBy,
 		architecture:                   options.Architecture,

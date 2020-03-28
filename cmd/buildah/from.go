@@ -260,7 +260,6 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		devices = append(devices, dev...)
 	}
 
-	capabilities := defaultContainerConfig.Capabilities("", iopts.CapAdd, iopts.CapDrop)
 	commonOpts.Ulimit = append(defaultContainerConfig.Containers.DefaultUlimits, commonOpts.Ulimit...)
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
@@ -271,11 +270,12 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		DefaultMountsFilePath: globalFlagResults.DefaultMountsFile,
 		Isolation:             isolation,
 		NamespaceOptions:      namespaceOptions,
-		ConfigureNetwork:      networkPolicy,
+		DropCapabilities:      iopts.CapDrop,
 		CNIPluginPath:         iopts.CNIPlugInPath,
 		CNIConfigDir:          iopts.CNIConfigDir,
 		IDMappingOptions:      idmappingOptions,
-		Capabilities:          capabilities,
+		ConfigureNetwork:      networkPolicy,
+		AddCapabilities:       iopts.CapAdd,
 		CommonBuildOpts:       commonOpts,
 		Format:                format,
 		BlobDirectory:         iopts.BlobCache,
