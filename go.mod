@@ -6,7 +6,7 @@ require (
 	github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
 	github.com/containers/common v0.6.1
 	github.com/containers/image/v5 v5.3.1
-	github.com/containers/storage v1.16.6
+	github.com/containers/storage v1.17.0
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/go-metrics v0.0.1 // indirect
@@ -32,7 +32,7 @@ require (
 	github.com/seccomp/containers-golang v0.0.0-20190312124753-8ca8945ccf5f
 	github.com/seccomp/libseccomp-golang v0.9.1
 	github.com/sirupsen/logrus v1.5.0
-	github.com/spf13/cobra v0.0.6
+	github.com/spf13/cobra v0.0.7
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.5.1
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
