@@ -81,7 +81,7 @@ imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOpt
 
 ## Rootless mode
 
-To enable rootless mode, import `github.com/containers/common/pkg/unshare` and add this code at the beginning of your main method:
+To enable rootless mode, import `github.com/containers/storage/pkg/unshare` and add this code at the beginning of your main method:
 
 ```go
 if buildah.InitReexec() {
@@ -101,7 +101,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/containers/buildah"
-	"github.com/containers/common/pkg/unshare"
+	"github.com/containers/storage/pkg/unshare"
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"

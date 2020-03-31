@@ -6,8 +6,8 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/unshare"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"

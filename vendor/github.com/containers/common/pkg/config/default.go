@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/unshare"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -40,7 +40,7 @@ var (
 	// DefaultInitPath is the default path to the container-init binary
 	DefaultInitPath = "/usr/libexec/podman/catatonit"
 	// DefaultInfraImage to use for infra container
-	DefaultInfraImage = "k8s.gcr.io/pause:3.1"
+	DefaultInfraImage = "k8s.gcr.io/pause:3.2"
 	// DefaultInfraCommand to be run in an infra container
 	DefaultInfraCommand = "/pause"
 	// DefaultRootlessSHMLockPath is the default path for rootless SHM locks
@@ -233,6 +233,14 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 			"/sbin/crun",
 			"/bin/crun",
 			"/run/current-system/sw/bin/crun",
+		},
+		"kata": {
+			"/usr/bin/kata-runtime",
+			"/usr/sbin/kata-runtime",
+			"/usr/local/bin/kata-runtime",
+			"/usr/local/sbin/kata-runtime",
+			"/sbin/kata-runtime",
+			"/bin/kata-runtime",
 		},
 	}
 	c.ConmonEnvVars = []string{
