@@ -6,10 +6,9 @@ require (
 	github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
 	github.com/containers/common v0.6.1
 	github.com/containers/image/v5 v5.3.1
-	github.com/containers/storage v1.16.6
+	github.com/containers/storage v1.17.0
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316
 	github.com/etcd-io/bbolt v1.3.3
@@ -36,6 +35,8 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.5.1
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
-	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
-	golang.org/x/sys v0.0.0-20200217220822-9197077df867
+	golang.org/x/crypto v0.0.0-20200323165209-0ec3e9974c59
+	golang.org/x/sys v0.0.0-20200327173247-9dae0f8f5775
 )
+
+replace github.com/containers/image/v5 => github.com/mtrmac/image/v5 v5.0.0-20200330201958-f729385ccdbe
