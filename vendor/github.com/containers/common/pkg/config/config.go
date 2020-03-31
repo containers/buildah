@@ -11,7 +11,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/containers/common/pkg/capabilities"
-	"github.com/containers/common/pkg/unshare"
+	"github.com/containers/storage/pkg/unshare"
 	units "github.com/docker/go-units"
 	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
@@ -806,9 +806,35 @@ func IsValidDeviceMode(mode string) bool {
 	return true
 }
 
+// resolveHomeDir converts a path referencing the home directory via "~"
+// to an absolute path
+func resolveHomeDir(path string) (string, error) {
+	// check if the path references the home dir to avoid work
+	// don't use strings.HasPrefix(path, "~") as this doesn't match "~" alone
+	// use strings.HasPrefix(...) to not match "something/~/something"
+	if !(path == "~" || strings.HasPrefix(path, "~/")) {
+		// path does not reference home dir -> Nothing to do
+		return path, nil
+	}
+
+	// only get HomeDir when necessary
+	home, err := unshare.HomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	// replace the first "~" (start of path) with the HomeDir to resolve "~"
+	return strings.Replace(path, "~", home, 1), nil
+}
+
 // isDirectory tests whether the given path exists and is a directory. It
 // follows symlinks.
 func isDirectory(path string) error {
+	path, err := resolveHomeDir(path)
+	if err != nil {
+		return err
+	}
+
 	info, err := os.Stat(path)
 	if err != nil {
 		return err

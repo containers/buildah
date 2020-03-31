@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
-	"github.com/containers/common/pkg/unshare"
+	"github.com/containers/storage/pkg/unshare"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

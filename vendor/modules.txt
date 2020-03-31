@@ -53,10 +53,9 @@ github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.6.1
+# github.com/containers/common v0.7.0
 github.com/containers/common/pkg/capabilities
 github.com/containers/common/pkg/config
-github.com/containers/common/pkg/unshare
 # github.com/containers/image/v5 v5.3.1
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
@@ -109,7 +108,7 @@ github.com/containers/ocicrypt/keywrap/pgp
 github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
-# github.com/containers/storage v1.17.0
+# github.com/containers/storage v1.18.0
 github.com/containers/storage
 github.com/containers/storage/drivers
 github.com/containers/storage/drivers/aufs
@@ -149,6 +148,7 @@ github.com/containers/storage/pkg/stringutils
 github.com/containers/storage/pkg/system
 github.com/containers/storage/pkg/tarlog
 github.com/containers/storage/pkg/truncindex
+github.com/containers/storage/pkg/unshare
 # github.com/cyphar/filepath-securejoin v0.2.2
 github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1

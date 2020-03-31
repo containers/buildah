@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/containers/common/pkg/unshare"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/unshare"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
