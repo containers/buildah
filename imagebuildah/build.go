@@ -16,6 +16,7 @@ import (
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
+	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -171,6 +172,9 @@ type BuildOptions struct {
 	MaxPullPushRetries int
 	// PullPushRetryDelay is how long to wait before retrying a pull or push attempt.
 	PullPushRetryDelay time.Duration
+	// OciDecryptConfig contains the config that can be used to decrypt an image if it is
+	// encrypted if non-nil. If nil, it does not attempt to decrypt an image.
+	OciDecryptConfig *encconfig.DecryptConfig
 }
 
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be

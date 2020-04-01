@@ -168,6 +168,10 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
+**--decryption-key** *key*
+
+A reference required to perform decryption of container images. This should point to files which represent keys and/or certificates that can be used for decryption. Decryption will be tried with all keys. This feature is still *experimental*.
+
 **--device**=*device*
 
 Add a host device or devices under a directory to the container. The format is `<device-on-host>[:<device-on-container>][:<permissions>]` (e.g. --device=/dev/sdc:/dev/xvdc:rwm)

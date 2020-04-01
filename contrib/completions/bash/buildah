@@ -392,6 +392,7 @@ return 1
      --cpuset-cpus
      --cpuset-mems
      --creds
+     --decryption-key
      --device
      --dns-search
      --dns
@@ -588,6 +589,7 @@ return 1
      --authfile
      --cert-dir
      --creds
+     --decryption-key
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -615,6 +617,8 @@ return 1
           --authfile
           --cert-dir
           --creds
+          --encrypt-layer
+          --encryption-key
           --format
           -f
           --sign-by

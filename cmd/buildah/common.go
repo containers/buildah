@@ -11,6 +11,8 @@ import (
 	"github.com/containers/image/v5/manifest"
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
+	encconfig "github.com/containers/ocicrypt/config"
+	enchelpers "github.com/containers/ocicrypt/helpers"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/unshare"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -409,6 +411,38 @@ func getFormat(format string) (string, error) {
 	default:
 		return "", errors.Errorf("unrecognized image type %q", format)
 	}
+}
+
+func getDecryptConfig(decryptionKeys []string) (*encconfig.DecryptConfig, error) {
+	decConfig := &encconfig.DecryptConfig{}
+	if len(decryptionKeys) > 0 {
+		// decryption
+		dcc, err := enchelpers.CreateCryptoConfig([]string{}, decryptionKeys)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid decryption keys")
+		}
+		cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{dcc})
+		decConfig = cc.DecryptConfig
+	}
+
+	return decConfig, nil
+}
+
+func getEncryptConfig(encryptionKeys []string, encryptLayers []int) (*encconfig.EncryptConfig, *[]int, error) {
+	var encLayers *[]int
+	var encConfig *encconfig.EncryptConfig
+
+	if len(encryptionKeys) > 0 {
+		// encryption
+		encLayers = &encryptLayers
+		ecc, err := enchelpers.CreateCryptoConfig(encryptionKeys, []string{})
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "invalid encryption keys")
+		}
+		cc := encconfig.CombineCryptoConfigs([]encconfig.CryptoConfig{ecc})
+		encConfig = cc.EncryptConfig
+	}
+	return encConfig, encLayers, nil
 }
 
 // Tail returns a string slice after the first element unless there are

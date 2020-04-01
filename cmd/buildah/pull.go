@@ -25,6 +25,7 @@ type pullOptions struct {
 	quiet            bool
 	removeSignatures bool
 	tlsVerify        bool
+	decryptionKeys   []string
 }
 
 func init() {
@@ -58,6 +59,7 @@ func init() {
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pulling image")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
+	flags.StringSliceVar(&opts.decryptionKeys, "decryption-key", nil, "key needed to decrypt the image")
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
 	}
@@ -102,6 +104,11 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		return err
 	}
 
+	decConfig, err := getDecryptConfig(iopts.decryptionKeys)
+	if err != nil {
+		return errors.Wrapf(err, "unable to obtain decrypt config")
+	}
+
 	options := buildah.PullOptions{
 		SignaturePolicyPath: iopts.signaturePolicy,
 		Store:               store,
@@ -112,6 +119,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		RemoveSignatures:    iopts.removeSignatures,
 		MaxRetries:          maxPullPushRetries,
 		RetryDelay:          pullPushRetryDelay,
+		OciDecryptConfig:    decConfig,
 	}
 
 	if iopts.quiet {

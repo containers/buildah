@@ -19,6 +19,7 @@ import (
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
+	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/stringid"
@@ -132,6 +133,19 @@ type PushOptions struct {
 	MaxRetries int
 	// RetryDelay is how long to wait before retrying a push attempt.
 	RetryDelay time.Duration
+
+	// OciEncryptConfig when non-nil indicates that an image should be encrypted.
+	// The encryption options is derived from the construction of EncryptConfig object.
+	// Note: During initial encryption process of a layer, the resultant digest is not known
+	// during creation, so newDigestingReader has to be set with validateDigest = false
+	OciEncryptConfig *encconfig.EncryptConfig
+
+	// OciEncryptLayers represents the list of layers to encrypt.
+	// If nil, don't encrypt any layers.
+	// If non-nil and len==0, denotes encrypt all layers.
+	// integers in the slice represent 0-indexed layer indices, with support for negative
+	// indexing. i.e. 0 is the first layer, -1 is the last (top-most) layer.
+	OciEncryptLayers *[]int
 }
 
 var (
@@ -319,7 +333,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	}
 
 	var manifestBytes []byte
-	if manifestBytes, err = retryCopyImage(ctx, policyContext, maybeCachedDest, maybeCachedSrc, dest, "push", getCopyOptions(b.store, options.ReportWriter, nil, systemContext, "", false, options.SignBy), options.MaxRetries, options.RetryDelay); err != nil {
+	if manifestBytes, err = retryCopyImage(ctx, policyContext, maybeCachedDest, maybeCachedSrc, dest, "push", getCopyOptions(b.store, options.ReportWriter, nil, systemContext, "", false, options.SignBy, nil, nil, nil), options.MaxRetries, options.RetryDelay); err != nil {
 		return imgID, nil, "", errors.Wrapf(err, "error copying layers and metadata for container %q", b.ContainerID)
 	}
 	// If we've got more names to attach, and we know how to do that for
@@ -451,7 +465,7 @@ func Push(ctx context.Context, image string, dest types.ImageReference, options 
 		systemContext.DirForceCompress = true
 	}
 	var manifestBytes []byte
-	if manifestBytes, err = retryCopyImage(ctx, policyContext, dest, maybeCachedSrc, dest, "push", getCopyOptions(options.Store, options.ReportWriter, nil, systemContext, options.ManifestType, options.RemoveSignatures, options.SignBy), options.MaxRetries, options.RetryDelay); err != nil {
+	if manifestBytes, err = retryCopyImage(ctx, policyContext, dest, maybeCachedSrc, dest, "push", getCopyOptions(options.Store, options.ReportWriter, nil, systemContext, options.ManifestType, options.RemoveSignatures, options.SignBy, options.OciEncryptLayers, options.OciEncryptConfig, nil), options.MaxRetries, options.RetryDelay); err != nil {
 		return nil, "", errors.Wrapf(err, "error copying layers and metadata from %q to %q", transports.ImageName(maybeCachedSrc), transports.ImageName(dest))
 	}
 	if options.ReportWriter != nil {

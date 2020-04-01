@@ -66,6 +66,10 @@ After copying the image, write the digest of the resulting image to the file.
 
 Don't compress copies of filesystem layers which will be pushed.
 
+**--encryption-key** *key*
+
+A reference prefixed with the encryption protocol to use. The supported protocols are JWE, PGP and PKCS7. For instance, jwe:/path/to/key.pem or pgp:admin@example.com or pkcs7:/path/to/x509-file. This feature is still *experimental*.
+
 **--format, -f**
 
 Manifest Type (oci, v2s1, or v2s2) to use when saving image to directory using the 'dir:' transport (default is manifest type of source)

@@ -167,3 +167,40 @@ load helpers
 @test "pull should fail with nonexist authfile" {
   run_buildah 125 pull --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json alpine
 }
+
+@test "pull encrypted local image" {
+  _prefetch busybox
+  mkdir ${TESTDIR}/tmp
+  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
+  openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 1024
+  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox  oci:${TESTDIR}/tmp/busybox_enc
+
+  # Try to pull encrypted image without key should fail
+  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/tmp/busybox_enc
+  # Try to pull encrypted image with wrong key should fail
+  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --decryption-key ${TESTDIR}/tmp/mykey2.pem oci:${TESTDIR}/tmp/busybox_enc
+  # Providing the right key should succeed
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json --decryption-key ${TESTDIR}/tmp/mykey.pem oci:${TESTDIR}/tmp/busybox_enc
+
+  rm -rf ${TESTDIR}/tmp
+}
+
+@test "pull encrypted registry image" {
+  _prefetch busybox
+  mkdir ${TESTDIR}/tmp
+  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
+  openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 1024
+  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:5000/buildah/busybox_encrypted:latest
+
+  # Try to pull encrypted image without key should fail
+  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
+  # Try to pull encrypted image with wrong key should fail
+  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+  # Providing the right key should succeed
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+  run_buildah rmi localhost:5000/buildah/busybox_encrypted:latest
+
+  rm -rf ${TESTDIR}/tmp
+}

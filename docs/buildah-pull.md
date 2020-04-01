@@ -62,6 +62,10 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
+**--decryption-key** *key*
+
+A reference required to perform decryption of container images. This should point to files which represent keys and/or certificates that can be used for decryption. Decryption will be tried with all keys. This feature is still *experimental*.
+
 **--quiet, -q**
 
 If an image needs to be pulled from the registry, suppress progress output.
