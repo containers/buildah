@@ -482,37 +482,44 @@ load helpers
   test ! -s $root/vol/anothervolfile
 }
 
-@test "bud-http-Dockerfile" {
-  starthttpd ${TESTSDIR}/bud/from-scratch
+# Helper function for several of the tests which pull from http.
+#
+#  Usage:  _test_http  SUBDIRECTORY  URL_PATH  [EXTRA ARGS]
+#
+#     SUBDIRECTORY   is a subdirectory path under the 'buds' subdirectory.
+#                    This will be the argument to starthttpd(), i.e. where
+#                    the httpd will serve files.
+#
+#     URL_PATH       is the path requested by buildah from the http server,
+#                    probably 'Dockerfile' or 'context.tar'
+#
+#     [EXTRA ARGS]   if present, will be passed to buildah on the 'bud'
+#                    command line; it is intended for '-f subdir/Dockerfile'.
+#
+function _test_http() {
+  local testdir=$1; shift;        # in: subdirectory under bud/
+  local urlpath=$1; shift;        # in: path to request from localhost
+
+  starthttpd "${TESTSDIR}/bud/$testdir"
   target=scratch-image
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} http://0.0.0.0:${HTTP_SERVER_PORT}/Dockerfile
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json \
+              -t ${target} \
+              "$@"         \
+              http://0.0.0.0:${HTTP_SERVER_PORT}/$urlpath
   stophttpd
   run_buildah from ${target}
+}
+
+@test "bud-http-Dockerfile" {
+  _test_http from-scratch Dockerfile
 }
 
 @test "bud-http-context-with-Dockerfile" {
-  starthttpd ${TESTSDIR}/bud/http-context
-  target=scratch-image
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
-  stophttpd
-  run_buildah from ${target}
+  _test_http http-context context.tar
 }
 
-@test "bud-http-context-dir-with-Dockerfile-pre" {
-  starthttpd ${TESTSDIR}/bud/http-context-subdir
-  target=scratch-image
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f context/Dockerfile http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
-  stophttpd
-  run_buildah from ${target}
-}
-
-@test "bud-http-context-dir-with-Dockerfile-post" {
-  # FIXME FIXME FIXME: this is 100% identical to the -pre test above.
-  starthttpd ${TESTSDIR}/bud/http-context-subdir
-  target=scratch-image
-  run_buildah bud  --signature-policy ${TESTSDIR}/policy.json -t ${target} -f context/Dockerfile http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
-  stophttpd
-  run_buildah from ${target}
+@test "bud-http-context-dir-with-Dockerfile" {
+  _test_http http-context-subdir context.tar -f context/Dockerfile
 }
 
 @test "bud-git-context" {
@@ -1765,11 +1772,7 @@ _EOF
 }
 
 @test "bud-http-context-with-Containerfile" {
-  starthttpd ${TESTSDIR}/bud/http-context-containerfile
-  target=scratch-image
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} http://0.0.0.0:${HTTP_SERVER_PORT}/context.tar
-  stophttpd
-  run_buildah from ${target}
+  _test_http http-context-containerfile context.tar
 }
 
 @test "bud with Dockerfile from stdin" {
@@ -1837,10 +1840,7 @@ _EOF
 }
 
 @test "bud using gitrepo and branch" {
-  target=gittarget
-  # FIXME: this test takes a really long time. Is it necessary to do twice?
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} git://github.com/containers/BuildSourceImage#master
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} git://github.com/containers/BuildSourceImage
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t gittarget -f tests/bud/shell/Dockerfile git://github.com/containers/buildah#release-1.11-rhel
 }
 
 # Fixes #1906: buildah was not detecting changed tarfile
