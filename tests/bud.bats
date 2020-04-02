@@ -25,9 +25,61 @@ load helpers
   run_buildah run myctr ls -l subdir/sub1.txt
 
   run_buildah 1 run myctr ls -l subdir/sub2.txt
+}
 
-  run_buildah bud -t testbud2 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore2
+@test "bud with .dockerignore - unmatched" {
+  # Here .dockerignore contains 'unmatched', which will not match anything.
+  # Therefore everything in the subdirectory should be copied into the image.
+  #
+  # We need to do this from a tmpdir, not the original or distributed
+  # bud subdir, because of rpm: as of 2020-04-01 rpmbuild 4.16 alpha
+  # on rawhide no longer packages circular symlinks (rpm issue #1159).
+  # We used to include these symlinks in git and the rpm; now we need to
+  # set them up manually as part of test setup.
+  cp -a ${TESTSDIR}/bud/dockerignore2 ${TESTDIR}/dockerignore2
 
+  # Create symlinks, including bad ones
+  ln -sf subdir        ${TESTDIR}/dockerignore2/symlink
+  ln -sf circular-link ${TESTDIR}/dockerignore2/subdir/circular-link
+  ln -sf no-such-file  ${TESTDIR}/dockerignore2/subdir/dangling-link
+
+  # Build, create a container, mount it, and list all files therein
+  run_buildah bud -t testbud2 --signature-policy ${TESTSDIR}/policy.json ${TESTDIR}/dockerignore2
+
+  run_buildah from testbud2
+  cid=$output
+
+  run_buildah mount $cid
+  mnt=$output
+  run find $mnt -printf "%P(%l)\n"
+  filelist=$(LC_ALL=C sort <<<"$output")
+  run_buildah umount $cid
+
+  # Format is: filename, and, in parentheses, symlink target (usually empty)
+  # The list below has been painstakingly crafted; please be careful if
+  # you need to touch it (e.g. if you add new files/symlinks)
+  expect="()
+.dockerignore()
+Dockerfile()
+subdir()
+subdir/circular-link(circular-link)
+subdir/dangling-link(no-such-file)
+subdir/sub1.txt()
+subdir/subsubdir()
+subdir/subsubdir/subsub1.txt()
+symlink(subdir)"
+
+  # If this test ever fails, the 'expect' message will be almost impossible
+  # for humans to read -- sorry, I never implemented multi-line comparisons.
+  # Should this ever happen, uncomment these two lines and run tests in
+  # your own vm; then diff the two files.
+  #echo "$filelist" >${TMPDIR}/filelist.actual
+  #echo "$expect"   >${TMPDIR}/filelist.expect
+
+  expect_output --from="$filelist" "$expect" "container file list"
+}
+
+@test "bud with .dockerignore - 3" {
   run_buildah bud -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
   expect_output --substring "CUT HERE"
 
