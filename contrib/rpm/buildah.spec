@@ -99,7 +99,21 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Thu Mar 26, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+* Thu Apr 2, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+
+* Thu Apr 2, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.6-1
+- bud.bats - cleanup, refactoring
+- vendor in latest containers/storage 1.18.0 and containers/common v0.7.0
+- Bump github.com/spf13/cobra from 0.0.6 to 0.0.7
+- Bump github.com/containers/storage from 1.16.5 to 1.17.0
+- Bump github.com/containers/image/v5 from 5.2.1 to 5.3.1
+- Fix Amazon install step
+- Bump back to v1.15.0-dev
+- Fix bud-build-arg-cache test
+- Make image history work correctly with new args handling
+- Don't add args to the RUN environment from the Builder
+- Update github.com/openshift/imagebuilder to v1.1.4
+- Add .swp files to .gitignore
 
 * Thu Mar 26, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.5-1
 - revert #2246 FIPS mode change
