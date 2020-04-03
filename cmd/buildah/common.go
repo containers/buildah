@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"time"
 
@@ -60,7 +59,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 	// Differently, allow the mount if we are already in a userns, as the mount point will still
 	// be accessible once "buildah mount" exits.
 	if os.Geteuid() != 0 && options.GraphDriverName != "vfs" {
-		return nil, fmt.Errorf("cannot mount using driver %s in rootless mode. You need to run it in a `buildah unshare` session", options.GraphDriverName)
+		return nil, errors.Errorf("cannot mount using driver %s in rootless mode. You need to run it in a `buildah unshare` session", options.GraphDriverName)
 	}
 
 	// For uid/gid mappings, first we check the global definitions
