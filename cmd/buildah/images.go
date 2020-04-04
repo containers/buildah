@@ -188,21 +188,21 @@ func parseFilter(ctx context.Context, store storage.Store, images []storage.Imag
 			if pair[1] == "true" || pair[1] == "false" {
 				params.dangling = pair[1]
 			} else {
-				return nil, fmt.Errorf("invalid filter: '%s=[%s]'", pair[0], pair[1])
+				return nil, errors.Errorf("invalid filter: '%s=[%s]'", pair[0], pair[1])
 			}
 		case "label":
 			params.label = pair[1]
 		case "before":
 			beforeDate, err := setFilterDate(ctx, store, images, pair[1])
 			if err != nil {
-				return nil, fmt.Errorf("no such id: %s", pair[0])
+				return nil, errors.Errorf("no such id: %s", pair[0])
 			}
 			params.beforeDate = beforeDate
 			params.beforeImage = pair[1]
 		case "since":
 			sinceDate, err := setFilterDate(ctx, store, images, pair[1])
 			if err != nil {
-				return nil, fmt.Errorf("no such id: %s", pair[0])
+				return nil, errors.Errorf("no such id: %s", pair[0])
 			}
 			params.sinceDate = sinceDate
 			params.sinceImage = pair[1]
@@ -212,10 +212,10 @@ func parseFilter(ctx context.Context, store storage.Store, images []storage.Imag
 			if pair[1] == "true" || pair[1] == "false" {
 				params.readOnly = pair[1]
 			} else {
-				return nil, fmt.Errorf("invalid filter: '%s=[%s]'", pair[0], pair[1])
+				return nil, errors.Errorf("invalid filter: '%s=[%s]'", pair[0], pair[1])
 			}
 		default:
-			return nil, fmt.Errorf("invalid filter: '%s'", pair[0])
+			return nil, errors.Errorf("invalid filter: '%s'", pair[0])
 		}
 	}
 	return params, nil
@@ -228,23 +228,23 @@ func setFilterDate(ctx context.Context, store storage.Store, images []storage.Im
 				// Set the date to this image
 				ref, err := is.Transport.ParseStoreReference(store, image.ID)
 				if err != nil {
-					return time.Time{}, fmt.Errorf("error parsing reference to image %q: %v", image.ID, err)
+					return time.Time{}, errors.Wrapf(err, "error parsing reference to image %q", image.ID)
 				}
 				img, err := ref.NewImage(ctx, nil)
 				if err != nil {
-					return time.Time{}, fmt.Errorf("error reading image %q: %v", image.ID, err)
+					return time.Time{}, errors.Wrapf(err, "error reading image %q", image.ID)
 				}
 				defer img.Close()
 				inspect, err := img.Inspect(ctx)
 				if err != nil {
-					return time.Time{}, fmt.Errorf("error inspecting image %q: %v", image.ID, err)
+					return time.Time{}, errors.Wrapf(err, "error inspecting image %q", image.ID)
 				}
 				date := *inspect.Created
 				return date, nil
 			}
 		}
 	}
-	return time.Time{}, fmt.Errorf("could not locate image %q", imgName)
+	return time.Time{}, errors.Errorf("could not locate image %q", imgName)
 }
 
 func outputHeader(opts imageOptions) string {

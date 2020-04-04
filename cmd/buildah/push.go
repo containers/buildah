@@ -160,7 +160,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		case "v2s2", "docker":
 			manifestType = manifest.DockerV2Schema2MediaType
 		default:
-			return fmt.Errorf("unknown format %q. Choose on of the supported formats: 'oci', 'v2s1', or 'v2s2'", iopts.format)
+			return errors.Errorf("unknown format %q. Choose on of the supported formats: 'oci', 'v2s1', or 'v2s2'", iopts.format)
 		}
 	}
 
