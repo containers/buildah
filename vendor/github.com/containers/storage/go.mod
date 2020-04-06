@@ -5,6 +5,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.15-0.20190919025122-fc70bd9a86b5
 	github.com/Microsoft/hcsshim v0.8.7
 	github.com/docker/go-units v0.4.0
+	github.com/hashicorp/go-multierror v1.0.0
 	github.com/klauspost/compress v1.10.3
 	github.com/klauspost/pgzip v1.2.3
 	github.com/mattn/go-shellwords v1.0.10
@@ -15,7 +16,7 @@ require (
 	github.com/opencontainers/selinux v1.4.0
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/ffjson v0.0.0-20181028064349-e517b90714f7
-	github.com/sirupsen/logrus v1.5.0
+	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.5.1
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	github.com/tchap/go-patricia v2.3.0+incompatible
