@@ -39,3 +39,5 @@ require (
 	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
 	golang.org/x/sys v0.0.0-20200217220822-9197077df867
 )
+
+replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
