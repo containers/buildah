@@ -26,6 +26,7 @@ import (
 	"github.com/containers/storage/pkg/parsers"
 	"github.com/containers/storage/pkg/stringid"
 	"github.com/containers/storage/pkg/stringutils"
+	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
@@ -2448,14 +2449,15 @@ func (s *store) DeleteContainer(id string) error {
 				close(errChan)
 			}()
 
+			var errors []error
 			for {
 				select {
 				case err, ok := <-errChan:
 					if !ok {
-						return nil
+						return multierror.Append(nil, errors...).ErrorOrNil()
 					}
 					if err != nil {
-						return err
+						errors = append(errors, err)
 					}
 				}
 			}
