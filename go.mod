@@ -15,7 +15,7 @@ require (
 	github.com/etcd-io/bbolt v1.3.3
 	github.com/fsouza/go-dockerclient v1.6.3
 	github.com/ghodss/yaml v1.0.0
-	github.com/hashicorp/go-multierror v1.0.0
+	github.com/hashicorp/go-multierror v1.1.0
 	github.com/ishidawataru/sctp v0.0.0-20191218070446-00ab2ac2db07 // indirect
 	github.com/mattn/go-shellwords v1.0.10
 	github.com/onsi/ginkgo v1.12.0
