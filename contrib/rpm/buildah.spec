@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.15.0-dev
+Version:        1.14.7
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,7 +99,15 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Thu Apr 2, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+* Tue Apr 7, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.7-1
+- Bump github.com/containers/image/v5 from 5.3.1 to 5.4.3
+- make vendor: run `tidy` after `vendor`
+- Do not skip the directory when the ignore pattern matches
+- Bump github.com/containers/common from 0.7.0 to 0.8.1
+- Downgrade siruspen/logrus from 1.4.2
+- Fix errorf conventions
+- dockerignore tests : remove symlinks, rework
+- Bump back to v1.15.0-dev
 
 * Thu Apr 2, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.6-1
 - bud.bats - cleanup, refactoring
