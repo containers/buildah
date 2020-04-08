@@ -142,8 +142,8 @@ vendor-in-container:
 
 .PHONY: vendor
 vendor:
-	GO111MODULE=on $(GO) mod vendor
 	GO111MODULE=on $(GO) mod tidy
+	GO111MODULE=on $(GO) mod vendor
 	GO111MODULE=on $(GO) mod verify
 
 .PHONY: lint
