@@ -27,8 +27,8 @@ import (
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/vbauerster/mpb/v4"
-	"github.com/vbauerster/mpb/v4/decor"
+	"github.com/vbauerster/mpb/v5"
+	"github.com/vbauerster/mpb/v5/decor"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sync/semaphore"
 )
@@ -484,6 +484,9 @@ func (c *copier) copyMultipleImages(ctx context.Context, policyContext *signatur
 				return nil, "", errors.Errorf("Error: manifest list must be converted to type %q to be written to destination, but that would invalidate signatures", thisListType)
 			}
 			logrus.Debugf("Manifest list has been updated")
+		} else {
+			// We can just use the original value, so use it instead of the one we just rebuilt, so that we don't change the digest.
+			attemptedManifestList = manifestList
 		}
 
 		// Save the manifest list.
@@ -976,7 +979,7 @@ func (c *copier) createProgressBar(pool *mpb.Progress, info types.BlobInfo, kind
 	var bar *mpb.Bar
 	if info.Size > 0 {
 		bar = pool.AddBar(info.Size,
-			mpb.BarClearOnComplete(),
+			mpb.BarFillerClearOnComplete(),
 			mpb.PrependDecorators(
 				decor.OnComplete(decor.Name(prefix), onComplete),
 			),
@@ -987,7 +990,7 @@ func (c *copier) createProgressBar(pool *mpb.Progress, info types.BlobInfo, kind
 	} else {
 		bar = pool.AddSpinner(info.Size,
 			mpb.SpinnerOnLeft,
-			mpb.BarClearOnComplete(),
+			mpb.BarFillerClearOnComplete(),
 			mpb.SpinnerStyle([]string{".", "..", "...", "....", ""}),
 			mpb.PrependDecorators(
 				decor.OnComplete(decor.Name(prefix), onComplete),
