@@ -99,7 +99,15 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Tue Apr 7, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+* Thu Apr 9, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+
+* Thu Apr 9, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.8-1
+- Run (make vendor)
+- Run (make -C tests/tools vendor)
+- Run (go mod tidy) before (go mod vendor) again
+- Fix (make vendor)
+- Bump validation
+- Bump back to v1.15.0-dev
 
 * Tue Apr 7, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.7-1
 - Bump github.com/containers/image/v5 from 5.3.1 to 5.4.3
