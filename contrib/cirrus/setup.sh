@@ -8,21 +8,32 @@ set -e
 # expectation mismatch.
 source $(dirname $0)/lib.sh
 
-req_env_var OS_RELEASE_ID OS_RELEASE_VER GOSRC FEDORA_BUILDAH_PACKAGES UBUNTU_BUILDAH_PACKAGES IN_PODMAN_IMAGE
+req_env_var OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE
 
 echo "Setting up $OS_RELEASE_ID $OS_RELEASE_VER"
 cd $GOSRC
 case "$OS_RELEASE_ID" in
     fedora)
-        if [[ "$OS_RELEASE_VER" == "31" ]]; then
-            warn "Switching io schedular to deadline to avoid RHBZ 1767539"
+        # This can be removed when the kernel bug fix is included in Fedora
+        if [[ $OS_RELEASE_VER -le 32 ]] && [[ -z "$CONTAINER" ]]; then
+            warn "Switching io scheduler to 'deadline' to avoid RHBZ 1767539"
             warn "aka https://bugzilla.kernel.org/show_bug.cgi?id=205447"
-            echo "mq-deadline" > /sys/block/sda/queue/scheduler
-            cat /sys/block/sda/queue/scheduler
+            echo "mq-deadline" | sudo tee /sys/block/sda/queue/scheduler > /dev/null
+            echo -n "IO Scheduler set to: "
+            $SUDO cat /sys/block/sda/queue/scheduler
         fi
 
-        warn "Adding secondary testing partition & growing root filesystem"
-        bash $SCRIPT_BASE/add_second_partition.sh
+        # Not executing IN_PODMAN container
+        if [[ -z "$CONTAINER" ]]; then
+            warn "Adding secondary testing partition & growing root filesystem"
+            bash $SCRIPT_BASE/add_second_partition.sh
+        fi
+
+        warn "Buildah testing requires runc"
+        $SUDO dnf install -y runc
+
+        warn "Hard-coding podman to use crun"
+        sed -i -r -e 's/^runtime = "runc"/runtime = "crun"/' /usr/share/containers/libpod.conf
 
         # Executing tests in a container requires SELinux boolean set on the host
         if [[ "$IN_PODMAN" == "true" ]]
@@ -31,8 +42,7 @@ case "$OS_RELEASE_ID" in
         fi
         ;;
     ubuntu)
-        $SHORT_APTGET update
-        $LONG_APTGET install ${UBUNTU_BUILDAH_PACKAGES[@]}
+        : # no-op
         ;;
     *)
         bad_os_id_ver
@@ -48,7 +58,7 @@ echo "$X" >> /etc/environment
 
 echo "Configuring /etc/containers/registries.conf"
 mkdir -p /etc/containers
-echo -e "[registries.search]\nregistries = ['docker.io', 'quay.io']" | tee /etc/containers/registries.conf
+echo -e "[registries.search]\nregistries = ['docker.io', 'registry.fedoraproject.org', 'quay.io']" | tee /etc/containers/registries.conf
 
 show_env_vars
 

@@ -27,7 +27,7 @@ env:
     ####
     # GCE project where images live
     IMAGE_PROJECT: "libpod-218412"
-    _BUILT_IMAGE_SUFFIX: "libpod-6288686782349312"
+    _BUILT_IMAGE_SUFFIX: "libpod-6220812239765504"
     FEDORA_CACHE_IMAGE_NAME: "fedora-32-${_BUILT_IMAGE_SUFFIX}"
     PRIOR_FEDORA_CACHE_IMAGE_NAME: "fedora-31-${_BUILT_IMAGE_SUFFIX}"
     UBUNTU_CACHE_IMAGE_NAME: "ubuntu-19-${_BUILT_IMAGE_SUFFIX}"
@@ -154,9 +154,6 @@ gce_instance:
         - 'cirrus-ci/only_prs/gate'
         - 'cirrus-ci/only_prs/vendor'
 
-    container:
-        image: registry.fedoraproject.org/fedora:30
-
     env:
         matrix:
             CROSS_TARGET: darwin
@@ -247,7 +244,7 @@ gce_instance:
         CIRRUS_CLONE_DEPTH: 1  # no code is being used by this task
 
     container:
-        image: "registry.fedoraproject.org/fedora-minimal:latest"
+        image: "quay.io/libpod/fedora-minimal:latest"
         cpu: 1
         memory: 1
 
