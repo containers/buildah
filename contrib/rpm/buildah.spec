@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.14.8
+Version:        1.15.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,8 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Apr 9, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-dev-1
+
 * Thu Apr 9, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.8-1
 - Run (make vendor)
 - Run (make -C tests/tools vendor)
