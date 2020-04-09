@@ -1,34 +1,27 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
 	"os"
-	"strings"
 
-	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/image/v5/docker"
-	"github.com/containers/image/v5/pkg/docker/config"
+	"github.com/containers/common/pkg/auth"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 type loginReply struct {
-	authfile      string
-	certDir       string
-	password      string
-	username      string
-	tlsVerify     bool
-	stdinPassword bool
-	getLogin      bool
+	loginOpts auth.LoginOptions
+	getLogin  bool
+	tlsVerify bool
 }
 
 func init() {
 	var (
-		opts             loginReply
+		opts = loginReply{
+			loginOpts: auth.LoginOptions{
+				Stdin:  os.Stdin,
+				Stdout: os.Stdout},
+		}
 		loginDescription = "Login to a container registry on a specified server."
 	)
 	loginCommand := &cobra.Command{
@@ -44,13 +37,9 @@ func init() {
 
 	flags := loginCommand.Flags()
 	flags.SetInterspersed(false)
-	flags.StringVar(&opts.authfile, "authfile", buildahcli.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
-	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
-	flags.StringVarP(&opts.password, "password", "p", "", "Password for registry")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
-	flags.StringVarP(&opts.username, "username", "u", "", "Username for registry")
-	flags.BoolVar(&opts.stdinPassword, "password-stdin", false, "Take the password from stdin")
 	flags.BoolVar(&opts.getLogin, "get-login", true, "Return the current login user for the registry")
+	flags.AddFlagSet(auth.GetLoginFlags(&opts.loginOpts))
 	rootCmd.AddCommand(loginCommand)
 }
 
@@ -66,108 +55,11 @@ func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 		return err
 	}
 
-	server := parse.RegistryFromFullName(parse.ScrubServer(args[0]))
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
-
-	authConfig, err := config.GetCredentials(systemContext, server)
-	if err != nil {
-		return errors.Wrapf(err, "error reading auth file")
-	}
-	if authConfig.IdentityToken != "" {
-		return errors.Errorf("currently logged in, auth file contains an Identity token")
-	}
-	if c.Flag("get-login").Changed {
-		if authConfig.Username == "" {
-			return errors.Errorf("not logged into %s", server)
-		}
-		fmt.Printf("%s\n", authConfig.Username)
-		return nil
-	}
 	ctx := getContext()
-	password := iopts.password
-
-	if iopts.stdinPassword {
-		var stdinPasswordStrBuilder strings.Builder
-		if iopts.password != "" {
-			return errors.Errorf("Can't specify both --password-stdin and --password")
-		}
-		if iopts.username == "" {
-			return errors.Errorf("Must provide --username with --password-stdin")
-		}
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			fmt.Fprint(&stdinPasswordStrBuilder, scanner.Text())
-		}
-		password = stdinPasswordStrBuilder.String()
-	}
-
-	// If no username and no password is specified, try to use existing ones.
-	if iopts.username == "" && password == "" && authConfig.Username != "" && authConfig.Password != "" {
-		fmt.Println("Authenticating with existing credentials...")
-		if err := docker.CheckAuth(ctx, systemContext, authConfig.Username, authConfig.Password, server); err == nil {
-			fmt.Println("Existing credentials are valid. Already logged in to", server)
-			return nil
-		}
-		fmt.Println("Existing credentials are invalid, please enter valid username and password")
-	}
-
-	username, password, err := GetUserAndPass(iopts.username, password, authConfig.Username)
-	if err != nil {
-		return errors.Wrapf(err, "error getting username and password")
-	}
-
-	if err = docker.CheckAuth(ctx, systemContext, username, password, server); err == nil {
-		// Write the new credentials to the authfile
-		if err = config.SetAuthentication(systemContext, server, username, password); err != nil {
-			return err
-		}
-	}
-	if err == nil {
-		fmt.Println("Login Succeeded!")
-		return nil
-	}
-	if unauthorized, ok := err.(docker.ErrUnauthorizedForCredentials); ok {
-		logrus.Debugf("error logging into %q: %v", server, unauthorized)
-		return errors.Errorf("error logging into %q: invalid username/password", server)
-	}
-	return errors.Wrapf(err, "error authenticating creds for %q", server)
-}
-
-// GetUserAndPass gets the username and password from STDIN if not given
-// using the -u and -p flags.  If the username prompt is left empty, the
-// displayed userFromAuthFile will be used instead.
-func GetUserAndPass(username, password, userFromAuthFile string) (string, string, error) {
-	var err error
-	reader := bufio.NewReader(os.Stdin)
-	if username == "" {
-		if userFromAuthFile != "" {
-			fmt.Printf("Username (%s): ", userFromAuthFile)
-		} else {
-			fmt.Print("Username: ")
-		}
-		username, err = reader.ReadString('\n')
-		if err != nil {
-			return "", "", errors.Wrapf(err, "error reading username")
-		}
-		// If the user just hit enter, use the displayed user from the
-		// the authentication file.  This allows to do a lazy
-		// `$ buildah login -p $NEW_PASSWORD` without specifying the
-		// user.
-		if strings.TrimSpace(username) == "" {
-			username = userFromAuthFile
-		}
-	}
-	if password == "" {
-		fmt.Print("Password: ")
-		pass, err := terminal.ReadPassword(0)
-		if err != nil {
-			return "", "", errors.Wrapf(err, "error reading password")
-		}
-		password = string(pass)
-		fmt.Println()
-	}
-	return strings.TrimSpace(username), password, err
+	iopts.loginOpts.GetLoginSet = c.Flag("get-login").Changed
+	return auth.Login(ctx, systemContext, &iopts.loginOpts, args[0])
 }

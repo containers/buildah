@@ -11,6 +11,7 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/pkg/auth"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -65,7 +66,7 @@ func init() {
 
 	flags := pushCommand.Flags()
 	flags.SetInterspersed(false)
-	flags.StringVar(&opts.authfile, "authfile", buildahcli.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
+	flags.StringVar(&opts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
@@ -93,7 +94,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
-	if err := buildahcli.CheckAuthFile(iopts.authfile); err != nil {
+	if err := auth.CheckAuthFile(iopts.authfile); err != nil {
 		return err
 	}
 

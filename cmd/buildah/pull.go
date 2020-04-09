@@ -8,6 +8,7 @@ import (
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/common/pkg/auth"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -51,7 +52,7 @@ func init() {
 	flags := pullCommand.Flags()
 	flags.SetInterspersed(false)
 	flags.BoolVarP(&opts.allTags, "all-tags", "a", false, "download all tagged images in the repository")
-	flags.StringVar(&opts.authfile, "authfile", buildahcli.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
+	flags.StringVar(&opts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "store copies of pulled image blobs in the specified directory")
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
@@ -87,7 +88,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
-	if err := buildahcli.CheckAuthFile(iopts.authfile); err != nil {
+	if err := auth.CheckAuthFile(iopts.authfile); err != nil {
 		return err
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/common/pkg/auth"
 	"github.com/containers/common/pkg/config"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/pkg/errors"
@@ -62,7 +63,7 @@ func init() {
 
 	flags := fromCommand.Flags()
 	flags.SetInterspersed(false)
-	flags.StringVar(&opts.authfile, "authfile", buildahcli.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
+	flags.StringVar(&opts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&opts.cidfile, "cidfile", "", "write the container ID to the file")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
@@ -186,7 +187,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return errors.Errorf("too many arguments specified")
 	}
 
-	if err := buildahcli.CheckAuthFile(iopts.authfile); err != nil {
+	if err := auth.CheckAuthFile(iopts.authfile); err != nil {
 		return err
 	}
 	systemContext, err := parse.SystemContextFromOptions(c)

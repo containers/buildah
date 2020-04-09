@@ -10,6 +10,7 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/pkg/auth"
 	"github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
@@ -56,7 +57,7 @@ func init() {
 	flags := commitCommand.Flags()
 	flags.SetInterspersed(false)
 
-	flags.StringVar(&opts.authfile, "authfile", buildahcli.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
+	flags.StringVar(&opts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
 
 	if err := flags.MarkHidden("blob-cache"); err != nil {
@@ -99,7 +100,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
-	if err := buildahcli.CheckAuthFile(iopts.authfile); err != nil {
+	if err := auth.CheckAuthFile(iopts.authfile); err != nil {
 		return err
 	}
 
