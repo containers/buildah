@@ -587,7 +587,7 @@ func (i *containerImageSource) Reference() types.ImageReference {
 
 func (i *containerImageSource) GetSignatures(ctx context.Context, instanceDigest *digest.Digest) ([][]byte, error) {
 	if instanceDigest != nil {
-		return nil, errors.Errorf("containerImageSource does not support manifest lists")
+		return nil, errors.Errorf("containerImageSource does not support signature lists")
 	}
 	return nil, nil
 }
