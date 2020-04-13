@@ -730,7 +730,7 @@ type Device struct {
 	CgroupPermissions string `json:"CgroupPermissions,omitempty" yaml:"CgroupPermissions,omitempty" toml:"CgroupPermissions,omitempty"`
 }
 
-// A list of requests for devices to be sent to device drivers
+// DeviceRequest represents a request for device that's sent to device drivers.
 type DeviceRequest struct {
 	Driver       string            `json:"Driver,omitempty" yaml:"Driver,omitempty" toml:"Driver,omitempty"`
 	Count        int               `json:"Count,omitempty" yaml:"Count,omitempty" toml:"Count,omitempty"`

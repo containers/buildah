@@ -3,7 +3,7 @@ github.com/Azure/go-ansiterm
 github.com/Azure/go-ansiterm/winterm
 # github.com/BurntSushi/toml v0.3.1
 github.com/BurntSushi/toml
-# github.com/Microsoft/go-winio v0.4.15-0.20190919025122-fc70bd9a86b5
+# github.com/Microsoft/go-winio v0.4.15-0.20200113171025-3fe6c5262873
 github.com/Microsoft/go-winio
 github.com/Microsoft/go-winio/archive/tar
 github.com/Microsoft/go-winio/backuptar
@@ -41,7 +41,7 @@ github.com/containerd/cgroups/stats/v1
 github.com/containerd/containerd/errdefs
 github.com/containerd/containerd/log
 github.com/containerd/containerd/platforms
-# github.com/containerd/continuity v0.0.0-20190426062206-aaeac12a7ffc
+# github.com/containerd/continuity v0.0.0-20200228182428-0f16d7a0959c
 github.com/containerd/continuity/fs
 github.com/containerd/continuity/syscallx
 github.com/containerd/continuity/sysx
@@ -218,7 +218,7 @@ github.com/docker/libnetwork/resolvconf/dns
 github.com/docker/libnetwork/types
 # github.com/etcd-io/bbolt v1.3.3
 github.com/etcd-io/bbolt
-# github.com/fsouza/go-dockerclient v1.6.3
+# github.com/fsouza/go-dockerclient v1.6.4
 github.com/fsouza/go-dockerclient
 # github.com/fullsailor/pkcs7 v0.0.0-20190404230743-d7302db945fa
 github.com/fullsailor/pkcs7
@@ -363,7 +363,7 @@ github.com/pquerna/ffjson/shared
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
-# github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90
+# github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
 github.com/prometheus/client_model/go
 # github.com/prometheus/common v0.6.0
 github.com/prometheus/common/expfmt
@@ -470,9 +470,9 @@ golang.org/x/text/unicode/norm
 # golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/genproto v0.0.0-20190425155659-357c62f0e4bb
+# google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.24.0
+# google.golang.org/grpc v1.27.1
 google.golang.org/grpc/codes
 google.golang.org/grpc/connectivity
 google.golang.org/grpc/grpclog

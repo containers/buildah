@@ -87,14 +87,11 @@ func NewAPIVersion(input string) (APIVersion, error) {
 }
 
 func (version APIVersion) String() string {
-	var str string
+	parts := make([]string, len(version))
 	for i, val := range version {
-		str += strconv.Itoa(val)
-		if i < len(version)-1 {
-			str += "."
-		}
+		parts[i] = strconv.Itoa(val)
 	}
-	return str
+	return strings.Join(parts, ".")
 }
 
 // LessThan is a function for comparing APIVersion structs
