@@ -5,25 +5,27 @@
 # https://bodhi.fedoraproject.org/updates/?search=buildah
 # This image can be used to create a secured container
 # that runs safely with privileges within the container.
-# This Containerfile builds version 1.11.3, the version and
+# This Containerfile builds version 1.14.3, the version and
 # the RPM name would need to be adjusted before a run as
 # appropriate.
 #
-# To use, 'podman build -f ~/Containerfile.buildahstable -t quay.io/buildah/stable:v1.11.3 .'
+# To use, 'podman build -f ~/Containerfile.buildahstable -t quay.io/buildah/stable:v1.14.3 .'
 #
 FROM fedora:latest
 
 # Build a version:  Copy tar file from bohdi to `/root/tmp` then run
-# `podman build -t quay.io/stable:v1.11.3 -f ~/Containerfile.buildahstable .`
+# `podman build -t quay.io/stable:v1.14.3 -f ~/Containerfile.buildahstable .`
 
 # Don't include container-selinux and remove directories
 # used by yum that are just taking up space.
 # Make sure next two lines match the RPM name and version in command.
 # Once complete:
-# `podman push quay.io/buildah/stable:v1.11.3 docker://quay.io/buildah/stable:v1.11.3`
+# `podman push quay.io/buildah/stable:v1.14.3 docker://quay.io/buildah/stable:v1.14.3`
 #
-COPY /tmp/buildah-1.11.3-2.fc30.x86_64.rpm /tmp
-RUN useradd build; yum -y update; yum -y reinstall shadow-utils; yum -y install /tmp/buildah-1.11.3-2.fc30.x86_64.rpm fuse-overlayfs --exclude container-selinux; rm -rf /var/cache /var/log/dnf* /var/log/yum.* /tmp/buildah*.rpm
+COPY /tmp/buildah-1.14.3-1.fc31.x86_64.rpm /tmp
+RUN useradd build; yum -y update; yum -y reinstall shadow-utils; yum -y install /tmp/buildah-1.14.3-1.fc31.x86_64.rpm fuse-overlayfs --exclude container-selinux; rm -rf /var/cache /var/log/dnf* /var/log/yum.* /tmp/buildah*.rpm
+
+ADD https://raw.githubusercontent.com/containers/buildah/master/contrib/buildahimage/stable/containers.conf /etc/containers/
 
 # Adjust storage.conf to enable Fuse storage.
 RUN sed -i -e 's|^#mount_program|mount_program|g' -e '/additionalimage.*/a "/var/lib/shared",' -e 's|^mountopt[[:space:]]*=.*$|mountopt = "nodev,fsync=0"|g' /etc/containers/storage.conf
