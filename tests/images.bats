@@ -5,13 +5,13 @@ load helpers
 @test "images-flags-order-verification" {
   run_buildah images --all
 
-  run_buildah 1 images img1 -n
+  run_buildah 125 images img1 -n
   check_options_flag_err "-n"
 
-  run_buildah 1 images img1 --filter="service=redis" img2
+  run_buildah 125 images img1 --filter="service=redis" img2
   check_options_flag_err "--filter=service=redis"
 
-  run_buildah 1 images img1 img2 img3 -q
+  run_buildah 125 images img1 img2 img3 -q
   check_options_flag_err "-q"
 }
 
@@ -142,7 +142,7 @@ load helpers
 }
 
 @test "specify a nonexistent image" {
-  run_buildah 1 images alpine
+  run_buildah 125 images alpine
   expect_output --from="${lines[0]}" "No such image alpine"
   expect_line_count 1
 }

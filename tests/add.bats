@@ -3,13 +3,13 @@
 load helpers
 
 @test "add-flags-order-verification" {
-  run_buildah 1 add container1 -q /tmp/container1
+  run_buildah 125 add container1 -q /tmp/container1
   check_options_flag_err "-q"
 
-  run_buildah 1 add container1 --chown /tmp/container1 --quiet
+  run_buildah 125 add container1 --chown /tmp/container1 --quiet
   check_options_flag_err "--chown"
 
-  run_buildah 1 add container1 /tmp/container1 --quiet
+  run_buildah 125 add container1 /tmp/container1 --quiet
   check_options_flag_err "--quiet"
 }
 
@@ -30,8 +30,8 @@ load helpers
   # Copy two files to a specific subdirectory
   run_buildah add $cid ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile /other-subdir
   # Copy two files to a specific location, which fails because it's not a directory.
-  run_buildah 1 add ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile $cid /notthereyet-subdir
-  run_buildah 1 add ${TESTDIR}/randomfile $cid ${TESTDIR}/other-randomfile /randomfile
+  run_buildah 125 add ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile $cid /notthereyet-subdir
+  run_buildah 125 add ${TESTDIR}/randomfile $cid ${TESTDIR}/other-randomfile /randomfile
   # Copy a file to a different working directory
   run_buildah config --workingdir=/cwd $cid
   run_buildah add $cid ${TESTDIR}/randomfile

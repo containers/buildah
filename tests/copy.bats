@@ -3,13 +3,13 @@
 load helpers
 
 @test "copy-flags-order-verification" {
-  run_buildah 1 copy container1 -q /tmp/container1
+  run_buildah 125 copy container1 -q /tmp/container1
   check_options_flag_err "-q"
 
-  run_buildah 1 copy container1 --chown /tmp/container1 --quiet
+  run_buildah 125 copy container1 --chown /tmp/container1 --quiet
   check_options_flag_err "--chown"
 
-  run_buildah 1 copy container1 /tmp/container1 --quiet
+  run_buildah 125 copy container1 /tmp/container1 --quiet
   check_options_flag_err "--quiet"
 }
 
@@ -24,7 +24,7 @@ load helpers
   root=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TESTDIR}/randomfile
-  run_buildah 1 copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
+  run_buildah 125 copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
   run_buildah rm $cid
 
   _prefetch alpine
@@ -213,6 +213,6 @@ load helpers
   echo FROM busybox AS builder                                >> ${TESTDIR}/Dockerfile
   echo FROM scratch                                           >> ${TESTDIR}/Dockerfile
   echo COPY --from=builder /bin/-no-such-file-error- /usr/bin >> ${TESTDIR}/Dockerfile
-  run_buildah 1 build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json ${TESTDIR}
+  run_buildah 125 build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json ${TESTDIR}
   expect_output --substring "no such file or directory"
 }
