@@ -3,19 +3,19 @@
 load helpers
 
 @test "from-flags-order-verification" {
-  run_buildah 1 from scratch -q
+  run_buildah 125 from scratch -q
   check_options_flag_err "-q"
 
-  run_buildah 1 from scratch --pull
+  run_buildah 125 from scratch --pull
   check_options_flag_err "--pull"
 
-  run_buildah 1 from scratch --ulimit=1024
+  run_buildah 125 from scratch --ulimit=1024
   check_options_flag_err "--ulimit=1024"
 
-  run_buildah 1 from scratch --name container-name-irrelevant
+  run_buildah 125 from scratch --name container-name-irrelevant
   check_options_flag_err "--name"
 
-  run_buildah 1 from scratch --cred="fake fake" --name small
+  run_buildah 125 from scratch --cred="fake fake" --name small
   check_options_flag_err "--cred=fake fake"
 }
 
@@ -75,7 +75,7 @@ load helpers
   rm -rf ${TESTDIR}/auth
 
   # This should fail
-  run_buildah 1 from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true
+  run_buildah 125 from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true
 
   # Clean up
 #  docker rm -f $(docker ps --all -q)
@@ -110,7 +110,7 @@ load helpers
 #  docker logout localhost:5000
 
   # This should fail
-  run_buildah 1 from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true
+  run_buildah 125 from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true
 
   # This should work
 #  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true --creds=testuser:testpassword)
@@ -347,7 +347,7 @@ load helpers
 }
 
 @test "from pull never" {
-  run_buildah 1 from --signature-policy ${TESTSDIR}/policy.json --pull-never busybox
+  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --pull-never busybox
   echo "$output"
   expect_output --substring "no such image"
 
@@ -369,7 +369,7 @@ load helpers
 }
 
 @test "from with nonexistent authfile: fails" {
-  run_buildah 1 from --authfile /no/such/file --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah 125 from --authfile /no/such/file --pull --signature-policy ${TESTSDIR}/policy.json alpine
   expect_output "error checking authfile path /no/such/file: stat /no/such/file: no such file or directory"
 }
 
@@ -379,7 +379,7 @@ load helpers
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc --pull-always docker.io/busybox
   expect_output --substring "Getting"
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json busyboxc fakename-img
-  run_buildah 1 from --signature-policy ${TESTSDIR}/policy.json --pull-always fakename-img
+  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --pull-always fakename-img
 }
 
 @test "from --quiet: should not emit progress messages" {

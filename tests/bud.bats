@@ -89,16 +89,16 @@ symlink(subdir)"
 }
 
 @test "bud-flags-order-verification" {
-  run_buildah 1 bud /tmp/tmpdockerfile/ -t blabla
+  run_buildah 125 bud /tmp/tmpdockerfile/ -t blabla
   check_options_flag_err "-t"
 
-  run_buildah 1 bud /tmp/tmpdockerfile/ -q -t blabla
+  run_buildah 125 bud /tmp/tmpdockerfile/ -q -t blabla
   check_options_flag_err "-q"
 
-  run_buildah 1 bud /tmp/tmpdockerfile/ --force-rm
+  run_buildah 125 bud /tmp/tmpdockerfile/ --force-rm
   check_options_flag_err "--force-rm"
 
-  run_buildah 1 bud /tmp/tmpdockerfile/ --userns=cnt1
+  run_buildah 125 bud /tmp/tmpdockerfile/ --userns=cnt1
   check_options_flag_err "--userns=cnt1"
 }
 
@@ -323,18 +323,18 @@ symlink(subdir)"
 
 @test "bud with --force-rm flag" {
   _prefetch alpine
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --force-rm --layers -t test1 -f Dockerfile.fail-case ${TESTSDIR}/bud/use-layers
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --force-rm --layers -t test1 -f Dockerfile.fail-case ${TESTSDIR}/bud/use-layers
   run_buildah containers
   expect_line_count 1
 
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.fail-case ${TESTSDIR}/bud/use-layers
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 -f Dockerfile.fail-case ${TESTSDIR}/bud/use-layers
   run_buildah containers
   expect_line_count 2
 }
 
 @test "bud --layers with non-existent/down registry" {
   _prefetch alpine
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --force-rm --layers -t test1 -f Dockerfile.non-existent-registry ${TESTSDIR}/bud/use-layers
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --force-rm --layers -t test1 -f Dockerfile.non-existent-registry ${TESTSDIR}/bud/use-layers
   expect_output --substring "no such host"
 }
 
@@ -696,7 +696,7 @@ function _test_http() {
 @test "bud-unrecognized-instruction" {
   _prefetch alpine
   target=alpine-image
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/unrecognized
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/unrecognized
   expect_output --substring "BOGUS"
 }
 
@@ -851,7 +851,7 @@ function _test_http() {
 @test "bud with ENTRYPOINT and empty RUN" {
   _prefetch alpine
   target=alpine-image
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.entrypoint-empty-run ${TESTSDIR}/bud/run-scenarios
+  run_buildah 2 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.entrypoint-empty-run ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "error building at STEP"
 }
 
@@ -866,7 +866,7 @@ function _test_http() {
 @test "bud with CMD and empty RUN" {
   _prefetch alpine
   target=alpine-image
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.cmd-empty-run ${TESTSDIR}/bud/run-scenarios
+  run_buildah 2 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.cmd-empty-run ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "error building at STEP"
 }
 
@@ -881,7 +881,7 @@ function _test_http() {
 @test "bud with ENTRYPOINT, CMD and empty RUN" {
   _prefetch alpine
   target=alpine-image
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-empty-run ${TESTSDIR}/bud/run-scenarios
+  run_buildah 2 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-empty-run ${TESTSDIR}/bud/run-scenarios
   expect_output --substring "error building at STEP"
 }
 
@@ -927,7 +927,7 @@ function _test_http() {
 @test "bud with Dockerfile from invalid URL" {
   target=url-image
   url=https://raw.githubusercontent.com/containers/buildah/master/tests/bud/from-scratch/Dockerfile.bogus
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${url}
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${url}
 }
 
 # When provided with a -f flag and directory, buildah will look for the alternate Dockerfile name in the supplied directory
@@ -952,12 +952,12 @@ function _test_http() {
 
 @test "bud with --cpu-shares flag, no argument" {
   target=bud-flag
-  run_buildah 1 bud --cpu-shares --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah 125 bud --cpu-shares --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
 }
 
 @test "bud with --cpu-shares flag, invalid argument" {
   target=bud-flag
-  run_buildah 1 bud --cpu-shares bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah 125 bud --cpu-shares bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
   expect_output --substring "invalid argument \"bogus\" for "
 }
 
@@ -969,12 +969,12 @@ function _test_http() {
 
 @test "bud with --cpu-shares short flag (-c), no argument" {
   target=bud-flag
-  run_buildah 1 bud -c --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah 125 bud -c --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
 }
 
 @test "bud with --cpu-shares short flag (-c), invalid argument" {
   target=bud-flag
-  run_buildah 1 bud -c bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah 125 bud -c bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
   expect_output --substring "invalid argument \"bogus\" for "
 }
 
@@ -1089,7 +1089,7 @@ function _test_http() {
 
 @test "bud-with-rejected-name" {
   target=ThisNameShouldBeRejected
-  run_buildah 1 bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah 125 bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   expect_output --substring "must be lower"
 }
 
@@ -1113,7 +1113,7 @@ function _test_http() {
   _prefetch alpine
   imgName=alpine-image
   ctrName=alpine-chown
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/copy-chown/Dockerfile.bad ${TESTSDIR}/bud/copy-chown
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/copy-chown/Dockerfile.bad ${TESTSDIR}/bud/copy-chown
   expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
 }
 
@@ -1137,7 +1137,7 @@ function _test_http() {
   _prefetch alpine
   imgName=alpine-image
   ctrName=alpine-chown
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/add-chown/Dockerfile.bad ${TESTSDIR}/bud/add-chown
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/add-chown/Dockerfile.bad ${TESTSDIR}/bud/add-chown
   expect_output --substring "ADD only supports the --chown=<uid:gid> flag"
 }
 
@@ -1303,13 +1303,13 @@ function _test_http() {
 
 @test "bud with dir for file but no Dockerfile in dir" {
   target=alpine-image
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/empty-dir ${TESTSDIR}/bud/empty-dir
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/empty-dir ${TESTSDIR}/bud/empty-dir
   expect_output --substring "no such file or directory"
 }
 
 @test "bud with bad dir Dockerfile" {
   target=alpine-image
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/baddirname ${TESTSDIR}/baddirname
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/baddirname ${TESTSDIR}/baddirname
   expect_output --substring "no such file or directory"
 }
 
@@ -1375,7 +1375,7 @@ function _test_http() {
 @test "bud with copy-from with bad from flag in Dockerfile with --layers" {
   _prefetch php:7.2
   target=php-image
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile.bad ${TESTSDIR}/bud/copy-from
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile.bad ${TESTSDIR}/bud/copy-from
   expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
 }
 
@@ -1565,7 +1565,7 @@ function _test_http() {
   target=foo
 
   # A deny-all policy should prevent us from pulling the base image.
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/deny.json -t ${target} -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/deny.json -t ${target} -v ${TESTSDIR}:/testdir ${TESTSDIR}/bud/mount
   expect_output --substring 'Source image rejected: Running image .* rejected by policy.'
 
   # A docker-only policy should allow us to pull the base image and commit.
@@ -1730,26 +1730,26 @@ _EOF
 
 @test "bud without any arguments should fail when no Dockerfile exist" {
   cd $(mktemp -d)
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json
   expect_output --substring "no such file or directory"
 }
 
 @test "bud with specified context should fail if directory contains no Dockerfile" {
   DIR=$(mktemp -d)
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"
   expect_output --substring "no such file or directory"
 }
 
 @test "bud with specified context should fail if assumed Dockerfile is a directory" {
   DIR=$(mktemp -d)
   mkdir -p "$DIR"/Dockerfile
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"
   expect_output --substring "is not a file"
 }
 
 @test "bud with specified context should fail if context contains not-existing Dockerfile" {
   DIR=$(mktemp -d)
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"/Dockerfile
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"/Dockerfile
   expect_output --substring "no such file or directory"
 }
 
@@ -1937,7 +1937,7 @@ _EOF
 
 @test "bud pull never" {
   target=pull
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull-never ${TESTSDIR}/bud/pull
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull-never ${TESTSDIR}/bud/pull
   expect_output --substring "no such image"
 
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull ${TESTSDIR}/bud/pull
@@ -1955,7 +1955,7 @@ _EOF
 
 @test "bud with Containerfile should fail with nonexist authfile" {
   target=alpine-image
-  run_buildah 1 bud --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
+  run_buildah 125 bud --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
 }
 
 @test "bud COPY with URL should fail" {
@@ -1966,7 +1966,7 @@ FROM alpine:latest
 COPY https://getfedora.org/index.html .
 EOM
 
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy/Dockerfile.url ${TESTSDIR}/bud/copy
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy/Dockerfile.url ${TESTSDIR}/bud/copy
   rm -r ${TESTSDIR}/bud/copy
 }
 
@@ -2052,7 +2052,7 @@ EOM
 }
 
 @test "bud file above context directory" {
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t testctr ${TESTSDIR}/bud/context-escape-dir/testdir
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t testctr ${TESTSDIR}/bud/context-escape-dir/testdir
   expect_output --substring "escaping context directory error"
 }
 

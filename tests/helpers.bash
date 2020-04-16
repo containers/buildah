@@ -276,7 +276,7 @@ function expect_line_count() {
 
 function check_options_flag_err() {
     flag="$1"
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 125 ]
     [[ $output = *"No options ($flag) can be specified after"* ]]
 }
 
