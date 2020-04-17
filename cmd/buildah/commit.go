@@ -35,6 +35,8 @@ type commitInputOptions struct {
 	signBy             string
 	squash             bool
 	tlsVerify          bool
+	encryptionKeys     []string
+	encryptLayers      []int
 }
 
 func init() {
@@ -59,6 +61,8 @@ func init() {
 
 	flags.StringVar(&opts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
+	flags.StringSliceVar(&opts.encryptionKeys, "encryption-key", nil, "key with the encryption protocol to use needed to encrypt the image (e.g. jwe:/path/to/key.pem)")
+	flags.IntSliceVar(&opts.encryptLayers, "encrypt-layer", nil, "layers to encrypt, 0-indexed layer indices with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer). If not defined, will encrypt all layers if encryption-key flag is specified")
 
 	if err := flags.MarkHidden("blob-cache"); err != nil {
 		panic(fmt.Sprintf("error marking blob-cache as hidden: %v", err))
@@ -168,6 +172,11 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	// Add builder identity information.
 	builder.SetLabel(buildah.BuilderIdentityAnnotation, buildah.Version)
 
+	encConfig, encLayers, err := getEncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
+	if err != nil {
+		return errors.Wrapf(err, "unable to obtain encryption config")
+	}
+
 	options := buildah.CommitOptions{
 		PreferredManifestType: format,
 		Compression:           compress,
@@ -179,6 +188,8 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		BlobDirectory:         iopts.blobCache,
 		OmitTimestamp:         iopts.omitTimestamp,
 		SignBy:                iopts.signBy,
+		OciEncryptConfig:      encConfig,
+		OciEncryptLayers:      encLayers,
 	}
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr

@@ -89,6 +89,17 @@ type CommitOptions struct {
 	// RetryDelay is how long to wait before retrying a commit attempt to a
 	// registry.
 	RetryDelay time.Duration
+	// OciEncryptConfig when non-nil indicates that an image should be encrypted.
+	// The encryption options is derived from the construction of EncryptConfig object.
+	// Note: During initial encryption process of a layer, the resultant digest is not known
+	// during creation, so newDigestingReader has to be set with validateDigest = false
+	OciEncryptConfig *encconfig.EncryptConfig
+	// OciEncryptLayers represents the list of layers to encrypt.
+	// If nil, don't encrypt any layers.
+	// If non-nil and len==0, denotes encrypt all layers.
+	// integers in the slice represent 0-indexed layer indices, with support for negative
+	// indexing. i.e. 0 is the first layer, -1 is the last (top-most) layer.
+	OciEncryptLayers *[]int
 }
 
 // PushOptions can be used to alter how an image is copied somewhere.
@@ -284,7 +295,9 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	// Check if the base image is already in the destination and it's some kind of local
 	// storage.  If so, we can skip recompressing any layers that come from the base image.
 	exportBaseLayers := true
-	if transport, destIsStorage := dest.Transport().(is.StoreTransport); destIsStorage && b.FromImageID != "" {
+	if transport, destIsStorage := dest.Transport().(is.StoreTransport); destIsStorage && options.OciEncryptConfig != nil {
+		return imgID, nil, "", errors.New("unable to use local storage with image encryption")
+	} else if destIsStorage && b.FromImageID != "" {
 		if baseref, err := transport.ParseReference(b.FromImageID); baseref != nil && err == nil {
 			if img, err := transport.GetImage(baseref); img != nil && err == nil {
 				logrus.Debugf("base image %q is already present in local storage, no need to copy its layers", b.FromImageID)
@@ -333,7 +346,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	}
 
 	var manifestBytes []byte
-	if manifestBytes, err = retryCopyImage(ctx, policyContext, maybeCachedDest, maybeCachedSrc, dest, "push", getCopyOptions(b.store, options.ReportWriter, nil, systemContext, "", false, options.SignBy, nil, nil, nil), options.MaxRetries, options.RetryDelay); err != nil {
+	if manifestBytes, err = retryCopyImage(ctx, policyContext, maybeCachedDest, maybeCachedSrc, dest, "push", getCopyOptions(b.store, options.ReportWriter, nil, systemContext, "", false, options.SignBy, options.OciEncryptLayers, options.OciEncryptConfig, nil), options.MaxRetries, options.RetryDelay); err != nil {
 		return imgID, nil, "", errors.Wrapf(err, "error copying layers and metadata for container %q", b.ContainerID)
 	}
 	// If we've got more names to attach, and we know how to do that for

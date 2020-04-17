@@ -204,3 +204,23 @@ load helpers
 
   rm -rf ${TESTDIR}/tmp
 }
+
+@test "pull encrypted registry image from commit" {
+ _prefetch busybox
+  mkdir ${TESTDIR}/tmp
+  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
+  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
+  run_buildah commit --iidfile /dev/null --tls-verify=false --creds testuser:testpassword --signature-policy ${TESTSDIR}/policy.json --encryption-key jwe:${TESTDIR}/tmp/mykey.pub -q $cid docker://localhost:5000/buildah/busybox_encrypted:latest
+
+  # Try to pull encrypted image without key should fail
+  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
+  # Try to pull encrypted image with wrong key should fail
+  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+  # Providing the right key should succeed
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+  run_buildah rmi localhost:5000/buildah/busybox_encrypted:latest
+
+  rm -rf ${TESTDIR}/tmp
+}
