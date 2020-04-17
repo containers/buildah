@@ -4,8 +4,8 @@ run:
     - apparmor
     - seccomp
     - selinux
-  concurrency: 6
-  deadline: 5m
+  # Don't exceede number of threads available when running under CI
+  concurrency: 4
 linters:
   disable-all: true
   enable:
