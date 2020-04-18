@@ -10,6 +10,7 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/pkg/auth"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -103,7 +104,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 			tags = tags[1:]
 		}
 	}
-	if err := buildahcli.CheckAuthFile(iopts.BudResults.Authfile); err != nil {
+	if err := auth.CheckAuthFile(iopts.BudResults.Authfile); err != nil {
 		return err
 	}
 
