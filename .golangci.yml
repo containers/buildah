@@ -17,7 +17,8 @@ linters:
     - gofmt
     - goimports
     - golint
-    - gosimple
+    # Fixme: Broken? dies w/o error randomly, between ~100-200 seconds
+    # - gosimple
     - govet
     - ineffassign
     - interfacer
