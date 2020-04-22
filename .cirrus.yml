@@ -180,10 +180,8 @@ gce_instance:
     gce_instance:  # Only need to specify differences from defaults (above)
         matrix:  # Duplicate this task for each matrix product.
             image_name: "${FEDORA_CACHE_IMAGE_NAME}"
-            # TODO: Re-enable once prior image is F30 and above is F31
-            # image_name: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-            # TODO: Re-enable when package repositories functional
-            #image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
+            image_name: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
             image_name: "${PRIOR_UBUNTU_CACHE_IMAGE_NAME}"
 
     # Separate scripts for separate outputs, makes debugging easier.
