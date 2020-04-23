@@ -230,7 +230,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 
 // startStage creates a new stage executor that will be referenced whenever a
 // COPY or ADD statement uses a --from=NAME flag.
-func (b *Executor) startStage(stage *imagebuilder.Stage, stages int, from, output string) *StageExecutor {
+func (b *Executor) startStage(stage *imagebuilder.Stage, stages int, output string) *StageExecutor {
 	if b.stages == nil {
 		b.stages = make(map[string]*StageExecutor)
 	}
@@ -245,7 +245,6 @@ func (b *Executor) startStage(stage *imagebuilder.Stage, stages int, from, outpu
 		stage:           stage,
 	}
 	b.stages[stage.Name] = stageExec
-	b.stages[from] = stageExec
 	if idx := strconv.Itoa(stage.Position); idx != stage.Name {
 		b.stages[idx] = stageExec
 	}
@@ -418,7 +417,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			output = b.output
 		}
 
-		stageExecutor := b.startStage(&stage, len(stages), base, output)
+		stageExecutor := b.startStage(&stage, len(stages), output)
 
 		// If this a single-layer build, or if it's a multi-layered
 		// build and b.forceRmIntermediateCtrs is set, make sure we
