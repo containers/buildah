@@ -1379,6 +1379,20 @@ function _test_http() {
   expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
 }
 
+@test "bud with copy-from referencing the base image" {
+  _prefetch busybox
+  target=busybox-derived
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile3 ${TESTSDIR}/bud/copy-from
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile4 ${TESTSDIR}/bud/copy-from
+}
+
+@test "bud with copy-from referencing the current stage" {
+  _prefetch busybox
+  target=busybox-derived
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile2.bad ${TESTSDIR}/bud/copy-from
+  expect_output --substring "COPY --from=build: no stage or image found with that name"
+}
+
 @test "bud-target" {
   _prefetch alpine ubuntu
   target=target
