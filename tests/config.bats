@@ -3,16 +3,16 @@
 load helpers
 
 @test "config-flags-order-verification" {
-  run_buildah 1 config cnt1 --author=user1
+  run_buildah 125 config cnt1 --author=user1
   check_options_flag_err "--author=user1"
 
-  run_buildah 1 config cnt1 --arch x86_54
+  run_buildah 125 config cnt1 --arch x86_54
   check_options_flag_err "--arch"
 
-  run_buildah 1 config cnt1 --created-by buildahcli --cmd "/usr/bin/run.sh" --hostname "localhost1"
+  run_buildah 125 config cnt1 --created-by buildahcli --cmd "/usr/bin/run.sh" --hostname "localhost1"
   check_options_flag_err "--created-by"
 
-  run_buildah 1 config cnt1 --annotation=service=cache
+  run_buildah 125 config cnt1 --annotation=service=cache
   check_options_flag_err "--annotation=service=cache"
 }
 

@@ -3,13 +3,13 @@
 load helpers
 
 @test "inspect-flags-order-verification" {
-  run_buildah 1 inspect img1 -f "{{.ContainerID}}" -t="container"
+  run_buildah 125 inspect img1 -f "{{.ContainerID}}" -t="container"
   check_options_flag_err "-f"
 
-  run_buildah 1 inspect img1 --format="{{.ContainerID}}"
+  run_buildah 125 inspect img1 --format="{{.ContainerID}}"
   check_options_flag_err "--format={{.ContainerID}}"
 
-  run_buildah 1 inspect img1 -t="image"
+  run_buildah 125 inspect img1 -t="image"
   check_options_flag_err "-t=image"
 }
 

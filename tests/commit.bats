@@ -3,16 +3,16 @@
 load helpers
 
 @test "commit-flags-order-verification" {
-  run_buildah 1 commit cnt1 --tls-verify
+  run_buildah 125 commit cnt1 --tls-verify
   check_options_flag_err "--tls-verify"
 
-  run_buildah 1 commit cnt1 -q
+  run_buildah 125 commit cnt1 -q
   check_options_flag_err "-q"
 
-  run_buildah 1 commit cnt1 -f=docker --quiet --creds=bla:bla
+  run_buildah 125 commit cnt1 -f=docker --quiet --creds=bla:bla
   check_options_flag_err "-f=docker"
 
-  run_buildah 1 commit cnt1 --creds=bla:bla
+  run_buildah 125 commit cnt1 --creds=bla:bla
   check_options_flag_err "--creds=bla:bla"
 }
 
@@ -48,7 +48,7 @@ load helpers
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json --rm $cid alpine-image
-  run_buildah 1 rm $cid
+  run_buildah 125 rm $cid
   expect_output --substring "error removing container \"alpine-working-container\": error reading build container: container not known"
 }
 
@@ -66,7 +66,7 @@ load helpers
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah 1 commit --signature-policy ${TESTSDIR}/policy.json $cid ThisNameShouldBeRejected
+  run_buildah 125 commit --signature-policy ${TESTSDIR}/policy.json $cid ThisNameShouldBeRejected
   expect_output --substring "must be lower"
 }
 
@@ -109,7 +109,7 @@ load helpers
   _prefetch alpine
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah 1 commit --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
+  run_buildah 125 commit --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
 }
 
 @test "commit-builder-identity" {

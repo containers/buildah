@@ -23,6 +23,6 @@ load helpers
 }
 
 @test "log-level set to invalid" {
-  run_buildah 1 --log-level=invalid images -q
+  run_buildah 125 --log-level=invalid images -q
   expect_output --substring "unable to parse log level"
 }

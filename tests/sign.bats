@@ -54,7 +54,7 @@ function _gpg_setup() {
 
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid unsigned-alpine-image
   # Pushing with --sign-by should fail add the signature to a dir: location, if it tries to add them.
-  run_buildah 1 push --signature-policy ${TESTSDIR}/policy.json --sign-by amanda@localhost unsigned-alpine-image dir:${TESTDIR}/signed-image
+  run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json --sign-by amanda@localhost unsigned-alpine-image dir:${TESTDIR}/signed-image
   expect_output --substring "Cannot determine canonical Docker reference"
 
   # Clear out images, so that we don't have leftover signatures when we pull in an image that will end up
@@ -71,7 +71,7 @@ function _gpg_setup() {
   # Build a manifest list and try to push the list with signatures.
   run_buildah manifest create list
   run_buildah manifest add list $imageID
-  run_buildah 1 manifest push --signature-policy ${TESTSDIR}/policy.json --sign-by amanda@localhost --all list dir:${TESTDIR}/signed-image
+  run_buildah 125 manifest push --signature-policy ${TESTSDIR}/policy.json --sign-by amanda@localhost --all list dir:${TESTDIR}/signed-image
   expect_output --substring "Cannot determine canonical Docker reference"
   run_buildah manifest push --signature-policy ${TESTSDIR}/policy.json --all list dir:${TESTDIR}/unsigned-image
 }

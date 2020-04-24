@@ -3,18 +3,18 @@
 load helpers
 
 @test "pull-flags-order-verification" {
-  run_buildah 1 pull image1 --tls-verify
+  run_buildah 125 pull image1 --tls-verify
   check_options_flag_err "--tls-verify"
 
-  run_buildah 1 pull image1 --authfile=/tmp/somefile
+  run_buildah 125 pull image1 --authfile=/tmp/somefile
   check_options_flag_err "--authfile=/tmp/somefile"
 
-  run_buildah 1 pull image1 -q --cred bla:bla --authfile=/tmp/somefile
+  run_buildah 125 pull image1 -q --cred bla:bla --authfile=/tmp/somefile
   check_options_flag_err "-q"
 }
 
 @test "pull-blocked" {
-  run_buildah 1 --registries-conf ${TESTSDIR}/registries.conf.block pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
+  run_buildah 125 --registries-conf ${TESTSDIR}/registries.conf.block pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
   expect_output --substring "is blocked by configuration"
 
   run_buildah --registries-conf ${TESTSDIR}/registries.conf       pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
@@ -37,7 +37,7 @@ load helpers
   expect_output --substring "alpine_nginx:latest"
 
   run_buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json alpine@sha256:1072e499f3f655a032e88542330cf75b02e7bdf673278f701d7ba61629ee3ebe
-  run_buildah 1 pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json fakeimage/fortest
+  run_buildah 125 pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json fakeimage/fortest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   [[ ! "$output" =~ "fakeimage/fortest" ]]
 }
@@ -49,7 +49,7 @@ load helpers
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine"
-  run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
+  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
   expect_output "Non-docker transport is not supported, for --all-tags pulling"
 }
 
@@ -60,7 +60,7 @@ load helpers
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/alp.tar
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine"
-  run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/alp.tar
+  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/alp.tar
   expect_output "Non-docker transport is not supported, for --all-tags pulling"
 }
 
@@ -72,7 +72,7 @@ load helpers
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "localhost${TESTDIR}/buildahtest:latest"
-  run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
+  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
   expect_output "Non-docker transport is not supported, for --all-tags pulling"
 }
 
@@ -93,7 +93,7 @@ load helpers
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine:latest"
   run_buildah rmi alpine
-  run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-daemon:docker.io/library/alpine:latest
+  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-daemon:docker.io/library/alpine:latest
   expect_output --substring "Non-docker transport is not supported, for --all-tags pulling"
 }
 
@@ -142,28 +142,28 @@ load helpers
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "localhost${TESTDIR}/alpine:latest"
-  run_buildah 1 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
+  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
   expect_output "Non-docker transport is not supported, for --all-tags pulling"
 }
 
 @test "pull-denied-by-registry-sources" {
   export BUILD_REGISTRY_SOURCES='{"blockedRegistries": ["docker.io"]}'
 
-  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
   expect_output --substring 'pull from registry at "docker.io" denied by policy: it is in the blocked registries list'
 
-  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
   expect_output --substring 'pull from registry at "docker.io" denied by policy: it is in the blocked registries list'
 
   export BUILD_REGISTRY_SOURCES='{"allowedRegistries": ["some-other-registry.example.com"]}'
 
-  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
   expect_output --substring 'pull from registry at "docker.io" denied by policy: not in allowed registries list'
 
-  run_buildah 1 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
   expect_output --substring 'pull from registry at "docker.io" denied by policy: not in allowed registries list'
 }
 
 @test "pull should fail with nonexist authfile" {
-  run_buildah 1 pull --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah 125 pull --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json alpine
 }

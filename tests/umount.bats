@@ -3,13 +3,13 @@
 load helpers
 
 @test "umount-flags-order-verification" {
-  run_buildah 1 umount cnt1 -a
+  run_buildah 125 umount cnt1 -a
   check_options_flag_err "-a"
 
-  run_buildah 1 umount cnt1 --all cnt2
+  run_buildah 125 umount cnt1 --all cnt2
   check_options_flag_err "--all"
 
-  run_buildah 1 umount cnt1 cnt2 --all
+  run_buildah 125 umount cnt1 cnt2 --all
   check_options_flag_err "--all"
 }
 
@@ -22,7 +22,7 @@ load helpers
 }
 
 @test "umount bad image" {
-  run_buildah 1 umount badcontainer
+  run_buildah 125 umount badcontainer
 }
 
 @test "umount multi images" {
@@ -64,5 +64,5 @@ load helpers
   run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
   cid3=$output
   run_buildah mount "$cid3"
-  run_buildah 1 umount "$cid1" badcontainer "$cid2" "$cid3"
+  run_buildah 125 umount "$cid1" badcontainer "$cid2" "$cid3"
 }
