@@ -41,7 +41,21 @@ then
             showrun make test-unit
             ;;
         integration)
-            showrun make test-integration
+            echo "This test messages goes to stdout" > /dev/stdout
+            echo "This test messages goes to stderr" > /dev/stderr
+            showrun buildah from --name=foobar ubuntu
+            warn "The next command should be shown, and then output '$(date)'"
+            showrun buildah --log-level debug run foobar date
+            warn "The next command should output '$(date)'"
+            buildah --log-level debug run foobar date
+            warn "cleanup"
+            showrun buildah rm foobar
+            showrun buildah rmi ubuntu
+
+            # FIXME: Testing
+            warn "Failing test on purpose"
+            exit 1
+            #showrun make test-integration
             ;;
         *)
             die 1 "First parameter to $(basename $0) not supported: '$1'"
