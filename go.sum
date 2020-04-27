@@ -107,8 +107,8 @@ github.com/etcd-io/bbolt v1.3.3/go.mod h1:ZF2nL25h33cCyBtcyWeZ2/I3HQOfTP+0PIEvHj
 github.com/evanphx/json-patch v4.2.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
-github.com/fsouza/go-dockerclient v1.6.4 h1:B+L+1lz1LUrNgEUUh8PSG76s70EYC49ssv2xvTefTMM=
-github.com/fsouza/go-dockerclient v1.6.4/go.mod h1:GOdftxWLWIbIWKbIMDroKFJzPdg6Iw7r+jX1DDZdVsA=
+github.com/fsouza/go-dockerclient v1.6.5 h1:vuFDnPcds3LvTWGYb9h0Rty14FLgkjHZdwLDROCdgsw=
+github.com/fsouza/go-dockerclient v1.6.5/go.mod h1:GOdftxWLWIbIWKbIMDroKFJzPdg6Iw7r+jX1DDZdVsA=
 github.com/fullsailor/pkcs7 v0.0.0-20190404230743-d7302db945fa h1:RDBNVkRviHZtvDvId8XSGPu3rmpmSe+wKRcEWNgsfWU=
 github.com/fullsailor/pkcs7 v0.0.0-20190404230743-d7302db945fa/go.mod h1:KnogPXtdwXqoenmZCw6S+25EAm2MkxbG0deNDu4cbSA=
 github.com/ghodss/yaml v0.0.0-20150909031657-73d445a93680/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=

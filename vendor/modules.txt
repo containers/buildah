@@ -219,7 +219,7 @@ github.com/docker/libnetwork/resolvconf/dns
 github.com/docker/libnetwork/types
 # github.com/etcd-io/bbolt v1.3.3
 github.com/etcd-io/bbolt
-# github.com/fsouza/go-dockerclient v1.6.4
+# github.com/fsouza/go-dockerclient v1.6.5
 github.com/fsouza/go-dockerclient
 # github.com/fullsailor/pkcs7 v0.0.0-20190404230743-d7302db945fa
 github.com/fullsailor/pkcs7

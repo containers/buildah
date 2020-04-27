@@ -120,9 +120,18 @@ func cfgPaths(dockerConfigEnv string, homeEnv string) []string {
 	return nil
 }
 
-// NewAuthConfigurationsFromDockerCfg returns AuthConfigurations from
-// system config files. The following files are checked in the order listed:
-// - $DOCKER_CONFIG/config.json if DOCKER_CONFIG set in the environment,
+// NewAuthConfigurationsFromDockerCfg returns AuthConfigurations from system
+// config files. The following files are checked in the order listed:
+//
+// If the environment variable DOCKER_CONFIG is set to a non-empty string:
+//
+// - $DOCKER_CONFIG/plaintext-passwords.json
+// - $DOCKER_CONFIG/config.json
+//
+// Otherwise, it looks for files in the $HOME directory and the legacy
+// location:
+//
+// - $HOME/.docker/plaintext-passwords.json
 // - $HOME/.docker/config.json
 // - $HOME/.dockercfg
 func NewAuthConfigurationsFromDockerCfg() (*AuthConfigurations, error) {
