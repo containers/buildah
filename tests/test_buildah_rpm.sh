@@ -9,9 +9,7 @@ load helpers
 }
 
 @test "rpm-build CentOS 7" {
-        if ! which runc ; then
-                skip
-        fi
+        skip_if_no_runtime
 
         # Build a container to use for building the binaries.
         image=registry.centos.org/centos/centos:centos7
@@ -64,9 +62,7 @@ load helpers
 }
 
 @test "rpm-build Fedora latest" {
-        if ! which runc ; then
-                skip
-        fi
+        skip_if_no_runtime
 
         # Build a container to use for building the binaries.
         image=registry.fedoraproject.org/fedora:latest

@@ -5,6 +5,7 @@ IMGTYPE_BINARY=${IMGTYPE_BINARY:-$(dirname ${BASH_SOURCE})/../imgtype}
 TESTSDIR=${TESTSDIR:-$(dirname ${BASH_SOURCE})}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/..:${PATH}
+OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)
 
 # Default timeout for a buildah command.
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
@@ -302,14 +303,11 @@ function skip_if_rootless() {
 #  skip_if_no_runtime  #  'buildah run' can't work without a runtime
 ########################
 function skip_if_no_runtime() {
-    # FIXME: if #1964 gets fixed, use 'buildah info' to determine runtime
-    # FIXME: right now we just rely on runc
-    runtime=runc
-    if type -p $runtime &> /dev/null; then
+    if type -p "${OCI}" &> /dev/null; then
         return
     fi
 
-    skip "runtime '$runtime' not found"
+    skip "runtime \"$OCI\" not found"
 }
 
 ##################

@@ -319,7 +319,7 @@ general_namespace() {
   skip_if_rootless
 
   _prefetch alpine
-  # mnt is always per-container, cgroup isn't a thing runc lets us configure
+  # mnt is always per-container, cgroup isn't a thing OCI runtime lets us configure
   for ipc in host container ; do
     for net in host container ; do
       for pid in host container ; do
@@ -327,7 +327,7 @@ general_namespace() {
           for uts in host container ; do
 
             if test $userns == container -a $pid == host ; then
-              # We can't mount a fresh /proc, and runc won't let us bind mount the host's.
+              # We can't mount a fresh /proc, and OCI runtime won't let us bind mount the host's.
               continue
             fi
 

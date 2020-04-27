@@ -6,7 +6,7 @@ load helpers
 	skip_if_no_runtime
 
 	_prefetch alpine
-	runc --version
+	${OCI} --version
 	createrandom ${TESTDIR}/randomfile
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
@@ -218,7 +218,7 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	_prefetch alpine
-	runc --version
+	${OCI} --version
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah run $cid hostname
@@ -236,7 +236,7 @@ function configure_and_check_user() {
 			zflag=z
 		fi
 	fi
-	runc --version
+	${OCI} --version
 	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
@@ -262,7 +262,7 @@ function configure_and_check_user() {
 			zflag=z
 		fi
 	fi
-	runc --version
+	${OCI} --version
 	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
@@ -281,7 +281,7 @@ function configure_and_check_user() {
 @test "run symlinks" {
 	skip_if_no_runtime
 
-	runc --version
+	${OCI} --version
 	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
@@ -294,7 +294,7 @@ function configure_and_check_user() {
 @test "run --cap-add/--cap-drop" {
 	skip_if_no_runtime
 
-	runc --version
+	${OCI} --version
 	_prefetch alpine
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
