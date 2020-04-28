@@ -42,6 +42,7 @@ then
             ;;
         integration)
             setenforce 0
+            yum install -y strace
             echo "This test messages goes to stdout" > /dev/stdout
             echo "This test messages goes to stderr" > /dev/stderr
             showrun buildah from --name=foobar ubuntu
@@ -49,6 +50,8 @@ then
             showrun buildah --log-level debug run foobar date
             warn "The next command should output '$(date)'"
             buildah --log-level debug run foobar date
+            warn "STRACE OUTPUT"
+            showrun strace -f buildah run foobar date
             warn "cleanup"
             showrun buildah rm foobar
             showrun buildah rmi ubuntu
