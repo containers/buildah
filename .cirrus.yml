@@ -59,8 +59,8 @@ gce_instance:
 # Update metadata on VM images referenced by this repository state
 'cirrus-ci/only_prs/meta_task':
 
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
+    # FIXME: Skipping gate
+    skip: $CI == $CI
 
     container:
         image: "quay.io/libpod/imgts:latest"  # see contrib/imgts
