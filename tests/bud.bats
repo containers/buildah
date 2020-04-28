@@ -2090,9 +2090,9 @@ EOM
 
   target=busybox-image
   # Try to build from encrypted image without key
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword -t ${target} -f ${TESTSDIR}/bud/from-encrypted-image/Dockerfile
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword -t ${target} -f ${TESTSDIR}/bud/from-encrypted-image/Dockerfile
   # Try to build from encrypted image with wrong key
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem -t ${target} -f ${TESTSDIR}/bud/from-encrypted-image/Dockerfile
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem -t ${target} -f ${TESTSDIR}/bud/from-encrypted-image/Dockerfile
   # Try to build with the correct key
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem -t ${target} -f ${TESTSDIR}/bud/from-encrypted-image/Dockerfile
 

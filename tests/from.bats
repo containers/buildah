@@ -399,9 +399,9 @@ load helpers
   run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox oci:${TESTDIR}/tmp/busybox_enc
 
   # Try encrypted image without key should fail
-  run_buildah 1 from oci:${TESTDIR}/tmp/busybox_enc
+  run_buildah 125 from oci:${TESTDIR}/tmp/busybox_enc
   # Try encrypted image with wrong key should fail
-  run_buildah 1 from --decryption-key ${TESTDIR}/tmp/mykey2.pem oci:${TESTDIR}/tmp/busybox_enc
+  run_buildah 125 from --decryption-key ${TESTDIR}/tmp/mykey2.pem oci:${TESTDIR}/tmp/busybox_enc
   # Providing the right key should succeed
   run_buildah from  --decryption-key ${TESTDIR}/tmp/mykey.pem oci:${TESTDIR}/tmp/busybox_enc
 
@@ -417,9 +417,9 @@ load helpers
   run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:5000/buildah/busybox_encrypted:latest
 
   # Try encrypted image without key should fail
-  run_buildah 1 from --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
+  run_buildah 125 from --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
   # Try encrypted image with wrong key should fail
-  run_buildah 1 from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+  run_buildah 125 from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
   # Providing the right key should succeed
   run_buildah from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest
   run_buildah rmi localhost:5000/buildah/busybox_encrypted:latest
