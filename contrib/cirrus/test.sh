@@ -41,6 +41,7 @@ then
             showrun make test-unit
             ;;
         integration)
+            setenforce 0
             echo "This test messages goes to stdout" > /dev/stdout
             echo "This test messages goes to stderr" > /dev/stderr
             showrun buildah from --name=foobar ubuntu
