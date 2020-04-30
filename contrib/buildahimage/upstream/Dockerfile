@@ -8,7 +8,7 @@
 # The containers created by this image also come with a
 # Buildah development environment in /root/buildah.
 #
-FROM fedora:latest
+FROM registry.fedoraproject.org/fedora:latest
 ENV GOPATH=/root/buildah
 
 # Install the software required to build Buildah.
