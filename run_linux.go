@@ -1459,9 +1459,10 @@ func runUsingRuntimeMain() {
 	if err := setChildProcess(); err != nil {
 		os.Exit(1)
 	}
-	var ospec *specs.Spec
-	if options.Spec != nil {
-		ospec = options.Spec
+	ospec := options.Spec
+	if ospec == nil {
+		fmt.Fprintf(os.Stderr, "options spec not specified\n")
+		os.Exit(1)
 	}
 
 	// Run the container, start to finish.
