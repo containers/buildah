@@ -205,6 +205,11 @@ func runUsingChrootMain() {
 		os.Exit(1)
 	}
 
+	if options.Spec != nil {
+		fmt.Fprintf(os.Stderr, "invalid options spec in runUsingChrootMain\n")
+		os.Exit(1)
+	}
+
 	// Prepare to shuttle stdio back and forth.
 	rootUID32, rootGID32, err := util.GetHostRootIDs(options.Spec)
 	if err != nil {
@@ -221,6 +226,7 @@ func runUsingChrootMain() {
 	var stdout io.Writer
 	var stderr io.Writer
 	fdDesc := make(map[int]string)
+
 	if options.Spec.Process.Terminal {
 		// Create a pseudo-terminal -- open a copy of the master side.
 		ptyMasterFd, err := unix.Open("/dev/ptmx", os.O_RDWR, 0600)
@@ -656,7 +662,12 @@ func runUsingChrootExecMain() {
 	// Set the hostname.  We're already in a distinct UTS namespace and are admins in the user
 	// namespace which created it, so we shouldn't get a permissions error, but seccomp policy
 	// might deny our attempt to call sethostname() anyway, so log a debug message for that.
-	if options.Spec != nil && options.Spec.Hostname != "" {
+	if options.Spec != nil {
+		fmt.Fprintf(os.Stderr, "invalide options spec passed in\n")
+		os.Exit(1)
+	}
+
+	if options.Spec.Hostname != "" {
 		if err := unix.Sethostname([]byte(options.Spec.Hostname)); err != nil {
 			logrus.Debugf("failed to set hostname %q for process: %v", options.Spec.Hostname, err)
 		}

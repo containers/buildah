@@ -1460,6 +1460,11 @@ func runUsingRuntimeMain() {
 		ospec = options.Spec
 	}
 
+	if ospec == nil {
+		fmt.Fprintf(os.Stderr, "options spec not specified\n")
+		os.Exit(1)
+	}
+
 	// Run the container, start to finish.
 	status, err := runUsingRuntime(options.Isolation, options.Options, options.ConfigureNetwork, options.ConfigureNetworks, options.MoreCreateArgs, ospec, options.BundlePath, options.ContainerName)
 	if err != nil {

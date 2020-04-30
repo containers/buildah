@@ -100,7 +100,7 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 	}
 
 	dnsOptions := []string{}
-	if c.Flag("dns-search").Changed {
+	if c.Flag("dns-option").Changed {
 		dnsOptions, _ = c.Flags().GetStringSlice("dns-option")
 		if noDNS && len(dnsOptions) > 0 {
 			return nil, errors.Errorf("invalid --dns-option, --dns-option may not be used with --dns=none")
