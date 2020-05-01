@@ -11,7 +11,7 @@
 #
 # To use, 'podman build -f ~/Containerfile.buildahstable -t quay.io/buildah/stable:v1.14.3 .'
 #
-FROM fedora:latest
+FROM registry.fedoraproject.org/fedora:latest
 
 # Build a version:  Copy tar file from bohdi to `/root/tmp` then run
 # `podman build -t quay.io/stable:v1.14.3 -f ~/Containerfile.buildahstable .`
