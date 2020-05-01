@@ -52,8 +52,8 @@ github.com/containerd/ttrpc v0.0.0-20190828154514-0e0f228740de/go.mod h1:PvCDdDG
 github.com/containerd/typeurl v0.0.0-20180627222232-a93fcdb778cd/go.mod h1:Cm3kwCdlkCfMSHURc+r6fwoGH6/F1hH3S4sg0rLFWPc=
 github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784 h1:rqUVLD8I859xRgUx/WMC3v7QAFqbLKZbs+0kqYboRJc=
 github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784/go.mod h1:LGwApLUm2FpoOfxTDEeq8T9ipbpZ61X79hmU3w8FmsY=
-github.com/containers/common v0.9.1 h1:S5lkpnycTI29YzpNJ4RLv49g8sksgYNRNsugPmzQCR8=
-github.com/containers/common v0.9.1/go.mod h1:9YGKPwu6NFYQG2NtSP9bRhNGA8mgd1mUCCkOU2tr+Pc=
+github.com/containers/common v0.9.5 h1:rqGMfYuD1euB38kW2sbQQTRelnrXPQ1E2vkcOP9HNnA=
+github.com/containers/common v0.9.5/go.mod h1:9YGKPwu6NFYQG2NtSP9bRhNGA8mgd1mUCCkOU2tr+Pc=
 github.com/containers/image/v5 v5.4.3 h1:zn2HR7uu4hpvT5QQHgjqonOzKDuM1I1UHUEmzZT5sbs=
 github.com/containers/image/v5 v5.4.3/go.mod h1:pN0tvp3YbDd7BWavK2aE0mvJUqVd2HmhPjekyWSFm0U=
 github.com/containers/libtrust v0.0.0-20190913040956-14b96171aa3b h1:Q8ePgVfHDplZ7U33NwHZkrVELsZP5fYj9pM5WBZB2GE=
@@ -107,8 +107,8 @@ github.com/etcd-io/bbolt v1.3.3/go.mod h1:ZF2nL25h33cCyBtcyWeZ2/I3HQOfTP+0PIEvHj
 github.com/evanphx/json-patch v4.2.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
-github.com/fsouza/go-dockerclient v1.6.4 h1:B+L+1lz1LUrNgEUUh8PSG76s70EYC49ssv2xvTefTMM=
-github.com/fsouza/go-dockerclient v1.6.4/go.mod h1:GOdftxWLWIbIWKbIMDroKFJzPdg6Iw7r+jX1DDZdVsA=
+github.com/fsouza/go-dockerclient v1.6.5 h1:vuFDnPcds3LvTWGYb9h0Rty14FLgkjHZdwLDROCdgsw=
+github.com/fsouza/go-dockerclient v1.6.5/go.mod h1:GOdftxWLWIbIWKbIMDroKFJzPdg6Iw7r+jX1DDZdVsA=
 github.com/fullsailor/pkcs7 v0.0.0-20190404230743-d7302db945fa h1:RDBNVkRviHZtvDvId8XSGPu3rmpmSe+wKRcEWNgsfWU=
 github.com/fullsailor/pkcs7 v0.0.0-20190404230743-d7302db945fa/go.mod h1:KnogPXtdwXqoenmZCw6S+25EAm2MkxbG0deNDu4cbSA=
 github.com/ghodss/yaml v0.0.0-20150909031657-73d445a93680/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
