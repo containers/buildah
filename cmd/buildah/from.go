@@ -261,7 +261,11 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		devices = append(devices, dev...)
 	}
 
-	capabilities := defaultContainerConfig.Capabilities("", iopts.CapAdd, iopts.CapDrop)
+	capabilities, err := defaultContainerConfig.Capabilities("", iopts.CapAdd, iopts.CapDrop)
+	if err != nil {
+		return err
+	}
+
 	commonOpts.Ulimit = append(defaultContainerConfig.Containers.DefaultUlimits, commonOpts.Ulimit...)
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
