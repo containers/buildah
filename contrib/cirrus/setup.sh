@@ -29,9 +29,6 @@ case "$OS_RELEASE_ID" in
             bash $SCRIPT_BASE/add_second_partition.sh
         fi
 
-        warn "Buildah testing requires runc"
-        $SUDO dnf install -y runc
-
         warn "Hard-coding podman to use crun"
         sed -i -r -e 's/^runtime = "runc"/runtime = "crun"/' /usr/share/containers/libpod.conf
 

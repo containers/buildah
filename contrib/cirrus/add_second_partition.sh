@@ -23,7 +23,7 @@ then
     exit 0
 fi
 
-[[ -n "type -P parted" ]] || \
+[[ -x "$(type -P parted)" ]] || \
     die 2 "The parted command is required."
 
 [[ ! -b ${SLASH_DEVICE}2 ]] || \
@@ -43,7 +43,7 @@ else
 fi
 
 echo "Adding partition offset within unpartitioned space."
-parted --script --align optimal /dev/sda unit % mkpart primary "" "" "$NEW_PART_START" "$NEW_PART_END"
+parted --script --align optimal $SLASH_DEVICE unit % mkpart primary "" "" "$NEW_PART_START" "$NEW_PART_END"
 
 echo "New partition table:"
 $PPRINTCMD

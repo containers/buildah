@@ -171,13 +171,6 @@ timeout_attempt_delay_command() {
     fi
 }
 
-# Helper/wrapper script to only show stderr/stdout on non-zero exit
-install_ooe() {
-    req_env_var SCRIPT_BASE
-    echo "Installing script to mask stdout/stderr unless non-zero exit."
-    install -D -m 755 "$SCRIPT_BASE/ooe.sh" /usr/local/bin/ooe.sh
-}
-
 showrun() {
     local -a context
     context=($(caller 0))

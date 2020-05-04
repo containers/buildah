@@ -70,6 +70,10 @@ delvm() {
 
 image_hints() {
     _BIS=$(egrep -m 1 '_BUILT_IMAGE_SUFFIX:[[:space:]+"[[:print:]]+"' "$BUILDAHROOT/.cirrus.yml" | cut -d: -f 2 | tr -d '"[:blank:]')
+    if test -z "${_BIS}"; then
+        echo "Error: Could not find a _BUILT_IMAGE_SUFFIX definition in .cirrus.yml" > /dev/stderr
+        exit 1
+    fi
     egrep '[[:space:]]+[[:alnum:]].+_CACHE_IMAGE_NAME:[[:space:]+"[[:print:]]+"' \
         "$BUILDAHROOT/.cirrus.yml" | cut -d: -f 2 | tr -d '"[:blank:]' | \
         sed -r -e "s/\\\$[{]_BUILT_IMAGE_SUFFIX[}]/$_BIS/" | sort -u
