@@ -99,6 +99,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon May 11, 2020 Dan Walsh <dwalsh@redhat.com> 1.14.9-1
+- Bump github.com/containers/common to 0.8.4
+
 * Thu Apr 9, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.8-1
 - Run (make vendor)
 - Run (make -C tests/tools vendor)
