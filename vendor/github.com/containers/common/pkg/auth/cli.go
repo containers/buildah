@@ -7,24 +7,34 @@ import (
 )
 
 // LoginOptions represents common flags in login
-// caller should define bool or optionalBool fields for flags --get-login and --tls-verify
+// In addition, the caller should probably provide a --tls-verify flag (that affects the provided
+// *types.SystemContest)
 type LoginOptions struct {
+	// CLI flags managed by the FlagSet returned by GetLoginFlags
+	// Callers that use GetLoginFlags should not need to touch these values at all; callers that use
+	// other CLI frameworks should set them based on user input.
 	AuthFile      string
 	CertDir       string
-	GetLoginSet   bool
 	Password      string
 	Username      string
 	StdinPassword bool
-	Stdin         io.Reader
-	Stdout        io.Writer
+	GetLoginSet   bool
+	// Options caller can set
+	Stdin                     io.Reader // set to os.Stdin
+	Stdout                    io.Writer // set to os.Stdout
+	AcceptUnspecifiedRegistry bool      // set to true if allows login with unspecified registry
 }
 
 // LogoutOptions represents the results for flags in logout
 type LogoutOptions struct {
+	// CLI flags managed by the FlagSet returned by GetLogoutFlags
+	// Callers that use GetLogoutFlags should not need to touch these values at all; callers that use
+	// other CLI frameworks should set them based on user input.
 	AuthFile string
 	All      bool
-	Stdin    io.Reader
-	Stdout   io.Writer
+	// Options caller can set
+	Stdout                    io.Writer // set to os.Stdout
+	AcceptUnspecifiedRegistry bool      // set to true if allows logout with unspecified registry
 }
 
 // GetLoginFlags defines and returns login flags for containers tools
@@ -35,6 +45,7 @@ func GetLoginFlags(flags *LoginOptions) *pflag.FlagSet {
 	fs.StringVarP(&flags.Password, "password", "p", "", "Password for registry")
 	fs.StringVarP(&flags.Username, "username", "u", "", "Username for registry")
 	fs.BoolVar(&flags.StdinPassword, "password-stdin", false, "Take the password from stdin")
+	fs.BoolVar(&flags.GetLoginSet, "get-login", false, "Return the current login user for the registry")
 	return &fs
 }
 

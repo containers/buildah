@@ -61,5 +61,5 @@ func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 	}
 	ctx := getContext()
 	iopts.loginOpts.GetLoginSet = c.Flag("get-login").Changed
-	return auth.Login(ctx, systemContext, &iopts.loginOpts, args[0])
+	return auth.Login(ctx, systemContext, &iopts.loginOpts, args)
 }
