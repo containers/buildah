@@ -191,6 +191,11 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		contextDir = filepath.Dir(dockerFile)
 	}
 
+	contextDir, err = filepath.EvalSymlinks(contextDir)
+	if err != nil {
+		return errors.Wrapf(err, "error evaluating symlinks in build context path")
+	}
+
 	var stdin, stdout, stderr, reporter *os.File
 	stdin = os.Stdin
 	stdout = os.Stdout
