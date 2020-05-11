@@ -60,7 +60,7 @@ github.com/containers/common/pkg/capabilities
 github.com/containers/common/pkg/cgroupv2
 github.com/containers/common/pkg/config
 github.com/containers/common/pkg/sysinfo
-# github.com/containers/image/v5 v5.4.3
+# github.com/containers/image/v5 v5.4.4
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
 github.com/containers/image/v5/directory/explicitfilepath
@@ -75,6 +75,7 @@ github.com/containers/image/v5/internal/iolimits
 github.com/containers/image/v5/internal/pkg/keyctl
 github.com/containers/image/v5/internal/pkg/platform
 github.com/containers/image/v5/internal/tmpdir
+github.com/containers/image/v5/internal/uploadreader
 github.com/containers/image/v5/manifest
 github.com/containers/image/v5/oci/archive
 github.com/containers/image/v5/oci/internal
@@ -399,7 +400,7 @@ github.com/ulikunitz/xz/lzma
 github.com/vbatts/tar-split/archive/tar
 github.com/vbatts/tar-split/tar/asm
 github.com/vbatts/tar-split/tar/storage
-# github.com/vbauerster/mpb/v5 v5.0.3
+# github.com/vbauerster/mpb/v5 v5.0.4
 github.com/vbauerster/mpb/v5
 github.com/vbauerster/mpb/v5/cwriter
 github.com/vbauerster/mpb/v5/decor
@@ -418,7 +419,7 @@ go.opencensus.io/internal
 go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/tracestate
-# golang.org/x/crypto v0.0.0-20200323165209-0ec3e9974c59
+# golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
 golang.org/x/crypto/cast5
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
@@ -444,7 +445,7 @@ golang.org/x/net/proxy
 # golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20200327173247-9dae0f8f5775
+# golang.org/x/sys v0.0.0-20200420163511-1957bb5e6d1f
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/text v0.3.2
