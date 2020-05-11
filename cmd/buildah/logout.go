@@ -12,7 +12,6 @@ import (
 func init() {
 	var (
 		opts = auth.LogoutOptions{
-			Stdin:  os.Stdin,
 			Stdout: os.Stdout,
 		}
 		logoutDescription = "Remove the cached username and password for the registry."
@@ -46,13 +45,9 @@ func logoutCmd(c *cobra.Command, args []string, iopts *auth.LogoutOptions) error
 		return err
 	}
 
-	var server string
-	if len(args) == 1 {
-		server = args[0]
-	}
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
-	return auth.Logout(systemContext, iopts, server)
+	return auth.Logout(systemContext, iopts, args)
 }
