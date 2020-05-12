@@ -53,7 +53,7 @@ github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.8.1
+# github.com/containers/common v0.8.4
 github.com/containers/common/pkg/apparmor
 github.com/containers/common/pkg/capabilities
 github.com/containers/common/pkg/cgroupv2
