@@ -91,8 +91,6 @@ type CommitOptions struct {
 	RetryDelay time.Duration
 	// OciEncryptConfig when non-nil indicates that an image should be encrypted.
 	// The encryption options is derived from the construction of EncryptConfig object.
-	// Note: During initial encryption process of a layer, the resultant digest is not known
-	// during creation, so newDigestingReader has to be set with validateDigest = false
 	OciEncryptConfig *encconfig.EncryptConfig
 	// OciEncryptLayers represents the list of layers to encrypt.
 	// If nil, don't encrypt any layers.
@@ -144,13 +142,9 @@ type PushOptions struct {
 	MaxRetries int
 	// RetryDelay is how long to wait before retrying a push attempt.
 	RetryDelay time.Duration
-
 	// OciEncryptConfig when non-nil indicates that an image should be encrypted.
 	// The encryption options is derived from the construction of EncryptConfig object.
-	// Note: During initial encryption process of a layer, the resultant digest is not known
-	// during creation, so newDigestingReader has to be set with validateDigest = false
 	OciEncryptConfig *encconfig.EncryptConfig
-
 	// OciEncryptLayers represents the list of layers to encrypt.
 	// If nil, don't encrypt any layers.
 	// If non-nil and len==0, denotes encrypt all layers.
