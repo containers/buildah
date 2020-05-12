@@ -170,7 +170,7 @@ value can be entered.  The password is entered without echo.
 
 **--decryption-key** *key*
 
-A reference required to perform decryption of container images. This should point to files which represent keys and/or certificates that can be used for decryption. Decryption will be tried with all keys. This feature is still *experimental*.
+The [keyfile[:passphrase]] to be used for decryption of images. Keyfile can point to keys and/or certificates. Decryption will be tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and ommitted otherwise.
 
 **--device**=*device*
 
