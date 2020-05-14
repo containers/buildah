@@ -186,6 +186,16 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, flagArg
 		if err != nil {
 			return err
 		}
+		if strings.HasSuffix(arg, "=") {
+			var userArg []string
+			for key, value := range b.Args {
+				userArg = append(userArg, key+"="+value)
+			}
+			arg, err = ProcessWord(a, userArg)
+			if err != nil {
+				return err
+			}
+		}
 		switch {
 		case strings.HasPrefix(arg, "--chown="):
 			chown = strings.TrimPrefix(arg, "--chown=")
