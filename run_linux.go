@@ -206,7 +206,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	if _, ok := bindFiles["/run/.containerenv"]; !ok {
 		// Empty string for now, but we may consider populating this later
 		containerenvPath := filepath.Join(path, "/run/.containerenv")
-		if err = os.MkdirAll(filepath.Dir(containerenvPath), 0755); err != nil && !os.IsExist(err) {
+		if err = os.MkdirAll(filepath.Dir(containerenvPath), 0755); err != nil {
 			return err
 		}
 		emptyFile, err := os.Create(containerenvPath)
