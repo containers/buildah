@@ -168,6 +168,9 @@ load helpers
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah rm $output
 
+  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker:latest
+  run_buildah rm $output
+
   run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:${TESTDIR}/docker-alp.tar:alpine
   run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine    oci-archive:${TESTDIR}/oci-alp.tar:alpine
   run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine            dir:${TESTDIR}/alp-dir
