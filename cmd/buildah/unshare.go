@@ -23,7 +23,7 @@ var (
 		Long:  unshareDescription,
 		RunE:  unshareCmd,
 		Example: `buildah unshare id
-  buildah unshare cat /proc/self/uid_map,
+  buildah unshare cat /proc/self/uid_map
   buildah unshare buildah-script.sh`,
 	}
 	unshareMounts []string
