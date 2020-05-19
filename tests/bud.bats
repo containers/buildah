@@ -2098,3 +2098,9 @@ EOM
 
   rm -rf ${TESTDIR}/tmp
 }
+
+@test "bud with --build-arg" {
+  _prefetch alpine
+  run_buildah --log-level "warn" bud --signature-policy ${TESTSDIR}/policy.json -t test ${TESTSDIR}/bud/build-arg
+  expect_output --substring 'missing .+ build argument'
+}
