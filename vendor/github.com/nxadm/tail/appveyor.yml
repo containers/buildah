@@ -5,7 +5,7 @@ build_script:
 - SET GOPATH=c:\workspace
 - go test -v -race ./...
 test: off
-clone_folder: c:\workspace\src\github.com\hpcloud\tail
+clone_folder: c:\workspace\src\github.com\nxadm\tail
 branches:
   only:
   - master
