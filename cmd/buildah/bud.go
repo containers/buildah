@@ -67,6 +67,7 @@ func init() {
 	// BUD is a all common flags
 	budFlags := buildahcli.GetBudFlags(&budFlagResults)
 	budFlags.StringVar(&budFlagResults.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
+	flags.StringSliceVar(&budFlagResults.DecryptionKeys, "decryption-key", nil, "key needed to decrypt the image")
 
 	layerFlags := buildahcli.GetLayerFlags(&layerFlagsResults)
 	fromAndBudFlags, err := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
@@ -295,6 +296,11 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		return err
 	}
 
+	decConfig, err := getDecryptConfig(iopts.DecryptionKeys)
+	if err != nil {
+		return errors.Wrapf(err, "unable to obtain decrypt config")
+	}
+
 	options := imagebuildah.BuildOptions{
 		AddCapabilities:         iopts.CapAdd,
 		AdditionalTags:          tags,
@@ -339,6 +345,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		SystemContext:           systemContext,
 		Target:                  iopts.Target,
 		TransientMounts:         iopts.Volumes,
+		OciDecryptConfig:        decConfig,
 	}
 
 	if iopts.Quiet {

@@ -20,6 +20,7 @@ import (
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
+	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -100,6 +101,7 @@ type Executor struct {
 	os                             string
 	maxPullPushRetries             int
 	retryPullPushDelay             time.Duration
+	ociDecryptConfig               *encconfig.DecryptConfig
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
@@ -188,6 +190,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		os:                             options.OS,
 		maxPullPushRetries:             options.MaxPullPushRetries,
 		retryPullPushDelay:             options.PullPushRetryDelay,
+		ociDecryptConfig:               options.OciDecryptConfig,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr

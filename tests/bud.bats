@@ -2079,3 +2079,22 @@ EOM
   run grep "secretthings" <<< "$output"
   expect_output ""
 }
+
+@test "bud with encrypted FROM image" {
+  _prefetch busybox
+  mkdir ${TESTDIR}/tmp
+  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
+  openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 1024
+  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:5000/buildah/busybox_encrypted:latest
+
+  target=busybox-image
+  # Try to build from encrypted image without key
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword -t ${target} -f ${TESTSDIR}/bud/from-encrypted-image/Dockerfile
+  # Try to build from encrypted image with wrong key
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem -t ${target} -f ${TESTSDIR}/bud/from-encrypted-image/Dockerfile
+  # Try to build with the correct key
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem -t ${target} -f ${TESTSDIR}/bud/from-encrypted-image/Dockerfile
+
+  rm -rf ${TESTDIR}/tmp
+}

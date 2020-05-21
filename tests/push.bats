@@ -159,3 +159,24 @@ load helpers
   docker rmi localhost:5000/buildah/busybox:latest
   docker logout localhost:5000
 }
+
+@test "buildah oci encrypt and push local oci" {
+  _prefetch busybox
+  mkdir ${TESTDIR}/tmp
+  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
+  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox oci:${TESTDIR}/tmp/busybox_enc
+  imgtype  -show-manifest oci:${TESTDIR}/tmp/busybox_enc | grep "+encrypted"
+  rm -rf ${TESTDIR}/tmp
+}
+
+@test "buildah oci encrypt and push registry" {
+  _prefetch busybox
+  mkdir ${TESTDIR}/tmp
+  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
+  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:5000/buildah/busybox_encrypted:latest
+  # this test, just checks the ability to push an image
+  # there is no good way to test the details of the image unless with ./buildah pull, test will be in pull.bats
+  rm -rf ${TESTDIR}/tmp
+}
