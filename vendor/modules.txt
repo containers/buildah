@@ -34,7 +34,7 @@ github.com/VividCortex/ewma
 github.com/acarl005/stripansi
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
-# github.com/blang/semver v3.1.0+incompatible
+# github.com/blang/semver v3.5.1+incompatible
 github.com/blang/semver
 # github.com/containerd/cgroups v0.0.0-20190919134610-bf292b21730f
 github.com/containerd/cgroups/stats/v1
@@ -331,7 +331,7 @@ github.com/opencontainers/runc/libcontainer/devices
 github.com/opencontainers/runc/libcontainer/system
 github.com/opencontainers/runc/libcontainer/user
 github.com/opencontainers/runc/libcontainer/utils
-# github.com/opencontainers/runtime-spec v0.1.2-0.20190618234442-a950415649c7
+# github.com/opencontainers/runtime-spec v1.0.3-0.20200520003142-237cc4f519e2
 github.com/opencontainers/runtime-spec/specs-go
 # github.com/opencontainers/runtime-tools v0.9.0
 github.com/opencontainers/runtime-tools/error
@@ -378,7 +378,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/seccomp/containers-golang v0.0.0-20190312124753-8ca8945ccf5f
+# github.com/seccomp/containers-golang v0.4.1
 github.com/seccomp/containers-golang
 # github.com/seccomp/libseccomp-golang v0.9.1
 github.com/seccomp/libseccomp-golang
