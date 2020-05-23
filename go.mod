@@ -4,10 +4,10 @@ go 1.12
 
 require (
 	github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
-	github.com/containers/common v0.11.2
+	github.com/containers/common v0.11.4
 	github.com/containers/image/v5 v5.4.4
 	github.com/containers/ocicrypt v1.0.2
-	github.com/containers/storage v1.19.2
+	github.com/containers/storage v1.20.1
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/go-units v0.4.0
@@ -19,7 +19,7 @@ require (
 	github.com/ishidawataru/sctp v0.0.0-20191218070446-00ab2ac2db07 // indirect
 	github.com/mattn/go-shellwords v1.0.10
 	github.com/onsi/ginkgo v1.12.1
-	github.com/onsi/gomega v1.10.0
+	github.com/onsi/gomega v1.10.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
 	github.com/opencontainers/runc v1.0.0-rc9
