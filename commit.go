@@ -24,7 +24,6 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/stringid"
 	digest "github.com/opencontainers/go-digest"
-	configv1 "github.com/openshift/api/config/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -181,7 +180,12 @@ func checkRegistrySourcesAllows(forWhat string, dest types.ImageReference) error
 	}
 
 	if registrySources, ok := os.LookupEnv("BUILD_REGISTRY_SOURCES"); ok && len(registrySources) > 0 {
-		var sources configv1.RegistrySources
+		// Use local struct instead of github.com/openshift/api/config/v1 RegistrySources
+		var sources struct {
+			InsecureRegistries []string `json:"insecureRegistries,omitempty"`
+			BlockedRegistries  []string `json:"blockedRegistries,omitempty"`
+			AllowedRegistries  []string `json:"allowedRegistries,omitempty"`
+		}
 		if err := json.Unmarshal([]byte(registrySources), &sources); err != nil {
 			return errors.Wrapf(err, "error parsing $BUILD_REGISTRY_SOURCES (%q) as JSON", registrySources)
 		}
