@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	bolt "github.com/etcd-io/bbolt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	bolt "go.etcd.io/bbolt"
 )
 
 var (
