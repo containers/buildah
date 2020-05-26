@@ -5,6 +5,7 @@ ctr1=$(buildah from "${1:-fedora}")
 ## Get all updates and install our minimal httpd server
 buildah run "$ctr1" -- dnf update -y
 buildah run "$ctr1" -- dnf install -y lighttpd
+buildah run "$ctr1" -- mkdir /run/lighttpd
 
 ## Include some buildtime annotations
 buildah config --annotation "com.example.build.host=$(uname -n)" "$ctr1"
