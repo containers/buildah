@@ -20,10 +20,9 @@ else
     mkdir -p bin
     if [[ -z "$CROSS_TARGET" ]]
     then
-        ln -v buildah bin/buildah
         showrun make install PREFIX=/usr
         showrun ./bin/buildah info
     else
-        ln -v buildah.${CROSS_TARGET} bin/buildah
+        ln -v ${CROSS_TARGET} bin/buildah
     fi
 fi
