@@ -47,8 +47,8 @@ github.com/containerd/ttrpc v0.0.0-20190828154514-0e0f228740de/go.mod h1:PvCDdDG
 github.com/containerd/typeurl v0.0.0-20180627222232-a93fcdb778cd/go.mod h1:Cm3kwCdlkCfMSHURc+r6fwoGH6/F1hH3S4sg0rLFWPc=
 github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784 h1:rqUVLD8I859xRgUx/WMC3v7QAFqbLKZbs+0kqYboRJc=
 github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784/go.mod h1:LGwApLUm2FpoOfxTDEeq8T9ipbpZ61X79hmU3w8FmsY=
-github.com/containers/common v0.11.4 h1:M7lmjaVY+29g+YiaWH/UP4YeHjT/pZMxvRgmsWsQn74=
-github.com/containers/common v0.11.4/go.mod h1:AOxw4U5TJJrR/J1QPRvWbjHNdwU13wMy79rjK+7+aJE=
+github.com/containers/common v0.12.0 h1:LR/sYyzFa22rFhfu6J9dEYhVkrWjagUigz/ewHhHL9s=
+github.com/containers/common v0.12.0/go.mod h1:PKlahPDnQQYcXuIw5qq8mq6yNuCHBtgABphzy6pN0iI=
 github.com/containers/image/v5 v5.4.4 h1:JSanNn3v/BMd3o0MEvO4R4OKNuoJUSzVGQAI1+0FMXE=
 github.com/containers/image/v5 v5.4.4/go.mod h1:g7cxNXitiLi6pEr9/L9n/0wfazRuhDKXU15kV86N8h8=
 github.com/containers/libtrust v0.0.0-20190913040956-14b96171aa3b h1:Q8ePgVfHDplZ7U33NwHZkrVELsZP5fYj9pM5WBZB2GE=
@@ -228,6 +228,8 @@ github.com/opencontainers/runtime-tools v0.9.0/go.mod h1:r3f7wjNzSs2extwzU3Y+6pK
 github.com/opencontainers/selinux v1.3.0/go.mod h1:+BLncwf63G4dgOzykXAxcmnFlUaOlkDdmw/CqsW6pjs=
 github.com/opencontainers/selinux v1.5.1 h1:jskKwSMFYqyTrHEuJgQoUlTcId0av64S6EWObrIfn5Y=
 github.com/opencontainers/selinux v1.5.1/go.mod h1:yTcKuYAh6R95iDpefGLQaPaRwJFwyzAJufJyiTt7s0g=
+github.com/opencontainers/selinux v1.5.2 h1:F6DgIsjgBIcDksLW4D5RG9bXok6oqZ3nvMwj4ZoFu/Q=
+github.com/opencontainers/selinux v1.5.2/go.mod h1:yTcKuYAh6R95iDpefGLQaPaRwJFwyzAJufJyiTt7s0g=
 github.com/openshift/imagebuilder v1.1.5-0.20200523124444-e30756856853 h1:1mIltsV4UiP7Bv2E5B7IL1HlhWRzCHUUFIhb9NsqPv0=
 github.com/openshift/imagebuilder v1.1.5-0.20200523124444-e30756856853/go.mod h1:9aJRczxCH0mvT6XQ+5STAQaPWz7OsWcU5/mRkt8IWeo=
 github.com/ostreedev/ostree-go v0.0.0-20190702140239-759a8c1ac913 h1:TnbXhKzrTOyuvWrjI8W6pcoI9XPbLHFXCdN2dtUw7Rw=

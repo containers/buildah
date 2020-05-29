@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
-	github.com/containers/common v0.11.4
+	github.com/containers/common v0.12.0
 	github.com/containers/image/v5 v5.4.4
 	github.com/containers/ocicrypt v1.0.2
 	github.com/containers/storage v1.20.1
@@ -24,7 +24,7 @@ require (
 	github.com/opencontainers/runc v1.0.0-rc9
 	github.com/opencontainers/runtime-spec v1.0.3-0.20200520003142-237cc4f519e2
 	github.com/opencontainers/runtime-tools v0.9.0
-	github.com/opencontainers/selinux v1.5.1
+	github.com/opencontainers/selinux v1.5.2
 	github.com/openshift/imagebuilder v1.1.5-0.20200523124444-e30756856853
 	github.com/pkg/errors v0.9.1
 	github.com/seccomp/containers-golang v0.4.1
