@@ -38,7 +38,7 @@
 
 - Changelog for v1.14.4 (2020-03-25)
   * Fix fips-mode check for RHEL8 boxes
-  * Fix potential CVE in tarfile w/ symlink
+  * Fix potential CVE in tarfile w/ symlink (Edit 02-Jun-2020: Addresses CVE-2020-10696)
   * Fix .dockerignore with globs and ! commands
   * update install steps for Amazon Linux 2
   * Bump github.com/openshift/imagebuilder from 1.1.2 to 1.1.3
