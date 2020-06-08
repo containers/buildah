@@ -115,7 +115,7 @@ github.com/containers/ocicrypt/keywrap/pgp
 github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
-# github.com/containers/storage v1.20.1
+# github.com/containers/storage v1.20.2
 github.com/containers/storage
 github.com/containers/storage/drivers
 github.com/containers/storage/drivers/aufs
@@ -252,7 +252,7 @@ github.com/imdario/mergo
 github.com/inconshreveable/mousetrap
 # github.com/ishidawataru/sctp v0.0.0-20191218070446-00ab2ac2db07
 github.com/ishidawataru/sctp
-# github.com/klauspost/compress v1.10.5
+# github.com/klauspost/compress v1.10.7
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
