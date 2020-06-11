@@ -164,9 +164,28 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	spec := g.Config
 	g = nil
 
-	logrus.Debugf("ensuring working directory %q exists", filepath.Join(mountPoint, spec.Process.Cwd))
-	if err = os.MkdirAll(filepath.Join(mountPoint, spec.Process.Cwd), 0755); err != nil && !os.IsExist(err) {
-		return errors.Wrapf(err, "error ensuring working directory %q exists", spec.Process.Cwd)
+	wd := filepath.Join(mountPoint, spec.Process.Cwd)
+	logrus.Debugf("ensuring working directory %q exists", wd)
+	if err = os.MkdirAll(wd, 0755); err != nil {
+		ensureErr := errors.Wrapf(err, "error ensuring working directory %q exists", spec.Process.Cwd)
+		// Ignore the error in case wd exists and it is an absolute symlink
+		// to a directory that exists inside a container.
+		if !os.IsExist(err) {
+			return ensureErr
+		}
+		link, err := os.Readlink(wd)
+		if err != nil { // not a symlink
+			return ensureErr
+		}
+		if !strings.HasPrefix(link, "/") {
+			// relative symlink should have been resolved by MkdirAll
+			return ensureErr
+		}
+		st, err := os.Stat(filepath.Join(mountPoint, link))
+		if err != nil || !st.IsDir() {
+			return ensureErr
+		}
+		// ignore the error since wd is resolvable under container root.
 	}
 
 	// Set the seccomp configuration using the specified profile name.  Some syscalls are
