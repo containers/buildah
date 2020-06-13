@@ -7,7 +7,7 @@ require (
 	github.com/containers/common v0.12.0
 	github.com/containers/image/v5 v5.4.4
 	github.com/containers/ocicrypt v1.0.2
-	github.com/containers/storage v1.20.1
+	github.com/containers/storage v1.20.2
 	github.com/cyphar/filepath-securejoin v0.2.2
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/go-units v0.4.0
