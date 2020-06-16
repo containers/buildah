@@ -44,3 +44,13 @@ buildah images
 
 exit
 ```
+
+## Compatible with old versions
+For compatibility reasons, some Linux distributions with a kernel version of 3.10.0 and less will not work when using the stable image that is based on fedora:32. This centos7 image can be used to work on those distributions.
+
+Changes between it and stable:
+- change base image from `fedora:latest` to `centos:7`
+- remove `--exclude container-selinux` when installing `buildah` and `fuse-overlayfs`, for details pls check [here](https://bugzilla.redhat.com/show_bug.cgi?id=1806044)
+- update the sed logic of storage.conf (the final result is the same, this change just changes the methodology)
+
+> for more details of the compatible discussion pls check the [issue: 2393](https://github.com/containers/buildah/issues/2393)
