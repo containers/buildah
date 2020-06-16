@@ -295,6 +295,49 @@ func (b *Executor) getImageHistory(ctx context.Context, imageID string) ([]v1.Hi
 	return oci.History, nil
 }
 
+func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageExecutor, stages imagebuilder.Stages, stageIndex int) (imageID string, ref reference.Canonical, err error) {
+	stage := stages[stageIndex]
+	ib := stage.Builder
+	node := stage.Node
+	base, err := ib.From(node)
+
+	// If this is the last stage, then the image that we produce at
+	// its end should be given the desired output name.
+	output := ""
+	if stageIndex == len(stages)-1 {
+		output = b.output
+	}
+
+	if err != nil {
+		logrus.Debugf("Build(node.Children=%#v)", node.Children)
+		return "", nil, err
+	}
+
+	stageExecutor := b.startStage(&stage, len(stages), output)
+
+	// If this a single-layer build, or if it's a multi-layered
+	// build and b.forceRmIntermediateCtrs is set, make sure we
+	// remove the intermediate/build containers, regardless of
+	// whether or not the stage's build fails.
+	if b.forceRmIntermediateCtrs || !b.layers {
+		cleanupStages[stage.Position] = stageExecutor
+	}
+
+	// Build this stage.
+	if imageID, ref, err = stageExecutor.Execute(ctx, base); err != nil {
+		return "", nil, err
+	}
+
+	// The stage succeeded, so remove its build container if we're
+	// told to delete successful intermediate/build containers for
+	// multi-layered builds.
+	if b.removeIntermediateCtrs {
+			cleanupStages[stage.Position] = stageExecutor
+	}
+
+	return imageID, ref, nil
+}
+
 // Build takes care of the details of running Prepare/Execute/Commit/Delete
 // over each of the one or more parsed Dockerfiles and stages.
 func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (imageID string, ref reference.Canonical, err error) {
@@ -406,46 +449,9 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 
 	// Run through the build stages, one at a time.
 	for stageIndex, stage := range stages {
-		var lastErr error
-
-		ib := stage.Builder
-		node := stage.Node
-		base, err := ib.From(node)
+		imageID, ref, err = b.buildStage(ctx, cleanupStages, stages, stageIndex)
 		if err != nil {
-			logrus.Debugf("Build(node.Children=%#v)", node.Children)
-			return "", nil, err
-		}
-
-		// If this is the last stage, then the image that we produce at
-		// its end should be given the desired output name.
-		output := ""
-		if stageIndex == len(stages)-1 {
-			output = b.output
-		}
-
-		stageExecutor := b.startStage(&stage, len(stages), output)
-
-		// If this a single-layer build, or if it's a multi-layered
-		// build and b.forceRmIntermediateCtrs is set, make sure we
-		// remove the intermediate/build containers, regardless of
-		// whether or not the stage's build fails.
-		if b.forceRmIntermediateCtrs || !b.layers {
-			cleanupStages[stage.Position] = stageExecutor
-		}
-
-		// Build this stage.
-		if imageID, ref, err = stageExecutor.Execute(ctx, base); err != nil {
-			lastErr = err
-		}
-		if lastErr != nil {
-			return "", nil, lastErr
-		}
-
-		// The stage succeeded, so remove its build container if we're
-		// told to delete successful intermediate/build containers for
-		// multi-layered builds.
-		if b.removeIntermediateCtrs {
-			cleanupStages[stage.Position] = stageExecutor
+			return imageID, ref, err
 		}
 
 		// If this is an intermediate stage, make a note of the ID, so
