@@ -54,7 +54,7 @@ github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.13.1
+# github.com/containers/common v0.14.0
 github.com/containers/common/pkg/apparmor
 github.com/containers/common/pkg/auth
 github.com/containers/common/pkg/capabilities
@@ -279,7 +279,7 @@ github.com/nxadm/tail/ratelimiter
 github.com/nxadm/tail/util
 github.com/nxadm/tail/watch
 github.com/nxadm/tail/winfile
-# github.com/onsi/ginkgo v1.12.3
+# github.com/onsi/ginkgo v1.13.0
 github.com/onsi/ginkgo
 github.com/onsi/ginkgo/config
 github.com/onsi/ginkgo/extensions/table
