@@ -3,13 +3,13 @@
 load helpers
 
 @test "mount-flags-order-verification" {
-  run_buildah 1 mount cnt1 --notruncate path1
+  run_buildah 125 mount cnt1 --notruncate path1
   check_options_flag_err "--notruncate"
 
-  run_buildah 1 mount cnt1 --notruncate
+  run_buildah 125 mount cnt1 --notruncate
   check_options_flag_err "--notruncate"
 
-  run_buildah 1 mount cnt1 path1 --notruncate
+  run_buildah 125 mount cnt1 path1 --notruncate
   check_options_flag_err "--notruncate"
 }
 
@@ -21,7 +21,7 @@ load helpers
 }
 
 @test "mount bad container" {
-  run_buildah 1 mount badcontainer
+  run_buildah 125 mount badcontainer
 }
 
 @test "mount multi images" {
@@ -43,7 +43,7 @@ load helpers
   cid2=$output
   run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
   cid3=$output
-  run_buildah 1 mount "$cid1" badcontainer "$cid2" "$cid3"
+  run_buildah 125 mount "$cid1" badcontainer "$cid2" "$cid3"
 }
 
 @test "list currently mounted containers" {

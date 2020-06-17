@@ -34,7 +34,7 @@ load helpers
 	cid=$output
 
 	# This should fail, because buildah run doesn't have a -n flag.
-	run_buildah 1 run -n $cid echo test
+	run_buildah 125 run -n $cid echo test
 
 	# This should succeed, because buildah run stops caring at the --, which is preserved as part of the command.
 	run_buildah run $cid echo -- -n test
@@ -67,57 +67,57 @@ load helpers
 	# empty entrypoint, configured cmd, empty run arguments
 	run_buildah config --entrypoint "" $cid
 	run_buildah config --cmd pwd $cid
-	run_buildah 1 run $cid
+	run_buildah 125 run $cid
 	expect_output --substring "command must be specified" "empty entrypoint, cmd, no args"
 
 	# empty entrypoint, configured cmd, empty run arguments, end parsing option
 	run_buildah config --entrypoint "" $cid
 	run_buildah config --cmd pwd $cid
-	run_buildah 1 run $cid --
+	run_buildah 125 run $cid --
 	expect_output --substring "command must be specified" "empty entrypoint, cmd, no args, --"
 
 	# configured entrypoint, empty cmd, empty run arguments
 	run_buildah config --entrypoint pwd $cid
 	run_buildah config --cmd "" $cid
-	run_buildah 1 run $cid
+	run_buildah 125 run $cid
 	expect_output --substring "command must be specified" "entrypoint, empty cmd, no args"
 
 	# configured entrypoint, empty cmd, empty run arguments, end parsing option
 	run_buildah config --entrypoint pwd $cid
 	run_buildah config --cmd "" $cid
-	run_buildah 1 run $cid --
+	run_buildah 125 run $cid --
 	expect_output --substring "command must be specified" "entrypoint, empty cmd, no args, --"
 
 	# configured entrypoint only, empty run arguments
 	run_buildah config --entrypoint pwd $cid
-	run_buildah 1 run $cid
+	run_buildah 125 run $cid
 	expect_output --substring "command must be specified" "entrypoint, no args"
 
 	# configured entrypoint only, empty run arguments, end parsing option
 	run_buildah config --entrypoint pwd $cid
-	run_buildah 1 run $cid --
+	run_buildah 125 run $cid --
 	expect_output --substring "command must be specified" "entrypoint, no args, --"
 
 	# configured cmd only, empty run arguments
 	run_buildah config --cmd pwd $cid
-	run_buildah 1 run $cid
+	run_buildah 125 run $cid
 	expect_output --substring "command must be specified" "cmd, no args"
 
 	# configured cmd only, empty run arguments, end parsing option
 	run_buildah config --cmd pwd $cid
-	run_buildah 1 run $cid --
+	run_buildah 125 run $cid --
 	expect_output --substring "command must be specified" "cmd, no args, --"
 
 	# configured entrypoint, configured cmd, empty run arguments
 	run_buildah config --entrypoint "pwd" $cid
 	run_buildah config --cmd "whoami" $cid
-	run_buildah 1 run $cid
+	run_buildah 125 run $cid
 	expect_output --substring "command must be specified" "entrypoint, cmd, no args"
 
 	# configured entrypoint, configured cmd, empty run arguments, end parsing option
 	run_buildah config --entrypoint "pwd" $cid
 	run_buildah config --cmd "whoami" $cid
-	run_buildah 1 run $cid --
+	run_buildah 125 run $cid --
 	expect_output --substring "command must be specified"  "entrypoint, cmd, no args"
 
 
@@ -201,14 +201,14 @@ function configure_and_check_user() {
         configure_and_check_user "${testuid}:${testgroupid}"    $testuid      $testgroupid
 
         run_buildah config -u ${testbogususer} $cid
-        run_buildah 1 run -- $cid id -u
+        run_buildah 125 run -- $cid id -u
         expect_output --substring "unknown user" "id -u (bogus user)"
-        run_buildah 1 run -- $cid id -g
+        run_buildah 125 run -- $cid id -g
         expect_output --substring "unknown user" "id -g (bogus user)"
 
 	ln -vsf /etc/passwd $root/etc/passwd
 	run_buildah config -u ${testuser}:${testgroup} $cid
-	run_buildah 1 run -- $cid id -u
+	run_buildah 125 run -- $cid id -u
 	echo "$output"
 	expect_output --substring "unknown user" "run as unknown user"
 }
@@ -372,6 +372,15 @@ function configure_and_check_user() {
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah 42 run ${cid} sh -c 'exit 42'
+}
+
+@test "run-exit-status on non executable" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah 1 run ${cid} /etc
 }
 
 @test "Verify /run/.containerenv exist" {

@@ -32,7 +32,7 @@ load helpers
 }
 
 @test "from-nopull" {
-  run_buildah 1 from --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah 125 from --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
 }
 
 @test "mount" {
@@ -81,7 +81,7 @@ load helpers
   cp ${TESTDIR}/other-randomfile $newroot/other-randomfile
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:other-new-image
   # Not an allowed ordering of arguments and flags.  Check that it's rejected.
-  run_buildah 1 commit $newcid --signature-policy ${TESTSDIR}/policy.json containers-storage:rejected-new-image
+  run_buildah 125 commit $newcid --signature-policy ${TESTSDIR}/policy.json containers-storage:rejected-new-image
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:another-new-image
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid yet-another-new-image
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:gratuitous-new-image
@@ -121,7 +121,7 @@ load helpers
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
   newcid=$output
   run_buildah commit --rm --signature-policy ${TESTSDIR}/policy.json $newcid containers-storage:remove-container-image
-  run_buildah 1 mount $newcid
+  run_buildah 125 mount $newcid
 
   run_buildah rmi remove-container-image
   run_buildah rmi containers-storage:other-new-image

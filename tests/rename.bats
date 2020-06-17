@@ -22,7 +22,7 @@ load helpers
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah 1 rename ${cid} ${cid}
+  run_buildah 125 rename ${cid} ${cid}
   expect_output 'renaming a container with the same name as its current name'
 }
 
@@ -32,6 +32,6 @@ load helpers
   cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
   cid2=$output
-  run_buildah 1 rename ${cid1} ${cid2}
+  run_buildah 125 rename ${cid1} ${cid2}
   expect_output --substring " already in use by "
 }

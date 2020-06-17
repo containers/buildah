@@ -3,13 +3,13 @@
 load helpers
 
 @test "rmi-flags-order-verification" {
-  run_buildah 1 rmi img1 -f
+  run_buildah 125 rmi img1 -f
   check_options_flag_err "-f"
 
-  run_buildah 1 rmi img1 --all img2
+  run_buildah 125 rmi img1 --all img2
   check_options_flag_err "--all"
 
-  run_buildah 1 rmi img1 img2 --force
+  run_buildah 125 rmi img1 img2 --force
   check_options_flag_err "--force"
 }
 
@@ -29,7 +29,7 @@ load helpers
   cid2=$output
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid3=$output
-  run_buildah 1 rmi alpine busybox
+  run_buildah 125 rmi alpine busybox
   run_buildah images -q
   [ "$output" != "" ]
 
@@ -39,7 +39,7 @@ load helpers
 }
 
 @test "remove multiple non-existent images errors" {
-  run_buildah 1 rmi image1 image2 image3
+  run_buildah 125 rmi image1 image2 image3
   expect_output --from="${lines[0]}" "could not get image \"image1\": identifier is not an image" "output line 1"
   expect_output --from="${lines[1]}" "could not get image \"image2\": identifier is not an image" "output line 2"
   expect_output --from="${lines[2]}" "could not get image \"image3\": identifier is not an image" "output line 3"
@@ -65,7 +65,7 @@ load helpers
   cid2=$output
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid3=$output
-  run_buildah 1 rmi --all
+  run_buildah 125 rmi --all
   run_buildah images -q
   [ "$output" != "" ]
 
@@ -119,19 +119,19 @@ load helpers
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah rm "$cid"
-  run_buildah 1 rmi -a alpine
+  run_buildah 125 rmi -a alpine
   expect_output --substring "when using the --all switch, you may not pass any images names or IDs"
 
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah rm "$cid"
-  run_buildah 1 rmi -p alpine
+  run_buildah 125 rmi -p alpine
   expect_output --substring "when using the --prune switch, you may not pass any images names or IDs"
 
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah rm "$cid"
-  run_buildah 1 rmi -a -p
+  run_buildah 125 rmi -a -p
   expect_output --substring "when using the --all switch, you may not use --prune switch"
   run_buildah rmi --all
 }
@@ -143,7 +143,7 @@ load helpers
   run_buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
   run_buildah rm -a
-  run_buildah 1 rmi alpine
+  run_buildah 125 rmi alpine
   expect_line_count 2
   run_buildah images -q
   expect_line_count 1
@@ -151,7 +151,7 @@ load helpers
   expect_line_count 2
 
   local try_to_delete=${lines[1]}
-  run_buildah 1 rmi $try_to_delete
+  run_buildah 125 rmi $try_to_delete
   expect_output --substring "unable to delete \"$try_to_delete.*\" \(cannot be forced\) - image has dependent child images"
   run_buildah rmi new-image
 }
@@ -171,7 +171,7 @@ load helpers
   run_buildah images -a -q
   expect_line_count 1
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
-  run_buildah 1 rmi alpine
+  run_buildah 125 rmi alpine
   expect_line_count 2
   run_buildah rmi test3
   run_buildah images -a -q

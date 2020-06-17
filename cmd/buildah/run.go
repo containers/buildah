@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
-	"syscall"
 
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
@@ -157,11 +155,6 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	runerr := builder.Run(args, options)
 	if runerr != nil {
 		logrus.Debugf("error running %v in container %q: %v", args, builder.Container, runerr)
-	}
-	if ee, ok := (errors.Cause(runerr)).(*exec.ExitError); ok {
-		if w, ok := ee.Sys().(syscall.WaitStatus); ok {
-			os.Exit(w.ExitStatus())
-		}
 	}
 	if runerr == nil {
 		shell := "/bin/sh -c"

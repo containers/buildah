@@ -18,7 +18,7 @@ load helpers
 @test "logout should fail with nonexist authfile" {
   run_buildah 0 login --username testuserfoo --password testpassword docker.io
 
-  run_buildah 1 logout --authfile /tmp/nonexist docker.io
+  run_buildah 125 logout --authfile /tmp/nonexist docker.io
 
   run_buildah 0 logout docker.io
 }
@@ -30,10 +30,10 @@ load helpers
   run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword alpine localhost:5000/my-alpine
 
   # This should fail
-  run_buildah 1 push  --signature-policy ${TESTSDIR}/policy.json --tls-verify=true localhost:5000/my-alpine
+  run_buildah 125 push  --signature-policy ${TESTSDIR}/policy.json --tls-verify=true localhost:5000/my-alpine
 
   # This should fail
-  run_buildah 1 from --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds baduser:badpassword localhost:5000/my-alpine
+  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds baduser:badpassword localhost:5000/my-alpine
 
   # This should work
   run_buildah from --name "my-alpine" --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword localhost:5000/my-alpine
@@ -50,7 +50,7 @@ EOM
   run_buildah rmi -f --all
 
   # bud test bad password should fail
-  run_buildah 1 bud -f $DOCKERFILE --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:badpassword
+  run_buildah 125 bud -f $DOCKERFILE --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:badpassword
 
   # bud test this should work
   run_buildah bud -f $DOCKERFILE --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:testpassword .

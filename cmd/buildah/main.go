@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"syscall"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/unshare"
@@ -141,6 +144,12 @@ func main() {
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
+		exitCode := cli.ExecErrorCodeGeneric
+		if ee, ok := (errors.Cause(err)).(*exec.ExitError); ok {
+			if w, ok := ee.Sys().(syscall.WaitStatus); ok {
+				exitCode = w.ExitStatus()
+			}
+		}
+		os.Exit(exitCode)
 	}
 }
