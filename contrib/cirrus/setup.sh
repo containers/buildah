@@ -2,118 +2,45 @@
 
 set -e
 
-# N/B: Most development-related packages are pulled in automatically by
-#      'build-essential' (on ubuntu), for Feodra the groups
-#      '@C Development Tools and Libraries' and '@Development Tools'
-#      are similar.
-
-UBUNTU_PACKAGES="
-    aufs-tools
-    bats
-    bzip2
-    coreutils
-    curl
-    git
-    go-md2man
-    golang
-    libdevmapper-dev
-    libglib2.0-dev
-    libgpgme11-dev
-    libseccomp-dev
-    libselinux-dev
-    openssl
-    podman
-    jq
-    netcat
-    rsync
-    runc
-    scons
-    vim
-    wget
-    yum-utils
-    zlib1g-dev
-    xz-utils
-"
-
-FEDORA_PACKAGES="
-    bats
-    btrfs-progs-devel
-    bzip2
-    containers-common
-    device-mapper-devel
-    findutils
-    git
-    glib2-devel
-    glibc-static
-    gnupg
-    go-md2man
-    golang
-    gpgme-devel
-    libassuan-devel
-    libseccomp-devel
-    make
-    nmap-ncat
-    ostree-devel
-    podman
-    jq
-    rsync
-    runc
-    skopeo-containers
-    wget
-    xz
-"
-
+# N/B: In most (but not all) cases, these packages will already be installed
+# in the VM image at build-time (from libpod repo.).  Running package install
+# again here, ensures that all cases are covered, and there is never any
+# expectation mismatch.
 source $(dirname $0)/lib.sh
 
-install_ooe
+req_env_var OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE
 
-echo "Setting up $OS_RELEASE_ID $OS_RELEASE_VER"  # STUB: Add VM setup instructions here
+echo "Setting up $OS_RELEASE_ID $OS_RELEASE_VER"
 cd $GOSRC
-case "$OS_REL_VER" in
-    fedora-*)
-        # Filling up cache is very slow and failures can last quite a while :(
-        $LONG_DNFY install \
-             '@C Development Tools and Libraries' '@Development Tools' \
-            $FEDORA_PACKAGES
+case "$OS_RELEASE_ID" in
+    fedora)
+        # This can be removed when the kernel bug fix is included in Fedora
+        if [[ $OS_RELEASE_VER -le 32 ]] && [[ -z "$CONTAINER" ]]; then
+            warn "Switching io scheduler to 'deadline' to avoid RHBZ 1767539"
+            warn "aka https://bugzilla.kernel.org/show_bug.cgi?id=205447"
+            echo "mq-deadline" | sudo tee /sys/block/sda/queue/scheduler > /dev/null
+            echo -n "IO Scheduler set to: "
+            $SUDO cat /sys/block/sda/queue/scheduler
+        fi
+
+        # Not executing IN_PODMAN container
+        if [[ -z "$CONTAINER" ]]; then
+            warn "Adding secondary testing partition & growing root filesystem"
+            bash $SCRIPT_BASE/add_second_partition.sh
+        fi
+
+        warn "Hard-coding podman to use runc"
+        sed -i -r -e 's/^runtime = "crun"/runtime = "runc"/' /usr/share/containers/libpod.conf
+        dnf install -y /var/cache/download/runc*.rpm
+
         # Executing tests in a container requires SELinux boolean set on the host
         if [[ "$IN_PODMAN" == "true" ]]
         then
             setsebool -P container_manage_cgroup true
         fi
         ;;
-    ubuntu-*)
-        $SHORT_APTGET update
-        $LONG_APTGET upgrade
-        $SHORT_APTGET install software-properties-common
-        ppas=(ppa:projectatomic/ppa)
-        if [[ "$OS_RELEASE_VER" == "18" ]]
-        then
-            ppas+=(ppa:longsleep/golang-backports)  # newer golang
-        fi
-        for ppa in ${ppas[@]}; do
-            timeout_attempt_delay_command 30 2 30 \
-                add-apt-repository --yes $ppa
-        done
-        echo "Configuring/Installing deps from Open build server"
-        . /etc/os-release
-        echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/x${NAME}_${VERSION_ID}/ /" > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-        showrun curl -L -o /tmp/Release.key "https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/x${NAME}_${VERSION_ID}/Release.key"
-        apt-key add - < /tmp/Release.key
-        $SHORT_APTGET update
-        $LONG_APTGET install \
-            build-essential \
-            $UBUNTU_PACKAGES
-        if [[ "$OS_RELEASE_VER" -le "19" ]]; then
-            echo "Replacing old/buggy version of bats with newer package"
-            # An IFS related bug in the stock bats version will causes failures in 'run'
-            # Use newer/static package from https://launchpad.net/bats/trunk
-            apt-get -qq remove --yes bats
-            cd /tmp
-            BATS_URL='http://launchpadlibrarian.net/438140887/bats_1.1.0+git104-g1c83a1b-1_all.deb'
-            curl -L -O "$BATS_URL"
-            apt-get -qq install --yes /tmp/$(basename $BATS_URL)
-            cd -
-        fi
+    ubuntu)
+        : # no-op
         ;;
     *)
         bad_os_id_ver
@@ -129,7 +56,7 @@ echo "$X" >> /etc/environment
 
 echo "Configuring /etc/containers/registries.conf"
 mkdir -p /etc/containers
-echo -e "[registries.search]\nregistries = ['docker.io', 'quay.io']" | tee /etc/containers/registries.conf
+echo -e "[registries.search]\nregistries = ['docker.io', 'registry.fedoraproject.org', 'quay.io']" | tee /etc/containers/registries.conf
 
 show_env_vars
 
