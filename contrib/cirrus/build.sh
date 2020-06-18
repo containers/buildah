@@ -24,8 +24,5 @@ else
     then
         showrun make install PREFIX=/usr
         showrun ./bin/buildah info
-    else  # some tooling expects the binary to be here
-        rm -vf buildah  # failure ok
-        ln -sv bin/buildah ./
     fi
 fi
