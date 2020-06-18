@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-BUILDAH_BINARY=${BUILDAH_BINARY:-$(dirname ${BASH_SOURCE})/../buildah}
-IMGTYPE_BINARY=${IMGTYPE_BINARY:-$(dirname ${BASH_SOURCE})/../imgtype}
+BUILDAH_BINARY=${BUILDAH_BINARY:-$(dirname ${BASH_SOURCE})/../bin/buildah}
+IMGTYPE_BINARY=${IMGTYPE_BINARY:-$(dirname ${BASH_SOURCE})/../bin/imgtype}
 TESTSDIR=${TESTSDIR:-$(dirname ${BASH_SOURCE})}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/..:${PATH}

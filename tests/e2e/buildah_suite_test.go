@@ -95,7 +95,7 @@ func CreateTempDirInTempDir() (string, error) {
 func BuildahCreate(tempDir string) BuildAhTest {
 	cwd, _ := os.Getwd()
 
-	buildAhBinary := filepath.Join(cwd, "../../buildah")
+	buildAhBinary := filepath.Join(cwd, "../../bin/buildah")
 	if os.Getenv("BUILDAH_BINARY") != "" {
 		buildAhBinary = os.Getenv("BUILDAH_BINARY")
 	}

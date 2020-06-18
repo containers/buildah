@@ -6,3 +6,4 @@ tests/tools/build
 Dockerfile*
 !/tests/bud/*/Dockerfile*
 *.swp
+result
