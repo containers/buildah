@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.14.9
+Version:        1.14.10
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Jun 18, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.10-1
+- imagebuildah: stages shouldn't count as their base images 
+
 * Mon May 11, 2020 Dan Walsh <dwalsh@redhat.com> 1.14.9-1
 - Bump github.com/containers/common to 0.8.4
 
