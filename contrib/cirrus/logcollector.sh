@@ -17,8 +17,8 @@ case $1 in
     df) showrun df -lhTx tmpfs ;;
     journal) showrun journalctl -b ;;
     podman) showrun podman system info ;;
-    buildah_version) showrun $GOSRC/buildah version;;
-    buildah_info) showrun $GOSRC/buildah info;;
+    buildah_version) showrun $GOSRC/bin/buildah version;;
+    buildah_info) showrun $GOSRC/bin/buildah info;;
     packages)
         # These names are common to Fedora and Ubuntu
         PKG_NAMES=(\

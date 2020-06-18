@@ -6,6 +6,11 @@
 # Global details persist here
 source /etc/environment  # not always loaded under all circumstances
 
+# Automation environment doesn't automatically load for Ubuntu 18
+if [[ -r '/usr/share/automation/environment' ]]; then
+    source '/usr/share/automation/environment'
+fi
+
 # Under some contexts these values are not set, make sure they are.
 export USER="$(whoami)"
 export HOME="$(getent passwd $USER | cut -d : -f 6)"
@@ -60,11 +65,12 @@ OS_RELEASE_VER="$(source /etc/os-release; echo $VERSION_ID | cut -d '.' -f 1)"
 OS_REL_VER="${OS_RELEASE_ID}-${OS_RELEASE_VER}"
 
 # FQINs needed for testing
-REGISTRY_FQIN=${REGISTRY_FQIN:-docker.io/library/registry}
+REGISTRY_FQIN=${REGISTRY_FQIN:-docker.io/library/registry:2.6}
 ALPINE_FQIN=${ALPINE_FQIN:-docker.io/library/alpine}
 
 # for in-container testing
-IN_PODMAN_IMAGE="$OS_RELEASE_ID:$OS_RELEASE_VER"
+# TODO: Use $DEST_BRANCH as image tag after automated-builds working
+IN_PODMAN_IMAGE="quay.io/libpod/in_podman:master"
 IN_PODMAN_NAME="in_podman_$CIRRUS_TASK_ID"
 IN_PODMAN="${IN_PODMAN:-false}"
 
@@ -79,6 +85,8 @@ SHORT_DNFY="timeout_attempt_delay_command 60s 2 5s dnf -y"
 # Longer timeout for long-running packaging command
 LONG_APTGET="timeout_attempt_delay_command 300s 5 30s $APTGET"
 LONG_DNFY="timeout_attempt_delay_command 300s 3 60s dnf -y"
+# Downloaded, but not installed packages (from VM image build process)
+PACKAGE_DOWNLOAD_DIR=/var/cache/download
 
 # Allow easy substitution for debugging if needed
 CONTAINER_RUNTIME="showrun ${CONTAINER_RUNTIME:-podman}"
@@ -127,6 +135,10 @@ die() {
     exit ${1:-1}
 }
 
+warn() {
+    echo ">>>>> WARNING: ${1:-WARNING (but no message given!) in ${FUNCNAME[1]}()}" > /dev/stderr
+}
+
 bad_os_id_ver() {
     echo "Unknown/Unsupported distro. $OS_RELEASE_ID and/or version $OS_RELEASE_VER for $(basename $0)"
     exit 42
@@ -161,13 +173,6 @@ timeout_attempt_delay_command() {
     fi
 }
 
-# Helper/wrapper script to only show stderr/stdout on non-zero exit
-install_ooe() {
-    req_env_var SCRIPT_BASE
-    echo "Installing script to mask stdout/stderr unless non-zero exit."
-    install -D -m 755 "$SCRIPT_BASE/ooe.sh" /usr/local/bin/ooe.sh
-}
-
 showrun() {
     local -a context
     context=($(caller 0))
@@ -178,9 +183,7 @@ showrun() {
 # workaround issue 1945 (remove when resolved)
 remove_storage_mountopt() {
     local FILEPATH=/etc/containers/storage.conf
-    echo ">>>>>"
-    echo ">>>>> Warning: remove_storage_mountopt() is overwriting $FILEPATH"
-    echo ">>>>>"
+    warn "remove_storage_mountopt() is overwriting $FILEPATH"
     # This file normally comes from containers-common package
     cat <<EOF> $FILEPATH
 [storage]
@@ -192,8 +195,38 @@ EOF
     cat $FILEPATH
 }
 
+# Remove all files provided by the distro version of buildah.
+# All VM cache-images used for testing include the distro buildah because it
+# simplifies installing necessary dependencies which can change over time.
+# For general CI testing however, calling this function makes sure the system
+# can only run the compiled source version.
+remove_packaged_buildah_files() {
+    warn "Removing packaged buildah files to prevent conflicts with source build and testing."
+    req_env_var OS_RELEASE_ID
+
+    if [[ "$OS_RELEASE_ID" =~ "ubuntu" ]]
+    then
+        LISTING_CMD="dpkg-query -L buildah"
+    else
+        LISTING_CMD='rpm -ql buildah'
+    fi
+
+    # yum/dnf/dpkg may list system directories, only remove files
+    $LISTING_CMD | while read fullpath
+    do
+        # Sub-directories may contain unrelated/valuable stuff
+        if [[ -d "$fullpath" ]]; then continue; fi
+        rm -vf "$fullpath"
+    done
+
+    if [[ -z "$CONTAINER" ]]; then
+        # Be super extra sure and careful vs performant and completely safe
+        sync && echo 3 > /proc/sys/vm/drop_caches
+    fi
+}
+
 in_podman() {
-    req_env_var IN_PODMAN_NAME GOSRC HOME OS_RELEASE_ID
+    req_env_var IN_PODMAN_NAME GOSRC GOPATH SECRET_ENV_RE HOME
     [[ -n "$@" ]] || \
         die 7 "Must specify FQIN and command with arguments to execute"
     local envargs
@@ -216,19 +249,20 @@ in_podman() {
     showrun podman run -i --name $IN_PODMAN_NAME \
                    $envargs \
                    --net=host \
-                   --net="container:registry" \
+                   --net="container:registry:2.6" \
                    --security-opt label=disable \
                    --security-opt seccomp=unconfined \
                    --cap-add=all \
                    -e "GOPATH=$GOPATH" \
+                   -e "GOSRC=$GOSRC" \
                    -e "IN_PODMAN=false" \
-                   -e "DIST=$OS_RELEASE_ID" \
+                   -e "CONTAINER=podman" \
                    -e "CGROUP_MANAGER=cgroupfs" \
-                   -v "$GOSRC:$GOSRC:z" \
-                   --workdir "$GOSRC" \
                    -v "$HOME/auth:$HOME/auth:ro" \
                    -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
                    -v /dev/fuse:/dev/fuse:rw \
+                   -v "$GOSRC:$GOSRC:z" \
+                   --workdir "$GOSRC" \
                    "$@"
 }
 
@@ -259,7 +293,7 @@ verify_local_registry(){
 execute_local_registry() {
     if nc -4 -z 127.0.0.1 5000
     then
-        echo "Warning: Found listener on localhost:5000, NOT starting up local registry server."
+        warn "Found listener on localhost:5000, NOT starting up local registry server."
         verify_local_registry
         return 0
     fi
