@@ -490,7 +490,7 @@ filesystem level, on the working container's contents.
 Commands run when handling `RUN` instructions will default to being run in
 their own user namespaces, configured using the UID and GID maps.
 
-Entries in this map take the form of one or more triples of a starting
+Entries in this map take the form of one or more colon-separated triples of a starting
 in-container UID, a corresponding starting host-level UID, and the number of
 consecutive IDs which the map entry represents.
 
@@ -511,7 +511,7 @@ filesystem level, on the working container's contents.
 Commands run when handling `RUN` instructions will default to being run in
 their own user namespaces, configured using the UID and GID maps.
 
-Entries in this map take the form of one or more triples of a starting
+Entries in this map take the form of one or more colon-separated triples of a starting
 in-container GID, a corresponding starting host-level GID, and the number of
 consecutive IDs which the map entry represents.
 
