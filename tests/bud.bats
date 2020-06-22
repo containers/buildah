@@ -1382,8 +1382,25 @@ function _test_http() {
 @test "bud with copy-from referencing the base image" {
   _prefetch busybox
   target=busybox-derived
+  target_mt=busybox-mt-derived
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile3 ${TESTSDIR}/bud/copy-from
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --jobs 4 -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile3 ${TESTSDIR}/bud/copy-from
+
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile4 ${TESTSDIR}/bud/copy-from
+  run_buildah bud --no-cache --signature-policy ${TESTSDIR}/policy.json --jobs 4 -t ${target_mt} -f ${TESTSDIR}/bud/copy-from/Dockerfile4 ${TESTSDIR}/bud/copy-from
+
+  run_buildah from  --quiet ${target}
+  cid=$output
+  run_buildah mount ${cid}
+  root_single_job=$output
+
+  run_buildah from --quiet ${target_mt}
+  cid=$output
+  run_buildah mount ${cid}
+  root_multi_job=$output
+
+  # Check that both the version with --jobs 1 and --jobs=N have the same number of files
+  test $(find $root_single_job -type f | wc -l) = $(find $root_multi_job -type f | wc -l)
 }
 
 @test "bud with copy-from referencing the current stage" {

@@ -870,6 +870,9 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 					return "", nil, errors.Errorf("%s: invalid --from flag, should be --from=<name|stage>", command)
 				}
 				if otherStage, ok := s.executor.stages[arr[1]]; ok && otherStage.index < s.index {
+					if err := s.executor.waitForStage(ctx, otherStage.name); err != nil {
+						return "", nil, err
+					}
 					mountPoint = otherStage.mountPoint
 				} else if mountPoint, err = s.getImageRootfs(ctx, arr[1]); err != nil {
 					return "", nil, errors.Errorf("%s --from=%s: no stage or image found with that name", command, arr[1])

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containers/buildah"
@@ -29,6 +30,7 @@ import (
 	"github.com/openshift/imagebuilder/dockerfile/parser"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 )
 
 // builtinAllowedBuildArgs is list of built-in allowed build args.  Normally we
@@ -102,6 +104,11 @@ type Executor struct {
 	maxPullPushRetries             int
 	retryPullPushDelay             time.Duration
 	ociDecryptConfig               *encconfig.DecryptConfig
+	lastError                      error
+	terminatedStage                map[string]struct{}
+	stagesLock                     sync.Mutex
+	stagesSemaphore                *semaphore.Weighted
+	jobs                           int
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
@@ -191,6 +198,8 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		maxPullPushRetries:             options.MaxPullPushRetries,
 		retryPullPushDelay:             options.PullPushRetryDelay,
 		ociDecryptConfig:               options.OciDecryptConfig,
+		terminatedStage:                make(map[string]struct{}),
+		jobs:                           options.Jobs,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -277,6 +286,35 @@ func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, e
 	return imageRef, nil
 }
 
+func (b *Executor) waitForStage(ctx context.Context, name string) error {
+	stage := b.stages[name]
+	if stage == nil {
+		return errors.Errorf("unknown stage %q", name)
+	}
+	for {
+		if b.lastError != nil {
+			return b.lastError
+		}
+		if stage.stage == nil {
+			return nil
+		}
+
+		b.stagesLock.Lock()
+		_, terminated := b.terminatedStage[name]
+		b.stagesLock.Unlock()
+
+		if terminated {
+			return nil
+		}
+
+		b.stagesSemaphore.Release(1)
+		time.Sleep(time.Millisecond * 10)
+		if err := b.stagesSemaphore.Acquire(ctx, 1); err != nil {
+			return err
+		}
+	}
+}
+
 // getImageHistory returns the history of imageID.
 func (b *Executor) getImageHistory(ctx context.Context, imageID string) ([]v1.History, error) {
 	imageRef, err := is.Transport.ParseStoreReference(b.store, "@"+imageID)
@@ -320,7 +358,9 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 	// remove the intermediate/build containers, regardless of
 	// whether or not the stage's build fails.
 	if b.forceRmIntermediateCtrs || !b.layers {
+		b.stagesLock.Lock()
 		cleanupStages[stage.Position] = stageExecutor
+		b.stagesLock.Unlock()
 	}
 
 	// Build this stage.
@@ -332,7 +372,9 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 	// told to delete successful intermediate/build containers for
 	// multi-layered builds.
 	if b.removeIntermediateCtrs {
-			cleanupStages[stage.Position] = stageExecutor
+		b.stagesLock.Lock()
+		cleanupStages[stage.Position] = stageExecutor
+		b.stagesLock.Unlock()
 	}
 
 	return imageID, ref, nil
@@ -357,12 +399,16 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		// Clean up any containers associated with the final container
 		// built by a stage, for stages that succeeded, since we no
 		// longer need their filesystem contents.
+
+		b.stagesLock.Lock()
 		for _, stage := range cleanupStages {
 			if err := stage.Delete(); err != nil {
 				logrus.Debugf("Failed to cleanup stage containers: %v", err)
 				lastErr = err
 			}
 		}
+		b.stagesLock.Unlock()
+
 		cleanupStages = nil
 		// Clean up any builders that we used to get data from images.
 		for _, builder := range b.containerMap {
@@ -447,24 +493,87 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 	}
 
-	// Run through the build stages, one at a time.
-	for stageIndex, stage := range stages {
-		imageID, ref, err = b.buildStage(ctx, cleanupStages, stages, stageIndex)
-		if err != nil {
-			return imageID, ref, err
+	type Result struct {
+		Index   int
+		ImageID string
+		Ref     reference.Canonical
+		Error   error
+	}
+
+	ch := make(chan Result)
+
+	jobs := int64(b.jobs)
+	if jobs < 0 {
+		return "", nil, errors.New("error building: invalid value for jobs.  It must be a positive integer")
+	} else if jobs == 0 {
+		jobs = int64(len(stages))
+	}
+
+	b.stagesSemaphore = semaphore.NewWeighted(jobs)
+
+	var wg sync.WaitGroup
+	wg.Add(len(stages))
+
+	go func() {
+		for stageIndex := range stages {
+			index := stageIndex
+			// Acquire the sempaphore before creating the goroutine so we are sure they
+			// run in the specified order.
+			if err := b.stagesSemaphore.Acquire(ctx, 1); err != nil {
+				b.lastError = err
+				return
+			}
+			go func() {
+				defer b.stagesSemaphore.Release(1)
+				defer wg.Done()
+				imageID, ref, err = b.buildStage(ctx, cleanupStages, stages, index)
+				if err != nil {
+					ch <- Result{
+						Index: index,
+						Error: err,
+					}
+					return
+				}
+
+				ch <- Result{
+					Index:   index,
+					ImageID: imageID,
+					Ref:     ref,
+					Error:   nil,
+				}
+			}()
+		}
+	}()
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	for r := range ch {
+		stage := stages[r.Index]
+
+		b.stagesLock.Lock()
+		b.terminatedStage[stage.Name] = struct{}{}
+		b.stagesLock.Unlock()
+
+		if r.Error != nil {
+			b.lastError = r.Error
+			return "", nil, r.Error
 		}
 
 		// If this is an intermediate stage, make a note of the ID, so
 		// that we can look it up later.
-		if stageIndex < len(stages)-1 && imageID != "" {
-			b.imageMap[stage.Name] = imageID
+		if r.Index < len(stages)-1 && r.ImageID != "" {
+			b.imageMap[stage.Name] = r.ImageID
 			// We're not populating the cache with intermediate
 			// images, so add this one to the list of images that
 			// we'll remove later.
 			if !b.layers {
-				cleanupImages = append(cleanupImages, imageID)
+				cleanupImages = append(cleanupImages, r.ImageID)
 			}
-			imageID = ""
+		}
+		if r.Index == len(stages)-1 {
+			imageID = r.ImageID
 		}
 	}
 
