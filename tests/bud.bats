@@ -2104,3 +2104,15 @@ EOM
   run_buildah --log-level "warn" bud --signature-policy ${TESTSDIR}/policy.json -t test ${TESTSDIR}/bud/build-arg
   expect_output --substring 'missing .+ build argument'
 }
+
+@test "bud arg and env var with same name" {
+  # Regresion test for https://github.com/containers/buildah/issues/2345
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t testctr ${TESTSDIR}/bud/dupe-arg-env-name
+  expect_output --substring "https://example.org/bar"
+}
+
+@test "bud copy chown with newuser" {
+  # Regression test for https://github.com/containers/buildah/issues/2192
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t testctr -f ${TESTSDIR}/bud/copy-chown/Containerfile.chown_user ${TESTSDIR}/bud/copy-chown
+  expect_output --substring "myuser myuser"
+}
