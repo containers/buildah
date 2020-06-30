@@ -316,12 +316,10 @@ execute_local_registry() {
     cp $authdirpath/domain.crt $certdirpath/localhost:5000/domain.crt
 
     echo "Creating http credentials file"
-    podman run --entrypoint htpasswd $REGISTRY_FQIN \
-        -Bbn testuser testpassword \
-        > $authdirpath/htpasswd
+    showrun htpasswd -Bbn testuser testpassword > $authdirpath/htpasswd
 
     echo "Starting up the local 'registry' container"
-    podman run -d -p 5000:5000 --name registry \
+    showrun podman run -d -p 5000:5000 --name registry \
         -v $authdirpath:$authdirpath:Z \
         -e "REGISTRY_AUTH=htpasswd" \
         -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" \
