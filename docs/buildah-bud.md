@@ -278,6 +278,12 @@ container technology).
 Note: You can also override the default isolation type by setting the
 BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
+**--jobs** *N*
+
+Run up to N concurrent stages in parallel.  If the number of jobs is greater than 1,
+stdin will be read from /dev/null.  If 0 is specified, then there is
+no limit in the number of jobs that run in parallel.
+
 **--label** *label*
 
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.

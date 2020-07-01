@@ -291,7 +291,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 
 	defaultsMountFile, _ := c.PersistentFlags().GetString("defaults-mount-file")
 
-	os, arch, err := parse.PlatformFromOptions(c)
+	imageOS, arch, err := parse.PlatformFromOptions(c)
 	if err != nil {
 		return err
 	}
@@ -299,6 +299,13 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 	decConfig, err := getDecryptConfig(iopts.DecryptionKeys)
 	if err != nil {
 		return errors.Wrapf(err, "unable to obtain decrypt config")
+	}
+
+	if iopts.Jobs > 1 {
+		stdin, err = os.OpenFile("/dev/null", os.O_RDONLY|os.O_CREATE, 0000)
+		if err != nil {
+			return err
+		}
 	}
 
 	options := imagebuildah.BuildOptions{
@@ -328,7 +335,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		MaxPullPushRetries:      maxPullPushRetries,
 		NamespaceOptions:        namespaceOptions,
 		NoCache:                 iopts.NoCache,
-		OS:                      os,
+		OS:                      imageOS,
 		Out:                     stdout,
 		Output:                  output,
 		OutputFormat:            format,
@@ -346,6 +353,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		Target:                  iopts.Target,
 		TransientMounts:         iopts.Volumes,
 		OciDecryptConfig:        decConfig,
+		Jobs:                    iopts.Jobs,
 	}
 
 	if iopts.Quiet {
