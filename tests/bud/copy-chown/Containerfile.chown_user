@@ -1,0 +1,8 @@
+FROM ubuntu:latest
+
+ENV MYUSER=myuser
+
+RUN useradd --create-home --home /"${MYUSER}" "${MYUSER}"
+COPY --chown="${MYUSER}" ./copychown.txt /somewhere
+
+RUN ls -alF /somewhere
