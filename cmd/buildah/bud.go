@@ -353,7 +353,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		Target:                  iopts.Target,
 		TransientMounts:         iopts.Volumes,
 		OciDecryptConfig:        decConfig,
-		Jobs:                    iopts.Jobs,
+		Jobs:                    &iopts.Jobs,
 	}
 
 	if iopts.Quiet {

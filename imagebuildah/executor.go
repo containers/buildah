@@ -146,6 +146,11 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		transientMounts = append([]Mount{Mount(mount)}, transientMounts...)
 	}
 
+	jobs := 1
+	if options.Jobs != nil {
+		jobs = *options.Jobs
+	}
+
 	exec := Executor{
 		stages:                         make(map[string]*StageExecutor),
 		store:                          store,
@@ -200,7 +205,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		retryPullPushDelay:             options.PullPushRetryDelay,
 		ociDecryptConfig:               options.OciDecryptConfig,
 		terminatedStage:                make(map[string]struct{}),
-		jobs:                           options.Jobs,
+		jobs:                           jobs,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -517,7 +522,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	go func() {
 		for stageIndex := range stages {
 			index := stageIndex
-			// Acquire the sempaphore before creating the goroutine so we are sure they
+			// Acquire the semaphore before creating the goroutine so we are sure they
 			// run in the specified order.
 			if err := b.stagesSemaphore.Acquire(ctx, 1); err != nil {
 				b.lastError = err
