@@ -33,7 +33,10 @@ case "$OS_RELEASE_ID" in
         fi
 
         warn "Hard-coding podman to use crun"
-        sed -i -r -e 's/^runtime = "runc"/runtime = "crun"/' /usr/share/containers/libpod.conf
+	cat > /etc/containers/containers.conf <<EOF
+[engine]
+runtime="crun"
+EOF
 
         # Executing tests in a container requires SELinux boolean set on the host
         if [[ "$IN_PODMAN" == "true" ]]
