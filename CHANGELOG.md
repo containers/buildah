@@ -2,6 +2,19 @@
 
 # Changelog
 
+## v1.15.1 (2020-07-02)
+    Bump openshift/imagebuilder to v1.1.6
+    Bump go.etcd.io/bbolt from 1.3.4 to 1.3.5
+    buildah, bud: support --jobs=N for parallel execution
+    executor: refactor build code inside new function
+    Add bud regression tests
+    Cirrus: Fix missing htpasswd in registry img
+    docs: clarify the 'triples' format
+    CHANGELOG.md: Fix markdown formatting
+    Add nix derivation for static builds
+    Bump to v1.16.0-dev
+    add version centos7 for compatible
+
 ## v1.15.0 (2020-06-17)
     Bump github.com/containers/common from 0.12.0 to 0.13.1
     Bump github.com/containers/storage from 1.20.1 to 1.20.2
