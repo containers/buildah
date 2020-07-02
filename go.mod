@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
-	github.com/containers/common v0.14.0
+	github.com/containers/common v0.15.2
 	github.com/containers/image/v5 v5.5.1
 	github.com/containers/ocicrypt v1.0.2
 	github.com/containers/storage v1.20.2
@@ -21,7 +21,7 @@ require (
 	github.com/onsi/gomega v1.10.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
-	github.com/opencontainers/runc v1.0.0-rc90
+	github.com/opencontainers/runc v1.0.0-rc91
 	github.com/opencontainers/runtime-spec v1.0.3-0.20200520003142-237cc4f519e2
 	github.com/opencontainers/runtime-tools v0.9.0
 	github.com/opencontainers/selinux v1.5.2
@@ -34,7 +34,6 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
-	github.com/vishvananda/netlink v1.1.0 // indirect
 	go.etcd.io/bbolt v1.3.5
 	golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
