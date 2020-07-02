@@ -246,7 +246,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 
 // startStage creates a new stage executor that will be referenced whenever a
 // COPY or ADD statement uses a --from=NAME flag.
-func (b *Executor) startStage(stage *imagebuilder.Stage, stages int, output string) *StageExecutor {
+func (b *Executor) startStage(stage *imagebuilder.Stage, stages imagebuilder.Stages, output string) *StageExecutor {
 	stageExec := &StageExecutor{
 		executor:        b,
 		index:           stage.Position,
@@ -308,7 +308,7 @@ func (b *Executor) waitForStage(ctx context.Context, name string) error {
 		b.stagesSemaphore.Release(1)
 		time.Sleep(time.Millisecond * 10)
 		if err := b.stagesSemaphore.Acquire(ctx, 1); err != nil {
-			return err
+			return errors.Wrapf(err, "error reacquiring job semaphore")
 		}
 	}
 }
@@ -350,7 +350,7 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 	}
 
 	b.stagesLock.Lock()
-	stageExecutor := b.startStage(&stage, len(stages), output)
+	stageExecutor := b.startStage(&stage, stages, output)
 	b.stagesLock.Unlock()
 
 	// If this a single-layer build, or if it's a multi-layered
