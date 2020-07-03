@@ -367,6 +367,10 @@ func GetBindMount(args []string) (specs.Mount, error) {
 			}
 			newMount.Destination = kv[1]
 			setDest = true
+		case "consistency":
+			// Option for OS X only, has no meaning on other platforms
+			// and can thus be safely ignored.
+			// See also the handling of the equivalent "delegated" and "cached" in ValidateVolumeOpts
 		default:
 			return newMount, errors.Wrapf(errBadMntOption, kv[0])
 		}
