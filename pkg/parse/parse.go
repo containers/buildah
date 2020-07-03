@@ -342,6 +342,9 @@ func GetBindMount(args []string) (specs.Mount, error) {
 			// TODO: detect duplication of these options.
 			// (Is this necessary?)
 			newMount.Options = append(newMount.Options, kv[0])
+		case "readonly":
+			// Alias for "ro"
+			newMount.Options = append(newMount.Options, "ro")
 		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z":
 			newMount.Options = append(newMount.Options, kv[0])
 		case "bind-propagation":
@@ -407,6 +410,9 @@ func GetTmpfsMount(args []string) (specs.Mount, error) {
 		switch kv[0] {
 		case "ro", "nosuid", "nodev", "noexec":
 			newMount.Options = append(newMount.Options, kv[0])
+		case "readonly":
+			// Alias for "ro"
+			newMount.Options = append(newMount.Options, "ro")
 		case "tmpfs-mode":
 			if len(kv) == 1 {
 				return newMount, errors.Wrapf(optionArgError, kv[0])
