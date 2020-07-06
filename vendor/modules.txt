@@ -54,13 +54,13 @@ github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.14.0
+# github.com/containers/common v0.15.2
 github.com/containers/common/pkg/apparmor
 github.com/containers/common/pkg/auth
 github.com/containers/common/pkg/capabilities
 github.com/containers/common/pkg/cgroupv2
 github.com/containers/common/pkg/config
-github.com/containers/common/pkg/sysinfo
+github.com/containers/common/version
 # github.com/containers/image/v5 v5.5.1
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
@@ -156,6 +156,8 @@ github.com/containers/storage/pkg/system
 github.com/containers/storage/pkg/tarlog
 github.com/containers/storage/pkg/truncindex
 github.com/containers/storage/pkg/unshare
+# github.com/coreos/go-systemd/v22 v22.0.0
+github.com/coreos/go-systemd/v22/dbus
 # github.com/cyphar/filepath-securejoin v0.2.2
 github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1
@@ -199,7 +201,6 @@ github.com/docker/docker/pkg/ioutils
 github.com/docker/docker/pkg/jsonmessage
 github.com/docker/docker/pkg/longpath
 github.com/docker/docker/pkg/mount
-github.com/docker/docker/pkg/parsers
 github.com/docker/docker/pkg/pools
 github.com/docker/docker/pkg/stdcopy
 github.com/docker/docker/pkg/system
@@ -228,6 +229,8 @@ github.com/fsouza/go-dockerclient
 github.com/fullsailor/pkcs7
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
+# github.com/godbus/dbus/v5 v5.0.3
+github.com/godbus/dbus/v5
 # github.com/gogo/protobuf v1.3.1
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/proto
@@ -324,9 +327,8 @@ github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
-# github.com/opencontainers/runc v1.0.0-rc90
+# github.com/opencontainers/runc v1.0.0-rc91
 github.com/opencontainers/runc/libcontainer/apparmor
-github.com/opencontainers/runc/libcontainer/cgroups
 github.com/opencontainers/runc/libcontainer/configs
 github.com/opencontainers/runc/libcontainer/devices
 github.com/opencontainers/runc/libcontainer/system

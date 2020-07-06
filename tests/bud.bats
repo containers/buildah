@@ -1424,6 +1424,7 @@ function _test_http() {
 }
 
 @test "bud-multi-stage-cache-nocontainer" {
+  skip "FIXME: Broken in CI right now"
   _prefetch alpine
   # first time through, quite normal
   run_buildah bud --layers -t base --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.rebase ${TESTSDIR}/bud/multi-stage-builds

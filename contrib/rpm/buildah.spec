@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.15.1
+Version:        1.15.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,7 +99,15 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Mon Jul 17, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.1-1
+* Fri Jul 31, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.2-1
+- Bump go.etcd.io/bbolt from 1.3.4 to 1.3.5
+- Bump openshift/imagebuilder to v1.1.6
+- Bump github.com/containers/common from 0.14.0 to 0.15.2
+- Bump github.com/onsi/ginkgo from 1.13.0 to 1.14.0
+- Bump github.com/containers/ocicrypt from 1.0.2 to 1.0.3
+- Bump github.com/opencontainers/selinux from 1.5.2 to 1.6.0 
+
+* Mon Jul 27, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.1-1
 - Mask over the /sys/fs/selinux in mask branch 
 - chroot: do not use setgroups if it is blocked
 - chroot, run: not fail on bind mounts from /sys

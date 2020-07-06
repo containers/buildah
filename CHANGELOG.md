@@ -2,6 +2,14 @@
 
 # Changelog
 
+## v1.15.2 (2020-07-31)
+    Bump go.etcd.io/bbolt from 1.3.4 to 1.3.5
+    Bump openshift/imagebuilder to v1.1.6
+    Bump github.com/containers/common from 0.14.0 to 0.15.2
+    Bump github.com/onsi/ginkgo from 1.13.0 to 1.14.0
+    Bump github.com/containers/ocicrypt from 1.0.2 to 1.0.3
+    Bump github.com/opencontainers/selinux from 1.5.2 to 1.6.0
+
 ## v1.15.1 (2020-07-27)
     Mask over the /sys/fs/selinux in mask branch
     chroot: do not use setgroups if it is blocked
