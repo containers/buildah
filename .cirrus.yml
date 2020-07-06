@@ -28,7 +28,7 @@ env:
     # GCE project where images live
     IMAGE_PROJECT: "libpod-218412"
     # See https://github.com/containers/libpod/blob/master/contrib/cirrus/README.md#test_build_cache_images_task-task
-    _BUILT_IMAGE_SUFFIX: "libpod-6224667180531712"
+    _BUILT_IMAGE_SUFFIX: "libpod-6508632441356288"
     FEDORA_CACHE_IMAGE_NAME: "fedora-32-${_BUILT_IMAGE_SUFFIX}"
     PRIOR_FEDORA_CACHE_IMAGE_NAME: "fedora-31-${_BUILT_IMAGE_SUFFIX}"
     UBUNTU_CACHE_IMAGE_NAME: "ubuntu-19-${_BUILT_IMAGE_SUFFIX}"
