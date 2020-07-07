@@ -109,9 +109,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - vendor golang.org/x/text@v0.3.3
 - Cirrus: Fix missing htpasswd in registry img
 - Switch scripts to use containers.conf 
-- Merge pull request #2471 from vrothberg/1.15-update-x/text
 - Make imagebuildah.BuildOptions.Architecture/OS optional
-- Merge pull request #2483 from nalind/release-1.15-arch
 
 * Wed Jun 17, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-1
 - Bump github.com/containers/common from 0.12.0 to 0.13.1
