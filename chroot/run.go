@@ -1101,10 +1101,6 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 	}
 	logrus.Debugf("bind mounted %q to %q", "/sys", filepath.Join(spec.Root.Path, "/sys"))
 
-	// Add /sys/fs/selinux to the set of masked paths, to ensure that we don't have processes
-	// attempting to interact with labeling, when they aren't allowed to do so.
-	spec.Linux.MaskedPaths = append(spec.Linux.MaskedPaths, "/sys/fs/selinux")
-
 	// Bind mount in everything we've been asked to mount.
 	for _, m := range spec.Mounts {
 		// Skip anything that we just mounted.
