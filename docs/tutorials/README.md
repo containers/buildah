@@ -19,3 +19,8 @@ Learn how Buildah can use the ONBUILD instruction in either a Dockerfile or via 
 **[Include Buildah in your build tool](04-include-in-your-build-tool.md)**
 
 Learn how to include Buildah as a library in your build tool.
+
+**[Rootless OpenShift container](05-openshift-rootless-bud.md)**
+
+Learn how to build an image from a rootless OpenShift container.
+
