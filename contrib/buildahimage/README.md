@@ -17,7 +17,7 @@ using the latest Fedora and then Buildah is installed into them:
 
 ## Sample Usage
 
-Although not required, it is suggested that [Podman](https://github.com/containers/libpod) be used with these container images.
+Although not required, it is suggested that [Podman](https://github.com/containers/podman) be used with these container images.
 
 ```
 podman pull docker://quay.io/buildah/stable:latest

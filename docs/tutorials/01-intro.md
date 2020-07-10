@@ -26,7 +26,7 @@ Then install buildah by running:
 
 ## Rootless User Configuration
 
-If you plan to run Buildah as a user without root privileges, i.e. a "rootless user", the administrator of the system might have to do a bit of additional configuration beforehand.  The setup required for this is listed on the Podman GitHub site [here](https://github.com/containers/libpod/blob/master/docs/tutorials/rootless_tutorial.md).  Buildah has the same setup and configuration requirements that Podman does for rootless users.
+If you plan to run Buildah as a user without root privileges, i.e. a "rootless user", the administrator of the system might have to do a bit of additional configuration beforehand.  The setup required for this is listed on the Podman GitHub site [here](https://github.com/containers/podman/blob/master/docs/tutorials/rootless_tutorial.md).  Buildah has the same setup and configuration requirements that Podman does for rootless users.
 
 ## Post Installation Verification
 
@@ -131,7 +131,7 @@ Change the permissions on the file so that it can be run:
     # chmod +x runecho.sh
 
 
-With `buildah` files can be copied into the new image.  We can then use `buildah run` to run that command within the container by specifying the command.  We can also configure the image to run the command directly using [Podman](https://github.com/containers/libpod) and its `podman run` command. In short the `buildah run` command is equivalent to the "RUN" command in a Dockerfile, whereas `podman run` is equivalent to the `docker run` command.  Now let's copy this new command into the container's `/usr/bin` directory and configure the container to run the command when the container is run via podman:
+With `buildah` files can be copied into the new image.  We can then use `buildah run` to run that command within the container by specifying the command.  We can also configure the image to run the command directly using [Podman](https://github.com/containers/podman) and its `podman run` command. In short the `buildah run` command is equivalent to the "RUN" command in a Dockerfile, whereas `podman run` is equivalent to the `docker run` command.  Now let's copy this new command into the container's `/usr/bin` directory and configure the container to run the command when the container is run via podman:
 
     # To test with Podman, first install via:
     # dnf -y install podman

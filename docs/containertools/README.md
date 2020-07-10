@@ -12,7 +12,7 @@ The tools are:
 
 * [Buildah](https://github.com/containers/buildah)
 * [CRI-O](https://github.com/kubernetes-sigs/cri-o)
-* [Podman](https://github.com/containers/libpod)
+* [Podman](https://github.com/containers/podman)
 * [Skopeo](https://github.com/containers/skopeo)
 
 ## Buildah
@@ -36,11 +36,10 @@ management, monitoring, logging and resource isolation as required by CRI.
 
 ## Podman
 
-Podman is a command line tool that resides in the [libpod](https://github.com/containers/libpod) project.
-Podman allows for full management of a container's lifecycle from creation through removal.  It supports
-multiple image formats including both the Docker and OCI image formats.  Support for pods is provided
-allowing pods to manage groups of containers together.  Podman also supports trust
-and image verification when pulling images along with resource isolation of containers and pods.
+[Podman](https://github.com/containers/podman) allows for full management of a container's lifecycle from creation
+through removal.  It supports multiple image formats including both the Docker and OCI image formats.  Support for
+pods is provided allowing pods to manage groups of containers together.  Podman also supports trust and image
+verification when pulling images along with resource isolation of containers and pods.
 
 ## Skopeo
 
@@ -57,7 +56,7 @@ for authentication.
 Buildah and Podman are two complementary Open-source projects that are available on
 most Linux platforms and both projects reside at [GitHub.com](https://github.com)
 with Buildah [here](https://github.com/containers/buildah) and
-Podman [here](https://github.com/containers/libpod).  Both Buildah and Podman are
+Podman [here](https://github.com/containers/podman).  Both Buildah and Podman are
 command line tools that work on OCI images and containers.  The two projects
 differentiate in their specialization.
 
