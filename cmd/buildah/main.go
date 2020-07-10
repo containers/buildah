@@ -6,11 +6,13 @@ import (
 	"os/exec"
 	"runtime"
 	"runtime/pprof"
+	"strings"
 	"syscall"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/unshare"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
@@ -142,6 +144,27 @@ func before(cmd *cobra.Command) error {
 			logrus.Fatalf("error starting CPU profiling: %v", err)
 		}
 	}
+
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return err
+	}
+
+	for _, env := range defaultContainerConfig.Engine.Env {
+		splitEnv := strings.SplitN(env, "=", 2)
+		if len(splitEnv) != 2 {
+			return fmt.Errorf("invalid environment variable %q from containers.conf, valid configuration is KEY=value pair", env)
+		}
+		// skip if the env is already defined
+		if _, ok := os.LookupEnv(splitEnv[0]); ok {
+			logrus.Debugf("environment variable %q is already defined, skip the settings from containers.conf", splitEnv[0])
+			continue
+		}
+		if err := os.Setenv(splitEnv[0], splitEnv[1]); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
