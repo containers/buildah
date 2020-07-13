@@ -1967,7 +1967,7 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 		}
 	}
 
-	for _, envSpec := range append(append(defaultEnv, b.Env()...), options.Env...) {
+	for _, envSpec := range util.MergeEnv(util.MergeEnv(defaultEnv, b.Env()), options.Env) {
 		env := strings.SplitN(envSpec, "=", 2)
 		if len(env) > 1 {
 			g.AddProcessEnv(env[0], env[1])
@@ -2071,7 +2071,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation Isolation, options RunOptions
 	if cmd.Stderr == nil {
 		cmd.Stderr = os.Stderr
 	}
-	cmd.Env = append(os.Environ(), fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel()))
+	cmd.Env = util.MergeEnv(os.Environ(), []string{fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel())})
 	preader, pwriter, err := os.Pipe()
 	if err != nil {
 		return errors.Wrapf(err, "error creating configuration pipe")
