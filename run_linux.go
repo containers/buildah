@@ -1780,6 +1780,7 @@ func setupMaskedPaths(g *generate.Generator) {
 		"/proc/scsi",
 		"/sys/firmware",
 		"/sys/fs/selinux",
+		"/sys/dev",
 	} {
 		g.AddLinuxMaskedPaths(mp)
 	}
