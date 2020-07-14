@@ -531,19 +531,19 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			go func() {
 				defer b.stagesSemaphore.Release(1)
 				defer wg.Done()
-				imageID, ref, err = b.buildStage(ctx, cleanupStages, stages, index)
-				if err != nil {
+				stageID, stageRef, stageErr := b.buildStage(ctx, cleanupStages, stages, index)
+				if stageErr != nil {
 					ch <- Result{
 						Index: index,
-						Error: err,
+						Error: stageErr,
 					}
 					return
 				}
 
 				ch <- Result{
 					Index:   index,
-					ImageID: imageID,
-					Ref:     ref,
+					ImageID: stageID,
+					Ref:     stageRef,
 					Error:   nil,
 				}
 			}()
@@ -579,6 +579,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 		if r.Index == len(stages)-1 {
 			imageID = r.ImageID
+			ref = r.Ref
 		}
 	}
 
