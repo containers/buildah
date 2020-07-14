@@ -1579,8 +1579,8 @@ function _test_http() {
   touch ${TESTDIR}/use-layers/subdir/file.txt
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers --iidfile ${TESTDIR}/iid2 -f Dockerfile.7 ${TESTDIR}/use-layers
 
-  if [[ $(cat ${TESTDIR}/iid1) = $(cat ${TESTDIR}/iid2) ]]; then
-    echo "Expected image id to change after touching a file copied into the image" >&2
+  if [[ $(cat ${TESTDIR}/iid1) != $(cat ${TESTDIR}/iid2) ]]; then
+    echo "Expected image id to not change after touching a file copied into the image" >&2
     false
   fi
 }
