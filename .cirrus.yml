@@ -27,7 +27,7 @@ env:
     ####
     # GCE project where images live
     IMAGE_PROJECT: "libpod-218412"
-    # See https://github.com/containers/libpod/blob/master/contrib/cirrus/README.md#test_build_cache_images_task-task
+    # See https://github.com/containers/podman/blob/master/contrib/cirrus/README.md#test_build_cache_images_task-task
     FEDORA_NAME: "fedora-32"
     PRIOR_FEDORA_NAME: "fedora-31"
     UBUNTU_NAME: "ubuntu-20"

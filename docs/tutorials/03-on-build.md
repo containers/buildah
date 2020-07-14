@@ -187,7 +187,7 @@ If you have any suggestions or issues please post them at the [Buildah Issues pa
 
 For more information on Buildah and how you might contribute please visit the [Buildah home page on Github](https://github.com/containers/buildah).
 
-[GitHub]: https://github.com/containers/libpod/
+[GitHub]: https://github.com/containers/podman/
 [image specification]: https://github.com/opencontainers/runtime-spec
 [Introduction Tutorial]: 01-intro.md
 [Open Container Initiative]: https://www.opencontainers.org/
