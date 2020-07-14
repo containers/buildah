@@ -841,13 +841,8 @@ func runUsingRuntime(isolation Isolation, options RunOptions, configureNetwork b
 	stopped := false
 	defer func() {
 		if !stopped {
-			err2 := kill.Run()
-			if err2 != nil {
-				if err == nil {
-					err = errors.Wrapf(err2, "error stopping container")
-				} else {
-					logrus.Infof("error stopping container: %v", err2)
-				}
+			if err2 := kill.Run(); err2 != nil {
+				logrus.Infof("error stopping container: %v", err2)
 			}
 		}
 	}()
