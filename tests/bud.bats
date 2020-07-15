@@ -12,13 +12,18 @@ load helpers
 
 @test "bud with .dockerignore" {
   _prefetch alpine busybox
-  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
+  run_buildah 125 bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
+  expect_output --substring 'error building.*"COPY subdir \./".*no such file or directory'
+
+  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile.succeed ${TESTSDIR}/bud/dockerignore
 
   run_buildah from --name myctr testbud
 
+  run_buildah 1 run myctr ls -l test1.txt
+
   run_buildah run myctr ls -l test2.txt
 
-  run_buildah run myctr ls -l sub1.txt
+  run_buildah 1 run myctr ls -l sub1.txt
 
   run_buildah 1 run myctr ls -l sub2.txt
 
@@ -80,12 +85,8 @@ symlink(subdir)"
 }
 
 @test "bud with .dockerignore - 3" {
-  run_buildah bud -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
-  expect_output --substring "CUT HERE"
-
-  run sed -e '/^CUT HERE/,/^CUT HERE/p' -e 'd' <<< "$output"
-  run sed '/CUT HERE/d' <<< "$output"
-  expect_output "$(cat ${TESTSDIR}/bud/dockerignore3/manifest)"
+  run_buildah 125 bud -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
+  expect_output --substring 'error building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
 }
 
 @test "bud-flags-order-verification" {
