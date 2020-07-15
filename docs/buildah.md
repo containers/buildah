@@ -91,6 +91,10 @@ This option overrides the *remap-gids* setting in the *options* section of
 
 Print the version
 
+## Environment Variables
+
+Buildah can set up environment variables from the env entry in the [engine] table in the containers.conf(5). These variables can be overridden by passing environment variables before the `buildah` commands.
+
 ## COMMANDS
 
 | Command               | Description                                                                                          |
@@ -147,7 +151,7 @@ registries.conf is the configuration file which specifies which container regist
 Directory which contains configuration snippets which specify registries which should be consulted when completing image names which do not include a registry or domain portion.
 
 ## SEE ALSO
-podman(1), containers-mounts.conf(5), newuidmap(1), newgidmap(1), containers-registries.conf(5), containers-storage.conf(5)
+podman(1), containers.conf(5), containers-mounts.conf(5), newuidmap(1), newgidmap(1), containers-registries.conf(5), containers-storage.conf(5)
 
 ## HISTORY
 December 2017, Originally compiled by Tom Sweeney <tsweeney@redhat.com>
