@@ -38,6 +38,7 @@ require (
 	golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	golang.org/x/sys v0.0.0-20200519105757-fe76b779f299
+	golang.org/x/text v0.3.3 // indirect
 )
 
 replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
