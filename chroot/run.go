@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -741,10 +742,13 @@ func runUsingChrootExecMain() {
 			os.Exit(1)
 		}
 	} else {
-		logrus.Debugf("clearing supplemental groups")
-		if err = syscall.Setgroups([]int{}); err != nil {
-			fmt.Fprintf(os.Stderr, "error clearing supplemental groups list: %v", err)
-			os.Exit(1)
+		setgroups, _ := ioutil.ReadFile("/proc/self/setgroups")
+		if strings.Trim(string(setgroups), "\n") != "deny" {
+			logrus.Debugf("clearing supplemental groups")
+			if err = syscall.Setgroups([]int{}); err != nil {
+				fmt.Fprintf(os.Stderr, "error clearing supplemental groups list: %v", err)
+				os.Exit(1)
+			}
 		}
 	}
 
@@ -1093,7 +1097,8 @@ func setupChrootBindMounts(spec *specs.Spec, bundlePath string) (undoBinds func(
 		}
 		subSys := filepath.Join(spec.Root.Path, m.Mountpoint)
 		if err := unix.Mount(m.Mountpoint, subSys, "bind", sysFlags, ""); err != nil {
-			return undoBinds, errors.Wrapf(err, "error bind mounting /sys from host into mount namespace")
+			logrus.Warningf("could not bind mount %q, skipping: %v", m.Mountpoint, err)
+			continue
 		}
 		if err := makeReadOnly(subSys, sysFlags); err != nil {
 			return undoBinds, err
