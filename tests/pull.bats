@@ -17,36 +17,36 @@ load helpers
   run_buildah 125 --registries-conf ${TESTSDIR}/registries.conf.block pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
   expect_output --substring "is blocked by configuration"
 
-  run_buildah --registries-conf ${TESTSDIR}/registries.conf       pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
+  run_buildah --retry --registries-conf ${TESTSDIR}/registries.conf       pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
 }
 
 @test "pull-from-registry" {
-  run_buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json busybox:glibc
+  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json busybox:glibc
   run_buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "busybox:glibc"
   expect_output --substring "busybox:latest"
 
-  run_buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx:latest
+  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine_nginx:latest"
 
   run_buildah rmi quay.io/libpod/alpine_nginx:latest
-  run_buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx
+  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine_nginx:latest"
 
-  run_buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json alpine@sha256:1072e499f3f655a032e88542330cf75b02e7bdf673278f701d7ba61629ee3ebe
+  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json alpine@sha256:1072e499f3f655a032e88542330cf75b02e7bdf673278f701d7ba61629ee3ebe
   run_buildah 125 pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json fakeimage/fortest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   [[ ! "$output" =~ "fakeimage/fortest" ]]
 }
 
 @test "pull-from-docker-archive" {
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest docker-archive:${TESTDIR}/alp.tar:alpine:latest
   run_buildah rmi alpine
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
+  run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine"
   run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
@@ -54,7 +54,7 @@ load helpers
 }
 
 @test "pull-from-oci-archive" {
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest oci-archive:${TESTDIR}/alp.tar:alpine
   run_buildah rmi alpine
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/alp.tar
@@ -66,7 +66,7 @@ load helpers
 
 @test "pull-from-local-directory" {
   mkdir ${TESTDIR}/buildahtest
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest dir:${TESTDIR}/buildahtest
   run_buildah rmi alpine
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
@@ -102,7 +102,7 @@ load helpers
 
   # setup: pull alpine, and push it repeatedly to localhost using those tags
   opts="--signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword"
-  run_buildah pull --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah --retry pull --quiet --signature-policy ${TESTSDIR}/policy.json alpine
   for tag in "${tags[@]}"; do
       run_buildah push $opts alpine localhost:5000/myalpine:$tag
   done
@@ -136,7 +136,7 @@ load helpers
 }
 
 @test "pull-from-oci-directory" {
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest oci:${TESTDIR}/alpine
   run_buildah rmi alpine
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
@@ -178,8 +178,12 @@ load helpers
 
   # Try to pull encrypted image without key should fail
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/tmp/busybox_enc
+  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+
   # Try to pull encrypted image with wrong key should fail
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --decryption-key ${TESTDIR}/tmp/mykey2.pem oci:${TESTDIR}/tmp/busybox_enc
+  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+
   # Providing the right key should succeed
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json --decryption-key ${TESTDIR}/tmp/mykey.pem oci:${TESTDIR}/tmp/busybox_enc
 
@@ -196,10 +200,15 @@ load helpers
 
   # Try to pull encrypted image without key should fail
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
-  # Try to pull encrypted image with wrong key should fail
+  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+
+  # Try to pull encrypted image with wrong key should fail, with diff. msg
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+
   # Providing the right key should succeed
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+
   run_buildah rmi localhost:5000/buildah/busybox_encrypted:latest
 
   rm -rf ${TESTDIR}/tmp
@@ -209,6 +218,7 @@ load helpers
  _prefetch busybox
   mkdir ${TESTDIR}/tmp
   openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
+  openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 1024
   openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
   cid=$output
@@ -216,10 +226,15 @@ load helpers
 
   # Try to pull encrypted image without key should fail
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
+  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+
   # Try to pull encrypted image with wrong key should fail
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+
   # Providing the right key should succeed
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+
   run_buildah rmi localhost:5000/buildah/busybox_encrypted:latest
 
   rm -rf ${TESTDIR}/tmp
