@@ -23,7 +23,8 @@ else
         ln -v buildah bin/buildah
         showrun make install PREFIX=/usr
         showrun ./bin/buildah info
-    else
-        ln -v buildah.${CROSS_TARGET} bin/buildah
+    else  # some tooling expects the binary to be here
+        rm -vf buildah  # failure ok
+        ln -sv bin/buildah ./
     fi
 fi

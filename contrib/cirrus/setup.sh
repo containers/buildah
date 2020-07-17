@@ -27,19 +27,27 @@ case "$OS_RELEASE_ID" in
         if [[ -z "$CONTAINER" ]]; then
             warn "Adding secondary testing partition & growing root filesystem"
             bash $SCRIPT_BASE/add_second_partition.sh
+
+            warn "TODO: Add (for htpasswd) to VM images (in libpod repo)"
+            dnf install -y httpd-tools
         fi
 
         warn "Hard-coding podman to use crun"
-        sed -i -r -e 's/^runtime = "runc"/runtime = "crun"/' /usr/share/containers/libpod.conf
+	cat > /etc/containers/containers.conf <<EOF
+[engine]
+runtime="crun"
+EOF
 
         # Executing tests in a container requires SELinux boolean set on the host
         if [[ "$IN_PODMAN" == "true" ]]
         then
-            setsebool -P container_manage_cgroup true
+            showrun setsebool -P container_manage_cgroup true
         fi
         ;;
     ubuntu)
-        : # no-op
+        warn "TODO: Add to VM images (in libpod repo)"
+        $SHORT_APTGET update
+        $SHORT_APTGET install apache2-utils
         ;;
     *)
         bad_os_id_ver
