@@ -119,50 +119,63 @@ function imgtype() {
 #
 function run_buildah() {
     # Number as first argument = expected exit code; default 0
-    expected_rc=0
+    # --retry as first argument = retry 3 times on error (eg registry flakes)
+    local expected_rc=0
+    local retry=1
     case "$1" in
         [0-9])           expected_rc=$1; shift;;
         [1-9][0-9])      expected_rc=$1; shift;;
         [12][0-9][0-9])  expected_rc=$1; shift;;
         '?')             expected_rc=  ; shift;;  # ignore exit code
+        --retry)         retry=3;        shift;;  # retry network flakes
     esac
 
     # Remember command args, for possible use in later diagnostic messages
     MOST_RECENT_BUILDAH_COMMAND="buildah $*"
 
-    # stdout is only emitted upon error; this echo is to help a debugger
-    echo "\$ $BUILDAH_BINARY $*"
-    run timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
-    # without "quotes", multiple lines are glommed together into one
-    if [ -n "$output" ]; then
-        echo "$output"
-    fi
-    if [ "$status" -ne 0 ]; then
-        echo -n "[ rc=$status ";
+    while [ $retry -gt 0 ]; do
+        retry=$(( retry - 1 ))
+
+        # stdout is only emitted upon error; this echo is to help a debugger
+        echo "\$ $BUILDAH_BINARY $*"
+        run timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
+        # without "quotes", multiple lines are glommed together into one
+        if [ -n "$output" ]; then
+            echo "$output"
+        fi
+        if [ "$status" -ne 0 ]; then
+            echo -n "[ rc=$status ";
+            if [ -n "$expected_rc" ]; then
+                if [ "$status" -eq "$expected_rc" ]; then
+                    echo -n "(expected) ";
+                else
+                    echo -n "(** EXPECTED $expected_rc **) ";
+                fi
+            fi
+            echo "]"
+        fi
+
+        if [ "$status" -eq 124 -o "$status" -eq 137 ]; then
+            # FIXME: 'timeout -v' requires coreutils-8.29; travis seems to have
+            #        an older version. If/when travis updates, please add -v
+            #        to the 'timeout' command above, and un-comment this out:
+            # if expr "$output" : ".*timeout: sending" >/dev/null; then
+            echo "*** TIMED OUT ***"
+            # This does not get the benefit of a retry
+            false
+        fi
+
         if [ -n "$expected_rc" ]; then
             if [ "$status" -eq "$expected_rc" ]; then
-                echo -n "(expected) ";
+                return
+            elif [ $retry -gt 0 ]; then
+                echo "[ RETRYING ]" >&2
+                sleep 30
             else
-                echo -n "(** EXPECTED $expected_rc **) ";
+                die "exit code is $status; expected $expected_rc"
             fi
         fi
-        echo "]"
-    fi
-
-    if [ "$status" -eq 124 -o "$status" -eq 137 ]; then
-        # FIXME: 'timeout -v' requires coreutils-8.29; travis seems to have
-        #        an older version. If/when travis updates, please add -v
-        #        to the 'timeout' command above, and un-comment this out:
-        # if expr "$output" : ".*timeout: sending" >/dev/null; then
-        echo "*** TIMED OUT ***"
-        false
-    fi
-
-    if [ -n "$expected_rc" ]; then
-        if [ "$status" -ne "$expected_rc" ]; then
-            die "exit code is $status; expected $expected_rc"
-        fi
-    fi
+    done
 }
 
 #########
