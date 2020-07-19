@@ -17,6 +17,7 @@ import (
 	"github.com/containers/buildah"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
+	"github.com/containers/storage/pkg/unshare"
 	units "github.com/docker/go-units"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -906,6 +907,9 @@ func defaultIsolation() (buildah.Isolation, error) {
 		default:
 			return 0, errors.Errorf("unrecognized $BUILDAH_ISOLATION value %q", isolation)
 		}
+	}
+	if unshare.IsRootless() {
+		return buildah.IsolationOCIRootless, nil
 	}
 	return buildah.IsolationDefault, nil
 }
