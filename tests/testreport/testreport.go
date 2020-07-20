@@ -164,8 +164,8 @@ func getProcessRLimits(r *types.TestReport) error {
 func getProcessNoNewPrivileges(r *types.TestReport) error {
 	// We'd scan /proc/self/status here, but the "NoNewPrivs" line wasn't added until 4.10,
 	// and we want to succeed on older kernels.
-	r1, _, err := unix.Syscall(unix.SYS_PRCTL, unix.PR_GET_NO_NEW_PRIVS, 0, 0)
-	if err != 0 {
+	r1, err := unix.PrctlRetInt(unix.PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0)
+	if err != nil {
 		return errors.Wrapf(err, "error reading no-new-privs bit")
 	}
 	r.Spec.Process.NoNewPrivileges = (r1 != 0)
