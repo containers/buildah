@@ -8,6 +8,8 @@ req_env_var IN_PODMAN IN_PODMAN_NAME GOSRC
 
 remove_packaged_buildah_files
 
+go version && go env
+
 cd "$GOSRC"
 if [[ "$IN_PODMAN" == "true" ]]
 then

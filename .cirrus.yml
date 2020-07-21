@@ -111,12 +111,11 @@ gce_instance:
     # not supported by bors-ng
     # allow_failures: $CI == $CI
 
-    timeout_in: 30m
+    timeout_in: 45m
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
-    # FIXME: These tests mostly/always fail
-    unit_test_script: '${SCRIPT_BASE}/test.sh unit |& ${_TIMESTAMP} || true'
+    unit_test_script: '${SCRIPT_BASE}/test.sh unit |& ${_TIMESTAMP}'
 
     binary_artifacts:
         path: ./bin/*
