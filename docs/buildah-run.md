@@ -88,7 +88,7 @@ BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
 Attach a filesystem mount to the container
 
-Current supported mount TYPES are bind, and tmpfs.
+Current supported mount TYPES are bind, and tmpfs. <sup>[[1]](#Footnote1)</sup>
 
        e.g.
 
@@ -186,7 +186,7 @@ process.
 
 Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
 bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah
-container. The `OPTIONS` are a comma delimited list and can be:
+container. The `OPTIONS` are a comma delimited list and can be: <sup>[[1]](#Footnote1)</sup>
 
    * [rw|ro]
    * [z|Z]
@@ -232,7 +232,7 @@ be specified only for bind mounted volumes and not for internal volumes or
 named volumes. For mount propagation to work on the source mount point (the mount point
 where source dir is mounted on) it has to have the right propagation properties. For
 shared volumes, the source mount point has to be shared. And for slave volumes,
-the source mount has to be either shared or slave.
+the source mount has to be either shared or slave. <sup>[[1]](#Footnote1)</sup>
 
 Use `df <source-dir>` to determine the source mount and then use
 `findmnt -o TARGET,PROPAGATION <source-mount-dir>` to determine propagation
@@ -240,7 +240,7 @@ properties of source mount, if `findmnt` utility is not available, the source mo
 can be determined by looking at the mount entry in `/proc/self/mountinfo`. Look
 at `optional fields` and see if any propagaion properties are specified.
 `shared:X` means the mount is `shared`, `master:X` means the mount is `slave` and if
-nothing is there that means the mount is `private`.
+nothing is there that means the mount is `private`. <sup>[[1]](#Footnote1)</sup>
 
 To change propagation properties of a mount point use the `mount` command. For
 example, to bind mount the source directory `/foo` do
@@ -275,3 +275,6 @@ buildah run --mount type=bind,src=/tmp/on:host,dst=/in:container,ro containerID 
 
 ## SEE ALSO
 buildah(1), buildah-from(1), buildah-config(1), namespaces(7), pid\_namespaces(7), crun(1), runc(8)
+
+## FOOTNOTES
+<a name="Footnote1">1</a>: The Buildah project is committed to inclusivity, a core value of open source. The `master` and `slave` mount propagation terminology used here is problematic and divisive, and should be changed. However, these terms are currently used within the Linux kernel and must be used as-is at this time. When the kernel maintainers rectify this usage, Buildah will follow suit immediately.

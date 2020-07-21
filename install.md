@@ -433,7 +433,7 @@ cat /usr/share/containers/mounts.conf
 
 `/usr/share/containers/seccomp.json`
 
-seccomp.json contains the whitelist of seccomp rules to be allowed inside of
+seccomp.json contains the list of seccomp rules to be allowed inside of
 containers.  This file is usually provided by the containers-common package.
 
 The link above takes you to the seccomp.json
