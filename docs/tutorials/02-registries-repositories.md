@@ -78,7 +78,7 @@ We can verify that it is still portable with Docker by starting Docker again, as
 
 Pushing to Docker hub is just as easy. Of course you must have an account with credentials. In this example I'm using a Docker hub API key, which has the form "username:password" (example password has been edited for privacy), that I created with my Docker hub account. I use the `--creds` flag to use my API key. I also specify my local image name `fedora-bashecho` as my image source and I use the `docker` protocol with no host or port so that it will look at the default Docker hub registry:
 
-    #  buildah push --creds ipbabble:5bbb9990-6eeb-1234-af1a-aaa80066887c fedora-bashecho docker://ipbabble/fedora-bashecho:latest
+    #  buildah push --creds=ipbabble:5bbb9990-6eeb-1234-af1a-aaa80066887c fedora-bashecho docker://ipbabble/fedora-bashecho:latest
 
 And let's inspect that with Skopeo:
 
