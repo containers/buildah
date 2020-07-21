@@ -77,7 +77,7 @@ func TestDeviceFromPath(t *testing.T) {
 	assert.Equal(t, len(dev), 1)
 	assert.Equal(t, dev[0].Major, int64(1))
 	assert.Equal(t, dev[0].Minor, int64(3))
-	assert.Equal(t, dev[0].Permissions, "rwm")
+	assert.Equal(t, string(dev[0].Permissions), "rwm")
 	assert.Equal(t, dev[0].Uid, uint32(0))
 	assert.Equal(t, dev[0].Gid, uint32(0))
 
