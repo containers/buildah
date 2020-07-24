@@ -121,6 +121,22 @@ gce_instance:
         path: ./bin/*
 
 
+'cirrus-ci/only_prs/conformance_task':
+    gce_instance:  # Only need to specify differences from defaults (above)
+        image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
+
+    # see bors.toml
+    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
+
+    # don't fail the PR when we fail until #2480 is merged
+    allow_failures: true
+
+    timeout_in: 20m
+
+    setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
+    conformance_test_script: '${SCRIPT_BASE}/test.sh conformance |& ${_TIMESTAMP}'
+
+
 # This task runs `make vendor` followed by ./hack/tree_status.sh to check
 # whether the git tree is clean.  The reasoning for that is to make sure
 # that the vendor.conf, the code and the vendored packages in ./vendor are

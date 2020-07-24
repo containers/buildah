@@ -394,7 +394,10 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	for _, specMount := range spec.Mounts {
 		// Override some of the mounts from the generated list if we're doing different things with namespaces.
 		if specMount.Destination == "/dev/shm" {
-			specMount.Options = []string{"nosuid", "noexec", "nodev", "mode=1777", "size=" + shmSize}
+			specMount.Options = []string{"nosuid", "noexec", "nodev", "mode=1777"}
+			if shmSize != "" {
+				specMount.Options = append(specMount.Options, "size="+shmSize)
+			}
 			if hostIPC && !hostUser {
 				if _, err := os.Stat("/dev/shm"); err != nil && os.IsNotExist(err) {
 					logrus.Debugf("/dev/shm is not present, not binding into container")

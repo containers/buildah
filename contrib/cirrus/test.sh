@@ -40,6 +40,24 @@ then
         unit)
             showrun make test-unit
             ;;
+        conformance)
+            case "$OS_RELEASE_ID" in
+            fedora)
+                warn "Installing moby-engine"
+                dnf install -y moby-engine
+                systemctl enable --now docker
+                ;;
+            ubuntu)
+                warn "Installing docker.io"
+                $LONG_APTGET install docker.io
+                systemctl enable --now docker
+                ;;
+            *)
+                bad_os_id_ver
+                ;;
+            esac
+            showrun make test-conformance
+            ;;
         integration)
             showrun make test-integration
             ;;

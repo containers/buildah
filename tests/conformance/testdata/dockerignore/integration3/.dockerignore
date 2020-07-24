@@ -1,0 +1,10 @@
+# comment
+*
+!test*
+!src
+**/*.in
+src/etc
+*.md
+!README*.md
+README-secret.md
+test1.txt

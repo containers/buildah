@@ -1,0 +1,16 @@
+/upload
+/upload/README.md
+/upload/src
+/upload/src/Makefile
+/upload/src/cmd
+/upload/src/cmd/Makefile
+/upload/src/lib
+/upload/src/lib/Makefile
+/upload/src2
+/upload/src2/Makefile
+/upload/src2/cmd
+/upload/src2/cmd/Makefile
+/upload/src2/lib
+/upload/src2/lib/Makefile
+/upload/test2.txt
+/upload/test3.txt
