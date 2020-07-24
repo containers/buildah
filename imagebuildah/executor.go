@@ -578,7 +578,9 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		// If this is an intermediate stage, make a note of the ID, so
 		// that we can look it up later.
 		if r.Index < len(stages)-1 && r.ImageID != "" {
+			b.stagesLock.Lock()
 			b.imageMap[stage.Name] = r.ImageID
+			b.stagesLock.Unlock()
 			// We're not populating the cache with intermediate
 			// images, so add this one to the list of images that
 			// we'll remove later.

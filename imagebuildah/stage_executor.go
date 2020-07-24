@@ -645,9 +645,11 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 
 	// Check and see if the image is a pseudonym for the end result of a
 	// previous stage, named by an AS clause in the Dockerfile.
+	s.executor.stagesLock.Lock()
 	if asImageFound, ok := s.executor.imageMap[from]; ok {
 		builderOptions.FromImage = asImageFound
 	}
+	s.executor.stagesLock.Unlock()
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error creating build container")
@@ -773,9 +775,11 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	if isStage, err := s.executor.waitForStage(ctx, base, s.stages[:s.index]); isStage && err != nil {
 		return "", nil, err
 	}
+	s.executor.stagesLock.Lock()
 	if stageImage, isPreviousStage := s.executor.imageMap[base]; isPreviousStage {
 		base = stageImage
 	}
+	s.executor.stagesLock.Unlock()
 
 	// Create the (first) working container for this stage.  Reinitializing
 	// the imagebuilder configuration may alter the list of steps we have,
