@@ -202,6 +202,9 @@ var (
 				{Name: "file-a", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: 0600, ModTime: testDate},
 				{Name: "file-b", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: 0600, ModTime: testDate},
 				{Name: "file-c", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "file-a", Mode: 0600, ModTime: testDate},
+				{Name: "file-u", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: cISUID | 0755, ModTime: testDate},
+				{Name: "file-g", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: cISGID | 0755, ModTime: testDate},
+				{Name: "file-t", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: cISVTX | 0755, ModTime: testDate},
 				{Name: "link-0", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "../file-0", Size: 123456789, Mode: 0777, ModTime: testDate},
 				{Name: "link-a", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "file-a", Size: 23, Mode: 0777, ModTime: testDate},
 				{Name: "link-b", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "../file-a", Size: 23, Mode: 0777, ModTime: testDate},
@@ -481,12 +484,57 @@ func testGetSingle(t *testing.T) {
 						hdr, err := tr.Next()
 						for err == nil {
 							assert.Equal(t, path.Base(name), hdr.Name, "expected item named %q, got %q", path.Base(name), hdr.Name)
-							if _, err = io.Copy(ioutil.Discard, tr); err != nil {
-								break
-							}
 							hdr, err = tr.Next()
 						}
 						assert.Equal(t, io.EOF.Error(), err.Error(), "expected EOF at end of archive, got %q", err.Error())
+						if !t.Failed() && testItem.Typeflag == tar.TypeReg && testItem.Mode&(cISUID|cISGID|cISVTX) != 0 {
+							for _, stripSetuidBit := range []bool{false, true} {
+								for _, stripSetgidBit := range []bool{false, true} {
+									for _, stripStickyBit := range []bool{false, true} {
+										t.Run(fmt.Sprintf("absolute=%t,topdir=%s,archive=%s,item=%s,strip_setuid=%t,strip_setgid=%t,strip_sticky=%t", absolute, topdir, testArchive.name, name, stripSetuidBit, stripSetgidBit, stripStickyBit), func(t *testing.T) {
+											var getErr error
+											var wg sync.WaitGroup
+											getOptions := getOptions
+											getOptions.StripSetuidBit = stripSetuidBit
+											getOptions.StripSetgidBit = stripSetgidBit
+											getOptions.StripStickyBit = stripStickyBit
+											pipeReader, pipeWriter := io.Pipe()
+											wg.Add(1)
+											go func() {
+												getErr = Get(root, topdir, getOptions, []string{name}, pipeWriter)
+												pipeWriter.Close()
+												wg.Done()
+											}()
+											tr := tar.NewReader(pipeReader)
+											hdr, err := tr.Next()
+											for err == nil {
+												expectedMode := testItem.Mode
+												modifier := ""
+												if stripSetuidBit {
+													expectedMode &^= cISUID
+													modifier += "(with setuid bit stripped) "
+												}
+												if stripSetgidBit {
+													expectedMode &^= cISGID
+													modifier += "(with setgid bit stripped) "
+												}
+												if stripStickyBit {
+													expectedMode &^= cISVTX
+													modifier += "(with sticky bit stripped) "
+												}
+												assert.Equal(t, expectedMode, hdr.Mode, "expected item named %q %sto have mode 0%o, got 0%o", hdr.Name, modifier, expectedMode, hdr.Mode)
+												hdr, err = tr.Next()
+											}
+											assert.Equal(t, io.EOF.Error(), err.Error(), "expected EOF at end of archive, got %q", err.Error())
+											wg.Wait()
+											assert.Nil(t, getErr, "unexpected error from Get(%q): %v", name, getErr)
+											pipeReader.Close()
+										})
+									}
+								}
+							}
+						}
+
 						wg.Wait()
 						assert.Nil(t, getErr, "unexpected error from Get(%q): %v", name, getErr)
 						pipeReader.Close()
@@ -518,7 +566,9 @@ func testGetMultiple(t *testing.T) {
 		exclude            []string
 		items              []string
 		expandArchives     bool
-		stripSetidBits     bool
+		stripSetuidBit     bool
+		stripSetgidBit     bool
+		stripStickyBit     bool
 		stripXattrs        bool
 		keepDirectoryNames bool
 	}
@@ -915,7 +965,9 @@ func testGetMultiple(t *testing.T) {
 				getOptions := GetOptions{
 					Excludes:           testCase.exclude,
 					ExpandArchives:     testCase.expandArchives,
-					StripSetidBits:     testCase.stripSetidBits,
+					StripSetuidBit:     testCase.stripSetuidBit,
+					StripSetgidBit:     testCase.stripSetgidBit,
+					StripStickyBit:     testCase.stripStickyBit,
 					StripXattrs:        testCase.stripXattrs,
 					KeepDirectoryNames: testCase.keepDirectoryNames,
 				}
@@ -942,9 +994,6 @@ func testGetMultiple(t *testing.T) {
 					actualContents := []string{}
 					for err == nil {
 						actualContents = append(actualContents, hdr.Name)
-						if _, err = io.Copy(ioutil.Discard, tr); err != nil {
-							break
-						}
 						hdr, err = tr.Next()
 					}
 					pipeReader.Close()
