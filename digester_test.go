@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -121,7 +123,10 @@ func TestCompositeDigester(t *testing.T) {
 						}
 						if filtered {
 							// wrap the WriteCloser in another WriteCloser
-							hasher = newTarFilterer(hasher, func(hdr *tar.Header) { hdr.ModTime = zero })
+							hasher = newTarFilterer(hasher, func(hdr *tar.Header) (bool, bool, io.Reader) {
+								hdr.ModTime = zero
+								return false, false, nil
+							})
 							require.NotNil(t, hasher, "newTarFilterer returned a null WriteCloser?")
 						}
 						// write this item as an archive
@@ -177,6 +182,126 @@ func TestCompositeDigester(t *testing.T) {
 					require.False(t, digester.isOpen(), "expected digester to have been closed with this usage pattern")
 				})
 			}
+		})
+	}
+}
+
+func TestTarFilterer(t *testing.T) {
+	tests := []struct {
+		name          string
+		input, output map[string]string
+		breakAfter    int
+		filter        func(*tar.Header) (bool, bool, io.Reader)
+	}{
+		{
+			name: "none",
+			input: map[string]string{
+				"file a": "content a",
+				"file b": "content b",
+			},
+			output: map[string]string{
+				"file a": "content a",
+				"file b": "content b",
+			},
+			filter: nil,
+		},
+		{
+			name: "plain",
+			input: map[string]string{
+				"file a": "content a",
+				"file b": "content b",
+			},
+			output: map[string]string{
+				"file a": "content a",
+				"file b": "content b",
+			},
+			filter: func(*tar.Header) (bool, bool, io.Reader) { return false, false, nil },
+		},
+		{
+			name: "skip",
+			input: map[string]string{
+				"file a": "content a",
+				"file b": "content b",
+			},
+			output: map[string]string{
+				"file a": "content a",
+			},
+			filter: func(hdr *tar.Header) (bool, bool, io.Reader) { return hdr.Name == "file b", false, nil },
+		},
+		{
+			name: "replace",
+			input: map[string]string{
+				"file a": "content a",
+				"file b": "content b",
+				"file c": "content c",
+			},
+			output: map[string]string{
+				"file a": "content a",
+				"file b": "content b+c",
+				"file c": "content c",
+			},
+			breakAfter: 2,
+			filter: func(hdr *tar.Header) (bool, bool, io.Reader) {
+				if hdr.Name == "file b" {
+					content := "content b+c"
+					hdr.Size = int64(len(content))
+					return false, true, strings.NewReader(content)
+				}
+				return false, false, nil
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var buffer bytes.Buffer
+			tw := tar.NewWriter(&buffer)
+			files := 0
+			for filename, contents := range test.input {
+				hdr := tar.Header{
+					Name:     filename,
+					Size:     int64(len(contents)),
+					Typeflag: tar.TypeReg,
+				}
+				err := tw.WriteHeader(&hdr)
+				require.Nil(t, err, "unexpected error from TarWriter.WriteHeader")
+				n, err := io.CopyN(tw, strings.NewReader(contents), int64(len(contents)))
+				require.Nil(t, err, "unexpected error copying to tar writer")
+				require.Equal(t, int64(len(contents)), n, "unexpected write length")
+				files++
+				if test.breakAfter != 0 && files%test.breakAfter == 0 {
+					// this test may have us writing multiple archives to the buffer
+					// they should still read back as a single archive
+					tw.Close()
+					tw = tar.NewWriter(&buffer)
+				}
+			}
+			tw.Close()
+			output := make(map[string]string)
+			pipeReader, pipeWriter := io.Pipe()
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				tr := tar.NewReader(pipeReader)
+				hdr, err := tr.Next()
+				for err == nil {
+					var buffer bytes.Buffer
+					var n int64
+					n, err = io.Copy(&buffer, tr)
+					require.Nil(t, err, "unexpected error copying from tar reader")
+					require.Equal(t, hdr.Size, n, "unexpected read length")
+					output[hdr.Name] = buffer.String()
+					hdr, err = tr.Next()
+				}
+				require.Equal(t, io.EOF, err, "unexpected error ended our tarstream read")
+				pipeReader.Close()
+				wg.Done()
+			}()
+			filterer := newTarFilterer(pipeWriter, test.filter)
+			_, err := io.Copy(filterer, &buffer)
+			require.Nil(t, err, "unexpected error copying archive through filter to reader")
+			filterer.Close()
+			wg.Wait()
+			require.Equal(t, test.output, output, "got unexpected results")
 		})
 	}
 }
