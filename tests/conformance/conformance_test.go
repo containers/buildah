@@ -1478,21 +1478,41 @@ var internalTestCases = []testCase{
 			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
 				return errors.Wrapf(err, "error creating setuid test file in temporary context directory")
 			}
-			if err = syscall.Chmod(filename, syscall.S_ISUID|0640); err != nil {
+			if err = syscall.Chmod(filename, syscall.S_ISUID|0755); err != nil {
 				return errors.Wrapf(err, "error setting setuid bit on test file in temporary context directory")
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
 				return errors.Wrapf(err, "error setting date on setuid test file in temporary context directory")
 			}
-			filename = filepath.Join(contextDir, "should-not-be-setuid-file")
+			filename = filepath.Join(contextDir, "should-be-setgid-file")
 			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
-				return errors.Wrapf(err, "error creating non-suid test file in temporary context directory")
+				return errors.Wrapf(err, "error creating setgid test file in temporary context directory")
 			}
-			if err = syscall.Chmod(filename, 0640); err != nil {
-				return errors.Wrapf(err, "error setting permissions on test file in temporary context directory")
+			if err = syscall.Chmod(filename, syscall.S_ISGID|0755); err != nil {
+				return errors.Wrapf(err, "error setting setgid bit on test file in temporary context directory")
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return errors.Wrapf(err, "error setting date on test file in temporary context directory")
+				return errors.Wrapf(err, "error setting date on setgid test file in temporary context directory")
+			}
+			filename = filepath.Join(contextDir, "should-be-sticky-file")
+			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
+				return errors.Wrapf(err, "error creating sticky test file in temporary context directory")
+			}
+			if err = syscall.Chmod(filename, syscall.S_ISVTX|0755); err != nil {
+				return errors.Wrapf(err, "error setting permissions on sticky test file in temporary context directory")
+			}
+			if err = os.Chtimes(filename, testDate, testDate); err != nil {
+				return errors.Wrapf(err, "error setting date on sticky test file in temporary context directory")
+			}
+			filename = filepath.Join(contextDir, "should-not-be-setuid-setgid-sticky-file")
+			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
+				return errors.Wrapf(err, "error creating non-suid non-sgid non-sticky test file in temporary context directory")
+			}
+			if err = syscall.Chmod(filename, 0640); err != nil {
+				return errors.Wrapf(err, "error setting permissions on plain test file in temporary context directory")
+			}
+			if err = os.Chtimes(filename, testDate, testDate); err != nil {
+				return errors.Wrapf(err, "error setting date on plain test file in temporary context directory")
 			}
 			return nil
 		},
@@ -1537,7 +1557,7 @@ var internalTestCases = []testCase{
 		name: "setuid-file-in-archive",
 		dockerfileContents: strings.Join([]string{
 			"FROM scratch",
-			fmt.Sprintf("# Does the setuid file in this archive end up setuid (0%o)?", syscall.S_ISUID),
+			fmt.Sprintf("# Do the setuid/setgid/sticky files in this archive end up setuid(0%o)/setgid(0%o)/sticky(0%o)?", syscall.S_ISUID, syscall.S_ISGID, syscall.S_ISVTX),
 			"ADD archive.tar .",
 		}, "\n"),
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
@@ -1555,7 +1575,37 @@ var internalTestCases = []testCase{
 				Gid:      0,
 				Typeflag: tar.TypeReg,
 				Size:     8,
-				Mode:     cISUID | cISGID | cISVTX | 0640,
+				Mode:     cISUID | 0755,
+				ModTime:  testDate,
+			}
+			if err = tw.WriteHeader(&hdr); err != nil {
+				return errors.Wrapf(err, "error writing tar archive header")
+			}
+			if _, err = io.Copy(tw, bytes.NewReader([]byte("whatever"))); err != nil {
+				return errors.Wrapf(err, "error writing tar archive content")
+			}
+			hdr = tar.Header{
+				Name:     "setgid-file",
+				Uid:      0,
+				Gid:      0,
+				Typeflag: tar.TypeReg,
+				Size:     8,
+				Mode:     cISGID | 0755,
+				ModTime:  testDate,
+			}
+			if err = tw.WriteHeader(&hdr); err != nil {
+				return errors.Wrapf(err, "error writing tar archive header")
+			}
+			if _, err = io.Copy(tw, bytes.NewReader([]byte("whatever"))); err != nil {
+				return errors.Wrapf(err, "error writing tar archive content")
+			}
+			hdr = tar.Header{
+				Name:     "sticky-file",
+				Uid:      0,
+				Gid:      0,
+				Typeflag: tar.TypeReg,
+				Size:     8,
+				Mode:     cISVTX | 0755,
 				ModTime:  testDate,
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
@@ -1620,9 +1670,9 @@ var internalTestCases = []testCase{
 			"FROM busybox",
 			"RUN mkdir /a && echo whatever > /a/setuid && chmod u+xs /a/setuid && touch -t @1485449953 /a/setuid",
 			"RUN mkdir /b && echo whatever > /b/setgid && chmod g+xs /b/setgid && touch -t @1485449953 /b/setgid",
-			"RUN mkdir /c && echo whatever > /c/sticky && chmod o+xt /c/sticky && touch -t @1485449953 /c/sticky",
+			"RUN mkdir /c && echo whatever > /c/sticky && chmod o+x /c/sticky && chmod +t /c/sticky && touch -t @1485449953 /c/sticky",
 			"FROM scratch",
-			fmt.Sprintf("# Does this setuid/setgid/sticky file copied from another stage end up setuid (0%o/0%o/0%o)?", syscall.S_ISUID, syscall.S_ISGID, syscall.S_ISVTX),
+			fmt.Sprintf("# Does this setuid/setgid/sticky file copied from another stage end up setuid/setgid/sticky (0%o/0%o/0%o)?", syscall.S_ISUID, syscall.S_ISGID, syscall.S_ISVTX),
 			"COPY --from=0 /a/setuid /b/setgid /c/sticky /",
 		}, "\n"),
 	},

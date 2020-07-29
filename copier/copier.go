@@ -175,7 +175,9 @@ type GetOptions struct {
 	UIDMap, GIDMap     []idtools.IDMap // map from hostIDs to containerIDs in the output archive
 	Excludes           []string        // contents to pretend don't exist
 	ExpandArchives     bool            // extract the contents of named items that are archives
-	StripSetidBits     bool            // strip the setuid/setgid/sticky bits off of items being copied. no effect on archives being extracted
+	StripSetuidBit     bool            // strip the setuid bit off of items being copied. no effect on archives being extracted
+	StripSetgidBit     bool            // strip the setgid bit off of items being copied. no effect on archives being extracted
+	StripStickyBit     bool            // strip the sticky bit off of items being copied. no effect on archives being extracted
 	StripXattrs        bool            // don't record extended attributes of items being copied. no effect on archives being extracted
 	KeepDirectoryNames bool            // export directories as directories containing items rather than as the items they contain
 }
@@ -997,8 +999,14 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 	if name != "" {
 		hdr.Name = name
 	}
-	if options.StripSetidBits {
-		hdr.Mode &^= (cISUID | cISGID | cISVTX)
+	if options.StripSetuidBit {
+		hdr.Mode &^= cISUID
+	}
+	if options.StripSetgidBit {
+		hdr.Mode &^= cISGID
+	}
+	if options.StripStickyBit {
+		hdr.Mode &^= cISVTX
 	}
 	// read extended attributes
 	var xattrs map[string]string
