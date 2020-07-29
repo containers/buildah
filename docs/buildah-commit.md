@@ -10,8 +10,7 @@ buildah\-commit - Create an image from a working container.
 Writes a new image using the specified container's read-write layer and if it
 is based on an image, the layers of that image.  If *image* does not begin
 with a registry name component, `localhost` will be added to the name.  If
-*image* is not provided, the values for the `REPOSITORY` and `TAG` values of
-the created image will each be set to `<none>`.
+*image* is not provided, the image will have no name.
 
 ## RETURN VALUE
 The image ID of the image that was created.  On error, 1 is returned and errno is returned.
@@ -61,7 +60,7 @@ Write the image ID to the file.
 When writing the output image, suppress progress output.
 
 **--rm**
-Remove the container and its content after committing it to an image.
+Remove the working container and its contents after creating the image.
 Default leaves the container and its content in place.
 
 **--sign-by** *fingerprint*
@@ -92,6 +91,9 @@ This example saves an image based on the container.
 
 This example saves an image named newImageName based on the container.
  `buildah commit --rm containerID newImageName`
+
+This example saves an image with no name, removes the working container, and creates a new container using the image's ID.
+ `buildah from $(buildah commit --rm containerID)`
 
 This example saves an image based on the container disabling compression.
  `buildah commit --disable-compression containerID`
