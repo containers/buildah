@@ -54,6 +54,8 @@ func (s *simpleDigester) Digest() digest.Digest {
 type tarFilterer struct {
 	wg         sync.WaitGroup
 	pipeWriter *io.PipeWriter
+	closedLock sync.Mutex
+	closed     bool
 	err        error
 }
 
@@ -62,50 +64,77 @@ func (t *tarFilterer) Write(p []byte) (int, error) {
 }
 
 func (t *tarFilterer) Close() error {
+	t.closedLock.Lock()
+	if t.closed {
+		t.closedLock.Unlock()
+		return errors.Errorf("tar filter is already closed")
+	}
+	t.closed = true
+	t.closedLock.Unlock()
 	err := t.pipeWriter.Close()
 	t.wg.Wait()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error closing filter pipe")
 	}
 	return t.err
 }
 
-// newTarFilterer passes a tarball through to an io.WriteCloser, potentially
-// calling filter to modify headers as it goes.
-func newTarFilterer(writeCloser io.WriteCloser, filter func(hdr *tar.Header)) io.WriteCloser {
+// newTarFilterer passes one or more tar archives through to an io.WriteCloser
+// as a single archive, potentially calling filter to modify headers and
+// contents as it goes.
+func newTarFilterer(writeCloser io.WriteCloser, filter func(hdr *tar.Header) (skip, replaceContents bool, replacementContents io.Reader)) io.WriteCloser {
 	pipeReader, pipeWriter := io.Pipe()
-	tarReader := tar.NewReader(pipeReader)
 	tarWriter := tar.NewWriter(writeCloser)
 	filterer := &tarFilterer{
 		pipeWriter: pipeWriter,
 	}
 	filterer.wg.Add(1)
 	go func() {
-		hdr, err := tarReader.Next()
-		for err == nil {
-			if filter != nil {
-				filter(hdr)
+		filterer.closedLock.Lock()
+		closed := filterer.closed
+		filterer.closedLock.Unlock()
+		for !closed {
+			tarReader := tar.NewReader(pipeReader)
+			hdr, err := tarReader.Next()
+			for err == nil {
+				var skip, replaceContents bool
+				var replacementContents io.Reader
+				if filter != nil {
+					skip, replaceContents, replacementContents = filter(hdr)
+				}
+				if !skip {
+					err = tarWriter.WriteHeader(hdr)
+					if err != nil {
+						err = errors.Wrapf(err, "error filtering tar header for %q", hdr.Name)
+						break
+					}
+					if hdr.Size != 0 {
+						var n int64
+						var copyErr error
+						if replaceContents {
+							n, copyErr = io.CopyN(tarWriter, replacementContents, hdr.Size)
+						} else {
+							n, copyErr = io.Copy(tarWriter, tarReader)
+						}
+						if copyErr != nil {
+							err = errors.Wrapf(copyErr, "error copying content for %q", hdr.Name)
+							break
+						}
+						if n != hdr.Size {
+							err = errors.Errorf("error filtering content for %q: expected %d bytes, got %d bytes", hdr.Name, hdr.Size, n)
+							break
+						}
+					}
+				}
+				hdr, err = tarReader.Next()
 			}
-			err = tarWriter.WriteHeader(hdr)
-			if err != nil {
-				err = errors.Wrapf(err, "error filtering tar header for %q", hdr.Name)
+			if err != io.EOF {
+				filterer.err = errors.Wrapf(err, "error reading tar archive")
 				break
 			}
-			if hdr.Size != 0 {
-				n, copyErr := io.Copy(tarWriter, tarReader)
-				if copyErr != nil {
-					err = errors.Wrapf(copyErr, "error filtering content for %q", hdr.Name)
-					break
-				}
-				if n != hdr.Size {
-					err = errors.Errorf("error filtering content for %q: expected %d bytes, got %d bytes", hdr.Name, hdr.Size, n)
-					break
-				}
-			}
-			hdr, err = tarReader.Next()
-		}
-		if err != io.EOF {
-			filterer.err = err
+			filterer.closedLock.Lock()
+			closed = filterer.closed
+			filterer.closedLock.Unlock()
 		}
 		pipeReader.Close()
 		tarWriter.Close()
