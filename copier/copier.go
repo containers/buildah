@@ -59,46 +59,91 @@ func isArchivePath(path string) bool {
 type RequestType string
 
 const (
-	RequestStat RequestType = "STAT"
-	RequestGet  RequestType = "GET"
-	RequestPut  RequestType = "PUT"
-	RequestQuit RequestType = "QUIT"
+	RequestStat  RequestType = "STAT"
+	RequestGet   RequestType = "GET"
+	RequestPut   RequestType = "PUT"
+	RequestMkdir RequestType = "MKDIR"
+	RequestQuit  RequestType = "QUIT"
 )
-
-// Options are set at the start and affect every request.  It is an implementation detail of the copier package.
-type Options struct {
-	Root      string
-	Directory string
-	Excludes  []string        `json:",omitempty"`
-	UIDMap    []idtools.IDMap `json:",omitempty"`
-	GIDMap    []idtools.IDMap `json:",omitempty"`
-}
 
 // Request encodes a single request.  It is an implementation detail of the copier package.
 type Request struct {
 	Request            RequestType
-	Root               string // used by all requests
+	Root               string
 	preservedRoot      string
 	rootPrefix         string // used to reconstruct paths being handed back to the caller
 	Directory          string // used by all requests
 	preservedDirectory string
 	Globs              []string `json:",omitempty"` // used by stat, get
 	preservedGlobs     []string
-	StatOptions        StatOptions `json:",omitempty"`
-	GetOptions         GetOptions  `json:",omitempty"`
-	PutOptions         PutOptions  `json:",omitempty"`
+	StatOptions        StatOptions  `json:",omitempty"`
+	GetOptions         GetOptions   `json:",omitempty"`
+	PutOptions         PutOptions   `json:",omitempty"`
+	MkdirOptions       MkdirOptions `json:",omitempty"`
+}
+
+func (request *Request) Excludes() []string {
+	switch request.Request {
+	case RequestStat:
+		return request.StatOptions.Excludes
+	case RequestGet:
+		return request.GetOptions.Excludes
+	case RequestPut:
+		return nil
+	case RequestMkdir:
+		return nil
+	case RequestQuit:
+		return nil
+	default:
+		panic(fmt.Sprintf("not an implemented request type: %q", request.Request))
+	}
+}
+
+func (request *Request) UIDMap() []idtools.IDMap {
+	switch request.Request {
+	case RequestStat:
+		return nil
+	case RequestGet:
+		return request.GetOptions.UIDMap
+	case RequestPut:
+		return request.PutOptions.UIDMap
+	case RequestMkdir:
+		return request.MkdirOptions.UIDMap
+	case RequestQuit:
+		return nil
+	default:
+		panic(fmt.Sprintf("not an implemented request type: %q", request.Request))
+	}
+}
+
+func (request *Request) GIDMap() []idtools.IDMap {
+	switch request.Request {
+	case RequestStat:
+		return nil
+	case RequestGet:
+		return request.GetOptions.GIDMap
+	case RequestPut:
+		return request.PutOptions.GIDMap
+	case RequestMkdir:
+		return request.MkdirOptions.GIDMap
+	case RequestQuit:
+		return nil
+	default:
+		panic(fmt.Sprintf("not an implemented request type: %q", request.Request))
+	}
 }
 
 // Response encodes a single response.  It is an implementation detail of the copier package.
 type Response struct {
-	Stat StatResponse
-	Get  GetResponse
-	Put  PutResponse
+	Error string `json:",omitempty"`
+	Stat  StatResponse
+	Get   GetResponse
+	Put   PutResponse
+	Mkdir MkdirResponse
 }
 
 // StatResponse encodes a response for a single Stat request.  It is an implementation detail of the copier package.
 type StatResponse struct {
-	Error string
 	Globs []*StatsForGlob
 }
 
@@ -126,18 +171,20 @@ type StatForItem struct {
 
 // GetResponse encodes a response for a single Get request.  It is an implementation detail of the copier package.
 type GetResponse struct {
-	Error string `json:",omitempty"`
 }
 
 // PutResponse encodes a response for a single Put request.  It is an implementation detail of the copier package.
 type PutResponse struct {
-	Error string `json:",omitempty"`
+}
+
+// MkdirResponse encodes a response for a single Mkdir request.  It is an implementation detail of the copier package.
+type MkdirResponse struct {
 }
 
 // StatOptions controls parts of Stat()'s behavior.
 type StatOptions struct {
 	CheckForArchives bool     // check for and populate the IsArchive bit in returned values
-	Excludes         []string // contents to pretend don't exist
+	Excludes         []string // contents to pretend don't exist, using the OS-specific path separator
 }
 
 // Stat globs the specified pattern in the specified directory and returns its
@@ -160,12 +207,12 @@ func Stat(root string, directory string, options StatOptions, globs []string) ([
 		Globs:       append([]string{}, globs...),
 		StatOptions: options,
 	}
-	resp, err := copier(options.Excludes, nil, nil, req)
+	resp, err := copier(nil, nil, req)
 	if err != nil {
 		return nil, err
 	}
-	if resp.Stat.Error != "" {
-		return nil, errors.New(resp.Stat.Error)
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
 	}
 	return resp.Stat.Globs, nil
 }
@@ -173,13 +220,13 @@ func Stat(root string, directory string, options StatOptions, globs []string) ([
 // GetOptions controls parts of Get()'s behavior.
 type GetOptions struct {
 	UIDMap, GIDMap     []idtools.IDMap // map from hostIDs to containerIDs in the output archive
-	Excludes           []string        // contents to pretend don't exist
+	Excludes           []string        // contents to pretend don't exist, using the OS-specific path separator
 	ExpandArchives     bool            // extract the contents of named items that are archives
 	StripSetuidBit     bool            // strip the setuid bit off of items being copied. no effect on archives being extracted
 	StripSetgidBit     bool            // strip the setgid bit off of items being copied. no effect on archives being extracted
 	StripStickyBit     bool            // strip the sticky bit off of items being copied. no effect on archives being extracted
 	StripXattrs        bool            // don't record extended attributes of items being copied. no effect on archives being extracted
-	KeepDirectoryNames bool            // export directories as directories containing items rather than as the items they contain
+	KeepDirectoryNames bool            // don't strip the top directory's basename from the paths of items in subdirectories
 }
 
 // Get produces an archive containing items that match the specified glob
@@ -205,12 +252,12 @@ func Get(root string, directory string, options GetOptions, globs []string, bulk
 		},
 		GetOptions: options,
 	}
-	resp, err := copier(options.Excludes, nil, bulkWriter, req)
+	resp, err := copier(nil, bulkWriter, req)
 	if err != nil {
 		return err
 	}
-	if resp.Get.Error != "" {
-		return errors.New(resp.Get.Error)
+	if resp.Error != "" {
+		return errors.New(resp.Error)
 	}
 	return nil
 }
@@ -241,20 +288,104 @@ func Put(root string, directory string, options PutOptions, bulkReader io.Reader
 		Directory:  directory,
 		PutOptions: options,
 	}
-	resp, err := copier(nil, bulkReader, nil, req)
+	resp, err := copier(bulkReader, nil, req)
 	if err != nil {
 		return err
 	}
-	if resp.Put.Error != "" {
-		return errors.New(resp.Put.Error)
+	if resp.Error != "" {
+		return errors.New(resp.Error)
 	}
 	return nil
 }
 
-func copier(excludes []string, bulkReader io.Reader, bulkWriter io.Writer, request Request) (*Response, error) {
+// MkdirOptions controls parts of Mkdir()'s behavior.
+type MkdirOptions struct {
+	UIDMap, GIDMap []idtools.IDMap // map from containerIDs to hostIDs when creating directories
+	ChownNew       *idtools.IDPair // set ownership of newly-created directories
+	ChmodNew       *os.FileMode    // set permissions on newly-created directories
+}
+
+// Mkdir ensures that the specified directory exists.  Any directories which
+// need to be created will be given the specified ownership and permissions.
+// If root and directory are both not specified, the current root directory is
+// used.
+// If root is specified and the current OS supports it, the directory is
+// created in a chrooted context.  If the directory is specified as an absolute
+// path, it should either be the root directory or a subdirectory of the root
+// directory.  Otherwise, the directory is treated as a path relative to the
+// root directory.
+func Mkdir(root string, directory string, options MkdirOptions) error {
+	req := Request{
+		Request:      RequestMkdir,
+		Root:         root,
+		Directory:    directory,
+		MkdirOptions: options,
+	}
+	resp, err := copier(nil, nil, req)
+	if err != nil {
+		return err
+	}
+	if resp.Error != "" {
+		return errors.New(resp.Error)
+	}
+	return nil
+}
+
+// cleanerReldirectory resolves relative path candidate lexically, attempting
+// to ensure that when joined as a subdirectory of another directory, it does
+// not reference anything outside of that other directory.
+func cleanerReldirectory(candidate string) string {
+	cleaned := strings.TrimPrefix(filepath.Clean(string(os.PathSeparator)+candidate), string(os.PathSeparator))
+	if cleaned == "" {
+		return "."
+	}
+	return cleaned
+}
+
+// convertToRelSubirectory returns the path of directory, bound and relative to
+// root, as a relative path, or an error if that path can't be computed or if
+// the two directories are on different volumes
+func convertToRelSubdirectory(root, directory string) (relative string, err error) {
+	if root == "" || !filepath.IsAbs(root) {
+		return "", errors.Errorf("expected root directory to be an absolute path, got %q", root)
+	}
+	if directory == "" || !filepath.IsAbs(directory) {
+		return "", errors.Errorf("expected directory to be an absolute path, got %q", root)
+	}
+	if filepath.VolumeName(root) != filepath.VolumeName(directory) {
+		return "", errors.Errorf("%q and %q are on different volumes", root, directory)
+	}
+	rel, err := filepath.Rel(root, directory)
+	if err != nil {
+		return "", errors.Wrapf(err, "error computing path of %q relative to %q", directory, root)
+	}
+	return cleanerReldirectory(rel), nil
+}
+
+func currentVolumeRoot() (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", errors.Wrapf(err, "error getting current working directory")
+	}
+	return filepath.VolumeName(cwd) + string(os.PathSeparator), nil
+}
+
+func isVolumeRoot(candidate string) (bool, error) {
+	abs, err := filepath.Abs(candidate)
+	if err != nil {
+		return false, errors.Wrapf(err, "error converting %q to an absolute path", candidate)
+	}
+	return abs == filepath.VolumeName(abs)+string(os.PathSeparator), nil
+}
+
+func looksLikeAbs(candidate string) bool {
+	return candidate[0] == os.PathSeparator && (len(candidate) == 1 || candidate[1] != os.PathSeparator)
+}
+
+func copier(bulkReader io.Reader, bulkWriter io.Writer, request Request) (*Response, error) {
 	if request.Directory == "" {
 		if request.Root == "" {
-			wd, err := getcwd()
+			wd, err := os.Getwd()
 			if err != nil {
 				return nil, errors.Wrapf(err, "error getting current working directory")
 			}
@@ -264,59 +395,51 @@ func copier(excludes []string, bulkReader io.Reader, bulkWriter io.Writer, reque
 		}
 	}
 	if request.Root == "" {
-		request.Root = string(os.PathSeparator)
+		root, err := currentVolumeRoot()
+		if err != nil {
+			return nil, errors.Wrapf(err, "error determining root of current volume")
+		}
+		request.Root = root
 	}
 	if filepath.IsAbs(request.Directory) {
-		_, err := filepath.Rel(request.Root, request.Directory)
+		_, err := convertToRelSubdirectory(request.Root, request.Directory)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error rewriting %q to be relative to %q", request.Directory, request.Root)
 		}
 	}
-	if request.Root != string(os.PathSeparator) && canChroot {
-		return copierWithSubprocess(excludes, bulkReader, bulkWriter, request)
+	isAlreadyRoot, err := isVolumeRoot(request.Root)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error checking if %q is a root directory", request.Root)
 	}
-	return copierWithoutSubprocess(excludes, bulkReader, bulkWriter, request)
+	if !isAlreadyRoot && canChroot {
+		return copierWithSubprocess(bulkReader, bulkWriter, request)
+	}
+	return copierWithoutSubprocess(bulkReader, bulkWriter, request)
 }
 
-func copierWithoutSubprocess(excludes []string, bulkReader io.Reader, bulkWriter io.Writer, request Request) (*Response, error) {
-	pm, err := fileutils.NewPatternMatcher(excludes)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error processing excludes list %v", excludes)
-	}
-
-	var idMappings *idtools.IDMappings
-	var uidMap, gidMap []idtools.IDMap
-	switch request.Request {
-	case RequestStat:
-		break
-	case RequestQuit:
-		break
-	case RequestGet:
-		uidMap, gidMap = request.GetOptions.UIDMap, request.GetOptions.GIDMap
-	case RequestPut:
-		uidMap, gidMap = request.PutOptions.UIDMap, request.PutOptions.GIDMap
-	}
-
-	if len(uidMap) > 0 && len(gidMap) > 0 {
-		idMappings = idtools.NewIDMappingsFromMaps(uidMap, gidMap)
-	}
+func copierWithoutSubprocess(bulkReader io.Reader, bulkWriter io.Writer, request Request) (*Response, error) {
 	request.preservedRoot = request.Root
 	request.rootPrefix = string(os.PathSeparator)
 	request.preservedDirectory = request.Directory
 	request.preservedGlobs = append([]string{}, request.Globs...)
 	if !filepath.IsAbs(request.Directory) {
-		request.Directory = filepath.Join(request.Root, request.Directory)
+		request.Directory = filepath.Join(request.Root, cleanerReldirectory(request.Directory))
 	}
 	absoluteGlobs := make([]string, 0, len(request.Globs))
-	for i, glob := range request.preservedGlobs {
+	for _, glob := range request.preservedGlobs {
 		if filepath.IsAbs(glob) {
-			absoluteGlobs = append(absoluteGlobs, request.Globs[i])
+			relativeGlob, err := convertToRelSubdirectory(req.preservedRoot, glob)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error rewriting %q to be relative to %q: %v", glob, req.preservedRoot, err)
+				os.Exit(1)
+			}
+			absoluteGlobs = append(absoluteGlobs, filepath.Join(req.Root, string(os.PathSeparator)+relativeGlob))
 		} else {
-			absoluteGlobs = append(absoluteGlobs, filepath.Join(request.Directory, request.Globs[i]))
+			absoluteGlobs = append(absoluteGlobs, filepath.Join(request.Directory, cleanerReldirectory(glob)))
 		}
 	}
 	request.Globs = absoluteGlobs
-	response, cb, err := copierHandler(bulkReader, bulkWriter, request, pm, idMappings)
+	response, cb, err := copierHandler(bulkReader, bulkWriter, request)
 	if err != nil {
 		return nil, err
 	}
@@ -328,21 +451,30 @@ func copierWithoutSubprocess(excludes []string, bulkReader io.Reader, bulkWriter
 	return response, nil
 }
 
-func copierWithSubprocess(excludes []string, bulkReader io.Reader, bulkWriter io.Writer, request Request) (*Response, error) {
-	options := Options{
-		Root:      request.Root,
-		Directory: request.Directory,
-		Excludes:  excludes,
+func closeIfNotNilYet(f **os.File, what string) {
+	if f != nil {
+		err := (*f).Close()
+		*f = nil
+		if err != nil {
+			logrus.Debugf("error closing %s: %v", what, err)
+		}
 	}
+}
+
+func copierWithSubprocess(bulkReader io.Reader, bulkWriter io.Writer, request Request) (response *Response, err error) {
 	switch request.Request {
+	default:
+		return nil, errors.Errorf("not an implemented request type: %q", request.Request)
 	case RequestStat:
 		break
 	case RequestQuit:
 		break
 	case RequestGet:
-		options.UIDMap, options.GIDMap = request.GetOptions.UIDMap, request.GetOptions.GIDMap
+		break
 	case RequestPut:
-		options.UIDMap, options.GIDMap = request.PutOptions.UIDMap, request.PutOptions.GIDMap
+		break
+	case RequestMkdir:
+		break
 	}
 	if bulkReader == nil {
 		bulkReader = bytes.NewReader([]byte{})
@@ -355,32 +487,28 @@ func copierWithSubprocess(excludes []string, bulkReader io.Reader, bulkWriter io
 	if err != nil {
 		return nil, errors.Wrapf(err, "pipe")
 	}
+	defer closeIfNotNilYet(&stdinRead, "stdin pipe reader")
+	defer closeIfNotNilYet(&stdinWrite, "stdin pipe writer")
 	encoder := json.NewEncoder(stdinWrite)
 	stdoutRead, stdoutWrite, err := os.Pipe()
 	if err != nil {
-		stdinRead.Close()
-		stdinWrite.Close()
 		return nil, errors.Wrapf(err, "pipe")
 	}
+	defer closeIfNotNilYet(&stdoutRead, "stdout pipe reader")
+	defer closeIfNotNilYet(&stdoutWrite, "stdout pipe writer")
 	decoder := json.NewDecoder(stdoutRead)
 	bulkReaderRead, bulkReaderWrite, err := os.Pipe()
 	if err != nil {
-		stdinRead.Close()
-		stdinWrite.Close()
-		stdoutRead.Close()
-		stdoutWrite.Close()
 		return nil, errors.Wrapf(err, "pipe")
 	}
+	defer closeIfNotNilYet(&bulkReaderRead, "child bulk content reader pipe, read end")
+	defer closeIfNotNilYet(&bulkReaderWrite, "child bulk content reader pipe, write end")
 	bulkWriterRead, bulkWriterWrite, err := os.Pipe()
 	if err != nil {
-		stdinRead.Close()
-		stdinWrite.Close()
-		stdoutRead.Close()
-		stdoutWrite.Close()
-		bulkReaderRead.Close()
-		bulkReaderWrite.Close()
 		return nil, errors.Wrapf(err, "pipe")
 	}
+	defer closeIfNotNilYet(&bulkWriterRead, "child bulk content writer pipe, read end")
+	defer closeIfNotNilYet(&bulkWriterWrite, "child bulk content writer pipe, write end")
 	cmd.Dir = "/"
 	cmd.Env = append([]string{fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel())}, os.Environ()...)
 
@@ -388,80 +516,65 @@ func copierWithSubprocess(excludes []string, bulkReader io.Reader, bulkWriter io
 	cmd.Stdin = stdinRead
 	cmd.Stdout = stdoutWrite
 	cmd.Stderr = &errorBuffer
-	cmd.ExtraFiles = append(cmd.ExtraFiles, bulkReaderRead, bulkWriterWrite)
+	cmd.ExtraFiles = []*os.File{bulkReaderRead, bulkWriterWrite}
 	if err = cmd.Start(); err != nil {
-		stdinRead.Close()
-		stdinWrite.Close()
-		stdoutRead.Close()
-		stdoutWrite.Close()
-		bulkReaderRead.Close()
-		bulkReaderWrite.Close()
-		bulkWriterRead.Close()
-		bulkWriterWrite.Close()
 		return nil, errors.Wrapf(err, "error starting subprocess")
 	}
-	stdinRead.Close()
-	stdoutWrite.Close()
-	bulkReaderRead.Close()
-	bulkWriterWrite.Close()
-	if err = encoder.Encode(options); err != nil {
-		stdinWrite.Close()
-		stdoutRead.Close()
-		bulkReaderWrite.Close()
-		bulkWriterRead.Close()
-		if err2 := cmd.Process.Kill(); err2 != nil {
-			return nil, errors.Wrapf(err, "error killing subprocess: %v; error encoding options", err2)
+	cmdToWaitFor := cmd
+	defer func() {
+		if cmdToWaitFor != nil {
+			if err := cmdToWaitFor.Wait(); err != nil {
+				if errorBuffer.String() != "" {
+					logrus.Debug(errorBuffer.String())
+				}
+			}
 		}
-		return nil, errors.Wrapf(err, "error encoding options")
+	}()
+	stdinRead.Close()
+	stdinRead = nil
+	stdoutWrite.Close()
+	stdoutWrite = nil
+	bulkReaderRead.Close()
+	bulkReaderRead = nil
+	bulkWriterWrite.Close()
+	bulkWriterWrite = nil
+	killAndReturn := func(err error, step string) (*Response, error) { // nolint: unparam
+		if err2 := cmd.Process.Kill(); err2 != nil {
+			return nil, errors.Wrapf(err, "error killing subprocess: %v; %s", err2, step)
+		}
+		return nil, errors.Wrap(err, step)
 	}
 	if err = encoder.Encode(request); err != nil {
-		stdinWrite.Close()
-		stdoutRead.Close()
-		bulkReaderWrite.Close()
-		bulkWriterRead.Close()
-		if err2 := cmd.Process.Kill(); err2 != nil {
-			return nil, errors.Wrapf(err, "error killing subprocess: %v; error encoding request", err2)
-		}
-		return nil, errors.Wrapf(err, "error encoding request")
+		return killAndReturn(err, "error encoding request")
 	}
-	var response Response
 	if err = decoder.Decode(&response); err != nil {
-		stdinWrite.Close()
-		stdoutRead.Close()
-		bulkReaderWrite.Close()
-		bulkWriterRead.Close()
-		if err2 := cmd.Process.Kill(); err2 != nil {
-			return nil, errors.Wrapf(err, "error killing subprocess: %v; error decoding response", err2)
-		}
-		return nil, errors.Wrapf(err, "error decoding response")
+		return killAndReturn(err, "error decoding response")
 	}
 	if err = encoder.Encode(&Request{Request: RequestQuit}); err != nil {
-		stdinWrite.Close()
-		stdoutRead.Close()
-		bulkReaderWrite.Close()
-		bulkWriterRead.Close()
-		if err2 := cmd.Process.Kill(); err2 != nil {
-			return nil, errors.Wrapf(err, "error killing subprocess: %v; error encoding request", err2)
-		}
-		return nil, errors.Wrapf(err, "error encoding request")
+		return killAndReturn(err, "error encoding request")
 	}
 	stdinWrite.Close()
+	stdinWrite = nil
 	stdoutRead.Close()
+	stdoutRead = nil
 	var wg sync.WaitGroup
 	var readError, writeError error
 	wg.Add(1)
 	go func() {
 		_, writeError = io.Copy(bulkWriter, bulkWriterRead)
 		bulkWriterRead.Close()
+		bulkWriterRead = nil
 		wg.Done()
 	}()
 	wg.Add(1)
 	go func() {
 		_, readError = io.Copy(bulkReaderWrite, bulkReader)
 		bulkReaderWrite.Close()
+		bulkReaderWrite = nil
 		wg.Done()
 	}()
 	wg.Wait()
+	cmdToWaitFor = nil
 	if err = cmd.Wait(); err != nil {
 		if errorBuffer.String() != "" {
 			err = fmt.Errorf("%s", errorBuffer.String())
@@ -481,12 +594,14 @@ func copierWithSubprocess(excludes []string, bulkReader io.Reader, bulkWriter io
 	if writeError != nil {
 		return nil, errors.Wrapf(writeError, "error passing bulk output from subprocess")
 	}
-	return &response, nil
+	return response, nil
 }
 
 func copierMain() {
-	var options Options
-	var idMappings *idtools.IDMappings
+	var chrooted bool
+	decoder := json.NewDecoder(os.Stdin)
+	encoder := json.NewEncoder(os.Stdout)
+	previousRequestRoot := ""
 
 	// Set logging.
 	if level := os.Getenv("LOGLEVEL"); level != "" {
@@ -495,36 +610,9 @@ func copierMain() {
 		}
 	}
 
-	// Unpack our configuration.
-	decoder := json.NewDecoder(os.Stdin)
-	if err := decoder.Decode(&options); err != nil {
-		fmt.Fprintf(os.Stderr, "error decoding options: %v", err)
-		os.Exit(1)
-	}
-	encoder := json.NewEncoder(os.Stdout)
-
 	// Set up descriptors for receiving and sending tarstreams.
 	bulkReader := os.NewFile(3, "bulk-reader")
 	bulkWriter := os.NewFile(4, "bulk-writer")
-
-	// Change to the specified root directory.
-	if options.Root == "" {
-		options.Root = string(os.PathSeparator)
-	}
-	chrooted, err := chroot(options.Root)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error changing to intended-new-root directory %q: %v", options.Root, err)
-		os.Exit(1)
-	}
-
-	pm, err := fileutils.NewPatternMatcher(options.Excludes)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error handling excludes list %v: %v", options.Excludes, err)
-		os.Exit(1)
-	}
-	if len(options.UIDMap) > 0 && len(options.GIDMap) > 0 {
-		idMappings = idtools.NewIDMappingsFromMaps(options.UIDMap, options.GIDMap)
-	}
 
 	for {
 		// Read a request.
@@ -539,15 +627,36 @@ func copierMain() {
 			// same process for Get() or Put().  Maybe later.
 			break
 		}
+
 		// Multiple requests should list the same root, because we
 		// can't un-chroot to chroot to some other location.
-		if request.Root == "" {
-			request.Root = string(os.PathSeparator)
+		if previousRequestRoot != "" {
+			// Check that we got the same input value for
+			// where-to-chroot-to.
+			if request.Root != previousRequestRoot {
+				fmt.Fprintf(os.Stderr, "error: can't change location of chroot from %q to %q", previousRequestRoot, request.Root)
+				os.Exit(1)
+			}
+			previousRequestRoot = request.Root
+		} else {
+			// Figure out where to chroot to, if we weren't told.
+			if request.Root == "" {
+				root, err := currentVolumeRoot()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error determining root of current volume: %v", err)
+					os.Exit(1)
+				}
+				request.Root = root
+			}
+			// Change to the specified root directory.
+			var err error
+			chrooted, err = chroot(request.Root)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error changing to intended-new-root directory %q: %v", request.Root, err)
+				os.Exit(1)
+			}
 		}
-		if request.Root != options.Root {
-			fmt.Fprintf(os.Stderr, "request %+v used a different root: %q != %q", request, request.Root, options.Root)
-			os.Exit(1)
-		}
+
 		request.preservedRoot = request.Root
 		request.rootPrefix = string(os.PathSeparator)
 		request.preservedDirectory = request.Directory
@@ -558,9 +667,9 @@ func copierMain() {
 			// globs absolute paths for simplicity's sake.
 			absoluteDirectory := request.Directory
 			if !filepath.IsAbs(request.Directory) {
-				absoluteDirectory = filepath.Join(request.Root, request.Directory)
+				absoluteDirectory = filepath.Join(request.Root, cleanerReldirectory(request.Directory))
 			}
-			relativeDirectory, err := filepath.Rel(request.preservedRoot, absoluteDirectory)
+			relativeDirectory, err := convertToRelSubdirectory(request.preservedRoot, absoluteDirectory)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error rewriting %q to be relative to %q: %v", absoluteDirectory, request.preservedRoot, err)
 				os.Exit(1)
@@ -569,14 +678,14 @@ func copierMain() {
 			absoluteGlobs := make([]string, 0, len(request.Globs))
 			for i, glob := range request.preservedGlobs {
 				if filepath.IsAbs(glob) {
-					relativeGlob, err := filepath.Rel(request.preservedRoot, glob)
+					relativeGlob, err := convertToRelSubdirectory(request.preservedRoot, glob)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "error rewriting %q to be relative to %q: %v", glob, request.preservedRoot, err)
 						os.Exit(1)
 					}
 					absoluteGlobs = append(absoluteGlobs, filepath.Clean(string(os.PathSeparator)+relativeGlob))
 				} else {
-					absoluteGlobs = append(absoluteGlobs, filepath.Join(request.Directory, request.Globs[i]))
+					absoluteGlobs = append(absoluteGlobs, filepath.Join(request.Directory, cleanerReldirectory(request.Globs[i])))
 				}
 			}
 			request.Globs = absoluteGlobs
@@ -586,19 +695,19 @@ func copierMain() {
 			// Make the directory and globs absolute paths for
 			// simplicity's sake.
 			if !filepath.IsAbs(request.Directory) {
-				request.Directory = filepath.Join(request.Root, request.Directory)
+				request.Directory = filepath.Join(request.Root, cleanerReldirectory(request.Directory))
 			}
 			absoluteGlobs := make([]string, 0, len(request.Globs))
 			for i, glob := range request.preservedGlobs {
 				if filepath.IsAbs(glob) {
 					absoluteGlobs = append(absoluteGlobs, request.Globs[i])
 				} else {
-					absoluteGlobs = append(absoluteGlobs, filepath.Join(request.Directory, request.Globs[i]))
+					absoluteGlobs = append(absoluteGlobs, filepath.Join(request.Directory, cleanerReldirectory(request.Globs[i])))
 				}
 			}
 			request.Globs = absoluteGlobs
 		}
-		response, cb, err := copierHandler(bulkReader, bulkWriter, *request, pm, idMappings)
+		response, cb, err := copierHandler(bulkReader, bulkWriter, *request)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error handling request %#v: %v", *request, err)
 			os.Exit(1)
@@ -619,8 +728,25 @@ func copierMain() {
 	}
 }
 
-func copierHandler(bulkReader io.Reader, bulkWriter io.Writer, request Request, pm *fileutils.PatternMatcher, idMappings *idtools.IDMappings) (*Response, func() error, error) {
+func copierHandler(bulkReader io.Reader, bulkWriter io.Writer, request Request) (*Response, func() error, error) {
+	// NewPatternMatcher splits patterns into components using
+	// os.PathSeparator, implying that it expects OS-specific naming
+	// conventions.
+	excludes := request.Excludes()
+	pm, err := fileutils.NewPatternMatcher(excludes)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "error processing excludes list %v", excludes)
+	}
+
+	var idMappings *idtools.IDMappings
+	uidMap, gidMap := request.UIDMap(), request.GIDMap()
+	if len(uidMap) > 0 && len(gidMap) > 0 {
+		idMappings = idtools.NewIDMappingsFromMaps(uidMap, gidMap)
+	}
+
 	switch request.Request {
+	default:
+		return nil, nil, errors.Errorf("not an implemented request type: %q", request.Request)
 	case RequestStat:
 		resp := copierHandlerStat(request, pm)
 		return resp, nil, nil
@@ -628,17 +754,18 @@ func copierHandler(bulkReader io.Reader, bulkWriter io.Writer, request Request, 
 		return copierHandlerGet(bulkWriter, request, pm, idMappings)
 	case RequestPut:
 		return copierHandlerPut(bulkReader, request, idMappings)
+	case RequestMkdir:
+		return copierHandlerMkdir(request, idMappings)
 	case RequestQuit:
 		return nil, nil, nil
 	}
-	return nil, nil, errors.Errorf("unrecognized copier request %q", request.Request)
 }
 
 // pathIsExcluded computes path relative to root, then asks the pattern matcher
 // if the result is excluded.  Returns the relative path and the matcher's
 // results.
 func pathIsExcluded(root, path string, pm *fileutils.PatternMatcher) (string, bool, error) {
-	rel, err := filepath.Rel(root, path)
+	rel, err := convertToRelSubdirectory(root, path)
 	if err != nil {
 		return "", false, errors.Wrapf(err, "copier: error computing path of %q relative to root %q", path, root)
 	}
@@ -649,7 +776,10 @@ func pathIsExcluded(root, path string, pm *fileutils.PatternMatcher) (string, bo
 		// special case
 		return rel, false, nil
 	}
-	matches, err := pm.Matches(rel) // nolint:staticcheck
+	// Matches uses filepath.FromSlash() to convert candidates before
+	// checking if they match the patterns it's been given, implying that
+	// it expects Unix-style paths.
+	matches, err := pm.Matches(filepath.ToSlash(rel)) // nolint:staticcheck
 	if err != nil {
 		return rel, false, errors.Wrapf(err, "copier: error checking if %q is excluded", rel)
 	}
@@ -662,12 +792,12 @@ func pathIsExcluded(root, path string, pm *fileutils.PatternMatcher) (string, bo
 // resolvePath resolves symbolic links in paths, treating the specified
 // directory as the root.
 // Resolving the path this way, and using the result, is in no way secure
-// against an active party messing with things under us, and it is not expected
-// to be.
+// against another process manipulating the content that we're looking at, and
+// it is not expected to be.
 // This helps us approximate chrooted behavior on systems and in test cases
 // where chroot isn't available.
 func resolvePath(root, path string, pm *fileutils.PatternMatcher) (string, error) {
-	rel, err := filepath.Rel(root, path)
+	rel, err := convertToRelSubdirectory(root, path)
 	if err != nil {
 		return "", errors.Errorf("error making path %q relative to %q", path, root)
 	}
@@ -689,10 +819,10 @@ func resolvePath(root, path string, pm *fileutils.PatternMatcher) (string, error
 					return "", &os.PathError{
 						Op:   "open",
 						Path: path,
-						Err:  err,
+						Err:  syscall.ELOOP,
 					}
 				}
-				if filepath.IsAbs(target) {
+				if filepath.IsAbs(target) || looksLikeAbs(target) {
 					// symlink to an absolute path - prepend the
 					// root directory to that absolute path to
 					// replace the current location, and resolve
@@ -704,7 +834,7 @@ func resolvePath(root, path string, pm *fileutils.PatternMatcher) (string, error
 				// symlink to a relative path - add the link target to
 				// the current location to get the next location, and
 				// resolve the remaining components
-				rel, err := filepath.Rel(root, filepath.Join(workingPath, target))
+				rel, err := convertToRelSubdirectory(root, filepath.Join(workingPath, target))
 				if err != nil {
 					return "", errors.Errorf("error making path %q relative to %q", filepath.Join(workingPath, target), root)
 				}
@@ -727,7 +857,7 @@ func resolvePath(root, path string, pm *fileutils.PatternMatcher) (string, error
 
 func copierHandlerStat(request Request, pm *fileutils.PatternMatcher) *Response {
 	errorResponse := func(fmtspec string, args ...interface{}) *Response {
-		return &Response{Stat: StatResponse{Error: fmt.Sprintf(fmtspec, args...)}}
+		return &Response{Error: fmt.Sprintf(fmtspec, args...), Stat: StatResponse{}}
 	}
 	if len(request.Globs) == 0 {
 		return errorResponse("copier: stat: expected at least one glob pattern, got none")
@@ -763,7 +893,7 @@ func copierHandlerStat(request Request, pm *fileutils.PatternMatcher) *Response 
 			} else {
 				relResult := rel
 				if request.Directory != request.Root {
-					relResult, err = filepath.Rel(request.Directory, globbed)
+					relResult, err = convertToRelSubdirectory(request.Directory, globbed)
 					if err != nil {
 						return errorResponse("copier: stat: error making %q relative to %q: %v", globbed, request.Directory, err)
 					}
@@ -837,10 +967,10 @@ func copierHandlerGet(bulkWriter io.Writer, request Request, pm *fileutils.Patte
 	statRequest.Request = RequestStat
 	statResponse := copierHandlerStat(request, pm)
 	errorResponse := func(fmtspec string, args ...interface{}) (*Response, func() error, error) {
-		return &Response{Stat: statResponse.Stat, Get: GetResponse{Error: fmt.Sprintf(fmtspec, args...)}}, nil, nil
+		return &Response{Error: fmt.Sprintf(fmtspec, args...), Stat: statResponse.Stat, Get: GetResponse{}}, nil, nil
 	}
-	if statResponse.Stat.Error != "" {
-		return errorResponse("%s", statResponse.Stat.Error)
+	if statResponse.Error != "" {
+		return errorResponse("%s", statResponse.Error)
 	}
 	if len(request.Globs) == 0 {
 		return errorResponse("copier: get: expected at least one glob pattern, got 0")
@@ -897,13 +1027,13 @@ func copierHandlerGet(bulkWriter io.Writer, request Request, pm *fileutils.Patte
 				if err != nil {
 					continue
 				}
-				if filepath.IsAbs(path) {
+				if filepath.IsAbs(path) || looksLikeAbs(path) {
 					path = filepath.Join(request.Root, path)
 				} else {
 					path = filepath.Join(filepath.Dir(item), path)
 				}
 				item = path
-				if _, err = filepath.Rel(request.Root, item); err != nil {
+				if _, err = convertToRelSubdirectory(request.Root, item); err != nil {
 					return errors.Wrapf(err, "copier: get: computing path of %q(%q) relative to %q", queue[i], item, request.Root)
 				}
 				if info, err = os.Lstat(item); err != nil {
@@ -920,7 +1050,7 @@ func copierHandlerGet(bulkWriter io.Writer, request Request, pm *fileutils.Patte
 					// compute the path of this item
 					// relative to the top-level directory,
 					// for the tar header
-					rel, relErr := filepath.Rel(item, path)
+					rel, relErr := convertToRelSubdirectory(item, path)
 					if relErr != nil {
 						return errors.Wrapf(relErr, "copier: get: error computing path of %q relative to top directory %q", path, item)
 					}
@@ -970,7 +1100,7 @@ func copierHandlerGet(bulkWriter io.Writer, request Request, pm *fileutils.Patte
 					return err
 				}
 				if skip {
-					return nil
+					continue
 				}
 				// add the item to the outgoing tar stream.  in
 				// cases where this was a symlink that we
@@ -987,7 +1117,7 @@ func copierHandlerGet(bulkWriter io.Writer, request Request, pm *fileutils.Patte
 		}
 		return nil
 	}
-	return &Response{Stat: statResponse.Stat, Get: GetResponse{Error: ""}}, cb, nil
+	return &Response{Stat: statResponse.Stat, Get: GetResponse{}}, cb, nil
 }
 
 func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath string, options GetOptions, tw *tar.Writer, hardlinkChecker *util.HardlinkChecker, idMappings *idtools.IDMappings) error {
@@ -997,7 +1127,7 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 		return errors.Wrapf(err, "error generating tar header for %s (%s)", contentPath, symlinkTarget)
 	}
 	if name != "" {
-		hdr.Name = name
+		hdr.Name = filepath.ToSlash(name)
 	}
 	if options.StripSetuidBit {
 		hdr.Mode &^= cISUID
@@ -1065,7 +1195,7 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 			if filepath.Dir(filepath.Clean(string(os.PathSeparator)+name)) == filepath.Dir(target) {
 				target = filepath.Base(target)
 			}
-			hdr.Linkname = target
+			hdr.Linkname = filepath.ToSlash(target)
 			hdr.Size = 0
 		} else {
 			// note the device/inode pair for this file
@@ -1105,7 +1235,7 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 
 func copierHandlerPut(bulkReader io.Reader, request Request, idMappings *idtools.IDMappings) (*Response, func() error, error) {
 	errorResponse := func(fmtspec string, args ...interface{}) (*Response, func() error, error) {
-		return &Response{Put: PutResponse{Error: fmt.Sprintf(fmtspec, args...)}}, nil, nil
+		return &Response{Error: fmt.Sprintf(fmtspec, args...), Put: PutResponse{}}, nil, nil
 	}
 	dirUID, dirGID := 0, 0
 	if request.PutOptions.ChownDirs != nil {
@@ -1136,7 +1266,7 @@ func copierHandlerPut(bulkReader io.Reader, request Request, idMappings *idtools
 		}
 	}
 	ensureDirectoryUnderRoot := func(directory string) error {
-		rel, err := filepath.Rel(request.Root, directory)
+		rel, err := convertToRelSubdirectory(request.Root, directory)
 		if err != nil {
 			return errors.Wrapf(err, "%q is not a subdirectory of %q", directory, request.Root)
 		}
@@ -1144,10 +1274,12 @@ func copierHandlerPut(bulkReader io.Reader, request Request, idMappings *idtools
 		for _, component := range strings.Split(rel, string(os.PathSeparator)) {
 			subdir = filepath.Join(subdir, component)
 			path := filepath.Join(request.Root, subdir)
-			if err := os.Mkdir(path, dirMode); err == nil {
-				err = os.Chown(path, dirUID, dirGID)
-				if err != nil {
+			if err := os.Mkdir(path, 0700); err == nil {
+				if err = lchown(path, dirUID, dirGID); err != nil {
 					return errors.Wrapf(err, "copier: put: error setting owner of %q to %d:%d", path, dirUID, dirGID)
+				}
+				if err = os.Chmod(path, dirMode); err != nil {
+					return errors.Wrapf(err, "copier: put: error setting permissions on %q to 0%o", path, dirMode)
 				}
 			} else {
 				if !os.IsExist(err) {
@@ -1157,13 +1289,13 @@ func copierHandlerPut(bulkReader io.Reader, request Request, idMappings *idtools
 		}
 		return nil
 	}
-	createFile := func(path string, tr *tar.Reader, mode os.FileMode) (int64, error) {
-		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_EXCL, mode)
+	createFile := func(path string, tr *tar.Reader) (int64, error) {
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_EXCL, 0600)
 		if err != nil && os.IsExist(err) {
 			if err = os.Remove(path); err != nil {
 				return 0, errors.Wrapf(err, "copier: put: error removing file to be overwritten %q", path)
 			}
-			f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_EXCL, mode)
+			f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_EXCL, 0600)
 		}
 		if err != nil {
 			return 0, errors.Wrapf(err, "copier: put: error opening file %q for writing", path)
@@ -1172,9 +1304,6 @@ func copierHandlerPut(bulkReader io.Reader, request Request, idMappings *idtools
 		n, err := io.Copy(f, tr)
 		if err != nil {
 			return n, errors.Wrapf(err, "copier: put: error writing file %q", path)
-		}
-		if err = f.Chmod(mode); err != nil {
-			return n, errors.Wrapf(err, "copier: put: error setting permissions on file %q", path)
 		}
 		return n, nil
 	}
@@ -1231,12 +1360,11 @@ func copierHandlerPut(bulkReader io.Reader, request Request, idMappings *idtools
 				}
 			}
 			// make sure the parent directory exists
-			path := filepath.Join(targetDirectory, string(os.PathSeparator)+hdr.Name)
+			path := filepath.Join(targetDirectory, cleanerReldirectory(filepath.FromSlash(hdr.Name)))
 			if err := ensureDirectoryUnderRoot(filepath.Dir(path)); err != nil {
 				return err
 			}
 			// figure out what the permissions should be
-			mode := os.FileMode(hdr.Mode) & os.ModePerm
 			if hdr.Typeflag == tar.TypeDir {
 				if request.PutOptions.ChmodDirs != nil {
 					hdr.Mode = int64(*request.PutOptions.ChmodDirs)
@@ -1249,54 +1377,52 @@ func copierHandlerPut(bulkReader io.Reader, request Request, idMappings *idtools
 			// create the new item
 			devMajor := uint32(hdr.Devmajor)
 			devMinor := uint32(hdr.Devminor)
-			written := hdr.Size
 			switch hdr.Typeflag {
 			// no type flag for sockets
+			default:
+				return errors.Errorf("unrecognized Typeflag %c", hdr.Typeflag)
 			case tar.TypeReg, tar.TypeRegA:
-				written, err = createFile(path, tr, mode)
+				var written int64
+				written, err = createFile(path, tr)
+				if written != hdr.Size {
+					return errors.Errorf("copier: put: error creating %q: incorrect length (%d != %d)", path, written, hdr.Size)
+				}
 			case tar.TypeLink:
 				var linkTarget string
-				if filepath.IsAbs(hdr.Linkname) {
-					linkTarget, err = resolvePath(targetDirectory, filepath.Join(request.Root, hdr.Linkname), nil)
-					if err != nil {
+				if filepath.IsAbs(filepath.FromSlash(hdr.Linkname)) || looksLikeAbs(filepath.FromSlash(hdr.Linkname)) {
+					if linkTarget, err = resolvePath(targetDirectory, filepath.Join(request.Root, filepath.FromSlash(hdr.Linkname)), nil); err != nil {
 						return errors.Errorf("error resolving hardlink target path %q under root %q", hdr.Linkname, request.Root)
 					}
 				} else {
-					linkTarget, err = resolvePath(targetDirectory, filepath.Join(targetDirectory, filepath.Dir(hdr.Name), hdr.Linkname), nil)
-					if err != nil {
-						return errors.Errorf("error resolving hardlink target path %q under root %q in directory %q", hdr.Linkname, request.Root, filepath.Dir(hdr.Name))
+					if linkTarget, err = resolvePath(targetDirectory, filepath.Join(targetDirectory, filepath.Dir(filepath.FromSlash(hdr.Name)), filepath.FromSlash(hdr.Linkname)), nil); err != nil {
+						return errors.Errorf("error resolving hardlink target path %q under root %q in directory %q", hdr.Linkname, request.Root, filepath.Dir(filepath.FromSlash(hdr.Name)))
 					}
 				}
-				err = os.Link(linkTarget, path)
-				if err != nil && os.IsExist(err) {
+				if err = os.Link(linkTarget, path); err != nil && os.IsExist(err) {
 					if err = os.Remove(path); err == nil {
 						err = os.Link(linkTarget, path)
 					}
 				}
 			case tar.TypeSymlink:
-				err = os.Symlink(hdr.Linkname, path)
-				if err != nil && os.IsExist(err) {
+				if err = os.Symlink(filepath.FromSlash(hdr.Linkname), filepath.FromSlash(path)); err != nil && os.IsExist(err) {
 					if err = os.Remove(path); err == nil {
-						err = os.Symlink(hdr.Linkname, path)
+						err = os.Symlink(filepath.FromSlash(hdr.Linkname), filepath.FromSlash(path))
 					}
 				}
 			case tar.TypeChar:
-				err = mknod(path, chrMode(mode), int(mkdev(devMajor, devMinor)))
-				if err != nil && os.IsExist(err) {
+				if err = mknod(path, chrMode(0600), int(mkdev(devMajor, devMinor))); err != nil && os.IsExist(err) {
 					if err = os.Remove(path); err == nil {
-						err = mknod(path, chrMode(mode), int(mkdev(devMajor, devMinor)))
+						err = mknod(path, chrMode(0600), int(mkdev(devMajor, devMinor)))
 					}
 				}
 			case tar.TypeBlock:
-				err = mknod(path, blkMode(mode), int(mkdev(devMajor, devMinor)))
-				if err != nil && os.IsExist(err) {
+				if err = mknod(path, blkMode(0600), int(mkdev(devMajor, devMinor))); err != nil && os.IsExist(err) {
 					if err = os.Remove(path); err == nil {
-						err = mknod(path, blkMode(mode), int(mkdev(devMajor, devMinor)))
+						err = mknod(path, blkMode(0600), int(mkdev(devMajor, devMinor)))
 					}
 				}
 			case tar.TypeDir:
-				err = os.Mkdir(path, mode)
-				if err != nil && os.IsExist(err) {
+				if err = os.Mkdir(path, 0700); err != nil && os.IsExist(err) {
 					err = nil
 				}
 				// make a note of the directory's times.  we
@@ -1309,38 +1435,34 @@ func copierHandlerPut(bulkReader io.Reader, request Request, idMappings *idtools
 					mtime:     hdr.ModTime,
 				})
 			case tar.TypeFifo:
-				fifoMode := uint32(hdr.Mode)
-				err = mkfifo(path, fifoMode)
-				if err != nil && os.IsExist(err) {
+				if err = mkfifo(path, 0600); err != nil && os.IsExist(err) {
 					if err = os.Remove(path); err == nil {
-						err = mkfifo(path, fifoMode)
+						err = mkfifo(path, 0600)
 					}
 				}
 			}
 			// check for errors
 			if err != nil {
-				return errors.Wrapf(err, "error creating %q", path)
-			}
-			if written != hdr.Size {
-				return errors.Errorf("error creating %q: incorrect length (%d != %d)", path, written, hdr.Size)
+				return errors.Wrapf(err, "copier: put: error creating %q", path)
 			}
 			// restore xattrs
 			if !request.PutOptions.StripXattrs {
 				if err = Lsetxattrs(path, hdr.Xattrs); err != nil { // nolint:staticcheck
 					if !request.PutOptions.IgnoreXattrErrors {
-						return errors.Wrapf(err, "error setting extended attributes on %q", path)
+						return errors.Wrapf(err, "copier: put: error setting extended attributes on %q", path)
 					}
 				}
 			}
-			// restore permissions, except for symlinks, since we don't have lchmod
+			// set ownership
+			if err = lchown(path, hdr.Uid, hdr.Gid); err != nil {
+				return errors.Wrapf(err, "copier: put: error setting ownership of %q to %d:%d", path, hdr.Uid, hdr.Gid)
+			}
+			// set permissions, except for symlinks, since we don't have lchmod
+			mode := os.FileMode(hdr.Mode) & os.ModePerm
 			if hdr.Typeflag != tar.TypeSymlink {
 				if err = os.Chmod(path, mode); err != nil {
-					return errors.Wrapf(err, "error setting permissions on %q to 0%o", path, mode)
+					return errors.Wrapf(err, "copier: put: error setting permissions on %q to 0%o", path, mode)
 				}
-			}
-			// set ownership
-			if err = os.Lchown(path, hdr.Uid, hdr.Gid); err != nil {
-				return errors.Wrapf(err, "error setting ownership of %q to %d:%d", path, hdr.Uid, hdr.Gid)
 			}
 			// set other bits that might have been reset by chown()
 			if hdr.Typeflag != tar.TypeSymlink {
@@ -1371,5 +1493,57 @@ func copierHandlerPut(bulkReader io.Reader, request Request, idMappings *idtools
 		}
 		return nil
 	}
-	return &Response{Put: PutResponse{Error: ""}}, cb, nil
+	return &Response{Error: "", Put: PutResponse{}}, cb, nil
+}
+
+func copierHandlerMkdir(request Request, idMappings *idtools.IDMappings) (*Response, func() error, error) {
+	errorResponse := func(fmtspec string, args ...interface{}) (*Response, func() error, error) {
+		return &Response{Error: fmt.Sprintf(fmtspec, args...), Mkdir: MkdirResponse{}}, nil, nil
+	}
+	dirUID, dirGID := 0, 0
+	if request.MkdirOptions.ChownNew != nil {
+		dirUID, dirGID = request.MkdirOptions.ChownNew.UID, request.MkdirOptions.ChownNew.GID
+	}
+	dirMode := os.FileMode(0755)
+	if request.MkdirOptions.ChmodNew != nil {
+		dirMode = *request.MkdirOptions.ChmodNew
+	}
+	if idMappings != nil && !idMappings.Empty() {
+		containerDirPair := idtools.IDPair{UID: dirUID, GID: dirGID}
+		hostDirPair, err := idMappings.ToHost(containerDirPair)
+		if err != nil {
+			return errorResponse("copier: mkdir: error mapping container filesystem owner %d:%d to host filesystem owners: %v", dirUID, dirGID, err)
+		}
+		dirUID, dirGID = hostDirPair.UID, hostDirPair.GID
+	}
+
+	directory, err := resolvePath(request.Root, request.Directory, nil)
+	if err != nil {
+		return errorResponse("copier: mkdir: error resolving %q: %v", request.Directory, err)
+	}
+
+	rel, err := convertToRelSubdirectory(request.Root, directory)
+	if err != nil {
+		return errorResponse("copier: mkdir: error computing path of %q relative to %q: %v", directory, request.Root, err)
+	}
+
+	subdir := ""
+	for _, component := range strings.Split(rel, string(os.PathSeparator)) {
+		subdir = filepath.Join(subdir, component)
+		path := filepath.Join(request.Root, subdir)
+		if err := os.Mkdir(path, 0700); err == nil {
+			if err = chown(path, dirUID, dirGID); err != nil {
+				return errorResponse("copier: mkdir: error setting owner of %q to %d:%d: %v", path, dirUID, dirGID, err)
+			}
+			if err = chmod(path, dirMode); err != nil {
+				return errorResponse("copier: mkdir: error setting permissions on %q to 0%o: %v", path, dirMode)
+			}
+		} else {
+			if !os.IsExist(err) {
+				return errorResponse("copier: mkdir: error checking directory %q: %v", path, err)
+			}
+		}
+	}
+
+	return &Response{Error: "", Mkdir: MkdirResponse{}}, nil, nil
 }

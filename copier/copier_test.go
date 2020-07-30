@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -149,9 +150,10 @@ func enumerateFiles(directory string) ([]enumeratedFile, error) {
 		}
 		if rel != "" && rel != "." {
 			results = append(results, enumeratedFile{
-				name: rel,
-				date: info.ModTime().UTC().String(),
-				mode: info.Mode() & os.ModePerm,
+				name:      rel,
+				mode:      info.Mode() & os.ModePerm,
+				isSymlink: info.Mode()&os.ModeSymlink == os.ModeSymlink,
+				date:      info.ModTime().UTC().String(),
 			})
 		}
 		return nil
@@ -169,9 +171,10 @@ type expectedError struct {
 }
 
 type enumeratedFile struct {
-	name string
-	mode os.FileMode
-	date string
+	name      string
+	mode      os.FileMode
+	isSymlink bool
+	date      string
 }
 
 var (
@@ -285,16 +288,18 @@ func testPut(t *testing.T) {
 					info, err := os.Stat(filepath.Join(dir, topdir))
 					require.Nil(t, err, "error statting directory %q", filepath.Join(dir, topdir))
 					expected = append(expected, enumeratedFile{
-						name: topdir,
-						date: info.ModTime().UTC().String(),
-						mode: info.Mode() & os.ModePerm,
+						name:      filepath.FromSlash(topdir),
+						mode:      info.Mode() & os.ModePerm,
+						isSymlink: info.Mode()&os.ModeSymlink == os.ModeSymlink,
+						date:      info.ModTime().UTC().String(),
 					})
 				}
 				for _, hdr := range testArchives[i].headers {
 					expected = append(expected, enumeratedFile{
-						name: filepath.Join(topdir, hdr.Name),
-						date: hdr.ModTime.UTC().String(),
-						mode: os.FileMode(hdr.Mode) & os.ModePerm,
+						name:      filepath.Join(filepath.FromSlash(topdir), filepath.FromSlash(hdr.Name)),
+						mode:      os.FileMode(hdr.Mode) & os.ModePerm,
+						isSymlink: hdr.Typeflag == tar.TypeSymlink,
+						date:      hdr.ModTime.UTC().String(),
 					})
 				}
 				sort.Slice(expected, func(i, j int) bool { return strings.Compare(expected[i].name, expected[j].name) < 0 })
@@ -305,7 +310,27 @@ func testPut(t *testing.T) {
 				sort.Slice(fileList, func(i, j int) bool { return strings.Compare(fileList[i].name, fileList[j].name) < 0 })
 
 				// make sure they're the same
-				require.Equal(t, expected, fileList, "list of files in context directory for archive %q under topdir %q should match the archived used to populate it", testArchives[i].name, topdir)
+				moddedEnumeratedFiles := func(enumerated []enumeratedFile) []enumeratedFile {
+					m := make([]enumeratedFile, 0, len(enumerated))
+					for i := range enumerated {
+						e := enumeratedFile{
+							name:      enumerated[i].name,
+							mode:      os.FileMode(int64(enumerated[i].mode) & testModeMask),
+							isSymlink: enumerated[i].isSymlink,
+							date:      enumerated[i].date,
+						}
+						if testIgnoreSymlinkDates && e.isSymlink {
+							e.date = ""
+						}
+						m = append(m, e)
+					}
+					return m
+				}
+				if !reflect.DeepEqual(expected, fileList) && reflect.DeepEqual(moddedEnumeratedFiles(expected), moddedEnumeratedFiles(fileList)) {
+					logrus.Warn("chmod() lost some bits and possibly timestamps on symlinks, otherwise we match the source archive")
+				} else {
+					require.Equal(t, expected, fileList, "list of files in context directory for archive %q under topdir %q should match the archived used to populate it", testArchives[i].name, topdir)
+				}
 			})
 		}
 	}
@@ -359,15 +384,19 @@ func testStat(t *testing.T) {
 				root := dir
 
 				for _, testItem := range testArchive.headers {
-					name := testItem.Name
+					name := filepath.FromSlash(testItem.Name)
 					if absolute {
 						name = filepath.Join(root, topdir, name)
 					}
 					t.Run(fmt.Sprintf("absolute=%t,topdir=%s,archive=%s,item=%s", absolute, topdir, testArchive.name, name), func(t *testing.T) {
 						// read stats about this item
+						var excludes []string
+						for _, exclude := range testArchive.excludes {
+							excludes = append(excludes, filepath.FromSlash(exclude))
+						}
 						options := StatOptions{
 							CheckForArchives: false,
-							Excludes:         testArchive.excludes,
+							Excludes:         excludes,
 						}
 						stats, err := Stat(root, topdir, options, []string{name})
 						require.Nil(t, err, "error statting %q: %v", name, err)
@@ -404,7 +433,7 @@ func testStat(t *testing.T) {
 									require.False(t, result.IsSymlink, "expected %q.IsSymlink to be false", glob)
 								case tar.TypeSymlink:
 									require.True(t, result.IsSymlink, "%q is supposed to be a symbolic link, but is not", name)
-									require.Equal(t, testItem.Linkname, result.ImmediateTarget, "%q is supposed to point to %q, but points to %q", glob, testItem.Linkname, result.ImmediateTarget)
+									require.Equal(t, filepath.FromSlash(testItem.Linkname), result.ImmediateTarget, "%q is supposed to point to %q, but points to %q", glob, testItem.Linkname, result.ImmediateTarget)
 								case tar.TypeBlock, tar.TypeChar:
 									require.False(t, result.IsRegular, "%q is a regular file, but is not supposed to be", name)
 									require.False(t, result.IsDir, "%q is a directory, but is not supposed to be", name)
@@ -438,8 +467,13 @@ func testGetSingle(t *testing.T) {
 	for _, absolute := range []bool{false, true} {
 		for _, topdir := range []string{"", ".", "top"} {
 			for _, testArchive := range testArchives {
+				var excludes []string
+				for _, exclude := range testArchive.excludes {
+					excludes = append(excludes, filepath.FromSlash(exclude))
+				}
+
 				getOptions := GetOptions{
-					Excludes:       testArchive.excludes,
+					Excludes:       excludes,
 					ExpandArchives: false,
 				}
 
@@ -454,7 +488,7 @@ func testGetSingle(t *testing.T) {
 				root := dir
 
 				for _, testItem := range testArchive.headers {
-					name := testItem.Name
+					name := filepath.FromSlash(testItem.Name)
 					if absolute {
 						name = filepath.Join(root, topdir, name)
 					}
@@ -483,7 +517,7 @@ func testGetSingle(t *testing.T) {
 						tr := tar.NewReader(pipeReader)
 						hdr, err := tr.Next()
 						for err == nil {
-							assert.Equal(t, path.Base(name), hdr.Name, "expected item named %q, got %q", path.Base(name), hdr.Name)
+							assert.Equal(t, filepath.Base(name), filepath.FromSlash(hdr.Name), "expected item named %q, got %q", filepath.Base(name), filepath.FromSlash(hdr.Name))
 							hdr, err = tr.Next()
 						}
 						assert.Equal(t, io.EOF.Error(), err.Error(), "expected EOF at end of archive, got %q", err.Error())
@@ -522,7 +556,11 @@ func testGetSingle(t *testing.T) {
 													expectedMode &^= cISVTX
 													modifier += "(with sticky bit stripped) "
 												}
-												assert.Equal(t, expectedMode, hdr.Mode, "expected item named %q %sto have mode 0%o, got 0%o", hdr.Name, modifier, expectedMode, hdr.Mode)
+												if expectedMode != hdr.Mode && expectedMode&testModeMask == hdr.Mode&testModeMask {
+													logrus.Warnf("chmod() lost some bits: expected 0%o, got 0%o", expectedMode, hdr.Mode)
+												} else {
+													assert.Equal(t, expectedMode, hdr.Mode, "expected item named %q %sto have mode 0%o, got 0%o", hdr.Name, modifier, expectedMode, hdr.Mode)
+												}
 												hdr, err = tr.Next()
 											}
 											assert.Equal(t, io.EOF.Error(), err.Error(), "expected EOF at end of archive, got %q", err.Error())
@@ -613,6 +651,8 @@ func testGetMultiple(t *testing.T) {
 			},
 			expectedGetErrors: []expectedError{
 				{inSubdir: true, name: ".", err: syscall.ENOENT},
+				{inSubdir: true, name: "/subdir-b/*", err: syscall.ENOENT},
+				{inSubdir: true, name: "../../subdir-b/*", err: syscall.ENOENT},
 			},
 			cases: []getTestArchiveCase{
 				{
@@ -941,6 +981,24 @@ func testGetMultiple(t *testing.T) {
 						"subdir-e/subdir-f/hlink-b",
 					},
 				},
+				{
+					name:               "root-wildcard",
+					pattern:            "/subdir-b/*",
+					keepDirectoryNames: false,
+					items: []string{
+						"file-n",
+						"file-o",
+					},
+				},
+				{
+					name:               "dotdot-wildcard",
+					pattern:            "../../subdir-b/*",
+					keepDirectoryNames: false,
+					items: []string{
+						"file-n",
+						"file-o",
+					},
+				},
 			},
 		},
 	}
@@ -962,8 +1020,13 @@ func testGetMultiple(t *testing.T) {
 			}
 
 			for _, testCase := range testArchive.cases {
+				var excludes []string
+				for _, exclude := range testCase.exclude {
+					excludes = append(excludes, filepath.FromSlash(exclude))
+				}
+
 				getOptions := GetOptions{
-					Excludes:           testCase.exclude,
+					Excludes:           excludes,
 					ExpandArchives:     testCase.expandArchives,
 					StripSetuidBit:     testCase.stripSetuidBit,
 					StripSetgidBit:     testCase.stripSetgidBit,
@@ -993,20 +1056,200 @@ func testGetMultiple(t *testing.T) {
 					hdr, err := tr.Next()
 					actualContents := []string{}
 					for err == nil {
-						actualContents = append(actualContents, hdr.Name)
+						actualContents = append(actualContents, filepath.FromSlash(hdr.Name))
 						hdr, err = tr.Next()
 					}
 					pipeReader.Close()
 					sort.Strings(actualContents)
 					// compare it to what we were supposed to get
-					expectedContents := append([]string{}, testCase.items...)
+					expectedContents := make([]string, 0, len(testCase.items))
+					for _, item := range testCase.items {
+						expectedContents = append(expectedContents, filepath.FromSlash(item))
+					}
 					sort.Strings(expectedContents)
 					assert.Equal(t, io.EOF.Error(), err.Error(), "expected EOF at end of archive, got %q", err.Error())
 					wg.Wait()
 					assert.Nil(t, getErr, "unexpected error from Get(%q)", testCase.pattern)
-					assert.Equal(t, expectedContents, actualContents, "Get(%q,excludes=%v) didn't produce the right set of items", testCase.pattern, testCase.exclude)
+					assert.Equal(t, expectedContents, actualContents, "Get(%q,excludes=%v) didn't produce the right set of items", testCase.pattern, excludes)
 				})
 			}
 		}
+	}
+}
+
+func TestMkdirNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	testMkdir(t)
+	canChroot = couldChroot
+}
+
+func TestMkdirChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skipf("chroot() requires root privileges, skipping")
+	}
+	testMkdir(t)
+}
+
+func testMkdir(t *testing.T) {
+	type testCase struct {
+		name   string
+		create string
+		expect []string
+	}
+	testArchives := []struct {
+		name      string
+		headers   []tar.Header
+		testCases []testCase
+	}{
+		{
+			name: "regular",
+			headers: []tar.Header{
+				{Name: "subdir-a", Typeflag: tar.TypeDir, Mode: 0755, ModTime: testDate},
+				{Name: "subdir-a/subdir-b", Typeflag: tar.TypeDir, Mode: 0755, ModTime: testDate},
+				{Name: "subdir-a/subdir-b/subdir-c", Typeflag: tar.TypeDir, Mode: 0755, ModTime: testDate},
+				{Name: "subdir-a/subdir-b/dangle1", Typeflag: tar.TypeSymlink, Linkname: "dangle1-target", ModTime: testDate},
+				{Name: "subdir-a/subdir-b/dangle2", Typeflag: tar.TypeSymlink, Linkname: "../dangle2-target", ModTime: testDate},
+				{Name: "subdir-a/subdir-b/dangle3", Typeflag: tar.TypeSymlink, Linkname: "../../dangle3-target", ModTime: testDate},
+				{Name: "subdir-a/subdir-b/dangle4", Typeflag: tar.TypeSymlink, Linkname: "../../../dangle4-target", ModTime: testDate},
+				{Name: "subdir-a/subdir-b/dangle5", Typeflag: tar.TypeSymlink, Linkname: "../../../../dangle5-target", ModTime: testDate},
+				{Name: "subdir-a/subdir-b/dangle6", Typeflag: tar.TypeSymlink, Linkname: "/dangle6-target", ModTime: testDate},
+				{Name: "subdir-a/subdir-b/dangle7", Typeflag: tar.TypeSymlink, Linkname: "/../dangle7-target", ModTime: testDate},
+			},
+			testCases: []testCase{
+				{
+					name:   "basic",
+					create: "subdir-d",
+					expect: []string{"subdir-d"},
+				},
+				{
+					name:   "subdir",
+					create: "subdir-d/subdir-e/subdir-f",
+					expect: []string{"subdir-d", "subdir-d/subdir-e", "subdir-d/subdir-e/subdir-f"},
+				},
+				{
+					name:   "dangling-link-itself",
+					create: "subdir-a/subdir-b/dangle1",
+					expect: []string{"subdir-a/subdir-b/dangle1-target"},
+				},
+				{
+					name:   "dangling-link-as-intermediate-parent",
+					create: "subdir-a/subdir-b/dangle2/final",
+					expect: []string{"subdir-a/dangle2-target", "subdir-a/dangle2-target/final"},
+				},
+				{
+					name:   "dangling-link-as-intermediate-grandparent",
+					create: "subdir-a/subdir-b/dangle3/final",
+					expect: []string{"dangle3-target", "dangle3-target/final"},
+				},
+				{
+					name:   "dangling-link-as-intermediate-attempted-relative-breakout",
+					create: "subdir-a/subdir-b/dangle4/final",
+					expect: []string{"dangle4-target", "dangle4-target/final"},
+				},
+				{
+					name:   "dangling-link-as-intermediate-attempted-relative-breakout-again",
+					create: "subdir-a/subdir-b/dangle5/final",
+					expect: []string{"dangle5-target", "dangle5-target/final"},
+				},
+				{
+					name:   "dangling-link-itself-absolute",
+					create: "subdir-a/subdir-b/dangle6",
+					expect: []string{"dangle6-target"},
+				},
+				{
+					name:   "dangling-link-as-intermediate-absolute",
+					create: "subdir-a/subdir-b/dangle6/final",
+					expect: []string{"dangle6-target", "dangle6-target/final"},
+				},
+				{
+					name:   "dangling-link-as-intermediate-absolute-relative-breakout",
+					create: "subdir-a/subdir-b/dangle7/final",
+					expect: []string{"dangle7-target", "dangle7-target/final"},
+				},
+				{
+					name:   "parent-parent-final",
+					create: "../../final",
+					expect: []string{"final"},
+				},
+				{
+					name:   "root-parent-final",
+					create: "/../final",
+					expect: []string{"final"},
+				},
+				{
+					name:   "root-parent-intermediate-parent-final",
+					create: "/../intermediate/../final",
+					expect: []string{"final"},
+				},
+			},
+		},
+	}
+	for i := range testArchives {
+		t.Run(testArchives[i].name, func(t *testing.T) {
+			for _, testCase := range testArchives[i].testCases {
+				t.Run(testCase.name, func(t *testing.T) {
+					dir, err := makeContextFromArchive(makeArchive(testArchives[i].headers, nil), "")
+					require.Nil(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, "")
+					defer os.RemoveAll(dir)
+					root := dir
+					options := MkdirOptions{ChownNew: &idtools.IDPair{UID: os.Getuid(), GID: os.Getgid()}}
+					var beforeNames, afterNames []string
+					err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+						if info == nil || err != nil {
+							return err
+						}
+						rel, err := filepath.Rel(dir, path)
+						if err != nil {
+							return err
+						}
+						beforeNames = append(beforeNames, rel)
+						return nil
+					})
+					require.Nil(t, err, "error walking directory to catalog pre-Mkdir contents: %v", err)
+					err = Mkdir(root, testCase.create, options)
+					require.Nil(t, err, "error creating directory %q under %q with Mkdir: %v", testCase.create, root, err)
+					err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+						if info == nil || err != nil {
+							return err
+						}
+						rel, err := filepath.Rel(dir, path)
+						if err != nil {
+							return err
+						}
+						afterNames = append(afterNames, rel)
+						return nil
+					})
+					require.Nil(t, err, "error walking directory to catalog post-Mkdir contents: %v", err)
+					expected := append([]string{}, beforeNames...)
+					for _, expect := range testCase.expect {
+						expected = append(expected, filepath.FromSlash(expect))
+					}
+					sort.Strings(expected)
+					sort.Strings(afterNames)
+					assert.Equal(t, expected, afterNames, "expected different paths")
+				})
+			}
+		})
+	}
+}
+
+func TestCleanerSubdirectory(t *testing.T) {
+	testCases := [][2]string{
+		{".", "."},
+		{"..", "."},
+		{"/", "."},
+		{"directory/subdirectory/..", "directory"},
+		{"directory/../..", "."},
+		{"../../directory", "directory"},
+		{"../directory/subdirectory", "directory/subdirectory"},
+		{"/directory/../..", "."},
+		{"/directory/../../directory", "directory"},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase[0], func(t *testing.T) {
+			cleaner := cleanerReldirectory(filepath.FromSlash(testCase[0]))
+			assert.Equal(t, testCase[1], filepath.ToSlash(cleaner), "expected to get %q, got %q", testCase[1], cleaner)
+		})
 	}
 }
