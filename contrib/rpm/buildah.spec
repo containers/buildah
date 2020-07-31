@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.15.0
+Version:        1.15.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,18 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Jul 17, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.1-1
+- Mask over the /sys/fs/selinux in mask branch 
+- chroot: do not use setgroups if it is blocked
+- chroot, run: not fail on bind mounts from /sys
+- Allow "readonly" as alias to "ro" in mount options
+- Add VFS additional image store to container
+- Ignore OS X specific consistency mount option
+- vendor golang.org/x/text@v0.3.3
+- Cirrus: Fix missing htpasswd in registry img
+- Switch scripts to use containers.conf 
+- Make imagebuildah.BuildOptions.Architecture/OS optional
+
 * Wed Jun 17, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-1
 - Bump github.com/containers/common from 0.12.0 to 0.13.1
 - Bump github.com/containers/storage from 1.20.1 to 1.20.2
