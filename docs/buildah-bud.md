@@ -327,15 +327,16 @@ The format of `LIMIT` is `<number>[<unit>]`. Unit can be `b` (bytes),
 `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you don't specify a
 unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
-**--net** *how*
-**--network** *how*
+**--network**, **--net**=*mode*
 
 Sets the configuration for network namespaces when handling `RUN` instructions.
-The configured value can be "" (the empty string) or "container" to indicate
-that a new network namespace should be created, or it can be "host" to indicate
-that the network namespace in which `buildah` itself is being run should be
-reused, or it can be the path to a network namespace which is already in use by
-another process.
+
+Valid _mode_ values are:
+
+- **none**: no networking;
+- **host**: use the Podman host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure;
+- **ns:**_path_: path to a network namespace to join;
+- `private`: create a new namespace for the container (default)
 
 **--no-cache**
 
@@ -357,7 +358,7 @@ Set the OS of the image to the provided value instead of using the current opera
 **--pid** *how*
 
 Sets the configuration for PID namespaces when handling `RUN` instructions.
-The configured value can be "" (the empty string) or "container" to indicate
+The configured value can be "" (the empty string) or "private" to indicate
 that a new PID namespace should be created, or it can be "host" to indicate
 that the PID namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a PID namespace which is already in use by another
@@ -492,7 +493,7 @@ include:
 **--userns** *how*
 
 Sets the configuration for user namespaces when handling `RUN` instructions.
-The configured value can be "" (the empty string) or "container" to indicate
+The configured value can be "" (the empty string) or "private" to indicate
 that a new user namespace should be created, it can be "host" to indicate that
 the user namespace in which `buildah` itself is being run should be reused, or
 it can be the path to an user namespace which is already in use by another

@@ -65,7 +65,7 @@ Set the hostname inside of the running container.
 **--ipc** *how*
 
 Sets the configuration for the IPC namespaces for the container.
-The configured value can be "" (the empty string) or "container" to indicate
+The configured value can be "" (the empty string) or "private" to indicate
 that a new IPC namespace should be created, or it can be "host" to indicate
 that the IPC namespace in which `buildah` itself is being run should be reused,
 or it can be the path to an IPC namespace which is already in use by another
@@ -116,20 +116,19 @@ Current supported mount TYPES are bind, and tmpfs. <sup>[[1]](#Footnote1)</sup>
 
               · tmpfs-mode: File mode of the tmpfs in octal. (e.g. 700 or 0700.) Defaults to 1777 in Linux.
 
-**--net** *how*
-**--network** *how*
+**--network**, **--net**=*mode*
 
 Sets the configuration for the network namespace for the container.
-The configured value can be "" (the empty string) or "container" to indicate
-that a new network namespace should be created, or it can be "host" to indicate
-that the network namespace in which `buildah` itself is being run should be
-reused, or it can be the path to a network namespace which is already in use by
-another process.
+
+- **none**: no networking;
+- **host**: use the Podman host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure;
+- **ns:**_path_: path to a network namespace to join;
+- `private`: create a new namespace for the container (default)
 
 **--pid** *how*
 
 Sets the configuration for the PID namespace for the container.
-The configured value can be "" (the empty string) or "container" to indicate
+The configured value can be "" (the empty string) or "private" to indicate
 that a new PID namespace should be created, or it can be "host" to indicate
 that the PID namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a PID namespace which is already in use by another
@@ -176,7 +175,7 @@ If names are used, the container should include entries for those names in its
 **--uts** *how*
 
 Sets the configuration for the UTS namespace for the container.
-The configured value can be "" (the empty string) or "container" to indicate
+The configured value can be "" (the empty string) or "private" to indicate
 that a new UTS namespace should be created, or it can be "host" to indicate
 that the UTS namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a UTS namespace which is already in use by another
