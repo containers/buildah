@@ -367,10 +367,15 @@ symlink(subdir)"
 }
 
 @test "bud-from-scratch-label" {
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+  want_output='map["io.buildah.version":"'$buildah_version'" "test":"label"]'
+
   target=scratch-image
   run_buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
-  expect_output 'map["test":"label"]'
+  expect_output "$want_output"
 }
 
 @test "bud-from-scratch-annotation" {
@@ -1789,12 +1794,17 @@ _EOF
 }
 
 @test "bud-no-change-label" {
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+  want_output='map["io.buildah.version":"'$buildah_version'" "test":"label"]'
+
   _prefetch alpine
   parent=alpine
   target=no-change-image
   run_buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
-  expect_output 'map["test":"label"]'
+  expect_output "$want_output"
 }
 
 @test "bud-no-change-annotation" {
@@ -2133,4 +2143,17 @@ EOM
   # Regression test for https://github.com/containers/buildah/issues/2192
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t testctr -f ${TESTSDIR}/bud/copy-chown/Containerfile.chown_user ${TESTSDIR}/bud/copy-chown
   expect_output --substring "myuser myuser"
+}
+
+@test "bud-builder-identity" {
+  _prefetch alpine
+  parent=alpine
+  target=no-change-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "io.buildah.version"}}' $target
+  expect_output "$buildah_version"
 }

@@ -1290,6 +1290,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		s.builder.SetHealthcheck(nil)
 	}
 	s.builder.ClearLabels()
+	s.builder.SetLabel(buildah.BuilderIdentityAnnotation, buildah.Version)
 	for k, v := range config.Labels {
 		s.builder.SetLabel(k, v)
 	}
