@@ -447,13 +447,6 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 				copiedTimestamp := *history[i].Created
 				created = &copiedTimestamp
 			}
-			// Check for the MAINTAINER line and add the base image from where
-			// this image was built
-
-			//if strings.Contains(history[i].CreatedBy, "MAINT") {
-			//	history[i].Comment = parent
-			//	logrus.Debugf("\n\n\n----> {image.go}: Adding parent image for the build: [%v]\n\n\n", parent)
-			//} // true
 
 			onews := v1.History{
 				Created:    created,

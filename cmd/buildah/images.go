@@ -120,8 +120,6 @@ func init() {
 
 func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 
-	fmt.Printf("Hey!! Diego here.\n")
-	
 	name := ""
 	if len(args) > 0 {
 		if iopts.all {
