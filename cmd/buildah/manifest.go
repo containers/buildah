@@ -558,13 +558,16 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 
 	refs, err := util.ResolveNameToReferences(store, systemContext, imageSpec)
 	if err != nil {
-		return errors.Wrapf(err, "error resolving image names")
+		logrus.Debugf("error parsing reference to image %q: %v", imageSpec, err)
 	}
 
 	if ref, _, err := util.FindImage(store, "", systemContext, imageSpec); err == nil {
 		refs = append(refs, ref)
 	} else if ref, err := alltransports.ParseImageName(imageSpec); err == nil {
 		refs = append(refs, ref)
+	}
+	if len(refs) == 0 {
+		return errors.Errorf("error locating images with names %v", imageSpec)
 	}
 
 	ctx := getContext()
