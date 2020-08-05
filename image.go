@@ -40,6 +40,7 @@ const (
 )
 
 type containerImageRef struct {
+	parentImage           string
 	store                 storage.Store
 	compression           archive.Compression
 	name                  reference.Named
@@ -170,11 +171,13 @@ func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, 
 
 	// Build an empty image, and then decode over it.
 	oimage := v1.Image{}
+
 	if err := json.Unmarshal(i.oconfig, &oimage); err != nil {
 		return v1.Image{}, v1.Manifest{}, docker.V2Image{}, docker.V2S2Manifest{}, err
 	}
 	// Always replace this value, since we're newer than our base image.
 	oimage.Created = &created
+
 	// Clear the list of diffIDs, since we always repopulate it.
 	oimage.RootFS.Type = docker.TypeLayers
 	oimage.RootFS.DiffIDs = []digest.Digest{}
@@ -240,6 +243,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		return nil, errors.Errorf("no supported manifest types (attempted to use %q, only know %q and %q)",
 			manifestType, v1.MediaTypeImageManifest, manifest.DockerV2Schema2MediaType)
 	}
+
 	// Start building the list of layers using the read-write layer.
 	layers := []string{}
 	layerID := i.layerID
@@ -414,12 +418,43 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 
 	// Build history notes in the image configurations.
 	appendHistory := func(history []v1.History) {
+		created := &time.Time{}
+		// Append the parent image, to know the base image used to execute this bulid.
+
+		parent := i.parentImage
+		logrus.Debugf("\n\n\n----> {image.go}: Adding parent image for the build: [%v]\n\n\n", parent)
+		onews := v1.History{
+			Created:    created,
+			CreatedBy:  parent,
+			Author:     "",
+			Comment:    "Where this image was taken from.",
+			EmptyLayer: true,
+		}
+		oimage.History = append(oimage.History, onews)
+
+		dnews := docker.V2S2History{
+			Created:    *created,
+			CreatedBy:  parent,
+			Author:     "",
+			Comment:    "Where this image was taken from.",
+			EmptyLayer: true,
+		}
+		dimage.History = append(dimage.History, dnews)
+
 		for i := range history {
 			var created *time.Time
 			if history[i].Created != nil {
 				copiedTimestamp := *history[i].Created
 				created = &copiedTimestamp
 			}
+			// Check for the MAINTAINER line and add the base image from where
+			// this image was built
+
+			//if strings.Contains(history[i].CreatedBy, "MAINT") {
+			//	history[i].Comment = parent
+			//	logrus.Debugf("\n\n\n----> {image.go}: Adding parent image for the build: [%v]\n\n\n", parent)
+			//} // true
+
 			onews := v1.History{
 				Created:    created,
 				CreatedBy:  history[i].CreatedBy,
@@ -441,6 +476,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			dimage.History = append(dimage.History, dnews)
 		}
 	}
+
 	appendHistory(i.preEmptyLayers)
 	onews := v1.History{
 		Created:    &i.created,
@@ -691,6 +727,7 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 	}
 
 	ref := &containerImageRef{
+		parentImage:           b.FromImage,
 		store:                 b.store,
 		compression:           options.Compression,
 		name:                  name,

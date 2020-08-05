@@ -1232,6 +1232,7 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 // the name if there is one, generating a unique ID-based one otherwise.
 func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer bool, output string) (string, reference.Canonical, error) {
 	ib := s.stage.Builder
+
 	var imageRef types.ImageReference
 	if output != "" {
 		imageRef2, err := s.executor.resolveNameToImageRef(output)
@@ -1344,6 +1345,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 			}
 		}
 	}
+
 	return imgID, ref, nil
 }
 

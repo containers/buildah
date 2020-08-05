@@ -292,6 +292,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		imageID = img.ID
 		topLayer = img.TopLayer
 	}
+
 	var src types.Image
 	if ref != nil {
 		srcSrc, err := ref.NewImageSource(ctx, systemContext)

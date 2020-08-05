@@ -588,6 +588,7 @@ func (s *storageImageDestination) computeID(m manifest.Manifest) string {
 // getConfigBlob exists only to let us retrieve the configuration blob so that the manifest package can dig
 // information out of it for Inspect().
 func (s *storageImageDestination) getConfigBlob(info types.BlobInfo) ([]byte, error) {
+
 	if info.Digest == "" {
 		return nil, errors.Errorf(`no digest supplied when reading blob`)
 	}
