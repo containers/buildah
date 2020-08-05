@@ -4,11 +4,17 @@
 
 ## Overview
 
-This directory contains the Dockerfiles necessary to create the three buildahimage container
-images that are housed on quay.io under the buildah account.  All three repositories where
+This directory contains the Dockerfiles necessary to create the buildahimage container
+images that are housed on quay.io under the buildah account.  All repositories where
 the images live are public and can be pulled without credentials.  These container images are secured and the
-resulting containers can run safely with privileges within the container.  The container images are built
-using the latest Fedora and then Buildah is installed into them:
+resulting containers can run safely with privileges within the container.
+
+The container images are built using the latest Fedora and then Buildah is installed into them.
+The PATH in the container images is set to the default PATH provided by Fedora.  Also, the
+ENTRYPOINT and the WORKDIR variables are not set within these container images, as such they
+default to `/`.
+
+The container images are:
 
   * quay.io/buildah/stable - This image is built using the latest stable version of Buildah in a Fedora based container.  Built with buildahimage/stable/Dockerfile.
   * quay.io/buildah/upstream - This image is built using the latest code found in this GitHub repository.  When someone creates a commit and pushes it, the image is created.  Due to that the image changes frequently and is not guaranteed to be stable.  Built with buildahimage/upstream/Dockerfile.
