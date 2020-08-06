@@ -434,6 +434,21 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	if t.Failed() {
 		t.FailNow()
 	}
+	deleteLabel := func(config map[string]interface{}, label string) {
+		for _, configName := range []string{"config", "container_config"} {
+			if configStruct, ok := config[configName]; ok {
+				if configMap, ok := configStruct.(map[string]interface{}); ok {
+					if labels, ok := configMap["Labels"]; ok {
+						if labelMap, ok := labels.(map[string]interface{}); ok {
+							delete(labelMap, label)
+						}
+					}
+				}
+			}
+		}
+	}
+	deleteLabel(originalBuildahConfig, buildah.BuilderIdentityAnnotation)
+	deleteLabel(ociBuildahConfig, buildah.BuilderIdentityAnnotation)
 
 	var originalDockerConfig, ociDockerConfig, fsDocker map[string]interface{}
 
