@@ -168,14 +168,26 @@ func before(cmd *cobra.Command) error {
 	return nil
 }
 
-func after(cmd *cobra.Command) error {
+func shutdownStore(cmd *cobra.Command) error {
 	if needToShutdownStore {
 		store, err := getStore(cmd)
 		if err != nil {
 			return err
 		}
-		_, _ = store.Shutdown(false)
+		logrus.Debugf("shutting down the store")
+		needToShutdownStore = false
+		if _, err = store.Shutdown(false); err != nil {
+			logrus.Warnf("failed to shutdown storage: %q", err)
+		}
 	}
+	return nil
+}
+
+func after(cmd *cobra.Command) error {
+	if err := shutdownStore(cmd); err != nil {
+		return err
+	}
+
 	if globalFlagResults.CPUProfile != "" {
 		pprof.StopCPUProfile()
 		globalFlagResults.cpuProfileFile.Close()
@@ -209,6 +221,9 @@ func main() {
 			if w, ok := ee.Sys().(syscall.WaitStatus); ok {
 				exitCode = w.ExitStatus()
 			}
+		}
+		if err := shutdownStore(rootCmd); err != nil {
+			logrus.Warnf("failed to shutdown storage: %q", err)
 		}
 		os.Exit(exitCode)
 	}
