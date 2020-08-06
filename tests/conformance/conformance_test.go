@@ -1341,6 +1341,16 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name:       "copy from subdir to new directory",
+		contextDir: "copydir",
+		dockerfileContents: strings.Join([]string{
+			"FROM scratch",
+			"COPY dir/file /subdir/",
+		}, "\n"),
+		fsSkip: []string{"(dir):subdir"},
+	},
+
+	{
 		name:       "copy to renamed file",
 		contextDir: "copyrename",
 		fsSkip:     []string{"(dir):usr:(dir):bin:mtime"},
