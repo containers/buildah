@@ -15,6 +15,12 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah manifest create foo
 }
 
+@test "manifest-inspect-id" {
+    run_buildah manifest create foo
+    cid=$output
+    run_buildah manifest inspect $cid
+}
+
 @test "manifest-add" {
     run_buildah manifest create foo
     run_buildah manifest add foo ${IMAGE_LIST}
