@@ -2157,3 +2157,16 @@ EOM
   run_buildah inspect --format '{{ index .Docker.Config.Labels "io.buildah.version"}}' $target
   expect_output "$buildah_version"
 }
+
+@test "run check --from with arg" {
+  skip_if_no_runtime
+
+  ${OCI} --version
+  _prefetch alpine 
+  _prefetch debian
+
+  run_buildah bud --build-arg base=alpine --build-arg toolchainname=busybox --build-arg destinationpath=/tmp --pull=false --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/from-with-arg/Containerfile .
+  expect_output --substring "FROM alpine"
+  expect_output --substring 'STEP 4: COPY --from=\$\{toolchainname\} \/ \$\{destinationpath\}'
+  run_buildah rm -a
+}

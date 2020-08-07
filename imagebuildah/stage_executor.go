@@ -296,6 +296,14 @@ func (s *StageExecutor) digestSpecifiedContent(ctx context.Context, node *parser
 			// container.  Update the ID mappings and
 			// all-content-comes-from-below-this-directory value.
 			from := strings.TrimPrefix(flag, "--from=")
+
+			// If from has an argument within it, resolve it to its
+			// value.  Otherwise just return the value found.
+			var fromErr error
+			from, fromErr = imagebuilder.ProcessWord(from, s.stage.Builder.Arguments())
+			if fromErr != nil {
+				return "", errors.Wrapf(fromErr, "unable to resolve argument %q", from)
+			}
 			if isStage, err := s.executor.waitForStage(ctx, from, s.stages[:s.index]); isStage && err != nil {
 				return "", err
 			}
@@ -886,6 +894,14 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				// If the source's name corresponds to the
 				// result of an earlier stage, wait for that
 				// stage to finish being built.
+
+				// If arr[1] has an argument within it, resolve it to its
+				// value.  Otherwise just return the value found.
+				var arr1Err error
+				arr[1], arr1Err = imagebuilder.ProcessWord(arr[1], s.stage.Builder.Arguments())
+				if arr1Err != nil {
+					return "", nil, errors.Wrapf(arr1Err, "unable to resolve argument %q", arr[1])
+				}
 				if isStage, err := s.executor.waitForStage(ctx, arr[1], s.stages[:s.index]); isStage && err != nil {
 					return "", nil, err
 				}
