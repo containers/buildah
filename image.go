@@ -422,7 +422,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		// Append the parent image, to know the base image used to execute this bulid.
 
 		parent := i.parentImage
-		logrus.Debugf("\n\n\n----> {image.go}: Adding parent image for the build: [%v]\n\n\n", parent)
+		logrus.Debugf("Adding parent image for the build = %s\n", parent)
 		onews := v1.History{
 			Created:    created,
 			CreatedBy:  parent,
