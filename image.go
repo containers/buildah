@@ -40,6 +40,7 @@ const (
 )
 
 type containerImageRef struct {
+	parentImage           string
 	store                 storage.Store
 	compression           archive.Compression
 	name                  reference.Named
@@ -414,6 +415,28 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 
 	// Build history notes in the image configurations.
 	appendHistory := func(history []v1.History) {
+		currTime := time.Now()
+		created := &currTime
+
+		parent := i.parentImage
+		logrus.Debugf("Adding parent image for the build = %s\n", parent)
+		onews := v1.History{
+			Created:    created,
+			CreatedBy:  parent,
+			Author:     "",
+			Comment:    "FROM parent image:",
+			EmptyLayer: true,
+		}
+		oimage.History = append(oimage.History, onews)
+
+		dnews := docker.V2S2History{
+			Created:    *created,
+			CreatedBy:  parent,
+			Author:     "",
+			Comment:    "FROM parent image:",
+			EmptyLayer: true,
+		}
+		dimage.History = append(dimage.History, dnews)
 		for i := range history {
 			var created *time.Time
 			if history[i].Created != nil {
@@ -691,6 +714,7 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 	}
 
 	ref := &containerImageRef{
+		parentImage:           b.FromImage,
 		store:                 b.store,
 		compression:           options.Compression,
 		name:                  name,
