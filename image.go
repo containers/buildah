@@ -43,6 +43,8 @@ const (
 )
 
 type containerImageRef struct {
+	fromImageName         string
+	fromImageID           string
 	store                 storage.Store
 	compression           archive.Compression
 	name                  reference.Named
@@ -483,11 +485,16 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 	if i.created != nil {
 		created = (*i.created).UTC()
 	}
+	comment := i.historyComment
+	// Add a comment for which base image is being used
+	if strings.Contains(i.parent, i.fromImageID) && i.fromImageName != i.fromImageID {
+		comment += "FROM " + i.fromImageName
+	}
 	onews := v1.History{
 		Created:    &created,
 		CreatedBy:  i.createdBy,
 		Author:     oimage.Author,
-		Comment:    i.historyComment,
+		Comment:    comment,
 		EmptyLayer: i.emptyLayer,
 	}
 	oimage.History = append(oimage.History, onews)
@@ -495,7 +502,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		Created:    created,
 		CreatedBy:  i.createdBy,
 		Author:     dimage.Author,
-		Comment:    i.historyComment,
+		Comment:    comment,
 		EmptyLayer: i.emptyLayer,
 	}
 	dimage.History = append(dimage.History, dnews)
@@ -729,6 +736,8 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 	}
 
 	ref := &containerImageRef{
+		fromImageName:         b.FromImage,
+		fromImageID:           b.FromImageID,
 		store:                 b.store,
 		compression:           options.Compression,
 		name:                  name,
