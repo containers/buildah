@@ -730,7 +730,7 @@ the context directory, when executing COPY and ADD directives in the
 Containerfile/Dockerfile
 
 Users can specify a series of Unix shell globals in a .dockerignore file to
-identify files to exclude.
+identify files/directories to exclude.
 
 Buildah supports a special wildcard string `**` which matches any number of
 directories (including zero). For example, **/*.go will exclude all files that
@@ -739,32 +739,32 @@ end with .go that are found in all directories.
 Example .dockerignore file:
 
 ```
-# comment
-*/temp*
-**/temp*
-temp?
+# exclude this content for image
+*/*.c
+**/output*
+src
 ```
 
-`*/temp*`
-Excludes files and directories whose names start with temp in any immediate subdirectory of the root. For example, the plain file /somedir/temporary.txt is excluded, as is the directory /somedir/temp.
+`*/*.c`
+Excludes files and directories whose names ends with .c in any top level subdirectory. For example, the source file include/rootless.c.
 
-`**/temp*`
-Excludes files and directories starting with temp from any subdirectory.
+`**/output*`
+Excludes files and directories starting with `output` from any directory.
 
-`temp?`
-Excludes files and directories in the root directory whose names are a one-character extension of temp. For example, /tempa and /tempb are excluded.
+`src`
+Excludes files named src and the directory src as well as any content in it.
 
 Lines starting with ! (exclamation mark) can be used to make exceptions to
 exclusions. The following is an example .dockerignore file that uses this
 mechanism:
 ```
-*.md
-!README.md
+*.doc
+!Help.doc
 ```
 
-All markdown files except README.md are excluded from the context.
+Exclude all doc files except Help.doc from the image.
 
-For more information see:
+This functionality is compatible with the handling of .dockerignore files described here:
 
 https://docs.docker.com/engine/reference/builder/#dockerignore-file
 
