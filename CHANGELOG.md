@@ -2,8 +2,12 @@
 
 # Changelog
 
+## v1.14.11 (2020-08-10)
+    Make imagebuildah.BuildOptions.Architecture/OS optional
+    blobcache: avoid an unnecessary NewImage()
+
 ## v1.14.10 (2020-06-18)
-    imagebuildah: stages shouldn't count as their base images 
+    imagebuildah: stages shouldn't count as their base images
 
 ## v1.14.9 (2020-05-11)
     Bump github.com/containers/common to 0.8.4
