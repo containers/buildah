@@ -64,7 +64,7 @@ value can be entered.  The password is entered without echo.
 
 **--decryption-key** *key[:passphrase]*
 
-The [key[:passphrase]] to be used for decryption of images. Key can point to keys and/or certificates. Decryption will be tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and ommitted otherwise.
+The [key[:passphrase]] to be used for decryption of images. Key can point to keys and/or certificates. Decryption will be tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and omitted otherwise.
 
 **--quiet, -q**
 

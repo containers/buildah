@@ -2170,3 +2170,21 @@ EOM
   expect_output --substring 'STEP 4: COPY --from=\$\{toolchainname\} \/ \$\{destinationpath\}'
   run_buildah rm -a
 }
+
+@test "bud omit-timestamp" {
+  _prefetch alpine
+  run_buildah bud --omit-timestamp --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json -t omit -f Dockerfile.1 bud/cache-stages
+  cid=$output
+  run_buildah inspect --format '{{ .Docker.Created }}' omit
+  expect_output --substring "1970-01-01"
+  run_buildah inspect --format '{{ .OCIv1.Created }}' omit
+  expect_output --substring "1970-01-01"
+
+
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json omit
+  cid=$output
+  run_buildah run $cid ls -l /tmpfile
+  expect_output --substring "1970"
+
+  rm -rf ${TESTDIR}/tmp
+}

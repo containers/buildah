@@ -335,6 +335,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		MaxPullPushRetries:      maxPullPushRetries,
 		NamespaceOptions:        namespaceOptions,
 		NoCache:                 iopts.NoCache,
+		OmitTimestamp:           iopts.OmitTimestamp,
 		OS:                      imageOS,
 		Out:                     stdout,
 		Output:                  output,
