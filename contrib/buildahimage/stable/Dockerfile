@@ -11,7 +11,7 @@ FROM registry.fedoraproject.org/fedora:latest
 # Don't include container-selinux and remove
 # directories used by yum that are just taking
 # up space.
-RUN useradd build; yum -y update; yum -y reinstall shadow-utils; yum -y install buildah fuse-overlayfs --exclude container-selinux; rm -rf /var/cache /var/log/dnf* /var/log/yum.*;
+RUN useradd build; yum -y update; yum -y reinstall shadow-utils; yum -y install buildah fuse-overlayfs xz --exclude container-selinux; rm -rf /var/cache /var/log/dnf* /var/log/yum.*;
 
 ADD https://raw.githubusercontent.com/containers/buildah/master/contrib/buildahimage/stable/containers.conf /etc/containers/
 
