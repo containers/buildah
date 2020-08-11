@@ -1237,7 +1237,7 @@ function _test_http() {
   _prefetch ubuntu
   imgName=ubuntu-image
   ctrName=ubuntu-copy
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.invalid_from -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths || true
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.invalid_from -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths
   expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
 }
 
@@ -2162,7 +2162,7 @@ EOM
   skip_if_no_runtime
 
   ${OCI} --version
-  _prefetch alpine 
+  _prefetch alpine
   _prefetch debian
 
   run_buildah bud --build-arg base=alpine --build-arg toolchainname=busybox --build-arg destinationpath=/tmp --pull=false --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/from-with-arg/Containerfile .

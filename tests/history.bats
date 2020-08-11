@@ -11,9 +11,11 @@ function testconfighistory() {
   run_buildah config $config --add-history "$container"
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$container" "$image"
   run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' "$image"
-  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' "$image" | grep "$expected"
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' "$image"
+  expect_output --substring "$expected"
   if test "$3" != "not-oci" ; then
-    run_buildah inspect --format '{{range .OCIv1.History}}{{println .CreatedBy}}{{end}}' "$image" | grep "$expected"
+      run_buildah inspect --format '{{range .OCIv1.History}}{{println .CreatedBy}}{{end}}' "$image"
+      expect_output --substring "$expected"
   fi
 }
 

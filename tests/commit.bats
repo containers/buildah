@@ -31,8 +31,12 @@ load helpers
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-oci
   run_buildah commit --format docker --disable-compression=false --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-docker
 
-  run_buildah inspect --type=image --format '{{.Manifest}}' alpine-image-oci | grep "application/vnd.oci.image.layer.v1.tar"
-  run_buildah inspect --type=image --format '{{.Manifest}}' alpine-image-docker | grep "application/vnd.docker.image.rootfs.diff.tar.gzip"
+  run_buildah inspect --type=image --format '{{.Manifest}}' alpine-image-oci
+  mediatype=$(jq -r '.layers[0].mediaType' <<<"$output")
+  expect_output --from="$mediatype" "application/vnd.oci.image.layer.v1.tar"
+  run_buildah inspect --type=image --format '{{.Manifest}}' alpine-image-docker
+  mediatype=$(jq -r '.layers[1].mediaType' <<<"$output")
+  expect_output --from="$mediatype" "application/vnd.docker.image.rootfs.diff.tar.gzip"
 }
 
 @test "commit quiet test" {
