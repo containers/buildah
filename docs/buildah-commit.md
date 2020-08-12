@@ -10,7 +10,9 @@ buildah\-commit - Create an image from a working container.
 Writes a new image using the specified container's read-write layer and if it
 is based on an image, the layers of that image.  If *image* does not begin
 with a registry name component, `localhost` will be added to the name.  If
-*image* is not provided, the image will have no name.  When an image has no name, the `buildah images` command will display `<none>` in the REPOSITORY and TAG columns. 
+*image* is not provided, the image will have no name.  When an image has no
+name, the `buildah images` command will display `<none>` in the REPOSITORY and
+TAG columns.
 
 ## RETURN VALUE
 The image ID of the image that was created.  On error, 1 is returned and errno is returned.
@@ -140,4 +142,4 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), containers-policy.json(5), containers-registries.conf(5)
+buildah(1), buildah-images(1), containers-policy.json(5), containers-registries.conf(5)
