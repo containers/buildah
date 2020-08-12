@@ -29,6 +29,7 @@ RUN useradd build; yum -y update; yum -y reinstall shadow-utils; yum -y install 
      libseccomp-devel \
      git \
      bzip2 \
+     xz \
      go-md2man \
      runc \
      fuse-overlayfs \
