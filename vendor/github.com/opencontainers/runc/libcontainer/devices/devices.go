@@ -37,12 +37,12 @@ func DeviceFromPath(path, permissions string) (*configs.Device, error) {
 		major     = unix.Major(devNumber)
 		minor     = unix.Minor(devNumber)
 	)
-	switch mode & unix.S_IFMT {
-	case unix.S_IFBLK:
+	switch {
+	case mode&unix.S_IFBLK == unix.S_IFBLK:
 		devType = configs.BlockDevice
-	case unix.S_IFCHR:
+	case mode&unix.S_IFCHR == unix.S_IFCHR:
 		devType = configs.CharDevice
-	case unix.S_IFIFO:
+	case mode&unix.S_IFIFO == unix.S_IFIFO:
 		devType = configs.FifoDevice
 	default:
 		return nil, ErrNotADevice
@@ -103,9 +103,6 @@ func GetDevices(path string) ([]*configs.Device, error) {
 				continue
 			}
 			return nil, err
-		}
-		if device.Type == configs.FifoDevice {
-			continue
 		}
 		out = append(out, device)
 	}

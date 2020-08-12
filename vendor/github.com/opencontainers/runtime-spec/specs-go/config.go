@@ -90,7 +90,7 @@ type User struct {
 	// GID is the group id.
 	GID uint32 `json:"gid" platform:"linux,solaris"`
 	// Umask is the umask for the init process.
-	Umask *uint32 `json:"umask,omitempty" platform:"linux,solaris"`
+	Umask uint32 `json:"umask,omitempty" platform:"linux,solaris"`
 	// AdditionalGids are additional group ids set for the container's process.
 	AdditionalGids []uint32 `json:"additionalGids,omitempty" platform:"linux,solaris"`
 	// Username is the user name.
