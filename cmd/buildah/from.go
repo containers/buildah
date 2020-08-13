@@ -88,6 +88,7 @@ func init() {
 		os.Exit(1)
 	}
 	flags.AddFlagSet(&fromAndBudFlags)
+	flags.SetNormalizeFunc(buildahcli.AliasFlags)
 
 	rootCmd.AddCommand(fromCommand)
 }

@@ -78,6 +78,7 @@ func init() {
 
 	flags.AddFlagSet(&userFlags)
 	flags.AddFlagSet(&namespaceFlags)
+	flags.SetNormalizeFunc(buildahcli.AliasFlags)
 
 	rootCmd.AddCommand(runCommand)
 }

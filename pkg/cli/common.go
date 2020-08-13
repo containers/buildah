@@ -127,17 +127,12 @@ func GetUserNSFlags(flags *UserNSResults) pflag.FlagSet {
 // GetNameSpaceFlags returns the common flags for a namespace menu
 func GetNameSpaceFlags(flags *NameSpaceResults) pflag.FlagSet {
 	fs := pflag.FlagSet{}
-	fs.StringVar(&flags.IPC, string(specs.IPCNamespace), "", "'container', `path` of IPC namespace to join, or 'host'")
-	fs.StringVar(&flags.Network, string(specs.NetworkNamespace), "", "'container', `path` of network namespace to join, or 'host'")
-	// TODO How do we alias net and network?
-	fs.StringVar(&flags.Network, "net", "", "'container', `path` of network namespace to join, or 'host'")
-	if err := fs.MarkHidden("net"); err != nil {
-		panic(fmt.Sprintf("error marking net flag as hidden: %v", err))
-	}
+	fs.StringVar(&flags.IPC, string(specs.IPCNamespace), "", "'private', `path` of IPC namespace to join, or 'host'")
+	fs.StringVar(&flags.Network, string(specs.NetworkNamespace), "", "'private', 'none', 'ns:path' of network namespace to join, or 'host'")
 	fs.StringVar(&flags.CNIConfigDir, "cni-config-dir", util.DefaultCNIConfigDir, "`directory` of CNI configuration files")
 	fs.StringVar(&flags.CNIPlugInPath, "cni-plugin-path", util.DefaultCNIPluginPath, "`path` of CNI network plugins")
-	fs.StringVar(&flags.PID, string(specs.PIDNamespace), "", "container, `path` of PID namespace to join, or 'host'")
-	fs.StringVar(&flags.UTS, string(specs.UTSNamespace), "", "container, :`path` of UTS namespace to join, or 'host'")
+	fs.StringVar(&flags.PID, string(specs.PIDNamespace), "", "private, `path` of PID namespace to join, or 'host'")
+	fs.StringVar(&flags.UTS, string(specs.UTSNamespace), "", "private, :`path` of UTS namespace to join, or 'host'")
 	return fs
 }
 
@@ -283,4 +278,13 @@ func VerifyFlagsArgsOrder(args []string) error {
 		}
 	}
 	return nil
+}
+
+// aliasFlags is a function to handle backwards compatibility with old flags
+func AliasFlags(f *pflag.FlagSet, name string) pflag.NormalizedName {
+	switch name {
+	case "net":
+		name = "network"
+	}
+	return pflag.NormalizedName(name)
 }

@@ -79,6 +79,7 @@ func init() {
 	flags.AddFlagSet(&budFlags)
 	flags.AddFlagSet(&layerFlags)
 	flags.AddFlagSet(&fromAndBudFlags)
+	flags.SetNormalizeFunc(buildahcli.AliasFlags)
 
 	rootCmd.AddCommand(budCommand)
 }

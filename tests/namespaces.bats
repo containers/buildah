@@ -65,6 +65,11 @@ load helpers
   if [[ $output == $mynetns ]]; then
       expect_output "[output should not be '$mynetns']"
   fi
+
+  run_buildah run $RUNOPTS --net=private "$ctr" readlink /proc/self/ns/net
+  if [[ $output == $mynetns ]]; then
+      expect_output "[output should not be '$mynetns']"
+  fi
 }
 
 @test "idmapping" {
@@ -229,6 +234,8 @@ general_namespace() {
   types[1]=container
   types[2]=host
   types[3]=/proc/$$/ns/$nstype
+  types[4]=private
+  types[5]=ns:/proc/$$/ns/$nstype
 
   _prefetch alpine
   for namespace in "${types[@]}" ; do
@@ -241,7 +248,7 @@ general_namespace() {
     run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/"$nstype"
     [ "$output" != "" ]
     case "$namespace" in
-    ""|container)
+    ""|container|private)
       [ "$output" != "$mynamespace" ]
       ;;
     host)
@@ -257,7 +264,7 @@ general_namespace() {
       run_buildah run $RUNOPTS --"$nsflag"=$different "$ctr" readlink /proc/self/ns/"$nstype"
       [ "$output" != "" ]
       case "$different" in
-      ""|container)
+      ""|container|private)
         [ "$output" != "$mynamespace" ]
         ;;
       host)
@@ -320,13 +327,13 @@ general_namespace() {
 
   _prefetch alpine
   # mnt is always per-container, cgroup isn't a thing OCI runtime lets us configure
-  for ipc in host container ; do
-    for net in host container ; do
-      for pid in host container ; do
-        for userns in host container ; do
-          for uts in host container ; do
+  for ipc in host container private ; do
+    for net in host container private; do
+      for pid in host container private; do
+        for userns in host container private; do
+          for uts in host container private; do
 
-            if test $userns == container -a $pid == host ; then
+            if test $userns == private -o $userns == container -a $pid == host ; then
               # We can't mount a fresh /proc, and OCI runtime won't let us bind mount the host's.
               continue
             fi
