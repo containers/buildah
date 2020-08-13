@@ -1080,6 +1080,31 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	return imgID, ref, nil
 }
 
+func historyEntriesEqual(base, derived v1.History) bool {
+	if base.CreatedBy != derived.CreatedBy {
+		return false
+	}
+	if base.Comment != derived.Comment {
+		return false
+	}
+	if base.Author != derived.Author {
+		return false
+	}
+	if base.EmptyLayer != derived.EmptyLayer {
+		return false
+	}
+	if base.Created != nil && derived.Created == nil {
+		return false
+	}
+	if base.Created == nil && derived.Created != nil {
+		return false
+	}
+	if base.Created != nil && derived.Created != nil && !base.Created.Equal(*derived.Created) {
+		return false
+	}
+	return true
+}
+
 // historyMatches returns true if a candidate history matches the history of our
 // base image (if we have one), plus the current instruction.
 // Used to verify whether a cache of the intermediate image exists and whether
@@ -1092,25 +1117,7 @@ func (s *StageExecutor) historyMatches(baseHistory []v1.History, child *parser.N
 		return false
 	}
 	for i := range baseHistory {
-		if baseHistory[i].CreatedBy != history[i].CreatedBy {
-			return false
-		}
-		if baseHistory[i].Comment != history[i].Comment {
-			return false
-		}
-		if baseHistory[i].Author != history[i].Author {
-			return false
-		}
-		if baseHistory[i].EmptyLayer != history[i].EmptyLayer {
-			return false
-		}
-		if baseHistory[i].Created != nil && history[i].Created == nil {
-			return false
-		}
-		if baseHistory[i].Created == nil && history[i].Created != nil {
-			return false
-		}
-		if baseHistory[i].Created != nil && history[i].Created != nil && *baseHistory[i].Created != *history[i].Created {
+		if !historyEntriesEqual(baseHistory[i], history[i]) {
 			return false
 		}
 	}
