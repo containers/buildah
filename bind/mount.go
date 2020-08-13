@@ -36,11 +36,6 @@ func SetupIntermediateMountNamespace(spec *specs.Spec, bundlePath string) (unmou
 		return nil, errors.Wrapf(err, "error creating new mount namespace for %v", spec.Process.Args)
 	}
 
-	// Make all of our mounts private to our namespace.
-	if err := mount.MakeRPrivate("/"); err != nil {
-		return nil, errors.Wrapf(err, "error making mounts private to mount namespace for %v", spec.Process.Args)
-	}
-
 	// Make sure the bundle directory is searchable.  We created it with
 	// TempDir(), so it should have started with permissions set to 0700.
 	info, err := os.Stat(bundlePath)
