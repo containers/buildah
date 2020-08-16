@@ -1356,6 +1356,12 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name:       "copy from symlink source",
+		contextDir: "copysymlink",
+		fsSkip:     []string{},
+	},
+
+	{
 		name:       "copy from subdir to new directory",
 		contextDir: "copydir",
 		dockerfileContents: strings.Join([]string{

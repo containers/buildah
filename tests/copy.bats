@@ -206,6 +206,29 @@ load helpers
   cmp ${TESTDIR}/randomfile $newroot/link-randomfile
 }
 
+@test "copy-symlink-archive-suffix" {
+  createrandom ${TESTDIR}/randomfile.tar.gz
+  ln -s ${TESTDIR}/randomfile.tar.gz ${TESTDIR}/link-randomfile.tar.gz
+
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
+  run_buildah config --workingdir / $cid
+  run_buildah copy $cid ${TESTDIR}/link-randomfile.tar.gz
+  run_buildah unmount $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah rm $cid
+
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
+  test -s $newroot/link-randomfile.tar.gz
+  test -f $newroot/link-randomfile.tar.gz
+  cmp ${TESTDIR}/randomfile.tar.gz $newroot/link-randomfile.tar.gz
+}
+
 @test "copy-detect-missing-data" {
   _prefetch busybox
 
