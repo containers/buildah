@@ -77,6 +77,16 @@ case "$OS_REL_VER" in
         $LONG_DNFY install \
              '@C Development Tools and Libraries' '@Development Tools' \
             $FEDORA_PACKAGES
+
+        # Not executing IN_PODMAN container
+        if [[ -z "$CONTAINER" ]]; then
+            echo "Adding secondary testing partition & growing root filesystem"
+            bash $SCRIPT_BASE/add_second_partition.sh
+
+            echo "TODO: Add (for htpasswd) to VM images (in libpod repo)"
+            dnf install -y httpd-tools
+        fi
+
         # Executing tests in a container requires SELinux boolean set on the host
         if [[ "$IN_PODMAN" == "true" ]]
         then

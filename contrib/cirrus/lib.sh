@@ -223,6 +223,7 @@ in_podman() {
                    --cap-add=all \
                    -e "GOPATH=$GOPATH" \
                    -e "IN_PODMAN=false" \
+                   -e "CONTAINER=podman" \
                    -e "DIST=$OS_RELEASE_ID" \
                    -e "CGROUP_MANAGER=cgroupfs" \
                    -v "$GOSRC:$GOSRC:z" \
