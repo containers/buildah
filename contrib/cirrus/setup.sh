@@ -8,6 +8,7 @@ set -e
 #      are similar.
 
 UBUNTU_PACKAGES="
+    apache2-utils
     aufs-tools
     bats
     bzip2
@@ -49,6 +50,7 @@ FEDORA_PACKAGES="
     go-md2man
     golang
     gpgme-devel
+    httpd-tools
     libassuan-devel
     libseccomp-devel
     make
