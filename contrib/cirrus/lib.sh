@@ -234,6 +234,7 @@ in_podman() {
     for envname in $(awk 'BEGIN{for(v in ENVIRON) print v}' | \
                      egrep "$envrx" | \
                      egrep -v "CIRRUS_.+_MESSAGE" | \
+                     egrep -v "CIRRUS_.+_TITLE" | \
                      egrep -v "$SECRET_ENV_RE")
     do
         envvalue="${!envname}"
