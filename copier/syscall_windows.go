@@ -3,6 +3,7 @@
 package copier
 
 import (
+	"errors"
 	"os"
 	"syscall"
 	"time"
@@ -14,10 +15,6 @@ var canChroot = false
 
 func chroot(path string) (bool, error) {
 	return false, nil
-}
-
-func getcwd() (string, error) {
-	return windows.Getwd()
 }
 
 func chrMode(mode os.FileMode) uint32 {
@@ -40,6 +37,30 @@ func mknod(path string, mode uint32, dev int) error {
 	return syscall.ENOSYS
 }
 
+func chmod(path string, mode os.FileMode) error {
+	err := os.Chmod(path, mode)
+	if err != nil && errors.Is(err, syscall.EWINDOWS) {
+		return nil
+	}
+	return err
+}
+
+func chown(path string, uid, gid int) error {
+	err := os.Chown(path, uid, gid)
+	if err != nil && errors.Is(err, syscall.EWINDOWS) {
+		return nil
+	}
+	return err
+}
+
+func lchown(path string, uid, gid int) error {
+	err := os.Lchown(path, uid, gid)
+	if err != nil && errors.Is(err, syscall.EWINDOWS) {
+		return nil
+	}
+	return err
+}
+
 func lutimes(isSymlink bool, path string, atime, mtime time.Time) error {
 	if isSymlink {
 		return nil
@@ -55,3 +76,8 @@ func lutimes(isSymlink bool, path string, atime, mtime time.Time) error {
 	}
 	return windows.UtimesNano(path, []windows.Timespec{windows.NsecToTimespec(atime.UnixNano()), windows.NsecToTimespec(mtime.UnixNano())})
 }
+
+const (
+	testModeMask           = int64(0600)
+	testIgnoreSymlinkDates = true
+)
