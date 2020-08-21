@@ -277,6 +277,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		var copyExcludes []string
 		stripSetuid := false
 		stripSetgid := false
+		preserveOwnership := false
 		contextDir := s.executor.contextDir
 		if len(copy.From) > 0 {
 			// If from has an argument within it, resolve it to its
@@ -297,6 +298,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			} else {
 				return errors.Errorf("the stage %q has not been built", copy.From)
 			}
+			preserveOwnership = true
 			copyExcludes = excludes
 		} else {
 			copyExcludes = append(s.executor.excludes, excludes...)
@@ -317,12 +319,13 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			}
 		}
 		options := buildah.AddAndCopyOptions{
-			Chown:            copy.Chown,
-			ContextDir:       contextDir,
-			Excludes:         copyExcludes,
-			IDMappingOptions: idMappingOptions,
-			StripSetuidBit:   stripSetuid,
-			StripSetgidBit:   stripSetgid,
+			Chown:             copy.Chown,
+			PreserveOwnership: preserveOwnership,
+			ContextDir:        contextDir,
+			Excludes:          copyExcludes,
+			IDMappingOptions:  idMappingOptions,
+			StripSetuidBit:    stripSetuid,
+			StripSetgidBit:    stripSetgid,
 		}
 		if err := s.builder.Add(copy.Dest, copy.Download, options, sources...); err != nil {
 			return errors.Wrapf(err, "error adding sources %v", sources)

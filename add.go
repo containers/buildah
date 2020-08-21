@@ -29,8 +29,12 @@ import (
 type AddAndCopyOptions struct {
 	// Chown is a spec for the user who should be given ownership over the
 	// newly-added content, potentially overriding permissions which would
-	// otherwise match those of local files and directories being copied.
+	// otherwise be set to 0:0.
 	Chown string
+	// PreserveOwnership, if Chown is not set, tells us to avoid setting
+	// ownership of copied items to 0:0, instead using whatever ownership
+	// information is already set.  Not meaningful for remote sources.
+	PreserveOwnership bool
 	// All of the data being copied will pass through Hasher, if set.
 	// If the sources are URLs or files, their contents will be passed to
 	// Hasher.
@@ -208,6 +212,10 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	}
 	chownDirs = &idtools.IDPair{UID: int(user.UID), GID: int(user.GID)}
 	chownFiles = &idtools.IDPair{UID: int(user.UID), GID: int(user.GID)}
+	if options.Chown == "" && options.PreserveOwnership {
+		chownDirs = nil
+		chownFiles = nil
+	}
 
 	// If we have a single source archive to extract, or more than one
 	// source item, or the destination has a path separator at the end of
