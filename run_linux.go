@@ -869,7 +869,7 @@ func runUsingRuntime(isolation Isolation, options RunOptions, configureNetwork b
 			return 1, errors.Wrapf(stateErr, "error reading container state")
 		}
 		if err = json.Unmarshal(stateOutput, &state); err != nil {
-			return 1, errors.Wrapf(stateErr, "error parsing container state %q", string(stateOutput))
+			return 1, errors.Wrapf(err, "error parsing container state %q", string(stateOutput))
 		}
 		switch state.Status {
 		case "running":
