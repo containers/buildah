@@ -29,9 +29,10 @@ load helpers
   run_buildah add $cid ${TESTDIR}/randomfile /subdir
   # Copy two files to a specific subdirectory
   run_buildah add $cid ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile /other-subdir
+  # Copy two files to a specific location, which succeeds because we can create it as a directory.
+  run_buildah add $cid ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile /notthereyet-subdir
   # Copy two files to a specific location, which fails because it's not a directory.
-  run_buildah 125 add ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile $cid /notthereyet-subdir
-  run_buildah 125 add ${TESTDIR}/randomfile $cid ${TESTDIR}/other-randomfile /randomfile
+  run_buildah 125 add $cid ${TESTDIR}/randomfile ${TESTDIR}/other-randomfile /randomfile
   # Copy a file to a different working directory
   run_buildah config --workingdir=/cwd $cid
   run_buildah add $cid ${TESTDIR}/randomfile

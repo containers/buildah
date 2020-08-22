@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/docker"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/image"
@@ -21,6 +22,7 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
+	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
@@ -58,7 +60,7 @@ type containerImageRef struct {
 	exporting             bool
 	squash                bool
 	emptyLayer            bool
-	tarPath               func(path string) (io.ReadCloser, error)
+	idMappingOptions      *IDMappingOptions
 	parent                string
 	blobDirectory         string
 	preEmptyLayers        []v1.History
@@ -142,16 +144,25 @@ func computeLayerMIMEType(what string, layerCompression archive.Compression) (om
 
 // Extract the container's whole filesystem as if it were a single layer.
 func (i *containerImageRef) extractRootfs() (io.ReadCloser, error) {
+	var uidMap, gidMap []idtools.IDMap
 	mountPoint, err := i.store.Mount(i.containerID, i.mountLabel)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error mounting container %q", i.containerID)
 	}
-	rc, err := i.tarPath(mountPoint)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error extracting rootfs from container %q", i.containerID)
-	}
-	return ioutils.NewReadCloserWrapper(rc, func() error {
-		if err = rc.Close(); err != nil {
+	pipeReader, pipeWriter := io.Pipe()
+	go func() {
+		if i.idMappingOptions != nil {
+			uidMap, gidMap = convertRuntimeIDMaps(i.idMappingOptions.UIDMap, i.idMappingOptions.GIDMap)
+		}
+		copierOptions := copier.GetOptions{
+			UIDMap: uidMap,
+			GIDMap: gidMap,
+		}
+		err = copier.Get(mountPoint, mountPoint, copierOptions, []string{"."}, pipeWriter)
+		pipeWriter.Close()
+	}()
+	return ioutils.NewReadCloserWrapper(pipeReader, func() error {
+		if err = pipeReader.Close(); err != nil {
 			err = errors.Wrapf(err, "error closing tar archive of container %q", i.containerID)
 		}
 		if _, err2 := i.store.Unmount(i.containerID, false); err == nil {
@@ -414,7 +425,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		} else {
 			size = counter.Count
 		}
-		logrus.Debugf("%s size is %d bytes", what, size)
+		logrus.Debugf("%s size is %d bytes, uncompressed digest %s, possibly-compressed digest %s", what, size, srcHasher.Digest().String(), destHasher.Digest().String())
 		// Rename the layer so that we can more easily find it by digest later.
 		finalBlobName := filepath.Join(path, destHasher.Digest().String())
 		if err = os.Rename(filepath.Join(path, "layer"), finalBlobName); err != nil {
@@ -735,7 +746,7 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 		exporting:             exporting,
 		squash:                options.Squash,
 		emptyLayer:            options.EmptyLayer && !options.Squash,
-		tarPath:               b.tarPath(&b.IDMappingOptions),
+		idMappingOptions:      &b.IDMappingOptions,
 		parent:                parent,
 		blobDirectory:         options.BlobDirectory,
 		preEmptyLayers:        b.PrependedEmptyLayers,

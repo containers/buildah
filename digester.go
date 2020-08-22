@@ -82,6 +82,10 @@ func (t *tarFilterer) Close() error {
 // newTarFilterer passes one or more tar archives through to an io.WriteCloser
 // as a single archive, potentially calling filter to modify headers and
 // contents as it goes.
+//
+// Note: if "filter" indicates that a given item should be skipped, there is no
+// guarantee that there will not be a subsequent item of type TypeLink, which
+// is a hard link, which points to the skipped item as the link target.
 func newTarFilterer(writeCloser io.WriteCloser, filter func(hdr *tar.Header) (skip, replaceContents bool, replacementContents io.Reader)) io.WriteCloser {
 	pipeReader, pipeWriter := io.Pipe()
 	tarWriter := tar.NewWriter(writeCloser)

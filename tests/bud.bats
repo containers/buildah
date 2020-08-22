@@ -12,13 +12,18 @@ load helpers
 
 @test "bud with .dockerignore" {
   _prefetch alpine busybox
-  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
+  run_buildah 125 bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
+  expect_output --substring 'error building.*"COPY subdir \./".*no such file or directory'
+
+  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile.succeed ${TESTSDIR}/bud/dockerignore
 
   run_buildah from --name myctr testbud
 
+  run_buildah 1 run myctr ls -l test1.txt
+
   run_buildah run myctr ls -l test2.txt
 
-  run_buildah run myctr ls -l sub1.txt
+  run_buildah 1 run myctr ls -l sub1.txt
 
   run_buildah 1 run myctr ls -l sub2.txt
 
@@ -80,12 +85,8 @@ symlink(subdir)"
 }
 
 @test "bud with .dockerignore - 3" {
-  run_buildah bud -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
-  expect_output --substring "CUT HERE"
-
-  run sed -e '/^CUT HERE/,/^CUT HERE/p' -e 'd' <<< "$output"
-  run sed '/CUT HERE/d' <<< "$output"
-  expect_output "$(cat ${TESTSDIR}/bud/dockerignore3/manifest)"
+  run_buildah 125 bud -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
+  expect_output --substring 'error building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
 }
 
 @test "bud-flags-order-verification" {
@@ -1738,12 +1739,20 @@ _EOF
 
   run stat -c "%d:%i" ${root}/subdir/test1.txt
   id1=$output
+  run stat -c "%h" ${root}/subdir/test1.txt
+  expect_output 4
   run stat -c "%d:%i" ${root}/subdir/test2.txt
   expect_output $id1 "stat(test2) == stat(test1)"
+  run stat -c "%h" ${root}/subdir/test2.txt
+  expect_output 4
   run stat -c "%d:%i" ${root}/test3.txt
   expect_output $id1 "stat(test3) == stat(test1)"
+  run stat -c "%h" ${root}/test3.txt
+  expect_output 4
   run stat -c "%d:%i" ${root}/test4.txt
   expect_output $id1 "stat(test4) == stat(test1)"
+  run stat -c "%h" ${root}/test4.txt
+  expect_output 4
 }
 
 @test "bud without any arguments should succeed" {
