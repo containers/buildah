@@ -6,6 +6,7 @@ import (
 	"hash"
 	"io"
 	"sync"
+	"time"
 
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -157,12 +158,20 @@ type tarDigester struct {
 	tarFilterer io.WriteCloser
 }
 
+func modifyTarHeaderForDigesting(hdr *tar.Header) (skip, replaceContents bool, replacementContents io.Reader) {
+	zeroTime := time.Time{}
+	hdr.ModTime = zeroTime
+	hdr.AccessTime = zeroTime
+	hdr.ChangeTime = zeroTime
+	return false, false, nil
+}
+
 func newTarDigester(contentType string) digester {
 	nested := newSimpleDigester(contentType)
 	digester := &tarDigester{
 		isOpen:      true,
 		nested:      nested,
-		tarFilterer: nested,
+		tarFilterer: newTarFilterer(nested, modifyTarHeaderForDigesting),
 	}
 	return digester
 }
