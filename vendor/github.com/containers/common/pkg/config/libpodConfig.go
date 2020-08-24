@@ -197,6 +197,10 @@ func newLibpodConfig(c *Config) error {
 		return errors.Wrapf(err, "error finding config on system")
 	}
 
+	if len(configs) == 0 {
+		return nil
+	}
+
 	for _, path := range configs {
 		config, err = readLibpodConfigFromFile(path, config)
 		if err != nil {
