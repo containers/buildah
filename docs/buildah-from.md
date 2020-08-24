@@ -226,6 +226,12 @@ container technology).
 Note: You can also override the default isolation type by setting the
 BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
+**--log-basic** *bool*
+Suppress progress messages when pulling images from a registry, and when writing the
+output image. Build step messages are still shown, however, SHA's and other
+intermediate progress messages are suppressed. This is a level of logging
+between `--quiet` and default logging behavior.
+
 **--memory, -m**=""
 
 Memory limit (format: <number>[<unit>], where unit = b, k, m or g)

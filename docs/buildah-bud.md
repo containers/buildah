@@ -288,6 +288,12 @@ no limit in the number of jobs that run in parallel.
 
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
 
+**--log-basic** *bool*
+Suppress progress messages when pulling images from a registry, and when writing the
+output image. Build step messages are still shown, however, SHA's and other
+intermediate progress messages are suppressed. This is a level of logging
+between `--quiet` and default logging behavior.
+
 **--loglevel** *number*
 
 Adjust the logging level up or down.  Valid option values range from -2 to 3,

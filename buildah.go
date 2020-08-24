@@ -420,6 +420,8 @@ type BuilderOptions struct {
 	// OciDecryptConfig contains the config that can be used to decrypt an image if it is
 	// encrypted if non-nil. If nil, it does not attempt to decrypt an image.
 	OciDecryptConfig *encconfig.DecryptConfig
+	// LogBasic does not log pull output
+	LogBasic bool
 }
 
 // ImportOptions are used to initialize a Builder from an existing container

@@ -2,6 +2,7 @@ package buildah
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -60,6 +61,8 @@ type PullOptions struct {
 	// OciDecryptConfig contains the config that can be used to decrypt an image if it is
 	// encrypted if non-nil. If nil, it does not attempt to decrypt an image.
 	OciDecryptConfig *encconfig.DecryptConfig
+	// LogBasic determines if the pull log of the image will be outputted
+	LogBasic bool
 }
 
 func localImageNameForReference(ctx context.Context, store storage.Store, srcRef types.ImageReference) (string, error) {
@@ -169,9 +172,11 @@ func Pull(ctx context.Context, imageName string, options PullOptions) (imageID s
 		MaxPullRetries:      options.MaxRetries,
 		PullRetryDelay:      options.RetryDelay,
 		OciDecryptConfig:    options.OciDecryptConfig,
+		LogBasic:            options.LogBasic,
 	}
 
 	storageRef, transport, img, err := resolveImage(ctx, systemContext, options.Store, boptions)
+
 	if err != nil {
 		return "", err
 	}
@@ -280,9 +285,12 @@ func pullImage(ctx context.Context, store storage.Store, srcRef types.ImageRefer
 	}()
 
 	logrus.Debugf("copying %q to %q", transports.ImageName(srcRef), destName)
-	if _, err := retryCopyImage(ctx, policyContext, maybeCachedDestRef, srcRef, srcRef, getCopyOptions(store, options.ReportWriter, sc, nil, "", options.RemoveSignatures, "", nil, nil, options.OciDecryptConfig), options.MaxRetries); err != nil {
+	_, err = retryCopyImage(ctx, policyContext, maybeCachedDestRef, srcRef, srcRef, getCopyOptions(store, options.ReportWriter, sc, nil, "", options.RemoveSignatures, "", nil, nil, options.OciDecryptConfig), options.MaxRetries)
+	if err != nil {
 		logrus.Debugf("error copying src image [%q] to dest image [%q] err: %v", transports.ImageName(srcRef), destName, err)
 		return nil, err
+	} else if options.LogBasic {
+		fmt.Println("Pulled image", destName)
 	}
 	return destRef, nil
 }

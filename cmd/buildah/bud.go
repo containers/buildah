@@ -333,6 +333,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		Isolation:               isolation,
 		Labels:                  iopts.Label,
 		Layers:                  layers,
+		LogBasic:                iopts.LogBasic,
 		MaxPullPushRetries:      maxPullPushRetries,
 		NamespaceOptions:        namespaceOptions,
 		NoCache:                 iopts.NoCache,
@@ -357,8 +358,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		OciDecryptConfig:        decConfig,
 		Jobs:                    &iopts.Jobs,
 	}
-
-	if iopts.Quiet {
+	if iopts.Quiet || iopts.LogBasic {
 		options.ReportWriter = ioutil.Discard
 	}
 

@@ -183,6 +183,8 @@ type BuildOptions struct {
 	OciDecryptConfig *encconfig.DecryptConfig
 	// Jobs is the number of stages to run in parallel.  If not specified it defaults to 1.
 	Jobs *int
+	// LogBasic announces only build steps, and not pull steps
+	LogBasic bool
 }
 
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be

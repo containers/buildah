@@ -364,6 +364,7 @@ return 1
      --help
      -h
      --layers
+     --log-basic
      --no-cache
      --omit-timestamp
      --pull
@@ -1006,6 +1007,7 @@ _buildah_containers() {
      local boolean_options="
      --help
      -h
+     --log-basic
      --pull
      --pull-always
      --pull-never

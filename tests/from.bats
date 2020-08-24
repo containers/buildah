@@ -362,3 +362,14 @@ load helpers
 
   rm -rf ${TESTDIR}/tmp
 }
+
+@test "from --log-basic: should not emit progress messages" {
+  # Force a pull. Normally this would say 'Getting image ...' and other
+  # progress messages. With --qlog-basic, we should see only that 
+  # the image was pulled, and not progress messages
+  run_buildah '?' rmi busybox
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --log-basic docker.io/busybox
+
+  expect_output --substring "Pulled image docker.io/library/busybox:latest"
+  expect_line_count 2
+}

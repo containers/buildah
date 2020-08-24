@@ -24,6 +24,7 @@ type fromReply struct {
 	cidfile         string
 	creds           string
 	format          string
+	logbasic        bool
 	name            string
 	pull            bool
 	pullAlways      bool
@@ -69,6 +70,7 @@ func init() {
 	flags.StringVar(&opts.cidfile, "cidfile", "", "write the container ID to the file")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
+	flags.BoolVar(&opts.logbasic, "log-basic", false, "refrain from displaying most image read/write progress")
 	flags.StringVar(&opts.name, "name", "", "`name` for the working container")
 	flags.BoolVar(&opts.pull, "pull", true, "pull the image from the registry if newer or not present in store, if false, only pull the image if not present")
 	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if the named image is present in store")
@@ -298,9 +300,10 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		MaxPullRetries:        maxPullPushRetries,
 		PullRetryDelay:        pullPushRetryDelay,
 		OciDecryptConfig:      decConfig,
+		LogBasic:              iopts.logbasic,
 	}
 
-	if !iopts.quiet {
+	if !iopts.quiet && !iopts.logbasic {
 		options.ReportWriter = os.Stderr
 	}
 

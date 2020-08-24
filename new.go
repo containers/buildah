@@ -37,6 +37,7 @@ func pullAndFindImage(ctx context.Context, store storage.Store, srcRef types.Ima
 		MaxRetries:       options.MaxPullRetries,
 		RetryDelay:       options.PullRetryDelay,
 		OciDecryptConfig: options.OciDecryptConfig,
+		LogBasic:         options.LogBasic,
 	}
 	ref, err := pullImage(ctx, store, srcRef, pullOptions, sc)
 	if err != nil {

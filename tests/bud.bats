@@ -2197,3 +2197,11 @@ EOM
 
   rm -rf ${TESTDIR}/tmp
 }
+
+@test "bud log-basic" {
+  # Force a pull
+  run_buildah '?' rmi alpine
+  run_buildah bud --log-basic --format docker -t quiet-test --signature-policy ${TESTSDIR}/policy.json  ${TESTSDIR}/bud/shell
+  expect_line_count 6
+  expect_output --substring 'Pulled image docker.io/library/alpine:latest'
+}

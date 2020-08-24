@@ -471,6 +471,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		MaxPullRetries:        s.executor.maxPullPushRetries,
 		PullRetryDelay:        s.executor.retryPullPushDelay,
 		OciDecryptConfig:      s.executor.ociDecryptConfig,
+		LogBasic:              s.executor.logBasic,
 	}
 
 	// Check and see if the image is a pseudonym for the end result of a
