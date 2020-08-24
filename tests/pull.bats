@@ -239,3 +239,13 @@ load helpers
 
   rm -rf ${TESTDIR}/tmp
 }
+
+@test "pull image into a full storage" {
+  mkdir /tmp/buildah-test
+  mount -t tmpfs -o size=5M tmpfs /tmp/buildah-test
+  run dd if=/dev/urandom of=/tmp/buildah-test/full
+  run_buildah 125 --root=/tmp/buildah-test pull --signature-policy ${TESTSDIR}/policy.json alpine
+  expect_output --substring "no space left on device"
+  umount /tmp/buildah-test
+  rm -rf /tmp/buildah-test
+}

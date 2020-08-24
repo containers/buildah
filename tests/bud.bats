@@ -2252,3 +2252,11 @@ EOM
   test "$output" != "$iid"
   test "$output" != "$iid2"
 }
+
+@test "bud capabilities test" {
+  _prefetch busybox
+  run_buildah bud -t testcap --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/capabilities/Dockerfile
+  expect_output --substring "uid=3267"
+  expect_output --substring "CapBnd:	00000000a80425fb"
+  expect_output --substring "CapEff:	0000000000000000"
+}

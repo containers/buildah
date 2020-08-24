@@ -339,3 +339,12 @@ function skip_if_cgroupsv2() {
         skip "${1:-test does not work with cgroups v2}"
     fi
 }
+
+##########################
+#  skip_if_in_container  #
+##########################
+function skip_if_in_container() {
+    if test "$CONTAINER" = "podman"; then
+        skip "This test is not working inside a container"
+    fi
+}

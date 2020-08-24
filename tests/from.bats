@@ -362,3 +362,18 @@ load helpers
 
   rm -rf ${TESTDIR}/tmp
 }
+
+@test "from with non buildah container" {
+  skip_if_in_container
+  run which podman
+  if [[ $status -ne 0 ]]; then
+    skip "podman is not installed"
+  fi
+
+  _prefetch docker.io/busybox
+  podman run --name busyboxc-podman -d busybox top
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc docker.io/busybox
+  expect_output --substring "busyboxc"
+  podman rm -f busyboxc-podman
+  run_buildah rm busyboxc
+}
