@@ -2395,4 +2395,48 @@ var internalTestCases = []testCase{
 			`        name4="value4a\\nvalue4b" \`,
 		}, "\n"),
 	},
+
+	{
+		name: "copy-from-owner", // from issue #2518
+		dockerfileContents: strings.Join([]string{
+			`FROM alpine`,
+			`RUN set -ex; touch /test; chown 65:65 /test`,
+			`FROM scratch`,
+			`USER 66:66`,
+			`COPY --from=0 /test /test`,
+		}, "\n"),
+		fsSkip: []string{"test:mtime"},
+	},
+
+	{
+		name: "copy-from-owner-with-chown", // issue #2518, but with chown to override
+		dockerfileContents: strings.Join([]string{
+			`FROM alpine`,
+			`RUN set -ex; touch /test; chown 65:65 /test`,
+			`FROM scratch`,
+			`USER 66:66`,
+			`COPY --from=0 --chown=1:1 /test /test`,
+		}, "\n"),
+		fsSkip: []string{"test:mtime"},
+	},
+
+	{
+		name:       "copy-for-user", // flip side of issue #2518
+		contextDir: "copy",
+		dockerfileContents: strings.Join([]string{
+			`FROM alpine`,
+			`USER 66:66`,
+			`COPY /script /script`,
+		}, "\n"),
+	},
+
+	{
+		name:       "copy-for-user-with-chown", // flip side of issue #2518, but with chown to override
+		contextDir: "copy",
+		dockerfileContents: strings.Join([]string{
+			`FROM alpine`,
+			`USER 66:66`,
+			`COPY --chown=1:1 /script /script`,
+		}, "\n"),
+	},
 }
