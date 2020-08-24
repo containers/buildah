@@ -152,6 +152,11 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		jobs = *options.Jobs
 	}
 
+	writer := options.ReportWriter
+	if options.Quiet {
+		writer = ioutil.Discard
+	}
+
 	exec := Executor{
 		stages:                         make(map[string]*StageExecutor),
 		store:                          store,
@@ -174,7 +179,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		in:                             options.In,
 		out:                            options.Out,
 		err:                            options.Err,
-		reportWriter:                   options.ReportWriter,
+		reportWriter:                   writer,
 		isolation:                      options.Isolation,
 		namespaceOptions:               options.NamespaceOptions,
 		configureNetwork:               options.ConfigureNetwork,
