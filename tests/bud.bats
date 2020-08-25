@@ -2197,3 +2197,11 @@ EOM
 
   rm -rf ${TESTDIR}/tmp
 }
+
+@test "bud with-rusage" {
+  _prefetch alpine
+  run_buildah bud --log-rusage --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json bud/shell
+  cid=$output
+  # expect something that looks like it was formatted using pkg/rusage.FormatDiff()
+  expect_output --substring ".*\(system\).*\(user\).*\(elapsed\).*input.*output"
+}

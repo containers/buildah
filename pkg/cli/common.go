@@ -82,6 +82,7 @@ type BudResults struct {
 	Target              string
 	TLSVerify           bool
 	Jobs                int
+	LogRusage           bool
 }
 
 // FromAndBugResults represents the results for common flags
@@ -181,6 +182,10 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringVar(&flags.Target, "target", "", "set the target build stage to build")
 	fs.BoolVar(&flags.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 	fs.IntVar(&flags.Jobs, "jobs", 1, "how many stages to run in parallel")
+	fs.BoolVar(&flags.LogRusage, "log-rusage", false, "log resource usage at each build step")
+	if err := fs.MarkHidden("log-rusage"); err != nil {
+		panic(fmt.Sprintf("error marking the log-rusage flag as hidden: %v", err))
+	}
 	return fs
 }
 
