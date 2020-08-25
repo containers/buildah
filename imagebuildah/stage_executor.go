@@ -14,6 +14,7 @@ import (
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/copier"
 	buildahdocker "github.com/containers/buildah/docker"
+	"github.com/containers/buildah/pkg/rusage"
 	"github.com/containers/buildah/util"
 	cp "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/docker/reference"
@@ -589,6 +590,7 @@ func (s *StageExecutor) getImageRootfs(ctx context.Context, image string) (mount
 
 // Execute runs each of the steps in the stage's parsed tree, in turn.
 func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string, ref reference.Canonical, err error) {
+	var resourceUsage rusage.Rusage
 	stage := s.stage
 	ib := stage.Builder
 	checkForLayers := s.executor.layers && s.executor.useCache
@@ -610,6 +612,30 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		base = stageImage
 	}
 	s.executor.stagesLock.Unlock()
+
+	// Set things up so that we can log resource usage as we go.
+	logRusage := func() {
+		if rusage.Supported() {
+			usage, err := rusage.Get()
+			if err != nil {
+				fmt.Fprintf(s.executor.out, "error gathering resource usage information: %v\n", err)
+				return
+			}
+			if !s.executor.quiet && s.executor.logRusage {
+				fmt.Fprintf(s.executor.out, "%s\n", rusage.FormatDiff(usage.Subtract(resourceUsage)))
+			}
+			resourceUsage = usage
+		}
+	}
+
+	// Start counting resource usage before we potentially pull a base image.
+	if rusage.Supported() {
+		if resourceUsage, err = rusage.Get(); err != nil {
+			return "", nil, err
+		}
+		// Log the final incremental resource usage counter before we return.
+		defer logRusage()
+	}
 
 	// Create the (first) working container for this stage.  Reinitializing
 	// the imagebuilder configuration may alter the list of steps we have,
@@ -680,6 +706,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	}
 
 	for i, node := range children {
+		logRusage()
 		moreInstructions := i < len(children)-1
 		lastInstruction := !moreInstructions
 		// Resolve any arguments in this instruction.

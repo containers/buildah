@@ -110,6 +110,7 @@ type Executor struct {
 	stagesLock                     sync.Mutex
 	stagesSemaphore                *semaphore.Weighted
 	jobs                           int
+	logRusage                      bool
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
@@ -213,6 +214,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		ociDecryptConfig:               options.OciDecryptConfig,
 		terminatedStage:                make(map[string]struct{}),
 		jobs:                           jobs,
+		logRusage:                      options.LogRusage,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
