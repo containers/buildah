@@ -481,7 +481,6 @@ Only the current container can use a private volume.
 
   Note:
 
-     - Overlay mounts are not currently supported in rootless mode.
      - The `O` flag is not allowed to be specified with the `Z` or `z` flags. Content mounted into the container is labeled with the private label.
        On SELinux systems, labels in the source directory needs to be readable by the container label. If not, SELinux container separation must be disabled for the container to work.
      - Modification of the directory volume mounted into the container with an overlay mount can cause unexpected failures.  It is recommended that you do not modify the directory until the container finishes running.
