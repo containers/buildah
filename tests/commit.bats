@@ -223,3 +223,23 @@ load helpers
 
   rm -rf ${TESTDIR}/tmp
 }
+
+@test "commit timestamp" {
+  _prefetch busybox
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
+  run_buildah run $cid touch /test
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --timestamp 0 -q $cid omit
+  run_buildah inspect --format '{{ .Docker.Created }}' omit
+  expect_output --substring "1970-01-01"
+  run_buildah inspect --format '{{ .OCIv1.Created }}' omit
+  expect_output --substring "1970-01-01"
+
+
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json omit
+  cid=$output
+  run_buildah run $cid ls -l /test
+  expect_output --substring "1970"
+
+  rm -rf ${TESTDIR}/tmp
+}

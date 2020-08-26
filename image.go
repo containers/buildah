@@ -52,7 +52,7 @@ type containerImageRef struct {
 	layerID               string
 	oconfig               []byte
 	dconfig               []byte
-	created               time.Time
+	created               *time.Time
 	createdBy             string
 	historyComment        string
 	annotations           map[string]string
@@ -178,7 +178,10 @@ func (i *containerImageRef) extractRootfs() (io.ReadCloser, error) {
 // Build fresh copies of the container configuration structures so that we can edit them
 // without making unintended changes to the original Builder.
 func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, docker.V2Image, docker.V2S2Manifest, error) {
-	created := i.created
+	created := time.Now()
+	if i.created != nil {
+		created = *i.created
+	}
 
 	// Build an empty image, and then decode over it.
 	oimage := v1.Image{}
@@ -296,7 +299,6 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 	if err != nil {
 		return nil, err
 	}
-	omitTimestamp := i.created.Equal(time.Unix(0, 0))
 
 	// Extract each layer and compute its digests, both compressed (if requested) and uncompressed.
 	for _, layerID := range layers {
@@ -386,9 +388,9 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			return nil, errors.Wrapf(err, "error compressing %s", what)
 		}
 		writer := io.MultiWriter(writeCloser, srcHasher.Hash())
-		// Zero out timestamps in the layer, if we're doing that for
+		// Use specified timestamps in the layer, if we're doing that for
 		// history entries.
-		if omitTimestamp {
+		if i.created != nil {
 			nestedWriteCloser := ioutils.NewWriteCloserWrapper(writer, writeCloser.Close)
 			writeCloser = newTarFilterer(nestedWriteCloser, func(hdr *tar.Header) (bool, bool, io.Reader) {
 				// Changing a zeroed field to a non-zero field
@@ -399,13 +401,13 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 				// changing the length) of the header that we
 				// write.
 				if !hdr.ModTime.IsZero() {
-					hdr.ModTime = i.created
+					hdr.ModTime = *i.created
 				}
 				if !hdr.AccessTime.IsZero() {
-					hdr.AccessTime = i.created
+					hdr.AccessTime = *i.created
 				}
 				if !hdr.ChangeTime.IsZero() {
-					hdr.ChangeTime = i.created
+					hdr.ChangeTime = *i.created
 				}
 				return false, false, nil
 			})
@@ -481,7 +483,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 	}
 	appendHistory(i.preEmptyLayers)
 	onews := v1.History{
-		Created:    &i.created,
+		Created:    i.created,
 		CreatedBy:  i.createdBy,
 		Author:     oimage.Author,
 		Comment:    i.historyComment,
@@ -489,7 +491,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 	}
 	oimage.History = append(oimage.History, onews)
 	dnews := docker.V2S2History{
-		Created:    i.created,
+		Created:    *i.created,
 		CreatedBy:  i.createdBy,
 		Author:     dimage.Author,
 		Comment:    i.historyComment,
@@ -716,10 +718,6 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 		}
 	}
 
-	if options.OmitTimestamp {
-		created = time.Unix(0, 0).UTC()
-	}
-
 	parent := ""
 	if b.FromImageID != "" {
 		parentDigest := digest.NewDigestFromEncoded(digest.Canonical, b.FromImageID)
@@ -738,7 +736,7 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 		layerID:               container.LayerID,
 		oconfig:               oconfig,
 		dconfig:               dconfig,
-		created:               created,
+		created:               &created,
 		createdBy:             createdBy,
 		historyComment:        b.HistoryComment(),
 		annotations:           b.Annotations(),
@@ -752,6 +750,5 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 		preEmptyLayers:        b.PrependedEmptyLayers,
 		postEmptyLayers:       b.AppendedEmptyLayers,
 	}
-
 	return ref, nil
 }

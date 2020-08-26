@@ -77,14 +77,12 @@ Squash all of the new image's layers (including those inherited from a base imag
 
 Require HTTPS and verify certificates when talking to container registries (defaults to true)
 
-**--omit-timestamp** *bool-value*
+**--timestamp** *secconds*
 
-Set the create timestamp to epoch 0 to allow for deterministic builds (defaults to false).
+Set the create timestamp to seconds since epoch to allow for deterministic builds (defaults to current time).
 By default, the created timestamp is changed and written into the image manifest with every commit,
 causing the image's sha256 hash to be different even if the sources are exactly the same otherwise.
-When --omit-timestamp is set to true, the created timestamp is always set to the epoch and therefore not
-changed, allowing the image's sha256 to remain the same. All files committed to the layers of the image
-will get the epoch 0 timestamp.
+When --timestamp is set, the created timestamp is always set to the time specified and therefore not changed, allowing the image's sha256 to remain the same. All files committed to the layers of the image will be created with the timestamp.
 
 ## EXAMPLE
 
@@ -111,6 +109,9 @@ This example commits the container to the image on the local registry using cred
 
 This example commits the container to the image on the local registry using credentials from the /tmp/auths/myauths.json file and certificates for authentication.
  `buildah commit --authfile /tmp/auths/myauths.json --cert-dir ~/auth  --tls-verify=true --creds=username:password containerID docker://localhost:5000/imageName`
+
+This example saves an image based on the container, but stores dates based on epoch time.
+`buildah commit --timestamp=0 containerID newImageName`
 
 ## ENVIRONMENT
 

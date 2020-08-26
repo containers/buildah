@@ -2180,20 +2180,31 @@ EOM
   run_buildah rm -a
 }
 
-@test "bud omit-timestamp" {
+@test "bud timestamp" {
   _prefetch alpine
-  run_buildah bud --omit-timestamp --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json -t omit -f Dockerfile.1 bud/cache-stages
+  run_buildah bud --timestamp=0 --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json -t timestamp -f Dockerfile.1 bud/cache-stages
   cid=$output
-  run_buildah inspect --format '{{ .Docker.Created }}' omit
+  run_buildah inspect --format '{{ .Docker.Created }}' timestamp
   expect_output --substring "1970-01-01"
-  run_buildah inspect --format '{{ .OCIv1.Created }}' omit
+  run_buildah inspect --format '{{ .OCIv1.Created }}' timestamp
   expect_output --substring "1970-01-01"
 
-
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json omit
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json timestamp
   cid=$output
   run_buildah run $cid ls -l /tmpfile
   expect_output --substring "1970"
+
+  rm -rf ${TESTDIR}/tmp
+}
+
+@test "bud timestamp compare" {
+  _prefetch alpine
+  TIMESTAMP=$(date '+%s')
+  run_buildah bud --timestamp=${TIMESTAMP} --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json -t timestamp -f Dockerfile.1 bud/cache-stages
+  cid=$output
+
+  run_buildah bud --timestamp=${TIMESTAMP} --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json -t timestamp -f Dockerfile.1 bud/cache-stages
+  expect_output "$cid"
 
   rm -rf ${TESTDIR}/tmp
 }
