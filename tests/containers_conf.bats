@@ -2,12 +2,6 @@
 
 load helpers
 
-@test "containers.conf env test" {
-    export CONTAINERS_CONF=${TESTSDIR}/containers.conf
-    cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
-    run_buildah --log-level=error run $cid sh -c 'env | grep "foo=bar"'
-}
-
 @test "containers.conf selinux test" {
     if ! which selinuxenabled > /dev/null 2> /dev/null ; then
 	skip "No selinuxenabled executable"
