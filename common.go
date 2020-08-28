@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/containers/common/pkg/retry"
 	cp "github.com/containers/image/v5/copy"
@@ -68,7 +69,7 @@ func getSystemContext(store storage.Store, defaults *types.SystemContext, signat
 	return sc
 }
 
-func retryCopyImage(ctx context.Context, policyContext *signature.PolicyContext, dest, src, registry types.ImageReference, copyOptions *cp.Options, maxRetries int) ([]byte, error) {
+func retryCopyImage(ctx context.Context, policyContext *signature.PolicyContext, dest, src, registry types.ImageReference, copyOptions *cp.Options, maxRetries int, retryDelay time.Duration) ([]byte, error) {
 	var (
 		manifestBytes []byte
 		err           error
@@ -81,7 +82,7 @@ func retryCopyImage(ctx context.Context, policyContext *signature.PolicyContext,
 			return nil
 		}
 		return err
-	}, &retry.RetryOptions{MaxRetry: maxRetries})
+	}, &retry.RetryOptions{MaxRetry: maxRetries, Delay: retryDelay})
 	if lastErr != nil {
 		err = lastErr
 	}
