@@ -4,7 +4,7 @@
 
 // Copyright 2013-2018 Docker, Inc.
 
-package seccomp // import "github.com/seccomp/containers-golang"
+package seccomp
 
 import (
 	"encoding/json"
@@ -13,7 +13,6 @@ import (
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	libseccomp "github.com/seccomp/libseccomp-golang"
-	"golang.org/x/sys/unix"
 )
 
 //go:generate go run -tags 'seccomp' generate.go
@@ -123,7 +122,7 @@ Loop:
 		}
 		if len(call.Excludes.Caps) > 0 {
 			for _, c := range call.Excludes.Caps {
-				if inSlice(rs.Process.Capabilities.Bounding, c) {
+				if rs != nil && rs.Process != nil && rs.Process.Capabilities != nil && inSlice(rs.Process.Capabilities.Bounding, c) {
 					continue Loop
 				}
 			}
@@ -135,7 +134,7 @@ Loop:
 		}
 		if len(call.Includes.Caps) > 0 {
 			for _, c := range call.Includes.Caps {
-				if !inSlice(rs.Process.Capabilities.Bounding, c) {
+				if rs != nil && rs.Process != nil && rs.Process.Capabilities != nil && !inSlice(rs.Process.Capabilities.Bounding, c) {
 					continue Loop
 				}
 			}
@@ -180,12 +179,5 @@ func createSpecsSyscall(names []string, action Action, args []*Arg, errnoRet *ui
 
 // IsEnabled returns true if seccomp is enabled for the host.
 func IsEnabled() bool {
-	// Check if Seccomp is supported, via CONFIG_SECCOMP.
-	if err := unix.Prctl(unix.PR_GET_SECCOMP, 0, 0, 0, 0); err != unix.EINVAL {
-		// Make sure the kernel has CONFIG_SECCOMP_FILTER.
-		if err := unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, 0, 0, 0); err != unix.EINVAL {
-			return true
-		}
-	}
-	return false
+	return IsSupported()
 }

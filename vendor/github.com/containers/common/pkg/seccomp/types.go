@@ -1,4 +1,4 @@
-package seccomp // import "github.com/seccomp/containers-golang"
+package seccomp
 
 // SPDX-License-Identifier: Apache-2.0
 
@@ -27,6 +27,7 @@ type Arch string
 // Additional architectures permitted to be used for system calls
 // By default only the native architecture of the kernel is permitted
 const (
+	ArchNative      Arch = "SCMP_ARCH_NATIVE"
 	ArchX86         Arch = "SCMP_ARCH_X86"
 	ArchX86_64      Arch = "SCMP_ARCH_X86_64"
 	ArchX32         Arch = "SCMP_ARCH_X32"
@@ -43,6 +44,9 @@ const (
 	ArchPPC64LE     Arch = "SCMP_ARCH_PPC64LE"
 	ArchS390        Arch = "SCMP_ARCH_S390"
 	ArchS390X       Arch = "SCMP_ARCH_S390X"
+	ArchPARISC      Arch = "SCMP_ARCH_PARISC"
+	ArchPARISC64    Arch = "SCMP_ARCH_PARISC64"
+	ArchRISCV64     Arch = "SCMP_ARCH_RISCV64"
 )
 
 // Action taken upon Seccomp rule match
@@ -50,11 +54,19 @@ type Action string
 
 // Define actions for Seccomp rules
 const (
-	ActKill  Action = "SCMP_ACT_KILL"
-	ActTrap  Action = "SCMP_ACT_TRAP"
-	ActErrno Action = "SCMP_ACT_ERRNO"
-	ActTrace Action = "SCMP_ACT_TRACE"
-	ActAllow Action = "SCMP_ACT_ALLOW"
+	// ActKill results in termination of the thread that made the system call.
+	ActKill Action = "SCMP_ACT_KILL"
+	// ActKillProcess results in termination of the entire process.
+	ActKillProcess Action = "SCMP_ACT_KILL_PROCESS"
+	// ActKillThread kills the thread that violated the rule. It is the same as
+	// ActKill. All other threads from the same thread group will continue to
+	// execute.
+	ActKillThread Action = "SCMP_ACT_KILL_THREAD"
+	ActTrap       Action = "SCMP_ACT_TRAP"
+	ActErrno      Action = "SCMP_ACT_ERRNO"
+	ActTrace      Action = "SCMP_ACT_TRACE"
+	ActAllow      Action = "SCMP_ACT_ALLOW"
+	ActLog        Action = "SCMP_ACT_LOG"
 )
 
 // Operator used to match syscall arguments in Seccomp
