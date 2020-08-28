@@ -28,6 +28,7 @@ type commitInputOptions struct {
 	format             string
 	iidfile            string
 	omitTimestamp      bool
+	timestamp          int64
 	quiet              bool
 	referenceTime      string
 	rm                 bool
@@ -74,10 +75,14 @@ func init() {
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
 	flags.StringVar(&opts.iidfile, "iidfile", "", "Write the image ID to the file")
 	flags.BoolVar(&opts.omitTimestamp, "omit-timestamp", false, "set created timestamp to epoch 0 to allow for deterministic builds")
+	flags.Int64Var(&opts.timestamp, "timestamp", 0, "set created timestamp to epoch seconds to allow for deterministic builds, defaults to current time")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when writing images")
 	flags.StringVar(&opts.referenceTime, "reference-time", "", "set the timestamp on the image to match the named `file`")
 	flags.StringVar(&opts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 
+	if err := flags.MarkHidden("omit-timestamp"); err != nil {
+		panic(fmt.Sprintf("error marking omit-timestamp as hidden: %v", err))
+	}
 	if err := flags.MarkHidden("reference-time"); err != nil {
 		panic(fmt.Sprintf("error marking reference-time as hidden: %v", err))
 	}
@@ -120,15 +125,6 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	compress := imagebuildah.Gzip
 	if iopts.disableCompression {
 		compress = imagebuildah.Uncompressed
-	}
-	timestamp := time.Now().UTC()
-	if c.Flag("reference-time").Changed {
-		referenceFile := iopts.referenceTime
-		finfo, err := os.Stat(referenceFile)
-		if err != nil {
-			return errors.Wrapf(err, "error reading timestamp of file %q", referenceFile)
-		}
-		timestamp = finfo.ModTime().UTC()
 	}
 
 	format, err := getFormat(iopts.format)
@@ -181,16 +177,40 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		PreferredManifestType: format,
 		Compression:           compress,
 		SignaturePolicyPath:   iopts.signaturePolicy,
-		HistoryTimestamp:      &timestamp,
 		SystemContext:         systemContext,
 		IIDFile:               iopts.iidfile,
 		Squash:                iopts.squash,
 		BlobDirectory:         iopts.blobCache,
-		OmitTimestamp:         iopts.omitTimestamp,
 		SignBy:                iopts.signBy,
 		OciEncryptConfig:      encConfig,
 		OciEncryptLayers:      encLayers,
 	}
+	exclusiveFlags := 0
+	if c.Flag("reference-time").Changed {
+		exclusiveFlags++
+		referenceFile := iopts.referenceTime
+		finfo, err := os.Stat(referenceFile)
+		if err != nil {
+			return errors.Wrapf(err, "error reading timestamp of file %q", referenceFile)
+		}
+		timestamp := finfo.ModTime().UTC()
+		options.HistoryTimestamp = &timestamp
+	}
+	if c.Flag("timestamp").Changed {
+		exclusiveFlags++
+		timestamp := time.Unix(iopts.timestamp, 0).UTC()
+		options.HistoryTimestamp = &timestamp
+	}
+	if iopts.omitTimestamp {
+		exclusiveFlags++
+		timestamp := time.Unix(0, 0).UTC()
+		options.HistoryTimestamp = &timestamp
+	}
+
+	if exclusiveFlags > 1 {
+		return errors.Errorf("can not use more then one timestamp option at at time")
+	}
+
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr
 	}

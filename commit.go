@@ -79,6 +79,7 @@ type CommitOptions struct {
 	EmptyLayer bool
 	// OmitTimestamp forces epoch 0 as created timestamp to allow for
 	// deterministic, content-addressable builds.
+	// Deprecated use HistoryTimestamp instead.
 	OmitTimestamp bool
 	// SignBy is the fingerprint of a GPG key to use for signing the image.
 	SignBy string
@@ -231,6 +232,13 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	// want to compute here because we'll have to do it again when
 	// cp.Image() instantiates a source image, and we don't want to do the
 	// work twice.
+	if options.OmitTimestamp {
+		if options.HistoryTimestamp != nil {
+			return imgID, nil, "", errors.Errorf("OmitTimestamp ahd HistoryTimestamp can not be used together")
+		}
+		timestamp := time.Unix(0, 0).UTC()
+		options.HistoryTimestamp = &timestamp
+	}
 	nameToRemove := ""
 	if dest == nil {
 		nameToRemove = stringid.GenerateRandomID() + "-tmp"

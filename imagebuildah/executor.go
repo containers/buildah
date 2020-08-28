@@ -100,7 +100,7 @@ type Executor struct {
 	devices                        []configs.Device
 	signBy                         string
 	architecture                   string
-	omitTimestamp                  bool
+	timestamp                      *time.Time
 	os                             string
 	maxPullPushRetries             int
 	retryPullPushDelay             time.Duration
@@ -207,7 +207,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		devices:                        devices,
 		signBy:                         options.SignBy,
 		architecture:                   options.Architecture,
-		omitTimestamp:                  options.OmitTimestamp,
+		timestamp:                      options.Timestamp,
 		os:                             options.OS,
 		maxPullPushRetries:             options.MaxPullPushRetries,
 		retryPullPushDelay:             options.PullPushRetryDelay,

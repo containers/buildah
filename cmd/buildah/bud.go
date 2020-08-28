@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
@@ -336,7 +337,6 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		MaxPullPushRetries:      maxPullPushRetries,
 		NamespaceOptions:        namespaceOptions,
 		NoCache:                 iopts.NoCache,
-		OmitTimestamp:           iopts.OmitTimestamp,
 		OS:                      imageOS,
 		Out:                     stdout,
 		Output:                  output,
@@ -357,6 +357,10 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		OciDecryptConfig:        decConfig,
 		Jobs:                    &iopts.Jobs,
 		LogRusage:               iopts.LogRusage,
+	}
+	if c.Flag("timestamp").Changed {
+		timestamp := time.Unix(iopts.Timestamp, 0).UTC()
+		options.Timestamp = &timestamp
 	}
 
 	if iopts.Quiet {
