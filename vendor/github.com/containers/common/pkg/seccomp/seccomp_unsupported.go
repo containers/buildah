@@ -4,7 +4,7 @@
 
 // Copyright 2013-2018 Docker, Inc.
 
-package seccomp // import "github.com/seccomp/containers-golang"
+package seccomp 
 
 import (
 	"errors"
@@ -13,11 +13,6 @@ import (
 )
 
 var errNotSupported = errors.New("seccomp not enabled in this build")
-
-// DefaultProfile returns a nil pointer on unsupported systems.
-func DefaultProfile() *Seccomp {
-	return nil
-}
 
 // LoadProfile returns an error on unsuppored systems
 func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
