@@ -52,6 +52,11 @@ buildah images
 exit
 ```
 
+**Note:** If you encounter a `fuse: device not found` error when running the container image, it is likely that
+the fuse kernel module has not been loaded on your host system.  Use the command `modprobe fuse` to load the
+module and then run the container image.  To enable this automatically at boot time, you can add a configuration
+file to `/etc/modules.load.d`.  See `man modules-load.d` for more details.
+
 ## Compatible with old versions
 For compatibility reasons, some Linux distributions with a kernel version of 3.10.0 and less will not work when using the stable image that is based on fedora:32. This centos7 image can be used to work on those distributions.
 
