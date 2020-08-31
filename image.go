@@ -178,7 +178,7 @@ func (i *containerImageRef) extractRootfs() (io.ReadCloser, error) {
 // Build fresh copies of the container configuration structures so that we can edit them
 // without making unintended changes to the original Builder.
 func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, docker.V2Image, docker.V2S2Manifest, error) {
-	created := time.Now()
+	created := time.Now().UTC()
 	if i.created != nil {
 		created = *i.created
 	}
@@ -482,8 +482,12 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		}
 	}
 	appendHistory(i.preEmptyLayers)
+	created := time.Now().UTC()
+	if i.created != nil {
+		created = (*i.created).UTC()
+	}
 	onews := v1.History{
-		Created:    i.created,
+		Created:    &created,
 		CreatedBy:  i.createdBy,
 		Author:     oimage.Author,
 		Comment:    i.historyComment,
@@ -491,7 +495,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 	}
 	oimage.History = append(oimage.History, onews)
 	dnews := docker.V2S2History{
-		Created:    *i.created,
+		Created:    created,
 		CreatedBy:  i.createdBy,
 		Author:     dimage.Author,
 		Comment:    i.historyComment,
@@ -706,9 +710,10 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 	if err != nil {
 		return nil, errors.Wrapf(err, "error encoding docker-format image configuration %#v", b.Docker)
 	}
-	created := time.Now().UTC()
+	var created *time.Time
 	if options.HistoryTimestamp != nil {
-		created = options.HistoryTimestamp.UTC()
+		historyTimestampUTC := options.HistoryTimestamp.UTC()
+		created = &historyTimestampUTC
 	}
 	createdBy := b.CreatedBy()
 	if createdBy == "" {
@@ -736,7 +741,7 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 		layerID:               container.LayerID,
 		oconfig:               oconfig,
 		dconfig:               dconfig,
-		created:               &created,
+		created:               created,
 		createdBy:             createdBy,
 		historyComment:        b.HistoryComment(),
 		annotations:           b.Annotations(),
