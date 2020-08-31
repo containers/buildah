@@ -27,7 +27,6 @@ UBUNTU_PACKAGES="
     scons
     vim
     wget
-    yum-utils
     zlib1g-dev
 "
 
@@ -48,6 +47,7 @@ FEDORA_PACKAGES="
     runc
     skopeo-containers
     wget
+    yum-utils
 "
 
 source $(dirname $0)/lib.sh
@@ -67,7 +67,6 @@ case "$OS_REL_VER" in
         ;;
     ubuntu-*)
         $SHORT_APTGET update
-        $LONG_APTGET upgrade
         if [[ "$OS_RELEASE_VER" == "18" ]]
         then
             echo "(Enabling newer golang on Ubuntu LTS version)"
@@ -75,6 +74,7 @@ case "$OS_REL_VER" in
             $SHORT_APTGET update
             timeout_attempt_delay_command 30 2 30 \
                 add-apt-repository --yes ppa:longsleep/golang-backports
+            $SHORT_APTGET update
         fi
         $LONG_APTGET install \
             build-essential \
