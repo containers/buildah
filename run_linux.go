@@ -245,7 +245,6 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			options.CNIPluginPath = util.DefaultCNIPluginPath
 		}
 	}
-
 	switch isolation {
 	case IsolationOCI:
 		var moreCreateArgs []string
@@ -704,7 +703,7 @@ func runUsingRuntime(isolation Isolation, options RunOptions, configureNetwork b
 	var errorFds, closeBeforeReadingErrorFds []int
 	stdioPipe := make([][]int, 3)
 	copyConsole := false
-	copyPipes := false
+        copyPipes := false
 	finishCopy := make([]int, 2)
 	if err = unix.Pipe(finishCopy); err != nil {
 		return 1, errors.Wrapf(err, "error creating pipe for notifying to stop stdio")
@@ -835,7 +834,6 @@ func runUsingRuntime(isolation Isolation, options RunOptions, configureNetwork b
 		}
 		stderr.Close()
 	}
-
 	// Handle stdio for the container in the background.
 	stdio.Add(1)
 	go runCopyStdio(&stdio, copyPipes, stdioPipe, copyConsole, consoleListener, finishCopy, finishedCopy, spec)
@@ -1163,12 +1161,25 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 		readDesc[unix.Stdin] = "stdin"
 		relayBuffer[terminalFD] = new(bytes.Buffer)
 		writeDesc[terminalFD] = "container terminal input"
+
 		relayMap[terminalFD] = unix.Stdout
 		readDesc[terminalFD] = "container terminal output"
 		relayBuffer[unix.Stdout] = new(bytes.Buffer)
 		writeDesc[unix.Stdout] = "output"
+
+		// TOM: start
+		relayMap[unix.Stderr] = terminalFD
+		readDesc[unix.Stderr] = "stderr"
+		relayBuffer[unix.Stderr] = new(bytes.Buffer)
+		writeDesc[unix.Stderr] = "container terminal output"
+		//relayMap[stdioPipe[unix.Stderr][0]] = unix.Stderr
+		//readDesc[stdioPipe[unix.Stderr][0]] = "container stderr"
+		//relayBuffer[unix.Stderr] = new(bytes.Buffer)
+		//writeDesc[unix.Stderr] = "stderr"
+		// TOM: end
 		// Set our terminal's mode to raw, to pass handling of special
 		// terminal input to the terminal in the container.
+		//TOM: can we do same to stdin/stderr?
 		if terminal.IsTerminal(unix.Stdin) {
 			if state, err := terminal.MakeRaw(unix.Stdin); err != nil {
 				logrus.Warnf("error setting terminal state: %v", err)
@@ -1180,6 +1191,30 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 				}()
 			}
 		}
+		//TOM: Start
+		if terminal.IsTerminal(unix.Stderr) {
+			if state, err := terminal.MakeRaw(unix.Stderr); err != nil {
+				logrus.Warnf("error setting terminal state: %v", err)
+			} else {
+				defer func() {
+					if err = terminal.Restore(unix.Stderr, state); err != nil {
+						logrus.Errorf("unable to restore terminal state: %v", err)
+					}
+				}()
+			}
+		}
+		if terminal.IsTerminal(unix.Stdout) {
+			if state, err := terminal.MakeRaw(unix.Stdout); err != nil {
+				logrus.Warnf("error setting terminal state: %v", err)
+			} else {
+				defer func() {
+					if err = terminal.Restore(unix.Stdout, state); err != nil {
+						logrus.Errorf("unable to restore terminal state: %v", err)
+					}
+				}()
+			}
+		}
+		//TOM: End
 	}
 	if copyPipes {
 		// Input from our stdin, output from the stdout and stderr pipes.
@@ -1207,7 +1242,6 @@ func runCopyStdio(stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copy
 	if copyPipes {
 		setNonblock(stdioPipe[unix.Stdin][1], writeDesc[stdioPipe[unix.Stdin][1]], true) // nolint:errcheck
 	}
-
 	runCopyStdioPassData(copyPipes, stdioPipe, finishCopy, relayMap, relayBuffer, readDesc, writeDesc)
 }
 
@@ -1299,6 +1333,10 @@ func runCopyStdioPassData(copyPipes bool, stdioPipe [][]int, finishCopy []int, r
 				}
 			}
 		}
+		fmt.Printf("TOM: relayMap    All    [%v]\n", relayMap)
+		fmt.Printf("TOM: relayBuffer stderr [%v]\n", relayBuffer[unix.Stderr])	
+		fmt.Printf("TOM: relayBuffer stdout [%v]\n", relayBuffer[unix.Stdout])	
+		fmt.Printf("TOM: Top drain output buffers\n")
 		// Try to drain the output buffers.  Set the default timeout
 		// for the next poll() to 100ms if we still have data to write.
 		pollTimeout = -1
