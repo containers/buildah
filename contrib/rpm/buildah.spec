@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.15.1
+Version:        1.15.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,10 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Sep 3 2020 Nalin Dahyabhai <nalin@redhat.com> 1.15.2-1
+- in_podman: don't get tripped up by CIRRUS_CHANGE_TITLE
+- blobcache: avoid an unnecessary NewImage()
+
 * Mon Jul 17, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.1-1
 - Mask over the /sys/fs/selinux in mask branch 
 - chroot: do not use setgroups if it is blocked

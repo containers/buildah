@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.15.2 (2020-09-03)
+    in_podman: don't get tripped up by CIRRUS_CHANGE_TITLE
+    blobcache: avoid an unnecessary NewImage()
+
 ## v1.15.1 (2020-07-27)
     Mask over the /sys/fs/selinux in mask branch
     chroot: do not use setgroups if it is blocked
