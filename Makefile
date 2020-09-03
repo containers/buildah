@@ -61,9 +61,13 @@ bin/buildah:  $(SOURCES)
 .PHONY: buildah
 buildah: bin/buildah
 
-.PHONY: bin/buildah.darwin
-bin/buildah.darwin:
-	GOOS=darwin $(GO_BUILD) $(LDFLAGS) -o $@ -tags "containers_image_openpgp" ./cmd/buildah
+.PHONY: cross
+cross: bin/buildah.darwin bin/buildah.darwin.386 bin/buildah.darwin.amd64 bin/buildah.linux.386 bin/buildah.linux.amd64 bin/buildah.linux.arm64 bin/buildah.linux.arm bin/buildah.linux.mips64 bin/buildah.linux.mips64le bin/buildah.linux.mips bin/buildah.linux.mipsle bin/buildah.linux.ppc64 bin/buildah.linux.ppc64le bin/buildah.linux.riscv64 bin/buildah.linux.s390x
+
+.PHONY: bin/buildah.%
+bin/buildah.%:
+	mkdir -p ./bin
+	GOOS=$(shell echo $@ | awk -F. '{print $$2}') GOARCH=$(shell echo $@ | awk -F. '{ print $$3 }') $(GO_BUILD) $(LDFLAGS) -o $@ -tags "containers_image_openpgp" ./cmd/buildah
 
 .PHONY: bin/imgtype
 bin/imgtype: *.go docker/*.go util/*.go tests/imgtype/imgtype.go
