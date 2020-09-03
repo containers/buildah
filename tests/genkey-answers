@@ -1,0 +1,8 @@
+%echo Generating a basic OpenPGP key
+Key-Type: RSA
+Key-Length: 2048
+Name-Real: Amanda Lorian
+Name-Comment: Mandy to her friends
+Name-Email: amanda@localhost
+%commit
+%echo done
