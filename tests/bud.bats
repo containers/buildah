@@ -2216,3 +2216,39 @@ EOM
   # expect something that looks like it was formatted using pkg/rusage.FormatDiff()
   expect_output --substring ".*\(system\).*\(user\).*\(elapsed\).*input.*output"
 }
+
+@test "bud-caching-from-scratch" {
+  _prefetch alpine
+  # run the build once
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json bud/cache-scratch
+  iid="$output"
+  # now run it again - the cache should give us the same final image ID
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json bud/cache-scratch
+  iid2="$output"
+  expect_output --substring "$iid"
+  # now run it *again*, except with more content added at an intermediate step, which should invalidate the cache
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different1 bud/cache-scratch
+  test "$output" != "$iid"
+  # now run it *again* again, except with more content added at an intermediate step, which should invalidate the cache
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different2 bud/cache-scratch
+  test "$output" != "$iid"
+  test "$output" != "$iid2"
+}
+
+@test "bud-caching-from-scratch-config" {
+  _prefetch alpine
+  # run the build once
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.config bud/cache-scratch
+  iid="$output"
+  # now run it again - the cache should give us the same final image ID
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.config bud/cache-scratch
+  iid2="$output"
+  expect_output --substring "$iid"
+  # now run it *again*, except with more content added at an intermediate step, which should invalidate the cache
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different1 bud/cache-scratch
+  test "$output" != "$iid"
+  # now run it *again* again, except with more content added at an intermediate step, which should invalidate the cache
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different2 bud/cache-scratch
+  test "$output" != "$iid"
+  test "$output" != "$iid2"
+}

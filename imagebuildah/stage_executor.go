@@ -25,6 +25,7 @@ import (
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	docker "github.com/fsouza/go-dockerclient"
+	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/imagebuilder"
 	"github.com/openshift/imagebuilder/dockerfile/parser"
@@ -830,7 +831,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		// has the same change that we're about to make, so far as we
 		// can tell.
 		if checkForLayers {
-			cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary)
+			cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
 			if err != nil {
 				return "", nil, errors.Wrap(err, "error checking if cached image exists from a previous build")
 			}
@@ -861,7 +862,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// Check if there's already an image based on our parent that
 			// has the same change that we just made.
 			if checkForLayers {
-				cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary)
+				cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
 				if err != nil {
 					return "", nil, errors.Wrap(err, "error checking if cached image exists from a previous build")
 				}
@@ -961,19 +962,48 @@ func historyEntriesEqual(base, derived v1.History) bool {
 	return true
 }
 
-// historyMatches returns true if a candidate history matches the history of our
-// base image (if we have one), plus the current instruction.
+// historyAndDiffIDsMatch returns true if a candidate history matches the
+// history of our base image (if we have one), plus the current instruction,
+// and if the list of diff IDs for the images do for the part of the history
+// that we're comparing.
 // Used to verify whether a cache of the intermediate image exists and whether
 // to run the build again.
-func (s *StageExecutor) historyMatches(baseHistory []v1.History, child *parser.Node, history []v1.History, addedContentSummary string) bool {
-	if len(baseHistory) >= len(history) {
+func (s *StageExecutor) historyAndDiffIDsMatch(baseHistory []v1.History, baseDiffIDs []digest.Digest, child *parser.Node, history []v1.History, diffIDs []digest.Digest, addedContentSummary string, buildAddsLayer bool) bool {
+	// our history should be as long as the base's, plus one entry for what
+	// we're doing
+	if len(history) != len(baseHistory)+1 {
 		return false
 	}
-	if len(history)-len(baseHistory) != 1 {
-		return false
-	}
+	// check that each entry in the base history corresponds to an entry in
+	// our history, and count how many of them add a layer diff
+	expectedDiffIDs := 0
 	for i := range baseHistory {
 		if !historyEntriesEqual(baseHistory[i], history[i]) {
+			return false
+		}
+		if !baseHistory[i].EmptyLayer {
+			expectedDiffIDs++
+		}
+	}
+	if len(baseDiffIDs) != expectedDiffIDs {
+		return false
+	}
+	if buildAddsLayer {
+		// we're adding a layer, so we should have exactly one more
+		// layer than the base image
+		if len(diffIDs) != expectedDiffIDs+1 {
+			return false
+		}
+	} else {
+		// we're not adding a layer, so we should have exactly the same
+		// layers as the base image
+		if len(diffIDs) != expectedDiffIDs {
+			return false
+		}
+	}
+	// compare the diffs for the layers that we should have in common
+	for i := range baseDiffIDs {
+		if diffIDs[i] != baseDiffIDs[i] {
 			return false
 		}
 	}
@@ -1068,40 +1098,54 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 
 // intermediateImageExists returns true if an intermediate image of currNode exists in the image store from a previous build.
 // It verifies this by checking the parent of the top layer of the image and the history.
-func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *parser.Node, addedContentDigest string) (string, error) {
+func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *parser.Node, addedContentDigest string, buildAddsLayer bool) (string, error) {
 	// Get the list of images available in the image store
 	images, err := s.executor.store.Images()
 	if err != nil {
 		return "", errors.Wrap(err, "error getting image list from store")
 	}
 	var baseHistory []v1.History
+	var baseDiffIDs []digest.Digest
 	if s.builder.FromImageID != "" {
-		baseHistory, err = s.executor.getImageHistory(ctx, s.builder.FromImageID)
+		baseHistory, baseDiffIDs, err = s.executor.getImageHistoryAndDiffIDs(ctx, s.builder.FromImageID)
 		if err != nil {
 			return "", errors.Wrapf(err, "error getting history of base image %q", s.builder.FromImageID)
 		}
 	}
 	for _, image := range images {
 		var imageTopLayer *storage.Layer
+		var imageParentLayerID string
 		if image.TopLayer != "" {
 			imageTopLayer, err = s.executor.store.Layer(image.TopLayer)
 			if err != nil {
 				return "", errors.Wrapf(err, "error getting top layer info")
 			}
+			// Figure out which layer from this image we should
+			// compare our container's base layer to.
+			imageParentLayerID = imageTopLayer.ID
+			// If we haven't added a layer here, then our base
+			// layer should be the same as the image's layer.  If
+			// did add a layer, then our base layer should be the
+			// same as the parent of the image's layer.
+			if buildAddsLayer {
+				imageParentLayerID = imageTopLayer.Parent
+			}
 		}
 		// If the parent of the top layer of an image is equal to the current build image's top layer,
 		// it means that this image is potentially a cached intermediate image from a previous
-		// build. Next we double check that the history of this image is equivalent to the previous
+		// build.
+		if s.builder.TopLayer != imageParentLayerID {
+			continue
+		}
+		// Next we double check that the history of this image is equivalent to the previous
 		// lines in the Dockerfile up till the point we are at in the build.
-		if imageTopLayer == nil || (s.builder.TopLayer != "" && (imageTopLayer.Parent == s.builder.TopLayer || imageTopLayer.ID == s.builder.TopLayer)) {
-			history, err := s.executor.getImageHistory(ctx, image.ID)
-			if err != nil {
-				return "", errors.Wrapf(err, "error getting history of %q", image.ID)
-			}
-			// children + currNode is the point of the Dockerfile we are currently at.
-			if s.historyMatches(baseHistory, currNode, history, addedContentDigest) {
-				return image.ID, nil
-			}
+		history, diffIDs, err := s.executor.getImageHistoryAndDiffIDs(ctx, image.ID)
+		if err != nil {
+			return "", errors.Wrapf(err, "error getting history of %q", image.ID)
+		}
+		// children + currNode is the point of the Dockerfile we are currently at.
+		if s.historyAndDiffIDsMatch(baseHistory, baseDiffIDs, currNode, history, diffIDs, addedContentDigest, buildAddsLayer) {
+			return image.ID, nil
 		}
 	}
 	return "", nil

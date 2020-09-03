@@ -24,6 +24,7 @@ import (
 	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
+	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/openshift/imagebuilder"
@@ -335,22 +336,22 @@ func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebu
 	}
 }
 
-// getImageHistory returns the history of imageID.
-func (b *Executor) getImageHistory(ctx context.Context, imageID string) ([]v1.History, error) {
+// getImageHistoryAndDiffIDs returns the history and diff IDs list of imageID.
+func (b *Executor) getImageHistoryAndDiffIDs(ctx context.Context, imageID string) ([]v1.History, []digest.Digest, error) {
 	imageRef, err := is.Transport.ParseStoreReference(b.store, "@"+imageID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error getting image reference %q", imageID)
+		return nil, nil, errors.Wrapf(err, "error getting image reference %q", imageID)
 	}
 	ref, err := imageRef.NewImage(ctx, nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error creating new image from reference to image %q", imageID)
+		return nil, nil, errors.Wrapf(err, "error creating new image from reference to image %q", imageID)
 	}
 	defer ref.Close()
 	oci, err := ref.OCIConfig(ctx)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error getting possibly-converted OCI config of image %q", imageID)
+		return nil, nil, errors.Wrapf(err, "error getting possibly-converted OCI config of image %q", imageID)
 	}
-	return oci.History, nil
+	return oci.History, oci.RootFS.DiffIDs, nil
 }
 
 func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageExecutor, stages imagebuilder.Stages, stageIndex int) (imageID string, ref reference.Canonical, err error) {
