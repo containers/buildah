@@ -36,6 +36,22 @@ the image.  If *imageName* refers to a manifest list or image index, the
 architecture information will be retrieved from it.  Otherwise, it will be
 retrieved from the image's configuration information.
 
+**--authfile** *path*
+
+Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `buildah login`.
+If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
+
+**--cert-dir** *path*
+
+Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
+Default certificates directory is _/etc/containers/certs.d_.
+
+**--creds** *creds*
+
+The [username[:password]] to use to authenticate with the registry if required.
+If one or both values are not supplied, a command line prompt will appear and the
+value can be entered.  The password is entered without echo.
+
 **--features**
 
 Specify the features list which the list or index records as requirements for
@@ -57,6 +73,10 @@ for the image.  This option is rarely used.
 
 Specify the OS version which the list or index records as a requirement for the
 image.  This option is rarely used.
+
+**--tls-verify** *bool-value*
+
+Require HTTPS and verify certificates when talking to container registries (defaults to true)
 
 **--variant**
 
