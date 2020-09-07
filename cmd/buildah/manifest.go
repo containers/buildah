@@ -28,10 +28,10 @@ type manifestCreateOpts = struct {
 	all                      bool
 }
 type manifestAddOpts = struct {
-	osOverride, archOverride          string
-	os, arch, variant, osVersion      string
-	features, osFeatures, annotations []string
-	all                               bool
+	osOverride, archOverride                               string
+	authfile, certDir, creds, os, arch, variant, osVersion string
+	features, osFeatures, annotations                      []string
+	tlsVerify, all                                         bool
 }
 type manifestRemoveOpts = struct{}
 type manifestAnnotateOpts = struct {
@@ -121,6 +121,9 @@ func init() {
 	if err := flags.MarkHidden("override-arch"); err != nil {
 		panic(fmt.Sprintf("error marking override-arch as hidden: %v", err))
 	}
+	flags.StringVar(&manifestAddOpts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
+	flags.StringVar(&manifestAddOpts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
+	flags.StringVar(&manifestAddOpts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVar(&manifestAddOpts.os, "os", "", "override the `OS` of the specified image")
 	flags.StringVar(&manifestAddOpts.arch, "arch", "", "override the `architecture` of the specified image")
 	flags.StringVar(&manifestAddOpts.variant, "variant", "", "override the `Variant` of the specified image")
@@ -128,6 +131,7 @@ func init() {
 	flags.StringSliceVar(&manifestAddOpts.features, "features", nil, "override the `features` of the specified image")
 	flags.StringSliceVar(&manifestAddOpts.osFeatures, "os-features", nil, "override the OS `features` of the specified image")
 	flags.StringSliceVar(&manifestAddOpts.annotations, "annotation", nil, "set an `annotation` for the specified image")
+	flags.BoolVar(&manifestAddOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 	flags.BoolVar(&manifestAddOpts.all, "all", false, "add all of the list's images if the image is a list")
 	manifestCommand.AddCommand(manifestAddCommand)
 
@@ -252,6 +256,10 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 }
 
 func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error {
+	if err := auth.CheckAuthFile(opts.authfile); err != nil {
+		return err
+	}
+
 	listImageSpec := ""
 	imageSpec := ""
 	switch len(args) {
