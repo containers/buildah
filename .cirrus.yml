@@ -176,7 +176,7 @@ gce_instance:
 
     env:
         matrix:
-            CROSS_TARGET: bin/buildah.darwin
+            CROSS_TARGET: cross
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
