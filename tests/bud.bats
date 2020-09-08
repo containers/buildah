@@ -1829,6 +1829,11 @@ _EOF
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --squash ${TESTSDIR}/bud/layers-squash
 }
 
+@test "bud-squash-hardlinks" {
+  _prefetch busybox
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --squash ${TESTSDIR}/bud/layers-squash/Dockerfile.hardlinks
+}
+
 @test "bud with additional directory of devices" {
   skip_if_chroot
   skip_if_rootless
