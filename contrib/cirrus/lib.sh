@@ -304,7 +304,8 @@ execute_local_registry() {
     mkdir -p $authdirpath
     openssl req \
         -newkey rsa:4096 -nodes -sha256 -x509 -days 2 \
-        -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=localhost" \
+        -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=registry host certificate" \
+        -addext subjectAltName=DNS:localhost \
         -keyout $authdirpath/domain.key \
         -out $authdirpath/domain.crt
 
