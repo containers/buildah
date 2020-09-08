@@ -6,6 +6,8 @@ else
 export GO_BUILD=$(GO) build
 endif
 
+GOARCH ?= amd64
+
 BUILDDIR := build
 
 all: $(BUILDDIR)
@@ -17,7 +19,7 @@ vendor:
 	GO111MODULE=on $(GO) mod verify
 
 define go-build
-	$(shell cd `pwd` && $(GO_BUILD) -o $(BUILDDIR)/$(shell basename $(1)) $(1))
+	$(shell cd `pwd` && GOARCH=$(GOARCH) $(GO_BUILD) -o $(BUILDDIR)/$(shell basename $(1)) $(1))
 	@echo > /dev/null
 endef
 

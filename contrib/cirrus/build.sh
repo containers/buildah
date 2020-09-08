@@ -16,13 +16,13 @@ then
     in_podman --rm $IN_PODMAN_NAME $0
 else
     echo "Compiling buildah (\$GOSRC=$GOSRC)"
-    showrun make clean ${CROSS_TARGET:-all} ${CROSS_TARGET:+CGO_ENABLED=0}
+    showrun make clean GOARCH=${GOARCH:-amd64} ${CROSS_TARGET:-all} ${CROSS_TARGET:+CGO_ENABLED=0}
 
     echo "Installing buildah"
     mkdir -p bin
     if [[ -z "$CROSS_TARGET" ]]
     then
-        showrun make install PREFIX=/usr
+        showrun env GOARCH=${GOARCH} make install PREFIX=/usr
         showrun ./bin/buildah info
     fi
 fi

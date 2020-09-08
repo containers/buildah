@@ -21,6 +21,8 @@ env:
     IN_PODMAN: 'false'
     # Not cross-compiling by default
     CROSS_TARGET: ""
+    # Not building for other arches by default
+    GOARCH: ""
 
     ####
     #### Cache-image names to test with
@@ -177,13 +179,18 @@ gce_instance:
     env:
         matrix:
             CROSS_TARGET: cross
+        matrix:
+          - env:
+            GOARCH: "arm"
+          - env:
+            GOARCH: "386"
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
 
     binary_artifacts:
         path: ./bin/*
-
+          
 
 'cirrus-ci/required/testing_task':
 

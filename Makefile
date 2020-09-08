@@ -4,7 +4,11 @@ SELINUXTAG := $(shell ./selinux_tag.sh)
 APPARMORTAG := $(shell hack/apparmor_tag.sh)
 STORAGETAGS := $(shell ./btrfs_tag.sh) $(shell ./btrfs_installed_tag.sh) $(shell ./libdm_tag.sh)
 SECURITYTAGS ?= seccomp $(SELINUXTAG) $(APPARMORTAG)
+ifneq (or $(findstring 386,$(GOARCH)),$(findstring arm,$(GOARCH)))
+TAGS ?= containers_image_openpgp
+else
 TAGS ?= $(SECURITYTAGS) $(STORAGETAGS)
+endif
 BUILDTAGS += $(TAGS)
 PREFIX := /usr/local
 BINDIR := $(PREFIX)/bin
@@ -15,6 +19,7 @@ BUILDAH := buildah
 GO := go
 GO110 := 1.10
 GOVERSION := $(findstring $(GO110),$(shell go version))
+GOARCH ?= amd64
 # test for go module support
 ifeq ($(shell go help mod >/dev/null 2>&1 && echo true), true)
 export GO_BUILD=GO111MODULE=on $(GO) build -mod=vendor
@@ -56,7 +61,7 @@ static:
 
 .PHONY: bin/buildah
 bin/buildah:  $(SOURCES)
-	$(GO_BUILD) $(LDFLAGS) -o $@ $(BUILDFLAGS) ./cmd/buildah
+	GOARCH=$(GOARCH) $(GO_BUILD) $(LDFLAGS) -o $@ $(BUILDFLAGS) ./cmd/buildah
 
 .PHONY: buildah
 buildah: bin/buildah
