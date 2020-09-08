@@ -2188,6 +2188,8 @@ EOM
   expect_output --substring "1970-01-01"
   run_buildah inspect --format '{{ .OCIv1.Created }}' timestamp
   expect_output --substring "1970-01-01"
+  run_buildah inspect --format '{{ .History }}' timestamp
+  expect_output --substring '1970-01-01 00:00:00'
 
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json timestamp
   cid=$output
