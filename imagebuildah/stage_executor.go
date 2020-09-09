@@ -789,8 +789,11 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				// for this stage.  Make a note of the
 				// instruction in the history that we'll write
 				// for the image when we eventually commit it.
-				now := time.Now()
-				s.builder.AddPrependedEmptyLayer(&now, s.getCreatedBy(node, addedContentSummary), "", "")
+				timestamp := time.Now().UTC()
+				if s.executor.timestamp != nil {
+					timestamp = *s.executor.timestamp
+				}
+				s.builder.AddPrependedEmptyLayer(&timestamp, s.getCreatedBy(node, addedContentSummary), "", "")
 				continue
 			} else {
 				// This is the last instruction for this stage,

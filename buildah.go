@@ -239,15 +239,6 @@ type BuilderInfo struct {
 func GetBuildInfo(b *Builder) BuilderInfo {
 	history := copyHistory(b.OCIv1.History)
 	history = append(history, copyHistory(b.PrependedEmptyLayers)...)
-	now := time.Now().UTC()
-	created := &now
-	history = append(history, v1.History{
-		Created:    created,
-		CreatedBy:  b.ImageCreatedBy,
-		Author:     b.Maintainer(),
-		Comment:    b.ImageHistoryComment,
-		EmptyLayer: false,
-	})
 	history = append(history, copyHistory(b.AppendedEmptyLayers)...)
 	sort.Strings(b.Capabilities)
 	return BuilderInfo{
