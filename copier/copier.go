@@ -1178,14 +1178,11 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 		target := hardlinkChecker.Check(srcfi)
 		if target != "" {
 			hdr.Typeflag = tar.TypeLink
-			if filepath.Dir(filepath.Clean(string(os.PathSeparator)+name)) == filepath.Dir(target) {
-				target = filepath.Base(target)
-			}
 			hdr.Linkname = filepath.ToSlash(target)
 			hdr.Size = 0
 		} else {
 			// note the device/inode pair for this file
-			hardlinkChecker.Add(srcfi, string(os.PathSeparator)+name)
+			hardlinkChecker.Add(srcfi, name)
 		}
 	}
 	// map the ownership for the archive
@@ -1375,14 +1372,8 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				}
 			case tar.TypeLink:
 				var linkTarget string
-				if filepath.IsAbs(filepath.FromSlash(hdr.Linkname)) || looksLikeAbs(filepath.FromSlash(hdr.Linkname)) {
-					if linkTarget, err = resolvePath(targetDirectory, filepath.Join(req.Root, filepath.FromSlash(hdr.Linkname)), nil); err != nil {
-						return errors.Errorf("error resolving hardlink target path %q under root %q", hdr.Linkname, req.Root)
-					}
-				} else {
-					if linkTarget, err = resolvePath(targetDirectory, filepath.Join(targetDirectory, filepath.Dir(filepath.FromSlash(hdr.Name)), filepath.FromSlash(hdr.Linkname)), nil); err != nil {
-						return errors.Errorf("error resolving hardlink target path %q under root %q in directory %q", hdr.Linkname, req.Root, filepath.Dir(filepath.FromSlash(hdr.Name)))
-					}
+				if linkTarget, err = resolvePath(targetDirectory, filepath.Join(req.Root, filepath.FromSlash(hdr.Linkname)), nil); err != nil {
+					return errors.Errorf("error resolving hardlink target path %q under root %q", hdr.Linkname, req.Root)
 				}
 				if err = os.Link(linkTarget, path); err != nil && os.IsExist(err) {
 					if err = os.Remove(path); err == nil {
