@@ -737,12 +737,16 @@ return 1
   "
 
      local options_with_args="
+     --authfile
      --annotation
      --arch
+     --cert-dir
+     --creds
      --features
      --os
      --os-features
      --os-version
+     --tls-verify
      --variant
   "
 
