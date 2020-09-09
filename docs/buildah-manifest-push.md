@@ -31,7 +31,7 @@ If the authorization state is not found there, $HOME/.docker/config.json is chec
 **--cert-dir** *path*
 
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
-Default certificates directory is _/etc/containers/certs.d_.
+The default certificates directory is _/etc/containers/certs.d_.
 
 **--creds** *creds*
 
@@ -61,7 +61,7 @@ Sign the pushed images using the GPG key that matches the specified fingerprint.
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true)
+Require HTTPS and verify certificates when talking to container registries (defaults to true).
 
 ## EXAMPLE
 
@@ -70,4 +70,4 @@ buildah manifest push mylist:v1.11 docker://registry.example.org/mylist:v1.11
 ```
 
 ## SEE ALSO
-buildah(1), buildah-manifest(1), buildah-manifest-create(1), buildah-manifest-add(1), buildah-manifest-remove(1), buildah-manifest-annotate(1), buildah-manifest-inspect(1), buildah-rmi(1)
+buildah(1), buildah-login(1), buildah-manifest(1), buildah-manifest-create(1), buildah-manifest-add(1), buildah-manifest-remove(1), buildah-manifest-annotate(1), buildah-manifest-inspect(1), buildah-rmi(1), docker-login(1)
