@@ -2,6 +2,9 @@
 
 # Changelog
 
+## v1.16.1 (2020-09-10)
+    copier.Get(): hard link targets shouldn't be relative paths
+
 ## v1.16.0 (2020-09-03)
     fix build on 32bit arches
     containerImageRef.NewImageSource(): don't always force timestamps
