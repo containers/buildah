@@ -734,11 +734,15 @@ return 1
      --help
      -h
      --all
+     --tls-verify
   "
 
      local options_with_args="
+     --authfile
      --annotation
      --arch
+     --cert-dir
+     --creds
      --features
      --os
      --os-features
@@ -823,6 +827,7 @@ return 1
      -h
      --all
      --remove-signatures
+     --tls-verify
   "
 
      local options_with_args="
@@ -834,7 +839,6 @@ return 1
      -f
      --purge
      --sign-by
-     --tls-verify
   "
 
      local all_options="$options_with_args $boolean_options"

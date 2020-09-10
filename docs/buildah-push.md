@@ -50,7 +50,7 @@ If the authorization state is not found there, $HOME/.docker/config.json is chec
 **--cert-dir** *path*
 
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
-Default certificates directory is _/etc/containers/certs.d_.
+The default certificates directory is _/etc/containers/certs.d_.
 
 **--creds** *creds*
 
@@ -88,7 +88,7 @@ Sign the pushed image using the GPG key that matches the specified fingerprint.
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true)
+Require HTTPS and verify certificates when talking to container registries (defaults to true).
 
 ## EXAMPLE
 

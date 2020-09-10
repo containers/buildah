@@ -27,7 +27,7 @@ If the authorization state is not found there, $HOME/.docker/config.json is chec
 **--cert-dir** *path*
 
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
-Default certificates directory is _/etc/containers/certs.d_.
+The default certificates directory is _/etc/containers/certs.d_.
 
 **--creds** *creds*
 
@@ -75,7 +75,7 @@ Squash all of the new image's layers (including those inherited from a base imag
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true)
+Require HTTPS and verify certificates when talking to container registries (defaults to true).
 
 **--timestamp** *secconds*
 
