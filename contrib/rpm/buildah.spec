@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.16.0
+Version:        1.16.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Sep 10, 2020 Tom Sweeney <tsweeney@redhat.com> 1.16.1-1
+- copier.Get(): hard link targets shouldn't be relative paths
+
 * Thu Sep 3, 2020 Tom Sweeney <tsweeney@redhat.com> 1.16.0-1
 - fix build on 32bit arches
 - containerImageRef.NewImageSource(): don't always force timestamps
