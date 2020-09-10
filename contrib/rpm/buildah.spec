@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.16.1
+Version:        1.17.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,8 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Sep 10, 2020 Tom Sweeney <tsweeney@redhat.com> 1.17.0-dev-1
+
 * Thu Sep 10, 2020 Tom Sweeney <tsweeney@redhat.com> 1.16.1-1
 - Fix bash completion of manifest flags
 - Uniform some man pages
