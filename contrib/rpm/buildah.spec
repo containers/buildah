@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.17.0-dev
+Version:        1.16.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,7 +99,23 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Thu Sep 3, 2020 Tom Sweeney <tsweeney@redhat.com> 1.17.0-dev-1
+* Thu Sep 10, 2020 Tom Sweeney <tsweeney@redhat.com> 1.16.1-1
+- Fix bash completion of manifest flags
+- Uniform some man pages
+- Update bash completion of `manifest add` sub command
+- copier.Get(): hard link targets shouldn't be relative paths
+- build(deps): bump github.com/onsi/gomega from 1.10.1 to 1.10.2
+- Pass timestamp down to history lines
+- Timestamp gets updated everytime you inspect an image
+- bud.bats: use absolute paths in newly-added tests
+- contrib/cirrus/lib.sh: don't use CN for the hostname
+- tests: Add some tests
+- Update `manifest add` man page
+- Extend flags of `manifest add`
+- build(deps): bump github.com/containers/storage from 1.23.3 to 1.23.4
+- build(deps): bump github.com/onsi/ginkgo from 1.14.0 to 1.14.1
+- Bump to v1.17.0-dev
+- CI: expand cross-compile checks
 
 * Thu Sep 3, 2020 Tom Sweeney <tsweeney@redhat.com> 1.16.0-1
 - fix build on 32bit arches
