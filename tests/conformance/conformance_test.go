@@ -720,7 +720,7 @@ type FSHeader struct {
 	Digest   digest.Digest     `json:"digest,omitempty"`
 }
 
-// FSEntry stores one item in a filesytem tree.  If it represents a directory,
+// FSEntry stores one item in a filesystem tree.  If it represents a directory,
 // its contents are stored as its children
 type FSEntry struct {
 	FSHeader
@@ -825,7 +825,7 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 		}
 		applyLayerToFSTree(t, layer, &fstree.Tree)
 	}
-	// encode the fileystem tree information and save it to a file,
+	// encode the filesystem tree information and save it to a file,
 	// discarding the layer summaries because different tools may choose
 	// between marking a directory as opaque and removing each of its
 	// contents individually, which would produce the same result, so

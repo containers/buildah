@@ -77,7 +77,7 @@ Squash all of the new image's layers (including those inherited from a base imag
 
 Require HTTPS and verify certificates when talking to container registries (defaults to true).
 
-**--timestamp** *secconds*
+**--timestamp** *seconds*
 
 Set the create timestamp to seconds since epoch to allow for deterministic builds (defaults to current time).
 By default, the created timestamp is changed and written into the image manifest with every commit,
