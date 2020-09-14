@@ -180,3 +180,20 @@ load helpers
   # there is no good way to test the details of the image unless with ./buildah pull, test will be in pull.bats
   rm -rf ${TESTDIR}/tmp
 }
+
+@test "push with authfile" {
+  _prefetch busybox
+  mkdir ${TESTDIR}/tmp
+  run_buildah login --authfile ${TESTDIR}/tmp/test.auth --username testuser --password testpassword --tls-verify=false localhost:5000
+  run_buildah push --authfile ${TESTDIR}/tmp/test.auth --signature-policy ${TESTSDIR}/policy.json --tls-verify=false busybox docker://localhost:5000/buildah/busybox:latest
+  expect_output --substring "Copying"
+}
+
+@test "push with --quiet" {
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p $mytmpdir
+
+  _prefetch alpine
+  run_buildah push --quiet --signature-policy ${TESTSDIR}/policy.json alpine dir:$mytmpdir
+  expect_output ""
+}
