@@ -332,20 +332,10 @@ func ParseFile(path string) (*parser.Node, error) {
 
 // Step creates a new step from the current state.
 func (b *Builder) Step() *Step {
-	argsMap := make(map[string]string)
-	for _, argsVal := range b.Arguments() {
-		val := strings.SplitN(argsVal, "=", 2)
-		if len(val) > 1 {
-			argsMap[val[0]] = val[1]
-		}
-	}
-
-	userArgs := makeUserArgs(b.Env, argsMap) 
-	dst := make([]string, len(userArgs)+len(b.RunConfig.Env))
-	copy(dst, userArgs)
-	dst = append(dst, b.RunConfig.Env...)
-
-	return &Step{Env: dst}
+	// Include build arguments in the table of variables that we'll use in
+	// Resolve(), but override them with values from the actual
+	// environment in case there's any conflict.
+	return &Step{Env: mergeEnv(b.Arguments(), mergeEnv(b.Env, b.RunConfig.Env))}
 }
 
 // Run executes a step, transforming the current builder and
@@ -473,7 +463,7 @@ func (b *Builder) FromImage(image *docker.Image, node *parser.Node) error {
 	SplitChildren(node, command.From)
 
 	b.RunConfig = *image.Config
-	b.Env = append(b.Env, b.RunConfig.Env...)
+	b.Env = mergeEnv(b.Env, b.RunConfig.Env)
 	b.RunConfig.Env = nil
 
 	// Check to see if we have a default PATH, note that windows won't
