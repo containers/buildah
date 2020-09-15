@@ -23,17 +23,17 @@ then
         validate)
             showrun ooe.sh git remote add upstream "$CIRRUS_REPO_CLONE_URL"
             showrun ooe.sh git remote update
-            if [[ -z "$CIRRUS_PR" ]]
-            then
-                echo "Testing a branch, assumed or based on the $DEST_BRANCH branch from .cirrus.yml"
-                export GITVALIDATE_EPOCH="$(git rev-parse upstream/$DEST_BRANCH)"
-            else  # Testing a PR
-                echo "Testing a PR targeted at the $DEST_BRANCH branch"
-                export GITVALIDATE_EPOCH="$(git merge-base upstream/$DEST_BRANCH HEAD)"
+            if [[ -n "$CIRRUS_PR" ]]; then
+                echo "Validating a PR"
+                export GITVALIDATE_EPOCH="$CIRRUS_BASE_SHA"
+            elif [[ -n "$CIRRUS_TAG" ]]; then
+                echo "Refusing to validating a Tag"
+                return 0
+            else
+                echo "Validating a Branch"
+                export GITVALIDATE_EPOCH="$CIRRUS_LAST_GREEN_CHANGE"
             fi
-            export GITVALIDATE_TIP="$CIRRUS_CHANGE_IN_REPO"
-            echo "Linting & Validating from $GITVALIDATE_EPOCH to $GITVALIDATE_TIP"
-            # TODO: This will fail if PR HEAD != upstream branch head
+            echo "Linting & Validating from ${GITVALIDATE_EPOCH:-default EPOCH}"
             showrun make lint LINTFLAGS="--deadline=20m --color=always -j1"
             showrun make validate
             ;;
