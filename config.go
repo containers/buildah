@@ -220,7 +220,7 @@ func (b *Builder) ClearOnBuild() {
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetOnBuild(onBuild string) {
 	if onBuild != "" && b.Format != Dockerv2ImageManifest {
-		logrus.Errorf("ONBUILD is not supported for OCI image format, %s will be ignored. Must use `docker` format", onBuild)
+		logrus.Warnf("ONBUILD is not supported for OCI image format, %s will be ignored. Must use `docker` format", onBuild)
 	}
 	b.Docker.Config.OnBuild = append(b.Docker.Config.OnBuild, onBuild)
 }
@@ -252,7 +252,7 @@ func (b *Builder) Shell() []string {
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetShell(shell []string) {
 	if len(shell) > 0 && b.Format != Dockerv2ImageManifest {
-		logrus.Errorf("SHELL is not supported for OCI image format, %s will be ignored. Must use `docker` format", shell)
+		logrus.Warnf("SHELL is not supported for OCI image format, %s will be ignored. Must use `docker` format", shell)
 	}
 
 	b.Docker.Config.Shell = copyStringSlice(shell)
@@ -489,7 +489,7 @@ func (b *Builder) Domainname() string {
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetDomainname(name string) {
 	if name != "" && b.Format != Dockerv2ImageManifest {
-		logrus.Errorf("DOMAINNAME is not supported for OCI image format, domainname %s will be ignored. Must use `docker` format", name)
+		logrus.Warnf("DOMAINNAME is not supported for OCI image format, domainname %s will be ignored. Must use `docker` format", name)
 	}
 	b.Docker.Config.Domainname = name
 }
@@ -511,7 +511,7 @@ func (b *Builder) Comment() string {
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetComment(comment string) {
 	if comment != "" && b.Format != Dockerv2ImageManifest {
-		logrus.Errorf("COMMENT is not supported for OCI image format, comment %s will be ignored. Must use `docker` format", comment)
+		logrus.Warnf("COMMENT is not supported for OCI image format, comment %s will be ignored. Must use `docker` format", comment)
 	}
 	b.Docker.Comment = comment
 }
