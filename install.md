@@ -472,7 +472,7 @@ Buildah uses Go Modules for vendoring purposes.  If you need to update or add a 
  * `export GO111MODULE=on`
  * `go get` the needed version:
      * Assuming you want to 'bump' the `github.com/containers/storage` package to version 1.12.13, use this command: `go get github.com/containers/storage@v1.12.13`
-     *  Assumming that you want to 'bump' the `github.com/containers/storage` package to a particular commit, use this command: `go get github.com/containers/storage@e307568568533c4afccdf7b56df7b4493e4e9a7b`
+     *  Assuming that you want to 'bump' the `github.com/containers/storage` package to a particular commit, use this command: `go get github.com/containers/storage@e307568568533c4afccdf7b56df7b4493e4e9a7b`
  * `make vendor-in-container`
  * `make`
  * `make install`

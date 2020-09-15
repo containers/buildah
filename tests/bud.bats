@@ -2148,7 +2148,7 @@ EOM
 }
 
 @test "bud arg and env var with same name" {
-  # Regresion test for https://github.com/containers/buildah/issues/2345
+  # Regression test for https://github.com/containers/buildah/issues/2345
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t testctr ${TESTSDIR}/bud/dupe-arg-env-name
   expect_output --substring "https://example.org/bar"
 }

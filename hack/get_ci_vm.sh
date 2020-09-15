@@ -28,7 +28,7 @@ BUILDAHROOT=$(realpath "$(dirname $0)/../")
 # else: Assume $PWD is the root of the buildah repository
 [[ "$BUILDAHROOT" != "/" ]] || BUILDAHROOT=$PWD
 
-# Command shortcuts save some typing (asumes $BUILDAHROOT is subdir of $HOME)
+# Command shortcuts save some typing (assumes $BUILDAHROOT is subdir of $HOME)
 PGCLOUD="$GCLOUD_SUDO podman run -it --rm -e AS_ID=$UID -e AS_USER=$USER --security-opt label=disable -v $TMPDIR:$HOME -v $HOME/.config/gcloud:$HOME/.config/gcloud -v $HOME/.config/gcloud/ssh:$HOME/.ssh -v $BUILDAHROOT:$BUILDAHROOT $GCLOUD_IMAGE --configuration=buildah --project=$PROJECT"
 SCP_CMD="$PGCLOUD compute scp"
 
