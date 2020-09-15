@@ -73,12 +73,22 @@ __buildah_pos_first_nonflag() {
 __buildah_previous_extglob_setting=$(shopt -p extglob)
 shopt -s extglob
 
+# __buildah_list_mounted
+__buildah_list_mounted() {
+   COMPREPLY=($(compgen -W "$(buildah mount | awk '{print $1}')" -- $cur))
+}
+
 __buildah_list_containers() {
    COMPREPLY=($(compgen -W "$(buildah containers --format '{{.ContainerName}} {{.ContainerID}}' )" -- $cur))
 }
-
 __buildah_list_images() {
    COMPREPLY=($(compgen -W "$(buildah images --format '{{.ID}} {{.Name}}' )" -- $cur))
+}
+__buildah_list_images_scratch() {
+   COMPREPLY=($(compgen -W "$(buildah images --format '{{.ID}} {{.Name}}' ) scratch" -- $cur))
+}
+__buildah_list_containers_images() {
+   COMPREPLY=($(compgen -W "$(buildah containers --format '{{.ContainerName}} {{.ContainerID}}') $(buildah images --format '{{.ID}} {{.Name}}')" -- $cur))
 }
 
 __buildah_pos_first_nonflag() {
@@ -302,6 +312,9 @@ return 1
          -*)
              COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
              ;;
+         *)
+             __buildah_list_containers
+             ;;
      esac
  }
 
@@ -355,6 +368,9 @@ return 1
      case "$cur" in
          -*)
              COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+         *)
+             __buildah_list_containers
              ;;
      esac
  }
@@ -502,6 +518,9 @@ return 1
  case "$cur" in
      -*)
          COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+	 ;;
+      *)
+         __buildah_list_containers
          ;;
  esac
 }
@@ -570,6 +589,9 @@ return 1
      case "$cur" in
          -*)
              COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+         *)
+	     __buildah_list_mounted
              ;;
      esac
  }
@@ -651,6 +673,9 @@ return 1
      case "$cur" in
          -*)
              COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+         *)
+             __buildah_list_images
              ;;
      esac
  }
@@ -884,6 +909,9 @@ return 1
          -*)
              COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
              ;;
+         *)
+             __buildah_list_containers
+             ;;
      esac
  }
 
@@ -990,7 +1018,11 @@ _buildah_containers() {
          -*)
              COMPREPLY=($(compgen -W "$options_with_args" -- "$cur"))
              ;;
-     esac
+         *)
+             __buildah_list_containers_images
+             ;;
+
+esac
  }
 
  _buildah_tag() {
@@ -1002,6 +1034,9 @@ _buildah_containers() {
      case "$cur" in
          -*)
              COMPREPLY=($(compgen -W "$options_with_args" -- "$cur"))
+             ;;
+         *)
+             __buildah_list_images
              ;;
      esac
  }
@@ -1063,7 +1098,7 @@ _buildah_containers() {
              COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
              ;;
          *)
-             __buildah_list_containers
+             __buildah_list_images_scratch
              ;;
      esac
  }
