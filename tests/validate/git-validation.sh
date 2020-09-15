@@ -22,5 +22,5 @@ set -x
 exec git-validation \
     $OUTPUT_OPTIONS \
     -run DCO,short-subject \
-    ${GITVALIDATE_EPOCH:+-range "${GITVALIDATE_EPOCH}..${GITVALIDATE_TIP:-@}"} \
+    ${GITVALIDATE_EPOCH:+-range "${GITVALIDATE_EPOCH}..${GITVALIDATE_TIP:-HEAD}"} \
     ${GITVALIDATE_FLAGS}
