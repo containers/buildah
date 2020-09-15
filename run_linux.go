@@ -34,6 +34,7 @@ import (
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/stringid"
 	"github.com/containers/storage/pkg/unshare"
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
@@ -342,7 +343,12 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 	for _, volume := range builtinVolumes {
 		subdir := digest.Canonical.FromString(volume).Hex()
 		volumePath := filepath.Join(containerDir, "buildah-volumes", subdir)
-		srcPath := filepath.Join(mountPoint, volume)
+
+		srcPath, err := securejoin.SecureJoin(mountPoint, volume)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to construct mountpoint %q for volume %q", volumePath, volume)
+		}
+
 		initializeVolume := false
 		// If we need to, initialize the volume path's initial contents.
 		if _, err := os.Stat(volumePath); err != nil {
@@ -358,7 +364,8 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 			}
 			initializeVolume = true
 		}
-		stat, err := os.Stat(srcPath)
+
+		stat, err := os.Lstat(srcPath)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return nil, err
