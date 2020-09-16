@@ -19,6 +19,8 @@ import (
 	"k8s.io/klog"
 )
 
+var isArchivePath = archive.IsArchivePath
+
 // TransformFileFunc is given a chance to transform an arbitrary input file.
 type TransformFileFunc func(h *tar.Header, r io.Reader) (data []byte, update bool, skip bool, err error)
 
