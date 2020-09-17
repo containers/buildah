@@ -2736,4 +2736,19 @@ var internalTestCases = []testCase{
 		shouldFailAt: 7,
 		failureRegex: "no such file or directory",
 	},
+
+	{
+		// from imagebuilder #139
+		name:       "copy-deep",
+		contextDir: "copydeep",
+		fsSkip:     []string{"var:mtime"},
+	},
+
+	{
+		// from imagebuilder #139
+		name:       "copy-deep-slash",
+		contextDir: "copydeep",
+		dockerfile: "Dockerfile.slash",
+		fsSkip:     []string{"var:mtime"},
+	},
 }
