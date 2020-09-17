@@ -6,6 +6,7 @@ import (
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +26,7 @@ func init() {
 		Short: "Mount a working container's root filesystem",
 		Long:  mountDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return mountCmd(cmd, args, noTruncate)
+			return mountCmd(cmd, args)
 		},
 		Example: `buildah mount
   buildah mount containerID
@@ -42,9 +43,12 @@ func init() {
 	flags.SetInterspersed(false)
 	flags.BoolVar(&noTruncate, "notruncate", false, "do not truncate output")
 	rootCmd.AddCommand(mountCommand)
+	if err := flags.MarkHidden("notruncate"); err != nil {
+		logrus.Fatalf("error marking notruncate as hidden: %v", err)
+	}
 }
 
-func mountCmd(c *cobra.Command, args []string, noTruncate bool) error {
+func mountCmd(c *cobra.Command, args []string) error {
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
@@ -54,8 +58,6 @@ func mountCmd(c *cobra.Command, args []string, noTruncate bool) error {
 	if err != nil {
 		return err
 	}
-	truncate := !noTruncate
-
 	var lastError error
 	if len(args) > 0 {
 		// Do not allow to mount a graphdriver that is not vfs if we are creating the userns as part
@@ -98,11 +100,7 @@ func mountCmd(c *cobra.Command, args []string, noTruncate bool) error {
 			if builder.MountPoint == "" {
 				continue
 			}
-			if truncate {
-				fmt.Printf("%-12.12s %s\n", builder.ContainerID, builder.MountPoint)
-			} else {
-				fmt.Printf("%-64s %s\n", builder.ContainerID, builder.MountPoint)
-			}
+			fmt.Printf("%s %s\n", builder.Container, builder.MountPoint)
 		}
 	}
 	return lastError
