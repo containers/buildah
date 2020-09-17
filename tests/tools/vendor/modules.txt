@@ -224,7 +224,7 @@ github.com/spf13/viper
 github.com/timakin/bodyclose/passes/bodyclose
 # github.com/ultraware/funlen v0.0.1
 github.com/ultraware/funlen
-# github.com/vbatts/git-validation v1.0.0
+# github.com/vbatts/git-validation v1.1.1-0.20200916181008-60cb8713913d
 ## explicit
 github.com/vbatts/git-validation
 github.com/vbatts/git-validation/git
