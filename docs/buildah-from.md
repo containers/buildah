@@ -192,6 +192,15 @@ Set custom DNS options
 
 Set custom DNS search domains
 
+**--format**
+
+Control the format for the built image's manifest and configuration data.
+Recognized formats include *oci* (OCI image-spec v1.0, the default) and
+*docker* (version 2, using schema format 2 for the manifest).
+
+Note: You can also override the default format by setting the BUILDAH\_FORMAT
+environment variable.  `export BUILDAH_FORMAT=docker`
+
 **--http-proxy**
 
 By default proxy environment variables are passed into the container if set
