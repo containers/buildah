@@ -16,6 +16,8 @@ BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 export GPG_TTY=/dev/null
 
 function setup() {
+	pushd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
+
 	suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | od -An -tx1 | sed -e 's, ,,g')
 	TESTDIR=${BATS_TMPDIR}/tmp${suffix}
 	rm -fr ${TESTDIR}
@@ -53,6 +55,8 @@ function teardown() {
             xargs --no-run-if-empty --max-lines=1 umount
 
 	rm -fr ${TESTDIR}
+
+	popd
 }
 
 function _prefetch() {
