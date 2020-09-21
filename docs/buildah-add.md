@@ -27,7 +27,7 @@ BUILDAH\_HISTORY environment variable. `export BUILDAH_HISTORY=true`
 
 Sets the user and group ownership of the destination content.
 
-**--quiet**
+**--quiet**, **-q**
 
 Refrain from printing a digest of the added content.
 

@@ -43,13 +43,17 @@ value can be entered.  The password is entered without echo.
 
 After copying the image, write the digest of the resulting image to the file.
 
-**--format, -f**
+**--format**, **-f**
 
 Manifest list type (oci or v2s2) to use when pushing the list (default is oci).
 
 **--purge**
 
 Delete the manifest list or image index from local storage if pushing succeeds.
+
+**--quiet**, **-q**
+
+Don't output progress information when pushing lists.
 
 **--remove-signatures**
 

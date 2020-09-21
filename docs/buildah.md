@@ -109,7 +109,7 @@ If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-gid-map
 are specified, but --userns-uid-map is specified, the GID map will be set to
 use the same numeric values as the UID map.
 
-**--version, -v**
+**--version**, **-v**
 
 Print the version
 
@@ -131,9 +131,10 @@ Buildah can set up environment variables from the env entry in the [engine] tabl
 | buildah-images(1)     | List images in local storage.                                                                        |
 | buildah-info(1)       | Display Buildah system information.                                                                  |
 | buildah-inspect(1)    | Inspects the configuration of a container or image                                                   |
-| buildah-mount(1)      | Mount the working container's root filesystem.                                                       |
 | buildah-login(1)      | Login to a container registry.                                                                       |
 | buildah-logout(1)     | Logout of a container registry                                                                       |
+| buildah-manifest(1)   | Create and manipulate manifest lists and image indexes. |
+| buildah-mount(1)      | Mount the working container's root filesystem.                                                       |
 | buildah-pull(1)       | Pull an image from the specified location.                                                           |
 | buildah-push(1)       | Push an image from local storage to elsewhere.                                                       |
 | buildah-rename(1)     | Rename a local container.                                                                            |

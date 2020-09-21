@@ -42,7 +42,7 @@ The image ID of the image that was pulled.  On error 1 is returned.
 
 ## OPTIONS
 
-**--all-tags, a**
+**--all-tags**, **-a**
 
 All tagged images in the repository will be pulled.
 
@@ -66,19 +66,13 @@ value can be entered.  The password is entered without echo.
 
 The [key[:passphrase]] to be used for decryption of images. Key can point to keys and/or certificates. Decryption will be tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and omitted otherwise.
 
-**--quiet, -q**
+**--quiet**, **-q**
 
 If an image needs to be pulled from the registry, suppress progress output.
 
 **--remove-signatures**
 
 Don't copy signatures when pulling images.
-
-**--shm-size**=""
-
-Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.
-Unit is optional and can be `b` (bytes), `k` (kilobytes), `m`(megabytes), or `g` (gigabytes).
-If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
 
 **--tls-verify** *bool-value*
 

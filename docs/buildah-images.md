@@ -12,7 +12,7 @@ The created date is displayed in the time locale of the local machine.
 
 ## OPTIONS
 
-**--all, -a**
+**--all**, **-a**
 
 Show all images, including intermediate images from a build.
 
@@ -20,7 +20,7 @@ Show all images, including intermediate images from a build.
 
 Show the image digests.
 
-**--filter, -f=[]**
+**--filter**, **-f**=[]
 
 Filter output based on conditions provided (default []).  Valid
 keywords are 'before', 'dangling', 'label', 'readonly' and 'since' .
@@ -42,7 +42,7 @@ keywords are 'before', 'dangling', 'label', 'readonly' and 'since' .
   **since==TIMESTRING**
     Filter on images created since the given time.Time.
 
-**--format="TEMPLATE"**
+**--format**="TEMPLATE"
 
 Pretty-print images using a Go template.
 
@@ -66,15 +66,15 @@ Display the image name history.
 
 Display the output in JSON format.
 
-**--noheading, -n**
+**--noheading**, **-n**
 
 Omit the table headings from the listing of images.
 
-**--no-trunc, --notruncate**
+**--no-trunc**
 
 Do not truncate output.
 
-**--quiet, -q**
+**--quiet**, **-q**
 
 Displays only the image IDs.
 
@@ -88,7 +88,7 @@ buildah images --json
 
 buildah images --quiet
 
-buildah images -q --noheading --notruncate
+buildah images -q --noheading --no-trunc
 
 buildah images --quiet fedora:latest
 

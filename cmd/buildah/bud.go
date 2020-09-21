@@ -40,8 +40,8 @@ func init() {
 	namespaceResults := buildahcli.NameSpaceResults{}
 
 	budCommand := &cobra.Command{
-		Use:     "build-using-dockerfile",
-		Aliases: []string{"bud"},
+		Use:     "bud",
+		Aliases: []string{"build-using-dockerfile"},
 		Short:   "Build an image using instructions in a Dockerfile",
 		Long:    budDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {

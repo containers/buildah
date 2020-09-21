@@ -123,7 +123,7 @@ Limit the container's CPU usage. By default, containers run with the full
 CPU resource. This flag tell the kernel to restrict the container's CPU usage
 to the quota you specify.
 
-**--cpu-shares, -c**=*0*
+**--cpu-shares**, **-c**=*0*
 
 CPU shares (relative weight)
 
@@ -186,7 +186,7 @@ The [key[:passphrase]] to be used for decryption of images. Key can point to key
 
 Add a host device or devices under a directory to the container. The format is `<device-on-host>[:<device-on-container>][:<permissions>]` (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
 
-**--disable-compression, -D**
+**--disable-compression**, **-D**
 Don't compress filesystem layers when building the image unless it is required
 by the location where the image is being written.  This is the default setting,
 because image layers are compressed automatically when they are pushed to
@@ -216,7 +216,7 @@ Set custom DNS options
 
 Set custom DNS search domains
 
-**--file, -f** *Containerfile*
+**--file**, **-f** *Containerfile*
 
 Specifies a Containerfile which contains instructions for building the image,
 either a local file or an **http** or **https** URL.  If more than one
@@ -306,7 +306,7 @@ environment variable. `export BUILDAH_LAYERS=true`
 Log output which would be sent to standard output and standard error to the
 specified file instead of to standard output and standard error.
 
-**--memory, -m**=""
+**--memory**, **-m**=""
 
 Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
 
@@ -392,7 +392,7 @@ Raise an error if not found in the registries, even if the image is present loca
 Do not pull the image from the registry, use only the local version. Raise an error
 if the image is not present locally.
 
-**--quiet, -q**
+**--quiet**, **-q**
 
 Suppress output messages which indicate which instruction is being processed,
 and of progress when pulling images from a registry, and when writing the
@@ -441,6 +441,10 @@ Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater tha
 Unit is optional and can be `b` (bytes), `k` (kilobytes), `m`(megabytes), or `g` (gigabytes).
 If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
 
+**--signature-policy** *path*
+
+Path to alternate signature policy file (intended for testing; not typically used).
+
 **--sign-by** *fingerprint*
 
 Sign the built image using the GPG key that matches the specified fingerprint.
@@ -449,7 +453,7 @@ Sign the built image using the GPG key that matches the specified fingerprint.
 
 Squash all of the new image's layers (including those inherited from a base image) into a single new layer.
 
-**--tag, -t** *imageName*
+**--tag**, **-t** *imageName*
 
 Specifies the name which will be assigned to the resulting image if the build
 process completes successfully.
@@ -532,7 +536,7 @@ that the UTS namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a UTS namespace which is already in use by another
 process.
 
-**--volume, -v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
+**--volume**, **-v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
 
    Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
    bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah

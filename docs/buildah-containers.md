@@ -12,13 +12,13 @@ IDs, and the names and IDs of the images from which they were initialized.
 
 ## OPTIONS
 
-**--all, -a**
+**--all**, **-a**
 
 List information about all containers, including those which were not created
 by and are not being used by Buildah.  Containers created by Buildah are
 denoted with an '*' in the 'BUILDER' column.
 
-**--filter, -f**
+**--filter**, **-f**
 
 Filter output based on conditions provided.
 
@@ -48,7 +48,7 @@ Valid placeholders for the Go template are listed below:
 
 Output in JSON format.
 
-**--noheading, -n**
+**--noheading**, **-n**
 
 Omit the table headings from the listing of containers.
 
@@ -56,7 +56,7 @@ Omit the table headings from the listing of containers.
 
 Do not truncate IDs and image names in the output.
 
-**--quiet, -q**
+**--quiet**, **-q**
 
 Displays only the container IDs.
 
@@ -121,4 +121,3 @@ fbfd3505376e     *     0ff04b2e7b63 docker.io/library/ubuntu:latest  ubuntu-work
 
 ## SEE ALSO
 buildah(1)
-

@@ -1,0 +1,310 @@
+#!/usr/bin/perl
+#
+# xref-helpmsgs-manpages - cross-reference --help options against man pages
+#
+package LibPod::CI::XrefHelpmsgsManpages;
+
+use v5.14;
+use utf8;
+
+use strict;
+use warnings;
+
+(our $ME = $0) =~ s|.*/||;
+our $VERSION = '0.1';
+
+# For debugging, show data structures using DumpTree($var)
+#use Data::TreeDumper; $Data::TreeDumper::Displayaddress = 0;
+
+# unbuffer output
+$| = 1;
+
+###############################################################################
+# BEGIN user-customizable section
+
+# Path to desired executable
+my $Default_Tool = './bin/buildah';
+my $TOOL = $ENV{BUILDAH} || $Default_Tool;
+
+# Path to all doc files, including .rst and (down one level) markdown
+my $Docs_Path = 'docs';
+
+# Path to markdown source files (of the form <toolname>-*.1.md)
+my $Markdown_Path = "$Docs_Path";
+
+# Global error count
+my $Errs = 0;
+
+# END   user-customizable section
+###############################################################################
+
+use FindBin;
+
+###############################################################################
+# BEGIN boilerplate args checking, usage messages
+
+sub usage {
+    print  <<"END_USAGE";
+Usage: $ME [OPTIONS]
+
+$ME recursively runs '<tool> --help' against
+all subcommands; and recursively reads <tool>-*.1.md files
+in $Markdown_Path, then cross-references that each --help
+option is listed in the appropriate man page and vice-versa.
+
+$ME invokes '\$BUILDAH' (default: $Default_Tool).
+
+Exit status is zero if no inconsistencies found, one otherwise
+
+OPTIONS:
+
+  -v, --verbose  show verbose progress indicators
+  -n, --dry-run  make no actual changes
+
+  --help         display this message
+  --version      display program name and version
+END_USAGE
+
+    exit;
+}
+
+# Command-line options.  Note that this operates directly on @ARGV !
+our $debug   = 0;
+our $verbose = 0;
+sub handle_opts {
+    use Getopt::Long;
+    GetOptions(
+        'debug!'     => \$debug,
+        'verbose|v'  => \$verbose,
+
+        help         => \&usage,
+        version      => sub { print "$ME version $VERSION\n"; exit 0 },
+    ) or die "Try `$ME --help' for help\n";
+}
+
+# END   boilerplate args checking, usage messages
+###############################################################################
+
+############################## CODE BEGINS HERE ###############################
+
+# The term is "modulino".
+__PACKAGE__->main()                                     unless caller();
+
+# Main code.
+sub main {
+    # Note that we operate directly on @ARGV, not on function parameters.
+    # This is deliberate: it's because Getopt::Long only operates on @ARGV
+    # and there's no clean way to make it use @_.
+    handle_opts();                      # will set package globals
+
+    # Fetch command-line arguments.  Barf if too many.
+    die "$ME: Too many arguments; try $ME --help\n"                 if @ARGV;
+
+    my $help = tool_help();
+    my $man  = tool_man('buildah');
+
+    xref_by_help($help, $man);
+    xref_by_man($help, $man);
+
+#    xref_rst($help, $rst);
+
+    exit !!$Errs;
+}
+
+###############################################################################
+# BEGIN cross-referencing
+
+##################
+#  xref_by_help  #  Find keys in '--help' but not in man
+##################
+sub xref_by_help {
+    my ($help, $man, @subcommand) = @_;
+
+    for my $k (sort keys %$help) {
+        if (exists $man->{$k}) {
+            if (ref $help->{$k}) {
+                xref_by_help($help->{$k}, $man->{$k}, @subcommand, $k);
+            }
+            # Otherwise, non-ref is leaf node such as a --option
+        }
+        else {
+            my $man = $man->{_path} || 'man';
+            warn "$ME: buildah @subcommand --help lists $k, but $k not in $man\n";
+            ++$Errs;
+        }
+    }
+}
+
+#################
+#  xref_by_man  #  Find keys in man pages but not in --help
+#################
+#
+# In an ideal world we could share the functionality in one function; but
+# there are just too many special cases in man pages.
+#
+sub xref_by_man {
+    my ($help, $man, @subcommand) = @_;
+
+    # FIXME: this generates way too much output
+    for my $k (grep { $_ ne '_path' } sort keys %$man) {
+        if (exists $help->{$k}) {
+            if (ref $man->{$k}) {
+                xref_by_man($help->{$k}, $man->{$k}, @subcommand, $k);
+            }
+        }
+        elsif ($k ne '--help' && $k ne '-h') {
+            my $man = $man->{_path} || 'man';
+
+            # Special case: 'buildah run --tty' is an invisible alias for -t
+            next if $k eq '--tty' && $help->{'--terminal'};
+
+            # Special case: '--net' is an undocumented shortcut in from,run
+            next if $k eq '--net' && $help->{'--network'};
+
+            # Special case: global options, re-documented in buildah-bud.md
+#            next if "@subcommand" eq "bud" && $k =~ /^--userns-.id-map$/;
+
+            warn "$ME: buildah @subcommand: $k in $man, but not --help\n";
+            ++$Errs;
+        }
+    }
+}
+
+# END   cross-referencing
+###############################################################################
+# BEGIN data gathering
+
+###############
+#  tool_help  #  Parse output of '<tool> [subcommand] --help'
+###############
+sub tool_help {
+    my %help;
+    open my $fh, '-|', $TOOL, @_, '--help'
+        or die "$ME: Cannot fork: $!\n";
+    my $section = '';
+    while (my $line = <$fh>) {
+        # Cobra is blessedly consistent in its output:
+        #    Usage: ...
+        #    Available Commands:
+        #       ....
+        #    Flags:
+        #       ....
+        #
+        # Start by identifying the section we're in...
+        if ($line =~ /^Available\s+(Commands):/) {
+            $section = lc $1;
+        }
+        elsif ($line =~ /^(Flags):/) {
+            $section = lc $1;
+        }
+
+        # ...then track commands and options. For subcommands, recurse.
+        elsif ($section eq 'commands') {
+            if ($line =~ /^\s{1,4}(\S+)\s/) {
+                my $subcommand = $1;
+                print "> buildah @_ $subcommand\n"               if $debug;
+                $help{$subcommand} = tool_help(@_, $subcommand)
+                    unless $subcommand eq 'help';       # 'help' not in man
+            }
+        }
+        elsif ($section eq 'flags') {
+            next if $line =~ /^\s+-h,\s+--help/;        # Ignore --help
+
+            # Handle '--foo' or '-f, --foo'
+            if ($line =~ /^\s{1,10}(--\S+)\s/) {
+                print "> buildah @_ $1\n"                        if $debug;
+                $help{$1} = 1;
+            }
+            elsif ($line =~ /^\s{1,10}(-\S),\s+(--\S+)\s/) {
+                print "> buildah @_ $1, $2\n"                    if $debug;
+                $help{$1} = $help{$2} = 1;
+            }
+        }
+    }
+    close $fh
+        or die "$ME: Error running 'buildah @_ --help'\n";
+
+    return \%help;
+}
+
+
+##############
+#  tool_man  #  Parse contents of <tool>-*.md
+##############
+sub tool_man {
+    my $command = shift;
+    my $subpath = "$Markdown_Path/$command.md";
+    my $manpath = "$FindBin::Bin/../$subpath";
+    print "** $subpath \n"                              if $debug;
+
+    my %man = (_path => $subpath);
+    open my $fh, '<', $manpath
+        or die "$ME: Cannot read $manpath: $!\n";
+    my $section = '';
+    my @most_recent_flags;
+    my $previous_subcmd = '';
+    while (my $line = <$fh>) {
+        chomp $line;
+        next unless $line;		# skip empty lines
+
+        # .md files designate sections with leading double hash
+        if ($line =~ /^##\s*(GLOBAL\s+)?OPTIONS/) {
+            $section = 'flags';
+        }
+        elsif ($line =~ /^\#\#\s+(SUB)?COMMANDS/) {
+            $section = 'commands';
+        }
+        elsif ($line =~ /^\#\#/) {
+            $section = '';
+        }
+
+        # This will be a table containing subcommand names, links to man pages.
+        # The format is slightly different between buildah.md and subcommands.
+        elsif ($section eq 'commands') {
+            # In tool.1.md
+            if ($line =~ /^\|\s*buildah-(\S+?)\(\d\)/) {
+                # $1 will be changed by recursion _*BEFORE*_ left-hand assignment
+                my $subcmd = $1;
+                $man{$subcmd} = tool_man("buildah-$1");
+            }
+
+            # In tool-<subcommand>.1.md
+            elsif ($line =~ /^\|\s+(\S+)\s+\|\s+\[\S+\]\((\S+)\.md\)/) {
+                # $1 will be changed by recursion _*BEFORE*_ left-hand assignment
+                my $subcmd = $1;
+                if ($previous_subcmd gt $subcmd) {
+                    warn "$ME: $subpath: '$previous_subcmd' and '$subcmd' are out of order\n";
+                    ++$Errs;
+                }
+                $previous_subcmd = $subcmd;
+                $man{$subcmd} = tool_man($2);
+            }
+        }
+
+        # Flags should always be of the form '**-f**' or '**--flag**',
+        # possibly separated by comma-space.
+        elsif ($section eq 'flags') {
+            # e.g. 'podman run --ip6', documented in man page, but nonexistent
+            if ($line =~ /^not\s+implemented/i) {
+                delete $man{$_} for @most_recent_flags;
+            }
+
+            @most_recent_flags = ();
+            # Handle any variation of '**--foo**, **-f**'
+            while ($line =~ s/^\*\*((--[a-z0-9-]+)|(-.))\*\*(,\s+)?//g) {
+                $man{$1} = 1;
+
+                # Keep track of them, in case we see 'Not implemented' below
+                push @most_recent_flags, $1;
+            }
+        }
+    }
+    close $fh;
+
+    return \%man;
+}
+
+# END   data gathering
+###############################################################################
+
+1;

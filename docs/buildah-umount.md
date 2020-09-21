@@ -10,7 +10,7 @@ buildah\-umount - Unmount the root file system on the specified working containe
 Unmounts the root file system on the specified working containers.
 
 ## OPTIONS
-**--all, -a**
+**--all**, **-a**
 
 All of the currently mounted containers will be unmounted.
 
