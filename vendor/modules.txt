@@ -64,13 +64,14 @@ github.com/containers/common/pkg/config
 github.com/containers/common/pkg/retry
 github.com/containers/common/pkg/seccomp
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.5.2
+# github.com/containers/image/v5 v5.6.0
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
 github.com/containers/image/v5/directory/explicitfilepath
 github.com/containers/image/v5/docker
 github.com/containers/image/v5/docker/archive
 github.com/containers/image/v5/docker/daemon
+github.com/containers/image/v5/docker/internal/tarfile
 github.com/containers/image/v5/docker/policyconfiguration
 github.com/containers/image/v5/docker/reference
 github.com/containers/image/v5/docker/tarfile
@@ -248,7 +249,7 @@ github.com/hashicorp/errwrap
 github.com/hashicorp/go-multierror
 # github.com/hashicorp/golang-lru v0.5.1
 github.com/hashicorp/golang-lru/simplelru
-# github.com/imdario/mergo v0.3.9
+# github.com/imdario/mergo v0.3.11
 github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
@@ -265,8 +266,6 @@ github.com/klauspost/compress/zstd/internal/xxhash
 github.com/klauspost/pgzip
 # github.com/konsorten/go-windows-terminal-sequences v1.0.1
 github.com/konsorten/go-windows-terminal-sequences
-# github.com/mattn/go-isatty v0.0.12
-github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.9
 github.com/mattn/go-runewidth
 # github.com/mattn/go-shellwords v1.0.10
@@ -396,7 +395,7 @@ github.com/stretchr/testify/require
 github.com/syndtr/gocapability/capability
 # github.com/tchap/go-patricia v2.3.0+incompatible
 github.com/tchap/go-patricia/patricia
-# github.com/ulikunitz/xz v0.5.7
+# github.com/ulikunitz/xz v0.5.8
 github.com/ulikunitz/xz
 github.com/ulikunitz/xz/internal/hash
 github.com/ulikunitz/xz/internal/xlog
@@ -405,7 +404,7 @@ github.com/ulikunitz/xz/lzma
 github.com/vbatts/tar-split/archive/tar
 github.com/vbatts/tar-split/tar/asm
 github.com/vbatts/tar-split/tar/storage
-# github.com/vbauerster/mpb/v5 v5.2.2
+# github.com/vbauerster/mpb/v5 v5.3.0
 github.com/vbauerster/mpb/v5
 github.com/vbauerster/mpb/v5/cwriter
 github.com/vbauerster/mpb/v5/decor
@@ -454,7 +453,7 @@ golang.org/x/net/proxy
 # golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20200728102440-3e129f6d46b1
+# golang.org/x/sys v0.0.0-20200810151505-1b9f1253b3ed
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
