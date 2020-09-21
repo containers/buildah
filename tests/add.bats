@@ -175,6 +175,8 @@ load helpers
 
 @test "add relative" {
   # make sure we don't get thrown by relative source locations
+  cd ${TESTSDIR}
+
   _prefetch busybox
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid=$output
