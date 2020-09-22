@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.16.1
+Version:        1.16.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Sep 21 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.2-1
+- Add(): fix handling of relative paths with no ContextDir
+
 * Thu Sep 10, 2020 Tom Sweeney <tsweeney@redhat.com> 1.16.1-1
 - copier.Get(): hard link targets shouldn't be relative paths
 
