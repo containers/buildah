@@ -17,7 +17,6 @@ import (
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/ioutils"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -202,7 +201,7 @@ type Builder struct {
 	// ContentDigester counts the digest of all Add()ed content
 	ContentDigester CompositeDigester
 	// Devices are the additional devices to add to the containers
-	Devices []configs.Device
+	Devices ContainerDevices
 }
 
 // BuilderInfo are used as objects to display container information
@@ -231,7 +230,7 @@ type BuilderInfo struct {
 	CNIConfigDir          string
 	IDMappingOptions      IDMappingOptions
 	History               []v1.History
-	Devices               []configs.Device
+	Devices               ContainerDevices
 }
 
 // GetBuildInfo gets a pointer to a Builder object and returns a BuilderInfo object from it.
@@ -400,7 +399,7 @@ type BuilderOptions struct {
 	// Format for the container image
 	Format string
 	// Devices are the additional devices to add to the containers
-	Devices []configs.Device
+	Devices ContainerDevices
 	//DefaultEnv for containers
 	DefaultEnv []string
 	// MaxPullRetries is the maximum number of attempts we'll make to pull

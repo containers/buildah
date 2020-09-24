@@ -37,6 +37,7 @@ import (
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
@@ -46,6 +47,9 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sys/unix"
 )
+
+// ContainerDevices is an alias for a slice of github.com/opencontainers/runc/libcontainer/configs.Device structures.
+type ContainerDevices = []configs.Device
 
 func setChildProcess() error {
 	if err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, uintptr(1), 0, 0, 0); err != nil {
