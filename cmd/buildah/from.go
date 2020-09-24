@@ -12,7 +12,6 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/common/pkg/config"
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -255,7 +254,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if err != nil {
 		return err
 	}
-	devices := []configs.Device{}
+	devices := buildah.ContainerDevices{}
 	for _, device := range append(defaultContainerConfig.Containers.Devices, iopts.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {

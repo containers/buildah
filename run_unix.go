@@ -1,13 +1,14 @@
-// +build !linux,!darwin
+// +build darwin
 
 package buildah
 
 import (
+	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/pkg/errors"
 )
 
-// ContainerDevices is currently not implemented.
-type ContainerDevices = []struct{}
+// ContainerDevices is an alias for a slice of github.com/opencontainers/runc/libcontainer/configs.Device structures.
+type ContainerDevices = []configs.Device
 
 func setChildProcess() error {
 	return errors.New("function not supported on non-linux systems")
