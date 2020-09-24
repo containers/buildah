@@ -335,7 +335,7 @@ func GetBindMount(args []string) (specs.Mount, error) {
 	setDest := false
 
 	for _, val := range args {
-		kv := strings.Split(val, "=")
+		kv := strings.SplitN(val, "=", 2)
 		switch kv[0] {
 		case "bind-nonrecursive":
 			newMount.Options = append(newMount.Options, "bind")
@@ -407,7 +407,7 @@ func GetTmpfsMount(args []string) (specs.Mount, error) {
 	setDest := false
 
 	for _, val := range args {
-		kv := strings.Split(val, "=")
+		kv := strings.SplitN(val, "=", 2)
 		switch kv[0] {
 		case "ro", "nosuid", "nodev", "noexec":
 			newMount.Options = append(newMount.Options, kv[0])
