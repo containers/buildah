@@ -13,7 +13,7 @@ fi
 
 if [[ "$TRAVIS" != 'true' ]]; then
 	#GITVALIDATE_EPOCH=":/git-validation epoch"
-	GITVALIDATE_EPOCH="a8ac807dbb3463943855c1d0d55f6e87b69149f3"
+	GITVALIDATE_EPOCH="v1.16.0"
 fi
 
 OUTPUT_OPTIONS="-q"
