@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
-	github.com/containers/common v0.22.0
+	github.com/containers/common v0.23.0
 	github.com/containers/image/v5 v5.6.0
 	github.com/containers/ocicrypt v1.0.3
 	github.com/containers/storage v1.23.5
@@ -28,7 +28,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200616122406-847368b35ebf
 	github.com/sirupsen/logrus v1.6.0
-	github.com/spf13/cobra v0.0.7
+	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
