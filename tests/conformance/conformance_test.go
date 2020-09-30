@@ -1474,6 +1474,170 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name: "add-permissions",
+		dockerfileContents: strings.Join([]string{
+			"FROM scratch",
+			fmt.Sprintf("# Does ADD preserve permissions differently for archives and files?"),
+			"ADD archive.tar subdir1/",
+			"ADD archive/ subdir2/",
+		}, "\n"),
+		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+			content := []byte("test content")
+
+			if err := os.Mkdir(filepath.Join(contextDir, "archive"), 0755); err != nil {
+				return errors.Wrapf(err, "error creating subdirectory of temporary context directory")
+			}
+			filename := filepath.Join(contextDir, "archive", "should-be-owned-by-root")
+			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+				return errors.Wrapf(err, "error creating file owned by root in temporary context directory")
+			}
+			if err = os.Chown(filename, 0, 0); err != nil {
+				return errors.Wrapf(err, "error setting ownership on file owned by root in temporary context directory")
+			}
+			if err = os.Chtimes(filename, testDate, testDate); err != nil {
+				return errors.Wrapf(err, "error setting date on file owned by root file in temporary context directory")
+			}
+			filename = filepath.Join(contextDir, "archive", "should-be-owned-by-99")
+			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+				return errors.Wrapf(err, "error creating file owned by 99 in temporary context directory")
+			}
+			if err = os.Chown(filename, 99, 99); err != nil {
+				return errors.Wrapf(err, "error setting ownership on file owned by 99 in temporary context directory")
+			}
+			if err = os.Chtimes(filename, testDate, testDate); err != nil {
+				return errors.Wrapf(err, "error setting date on file owned by 99 in temporary context directory")
+			}
+
+			filename = filepath.Join(contextDir, "archive.tar")
+			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				return errors.Wrapf(err, "error creating archive file")
+			}
+			defer f.Close()
+			tw := tar.NewWriter(f)
+			defer tw.Close()
+			err = tw.WriteHeader(&tar.Header{
+				Name:     "archive/should-be-owned-by-root",
+				Typeflag: tar.TypeReg,
+				Size:     int64(len(content)),
+				ModTime:  testDate,
+				Mode:     0640,
+				Uid:      0,
+				Gid:      0,
+			})
+			if err != nil {
+				return errors.Wrapf(err, "error writing archive file header")
+			}
+			n, err := tw.Write(content)
+			if err != nil {
+				return errors.Wrapf(err, "error writing archive file contents")
+			}
+			if n != len(content) {
+				return errors.Errorf("short write writing archive file contents")
+			}
+			err = tw.WriteHeader(&tar.Header{
+				Name:     "archive/should-be-owned-by-99",
+				Typeflag: tar.TypeReg,
+				Size:     int64(len(content)),
+				ModTime:  testDate,
+				Mode:     0640,
+				Uid:      99,
+				Gid:      99,
+			})
+			if err != nil {
+				return errors.Wrapf(err, "error writing archive file header")
+			}
+			n, err = tw.Write(content)
+			if err != nil {
+				return errors.Wrapf(err, "error writing archive file contents")
+			}
+			if n != len(content) {
+				return errors.Errorf("short write writing archive file contents")
+			}
+			return nil
+		},
+		fsSkip: []string{"(dir):subdir1:mtime", "(dir):subdir2:mtime"},
+	},
+
+	{
+		name: "copy-permissions",
+		dockerfileContents: strings.Join([]string{
+			"FROM scratch",
+			fmt.Sprintf("# Does COPY --chown change permissions on already-present directories?"),
+			"COPY subdir/ subdir/",
+			"COPY --chown=99:99 subdir/ subdir/",
+		}, "\n"),
+		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+			content := []byte("test content")
+
+			if err := os.Mkdir(filepath.Join(contextDir, "subdir"), 0755); err != nil {
+				return errors.Wrapf(err, "error creating subdirectory of temporary context directory")
+			}
+			filename := filepath.Join(contextDir, "subdir", "would-be-owned-by-root")
+			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+				return errors.Wrapf(err, "error creating file owned by root in temporary context directory")
+			}
+			if err = os.Chown(filename, 0, 0); err != nil {
+				return errors.Wrapf(err, "error setting ownership on file owned by root in temporary context directory")
+			}
+			if err = os.Chtimes(filename, testDate, testDate); err != nil {
+				return errors.Wrapf(err, "error setting date on file owned by root file in temporary context directory")
+			}
+			filename = filepath.Join(contextDir, "subdir", "would-be-owned-by-99")
+			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+				return errors.Wrapf(err, "error creating file owned by 99 in temporary context directory")
+			}
+			if err = os.Chown(filename, 99, 99); err != nil {
+				return errors.Wrapf(err, "error setting ownership on file owned by 99 in temporary context directory")
+			}
+			if err = os.Chtimes(filename, testDate, testDate); err != nil {
+				return errors.Wrapf(err, "error setting date on file owned by 99 in temporary context directory")
+			}
+			return nil
+		},
+		fsSkip: []string{"(dir):subdir:mtime"},
+	},
+
+	{
+		name: "copy-permissions-implicit",
+		dockerfileContents: strings.Join([]string{
+			"FROM scratch",
+			fmt.Sprintf("# Does COPY --chown change permissions on already-present directories?"),
+			"COPY --chown=99:99 subdir/ subdir/",
+			"COPY subdir/ subdir/",
+		}, "\n"),
+		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
+			content := []byte("test content")
+
+			if err := os.Mkdir(filepath.Join(contextDir, "subdir"), 0755); err != nil {
+				return errors.Wrapf(err, "error creating subdirectory of temporary context directory")
+			}
+			filename := filepath.Join(contextDir, "subdir", "would-be-owned-by-root")
+			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+				return errors.Wrapf(err, "error creating file owned by root in temporary context directory")
+			}
+			if err = os.Chown(filename, 0, 0); err != nil {
+				return errors.Wrapf(err, "error setting ownership on file owned by root in temporary context directory")
+			}
+			if err = os.Chtimes(filename, testDate, testDate); err != nil {
+				return errors.Wrapf(err, "error setting date on file owned by root file in temporary context directory")
+			}
+			filename = filepath.Join(contextDir, "subdir", "would-be-owned-by-99")
+			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
+				return errors.Wrapf(err, "error creating file owned by 99 in temporary context directory")
+			}
+			if err = os.Chown(filename, 99, 99); err != nil {
+				return errors.Wrapf(err, "error setting ownership on file owned by 99 in temporary context directory")
+			}
+			if err = os.Chtimes(filename, testDate, testDate); err != nil {
+				return errors.Wrapf(err, "error setting date on file owned by 99 in temporary context directory")
+			}
+			return nil
+		},
+		fsSkip: []string{"(dir):subdir:mtime"},
+	},
+
+	{
 		// the digest just ensures that we can handle a digest
 		// reference to a manifest list; the digest of any manifest
 		// list in the image repository would do
