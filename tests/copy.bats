@@ -179,12 +179,17 @@ load helpers
       expect_output "nobody:root" "stat UG /subdir/$i"
   done
 
+  # subdir will have been implicitly created, and the --chown should have had an effect
+  run_buildah run $cid stat -c "%U:%G" /subdir
+  expect_output "nobody:root" "stat UG /subdir"
+
   run_buildah copy --chown root:root $cid ${TESTDIR}/other-subdir /subdir
   for i in randomfile other-randomfile ; do
       run_buildah run $cid stat -c "%U:%G" /subdir/$i
       expect_output "root:root" "stat UG /subdir/$i (after chown)"
   done
 
+  # subdir itself will have not been copied (the destination directory was created implicitly), so its permissions should not have changed
   run_buildah run $cid stat -c "%U:%G" /subdir
   expect_output "nobody:root" "stat UG /subdir"
 }
