@@ -789,9 +789,7 @@ func IDMappingOptions(c *cobra.Command, isolation buildah.Isolation) (usernsOpti
 		case "host":
 			usernsOption.Host = true
 		default:
-			if strings.HasPrefix(how, "ns:") {
-				how = how[3:]
-			}
+			how = strings.TrimPrefix(how, "ns:")
 			if _, err := os.Stat(how); err != nil {
 				return nil, nil, errors.Wrapf(err, "error checking for %s namespace at %q", string(specs.UserNamespace), how)
 			}
@@ -890,9 +888,7 @@ func NamespaceOptions(c *cobra.Command) (namespaceOptions buildah.NamespaceOptio
 						break
 					}
 				}
-				if strings.HasPrefix(how, "ns:") {
-					how = how[3:]
-				}
+				how = strings.TrimPrefix(how, "ns:")
 				if _, err := os.Stat(how); err != nil {
 					return nil, buildah.NetworkDefault, errors.Wrapf(err, "error checking for %s namespace at %q", what, how)
 				}
