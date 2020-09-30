@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.16.2
+Version:        1.16.3
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,10 +99,18 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Wed Sep 30 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.3-1
+- Lint: Use same linters as podman
+- add: preserve ownerships and permissions on ADDed archives
+- chroot: fix handling of errno seccomp rules
+- git-validation.sh: set the base for comparison to v1.16.0
+- chroot: create bind mount targets 0755 instead of 0700
+
 * Mon Sep 21 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.2-1
 - Add(): fix handling of relative paths with no ContextDir
 
 * Thu Sep 10, 2020 Tom Sweeney <tsweeney@redhat.com> 1.16.1-1
+- CI: use release-1.16 as the basis for validation tests
 - copier.Get(): hard link targets shouldn't be relative paths
 
 * Thu Sep 3, 2020 Tom Sweeney <tsweeney@redhat.com> 1.16.0-1
