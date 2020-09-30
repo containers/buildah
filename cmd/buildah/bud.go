@@ -44,7 +44,6 @@ func init() {
 		Aliases: []string{"bud"},
 		Short:   "Build an image using instructions in a Dockerfile",
 		Long:    budDescription,
-		//Flags:                  sortFlags(append(append(buildahcli.BudFlags, buildahcli.LayerFlags...), buildahcli.FromAndBudFlags...)),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			br := budOptions{
 				&layerFlagsResults,
