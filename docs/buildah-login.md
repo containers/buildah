@@ -21,7 +21,7 @@ flag. The default path used is **${XDG\_RUNTIME_DIR}/containers/auth.json**.
 
 ## OPTIONS
 
-**--password, -p**
+**--password**, **-p**
 
 Password for registry
 
@@ -29,7 +29,7 @@ Password for registry
 
 Take the password from stdin
 
-**--username, -u**
+**--username**, **-u**
 
 Username for registry
 

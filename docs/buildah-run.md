@@ -181,7 +181,7 @@ that the UTS namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a UTS namespace which is already in use by another
 process.
 
-**--volume, -v** *source*:*destination*:*options*
+**--volume**, **-v** *source*:*destination*:*options*
 
 Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
 bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah

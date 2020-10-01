@@ -27,7 +27,7 @@ Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth
 Note: You can also override the default path of the authentication file by setting the REGISTRY\_AUTH\_FILE
 environment variable. `export REGISTRY_AUTH_FILE=path`
 
-**--all, -a**
+**--all**, **-a**
 
 Remove the cached credentials for all registries in the auth file
 

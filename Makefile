@@ -95,6 +95,7 @@ codespell:
 validate: install.tools
 	@./tests/validate/whitespace.sh
 	@./tests/validate/git-validation.sh
+	@./hack/xref-helpmsgs-manpages
 
 .PHONY: install.tools
 install.tools:

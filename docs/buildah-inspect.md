@@ -13,7 +13,7 @@ the given template will be executed for each result.
 
 ## OPTIONS
 
-**--format** *template*
+**--format**, **-f** *template*
 
 Use *template* as a Go template when formatting the output.
 
@@ -21,7 +21,7 @@ Users of this option should be familiar with the [*text/template*
 package](https://golang.org/pkg/text/template/) in the Go standard library, and
 of internals of Buildah's implementation.
 
-**--type** **container** | **image**
+**--type**, **-t** **container** | **image**
 
 Specify whether *object* is a container or an image.
 

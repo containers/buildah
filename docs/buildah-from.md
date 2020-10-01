@@ -113,7 +113,7 @@ Limit the container's CPU usage. By default, containers run with the full
 CPU resource. This flag tell the kernel to restrict the container's CPU usage
 to the quota you specify.
 
-**--cpu-shares, -c**=*0*
+**--cpu-shares**, **-c**=*0*
 
 CPU shares (relative weight)
 
@@ -192,7 +192,7 @@ Set custom DNS options
 
 Set custom DNS search domains
 
-**--format**
+**--format**, **-f** *oci* | *docker*
 
 Control the format for the built image's manifest and configuration data.
 Recognized formats include *oci* (OCI image-spec v1.0, the default) and
@@ -235,7 +235,7 @@ container technology).
 Note: You can also override the default isolation type by setting the
 BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
-**--memory, -m**=""
+**--memory**, **-m**=""
 
 Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
 
@@ -304,7 +304,7 @@ Raise an error if not found in the registries, even if the image is present loca
 Do not pull the image from the registry, use only the local version. Raise an error
 if the image is not present locally.
 
-**--quiet, -q**
+**--quiet**, **-q**
 
 If an image needs to be pulled from the registry, suppress progress output.
 
@@ -368,7 +368,7 @@ the user namespace in which `Buildah` itself is being run should be reused, or
 it can be the path to an user namespace which is already in use by another
 process.
 
-**--userns-uid-map** *mapping*
+**--userns-uid-map-user** *mapping*
 
 Directly specifies a UID mapping which should be used to set ownership, at the
 filesystem level, on the container's contents.
@@ -389,7 +389,7 @@ If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-uid-map
 are specified, but --userns-gid-map is specified, the UID map will be set to
 use the same numeric values as the GID map.
 
-**--userns-gid-map** *mapping*
+**--userns-gid-map-group** *mapping*
 
 Directly specifies a GID mapping which should be used to set ownership, at the
 filesystem level, on the container's contents.
@@ -442,7 +442,7 @@ that the UTS namespace in which `Buildah` itself is being run should be reused,
 or it can be the path to a UTS namespace which is already in use by another
 process.
 
-**--volume, -v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
+**--volume**, **-v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
 
    Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
    bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah
