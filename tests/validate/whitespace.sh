@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/sh
 #
 #  Check for one or more whitespace characters at the end of a line in a markdown or text file.
 #  gofmt is already going to be doing the same for source code.

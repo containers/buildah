@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 # test_buildah_authentication
 # A script to be run at the command line with Buildah installed.
 # This currently needs to be run as root and Docker must be

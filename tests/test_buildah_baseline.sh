@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 # test_buildah_baseline.sh 
 # A script to be run at the command line with Buildah installed.
 # This should be run against a new kit to provide base level testing
