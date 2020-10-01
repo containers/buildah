@@ -1038,6 +1038,9 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 			}
 			// evaluate excludes relative to the root directory
 			if info.Mode().IsDir() {
+				// we don't expand any of the contents that are archives
+				options := req.GetOptions
+				options.ExpandArchives = false
 				walkfn := func(path string, info os.FileInfo, err error) error {
 					// compute the path of this item
 					// relative to the top-level directory,
@@ -1079,7 +1082,7 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 						symlinkTarget = target
 					}
 					// add the item to the outgoing tar stream
-					return copierHandlerGetOne(info, symlinkTarget, rel, path, req.GetOptions, tw, hardlinkChecker, idMappings)
+					return copierHandlerGetOne(info, symlinkTarget, rel, path, options, tw, hardlinkChecker, idMappings)
 				}
 				// walk the directory tree, checking/adding items individually
 				if err := filepath.Walk(item, walkfn); err != nil {
