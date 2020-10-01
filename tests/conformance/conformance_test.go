@@ -2603,4 +2603,50 @@ var internalTestCases = []testCase{
 			`COPY --chown=1:1 /script /script`,
 		}, "\n"),
 	},
+
+	{
+		name:       "add-archive-1",
+		contextDir: "add/archive",
+		dockerfile: "Dockerfile.1",
+	},
+
+	{
+		name:       "add-archive-2",
+		contextDir: "add/archive",
+		dockerfile: "Dockerfile.2",
+	},
+
+	{
+		name:       "add-archive-3",
+		contextDir: "add/archive",
+		dockerfile: "Dockerfile.3",
+	},
+
+	{
+		name:       "add-archive-4",
+		contextDir: "add/archive",
+		dockerfile: "Dockerfile.4",
+		fsSkip:     []string{"(dir):sub:mtime"},
+	},
+
+	{
+		name:       "add-archive-5",
+		contextDir: "add/archive",
+		dockerfile: "Dockerfile.5",
+		fsSkip:     []string{"(dir):sub:mtime"},
+	},
+
+	{
+		name:       "add-archive-6",
+		contextDir: "add/archive",
+		dockerfile: "Dockerfile.6",
+		fsSkip:     []string{"(dir):sub:mtime"},
+	},
+
+	{
+		name:       "add-archive-7",
+		contextDir: "add/archive",
+		dockerfile: "Dockerfile.7",
+		fsSkip:     []string{"(dir):sub:mtime"},
+	},
 }
