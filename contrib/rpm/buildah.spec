@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.16.3
+Version:        1.16.4
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Oct 1 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.4-1
+- ADD: only expand archives at the right time
+
 * Wed Sep 30 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.3-1
 - Lint: Use same linters as podman
 - add: preserve ownerships and permissions on ADDed archives

@@ -2,6 +2,9 @@
 
 # Changelog
 
+## v1.16.4 (2020-10-01)
+    ADD: only expand archives at the right time
+
 ## v1.16.3 (2020-09-30)
     Lint: Use same linters as podman
     add: preserve ownerships and permissions on ADDed archives
