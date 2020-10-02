@@ -64,9 +64,6 @@ gce_instance:
 # Update metadata on VM images referenced by this repository state
 'cirrus-ci/only_prs/meta_task':
 
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
-
     container:
         image: "quay.io/libpod/imgts:latest"  # see contrib/imgts
         cpu: 1
@@ -107,12 +104,6 @@ gce_instance:
 
 'cirrus-ci/only_prs/unit_task':
 
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
-
-    # not supported by bors-ng
-    # allow_failures: $CI == $CI
-
     timeout_in: 45m
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
@@ -126,9 +117,6 @@ gce_instance:
 'cirrus-ci/only_prs/conformance_task':
     gce_instance:  # Only need to specify differences from defaults (above)
         image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
-
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     # don't fail the PR when we fail until #2480 is merged
     allow_failures: true
@@ -144,9 +132,6 @@ gce_instance:
 # that the vendor.conf, the code and the vendored packages in ./vendor are
 # in sync at all times.
 'cirrus-ci/only_prs/vendor_task':
-
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     env:
         CIRRUS_WORKING_DIR: "/var/tmp/go/src/github.com/containers/buildah"
@@ -168,9 +153,6 @@ gce_instance:
 
 'cirrus-ci/only_prs/cross_task':
 
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
-
     depends_on:
         - 'cirrus-ci/only_prs/gate'
         - 'cirrus-ci/only_prs/vendor'
@@ -187,9 +169,6 @@ gce_instance:
 
 
 'cirrus-ci/required/testing_task':
-
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     depends_on:
         - 'cirrus-ci/only_prs/gate'
@@ -222,9 +201,6 @@ gce_instance:
 
 'cirrus-ci/required/in_podman_task':
 
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
-
     depends_on:
         - 'cirrus-ci/only_prs/gate'
         - 'cirrus-ci/only_prs/vendor'
@@ -252,9 +228,6 @@ gce_instance:
 #       can be fixed, use a single "test" to represent pass/fail status of all
 #       required checks.
 'cirrus-ci/success_task':
-
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     depends_on:
         - "cirrus-ci/required/testing"
