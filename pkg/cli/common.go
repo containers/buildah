@@ -188,11 +188,15 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringSliceVarP(&flags.File, "file", "f", []string{}, "`pathname or URL` of a Dockerfile")
 	fs.StringVar(&flags.Format, "format", DefaultFormat(), "`format` of the built image's manifest and metadata. Use BUILDAH_FORMAT environment variable to override.")
 	fs.StringVar(&flags.Iidfile, "iidfile", "", "`file` to write the image ID to")
+	fs.IntVar(&flags.Jobs, "jobs", 1, "how many stages to run in parallel")
 	fs.StringArrayVar(&flags.Label, "label", []string{}, "Set metadata for an image (default [])")
-	fs.BoolVar(&flags.NoCache, "no-cache", false, "Do not use existing cached images for the container build. Build from the start with a new set of cached layers.")
 	fs.StringVar(&flags.Logfile, "logfile", "", "log to `file` instead of stdout/stderr")
 	fs.IntVar(&flags.Loglevel, "loglevel", 0, "adjust logging level (range from -2 to 3)")
-	fs.Int64Var(&flags.Timestamp, "timestamp", 0, "set created timestamp to the specified epoch seconds to allow for deterministic builds, defaults to current time")
+	fs.BoolVar(&flags.LogRusage, "log-rusage", false, "log resource usage at each build step")
+	if err := fs.MarkHidden("log-rusage"); err != nil {
+		panic(fmt.Sprintf("error marking the log-rusage flag as hidden: %v", err))
+	}
+	fs.BoolVar(&flags.NoCache, "no-cache", false, "Do not use existing cached images for the container build. Build from the start with a new set of cached layers.")
 	fs.StringVar(&flags.OS, "os", runtime.GOOS, "set the OS to the provided value instead of the current operating system of the host")
 	fs.StringVar(&flags.Platform, "platform", parse.DefaultPlatform(), "set the OS/ARCH to the provided value instead of the current operating system and architecture of the host (for example `linux/arm`)")
 	fs.BoolVar(&flags.Pull, "pull", true, "pull the image from the registry if newer or not present in store, if false, only pull the image if not present")
@@ -207,12 +211,8 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.BoolVar(&flags.Squash, "squash", false, "squash newly built layers into a single new layer")
 	fs.StringArrayVarP(&flags.Tag, "tag", "t", []string{}, "tagged `name` to apply to the built image")
 	fs.StringVar(&flags.Target, "target", "", "set the target build stage to build")
+	fs.Int64Var(&flags.Timestamp, "timestamp", 0, "set created timestamp to the specified epoch seconds to allow for deterministic builds, defaults to current time")
 	fs.BoolVar(&flags.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
-	fs.IntVar(&flags.Jobs, "jobs", 1, "how many stages to run in parallel")
-	fs.BoolVar(&flags.LogRusage, "log-rusage", false, "log resource usage at each build step")
-	if err := fs.MarkHidden("log-rusage"); err != nil {
-		panic(fmt.Sprintf("error marking the log-rusage flag as hidden: %v", err))
-	}
 	return fs
 }
 
@@ -229,10 +229,10 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["file"] = commonComp.AutocompleteDefault
 	flagCompletion["format"] = commonComp.AutocompleteNone
 	flagCompletion["iidfile"] = commonComp.AutocompleteDefault
+	flagCompletion["jobs"] = commonComp.AutocompleteNone
 	flagCompletion["label"] = commonComp.AutocompleteNone
 	flagCompletion["logfile"] = commonComp.AutocompleteDefault
 	flagCompletion["loglevel"] = commonComp.AutocompleteDefault
-	flagCompletion["timestamp"] = commonComp.AutocompleteNone
 	flagCompletion["os"] = commonComp.AutocompleteNone
 	flagCompletion["platform"] = commonComp.AutocompleteNone
 	flagCompletion["runtime-flag"] = commonComp.AutocompleteNone
@@ -240,7 +240,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["signature-policy"] = commonComp.AutocompleteNone
 	flagCompletion["tag"] = commonComp.AutocompleteNone
 	flagCompletion["target"] = commonComp.AutocompleteNone
-	flagCompletion["jobs"] = commonComp.AutocompleteNone
+	flagCompletion["timestamp"] = commonComp.AutocompleteNone
 	return flagCompletion
 }
 
