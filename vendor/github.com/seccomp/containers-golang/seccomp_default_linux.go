@@ -1,8 +1,14 @@
 // +build seccomp
 
+// SPDX-License-Identifier: Apache-2.0
+
+// Copyright 2013-2018 Docker, Inc.
+
 package seccomp // import "github.com/seccomp/containers-golang"
 
 import (
+	"syscall"
+
 	"golang.org/x/sys/unix"
 )
 
@@ -41,9 +47,13 @@ func arches() []Architecture {
 
 // DefaultProfile defines the whitelist for the default seccomp profile.
 func DefaultProfile() *Seccomp {
+	einval := uint(syscall.EINVAL)
+
 	syscalls := []*Syscall{
 		{
 			Names: []string{
+				"_llseek",
+				"_newselect",
 				"accept",
 				"accept4",
 				"access",
@@ -110,6 +120,8 @@ func DefaultProfile() *Seccomp {
 				"ftruncate64",
 				"futex",
 				"futimesat",
+				"get_robust_list",
+				"get_thread_area",
 				"getcpu",
 				"getcwd",
 				"getdents",
@@ -135,12 +147,10 @@ func DefaultProfile() *Seccomp {
 				"getresuid",
 				"getresuid32",
 				"getrlimit",
-				"get_robust_list",
 				"getrusage",
 				"getsid",
 				"getsockname",
 				"getsockopt",
-				"get_thread_area",
 				"gettid",
 				"gettimeofday",
 				"getuid",
@@ -151,13 +161,13 @@ func DefaultProfile() *Seccomp {
 				"inotify_init1",
 				"inotify_rm_watch",
 				"io_cancel",
-				"ioctl",
 				"io_destroy",
 				"io_getevents",
-				"ioprio_get",
-				"ioprio_set",
 				"io_setup",
 				"io_submit",
+				"ioctl",
+				"ioprio_get",
+				"ioprio_set",
 				"ipc",
 				"kill",
 				"lchown",
@@ -168,7 +178,6 @@ func DefaultProfile() *Seccomp {
 				"listen",
 				"listxattr",
 				"llistxattr",
-				"_llseek",
 				"lremovexattr",
 				"lseek",
 				"lsetxattr",
@@ -206,7 +215,6 @@ func DefaultProfile() *Seccomp {
 				"name_to_handle_at",
 				"nanosleep",
 				"newfstatat",
-				"_newselect",
 				"open",
 				"openat",
 				"pause",
@@ -248,11 +256,11 @@ func DefaultProfile() *Seccomp {
 				"rt_sigsuspend",
 				"rt_sigtimedwait",
 				"rt_tgsigqueueinfo",
+				"sched_get_priority_max",
+				"sched_get_priority_min",
 				"sched_getaffinity",
 				"sched_getattr",
 				"sched_getparam",
-				"sched_get_priority_max",
-				"sched_get_priority_min",
 				"sched_getscheduler",
 				"sched_rr_get_interval",
 				"sched_setaffinity",
@@ -272,6 +280,9 @@ func DefaultProfile() *Seccomp {
 				"sendmmsg",
 				"sendmsg",
 				"sendto",
+				"set_robust_list",
+				"set_thread_area",
+				"set_tid_address",
 				"setfsgid",
 				"setfsgid32",
 				"setfsuid",
@@ -292,11 +303,8 @@ func DefaultProfile() *Seccomp {
 				"setreuid",
 				"setreuid32",
 				"setrlimit",
-				"set_robust_list",
 				"setsid",
 				"setsockopt",
-				"set_thread_area",
-				"set_tid_address",
 				"setuid",
 				"setuid32",
 				"setxattr",
@@ -309,7 +317,6 @@ func DefaultProfile() *Seccomp {
 				"signalfd",
 				"signalfd4",
 				"sigreturn",
-				"socket",
 				"socketcall",
 				"socketpair",
 				"splice",
@@ -330,12 +337,12 @@ func DefaultProfile() *Seccomp {
 				"time",
 				"timer_create",
 				"timer_delete",
-				"timerfd_create",
-				"timerfd_gettime",
-				"timerfd_settime",
 				"timer_getoverrun",
 				"timer_gettime",
 				"timer_settime",
+				"timerfd_create",
+				"timerfd_gettime",
+				"timerfd_settime",
 				"times",
 				"tkill",
 				"truncate",
@@ -343,9 +350,11 @@ func DefaultProfile() *Seccomp {
 				"ugetrlimit",
 				"umask",
 				"umount",
+				"umount2",
 				"uname",
 				"unlink",
 				"unlinkat",
+				"unshare",
 				"utime",
 				"utimensat",
 				"utimes",
@@ -644,6 +653,85 @@ func DefaultProfile() *Seccomp {
 			Args:   []*Arg{},
 			Includes: Filter{
 				Caps: []string{"CAP_SYS_TTY_CONFIG"},
+			},
+		},
+		{
+			Names: []string{
+				"socket",
+			},
+			Action:   ActErrno,
+			ErrnoRet: &einval,
+			Args: []*Arg{
+				{
+					Index: 0,
+					Value: syscall.AF_NETLINK,
+					Op:    OpEqualTo,
+				},
+				{
+					Index: 2,
+					Value: syscall.NETLINK_AUDIT,
+					Op:    OpEqualTo,
+				},
+			},
+			Excludes: Filter{
+				Caps: []string{"CAP_AUDIT_WRITE"},
+			},
+		},
+		{
+			Names: []string{
+				"socket",
+			},
+			Action: ActAllow,
+			Args: []*Arg{
+				{
+					Index: 2,
+					Value: syscall.NETLINK_AUDIT,
+					Op:    OpNotEqual,
+				},
+			},
+			Excludes: Filter{
+				Caps: []string{"CAP_AUDIT_WRITE"},
+			},
+		},
+		{
+			Names: []string{
+				"socket",
+			},
+			Action: ActAllow,
+			Args: []*Arg{
+				{
+					Index: 0,
+					Value: syscall.AF_NETLINK,
+					Op:    OpNotEqual,
+				},
+			},
+			Excludes: Filter{
+				Caps: []string{"CAP_AUDIT_WRITE"},
+			},
+		},
+		{
+			Names: []string{
+				"socket",
+			},
+			Action: ActAllow,
+			Args: []*Arg{
+				{
+					Index: 2,
+					Value: syscall.NETLINK_AUDIT,
+					Op:    OpNotEqual,
+				},
+			},
+			Excludes: Filter{
+				Caps: []string{"CAP_AUDIT_WRITE"},
+			},
+		},
+		{
+			Names: []string{
+				"socket",
+			},
+			Action: ActAllow,
+			Includes: Filter{
+				Caps: []string{"CAP_AUDIT_WRITE"},
 			},
 		},
 	}
