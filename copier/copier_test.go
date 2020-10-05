@@ -741,6 +741,7 @@ func testGetMultiple(t *testing.T) {
 					items: []string{
 						"file-0",
 						"file-b",
+						"file-c",
 						"file-n",
 						"file-o",
 						"file-p",
@@ -815,6 +816,7 @@ func testGetMultiple(t *testing.T) {
 					pattern: "*",
 					exclude: []string{"*", "!**/*-c"},
 					items: []string{
+						"file-c",
 						"file-p",
 						"file-q",
 					},
@@ -913,7 +915,7 @@ func testGetMultiple(t *testing.T) {
 						"something-a",
 						"archive-a",
 						"non-archive-a",
-						// no "file-c" from subdir-a
+						"file-c",
 					},
 				},
 				{
@@ -926,7 +928,7 @@ func testGetMultiple(t *testing.T) {
 						"something-a",
 						"archive-a",
 						"non-archive-a",
-						// no "file-c" from subdir-a
+						"file-c",
 					},
 				},
 				{

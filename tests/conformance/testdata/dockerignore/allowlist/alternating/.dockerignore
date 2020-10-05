@@ -1,0 +1,8 @@
+**
+!subdir
+subdir/subdir1
+!subdir/subdir1/subdir2
+subdir/subdir1/subdir2/subdir3
+!subdir/subdir1/subdir2/subdir3/subdir4
+subdir/subdir1/subdir2/subdir3/subdir4/subdir5
+!subdir/subdir1/subdir2/subdir3/subdir4/subdir5/file

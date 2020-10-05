@@ -982,20 +982,7 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 			return errorResponse("copier: get: glob %q: %v", glob, err)
 		}
 		globMatchedCount += len(globMatched)
-		filtered := make([]string, 0, len(globMatched))
-		for _, globbed := range globMatched {
-			rel, excluded, err := pathIsExcluded(req.Root, globbed, pm)
-			if err != nil {
-				return errorResponse("copier: get: checking if %q is excluded: %v", globbed, err)
-			}
-			if rel == "." || !excluded {
-				filtered = append(filtered, globbed)
-			}
-		}
-		if len(filtered) == 0 {
-			return errorResponse("copier: get: glob %q matched nothing (%d filtered out of %v): %v", glob, len(globMatched), globMatched, syscall.ENOENT)
-		}
-		queue = append(queue, filtered...)
+		queue = append(queue, globMatched...)
 	}
 	// no matches -> error
 	if len(queue) == 0 {
