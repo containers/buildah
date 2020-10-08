@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah/copier"
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/chrootuser"
 	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
@@ -24,6 +25,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
+
+type IDMappingOptions = define.IDMappingOptions
 
 // AddAndCopyOptions holds options for add and copy commands.
 type AddAndCopyOptions struct {

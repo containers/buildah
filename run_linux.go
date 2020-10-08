@@ -23,6 +23,7 @@ import (
 	"github.com/containernetworking/cni/libcni"
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/chroot"
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/secrets"
 	"github.com/containers/buildah/util"
@@ -37,7 +38,6 @@ import (
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
@@ -47,9 +47,6 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sys/unix"
 )
-
-// ContainerDevices is an alias for a slice of github.com/opencontainers/runc/libcontainer/configs.Device structures.
-type ContainerDevices = []configs.Device
 
 func setChildProcess() error {
 	if err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, uintptr(1), 0, 0, 0); err != nil {
@@ -85,10 +82,10 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	g := &gp
 
 	isolation := options.Isolation
-	if isolation == IsolationDefault {
+	if isolation == define.IsolationDefault {
 		isolation = b.Isolation
-		if isolation == IsolationDefault {
-			isolation = IsolationOCI
+		if isolation == define.IsolationDefault {
+			isolation = define.IsolationOCI
 		}
 	}
 	if err := checkAndOverrideIsolationOptions(isolation, &options); err != nil {
@@ -248,7 +245,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 
 	switch isolation {
-	case IsolationOCI:
+	case define.IsolationOCI:
 		var moreCreateArgs []string
 		if options.NoPivot {
 			moreCreateArgs = []string{"--no-pivot"}
@@ -256,9 +253,9 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			moreCreateArgs = nil
 		}
 		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, Package+"-"+filepath.Base(path))
-	case IsolationChroot:
+	case define.IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr)
-	case IsolationOCIRootless:
+	case define.IsolationOCIRootless:
 		moreCreateArgs := []string{"--no-new-keyring"}
 		if options.NoPivot {
 			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
@@ -534,7 +531,7 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 		search = dnsSearch
 	}
 
-	if b.Isolation == IsolationOCIRootless {
+	if b.Isolation == define.IsolationOCIRootless {
 		ns := namespaceOptions.Find(string(specs.NetworkNamespace))
 		if ns != nil && !ns.Host && ns.Path == "" {
 			// if we are using slirp4netns, also add the built-in DNS server.
@@ -1020,7 +1017,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 func runConfigureNetwork(isolation Isolation, options RunOptions, configureNetworks []string, pid int, containerName string, command []string) (teardown func(), err error) {
 	var netconf, undo []*libcni.NetworkConfigList
 
-	if isolation == IsolationOCIRootless {
+	if isolation == define.IsolationOCIRootless {
 		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil && !ns.Host && ns.Path == "" {
 			return setupRootlessNetwork(pid)
 		}
@@ -2109,11 +2106,11 @@ func (b *Builder) runUsingRuntimeSubproc(isolation Isolation, options RunOptions
 
 func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) error {
 	switch isolation {
-	case IsolationOCIRootless:
+	case define.IsolationOCIRootless:
 		if ns := options.NamespaceOptions.Find(string(specs.IPCNamespace)); ns == nil || ns.Host {
 			logrus.Debugf("Forcing use of an IPC namespace.")
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.IPCNamespace)})
+		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.IPCNamespace)})
 		_, err := exec.LookPath("slirp4netns")
 		hostNetworking := err != nil
 		networkNamespacePath := ""
@@ -2125,7 +2122,7 @@ func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) 
 				networkNamespacePath = ""
 			}
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{
+		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{
 			Name: string(specs.NetworkNamespace),
 			Host: hostNetworking,
 			Path: networkNamespacePath,
@@ -2133,16 +2130,16 @@ func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) 
 		if ns := options.NamespaceOptions.Find(string(specs.PIDNamespace)); ns == nil || ns.Host {
 			logrus.Debugf("Forcing use of a PID namespace.")
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.PIDNamespace), Host: false})
+		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.PIDNamespace), Host: false})
 		if ns := options.NamespaceOptions.Find(string(specs.UserNamespace)); ns == nil || ns.Host {
 			logrus.Debugf("Forcing use of a user namespace.")
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.UserNamespace)})
+		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.UserNamespace)})
 		if ns := options.NamespaceOptions.Find(string(specs.UTSNamespace)); ns != nil && !ns.Host {
 			logrus.Debugf("Disabling UTS namespace.")
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.UTSNamespace), Host: true})
-	case IsolationOCI:
+		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.UTSNamespace), Host: true})
+	case define.IsolationOCI:
 		pidns := options.NamespaceOptions.Find(string(specs.PIDNamespace))
 		userns := options.NamespaceOptions.Find(string(specs.UserNamespace))
 		if (pidns == nil || pidns.Host) && (userns != nil && !userns.Host) {
@@ -2171,7 +2168,7 @@ func DefaultNamespaceOptions() (NamespaceOptions, error) {
 	spec := g.Config
 	if spec.Linux != nil {
 		for _, ns := range spec.Linux.Namespaces {
-			options.AddOrReplace(NamespaceOption{
+			options.AddOrReplace(define.NamespaceOption{
 				Name: string(ns.Type),
 				Path: ns.Path,
 			})

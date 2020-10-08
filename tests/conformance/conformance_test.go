@@ -25,6 +25,8 @@ import (
 	"github.com/containers/buildah/imagebuildah"
 	"github.com/containers/image/v5/docker/daemon"
 	"github.com/containers/image/v5/image"
+	"github.com/containers/buildah/define"
+	define2 "github.com/containers/buildah/imagebuildah/define"
 	"github.com/containers/image/v5/pkg/compression"
 	istorage "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports"
@@ -505,10 +507,10 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 	}
 	// set up build options
 	output := &bytes.Buffer{}
-	options := imagebuildah.BuildOptions{
+	options := define2.BuildOptions{
 		ContextDirectory: contextDir,
-		CommonBuildOpts:  &buildah.CommonBuildOptions{},
-		NamespaceOptions: []buildah.NamespaceOption{{
+		CommonBuildOpts:  &define.CommonBuildOptions{},
+		NamespaceOptions: []define.NamespaceOption{{
 			Name: string(rspec.NetworkNamespace),
 			Host: true,
 		}},

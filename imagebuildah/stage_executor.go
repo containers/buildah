@@ -13,6 +13,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/copier"
+	"github.com/containers/buildah/define"
 	buildahdocker "github.com/containers/buildah/docker"
 	"github.com/containers/buildah/pkg/rusage"
 	"github.com/containers/buildah/util"
@@ -275,7 +276,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		// The From field says to read the content from another
 		// container.  Update the ID mappings and
 		// all-content-comes-from-below-this-directory value.
-		var idMappingOptions *buildah.IDMappingOptions
+		var idMappingOptions *define.IDMappingOptions
 		var copyExcludes []string
 		stripSetuid := false
 		stripSetgid := false
@@ -370,9 +371,9 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		NamespaceOptions: s.executor.namespaceOptions,
 	}
 	if config.NetworkDisabled {
-		options.ConfigureNetwork = buildah.NetworkDisabled
+		options.ConfigureNetwork = define.NetworkDisabled
 	} else {
-		options.ConfigureNetwork = buildah.NetworkEnabled
+		options.ConfigureNetwork = define.NetworkEnabled
 	}
 
 	args := run.Args
@@ -450,7 +451,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		}
 	}
 
-	builderOptions := buildah.BuilderOptions{
+	builderOptions := define.BuilderOptions{
 		Args:                  ib.Args,
 		FromImage:             from,
 		PullPolicy:            s.executor.pullPolicy,

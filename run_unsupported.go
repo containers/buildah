@@ -3,6 +3,7 @@
 package buildah
 
 import (
+	"github.com/containers/buildah/define"
 	"github.com/pkg/errors"
 )
 
@@ -19,5 +20,5 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	return errors.New("function not supported on non-linux systems")
 }
 func DefaultNamespaceOptions() (NamespaceOptions, error) {
-	return NamespaceOptions{}, errors.New("function not supported on non-linux systems")
+	return define.NamespaceOptions{}, errors.New("function not supported on non-linux systems")
 }
