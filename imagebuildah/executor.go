@@ -71,7 +71,7 @@ type Executor struct {
 	output                         string
 	outputFormat                   string
 	additionalTags                 []string
-	log                            func(format string, args ...interface{})
+	log                            func(format string, args ...interface{}) // can be nil
 	in                             io.Reader
 	out                            io.Writer
 	err                            io.Writer
@@ -252,15 +252,6 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 	if exec.out == nil {
 		exec.out = os.Stdout
 	}
-	if exec.log == nil {
-		stepCounter := 0
-		exec.log = func(format string, args ...interface{}) {
-			stepCounter++
-			prefix := fmt.Sprintf("STEP %d: ", stepCounter)
-			suffix := "\n"
-			fmt.Fprintf(exec.out, prefix+format+suffix, args...)
-		}
-	}
 
 	for arg := range options.Args {
 		if _, isBuiltIn := builtinAllowedBuildArgs[arg]; !isBuiltIn {
@@ -295,6 +286,7 @@ func (b *Executor) startStage(ctx context.Context, stage *imagebuilder.Stage, st
 	stageExec := &StageExecutor{
 		ctx:             ctx,
 		executor:        b,
+		log:             b.log,
 		index:           stage.Position,
 		stages:          stages,
 		name:            stage.Name,
@@ -426,6 +418,25 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 
 	b.stagesLock.Lock()
 	stageExecutor := b.startStage(ctx, &stage, stages, output)
+	if stageExecutor.log == nil {
+		stepCounter := 0
+		stageExecutor.log = func(format string, args ...interface{}) {
+			prefix := ""
+			if len(stages) > 1 {
+				prefix += fmt.Sprintf("[%d/%d] ", stageIndex+1, len(stages))
+			}
+			if !strings.HasPrefix(format, "COMMIT") {
+				stepCounter++
+				prefix += fmt.Sprintf("STEP %d", stepCounter)
+				if stepCounter <= len(stage.Node.Children)+1 {
+					prefix += fmt.Sprintf("/%d", len(stage.Node.Children)+1)
+				}
+				prefix += ": "
+			}
+			suffix := "\n"
+			fmt.Fprintf(stageExecutor.executor.out, prefix+format+suffix, args...)
+		}
+	}
 	b.stagesLock.Unlock()
 
 	// If this a single-layer build, or if it's a multi-layered
