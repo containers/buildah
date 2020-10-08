@@ -373,3 +373,11 @@ general_namespace() {
 	[ "$status" -eq 0 ]
         expect_output "1:1"
 }
+
+@test "invalid userns-uid-map userns-gid-map" {
+	run_buildah 125 from --userns-uid-map 16  --userns-gid-map 0:48:16 scratch
+	expect_output "uidmap must be a triple of the form 'containerUID:hostUID:length'"
+
+	run_buildah 125 from --userns-uid-map 0:32:16  --userns-gid-map 16 scratch
+	expect_output "gidmap must be a triple of the form 'containerGID:hostGID:length'"
+}

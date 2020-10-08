@@ -120,8 +120,8 @@ type FromAndBudResults struct {
 func GetUserNSFlags(flags *UserNSResults) pflag.FlagSet {
 	usernsFlags := pflag.FlagSet{}
 	usernsFlags.StringVar(&flags.UserNS, "userns", "", "'container', `path` of user namespace to join, or 'host'")
-	usernsFlags.StringSliceVar(&flags.UserNSUIDMap, "userns-uid-map", []string{}, "`containerID:hostID:length` UID mapping to use in user namespace")
-	usernsFlags.StringSliceVar(&flags.UserNSGIDMap, "userns-gid-map", []string{}, "`containerID:hostID:length` GID mapping to use in user namespace")
+	usernsFlags.StringSliceVar(&flags.UserNSUIDMap, "userns-uid-map", []string{}, "`containerUID:hostUID:length` UID mapping to use in user namespace")
+	usernsFlags.StringSliceVar(&flags.UserNSGIDMap, "userns-gid-map", []string{}, "`containerGID:hostGID:length` GID mapping to use in user namespace")
 	usernsFlags.StringVar(&flags.UserNSUIDMapUser, "userns-uid-map-user", "", "`name` of entries from /etc/subuid to use to set user namespace UID mapping")
 	usernsFlags.StringVar(&flags.UserNSGIDMapGroup, "userns-gid-map-group", "", "`name` of entries from /etc/subgid to use to set user namespace GID mapping")
 	return usernsFlags

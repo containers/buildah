@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/containers/buildah"
@@ -71,12 +72,20 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		}
 		uopts := globalFlagResults.UserNSUID
 		gopts := globalFlagResults.UserNSGID
+
 		if len(uopts) == 0 {
 			return nil, errors.New("--userns-uid-map used with no mappings?")
 		}
 		if len(gopts) == 0 {
 			return nil, errors.New("--userns-gid-map used with no mappings?")
 		}
+		if len(strings.Split(uopts[0], ":")) != 3 {
+			return nil, errors.New("uidmap must be a triple of the form 'containerUID:hostUID:length'")
+		}
+		if len(strings.Split(gopts[0], ":")) != 3 {
+			return nil, errors.New("gidmap must be a triple of the form 'containerGID:hostGID:length'")
+		}
+
 		uidmap, gidmap, err := unshare.ParseIDMappings(uopts, gopts)
 		if err != nil {
 			return nil, err
@@ -101,6 +110,13 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		if len(gopts) == 0 {
 			gopts = uopts
 		}
+		if len(strings.Split(uopts[0], ":")) != 3 {
+			return nil, errors.New("uidmap must be a triple of the form 'containerUID:hostUID:length'")
+		}
+		if len(strings.Split(gopts[0], ":")) != 3 {
+			return nil, errors.New("gidmap must be a triple of the form 'containerGID:hostGID:length'")
+		}
+
 		uidmap, gidmap, err := unshare.ParseIDMappings(uopts, gopts)
 		if err != nil {
 			return nil, err
@@ -108,7 +124,6 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		options.UIDMap = uidmap
 		options.GIDMap = gidmap
 	}
-
 	umask.CheckUmask()
 
 	store, err := storage.GetStore(options)
