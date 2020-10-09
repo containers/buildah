@@ -87,14 +87,17 @@ gce_instance:
 
 
 'cirrus-ci/only_prs/gate_task':
-    gce_instance:
-        memory: "12Gb"
 
     # N/B: Skip running this on branches due to multiple bugs in
     # the git-validate tool which are difficult to debug and fix.
     skip: $CIRRUS_PR == ''
 
+    # Ensure more costly (bigger) VM can't stick around longer than necessary
     timeout_in: 10m
+
+    gce_instance:
+        cpu: 4
+        memory: "16Gb"
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
