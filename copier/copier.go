@@ -580,6 +580,12 @@ func copierWithSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req reques
 		}
 		return nil, err
 	}
+	loggedOutput := strings.TrimSuffix(errorBuffer.String(), "\n")
+	if len(loggedOutput) > 0 {
+		for _, output := range strings.Split(loggedOutput, "\n") {
+			logrus.Debug(output)
+		}
+	}
 	if readError != nil {
 		return nil, errors.Wrapf(readError, "error passing bulk input to subprocess")
 	}
