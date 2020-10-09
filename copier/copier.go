@@ -1108,7 +1108,7 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 			}
 		}
 		if itemsCopied == 0 {
-			return errors.New("copier: get: copied no items")
+			return errors.Wrapf(syscall.ENOENT, "copier: get: copied no items")
 		}
 		return nil
 	}
