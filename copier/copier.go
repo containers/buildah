@@ -1042,15 +1042,15 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 				options := req.GetOptions
 				options.ExpandArchives = false
 				walkfn := func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						return errors.Wrapf(err, "copier: get: error reading %q", path)
+					}
 					// compute the path of this item
 					// relative to the top-level directory,
 					// for the tar header
 					rel, relErr := convertToRelSubdirectory(item, path)
 					if relErr != nil {
 						return errors.Wrapf(relErr, "copier: get: error computing path of %q relative to top directory %q", path, item)
-					}
-					if err != nil {
-						return errors.Wrapf(err, "copier: get: error reading %q", path)
 					}
 					// prefix the original item's name if we're keeping it
 					if relNamePrefix != "" {
