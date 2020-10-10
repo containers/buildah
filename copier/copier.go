@@ -1271,6 +1271,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 			return errorResponse("copier: put: error mapping container filesystem owner %d:%d to host filesystem owners: %v", dirUID, dirGID, err)
 		}
 		dirUID, dirGID = hostDirPair.UID, hostDirPair.GID
+		defaultDirUID, defaultDirGID = hostDirPair.UID, hostDirPair.GID
 		if req.PutOptions.ChownFiles != nil {
 			containerFilePair := idtools.IDPair{UID: *fileUID, GID: *fileGID}
 			hostFilePair, err := idMappings.ToHost(containerFilePair)

@@ -97,14 +97,6 @@ load helpers
   gidmapargs[1]="--userns-gid-map=0:$gidbase:$gidsize"
   uidmaps[1]="0 $uidbase $uidsize"
   gidmaps[1]="0 $gidbase $gidsize"
-  # Test with just a UID map specified.
-  uidmapargs[2]=--userns-uid-map=0:$uidbase:$uidsize
-  uidmaps[2]="0 $uidbase $uidsize"
-  gidmaps[2]="0 $uidbase $uidsize"
-  # Test with just a GID map specified.
-  gidmapargs[3]=--userns-gid-map=0:$gidbase:$gidsize
-  uidmaps[3]="0 $gidbase $gidsize"
-  gidmaps[3]="0 $gidbase $gidsize"
   # Conditionalize some tests on the subuid and subgid files being present.
   if test -s /etc/subuid ; then
     if test -s /etc/subgid ; then
@@ -162,7 +154,7 @@ load helpers
   chmod 700 ${TESTDIR}/somedir/someotherfile
   chmod u+s ${TESTDIR}/somedir/someotherfile
 
-  for i in $(seq 0 "$((${#maps[*]}-1))") ; do
+  for i in $(seq 0 "$((${#uidmaps[*]}-1))") ; do
     # Create a container using these mappings.
     echo "Building container with --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine"
     _prefetch alpine
@@ -172,7 +164,7 @@ load helpers
     # If we specified mappings, expect to be in a different namespace by default.
     run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/user
     [ "$output" != "" ]
-    case x"$map" in
+    case x"${uidmapargs[$i]}""${gidmapargs[$i]}" in
     x)
       if test "$BUILDAH_ISOLATION" != "chroot" -a "$BUILDAH_ISOLATION" != "rootless" ; then
         expect_output "$mynamespace"
@@ -190,8 +182,8 @@ load helpers
     [ "$output" != "" ]
     gidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$output")
     echo With settings "$map", expected UID map "${uidmaps[$i]}", got UID map "${uidmap}", expected GID map "${gidmaps[$i]}", got GID map "${gidmap}".
-    expect_output --from=$uidmap "${uidmaps[$i]}"
-    expect_output --from=$gidmap "${gidmaps[$i]}"
+    expect_output --from="$uidmap" "${uidmaps[$i]}"
+    expect_output --from="$gidmap" "${gidmaps[$i]}"
     rootuid=$(sed -E -e 's,^([^ ]*) (.*) ([^ ]*),\2,' <<< "$uidmap")
     rootgid=$(sed -E -e 's,^([^ ]*) (.*) ([^ ]*),\2,' <<< "$gidmap")
 
@@ -212,6 +204,13 @@ load helpers
     run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
     expect_output "0:0 4700"
   done
+}
+
+@test "idmapping-syntax" {
+  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map=0:10000:65536 alpine
+  expect_output --substring "must be used together"
+  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-gid-map=0:10000:65536 alpine
+  expect_output --substring "must be used together"
 }
 
 general_namespace() {
