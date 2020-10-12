@@ -99,7 +99,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 			return nil, errors.New("--userns-uid-map used with no mappings?")
 		}
 		if len(gopts) == 0 {
-			return nil, errors.New("--userns-gid-map used with no mappings?")
+			gopts = uopts
 		}
 		uidmap, gidmap, err := unshare.ParseIDMappings(uopts, gopts)
 		if err != nil {
