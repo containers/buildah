@@ -6,11 +6,13 @@ import (
 	"os/exec"
 	"runtime"
 	"runtime/pprof"
+	"strings"
 	"syscall"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/unshare"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
@@ -142,17 +144,50 @@ func before(cmd *cobra.Command) error {
 			logrus.Fatalf("error starting CPU profiling: %v", err)
 		}
 	}
+
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return err
+	}
+
+	for _, env := range defaultContainerConfig.Engine.Env {
+		splitEnv := strings.SplitN(env, "=", 2)
+		if len(splitEnv) != 2 {
+			return fmt.Errorf("invalid environment variable %q from containers.conf, valid configuration is KEY=value pair", env)
+		}
+		// skip if the env is already defined
+		if _, ok := os.LookupEnv(splitEnv[0]); ok {
+			logrus.Debugf("environment variable %q is already defined, skip the settings from containers.conf", splitEnv[0])
+			continue
+		}
+		if err := os.Setenv(splitEnv[0], splitEnv[1]); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func after(cmd *cobra.Command) error {
+func shutdownStore(cmd *cobra.Command) error {
 	if needToShutdownStore {
 		store, err := getStore(cmd)
 		if err != nil {
 			return err
 		}
-		_, _ = store.Shutdown(false)
+		logrus.Debugf("shutting down the store")
+		needToShutdownStore = false
+		if _, err = store.Shutdown(false); err != nil {
+			logrus.Warnf("failed to shutdown storage: %q", err)
+		}
 	}
+	return nil
+}
+
+func after(cmd *cobra.Command) error {
+	if err := shutdownStore(cmd); err != nil {
+		return err
+	}
+
 	if globalFlagResults.CPUProfile != "" {
 		pprof.StopCPUProfile()
 		globalFlagResults.cpuProfileFile.Close()
@@ -186,6 +221,9 @@ func main() {
 			if w, ok := ee.Sys().(syscall.WaitStatus); ok {
 				exitCode = w.ExitStatus()
 			}
+		}
+		if err := shutdownStore(rootCmd); err != nil {
+			logrus.Warnf("failed to shutdown storage: %q", err)
 		}
 		os.Exit(exitCode)
 	}

@@ -165,6 +165,12 @@ type ContainersConfig struct {
 	// ShmSize holds the size of /dev/shm.
 	ShmSize string `toml:"shm_size,omitempty"`
 
+	// TZ sets the timezone inside the container
+	TZ string `toml:"tz,omitempty"`
+
+	// Umask is the umask inside the container.
+	Umask string `toml:"umask,omitempty"`
+
 	// UTSNS indicates how to create a UTS namespace for the container
 	UTSNS string `toml:"utsns,omitempty"`
 
@@ -177,6 +183,10 @@ type ContainersConfig struct {
 
 // EngineConfig contains configuration options used to set up a engine runtime
 type EngineConfig struct {
+	// ImageBuildFormat indicates the default image format to building
+	// container images.  Valid values are "oci" (default) or "docker".
+	ImageBuildFormat string `toml:"image_build_format,omitempty"`
+
 	// CgroupCheck indicates the configuration has been rewritten after an
 	// upgrade to Fedora 31 to change the default OCI runtime for cgroupv2v2.
 	CgroupCheck bool `toml:"cgroup_check,omitempty"`
@@ -195,7 +205,7 @@ type EngineConfig struct {
 	// The first path pointing to a valid file will be used.
 	ConmonPath []string `toml:"conmon_path,omitempty"`
 
-	//DetachKeys is the sequence of keys used to detach a container.
+	// DetachKeys is the sequence of keys used to detach a container.
 	DetachKeys string `toml:"detach_keys,omitempty"`
 
 	// EnablePortReservation determines whether engine will reserve ports on the
@@ -206,6 +216,9 @@ type EngineConfig struct {
 	// a container has many ports forwarded to it. Disabling this can save
 	// memory.
 	EnablePortReservation bool `toml:"enable_port_reservation,omitempty"`
+
+	// Environment variables to be used when running the container engine (e.g., Podman, Buildah). For example "http_proxy=internal.proxy.company.com"
+	Env []string `toml:"env,omitempty"`
 
 	// EventsLogFilePath is where the events log is stored.
 	EventsLogFilePath string `toml:"events_logfile_path,omitempty"`
@@ -234,6 +247,11 @@ type EngineConfig struct {
 
 	// LockType is the type of locking to use.
 	LockType string `toml:"lock_type,omitempty"`
+
+	// MultiImageArchive - if true, the container engine allows for storing
+	// archives (e.g., of the docker-archive transport) with multiple
+	// images.  By default, Podman creates single-image archives.
+	MultiImageArchive bool `toml:"multi_image_archive,omitempty"`
 
 	// Namespace is the engine namespace to use. Namespaces are used to create
 	// scopes to separate containers and pods in the state. When namespace is
@@ -266,11 +284,19 @@ type EngineConfig struct {
 	// Indicates whether the application should be running in Remote mode
 	Remote bool `toml:"-"`
 
+	// RemoteURI is deprecated, see ActiveService
 	// RemoteURI containers connection information used to connect to remote system.
 	RemoteURI string `toml:"remote_uri,omitempty"`
 
-	// Identity key file for RemoteURI
+	// RemoteIdentity is deprecated, ServiceDestinations
+	// RemoteIdentity key file for RemoteURI
 	RemoteIdentity string `toml:"remote_identity,omitempty"`
+
+	// ActiveService index to Destinations added v2.0.3
+	ActiveService string `toml:"active_service,omitempty"`
+
+	// Destinations mapped by service Names
+	ServiceDestinations map[string]Destination `toml:"service_destinations,omitempty"`
 
 	// RuntimePath is the path to OCI runtime binary for launching containers.
 	// The first path pointing to a valid file will be used This is used only
@@ -287,7 +313,7 @@ type EngineConfig struct {
 	RuntimeSupportsNoCgroups []string `toml:"runtime_supports_nocgroupv2,omitempty"`
 
 	// RuntimeSupportsKVM is a list of OCI runtimes that support
-	// KVM separation for conatainers.
+	// KVM separation for containers.
 	RuntimeSupportsKVM []string `toml:"runtime_supports_kvm,omitempty"`
 
 	// SetOptions contains a subset of config options. It's used to indicate if
@@ -387,6 +413,15 @@ type NetworkConfig struct {
 	NetworkConfigDir string `toml:"network_config_dir,omitempty"`
 }
 
+// Destination represents destination for remote service
+type Destination struct {
+	// URI, required. Example: ssh://root@example.com:22/run/podman/podman.sock
+	URI string `toml:"uri"`
+
+	// Identity file with ssh key, optional
+	Identity string `toml:"identity,omitempty"`
+}
+
 // NewConfig creates a new Config. It starts with an empty config and, if
 // specified, merges the config at `userConfigPath` path.  Depending if we're
 // running as root or rootless, we then merge the system configuration followed
@@ -416,11 +451,10 @@ func NewConfig(userConfigPath string) (*Config, error) {
 		// Merge changes in later configs with the previous configs.
 		// Each config file that specified fields, will override the
 		// previous fields.
-		config, err := readConfigFromFile(path, config)
-		if err != nil {
+		if err = readConfigFromFile(path, config); err != nil {
 			return nil, errors.Wrapf(err, "error reading system config %q", path)
 		}
-		logrus.Debugf("Merged system config %q: %v", path, config)
+		logrus.Debugf("Merged system config %q: %+v", path, config)
 	}
 
 	// If the caller specified a config path to use, then we read it to
@@ -429,11 +463,10 @@ func NewConfig(userConfigPath string) (*Config, error) {
 		var err error
 		// readConfigFromFile reads in container config in the specified
 		// file and then merge changes with the current default.
-		config, err = readConfigFromFile(userConfigPath, config)
-		if err != nil {
+		if err = readConfigFromFile(userConfigPath, config); err != nil {
 			return nil, errors.Wrapf(err, "error reading user config %q", userConfigPath)
 		}
-		logrus.Debugf("Merged user config %q: %v", userConfigPath, config)
+		logrus.Debugf("Merged user config %q: %+v", userConfigPath, config)
 	}
 	config.addCAPPrefix()
 
@@ -448,13 +481,12 @@ func NewConfig(userConfigPath string) (*Config, error) {
 // unmarshal its content into a Config. The config param specifies the previous
 // default config. If the path, only specifies a few fields in the Toml file
 // the defaults from the config parameter will be used for all other fields.
-func readConfigFromFile(path string, config *Config) (*Config, error) {
+func readConfigFromFile(path string, config *Config) error {
 	logrus.Debugf("Reading configuration file %q", path)
-	_, err := toml.DecodeFile(path, config)
-	if err != nil {
-		return nil, fmt.Errorf("unable to decode configuration %v: %v", path, err)
+	if _, err := toml.DecodeFile(path, config); err != nil {
+		return errors.Wrapf(err, "unable to decode configuration %v", path)
 	}
-	return config, err
+	return nil
 }
 
 // Returns the list of configuration files, if they exist in order of hierarchy.
@@ -465,7 +497,7 @@ func systemConfigs() ([]string, error) {
 	path := os.Getenv("CONTAINERS_CONF")
 	if path != "" {
 		if _, err := os.Stat(path); err != nil {
-			return nil, errors.Wrap(err, "failed to stat of %s from CONTAINERS_CONF environment variable")
+			return nil, errors.Wrapf(err, "failed to stat of %s from CONTAINERS_CONF environment variable", path)
 		}
 		return append(configs, path), nil
 	}
@@ -575,12 +607,20 @@ func (c *ContainersConfig) Validate() error {
 		return err
 	}
 
+	if err := c.validateTZ(); err != nil {
+		return err
+	}
+
+	if err := c.validateUmask(); err != nil {
+		return err
+	}
+
 	if c.LogSizeMax >= 0 && c.LogSizeMax < OCIBufSize {
-		return fmt.Errorf("log size max should be negative or >= %d", OCIBufSize)
+		return errors.Errorf("log size max should be negative or >= %d", OCIBufSize)
 	}
 
 	if _, err := units.FromHumanSize(c.ShmSize); err != nil {
-		return fmt.Errorf("invalid --shm-size %s, %q", c.ShmSize, err)
+		return errors.Errorf("invalid --shm-size %s, %q", c.ShmSize, err)
 	}
 
 	return nil
@@ -591,9 +631,17 @@ func (c *ContainersConfig) Validate() error {
 // execution checks. It returns an `error` on validation failure, otherwise
 // `nil`.
 func (c *NetworkConfig) Validate() error {
-	if c.NetworkConfigDir != _cniConfigDir {
-		err := isDirectory(c.NetworkConfigDir)
+	expectedConfigDir := _cniConfigDir
+	if unshare.IsRootless() {
+		home, err := unshare.HomeDir()
 		if err != nil {
+			return err
+		}
+		expectedConfigDir = filepath.Join(home, _cniConfigDirRootless)
+	}
+	if c.NetworkConfigDir != expectedConfigDir {
+		err := isDirectory(c.NetworkConfigDir)
+		if err != nil && !os.IsNotExist(err) {
 			return errors.Wrapf(err, "invalid network_config_dir: %s", c.NetworkConfigDir)
 		}
 	}
@@ -614,10 +662,10 @@ func (c *NetworkConfig) Validate() error {
 // ValidatePullPolicy check if the pullPolicy from CLI is valid and returns the valid enum type
 // if the value from CLI or containers.conf is invalid returns the error
 func ValidatePullPolicy(pullPolicy string) (PullPolicy, error) {
-	switch pullPolicy {
+	switch strings.ToLower(pullPolicy) {
 	case "always":
 		return PullImageAlways, nil
-	case "missing":
+	case "missing", "ifnotpresent":
 		return PullImageMissing, nil
 	case "never":
 		return PullImageNever, nil
@@ -715,15 +763,13 @@ func (c *Config) Capabilities(user string, addCapabilities, dropCapabilities []s
 //    '/dev/sdc:/dev/xvdc"
 //    '/dev/sdc:/dev/xvdc:rwm"
 //    '/dev/sdc:rm"
-func Device(device string) (string, string, string, error) {
-	src := ""
-	dst := ""
-	permissions := "rwm"
+func Device(device string) (src, dst, permissions string, err error) {
+	permissions = "rwm"
 	split := strings.Split(device, ":")
 	switch len(split) {
 	case 3:
 		if !IsValidDeviceMode(split[2]) {
-			return "", "", "", fmt.Errorf("invalid device mode: %s", split[2])
+			return "", "", "", errors.Errorf("invalid device mode: %s", split[2])
 		}
 		permissions = split[2]
 		fallthrough
@@ -731,19 +777,19 @@ func Device(device string) (string, string, string, error) {
 		if IsValidDeviceMode(split[1]) {
 			permissions = split[1]
 		} else {
-			if len(split[1]) == 0 || split[1][0] != '/' {
-				return "", "", "", fmt.Errorf("invalid device mode: %s", split[1])
+			if split[1] == "" || split[1][0] != '/' {
+				return "", "", "", errors.Errorf("invalid device mode: %s", split[1])
 			}
 			dst = split[1]
 		}
 		fallthrough
 	case 1:
 		if !strings.HasPrefix(split[0], "/dev/") {
-			return "", "", "", fmt.Errorf("invalid device mode: %s", split[0])
+			return "", "", "", errors.Errorf("invalid device mode: %s", split[0])
 		}
 		src = split[0]
 	default:
-		return "", "", "", fmt.Errorf("invalid device specification: %s", device)
+		return "", "", "", errors.Errorf("invalid device specification: %s", device)
 	}
 
 	if dst == "" {
@@ -821,8 +867,9 @@ func stringsEq(a, b []string) bool {
 }
 
 var (
-	configOnce sync.Once
-	config     *Config
+	configErr   error
+	configMutex sync.Mutex
+	config      *Config
 )
 
 // Default returns the default container config.
@@ -837,11 +884,17 @@ var (
 // The system defaults container config files can be overwritten using the
 // CONTAINERS_CONF environment variable.  This is usually done for testing.
 func Default() (*Config, error) {
-	var err error
-	configOnce.Do(func() {
-		config, err = NewConfig("")
-	})
-	return config, err
+	configMutex.Lock()
+	defer configMutex.Unlock()
+	if config != nil || configErr != nil {
+		return config, configErr
+	}
+	return defConfig()
+}
+
+func defConfig() (*Config, error) {
+	config, configErr = NewConfig("")
+	return config, configErr
 }
 
 func Path() string {
@@ -857,23 +910,8 @@ func Path() string {
 	return OverrideContainersConfig
 }
 
-func customConfigFile() (string, error) {
-	path := os.Getenv("CONTAINERS_CONF")
-	if path != "" {
-		return path, nil
-	}
-	if unshare.IsRootless() {
-		path, err := rootlessConfigPath()
-		if err != nil {
-			return "", err
-		}
-		return path, nil
-	}
-	return OverrideContainersConfig, nil
-}
-
-//ReadCustomConfig reads the custom config and only generates a config based on it
-//If the custom config file does not exists, function will return an empty config
+// ReadCustomConfig reads the custom config and only generates a config based on it
+// If the custom config file does not exists, function will return an empty config
 func ReadCustomConfig() (*Config, error) {
 	path, err := customConfigFile()
 	if err != nil {
@@ -892,8 +930,7 @@ func ReadCustomConfig() (*Config, error) {
 
 	newConfig := &Config{}
 	if _, err := os.Stat(path); err == nil {
-		newConfig, err = readConfigFromFile(path, newConfig)
-		if err != nil {
+		if err := readConfigFromFile(path, newConfig); err != nil {
 			return nil, err
 		}
 	} else {
@@ -929,4 +966,41 @@ func (c *Config) Write() error {
 		return err
 	}
 	return nil
+}
+
+// Reload clean the cached config and reloads the configuration from containers.conf files
+// This function is meant to be used for long-running processes that need to reload potential changes made to
+// the cached containers.conf files.
+func Reload() (*Config, error) {
+	configMutex.Lock()
+	defer configMutex.Unlock()
+	return defConfig()
+}
+
+func (c *Config) ActiveDestination() (uri, identity string, err error) {
+	if uri, found := os.LookupEnv("CONTAINER_HOST"); found {
+		if v, found := os.LookupEnv("CONTAINER_SSHKEY"); found {
+			identity = v
+		}
+		return uri, identity, nil
+	}
+	connEnv := os.Getenv("CONTAINER_CONNECTION")
+	switch {
+	case connEnv != "":
+		d, found := c.Engine.ServiceDestinations[connEnv]
+		if !found {
+			return "", "", errors.Errorf("environment variable CONTAINER_CONNECTION=%q service destination not found", connEnv)
+		}
+		return d.URI, d.Identity, nil
+
+	case c.Engine.ActiveService != "":
+		d, found := c.Engine.ServiceDestinations[c.Engine.ActiveService]
+		if !found {
+			return "", "", errors.Errorf("%q service destination not found", c.Engine.ActiveService)
+		}
+		return d.URI, d.Identity, nil
+	case c.Engine.RemoteURI != "":
+		return c.Engine.RemoteURI, c.Engine.RemoteIdentity, nil
+	}
+	return "", "", errors.New("no service destination configured")
 }

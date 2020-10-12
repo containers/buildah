@@ -12,13 +12,18 @@ load helpers
 
 @test "bud with .dockerignore" {
   _prefetch alpine busybox
-  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
+  run_buildah 125 bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
+  expect_output --substring 'error building.*"COPY subdir \./".*no such file or directory'
+
+  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile.succeed ${TESTSDIR}/bud/dockerignore
 
   run_buildah from --name myctr testbud
 
+  run_buildah 1 run myctr ls -l test1.txt
+
   run_buildah run myctr ls -l test2.txt
 
-  run_buildah run myctr ls -l sub1.txt
+  run_buildah 1 run myctr ls -l sub1.txt
 
   run_buildah 1 run myctr ls -l sub2.txt
 
@@ -80,12 +85,8 @@ symlink(subdir)"
 }
 
 @test "bud with .dockerignore - 3" {
-  run_buildah bud -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
-  expect_output --substring "CUT HERE"
-
-  run sed -e '/^CUT HERE/,/^CUT HERE/p' -e 'd' <<< "$output"
-  run sed '/CUT HERE/d' <<< "$output"
-  expect_output "$(cat ${TESTSDIR}/bud/dockerignore3/manifest)"
+  run_buildah 125 bud -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
+  expect_output --substring 'error building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
 }
 
 @test "bud-flags-order-verification" {
@@ -367,10 +368,15 @@ symlink(subdir)"
 }
 
 @test "bud-from-scratch-label" {
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+  want_output='map["io.buildah.version":"'$buildah_version'" "test":"label"]'
+
   target=scratch-image
   run_buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
-  expect_output 'map["test":"label"]'
+  expect_output "$want_output"
 }
 
 @test "bud-from-scratch-annotation" {
@@ -1232,7 +1238,7 @@ function _test_http() {
   _prefetch ubuntu
   imgName=ubuntu-image
   ctrName=ubuntu-copy
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.invalid_from -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths || true
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.invalid_from -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths
   expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
 }
 
@@ -1382,8 +1388,25 @@ function _test_http() {
 @test "bud with copy-from referencing the base image" {
   _prefetch busybox
   target=busybox-derived
+  target_mt=busybox-mt-derived
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile3 ${TESTSDIR}/bud/copy-from
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --jobs 4 -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile3 ${TESTSDIR}/bud/copy-from
+
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile4 ${TESTSDIR}/bud/copy-from
+  run_buildah bud --no-cache --signature-policy ${TESTSDIR}/policy.json --jobs 4 -t ${target_mt} -f ${TESTSDIR}/bud/copy-from/Dockerfile4 ${TESTSDIR}/bud/copy-from
+
+  run_buildah from  --quiet ${target}
+  cid=$output
+  run_buildah mount ${cid}
+  root_single_job=$output
+
+  run_buildah from --quiet ${target_mt}
+  cid=$output
+  run_buildah mount ${cid}
+  root_multi_job=$output
+
+  # Check that both the version with --jobs 1 and --jobs=N have the same number of files
+  test $(find $root_single_job -type f | wc -l) = $(find $root_multi_job -type f | wc -l)
 }
 
 @test "bud with copy-from referencing the current stage" {
@@ -1424,6 +1447,7 @@ function _test_http() {
 }
 
 @test "bud-multi-stage-cache-nocontainer" {
+  skip "FIXME: Broken in CI right now"
   _prefetch alpine
   # first time through, quite normal
   run_buildah bud --layers -t base --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.rebase ${TESTSDIR}/bud/multi-stage-builds
@@ -1555,8 +1579,8 @@ function _test_http() {
   touch ${TESTDIR}/use-layers/subdir/file.txt
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers --iidfile ${TESTDIR}/iid2 -f Dockerfile.7 ${TESTDIR}/use-layers
 
-  if [[ $(cat ${TESTDIR}/iid1) = $(cat ${TESTDIR}/iid2) ]]; then
-    echo "Expected image id to change after touching a file copied into the image" >&2
+  if [[ $(cat ${TESTDIR}/iid1) != $(cat ${TESTDIR}/iid2) ]]; then
+    echo "Expected image id to not change after touching a file copied into the image" >&2
     false
   fi
 }
@@ -1715,12 +1739,20 @@ _EOF
 
   run stat -c "%d:%i" ${root}/subdir/test1.txt
   id1=$output
+  run stat -c "%h" ${root}/subdir/test1.txt
+  expect_output 4
   run stat -c "%d:%i" ${root}/subdir/test2.txt
   expect_output $id1 "stat(test2) == stat(test1)"
+  run stat -c "%h" ${root}/subdir/test2.txt
+  expect_output 4
   run stat -c "%d:%i" ${root}/test3.txt
   expect_output $id1 "stat(test3) == stat(test1)"
+  run stat -c "%h" ${root}/test3.txt
+  expect_output 4
   run stat -c "%d:%i" ${root}/test4.txt
   expect_output $id1 "stat(test4) == stat(test1)"
+  run stat -c "%h" ${root}/test4.txt
+  expect_output 4
 }
 
 @test "bud without any arguments should succeed" {
@@ -1771,12 +1803,17 @@ _EOF
 }
 
 @test "bud-no-change-label" {
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+  want_output='map["io.buildah.version":"'$buildah_version'" "test":"label"]'
+
   _prefetch alpine
   parent=alpine
   target=no-change-image
   run_buildah bud --label "test=label" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
-  expect_output 'map["test":"label"]'
+  expect_output "$want_output"
 }
 
 @test "bud-no-change-annotation" {
@@ -1790,6 +1827,11 @@ _EOF
 @test "bud-squash-layers" {
   _prefetch alpine
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --squash ${TESTSDIR}/bud/layers-squash
+}
+
+@test "bud-squash-hardlinks" {
+  _prefetch busybox
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --squash ${TESTSDIR}/bud/layers-squash/Dockerfile.hardlinks
 }
 
 @test "bud with additional directory of devices" {
@@ -2103,4 +2145,125 @@ EOM
   _prefetch alpine
   run_buildah --log-level "warn" bud --signature-policy ${TESTSDIR}/policy.json -t test ${TESTSDIR}/bud/build-arg
   expect_output --substring 'missing .+ build argument'
+}
+
+@test "bud arg and env var with same name" {
+  # Regression test for https://github.com/containers/buildah/issues/2345
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t testctr ${TESTSDIR}/bud/dupe-arg-env-name
+  expect_output --substring "https://example.org/bar"
+}
+
+@test "bud copy chown with newuser" {
+  # Regression test for https://github.com/containers/buildah/issues/2192
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t testctr -f ${TESTSDIR}/bud/copy-chown/Containerfile.chown_user ${TESTSDIR}/bud/copy-chown
+  expect_output --substring "myuser myuser"
+}
+
+@test "bud-builder-identity" {
+  _prefetch alpine
+  parent=alpine
+  target=no-change-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "io.buildah.version"}}' $target
+  expect_output "$buildah_version"
+}
+
+@test "run check --from with arg" {
+  skip_if_no_runtime
+
+  ${OCI} --version
+  _prefetch alpine
+  _prefetch debian
+
+  run_buildah bud --build-arg base=alpine --build-arg toolchainname=busybox --build-arg destinationpath=/tmp --pull=false --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/from-with-arg/Containerfile .
+  expect_output --substring "FROM alpine"
+  expect_output --substring 'STEP 4: COPY --from=\$\{toolchainname\} \/ \$\{destinationpath\}'
+  run_buildah rm -a
+}
+
+@test "bud timestamp" {
+  _prefetch alpine
+  run_buildah bud --timestamp=0 --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json -t timestamp -f Dockerfile.1 ${TESTSDIR}/bud/cache-stages
+  cid=$output
+  run_buildah inspect --format '{{ .Docker.Created }}' timestamp
+  expect_output --substring "1970-01-01"
+  run_buildah inspect --format '{{ .OCIv1.Created }}' timestamp
+  expect_output --substring "1970-01-01"
+  run_buildah inspect --format '{{ .History }}' timestamp
+  expect_output --substring '1970-01-01 00:00:00'
+
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json timestamp
+  cid=$output
+  run_buildah run $cid ls -l /tmpfile
+  expect_output --substring "1970"
+
+  rm -rf ${TESTDIR}/tmp
+}
+
+@test "bud timestamp compare" {
+  _prefetch alpine
+  TIMESTAMP=$(date '+%s')
+  run_buildah bud --timestamp=${TIMESTAMP} --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json -t timestamp -f Dockerfile.1 ${TESTSDIR}/bud/cache-stages
+  cid=$output
+
+  run_buildah bud --timestamp=${TIMESTAMP} --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json -t timestamp -f Dockerfile.1 ${TESTSDIR}/bud/cache-stages
+  expect_output "$cid"
+
+  rm -rf ${TESTDIR}/tmp
+}
+
+@test "bud with-rusage" {
+  _prefetch alpine
+  run_buildah bud --log-rusage --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/shell
+  cid=$output
+  # expect something that looks like it was formatted using pkg/rusage.FormatDiff()
+  expect_output --substring ".*\(system\).*\(user\).*\(elapsed\).*input.*output"
+}
+
+@test "bud-caching-from-scratch" {
+  _prefetch alpine
+  # run the build once
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-scratch
+  iid="$output"
+  # now run it again - the cache should give us the same final image ID
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-scratch
+  iid2="$output"
+  expect_output --substring "$iid"
+  # now run it *again*, except with more content added at an intermediate step, which should invalidate the cache
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different1 ${TESTSDIR}/bud/cache-scratch
+  test "$output" != "$iid"
+  # now run it *again* again, except with more content added at an intermediate step, which should invalidate the cache
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different2 ${TESTSDIR}/bud/cache-scratch
+  test "$output" != "$iid"
+  test "$output" != "$iid2"
+}
+
+@test "bud-caching-from-scratch-config" {
+  _prefetch alpine
+  # run the build once
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.config ${TESTSDIR}/bud/cache-scratch
+  iid="$output"
+  # now run it again - the cache should give us the same final image ID
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.config ${TESTSDIR}/bud/cache-scratch
+  iid2="$output"
+  expect_output --substring "$iid"
+  # now run it *again*, except with more content added at an intermediate step, which should invalidate the cache
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different1 ${TESTSDIR}/bud/cache-scratch
+  test "$output" != "$iid"
+  # now run it *again* again, except with more content added at an intermediate step, which should invalidate the cache
+  run_buildah bud --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different2 ${TESTSDIR}/bud/cache-scratch
+  test "$output" != "$iid"
+  test "$output" != "$iid2"
+}
+
+@test "bud capabilities test" {
+  _prefetch busybox
+  run_buildah bud -t testcap --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/capabilities/Dockerfile
+  expect_output --substring "uid=3267"
+  expect_output --substring "CapBnd:	00000000a80425fb"
+  expect_output --substring "CapEff:	0000000000000000"
 }

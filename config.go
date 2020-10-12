@@ -565,6 +565,9 @@ func (b *Builder) Healthcheck() *docker.HealthConfig {
 func (b *Builder) SetHealthcheck(config *docker.HealthConfig) {
 	b.Docker.Config.Healthcheck = nil
 	if config != nil {
+		if b.Format != Dockerv2ImageManifest {
+			logrus.Warnf("Healthcheck is not supported for OCI image format and will be ignored. Must use `docker` format")
+		}
 		b.Docker.Config.Healthcheck = &docker.HealthConfig{
 			Test:        copyStringSlice(config.Test),
 			Interval:    config.Interval,

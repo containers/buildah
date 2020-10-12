@@ -1,0 +1,6 @@
+FROM alpine as build
+RUN touch cache-invalidating-difference
+
+FROM scratch
+COPY --from=build / /
+COPY --from=build / /

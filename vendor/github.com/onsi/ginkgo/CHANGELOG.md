@@ -1,3 +1,16 @@
+## 1.14.1
+
+### Fixes
+- Discard exported method declaration when running ginkgo bootstrap (#558) [f4b0240]
+
+## 1.14.0
+
+### Features
+- Defer running top-level container nodes until RunSpecs is called [d44dedf]
+- [Document Ginkgo lifecycle](http://onsi.github.io/ginkgo/#understanding-ginkgos-lifecycle)
+- Add `extensions/globals` package (#692) [3295c8f] - this can be helpful in contexts where you are test-driving your test-generation code (see [#692](https://github.com/onsi/ginkgo/pull/692))
+- Print Skip reason in JUnit reporter if one was provided [820dfab]
+
 ## 1.13.0
 
 ### Features

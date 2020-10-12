@@ -17,6 +17,7 @@ import (
 	"github.com/containers/buildah"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
+	"github.com/containers/storage/pkg/unshare"
 	units "github.com/docker/go-units"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -100,7 +101,7 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 	}
 
 	dnsOptions := []string{}
-	if c.Flag("dns-search").Changed {
+	if c.Flag("dns-option").Changed {
 		dnsOptions, _ = c.Flags().GetStringSlice("dns-option")
 		if noDNS && len(dnsOptions) > 0 {
 			return nil, errors.Errorf("invalid --dns-option, --dns-option may not be used with --dns=none")
@@ -126,15 +127,15 @@ func CommonBuildOptions(c *cobra.Command) (*buildah.CommonBuildOptions, error) {
 
 	commonOpts := &buildah.CommonBuildOptions{
 		AddHost:      addHost,
-		CgroupParent: c.Flag("cgroup-parent").Value.String(),
 		CPUPeriod:    cpuPeriod,
 		CPUQuota:     cpuQuota,
 		CPUSetCPUs:   c.Flag("cpuset-cpus").Value.String(),
 		CPUSetMems:   c.Flag("cpuset-mems").Value.String(),
 		CPUShares:    cpuShares,
+		CgroupParent: c.Flag("cgroup-parent").Value.String(),
+		DNSOptions:   dnsOptions,
 		DNSSearch:    dnsSearch,
 		DNSServers:   dnsServers,
-		DNSOptions:   dnsOptions,
 		HTTPProxy:    httpProxy,
 		Memory:       memoryLimit,
 		MemorySwap:   memorySwap,
@@ -334,7 +335,7 @@ func GetBindMount(args []string) (specs.Mount, error) {
 	setDest := false
 
 	for _, val := range args {
-		kv := strings.Split(val, "=")
+		kv := strings.SplitN(val, "=", 2)
 		switch kv[0] {
 		case "bind-nonrecursive":
 			newMount.Options = append(newMount.Options, "bind")
@@ -342,6 +343,9 @@ func GetBindMount(args []string) (specs.Mount, error) {
 			// TODO: detect duplication of these options.
 			// (Is this necessary?)
 			newMount.Options = append(newMount.Options, kv[0])
+		case "readonly":
+			// Alias for "ro"
+			newMount.Options = append(newMount.Options, "ro")
 		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z":
 			newMount.Options = append(newMount.Options, kv[0])
 		case "bind-propagation":
@@ -367,6 +371,10 @@ func GetBindMount(args []string) (specs.Mount, error) {
 			}
 			newMount.Destination = kv[1]
 			setDest = true
+		case "consistency":
+			// Option for OS X only, has no meaning on other platforms
+			// and can thus be safely ignored.
+			// See also the handling of the equivalent "delegated" and "cached" in ValidateVolumeOpts
 		default:
 			return newMount, errors.Wrapf(errBadMntOption, kv[0])
 		}
@@ -399,10 +407,13 @@ func GetTmpfsMount(args []string) (specs.Mount, error) {
 	setDest := false
 
 	for _, val := range args {
-		kv := strings.Split(val, "=")
+		kv := strings.SplitN(val, "=", 2)
 		switch kv[0] {
 		case "ro", "nosuid", "nodev", "noexec":
 			newMount.Options = append(newMount.Options, kv[0])
+		case "readonly":
+			// Alias for "ro"
+			newMount.Options = append(newMount.Options, "ro")
 		case "tmpfs-mode":
 			if len(kv) == 1 {
 				return newMount, errors.Wrapf(optionArgError, kv[0])
@@ -773,11 +784,12 @@ func IDMappingOptions(c *cobra.Command, isolation buildah.Isolation) (usernsOpti
 	if c.Flag("userns").Changed {
 		how := c.Flag("userns").Value.String()
 		switch how {
-		case "", "container":
+		case "", "container", "private":
 			usernsOption.Host = false
 		case "host":
 			usernsOption.Host = true
 		default:
+			how = strings.TrimPrefix(how, "ns:")
 			if _, err := os.Stat(how); err != nil {
 				return nil, nil, errors.Wrapf(err, "error checking for %s namespace at %q", string(specs.UserNamespace), how)
 			}
@@ -787,11 +799,8 @@ func IDMappingOptions(c *cobra.Command, isolation buildah.Isolation) (usernsOpti
 	}
 	usernsOptions = buildah.NamespaceOptions{usernsOption}
 
-	// Because --net and --network are technically two different flags, we need
-	// to check each for nil and .Changed
-	usernet := c.Flags().Lookup("net")
 	usernetwork := c.Flags().Lookup("network")
-	if (usernet != nil && usernetwork != nil) && (!usernet.Changed && !usernetwork.Changed) {
+	if usernetwork != nil && !usernetwork.Changed {
 		usernsOptions = append(usernsOptions, buildah.NamespaceOption{
 			Name: string(specs.NetworkNamespace),
 			Host: usernsOption.Host,
@@ -840,15 +849,15 @@ func parseIDMap(spec []string) (m [][3]uint32, err error) {
 func NamespaceOptions(c *cobra.Command) (namespaceOptions buildah.NamespaceOptions, networkPolicy buildah.NetworkConfigurationPolicy, err error) {
 	options := make(buildah.NamespaceOptions, 0, 7)
 	policy := buildah.NetworkDefault
-	for _, what := range []string{string(specs.IPCNamespace), "net", "network", string(specs.PIDNamespace), string(specs.UTSNamespace)} {
+	for _, what := range []string{string(specs.IPCNamespace), "network", string(specs.PIDNamespace), string(specs.UTSNamespace)} {
 		if c.Flags().Lookup(what) != nil && c.Flag(what).Changed {
 			how := c.Flag(what).Value.String()
 			switch what {
-			case "net", "network":
+			case "network":
 				what = string(specs.NetworkNamespace)
 			}
 			switch how {
-			case "", "container":
+			case "", "container", "private":
 				logrus.Debugf("setting %q namespace to %q", what, "")
 				options.AddOrReplace(buildah.NamespaceOption{
 					Name: what,
@@ -879,6 +888,7 @@ func NamespaceOptions(c *cobra.Command) (namespaceOptions buildah.NamespaceOptio
 						break
 					}
 				}
+				how = strings.TrimPrefix(how, "ns:")
 				if _, err := os.Stat(how); err != nil {
 					return nil, buildah.NetworkDefault, errors.Wrapf(err, "error checking for %s namespace at %q", what, how)
 				}
@@ -906,6 +916,9 @@ func defaultIsolation() (buildah.Isolation, error) {
 		default:
 			return 0, errors.Errorf("unrecognized $BUILDAH_ISOLATION value %q", isolation)
 		}
+	}
+	if unshare.IsRootless() {
+		return buildah.IsolationOCIRootless, nil
 	}
 	return buildah.IsolationDefault, nil
 }

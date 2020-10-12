@@ -26,7 +26,7 @@ Then install buildah by running:
 
 ## Rootless User Configuration
 
-If you plan to run Buildah as a user without root privileges, i.e. a "rootless user", the administrator of the system might have to do a bit of additional configuration beforehand.  The setup required for this is listed on the Podman GitHub site [here](https://github.com/containers/libpod/blob/master/docs/tutorials/rootless_tutorial.md).  Buildah has the same setup and configuration requirements that Podman does for rootless users.
+If you plan to run Buildah as a user without root privileges, i.e. a "rootless user", the administrator of the system might have to do a bit of additional configuration beforehand.  The setup required for this is listed on the Podman GitHub site [here](https://github.com/containers/podman/blob/master/docs/tutorials/rootless_tutorial.md).  Buildah has the same setup and configuration requirements that Podman does for rootless users.
 
 ## Post Installation Verification
 
@@ -109,7 +109,9 @@ Notice that the overlay image is under `/var/lib/containers/storage` as one woul
 
 Now that we have a new empty container we can install or remove software packages or simply copy content into that container. So let's install `bash` and `coreutils` so that we can run bash scripts. This could easily be `nginx` or other packages needed for your container.
 
-    # dnf install --installroot $scratchmnt --releasever 30 bash coreutils --setopt install_weak_deps=false -y
+**NOTE:** the version in the example below (33) relates to a Fedora version which is the Linux platform this example was run on.  If you are using the scratch image, the version you specify must be valid for the host or dnf will throw an error.  I.e. If you were to run this on a RHEL platform, you'd need to specify `--releasever 8.1` or similar instead of `--releasever 33`.  If you want the container to be a particular Linux platform, change `scratch` in the first line of the example to the platform you want, i.e. `# newcontainer=$(buildah from fedora)`, and then you can specify an appropriate version number for that Linux platform.
+
+    # dnf install --installroot $scratchmnt --releasever 33 bash coreutils --setopt install_weak_deps=false -y
 
 Let's try it out (showing the prompt in this example to demonstrate the difference):
 
@@ -131,7 +133,7 @@ Change the permissions on the file so that it can be run:
     # chmod +x runecho.sh
 
 
-With `buildah` files can be copied into the new image.  We can then use `buildah run` to run that command within the container by specifying the command.  We can also configure the image to run the command directly using [Podman](https://github.com/containers/libpod) and its `podman run` command. In short the `buildah run` command is equivalent to the "RUN" command in a Dockerfile, whereas `podman run` is equivalent to the `docker run` command.  Now let's copy this new command into the container's `/usr/bin` directory and configure the container to run the command when the container is run via podman:
+With `buildah` files can be copied into the new image.  We can then use `buildah run` to run that command within the container by specifying the command.  We can also configure the image to run the command directly using [Podman](https://github.com/containers/podman) and its `podman run` command. In short the `buildah run` command is equivalent to the "RUN" command in a Dockerfile, whereas `podman run` is equivalent to the `docker run` command.  Now let's copy this new command into the container's `/usr/bin` directory and configure the container to run the command when the container is run via podman:
 
     # To test with Podman, first install via:
     # dnf -y install podman
@@ -172,7 +174,7 @@ It works! Congratulations, you have built a new OCI container from scratch that 
 Back to Buildah, let's add some more configuration information.
 
     # buildah config --created-by "ipbabble"  $newcontainer
-    # buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora30-bashecho $newcontainer
+    # buildah config --author "wgh at redhat.com @ipbabble" --label name=fedora33-bashecho $newcontainer
 
 We can inspect the container's metadata using the `inspect` command:
 

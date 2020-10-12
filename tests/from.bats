@@ -49,81 +49,6 @@ load helpers
   expect_output "$(basename ${elsewhere})-working-container"
 }
 
-@test "from-authenticate-cert" {
-
-  mkdir -p ${TESTDIR}/auth
-  # Create certificate via openssl
-  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ${TESTDIR}/auth/domain.key -x509 -days 2 -out ${TESTDIR}/auth/domain.crt -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=localhost"
-  # Skopeo and buildah both require *.cert file
-  cp ${TESTDIR}/auth/domain.crt ${TESTDIR}/auth/domain.cert
-
-  # Create a private registry that uses certificate and creds file
-#  docker run -d -p 5000:5000 --name registry -v ${TESTDIR}/auth:${TESTDIR}/auth:Z -e REGISTRY_HTTP_TLS_CERTIFICATE=${TESTDIR}/auth/domain.crt -e REGISTRY_HTTP_TLS_KEY=${TESTDIR}/auth/domain.key registry:2
-
-  # When more buildah auth is in place convert the below.
-#  docker pull alpine
-#  docker tag alpine localhost:5000/my-alpine
-#  docker push localhost:5000/my-alpine
-
-#  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth)
-#  buildah rm $ctrid
-#  buildah rmi -f $(buildah images -q)
-
-  # This should work
-#  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true)
-
-  rm -rf ${TESTDIR}/auth
-
-  # This should fail
-  run_buildah 125 from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true
-
-  # Clean up
-#  docker rm -f $(docker ps --all -q)
-#  docker rmi -f localhost:5000/my-alpine
-#  docker rmi -f $(docker images -q)
-#  buildah rm $ctrid
-#  buildah rmi -f $(buildah images -q)
-}
-
-@test "from-authenticate-cert-and-creds" {
-  mkdir -p  ${TESTDIR}/auth
-  # Create creds and store in ${TESTDIR}/auth/htpasswd
-#  docker run --entrypoint htpasswd registry:2 -Bbn testuser testpassword > ${TESTDIR}/auth/htpasswd
-  # Create certificate via openssl
-  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ${TESTDIR}/auth/domain.key -x509 -days 2 -out ${TESTDIR}/auth/domain.crt -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=localhost"
-  # Skopeo and buildah both require *.cert file
-  cp ${TESTDIR}/auth/domain.crt ${TESTDIR}/auth/domain.cert
-
-  # Create a private registry that uses certificate and creds file
-#  docker run -d -p 5000:5000 --name registry -v ${TESTDIR}/auth:${TESTDIR}/auth:Z -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=${TESTDIR}/auth/htpasswd -e REGISTRY_HTTP_TLS_CERTIFICATE=${TESTDIR}/auth/domain.crt -e REGISTRY_HTTP_TLS_KEY=${TESTDIR}/auth/domain.key registry:2
-
-  # When more buildah auth is in place convert the below.
-#  docker pull=false alpine
-#  docker login localhost:5000 --username testuser --password testpassword
-#  docker tag alpine localhost:5000/my-alpine
-#  docker push localhost:5000/my-alpine
-
-#  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth)
-#  buildah rm $ctrid
-#  buildah rmi -f $(buildah images -q)
-
-#  docker logout localhost:5000
-
-  # This should fail
-  run_buildah 125 from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true
-
-  # This should work
-#  ctrid=$(buildah from localhost:5000/my-alpine --cert-dir ${TESTDIR}/auth  --tls-verify true --creds=testuser:testpassword)
-
-  # Clean up
-  rm -rf ${TESTDIR}/auth
-#  docker rm -f $(docker ps --all -q)
-#  docker rmi -f localhost:5000/my-alpine
-#  docker rmi -f $(docker images -q)
-#  buildah rm $ctrid
-#  buildah rmi -f $(buildah images -q)
-}
-
 @test "from-tagged-image" {
   # Github #396: Make sure the container name starts with the correct image even when it's tagged.
   run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch
@@ -330,7 +255,7 @@ load helpers
   _prefetch alpine
   run_buildah from --quiet --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah run $cid -- cat /etc/hosts
+  run_buildah run --net=container $cid -- cat /etc/hosts
   expect_output --substring "127.0.0.1 +localhost"
 }
 
@@ -403,8 +328,12 @@ load helpers
 
   # Try encrypted image without key should fail
   run_buildah 125 from oci:${TESTDIR}/tmp/busybox_enc
+  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+
   # Try encrypted image with wrong key should fail
   run_buildah 125 from --decryption-key ${TESTDIR}/tmp/mykey2.pem oci:${TESTDIR}/tmp/busybox_enc
+  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+
   # Providing the right key should succeed
   run_buildah from  --decryption-key ${TESTDIR}/tmp/mykey.pem oci:${TESTDIR}/tmp/busybox_enc
 
@@ -421,11 +350,30 @@ load helpers
 
   # Try encrypted image without key should fail
   run_buildah 125 from --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
+  expect_output --substring "Error decrypting layer .* missing private key needed for decryption"
+
   # Try encrypted image with wrong key should fail
   run_buildah 125 from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+  expect_output --substring "Error decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
+
   # Providing the right key should succeed
   run_buildah from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest
   run_buildah rmi localhost:5000/buildah/busybox_encrypted:latest
 
   rm -rf ${TESTDIR}/tmp
+}
+
+@test "from with non buildah container" {
+  skip_if_in_container
+  run which podman
+  if [[ $status -ne 0 ]]; then
+    skip "podman is not installed"
+  fi
+
+  _prefetch docker.io/busybox
+  podman run --name busyboxc-podman -d busybox top
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc docker.io/busybox
+  expect_output --substring "busyboxc"
+  podman rm -f busyboxc-podman
+  run_buildah rm busyboxc
 }

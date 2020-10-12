@@ -1,15 +1,16 @@
 # github.com/BurntSushi/toml v0.3.1
 github.com/BurntSushi/toml
-# github.com/OpenPeeDeeP/depguard v0.0.0-20180806142446-a69c782687b2
+# github.com/OpenPeeDeeP/depguard v1.0.0
 github.com/OpenPeeDeeP/depguard
 # github.com/cpuguy83/go-md2man v1.0.10
+## explicit
 github.com/cpuguy83/go-md2man
 github.com/cpuguy83/go-md2man/md2man
 # github.com/fatih/color v1.6.0
 github.com/fatih/color
 # github.com/fsnotify/fsnotify v1.4.7
 github.com/fsnotify/fsnotify
-# github.com/go-critic/go-critic v0.0.0-20181204210945-1df300866540
+# github.com/go-critic/go-critic v0.3.5-0.20190526074819-1df300866540
 github.com/go-critic/go-critic/checkers
 github.com/go-critic/go-critic/checkers/internal/lintutil
 # github.com/go-lintpack/lintpack v0.5.2
@@ -52,12 +53,12 @@ github.com/golangci/dupl/printer
 github.com/golangci/dupl/suffixtree
 github.com/golangci/dupl/syntax
 github.com/golangci/dupl/syntax/golang
-# github.com/golangci/errcheck v0.0.0-20181003203344-ef45e06d44b6
+# github.com/golangci/errcheck v0.0.0-20181223084120-ef45e06d44b6
 github.com/golangci/errcheck/golangci
 github.com/golangci/errcheck/internal/errcheck
 # github.com/golangci/go-misc v0.0.0-20180628070357-927a3d87b613
 github.com/golangci/go-misc/deadcode
-# github.com/golangci/go-tools v0.0.0-20180109140146-af6baa5dc196
+# github.com/golangci/go-tools v0.0.0-20190318055746-e32c54105b7c
 github.com/golangci/go-tools/arg
 github.com/golangci/go-tools/callgraph
 github.com/golangci/go-tools/callgraph/static
@@ -82,10 +83,11 @@ github.com/golangci/go-tools/version
 github.com/golangci/goconst
 # github.com/golangci/gocyclo v0.0.0-20180528134321-2becd97e67ee
 github.com/golangci/gocyclo/pkg/gocyclo
-# github.com/golangci/gofmt v0.0.0-20181105071733-0b8337e80d98
+# github.com/golangci/gofmt v0.0.0-20181222123516-0b8337e80d98
 github.com/golangci/gofmt/gofmt
 github.com/golangci/gofmt/goimports
-# github.com/golangci/golangci-lint v1.17.1
+# github.com/golangci/golangci-lint v1.18.0
+## explicit
 github.com/golangci/golangci-lint/cmd/golangci-lint
 github.com/golangci/golangci-lint/pkg/commands
 github.com/golangci/golangci-lint/pkg/config
@@ -107,12 +109,12 @@ github.com/golangci/golangci-lint/pkg/report
 github.com/golangci/golangci-lint/pkg/result
 github.com/golangci/golangci-lint/pkg/result/processors
 github.com/golangci/golangci-lint/pkg/timeutils
-# github.com/golangci/gosec v0.0.0-20180901114220-66fb7fc33547
+# github.com/golangci/gosec v0.0.0-20190211064107-66fb7fc33547
 github.com/golangci/gosec
 github.com/golangci/gosec/rules
-# github.com/golangci/ineffassign v0.0.0-20180808204949-42439a7714cc
+# github.com/golangci/ineffassign v0.0.0-20190609212857-42439a7714cc
 github.com/golangci/ineffassign
-# github.com/golangci/lint-1 v0.0.0-20180610141402-ee948d087217
+# github.com/golangci/lint-1 v0.0.0-20190420132249-ee948d087217
 github.com/golangci/lint-1
 # github.com/golangci/maligned v0.0.0-20180506175553-b1d89398deca
 github.com/golangci/maligned
@@ -173,6 +175,7 @@ github.com/nbutton23/zxcvbn-go/matching
 github.com/nbutton23/zxcvbn-go/scoring
 github.com/nbutton23/zxcvbn-go/utils/math
 # github.com/onsi/ginkgo v1.8.0
+## explicit
 github.com/onsi/ginkgo/config
 github.com/onsi/ginkgo/ginkgo
 github.com/onsi/ginkgo/ginkgo/convert
@@ -196,7 +199,7 @@ github.com/onsi/ginkgo/reporters/stenographer/support/go-isatty
 github.com/onsi/ginkgo/types
 # github.com/pelletier/go-toml v1.1.0
 github.com/pelletier/go-toml
-# github.com/pkg/errors v0.8.0
+# github.com/pkg/errors v0.8.1
 github.com/pkg/errors
 # github.com/russross/blackfriday v1.5.2
 github.com/russross/blackfriday
@@ -217,9 +220,12 @@ github.com/spf13/jwalterweatherman
 github.com/spf13/pflag
 # github.com/spf13/viper v1.0.2
 github.com/spf13/viper
-# github.com/timakin/bodyclose v0.0.0-20190407043127-4a873e97b2bb
+# github.com/timakin/bodyclose v0.0.0-20190721030226-87058b9bfcec
 github.com/timakin/bodyclose/passes/bodyclose
-# github.com/vbatts/git-validation v1.0.0
+# github.com/ultraware/funlen v0.0.1
+github.com/ultraware/funlen
+# github.com/vbatts/git-validation v1.1.1-0.20200916181008-60cb8713913d
+## explicit
 github.com/vbatts/git-validation
 github.com/vbatts/git-validation/git
 github.com/vbatts/git-validation/rules/danglingwhitespace
@@ -233,7 +239,7 @@ golang.org/x/sys/unix
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
 golang.org/x/text/width
-# golang.org/x/tools v0.0.0-20190521203540-521d6ed310dd
+# golang.org/x/tools v0.0.0-20190909030654-5b82db07426d
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/passes/asmdecl
 golang.org/x/tools/go/analysis/passes/assign
@@ -291,7 +297,7 @@ gopkg.in/yaml.v2
 mvdan.cc/interfacer/check
 # mvdan.cc/lint v0.0.0-20170908181259-adc824a0674b
 mvdan.cc/lint
-# mvdan.cc/unparam v0.0.0-20190124213536-fbb59629db34
+# mvdan.cc/unparam v0.0.0-20190209190245-fbb59629db34
 mvdan.cc/unparam/check
 # sourcegraph.com/sqs/pbtypes v0.0.0-20180604144634-d3ebe8f20ae4
 sourcegraph.com/sqs/pbtypes

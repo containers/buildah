@@ -11,8 +11,8 @@ import (
 
 	"github.com/containers/common/pkg/apparmor"
 	"github.com/containers/common/pkg/cgroupv2"
-	"github.com/containers/common/pkg/sysinfo"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/homedir"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
@@ -93,8 +93,10 @@ const (
 	// InstallPrefix is the prefix where podman will be installed.
 	// It can be overridden at build time.
 	_installPrefix = "/usr"
-	// _cniConfigDir is the directory where cni plugins are found
+	// _cniConfigDir is the directory where cni configuration is found
 	_cniConfigDir = "/etc/cni/net.d/"
+	// _cniConfigDirRootless is the directory in XDG_CONFIG_HOME for cni plugins
+	_cniConfigDirRootless = "cni/net.d/"
 	// CgroupfsCgroupsManager represents cgroupfs native cgroup manager
 	CgroupfsCgroupsManager = "cgroupfs"
 	// DefaultApparmorProfile  specifies the default apparmor profile for the container.
@@ -114,9 +116,9 @@ const (
 	// DefaultSignaturePolicyPath is the default value for the
 	// policy.json file.
 	DefaultSignaturePolicyPath = "/etc/containers/policy.json"
-	// DefaultRootlessSignaturePolicyPath is the default value for the
-	// rootless policy.json file.
-	DefaultRootlessSignaturePolicyPath = ".config/containers/policy.json"
+	// DefaultRootlessSignaturePolicyPath is the location within
+	// XDG_CONFIG_HOME of the rootless policy.json file.
+	DefaultRootlessSignaturePolicyPath = "containers/policy.json"
 	// DefaultShmSize default value
 	DefaultShmSize = "65536k"
 	// DefaultUserNSSize default value
@@ -139,13 +141,15 @@ func DefaultConfig() (*Config, error) {
 
 	netns := "bridge"
 
+	cniConfig := _cniConfigDir
+
 	defaultEngineConfig.SignaturePolicyPath = DefaultSignaturePolicyPath
 	if unshare.IsRootless() {
-		home, err := unshare.HomeDir()
+		configHome, err := homedir.GetConfigHome()
 		if err != nil {
 			return nil, err
 		}
-		sigPath := filepath.Join(home, DefaultRootlessSignaturePolicyPath)
+		sigPath := filepath.Join(configHome, DefaultRootlessSignaturePolicyPath)
 		defaultEngineConfig.SignaturePolicyPath = sigPath
 		if _, err := os.Stat(sigPath); err != nil {
 			if _, err := os.Stat(DefaultSignaturePolicyPath); err == nil {
@@ -153,6 +157,7 @@ func DefaultConfig() (*Config, error) {
 			}
 		}
 		netns = "slirp4netns"
+		cniConfig = filepath.Join(configHome, _cniConfigDirRootless)
 	}
 
 	cgroupNS := "host"
@@ -177,6 +182,7 @@ func DefaultConfig() (*Config, error) {
 			EnableLabeling:      selinuxEnabled(),
 			Env: []string{
 				"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+				"TERM=xterm",
 			},
 			EnvHost:        false,
 			HTTPProxy:      false,
@@ -191,13 +197,15 @@ func DefaultConfig() (*Config, error) {
 			PidNS:          "private",
 			SeccompProfile: SeccompDefaultPath,
 			ShmSize:        DefaultShmSize,
+			TZ:             "",
+			Umask:          "0022",
 			UTSNS:          "private",
 			UserNS:         "host",
 			UserNSSize:     DefaultUserNSSize,
 		},
 		Network: NetworkConfig{
 			DefaultNetwork:   "podman",
-			NetworkConfigDir: _cniConfigDir,
+			NetworkConfigDir: cniConfig,
 			CNIPluginDirs:    cniBinDir,
 		},
 		Engine: *defaultEngineConfig,
@@ -216,10 +224,16 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 
 	c.EventsLogFilePath = filepath.Join(c.TmpDir, "events", "events.log")
 
-	storeOpts, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
-	if err != nil {
-		return nil, err
+	var storeOpts storage.StoreOptions
+	if path, ok := os.LookupEnv("CONTAINERS_STORAGE_CONF"); ok {
+		storage.ReloadConfigurationFile(path, &storeOpts)
+	} else {
+		storeOpts, err = storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	if storeOpts.GraphRoot == "" {
 		logrus.Warnf("Storage configuration is unset - using hardcoded default graph root %q", _defaultGraphRoot)
 		storeOpts.GraphRoot = _defaultGraphRoot
@@ -236,6 +250,8 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 	if cgroup2, _ := cgroupv2.Enabled(); cgroup2 {
 		c.OCIRuntime = "crun"
 	}
+	c.ImageBuildFormat = "oci"
+
 	c.CgroupManager = defaultCgroupManager()
 	c.StopTimeout = uint(10)
 
@@ -483,18 +499,28 @@ func (c *Config) Ulimits() []string {
 // PidsLimit returns the default maximum number of pids to use in containers
 func (c *Config) PidsLimit() int64 {
 	if unshare.IsRootless() {
-		if c.Engine.CgroupManager == SystemdCgroupsManager {
-			cgroup2, _ := cgroupv2.Enabled()
-			if cgroup2 {
-				return c.Containers.PidsLimit
-			}
+		if c.Engine.CgroupManager != SystemdCgroupsManager {
+			return 0
+		}
+		cgroup2, _ := cgroupv2.Enabled()
+		if !cgroup2 {
 			return 0
 		}
 	}
-	return sysinfo.GetDefaultPidsLimit()
+
+	return c.Containers.PidsLimit
 }
 
 // DetachKeys returns the default detach keys to detach from a container
 func (c *Config) DetachKeys() string {
 	return c.Engine.DetachKeys
+}
+
+// Tz returns the timezone in the container
+func (c *Config) TZ() string {
+	return c.Containers.TZ
+}
+
+func (c *Config) Umask() string {
+	return c.Containers.Umask
 }

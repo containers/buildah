@@ -1,0 +1,7 @@
+ARG base
+FROM ${base}
+
+ARG toolchainname
+ARG destinationpath
+
+COPY --from=${toolchainname} / ${destinationpath}

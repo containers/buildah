@@ -28,7 +28,7 @@ $ buildah info
             "version": "18.04"
         },
         "MemTotal": 16702980096,
-        "MenFree": 309428224,
+        "MemFree": 309428224,
         "SwapFree": 2146693120,
         "SwapTotal": 2147479552,
         "arch": "amd64",

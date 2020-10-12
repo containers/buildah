@@ -132,7 +132,8 @@ type BuildOptions struct {
 	// when handling RUN instructions. If a capability appears in both lists, it
 	// will be dropped.
 	DropCapabilities []string
-	CommonBuildOpts  *buildah.CommonBuildOptions
+	// CommonBuildOpts is *required*.
+	CommonBuildOpts *buildah.CommonBuildOptions
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
 	DefaultMountsFilePath string
 	// IIDFile tells the builder to write the image ID to the specified file
@@ -167,6 +168,9 @@ type BuildOptions struct {
 	SignBy string
 	// Architecture specifies the target architecture of the image to be built.
 	Architecture string
+	// Timestamp sets the created timestamp to the specified time, allowing
+	// for deterministic, content-addressable builds.
+	Timestamp *time.Time
 	// OS is the specifies the operating system of the image to be built.
 	OS string
 	// MaxPullPushRetries is the maximum number of attempts we'll make to pull or push any one
@@ -177,6 +181,10 @@ type BuildOptions struct {
 	// OciDecryptConfig contains the config that can be used to decrypt an image if it is
 	// encrypted if non-nil. If nil, it does not attempt to decrypt an image.
 	OciDecryptConfig *encconfig.DecryptConfig
+	// Jobs is the number of stages to run in parallel.  If not specified it defaults to 1.
+	Jobs *int
+	// LogRusage logs resource usage for each step.
+	LogRusage bool
 }
 
 // BuildDockerfiles parses a set of one or more Dockerfiles (which may be

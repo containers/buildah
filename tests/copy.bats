@@ -23,8 +23,14 @@ load helpers
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
+  # copy ${TESTDIR}/randomfile to a file of the same name in the container's working directory
   run_buildah copy $cid ${TESTDIR}/randomfile
-  run_buildah 125 copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
+  # copy ${TESTDIR}/other-randomfile and ${TESTDIR}/third-randomfile to a new directory named ${TESTDIR}/randomfile in the container
+  run_buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
+  # try to copy ${TESTDIR}/other-randomfile and ${TESTDIR}/third-randomfile to a /randomfile, which already exists and is a file
+  run_buildah 125 copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile /randomfile
+  # copy ${TESTDIR}/other-randomfile and ${TESTDIR}/third-randomfile to previously-created directory named ${TESTDIR}/randomfile in the container
+  run_buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
   run_buildah rm $cid
 
   _prefetch alpine
@@ -173,12 +179,17 @@ load helpers
       expect_output "nobody:root" "stat UG /subdir/$i"
   done
 
+  # subdir will have been implicitly created, and the --chown should have had an effect
+  run_buildah run $cid stat -c "%U:%G" /subdir
+  expect_output "nobody:root" "stat UG /subdir"
+
   run_buildah copy --chown root:root $cid ${TESTDIR}/other-subdir /subdir
   for i in randomfile other-randomfile ; do
       run_buildah run $cid stat -c "%U:%G" /subdir/$i
       expect_output "root:root" "stat UG /subdir/$i (after chown)"
   done
 
+  # subdir itself will have not been copied (the destination directory was created implicitly), so its permissions should not have changed
   run_buildah run $cid stat -c "%U:%G" /subdir
   expect_output "nobody:root" "stat UG /subdir"
 }
@@ -204,6 +215,29 @@ load helpers
   test -s $newroot/link-randomfile
   test -f $newroot/link-randomfile
   cmp ${TESTDIR}/randomfile $newroot/link-randomfile
+}
+
+@test "copy-symlink-archive-suffix" {
+  createrandom ${TESTDIR}/randomfile.tar.gz
+  ln -s ${TESTDIR}/randomfile.tar.gz ${TESTDIR}/link-randomfile.tar.gz
+
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
+  run_buildah config --workingdir / $cid
+  run_buildah copy $cid ${TESTDIR}/link-randomfile.tar.gz
+  run_buildah unmount $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah rm $cid
+
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
+  test -s $newroot/link-randomfile.tar.gz
+  test -f $newroot/link-randomfile.tar.gz
+  cmp ${TESTDIR}/randomfile.tar.gz $newroot/link-randomfile.tar.gz
 }
 
 @test "copy-detect-missing-data" {

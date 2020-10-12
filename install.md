@@ -221,7 +221,7 @@ as yum, dnf or apt-get on a number of Linux distributions.
 
 Prior to installing Buildah, install the following packages on your Linux distro:
 * make
-* golang (Requires version 1.12 or higher.)
+* golang (Requires version 1.13 or higher.)
 * bats
 * btrfs-progs-devel
 * bzip2
@@ -332,7 +332,7 @@ In Ubuntu zesty and xenial, you can use these commands:
   sudo apt-add-repository -y ppa:projectatomic/ppa
   sudo apt-get -y -qq update
   sudo apt-get -y install bats btrfs-tools git libapparmor-dev libdevmapper-dev libglib2.0-dev libgpgme11-dev libseccomp-dev libselinux1-dev skopeo-containers go-md2man
-  sudo apt-get -y install golang-1.12
+  sudo apt-get -y install golang-1.13
 ```
 Then to install Buildah on Ubuntu follow the steps in this example:
 
@@ -342,7 +342,7 @@ Then to install Buildah on Ubuntu follow the steps in this example:
   export GOPATH=`pwd`
   git clone https://github.com/containers/buildah ./src/github.com/containers/buildah
   cd ./src/github.com/containers/buildah
-  PATH=/usr/lib/go-1.12/bin:$PATH make runc all SECURITYTAGS="apparmor seccomp"
+  PATH=/usr/lib/go-1.13/bin:$PATH make runc all SECURITYTAGS="apparmor seccomp"
   sudo make install install.runc
   buildah --help
 ```
@@ -433,7 +433,7 @@ cat /usr/share/containers/mounts.conf
 
 `/usr/share/containers/seccomp.json`
 
-seccomp.json contains the whitelist of seccomp rules to be allowed inside of
+seccomp.json contains the list of seccomp rules to be allowed inside of
 containers.  This file is usually provided by the containers-common package.
 
 The link above takes you to the seccomp.json
@@ -472,7 +472,7 @@ Buildah uses Go Modules for vendoring purposes.  If you need to update or add a 
  * `export GO111MODULE=on`
  * `go get` the needed version:
      * Assuming you want to 'bump' the `github.com/containers/storage` package to version 1.12.13, use this command: `go get github.com/containers/storage@v1.12.13`
-     *  Assumming that you want to 'bump' the `github.com/containers/storage` package to a particular commit, use this command: `go get github.com/containers/storage@e307568568533c4afccdf7b56df7b4493e4e9a7b`
+     *  Assuming that you want to 'bump' the `github.com/containers/storage` package to a particular commit, use this command: `go get github.com/containers/storage@e307568568533c4afccdf7b56df7b4493e4e9a7b`
  * `make vendor-in-container`
  * `make`
  * `make install`

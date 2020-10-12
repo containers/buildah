@@ -234,6 +234,7 @@ in_podman() {
     for envname in $(awk 'BEGIN{for(v in ENVIRON) print v}' | \
                      egrep "$envrx" | \
                      egrep -v "CIRRUS_.+_MESSAGE" | \
+                     egrep -v "CIRRUS_.+_TITLE" | \
                      egrep -v "$SECRET_ENV_RE")
     do
         envvalue="${!envname}"
@@ -274,14 +275,14 @@ verify_local_registry(){
     showrun podman images
     showrun ls -alF $HOME/auth
     showrun podman pull $ALPINE_FQIN
-    showrun podman login localhost:5000 --username testuser --password testpassword
+    showrun podman login --tls-verify=false localhost:5000 --username testuser --password testpassword
     showrun podman tag $ALPINE_FQIN $CUSTOM_FQIN
-    showrun podman push --creds=testuser:testpassword $CUSTOM_FQIN
+    showrun podman push --tls-verify=false --creds=testuser:testpassword $CUSTOM_FQIN
     showrun podman ps --all
     showrun podman images
     showrun podman rmi $ALPINE_FQIN
     showrun podman rmi $CUSTOM_FQIN
-    showrun podman pull --creds=testuser:testpassword $CUSTOM_FQIN
+    showrun podman pull --tls-verify=false --creds=testuser:testpassword $CUSTOM_FQIN
     showrun podman ps --all
     showrun podman images
     echo "Success, local registry is working, cleaning up."
@@ -297,23 +298,18 @@ execute_local_registry() {
     fi
     req_env_var CONTAINER_RUNTIME GOSRC
     local authdirpath=$HOME/auth
-    local certdirpath=/etc/docker/certs.d
     cd $GOSRC
 
     echo "Creating a self signed certificate and get it in the right places"
     mkdir -p $authdirpath
     openssl req \
         -newkey rsa:4096 -nodes -sha256 -x509 -days 2 \
-        -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=localhost" \
+        -subj "/C=US/ST=Foo/L=Bar/O=Red Hat, Inc./CN=registry host certificate" \
+        -addext subjectAltName=DNS:localhost \
         -keyout $authdirpath/domain.key \
         -out $authdirpath/domain.crt
 
     cp $authdirpath/domain.crt $authdirpath/domain.cert
-    mkdir -p $certdirpath/docker.io/
-    cp $authdirpath/domain.crt $certdirpath/docker.io/ca.crt
-    mkdir -p $certdirpath/localhost:5000/
-    cp $authdirpath/domain.crt $certdirpath/localhost:5000/ca.crt
-    cp $authdirpath/domain.crt $certdirpath/localhost:5000/domain.crt
 
     echo "Creating http credentials file"
     showrun htpasswd -Bbn testuser testpassword > $authdirpath/htpasswd

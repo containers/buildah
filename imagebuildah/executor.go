@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containers/buildah"
@@ -23,12 +24,13 @@ import (
 	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
+	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/openshift/imagebuilder"
 	"github.com/openshift/imagebuilder/dockerfile/parser"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 )
 
 // builtinAllowedBuildArgs is list of built-in allowed build args.  Normally we
@@ -95,13 +97,20 @@ type Executor struct {
 	excludes                       []string
 	unusedArgs                     map[string]struct{}
 	capabilities                   []string
-	devices                        []configs.Device
+	devices                        buildah.ContainerDevices
 	signBy                         string
 	architecture                   string
+	timestamp                      *time.Time
 	os                             string
 	maxPullPushRetries             int
 	retryPullPushDelay             time.Duration
 	ociDecryptConfig               *encconfig.DecryptConfig
+	lastError                      error
+	terminatedStage                map[string]struct{}
+	stagesLock                     sync.Mutex
+	stagesSemaphore                *semaphore.Weighted
+	jobs                           int
+	logRusage                      bool
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
@@ -120,7 +129,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		return nil, err
 	}
 
-	devices := []configs.Device{}
+	devices := buildah.ContainerDevices{}
 	for _, device := range append(defaultContainerConfig.Containers.Devices, options.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {
@@ -139,7 +148,18 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		transientMounts = append([]Mount{Mount(mount)}, transientMounts...)
 	}
 
+	jobs := 1
+	if options.Jobs != nil {
+		jobs = *options.Jobs
+	}
+
+	writer := options.ReportWriter
+	if options.Quiet {
+		writer = ioutil.Discard
+	}
+
 	exec := Executor{
+		stages:                         make(map[string]*StageExecutor),
 		store:                          store,
 		contextDir:                     options.ContextDirectory,
 		excludes:                       excludes,
@@ -160,7 +180,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		in:                             options.In,
 		out:                            options.Out,
 		err:                            options.Err,
-		reportWriter:                   options.ReportWriter,
+		reportWriter:                   writer,
 		isolation:                      options.Isolation,
 		namespaceOptions:               options.NamespaceOptions,
 		configureNetwork:               options.ConfigureNetwork,
@@ -187,10 +207,14 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		devices:                        devices,
 		signBy:                         options.SignBy,
 		architecture:                   options.Architecture,
+		timestamp:                      options.Timestamp,
 		os:                             options.OS,
 		maxPullPushRetries:             options.MaxPullPushRetries,
 		retryPullPushDelay:             options.PullPushRetryDelay,
 		ociDecryptConfig:               options.OciDecryptConfig,
+		terminatedStage:                make(map[string]struct{}),
+		jobs:                           jobs,
+		logRusage:                      options.LogRusage,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -236,11 +260,9 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 
 // startStage creates a new stage executor that will be referenced whenever a
 // COPY or ADD statement uses a --from=NAME flag.
-func (b *Executor) startStage(stage *imagebuilder.Stage, stages int, output string) *StageExecutor {
-	if b.stages == nil {
-		b.stages = make(map[string]*StageExecutor)
-	}
+func (b *Executor) startStage(ctx context.Context, stage *imagebuilder.Stage, stages imagebuilder.Stages, output string) *StageExecutor {
 	stageExec := &StageExecutor{
+		ctx:             ctx,
 		executor:        b,
 		index:           stage.Position,
 		stages:          stages,
@@ -277,22 +299,107 @@ func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, e
 	return imageRef, nil
 }
 
-// getImageHistory returns the history of imageID.
-func (b *Executor) getImageHistory(ctx context.Context, imageID string) ([]v1.History, error) {
+// waitForStage waits for an entry to be added to terminatedStage indicating
+// that the specified stage has finished.  If there is no stage defined by that
+// name, then it will return (false, nil).  If there is a stage defined by that
+// name, it will return true along with any error it encounters.
+func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebuilder.Stages) (bool, error) {
+	found := false
+	for _, otherStage := range stages {
+		if otherStage.Name == name || fmt.Sprintf("%d", otherStage.Position) == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return false, nil
+	}
+	for {
+		if b.lastError != nil {
+			return true, b.lastError
+		}
+
+		b.stagesLock.Lock()
+		_, terminated := b.terminatedStage[name]
+		b.stagesLock.Unlock()
+
+		if terminated {
+			return true, nil
+		}
+
+		b.stagesSemaphore.Release(1)
+		time.Sleep(time.Millisecond * 10)
+		if err := b.stagesSemaphore.Acquire(ctx, 1); err != nil {
+			return true, errors.Wrapf(err, "error reacquiring job semaphore")
+		}
+	}
+}
+
+// getImageHistoryAndDiffIDs returns the history and diff IDs list of imageID.
+func (b *Executor) getImageHistoryAndDiffIDs(ctx context.Context, imageID string) ([]v1.History, []digest.Digest, error) {
 	imageRef, err := is.Transport.ParseStoreReference(b.store, "@"+imageID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error getting image reference %q", imageID)
+		return nil, nil, errors.Wrapf(err, "error getting image reference %q", imageID)
 	}
 	ref, err := imageRef.NewImage(ctx, nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error creating new image from reference to image %q", imageID)
+		return nil, nil, errors.Wrapf(err, "error creating new image from reference to image %q", imageID)
 	}
 	defer ref.Close()
 	oci, err := ref.OCIConfig(ctx)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error getting possibly-converted OCI config of image %q", imageID)
+		return nil, nil, errors.Wrapf(err, "error getting possibly-converted OCI config of image %q", imageID)
 	}
-	return oci.History, nil
+	return oci.History, oci.RootFS.DiffIDs, nil
+}
+
+func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageExecutor, stages imagebuilder.Stages, stageIndex int) (imageID string, ref reference.Canonical, err error) {
+	stage := stages[stageIndex]
+	ib := stage.Builder
+	node := stage.Node
+	base, err := ib.From(node)
+
+	// If this is the last stage, then the image that we produce at
+	// its end should be given the desired output name.
+	output := ""
+	if stageIndex == len(stages)-1 {
+		output = b.output
+	}
+
+	if err != nil {
+		logrus.Debugf("Build(node.Children=%#v)", node.Children)
+		return "", nil, err
+	}
+
+	b.stagesLock.Lock()
+	stageExecutor := b.startStage(ctx, &stage, stages, output)
+	b.stagesLock.Unlock()
+
+	// If this a single-layer build, or if it's a multi-layered
+	// build and b.forceRmIntermediateCtrs is set, make sure we
+	// remove the intermediate/build containers, regardless of
+	// whether or not the stage's build fails.
+	if b.forceRmIntermediateCtrs || !b.layers {
+		b.stagesLock.Lock()
+		cleanupStages[stage.Position] = stageExecutor
+		b.stagesLock.Unlock()
+	}
+
+	// Build this stage.
+	if imageID, ref, err = stageExecutor.Execute(ctx, base); err != nil {
+		return "", nil, err
+	}
+
+	// The stage succeeded, so remove its build container if we're
+	// told to delete successful intermediate/build containers for
+	// multi-layered builds.
+	if b.removeIntermediateCtrs {
+		b.stagesLock.Lock()
+		cleanupStages[stage.Position] = stageExecutor
+		b.stagesLock.Unlock()
+	}
+
+	return imageID, ref, nil
 }
 
 // Build takes care of the details of running Prepare/Execute/Commit/Delete
@@ -314,12 +421,16 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		// Clean up any containers associated with the final container
 		// built by a stage, for stages that succeeded, since we no
 		// longer need their filesystem contents.
+
+		b.stagesLock.Lock()
 		for _, stage := range cleanupStages {
 			if err := stage.Delete(); err != nil {
 				logrus.Debugf("Failed to cleanup stage containers: %v", err)
 				lastErr = err
 			}
 		}
+		b.stagesLock.Unlock()
+
 		cleanupStages = nil
 		// Clean up any builders that we used to get data from images.
 		for _, builder := range b.containerMap {
@@ -404,61 +515,91 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 	}
 
-	// Run through the build stages, one at a time.
-	for stageIndex, stage := range stages {
-		var lastErr error
+	type Result struct {
+		Index   int
+		ImageID string
+		Ref     reference.Canonical
+		Error   error
+	}
 
-		ib := stage.Builder
-		node := stage.Node
-		base, err := ib.From(node)
-		if err != nil {
-			logrus.Debugf("Build(node.Children=%#v)", node.Children)
-			return "", nil, err
+	ch := make(chan Result)
+
+	jobs := int64(b.jobs)
+	if jobs < 0 {
+		return "", nil, errors.New("error building: invalid value for jobs.  It must be a positive integer")
+	} else if jobs == 0 {
+		jobs = int64(len(stages))
+	}
+
+	b.stagesSemaphore = semaphore.NewWeighted(jobs)
+
+	var wg sync.WaitGroup
+	wg.Add(len(stages))
+
+	go func() {
+		for stageIndex := range stages {
+			index := stageIndex
+			// Acquire the semaphore before creating the goroutine so we are sure they
+			// run in the specified order.
+			if err := b.stagesSemaphore.Acquire(ctx, 1); err != nil {
+				b.lastError = err
+				return
+			}
+			go func() {
+				defer b.stagesSemaphore.Release(1)
+				defer wg.Done()
+				stageID, stageRef, stageErr := b.buildStage(ctx, cleanupStages, stages, index)
+				if stageErr != nil {
+					ch <- Result{
+						Index: index,
+						Error: stageErr,
+					}
+					return
+				}
+
+				ch <- Result{
+					Index:   index,
+					ImageID: stageID,
+					Ref:     stageRef,
+					Error:   nil,
+				}
+			}()
 		}
+	}()
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
 
-		// If this is the last stage, then the image that we produce at
-		// its end should be given the desired output name.
-		output := ""
-		if stageIndex == len(stages)-1 {
-			output = b.output
-		}
+	for r := range ch {
+		stage := stages[r.Index]
 
-		stageExecutor := b.startStage(&stage, len(stages), output)
+		b.stagesLock.Lock()
+		b.terminatedStage[stage.Name] = struct{}{}
+		b.terminatedStage[fmt.Sprintf("%d", stage.Position)] = struct{}{}
+		b.stagesLock.Unlock()
 
-		// If this a single-layer build, or if it's a multi-layered
-		// build and b.forceRmIntermediateCtrs is set, make sure we
-		// remove the intermediate/build containers, regardless of
-		// whether or not the stage's build fails.
-		if b.forceRmIntermediateCtrs || !b.layers {
-			cleanupStages[stage.Position] = stageExecutor
-		}
-
-		// Build this stage.
-		if imageID, ref, err = stageExecutor.Execute(ctx, base); err != nil {
-			lastErr = err
-		}
-		if lastErr != nil {
-			return "", nil, lastErr
-		}
-
-		// The stage succeeded, so remove its build container if we're
-		// told to delete successful intermediate/build containers for
-		// multi-layered builds.
-		if b.removeIntermediateCtrs {
-			cleanupStages[stage.Position] = stageExecutor
+		if r.Error != nil {
+			b.lastError = r.Error
+			return "", nil, r.Error
 		}
 
 		// If this is an intermediate stage, make a note of the ID, so
 		// that we can look it up later.
-		if stageIndex < len(stages)-1 && imageID != "" {
-			b.imageMap[stage.Name] = imageID
+		if r.Index < len(stages)-1 && r.ImageID != "" {
+			b.stagesLock.Lock()
+			b.imageMap[stage.Name] = r.ImageID
+			b.stagesLock.Unlock()
 			// We're not populating the cache with intermediate
 			// images, so add this one to the list of images that
 			// we'll remove later.
 			if !b.layers {
-				cleanupImages = append(cleanupImages, imageID)
+				cleanupImages = append(cleanupImages, r.ImageID)
 			}
-			imageID = ""
+		}
+		if r.Index == len(stages)-1 {
+			imageID = r.ImageID
+			ref = r.Ref
 		}
 	}
 

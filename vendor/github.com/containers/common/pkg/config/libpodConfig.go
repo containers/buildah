@@ -3,7 +3,6 @@ package config
 /* libpodConfig.go contains deprecated functionality and should not be used any longer */
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -168,7 +167,7 @@ type ConfigFromLibpod struct {
 	// EventsLogFilePath is where the events log is stored.
 	EventsLogFilePath string `toml:"events_logfile_path,omitempty"`
 
-	//DetachKeys is the sequence of keys used to detach a container.
+	// DetachKeys is the sequence of keys used to detach a container.
 	DetachKeys string `toml:"detach_keys,omitempty"`
 
 	// SDNotify tells Libpod to allow containers to notify the host systemd of
@@ -187,7 +186,7 @@ type ConfigFromLibpod struct {
 // with cgroupv2v2. Other OCI runtimes are not yet supporting cgroupv2v2. This
 // might change in the future.
 func newLibpodConfig(c *Config) error {
-	// Start with the default config and interatively merge
+	// Start with the default config and iteratively merge
 	// fields in the system configs.
 	config := c.libpodConfig()
 
@@ -195,6 +194,10 @@ func newLibpodConfig(c *Config) error {
 	configs, err := systemLibpodConfigs()
 	if err != nil {
 		return errors.Wrapf(err, "error finding config on system")
+	}
+
+	if len(configs) == 0 {
+		return nil
 	}
 
 	for _, path := range configs {
@@ -226,7 +229,7 @@ func newLibpodConfig(c *Config) error {
 
 	// hard code EventsLogger to "file" to match older podman versions.
 	if config.EventsLogger != "file" {
-		logrus.Debugf("Ignoring libpod.conf EventsLogger setting %q. Use %q if you want to change this setting and remove libpod.conf files.", Path(), config.EventsLogger)
+		logrus.Warnf("Ignoring libpod.conf EventsLogger setting %q. Use %q if you want to change this setting and remove libpod.conf files.", config.EventsLogger, Path())
 		config.EventsLogger = "file"
 	}
 
@@ -243,7 +246,7 @@ func readLibpodConfigFromFile(path string, config *ConfigFromLibpod) (*ConfigFro
 	logrus.Debugf("Reading configuration file %q", path)
 	_, err := toml.DecodeFile(path, config)
 	if err != nil {
-		return nil, fmt.Errorf("unable to decode configuration %v: %v", path, err)
+		return nil, errors.Wrapf(err, "decode configuration %s", path)
 	}
 
 	return config, err
@@ -260,9 +263,7 @@ func systemLibpodConfigs() ([]string, error) {
 			if err != nil {
 				containersConfPath = filepath.Join("$HOME", UserOverrideContainersConfig)
 			}
-			// TODO: Raise to Warnf, when Podman is updated to
-			// remove libpod.conf by default
-			logrus.Debugf("Found deprecated file %s, please remove. Use %s to override defaults.\n", Path(), containersConfPath)
+			logrus.Warnf("Found deprecated file %s, please remove. Use %s to override defaults.\n", path, containersConfPath)
 			return []string{path}, nil
 		}
 		return nil, err
@@ -270,15 +271,11 @@ func systemLibpodConfigs() ([]string, error) {
 
 	configs := []string{}
 	if _, err := os.Stat(_rootConfigPath); err == nil {
-		// TODO: Raise to Warnf, when Podman is updated to
-		// remove libpod.conf by default
-		logrus.Debugf("Found deprecated file %s, please remove. Use %s to override defaults.\n", _rootConfigPath, OverrideContainersConfig)
+		logrus.Warnf("Found deprecated file %s, please remove. Use %s to override defaults.\n", _rootConfigPath, OverrideContainersConfig)
 		configs = append(configs, _rootConfigPath)
 	}
 	if _, err := os.Stat(_rootOverrideConfigPath); err == nil {
-		// TODO: Raise to Warnf, when Podman is updated to
-		// remove libpod.conf by default
-		logrus.Debugf("Found deprecated file %s, please remove. Use %s to override defaults.\n", _rootOverrideConfigPath, OverrideContainersConfig)
+		logrus.Warnf("Found deprecated file %s, please remove. Use %s to override defaults.\n", _rootOverrideConfigPath, OverrideContainersConfig)
 		configs = append(configs, _rootOverrideConfigPath)
 	}
 	return configs, nil

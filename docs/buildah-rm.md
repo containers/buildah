@@ -11,7 +11,7 @@ Removes one or more working containers, unmounting them if necessary.
 
 ## OPTIONS
 
-**--all, -a**
+**--all**, **-a**
 
 All Buildah containers will be removed.  Buildah containers are denoted with an '*' in the 'BUILDER' column listed by the command 'buildah containers'.A container name or id cannot be provided when this option is used.
 

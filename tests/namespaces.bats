@@ -65,6 +65,11 @@ load helpers
   if [[ $output == $mynetns ]]; then
       expect_output "[output should not be '$mynetns']"
   fi
+
+  run_buildah run $RUNOPTS --net=private "$ctr" readlink /proc/self/ns/net
+  if [[ $output == $mynetns ]]; then
+      expect_output "[output should not be '$mynetns']"
+  fi
 }
 
 @test "idmapping" {
@@ -92,14 +97,6 @@ load helpers
   gidmapargs[1]="--userns-gid-map=0:$gidbase:$gidsize"
   uidmaps[1]="0 $uidbase $uidsize"
   gidmaps[1]="0 $gidbase $gidsize"
-  # Test with just a UID map specified.
-  uidmapargs[2]=--userns-uid-map=0:$uidbase:$uidsize
-  uidmaps[2]="0 $uidbase $uidsize"
-  gidmaps[2]="0 $uidbase $uidsize"
-  # Test with just a GID map specified.
-  gidmapargs[3]=--userns-gid-map=0:$gidbase:$gidsize
-  uidmaps[3]="0 $gidbase $gidsize"
-  gidmaps[3]="0 $gidbase $gidsize"
   # Conditionalize some tests on the subuid and subgid files being present.
   if test -s /etc/subuid ; then
     if test -s /etc/subgid ; then
@@ -157,7 +154,7 @@ load helpers
   chmod 700 ${TESTDIR}/somedir/someotherfile
   chmod u+s ${TESTDIR}/somedir/someotherfile
 
-  for i in $(seq 0 "$((${#maps[*]}-1))") ; do
+  for i in $(seq 0 "$((${#uidmaps[*]}-1))") ; do
     # Create a container using these mappings.
     echo "Building container with --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine"
     _prefetch alpine
@@ -167,7 +164,7 @@ load helpers
     # If we specified mappings, expect to be in a different namespace by default.
     run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/user
     [ "$output" != "" ]
-    case x"$map" in
+    case x"${uidmapargs[$i]}""${gidmapargs[$i]}" in
     x)
       if test "$BUILDAH_ISOLATION" != "chroot" -a "$BUILDAH_ISOLATION" != "rootless" ; then
         expect_output "$mynamespace"
@@ -185,8 +182,8 @@ load helpers
     [ "$output" != "" ]
     gidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$output")
     echo With settings "$map", expected UID map "${uidmaps[$i]}", got UID map "${uidmap}", expected GID map "${gidmaps[$i]}", got GID map "${gidmap}".
-    expect_output --from=$uidmap "${uidmaps[$i]}"
-    expect_output --from=$gidmap "${gidmaps[$i]}"
+    expect_output --from="$uidmap" "${uidmaps[$i]}"
+    expect_output --from="$gidmap" "${gidmaps[$i]}"
     rootuid=$(sed -E -e 's,^([^ ]*) (.*) ([^ ]*),\2,' <<< "$uidmap")
     rootgid=$(sed -E -e 's,^([^ ]*) (.*) ([^ ]*),\2,' <<< "$gidmap")
 
@@ -209,6 +206,13 @@ load helpers
   done
 }
 
+@test "idmapping-syntax" {
+  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map=0:10000:65536 alpine
+  expect_output --substring "must be used together"
+  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-gid-map=0:10000:65536 alpine
+  expect_output --substring "must be used together"
+}
+
 general_namespace() {
   mkdir -p $TESTDIR/no-cni-configs
   RUNOPTS="--cni-config-dir=${TESTDIR}/no-cni-configs ${RUNC_BINARY:+--runtime $RUNC_BINARY}"
@@ -229,6 +233,8 @@ general_namespace() {
   types[1]=container
   types[2]=host
   types[3]=/proc/$$/ns/$nstype
+  types[4]=private
+  types[5]=ns:/proc/$$/ns/$nstype
 
   _prefetch alpine
   for namespace in "${types[@]}" ; do
@@ -241,7 +247,7 @@ general_namespace() {
     run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/"$nstype"
     [ "$output" != "" ]
     case "$namespace" in
-    ""|container)
+    ""|container|private)
       [ "$output" != "$mynamespace" ]
       ;;
     host)
@@ -257,7 +263,7 @@ general_namespace() {
       run_buildah run $RUNOPTS --"$nsflag"=$different "$ctr" readlink /proc/self/ns/"$nstype"
       [ "$output" != "" ]
       case "$different" in
-      ""|container)
+      ""|container|private)
         [ "$output" != "$mynamespace" ]
         ;;
       host)
@@ -320,13 +326,13 @@ general_namespace() {
 
   _prefetch alpine
   # mnt is always per-container, cgroup isn't a thing OCI runtime lets us configure
-  for ipc in host container ; do
-    for net in host container ; do
-      for pid in host container ; do
-        for userns in host container ; do
-          for uts in host container ; do
+  for ipc in host container private ; do
+    for net in host container private; do
+      for pid in host container private; do
+        for userns in host container private; do
+          for uts in host container private; do
 
-            if test $userns == container -a $pid == host ; then
+            if test $userns == private -o $userns == container -a $pid == host ; then
               # We can't mount a fresh /proc, and OCI runtime won't let us bind mount the host's.
               continue
             fi

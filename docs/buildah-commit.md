@@ -10,8 +10,9 @@ buildah\-commit - Create an image from a working container.
 Writes a new image using the specified container's read-write layer and if it
 is based on an image, the layers of that image.  If *image* does not begin
 with a registry name component, `localhost` will be added to the name.  If
-*image* is not provided, the values for the `REPOSITORY` and `TAG` values of
-the created image will each be set to `<none>`.
+*image* is not provided, the image will have no name.  When an image has no
+name, the `buildah images` command will display `<none>` in the `REPOSITORY` and
+`TAG` columns.
 
 ## RETURN VALUE
 The image ID of the image that was created.  On error, 1 is returned and errno is returned.
@@ -26,7 +27,7 @@ If the authorization state is not found there, $HOME/.docker/config.json is chec
 **--cert-dir** *path*
 
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
-Default certificates directory is _/etc/containers/certs.d_.
+The default certificates directory is _/etc/containers/certs.d_.
 
 **--creds** *creds*
 
@@ -34,7 +35,7 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
-**--disable-compression, -D**
+**--disable-compression**, **-D**
 
 Don't compress filesystem layers when building the image unless it is required
 by the location where the image is being written.  This is the default setting,
@@ -43,7 +44,15 @@ registries, and images being written to local storage would only need to be
 decompressed again to be stored.  Compression can be forced in all cases by
 specifying **--disable-compression=false**.
 
-**--format**
+**--encryption-key** *key*
+
+The [protocol:keyfile] specifies the encryption protocol, which can be JWE (RFC7516), PGP (RFC4880), and PKCS7 (RFC2315) and the key material required for image encryption. For instance, jwe:/path/to/key.pem or pgp:admin@example.com or pkcs7:/path/to/x509-file.
+
+**--encrypt-layer** *layer(s)*
+
+Layer(s) to encrypt: 0-indexed layer indices with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer). If not defined, will encrypt all layers if encryption-key flag is specified.
+
+**--format**, **-f** *[oci | docker]*
 
 Control the format for the image manifest and configuration data.  Recognized
 formats include *oci* (OCI image-spec v1.0, the default) and *docker* (version
@@ -56,12 +65,12 @@ environment variable.  `export BUILDAH\_FORMAT=docker`
 
 Write the image ID to the file.
 
-**--quiet**
+**--quiet**, **-q**
 
 When writing the output image, suppress progress output.
 
 **--rm**
-Remove the container and its content after committing it to an image.
+Remove the working container and its contents after creating the image.
 Default leaves the container and its content in place.
 
 **--sign-by** *fingerprint*
@@ -74,15 +83,14 @@ Squash all of the new image's layers (including those inherited from a base imag
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true)
+Require HTTPS and verify certificates when talking to container registries (defaults to true).
 
-**--omit-timestamp** *bool-value*
+**--timestamp** *seconds*
 
-Set the create timestamp to epoch 0 to allow for deterministic builds (defaults to false).
+Set the create timestamp to seconds since epoch to allow for deterministic builds (defaults to current time).
 By default, the created timestamp is changed and written into the image manifest with every commit,
 causing the image's sha256 hash to be different even if the sources are exactly the same otherwise.
-When --omit-timestamp is set to true, the created timestamp is always set to the epoch and therefore not
-changed, allowing the image's sha256 to remain the same.
+When --timestamp is set, the created timestamp is always set to the time specified and therefore not changed, allowing the image's sha256 to remain the same. All files committed to the layers of the image will be created with the timestamp.
 
 ## EXAMPLE
 
@@ -91,6 +99,9 @@ This example saves an image based on the container.
 
 This example saves an image named newImageName based on the container.
  `buildah commit --rm containerID newImageName`
+
+This example saves an image with no name, removes the working container, and creates a new container using the image's ID.
+ `buildah from $(buildah commit --rm containerID)`
 
 This example saves an image based on the container disabling compression.
  `buildah commit --disable-compression containerID`
@@ -106,6 +117,9 @@ This example commits the container to the image on the local registry using cred
 
 This example commits the container to the image on the local registry using credentials from the /tmp/auths/myauths.json file and certificates for authentication.
  `buildah commit --authfile /tmp/auths/myauths.json --cert-dir ~/auth  --tls-verify=true --creds=username:password containerID docker://localhost:5000/imageName`
+
+This example saves an image based on the container, but stores dates based on epoch time.
+`buildah commit --timestamp=0 containerID newImageName`
 
 ## ENVIRONMENT
 
@@ -137,4 +151,4 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), containers-policy.json(5), containers-registries.conf(5)
+buildah(1), buildah-images(1), containers-policy.json(5), containers-registries.conf(5)

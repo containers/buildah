@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
@@ -39,11 +40,10 @@ func init() {
 	namespaceResults := buildahcli.NameSpaceResults{}
 
 	budCommand := &cobra.Command{
-		Use:     "build-using-dockerfile",
-		Aliases: []string{"bud"},
+		Use:     "bud",
+		Aliases: []string{"build-using-dockerfile"},
 		Short:   "Build an image using instructions in a Dockerfile",
 		Long:    budDescription,
-		//Flags:                  sortFlags(append(append(buildahcli.BudFlags, buildahcli.LayerFlags...), buildahcli.FromAndBudFlags...)),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			br := budOptions{
 				&layerFlagsResults,
@@ -79,6 +79,7 @@ func init() {
 	flags.AddFlagSet(&budFlags)
 	flags.AddFlagSet(&layerFlags)
 	flags.AddFlagSet(&fromAndBudFlags)
+	flags.SetNormalizeFunc(buildahcli.AliasFlags)
 
 	rootCmd.AddCommand(budCommand)
 }
@@ -291,7 +292,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 
 	defaultsMountFile, _ := c.PersistentFlags().GetString("defaults-mount-file")
 
-	os, arch, err := parse.PlatformFromOptions(c)
+	imageOS, arch, err := parse.PlatformFromOptions(c)
 	if err != nil {
 		return err
 	}
@@ -299,6 +300,13 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 	decConfig, err := getDecryptConfig(iopts.DecryptionKeys)
 	if err != nil {
 		return errors.Wrapf(err, "unable to obtain decrypt config")
+	}
+
+	if iopts.Jobs > 1 {
+		stdin, err = os.OpenFile("/dev/null", os.O_RDONLY|os.O_CREATE, 0000)
+		if err != nil {
+			return err
+		}
 	}
 
 	options := imagebuildah.BuildOptions{
@@ -328,7 +336,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		MaxPullPushRetries:      maxPullPushRetries,
 		NamespaceOptions:        namespaceOptions,
 		NoCache:                 iopts.NoCache,
-		OS:                      os,
+		OS:                      imageOS,
 		Out:                     stdout,
 		Output:                  output,
 		OutputFormat:            format,
@@ -346,6 +354,12 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		Target:                  iopts.Target,
 		TransientMounts:         iopts.Volumes,
 		OciDecryptConfig:        decConfig,
+		Jobs:                    &iopts.Jobs,
+		LogRusage:               iopts.LogRusage,
+	}
+	if c.Flag("timestamp").Changed {
+		timestamp := time.Unix(iopts.Timestamp, 0).UTC()
+		options.Timestamp = &timestamp
 	}
 
 	if iopts.Quiet {

@@ -15,7 +15,7 @@ import (
 // If commitrange is a single commit, all ancestor commits up through the hash provided.
 // If commitrange is an empty commit range, then nil is returned.
 func Commits(commitrange string) ([]CommitEntry, error) {
-	cmdArgs := []string{"git", "--no-pager", "log", `--pretty=format:%H`, commitrange}
+	cmdArgs := []string{"git", "rev-list", commitrange}
 	if debug() {
 		logrus.Infof("[git] cmd: %q", strings.Join(cmdArgs, " "))
 	}
@@ -108,6 +108,9 @@ func Check(commit string) ([]byte, error) {
 		if gitNewEnough {
 			excludeList := strings.Split(excludeEnvList, ":")
 			for _, exclude := range excludeList {
+				if exclude == "" {
+					continue
+				}
 				args = append(args, "--", ".", fmt.Sprintf(":(exclude)%s", exclude))
 			}
 		}

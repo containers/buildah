@@ -113,7 +113,7 @@ Limit the container's CPU usage. By default, containers run with the full
 CPU resource. This flag tell the kernel to restrict the container's CPU usage
 to the quota you specify.
 
-**--cpu-shares, -c**=*0*
+**--cpu-shares**, **-c**=*0*
 
 CPU shares (relative weight)
 
@@ -170,7 +170,7 @@ value can be entered.  The password is entered without echo.
 
 **--decryption-key** *key[:passphrase]*
 
-The [key[:passphrase]] to be used for decryption of images. Key can point to keys and/or certificates. Decryption will be tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and ommitted otherwise.
+The [key[:passphrase]] to be used for decryption of images. Key can point to keys and/or certificates. Decryption will be tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and omitted otherwise.
 
 **--device**=*device*
 
@@ -191,6 +191,15 @@ Set custom DNS options
 **--dns-search**=[]
 
 Set custom DNS search domains
+
+**--format**, **-f** *oci* | *docker*
+
+Control the format for the built image's manifest and configuration data.
+Recognized formats include *oci* (OCI image-spec v1.0, the default) and
+*docker* (version 2, using schema format 2 for the manifest).
+
+Note: You can also override the default format by setting the BUILDAH\_FORMAT
+environment variable.  `export BUILDAH_FORMAT=docker`
 
 **--http-proxy**
 
@@ -226,7 +235,7 @@ container technology).
 Note: You can also override the default isolation type by setting the
 BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
-**--memory, -m**=""
+**--memory**, **-m**=""
 
 Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
 
@@ -295,7 +304,7 @@ Raise an error if not found in the registries, even if the image is present loca
 Do not pull the image from the registry, use only the local version. Raise an error
 if the image is not present locally.
 
-**--quiet, -q**
+**--quiet**, **-q**
 
 If an image needs to be pulled from the registry, suppress progress output.
 
@@ -324,7 +333,7 @@ If you omit the unit, the system uses bytes. If you omit the size entirely, the 
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true)
+Require HTTPS and verify certificates when talking to container registries (defaults to true).
 
 **--ulimit** *type*=*soft-limit*[:*hard-limit*]
 
@@ -359,7 +368,7 @@ the user namespace in which `Buildah` itself is being run should be reused, or
 it can be the path to an user namespace which is already in use by another
 process.
 
-**--userns-uid-map** *mapping*
+**--userns-uid-map-user** *mapping*
 
 Directly specifies a UID mapping which should be used to set ownership, at the
 filesystem level, on the container's contents.
@@ -380,7 +389,7 @@ If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-uid-map
 are specified, but --userns-gid-map is specified, the UID map will be set to
 use the same numeric values as the GID map.
 
-**--userns-gid-map** *mapping*
+**--userns-gid-map-group** *mapping*
 
 Directly specifies a GID mapping which should be used to set ownership, at the
 filesystem level, on the container's contents.
@@ -433,11 +442,11 @@ that the UTS namespace in which `Buildah` itself is being run should be reused,
 or it can be the path to a UTS namespace which is already in use by another
 process.
 
-**--volume, -v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
+**--volume**, **-v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
 
    Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
    bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah
-   container. The `OPTIONS` are a comma delimited list and can be:
+   container. The `OPTIONS` are a comma delimited list and can be: <sup>[[1]](#Footnote1)</sup>
 
    * [rw|ro]
    * [z|Z|O]
@@ -481,7 +490,6 @@ Only the current container can use a private volume.
 
   Note:
 
-     - Overlay mounts are not currently supported in rootless mode.
      - The `O` flag is not allowed to be specified with the `Z` or `z` flags. Content mounted into the container is labeled with the private label.
        On SELinux systems, labels in the source directory needs to be readable by the container label. If not, SELinux container separation must be disabled for the container to work.
      - Modification of the directory volume mounted into the container with an overlay mount can cause unexpected failures.  It is recommended that you do not modify the directory until the container finishes running.
@@ -500,7 +508,7 @@ be specified only for bind mounted volumes and not for internal volumes or
 named volumes. For mount propagation to work on the source mount point (the mount point
 where source dir is mounted on) it has to have the right propagation properties. For
 shared volumes, the source mount point has to be shared. And for slave volumes,
-the source mount has to be either shared or slave.
+the source mount has to be either shared or slave. <sup>[[1]](#Footnote1)</sup>
 
 Use `df <source-dir>` to determine the source mount and then use
 `findmnt -o TARGET,PROPAGATION <source-mount-dir>` to determine propagation
@@ -508,7 +516,7 @@ properties of source mount, if `findmnt` utility is not available, the source mo
 can be determined by looking at the mount entry in `/proc/self/mountinfo`. Look
 at `optional fields` and see if any propagaion properties are specified.
 `shared:X` means the mount is `shared`, `master:X` means the mount is `slave` and if
-nothing is there that means the mount is `private`.
+nothing is there that means the mount is `private`. <sup>[[1]](#Footnote1)</sup>
 
 To change propagation properties of a mount point use the `mount` command. For
 example, to bind mount the source directory `/foo` do
@@ -576,3 +584,6 @@ Signature policy file.  This defines the trust policy for container images.  Con
 
 ## SEE ALSO
 buildah(1), buildah-pull(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), containers-policy.json(5), containers-registries.conf(5), user\_namespaces(7)
+
+## FOOTNOTES
+<a name="Footnote1">1</a>: The Buildah project is committed to inclusivity, a core value of open source. The `master` and `slave` mount propagation terminology used here is problematic and divisive, and should be changed. However, these terms are currently used within the Linux kernel and must be used as-is at this time. When the kernel maintainers rectify this usage, Buildah will follow suit immediately.

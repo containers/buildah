@@ -8,6 +8,8 @@ req_env_var IN_PODMAN IN_PODMAN_NAME GOSRC
 
 remove_packaged_buildah_files
 
+go version && go env
+
 cd "$GOSRC"
 if [[ "$IN_PODMAN" == "true" ]]
 then
@@ -22,8 +24,5 @@ else
     then
         showrun make install PREFIX=/usr
         showrun ./bin/buildah info
-    else  # some tooling expects the binary to be here
-        rm -vf buildah  # failure ok
-        ln -sv bin/buildah ./
     fi
 fi

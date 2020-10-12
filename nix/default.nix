@@ -7,7 +7,7 @@ let
         libassuan = (static pkg.libassuan);
         libgpgerror = (static pkg.libgpgerror);
         libseccomp = (static pkg.libseccomp);
-        glib = pkg.glib.overrideAttrs(x: {
+        glib = (static pkg.glib).overrideAttrs(x: {
           outputs = [ "bin" "out" "dev" ];
           mesonFlags = [
             "-Ddefault_library=static"
@@ -21,28 +21,32 @@ let
   });
 
   static = pkg: pkg.overrideAttrs(x: {
-    configureFlags = (x.configureFlags or []) ++
-      [ "--without-shared" "--disable-shared" ];
+    doCheck = false;
+    configureFlags = (x.configureFlags or []) ++ [
+      "--without-shared"
+      "--disable-shared"
+    ];
     dontDisableStatic = true;
     enableSharedExecutables = false;
     enableStatic = true;
   });
 
-  self = with pkgs; buildGoPackage rec {
+  self = with pkgs; buildGoModule rec {
     name = "buildah";
     src = ./..;
-    goPackagePath = "github.com/containers/buildah";
+    vendorSha256 = null;
     doCheck = false;
     enableParallelBuilding = true;
-    nativeBuildInputs = [ git installShellFiles pkg-config ];
-    buildInputs = [ glib glibc glibc.static gpgme libapparmor libassuan libgpgerror libseccomp libselinux ];
+    outputs = [ "out" ];
+    nativeBuildInputs = [ bash git go-md2man installShellFiles makeWrapper pkg-config which ];
+    buildInputs = [ glibc glibc.static gpgme libassuan libgpgerror libseccomp libapparmor libselinux glib ];
     prePatch = ''
+      export CFLAGS='-static'
       export LDFLAGS='-s -w -static-libgcc -static'
       export EXTRA_LDFLAGS='-s -w -linkmode external -extldflags "-static -lm"'
-      export BUILDTAGS='static netgo apparmor selinux seccomp exclude_graphdriver_btrfs exclude_graphdriver_devicemapper'
+      export BUILDTAGS='static netgo exclude_graphdriver_btrfs exclude_graphdriver_devicemapper seccomp apparmor selinux'
     '';
     buildPhase = ''
-      pushd go/src/${goPackagePath}
       patchShebangs .
       make bin/buildah
     '';

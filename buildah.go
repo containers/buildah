@@ -17,7 +17,6 @@ import (
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/ioutils"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -28,7 +27,7 @@ const (
 	Package = "buildah"
 	// Version for the Package.  Bump version in contrib/rpm/buildah.spec
 	// too.
-	Version = "1.16.0-dev"
+	Version = "1.17.0-dev"
 	// The value we use to identify what type of information, currently a
 	// serialized Builder structure, we are using as per-container state.
 	// This should only be changed when we make incompatible changes to
@@ -202,7 +201,7 @@ type Builder struct {
 	// ContentDigester counts the digest of all Add()ed content
 	ContentDigester CompositeDigester
 	// Devices are the additional devices to add to the containers
-	Devices []configs.Device
+	Devices ContainerDevices
 }
 
 // BuilderInfo are used as objects to display container information
@@ -231,7 +230,7 @@ type BuilderInfo struct {
 	CNIConfigDir          string
 	IDMappingOptions      IDMappingOptions
 	History               []v1.History
-	Devices               []configs.Device
+	Devices               ContainerDevices
 }
 
 // GetBuildInfo gets a pointer to a Builder object and returns a BuilderInfo object from it.
@@ -239,15 +238,6 @@ type BuilderInfo struct {
 func GetBuildInfo(b *Builder) BuilderInfo {
 	history := copyHistory(b.OCIv1.History)
 	history = append(history, copyHistory(b.PrependedEmptyLayers)...)
-	now := time.Now().UTC()
-	created := &now
-	history = append(history, v1.History{
-		Created:    created,
-		CreatedBy:  b.ImageCreatedBy,
-		Author:     b.Maintainer(),
-		Comment:    b.ImageHistoryComment,
-		EmptyLayer: false,
-	})
 	history = append(history, copyHistory(b.AppendedEmptyLayers)...)
 	sort.Strings(b.Capabilities)
 	return BuilderInfo{
@@ -310,6 +300,9 @@ type CommonBuildOptions struct {
 	// LabelOpts is the a slice of fields of an SELinux context, given in "field:pair" format, or "disable".
 	// Recognized field names are "role", "type", and "level".
 	LabelOpts []string
+	// OmitTimestamp forces epoch 0 as created timestamp to allow for
+	// deterministic, content-addressable builds.
+	OmitTimestamp bool
 	// SeccompProfilePath is the pathname of a seccomp profile.
 	SeccompProfilePath string
 	// ApparmorProfile is the name of an apparmor profile.
@@ -406,7 +399,7 @@ type BuilderOptions struct {
 	// Format for the container image
 	Format string
 	// Devices are the additional devices to add to the containers
-	Devices []configs.Device
+	Devices ContainerDevices
 	//DefaultEnv for containers
 	DefaultEnv []string
 	// MaxPullRetries is the maximum number of attempts we'll make to pull

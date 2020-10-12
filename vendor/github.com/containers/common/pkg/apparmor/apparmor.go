@@ -2,18 +2,19 @@ package apparmor
 
 import (
 	"errors"
+
+	"github.com/containers/common/version"
 )
 
 const (
 	// ProfilePrefix is used for version-independent presence checks.
-	ProfilePrefix = "apparmor_profile"
+	ProfilePrefix = "containers-default-"
 
 	// Profile default name
-	Profile = "container-default"
+	Profile = ProfilePrefix + version.Version
 )
 
 var (
-
 	// ErrApparmorUnsupported indicates that AppArmor support is not supported.
 	ErrApparmorUnsupported = errors.New("AppArmor is not supported")
 	// ErrApparmorRootless indicates that AppArmor support is not supported in rootless mode.

@@ -17,17 +17,17 @@ If _imageID_ is a name, but does not include a registry name, buildah will attem
 
 ## OPTIONS
 
-**--all, -a**
+**--all**, **-a**
 
 All local images will be removed from the system that do not have containers using the image as a reference image.
 An image name or id cannot be provided when this option is used.  Read/Only images configured by modifying the  "additionalimagestores" in the /etc/containers/storage.conf file, can not be removed.
 
-**--prune, -p**
+**--prune**, **-p**
 
 All local images will be removed from the system that do not have a tag and do not have a child image pointing to them.
 An image name or id cannot be provided when this option is used.
 
-**--force, -f**
+**--force**, **-f**
 
 This option will cause Buildah to remove all containers that are using the image before removing the image from the system.
 

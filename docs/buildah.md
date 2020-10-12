@@ -69,27 +69,53 @@ Storage driver option, Default storage driver options are configured in /etc/con
 
 **--userns-uid-map** *mapping*
 
-Specifies UID mappings which should be used to set ownership, at the
-filesystem level, on the contents of images and containers.
-Entries in this map take the form of one or more triples of a starting
+Directly specifies a UID mapping which should be used to set ownership, at the
+filesystem level, on the working container's contents.
+Commands run when handling `RUN` instructions will default to being run in
+their own user namespaces, configured using the UID and GID maps.
+
+Entries in this map take the form of one or more colon-separated triples of a starting
 in-container UID, a corresponding starting host-level UID, and the number of
 consecutive IDs which the map entry represents.
+
 This option overrides the *remap-uids* setting in the *options* section of
 /etc/containers/storage.conf.
 
+If this option is not specified, but a global --userns-uid-map setting is
+supplied, settings from the global option will be used.
+
+If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-uid-map
+are specified, but --userns-gid-map is specified, the UID map will be set to
+use the same numeric values as the GID map.
+
 **--userns-gid-map** *mapping*
 
-Specifies GID mappings which should be used to set ownership, at the
-filesystem level, on the contents of images and containers.
-Entries in this map take the form of one or more triples of a starting
+Directly specifies a GID mapping which should be used to set ownership, at the
+filesystem level, on the working container's contents.
+Commands run when handling `RUN` instructions will default to being run in
+their own user namespaces, configured using the UID and GID maps.
+
+Entries in this map take the form of one or more colon-separated triples of a starting
 in-container GID, a corresponding starting host-level GID, and the number of
 consecutive IDs which the map entry represents.
+
 This option overrides the *remap-gids* setting in the *options* section of
 /etc/containers/storage.conf.
 
-**--version, -v**
+If this option is not specified, but a global --userns-gid-map setting is
+supplied, settings from the global option will be used.
+
+If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-gid-map
+are specified, but --userns-uid-map is specified, the GID map will be set to
+use the same numeric values as the UID map.
+
+**--version**, **-v**
 
 Print the version
+
+## Environment Variables
+
+Buildah can set up environment variables from the env entry in the [engine] table in the containers.conf(5). These variables can be overridden by passing environment variables before the `buildah` commands.
 
 ## COMMANDS
 
@@ -105,9 +131,10 @@ Print the version
 | buildah-images(1)     | List images in local storage.                                                                        |
 | buildah-info(1)       | Display Buildah system information.                                                                  |
 | buildah-inspect(1)    | Inspects the configuration of a container or image                                                   |
-| buildah-mount(1)      | Mount the working container's root filesystem.                                                       |
 | buildah-login(1)      | Login to a container registry.                                                                       |
 | buildah-logout(1)     | Logout of a container registry                                                                       |
+| buildah-manifest(1)   | Create and manipulate manifest lists and image indexes. |
+| buildah-mount(1)      | Mount the working container's root filesystem.                                                       |
 | buildah-pull(1)       | Pull an image from the specified location.                                                           |
 | buildah-push(1)       | Push an image from local storage to elsewhere.                                                       |
 | buildah-rename(1)     | Rename a local container.                                                                            |
@@ -147,7 +174,7 @@ registries.conf is the configuration file which specifies which container regist
 Directory which contains configuration snippets which specify registries which should be consulted when completing image names which do not include a registry or domain portion.
 
 ## SEE ALSO
-podman(1), containers-mounts.conf(5), newuidmap(1), newgidmap(1), containers-registries.conf(5), containers-storage.conf(5)
+podman(1), containers.conf(5), containers-mounts.conf(5), newuidmap(1), newgidmap(1), containers-registries.conf(5), containers-storage.conf(5)
 
 ## HISTORY
 December 2017, Originally compiled by Tom Sweeney <tsweeney@redhat.com>

@@ -274,22 +274,28 @@ func parseOptions(options []string) (*overlayOptions, error) {
 		if err != nil {
 			return nil, err
 		}
-		key = strings.ToLower(key)
-		switch key {
-		case ".override_kernel_check", "overlay.override_kernel_check", "overlay2.override_kernel_check":
+		trimkey := strings.ToLower(key)
+		trimkey = strings.TrimPrefix(trimkey, "overlay.")
+		trimkey = strings.TrimPrefix(trimkey, "overlay2.")
+		trimkey = strings.TrimPrefix(trimkey, ".")
+		switch trimkey {
+		case "override_kernel_check":
 			logrus.Warnf("overlay: override_kernel_check option was specified, but is no longer necessary")
-		case ".mountopt", "overlay.mountopt", "overlay2.mountopt":
+		case "mountopt":
 			o.mountOptions = val
-		case ".size", "overlay.size", "overlay2.size":
+		case "size":
 			logrus.Debugf("overlay: size=%s", val)
 			size, err := units.RAMInBytes(val)
 			if err != nil {
 				return nil, err
 			}
 			o.quota.Size = uint64(size)
-		case ".imagestore", "overlay.imagestore", "overlay2.imagestore":
+		case "imagestore", "additionalimagestore":
 			logrus.Debugf("overlay: imagestore=%s", val)
 			// Additional read only image stores to use for lower paths
+			if val == "" {
+				continue
+			}
 			for _, store := range strings.Split(val, ",") {
 				store = filepath.Clean(store)
 				if !filepath.IsAbs(store) {
@@ -304,17 +310,17 @@ func parseOptions(options []string) (*overlayOptions, error) {
 				}
 				o.imageStores = append(o.imageStores, store)
 			}
-		case ".mount_program", "overlay.mount_program", "overlay2.mount_program":
+		case "mount_program":
 			logrus.Debugf("overlay: mount_program=%s", val)
 			_, err := os.Stat(val)
 			if err != nil {
 				return nil, fmt.Errorf("overlay: can't stat program %s: %v", val, err)
 			}
 			o.mountProgram = val
-		case "overlay2.skip_mount_home", "overlay.skip_mount_home", ".skip_mount_home":
+		case "skip_mount_home":
 			logrus.Debugf("overlay: skip_mount_home=%s", val)
 			o.skipMountHome, err = strconv.ParseBool(val)
-		case ".ignore_chown_errors", "overlay2.ignore_chown_errors", "overlay.ignore_chown_errors":
+		case "ignore_chown_errors":
 			logrus.Debugf("overlay: ignore_chown_errors=%s", val)
 			o.ignoreChownErrors, err = strconv.ParseBool(val)
 			if err != nil {
@@ -892,19 +898,6 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 		}
 	}
 
-	// If the lowers list is still empty, use an empty lower so that we can still force an
-	// SELinux context for the mount.
-
-	// if we are doing a readOnly mount, and there is only one lower
-	// We should just return the lower directory, no reason to mount.
-	if !readWrite && d.options.mountProgram == "" {
-		if len(absLowers) == 0 {
-			return path.Join(dir, "empty"), nil
-		}
-		if len(absLowers) == 1 {
-			return absLowers[0], nil
-		}
-	}
 	if len(absLowers) == 0 {
 		absLowers = append(absLowers, path.Join(dir, "empty"))
 		relLowers = append(relLowers, path.Join(id, "empty"))

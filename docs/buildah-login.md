@@ -21,7 +21,7 @@ flag. The default path used is **${XDG\_RUNTIME_DIR}/containers/auth.json**.
 
 ## OPTIONS
 
-**--password, -p**
+**--password**, **-p**
 
 Password for registry
 
@@ -29,7 +29,7 @@ Password for registry
 
 Take the password from stdin
 
-**--username, -u**
+**--username**, **-u**
 
 Username for registry
 
@@ -47,7 +47,7 @@ Return the logged-in user for the registry.  Return error if no login is found.
 **--cert-dir** *path*
 
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
-Default certificates directory is _/etc/containers/certs.d_.
+The default certificates directory is _/etc/containers/certs.d_.
 
 **--tls-verify**
 

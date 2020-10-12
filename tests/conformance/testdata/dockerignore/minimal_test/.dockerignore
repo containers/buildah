@@ -1,0 +1,2 @@
+stuff/huge/*
+!stuff/huge/usr/bin/*

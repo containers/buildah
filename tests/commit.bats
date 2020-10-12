@@ -31,8 +31,12 @@ load helpers
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-oci
   run_buildah commit --format docker --disable-compression=false --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-docker
 
-  run_buildah inspect --type=image --format '{{.Manifest}}' alpine-image-oci | grep "application/vnd.oci.image.layer.v1.tar"
-  run_buildah inspect --type=image --format '{{.Manifest}}' alpine-image-docker | grep "application/vnd.docker.image.rootfs.diff.tar.gzip"
+  run_buildah inspect --type=image --format '{{.Manifest}}' alpine-image-oci
+  mediatype=$(jq -r '.layers[0].mediaType' <<<"$output")
+  expect_output --from="$mediatype" "application/vnd.oci.image.layer.v1.tar"
+  run_buildah inspect --type=image --format '{{.Manifest}}' alpine-image-docker
+  mediatype=$(jq -r '.layers[1].mediaType' <<<"$output")
+  expect_output --from="$mediatype" "application/vnd.docker.image.rootfs.diff.tar.gzip"
 }
 
 @test "commit quiet test" {
@@ -187,7 +191,6 @@ load helpers
   rm -rf ${TESTDIR}/tmp
 }
 
-
 @test "commit oci encrypt to registry" {
   _prefetch busybox
   mkdir ${TESTDIR}/tmp
@@ -198,5 +201,45 @@ load helpers
   run_buildah commit --iidfile /dev/null --tls-verify=false --creds testuser:testpassword --signature-policy ${TESTSDIR}/policy.json --encryption-key jwe:${TESTDIR}/tmp/mykey.pub -q $cid docker://localhost:5000/buildah/busybox_encrypted:latest
   # this test, just checks the ability to commit an image to a registry
   # there is no good way to test the details of the image unless with ./buildah pull, test will be in pull.bats
+  rm -rf ${TESTDIR}/tmp
+}
+
+@test "commit omit-timestamp" {
+  _prefetch busybox
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
+  run_buildah run $cid touch /test
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --omit-timestamp -q $cid omit
+  run_buildah inspect --format '{{ .Docker.Created }}' omit
+  expect_output --substring "1970-01-01"
+  run_buildah inspect --format '{{ .OCIv1.Created }}' omit
+  expect_output --substring "1970-01-01"
+
+
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json omit
+  cid=$output
+  run_buildah run $cid ls -l /test
+  expect_output --substring "1970"
+
+  rm -rf ${TESTDIR}/tmp
+}
+
+@test "commit timestamp" {
+  _prefetch busybox
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
+  run_buildah run $cid touch /test
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --timestamp 0 -q $cid omit
+  run_buildah inspect --format '{{ .Docker.Created }}' omit
+  expect_output --substring "1970-01-01"
+  run_buildah inspect --format '{{ .OCIv1.Created }}' omit
+  expect_output --substring "1970-01-01"
+
+
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json omit
+  cid=$output
+  run_buildah run $cid ls -l /test
+  expect_output --substring "1970"
+
   rm -rf ${TESTDIR}/tmp
 }

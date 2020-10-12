@@ -50,7 +50,7 @@ If the authorization state is not found there, $HOME/.docker/config.json is chec
 **--cert-dir** *path*
 
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
-Default certificates directory is _/etc/containers/certs.d_.
+The default certificates directory is _/etc/containers/certs.d_.
 
 **--creds** *creds*
 
@@ -62,7 +62,7 @@ value can be entered.  The password is entered without echo.
 
 After copying the image, write the digest of the resulting image to the file.
 
-**--disable-compression, -D**
+**--disable-compression**, **-D**
 
 Don't compress copies of filesystem layers which will be pushed.
 
@@ -70,11 +70,15 @@ Don't compress copies of filesystem layers which will be pushed.
 
 The [protocol:keyfile] specifies the encryption protocol, which can be JWE (RFC7516), PGP (RFC4880), and PKCS7 (RFC2315) and the key material required for image encryption. For instance, jwe:/path/to/key.pem or pgp:admin@example.com or pkcs7:/path/to/x509-file.
 
-**--format, -f**
+**--encrypt-layer** *layer(s)*
+
+Layer(s) to encrypt: 0-indexed layer indices with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer). If not defined, will encrypt all layers if encryption-key flag is specified.
+
+**--format**, **-f**
 
 Manifest Type (oci, v2s1, or v2s2) to use when saving image to directory using the 'dir:' transport (default is manifest type of source)
 
-**--quiet, -q**
+**--quiet**, **-q**
 
 When writing the output image, suppress progress output.
 
@@ -88,7 +92,7 @@ Sign the pushed image using the GPG key that matches the specified fingerprint.
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true)
+Require HTTPS and verify certificates when talking to container registries (defaults to true).
 
 ## EXAMPLE
 

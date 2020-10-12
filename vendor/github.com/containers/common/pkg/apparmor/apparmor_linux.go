@@ -5,7 +5,6 @@ package apparmor
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/containers/common/pkg/apparmor/internal/supported"
 	"github.com/containers/storage/pkg/unshare"
 	runcaa "github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/pkg/errors"
@@ -23,12 +23,11 @@ import (
 // profileDirectory is the file store for apparmor profiles and macros.
 var profileDirectory = "/etc/apparmor.d"
 
-// IsEnabled returns true if AppArmor is enabled on the host.
+// IsEnabled returns true if AppArmor is enabled on the host. It also checks
+// for the existence of the `apparmor_parser` binary, which will be required to
+// apply profiles.
 func IsEnabled() bool {
-	if unshare.IsRootless() {
-		return false
-	}
-	return runcaa.IsEnabled()
+	return supported.NewAppArmorVerifier().IsSupported() == nil
 }
 
 // profileData holds information about the given profile for generation.
@@ -44,10 +43,10 @@ type profileData struct {
 }
 
 // generateDefault creates an apparmor profile from ProfileData.
-func (p *profileData) generateDefault(out io.Writer) error {
+func (p *profileData) generateDefault(apparmorParserPath string, out io.Writer) error {
 	compiled, err := template.New("apparmor_profile").Parse(defaultProfileTemplate)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "create AppArmor profile from template")
 	}
 
 	if macroExists("tunables/global") {
@@ -60,13 +59,13 @@ func (p *profileData) generateDefault(out io.Writer) error {
 		p.InnerImports = append(p.InnerImports, "#include <abstractions/base>")
 	}
 
-	ver, err := getAAParserVersion()
+	ver, err := getAAParserVersion(apparmorParserPath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "get AppArmor version")
 	}
 	p.Version = ver
 
-	return compiled.Execute(out, p)
+	return errors.Wrap(compiled.Execute(out, p), "execute compiled profile")
 }
 
 // macrosExists checks if the passed macro exists.
@@ -86,31 +85,37 @@ func InstallDefault(name string) error {
 		Name: name,
 	}
 
-	cmd := exec.Command("apparmor_parser", "-Kr")
+	apparmorParserPath, err := supported.NewAppArmorVerifier().FindAppArmorParserBinary()
+	if err != nil {
+		return errors.Wrap(err, "find `apparmor_parser` binary")
+	}
+
+	cmd := exec.Command(apparmorParserPath, "-Kr")
 	pipe, err := cmd.StdinPipe()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "execute %s", apparmorParserPath)
 	}
 	if err := cmd.Start(); err != nil {
 		if pipeErr := pipe.Close(); pipeErr != nil {
-			logrus.Errorf("unable to close apparmor pipe: %q", pipeErr)
+			logrus.Errorf("unable to close AppArmor pipe: %q", pipeErr)
 		}
-		return err
+		return errors.Wrapf(err, "start %s command", apparmorParserPath)
 	}
-	if err := p.generateDefault(pipe); err != nil {
+	if err := p.generateDefault(apparmorParserPath, pipe); err != nil {
 		if pipeErr := pipe.Close(); pipeErr != nil {
-			logrus.Errorf("unable to close apparmor pipe: %q", pipeErr)
+			logrus.Errorf("unable to close AppArmor pipe: %q", pipeErr)
 		}
 		if cmdErr := cmd.Wait(); cmdErr != nil {
-			logrus.Errorf("unable to wait for apparmor command: %q", cmdErr)
+			logrus.Errorf("unable to wait for AppArmor command: %q", cmdErr)
 		}
-		return err
+		return errors.Wrap(err, "generate default profile into pipe")
 	}
 
 	if pipeErr := pipe.Close(); pipeErr != nil {
-		logrus.Errorf("unable to close apparmor pipe: %q", pipeErr)
+		logrus.Errorf("unable to close AppArmor pipe: %q", pipeErr)
 	}
-	return cmd.Wait()
+
+	return errors.Wrap(cmd.Wait(), "wait for AppArmor command")
 }
 
 // DefaultContent returns the default profile content as byte slice. The
@@ -118,11 +123,17 @@ func InstallDefault(name string) error {
 // generation fails.
 func DefaultContent(name string) ([]byte, error) {
 	p := profileData{Name: name}
-	var bytes bytes.Buffer
-	if err := p.generateDefault(&bytes); err != nil {
-		return nil, err
+	buffer := &bytes.Buffer{}
+
+	apparmorParserPath, err := supported.NewAppArmorVerifier().FindAppArmorParserBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "find `apparmor_parser` binary")
 	}
-	return bytes.Bytes(), nil
+
+	if err := p.generateDefault(apparmorParserPath, buffer); err != nil {
+		return nil, errors.Wrap(err, "generate default AppAmor profile")
+	}
+	return buffer.Bytes(), nil
 }
 
 // IsLoaded checks if a profile with the given name has been loaded into the
@@ -137,7 +148,7 @@ func IsLoaded(name string) (bool, error) {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return false, err
+		return false, errors.Wrap(err, "open AppArmor profile path")
 	}
 	defer file.Close()
 
@@ -148,7 +159,7 @@ func IsLoaded(name string) (bool, error) {
 			break
 		}
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, "reading AppArmor profile")
 		}
 		if strings.HasPrefix(p, name+" ") {
 			return true, nil
@@ -159,23 +170,23 @@ func IsLoaded(name string) (bool, error) {
 }
 
 // execAAParser runs `apparmor_parser` with the passed arguments.
-func execAAParser(dir string, args ...string) (string, error) {
-	c := exec.Command("apparmor_parser", args...)
+func execAAParser(apparmorParserPath, dir string, args ...string) (string, error) {
+	c := exec.Command(apparmorParserPath, args...)
 	c.Dir = dir
 
-	output, err := c.CombinedOutput()
+	output, err := c.Output()
 	if err != nil {
-		return "", fmt.Errorf("running `%s %s` failed with output: %s\nerror: %v", c.Path, strings.Join(c.Args, " "), output, err)
+		return "", errors.Errorf("running `%s %s` failed with output: %s\nerror: %v", c.Path, strings.Join(c.Args, " "), output, err)
 	}
 
 	return string(output), nil
 }
 
 // getAAParserVersion returns the major and minor version of apparmor_parser.
-func getAAParserVersion() (int, error) {
-	output, err := execAAParser("", "--version")
+func getAAParserVersion(apparmorParserPath string) (int, error) {
+	output, err := execAAParser(apparmorParserPath, "", "--version")
 	if err != nil {
-		return -1, err
+		return -1, errors.Wrap(err, "execute apparmor_parser")
 	}
 	return parseAAParserVersion(output)
 }
@@ -194,7 +205,7 @@ func parseAAParserVersion(output string) (int, error) {
 	// split by major minor version
 	v := strings.Split(version, ".")
 	if len(v) == 0 || len(v) > 3 {
-		return -1, fmt.Errorf("parsing version failed for output: `%s`", output)
+		return -1, errors.Errorf("parsing version failed for output: `%s`", output)
 	}
 
 	// Default the versions to 0.
@@ -202,19 +213,19 @@ func parseAAParserVersion(output string) (int, error) {
 
 	majorVersion, err := strconv.Atoi(v[0])
 	if err != nil {
-		return -1, err
+		return -1, errors.Wrap(err, "convert AppArmor major version")
 	}
 
 	if len(v) > 1 {
 		minorVersion, err = strconv.Atoi(v[1])
 		if err != nil {
-			return -1, err
+			return -1, errors.Wrap(err, "convert AppArmor minor version")
 		}
 	}
 	if len(v) > 2 {
 		patchLevel, err = strconv.Atoi(v[2])
 		if err != nil {
-			return -1, err
+			return -1, errors.Wrap(err, "convert AppArmor patch version")
 		}
 	}
 
@@ -251,34 +262,35 @@ func CheckProfileAndLoadDefault(name string) (string, error) {
 		if name == "" {
 			return "", nil
 		} else {
-			return "", fmt.Errorf("profile %q specified but AppArmor is disabled on the host", name)
+			return "", errors.Errorf("profile %q specified but AppArmor is disabled on the host", name)
 		}
 	}
 
-	// If the specified name is not empty or is not a default libpod one,
-	// ignore it and return the name.
-	if name != "" && !strings.HasPrefix(name, ProfilePrefix) {
+	if name == "" {
+		name = Profile
+	} else if !strings.HasPrefix(name, ProfilePrefix) {
+		// If the specified name is not a default one, ignore it and return the
+		// name.
 		isLoaded, err := IsLoaded(name)
 		if err != nil {
-			return "", err
+			return "", errors.Wrapf(err, "verify if profile %s is loaded", name)
 		}
 		if !isLoaded {
-			return "", fmt.Errorf("AppArmor profile %q specified but not loaded", name)
+			return "", errors.Errorf("AppArmor profile %q specified but not loaded", name)
 		}
 		return name, nil
 	}
 
-	name = Profile
 	// To avoid expensive redundant loads on each invocation, check
 	// if it's loaded before installing it.
 	isLoaded, err := IsLoaded(name)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "verify if profile %s is loaded", name)
 	}
 	if !isLoaded {
 		err = InstallDefault(name)
 		if err != nil {
-			return "", err
+			return "", errors.Wrapf(err, "install profile %s", name)
 		}
 		logrus.Infof("successfully loaded AppAmor profile %q", name)
 	} else {
