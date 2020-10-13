@@ -2649,4 +2649,94 @@ var internalTestCases = []testCase{
 		dockerfile: "Dockerfile.7",
 		fsSkip:     []string{"(dir):sub:mtime"},
 	},
+
+	{
+		name:         "dockerignore-allowlist-subdir-nofile-dir",
+		contextDir:   "dockerignore/allowlist/subdir-nofile",
+		shouldFailAt: 2,
+		failureRegex: "no such file or directory",
+	},
+
+	{
+		name:         "dockerignore-allowlist-subdir-nofile-file",
+		contextDir:   "dockerignore/allowlist/subdir-nofile",
+		shouldFailAt: 2,
+		failureRegex: "no such file or directory",
+	},
+
+	{
+		name:       "dockerignore-allowlist-subdir-file-dir",
+		contextDir: "dockerignore/allowlist/subdir-file",
+		fsSkip:     []string{"(dir):f1:mtime"},
+	},
+
+	{
+		name:       "dockerignore-allowlist-subdir-file-file",
+		contextDir: "dockerignore/allowlist/subdir-file",
+		fsSkip:     []string{"(dir):f1:mtime"},
+	},
+
+	{
+		name:       "dockerignore-allowlist-nothing-dot",
+		contextDir: "dockerignore/allowlist/nothing-dot",
+		fsSkip:     []string{"file:mtime"},
+	},
+
+	{
+		name:       "dockerignore-allowlist-nothing-slash",
+		contextDir: "dockerignore/allowlist/nothing-slash",
+		fsSkip:     []string{"file:mtime"},
+	},
+
+	{
+		// the directories are excluded, so entries for them don't get
+		// included in the build context archive, so they only get
+		// created implicitly when extracted, so there's no point in us
+		// trying to preserve any of that, either
+		name:       "dockerignore-allowlist-subsubdir-file",
+		contextDir: "dockerignore/allowlist/subsubdir-file",
+		fsSkip:     []string{"(dir):folder:mtime", "(dir):folder:(dir):subfolder:mtime", "file:mtime"},
+	},
+
+	{
+		name:       "dockerignore-allowlist-subsubdir-nofile",
+		contextDir: "dockerignore/allowlist/subsubdir-nofile",
+		fsSkip:     []string{"file:mtime"},
+	},
+
+	{
+		name:       "dockerignore-allowlist-subsubdir-nosubdir",
+		contextDir: "dockerignore/allowlist/subsubdir-nosubdir",
+		fsSkip:     []string{"file:mtime"},
+	},
+
+	{
+		name:       "dockerignore-allowlist-alternating",
+		contextDir: "dockerignore/allowlist/alternating",
+		fsSkip: []string{
+			"(dir):subdir1:mtime",
+			"(dir):subdir1:(dir):subdir2:(dir):subdir3:mtime",
+			"(dir):subdir1:(dir):subdir2:(dir):subdir3:(dir):subdir4:(dir):subdir5:mtime",
+			"(dir):subdir2:(dir):subdir3:mtime",
+			"(dir):subdir2:(dir):subdir3:(dir):subdir4:(dir):subdir5:mtime",
+			"(dir):subdir3:mtime",
+			"(dir):subdir3:(dir):subdir4:(dir):subdir5:mtime",
+			"(dir):subdir4:(dir):subdir5:mtime",
+			"(dir):subdir5:mtime",
+		},
+	},
+
+	{
+		name:         "dockerignore-allowlist-alternating-nothing",
+		contextDir:   "dockerignore/allowlist/alternating-nothing",
+		shouldFailAt: 7,
+		failureRegex: "no such file or directory",
+	},
+
+	{
+		name:         "dockerignore-allowlist-alternating-other",
+		contextDir:   "dockerignore/allowlist/alternating-other",
+		shouldFailAt: 7,
+		failureRegex: "no such file or directory",
+	},
 }
