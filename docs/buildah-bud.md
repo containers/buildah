@@ -467,7 +467,7 @@ Commands after the target stage will be skipped.
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true).
+Require HTTPS and verify certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
 
 **--ulimit** *type*=*soft-limit*[:*hard-limit*]
 
