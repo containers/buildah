@@ -11,6 +11,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/docker"
 	"github.com/containers/image/v5/types"
 	encconfig "github.com/containers/ocicrypt/config"
@@ -41,42 +42,27 @@ const (
 )
 
 // PullPolicy takes the value PullIfMissing, PullAlways, PullIfNewer, or PullNever.
-type PullPolicy int
+type PullPolicy = define.PullPolicy
 
 const (
 	// PullIfMissing is one of the values that BuilderOptions.PullPolicy
 	// can take, signalling that the source image should be pulled from a
 	// registry if a local copy of it is not already present.
-	PullIfMissing PullPolicy = iota
+	PullIfMissing = define.PullIfMissing
 	// PullAlways is one of the values that BuilderOptions.PullPolicy can
 	// take, signalling that a fresh, possibly updated, copy of the image
 	// should be pulled from a registry before the build proceeds.
-	PullAlways
+	PullAlways = define.PullAlways
 	// PullIfNewer is one of the values that BuilderOptions.PullPolicy
 	// can take, signalling that the source image should only be pulled
 	// from a registry if a local copy is not already present or if a
 	// newer version the image is present on the repository.
-	PullIfNewer
+	PullIfNewer = define.PullIfNewer
 	// PullNever is one of the values that BuilderOptions.PullPolicy can
 	// take, signalling that the source image should not be pulled from a
 	// registry if a local copy of it is not already present.
-	PullNever
+	PullNever = define.PullNever
 )
-
-// String converts a PullPolicy into a string.
-func (p PullPolicy) String() string {
-	switch p {
-	case PullIfMissing:
-		return "PullIfMissing"
-	case PullAlways:
-		return "PullAlways"
-	case PullIfNewer:
-		return "PullIfNewer"
-	case PullNever:
-		return "PullNever"
-	}
-	return fmt.Sprintf("unrecognized policy %d", p)
-}
 
 // NetworkConfigurationPolicy takes the value NetworkDefault, NetworkDisabled,
 // or NetworkEnabled.
