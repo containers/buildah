@@ -76,7 +76,7 @@ image.  This option is rarely used.
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true).
+Require HTTPS and verify certificates when talking to container registries (defaults to true). TLS verification cannot be used when talking to an insecure registry.
 
 **--variant**
 

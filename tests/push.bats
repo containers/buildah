@@ -181,6 +181,16 @@ load helpers
   rm -rf ${TESTDIR}/tmp
 }
 
+@test "buildah push to registry allowed by BUILD_REGISTRY_SOURCES" {
+  _prefetch busybox
+  export BUILD_REGISTRY_SOURCES='{"insecureRegistries": ["localhost:5000"]}'
+
+  run_buildah 125 push --creds testuser:testpassword  --signature-policy ${TESTSDIR}/policy.json --tls-verify=true busybox docker://localhost:5000/buildah/busybox:latest
+  expect_output --substring "can't require tls verification on an insecured registry"
+
+  run_buildah push --creds testuser:testpassword  --signature-policy ${TESTSDIR}/policy.json busybox docker://localhost:5000/buildah/busybox:latest
+}
+
 @test "push with authfile" {
   _prefetch busybox
   mkdir ${TESTDIR}/tmp
