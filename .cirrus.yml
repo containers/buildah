@@ -120,9 +120,6 @@ gce_instance:
     gce_instance:  # Only need to specify differences from defaults (above)
         image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
 
-    # don't fail the PR when we fail until #2480 is merged
-    allow_failures: true
-
     timeout_in: 20m
 
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
