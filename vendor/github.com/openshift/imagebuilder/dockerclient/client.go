@@ -900,7 +900,6 @@ func (e *ClientExecutor) archiveFromContainer(from string, src, dst string) (io.
 	return &readCloser{Reader: ar, Closer: closer}, pr, nil
 }
 
-// TODO: this does not support decompressing nested archives for ADD (when the source is a compressed file)
 func (e *ClientExecutor) Archive(fromFS bool, src, dst string, allowDownload bool, excludes []string) (io.Reader, io.Closer, error) {
 	var check DirectoryCheck
 	if e.Container != nil {
@@ -922,6 +921,28 @@ func (e *ClientExecutor) Archive(fromFS bool, src, dst string, allowDownload boo
 	if len(e.ContextArchive) > 0 {
 		klog.V(5).Infof("Archiving %s %s -> %s from context archive", e.ContextArchive, src, dst)
 		return archiveFromFile(e.ContextArchive, src, dst, excludes, check)
+	}
+	// if the source is an archive, extract it under the destination directory
+	srcFullPath := filepath.Join(e.Directory, src)
+	if allowDownload && isArchivePath(srcFullPath) {
+		f, err := os.Open(srcFullPath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error opening %q: %v", srcFullPath, err)
+		}
+		klog.V(5).Infof("Extracting %s -> %s from local archive", srcFullPath, dst)
+		transform := func(h *tar.Header, r io.Reader) (data []byte, update bool, skip bool, err error) {
+			h.Name = filepath.Join(dst, h.Name)
+			if h.Typeflag == tar.TypeLink {
+				h.Linkname = filepath.Join(dst, h.Linkname)
+			}
+			return nil, false, false, nil
+		}
+		filtered, err := transformArchive(f, true, transform)
+		if err != nil {
+			f.Close()
+			return nil, nil, fmt.Errorf("error transforming archive %q: %v", srcFullPath, err)
+		}
+		return filtered, f, nil
 	}
 	// if the context is a directory, we only allow relative includes
 	klog.V(5).Infof("Archiving %q %q -> %q from disk", e.Directory, src, dst)

@@ -563,14 +563,21 @@ var builtinAllowedBuildArgs = map[string]bool{
 }
 
 // ParseDockerIgnore returns a list of the excludes in the .dockerignore file.
-// extracted from fsouza/go-dockerclient.
+// extracted from fsouza/go-dockerclient and modified to drop comments and
+// empty lines.
 func ParseDockerignore(root string) ([]string, error) {
 	var excludes []string
 	ignore, err := ioutil.ReadFile(filepath.Join(root, ".dockerignore"))
 	if err != nil && !os.IsNotExist(err) {
 		return excludes, fmt.Errorf("error reading .dockerignore: '%s'", err)
 	}
-	return strings.Split(string(ignore), "\n"), nil
+	for _, e := range strings.Split(string(ignore), "\n") {
+		if len(e) == 0 || e[0] == '#' {
+			continue
+		}
+		excludes = append(excludes, e)
+	}
+	return excludes, nil
 }
 
 // ExportEnv creates an export statement for a shell that contains all of the
