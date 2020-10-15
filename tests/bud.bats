@@ -1787,8 +1787,14 @@ _EOF
 
 @test "bud with specified context should succeed if context contains existing Dockerfile" {
   DIR=$(mktemp -d)
-  touch "$DIR"/Dockerfile
+  echo "FROM alpine" > "$DIR"/Dockerfile
   run_buildah 0 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"/Dockerfile
+}
+
+@test "bud with specified context should fail if context contains empty Dockerfile" {
+  DIR=$(mktemp -d)
+  touch "$DIR"/Dockerfile
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json "$DIR"/Dockerfile
 }
 
 @test "bud-no-change" {
