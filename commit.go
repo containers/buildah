@@ -419,7 +419,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		}
 		if options.IIDFile != "" {
 			if err = ioutil.WriteFile(options.IIDFile, []byte(img.ID), 0644); err != nil {
-				return imgID, nil, "", errors.Wrapf(err, "failed to write image ID to file %q", options.IIDFile)
+				return imgID, nil, "", err
 			}
 		}
 	}
