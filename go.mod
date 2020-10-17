@@ -33,11 +33,14 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	go.etcd.io/bbolt v1.3.5
-	golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
+	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
-	golang.org/x/sys v0.0.0-20200810151505-1b9f1253b3ed
+	golang.org/x/sys v0.0.0-20200817155316-9781c653f443
 	golang.org/x/text v0.3.3 // indirect
 	k8s.io/klog v1.0.0 // indirect
 )
 
-replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
+replace (
+	github.com/containers/ocicrypt => github.com/containers/ocicrypt v1.0.4-0.20201019180856-379abb478f0d
+	github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
+)
