@@ -1393,7 +1393,9 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 			case tar.TypeReg, tar.TypeRegA:
 				var written int64
 				written, err = createFile(path, tr)
-				if written != hdr.Size {
+				// only check the length if there wasn't an error, which we'll
+				// check along with errors for other types of entries
+				if err == nil && written != hdr.Size {
 					return errors.Errorf("copier: put: error creating %q: incorrect length (%d != %d)", path, written, hdr.Size)
 				}
 			case tar.TypeLink:
