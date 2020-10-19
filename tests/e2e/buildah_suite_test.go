@@ -112,7 +112,7 @@ func BuildahCreate(tempDir string) BuildAhTest {
 		ArtifactPath:   artifactDir,
 		TempDir:        tempDir,
 		SignaturePath:  "../../tests/policy.json",
-		RegistriesConf: "../../registries.conf",
+		RegistriesConf: "../../tests/registries.conf",
 	}
 }
 

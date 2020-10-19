@@ -1991,7 +1991,8 @@ _EOF
 @test "bud pull never" {
   target=pull
   run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull-never ${TESTSDIR}/bud/pull
-  expect_output --substring "no such image"
+  expect_output --substring "pull policy is \"never\" but \""
+  expect_output --substring "\" could not be found locally"
 
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull ${TESTSDIR}/bud/pull
   expect_output --substring "COMMIT pull"
