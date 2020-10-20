@@ -3,12 +3,14 @@ module github.com/containers/buildah
 go 1.12
 
 require (
+	github.com/containerd/containerd v1.4.1 // indirect
 	github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
 	github.com/containers/common v0.25.0
 	github.com/containers/image/v5 v5.6.0
 	github.com/containers/ocicrypt v1.0.3
 	github.com/containers/storage v1.23.5
 	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/docker v17.12.0-ce-rc1.0.20201020191947-73dc6a680cdd+incompatible // indirect
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316
 	github.com/fsouza/go-dockerclient v1.6.5
@@ -16,6 +18,8 @@ require (
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/ishidawataru/sctp v0.0.0-20191218070446-00ab2ac2db07 // indirect
 	github.com/mattn/go-shellwords v1.0.10
+	github.com/moby/sys/mount v0.1.1 // indirect
+	github.com/moby/term v0.0.0-20200915141129-7f0af18e79f2 // indirect
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
 	github.com/opencontainers/go-digest v1.0.0
@@ -35,8 +39,9 @@ require (
 	go.etcd.io/bbolt v1.3.5
 	golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
-	golang.org/x/sys v0.0.0-20200810151505-1b9f1253b3ed
+	golang.org/x/sys v0.0.0-20201018230417-eeed37f84f13
 	golang.org/x/text v0.3.3 // indirect
+	gotest.tools/v3 v3.0.3 // indirect
 	k8s.io/klog v1.0.0 // indirect
 )
 
