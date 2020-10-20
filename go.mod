@@ -21,7 +21,7 @@ require (
 	github.com/moby/sys/mount v0.1.1 // indirect
 	github.com/moby/term v0.0.0-20200915141129-7f0af18e79f2 // indirect
 	github.com/onsi/ginkgo v1.14.1
-	github.com/onsi/gomega v1.10.2
+	github.com/onsi/gomega v1.10.3
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
 	github.com/opencontainers/runc v1.0.0-rc91
@@ -37,7 +37,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	go.etcd.io/bbolt v1.3.5
-	golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	golang.org/x/sys v0.0.0-20201018230417-eeed37f84f13
 	golang.org/x/text v0.3.3 // indirect
