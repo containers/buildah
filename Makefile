@@ -62,7 +62,7 @@ bin/buildah:  $(SOURCES)
 buildah: bin/buildah
 
 .PHONY: cross
-cross: bin/buildah.darwin.amd64 bin/buildah.linux.386 bin/buildah.linux.amd64 bin/buildah.linux.arm64 bin/buildah.linux.arm bin/buildah.linux.mips64 bin/buildah.linux.mips64le bin/buildah.linux.mips bin/buildah.linux.mipsle bin/buildah.linux.ppc64 bin/buildah.linux.ppc64le bin/buildah.linux.riscv64 bin/buildah.linux.s390x bin/buildah.windows.386.exe bin/buildah.windows.amd64.exe
+cross: bin/buildah.darwin.amd64 bin/buildah.linux.386 bin/buildah.linux.amd64 bin/buildah.linux.arm64 bin/buildah.linux.arm bin/buildah.linux.mips64 bin/buildah.linux.mips64le bin/buildah.linux.mips bin/buildah.linux.mipsle bin/buildah.linux.ppc64 bin/buildah.linux.ppc64le bin/buildah.linux.riscv64 bin/buildah.linux.s390x bin/buildah.windows.amd64.exe
 
 .PHONY: bin/buildah.%
 bin/buildah.%:
