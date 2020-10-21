@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.16.4
+Version:        1.16.5
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,16 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Wed Oct 21 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.5-1
+- copier.copierHandlerPut: don't check length when there are errors
+- CI: run gating tasks with a lot more memory
+- Run(): ignore containers.conf's environment configuration
+- bump(github.com/openshift/imagebuilder) to v1.1.8
+- ADD and COPY: descend into excluded directories, sometimes
+- copier: add more context to a couple of error messages
+- copier: check an error earlier
+- Set directory ownership when copied with ID mapping
+
 * Thu Oct 1 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.4-1
 - ADD: only expand archives at the right time
 
