@@ -198,8 +198,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		return errors.Wrapf(err, "error evaluating symlinks in build context path")
 	}
 
-	var stdin, stdout, stderr, reporter *os.File
-	stdin = os.Stdin
+	var stdout, stderr, reporter *os.File
 	stdout = os.Stdout
 	stderr = os.Stderr
 	reporter = os.Stderr
@@ -302,13 +301,6 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		return errors.Wrapf(err, "unable to obtain decrypt config")
 	}
 
-	if iopts.Jobs > 1 {
-		stdin, err = os.OpenFile("/dev/null", os.O_RDONLY|os.O_CREATE, 0000)
-		if err != nil {
-			return err
-		}
-	}
-
 	options := imagebuildah.BuildOptions{
 		AddCapabilities:         iopts.CapAdd,
 		AdditionalTags:          tags,
@@ -329,7 +321,6 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		ForceRmIntermediateCtrs: iopts.ForceRm,
 		IDMappingOptions:        idmappingOptions,
 		IIDFile:                 iopts.Iidfile,
-		In:                      stdin,
 		Isolation:               isolation,
 		Labels:                  iopts.Label,
 		Layers:                  layers,

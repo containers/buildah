@@ -2273,3 +2273,25 @@ EOM
   expect_output --substring "CapBnd:	00000000a80425fb"
   expect_output --substring "CapEff:	0000000000000000"
 }
+
+@test "bud does not gobble stdin" {
+  _prefetch alpine
+
+  ctxdir=${TESTDIR}/bud
+  mkdir -p $ctxdir
+  cat >$ctxdir/Dockerfile <<EOF
+FROM alpine
+RUN true
+EOF
+
+  random_msg=$(head -10 /dev/urandom | tr -dc a-zA-Z0-9 | head -c12)
+
+  # Prior to #2708, buildah bud would gobble up its stdin even if it
+  # didn't actually use it. This prevented the use of 'cmdlist | bash';
+  # if 'buildah bud' was in cmdlist, everything past it would be lost.
+  #
+  # This is ugly but effective: it checks that buildah passes stdin untouched.
+  passthru=$(echo "$random_msg" | (run_buildah bud --quiet --signature-policy ${TESTSDIR}/policy.json -t stdin-test ${ctxdir} >/dev/null; cat))
+
+  expect_output --from="$passthru" "$random_msg" "stdin was passed through"
+}
