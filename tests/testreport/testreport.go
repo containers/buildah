@@ -250,9 +250,9 @@ func getMounts(r *types.TestReport) error {
 	for _, info := range infos {
 		mount := specs.Mount{
 			Destination: info.Mountpoint,
-			Type:        info.Fstype,
+			Type:        info.FSType,
 			Source:      info.Source,
-			Options:     strings.Split(info.Opts, ","),
+			Options:     strings.Split(info.Options, ","),
 		}
 		r.Spec.Mounts = append(r.Spec.Mounts, mount)
 	}
