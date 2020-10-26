@@ -2739,4 +2739,10 @@ var internalTestCases = []testCase{
 		shouldFailAt: 7,
 		failureRegex: "no such file or directory",
 	},
+
+	{
+		name:       "tar-g",
+		contextDir: "tar-g",
+		fsSkip:     []string{"(dir):tmp:mtime"},
+	},
 }
