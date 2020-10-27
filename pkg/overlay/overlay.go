@@ -113,6 +113,21 @@ func RemoveTemp(contentDir string) error {
 func Unmount(contentDir string) error {
 	mergeDir := filepath.Join(contentDir, "merge")
 
+	if unshare.IsRootless() {
+		// Attempt to unmount the FUSE mount using either fusermount or fusermount3.
+		// If they fail, fallback to unix.Unmount
+		for _, v := range []string{"fusermount3", "fusermount"} {
+			err := exec.Command(v, "-u", mergeDir).Run()
+			if err != nil && errors.Cause(err) != exec.ErrNotFound {
+				logrus.Debugf("Error unmounting %s with %s - %v", mergeDir, v, err)
+			}
+			if err == nil {
+				return nil
+			}
+		}
+		// If fusermount|fusermount3 failed to unmount the FUSE file system, attempt unmount
+	}
+
 	// Ignore EINVAL as the specified merge dir is not a mount point
 	if err := unix.Unmount(mergeDir, 0); err != nil && !os.IsNotExist(err) && err != unix.EINVAL {
 		return errors.Wrapf(err, "unmount overlay %s", mergeDir)
