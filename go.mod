@@ -5,8 +5,8 @@ go 1.12
 require (
 	github.com/containerd/containerd v1.4.1 // indirect
 	github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
-	github.com/containers/common v0.26.0
-	github.com/containers/image/v5 v5.6.0
+	github.com/containers/common v0.26.2
+	github.com/containers/image/v5 v5.7.0
 	github.com/containers/ocicrypt v1.0.3
 	github.com/containers/storage v1.23.7
 	github.com/docker/distribution v2.7.1+incompatible
