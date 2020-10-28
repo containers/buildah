@@ -49,10 +49,36 @@ func TempDir(containerDir string, rootUID, rootGID int) (string, error) {
 // from the source system.  It then mounts up the source directory on to the
 // generated mount point and returns the mount point to the caller.
 func Mount(contentDir, source, dest string, rootUID, rootGID int, graphOptions []string) (mount specs.Mount, Err error) {
-	upperDir := filepath.Join(contentDir, "upper")
-	workDir := filepath.Join(contentDir, "work")
+	return mountHelper(contentDir, source, dest, rootUID, rootGID, graphOptions, false)
+}
+
+// MountReadOnly creates a subdir of the contentDir based on the source directory
+// from the source system.  It then mounts up the source directory on to the
+// generated mount point and returns the mount point to the caller.  Note that no
+// upper layer will be created rendering it a read-only mount
+func MountReadOnly(contentDir, source, dest string, rootUID, rootGID int, graphOptions []string) (mount specs.Mount, Err error) {
+	return mountHelper(contentDir, source, dest, rootUID, rootGID, graphOptions, true)
+}
+
+// NOTE: rootUID and rootUID are not yet used.
+func mountHelper(contentDir, source, dest string, _, _ int, graphOptions []string, readOnly bool) (mount specs.Mount, Err error) {
 	mergeDir := filepath.Join(contentDir, "merge")
-	overlayOptions := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s,private", source, upperDir, workDir)
+
+	// Create overlay mount options for rw/ro.
+	var overlayOptions string
+	if readOnly {
+		// Read-only overlay mounts require two lower layer.
+		lowerTwo := filepath.Join(contentDir, "lower")
+		if err := os.Mkdir(lowerTwo, 0755); err != nil {
+			return mount, err
+		}
+		overlayOptions = fmt.Sprintf("lowerdir=%s:%s,private", source, lowerTwo)
+	} else {
+		// Read-write overlay mounts want a lower, upper and a work layer.
+		workDir := filepath.Join(contentDir, "work")
+		upperDir := filepath.Join(contentDir, "upper")
+		overlayOptions = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s,private", source, upperDir, workDir)
+	}
 
 	if unshare.IsRootless() {
 		mountProgram := ""
@@ -91,7 +117,7 @@ func Mount(contentDir, source, dest string, rootUID, rootGID int, graphOptions [
 		/* If a mount_program is not specified, fallback to try mount native overlay.  */
 	}
 
-	mount.Source = "overlay"
+	mount.Source = mergeDir
 	mount.Destination = dest
 	mount.Type = "overlay"
 	mount.Options = strings.Split(overlayOptions, ",")
