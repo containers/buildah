@@ -91,7 +91,7 @@ func init() {
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.UserNSUID, "userns-uid-map", []string{}, "default `ctrID:hostID:length` UID mapping to use")
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.UserNSGID, "userns-gid-map", []string{}, "default `ctrID:hostID:length` GID mapping to use")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.DefaultMountsFile, "default-mounts-file", "", "path to default mounts file")
-	rootCmd.PersistentFlags().StringVar(&globalFlagResults.LogLevel, logLevel, "error", `The log level to be used. Either "debug", "info", "warn" or "error".`)
+	rootCmd.PersistentFlags().StringVar(&globalFlagResults.LogLevel, logLevel, "warn", `The log level to be used. Either "debug", "info", "warn" or "error".`)
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.CPUProfile, "cpu-profile", "", "`file` to write CPU profile")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.MemoryProfile, "memory-profile", "", "`file` to write memory profile")
 
@@ -177,7 +177,11 @@ func shutdownStore(cmd *cobra.Command) error {
 		logrus.Debugf("shutting down the store")
 		needToShutdownStore = false
 		if _, err = store.Shutdown(false); err != nil {
-			logrus.Warnf("failed to shutdown storage: %q", err)
+			if errors.Cause(err) == storage.ErrLayerUsedByContainer {
+				logrus.Infof("failed to shutdown storage: %q", err)
+			} else {
+				logrus.Warnf("failed to shutdown storage: %q", err)
+			}
 		}
 	}
 	return nil
