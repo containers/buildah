@@ -13,6 +13,7 @@ import (
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -101,18 +102,34 @@ func Mount(contentDir, source, dest string, rootUID, rootGID int, graphOptions [
 // RemoveTemp removes temporary mountpoint and all content from its parent
 // directory
 func RemoveTemp(contentDir string) error {
-	if unshare.IsRootless() {
-		if err := Unmount(contentDir); err != nil {
-			return err
-		}
+	if err := Unmount(contentDir); err != nil {
+		return err
 	}
+
 	return os.RemoveAll(contentDir)
 }
 
 // Unmount the overlay mountpoint
-func Unmount(contentDir string) (Err error) {
+func Unmount(contentDir string) error {
 	mergeDir := filepath.Join(contentDir, "merge")
-	if err := unix.Unmount(mergeDir, 0); err != nil && !os.IsNotExist(err) {
+
+	if unshare.IsRootless() {
+		// Attempt to unmount the FUSE mount using either fusermount or fusermount3.
+		// If they fail, fallback to unix.Unmount
+		for _, v := range []string{"fusermount3", "fusermount"} {
+			err := exec.Command(v, "-u", mergeDir).Run()
+			if err != nil && errors.Cause(err) != exec.ErrNotFound {
+				logrus.Debugf("Error unmounting %s with %s - %v", mergeDir, v, err)
+			}
+			if err == nil {
+				return nil
+			}
+		}
+		// If fusermount|fusermount3 failed to unmount the FUSE file system, attempt unmount
+	}
+
+	// Ignore EINVAL as the specified merge dir is not a mount point
+	if err := unix.Unmount(mergeDir, 0); err != nil && !os.IsNotExist(err) && err != unix.EINVAL {
 		return errors.Wrapf(err, "unmount overlay %s", mergeDir)
 	}
 	return nil
@@ -153,14 +170,20 @@ func CleanupMount(contentDir string) (Err error) {
 func CleanupContent(containerDir string) (Err error) {
 	contentDir := filepath.Join(containerDir, "overlay")
 
-	if unshare.IsRootless() {
-		mergeDir := filepath.Join(contentDir, "merge")
-		if err := unix.Unmount(mergeDir, 0); err != nil {
-			if !os.IsNotExist(err) {
-				return errors.Wrapf(err, "unmount overlay %s", mergeDir)
-			}
+	files, err := ioutil.ReadDir(contentDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return errors.Wrapf(err, "read directory")
+	}
+	for _, f := range files {
+		dir := filepath.Join(contentDir, f.Name())
+		if err := Unmount(dir); err != nil {
+			return err
 		}
 	}
+
 	if err := os.RemoveAll(contentDir); err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "failed to cleanup overlay %s directory", contentDir)
 	}
