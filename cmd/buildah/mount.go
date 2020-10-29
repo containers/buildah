@@ -97,10 +97,13 @@ func mountCmd(c *cobra.Command, args []string) error {
 			return errors.Wrapf(err, "error reading build containers")
 		}
 		for _, builder := range builders {
-			if builder.MountPoint == "" {
-				continue
+			mounted, err := builder.Mounted()
+			if err != nil {
+				return err
 			}
-			fmt.Printf("%s %s\n", builder.Container, builder.MountPoint)
+			if mounted {
+				fmt.Printf("%s %s\n", builder.Container, builder.MountPoint)
+			}
 		}
 	}
 	return lastError
