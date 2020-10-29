@@ -140,8 +140,10 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		return err
 	}
 	layers := buildahcli.UseLayers()
-	if c.Flag("layers").Changed {
-		layers = iopts.Layers
+	if strings.Contains(format, "oci") {
+		if c.Flag("layers").Changed {
+			layers = iopts.Layers
+		}
 	}
 	contextDir := ""
 	cliArgs := inputArgs
