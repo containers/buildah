@@ -2257,3 +2257,20 @@ EOM
   test "$output" != "$iid"
   test "$output" != "$iid2"
 }
+
+@test "bud cache by format" {
+  # Build first in Docker format.  Whether we do OCI or Docker first shouldn't matter, so we picked one.
+  run_buildah bud --iidfile first-docker  --format docker --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+  # Build in OCI format.  Cache should not re-use the same images, so we should get a different image ID.
+  run_buildah bud --iidfile first-oci     --format oci    --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+  # Build in Docker format again.  Cache traversal should 100% hit the Docker image, so we should get its image ID.
+  run_buildah bud --iidfile second-docker --format docker --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+  # Build in OCI format again.  Cache traversal should 100% hit the OCI image, so we should get its image ID.
+  run_buildah bud --iidfile second-oci    --format oci    --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+  # Compare them.  The two images we built in Docker format should be the same, the two we built in OCI format
+  # should be the same, but the OCI and Docker format images should be different.
+  cmp first-docker second-docker
+  cmp first-oci    second-oci
+  run cmp first-docker first-oci
+  [[ "$status" -ne 0 ]]
+}
