@@ -608,11 +608,27 @@ func (s *StageExecutor) Delete() (err error) {
 	return err
 }
 
-// stepRequiresLayer indicates whether or not the step should be followed by
-// committing a layer container when creating an intermediate image.
+// stepRequiresLayer indicates that a step must be -- and will always be --
+// accompanied by a layer when creating an intermediate image.
 func (*StageExecutor) stepRequiresLayer(step *imagebuilder.Step) bool {
+	return false
+}
+
+// stepOptionalLayer indicates that a step may or may not have a corresponding
+// layer in an intermediate image.
+func (*StageExecutor) stepOptionalLayer(step *imagebuilder.Step) bool {
 	switch strings.ToUpper(step.Command) {
-	case "ADD", "COPY", "RUN":
+	case "ADD", "COPY", "RUN", "WORKDIR":
+		return true
+	}
+	return false
+}
+
+// stepAffectsConfig indicates that a step alters the image's RunConfig
+func (*StageExecutor) stepAffectsConfig(step *imagebuilder.Step) bool {
+	switch strings.ToUpper(step.Command) {
+	case "ARG", "CMD", "ENTRYPOINT", "ENV", "EXPOSE", "HEALTHCHECK", "LABEL", "MAINTAINER",
+		"ONBUILD", "SHELL", "STOPSIGNAL", "USER", "VOLUME", "WORKDIR":
 		return true
 	}
 	return false
@@ -729,14 +745,14 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// squash the contents of the base image.  Whichever is
 			// the case, we need to commit() to create a new image.
 			logCommit(s.output, -1)
-			if imgID, ref, err = s.commit(ctx, s.getCreatedBy(nil, ""), false, s.output); err != nil {
+			if imgID, ref, err = s.commit(ctx, s.getCreatedBy(nil, ""), false, false, s.output); err != nil {
 				return "", nil, errors.Wrapf(err, "error committing base container")
 			}
 		} else if len(s.executor.labels) > 0 || len(s.executor.annotations) > 0 {
 			// The image would be modified by the labels passed
 			// via the command line, so we need to commit.
 			logCommit(s.output, -1)
-			if imgID, ref, err = s.commit(ctx, s.getCreatedBy(stage.Node, ""), true, s.output); err != nil {
+			if imgID, ref, err = s.commit(ctx, s.getCreatedBy(stage.Node, ""), true, false, s.output); err != nil {
 				return "", nil, err
 			}
 		} else {
@@ -848,7 +864,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				// stage.
 				if lastStage || imageIsUsedLater {
 					logCommit(s.output, i)
-					imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), false, s.output)
+					imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), false, false, s.output)
 					if err != nil {
 						return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
 					}
@@ -884,7 +900,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		// and that is done in the if block below.
 		if checkForLayers && step.Command != "arg" {
 
-			cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
+			cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, step)
 			if err != nil {
 				return "", nil, errors.Wrap(err, "error checking if cached image exists from a previous build")
 			}
@@ -915,7 +931,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// Check if there's already an image based on our parent that
 			// has the same change that we just made.
 			if checkForLayers {
-				cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
+				cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, step)
 				if err != nil {
 					return "", nil, errors.Wrap(err, "error checking if cached image exists from a previous build")
 				}
@@ -927,7 +943,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// last cache image will be all that we need, since we
 			// still don't want to restart using the image's
 			// configuration blob.
-			if !s.stepRequiresLayer(step) {
+			if s.stepAffectsConfig(step) {
 				err := ib.Run(step, s, noRunsRemaining)
 				if err != nil {
 					logrus.Debugf("%v", errors.Wrapf(err, "error building at step %+v", *step))
@@ -956,7 +972,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// Create a new image, maybe with a new layer, with the
 			// name for this stage if it's the last instruction.
 			logCommit(s.output, i)
-			imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), !s.stepRequiresLayer(step), commitName)
+			imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), !s.stepRequiresLayer(step) && !s.stepOptionalLayer(step), s.stepOptionalLayer(step), commitName)
 			if err != nil {
 				return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
 			}
@@ -1021,7 +1037,7 @@ func historyEntriesEqual(base, derived v1.History) bool {
 // that we're comparing.
 // Used to verify whether a cache of the intermediate image exists and whether
 // to run the build again.
-func (s *StageExecutor) historyAndDiffIDsMatch(baseHistory []v1.History, baseDiffIDs []digest.Digest, child *parser.Node, history []v1.History, diffIDs []digest.Digest, addedContentSummary string, buildAddsLayer bool) bool {
+func (s *StageExecutor) historyAndDiffIDsMatch(baseHistory []v1.History, baseDiffIDs []digest.Digest, child *parser.Node, history []v1.History, diffIDs []digest.Digest, addedContentSummary string, buildAddsLayer, buildSometimesAddsLayer bool) bool {
 	// our history should be as long as the base's, plus one entry for what
 	// we're doing
 	if len(history) != len(baseHistory)+1 {
@@ -1041,17 +1057,25 @@ func (s *StageExecutor) historyAndDiffIDsMatch(baseHistory []v1.History, baseDif
 	if len(baseDiffIDs) != expectedDiffIDs {
 		return false
 	}
-	if buildAddsLayer {
-		// we're adding a layer, so we should have exactly one more
-		// layer than the base image
-		if len(diffIDs) != expectedDiffIDs+1 {
+	if buildSometimesAddsLayer {
+		// we might add a layer, so we should have exactly the same
+		// number of layers as, or one more than, the base image
+		if len(diffIDs) != expectedDiffIDs+1 && len(diffIDs) != expectedDiffIDs {
 			return false
 		}
 	} else {
-		// we're not adding a layer, so we should have exactly the same
-		// layers as the base image
-		if len(diffIDs) != expectedDiffIDs {
-			return false
+		if buildAddsLayer {
+			// we only ever add a layer, so we should have exactly one more
+			// layer than the base image
+			if len(diffIDs) != expectedDiffIDs+1 {
+				return false
+			}
+		} else {
+			// we're not adding a layer, no chance, so we should have exactly
+			// the same number of layers as the base image
+			if len(diffIDs) != expectedDiffIDs {
+				return false
+			}
 		}
 	}
 	// compare the diffs for the layers that we should have in common
@@ -1154,7 +1178,9 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 
 // intermediateImageExists returns true if an intermediate image of currNode exists in the image store from a previous build.
 // It verifies this by checking the parent of the top layer of the image and the history.
-func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *parser.Node, addedContentDigest string, buildAddsLayer bool) (string, error) {
+func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *parser.Node, addedContentDigest string, step *imagebuilder.Step) (string, error) {
+	buildAddsLayer := s.stepRequiresLayer(step) || s.stepOptionalLayer(step)
+	buildSometimesAddsLayer := !s.stepRequiresLayer(step) || s.stepOptionalLayer(step)
 	// Get the list of images available in the image store
 	images, err := s.executor.store.Images()
 	if err != nil {
@@ -1170,27 +1196,37 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 	}
 	for _, image := range images {
 		var imageTopLayer *storage.Layer
-		var imageParentLayerID string
+		var imageParentLayerID []string
 		if image.TopLayer != "" {
 			imageTopLayer, err = s.executor.store.Layer(image.TopLayer)
 			if err != nil {
 				return "", errors.Wrapf(err, "error getting top layer info")
 			}
-			// Figure out which layer from this image we should
-			// compare our container's base layer to.
-			imageParentLayerID = imageTopLayer.ID
-			// If we haven't added a layer here, then our base
-			// layer should be the same as the image's layer.  If
-			// did add a layer, then our base layer should be the
-			// same as the parent of the image's layer.
-			if buildAddsLayer {
-				imageParentLayerID = imageTopLayer.Parent
+			// If we don't add a layer here, then our base layer should be the same as the
+			// image's layer.  If do add a layer, then our base layer should be the same as
+			// the parent of the image's layer.
+			if buildSometimesAddsLayer {
+				imageParentLayerID = append(imageParentLayerID, imageTopLayer.Parent)
+				imageParentLayerID = append(imageParentLayerID, imageTopLayer.ID)
+			} else if buildAddsLayer {
+				imageParentLayerID = append(imageParentLayerID, imageTopLayer.Parent)
+			} else {
+				imageParentLayerID = append(imageParentLayerID, imageTopLayer.ID)
 			}
+		} else {
+			imageParentLayerID = append(imageParentLayerID, "")
 		}
 		// If the parent of the top layer of an image is equal to the current build image's top layer,
 		// it means that this image is potentially a cached intermediate image from a previous
 		// build.
-		if s.builder.TopLayer != imageParentLayerID {
+		layerLooksPossible := false
+		for _, layer := range imageParentLayerID {
+			if s.builder.TopLayer == layer {
+				layerLooksPossible = true
+				break
+			}
+		}
+		if !layerLooksPossible {
 			continue
 		}
 		// Next we double check that the history of this image is equivalent to the previous
@@ -1209,7 +1245,7 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 			continue
 		}
 		// children + currNode is the point of the Dockerfile we are currently at.
-		if s.historyAndDiffIDsMatch(baseHistory, baseDiffIDs, currNode, history, diffIDs, addedContentDigest, buildAddsLayer) {
+		if s.historyAndDiffIDsMatch(baseHistory, baseDiffIDs, currNode, history, diffIDs, addedContentDigest, buildAddsLayer, buildSometimesAddsLayer) {
 			return image.ID, nil
 		}
 	}
@@ -1218,7 +1254,7 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 
 // commit writes the container's contents to an image, using a passed-in tag as
 // the name if there is one, generating a unique ID-based one otherwise.
-func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer bool, output string) (string, reference.Canonical, error) {
+func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer, emptyLayerIfRedundant bool, output string) (string, reference.Canonical, error) {
 	ib := s.stage.Builder
 	var imageRef types.ImageReference
 	if output != "" {
@@ -1317,6 +1353,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		SystemContext:         s.executor.systemContext,
 		Squash:                s.executor.squash,
 		EmptyLayer:            emptyLayer,
+		EmptyLayerIfRedundant: emptyLayerIfRedundant,
 		BlobDirectory:         s.executor.blobDirectory,
 		SignBy:                s.executor.signBy,
 		MaxRetries:            s.executor.maxPullPushRetries,

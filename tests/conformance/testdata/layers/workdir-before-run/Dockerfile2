@@ -1,0 +1,3 @@
+FROM busybox
+WORKDIR /workdir
+RUN touch new-file

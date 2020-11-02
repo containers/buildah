@@ -1,0 +1,2 @@
+FROM busybox
+VOLUME /volume

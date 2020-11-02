@@ -1,0 +1,4 @@
+FROM busybox
+ARG A=B
+LABEL B=$ARG
+ADD . .

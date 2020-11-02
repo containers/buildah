@@ -79,6 +79,9 @@ type CommitOptions struct {
 	// EmptyLayer tells the builder to omit the diff for the working
 	// container.
 	EmptyLayer bool
+	// EmptyLayerIfRedundant tells the builder to compute the diff for the
+	// working container, and to omit the layer if the diff is empty.
+	EmptyLayerIfRedundant bool
 	// OmitTimestamp forces epoch 0 as created timestamp to allow for
 	// deterministic, content-addressable builds.
 	// Deprecated use HistoryTimestamp instead.

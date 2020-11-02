@@ -68,7 +68,8 @@ var (
 		"rootfs:diff_ids",
 	}
 	fsSkip = []string{
-		// things that we volume mount or synthesize for RUN statements that currently bleed through
+		// Things that we volume mount or synthesize for RUN statements that currently bleed through,
+		// ignored when comparing filesystems and counting layers.
 		"(dir):etc:mtime",
 		"(dir):etc:(dir):hosts",
 		"(dir):etc:(dir):resolv.conf",
@@ -432,7 +433,7 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	}
 
 	// the report on the buildah image should always be there
-	originalBuildahConfig, ociBuildahConfig, fsBuildah := readReport(t, filepath.Join(buildahDir, t.Name()))
+	originalBuildahConfig, ociBuildahConfig, fsBuildah, layerCountBuildah := readReport(t, filepath.Join(buildahDir, t.Name()))
 	if t.Failed() {
 		t.FailNow()
 	}
@@ -453,14 +454,17 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 	deleteLabel(ociBuildahConfig, buildah.BuilderIdentityAnnotation)
 
 	var originalDockerConfig, ociDockerConfig, fsDocker map[string]interface{}
+	var layerCountDocker int
 
 	// the report on the docker image should be there if we expected the build to succeed
 	if !test.withoutDocker {
-		originalDockerConfig, ociDockerConfig, fsDocker = readReport(t, filepath.Join(dockerDir, t.Name()))
+		originalDockerConfig, ociDockerConfig, fsDocker, layerCountDocker = readReport(t, filepath.Join(dockerDir, t.Name()))
 		if t.Failed() {
 			t.FailNow()
 		}
-
+		if layerCountDocker != layerCountBuildah {
+			assert.Failf(t, "Image layer counts differ", "docker used %d layer(s), buildah used %d layer(s)", layerCountDocker, layerCountBuildah)
+		}
 		miss, left, diff, same := compareJSON(originalDockerConfig, originalBuildahConfig, originalSkip)
 		if !same {
 			assert.Failf(t, "Image configurations differ as committed in Docker format", configCompareResult(miss, left, diff, "buildah"))
@@ -477,7 +481,7 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 
 	// the report on the imagebuilder image should be there if we expected the build to succeed
 	if compareImagebuilder && !test.withoutImagebuilder {
-		originalImagebuilderConfig, ociImagebuilderConfig, fsImagebuilder := readReport(t, filepath.Join(imagebuilderDir, t.Name()))
+		originalImagebuilderConfig, ociImagebuilderConfig, fsImagebuilder, _ := readReport(t, filepath.Join(imagebuilderDir, t.Name()))
 		if t.Failed() {
 			t.FailNow()
 		}
@@ -800,11 +804,15 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	}
 	fstree := FSTree{Tree: FSEntry{Children: make(map[string]*FSEntry)}}
 	// grab digest and header information from the layer blob
+	layerCount := 0
 	for _, layerBlobInfo := range layerBlobInfos {
 		rc, _, err := src.GetBlob(ctx, layerBlobInfo, nil)
 		require.Nil(t, err, "error reading blob %+v for image %q", layerBlobInfo, imageName)
 		defer rc.Close()
-		layer := summarizeLayer(t, imageName, layerBlobInfo, rc)
+		layer, empty := summarizeLayer(t, imageName, layerBlobInfo, rc)
+		if !empty {
+			layerCount++
+		}
 		fstree.Layers = append(fstree.Layers, layer)
 	}
 	// apply the header information from blobs, in the order they're listed
@@ -836,10 +844,22 @@ func saveReport(ctx context.Context, t *testing.T, ref types.ImageReference, dir
 	require.Nil(t, err, "error encoding filesystem tree from image %q for saving", imageName)
 	err = ioutil.WriteFile(filepath.Join(directory, "fs.json"), encodedFSTree, 0644)
 	require.Nil(t, err, "error saving filesystem tree from image %q", imageName)
+	err = ioutil.WriteFile(filepath.Join(directory, "diffcount.txt"), []byte(fmt.Sprintf("%d\n", layerCount)), 0644)
+	require.Nil(t, err, "error saving filesystem tree from image %q", imageName)
 }
 
 // summarizeLayer reads a blob and returns a summary of the parts of its contents that we care about
-func summarizeLayer(t *testing.T, imageName string, blobInfo types.BlobInfo, reader io.Reader) (layer Layer) {
+func summarizeLayer(t *testing.T, imageName string, blobInfo types.BlobInfo, reader io.Reader) (layer Layer, empty bool) {
+	containsOnlyIgnoredItems := true
+	ignoredItems := make(map[string]struct{})
+	for _, skipSpec := range fsSkip {
+		// convert back from our json-tree-representation to a path, possibly with :attribute suffix
+		spec := strings.ReplaceAll(strings.ReplaceAll(skipSpec, ":(dir):", "/"), "(dir):", "/")
+		// split at the character we use for separating a path from an attribute
+		split := strings.Split(spec, ":")
+		// we only care about the path
+		ignoredItems[strings.Trim(split[0], string(os.PathSeparator))] = struct{}{}
+	}
 	compressedDigest := digest.Canonical.Digester()
 	uncompressedBlob, _, err := compression.AutoDecompress(io.TeeReader(reader, compressedDigest.Hash()))
 	require.Nil(t, err, "error decompressing blob %+v for image %q", blobInfo, imageName)
@@ -848,6 +868,10 @@ func summarizeLayer(t *testing.T, imageName string, blobInfo types.BlobInfo, rea
 	tr := tar.NewReader(io.TeeReader(uncompressedBlob, uncompressedDigest.Hash()))
 	hdr, err := tr.Next()
 	for err == nil {
+		if containsOnlyIgnoredItems {
+			_, ignored := ignoredItems[strings.Trim(hdr.Name, string(os.PathSeparator))]
+			containsOnlyIgnoredItems = containsOnlyIgnoredItems && ignored
+		}
 		header := fsHeaderForEntry(hdr)
 		if hdr.Size != 0 {
 			contentDigest := digest.Canonical.Digester()
@@ -863,7 +887,7 @@ func summarizeLayer(t *testing.T, imageName string, blobInfo types.BlobInfo, rea
 	layer.CompressedDigest = compressedDigest.Digest()
 	require.Equal(t, blobInfo.Digest, layer.CompressedDigest, "calculated digest of compressed blob didn't match expected digest")
 	layer.UncompressedDigest = uncompressedDigest.Digest()
-	return layer
+	return layer, containsOnlyIgnoredItems
 }
 
 // applyLayerToFSTree updates the in-memory summary of a tree to incorporate
@@ -964,7 +988,13 @@ func applyLayerToFSTree(t *testing.T, layer *Layer, root *FSEntry) {
 }
 
 // read information about the specified image from the specified directory
-func readReport(t *testing.T, directory string) (original, oci, fs map[string]interface{}) {
+func readReport(t *testing.T, directory string) (original, oci, fs map[string]interface{}, layerCount int) {
+	// read the number of non-empty layers
+	layerCountBytes, err := ioutil.ReadFile(filepath.Join(directory, "diffcount.txt"))
+	require.Nil(t, err, "error reading diff count file %q", filepath.Join(directory, "diffcount.txt"))
+	n, err := fmt.Sscanf(string(layerCountBytes), "%d", &layerCount)
+	require.Nil(t, err, "error parsing count file %q(%q)", filepath.Join(directory, "diffcount.txt"), string(layerCountBytes))
+	require.Equal(t, 1, n, "error parsing count file %q(%q)", filepath.Join(directory, "diffcount.txt"), string(layerCountBytes))
 	// read the config in the as-committed (docker) format
 	originalConfig, err := ioutil.ReadFile(filepath.Join(directory, "config.json"))
 	require.Nil(t, err, "error reading configuration file %q", filepath.Join(directory, "config.json"))
@@ -986,8 +1016,8 @@ func readReport(t *testing.T, directory string) (original, oci, fs map[string]in
 	fs = make(map[string]interface{})
 	err = json.Unmarshal(fsInfo, &fs)
 	require.Nil(t, err, "error decoding filesystem summary from file %q", filepath.Join(directory, "fs.json"))
-	// return both
-	return original, oci, fs
+	// return everything
+	return original, oci, fs, layerCount
 }
 
 // contains is used to check if item is exist in []string or not
@@ -2785,5 +2815,242 @@ var internalTestCases = []testCase{
 		contextDir:    "tar-g",
 		withoutDocker: true,
 		fsSkip:        []string{"(dir):tmp:mtime"},
+	},
+
+	{
+		name:       "workdir-in-image-owner",
+		contextDir: "layers/workdir-in-image-owner",
+		fsSkip:     []string{"(dir):workdir:mtime"},
+	},
+
+	{
+		name:       "workdir-not-in-image",
+		contextDir: "layers/workdir-not-in-image",
+		fsSkip:     []string{"(dir):directory:mtime", "(dir):directory:(dir):does:mtime", "(dir):directory:(dir):does:(dir):not:mtime", "(dir):directory:(dir):does:(dir):not:(dir):exist:mtime"},
+	},
+
+	{
+		name:       "workdir-in-image",
+		contextDir: "layers/workdir-in-image",
+		fsSkip:     []string{"(dir):directory:mtime", "(dir):directory:(dir):totes:mtime", "(dir):directory:(dir):totes:(dir):exists:mtime"},
+	},
+
+	{
+		name:       "workdir-before-config",
+		contextDir: "layers/workdir-before-config",
+		fsSkip:     []string{"(dir):workdir:mtime"},
+	},
+
+	{
+		name:       "workdir-alone",
+		contextDir: "layers/workdir-alone",
+		fsSkip:     []string{"(dir):workdir:mtime"},
+	},
+
+	{
+		name:       "workdir-before-add",
+		contextDir: "layers/workdir-before-add",
+	},
+
+	{
+		name:       "workdir-after-add",
+		contextDir: "layers/workdir-after-add",
+	},
+
+	{
+		name:       "workdir-before-run",
+		contextDir: "layers/workdir-before-run",
+		fsSkip:     []string{"(dir):workdir:mtime"},
+	},
+
+	{
+		name:       "workdir-before-run-2",
+		contextDir: "layers/workdir-before-run",
+		dockerfile: "Dockerfile2",
+		fsSkip:     []string{"(dir):workdir:mtime"},
+	},
+
+	{
+		name:       "workdir-after-run",
+		contextDir: "layers/workdir-after-run",
+		fsSkip:     []string{"(dir):workdir:mtime"},
+	},
+
+	{
+		name:       "workdir-after-run",
+		contextDir: "layers/workdir-after-run",
+		fsSkip:     []string{"(dir):workdir:mtime"},
+	},
+
+	{
+		name:       "base-plus-add",
+		contextDir: "layers/base-plus-add",
+	},
+
+	{
+		name:       "base-plus-arg",
+		contextDir: "layers/base-plus-arg",
+	},
+
+	{
+		name:       "base-plus-cmd",
+		contextDir: "layers/base-plus-cmd",
+	},
+
+	{
+		name:       "base-plus-copy",
+		contextDir: "layers/base-plus-copy",
+	},
+
+	{
+		name:       "base-plus-entrypoint",
+		contextDir: "layers/base-plus-entrypoint",
+	},
+
+	{
+		name:       "base-plus-env",
+		contextDir: "layers/base-plus-env",
+	},
+
+	{
+		name:       "base-plus-expose",
+		contextDir: "layers/base-plus-expose",
+	},
+
+	{
+		name:       "base-plus-from",
+		contextDir: "layers/base-plus-from",
+	},
+
+	{
+		name:       "base-plus-healthcheck",
+		contextDir: "layers/base-plus-healthcheck",
+	},
+
+	{
+		name:       "base-plus-label",
+		contextDir: "layers/base-plus-label",
+	},
+
+	{
+		name:       "base-plus-maintainer",
+		contextDir: "layers/base-plus-maintainer",
+	},
+
+	{
+		name:       "base-plus-onbuild",
+		contextDir: "layers/base-plus-onbuild",
+	},
+
+	{
+		name:       "base-plus-run",
+		contextDir: "layers/base-plus-run",
+	},
+
+	{
+		name:       "base-plus-shell",
+		contextDir: "layers/base-plus-shell",
+	},
+
+	{
+		name:       "base-plus-stopsignal",
+		contextDir: "layers/base-plus-stopsignal",
+	},
+
+	{
+		name:       "base-plus-user",
+		contextDir: "layers/base-plus-user",
+	},
+
+	{
+		name:       "base-plus-volume",
+		contextDir: "layers/base-plus-volume",
+	},
+
+	{
+		name:       "base-plus-workdir",
+		contextDir: "layers/base-plus-workdir",
+		fsSkip:     []string{"(dir):workdir:mtime"},
+	},
+
+	{
+		name:       "base-plus-arg-plus-add",
+		contextDir: "layers/base-plus-arg-plus-add",
+	},
+
+	{
+		name:       "base-plus-cmd-plus-add",
+		contextDir: "layers/base-plus-cmd-plus-add",
+	},
+
+	{
+		name:       "base-plus-entrypoint-plus-add",
+		contextDir: "layers/base-plus-entrypoint-plus-add",
+	},
+
+	{
+		name:       "base-plus-env-plus-add",
+		contextDir: "layers/base-plus-env-plus-add",
+	},
+
+	{
+		name:       "base-plus-expose-plus-add",
+		contextDir: "layers/base-plus-expose-plus-add",
+	},
+
+	{
+		name:       "base-plus-from-plus-add",
+		contextDir: "layers/base-plus-from-plus-add",
+	},
+
+	{
+		name:       "base-plus-healthcheck-plus-add",
+		contextDir: "layers/base-plus-healthcheck-plus-add",
+	},
+
+	{
+		name:       "base-plus-label-plus-add",
+		contextDir: "layers/base-plus-label-plus-add",
+	},
+
+	{
+		name:       "base-plus-maintainer-plus-add",
+		contextDir: "layers/base-plus-maintainer-plus-add",
+	},
+
+	{
+		name:       "base-plus-onbuild-plus-add",
+		contextDir: "layers/base-plus-onbuild-plus-add",
+	},
+
+	{
+		name:       "base-plus-run-plus-add",
+		contextDir: "layers/base-plus-run-plus-add",
+	},
+
+	{
+		name:       "base-plus-shell-plus-add",
+		contextDir: "layers/base-plus-shell-plus-add",
+	},
+
+	{
+		name:       "base-plus-stopsignal-plus-add",
+		contextDir: "layers/base-plus-stopsignal-plus-add",
+	},
+
+	{
+		name:       "base-plus-user-plus-add",
+		contextDir: "layers/base-plus-user-plus-add",
+	},
+
+	{
+		name:       "base-plus-volume-plus-add",
+		contextDir: "layers/base-plus-volume-plus-add",
+	},
+
+	{
+		name:       "base-plus-workdir-plus-add",
+		contextDir: "layers/base-plus-workdir-plus-add",
+		fsSkip:     []string{"(dir):workdir:mtime"},
 	},
 }
