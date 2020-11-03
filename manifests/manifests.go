@@ -266,6 +266,18 @@ func (l *list) Add(ctx context.Context, sys *types.SystemContext, ref types.Imag
 	var instanceInfos []instanceInfo
 	var manifestDigest digest.Digest
 
+	fixupInstanceInfo := func(i instanceInfo) instanceInfo {
+		switch i.Architecture {
+		case "arm":
+			// should we have a default of v6/v7/v8 here, too?
+		case "arm64":
+			if i.Variant == "" {
+				i.Variant = "v8"
+			}
+		}
+		return i
+	}
+
 	primaryManifestBytes, primaryManifestType, err := src.GetManifest(ctx, nil)
 	if err != nil {
 		return "", errors.Wrapf(err, "error reading manifest from %q", transports.ImageName(ref))
@@ -361,6 +373,7 @@ func (l *list) Add(ctx context.Context, sys *types.SystemContext, ref types.Imag
 		if err != nil {
 			return "", errors.Wrapf(err, "error reading manifest from %q, instance %q", transports.ImageName(ref), instanceInfo.instanceDigest)
 		}
+		instanceInfo = fixupInstanceInfo(instanceInfo)
 		if instanceInfo.instanceDigest == nil {
 			manifestDigest, err = manifest.Digest(manifestBytes)
 			if err != nil {
