@@ -2312,3 +2312,69 @@ EOF
   run cmp first-docker first-oci
   [[ "$status" -ne 0 ]]
 }
+
+@test "bud cache add-copy-chown" {
+  # Build each variation of COPY (from context, from previous stage) and ADD (from context, not overriding an archive, URL) twice.
+  # Each second build should produce an image with the same ID as the first build, because the cache matches, but they should
+  # otherwise all be different.
+  run_buildah bud --iidfile copy1 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.copy1 ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile prev1 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.prev1 ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile add1  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.add1  ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile tar1  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.tar1  ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile url1  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.url1  ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile copy2 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.copy2 ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile prev2 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.prev2 ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile add2  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.add2  ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile tar2  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.tar2  ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile url2  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.url2  ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile copy3 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.copy1 ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile prev3 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.prev1 ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile add3  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.add1  ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile tar3  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.tar1  ${TESTSDIR}/bud/cache-chown
+  run_buildah bud --iidfile url3  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.url1  ${TESTSDIR}/bud/cache-chown
+
+  # The third round of builds should match all of the first rounds by way of caching.
+  cmp copy1 copy3
+  cmp prev1 prev3
+  cmp add1  add3
+  cmp tar1  tar3
+  cmp url1  url3
+
+  # The second round of builds should not match the first rounds, since the different ownership
+  # makes the changes look different to the cache, except for cases where we extract an archive,
+  # where --chown is ignored.
+  run cmp copy1 copy2
+  [[ "$status" -ne 0 ]]
+  run cmp prev1 prev2
+  [[ "$status" -ne 0 ]]
+  run cmp add1  add2
+  [[ "$status" -ne 0 ]]
+  cmp tar1 tar2
+  run cmp url1  url2
+  [[ "$status" -ne 0 ]]
+
+  # The first rounds of builds should all be different from each other, as a sanith thing.
+  run cmp copy1 prev1
+  [[ "$status" -ne 0 ]]
+  run cmp copy1 add1
+  [[ "$status" -ne 0 ]]
+  run cmp copy1 tar1
+  [[ "$status" -ne 0 ]]
+  run cmp copy1 url1
+  [[ "$status" -ne 0 ]]
+
+  run cmp prev1 add1
+  [[ "$status" -ne 0 ]]
+  run cmp prev1 tar1
+  [[ "$status" -ne 0 ]]
+  run cmp prev1 url1
+  [[ "$status" -ne 0 ]]
+
+  run cmp add1 tar1
+  [[ "$status" -ne 0 ]]
+  run cmp add1 url1
+  [[ "$status" -ne 0 ]]
+
+  run cmp tar1 url1
+  [[ "$status" -ne 0 ]]
+}
