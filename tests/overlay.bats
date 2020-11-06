@@ -18,12 +18,13 @@ load helpers
   # This should succeed
   run_buildah run $cid ls /lower/foo
 
-  # Create and remove content in the overlay directory, should succeed
+  # Create and remove content in the overlay directory, should succeed,
+  # resetting the contents between each run.
   run_buildah run $cid touch /lower/bar
   run_buildah run $cid rm /lower/foo
 
   # This should fail, second runs of containers go back to original
-  run_buildah 125 run $cid ls /lower/bar
+  run_buildah 1 run $cid ls /lower/bar
 
   # This should fail
   run ls ${TESTDIR}/lower/bar

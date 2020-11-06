@@ -243,6 +243,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 
 	// initialize storage for buildah
 	options := storage.StoreOptions{
+		GraphDriverName:     os.Getenv("STORAGE_DRIVER"),
 		GraphRoot:           rootDir,
 		RunRoot:             runrootDir,
 		RootlessStoragePath: rootDir,

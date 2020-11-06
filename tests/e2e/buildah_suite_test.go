@@ -27,8 +27,7 @@ import (
 )
 
 const (
-	storageOptions = "--storage-driver vfs"
-	artifactDir    = "/tmp/.artifacts"
+	artifactDir = "/tmp/.artifacts"
 )
 
 var (
@@ -99,9 +98,9 @@ func BuildahCreate(tempDir string) BuildAhTest {
 	if os.Getenv("BUILDAH_BINARY") != "" {
 		buildAhBinary = os.Getenv("BUILDAH_BINARY")
 	}
-	storageOpts := storageOptions
-	if os.Getenv("STORAGE_OPTIONS") != "" {
-		storageOpts = os.Getenv("STORAGE_OPTIONS")
+	storageOpts := "--storage-driver vfs"
+	if os.Getenv("STORAGE_DRIVER") != "" {
+		storageOpts = fmt.Sprintf("--storage-driver %s", os.Getenv("STORAGE_DRIVER"))
 	}
 
 	return BuildAhTest{
@@ -237,8 +236,10 @@ func (p *BuildAhTest) CreateArtifact(image string) error {
 // RestoreArtifact puts the cached image into our test store
 func (p *BuildAhTest) RestoreArtifact(image string) error {
 	storeOptions, _ := sstorage.DefaultStoreOptions(false, 0)
-	storeOptions.GraphDriverName = "vfs"
-	//storeOptions.GraphDriverOptions = storageOptions
+	storeOptions.GraphDriverName = os.Getenv("STORAGE_DRIVER")
+	if storeOptions.GraphDriverName == "" {
+		storeOptions.GraphDriverName = "vfs"
+	}
 	storeOptions.GraphRoot = p.Root
 	storeOptions.RunRoot = p.RunRoot
 	store, err := sstorage.GetStore(storeOptions)
