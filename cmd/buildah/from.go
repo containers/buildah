@@ -30,7 +30,6 @@ type fromReply struct {
 	quiet           bool
 	signaturePolicy string
 	tlsVerify       bool
-	decryptionKeys  []string
 	*buildahcli.FromAndBudResults
 	*buildahcli.UserNSResults
 	*buildahcli.NameSpaceResults
@@ -73,7 +72,6 @@ func init() {
 	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if the named image is present in store")
 	flags.BoolVar(&opts.pullNever, "pull-never", false, "do not pull the image, use the image present in store if available")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pulling images")
-	flags.StringSliceVar(&opts.decryptionKeys, "decryption-key", nil, "key needed to decrypt the image")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
@@ -270,7 +268,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 
 	commonOpts.Ulimit = append(defaultContainerConfig.Containers.DefaultUlimits, commonOpts.Ulimit...)
 
-	decConfig, err := getDecryptConfig(iopts.decryptionKeys)
+	decConfig, err := getDecryptConfig(iopts.DecryptionKeys)
 	if err != nil {
 		return errors.Wrapf(err, "unable to obtain decrypt config")
 	}

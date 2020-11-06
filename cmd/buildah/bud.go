@@ -67,7 +67,6 @@ func init() {
 	// BUD is a all common flags
 	budFlags := buildahcli.GetBudFlags(&budFlagResults)
 	budFlags.StringVar(&budFlagResults.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
-	flags.StringSliceVar(&budFlagResults.DecryptionKeys, "decryption-key", nil, "key needed to decrypt the image")
 
 	layerFlags := buildahcli.GetLayerFlags(&layerFlagsResults)
 	fromAndBudFlags, err := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
