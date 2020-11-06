@@ -51,6 +51,9 @@ Set the ARCH of the image to the provided value instead of using the architectur
 Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `buildah login`.
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
+Note: You can also override the default path of the authentication file by setting the REGISTRY\_AUTH\_FILE
+environment variable. `export REGISTRY_AUTH_FILE=path`
+
 **--build-arg** *arg=value*
 
 Specifies a build argument and its value, which will be interpolated in
@@ -111,9 +114,14 @@ network namespaces can be found.
 
 **--cpu-period**=*0*
 
-Limit the CPU CFS (Completely Fair Scheduler) period
+Set the CPU period for the Completely Fair Scheduler (CFS), which is a
+duration in microseconds. Once the container's CPU quota is used up, it will
+not be scheduled to run until the current period ends. Defaults to 100000
+microseconds.
 
-Limit the container's CPU usage. This flag tell the kernel to restrict the container's CPU usage to the period you specify.
+On some systems, changing the CPU limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/master/troubleshooting.md#26-running-containers-with-cpu-limits-fails-with-a-permissions-error
 
 **--cpu-quota**=*0*
 
@@ -122,6 +130,10 @@ Limit the CPU CFS (Completely Fair Scheduler) quota
 Limit the container's CPU usage. By default, containers run with the full
 CPU resource. This flag tell the kernel to restrict the container's CPU usage
 to the quota you specify.
+
+On some systems, changing the CPU limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/master/troubleshooting.md#26-running-containers-with-cpu-limits-fails-with-a-permissions-error
 
 **--cpu-shares**, **-c**=*0*
 
@@ -184,7 +196,18 @@ The [key[:passphrase]] to be used for decryption of images. Key can point to key
 
 **--device**=*device*
 
-Add a host device or devices under a directory to the container. The format is `<device-on-host>[:<device-on-container>][:<permissions>]` (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
+Add a host device to the container. Optional *permissions* parameter
+can be used to specify device permissions, it is combination of
+**r** for read, **w** for write, and **m** for **mknod**(2).
+
+Example: **--device=/dev/sdc:/dev/xvdc:rwm**.
+
+Note: if _host_device_ is a symbolic link then it will be resolved first.
+The container will only store the major and minor numbers of the host device.
+
+Note: if the user only has access rights via a group, accessing the device
+from inside a rootless container will fail. The **crun**(1) runtime offers a
+workaround for this by adding the option **--annotation run.oci.keep_original_groups=1**.
 
 **--disable-compression**, **-D**
 Don't compress filesystem layers when building the image unless it is required
@@ -241,15 +264,17 @@ Recognized formats include *oci* (OCI image-spec v1.0, the default) and
 Note: You can also override the default format by setting the BUILDAH\_FORMAT
 environment variable.  `export BUILDAH_FORMAT=docker`
 
-**--http-proxy**
+**-h**, **--help**
+
+Print usage statement
+
+**--http-proxy**=true
 
 By default proxy environment variables are passed into the container if set
 for the buildah process.  This can be disabled by setting the `--http-proxy`
 option to `false`.  The environment variables passed in include `http_proxy`,
 `https_proxy`, `ftp_proxy`, `no_proxy`, and also the upper case versions of
 those.
-
-Defaults to `true`
 
 **--iidfile** *ImageIDfile*
 
@@ -288,11 +313,15 @@ no limit in the number of jobs that run in parallel.
 
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
 
-**--loglevel** *number*
+Users can set a special LABEL **io.containers.capabilities=CAP1,CAP2,CAP3** in
+a Containerfile that specified the list of Linux capabilities required for the
+container to run properly. This label specified in a container image tells
+Podman to run the container with just these capabilities. Podman launches the
+container with just the specified capabilities, as long as this list of
+capabilities is a subset of the default list.
 
-Adjust the logging level up or down.  Valid option values range from -2 to 3,
-with 3 being roughly equivalent to using the global *--log-level=debug* option, and
-values below 0 omitting even error messages which accompany fatal errors.
+If the specified capabilities are not in the default set, Podman will
+print an error message and will run the container with the default capabilities.
 
 **--layers** *bool-value*
 
@@ -305,6 +334,12 @@ environment variable. `export BUILDAH_LAYERS=true`
 
 Log output which would be sent to standard output and standard error to the
 specified file instead of to standard output and standard error.
+
+**--loglevel** *number*
+
+Adjust the logging level up or down.  Valid option values range from -2 to 3,
+with 3 being roughly equivalent to using the global *--log-level=debug* option, and
+values below 0 omitting even error messages which accompany fatal errors.
 
 **--memory**, **-m**=""
 
@@ -341,13 +376,6 @@ Valid _mode_ values are:
 **--no-cache**
 
 Do not use existing cached images for the container build. Build from the start with a new set of cached layers.
-
-**--timestamp** *seconds*
-
-Set the create timestamp to seconds since epoch to allow for deterministic builds (defaults to current time).
-By default, the created timestamp is changed and written into the image manifest with every commit,
-causing the image's sha256 hash to be different even if the sources are exactly the same otherwise.
-When --timestamp is set, the created timestamp is always set to the time specified and therefore not changed, allowing the image's sha256 to remain the same. All files committed to the layers of the image will be created with the timestamp.
 
 **--os**="OS"
 
@@ -422,6 +450,9 @@ to buildah bud, the option given would be `--runtime-flag log-format=json`.
 
 Security Options
 
+  "apparmor=unconfined" : Turn off apparmor confinement for the container
+  "apparmor=your-profile" : Set the apparmor confinement profile for the container
+
   "label=user:USER"   : Set the label user for the container
   "label=role:ROLE"   : Set the label role for the container
   "label=type:TYPE"   : Set the label type for the container
@@ -432,18 +463,11 @@ Security Options
   "seccomp=unconfined" : Turn off seccomp confinement for the container
   "seccomp=profile.json :  White listed syscalls seccomp Json file to be used as a seccomp filter
 
-  "apparmor=unconfined" : Turn off apparmor confinement for the container
-  "apparmor=your-profile" : Set the apparmor confinement profile for the container
-
 **--shm-size**=""
 
 Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.
 Unit is optional and can be `b` (bytes), `k` (kilobytes), `m`(megabytes), or `g` (gigabytes).
 If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
-
-**--signature-policy** *path*
-
-Path to alternate signature policy file (intended for testing; not typically used).
 
 **--sign-by** *fingerprint*
 
@@ -451,7 +475,8 @@ Sign the built image using the GPG key that matches the specified fingerprint.
 
 **--squash**
 
-Squash all of the new image's layers (including those inherited from a base image) into a single new layer.
+Squash all of the image's new layers into a single new layer; any preexisting layers
+are not squashed.
 
 **--tag**, **-t** *imageName*
 
@@ -464,6 +489,13 @@ If _imageName_ does not include a registry name, the registry name *localhost* w
 Set the target build stage to build.  When building a Containerfile with multiple build stages, --target
 can be used to specify an intermediate build stage by name as the final stage for the resulting image.
 Commands after the target stage will be skipped.
+
+**--timestamp** *seconds*
+
+Set the create timestamp to seconds since epoch to allow for deterministic builds (defaults to current time).
+By default, the created timestamp is changed and written into the image manifest with every commit,
+causing the image's sha256 hash to be different even if the sources are exactly the same otherwise.
+When --timestamp is set, the created timestamp is always set to the time specified and therefore not changed, allowing the image's sha256 to remain the same. All files committed to the layers of the image will be created with the timestamp.
 
 **--tls-verify** *bool-value*
 
