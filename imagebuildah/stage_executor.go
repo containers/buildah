@@ -1281,5 +1281,5 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 }
 
 func (s *StageExecutor) EnsureContainerPath(path string) error {
-	return copier.Mkdir(s.mountPoint, path, copier.MkdirOptions{})
+	return copier.Mkdir(s.mountPoint, filepath.Join(s.mountPoint, path), copier.MkdirOptions{})
 }

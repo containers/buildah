@@ -185,7 +185,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		ChownNew: rootIDPair,
 		ChmodNew: &mode,
 	}
-	if err := copier.Mkdir(mountPoint, spec.Process.Cwd, coptions); err != nil {
+	if err := copier.Mkdir(mountPoint, filepath.Join(mountPoint, spec.Process.Cwd), coptions); err != nil {
 		return err
 	}
 
