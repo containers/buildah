@@ -97,8 +97,27 @@ func init() {
 
 }
 
-func updateEntrypoint(builder *buildah.Builder, iopts configResults) {
-	entrypoint := iopts.entrypoint
+func updateCmd(builder *buildah.Builder, cmd string) error {
+	if len(strings.TrimSpace(cmd)) == 0 {
+		builder.SetCmd(nil)
+		return nil
+	}
+	var cmdJSON []string
+	err := json.Unmarshal([]byte(cmd), &cmdJSON)
+
+	if err == nil {
+		builder.SetCmd(cmdJSON)
+		return nil
+	}
+	cmdSpec, err := shellwords.Parse(cmd)
+	if err != nil {
+		return errors.Errorf("error parsing --cmd %q: %v", cmd, err)
+	}
+	builder.SetCmd(cmdSpec)
+	return nil
+}
+
+func updateEntrypoint(builder *buildah.Builder, entrypoint string) {
 	if len(strings.TrimSpace(entrypoint)) == 0 {
 		builder.SetEntrypoint(nil)
 		return
@@ -139,7 +158,7 @@ func conditionallyAddHistory(builder *buildah.Builder, c *cobra.Command, created
 	}
 }
 
-func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResults) {
+func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResults) error {
 	if c.Flag("author").Changed {
 		builder.SetMaintainer(iopts.author)
 	}
@@ -160,10 +179,9 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 		shell := iopts.shell
 		shellSpec, err := shellwords.Parse(shell)
 		if err != nil {
-			logrus.Errorf("error parsing --shell %q: %v", shell, err)
-		} else {
-			builder.SetShell(shellSpec)
+			return errors.Errorf("error parsing --shell %q: %v", shell, err)
 		}
+		builder.SetShell(shellSpec)
 		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) SHELL %s", shell)
 	}
 	if c.Flag("stop-signal").Changed {
@@ -198,24 +216,20 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 			env[0] = strings.TrimSuffix(env[0], "-")
 			builder.UnsetEnv(env[0])
 		} else {
-			logrus.Errorf("error setting variable %q: no value given.", env[0])
+			return errors.Errorf("error setting env %q: no value given.", env[0])
 		}
 	}
 	conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ENV %s", strings.Join(iopts.env, " "))
 	if c.Flag("entrypoint").Changed {
-		updateEntrypoint(builder, iopts)
+		updateEntrypoint(builder, iopts.entrypoint)
 		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ENTRYPOINT %s", iopts.entrypoint)
 	}
 	// cmd should always run after entrypoint; setting entrypoint clears cmd
 	if c.Flag("cmd").Changed {
-		cmd := iopts.cmd
-		cmdSpec, err := shellwords.Parse(cmd)
-		if err != nil {
-			logrus.Errorf("error parsing --cmd %q: %v", cmd, err)
-		} else {
-			builder.SetCmd(cmdSpec)
+		if err := updateCmd(builder, iopts.cmd); err != nil {
+			return err
 		}
-		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop)  CMD %s", cmd)
+		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) CMD %s", iopts.cmd)
 	}
 	if c.Flag("volume").Changed {
 		if volSpec := iopts.volume; len(volSpec) > 0 {
@@ -235,7 +249,9 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 			}
 		}
 	}
-	updateHealthcheck(builder, c, iopts)
+	if err := updateHealthcheck(builder, c, iopts); err != nil {
+		return err
+	}
 	if c.Flag("label").Changed {
 		for _, labelSpec := range iopts.label {
 			label := strings.SplitN(labelSpec, "=", 2)
@@ -245,7 +261,7 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 				label[0] = strings.TrimSuffix(label[0], "-")
 				builder.UnsetLabel(label[0])
 			} else {
-				logrus.Errorf("error adding label %q: no value given", label[0])
+				return errors.Errorf("error adding label %q: no value given", label[0])
 			}
 		}
 		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) LABEL %s", strings.Join(iopts.label, " "))
@@ -287,13 +303,14 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 				annotation[0] = strings.TrimSuffix(annotation[0], "-")
 				builder.UnsetAnnotation(annotation[0])
 			} else {
-				logrus.Errorf("error adding annotation %q: no value given", annotation[0])
+				return errors.Errorf("error adding annotation %q: no value given", annotation[0])
 			}
 		}
 	}
+	return nil
 }
 
-func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configResults) {
+func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configResults) error {
 	if c.Flag("healthcheck").Changed || c.Flag("healthcheck-interval").Changed || c.Flag("healthcheck-retries").Changed || c.Flag("healthcheck-start-period").Changed || c.Flag("healthcheck-timeout").Changed {
 		healthcheck := builder.Healthcheck()
 		args := ""
@@ -309,14 +326,14 @@ func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configR
 		if c.Flag("healthcheck").Changed {
 			test, err := shellwords.Parse(iopts.healthcheck)
 			if err != nil {
-				logrus.Errorf("error parsing --healthcheck %q: %v", iopts.healthcheck, err)
+				return errors.Errorf("error parsing --healthcheck %q: %v", iopts.healthcheck, err)
 			}
 			healthcheck.Test = test
 		}
 		if c.Flag("healthcheck-interval").Changed {
 			duration, err := time.ParseDuration(iopts.healthcheckInterval)
 			if err != nil {
-				logrus.Errorf("error parsing --healthcheck-interval %q: %v", iopts.healthcheckInterval, err)
+				return errors.Errorf("error parsing --healthcheck-interval %q: %v", iopts.healthcheckInterval, err)
 			}
 			healthcheck.Interval = duration
 			args = args + "--interval=" + iopts.healthcheckInterval + " "
@@ -330,7 +347,7 @@ func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configR
 		if c.Flag("healthcheck-start-period").Changed {
 			duration, err := time.ParseDuration(iopts.healthcheckStartPeriod)
 			if err != nil {
-				logrus.Errorf("error parsing --healthcheck-start-period %q: %v", iopts.healthcheckStartPeriod, err)
+				return errors.Errorf("error parsing --healthcheck-start-period %q: %v", iopts.healthcheckStartPeriod, err)
 			}
 			healthcheck.StartPeriod = duration
 			args = args + "--start-period=" + iopts.healthcheckStartPeriod + " "
@@ -338,7 +355,7 @@ func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configR
 		if c.Flag("healthcheck-timeout").Changed {
 			duration, err := time.ParseDuration(iopts.healthcheckTimeout)
 			if err != nil {
-				logrus.Errorf("error parsing --healthcheck-timeout %q: %v", iopts.healthcheckTimeout, err)
+				return errors.Errorf("error parsing --healthcheck-timeout %q: %v", iopts.healthcheckTimeout, err)
 			}
 			healthcheck.Timeout = duration
 			args = args + "--timeout=" + iopts.healthcheckTimeout + " "
@@ -351,6 +368,7 @@ func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configR
 			conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) HEALTHCHECK %s%s", args, iopts.healthcheck)
 		}
 	}
+	return nil
 }
 
 func configCmd(c *cobra.Command, args []string, iopts configResults) error {
@@ -375,6 +393,8 @@ func configCmd(c *cobra.Command, args []string, iopts configResults) error {
 		return errors.Wrapf(err, "error reading build container %q", name)
 	}
 
-	updateConfig(builder, c, iopts)
+	if err := updateConfig(builder, c, iopts); err != nil {
+		return err
+	}
 	return builder.Save()
 }
