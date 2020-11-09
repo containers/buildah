@@ -206,13 +206,6 @@ load helpers
   done
 }
 
-@test "idmapping-syntax" {
-  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map=0:10000:65536 alpine
-  expect_output --substring "must be used together"
-  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-gid-map=0:10000:65536 alpine
-  expect_output --substring "must be used together"
-}
-
 general_namespace() {
   mkdir -p $TESTDIR/no-cni-configs
   RUNOPTS="--cni-config-dir=${TESTDIR}/no-cni-configs ${RUNC_BINARY:+--runtime $RUNC_BINARY}"
@@ -372,4 +365,27 @@ general_namespace() {
 	run stat -c %u:%g $mountpoint/randomfile2
 	[ "$status" -eq 0 ]
         expect_output "1:1"
+}
+
+@test "invalid userns-uid-map userns-gid-map" {
+	run_buildah 125 from --userns-uid-map 16  --userns-gid-map 0:48:16 scratch
+	expect_output 'error initializing ID mappings: userns-uid-map setting is malformed expected ["uint32:uint32:uint32"]: ["16"]'
+
+	run_buildah 125 from --userns-uid-map 0:32:16  --userns-gid-map 16 scratch
+	expect_output 'error initializing ID mappings: userns-gid-map setting is malformed expected ["uint32:uint32:uint32"]: ["16"]'
+
+	run_buildah 125 bud --userns-uid-map a  --userns-gid-map bogus bud/from-scratch
+	expect_output 'error initializing ID mappings: userns-uid-map setting is malformed expected ["uint32:uint32:uint32"]: ["a"]'
+
+	run_buildah 125 bud --userns-uid-map 0:32:16 --userns-gid-map bogus bud/from-scratch
+	expect_output 'error initializing ID mappings: userns-gid-map setting is malformed expected ["uint32:uint32:uint32"]: ["bogus"]'
+
+	run_buildah from --userns-uid-map 0:32:16  scratch
+}
+
+@test "idmapping-syntax" {
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map=0:10000:65536 alpine
+
+  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-gid-map=0:10000:65536 alpine
+  expect_output --substring "userns-gid-map can not be used without --userns-uid-map"
 }

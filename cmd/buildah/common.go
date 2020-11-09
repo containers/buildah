@@ -64,40 +64,30 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		return nil, errors.Errorf("cannot mount using driver %s in rootless mode. You need to run it in a `buildah unshare` session", options.GraphDriverName)
 	}
 
-	// For uid/gid mappings, first we check the global definitions
-	if len(globalFlagResults.UserNSUID) > 0 || len(globalFlagResults.UserNSGID) > 0 {
-		if !(len(globalFlagResults.UserNSUID) > 0 && len(globalFlagResults.UserNSGID) > 0) {
-			return nil, errors.Errorf("--userns-uid-map and --userns-gid-map must be used together")
-		}
+	if len(globalFlagResults.UserNSUID) > 0 {
 		uopts := globalFlagResults.UserNSUID
 		gopts := globalFlagResults.UserNSGID
-		if len(uopts) == 0 {
-			return nil, errors.New("--userns-uid-map used with no mappings?")
-		}
+
 		if len(gopts) == 0 {
-			return nil, errors.New("--userns-gid-map used with no mappings?")
+			gopts = uopts
 		}
+
 		uidmap, gidmap, err := unshare.ParseIDMappings(uopts, gopts)
 		if err != nil {
 			return nil, err
 		}
 		options.UIDMap = uidmap
 		options.GIDMap = gidmap
+	} else {
+		if len(globalFlagResults.UserNSGID) > 0 {
+			return nil, errors.New("option --userns-gid-map can not be used without --userns-uid-map")
+		}
 	}
 
 	// If a subcommand has the flags, check if they are set; if so, override the global values
-	localUIDMapFlag := c.Flags().Lookup("userns-uid-map")
-	localGIDMapFlag := c.Flags().Lookup("userns-gid-map")
-	if localUIDMapFlag != nil && localGIDMapFlag != nil && (localUIDMapFlag.Changed || localGIDMapFlag.Changed) {
-		if !(localUIDMapFlag.Changed && localGIDMapFlag.Changed) {
-			return nil, errors.Errorf("--userns-uid-map and --userns-gid-map must be used together")
-		}
-		// We know that the flags are both !nil and have been changed (i.e. have values)
+	if c.Flags().Lookup("userns-uid-map").Changed {
 		uopts, _ := c.Flags().GetStringSlice("userns-uid-map")
 		gopts, _ := c.Flags().GetStringSlice("userns-gid-map")
-		if len(uopts) == 0 {
-			return nil, errors.New("--userns-uid-map used with no mappings?")
-		}
 		if len(gopts) == 0 {
 			gopts = uopts
 		}
@@ -107,8 +97,11 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		}
 		options.UIDMap = uidmap
 		options.GIDMap = gidmap
+	} else {
+		if c.Flags().Lookup("userns-gid-map").Changed {
+			return nil, errors.New("option --userns-gid-map can not be used without --userns-uid-map")
+		}
 	}
-
 	umask.CheckUmask()
 
 	store, err := storage.GetStore(options)
