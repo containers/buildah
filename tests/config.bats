@@ -16,6 +16,31 @@ load helpers
   check_options_flag_err "--annotation=service=cache"
 }
 
+@test "config-flags-verification" {
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah 125 config --label LABEL $cid
+  expect_output --substring 'error adding label "LABEL": no value given'
+
+  run_buildah 125 config --annotation ANNOTATION $cid
+  expect_output --substring 'error adding annotation "ANNOTATION": no value given'
+
+  run_buildah 125 config --healthcheck 'AB "CD' $cid
+  expect_output --substring 'error parsing --healthcheck "AB \"CD": invalid command line string'
+
+  run_buildah 125 config --healthcheck-interval ABCD $cid
+  expect_output --substring 'error parsing --healthcheck-interval "ABCD": time: invalid duration ABCD'
+
+  run_buildah 125 config --cmd 'AB "CD' $cid
+  expect_output --substring 'error parsing --cmd "AB \"CD": invalid command line string'
+
+  run_buildah 125 config --env ENV $cid
+  expect_output --substring 'error setting env "ENV": no value given'
+
+  run_buildah 125 config --shell 'AB "CD' $cid
+  expect_output --substring 'error parsing --shell "AB \"CD": invalid command line string'
+}
+
 function check_matrix() {
   local setting=$1
   local expect=$2
@@ -23,8 +48,8 @@ function check_matrix() {
   # matrix test: all permutations of .Docker.* and .OCIv1.* in all image types
   for image in docker oci; do
       for which in Docker OCIv1; do
-        run_buildah inspect --type=image --format "{{.$which.$setting}}" scratch-image-$image
-        expect_output "$expect"
+	run_buildah inspect --type=image --format "{{.$which.$setting}}" scratch-image-$image
+	expect_output "$expect"
     done
   done
 }
@@ -70,6 +95,19 @@ function check_matrix() {
   check_matrix 'Config.Cmd' '[command]'
 }
 
+@test "config cmd without entrypoint" {
+  run_buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah config \
+   --cmd COMMAND-OR-ARGS \
+  $cid
+  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+
+  check_matrix 'Config.Cmd' '[COMMAND-OR-ARGS]'
+  check_matrix 'Config.Entrypoint' '[]'
+}
+
 @test "config entrypoint with cmd" {
   run_buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
@@ -82,12 +120,16 @@ function check_matrix() {
 
   check_matrix 'Config.Cmd' '[COMMAND-OR-ARGS]'
 
+  run_buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
   run_buildah config \
    --entrypoint /ENTRYPOINT \
   $cid
 
   run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+
+  check_matrix 'Config.Cmd' '[]'
 
   run_buildah config \
    --entrypoint /ENTRYPOINT \
@@ -97,6 +139,15 @@ function check_matrix() {
   run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
   check_matrix 'Config.Cmd' '[COMMAND-OR-ARGS]'
+
+  run_buildah config \
+   --entrypoint /ENTRYPOINT \
+   --cmd '[ "/COMMAND", "ARG1", "ARG2"]' \
+  $cid
+
+  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  check_matrix 'Config.Cmd' '[/COMMAND ARG1 ARG2]'
 }
 
 @test "config" {
