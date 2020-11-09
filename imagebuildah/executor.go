@@ -112,6 +112,15 @@ type Executor struct {
 	stagesSemaphore                *semaphore.Weighted
 	jobs                           int
 	logRusage                      bool
+	imageInfoLock                  sync.Mutex
+	imageInfoCache                 map[string]imageTypeAndHistoryAndDiffIDs
+}
+
+type imageTypeAndHistoryAndDiffIDs struct {
+	manifestType string
+	history      []v1.History
+	diffIDs      []digest.Digest
+	err          error
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
@@ -216,6 +225,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		terminatedStage:                make(map[string]struct{}),
 		jobs:                           jobs,
 		logRusage:                      options.LogRusage,
+		imageInfoCache:                 make(map[string]imageTypeAndHistoryAndDiffIDs),
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -338,6 +348,12 @@ func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebu
 
 // getImageTypeAndHistoryAndDiffIDs returns the manifest type, history, and diff IDs list of imageID.
 func (b *Executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID string) (string, []v1.History, []digest.Digest, error) {
+	b.imageInfoLock.Lock()
+	imageInfo, ok := b.imageInfoCache[imageID]
+	b.imageInfoLock.Unlock()
+	if ok {
+		return imageInfo.manifestType, imageInfo.history, imageInfo.diffIDs, imageInfo.err
+	}
 	imageRef, err := is.Transport.ParseStoreReference(b.store, "@"+imageID)
 	if err != nil {
 		return "", nil, nil, errors.Wrapf(err, "error getting image reference %q", imageID)
@@ -358,6 +374,14 @@ func (b *Executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID
 	if manifestFormat == "" && len(manifestBytes) > 0 {
 		manifestFormat = manifest.GuessMIMEType(manifestBytes)
 	}
+	b.imageInfoLock.Lock()
+	b.imageInfoCache[imageID] = imageTypeAndHistoryAndDiffIDs{
+		manifestType: manifestFormat,
+		history:      oci.History,
+		diffIDs:      oci.RootFS.DiffIDs,
+		err:          nil,
+	}
+	b.imageInfoLock.Unlock()
 	return manifestFormat, oci.History, oci.RootFS.DiffIDs, nil
 }
 
