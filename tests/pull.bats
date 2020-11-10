@@ -249,3 +249,20 @@ load helpers
   umount /tmp/buildah-test
   rm -rf /tmp/buildah-test
 }
+
+@test "pull with authfile" {
+  _prefetch busybox
+  mkdir ${TESTDIR}/tmp
+  run_buildah push --creds testuser:testpassword --tls-verify=false busybox docker://localhost:5000/buildah/busybox:latest
+  run_buildah login --authfile ${TESTDIR}/tmp/test.auth --username testuser --password testpassword --tls-verify=false localhost:5000
+  run_buildah pull --authfile ${TESTDIR}/tmp/test.auth --tls-verify=false docker://localhost:5000/buildah/busybox:latest
+  run_buildah rmi localhost:5000/buildah/busybox:latest
+
+  rm -rf ${TESTDIR}/tmp
+}
+
+@test "pull quietly" {
+  run_buildah pull -q busybox
+  iid=$output
+  run_buildah rmi ${iid}
+}
