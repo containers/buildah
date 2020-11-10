@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
@@ -26,6 +27,7 @@ type pullOptions struct {
 	removeSignatures bool
 	tlsVerify        bool
 	decryptionKeys   []string
+	pullPolicy       string
 }
 
 func init() {
@@ -57,6 +59,7 @@ func init() {
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "store copies of pulled image blobs in the specified directory")
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
+	flags.StringVar(&opts.pullPolicy, "policy", "missing", "missing, always, or never.")
 	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pulling image")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	flags.StringSliceVar(&opts.decryptionKeys, "decryption-key", nil, "key needed to decrypt the image")
@@ -109,6 +112,10 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		return errors.Wrapf(err, "unable to obtain decrypt config")
 	}
 
+	policy, ok := define.PolicyMap[iopts.pullPolicy]
+	if !ok {
+		return fmt.Errorf("unrecognized pull policy %s", iopts.pullPolicy)
+	}
 	options := buildah.PullOptions{
 		SignaturePolicyPath: iopts.signaturePolicy,
 		Store:               store,
@@ -120,6 +127,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		MaxRetries:          maxPullPushRetries,
 		RetryDelay:          pullPushRetryDelay,
 		OciDecryptConfig:    decConfig,
+		PullPolicy:          policy,
 	}
 
 	if iopts.quiet {

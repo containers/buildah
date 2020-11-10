@@ -70,6 +70,14 @@ The [key[:passphrase]] to be used for decryption of images. Key can point to key
 
 If an image needs to be pulled from the registry, suppress progress output.
 
+**--policy**=**always**|**missing**|**never**
+
+Pull image policy. The default is **missing**.
+
+- **missing**: attempt to pull the latest image from the registries listed in registries.conf if a local image does not exist. Raise an error if the image is not in any listed registry and is not present locally.
+- **always**: Pull the image from the first registry it is found in as listed in  registries.conf. Raise an error if not found in the registries, even if the image is present locally.
+- **never**: do not pull the image from the registry, use only the local version. Raise an error if the image is not present locally.
+
 **--remove-signatures**
 
 Don't copy signatures when pulling images.

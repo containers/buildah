@@ -266,3 +266,49 @@ load helpers
   iid=$output
   run_buildah rmi ${iid}
 }
+
+@test "pull-policy" {
+  mkdir ${TESTDIR}/buildahtest
+  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --policy bogus alpine
+  expect_output --substring "unrecognized pull policy bogus"
+
+  #  If image does not exist the never will fail
+  run_buildah 125 pull -q --signature-policy ${TESTSDIR}/policy.json --policy never alpine
+  expect_output --substring "no such image"
+  run_buildah 125 inspect alpine
+  expect_output --substring "image not known"
+
+  # create bogus alpine image
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah commit -q $cid docker.io/library/alpine
+  iid=$output
+
+  #  If image does not exist the never will succeed, but iid should not change
+  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --policy never alpine
+  expect_output $iid
+
+  # Pull image by default should change the image id
+  run_buildah pull -q --policy always --signature-policy ${TESTSDIR}/policy.json alpine
+  if [[ $output == $iid ]]; then
+      expect_output "[output should not be '$iid']"
+  fi
+
+  # Recreate image
+  run_buildah commit -q $cid docker.io/library/alpine
+  iid=$output
+
+  # Make sure missing image works
+  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --policy missing alpine
+  expect_output $iid
+
+  run_buildah rmi alpine
+  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah inspect alpine
+
+  run_buildah rmi alpine
+  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --policy missing alpine
+  run_buildah inspect alpine
+
+  run_buildah rmi alpine
+}
