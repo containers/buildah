@@ -2,6 +2,11 @@
 
 load helpers
 
+@test "bud with a path to a Dockerfile (-f) containing a non-directory entry" {
+  run_buildah 125 bud -f ${TESTSDIR}/bud/non-directory-in-path/non-directory/Dockerfile
+  expect_output --substring "non-directory/Dockerfile: not a directory"
+}
+
 @test "bud with --dns* flags" {
   _prefetch alpine
   run_buildah bud --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc  --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dns/Dockerfile  ${TESTSDIR}/bud/dns
