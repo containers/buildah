@@ -1,11 +1,13 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"sync"
 	"syscall"
@@ -375,6 +377,28 @@ func logIfNotErrno(err error, what string, ignores ...syscall.Errno) (logged boo
 	}
 	logrus.Error(what)
 	return true
+}
+
+// LogJSON is a helper function to log data structures as JSON.
+// The given wrappingKey will contain the provided data.
+// Unexpected characters will be replaced by asterisks.
+// The logged lines then may be post-processed with external pretty log parsers.
+func LogJSON(wrappingKey string, data interface{}) {
+	rawResult, err := json.Marshal(data)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	// Replace bad chars with a cat for external pretty log parsers
+	re := regexp.MustCompile(`[#=\']|\\"`)
+	safeResult := string(re.ReplaceAll(rawResult, []byte("*")))
+	result := ""
+	if wrappingKey != "" {
+		result = fmt.Sprintf(`{"%s": %s}`, wrappingKey, strings.Trim(safeResult, " \r\n"))
+	} else {
+		result = strings.Trim(safeResult, " \r\n")
+	}
+	// Provide ultimate result as a separate single line for external parsers
+	logrus.Debugf(result)
 }
 
 // LogIfNotRetryable logs "what" if err is set and is not an EINTR or EAGAIN

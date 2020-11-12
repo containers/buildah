@@ -123,6 +123,19 @@ type imageTypeAndHistoryAndDiffIDs struct {
 	err          error
 }
 
+// Helper type channels imageTypeAndHistoryAndDiffIDs for JSON Logger
+type imageTypeAndHistoryAndDiffIDsJSON struct {
+	ManifestType string          `json:"manifest_type"`
+	History      []v1.History    `json:"history"`
+	DiffIDs      []digest.Digest `json:"diff_ids"`
+	Err          error           `json:"err"`
+}
+
+// Helper type channels imageInfoCache for JSON Logger
+type envelopExecutorJSON struct {
+	ImageInfoCache map[string]imageTypeAndHistoryAndDiffIDsJSON `json:"image_info_cache"`
+}
+
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
 func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Node) (*Executor, error) {
 	defaultContainerConfig, err := config.Default()
@@ -350,8 +363,44 @@ func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebu
 func (b *Executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID string) (string, []v1.History, []digest.Digest, error) {
 	b.imageInfoLock.Lock()
 	imageInfo, ok := b.imageInfoCache[imageID]
+
+	// Wrap unexported data in cache structures for JSON Logger
+	exporter := func(wrapper string, data interface{}) (string, envelopExecutorJSON) {
+		result := envelopExecutorJSON{}
+		wrappingKey := wrapper
+		result.ImageInfoCache = make(map[string]imageTypeAndHistoryAndDiffIDsJSON)
+		switch tv := data.(type) {
+		case map[string]imageTypeAndHistoryAndDiffIDs:
+			for k, v := range tv {
+				i := imageTypeAndHistoryAndDiffIDsJSON{}
+				i.ManifestType = v.manifestType
+				i.History = v.history
+				i.DiffIDs = v.diffIDs
+				i.Err = v.err
+				result.ImageInfoCache[k] = i
+				wrappingKey = ""
+			}
+		case imageTypeAndHistoryAndDiffIDs:
+			i := imageTypeAndHistoryAndDiffIDsJSON{}
+			i.ManifestType = tv.manifestType
+			i.History = tv.history
+			i.DiffIDs = tv.diffIDs
+			i.Err = tv.err
+			result.ImageInfoCache[wrapper] = i
+			wrappingKey = ""
+		default:
+			return wrapper, result
+		}
+		return wrappingKey, result
+	}
+
+	// FIXME(bogdando): this may be too verbose, but nice to notice unexpected
+	// changes in cache. Maybe drop that extra logging later.
+	util.LogJSON(exporter("", b.imageInfoCache))
 	b.imageInfoLock.Unlock()
 	if ok {
+		logrus.Debugf("found image %s in cache:", imageID)
+		util.LogJSON(exporter(imageID, imageInfo))
 		return imageInfo.manifestType, imageInfo.history, imageInfo.diffIDs, imageInfo.err
 	}
 	imageRef, err := is.Transport.ParseStoreReference(b.store, "@"+imageID)
@@ -381,6 +430,8 @@ func (b *Executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID
 		diffIDs:      oci.RootFS.DiffIDs,
 		err:          nil,
 	}
+	logrus.Debugf("updated image %s in cache:", imageID)
+	util.LogJSON(exporter(imageID, b.imageInfoCache[imageID]))
 	b.imageInfoLock.Unlock()
 	return manifestFormat, oci.History, oci.RootFS.DiffIDs, nil
 }

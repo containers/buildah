@@ -1115,6 +1115,10 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 		if err != nil {
 			return "", errors.Wrapf(err, "error getting history of base image %q", s.builder.FromImageID)
 		}
+		logrus.Debugf("base image %s history:", s.builder.FromImageID)
+		util.LogJSON(s.builder.FromImageID, baseHistory)
+		logrus.Debugf("base image %s diffIDs:", s.builder.FromImageID)
+		util.LogJSON(s.builder.FromImageID, baseDiffIDs)
 	}
 	for _, image := range images {
 		var imageTopLayer *storage.Layer
@@ -1151,6 +1155,10 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 			logrus.Debugf("error getting history of %q (%v), ignoring it", image.ID, err)
 			continue
 		}
+		logrus.Debugf("image %s history:", image.ID)
+		util.LogJSON(image.ID, history)
+		logrus.Debugf("image %s diffIDs:", image.ID)
+		util.LogJSON(image.ID, diffIDs)
 		// If this candidate isn't of the type that we're building, then it may have lost
 		// some format-specific information that a building-without-cache run wouldn't lose.
 		if manifestType != s.executor.outputFormat {
