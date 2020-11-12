@@ -137,7 +137,7 @@ func openBuilder(ctx context.Context, store storage.Store, name string) (builder
 		}
 	}
 	if err != nil {
-		return nil, errors.Wrapf(err, "error reading build container")
+		return nil, err
 	}
 	if builder == nil {
 		return nil, errors.Errorf("error finding build container")
@@ -156,7 +156,7 @@ func openImage(ctx context.Context, sc *types.SystemContext, store storage.Store
 	}
 	builder, err = buildah.ImportBuilderFromImage(ctx, store, options)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error reading image")
+		return nil, err
 	}
 	if builder == nil {
 		return nil, errors.Errorf("error mocking up build configuration")
