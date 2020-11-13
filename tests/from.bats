@@ -277,7 +277,8 @@ load helpers
 @test "from pull never" {
   run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --pull-never busybox
   echo "$output"
-  expect_output --substring "no such image"
+  expect_output --substring "pull policy is \"never\" but \""
+  expect_output --substring "\" could not be found locally"
 
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull=false busybox
   echo "$output"
