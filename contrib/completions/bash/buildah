@@ -613,6 +613,7 @@ return 1
      --cert-dir
      --creds
      --decryption-key
+     --policy
   "
 
      local all_options="$options_with_args $boolean_options"

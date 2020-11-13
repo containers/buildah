@@ -53,7 +53,7 @@ load helpers
   cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json --rm $cid alpine-image
   run_buildah 125 rm $cid
-  expect_output --substring "error removing container \"alpine-working-container\": error reading build container: container not known"
+  expect_output --substring "error removing container \"alpine-working-container\": container not known"
 }
 
 @test "commit-alternate-storage" {

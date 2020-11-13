@@ -12,9 +12,9 @@ load helpers
 
 @test "remove multiple containers errors" {
   run_buildah 125 rm mycontainer1 mycontainer2 mycontainer3
-  expect_output --from="${lines[0]}" "error removing container \"mycontainer1\": error reading build container: container not known" "output line 1"
-  expect_output --from="${lines[1]}" "error removing container \"mycontainer2\": error reading build container: container not known" "output line 2"
-  expect_output --from="${lines[2]}" "error removing container \"mycontainer3\": error reading build container: container not known" "output line 3"
+  expect_output --from="${lines[0]}" "error removing container \"mycontainer1\": container not known" "output line 1"
+  expect_output --from="${lines[1]}" "error removing container \"mycontainer2\": container not known" "output line 2"
+  expect_output --from="${lines[2]}" "error removing container \"mycontainer3\": container not known" "output line 3"
   expect_line_count 3
 }
 
