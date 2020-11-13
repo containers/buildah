@@ -1986,7 +1986,6 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 }
 
 func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, shmSize string) error {
-	spec.Hostname = ""
 	spec.Process.User.AdditionalGids = nil
 	spec.Linux.Resources = nil
 
@@ -2142,10 +2141,6 @@ func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) 
 			logrus.Debugf("Forcing use of a user namespace.")
 		}
 		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.UserNamespace)})
-		if ns := options.NamespaceOptions.Find(string(specs.UTSNamespace)); ns != nil && !ns.Host {
-			logrus.Debugf("Disabling UTS namespace.")
-		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.UTSNamespace), Host: true})
 	case IsolationOCI:
 		pidns := options.NamespaceOptions.Find(string(specs.PIDNamespace))
 		userns := options.NamespaceOptions.Find(string(specs.UserNamespace))

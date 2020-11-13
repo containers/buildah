@@ -214,7 +214,6 @@ function configure_and_check_user() {
 }
 
 @test "run --hostname" {
-	skip_if_rootless
 	skip_if_no_runtime
 
 	_prefetch alpine
