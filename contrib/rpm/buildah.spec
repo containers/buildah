@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.18.0-dev
+Version:        1.18.0
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,7 +99,36 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Thu Oct 29, 2020 Tom Sweeney <tsweeney@redhat.com> 1.18.0-dev-1
+* Sat Nov 14, 2020 Tom Sweeney <tsweeney@redhat.com> 1.18.0-1
+- Vendor in containers/storage v1.24.0
+- short-names aliasing
+- Add --policy flag to buildah pull
+- Stop overwrapping and stuttering
+- copier.Get(): ignore ENOTSUP/ENOSYS when listing xattrs
+- Run: don't forcibly disable UTS namespaces in rootless mode
+- test: ensure non-directory in a Dockerfile path is handled correctly
+- Add a few tests for `pull` command
+- Fix buildah config --cmd to handle array
+- build(deps): bump github.com/containers/storage from 1.23.8 to 1.23.9
+- Fix NPE when Dockerfile path contains non-directory entries
+- Update buildah bud man page from podman build man page
+- Move declaration of decryption-keys to common cli
+- Run: correctly call copier.Mkdir
+- util: digging UID/GID out of os.FileInfo should work on Unix
+- imagebuildah.getImageTypeAndHistoryAndDiffIDs: cache results
+- Verify userns-uid-map and userns-gid-map input
+- Use CPP, CC and flags in dep check scripts
+- Avoid overriding LDFLAGS in Makefile
+- ADD: handle --chown on URLs
+- Update nix pin with `make nixpkgs`
+- (*Builder).Run: MkdirAll: handle EEXIST error
+- copier: try to force loading of nsswitch modules before chroot()
+- fix MkdirAll usage
+- build(deps): bump github.com/containers/common from 0.26.2 to 0.26.3
+- build(deps): bump github.com/containers/storage from 1.23.7 to 1.23.8
+- Use osusergo build tag for static build
+- imagebuildah: cache should take image format into account
+- Bump to v1.18.0-dev
 
 * Thu Oct 29, 2020 Tom Sweeney <tsweeney@redhat.com> 1.17.0-1
 - Handle cases where other tools mount/unmount containers
