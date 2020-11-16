@@ -134,3 +134,25 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah inspect --format ''{{.OCIv1.Architecture}}' test-container
     expect_output --substring arm64
 }
+
+@test "manifest-no-matching-instance" {
+    # Check that local images which we can't load the config and history for
+    # don't just break multi-layer builds.
+    #
+    # Create a test list with some stuff in it.
+    run_buildah manifest create test-list
+    run_buildah manifest add --all test-list ${IMAGE_LIST}
+    # Remove the entry for the current arch from the list.
+    arch=$(go env GOARCH)
+    run_buildah manifest inspect test-list
+    archinstance=$(jq -r '.manifests|map(select(.platform.architecture=="'$arch'"))[].digest' <<< "$output")
+    run_buildah manifest remove test-list $archinstance
+    # Try to build using the build cache.
+    mkdir ${TESTDIR}/build
+    echo 'much content, wow.' > ${TESTDIR}/build/content.txt
+    echo 'FROM scratch' > ${TESTDIR}/build/Dockerfile
+    echo 'ADD content.txt /' >> ${TESTDIR}/build/Dockerfile
+    run_buildah bud --layers --iidfile image-id.txt ${TESTDIR}/build
+    # Make sure we can add the new image to the list.
+    run_buildah manifest add test-list $(cat image-id.txt)
+}
