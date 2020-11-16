@@ -2,6 +2,15 @@
 
 # Changelog
 
+## v1.16.6 (2020-11-16)
+    copier.Get(): ignore ENOTSUP/ENOSYS when listing xattrs
+    ADD: handle --chown on URLs
+    imagebuildah: cache should take image format into account
+    copier: try to force loading of nsswitch modules before chroot()
+    overlay: use fusermount for rootless umounts
+    overlay: fix umount
+    copier: put: ignore Typeflag="g"
+
 ## v1.16.5 (2020-10-21)
     copier.copierHandlerPut: don't check length when there are errors
     CI: run gating tasks with a lot more memory
