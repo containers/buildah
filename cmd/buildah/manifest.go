@@ -126,7 +126,7 @@ func init() {
 	flags.StringVar(&manifestAddOpts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVar(&manifestAddOpts.os, "os", "", "override the `OS` of the specified image")
 	flags.StringVar(&manifestAddOpts.arch, "arch", "", "override the `architecture` of the specified image")
-	flags.StringVar(&manifestAddOpts.variant, "variant", "", "override the `Variant` of the specified image")
+	flags.StringVar(&manifestAddOpts.variant, "variant", "", "override the `variant` of the specified image")
 	flags.StringVar(&manifestAddOpts.osVersion, "os-version", "", "override the OS `version` of the specified image")
 	flags.StringSliceVar(&manifestAddOpts.features, "features", nil, "override the `features` of the specified image")
 	flags.StringSliceVar(&manifestAddOpts.osFeatures, "os-features", nil, "override the OS `features` of the specified image")
