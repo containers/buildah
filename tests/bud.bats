@@ -2384,3 +2384,7 @@ EOF
   run cmp tar1 url1
   [[ "$status" -ne 0 ]]
 }
+
+@test "bud-terminal" {
+  run_buildah bud ${TESTSDIR}/bud/terminal
+}

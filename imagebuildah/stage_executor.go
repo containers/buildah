@@ -368,6 +368,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		Stderr:           s.executor.err,
 		Quiet:            s.executor.quiet,
 		NamespaceOptions: s.executor.namespaceOptions,
+		Terminal:         buildah.WithoutTerminal,
 	}
 	if config.NetworkDisabled {
 		options.ConfigureNetwork = buildah.NetworkDisabled
