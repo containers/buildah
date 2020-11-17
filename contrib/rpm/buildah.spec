@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.16.5
+Version:        1.16.6
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,15 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Nov 16 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.6-1
+- copier.Get(): ignore ENOTSUP/ENOSYS when listing xattrs
+- ADD: handle --chown on URLs
+- imagebuildah: cache should take image format into account
+- copier: try to force loading of nsswitch modules before chroot()
+- overlay: use fusermount for rootless umounts
+- overlay: fix umount
+- copier: put: ignore Typeflag="g"
+
 * Wed Oct 21 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.5-1
 - copier.copierHandlerPut: don't check length when there are errors
 - CI: run gating tasks with a lot more memory
