@@ -203,6 +203,9 @@ load helpers
     expect_output "$rootuid:$rootgid 4700"
     run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
     expect_output "0:0 4700"
+
+    # Check that a container with mapped-layer can be committed.
+    run_buildah commit "$ctr" localhost/alpine-working:$i
   done
 }
 
