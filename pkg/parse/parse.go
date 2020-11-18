@@ -486,7 +486,7 @@ func ValidateVolumeCtrDir(ctrDir string) error {
 
 // ValidateVolumeOpts validates a volume's options
 func ValidateVolumeOpts(options []string) ([]string, error) {
-	var foundRootPropagation, foundRWRO, foundLabelChange, bindType, foundExec, foundDev, foundSuid int
+	var foundRootPropagation, foundRWRO, foundLabelChange, bindType, foundExec, foundDev, foundSuid, foundChown int
 	finalOpts := make([]string, 0, len(options))
 	for _, opt := range options {
 		switch opt {
@@ -514,6 +514,11 @@ func ValidateVolumeOpts(options []string) ([]string, error) {
 			foundLabelChange++
 			if foundLabelChange > 1 {
 				return nil, errors.Errorf("invalid options %q, can only specify 1 'z', 'Z', or 'O' option", strings.Join(options, ", "))
+			}
+		case "U":
+			foundChown++
+			if foundChown > 1 {
+				return nil, errors.Errorf("invalid options %q, can only specify 1 'U' option", strings.Join(options, ", "))
 			}
 		case "private", "rprivate", "shared", "rshared", "slave", "rslave", "unbindable", "runbindable":
 			foundRootPropagation++

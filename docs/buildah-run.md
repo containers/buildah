@@ -188,6 +188,7 @@ bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah
 container. The `OPTIONS` are a comma delimited list and can be: <sup>[[1]](#Footnote1)</sup>
 
    * [rw|ro]
+   * [U]
    * [z|Z]
    * [`[r]shared`|`[r]slave`|`[r]private`]
 
@@ -200,9 +201,19 @@ and bind mounts that into the container.
 You can specify multiple  **-v** options to mount one or more mounts to a
 container.
 
+  `Write Protected Volume Mounts`
+
 You can add the `:ro` or `:rw` suffix to a volume to mount it read-only or
 read-write mode, respectively. By default, the volumes are mounted read-write.
 See examples.
+
+  `Chowning Volume Mounts`
+
+By default, Buildah does not change the owner and group of source volume directories mounted into containers. If a container is created in a new user namespace, the UID and GID in the container may correspond to another UID and GID on the host.
+
+The `:U` suffix tells Buildah to use the correct host UID and GID based on the UID and GID within the container, to change the owner and group of the source volume.
+
+  `Labeling Volume Mounts`
 
 Labeling systems like SELinux require that proper labels are placed on volume
 content mounted into a container. Without a label, the security system might
@@ -269,6 +280,8 @@ buildah run --tty containerID /bin/bash
 buildah run --tty=false containerID ls /
 
 buildah run --volume /path/on/host:/path/in/container:ro,z containerID sh
+
+buildah run -v /path/on/host:/path/in/container:z,U containerID sh
 
 buildah run --mount type=bind,src=/tmp/on:host,dst=/in:container,ro containerID sh
 
