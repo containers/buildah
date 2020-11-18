@@ -75,7 +75,7 @@ have been discontinued to avoid
 [conflicts](https://github.com/containers/buildah/issues/2797) with the official packages.
 
 Caution: If you upgrade from Debian 10 to Testing/Bullseye or
-Unstable/Sid you would likely end up downgrading buildah because the version in
+Unstable/Sid you would likely end up downgrading Buildah because the version in
 OBS is more frequently updated than the one in Debian's official repositories,
 due to how Debian works.
 
