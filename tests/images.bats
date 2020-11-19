@@ -46,6 +46,11 @@ load helpers
   cid1=$output
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
   cid2=$output
+
+  run_buildah 125 images --noheading --filter since k8s.gcr.io/pause
+  expect_output 'invalid filter: "since" requires value'
+
+
   run_buildah images --noheading --filter since=k8s.gcr.io/pause
   expect_line_count 1
 }
