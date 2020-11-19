@@ -347,6 +347,13 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		Jobs:                    &iopts.Jobs,
 		LogRusage:               iopts.LogRusage,
 	}
+	if iopts.IgnoreFile != "" {
+		excludes, err := parseDockerignore(iopts.IgnoreFile)
+		if err != nil {
+			return err
+		}
+		options.Excludes = excludes
+	}
 	if c.Flag("timestamp").Changed {
 		timestamp := time.Unix(iopts.Timestamp, 0).UTC()
 		options.Timestamp = &timestamp

@@ -188,3 +188,36 @@ load helpers
   run_buildah add $cid tools/Makefile /
   run_buildah run $cid ls /Makefile
 }
+
+@test "add --ignore" {
+  mytest=${TESTDIR}/mytest
+  mkdir -p ${mytest}
+  touch ${mytest}/mystuff
+  touch ${mytest}/source.go
+  mkdir -p ${mytest}/notmystuff
+  touch ${mytest}/notmystuff/notmystuff
+  cat > ${mytest}/.ignore << _EOF
+*.go
+.ignore
+notmystuff
+_EOF
+
+expect="
+stuff
+stuff/mystuff"
+
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+
+  run_buildah 125 copy --ignorefile ${mytest}/.ignore $cid ${mytest} /stuff
+  expect_output -- "--ignore options requires that you specify a context dir using --contextdir" "container file list"
+
+  run_buildah add --contextdir=${mytest} --ignorefile ${mytest}/.ignore $cid ${mytest} /stuff
+
+  run_buildah mount $cid
+  mnt=$output
+  run find $mnt -printf "%P\n"
+  filelist=$(LC_ALL=C sort <<<"$output")
+  run_buildah umount $cid
+  expect_output --from="$filelist" "$expect" "container file list"
+}

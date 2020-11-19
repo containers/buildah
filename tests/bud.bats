@@ -2388,3 +2388,27 @@ EOF
 @test "bud-terminal" {
   run_buildah bud ${TESTSDIR}/bud/terminal
 }
+
+@test "bud --ignore containerignore" {
+  _prefetch alpine busybox
+
+  CONTEXTDIR=${TESTDIR}/dockerignore
+  cp -r ${TESTSDIR}/bud/dockerignore ${CONTEXTDIR}
+  mv ${CONTEXTDIR}/.dockerignore ${TESTDIR}/containerignore
+
+  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${CONTEXTDIR}/Dockerfile.succeed --ignorefile  ${TESTDIR}/containerignore  ${CONTEXTDIR}
+
+  run_buildah from --name myctr testbud
+
+  run_buildah 1 run myctr ls -l test1.txt
+
+  run_buildah run myctr ls -l test2.txt
+
+  run_buildah 1 run myctr ls -l sub1.txt
+
+  run_buildah 1 run myctr ls -l sub2.txt
+
+  run_buildah run myctr ls -l subdir/sub1.txt
+
+  run_buildah 1 run myctr ls -l subdir/sub2.txt
+}
