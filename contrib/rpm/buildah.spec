@@ -50,6 +50,7 @@ Requires:       runc >= 1.0.0-6
 Requires:       container-selinux
 Requires:       skopeo-containers
 %else
+Suggests:       cpp
 Recommends:     container-selinux
 Recommends:     slirp4netns >= 0.3-0
 Recommends:     fuse-overlayfs
