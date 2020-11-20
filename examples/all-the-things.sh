@@ -1,5 +1,6 @@
-#!/usr/bin/env bash -x
+#!/usr/bin/env bash
 set -e
+set -x
 read
 export PATH=`pwd`:$PATH
 systemctl restart ocid
