@@ -316,12 +316,14 @@ Add an image *label* (e.g. label=*value*) to the image metadata. Can be used mul
 Users can set a special LABEL **io.containers.capabilities=CAP1,CAP2,CAP3** in
 a Containerfile that specified the list of Linux capabilities required for the
 container to run properly. This label specified in a container image tells
-Podman to run the container with just these capabilities. Podman launches the
-container with just the specified capabilities, as long as this list of
-capabilities is a subset of the default list.
+container engines, like Podman, to run the container with just these
+capabilities. The container engine launches the container with just the specified
+capabilities, as long as this list of capabilities is a subset of the default
+list.
 
-If the specified capabilities are not in the default set, Podman will
-print an error message and will run the container with the default capabilities.
+If the specified capabilities are not in the default set, container engines
+should print an error message and will run the container with the default
+capabilities.
 
 **--layers** *bool-value*
 
@@ -369,7 +371,7 @@ Sets the configuration for network namespaces when handling `RUN` instructions.
 Valid _mode_ values are:
 
 - **none**: no networking;
-- **host**: use the Podman host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure;
+- **host**: use the host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure;
 - **ns:**_path_: path to a network namespace to join;
 - `private`: create a new namespace for the container (default)
 
