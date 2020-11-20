@@ -1,5 +1,5 @@
-#!/usr/bin/env bash -x
-
+#!/usr/bin/env bash
+set -x
 ctr1=$(buildah from "${1:-fedora}")
 
 ## Get all updates and install our minimal httpd server
