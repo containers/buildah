@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
-	"github.com/containers/buildah/pkg/umask"
+	"github.com/containers/common/pkg/umask"
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
 	is "github.com/containers/image/v5/storage"
@@ -102,7 +102,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 			return nil, errors.New("option --userns-gid-map can not be used without --userns-uid-map")
 		}
 	}
-	umask.CheckUmask()
+	umask.Check()
 
 	store, err := storage.GetStore(options)
 	if store != nil {
