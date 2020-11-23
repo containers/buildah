@@ -6,7 +6,7 @@ require (
 	github.com/containerd/containerd v1.4.1 // indirect
 	github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
 	github.com/containers/common v0.27.0
-	github.com/containers/image/v5 v5.8.0
+	github.com/containers/image/v5 v5.8.1
 	github.com/containers/ocicrypt v1.0.3
 	github.com/containers/storage v1.24.0
 	github.com/docker/distribution v2.7.1+incompatible
