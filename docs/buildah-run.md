@@ -121,7 +121,7 @@ Current supported mount TYPES are bind, and tmpfs. <sup>[[1]](#Footnote1)</sup>
 Sets the configuration for the network namespace for the container.
 
 - **none**: no networking;
-- **host**: use the Podman host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure;
+- **host**: use the host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure;
 - **ns:**_path_: path to a network namespace to join;
 - `private`: create a new namespace for the container (default)
 

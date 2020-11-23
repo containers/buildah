@@ -1,5 +1,6 @@
-#!/usr/bin/env bash -x
+#!/usr/bin/env bash
 set -e
+set -x
 : "[1m Build a temporary directory; make sure ocid is running.[0m"
 export PATH=`pwd`:$PATH
 d=`mktemp -d`

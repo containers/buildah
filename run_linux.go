@@ -25,10 +25,10 @@ import (
 	"github.com/containers/buildah/chroot"
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/pkg/overlay"
-	"github.com/containers/buildah/pkg/secrets"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/capabilities"
 	"github.com/containers/common/pkg/config"
+	"github.com/containers/common/pkg/subscriptions"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
@@ -477,15 +477,15 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 		return errors.Wrapf(err, "error determining work directory for container %q", b.ContainerID)
 	}
 
-	// Figure out which UID and GID to tell the secrets package to use
+	// Figure out which UID and GID to tell the subscritions package to use
 	// for files that it creates.
 	rootUID, rootGID, err := util.GetHostRootIDs(spec)
 	if err != nil {
 		return err
 	}
 
-	// Get the list of secrets mounts.
-	secretMounts := secrets.SecretMountsWithUIDGID(b.MountLabel, cdir, b.DefaultMountsFilePath, mountPoint, int(rootUID), int(rootGID), unshare.IsRootless(), false)
+	// Get the list of subscriptionss mounts.
+	secretMounts := subscriptions.MountsWithUIDGID(b.MountLabel, cdir, b.DefaultMountsFilePath, mountPoint, int(rootUID), int(rootGID), unshare.IsRootless(), false)
 
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
