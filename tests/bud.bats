@@ -2430,5 +2430,14 @@ EOF
   expect_output --substring "FROM alpine"
 
   run_buildah 125 bud --network=bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
-  expect_output "error checking for network namespace: stat bogus: no such file or directory"
+
+}
+
+@test "bud-replace-from-in-containerfile" {
+  _prefetch alpine
+  # override the first FROM (fedora) image in the Containerfile
+  # with alpine, leave the second (busybox) alone.
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --from=alpine ${TESTSDIR}/bud/build-with-from
+  expect_output --substring "STEP 1: FROM alpine AS builder"
+  expect_output --substring "STEP 2: FROM busybox"
 }

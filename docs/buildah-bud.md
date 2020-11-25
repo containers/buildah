@@ -61,6 +61,9 @@ instructions read from the Containerfiles in the same way that environment
 variables are, but which will not be added to environment variable list in the
 resulting image's configuration.
 
+Please refer to the [BUILD TIME VARIABLES](#build-time-variables) section for the
+list of variables that can be overridden within the Containerfile at run time.
+
 **--cache-from**
 
 Images to utilise as potential cache sources. Buildah does not currently support caching so this is a NOOP.
@@ -263,6 +266,11 @@ Recognized formats include *oci* (OCI image-spec v1.0, the default) and
 
 Note: You can also override the default format by setting the BUILDAH\_FORMAT
 environment variable.  `export BUILDAH_FORMAT=docker`
+
+**--from**
+
+Overrides the first `FROM` instruction within the Containerfile.  If there are multiple
+FROM instructions in a Containerfile, only the first is changed.
 
 **-h**, **--help**
 
@@ -666,6 +674,23 @@ will convert /foo into a `shared` mount point.  The propagation properties of th
 mount can be changed directly. For instance if `/` is the source mount for
 `/foo`, then use `mount --make-shared /` to convert `/` into a `shared` mount.
 
+## BUILD TIME VARIABLES
+
+The ENV instruction in a Containerfile can be used to define variable values.  When the image
+is built, the values will persist in the container image.  At times it is more convenient to
+change the values in the Containerfile via a command-line option rather than changing the
+values within the Containerfile itself.
+
+The following variables can be used in conjunction with the `--build-arg` option to override the
+corresponding values set in the Containerfile using the `ENV` instruction.
+
+  * HTTP_PROXY
+  * HTTPS_PROXY
+  * FTP_PROXY
+  * NO_PROXY
+
+Please refer to the [Using Build Time Variables](#using-build-time-variables) section of the Examples.
+
 ## EXAMPLE
 
 ### Build an image using local Containerfiles
@@ -726,6 +751,11 @@ buildah bud --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
   buildah bud -f dev/Containerfile https://10.10.10.1/docker/context.tar.gz
 
   Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
+
+### Using Build Time Variables
+#### Replace the value set for the HTTP_PROXY environment variable within the Containerfile.
+
+buildah bud --build-arg=HTTP_PROXY="http://127.0.0.1:8321"
 
 ## ENVIRONMENT
 
