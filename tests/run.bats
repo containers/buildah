@@ -391,6 +391,23 @@ function configure_and_check_user() {
 	# test a standard mount to /run/.containerenv
 	run_buildah run $cid ls -1 /run/.containerenv
 	expect_output --substring "/run/.containerenv"
+
+	run_buildah run $cid sh -c '. /run/.containerenv; echo $engine'
+	expect_output --substring "buildah"
+
+	run_buildah run $cid sh -c '. /run/.containerenv; echo $name'
+	expect_output "alpine-working-container"
+
+	run_buildah run $cid sh -c '. /run/.containerenv; echo $image'
+	expect_output --substring "alpine:latest"
+
+	rootless=0
+	if ["$(id -u)" -ne 0 ]; then
+		rootless=1
+	fi
+
+	run_buildah run $cid sh -c '. /run/.containerenv; echo $rootless'
+	expect_output ${rootless}
 }
 
 @test "run-device" {
