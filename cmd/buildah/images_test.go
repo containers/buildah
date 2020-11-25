@@ -275,7 +275,7 @@ func TestParseFilterInvalidBefore(t *testing.T) {
 
 	label := "dangling=false,label=a=b,before=:,since=busybox:latest,reference=abcdef"
 	_, err = parseFilter(getContext(), store, images, label)
-	if err == nil || !strings.Contains(err.Error(), "no such id") {
+	if err == nil || !strings.Contains(err.Error(), "invalid filter") {
 		t.Fatalf("expected error parsing filter")
 	}
 }
@@ -299,7 +299,7 @@ func TestParseFilterInvalidSince(t *testing.T) {
 
 	label := "dangling=false,label=a=b,before=busybox:latest,since=:,reference=abcdef"
 	_, err = parseFilter(getContext(), store, images, label)
-	if err == nil || !strings.Contains(err.Error(), "no such id") {
+	if err == nil || !strings.Contains(err.Error(), "invalid filter") {
 		t.Fatalf("expected error parsing filter")
 	}
 }

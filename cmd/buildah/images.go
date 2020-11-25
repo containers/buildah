@@ -171,7 +171,7 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 	if iopts.filter != "" {
 		params, err = parseFilter(ctx, store, images, iopts.filter)
 		if err != nil {
-			return errors.Wrapf(err, "error parsing filter")
+			return err
 		}
 	}
 
@@ -183,6 +183,9 @@ func parseFilter(ctx context.Context, store storage.Store, images []storage.Imag
 	filterStrings := strings.Split(filter, ",")
 	for _, param := range filterStrings {
 		pair := strings.SplitN(param, "=", 2)
+		if len(pair) < 2 {
+			return nil, errors.Errorf("invalid filter: %q requires value", filter)
+		}
 		switch strings.TrimSpace(pair[0]) {
 		case "dangling":
 			if pair[1] == "true" || pair[1] == "false" {
@@ -195,14 +198,14 @@ func parseFilter(ctx context.Context, store storage.Store, images []storage.Imag
 		case "before":
 			beforeDate, err := setFilterDate(ctx, store, images, pair[1])
 			if err != nil {
-				return nil, errors.Errorf("no such id: %s", pair[0])
+				return nil, errors.Wrapf(err, "invalid filter: '%s=[%s]'", pair[0], pair[1])
 			}
 			params.beforeDate = beforeDate
 			params.beforeImage = pair[1]
 		case "since":
 			sinceDate, err := setFilterDate(ctx, store, images, pair[1])
 			if err != nil {
-				return nil, errors.Errorf("no such id: %s", pair[0])
+				return nil, errors.Wrapf(err, "invalid filter: '%s=[%s]'", pair[0], pair[1])
 			}
 			params.sinceDate = sinceDate
 			params.sinceImage = pair[1]
