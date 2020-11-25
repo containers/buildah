@@ -418,6 +418,7 @@ return 1
      --file
      --format
      --http-proxy
+     --ignorefile
      --iidfile
      --isolation
      --ipc
@@ -536,6 +537,8 @@ return 1
 
      local options_with_args="
      --chown
+     --contextdir
+     --ignorefile
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -558,6 +561,8 @@ return 1
 
      local options_with_args="
      -chown
+     --contextdir
+     --ignorefile
   "
 
      local all_options="$options_with_args $boolean_options"

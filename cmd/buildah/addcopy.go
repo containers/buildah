@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"strings"
 
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
@@ -13,6 +15,8 @@ type addCopyResults struct {
 	addHistory bool
 	chown      string
 	quiet      bool
+	ignoreFile string
+	contextdir string
 }
 
 func init() {
@@ -52,6 +56,8 @@ func init() {
 	addFlags.SetInterspersed(false)
 	addFlags.BoolVar(&addOpts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
 	addFlags.StringVar(&addOpts.chown, "chown", "", "set the user and group ownership of the destination content")
+	addFlags.StringVar(&addOpts.contextdir, "contextdir", "", "context directory path")
+	addFlags.StringVar(&addOpts.ignoreFile, "ignorefile", "", "path to .dockerignore file")
 	addFlags.BoolVarP(&addOpts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
 
 	// TODO We could avoid some duplication here if need-be; given it is small, leaving as is
@@ -59,6 +65,8 @@ func init() {
 	copyFlags.SetInterspersed(false)
 	copyFlags.BoolVar(&copyOpts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
 	copyFlags.StringVar(&copyOpts.chown, "chown", "", "set the user and group ownership of the destination content")
+	copyFlags.StringVar(&copyOpts.ignoreFile, "ignorefile", "", "path to .dockerignore file")
+	copyFlags.StringVar(&copyOpts.contextdir, "contextdir", "", "context directory path")
 	copyFlags.BoolVarP(&copyOpts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
 
 	rootCmd.AddCommand(addCommand)
@@ -100,7 +108,19 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, extractLocalArc
 	builder.ContentDigester.Restart()
 
 	options := buildah.AddAndCopyOptions{
-		Chown: iopts.chown,
+		Chown:      iopts.chown,
+		ContextDir: iopts.contextdir,
+	}
+	if iopts.ignoreFile != "" {
+		if iopts.contextdir == "" {
+			return errors.Errorf("--ignore options requires that you specify a context dir using --contextdir")
+		}
+
+		excludes, err := parseDockerignore(iopts.ignoreFile)
+		if err != nil {
+			return err
+		}
+		options.Excludes = excludes
 	}
 
 	err = builder.Add(dest, extractLocalArchives, options, args...)
@@ -125,4 +145,19 @@ func addCmd(c *cobra.Command, args []string, iopts addCopyResults) error {
 
 func copyCmd(c *cobra.Command, args []string, iopts addCopyResults) error {
 	return addAndCopyCmd(c, args, "COPY", false, iopts)
+}
+
+func parseDockerignore(ignoreFile string) ([]string, error) {
+	var excludes []string
+	ignore, err := ioutil.ReadFile(ignoreFile)
+	if err != nil {
+		return excludes, err
+	}
+	for _, e := range strings.Split(string(ignore), "\n") {
+		if len(e) == 0 || e[0] == '#' {
+			continue
+		}
+		excludes = append(excludes, e)
+	}
+	return excludes, nil
 }

@@ -25,6 +25,16 @@ BUILDAH\_HISTORY environment variable. `export BUILDAH_HISTORY=true`
 
 Sets the user and group ownership of the destination content.
 
+**--contextdir**
+
+Build context directory. Specifying a context directory causes Buildah to
+chroot into a the context directory. This means copying files pointed at
+by symbolic links outside of the chroot will fail.
+
+**--ignorefile**
+
+Path to an alternative .dockerignore file. Requires --contextdir be specified.
+
 **--quiet**, **-q**
 
 Refrain from printing a digest of the copied content.
@@ -47,13 +57,13 @@ buildah copy containerID 'passwd' 'certs.d' /etc
 
 ## FILES
 
-### `.dockerignore`
+### .dockerignore
 
-If the file .dockerignore exists in the context directory, `buildah copy` reads
-its contents. Buildah uses the content to exclude files and directories from
-the context directory, when copying content into the image.
+When the \fB\fC\-\-ignorefile\fR option is specified Buildah reads the
+content to exclude files and directories from the source directory, when
+copying content into the image.
 
-Users can specify a series of Unix shell globals in a .dockerignore file to
+Users can specify a series of Unix shell globals in a inore file to
 identify files/directories to exclude.
 
 Buildah supports a special wildcard string `**` which matches any number of
