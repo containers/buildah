@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v1.16.7 (2020-11-30)
+    Bump github.com/containers/common from v0.21.0 to v0.22.0.
+    Bump github.com/containers/image from v5.5.2 to v5.6.0.
+    Bump github.com/containers/storage from 1.23.3 to v1.23.5.
+
 ## v1.16.6 (2020-11-16)
     copier.Get(): ignore ENOTSUP/ENOSYS when listing xattrs
     ADD: handle --chown on URLs
