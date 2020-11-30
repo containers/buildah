@@ -16,6 +16,7 @@ import (
 
 	cp "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/pkg/blobinfocache/none"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -31,20 +32,6 @@ var (
 	_   types.ImageSource    = &supplementedImageSource{}
 	now                      = time.Now()
 )
-
-type nullbic struct {
-}
-
-func (b *nullbic) UncompressedDigest(anyDigest digest.Digest) digest.Digest {
-	return ""
-}
-func (b *nullbic) RecordDigestUncompressedPair(anyDigest digest.Digest, uncompressed digest.Digest) {
-}
-func (b *nullbic) RecordKnownLocation(transport types.ImageTransport, scope types.BICTransportScope, digest digest.Digest, location types.BICLocationReference) {
-}
-func (b *nullbic) CandidateLocations(transport types.ImageTransport, scope types.BICTransportScope, digest digest.Digest, canSubstitute bool) []types.BICReplacementCandidate {
-	return nil
-}
 
 func makeLayer(t *testing.T) []byte {
 	var b bytes.Buffer
@@ -138,14 +125,14 @@ func makeImage(t *testing.T, arch, os string) (ref types.ImageReference, dir str
 		Digest:    digest.Canonical.FromBytes(layerBytes),
 		Size:      int64(len(layerBytes)),
 	}
-	_, err = dest.PutBlob(ctx, bytes.NewReader(layerBytes), bi, &nullbic{}, false)
+	_, err = dest.PutBlob(ctx, bytes.NewReader(layerBytes), bi, none.NoCache, false)
 	assert.Nilf(t, err, "error storing layer blob to 'dir:%s'", dir)
 	bi = types.BlobInfo{
 		MediaType: v1.MediaTypeImageConfig,
 		Digest:    digest.Canonical.FromBytes(configBytes),
 		Size:      int64(len(configBytes)),
 	}
-	_, err = dest.PutBlob(ctx, bytes.NewReader(configBytes), bi, &nullbic{}, true)
+	_, err = dest.PutBlob(ctx, bytes.NewReader(configBytes), bi, none.NoCache, true)
 	assert.Nilf(t, err, "error storing config blob to 'dir:%s'", dir)
 	err = dest.PutManifest(ctx, manifestBytes, nil)
 	assert.Nilf(t, err, "error storing manifest to 'dir:%s'", dir)
@@ -360,7 +347,7 @@ func TestSupplemented(t *testing.T) {
 				Digest: digest.Canonical.FromBytes(expect),
 				Size:   int64(len(expect)),
 			}
-			rc, _, err := src.GetBlob(ctx, bi, &nullbic{})
+			rc, _, err := src.GetBlob(ctx, bi, none.NoCache)
 			assert.Nilf(t, err, "error reading blob 'dir:%s'[%s][%d]", multidir, test.label, i)
 			_, err = io.Copy(ioutil.Discard, rc)
 			assert.Nilf(t, err, "error discarding blob 'dir:%s'[%s][%d]", multidir, test.label, i)
@@ -371,7 +358,7 @@ func TestSupplemented(t *testing.T) {
 				Digest: digest.Canonical.FromBytes(expect),
 				Size:   int64(len(expect)),
 			}
-			_, _, err := src.GetBlob(ctx, bi, &nullbic{})
+			_, _, err := src.GetBlob(ctx, bi, none.NoCache)
 			assert.NotNilf(t, err, "unexpected success reading blob 'dir:%s'[%s][%d]", multidir, test.label, i)
 		}
 		options := cp.Options{
