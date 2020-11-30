@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.16.6
+Version:        1.16.7
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,11 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Nov 30 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.7-1
+- Bump github.com/containers/common from v0.21.0 to v0.22.0.
+- Bump github.com/containers/image from v5.5.2 to v5.6.0.
+- Bump github.com/containers/storage from 1.23.3 to v1.23.5.
+
 * Mon Nov 16 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.6-1
 - copier.Get(): ignore ENOTSUP/ENOSYS when listing xattrs
 - ADD: handle --chown on URLs
