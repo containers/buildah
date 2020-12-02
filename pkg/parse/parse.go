@@ -878,20 +878,12 @@ func NamespaceOptions(c *cobra.Command) (namespaceOptions buildah.NamespaceOptio
 						logrus.Debugf("setting network to disabled")
 						break
 					}
-					if !filepath.IsAbs(how) {
-						options.AddOrReplace(buildah.NamespaceOption{
-							Name: what,
-							Path: how,
-						})
-						policy = buildah.NetworkEnabled
-						logrus.Debugf("setting network configuration to %q", how)
-						break
-					}
 				}
 				how = strings.TrimPrefix(how, "ns:")
 				if _, err := os.Stat(how); err != nil {
-					return nil, buildah.NetworkDefault, errors.Wrapf(err, "error checking for %s namespace at %q", what, how)
+					return nil, buildah.NetworkDefault, errors.Wrapf(err, "error checking for %s namespace", what)
 				}
+				policy = buildah.NetworkEnabled
 				logrus.Debugf("setting %q namespace to %q", what, how)
 				options.AddOrReplace(buildah.NamespaceOption{
 					Name: what,

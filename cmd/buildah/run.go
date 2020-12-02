@@ -119,7 +119,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 
 	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error parsing namespace-related options")
+		return err
 	}
 
 	options := buildah.RunOptions{

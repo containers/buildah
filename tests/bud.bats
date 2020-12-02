@@ -2412,3 +2412,23 @@ EOF
 
   run_buildah 1 run myctr ls -l subdir/sub2.txt
 }
+
+@test "bud with network options" {
+  _prefetch alpine
+  target=alpine-image
+
+  run_buildah bud --network=none --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM alpine"
+
+  run_buildah bud --network=private --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM alpine"
+
+  run_buildah bud --network=container --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM alpine"
+
+  run_buildah 125 bud --network=bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
+  expect_output "error checking for network namespace: stat bogus: no such file or directory"
+}
