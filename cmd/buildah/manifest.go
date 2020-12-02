@@ -237,10 +237,13 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 	}
 
 	for _, imageSpec := range imageSpecs {
-		ref, _, err := util.FindImage(store, "", systemContext, imageSpec)
+		ref, err := alltransports.ParseImageName(imageSpec)
 		if err != nil {
-			if ref, err = alltransports.ParseImageName(imageSpec); err != nil {
-				return err
+			if ref, err = alltransports.ParseImageName(util.DefaultTransport + imageSpec); err != nil {
+				// check if the local image exists
+				if ref, _, err = util.FindImage(store, "", systemContext, imageSpec); err != nil {
+					return err
+				}
 			}
 		}
 		if _, err = list.Add(getContext(), systemContext, ref, opts.all); err != nil {
@@ -293,10 +296,13 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 		return err
 	}
 
-	ref, _, err := util.FindImage(store, "", systemContext, imageSpec)
+	ref, err := alltransports.ParseImageName(imageSpec)
 	if err != nil {
-		if ref, err = alltransports.ParseImageName(imageSpec); err != nil {
-			return err
+		if ref, err = alltransports.ParseImageName(util.DefaultTransport + imageSpec); err != nil {
+			// check if the local image exists
+			if ref, _, err = util.FindImage(store, "", systemContext, imageSpec); err != nil {
+				return err
+			}
 		}
 	}
 
