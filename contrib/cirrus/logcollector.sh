@@ -19,6 +19,7 @@ case $1 in
     podman) showrun podman system info ;;
     buildah_version) showrun $GOSRC/bin/buildah version;;
     buildah_info) showrun $GOSRC/bin/buildah info;;
+    golang) showrun go version;;
     packages)
         # These names are common to Fedora and Ubuntu
         PKG_NAMES=(\
@@ -28,7 +29,8 @@ case $1 in
                     containernetworking-plugins
                     containers-common
                     crun
-                    golang
+                    libseccomp
+                    libseccomp2
                     podman
                     runc
                     skopeo
