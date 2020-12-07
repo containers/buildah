@@ -349,7 +349,7 @@ function configure_and_check_user() {
 @test "run-builtin-volume-omitted" {
 	# This image is known to include a volume, but not include the mountpoint
 	# in the image.
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json docker.io/library/registry@sha256:a25e4660ed5226bdb59a5e555083e08ded157b1218282840e55d25add0223390
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/registry:volume_omitted
 	cid=$output
 	run_buildah mount $cid
 	mnt=$output

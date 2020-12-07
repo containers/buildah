@@ -57,8 +57,9 @@ load helpers
 }
 
 @test "commit-alternate-storage" {
+  _prefetch alpine
   echo FROM
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json openshift/hello-openshift
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   echo COMMIT
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid "containers-storage:[vfs@${TESTDIR}/root2+${TESTDIR}/runroot2]newimage"

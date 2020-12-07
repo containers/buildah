@@ -36,7 +36,7 @@ load helpers
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine_nginx:latest"
 
-  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json alpine@sha256:1072e499f3f655a032e88542330cf75b02e7bdf673278f701d7ba61629ee3ebe
+  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json alpine@sha256:e9a2035f9d0d7cee1cdd445f5bfa0c5c646455ee26f14565dce23cf2d2de7570
   run_buildah 125 pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json fakeimage/fortest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   [[ ! "$output" =~ "fakeimage/fortest" ]]
