@@ -163,7 +163,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 			// Delete it later.
 			defer func() {
 				if err = os.RemoveAll(tempDir); err != nil {
-					logrus.Errorf("error removing temporary directory %q: %v", contextDir, err)
+					logrus.Errorf("error removing temporary directory: %v", err)
 				}
 			}()
 			contextDir = filepath.Join(tempDir, subDir)
@@ -171,7 +171,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 			// Nope, it was local.  Use it as is.
 			absDir, err := filepath.Abs(cliArgs[0])
 			if err != nil {
-				return errors.Wrapf(err, "error determining path to directory %q", cliArgs[0])
+				return errors.Wrapf(err, "error determining path to directory")
 			}
 			contextDir = absDir
 		}
@@ -280,7 +280,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 
 	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error parsing namespace-related options")
+		return err
 	}
 	usernsOption, idmappingOptions, err := parse.IDMappingOptions(c, isolation)
 	if err != nil {
