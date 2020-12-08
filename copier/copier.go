@@ -1311,6 +1311,18 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 	createFile := func(path string, tr *tar.Reader) (int64, error) {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_EXCL, 0600)
 		if err != nil && os.IsExist(err) {
+			if fInfo, err := os.Stat(path); err == nil {
+				// Some archives may falsely declare a directory as a file header.
+				// In this case, do not bother to create a file (or remove it).
+				// While tar would reject these files, Docker happily eats them,
+				// so we need to be compatible.
+				//
+				// See github.com/containers/podman/issues/8600.
+				if fInfo.IsDir() {
+					return 0, nil
+				}
+			}
+
 			if err = os.Remove(path); err != nil {
 				return 0, errors.Wrapf(err, "copier: put: error removing file to be overwritten %q", path)
 			}
