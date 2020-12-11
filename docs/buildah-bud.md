@@ -478,6 +478,12 @@ Sign the built image using the GPG key that matches the specified fingerprint.
 Squash all of the image's new layers into a single new layer; any preexisting layers
 are not squashed.
 
+**--stdin**
+
+Pass stdin into the RUN containers. Sometime commands being RUN within a Containerfile
+want to request information from the user. For example apt asking for a confirmation for install.
+Use --stdin to be able to interact from the terminal during the build.
+
 **--tag**, **-t** *imageName*
 
 Specifies the name which will be assigned to the resulting image if the build
