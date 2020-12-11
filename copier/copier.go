@@ -1311,8 +1311,8 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 	createFile := func(path string, tr *tar.Reader) (int64, error) {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_EXCL, 0600)
 		if err != nil && os.IsExist(err) {
-			if err = os.Remove(path); err != nil {
-				return 0, errors.Wrapf(err, "copier: put: error removing file to be overwritten %q", path)
+			if err = os.RemoveAll(path); err != nil {
+				return 0, errors.Wrapf(err, "copier: put: error removing item to be overwritten %q", path)
 			}
 			f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_EXCL, 0600)
 		}
@@ -1445,7 +1445,15 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				}
 			case tar.TypeDir:
 				if err = os.Mkdir(path, 0700); err != nil && os.IsExist(err) {
-					err = nil
+					var st os.FileInfo
+					if st, err = os.Stat(path); err == nil && !st.IsDir() {
+						// it's not a directory, so remove it and mkdir
+						if err = os.Remove(path); err == nil {
+							err = os.Mkdir(path, 0700)
+						}
+					}
+					// either we removed it and retried, or it was a directory,
+					// in which case we want to just add the new stuff under it
 				}
 				// make a note of the directory's times.  we
 				// might create items under it, which will
