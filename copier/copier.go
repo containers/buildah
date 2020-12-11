@@ -1360,6 +1360,11 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 		tr := tar.NewReader(bulkReader)
 		hdr, err := tr.Next()
 		for err == nil {
+			if len(hdr.Name) == 0 {
+				// no name -> ignore the entry
+				hdr, err = tr.Next()
+				continue
+			}
 			// figure out who should own this new item
 			if idMappings != nil && !idMappings.Empty() {
 				containerPair := idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid}
