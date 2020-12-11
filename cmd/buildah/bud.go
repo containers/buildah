@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -197,6 +198,10 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		return errors.Wrapf(err, "error evaluating symlinks in build context path")
 	}
 
+	var stdin io.Reader
+	if iopts.Stdin {
+		stdin = os.Stdin
+	}
 	var stdout, stderr, reporter *os.File
 	stdout = os.Stdout
 	stderr = os.Stderr
@@ -321,6 +326,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		From:                    iopts.From,
 		IDMappingOptions:        idmappingOptions,
 		IIDFile:                 iopts.Iidfile,
+		In:                      stdin,
 		Isolation:               isolation,
 		Labels:                  iopts.Label,
 		Layers:                  layers,
