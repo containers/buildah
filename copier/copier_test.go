@@ -196,6 +196,11 @@ var (
 		excludes          []string
 		expectedGetErrors []expectedError
 		subdirContents    map[string][]string
+		renames           []struct {
+			name     string
+			renames  map[string]string
+			expected []string
+		}
 	}{
 		{
 			name:     "regular",
@@ -244,6 +249,156 @@ var (
 				{inSubdir: true, name: "subdir-a/file-b", err: syscall.ENOENT},
 				{inSubdir: true, name: "subdir-a/file-c", err: syscall.ENOENT},
 			},
+			renames: []struct {
+				name     string
+				renames  map[string]string
+				expected []string
+			}{
+				{
+					name:    "no-match-dir",
+					renames: map[string]string{"subdir-z": "subdir-y"},
+					expected: []string{
+						"file-0",
+						"file-a",
+						"file-b",
+						"file-c",
+						"file-u",
+						"file-g",
+						"file-t",
+						"link-0",
+						"link-a",
+						"link-b",
+						"hlink-0",
+						"hlink-a",
+						"hlink-b",
+						"subdir-a",
+						"subdir-a/file-n",
+						"subdir-a/file-o",
+						"subdir-a/file-a",
+						"subdir-a/file-b",
+						"subdir-a/file-c",
+						"subdir-b",
+						"subdir-b/file-n",
+						"subdir-b/file-o",
+						"subdir-c",
+						"subdir-c/file-n",
+						"subdir-c/file-o",
+						"subdir-d",
+						"subdir-d/hlink-0",
+						"subdir-d/hlink-a",
+						"subdir-d/hlink-b",
+						"archive-a",
+					},
+				},
+				{
+					name:    "no-match-file",
+					renames: map[string]string{"file-n": "file-z"},
+					expected: []string{
+						"file-0",
+						"file-a",
+						"file-b",
+						"file-c",
+						"file-u",
+						"file-g",
+						"file-t",
+						"link-0",
+						"link-a",
+						"link-b",
+						"hlink-0",
+						"hlink-a",
+						"hlink-b",
+						"subdir-a",
+						"subdir-a/file-n",
+						"subdir-a/file-o",
+						"subdir-a/file-a",
+						"subdir-a/file-b",
+						"subdir-a/file-c",
+						"subdir-b",
+						"subdir-b/file-n",
+						"subdir-b/file-o",
+						"subdir-c",
+						"subdir-c/file-n",
+						"subdir-c/file-o",
+						"subdir-d",
+						"subdir-d/hlink-0",
+						"subdir-d/hlink-a",
+						"subdir-d/hlink-b",
+						"archive-a",
+					},
+				},
+				{
+					name:    "directory",
+					renames: map[string]string{"subdir-a": "subdir-z"},
+					expected: []string{
+						"file-0",
+						"file-a",
+						"file-b",
+						"file-c",
+						"file-u",
+						"file-g",
+						"file-t",
+						"link-0",
+						"link-a",
+						"link-b",
+						"hlink-0",
+						"hlink-a",
+						"hlink-b",
+						"subdir-z",
+						"subdir-z/file-n",
+						"subdir-z/file-o",
+						"subdir-z/file-a",
+						"subdir-z/file-b",
+						"subdir-z/file-c",
+						"subdir-b",
+						"subdir-b/file-n",
+						"subdir-b/file-o",
+						"subdir-c",
+						"subdir-c/file-n",
+						"subdir-c/file-o",
+						"subdir-d",
+						"subdir-d/hlink-0",
+						"subdir-d/hlink-a",
+						"subdir-d/hlink-b",
+						"archive-a",
+					},
+				},
+				{
+					name:    "file-in-directory",
+					renames: map[string]string{"subdir-a/file-n": "subdir-a/file-z"},
+					expected: []string{
+						"file-0",
+						"file-a",
+						"file-b",
+						"file-c",
+						"file-u",
+						"file-g",
+						"file-t",
+						"link-0",
+						"link-a",
+						"link-b",
+						"hlink-0",
+						"hlink-a",
+						"hlink-b",
+						"subdir-a",
+						"subdir-a/file-z",
+						"subdir-a/file-o",
+						"subdir-a/file-a",
+						"subdir-a/file-b",
+						"subdir-a/file-c",
+						"subdir-b",
+						"subdir-b/file-n",
+						"subdir-b/file-o",
+						"subdir-c",
+						"subdir-c/file-n",
+						"subdir-c/file-o",
+						"subdir-d",
+						"subdir-d/hlink-0",
+						"subdir-d/hlink-a",
+						"subdir-d/hlink-b",
+						"archive-a",
+					},
+				},
+			},
 		},
 		{
 			name:     "devices",
@@ -271,9 +426,12 @@ func TestPutChroot(t *testing.T) {
 }
 
 func testPut(t *testing.T) {
-	for _, topdir := range []string{"", ".", "top"} {
-		for i := range testArchives {
-			t.Run(fmt.Sprintf("topdir=%s,archive=%s", topdir, testArchives[i].name), func(t *testing.T) {
+	uidMap := []idtools.IDMap{{HostID: os.Getuid(), ContainerID: 0, Size: 1}}
+	gidMap := []idtools.IDMap{{HostID: os.Getgid(), ContainerID: 0, Size: 1}}
+
+	for i := range testArchives {
+		for _, topdir := range []string{"", ".", "top"} {
+			t.Run(fmt.Sprintf("archive=%s,topdir=%s", testArchives[i].name, topdir), func(t *testing.T) {
 				if uid != 0 && testArchives[i].rootOnly {
 					t.Skipf("test archive %q can only be tested with root privileges, skipping", testArchives[i].name)
 				}
@@ -333,7 +491,69 @@ func testPut(t *testing.T) {
 				}
 			})
 		}
+
+		for _, renames := range testArchives[i].renames {
+			t.Run(fmt.Sprintf("archive=%s,rename=%s", testArchives[i].name, renames.name), func(t *testing.T) {
+				if uid != 0 && testArchives[i].rootOnly {
+					t.Skipf("test archive %q can only be tested with root privileges, skipping", testArchives[i].name)
+				}
+
+				tmp, err := ioutil.TempDir("", "copier-test-")
+				require.Nil(t, err, "error creating temporary directory")
+				defer os.RemoveAll(tmp)
+
+				archive := makeArchive(testArchives[i].headers, testArchives[i].contents)
+				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, Rename: renames.renames}, archive)
+				require.Nil(t, err, "error extracting archive %q to directory %q", testArchives[i].name, tmp)
+
+				var found []string
+				err = filepath.Walk(tmp, func(path string, info os.FileInfo, err error) error {
+					if info == nil || err != nil {
+						return err
+					}
+					rel, err := filepath.Rel(tmp, path)
+					if err != nil {
+						return err
+					}
+					if rel == "." {
+						return nil
+					}
+					found = append(found, rel)
+					return nil
+				})
+				require.Nil(t, err, "error walking context directory for archive %q under %q", testArchives[i].name, tmp)
+				sort.Strings(found)
+
+				expected := renames.expected
+				sort.Strings(expected)
+				assert.Equal(t, expected, found, "renaming did not work as expected")
+			})
+		}
 	}
+
+	for _, overwrite := range []bool{false, true} {
+		for _, typeFlag := range []byte{tar.TypeReg, tar.TypeLink, tar.TypeSymlink, tar.TypeChar, tar.TypeBlock, tar.TypeFifo} {
+			t.Run(fmt.Sprintf("overwrite=%v,type=%c", overwrite, typeFlag), func(t *testing.T) {
+				archive := makeArchiveSlice([]tar.Header{
+					{Name: "target", Typeflag: tar.TypeReg, Size: 123, Mode: 0755, ModTime: testDate},
+					{Name: "test", Typeflag: tar.TypeDir, Size: 0, Mode: 0755, ModTime: testDate},
+					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0755, Linkname: "target", ModTime: testDate},
+				})
+				tmp, err := ioutil.TempDir("", "copier-test-")
+				require.Nil(t, err, "error creating temporary directory")
+				defer os.RemoveAll(tmp)
+				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
+				if overwrite {
+					if unwrapError(err) != syscall.EPERM {
+						assert.Nilf(t, err, "expected to overwrite directory with type %c: %v", typeFlag, err)
+					}
+				} else {
+					assert.NotNilf(t, err, "expected an error trying to overwrite directory with type %c", typeFlag)
+				}
+			})
+		}
+	}
+
 }
 
 func isExpectedError(err error, inSubdir bool, name string, expectedErrors []expectedError) bool {
@@ -609,6 +829,7 @@ func testGetMultiple(t *testing.T) {
 		stripStickyBit     bool
 		stripXattrs        bool
 		keepDirectoryNames bool
+		renames            map[string]string
 	}
 	var getTestArchives = []struct {
 		name              string
@@ -1001,6 +1222,43 @@ func testGetMultiple(t *testing.T) {
 						"file-o",
 					},
 				},
+				{
+					name:               "wildcard-with-rename",
+					pattern:            "*-a",
+					keepDirectoryNames: false,
+					renames:            map[string]string{"file-a": "renamed"},
+					items: []string{
+						"renamed", // from file-a
+						"link-a",
+						"archive-a",
+						"non-archive-a",
+						"something-a",
+						"file-n",  // from subdir-a
+						"file-o",  // from subdir-a
+						"renamed", // from subdir-a/file-a -> file-a -> renamed
+						"file-b",  // from subdir-a
+						"file-c",  // from subdir-a
+					},
+				},
+				{
+					name:               "wildcard-with-rename-keep",
+					pattern:            "*-a",
+					keepDirectoryNames: true,
+					renames:            map[string]string{"subdir-a": "subdir-b"},
+					items: []string{
+						"file-a",
+						"link-a",
+						"archive-a",
+						"non-archive-a",
+						"something-a",
+						"subdir-b",
+						"subdir-b/file-n",
+						"subdir-b/file-o",
+						"subdir-b/file-a",
+						"subdir-b/file-b",
+						"subdir-b/file-c",
+					},
+				},
 			},
 		},
 	}
@@ -1035,6 +1293,7 @@ func testGetMultiple(t *testing.T) {
 					StripStickyBit:     testCase.stripStickyBit,
 					StripXattrs:        testCase.stripXattrs,
 					KeepDirectoryNames: testCase.keepDirectoryNames,
+					Rename:             testCase.renames,
 				}
 
 				t.Run(fmt.Sprintf("topdir=%s,archive=%s,case=%s,pattern=%s", topdir, testArchive.name, testCase.name, testCase.pattern), func(t *testing.T) {
