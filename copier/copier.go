@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/user"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -229,18 +230,19 @@ func Stat(root string, directory string, options StatOptions, globs []string) ([
 
 // GetOptions controls parts of Get()'s behavior.
 type GetOptions struct {
-	UIDMap, GIDMap     []idtools.IDMap // map from hostIDs to containerIDs in the output archive
-	Excludes           []string        // contents to pretend don't exist, using the OS-specific path separator
-	ExpandArchives     bool            // extract the contents of named items that are archives
-	ChownDirs          *idtools.IDPair // set ownership on directories. no effect on archives being extracted
-	ChmodDirs          *os.FileMode    // set permissions on directories. no effect on archives being extracted
-	ChownFiles         *idtools.IDPair // set ownership of files. no effect on archives being extracted
-	ChmodFiles         *os.FileMode    // set permissions on files. no effect on archives being extracted
-	StripSetuidBit     bool            // strip the setuid bit off of items being copied. no effect on archives being extracted
-	StripSetgidBit     bool            // strip the setgid bit off of items being copied. no effect on archives being extracted
-	StripStickyBit     bool            // strip the sticky bit off of items being copied. no effect on archives being extracted
-	StripXattrs        bool            // don't record extended attributes of items being copied. no effect on archives being extracted
-	KeepDirectoryNames bool            // don't strip the top directory's basename from the paths of items in subdirectories
+	UIDMap, GIDMap     []idtools.IDMap   // map from hostIDs to containerIDs in the output archive
+	Excludes           []string          // contents to pretend don't exist, using the OS-specific path separator
+	ExpandArchives     bool              // extract the contents of named items that are archives
+	ChownDirs          *idtools.IDPair   // set ownership on directories. no effect on archives being extracted
+	ChmodDirs          *os.FileMode      // set permissions on directories. no effect on archives being extracted
+	ChownFiles         *idtools.IDPair   // set ownership of files. no effect on archives being extracted
+	ChmodFiles         *os.FileMode      // set permissions on files. no effect on archives being extracted
+	StripSetuidBit     bool              // strip the setuid bit off of items being copied. no effect on archives being extracted
+	StripSetgidBit     bool              // strip the setgid bit off of items being copied. no effect on archives being extracted
+	StripStickyBit     bool              // strip the sticky bit off of items being copied. no effect on archives being extracted
+	StripXattrs        bool              // don't record extended attributes of items being copied. no effect on archives being extracted
+	KeepDirectoryNames bool              // don't strip the top directory's basename from the paths of items in subdirectories
+	Rename             map[string]string // rename items with the specified names, or under the specified names
 }
 
 // Get produces an archive containing items that match the specified glob
@@ -278,15 +280,17 @@ func Get(root string, directory string, options GetOptions, globs []string, bulk
 
 // PutOptions controls parts of Put()'s behavior.
 type PutOptions struct {
-	UIDMap, GIDMap    []idtools.IDMap // map from containerIDs to hostIDs when writing contents to disk
-	DefaultDirOwner   *idtools.IDPair // set ownership of implicitly-created directories, default is ChownDirs, or 0:0 if ChownDirs not set
-	DefaultDirMode    *os.FileMode    // set permissions on implicitly-created directories, default is ChmodDirs, or 0755 if ChmodDirs not set
-	ChownDirs         *idtools.IDPair // set ownership of newly-created directories
-	ChmodDirs         *os.FileMode    // set permissions on newly-created directories
-	ChownFiles        *idtools.IDPair // set ownership of newly-created files
-	ChmodFiles        *os.FileMode    // set permissions on newly-created files
-	StripXattrs       bool            // don't bother trying to set extended attributes of items being copied
-	IgnoreXattrErrors bool            // ignore any errors encountered when attempting to set extended attributes
+	UIDMap, GIDMap       []idtools.IDMap   // map from containerIDs to hostIDs when writing contents to disk
+	DefaultDirOwner      *idtools.IDPair   // set ownership of implicitly-created directories, default is ChownDirs, or 0:0 if ChownDirs not set
+	DefaultDirMode       *os.FileMode      // set permissions on implicitly-created directories, default is ChmodDirs, or 0755 if ChmodDirs not set
+	ChownDirs            *idtools.IDPair   // set ownership of newly-created directories
+	ChmodDirs            *os.FileMode      // set permissions on newly-created directories
+	ChownFiles           *idtools.IDPair   // set ownership of newly-created files
+	ChmodFiles           *os.FileMode      // set permissions on newly-created files
+	StripXattrs          bool              // don't bother trying to set extended attributes of items being copied
+	IgnoreXattrErrors    bool              // ignore any errors encountered when attempting to set extended attributes
+	NoOverwriteDirNonDir bool              // instead of quietly overwriting directories with non-directories, return an error
+	Rename               map[string]string // rename items with the specified names, or under the specified names
 }
 
 // Put extracts an archive from the bulkReader at the specified directory.
@@ -1118,6 +1122,34 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 	return &response{Stat: statResponse.Stat, Get: getResponse{}}, cb, nil
 }
 
+func handleRename(rename map[string]string, name string) string {
+	if rename == nil {
+		return name
+	}
+	// header names always use '/', so use path instead of filepath to manipulate it
+	if directMapping, ok := rename[name]; ok {
+		return directMapping
+	}
+	prefix, remainder := path.Split(name)
+	for prefix != "" {
+		if mappedPrefix, ok := rename[prefix]; ok {
+			return path.Join(mappedPrefix, remainder)
+		}
+		if prefix[len(prefix)-1] == '/' {
+			if mappedPrefix, ok := rename[prefix[:len(prefix)-1]]; ok {
+				return path.Join(mappedPrefix, remainder)
+			}
+		}
+		newPrefix, middlePart := path.Split(prefix)
+		if newPrefix == prefix {
+			return name
+		}
+		prefix = newPrefix
+		remainder = path.Join(middlePart, remainder)
+	}
+	return name
+}
+
 func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath string, options GetOptions, tw *tar.Writer, hardlinkChecker *util.HardlinkChecker, idMappings *idtools.IDMappings) error {
 	// build the header using the name provided
 	hdr, err := tar.FileInfoHeader(srcfi, symlinkTarget)
@@ -1126,6 +1158,9 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 	}
 	if name != "" {
 		hdr.Name = filepath.ToSlash(name)
+	}
+	if options.Rename != nil {
+		hdr.Name = handleRename(options.Rename, hdr.Name)
 	}
 	if options.StripSetuidBit {
 		hdr.Mode &^= cISUID
@@ -1164,6 +1199,9 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 			tr := tar.NewReader(rc)
 			hdr, err := tr.Next()
 			for err == nil {
+				if options.Rename != nil {
+					hdr.Name = handleRename(options.Rename, hdr.Name)
+				}
 				if err = tw.WriteHeader(hdr); err != nil {
 					return errors.Wrapf(err, "error writing tar header from %q to pipe", contentPath)
 				}
@@ -1311,6 +1349,11 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 	createFile := func(path string, tr *tar.Reader) (int64, error) {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_EXCL, 0600)
 		if err != nil && os.IsExist(err) {
+			if req.PutOptions.NoOverwriteDirNonDir {
+				if st, err2 := os.Lstat(path); err2 == nil && st.IsDir() {
+					return 0, errors.Wrapf(err, "copier: put: error creating file at %q", path)
+				}
+			}
 			if err = os.RemoveAll(path); err != nil {
 				return 0, errors.Wrapf(err, "copier: put: error removing item to be overwritten %q", path)
 			}
@@ -1365,6 +1408,9 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				hdr, err = tr.Next()
 				continue
 			}
+			if req.PutOptions.Rename != nil {
+				hdr.Name = handleRename(req.PutOptions.Rename, hdr.Name)
+			}
 			// figure out who should own this new item
 			if idMappings != nil && !idMappings.Empty() {
 				containerPair := idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid}
@@ -1417,28 +1463,55 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				}
 			case tar.TypeLink:
 				var linkTarget string
+				if req.PutOptions.Rename != nil {
+					hdr.Linkname = handleRename(req.PutOptions.Rename, hdr.Linkname)
+				}
 				if linkTarget, err = resolvePath(targetDirectory, filepath.Join(req.Root, filepath.FromSlash(hdr.Linkname)), nil); err != nil {
 					return errors.Errorf("error resolving hardlink target path %q under root %q", hdr.Linkname, req.Root)
 				}
 				if err = os.Link(linkTarget, path); err != nil && os.IsExist(err) {
+					if req.PutOptions.NoOverwriteDirNonDir {
+						if st, err := os.Lstat(path); err == nil && st.IsDir() {
+							break
+						}
+					}
 					if err = os.Remove(path); err == nil {
 						err = os.Link(linkTarget, path)
 					}
 				}
 			case tar.TypeSymlink:
+				// if req.PutOptions.Rename != nil {
+				//	todo: the general solution requires resolving to an absolute path, handling
+				//	renaming, and then possibly converting back to a relative symlink
+				// }
 				if err = os.Symlink(filepath.FromSlash(hdr.Linkname), filepath.FromSlash(path)); err != nil && os.IsExist(err) {
+					if req.PutOptions.NoOverwriteDirNonDir {
+						if st, err := os.Lstat(path); err == nil && st.IsDir() {
+							break
+						}
+					}
 					if err = os.Remove(path); err == nil {
 						err = os.Symlink(filepath.FromSlash(hdr.Linkname), filepath.FromSlash(path))
 					}
 				}
 			case tar.TypeChar:
 				if err = mknod(path, chrMode(0600), int(mkdev(devMajor, devMinor))); err != nil && os.IsExist(err) {
+					if req.PutOptions.NoOverwriteDirNonDir {
+						if st, err := os.Lstat(path); err == nil && st.IsDir() {
+							break
+						}
+					}
 					if err = os.Remove(path); err == nil {
 						err = mknod(path, chrMode(0600), int(mkdev(devMajor, devMinor)))
 					}
 				}
 			case tar.TypeBlock:
 				if err = mknod(path, blkMode(0600), int(mkdev(devMajor, devMinor))); err != nil && os.IsExist(err) {
+					if req.PutOptions.NoOverwriteDirNonDir {
+						if st, err := os.Lstat(path); err == nil && st.IsDir() {
+							break
+						}
+					}
 					if err = os.Remove(path); err == nil {
 						err = mknod(path, blkMode(0600), int(mkdev(devMajor, devMinor)))
 					}
@@ -1466,6 +1539,11 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				})
 			case tar.TypeFifo:
 				if err = mkfifo(path, 0600); err != nil && os.IsExist(err) {
+					if req.PutOptions.NoOverwriteDirNonDir {
+						if st, err := os.Lstat(path); err == nil && st.IsDir() {
+							break
+						}
+					}
 					if err = os.Remove(path); err == nil {
 						err = mkfifo(path, 0600)
 					}
