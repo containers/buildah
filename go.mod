@@ -21,7 +21,7 @@ require (
 	github.com/moby/sys/mount v0.1.1 // indirect
 	github.com/moby/term v0.0.0-20200915141129-7f0af18e79f2 // indirect
 	github.com/onsi/ginkgo v1.14.2
-	github.com/onsi/gomega v1.10.3
+	github.com/onsi/gomega v1.10.4
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
 	github.com/opencontainers/runc v1.0.0-rc91
