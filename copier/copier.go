@@ -203,11 +203,11 @@ type StatOptions struct {
 // If root and directory are both not specified, the current root directory is
 // used, and relative names in the globs list are treated as being relative to
 // the current working directory.
-// If root is specified and the current OS supports it, the stat() is performed
-// in a chrooted context.  If the directory is specified as an absolute path,
-// it should either be the root directory or a subdirectory of the root
-// directory.  Otherwise, the directory is treated as a path relative to the
-// root directory.
+// If root is specified and the current OS supports it, and the calling process
+// has the necessary privileges, the stat() is performed in a chrooted context.
+// If the directory is specified as an absolute path, it should either be the
+// root directory or a subdirectory of the root directory.  Otherwise, the
+// directory is treated as a path relative to the root directory.
 // Relative names in the glob list are treated as being relative to the
 // directory.
 func Stat(root string, directory string, options StatOptions, globs []string) ([]*StatsForGlob, error) {
@@ -250,11 +250,11 @@ type GetOptions struct {
 // If root and directory are both not specified, the current root directory is
 // used, and relative names in the globs list are treated as being relative to
 // the current working directory.
-// If root is specified and the current OS supports it, the contents are read
-// in a chrooted context.  If the directory is specified as an absolute path,
-// it should either be the root directory or a subdirectory of the root
-// directory.  Otherwise, the directory is treated as a path relative to the
-// root directory.
+// If root is specified and the current OS supports it, and the calling process
+// has the necessary privileges, the contents are read in a chrooted context.
+// If the directory is specified as an absolute path, it should either be the
+// root directory or a subdirectory of the root directory.  Otherwise, the
+// directory is treated as a path relative to the root directory.
 // Relative names in the glob list are treated as being relative to the
 // directory.
 func Get(root string, directory string, options GetOptions, globs []string, bulkWriter io.Writer) error {
@@ -296,11 +296,12 @@ type PutOptions struct {
 // Put extracts an archive from the bulkReader at the specified directory.
 // If root and directory are both not specified, the current root directory is
 // used.
-// If root is specified and the current OS supports it, the contents are written
-// in a chrooted context.  If the directory is specified as an absolute path,
-// it should either be the root directory or a subdirectory of the root
-// directory.  Otherwise, the directory is treated as a path relative to the
-// root directory.
+// If root is specified and the current OS supports it, and the calling process
+// has the necessary privileges, the contents are written in a chrooted
+// context.  If the directory is specified as an absolute path, it should
+// either be the root directory or a subdirectory of the root directory.
+// Otherwise, the directory is treated as a path relative to the root
+// directory.
 func Put(root string, directory string, options PutOptions, bulkReader io.Reader) error {
 	req := request{
 		Request:    requestPut,
@@ -329,11 +330,12 @@ type MkdirOptions struct {
 // need to be created will be given the specified ownership and permissions.
 // If root and directory are both not specified, the current root directory is
 // used.
-// If root is specified and the current OS supports it, the directory is
-// created in a chrooted context.  If the directory is specified as an absolute
-// path, it should either be the root directory or a subdirectory of the root
-// directory.  Otherwise, the directory is treated as a path relative to the
-// root directory.
+// If root is specified and the current OS supports it, and the calling process
+// has the necessary privileges, the directory is created in a chrooted
+// context.  If the directory is specified as an absolute path, it should
+// either be the root directory or a subdirectory of the root directory.
+// Otherwise, the directory is treated as a path relative to the root
+// directory.
 func Mkdir(root string, directory string, options MkdirOptions) error {
 	req := request{
 		Request:      requestMkdir,
@@ -551,13 +553,13 @@ func copierWithSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req reques
 		return nil, errors.Wrap(err, step)
 	}
 	if err = encoder.Encode(req); err != nil {
-		return killAndReturn(err, "error encoding request")
+		return killAndReturn(err, "error encoding request for copier subprocess")
 	}
 	if err = decoder.Decode(&resp); err != nil {
-		return killAndReturn(err, "error decoding response")
+		return killAndReturn(err, "error decoding response from copier subprocess")
 	}
 	if err = encoder.Encode(&request{Request: requestQuit}); err != nil {
-		return killAndReturn(err, "error encoding request")
+		return killAndReturn(err, "error encoding request for copier subprocess")
 	}
 	stdinWrite.Close()
 	stdinWrite = nil
@@ -630,7 +632,7 @@ func copierMain() {
 		// Read a request.
 		req := new(request)
 		if err := decoder.Decode(req); err != nil {
-			fmt.Fprintf(os.Stderr, "error decoding request: %v", err)
+			fmt.Fprintf(os.Stderr, "error decoding request from copier parent process: %v", err)
 			os.Exit(1)
 		}
 		if req.Request == requestQuit {
@@ -721,12 +723,12 @@ func copierMain() {
 		}
 		resp, cb, err := copierHandler(bulkReader, bulkWriter, *req)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error handling request %#v: %v", *req, err)
+			fmt.Fprintf(os.Stderr, "error handling request %#v from copier parent process: %v", *req, err)
 			os.Exit(1)
 		}
 		// Encode the response.
 		if err := encoder.Encode(resp); err != nil {
-			fmt.Fprintf(os.Stderr, "error encoding response %#v: %v", *req, err)
+			fmt.Fprintf(os.Stderr, "error encoding response %#v for copier parent process: %v", *req, err)
 			os.Exit(1)
 		}
 		// If there's bulk data to transfer, run the callback to either
