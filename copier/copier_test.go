@@ -418,13 +418,6 @@ func TestPutNoChroot(t *testing.T) {
 	canChroot = couldChroot
 }
 
-func TestPutChroot(t *testing.T) {
-	if uid != 0 {
-		t.Skipf("chroot() requires root privileges, skipping")
-	}
-	testPut(t)
-}
-
 func testPut(t *testing.T) {
 	uidMap := []idtools.IDMap{{HostID: os.Getuid(), ContainerID: 0, Size: 1}}
 	gidMap := []idtools.IDMap{{HostID: os.Getgid(), ContainerID: 0, Size: 1}}
@@ -582,13 +575,6 @@ func TestStatNoChroot(t *testing.T) {
 	canChroot = couldChroot
 }
 
-func TestStatChroot(t *testing.T) {
-	if uid != 0 {
-		t.Skipf("chroot() requires root privileges, skipping")
-	}
-	testStat(t)
-}
-
 func testStat(t *testing.T) {
 	for _, absolute := range []bool{false, true} {
 		for _, topdir := range []string{"", ".", "top"} {
@@ -674,13 +660,6 @@ func TestGetSingleNoChroot(t *testing.T) {
 	canChroot = false
 	testGetSingle(t)
 	canChroot = couldChroot
-}
-
-func TestGetSingleChroot(t *testing.T) {
-	if uid != 0 {
-		t.Skipf("chroot() requires root privileges, skipping")
-	}
-	testGetSingle(t)
 }
 
 func testGetSingle(t *testing.T) {
@@ -808,13 +787,6 @@ func TestGetMultipleNoChroot(t *testing.T) {
 	canChroot = false
 	testGetMultiple(t)
 	canChroot = couldChroot
-}
-
-func TestGetMultipleChroot(t *testing.T) {
-	if uid != 0 {
-		t.Skipf("chroot() requires root privileges, skipping")
-	}
-	testGetMultiple(t)
 }
 
 func testGetMultiple(t *testing.T) {
@@ -1343,13 +1315,6 @@ func TestMkdirNoChroot(t *testing.T) {
 	canChroot = false
 	testMkdir(t)
 	canChroot = couldChroot
-}
-
-func TestMkdirChroot(t *testing.T) {
-	if uid != 0 {
-		t.Skipf("chroot() requires root privileges, skipping")
-	}
-	testMkdir(t)
 }
 
 func testMkdir(t *testing.T) {
