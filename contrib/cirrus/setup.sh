@@ -52,6 +52,16 @@ echo -e "[registries.search]\nregistries = ['docker.io', 'registry.fedoraproject
 
 show_env_vars
 
+if [[ -z "$CONTAINER" ]]; then
+    # Discovered reemergence of BFQ scheduler bug in kernel 5.8.12-200
+    # which causes a kernel panic when system is under heavy I/O load.
+    # Previously discovered in F32beta and confirmed fixed. It's been
+    # observed in F31 kernels as well.  Deploy workaround for all VMs
+    # to ensure a more stable I/O scheduler (elevator).
+    echo "mq-deadline" > /sys/block/sda/queue/scheduler
+    warn "I/O scheduler: $(cat /sys/block/sda/queue/scheduler)"
+fi
+
 if [[ -z "$CROSS_TARGET" ]]
 then
     execute_local_registry  # checks for existing port 5000 listener

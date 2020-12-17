@@ -1,50 +1,77 @@
 #!/usr/bin/env bash
 
+#
+# For help and usage information, simply execute the script w/o any arguments.
+#
+# This script is intended to be run by developers who need to debug
+# problems specifically related to Cirrus-CI automated testing.  However,
+# because it's only loosely coupled to the `.cirrus.yml` configuration, it must
+# orchestrate VMs in GCP directly.  This means users need to have
+# pre-authorization (access) to manipulate google-cloud resources.  Additionally,
+# there are no guarantees it will remain in-sync with other automation-related
+# scripts.  Therefore it may not always function for everybody in every
+# future scenario without updates/modifications/tweaks.
+
 set -e
 
-RED="\e[1;36;41m"
-YEL="\e[1;33;44m"
+RED="\e[1;31m"
+YEL="\e[1;32m"
 NOR="\e[0m"
 USAGE_WARNING="
-${YEL}WARNING: This will not work without local sudo access to run podman,${NOR}
-         ${YEL}and prior authorization to use the buildah GCP project. Also,${NOR}
-         ${YEL}possession of the proper ssh private key is required.${NOR}
+${YEL}WARNING: This will not work without podman,${NOR}
+         ${YEL}and prior authorization to use the libpod GCP project.${NOR}
 "
-# TODO: Many/most of these values should come from .cirrus.yml
-ZONE="us-central1-c"
+# These values come from .cirrus.yml gce_instance clause
+ZONE="${ZONE:-us-central1-c}"
 CPUS="2"
 MEMORY="4Gb"
 DISK="200"
 PROJECT="buildah"
+IMGPROJECT="libpod-218412"
+GCFGNAME="buildah"
 GOSRC="/var/tmp/go/src/github.com/containers/buildah"
-GCLOUD_IMAGE=${GCLOUD_IMAGE:-quay.io/cevich/gcloud_centos:latest}
-GCLOUD_SUDO=${GCLOUD_SUDO-sudo}
-SSHUSER="root"
+GIT_REPO="https://github.com/containers/buildah.git"
+
+# Container image with necessary runtime elements
+GCLOUD_IMAGE="${GCLOUD_IMAGE:-docker.io/google/cloud-sdk:alpine}"
+GCLOUD_CFGDIR=".config/gcloud"
+
+SCRIPT_FILENAME=$(basename ${BASH_SOURCE[0]})
+HOOK_FILENAME="${GCFGNAME}_hook_${SCRIPT_FILENAME}"
 
 # Shared tmp directory between container and us
-TMPDIR=$(mktemp -d --tmpdir $(basename $0)_tmpdir_XXXXXX)
+TMPDIR=$(mktemp -d --tmpdir ${SCRIPT_FILENAME}_tmpdir_XXXXXX)
 
-BUILDAHROOT=$(realpath "$(dirname $0)/../")
-# else: Assume $PWD is the root of the buildah repository
-[[ "$BUILDAHROOT" != "/" ]] || BUILDAHROOT=$PWD
+show_usage() {
+    echo -e "\n${RED}ERROR: $1${NOR}"
+    echo -e "${YEL}Usage: $SCRIPT_FILENAME <image_name>${NOR}"
+    echo ""
+    if [[ -r ".cirrus.yml" ]]
+    then
+        echo -e "${YEL}Some possible image_name values (from .cirrus.yml):${NOR}"
+        image_hints
+        echo ""
+        echo -e "${YEL}Optional:${NOR} If a $HOME/$GCLOUD_CFGDIR/$HOOK_FILENAME executable exists during"
+        echo "VM creation, it will be executed remotely after cloning"
+        echo "$GIT_REPO. The"
+        echo "current local working branch name and commit ID, will be provided as"
+        echo "it's arguments."
+    fi
+    exit 1
+}
 
-# Command shortcuts save some typing (assumes $BUILDAHROOT is subdir of $HOME)
-PGCLOUD="$GCLOUD_SUDO podman run -it --rm -e AS_ID=$UID -e AS_USER=$USER --security-opt label=disable -v $TMPDIR:$HOME -v $HOME/.config/gcloud:$HOME/.config/gcloud -v $HOME/.config/gcloud/ssh:$HOME/.ssh -v $BUILDAHROOT:$BUILDAHROOT $GCLOUD_IMAGE --configuration=buildah --project=$PROJECT"
-SCP_CMD="$PGCLOUD compute scp"
+[[ "$UID" -ne 0 ]] || \
+    show_usage "Must execute script as a regular (non-root) user."
+
+
+# Disable SELinux labeling to allow read-only mounting of repository files
+PGCLOUD="podman run -it --rm --security-opt label=disable -v $TMPDIR:$TMPDIR -v $HOME/.config/gcloud:/root/.config/gcloud -v $HOME/.config/gcloud/ssh:/root/.ssh $GCLOUD_IMAGE gcloud --configuration=$GCFGNAME --project=$PROJECT"
 
 
 showrun() {
-    if [[ "$1" == "--background" ]]
-    then
-        shift
-        # Properly escape any nested spaces, so command can be copy-pasted
-        echo '+ '$(printf " %q" "$@")' &' > /dev/stderr
-        "$@" &
-        echo -e "${RED}<backgrounded>${NOR}"
-    else
-        echo '+ '$(printf " %q" "$@") > /dev/stderr
-        "$@"
-    fi
+    echo '+ '$(printf " %q" "$@") > /dev/stderr
+    echo ""
+    "$@"
 }
 
 cleanup() {
@@ -53,6 +80,7 @@ cleanup() {
     wait
 
     # set GCLOUD_DEBUG to leave tmpdir behind for postmortem
+    # shellcheck disable=SC2154
     test -z "$GCLOUD_DEBUG" && rm -rf $TMPDIR
 
     # Not always called from an exit handler, but should always exit when called
@@ -62,37 +90,48 @@ trap cleanup EXIT
 
 delvm() {
     echo -e "\n"
-    echo -e "\n${YEL}Offering to Delete $VMNAME ${RED}(Might take a minute or two)${NOR}"
-    echo -e "\n${YEL}Note: It's safe to answer N, then re-run script again later.${NOR}"
+    echo -e "\n${YEL}Offering to Delete $VMNAME${NOR}"
+    echo -e "${RED}(Deletion might take a minute or two)${NOR}"
+    echo -e "${YEL}Note: It's safe to answer N, then re-run script again later.${NOR}"
     showrun $CLEANUP_CMD  # prompts for Yes/No
     cleanup
 }
 
+get_env_vars() {
+    # Deal with both YAML and embedded shell-like substitutions in values
+    # if substitution fails, fall back to printing naked env. var as-is.
+    python3 -c '
+import sys,yaml,re
+env=yaml.load(open(".cirrus.yml"), Loader=yaml.SafeLoader)["env"]
+dollar_env_var=re.compile(r"\$(\w+)")
+dollarcurly_env_var=re.compile(r"\$\{(\w+)\}")
+class ReIterKey(dict):
+    def __missing__(self, key):
+        # Cirrus-CI provides some runtime-only env. vars.  Avoid
+        # breaking this hack-script if/when any are present in YAML
+        return "${0}".format(key)
+rep=r"{\1}"  # Convert env vars markup to -> str.format_map(re_iter_key) markup
+out=ReIterKey()
+for k,v in env.items():
+    if "ENCRYPTED" not in str(v) and not str(k).startswith("_") and bool(v):
+        out[k]=dollar_env_var.sub(rep, dollarcurly_env_var.sub(rep, str(v)))
+for k,v in out.items():
+    sys.stdout.write("{0}=\"{1}\"\n".format(k, str(v).format_map(out)))
+    '
+}
+
 image_hints() {
-    _BIS=$(egrep -m 1 '_BUILT_IMAGE_SUFFIX:[[:space:]+"[[:print:]]+"' "$BUILDAHROOT/.cirrus.yml" | cut -d: -f 2 | tr -d '"[:blank:]')
-    if test -z "${_BIS}"; then
-        echo "Error: Could not find a _BUILT_IMAGE_SUFFIX definition in .cirrus.yml" > /dev/stderr
-        exit 1
-    fi
-    egrep '[[:space:]]+[[:alnum:]].+_CACHE_IMAGE_NAME:[[:space:]+"[[:print:]]+"' \
-        "$BUILDAHROOT/.cirrus.yml" | cut -d: -f 2 | tr -d '"[:blank:]' | \
-        sed -r -e "s/\\\$[{]_BUILT_IMAGE_SUFFIX[}]/$_BIS/" | sort -u
+    get_env_vars | fgrep '_CACHE_IMAGE_NAME' | awk -F "=" '{print $2}'
 }
 
-show_usage() {
-    echo -e "\n${RED}ERROR: $1${NOR}"
-    echo -e "${YEL}Usage: $(basename $0) <image_name>${NOR}"
-    echo ""
-    if [[ -r ".cirrus.yml" ]]
-    then
-        echo -e "${YEL}Some possible image_name values (from .cirrus.yml):${NOR}"
-        image_hints
-        echo ""
-    fi
-    exit 1
-}
-
+unset VM_IMAGE_NAME
+unset VMNAME
+unset CREATE_CMD
+unset SSH_CMD
+unset CLEANUP_CMD
+declare -xa ENVS
 parse_args(){
+    local arg
     echo -e "$USAGE_WARNING"
 
     if [[ "$USER" =~ "root" ]]
@@ -100,108 +139,118 @@ parse_args(){
         show_usage "This script must be run as a regular user."
     fi
 
-    ENVS='GOPATH="/var/tmp/go" IN_PODMAN="false" CROSS_TARGET=""'
-    IMAGE_NAME="$1"
-    if [[ -z "$IMAGE_NAME" ]]
-    then
-        show_usage "No image-name specified."
+    [[ "$#" -eq 1 ]] || \
+        show_usage "Must specify a VM Image name to use, and the test flavor."
+
+    VM_IMAGE_NAME="$1"
+
+    # Word-splitting is desirable in this case
+    # shellcheck disable=SC2207
+    ENVS=(
+        $(get_env_vars)
+        "VM_IMAGE_NAME=$VM_IMAGE_NAME"
+    )
+
+    VMNAME="${VMNAME:-${USER}-${VM_IMAGE_NAME}}"
+
+    CREATE_CMD="$PGCLOUD compute instances create --zone=$ZONE --image-project=$IMGPROJECT --image=${VM_IMAGE_NAME} --custom-cpu=$CPUS --custom-memory=$MEMORY --boot-disk-size=$DISK --labels=in-use-by=$USER $VMNAME"
+
+    SSH_CMD="$PGCLOUD compute ssh --zone=$ZONE root@$VMNAME"
+
+    CLEANUP_CMD="$PGCLOUD compute instances delete --zone=$ZONE --delete-disks=all $VMNAME"
+}
+
+# Returns true if user has run an 'init' and has a valid token for
+# the specific project-id and named-configuration arguments in $PGCLOUD.
+function has_valid_credentials() {
+    if $PGCLOUD info |& grep -Eq 'Account:.*None'; then
+        return 1
     fi
 
-    SETUP_CMD="env $ENVS $GOSRC/contrib/cirrus/setup.sh"
-    VMNAME="${VMNAME:-${USER}-${IMAGE_NAME}}"
-    CREATE_CMD="$PGCLOUD compute instances create --zone=$ZONE --image-project=libpod-218412 --image=${IMAGE_NAME} --custom-cpu=$CPUS --custom-memory=$MEMORY --boot-disk-size=$DISK --labels=in-use-by=$USER $VMNAME"
-    SSH_CMD="$PGCLOUD compute ssh $SSHUSER@$VMNAME"
-    CLEANUP_CMD="$PGCLOUD compute instances delete --zone $ZONE --delete-disks=all $VMNAME"
+    # It's possible for 'gcloud info' to list expired credentials,
+    # e.g. 'ERROR:  ... invalid grant: Bad Request'
+    if $PGCLOUD auth --configuration=$GCFGNAME print-access-token |& grep -q 'ERROR'; then
+        return 1
+    fi
+
+    return 0
 }
 
 ##### main
 
-[[ "${BUILDAHROOT%%${BUILDAHROOT##$HOME}}" == "$HOME" ]] || \
-    show_usage "Repo clone must be sub-dir of $HOME"
-
-cd "$BUILDAHROOT"
+cd $(realpath "$(dirname ${BASH_SOURCE[0]})/../")
 
 parse_args "$@"
-
-# Ensure mount-points and data directories exist on host as $USER.  Also prevents
-# permission-denied errors during cleanup() b/c `sudo podman` created mount-points
-# owned by root.
-mkdir -p $TMPDIR/${BUILDAHROOT##$HOME}
 mkdir -p $TMPDIR/.ssh
 mkdir -p {$HOME,$TMPDIR}/.config/gcloud/ssh
 chmod 700 {$HOME,$TMPDIR}/.config/gcloud/ssh $TMPDIR/.ssh
 
-cd $BUILDAHROOT
+echo -e "\n${YEL}Pulling gcloud image...${NOR}"
+podman pull $GCLOUD_IMAGE
 
-# Attempt to determine if named 'buildah' gcloud configuration exists
-showrun $PGCLOUD info > $TMPDIR/gcloud-info
-if egrep -q "Account:.*None" $TMPDIR/gcloud-info
+if ! has_valid_credentials
 then
-    echo -e "\n${YEL}WARNING: Can't find gcloud configuration for 'buildah', running init.${NOR}"
-    echo -e "         ${RED}Please choose '#1: Re-initialize' and 'login' if asked.${NOR}"
-    echo -e "         ${RED}Please set Compute Region and Zone (if asked) to 'us-central1-b'.${NOR}"
-    echo -e "         ${RED}DO NOT set any password for the generated ssh key.${NOR}"
-    showrun $PGCLOUD init --project=$PROJECT --console-only --skip-diagnostics
+    echo -e "\n${YEL}WARNING: Can't find gcloud configuration for buildah, running init.${NOR}"
+    echo -e "         ${RED}Please choose \"#1: Re-initialize\" and \"login\" if asked.${NOR}"
+    showrun $PGCLOUD --configuration=$GCFGNAME init --project=$PROJECT --console-only --skip-diagnostics
 
     # Verify it worked (account name == someone@example.com)
     $PGCLOUD info > $TMPDIR/gcloud-info-after-init
     if egrep -q "Account:.*None" $TMPDIR/gcloud-info-after-init
     then
-        echo -e "${RED}ERROR: Could not initialize 'buildah' configuration in gcloud.${NOR}"
+        echo -e "${RED}ERROR: Could not initialize buildah configuration in gcloud.${NOR}"
         exit 5
     fi
 
-    # If this is the only config, make it the default to avoid persistent warnings from gcloud
+    # If this is the only config, make it the default to avoid
+    # persistent warnings from gcloud about there being no default.
     [[ -r "$HOME/.config/gcloud/configurations/config_default" ]] || \
-        ln "$HOME/.config/gcloud/configurations/config_buildah" \
-           "$HOME/.config/gcloud/configurations/config_default"
+       ln "$HOME/.config/gcloud/configurations/config_libpod" \
+          "$HOME/.config/gcloud/configurations/config_default"
 fi
 
-# Couldn't make rsync work with gcloud's ssh wrapper: ssh-keys generated on the fly
-TARBALL=$VMNAME.tar.bz2
-echo -e "\n${YEL}Packing up local repository into a tarball.${NOR}"
-showrun --background tar cjf $TMPDIR/$TARBALL --warning=no-file-changed --exclude-vcs-ignores -C $BUILDAHROOT .
+trap delvm EXIT # Allow deleting VM if CTRL-C during create
+echo -e "\n${YEL}Trying to creating a VM named $VMNAME${NOR}\n${YEL}in GCE region/zone $ZONE${NOR}"
+echo -e "For faster terminal access, export ZONE='<something-closer>'"
+echo -e 'Zone-list at: https://cloud.google.com/compute/docs/regions-zones/\n'
+if showrun $CREATE_CMD; then  # Freshly created VM needs initial setup
 
-trap delvm INT  # Allow deleting VM if CTRL-C during create
-# This fails if VM already exists: permit this usage to re-init
-echo -e "\n${YEL}Trying to create a VM named $VMNAME\n${RED}(might take a minute/two.  Errors ignored).${NOR}"
-showrun $CREATE_CMD || true # allow re-running commands below when "delete: N"
+    echo -e "\n${YEL}Waiting up to 30s for ssh port to open${NOR}"
+    ATTEMPTS=10
+    trap "exit 1" INT
+    while ((ATTEMPTS)) && ! $SSH_CMD --command "true"; do
+        let "ATTEMPTS--"
+        echo -e "${RED}Nope, not yet.${NOR}"
+        sleep 3s
+    done
+    trap - INT
+    if ! ((ATTEMPTS)); then
+        echo -e "\n${RED}Failed${NOR}"
+        exit 7
+    fi
+    echo -e "${YEL}Got it.  Cloning upstream repository as a starting point.${NOR}"
 
-# Any subsequent failure should prompt for VM deletion
-trap delvm EXIT
+    showrun $SSH_CMD -- "mkdir -p $GOSRC"
+    showrun $SSH_CMD -- "git clone --progress $GIT_REPO $GOSRC"
 
-echo -e "\n${YEL}Retrying for 30s for ssh port to open (may give some errors)${NOR}"
-trap 'COUNT=9999' INT
-ATTEMPTS=10
-for (( COUNT=1 ; COUNT <= $ATTEMPTS ; COUNT++ ))
-do
-    if $SSH_CMD --command "true"; then break; else sleep 3s; fi
-done
-if (( COUNT > $ATTEMPTS ))
-then
-    echo -e "\n${RED}Failed${NOR}"
-    exit 7
+    if [[ -x "$HOME/$GCLOUD_CFGDIR/$HOOK_FILENAME" ]]; then
+        echo -e "\n${YEL}Copying hook to VM and executing (ignoring errors).${NOR}"
+        $PGCLOUD compute scp "/root/$GCLOUD_CFGDIR/$HOOK_FILENAME" root@$VMNAME:.
+        if ! showrun $SSH_CMD -- "cd $GOSRC && bash /root/$HOOK_FILENAME $(git branch --show-current) $(git rev-parse HEAD)"; then
+            echo "-e ${RED}Hook exited: $?${NOR}"
+        fi
+    else
+        echo -e "${YEL}Hook script not found, remote source will be a simple clone${NOR}"
+    fi
+
 fi
-echo -e "${YEL}Got it${NOR}"
 
-echo -e "\n${YEL}Removing and re-creating $GOSRC on $VMNAME.${NOR}"
-showrun $SSH_CMD --command "rm -rf $GOSRC"
-showrun $SSH_CMD --command "mkdir -p $GOSRC"
+echo -e "\n${YEL}Generating connection script for $VMNAME.${NOR}"
+echo -e "Note: Script can be re-used in another terminal if needed."
+echo -e "${RED}(option to delete VM presented upon exiting).${NOR}"
+# TODO: This is fairly fragile, specifically the quoting for the remote command.
+echo '#!/bin/bash' > $TMPDIR/ssh
+echo "$SSH_CMD -- -t 'cd $GOSRC && exec env ${ENVS[@]} bash -il'" >> $TMPDIR/ssh
+chmod +x $TMPDIR/ssh
 
-echo -e "\n${YEL}Transferring tarball to $VMNAME.${NOR}"
-wait
-showrun $SCP_CMD $HOME/$TARBALL $SSHUSER@$VMNAME:/tmp/$TARBALL
-
-echo -e "\n${YEL}Unpacking tarball into $GOSRC on $VMNAME.${NOR}"
-showrun $SSH_CMD --command "tar xjf /tmp/$TARBALL -C $GOSRC"
-
-echo -e "\n${YEL}Removing tarball on $VMNAME.${NOR}"
-showrun $SSH_CMD --command "rm -f /tmp/$TARBALL"
-
-echo -e "\n${YEL}Executing environment setup${NOR}"
-showrun $SSH_CMD --command "$SETUP_CMD"
-
-VMIP=$($PGCLOUD compute instances describe $VMNAME --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
-
-echo -e "\n${YEL}Connecting to $VMNAME${NOR}\nPublic IP Address: $VMIP\n${RED}(option to delete VM upon logout).${NOR}\n"
-showrun $SSH_CMD -- -t "cd $GOSRC && exec env $ENVS bash -il"
+showrun $TMPDIR/ssh
