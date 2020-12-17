@@ -185,6 +185,7 @@ remove_storage_mountopt() {
     # This file normally comes from containers-common package
     cat <<EOF> $FILEPATH
 [storage]
+driver = "overlay"
 runroot = "/var/run/containers/storage"
 graphroot = "/var/lib/containers/storage"
 [storage.options]
