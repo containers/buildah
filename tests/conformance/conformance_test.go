@@ -928,8 +928,8 @@ func applyLayerToFSTree(t *testing.T, layer *Layer, root *FSEntry) {
 			delete(dirEntry.Children, strings.TrimPrefix(base, ".wh."))
 			continue
 		}
-		// if the item already exists, just make sure we're not trying
-		// to turn a directory into a non-directory or vice-versa
+		// if the item already exists, make sure we don't get confused
+		// by replacing a directory with a non-directory or vice-versa
 		if child, ok := dirEntry.Children[base]; ok {
 			if child.Children != nil {
 				// it's a directory
@@ -939,8 +939,7 @@ func applyLayerToFSTree(t *testing.T, layer *Layer, root *FSEntry) {
 					child.FSHeader = entry
 					continue
 				}
-				// oh no
-				require.Failf(t, "layer diff error", "layer diff %q includes entry for directory %q, but it already exists and is not a directory", layer.UncompressedDigest, entry.Name)
+				// nope, a directory no longer
 			} else {
 				// it's not a directory
 				if entry.Typeflag != tar.TypeDir {
@@ -949,11 +948,10 @@ func applyLayerToFSTree(t *testing.T, layer *Layer, root *FSEntry) {
 					dirEntry.Children[base].FSHeader = entry
 					continue
 				}
-				// oh no
-				require.Failf(t, "layer diff error", "layer diff %q includes entry for non-directory %q, but it already exists and is a directory", layer.UncompressedDigest, entry.Name)
+				// well, it's a directory now
 			}
 		}
-		// the item doesn't already exist, so we need to add it
+		// the item doesn't already exist, or it needs to be replaced, so we need to add it
 		var children map[string]*FSEntry
 		if entry.Typeflag == tar.TypeDir {
 			// only directory entries can hold items
@@ -2645,6 +2643,21 @@ var internalTestCases = []testCase{
 		contextDir: "add/archive",
 		dockerfile: "Dockerfile.7",
 		fsSkip:     []string{"(dir):sub:mtime"},
+	},
+
+	{
+		name:       "add-dir-not-dir",
+		contextDir: "add/dir-not-dir",
+	},
+
+	{
+		name:       "add-not-dir-dir",
+		contextDir: "add/not-dir-dir",
+	},
+
+	{
+		name:       "add-populated-dir-not-dir",
+		contextDir: "add/populated-dir-not-dir",
 	},
 
 	{
