@@ -449,6 +449,7 @@ process.
    container. The `OPTIONS` are a comma delimited list and can be: <sup>[[1]](#Footnote1)</sup>
 
    * [rw|ro]
+   * [U]
    * [z|Z|O]
    * [`[r]shared`|`[r]slave`|`[r]private`|`[r]unbindable`]
 
@@ -461,9 +462,17 @@ and bind mounts that into the container.
 You can specify multiple  **-v** options to mount one or more mounts to a
 container.
 
+  `Write Protected Volume Mounts`
+
 You can add the `:ro` or `:rw` suffix to a volume to mount it read-only or
 read-write mode, respectively. By default, the volumes are mounted read-write.
 See examples.
+
+  `Chowning Volume Mounts`
+
+By default, Buildah does not change the owner and group of source volume directories mounted into containers. If a container is created in a new user namespace, the UID and GID in the container may correspond to another UID and GID on the host.
+
+The `:U` suffix tells Buildah to use the correct host UID and GID based on the UID and GID within the container, to change the owner and group of the source volume.
 
   `Labeling Volume Mounts`
 
@@ -552,6 +561,8 @@ buildah from --memory 40m --cpu-shares 2 --cpuset-cpus 0,2 --security-opt label=
 buildah from --ulimit nofile=1024:1028 --cgroup-parent /path/to/cgroup/parent myregistry/myrepository/imagename:imagetag
 
 buildah from --volume /home/test:/myvol:ro,Z myregistry/myrepository/imagename:imagetag
+
+buildah from -v /home/test:/myvol:z,U myregistry/myrepository/imagename:imagetag
 
 buildah from -v /var/lib/yum:/var/lib/yum:O myregistry/myrepository/imagename:imagetag
 

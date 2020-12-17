@@ -252,6 +252,25 @@ function configure_and_check_user() {
 	run_buildah run -v ${TESTDIR}/was-empty/testfile:/var/different-multi-level/subdirectory/testfile        $cid touch /var/different-multi-level/subdirectory/testfile
 }
 
+@test "run --volume with U flag" {
+  skip_if_no_runtime
+
+  # Create source volume.
+  mkdir ${TESTDIR}/testdata
+
+  # Create the container.
+  _prefetch alpine
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json alpine
+  ctr="$output"
+
+  # Test user can create file in the mounted volume.
+  run_buildah run --user 888:888 --volume ${TESTDIR}/testdata:/mnt:z,U "$ctr" touch /mnt/testfile1.txt
+
+  # Test created file has correct UID and GID ownership.
+  run_buildah run --user 888:888 --volume ${TESTDIR}/testdata:/mnt:z,U "$ctr" stat -c "%u:%g" /mnt/testfile1.txt
+  expect_output "888:888"
+}
+
 @test "run --mount" {
 	skip_if_no_runtime
 

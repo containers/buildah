@@ -238,6 +238,41 @@ load helpers
   expect_output --substring " /myvol "
 }
 
+@test "from --volume with U flag" {
+  skip_if_no_runtime
+
+  # Check if we're running in an environment that can even test this.
+  run readlink /proc/self/ns/user
+  echo "readlink /proc/self/ns/user -> $output"
+  [ $status -eq 0 ] || skip "user namespaces not supported"
+
+  # Generate mappings for using a user namespace.
+  uidbase=$((${RANDOM}+1024))
+  gidbase=$((${RANDOM}+1024))
+  uidsize=$((${RANDOM}+1024))
+  gidsize=$((${RANDOM}+1024))
+
+  # Create source volume.
+  mkdir ${TESTDIR}/testdata
+  touch ${TESTDIR}/testdata/testfile1.txt
+
+  # Create a container that uses that mapping and U volume flag.
+  _prefetch alpine
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize --volume ${TESTDIR}/testdata:/mnt:z,U alpine
+  ctr="$output"
+
+  # Test mounted volume has correct UID and GID ownership.
+  run_buildah run "$ctr" stat -c "%u:%g" /mnt/testfile1.txt
+  expect_output "0:0"
+
+  # Test user can create file in the mounted volume.
+  run_buildah run "$ctr" touch /mnt/testfile2.txt
+
+  # Test created file has correct UID and GID ownership.
+  run_buildah run "$ctr" stat -c "%u:%g" /mnt/testfile2.txt
+  expect_output "0:0"
+}
+
 @test "from shm-size test" {
   skip_if_chroot
   skip_if_no_runtime
