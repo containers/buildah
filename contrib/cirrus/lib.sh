@@ -178,22 +178,6 @@ showrun() {
     "$@"
 }
 
-# workaround issue 1945 (remove when resolved)
-remove_storage_mountopt() {
-    local FILEPATH=/etc/containers/storage.conf
-    warn "remove_storage_mountopt() is overwriting $FILEPATH"
-    # This file normally comes from containers-common package
-    cat <<EOF> $FILEPATH
-[storage]
-driver = "overlay"
-runroot = "/var/run/containers/storage"
-graphroot = "/var/lib/containers/storage"
-[storage.options]
-mountopt = ""
-EOF
-    cat $FILEPATH
-}
-
 # Remove all files provided by the distro version of buildah.
 # All VM cache-images used for testing include the distro buildah because it
 # simplifies installing necessary dependencies which can change over time.

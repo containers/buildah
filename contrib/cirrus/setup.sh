@@ -67,10 +67,14 @@ echo -e "[registries.search]\nregistries = ['docker.io', 'registry.fedoraproject
 
 show_env_vars
 
+echo "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
+echo "/etc/containers/storage.conf :"
+ls -l /etc/containers/storage.conf
+cat   /etc/containers/storage.conf
+echo "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+
 if [[ -z "$CROSS_TARGET" ]]
 then
-    remove_storage_mountopt  # workaround issue 1945 (remove when resolved)
-
     execute_local_registry  # checks for existing port 5000 listener
 
     if [[ "$IN_PODMAN" == "true" ]]
