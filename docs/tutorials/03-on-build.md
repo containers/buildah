@@ -69,7 +69,7 @@ The second container is now created and the `/bar` file will be created within i
 STEP 1: FROM onbuild-image
 STEP 2: RUN touch /bar    # Note /bar created here based on the ONBUILD in Dockerfile
 STEP 3: RUN touch /baz
-STEP 4: COMMIT containers-storage:[overlay@/var/lib/containers/storage+/var/run/containers/storage:overlay.override_kernel_check=true]localhost/result-image:latest
+STEP 4: COMMIT containers-storage:[overlay@/var/lib/containers/storage+/run/containers/storage:overlay.override_kernel_check=true]localhost/result-image:latest
 {output edited for brevity}
 $ container=$(sudo buildah from result-image:latest)
 # buildah run $container ls /bar /foo /baz
@@ -98,7 +98,7 @@ The onbuild-image has been created, so now create a container from it using the 
 STEP 1: FROM onbuild-image
 STEP 2: RUN touch /bar    # Note /bar created here based on the ONBUILD in Dockerfile
 STEP 3: RUN touch /baz
-STEP 4: COMMIT containers-storage:[overlay@/var/lib/containers/storage+/var/run/containers/storage:overlay.override_kernel_check=true]localhost/result-image:latest
+STEP 4: COMMIT containers-storage:[overlay@/var/lib/containers/storage+/run/containers/storage:overlay.override_kernel_check=true]localhost/result-image:latest
 {output edited for brevity}
 $ container=$(sudo buildah from result-image:latest)
 # buildah run $container ls /bar /foo /baz

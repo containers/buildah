@@ -35,7 +35,7 @@ buildah unshare pwd
 
 buildah unshare cat /proc/self/uid\_map /proc/self/gid\_map
 
-buildah unshare rm -fr $HOME/.local/share/containers/storage /var/run/user/\`id -u\`/run
+buildah unshare rm -fr $HOME/.local/share/containers/storage /run/user/\`id -u\`/run
 
 buildah unshare --mount containerID sh -c 'cat ${containerID}/etc/os-release'
 
