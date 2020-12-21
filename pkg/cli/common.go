@@ -63,6 +63,7 @@ type BudResults struct {
 	IgnoreFile          string
 	File                []string
 	Format              string
+	From                string
 	Iidfile             string
 	Label               []string
 	Logfile             string
@@ -187,6 +188,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringVar(&flags.Creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	fs.BoolVarP(&flags.DisableCompression, "disable-compression", "D", true, "don't compress layers by default")
 	fs.BoolVar(&flags.DisableContentTrust, "disable-content-trust", false, "This is a Docker specific option and is a NOOP")
+	fs.StringVar(&flags.From, "from", "", "image name used to replace the value in the first FROM instruction in the Containerfile")
 	fs.StringVar(&flags.IgnoreFile, "ignorefile", "", "path to an alternate .dockerignore file")
 	fs.StringSliceVarP(&flags.File, "file", "f", []string{}, "`pathname or URL` of a Dockerfile")
 	fs.StringVar(&flags.Format, "format", DefaultFormat(), "`format` of the built image's manifest and metadata. Use BUILDAH_FORMAT environment variable to override.")
@@ -233,6 +235,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["cert-dir"] = commonComp.AutocompleteDefault
 	flagCompletion["creds"] = commonComp.AutocompleteNone
 	flagCompletion["file"] = commonComp.AutocompleteDefault
+	flagCompletion["from"] = commonComp.AutocompleteDefault
 	flagCompletion["format"] = commonComp.AutocompleteNone
 	flagCompletion["ignorefile"] = commonComp.AutocompleteDefault
 	flagCompletion["iidfile"] = commonComp.AutocompleteDefault

@@ -1,0 +1,4 @@
+FROM fedora as builder 
+FROM busybox
+COPY --from=builder /bin/df /tmp/df_tester
+

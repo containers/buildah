@@ -318,6 +318,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		DropCapabilities:        iopts.CapDrop,
 		Err:                     stderr,
 		ForceRmIntermediateCtrs: iopts.ForceRm,
+		From:                    iopts.From,
 		IDMappingOptions:        idmappingOptions,
 		IIDFile:                 iopts.Iidfile,
 		Isolation:               isolation,
