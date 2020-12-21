@@ -55,7 +55,7 @@ github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.31.0
+# github.com/containers/common v0.31.1
 github.com/containers/common/pkg/apparmor
 github.com/containers/common/pkg/apparmor/internal/supported
 github.com/containers/common/pkg/auth
@@ -68,7 +68,7 @@ github.com/containers/common/pkg/seccomp
 github.com/containers/common/pkg/subscriptions
 github.com/containers/common/pkg/umask
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.8.1
+# github.com/containers/image/v5 v5.9.0
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
 github.com/containers/image/v5/directory/explicitfilepath
@@ -363,7 +363,7 @@ github.com/opencontainers/runtime-tools/generate
 github.com/opencontainers/runtime-tools/generate/seccomp
 github.com/opencontainers/runtime-tools/specerror
 github.com/opencontainers/runtime-tools/validate
-# github.com/opencontainers/selinux v1.6.0
+# github.com/opencontainers/selinux v1.8.0
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalk
@@ -429,7 +429,7 @@ github.com/vbauerster/mpb/v5
 github.com/vbauerster/mpb/v5/cwriter
 github.com/vbauerster/mpb/v5/decor
 github.com/vbauerster/mpb/v5/internal
-# github.com/willf/bitset v1.1.11-0.20200630133818-d5bec3311243
+# github.com/willf/bitset v1.1.11
 github.com/willf/bitset
 # github.com/xeipuuv/gojsonpointer v0.0.0-20190809123943-df4f5c81cb3b
 github.com/xeipuuv/gojsonpointer
