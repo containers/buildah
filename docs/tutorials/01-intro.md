@@ -276,4 +276,4 @@ Well done. You have learned a lot about Buildah using this short tutorial. Hopef
 
 If you have any suggestions or issues please post them at the [Buildah Issues page](https://github.com/containers/buildah/issues).
 
-For more information on Buildah and how you might contribute please visit the [Buildah home page on Github](https://github.com/containers/buildah).
+For more information on Buildah and how you might contribute please visit the [Buildah home page on GitHub](https://github.com/containers/buildah).

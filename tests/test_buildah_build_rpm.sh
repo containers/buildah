@@ -4,7 +4,7 @@
 #
 # Meant to run on a freshly installed VM.
 # Installs the latest Git and Buildah and then
-# Builds and installs Buildah's RPM in a Buidah Container.
+# Builds and installs Buildah's RPM in a Buildah Container.
 # The baseline test is then run on this vm and then the
 # newly created BUILDAH rpm is installed and the baseline
 # test is rerun.

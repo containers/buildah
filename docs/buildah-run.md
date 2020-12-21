@@ -248,7 +248,7 @@ Use `df <source-dir>` to determine the source mount and then use
 `findmnt -o TARGET,PROPAGATION <source-mount-dir>` to determine propagation
 properties of source mount, if `findmnt` utility is not available, the source mount point
 can be determined by looking at the mount entry in `/proc/self/mountinfo`. Look
-at `optional fields` and see if any propagaion properties are specified.
+at `optional fields` and see if any propagation properties are specified.
 `shared:X` means the mount is `shared`, `master:X` means the mount is `slave` and if
 nothing is there that means the mount is `private`. <sup>[[1]](#Footnote1)</sup>
 

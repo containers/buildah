@@ -21,7 +21,7 @@
 # if the second field is cleanup, the script will remove all images from the
 # specified builder.
 #
-# The script does not check for conflicts on nameing.
+# The script does not check for conflicts on naming.
 #
 # Outputs file:
 #

@@ -86,13 +86,13 @@ load helpers
   expect_output --substring "docker://busybox"
 }
 
-@test "push should fail with nonexist authfile" {
+@test "push should fail with nonexistent authfile" {
   _prefetch alpine
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah images -q
   imageid=$output
-  run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json --authfile /tmp/nonexsit $imageid dir:${TESTDIR}/my-tmp-dir
+  run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json --authfile /tmp/nonexistent $imageid dir:${TESTDIR}/my-tmp-dir
 }
 
 @test "push-denied-by-registry-sources" {

@@ -65,7 +65,7 @@ When the \fB\fC\-\-ignorefile\fR option is specified Buildah reads the
 content to exclude files and directories from the source directory, when
 copying content into the image.
 
-Users can specify a series of Unix shell globals in a inore file to
+Users can specify a series of Unix shell globals in a ignore file to
 identify files/directories to exclude.
 
 Buildah supports a special wildcard string `**` which matches any number of

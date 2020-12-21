@@ -296,7 +296,7 @@ func (p *BuildAhTest) RestoreAllArtifacts() error {
 
 //LineInOutputStartsWith returns true if a line in a
 // session output starts with the supplied string
-func (s *BuildAhSession) LineInOuputStartsWith(term string) bool {
+func (s *BuildAhSession) LineInOutputStartsWith(term string) bool {
 	for _, i := range s.OutputToStringArray() {
 		if strings.HasPrefix(i, term) {
 			return true
@@ -307,7 +307,7 @@ func (s *BuildAhSession) LineInOuputStartsWith(term string) bool {
 
 //LineInOutputContains returns true if a line in a
 // session output starts with the supplied string
-func (s *BuildAhSession) LineInOuputContains(term string) bool {
+func (s *BuildAhSession) LineInOutputContains(term string) bool {
 	for _, i := range s.OutputToStringArray() {
 		if strings.Contains(i, term) {
 			return true

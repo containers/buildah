@@ -185,7 +185,7 @@ Well done. You have learned about Buildah's ONBUILD functionality using this sho
 
 If you have any suggestions or issues please post them at the [Buildah Issues page](https://github.com/containers/buildah/issues).
 
-For more information on Buildah and how you might contribute please visit the [Buildah home page on Github](https://github.com/containers/buildah).
+For more information on Buildah and how you might contribute please visit the [Buildah home page on GitHub](https://github.com/containers/buildah).
 
 [GitHub]: https://github.com/containers/podman/
 [image specification]: https://github.com/opencontainers/runtime-spec

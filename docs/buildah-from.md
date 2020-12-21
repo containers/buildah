@@ -491,7 +491,7 @@ Only the current container can use a private volume.
 
   `Overlay Volume Mounts`
 
-   The `:O` flag tells Buildah to mount the directory from the host as a temporary storage using the Overlay file system. The `RUN` command containers are allowed to modify contents within the mountpoint and are stored in the container storage in a separate directory.  In Ovelay FS terms the source directory will be the lower, and the container storage directory will be the upper. Modifications to the mount point are destroyed when the `RUN` command finishes executing, similar to a tmpfs mount point.
+   The `:O` flag tells Buildah to mount the directory from the host as a temporary storage using the Overlay file system. The `RUN` command containers are allowed to modify contents within the mountpoint and are stored in the container storage in a separate directory.  In Overlay FS terms the source directory will be the lower, and the container storage directory will be the upper. Modifications to the mount point are destroyed when the `RUN` command finishes executing, similar to a tmpfs mount point.
 
   Any subsequent execution of `RUN` commands sees the original source directory content, any changes from previous RUN commands no longer exists.
 
@@ -523,7 +523,7 @@ Use `df <source-dir>` to determine the source mount and then use
 `findmnt -o TARGET,PROPAGATION <source-mount-dir>` to determine propagation
 properties of source mount, if `findmnt` utility is not available, the source mount point
 can be determined by looking at the mount entry in `/proc/self/mountinfo`. Look
-at `optional fields` and see if any propagaion properties are specified.
+at `optional fields` and see if any propagation properties are specified.
 `shared:X` means the mount is `shared`, `master:X` means the mount is `slave` and if
 nothing is there that means the mount is `private`. <sup>[[1]](#Footnote1)</sup>
 

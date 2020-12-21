@@ -14,7 +14,7 @@ All the cached credentials can be removed by setting the **all** flag.
 
 **buildah [GLOBAL OPTIONS]**
 
-**bildah logout [GLOBAL OPTIONS]**
+**buildah logout [GLOBAL OPTIONS]**
 
 **buildah logout [OPTIONS] REGISTRY [GLOBAL OPTIONS]**
 
@@ -43,7 +43,7 @@ Removed login credentials for docker.io
 ```
 
 ```
-$ bildah logout --authfile authdir/myauths.json docker.io
+$ buildah logout --authfile authdir/myauths.json docker.io
 Removed login credentials for docker.io
 ```
 

@@ -938,7 +938,7 @@ func IsolationOption(isolation string) (buildah.Isolation, error) {
 }
 
 // Device parses device mapping string to a src, dest & permissions string
-// Valid values for device looklike:
+// Valid values for device look like:
 //    '/dev/sdc"
 //    '/dev/sdc:/dev/xvdc"
 //    '/dev/sdc:/dev/xvdc:rwm"
