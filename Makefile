@@ -1,9 +1,8 @@
 export GOPROXY=https://proxy.golang.org
 
-SELINUXTAG := $(shell ./selinux_tag.sh)
 APPARMORTAG := $(shell hack/apparmor_tag.sh)
 STORAGETAGS := $(shell ./btrfs_tag.sh) $(shell ./btrfs_installed_tag.sh) $(shell ./libdm_tag.sh)
-SECURITYTAGS ?= seccomp $(SELINUXTAG) $(APPARMORTAG)
+SECURITYTAGS ?= seccomp $(APPARMORTAG)
 TAGS ?= $(SECURITYTAGS) $(STORAGETAGS)
 BUILDTAGS += $(TAGS)
 PREFIX := /usr/local
