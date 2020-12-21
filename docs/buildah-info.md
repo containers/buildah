@@ -56,7 +56,7 @@ $ buildah info
         "ImageStore": {
             "number": 1
         },
-        "RunRoot": "/var/run/containers/storage"
+        "RunRoot": "/run/containers/storage"
     }
 }
 ```
@@ -64,7 +64,7 @@ $ buildah info
 Run buildah info and retrieve only the store information:
 ```
 $ buildah info --format={{".store"}}
-map[GraphOptions:[overlay.override_kernel_check=true] GraphStatus:map[Backing Filesystem:extfs Supports d_type:true Native Overlay Diff:true] ImageStore:map[number:1] ContainerStore:map[number:2] GraphRoot:/var/lib/containers/storage RunRoot:/var/run/containers/storage GraphDriverName:overlay]
+map[GraphOptions:[overlay.override_kernel_check=true] GraphStatus:map[Backing Filesystem:extfs Supports d_type:true Native Overlay Diff:true] ImageStore:map[number:1] ContainerStore:map[number:2] GraphRoot:/var/lib/containers/storage RunRoot:/run/containers/storage GraphDriverName:overlay]
 ```
 
 ## SEE ALSO

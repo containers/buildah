@@ -51,7 +51,7 @@ Default root dir is configured in /etc/containers/storage.conf
 
 **--runroot** **value**
 
-Storage state dir (default: "/var/run/containers/storage" for UID 0, "/var/run/user/$UID" for other users)
+Storage state dir (default: "/run/containers/storage" for UID 0, "/run/user/$UID" for other users)
 Default state dir is configured in /etc/containers/storage.conf
 
 **--storage-driver** **value**

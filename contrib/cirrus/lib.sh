@@ -186,7 +186,7 @@ remove_storage_mountopt() {
     cat <<EOF> $FILEPATH
 [storage]
 driver = "overlay"
-runroot = "/var/run/containers/storage"
+runroot = "/run/containers/storage"
 graphroot = "/var/lib/containers/storage"
 [storage.options]
 mountopt = ""
