@@ -2441,3 +2441,20 @@ EOF
   expect_output --substring "STEP 1: FROM alpine AS builder"
   expect_output --substring "STEP 2: FROM busybox"
 }
+
+@test "bud test no --stdin" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+RUN read -t 1 x && echo test got \<\$x\>
+RUN touch /tmp/done
+_EOF
+
+  # fail without --stdin
+  run_buildah 1 bud -t testbud --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
+
+  run_buildah bud --stdin -t testbud --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
+  expect_output --substring "test got <input>"
+}
