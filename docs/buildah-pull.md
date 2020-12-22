@@ -46,6 +46,10 @@ The image ID of the image that was pulled.  On error 1 is returned.
 
 All tagged images in the repository will be pulled.
 
+**--arch**="ARCH"
+
+Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host. (Examples: aarch64, arm, i686, ppc64le, s390x, x86_64)
+
 **--authfile** *path*
 
 Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `buildah login`.
@@ -70,6 +74,10 @@ The [key[:passphrase]] to be used for decryption of images. Key can point to key
 
 If an image needs to be pulled from the registry, suppress progress output.
 
+**--os**="OS"
+
+Set the OS of the image to be pulled instead of using the current operating system of the host.
+
 **--policy**=**always**|**missing**|**never**
 
 Pull image policy. The default is **missing**.
@@ -86,6 +94,9 @@ Don't copy signatures when pulling images.
 
 Require HTTPS and verify certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
 
+**--variant**=""
+
+Set the architecture variant of the image to be pulled.
 
 ## EXAMPLE
 
@@ -106,6 +117,10 @@ buildah pull --tls-verify=false myregistry/myrepository/imagename:imagetag
 buildah pull --creds=myusername:mypassword --cert-dir ~/auth myregistry/myrepository/imagename:imagetag
 
 buildah pull --authfile=/tmp/auths/myauths.json myregistry/myrepository/imagename:imagetag
+
+buildah pull --arch=aarch64 myregistry/myrepository/imagename:imagetag
+
+buildah pull --arch=arm --variant=v7 myregistry/myrepository/imagename:imagetag
 
 ## ENVIRONMENT
 

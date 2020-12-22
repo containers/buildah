@@ -28,9 +28,9 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 
 @test "manifest-add-one" {
     run_buildah manifest create foo
-    run_buildah manifest add --override-arch=arm64 foo ${IMAGE_LIST_INSTANCE}
+    run_buildah manifest add --arch=arm64 foo ${IMAGE_LIST_INSTANCE}
     run_buildah 125 inspect foo
-    expect_output --substring "does not exist"
+    expect_output --substring "no image found"
     run_buildah manifest inspect foo
     expect_output --substring ${IMAGE_LIST_ARM64_INSTANCE_DIGEST}
 }
@@ -97,7 +97,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 
 @test "manifest-push-purge" {
     run_buildah manifest create foo
-    run_buildah manifest add --override-arch=arm64 foo ${IMAGE_LIST}
+    run_buildah manifest add --arch=arm64 foo ${IMAGE_LIST}
     run_buildah manifest inspect foo
     run_buildah manifest push --signature-policy ${TESTSDIR}/policy.json --purge foo dir:${TESTDIR}/pushed
     run_buildah 125 manifest inspect foo
@@ -105,7 +105,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 
 @test "manifest-push should fail with nonexistent authfile" {
     run_buildah manifest create foo
-    run_buildah manifest add --override-arch=arm64 foo ${IMAGE_LIST}
+    run_buildah manifest add --arch=arm64 foo ${IMAGE_LIST}
     run_buildah manifest inspect foo
     run_buildah 125 manifest push --authfile /tmp/nonexistent --signature-policy ${TESTSDIR}/policy.json --purge foo dir:${TESTDIR}/pushed
 

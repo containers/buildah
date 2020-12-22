@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/containers/buildah/manifests"
+	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/auth"
@@ -24,11 +25,10 @@ import (
 )
 
 type manifestCreateOpts = struct {
-	osOverride, archOverride string
-	all                      bool
+	os, arch string
+	all      bool
 }
 type manifestAddOpts = struct {
-	osOverride, archOverride                               string
 	authfile, certDir, creds, os, arch, variant, osVersion string
 	features, osFeatures, annotations                      []string
 	tlsVerify, all                                         bool
@@ -90,14 +90,15 @@ func init() {
 	manifestCreateCommand.SetUsageTemplate(UsageTemplate())
 	flags := manifestCreateCommand.Flags()
 	flags.BoolVar(&manifestCreateOpts.all, "all", false, "add all of the lists' images if the images to add are lists")
-	flags.StringVar(&manifestCreateOpts.osOverride, "override-os", "", "if any of the specified images is a list, choose the one for `os`")
-	if err := flags.MarkHidden("override-os"); err != nil {
-		panic(fmt.Sprintf("error marking override-os as hidden: %v", err))
+	flags.StringVar(&manifestCreateOpts.os, "os", "", "if any of the specified images is a list, choose the one for `os`")
+	if err := flags.MarkHidden("os"); err != nil {
+		panic(fmt.Sprintf("error marking --os as hidden: %v", err))
 	}
-	flags.StringVar(&manifestCreateOpts.archOverride, "override-arch", "", "if any of the specified images is a list, choose the one for `arch`")
-	if err := flags.MarkHidden("override-arch"); err != nil {
-		panic(fmt.Sprintf("error marking override-arch as hidden: %v", err))
+	flags.StringVar(&manifestCreateOpts.arch, "arch", "", "if any of the specified images is a list, choose the one for `arch`")
+	if err := flags.MarkHidden("arch"); err != nil {
+		panic(fmt.Sprintf("error marking --arch as hidden: %v", err))
 	}
+	flags.SetNormalizeFunc(cli.AliasFlags)
 	manifestCommand.AddCommand(manifestCreateCommand)
 
 	manifestAddCommand := &cobra.Command{
@@ -113,14 +114,6 @@ func init() {
 	}
 	manifestAddCommand.SetUsageTemplate(UsageTemplate())
 	flags = manifestAddCommand.Flags()
-	flags.StringVar(&manifestAddOpts.osOverride, "override-os", "", "if any of the specified images is a list, choose the one for `os`")
-	if err := flags.MarkHidden("override-os"); err != nil {
-		panic(fmt.Sprintf("error marking override-os as hidden: %v", err))
-	}
-	flags.StringVar(&manifestAddOpts.archOverride, "override-arch", "", "if any of the specified images is a list, choose the one for `arch`")
-	if err := flags.MarkHidden("override-arch"); err != nil {
-		panic(fmt.Sprintf("error marking override-arch as hidden: %v", err))
-	}
 	flags.StringVar(&manifestAddOpts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&manifestAddOpts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	flags.StringVar(&manifestAddOpts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
@@ -133,6 +126,7 @@ func init() {
 	flags.StringSliceVar(&manifestAddOpts.annotations, "annotation", nil, "set an `annotation` for the specified image")
 	flags.BoolVar(&manifestAddOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVar(&manifestAddOpts.all, "all", false, "add all of the list's images if the image is a list")
+	flags.SetNormalizeFunc(cli.AliasFlags)
 	manifestCommand.AddCommand(manifestAddCommand)
 
 	manifestRemoveCommand := &cobra.Command{

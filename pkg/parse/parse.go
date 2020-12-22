@@ -612,13 +612,30 @@ func SystemContextFromOptions(c *cobra.Command) (*types.SystemContext, error) {
 		ctx.RegistriesDirPath = regConfDir
 	}
 	ctx.DockerRegistryUserAgent = fmt.Sprintf("Buildah/%s", buildah.Version)
-	if os, err := c.Flags().GetString("override-os"); err == nil {
+	if os, err := c.Flags().GetString("os"); err == nil {
 		ctx.OSChoice = os
 	}
-	if arch, err := c.Flags().GetString("override-arch"); err == nil {
+	if arch, err := c.Flags().GetString("arch"); err == nil {
 		ctx.ArchitectureChoice = arch
 	}
-	ctx.BigFilesTemporaryDir = GetTempDir()
+	if variant, err := c.Flags().GetString("variant"); err == nil {
+		ctx.VariantChoice = variant
+	}
+	if platform, err := c.Flags().GetString("platform"); err == nil {
+		os, arch, variant, err := parsePlatform(platform)
+		if err != nil {
+			return nil, err
+		}
+		if ctx.OSChoice != "" ||
+			ctx.ArchitectureChoice != "" ||
+			ctx.VariantChoice != "" {
+			return nil, errors.Errorf("invalid --platform may not be used with --os, --arch, or --variant")
+		}
+		ctx.OSChoice = os
+		ctx.ArchitectureChoice = arch
+		ctx.VariantChoice = variant
+	}
+
 	return ctx, nil
 }
 
@@ -643,7 +660,7 @@ func PlatformFromOptions(c *cobra.Command) (os, arch string, err error) {
 	}
 
 	if pf, err := c.Flags().GetString("platform"); err == nil && pf != DefaultPlatform() {
-		selectedOS, selectedArch, err := parsePlatform(pf)
+		selectedOS, selectedArch, _, err := parsePlatform(pf)
 		if err != nil {
 			return "", "", errors.Wrap(err, "unable to parse platform")
 		}
@@ -661,12 +678,17 @@ func DefaultPlatform() string {
 	return runtime.GOOS + platformSep + runtime.GOARCH
 }
 
-func parsePlatform(platform string) (os, arch string, err error) {
+func parsePlatform(platform string) (os, arch, variant string, err error) {
 	split := strings.Split(platform, platformSep)
-	if len(split) != 2 {
-		return "", "", errors.Errorf("invalid platform syntax for %q (use OS/ARCH)", platform)
+	if len(split) < 2 {
+		return "", "", "", errors.Errorf("invalid platform syntax for %q (use OS/ARCH)", platform)
 	}
-	return split[0], split[1], nil
+	os = split[0]
+	arch = split[1]
+	if len(split) == 3 {
+		variant = split[2]
+	}
+	return
 }
 
 func parseCreds(creds string) (string, string) {

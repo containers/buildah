@@ -20,8 +20,6 @@ type pullOptions struct {
 	blobCache        string
 	certDir          string
 	creds            string
-	overrideArch     string
-	overrideOS       string
 	signaturePolicy  string
 	quiet            bool
 	removeSignatures bool
@@ -67,14 +65,9 @@ func init() {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
 	}
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pulling images")
-	flags.StringVar(&opts.overrideOS, "override-os", runtime.GOOS, "prefer `OS` instead of the running OS for choosing images")
-	if err := flags.MarkHidden("override-os"); err != nil {
-		panic(fmt.Sprintf("error marking override-os as hidden: %v", err))
-	}
-	flags.StringVar(&opts.overrideArch, "override-arch", runtime.GOARCH, "prefer `ARCH` instead of the architecture of the machine for choosing images")
-	if err := flags.MarkHidden("override-arch"); err != nil {
-		panic(fmt.Sprintf("error marking override-arch as hidden: %v", err))
-	}
+	flags.String("os", runtime.GOOS, "prefer `OS` instead of the running OS for choosing images")
+	flags.String("arch", runtime.GOARCH, "prefer `ARCH` instead of the architecture of the machine for choosing images")
+	flags.String("variant", "", "override the `variant` of the specified image")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	if err := flags.MarkHidden("blob-cache"); err != nil {
 		panic(fmt.Sprintf("error marking blob-cache as hidden: %v", err))
