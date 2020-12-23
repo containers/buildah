@@ -110,11 +110,11 @@ load helpers
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid
 }
 
-@test "commit should fail with nonexist authfile" {
+@test "commit should fail with nonexistent authfile" {
   _prefetch alpine
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah 125 commit --authfile /tmp/nonexist --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
+  run_buildah 125 commit --authfile /tmp/nonexistent --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
 }
 
 @test "commit-builder-identity" {

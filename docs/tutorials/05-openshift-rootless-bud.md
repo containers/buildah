@@ -259,7 +259,7 @@ sh-5.0$ buildah info
 
 Now create some files for testing.
 
-This container test file excersises at least some of the critical parts of building an image (package update/installation, execution of commands, and use of volumes).
+This container test file exercises at least some of the critical parts of building an image (package update/installation, execution of commands, and use of volumes).
 
 ````console
 sh-5.0$ cat > test-script.sh <<EOF

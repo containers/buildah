@@ -50,7 +50,7 @@ load helpers
 }
 
 @test "from-tagged-image" {
-  # Github #396: Make sure the container name starts with the correct image even when it's tagged.
+  # GitHub #396: Make sure the container name starts with the correct image even when it's tagged.
   run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" scratch2
@@ -61,7 +61,7 @@ load helpers
   run_buildah rm $output
   run_buildah rmi scratch2 scratch3
 
-  # Github https://github.com/containers/buildah/issues/396#issuecomment-360949396
+  # GitHub https://github.com/containers/buildah/issues/396#issuecomment-360949396
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah rm $cid

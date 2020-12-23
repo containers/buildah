@@ -364,7 +364,7 @@ func cleanerReldirectory(candidate string) string {
 	return cleaned
 }
 
-// convertToRelSubirectory returns the path of directory, bound and relative to
+// convertToRelSubdirectory returns the path of directory, bound and relative to
 // root, as a relative path, or an error if that path can't be computed or if
 // the two directories are on different volumes
 func convertToRelSubdirectory(root, directory string) (relative string, err error) {

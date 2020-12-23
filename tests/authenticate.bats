@@ -15,11 +15,11 @@ load helpers
   run_buildah 0 logout docker.io
 }
 
-@test "authenticate: logout should fail with nonexist authfile" {
+@test "authenticate: logout should fail with nonexistent authfile" {
   run_buildah 0 login --username testuserfoo --password testpassword docker.io
 
-  run_buildah 125 logout --authfile /tmp/nonexist docker.io
-  expect_output "error checking authfile path /tmp/nonexist: stat /tmp/nonexist: no such file or directory"
+  run_buildah 125 logout --authfile /tmp/nonexistent docker.io
+  expect_output "error checking authfile path /tmp/nonexistent: stat /tmp/nonexistent: no such file or directory"
 
   run_buildah 0 logout docker.io
 }

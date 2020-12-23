@@ -449,7 +449,7 @@ func Tail(a []string) []string {
 }
 
 // UsageTemplate returns the usage template for podman commands
-// This blocks the desplaying of the global options. The main podman
+// This blocks the displaying of the global options. The main podman
 // command should not use this.
 func UsageTemplate() string {
 	return `Usage:{{if .Runnable}}

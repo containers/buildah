@@ -242,7 +242,7 @@ in_podman() {
         [[ -z "$envname" ]] || [[ -z "$envvalue" ]] || \
             envargs="${envargs:+$envargs }-e $envname=$envvalue"
     done
-    # Back in the days of testing under PAPR, containers were run with super-privledges.
+    # Back in the days of testing under PAPR, containers were run with super-privileges.
     # That behavior is preserved here with a few updates for modern podman behaviors.
     # The only other additions/changes are passthrough of CI-related env. vars ($envargs),
     # some path related updates, and mounting cgroups RW instead of the RO default.

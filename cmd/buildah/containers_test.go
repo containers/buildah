@@ -45,7 +45,7 @@ func TestContainerTemplateOutputInvalidFormat(t *testing.T) {
 	}
 }
 
-func TestContainerTemplateOutputInexistenceField(t *testing.T) {
+func TestContainerTemplateOutputNonexistentField(t *testing.T) {
 	params := containerOutputParams{
 		ContainerID:   "e477836657bb",
 		Builder:       " ",
@@ -58,7 +58,7 @@ func TestContainerTemplateOutputInexistenceField(t *testing.T) {
 
 	err := containerOutputUsingTemplate(formatString, params)
 	if err == nil || !strings.Contains(err.Error(), "can't evaluate field ID") {
-		t.Fatalf("expected error inexistence field")
+		t.Fatalf("expected error nonexistent field")
 	}
 }
 

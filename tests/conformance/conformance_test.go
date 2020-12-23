@@ -714,7 +714,7 @@ type FSHeader struct {
 	UID      int               `json:"uid"`
 	GID      int               `json:"gid"`
 	ModTime  time.Time         `json:"mtime,omitempty"`
-	Devmajor int64             `json:"devmanor,omitempty"`
+	Devmajor int64             `json:"devmajor,omitempty"`
 	Devminor int64             `json:"devminor,omitempty"`
 	Xattrs   map[string]string `json:"xattrs,omitempty"`
 	Digest   digest.Digest     `json:"digest,omitempty"`
