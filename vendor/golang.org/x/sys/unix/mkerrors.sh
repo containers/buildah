@@ -66,6 +66,7 @@ includes_Darwin='
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sys_domain.h>
 #include <sys/sysctl.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -224,6 +225,7 @@ struct ltchars {
 #include <linux/kexec.h>
 #include <linux/keyctl.h>
 #include <linux/loop.h>
+#include <linux/lwtunnel.h>
 #include <linux/magic.h>
 #include <linux/memfd.h>
 #include <linux/module.h>
@@ -232,6 +234,7 @@ struct ltchars {
 #include <linux/net_namespace.h>
 #include <linux/nsfs.h>
 #include <linux/perf_event.h>
+#include <linux/pps.h>
 #include <linux/ptrace.h>
 #include <linux/random.h>
 #include <linux/reboot.h>
@@ -559,6 +562,7 @@ ccflags="$@"
 		$2 ~ /^CRYPTO_/ ||
 		$2 ~ /^TIPC_/ ||
 		$2 ~ /^DEVLINK_/ ||
+		$2 ~ /^LWTUNNEL_IP/ ||
 		$2 !~ "WMESGLEN" &&
 		$2 ~ /^W[A-Z0-9]+$/ ||
 		$2 ~/^PPPIOC/ ||
