@@ -27,6 +27,7 @@ type commitInputOptions struct {
 	disableCompression bool
 	format             string
 	iidfile            string
+	manifest           string
 	omitTimestamp      bool
 	timestamp          int64
 	quiet              bool
@@ -73,6 +74,7 @@ func init() {
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", true, "don't compress layers")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
+	flags.StringVar(&opts.manifest, "manifest", "", "create image with as part of the specified manifest list. Creates manifest if it does not exist")
 	flags.StringVar(&opts.iidfile, "iidfile", "", "Write the image ID to the file")
 	flags.BoolVar(&opts.omitTimestamp, "omit-timestamp", false, "set created timestamp to epoch 0 to allow for deterministic builds")
 	flags.Int64Var(&opts.timestamp, "timestamp", 0, "set created timestamp to epoch seconds to allow for deterministic builds, defaults to current time")
@@ -175,6 +177,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 
 	options := buildah.CommitOptions{
 		PreferredManifestType: format,
+		Manifest:              iopts.manifest,
 		Compression:           compress,
 		SignaturePolicyPath:   iopts.signaturePolicy,
 		SystemContext:         systemContext,

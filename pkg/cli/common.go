@@ -67,6 +67,7 @@ type BudResults struct {
 	Label               []string
 	Logfile             string
 	Loglevel            int
+	Manifest            string
 	NoCache             bool
 	Timestamp           int64
 	Pull                bool
@@ -197,6 +198,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	if err := fs.MarkHidden("log-rusage"); err != nil {
 		panic(fmt.Sprintf("error marking the log-rusage flag as hidden: %v", err))
 	}
+	fs.StringVar(&flags.Manifest, "manifest", "", "add the image to the specified manifest list. Creates manifest if it does not exist")
 	fs.BoolVar(&flags.NoCache, "no-cache", false, "Do not use existing cached images for the container build. Build from the start with a new set of cached layers.")
 	fs.String("os", runtime.GOOS, "set the OS to the provided value instead of the current operating system of the host")
 	fs.String("platform", parse.DefaultPlatform(), "set the OS/ARCH to the provided value instead of the current operating system and architecture of the host (for example `linux/arm`)")
@@ -241,6 +243,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["label"] = commonComp.AutocompleteNone
 	flagCompletion["logfile"] = commonComp.AutocompleteDefault
 	flagCompletion["loglevel"] = commonComp.AutocompleteDefault
+	flagCompletion["manifest"] = commonComp.AutocompleteDefault
 	flagCompletion["os"] = commonComp.AutocompleteNone
 	flagCompletion["platform"] = commonComp.AutocompleteNone
 	flagCompletion["runtime-flag"] = commonComp.AutocompleteNone

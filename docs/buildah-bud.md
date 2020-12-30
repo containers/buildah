@@ -355,6 +355,11 @@ Adjust the logging level up or down.  Valid option values range from -2 to 3,
 with 3 being roughly equivalent to using the global *--log-level=debug* option, and
 values below 0 omitting even error messages which accompany fatal errors.
 
+**--manifest** "manifest"
+
+Name of the manifest list to which the image will be added. Creates the manifest list
+if it does not exist. This option is useful for building multi architecture images.
+
 **--memory**, **-m**=""
 
 Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
@@ -519,7 +524,7 @@ When --timestamp is set, the created timestamp is always set to the time specifi
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
+Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
 
 **--ulimit** *type*=*soft-limit*[:*hard-limit*]
 
@@ -748,6 +753,12 @@ buildah bud -f Containerfile --layers --force-rm -t imageName .
 buildah bud --no-cache --rm=false -t imageName .
 
 buildah bud --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
+
+### Building an multi-architecture image using a --manifest option (Requires emulation software)
+
+buildah bud --arch arm --manifest myimage /tmp/mysrc
+buildah bud --arch amd64 --manifest myimage /tmp/mysrc
+buildah bud --arch s390x --manifest myimage /tmp/mysrc
 
 ### Building an image using a URL
 

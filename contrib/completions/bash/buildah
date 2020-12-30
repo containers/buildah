@@ -324,6 +324,7 @@ return 1
           -h
           --disable-compression
           -D
+          --manifest
           --quiet
           -q
           --rm
@@ -424,6 +425,7 @@ return 1
      --ipc
      --label
      --loglevel
+     --manifest
      -m
      --memory
      --memory-swap

@@ -65,7 +65,7 @@ Sign the pushed images using the GPG key that matches the specified fingerprint.
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
+Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
 
 ## EXAMPLE
 
