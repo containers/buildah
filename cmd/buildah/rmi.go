@@ -98,10 +98,10 @@ func rmiCmd(c *cobra.Command, args []string, iopts rmiResults) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	return deleteImages(ctx, systemContext, store, imagesToDelete, iopts.all, iopts.force)
+	return deleteImages(ctx, systemContext, store, imagesToDelete, iopts.all, iopts.force, iopts.prune)
 }
 
-func deleteImages(ctx context.Context, systemContext *types.SystemContext, store storage.Store, imagesToDelete []string, removeAll, force bool) error {
+func deleteImages(ctx context.Context, systemContext *types.SystemContext, store storage.Store, imagesToDelete []string, removeAll, force, prune bool) error {
 	var lastError error
 	for _, id := range imagesToDelete {
 		image, err := getImage(ctx, systemContext, store, id)
@@ -200,10 +200,12 @@ func deleteImages(ctx context.Context, systemContext *types.SystemContext, store
 		}
 
 		if isParent && len(image.Names) == 0 && !removeAll {
-			if lastError != nil {
-				fmt.Fprintln(os.Stderr, lastError)
+			if !prune {
+				if lastError != nil {
+					fmt.Fprintln(os.Stderr, lastError)
+				}
+				lastError = errors.Errorf("unable to delete %q (cannot be forced) - image has dependent child images", image.ID)
 			}
-			lastError = errors.Errorf("unable to delete %q (cannot be forced) - image has dependent child images", image.ID)
 			continue
 		}
 		id, err := removeImage(ctx, systemContext, store, image)
