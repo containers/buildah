@@ -612,28 +612,36 @@ func SystemContextFromOptions(c *cobra.Command) (*types.SystemContext, error) {
 		ctx.RegistriesDirPath = regConfDir
 	}
 	ctx.DockerRegistryUserAgent = fmt.Sprintf("Buildah/%s", buildah.Version)
-	if os, err := c.Flags().GetString("os"); err == nil {
-		ctx.OSChoice = os
-	}
-	if arch, err := c.Flags().GetString("arch"); err == nil {
-		ctx.ArchitectureChoice = arch
-	}
-	if variant, err := c.Flags().GetString("variant"); err == nil {
-		ctx.VariantChoice = variant
-	}
-	if platform, err := c.Flags().GetString("platform"); err == nil {
-		os, arch, variant, err := parsePlatform(platform)
-		if err != nil {
-			return nil, err
+	if c.Flag("os") != nil && c.Flag("os").Changed {
+		if os, err := c.Flags().GetString("os"); err == nil {
+			ctx.OSChoice = os
 		}
-		if ctx.OSChoice != "" ||
-			ctx.ArchitectureChoice != "" ||
-			ctx.VariantChoice != "" {
-			return nil, errors.Errorf("invalid --platform may not be used with --os, --arch, or --variant")
+	}
+	if c.Flag("arch") != nil && c.Flag("arch").Changed {
+		if arch, err := c.Flags().GetString("arch"); err == nil {
+			ctx.ArchitectureChoice = arch
 		}
-		ctx.OSChoice = os
-		ctx.ArchitectureChoice = arch
-		ctx.VariantChoice = variant
+	}
+	if c.Flag("variant") != nil && c.Flag("variant").Changed {
+		if variant, err := c.Flags().GetString("variant"); err == nil {
+			ctx.VariantChoice = variant
+		}
+	}
+	if c.Flag("platform") != nil && c.Flag("platform").Changed {
+		if platform, err := c.Flags().GetString("platform"); err == nil {
+			os, arch, variant, err := parsePlatform(platform)
+			if err != nil {
+				return nil, err
+			}
+			if ctx.OSChoice != "" ||
+				ctx.ArchitectureChoice != "" ||
+				ctx.VariantChoice != "" {
+				return nil, errors.Errorf("invalid --platform may not be used with --os, --arch, or --variant")
+			}
+			ctx.OSChoice = os
+			ctx.ArchitectureChoice = arch
+			ctx.VariantChoice = variant
+		}
 	}
 
 	return ctx, nil
@@ -649,23 +657,27 @@ func getAuthFile(authfile string) string {
 // PlatformFromOptions parses the operating system (os) and architecture (arch)
 // from the provided command line options.
 func PlatformFromOptions(c *cobra.Command) (os, arch string, err error) {
-	os = runtime.GOOS
-	arch = runtime.GOARCH
 
-	if selectedOS, err := c.Flags().GetString("os"); err == nil && selectedOS != runtime.GOOS {
-		os = selectedOS
-	}
-	if selectedArch, err := c.Flags().GetString("arch"); err == nil && selectedArch != runtime.GOARCH {
-		arch = selectedArch
-	}
-
-	if pf, err := c.Flags().GetString("platform"); err == nil && pf != DefaultPlatform() {
-		selectedOS, selectedArch, _, err := parsePlatform(pf)
-		if err != nil {
-			return "", "", errors.Wrap(err, "unable to parse platform")
+	if c.Flag("os").Changed {
+		if selectedOS, err := c.Flags().GetString("os"); err == nil {
+			os = selectedOS
 		}
-		arch = selectedArch
-		os = selectedOS
+	}
+	if c.Flag("arch").Changed {
+		if selectedArch, err := c.Flags().GetString("arch"); err == nil {
+			arch = selectedArch
+		}
+	}
+
+	if c.Flag("platform").Changed {
+		if pf, err := c.Flags().GetString("platform"); err == nil {
+			selectedOS, selectedArch, _, err := parsePlatform(pf)
+			if err != nil {
+				return "", "", errors.Wrap(err, "unable to parse platform")
+			}
+			arch = selectedArch
+			os = selectedOS
+		}
 	}
 
 	return os, arch, nil
