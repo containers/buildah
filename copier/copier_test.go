@@ -547,6 +547,32 @@ func testPut(t *testing.T) {
 		}
 	}
 
+	for _, ignoreDevices := range []bool{false, true} {
+		for _, typeFlag := range []byte{tar.TypeChar, tar.TypeBlock} {
+			t.Run(fmt.Sprintf("ignoreDevices=%v,type=%c", ignoreDevices, typeFlag), func(t *testing.T) {
+				if uid != 0 && !ignoreDevices {
+					t.Skip("can only test !IgnoreDevices with root privileges, skipping")
+				}
+				archive := makeArchiveSlice([]tar.Header{
+					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0600, ModTime: testDate, Devmajor: 0, Devminor: 0},
+					{Name: "link", Typeflag: tar.TypeLink, Size: 0, Mode: 0600, ModTime: testDate, Linkname: "test"},
+					{Name: "unrelated", Typeflag: tar.TypeReg, Size: 0, Mode: 0600, ModTime: testDate},
+				})
+				tmp, err := ioutil.TempDir("", "copier-test-")
+				require.Nil(t, err, "error creating temporary directory")
+				defer os.RemoveAll(tmp)
+				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, IgnoreDevices: ignoreDevices}, bytes.NewReader(archive))
+				require.Nilf(t, err, "expected to extract content with typeflag %c without an error: %v", typeFlag, err)
+				fileList, err := enumerateFiles(tmp)
+				require.Nilf(t, err, "unexpected error scanning the contents of extraction directory for typeflag %c: %v", typeFlag, err)
+				expectedItems := 3
+				if ignoreDevices {
+					expectedItems = 1
+				}
+				require.Equalf(t, expectedItems, len(fileList), "didn't extract as many things as expected for typeflag %c", typeFlag)
+			})
+		}
+	}
 }
 
 func isExpectedError(err error, inSubdir bool, name string, expectedErrors []expectedError) bool {
