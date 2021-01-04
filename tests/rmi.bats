@@ -114,6 +114,48 @@ load helpers
   expect_output ""
 }
 
+@test "use prune to remove dangling images with parent" {
+  createrandom ${TESTDIR}/randomfile
+  createrandom ${TESTDIR}/other-randomfile
+
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+
+  run_buildah images -q -a
+  expect_line_count 0
+
+  run_buildah mount $cid
+  root=$output
+  cp ${TESTDIR}/randomfile $root/randomfile
+  run_buildah unmount $cid
+  run_buildah commit --quiet --signature-policy ${TESTSDIR}/policy.json $cid
+  image=$output
+  run_buildah rm $cid
+
+  run_buildah images -q -a
+  expect_line_count 1
+
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  cid=$output
+  run_buildah mount $cid
+  root=$output
+  cp ${TESTDIR}/other-randomfile $root/other-randomfile
+  run_buildah unmount $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid
+  run_buildah rm $cid
+
+  run_buildah images -q -a
+  expect_line_count 2
+
+  run_buildah rmi --prune
+
+  run_buildah images -q -a
+  expect_line_count 0
+
+  run_buildah images -q -a
+  expect_output ""
+}
+
 @test "use conflicting commands to remove images" {
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
