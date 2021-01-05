@@ -28,16 +28,16 @@ env:
     # GCE project where images live
     IMAGE_PROJECT: "libpod-218412"
     # See https://github.com/containers/podman/blob/master/contrib/cirrus/README.md#test_build_cache_images_task-task
-    FEDORA_NAME: "fedora-32"
-    PRIOR_FEDORA_NAME: "fedora-31"
-    UBUNTU_NAME: "ubuntu-20"
-    PRIOR_UBUNTU_NAME: "ubuntu-19"
+    FEDORA_NAME: "fedora-33"
+    PRIOR_FEDORA_NAME: "fedora-32"
+    UBUNTU_NAME: "ubuntu-2010"
+    PRIOR_UBUNTU_NAME: "ubuntu-2004"
 
-    IMAGE_SUFFIX: "podman-6530021898584064"
-    FEDORA_CACHE_IMAGE_NAME: "${FEDORA_NAME}-${IMAGE_SUFFIX}"
-    PRIOR_FEDORA_CACHE_IMAGE_NAME: "${PRIOR_FEDORA_NAME}-${IMAGE_SUFFIX}"
-    UBUNTU_CACHE_IMAGE_NAME: "${UBUNTU_NAME}-${IMAGE_SUFFIX}"
-    PRIOR_UBUNTU_CACHE_IMAGE_NAME: "${PRIOR_UBUNTU_NAME}-${IMAGE_SUFFIX}"
+    IMAGE_SUFFIX: "c6102133168668672"
+    FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
+    PRIOR_FEDORA_CACHE_IMAGE_NAME: "prior-fedora-${IMAGE_SUFFIX}"
+    UBUNTU_CACHE_IMAGE_NAME: "ubuntu-${IMAGE_SUFFIX}"
+    PRIOR_UBUNTU_CACHE_IMAGE_NAME: "prior-ubuntu-${IMAGE_SUFFIX}"
 
     IN_PODMAN_IMAGE: "quay.io/libpod/fedora_podman:${IMAGE_SUFFIX}"
 
@@ -110,6 +110,29 @@ smoke_task:
     binary_artifacts:
         path: ./bin/*
 
+# Check that all included go modules from other sources match
+# # what is expected in `vendor/modules.txt` vs `go.mod`.
+vendor_task:
+    name: "Test Vendoring"
+    alias: vendor
+
+    env:
+        CIRRUS_WORKING_DIR: "/var/tmp/go/src/github.com/containers/buildah"
+        GOPATH: "/var/tmp/go"
+        GOSRC: "/var/tmp/go/src/github.com/containers/buildah"
+
+    # Runs within Cirrus's "community cluster"
+    container:
+        image: docker.io/library/golang:1.13
+        cpu: 1
+        memory: 1
+
+    timeout_in: 5m
+
+    vendor_script:
+        - 'make vendor'
+        - './hack/tree_status.sh'
+
 
 unit_task:
     name: "Unit tests"
@@ -145,30 +168,6 @@ conformance_task:
     conformance_test_script: '${SCRIPT_BASE}/test.sh conformance |& ${_TIMESTAMP}'
 
 
-# Check that all included go modules from other sources match
-# # what is expected in `vendor/modules.txt` vs `go.mod`.
-vendor_task:
-    name: "Test Vendoring"
-    alias: vendor
-
-    env:
-        CIRRUS_WORKING_DIR: "/var/tmp/go/src/github.com/containers/buildah"
-        GOPATH: "/var/tmp/go"
-        GOSRC: "/var/tmp/go/src/github.com/containers/buildah"
-
-    # Runs within Cirrus's "community cluster"
-    container:
-        image: docker.io/library/golang:1.13
-        cpu: 1
-        memory: 1
-
-    timeout_in: 5m
-
-    vendor_script:
-        - 'make vendor'
-        - './hack/tree_status.sh'
-
-
 # Confirm cross-compile ALL archetectures on a Mac OS-X VM.
 cross_build_task:
     name: "Cross Compile"
@@ -186,6 +185,45 @@ cross_build_task:
 
     binary_artifacts:
         path: ./bin/*
+
+
+static_build_task:
+    name: "Static Build"
+    alias: static_build
+
+    depends_on:
+      - unit
+
+    gce_instance:
+        image_name: "${FEDORA_CACHE_IMAGE_NAME}"
+        cpu: 8
+        memory: 12
+        disk: 200
+
+    init_script: |
+        set -ex
+        setenforce 0
+        growpart /dev/sda 1 || true
+        resize2fs /dev/sda1 || true
+        yum -y install podman
+
+    nix_cache:
+      folder: '.cache'
+      fingerprint_script: cat nix/*
+
+    build_script: |
+        set -ex
+        mkdir -p .cache
+        mv .cache /nix
+        if [[ -z $(ls -A /nix) ]]; then podman run --rm --privileged -ti -v /:/mnt nixos/nix cp -rfT /nix /mnt/nix; fi
+        podman run --rm --privileged -ti -v /nix:/nix -v ${PWD}:${PWD} -w ${PWD} nixos/nix nix --print-build-logs --option cores 8 --option max-jobs 8 build --file nix/
+
+    binaries_artifacts:
+        path: "result/bin/buildah"
+
+    save_cache_script: |
+        mv /nix .cache
+        chown -Rf $(whoami) .cache
 
 
 integration_task:
@@ -282,42 +320,3 @@ success_task:
 
     clone_script: mkdir -p $CIRRUS_WORKING_DIR
     script: /bin/true
-
-
-static_build_task:
-    name: "Static Build"
-    alias: static_build
-
-    depends_on:
-      - unit
-
-    gce_instance:
-        image_name: "${FEDORA_CACHE_IMAGE_NAME}"
-        cpu: 8
-        memory: 12
-        disk: 200
-
-    init_script: |
-        set -ex
-        setenforce 0
-        growpart /dev/sda 1 || true
-        resize2fs /dev/sda1 || true
-        yum -y install podman
-
-    nix_cache:
-      folder: '.cache'
-      fingerprint_script: cat nix/*
-
-    build_script: |
-        set -ex
-        mkdir -p .cache
-        mv .cache /nix
-        if [[ -z $(ls -A /nix) ]]; then podman run --rm --privileged -ti -v /:/mnt nixos/nix cp -rfT /nix /mnt/nix; fi
-        podman run --rm --privileged -ti -v /nix:/nix -v ${PWD}:${PWD} -w ${PWD} nixos/nix nix --print-build-logs --option cores 8 --option max-jobs 8 build --file nix/
-
-    binaries_artifacts:
-        path: "result/bin/buildah"
-
-    save_cache_script: |
-        mv /nix .cache
-        chown -Rf $(whoami) .cache
