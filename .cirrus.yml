@@ -159,7 +159,7 @@ conformance_task:
     depends_on:
       - unit
 
-    gce_instance:  # Only need to specify differences from defaults (above)
+    gce_instance:
         image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
 
     timeout_in: 20m

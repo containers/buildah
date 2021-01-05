@@ -4,7 +4,7 @@ set -e
 
 source $(dirname $0)/lib.sh
 
-req_env_var CI GOSRC OS_RELEASE_ID
+req_env_vars CI GOSRC OS_RELEASE_ID
 
 case $1 in
     audit)

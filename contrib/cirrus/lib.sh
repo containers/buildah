@@ -3,38 +3,59 @@
 # Library of common, shared utility functions.  This file is intended
 # to be sourced by other scripts, not called directly.
 
-# Global details persist here
-source /etc/environment  # not always loaded under all circumstances
+# Due to differences across platforms and runtime execution environments,
+# handling of the (otherwise) default shell setup is non-uniform.  Rather
+# than attempt to workaround differences, simply force-load/set required
+# items every time this library is utilized.
+_waserrexit=0
+if [[ "$SHELLOPTS" =~ errexit ]]; then _waserrexit=1; fi
+set +e  # Assumed in F33 for setting global vars
+source /etc/profile
+source /etc/environment
+set -a
+USER="$(whoami)"
+HOME="$(getent passwd $USER | cut -d : -f 6)"
+# Some platforms set and make this read-only
+[[ -n "$UID" ]] || \
+    UID=$(getent passwd $USER | cut -d : -f 3)
+if ((_waserrexit)); then set -e; fi
 
-# Automation environment doesn't automatically load for Ubuntu 18
-if [[ -r '/usr/share/automation/environment' ]]; then
-    source '/usr/share/automation/environment'
+# During VM Image build, the 'containers/automation' installation
+# was performed.  The final step of that installation sets the
+# installation location in $AUTOMATION_LIB_PATH in /etc/environment
+# or in the default shell profile.
+# shellcheck disable=SC2154
+if [[ -n "$AUTOMATION_LIB_PATH" ]]; then
+    for libname in defaults anchors console_output utils; do
+        # There's no way shellcheck can process this location
+        # shellcheck disable=SC1090
+        source $AUTOMATION_LIB_PATH/${libname}.sh
+    done
+else
+    (
+    echo "WARNING: It does not appear that containers/automation was installed."
+    echo "         Functionality of most of this library will be negatively impacted"
+    echo "         This ${BASH_SOURCE[0]} was loaded by ${BASH_SOURCE[1]}"
+    ) > /dev/stderr
 fi
 
-# Under some contexts these values are not set, make sure they are.
-export USER="$(whoami)"
-export HOME="$(getent passwd $USER | cut -d : -f 6)"
-[[ -n "$UID" ]] || export UID=$(getent passwd $USER | cut -d : -f 3)
-export GID=$(getent passwd $USER | cut -d : -f 4)
 # Not cross-compiling by default
 CROSS_TARGET="${CROSS_TARGET:-}"
 
 # Essential default paths, many are overridden when executing under Cirrus-CI
 # others are duplicated here, to assist in debugging.
-export GOPATH="${GOPATH:-/var/tmp/go}"
+GOPATH="${GOPATH:-/var/tmp/go}"
 if type -P go &> /dev/null
 then
     # required for go 1.12+
-    export GOCACHE="${GOCACHE:-$HOME/.cache/go-build}"
+    GOCACHE="${GOCACHE:-$HOME/.cache/go-build}"
     eval "$(go env)"
-    # required by make and other tools
-    export $(go env | cut -d '=' -f 1)
     # Ensure compiled tooling is reachable
-    export PATH="$PATH:$GOPATH/bin"
+    PATH="$PATH:$GOPATH/bin"
 fi
-export CIRRUS_WORKING_DIR="${CIRRUS_WORKING_DIR:-$GOPATH/src/github.com/containers/buildah}"
-export GOSRC="${GOSRC:-$CIRRUS_WORKING_DIR}"
-export PATH="$GOSRC/tests/tools/build:$HOME/bin:$GOPATH/bin:/usr/local/bin:$PATH"
+CIRRUS_WORKING_DIR="${CIRRUS_WORKING_DIR:-$GOPATH/src/github.com/containers/buildah}"
+GOSRC="${GOSRC:-$CIRRUS_WORKING_DIR}"
+PATH="$GOSRC/tests/tools/build:$HOME/bin:$GOPATH/bin:/usr/local/bin:/usr/lib/cri-o-runc/sbin:$PATH"
 SCRIPT_BASE=${SCRIPT_BASE:-./contrib/cirrus}
 
 cd $GOSRC
@@ -60,7 +81,7 @@ SECRET_ENV_RE='(IRCID)|(ACCOUNT)|(^GC[EP]..+)|(SSH)'
 # GCE image-name compatible string representation of distribution name
 OS_RELEASE_ID="$(source /etc/os-release; echo $ID)"
 # GCE image-name compatible string representation of distribution _major_ version
-OS_RELEASE_VER="$(source /etc/os-release; echo $VERSION_ID | cut -d '.' -f 1)"
+OS_RELEASE_VER="$(source /etc/os-release; echo $VERSION_ID | tr -d '.')"
 # Combined to ease soe usage
 OS_REL_VER="${OS_RELEASE_ID}-${OS_RELEASE_VER}"
 
@@ -69,10 +90,11 @@ REGISTRY_FQIN=${REGISTRY_FQIN:-docker.io/library/registry}
 ALPINE_FQIN=${ALPINE_FQIN:-docker.io/library/alpine}
 
 # for in-container testing
-# TODO: Use $DEST_BRANCH as image tag after automated-builds working
-IN_PODMAN_IMAGE="quay.io/libpod/in_podman:master"
 IN_PODMAN_NAME="in_podman_$CIRRUS_TASK_ID"
 IN_PODMAN="${IN_PODMAN:-false}"
+
+lilto() { err_retry 8 1000 "" "$@"; }  # just over 4 minutes max
+bigto() { err_retry 7 5670 "" "$@"; }  # 12 minutes max
 
 # Working with apt under Debian/Ubuntu automation is a PITA, make it easy
 # Avoid some ways of getting stuck waiting for user input
@@ -80,95 +102,19 @@ export DEBIAN_FRONTEND=noninteractive
 # Short-cut for frequently used base command
 export APTGET='apt-get -qq --yes'
 # Short timeout for quick-running packaging command
-SHORT_APTGET="timeout_attempt_delay_command 24s 5 30s $APTGET"
-SHORT_DNFY="timeout_attempt_delay_command 60s 2 5s dnf -y"
+SHORT_APTGET="lilto $APTGET"
+SHORT_DNFY="lilto dnf -y"
 # Longer timeout for long-running packaging command
-LONG_APTGET="timeout_attempt_delay_command 300s 5 30s $APTGET"
-LONG_DNFY="timeout_attempt_delay_command 300s 3 60s dnf -y"
+LONG_APTGET="bigto $APTGET"
+LONG_DNFY="bigto dnf -y"
 
 # Allow easy substitution for debugging if needed
 CONTAINER_RUNTIME="showrun ${CONTAINER_RUNTIME:-podman}"
 
-# Pass in a list of one or more envariable names; exit non-zero with
-# helpful error message if any value is empty
-req_env_var() {
-    # Provide context. If invoked from function use its name; else script name
-    local caller=${FUNCNAME[1]}
-    if [[ -n "$caller" ]]; then
-        # Indicate that it's a function name
-        caller="$caller()"
-    else
-        # Not called from a function: use script name
-        caller=$(basename $0)
-    fi
-
-    # Usage check
-    [[ -n "$1" ]] || die 1 "FATAL: req_env_var: invoked without arguments"
-
-    # Each input arg is an envariable name, e.g. HOME PATH etc. Expand each.
-    # If any is empty, bail out and explain why.
-    for i; do
-        if [[ -z "${!i}" ]]; then
-            die 9 "FATAL: $caller requires \$$i to be non-empty"
-        fi
-    done
-}
-
-show_env_vars() {
-    echo "Showing selection of environment variable definitions:"
-    _ENV_VAR_NAMES=$(awk 'BEGIN{for(v in ENVIRON) print v}' | \
-        egrep -v "(^PATH$)|(^BASH_FUNC)|(^[[:punct:][:space:]]+)|$SECRET_ENV_RE" | \
-        sort -u)
-    for _env_var_name in $_ENV_VAR_NAMES
-    do
-        # Supports older BASH versions
-        printf "    ${_env_var_name}=%q\n" "$(printenv $_env_var_name)"
-    done
-}
-
-die() {
-    echo "************************************************"
-    echo ">>>>> ${2:-FATAL ERROR (but no message given!) in ${FUNCNAME[1]}()}"
-    echo "************************************************"
-    exit ${1:-1}
-}
-
-warn() {
-    echo ">>>>> WARNING: ${1:-WARNING (but no message given!) in ${FUNCNAME[1]}()}" > /dev/stderr
-}
+set +a
 
 bad_os_id_ver() {
-    echo "Unknown/Unsupported distro. $OS_RELEASE_ID and/or version $OS_RELEASE_VER for $(basename $0)"
-    exit 42
-}
-
-timeout_attempt_delay_command() {
-    TIMEOUT=$1
-    ATTEMPTS=$2
-    DELAY=$3
-    shift 3
-    STDOUTERR=$(mktemp -p '' $(basename $0)_XXXXX)
-    req_env_var ATTEMPTS DELAY
-    echo "Retrying $ATTEMPTS times with a $DELAY delay, and $TIMEOUT timeout for command: $@"
-    for (( COUNT=1 ; COUNT <= $ATTEMPTS ; COUNT++ ))
-    do
-        echo "##### (attempt #$COUNT)" &>> "$STDOUTERR"
-        if timeout --foreground $TIMEOUT "$@" &>> "$STDOUTERR"
-        then
-            echo "##### (success after #$COUNT attempts)" &>> "$STDOUTERR"
-            break
-        else
-            echo "##### (failed with exit: $?)" &>> "$STDOUTERR"
-            sleep $DELAY
-        fi
-    done
-    cat "$STDOUTERR"
-    rm -f "$STDOUTERR"
-    if (( COUNT > $ATTEMPTS ))
-    then
-        echo "##### (exceeded $ATTEMPTS attempts)"
-        exit 125
-    fi
+    die "Unknown/Unsupported distro. $OS_RELEASE_ID and/or version $OS_RELEASE_VER for $(basename $0)"
 }
 
 showrun() {
@@ -178,22 +124,6 @@ showrun() {
     "$@"
 }
 
-# workaround issue 1945 (remove when resolved)
-remove_storage_mountopt() {
-    local FILEPATH=/etc/containers/storage.conf
-    warn "remove_storage_mountopt() is overwriting $FILEPATH"
-    # This file normally comes from containers-common package
-    cat <<EOF> $FILEPATH
-[storage]
-driver = "overlay"
-runroot = "/run/containers/storage"
-graphroot = "/var/lib/containers/storage"
-[storage.options]
-mountopt = ""
-EOF
-    cat $FILEPATH
-}
-
 # Remove all files provided by the distro version of buildah.
 # All VM cache-images used for testing include the distro buildah because it
 # simplifies installing necessary dependencies which can change over time.
@@ -201,7 +131,7 @@ EOF
 # can only run the compiled source version.
 remove_packaged_buildah_files() {
     warn "Removing packaged buildah files to prevent conflicts with source build and testing."
-    req_env_var OS_RELEASE_ID
+    req_env_vars OS_RELEASE_ID
 
     if [[ "$OS_RELEASE_ID" =~ "ubuntu" ]]
     then
@@ -215,6 +145,14 @@ remove_packaged_buildah_files() {
     do
         # Sub-directories may contain unrelated/valuable stuff
         if [[ -d "$fullpath" ]]; then continue; fi
+        # As of Ubuntu 2010, policy.json in buildah, not containers-common package
+        if [[ "$OS_RELEASE_ID" == "ubuntu" ]] && \
+            grep -q '/etc/containers'<<<"$fullpath"; then
+
+            warn "Not removing $fullpath (from buildah package)"
+            continue
+        fi
+
         rm -vf "$fullpath"
     done
 
@@ -225,34 +163,35 @@ remove_packaged_buildah_files() {
 }
 
 in_podman() {
-    req_env_var IN_PODMAN_NAME GOSRC GOPATH SECRET_ENV_RE HOME
+    req_env_vars IN_PODMAN_NAME GOSRC GOPATH SECRET_ENV_RE HOME
     [[ -n "$@" ]] || \
-        die 7 "Must specify FQIN and command with arguments to execute"
+        die "Must specify FQIN and command with arguments to execute"
     local envargs
+    local envarg
     local envname
-    local envvalue
-    local envrx='(^CIRRUS_.+)|(^BUILDAH_+)|(^STORAGE_)|(^CI$)|(^CROSS_TARGET$)|(^IN_PODMAN_.+)'
-    for envname in $(awk 'BEGIN{for(v in ENVIRON) print v}' | \
-                     egrep "$envrx" | \
-                     egrep -v "CIRRUS_.+_MESSAGE" | \
-                     egrep -v "CIRRUS_.+_TITLE" | \
-                     egrep -v "$SECRET_ENV_RE")
+    local envval
+    local xchars='[:punct:][:cntrl:][:space:]'
+    local envrx='(^CI.*)|(^CIRRUS)|(^GOPATH)|(^GOCACHE)|(^GOSRC)|(^SCRIPT_BASE)|(.*_NAME)|(.*_FQIN)|(^IN_PODMAN_)|(^DISTRO)|(^BUILDAH)|(^STORAGE_)'
+    local envfile=$(mktemp -p '' in_podman_env_tmp_XXXXXXXX)
+    trap "rm -f $envfile" EXIT
+
+    msg "Gathering env. vars. to pass-through into container."
+    for envname in $(awk 'BEGIN{for(v in ENVIRON) print v}' | sort | \
+                     egrep "$envrx" | egrep -v "$SECRET_ENV_RE" | \
+                     egrep -v "^CIRRUS_.+(MESSAGE|TITLE)")
     do
-        envvalue="${!envname}"
-        [[ -z "$envname" ]] || [[ -z "$envvalue" ]] || \
-            envargs="${envargs:+$envargs }-e $envname=$envvalue"
+        envval="${!envname}"
+        [[ -n $(tr -d "$xchars" <<<"$envval") ]] || continue
+        envarg=$(printf -- "$envname=%q" "$envval")
+        echo "$envarg" | tee -a $envfile | indent
     done
-    # Back in the days of testing under PAPR, containers were run with super-privileges.
-    # That behavior is preserved here with a few updates for modern podman behaviors.
-    # The only other additions/changes are passthrough of CI-related env. vars ($envargs),
-    # some path related updates, and mounting cgroups RW instead of the RO default.
-    showrun podman run -i --name $IN_PODMAN_NAME \
-                   $envargs \
+    showrun podman run -i --name="$IN_PODMAN_NAME" \
                    --net=host \
                    --net="container:registry" \
-                   --security-opt label=disable \
-                   --security-opt seccomp=unconfined \
+                   --security-opt=label=disable \
+                   --security-opt=seccomp=unconfined \
                    --cap-add=all \
+                   --env-file=$envfile \
                    -e "GOPATH=$GOPATH" \
                    -e "GOSRC=$GOSRC" \
                    -e "IN_PODMAN=false" \
@@ -297,7 +236,7 @@ execute_local_registry() {
         verify_local_registry
         return 0
     fi
-    req_env_var CONTAINER_RUNTIME GOSRC
+    req_env_vars CONTAINER_RUNTIME GOSRC
     local authdirpath=$HOME/auth
     cd $GOSRC
 

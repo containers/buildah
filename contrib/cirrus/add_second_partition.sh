@@ -24,10 +24,10 @@ then
 fi
 
 [[ -x "$(type -P parted)" ]] || \
-    die 2 "The parted command is required."
+    die "The parted command is required."
 
 [[ ! -b ${SLASH_DEVICE}2 ]] || \
-    die 5 "Found unexpected block device ${SLASH_DEVICE}2"
+    die "Found unexpected block device ${SLASH_DEVICE}2"
 
 PPRINTCMD="parted --script ${SLASH_DEVICE} print"
 FINDMNTCMD="findmnt --source=${SLASH_DEVICE}1 --mountpoint=/ --canonicalize --evaluate --first-only --noheadings"
@@ -39,7 +39,7 @@ then
     echo "Repartitioning original partition table:"
     $PPRINTCMD
 else
-    die 6 "Unexpected output from '$FINDMNTCMD': $(<$TMPF)"
+    die "Unexpected output from '$FINDMNTCMD': $(<$TMPF)"
 fi
 
 echo "Adding partition offset within unpartitioned space."
@@ -55,7 +55,7 @@ FSTYPE=$(findmnt --first-only --noheadings --output FSTYPE ${SLASH_DEVICE}1)
 echo "Expanding $FSTYPE filesystem on ${SLASH_DEVICE}1"
 case $FSTYPE in
     ext*) resize2fs ${SLASH_DEVICE}1 ;;
-    *) die 11 "Script $(basename $0) doesn't know how to resize a $FSTYPE filesystem." ;;
+    *) die "Script $(basename $0) doesn't know how to resize a $FSTYPE filesystem." ;;
 esac
 
 # Must happen last - signals completion to other tooling
