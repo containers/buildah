@@ -33,11 +33,13 @@ env:
     UBUNTU_NAME: "ubuntu-20"
     PRIOR_UBUNTU_NAME: "ubuntu-19"
 
-    _BUILT_IMAGE_SUFFIX: "podman-6530021898584064"
-    FEDORA_CACHE_IMAGE_NAME: "${FEDORA_NAME}-${_BUILT_IMAGE_SUFFIX}"
-    PRIOR_FEDORA_CACHE_IMAGE_NAME: "${PRIOR_FEDORA_NAME}-${_BUILT_IMAGE_SUFFIX}"
-    UBUNTU_CACHE_IMAGE_NAME: "${UBUNTU_NAME}-${_BUILT_IMAGE_SUFFIX}"
-    PRIOR_UBUNTU_CACHE_IMAGE_NAME: "${PRIOR_UBUNTU_NAME}-${_BUILT_IMAGE_SUFFIX}"
+    IMAGE_SUFFIX: "podman-6530021898584064"
+    FEDORA_CACHE_IMAGE_NAME: "${FEDORA_NAME}-${IMAGE_SUFFIX}"
+    PRIOR_FEDORA_CACHE_IMAGE_NAME: "${PRIOR_FEDORA_NAME}-${IMAGE_SUFFIX}"
+    UBUNTU_CACHE_IMAGE_NAME: "${UBUNTU_NAME}-${IMAGE_SUFFIX}"
+    PRIOR_UBUNTU_CACHE_IMAGE_NAME: "${PRIOR_UBUNTU_NAME}-${IMAGE_SUFFIX}"
+
+    IN_PODMAN_IMAGE: "quay.io/libpod/fedora_podman:${IMAGE_SUFFIX}"
 
     ####
     #### Command variables to help avoid duplication
@@ -62,10 +64,12 @@ gce_instance:
 
 
 # Update metadata on VM images referenced by this repository state
-'cirrus-ci/only_prs/meta_task':
+meta_task:
+    name: "VM img. keepalive"
+    alias: meta
 
     container:
-        image: "quay.io/libpod/imgts:latest"  # see contrib/imgts
+        image: "quay.io/libpod/imgts:${IMAGE_SUFFIX}"  # see contrib/imgts
         cpu: 1
         memory: 1
 
@@ -86,7 +90,10 @@ gce_instance:
     script: '/usr/local/bin/entrypoint.sh |& ${_TIMESTAMP}'
 
 
-'cirrus-ci/only_prs/gate_task':
+smoke_task:
+    alias: 'smoke'
+    name: "Smoke Test"
+
     gce_instance:
         memory: "12Gb"
 
@@ -104,7 +111,13 @@ gce_instance:
         path: ./bin/*
 
 
-'cirrus-ci/only_prs/unit_task':
+unit_task:
+    name: "Unit tests"
+    alias: unit
+
+    depends_on:
+      - smoke
+      - vendor
 
     timeout_in: 45m
 
@@ -116,7 +129,13 @@ gce_instance:
         path: ./bin/*
 
 
-'cirrus-ci/only_prs/conformance_task':
+conformance_task:
+    name: "Docker Build Conformance"
+    alias: conformance
+
+    depends_on:
+      - unit
+
     gce_instance:  # Only need to specify differences from defaults (above)
         image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
 
@@ -126,11 +145,11 @@ gce_instance:
     conformance_test_script: '${SCRIPT_BASE}/test.sh conformance |& ${_TIMESTAMP}'
 
 
-# This task runs `make vendor` followed by ./hack/tree_status.sh to check
-# whether the git tree is clean.  The reasoning for that is to make sure
-# that the vendor.conf, the code and the vendored packages in ./vendor are
-# in sync at all times.
-'cirrus-ci/only_prs/vendor_task':
+# Check that all included go modules from other sources match
+# # what is expected in `vendor/modules.txt` vs `go.mod`.
+vendor_task:
+    name: "Test Vendoring"
+    alias: vendor
 
     env:
         CIRRUS_WORKING_DIR: "/var/tmp/go/src/github.com/containers/buildah"
@@ -150,11 +169,13 @@ gce_instance:
         - './hack/tree_status.sh'
 
 
-'cirrus-ci/only_prs/cross_task':
+# Confirm cross-compile ALL archetectures on a Mac OS-X VM.
+cross_build_task:
+    name: "Cross Compile"
+    alias: cross_build
 
     depends_on:
-        - 'cirrus-ci/only_prs/gate'
-        - 'cirrus-ci/only_prs/vendor'
+      - unit
 
     env:
         matrix:
@@ -167,18 +188,29 @@ gce_instance:
         path: ./bin/*
 
 
-'cirrus-ci/required/testing_task':
+integration_task:
+    name: "Integration $DISTRO_NV"
+    alias: integration
 
     depends_on:
-        - 'cirrus-ci/only_prs/gate'
-        - 'cirrus-ci/only_prs/vendor'
+      - unit
 
-    gce_instance:  # Only need to specify differences from defaults (above)
-        matrix:  # Duplicate this task for each matrix product.
-            image_name: "${FEDORA_CACHE_IMAGE_NAME}"
-            image_name: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-            image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
-#            image_name: "${PRIOR_UBUNTU_CACHE_IMAGE_NAME}"
+    matrix:
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+        - env:
+            DISTRO_NV: "${UBUNTU_NAME}"
+            IMAGE_NAME: "${UBUNTU_CACHE_IMAGE_NAME}"
+        - env:
+            DISTRO_NV: "${PRIOR_UBUNTU_NAME}"
+            IMAGE_NAME: "${PRIOR_UBUNTU_CACHE_IMAGE_NAME}"
+
+    gce_instance:
+        image_name: "$IMAGE_NAME"
 
     # Separate scripts for separate outputs, makes debugging easier.
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
@@ -199,14 +231,15 @@ gce_instance:
         golang_version_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh golang'
 
 
-'cirrus-ci/required/in_podman_task':
+in_podman_task:
+    name: "Containerized Integration"
+    alias: in_podman
 
     depends_on:
-        - 'cirrus-ci/only_prs/gate'
-        - 'cirrus-ci/only_prs/vendor'
+        - unit
 
     env:
-        # This is key, it causes the scripts to re-execute themselves inside a container.
+        # This is key, cause the scripts to re-execute themselves inside a container.
         IN_PODMAN: 'true'
         BUILDAH_ISOLATION: 'chroot'
         STORAGE_DRIVER: 'vfs'
@@ -223,31 +256,40 @@ gce_instance:
     always:
         <<: *standardlogs
 
-# TODO: Bors-ng has trouble interpreting multiple status-checks as being required
-#       when their names contain wild-cards (like `testing%`).  Until that issue
-#       can be fixed, use a single "test" to represent pass/fail status of all
-#       required checks.
-'cirrus-ci/success_task':
+
+# Status aggregator for all tests.  This task simply ensures a defined
+# set of tasks all passed, and allows confirming that based on the status
+# of this task.
+success_task:
+    name: "Total Success"
+    alias: success
 
     depends_on:
-        - "cirrus-ci/required/testing"
-        - "cirrus-ci/required/in_podman"
-
-    env:
-        CIRRUS_WORKING_DIR: /tmp
-        CIRRUS_CLONE_DEPTH: 1  # no code is being used by this task
+      - meta
+      - smoke
+      - unit
+      - conformance
+      - vendor
+      - cross_build
+      - integration
+      - in_podman
+      - static_build
 
     container:
         image: "quay.io/libpod/fedora-minimal:latest"
         cpu: 1
         memory: 1
 
+    clone_script: mkdir -p $CIRRUS_WORKING_DIR
     script: /bin/true
 
-# Build the static binary
-'cirrus-ci/only_prs/static_binary_task':
+
+static_build_task:
+    name: "Static Build"
+    alias: static_build
+
     depends_on:
-        - "cirrus-ci/only_prs/gate"
+      - unit
 
     gce_instance:
         image_name: "${FEDORA_CACHE_IMAGE_NAME}"
@@ -264,8 +306,7 @@ gce_instance:
 
     nix_cache:
       folder: '.cache'
-      fingerprint_script: |
-        echo "nix-v1-$(sha1sum nix/nixpkgs.json | head -c 40)"
+      fingerprint_script: cat nix/*
 
     build_script: |
         set -ex
