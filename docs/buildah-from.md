@@ -49,6 +49,10 @@ Add a custom host-to-IP mapping (host:ip)
 
 Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option can be set multiple times.
 
+**--arch**="ARCH"
+
+Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host. (Examples: aarch64, arm, i686, ppc64le, s390x, x86_64)
+
 **--authfile** *path*
 
 Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `buildah login`.
@@ -271,6 +275,10 @@ that the network namespace in which `Buildah` itself is being run should be
 reused, or it can be the path to a network namespace which is already in use by
 another process.
 
+**--os**="OS"
+
+Set the OS of the image to be pulled instead of using the current operating system of the host.
+
 **--pid** *how*
 
 Sets the configuration for PID namespaces when the container is subsequently
@@ -442,6 +450,10 @@ that the UTS namespace in which `Buildah` itself is being run should be reused,
 or it can be the path to a UTS namespace which is already in use by another
 process.
 
+**--variant**=""
+
+Set the architecture variant of the image to be pulled.
+
 **--volume**, **-v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
 
    Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
@@ -565,6 +577,8 @@ buildah from --volume /home/test:/myvol:ro,Z myregistry/myrepository/imagename:i
 buildah from -v /home/test:/myvol:z,U myregistry/myrepository/imagename:imagetag
 
 buildah from -v /var/lib/yum:/var/lib/yum:O myregistry/myrepository/imagename:imagetag
+
+buildah from --arch=arm --variant v7 myregistry/myrepository/imagename:imagetag
 
 ## ENVIRONMENT
 

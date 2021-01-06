@@ -413,3 +413,17 @@ load helpers
   podman rm -f busyboxc-podman
   run_buildah rm busyboxc
 }
+
+@test "from --arch test" {
+  skip_if_no_runtime
+
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --arch=arm64 alpine
+  cid=$output
+#  run_buildah run $cid arch
+#  expect_output "aarch64"
+
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --arch=s390x alpine
+  cid=$output
+#  run_buildah run $cid arch
+#  expect_output "s390x"
+}

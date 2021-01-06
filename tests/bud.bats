@@ -2458,3 +2458,21 @@ _EOF
   run_buildah bud --stdin -t testbud --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
   expect_output --substring "test got <input>"
 }
+
+@test "bud with --arch flag" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+#RUN arch
+_EOF
+
+  run_buildah bud --arch=arm64 -t arch-test --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
+# expect_output --substring "aarch64"
+
+#  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json arch-test
+#  cid=$output
+#  run_buildah run $cid arch
+#  expect_output --substring "aarch64"
+}

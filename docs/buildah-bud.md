@@ -44,7 +44,7 @@ Note: this information is not present in Docker image formats, so it is discarde
 
 **--arch**="ARCH"
 
-Set the ARCH of the image to the provided value instead of using the architecture of the host.
+Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host. (Examples: aarch64, arm, i686, ppc64le, s390x, x86_64)
 
 **--authfile** *path*
 
@@ -393,7 +393,7 @@ Do not use existing cached images for the container build. Build from the start 
 
 **--os**="OS"
 
-Set the OS of the image to the provided value instead of using the current operating system of the host.
+Set the OS of the image to be pulled instead of using the current operating system of the host.
 
 **--pid** *how*
 
@@ -588,6 +588,10 @@ that the UTS namespace in which `buildah` itself is being run should be reused,
 or it can be the path to a UTS namespace which is already in use by another
 process.
 
+**--variant**=""
+
+Set the architecture variant of the image to be pulled.
+
 **--volume**, **-v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
 
    Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
@@ -726,6 +730,8 @@ buildah bud --authfile /tmp/auths/myauths.json --cert-dir ~/auth --tls-verify=tr
 buildah bud --memory 40m --cpu-period 10000 --cpu-quota 50000 --ulimit nofile=1024:1028 -t imageName .
 
 buildah bud --security-opt label=level:s0:c100,c200 --cgroup-parent /path/to/cgroup/parent -t imageName .
+
+buildah bud --arch=arm --variant v7 -t imageName .
 
 buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
 
