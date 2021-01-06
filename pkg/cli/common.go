@@ -79,6 +79,7 @@ type BudResults struct {
 	SignaturePolicy     string
 	SignBy              string
 	Squash              bool
+	Stdin               bool
 	Tag                 []string
 	Target              string
 	TLSVerify           bool
@@ -212,6 +213,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 		panic(fmt.Sprintf("error marking the signature-policy flag as hidden: %v", err))
 	}
 	fs.BoolVar(&flags.Squash, "squash", false, "squash newly built layers into a single new layer")
+	fs.BoolVar(&flags.Stdin, "stdin", false, "pass stdin into containers")
 	fs.StringArrayVarP(&flags.Tag, "tag", "t", []string{}, "tagged `name` to apply to the built image")
 	fs.StringVar(&flags.Target, "target", "", "set the target build stage to build")
 	fs.Int64Var(&flags.Timestamp, "timestamp", 0, "set created timestamp to the specified epoch seconds to allow for deterministic builds, defaults to current time")

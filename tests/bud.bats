@@ -2384,3 +2384,24 @@ EOF
   run cmp tar1 url1
   [[ "$status" -ne 0 ]]
 }
+
+@test "bud-terminal" {
+  run_buildah bud ${TESTSDIR}/bud/terminal
+}
+
+@test "bud test no --stdin" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+RUN read -t 1 x && echo test got \<\$x\>
+RUN touch /tmp/done
+_EOF
+
+  # fail without --stdin
+  run_buildah 1 bud -t testbud --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
+
+  run_buildah bud --stdin -t testbud --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
+  expect_output --substring "test got <input>"
+}
