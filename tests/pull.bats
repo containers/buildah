@@ -329,3 +329,16 @@ load helpers
 
   run_buildah rmi alpine
 }
+
+@test "pull image with TMPDIR set" {
+  testdir=${TESTDIR}/buildah-test
+  mkdir -p $testdir
+  mount -t tmpfs -o size=1M tmpfs $testdir
+
+  TMPDIR=$testdir run_buildah 125 pull --policy always --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx:latest
+  expect_output --substring "no space left on device"
+
+  run_buildah pull --policy always --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx:latest
+  umount $testdir
+  rm -rf $testdir
+}

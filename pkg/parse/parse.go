@@ -644,6 +644,7 @@ func SystemContextFromOptions(c *cobra.Command) (*types.SystemContext, error) {
 		}
 	}
 
+	ctx.BigFilesTemporaryDir = GetTempDir()
 	return ctx, nil
 }
 
