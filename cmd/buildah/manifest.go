@@ -17,6 +17,8 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
+	"github.com/containers/image/v5/types"
+	"github.com/containers/storage"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -39,10 +41,6 @@ type manifestAnnotateOpts = struct {
 	features, osFeatures, annotations []string
 }
 type manifestInspectOpts = struct{}
-type manifestPushOpts = struct {
-	purge, quiet, all, tlsVerify, removeSignatures                        bool
-	authfile, certDir, creds, digestfile, format, signaturePolicy, signBy string
-}
 
 func init() {
 	var (
@@ -58,7 +56,7 @@ func init() {
 		manifestRemoveOpts          manifestRemoveOpts
 		manifestAnnotateOpts        manifestAnnotateOpts
 		manifestInspectOpts         manifestInspectOpts
-		manifestPushOpts            manifestPushOpts
+		manifestPushOpts            pushOptions
 	)
 	manifestCommand := &cobra.Command{
 		Use:   "manifest",
@@ -188,7 +186,7 @@ func init() {
 	}
 	manifestPushCommand.SetUsageTemplate(UsageTemplate())
 	flags = manifestPushCommand.Flags()
-	flags.BoolVar(&manifestPushOpts.purge, "purge", false, "remove the manifest list if push succeeds")
+	flags.BoolVar(&manifestPushOpts.rm, "rm", false, "remove the manifest list if push succeeds")
 	flags.BoolVar(&manifestPushOpts.all, "all", false, "also push the images in the list")
 	flags.StringVar(&manifestPushOpts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&manifestPushOpts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
@@ -203,6 +201,7 @@ func init() {
 	}
 	flags.BoolVar(&manifestPushOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVarP(&manifestPushOpts.quiet, "quiet", "q", false, "don't output progress information when pushing lists")
+	flags.SetNormalizeFunc(cli.AliasFlags)
 	manifestCommand.AddCommand(manifestPushCommand)
 }
 
@@ -630,7 +629,7 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 	return nil
 }
 
-func manifestPushCmd(c *cobra.Command, args []string, opts manifestPushOpts) error {
+func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 	if err := auth.CheckAuthFile(opts.authfile); err != nil {
 		return err
 	}
@@ -659,12 +658,15 @@ func manifestPushCmd(c *cobra.Command, args []string, opts manifestPushOpts) err
 	if err != nil {
 		return err
 	}
-
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
 
+	return manifestPush(systemContext, store, listImageSpec, destSpec, opts)
+}
+
+func manifestPush(systemContext *types.SystemContext, store storage.Store, listImageSpec, destSpec string, opts pushOptions) error {
 	_, listImage, err := util.FindImage(store, "", systemContext, listImageSpec)
 	if err != nil {
 		return err
@@ -712,7 +714,7 @@ func manifestPushCmd(c *cobra.Command, args []string, opts manifestPushOpts) err
 
 	_, digest, err := list.Push(ctx, dest, options)
 
-	if err == nil && opts.purge {
+	if err == nil && opts.rm {
 		_, err = store.DeleteImage(listImage.ID, true)
 	}
 

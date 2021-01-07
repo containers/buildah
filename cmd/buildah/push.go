@@ -15,6 +15,7 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
+	"github.com/containers/storage"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -22,6 +23,7 @@ import (
 )
 
 type pushOptions struct {
+	all                bool
 	authfile           string
 	blobCache          string
 	certDir            string
@@ -29,6 +31,7 @@ type pushOptions struct {
 	digestfile         string
 	disableCompression bool
 	format             string
+	rm                 bool
 	quiet              bool
 	removeSignatures   bool
 	signaturePolicy    string
@@ -68,6 +71,7 @@ func init() {
 
 	flags := pushCommand.Flags()
 	flags.SetInterspersed(false)
+	flags.BoolVar(&opts.all, "all", false, "push all of the images referenced by the manifest list")
 	flags.StringVar(&opts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
@@ -76,6 +80,7 @@ func init() {
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", false, "don't compress layers")
 	flags.StringVarP(&opts.format, "format", "f", "", "manifest type (oci, v2s1, or v2s2) to use when saving image using the 'dir:' transport (default is manifest type of source)")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pushing images")
+	flags.BoolVar(&opts.rm, "rm", false, "remove the manifest list if push succeeds")
 	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing image")
 	flags.StringVar(&opts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
@@ -195,6 +200,12 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 
 	ref, digest, err := buildah.Push(getContext(), src, dest, options)
 	if err != nil {
+		if errors.Cause(err) != storage.ErrImageUnknown {
+			// Image might be a manifest so attempt a manifest push
+			if manifestsErr := manifestPush(systemContext, store, src, destSpec, iopts); manifestsErr == nil {
+				return nil
+			}
+		}
 		return util.GetFailureCause(err, errors.Wrapf(err, "error pushing image %q to %q", src, destSpec))
 	}
 	if ref != nil {
