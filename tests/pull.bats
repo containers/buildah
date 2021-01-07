@@ -275,7 +275,7 @@ load helpers
   #  If image does not exist the never will fail
   run_buildah 125 pull -q --signature-policy ${TESTSDIR}/policy.json --policy never alpine
   expect_output --substring "could not be found locally"
-  run_buildah 125 inspect alpine
+  run_buildah 125 inspect --type image alpine
   expect_output --substring "image not known"
 
   # create bogus alpine image

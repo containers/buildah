@@ -29,9 +29,11 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 @test "manifest-add-one" {
     run_buildah manifest create foo
     run_buildah manifest add --arch=arm64 foo ${IMAGE_LIST_INSTANCE}
-    run_buildah 125 inspect foo
-    expect_output --substring "no image found"
     run_buildah manifest inspect foo
+    expect_output --substring ${IMAGE_LIST_ARM64_INSTANCE_DIGEST}
+    run_buildah 125 inspect --type image foo
+    expect_output --substring "no image found"
+    run_buildah inspect foo
     expect_output --substring ${IMAGE_LIST_ARM64_INSTANCE_DIGEST}
 }
 

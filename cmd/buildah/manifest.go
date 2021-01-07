@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -17,6 +18,8 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
+	"github.com/containers/image/v5/types"
+	"github.com/containers/storage"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -305,9 +308,7 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 		return err
 	}
 
-	ctx := getContext()
-
-	digest, err := list.Add(ctx, systemContext, ref, opts.all)
+	digest, err := list.Add(getContext(), systemContext, ref, opts.all)
 	if err != nil {
 		return err
 	}
@@ -465,10 +466,9 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 		return err
 	}
 
-	ctx := getContext()
-
 	digest, err := digest.Parse(imageSpec)
 	if err != nil {
+		ctx := getContext()
 		ref, _, err := util.FindImage(store, "", systemContext, imageSpec)
 		if err != nil {
 			return err
@@ -564,6 +564,10 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 		return errors.Wrapf(err, "error building system context")
 	}
 
+	return manifestInspect(getContext(), store, systemContext, imageSpec)
+}
+
+func manifestInspect(ctx context.Context, store storage.Store, systemContext *types.SystemContext, imageSpec string) error {
 	refs, err := util.ResolveNameToReferences(store, systemContext, imageSpec)
 	if err != nil {
 		logrus.Debugf("error parsing reference to image %q: %v", imageSpec, err)
@@ -578,7 +582,6 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 		return errors.Errorf("error locating images with names %v", imageSpec)
 	}
 
-	ctx := getContext()
 	var (
 		latestErr error
 		result    []byte
@@ -675,8 +678,6 @@ func manifestPushCmd(c *cobra.Command, args []string, opts manifestPushOpts) err
 		return err
 	}
 
-	ctx := getContext()
-
 	dest, err := alltransports.ParseImageName(destSpec)
 	if err != nil {
 		return err
@@ -710,7 +711,7 @@ func manifestPushCmd(c *cobra.Command, args []string, opts manifestPushOpts) err
 		options.ReportWriter = os.Stderr
 	}
 
-	_, digest, err := list.Push(ctx, dest, options)
+	_, digest, err := list.Push(getContext(), dest, options)
 
 	if err == nil && opts.purge {
 		_, err = store.DeleteImage(listImage.ID, true)
