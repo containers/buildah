@@ -29,7 +29,7 @@ load helpers
   expect_output --substring 'error parsing --healthcheck "AB \"CD": invalid command line string'
 
   run_buildah 125 config --healthcheck-interval ABCD $cid
-  expect_output --substring 'error parsing --healthcheck-interval "ABCD": time: invalid duration ABCD'
+  expect_output --substring 'error parsing --healthcheck-interval "ABCD": time: invalid duration "?ABCD"?'
 
   run_buildah 125 config --cmd 'AB "CD' $cid
   expect_output --substring 'error parsing --cmd "AB \"CD": invalid command line string'
