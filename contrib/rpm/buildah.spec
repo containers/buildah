@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.19.0-dev
+Version:        1.19.0
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,64 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Mon Nov 16, 2020 Tom Sweeney <tsweeney@redhat.com> 1.19.0-dev-1
+* Fri Jan 8, 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.0-1
+- Update vendor of containers/storage and containers/common
+- Buildah inspect should be able to inspect manifests
+- Make buildah push support pushing manifests lists and digests
+- Fix handling of TMPDIR environment variable
+- Add support for --manifest flags
+- Upper directory should match mode of destination directory
+- Only grab the OS, Arch if the user actually specified them
+- Use --arch and --os and --variant options to select architecture and os
+- Cirrus: Track libseccomp and golang version
+- copier.PutOptions: add an "IgnoreDevices" flag
+- fix: `rmi --prune` when parent image is in store.
+- build(deps): bump github.com/containers/storage from 1.24.3 to 1.24.4
+- build(deps): bump github.com/containers/common from 0.31.1 to 0.31.2
+- Allow users to specify stdin into containers
+- Drop log message on failure to mount on /sys file systems to info
+- Spelling
+- SELinux no longer requires a tag.
+- build(deps): bump github.com/opencontainers/selinux from 1.6.0 to 1.8.0
+- build(deps): bump github.com/containers/common from 0.31.0 to 0.31.1
+- Update nix pin with `make nixpkgs`
+- Switch references of /var/run -> /run
+- Allow FROM to be overriden with from option
+- copier: don't assume we can chroot() on Unixy systems
+- copier: add PutOptions.NoOverwriteDirNonDir, Get/PutOptions.Rename
+- copier: handle replacing directories with not-directories
+- copier: Put: skip entries with zero-length names
+- build(deps): bump github.com/containers/storage from 1.24.2 to 1.24.3
+- Add U volume flag to chown source volumes
+- Turn off PRIOR_UBUNTU Test until vm is updated
+- pkg, cli: rootless uses correct isolation
+- build(deps): bump github.com/onsi/gomega from 1.10.3 to 1.10.4
+- update installation doc to reflect current status
+- Move away from using docker.io
+- enable short-name aliasing
+- build(deps): bump github.com/containers/storage from 1.24.1 to 1.24.2
+- build(deps): bump github.com/containers/common from 0.30.0 to 0.31.0
+- Throw errors when using bogus --network flags
+- pkg/supplemented test: replace our null blobinfocache
+- build(deps): bump github.com/containers/common from 0.29.0 to 0.30.0
+- inserts forgotten quotation mark
+- Not prefer use local image create/add manifest
+- Add container information to .containerenv
+- Add --ignorefile flag to use alternate .dockerignore flags
+- Add a source debug build
+- Fix crash on invalid filter commands
+- build(deps): bump github.com/containers/common from 0.27.0 to 0.29.0
+- Switch to using containers/common pkg's
+- fix: non-portable shebang #2812
+- Remove copy/paste errors that leaked `Podman` into man pages.
+- Add suggests cpp to spec file
+- Apply suggestions from code review
+- update docs for debian testing and unstable
+- imagebuildah: disable pseudo-terminals for RUN
+- Compute diffID for mapped-layer at creating image source
+- intermediateImageExists: ignore images whose history we can't read
+- Bump to v1.19.0-dev
+- build(deps): bump github.com/containers/common from 0.26.3 to 0.27.0
 
 * Mon Nov 16, 2020 Tom Sweeney <tsweeney@redhat.com> 1.18.0-1
 - Fix testing error caused by simultanious merge
