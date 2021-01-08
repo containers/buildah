@@ -78,6 +78,10 @@ If an image needs to be pulled from the registry, suppress progress output.
 
 Set the OS of the image to be pulled instead of using the current operating system of the host.
 
+**--os**="OS"
+
+Set the OS of the image to be pulled to the provided value instead of using the current operating system of the host.
+
 **--policy**=**always**|**missing**|**never**
 
 Pull image policy. The default is **missing**.
@@ -92,7 +96,7 @@ Don't copy signatures when pulling images.
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
+Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
 
 **--variant**=""
 

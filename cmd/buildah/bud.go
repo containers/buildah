@@ -330,6 +330,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		Isolation:               isolation,
 		Labels:                  iopts.Label,
 		Layers:                  layers,
+		Manifest:                iopts.Manifest,
 		MaxPullPushRetries:      maxPullPushRetries,
 		NamespaceOptions:        namespaceOptions,
 		NoCache:                 iopts.NoCache,

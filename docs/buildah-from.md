@@ -53,6 +53,10 @@ Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option c
 
 Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host. (Examples: aarch64, arm, i686, ppc64le, s390x, x86_64)
 
+**--arch**="ARCH"
+
+Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host.
+
 **--authfile** *path*
 
 Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `buildah login`.
@@ -279,6 +283,10 @@ another process.
 
 Set the OS of the image to be pulled instead of using the current operating system of the host.
 
+**--os**="OS"
+
+Set the OS of the image to be pulled to the provided value instead of using the current operating system of the host.
+
 **--pid** *how*
 
 Sets the configuration for PID namespaces when the container is subsequently
@@ -341,7 +349,7 @@ If you omit the unit, the system uses bytes. If you omit the size entirely, the 
 
 **--tls-verify** *bool-value*
 
-Require HTTPS and verify certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
+Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
 
 **--ulimit** *type*=*soft-limit*[:*hard-limit*]
 

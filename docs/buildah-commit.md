@@ -65,6 +65,11 @@ environment variable.  `export BUILDAH\_FORMAT=docker`
 
 Write the image ID to the file.
 
+**--manifest** "manifest"
+
+Name of the manifest list to which the image will be added. Creates the manifest list
+if it does not exist. This option is useful for building multi architecture images.
+
 **--quiet**, **-q**
 
 When writing the output image, suppress progress output.
@@ -81,16 +86,16 @@ Sign the new image using the GPG key that matches the specified fingerprint.
 
 Squash all of the new image's layers (including those inherited from a base image) into a single new layer.
 
-**--tls-verify** *bool-value*
-
-Require HTTPS and verify certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
-
 **--timestamp** *seconds*
 
 Set the create timestamp to seconds since epoch to allow for deterministic builds (defaults to current time).
 By default, the created timestamp is changed and written into the image manifest with every commit,
 causing the image's sha256 hash to be different even if the sources are exactly the same otherwise.
 When --timestamp is set, the created timestamp is always set to the time specified and therefore not changed, allowing the image's sha256 to remain the same. All files committed to the layers of the image will be created with the timestamp.
+
+**--tls-verify** *bool-value*
+
+Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
 
 ## EXAMPLE
 
@@ -120,6 +125,20 @@ This example commits the container to the image on the local registry using cred
 
 This example saves an image based on the container, but stores dates based on epoch time.
 `buildah commit --timestamp=0 containerID newImageName`
+
+### Building an multi-architecture image using a --manifest option (Requires emulation software)
+
+```
+#!/bin/sh
+build() {
+	ctr=$(./bin/buildah from --arch $1 ubi8)
+	./bin/buildah run $ctr dnf install -y iputils
+	./bin/buildah commit --manifest ubi8ping $ctr
+}
+build arm
+build amd64
+build s390x
+```
 
 ## ENVIRONMENT
 
