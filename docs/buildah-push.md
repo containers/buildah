@@ -1,7 +1,7 @@
 # buildah-push "1" "June 2017" "buildah"
 
 ## NAME
-buildah\-push - Push an image from local storage to elsewhere.
+buildah\-push - Push an image, manifest list or image index from local storage to elsewhere.
 
 ## SYNOPSIS
 **buildah push** [*options*] *image* [*destination*]
@@ -41,6 +41,11 @@ Image stored in local container/storage
 If the transport part of DESTINATION is omitted, "docker://" is assumed.
 
 ## OPTIONS
+
+**--all**
+
+If specified image is a manifest list or image index, push the images in addition to
+the list or index itself.
 
 **--authfile** *path*
 
@@ -85,6 +90,10 @@ When writing the output image, suppress progress output.
 **--remove-signatures**
 
 Don't copy signatures when pushing images.
+
+**--rm**
+
+When pushing a the manifest list or image index, delete them from local storage if pushing succeeds.
 
 **--sign-by** *fingerprint*
 
@@ -164,4 +173,4 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), buildah-login(1), containers-policy.json(5), docker-login(1), containers-registries.conf(5)
+buildah(1), buildah-login(1), containers-policy.json(5), docker-login(1), containers-registries.conf(5), buildah-manifest(1)

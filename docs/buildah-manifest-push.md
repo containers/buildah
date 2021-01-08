@@ -47,10 +47,6 @@ After copying the image, write the digest of the resulting image to the file.
 
 Manifest list type (oci or v2s2) to use when pushing the list (default is oci).
 
-**--purge**
-
-Delete the manifest list or image index from local storage if pushing succeeds.
-
 **--quiet**, **-q**
 
 Don't output progress information when pushing lists.
@@ -58,6 +54,10 @@ Don't output progress information when pushing lists.
 **--remove-signatures**
 
 Don't copy signatures when pushing images.
+
+**--rm**
+
+Delete the manifest list or image index from local storage if pushing succeeds.
 
 **--sign-by** *fingerprint*
 

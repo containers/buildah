@@ -634,12 +634,14 @@ return 1
 
  _buildah_push() {
      local boolean_options="
+          --all
           --help
           -h
           --disable-compression
           -D
           --quiet
           -q
+          --rm
           --tls-verify
           --remove-signatures
   "
@@ -870,7 +872,7 @@ return 1
      --digestfile
      --format
      -f
-     --purge
+     --rm
      --sign-by
   "
 
