@@ -53,7 +53,8 @@ func (c *Client) CreateExec(opts CreateExecOptions) (*Exec, error) {
 	path := fmt.Sprintf("/containers/%s/exec", opts.Container)
 	resp, err := c.do(http.MethodPost, path, doOptions{data: opts, context: opts.Context})
 	if err != nil {
-		if e, ok := err.(*Error); ok && e.Status == http.StatusNotFound {
+		var e *Error
+		if errors.As(err, &e) && e.Status == http.StatusNotFound {
 			return nil, &NoSuchContainer{ID: opts.Container}
 		}
 		return nil, err
@@ -122,7 +123,8 @@ func (c *Client) StartExecNonBlocking(id string, opts StartExecOptions) (CloseWa
 	if opts.Detach {
 		resp, err := c.do(http.MethodPost, path, doOptions{data: opts, context: opts.Context})
 		if err != nil {
-			if e, ok := err.(*Error); ok && e.Status == http.StatusNotFound {
+			var e *Error
+			if errors.As(err, &e) && e.Status == http.StatusNotFound {
 				return nil, &NoSuchExec{ID: id}
 			}
 			return nil, err
@@ -195,7 +197,8 @@ func (c *Client) InspectExec(id string) (*ExecInspect, error) {
 	path := fmt.Sprintf("/exec/%s/json", id)
 	resp, err := c.do(http.MethodGet, path, doOptions{})
 	if err != nil {
-		if e, ok := err.(*Error); ok && e.Status == http.StatusNotFound {
+		var e *Error
+		if errors.As(err, &e) && e.Status == http.StatusNotFound {
 			return nil, &NoSuchExec{ID: id}
 		}
 		return nil, err
