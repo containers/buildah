@@ -30,6 +30,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -613,14 +614,14 @@ func GetStore(options StoreOptions) (Store, error) {
 	if options.GraphRoot != "" {
 		dir, err := filepath.Abs(options.GraphRoot)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error deriving an absolute path from %q", options.GraphRoot)
+			return nil, err
 		}
 		options.GraphRoot = dir
 	}
 	if options.RunRoot != "" {
 		dir, err := filepath.Abs(options.RunRoot)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error deriving an absolute path from %q", options.RunRoot)
+			return nil, err
 		}
 		options.RunRoot = dir
 	}
@@ -2677,21 +2678,16 @@ func (s *store) MountImage(id string, mountOpts []string, mountLabel string) (st
 }
 
 func (s *store) Mount(id, mountLabel string) (string, error) {
-	container, err := s.Container(id)
-	var (
-		uidMap, gidMap []idtools.IDMap
-		mountOpts      []string
-	)
-	if err == nil {
-		uidMap, gidMap = container.UIDMap, container.GIDMap
-		id = container.LayerID
-		mountOpts = container.MountOpts()
-	}
 	options := drivers.MountOpts{
 		MountLabel: mountLabel,
-		UidMaps:    uidMap,
-		GidMaps:    gidMap,
-		Options:    mountOpts,
+	}
+	// check if `id` is a container, then grab the LayerID, uidmap and gidmap, along with
+	// otherwise we assume the id is a LayerID and attempt to mount it.
+	if container, err := s.Container(id); err == nil {
+		id = container.LayerID
+		options.UidMaps = container.UIDMap
+		options.GidMaps = container.GIDMap
+		options.Options = container.MountOpts()
 	}
 	return s.mount(id, options)
 }
@@ -3460,7 +3456,10 @@ func copyStringInterfaceMap(m map[string]interface{}) map[string]interface{} {
 }
 
 // defaultConfigFile path to the system wide storage.conf file
-var defaultConfigFile = "/etc/containers/storage.conf"
+var (
+	defaultConfigFile    = "/etc/containers/storage.conf"
+	defaultConfigFileSet = false
+)
 
 // AutoUserNsMinSize is the minimum size for automatically created user namespaces
 const AutoUserNsMinSize = 1024
@@ -3475,21 +3474,24 @@ const RootAutoUserNsUser = "containers"
 // SetDefaultConfigFilePath sets the default configuration to the specified path
 func SetDefaultConfigFilePath(path string) {
 	defaultConfigFile = path
+	defaultConfigFileSet = true
+	reloadConfigurationFileIfNeeded(defaultConfigFile, &defaultStoreOptions)
 }
 
 // DefaultConfigFile returns the path to the storage config file used
 func DefaultConfigFile(rootless bool) (string, error) {
-	if rootless {
-		if configHome := os.Getenv("XDG_CONFIG_HOME"); configHome != "" {
-			return filepath.Join(configHome, "containers/storage.conf"), nil
-		}
-		home := homedir.Get()
-		if home == "" {
-			return "", errors.New("cannot determine user's homedir")
-		}
-		return filepath.Join(home, ".config/containers/storage.conf"), nil
+	if defaultConfigFileSet || !rootless {
+		return defaultConfigFile, nil
 	}
-	return defaultConfigFile, nil
+
+	if configHome := os.Getenv("XDG_CONFIG_HOME"); configHome != "" {
+		return filepath.Join(configHome, "containers/storage.conf"), nil
+	}
+	home := homedir.Get()
+	if home == "" {
+		return "", errors.New("cannot determine user's homedir")
+	}
+	return filepath.Join(home, ".config/containers/storage.conf"), nil
 }
 
 // TOML-friendly explicit tables used for conversions.
@@ -3520,11 +3522,15 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
 		fmt.Printf("Failed to parse %s %v\n", configFile, err.Error())
 		return
 	}
-	if os.Getenv("STORAGE_DRIVER") != "" {
-		config.Storage.Driver = os.Getenv("STORAGE_DRIVER")
-	}
 	if config.Storage.Driver != "" {
 		storeOptions.GraphDriverName = config.Storage.Driver
+	}
+	if os.Getenv("STORAGE_DRIVER") != "" {
+		config.Storage.Driver = os.Getenv("STORAGE_DRIVER")
+		storeOptions.GraphDriverName = config.Storage.Driver
+	}
+	if storeOptions.GraphDriverName == "" {
+		logrus.Errorf("The storage 'driver' option must be set in %s, guarantee proper operation.", configFile)
 	}
 	if config.Storage.RunRoot != "" {
 		storeOptions.RunRoot = config.Storage.RunRoot
@@ -3549,6 +3555,9 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
 	}
 	if config.Storage.Options.IgnoreChownErrors != "" {
 		storeOptions.GraphDriverOptions = append(storeOptions.GraphDriverOptions, fmt.Sprintf("%s.ignore_chown_errors=%s", config.Storage.Driver, config.Storage.Options.IgnoreChownErrors))
+	}
+	if config.Storage.Options.ForceMask != 0 {
+		storeOptions.GraphDriverOptions = append(storeOptions.GraphDriverOptions, fmt.Sprintf("%s.force_mask=%o", config.Storage.Driver, config.Storage.Options.ForceMask))
 	}
 	if config.Storage.Options.MountOpt != "" {
 		storeOptions.GraphDriverOptions = append(storeOptions.GraphDriverOptions, fmt.Sprintf("%s.mountopt=%s", config.Storage.Driver, config.Storage.Options.MountOpt))
@@ -3632,7 +3641,7 @@ func reloadConfigurationFileIfNeeded(configFile string, storeOptions *StoreOptio
 }
 
 func init() {
-	defaultStoreOptions.RunRoot = "/var/run/containers/storage"
+	defaultStoreOptions.RunRoot = "/run/containers/storage"
 	defaultStoreOptions.GraphRoot = "/var/lib/containers/storage"
 	defaultStoreOptions.GraphDriverName = ""
 

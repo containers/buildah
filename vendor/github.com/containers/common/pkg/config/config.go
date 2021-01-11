@@ -113,6 +113,10 @@ type ContainersConfig struct {
 	// DNSSearches set default DNS search domains.
 	DNSSearches []string `toml:"dns_searches,omitempty"`
 
+	// EnableKeyring tells the container engines whether to create
+	// a kernel keyring for use within the container
+	EnableKeyring bool `toml:"keyring,omitempty"`
+
 	// EnableLabeling tells the container engines whether to use MAC
 	// Labeling to separate containers (SELinux)
 	EnableLabeling bool `toml:"label,omitempty"`
@@ -183,6 +187,10 @@ type ContainersConfig struct {
 
 // EngineConfig contains configuration options used to set up a engine runtime
 type EngineConfig struct {
+	// ImageBuildFormat indicates the default image format to building
+	// container images.  Valid values are "oci" (default) or "docker".
+	ImageBuildFormat string `toml:"image_build_format,omitempty"`
+
 	// CgroupCheck indicates the configuration has been rewritten after an
 	// upgrade to Fedora 31 to change the default OCI runtime for cgroupv2v2.
 	CgroupCheck bool `toml:"cgroup_check,omitempty"`
@@ -260,6 +268,10 @@ type EngineConfig struct {
 	// NetworkCmdPath is the path to the slirp4netns binary.
 	NetworkCmdPath string `toml:"network_cmd_path,omitempty"`
 
+	// NetworkCmdOptions is the default options to pass to the slirp4netns binary.
+	// For example "allow_host_loopback=true"
+	NetworkCmdOptions []string `toml:"network_cmd_options,omitempty"`
+
 	// NoPivotRoot sets whether to set no-pivot-root in the OCI runtime.
 	NoPivotRoot bool `toml:"no_pivot_root,omitempty"`
 
@@ -278,7 +290,7 @@ type EngineConfig struct {
 	PullPolicy string `toml:"pull_policy,omitempty"`
 
 	// Indicates whether the application should be running in Remote mode
-	Remote bool `toml:"-"`
+	Remote bool `toml:"remote,omitempty"`
 
 	// RemoteURI is deprecated, see ActiveService
 	// RemoteURI containers connection information used to connect to remote system.
@@ -309,7 +321,7 @@ type EngineConfig struct {
 	RuntimeSupportsNoCgroups []string `toml:"runtime_supports_nocgroupv2,omitempty"`
 
 	// RuntimeSupportsKVM is a list of OCI runtimes that support
-	// KVM separation for conatainers.
+	// KVM separation for containers.
 	RuntimeSupportsKVM []string `toml:"runtime_supports_kvm,omitempty"`
 
 	// SetOptions contains a subset of config options. It's used to indicate if
@@ -351,6 +363,12 @@ type EngineConfig struct {
 	// under. This convention is followed by the default volume driver, but
 	// may not be by other drivers.
 	VolumePath string `toml:"volume_path,omitempty"`
+
+	// VolumePlugins is a set of plugins that can be used as the backend for
+	// Podman named volumes. Each volume is specified as a name (what Podman
+	// will refer to the plugin as) mapped to a path, which must point to a
+	// Unix socket that conforms to the Volume Plugin specification.
+	VolumePlugins map[string]string `toml:"volume_plugins,omitempty"`
 }
 
 // SetOptions contains a subset of options in a Config. It's used to indicate if
@@ -431,11 +449,6 @@ func NewConfig(userConfigPath string) (*Config, error) {
 	config, err := DefaultConfig()
 	if err != nil {
 		return nil, err
-	}
-
-	// read libpod.conf and convert the config to *Config
-	if err = newLibpodConfig(config); err != nil && !os.IsNotExist(err) {
-		logrus.Errorf("error reading libpod.conf: %v", err)
 	}
 
 	// Now, gather the system configs and merge them as needed.
@@ -571,6 +584,22 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func (c *EngineConfig) findRuntime() string {
+	// Search for crun first followed by runc and kata
+	for _, name := range []string{"crun", "runc", "kata"} {
+		for _, v := range c.OCIRuntimes[name] {
+			if _, err := os.Stat(v); err == nil {
+				return name
+			}
+		}
+		if path, err := exec.LookPath(name); err == nil {
+			logrus.Warningf("Found default OCIruntime %s path which is missing from [engine.runtimes] in containers.conf", path)
+			return name
+		}
+	}
+	return ""
 }
 
 // Validate is the main entry point for Engine configuration validation
@@ -717,13 +746,20 @@ func (c *Config) FindConmon() (string, error) {
 }
 
 // GetDefaultEnv returns the environment variables for the container.
-// It will checn the HTTPProxy and HostEnv booleans and add the appropriate
+// It will check the HTTPProxy and HostEnv booleans and add the appropriate
 // environment variables to the container.
 func (c *Config) GetDefaultEnv() []string {
+	return c.GetDefaultEnvEx(c.Containers.EnvHost, c.Containers.HTTPProxy)
+}
+
+// GetDefaultEnvEx returns the environment variables for the container.
+// It will check the HTTPProxy and HostEnv boolean parameters and return the appropriate
+// environment variables for the container.
+func (c *Config) GetDefaultEnvEx(envHost, httpProxy bool) []string {
 	var env []string
-	if c.Containers.EnvHost {
+	if envHost {
 		env = append(env, os.Environ()...)
-	} else if c.Containers.HTTPProxy {
+	} else if httpProxy {
 		proxy := []string{"http_proxy", "https_proxy", "ftp_proxy", "no_proxy", "HTTP_PROXY", "HTTPS_PROXY", "FTP_PROXY", "NO_PROXY"}
 		for _, p := range proxy {
 			if val, ok := os.LookupEnv(p); ok {
@@ -980,8 +1016,15 @@ func (c *Config) ActiveDestination() (uri, identity string, err error) {
 		}
 		return uri, identity, nil
 	}
-
+	connEnv := os.Getenv("CONTAINER_CONNECTION")
 	switch {
+	case connEnv != "":
+		d, found := c.Engine.ServiceDestinations[connEnv]
+		if !found {
+			return "", "", errors.Errorf("environment variable CONTAINER_CONNECTION=%q service destination not found", connEnv)
+		}
+		return d.URI, d.Identity, nil
+
 	case c.Engine.ActiveService != "":
 		d, found := c.Engine.ServiceDestinations[c.Engine.ActiveService]
 		if !found {

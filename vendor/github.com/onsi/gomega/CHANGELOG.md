@@ -1,3 +1,15 @@
+## 1.10.4
+
+### Fixes
+- update golang net library to more recent version without vulnerability (#406) [817a8b9]
+- Correct spelling: alloted -> allotted (#403) [0bae715]
+- fix a panic in MessageWithDiff with long message (#402) [ea06b9b]
+
+## 1.10.3
+
+### Fixes
+- updates golang/x/net to fix vulnerability detected by snyk (#394) [c479356]
+
 ## 1.10.2
 
 ### Fixes

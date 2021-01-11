@@ -77,13 +77,23 @@ func MkdirAllAndChownNew(path string, mode os.FileMode, ids IDPair) error {
 // GetRootUIDGID retrieves the remapped root uid/gid pair from the set of maps.
 // If the maps are empty, then the root uid/gid will default to "real" 0/0
 func GetRootUIDGID(uidMap, gidMap []IDMap) (int, int, error) {
-	uid, err := toHost(0, uidMap)
-	if err != nil {
-		return -1, -1, err
+	var uid, gid int
+	var err error
+	if len(uidMap) == 1 && uidMap[0].Size == 1 {
+		uid = uidMap[0].HostID
+	} else {
+		uid, err = toHost(0, uidMap)
+		if err != nil {
+			return -1, -1, err
+		}
 	}
-	gid, err := toHost(0, gidMap)
-	if err != nil {
-		return -1, -1, err
+	if len(gidMap) == 1 && gidMap[0].Size == 1 {
+		gid = gidMap[0].HostID
+	} else {
+		gid, err = toHost(0, gidMap)
+		if err != nil {
+			return -1, -1, err
+		}
 	}
 	return uid, gid, nil
 }
@@ -291,7 +301,7 @@ func parseSubidFile(path, username string) (ranges, error) {
 
 func checkChownErr(err error, name string, uid, gid int) error {
 	if e, ok := err.(*os.PathError); ok && e.Err == syscall.EINVAL {
-		return errors.Wrapf(err, "there might not be enough IDs available in the namespace (requested %d:%d for %s)", uid, gid, name)
+		return errors.Wrapf(err, "potentially insufficient UIDs or GIDs available in user namespace (requested %d:%d for %s): Check /etc/subuid and /etc/subgid", uid, gid, name)
 	}
 	return err
 }

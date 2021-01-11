@@ -46,8 +46,6 @@ var (
 	DefaultInitPath = "/usr/libexec/podman/catatonit"
 	// DefaultInfraImage to use for infra container
 	DefaultInfraImage = "k8s.gcr.io/pause:3.2"
-	// DefaultInfraCommand to be run in an infra container
-	DefaultInfraCommand = "/pause"
 	// DefaultRootlessSHMLockPath is the default path for rootless SHM locks
 	DefaultRootlessSHMLockPath = "/libpod_rootless_lock"
 	// DefaultDetachKeys is the default keys sequence for detaching a
@@ -179,13 +177,14 @@ func DefaultConfig() (*Config, error) {
 			DNSServers:          []string{},
 			DNSOptions:          []string{},
 			DNSSearches:         []string{},
+			EnableKeyring:       true,
 			EnableLabeling:      selinuxEnabled(),
 			Env: []string{
 				"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 				"TERM=xterm",
 			},
 			EnvHost:        false,
-			HTTPProxy:      false,
+			HTTPProxy:      true,
 			Init:           false,
 			InitPath:       "",
 			IPCNS:          "private",
@@ -224,14 +223,12 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 
 	c.EventsLogFilePath = filepath.Join(c.TmpDir, "events", "events.log")
 
-	var storeOpts storage.StoreOptions
 	if path, ok := os.LookupEnv("CONTAINERS_STORAGE_CONF"); ok {
-		storage.ReloadConfigurationFile(path, &storeOpts)
-	} else {
-		storeOpts, err = storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
-		if err != nil {
-			return nil, err
-		}
+		storage.SetDefaultConfigFilePath(path)
+	}
+	storeOpts, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
+	if err != nil {
+		return nil, err
 	}
 
 	if storeOpts.GraphRoot == "" {
@@ -245,16 +242,22 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 	c.ImageDefaultTransport = _defaultTransport
 	c.StateType = BoltDBStateStore
 
-	c.OCIRuntime = "runc"
-	// If we're running on cgroupv2 v2, default to using crun.
-	if cgroup2, _ := cgroupv2.Enabled(); cgroup2 {
-		c.OCIRuntime = "crun"
-	}
+	c.ImageBuildFormat = "oci"
+
 	c.CgroupManager = defaultCgroupManager()
 	c.StopTimeout = uint(10)
 
 	c.Remote = isRemote()
 	c.OCIRuntimes = map[string][]string{
+		"crun": {
+			"/usr/bin/crun",
+			"/usr/sbin/crun",
+			"/usr/local/bin/crun",
+			"/usr/local/sbin/crun",
+			"/sbin/crun",
+			"/bin/crun",
+			"/run/current-system/sw/bin/crun",
+		},
 		"runc": {
 			"/usr/bin/runc",
 			"/usr/sbin/runc",
@@ -264,15 +267,6 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 			"/bin/runc",
 			"/usr/lib/cri-o-runc/sbin/runc",
 			"/run/current-system/sw/bin/runc",
-		},
-		"crun": {
-			"/usr/bin/crun",
-			"/usr/sbin/crun",
-			"/usr/local/bin/crun",
-			"/usr/local/sbin/crun",
-			"/sbin/crun",
-			"/bin/crun",
-			"/run/current-system/sw/bin/crun",
 		},
 		"kata": {
 			"/usr/bin/kata-runtime",
@@ -285,6 +279,9 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 			"/usr/bin/kata-fc",
 		},
 	}
+	// Needs to be called after populating c.OCIRuntimes
+	c.OCIRuntime = c.findRuntime()
+
 	c.ConmonEnvVars = []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 	}
@@ -308,7 +305,6 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 	c.InitPath = DefaultInitPath
 	c.NoPivotRoot = false
 
-	c.InfraCommand = DefaultInfraCommand
 	c.InfraImage = DefaultInfraImage
 	c.EnablePortReservation = true
 	c.NumLocks = 2048
@@ -324,7 +320,7 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 
 func defaultTmpDir() (string, error) {
 	if !unshare.IsRootless() {
-		return "/var/run/libpod", nil
+		return "/run/libpod", nil
 	}
 
 	runtimeDir, err := getRuntimeDir()
