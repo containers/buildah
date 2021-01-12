@@ -29,6 +29,7 @@ case $1 in
                     containernetworking-plugins
                     containers-common
                     crun
+                    cri-o-runc
                     libseccomp
                     libseccomp2
                     podman
