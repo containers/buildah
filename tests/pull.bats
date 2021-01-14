@@ -2,6 +2,21 @@
 
 load helpers
 
+# Regression test for #2904
+@test "local-image resolution" {
+  run_buildah pull -q busybox
+  iid=$output
+  run_buildah tag ${iid} localhost/image
+
+  # We want to make sure that "image" will always resolve to "localhost/image"
+  # (given a local image with that name exists).  The trick we're using is to
+  # force a failed pull and look at the error message which *must* include the
+  # the resolved image name (localhost/image:latest).
+  run_buildah 125 pull --policy=always image
+  [[ "$output" == *"Error initializing source docker://localhost/image:latest"* ]]
+  run_buildah rmi localhost/image ${iid}
+}
+
 @test "pull-flags-order-verification" {
   run_buildah 125 pull image1 --tls-verify
   check_options_flag_err "--tls-verify"
