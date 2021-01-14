@@ -2,6 +2,9 @@
 
 # Changelog
 
+## v1.19.1 (2021-01-14)
+    Cherry pick localhost fix and update CI configuration for release-1.19 branch
+
 ## v1.19.0 (2021-01-08)
     Update vendor of containers/storage and containers/common
     Buildah inspect should be able to inspect manifests
