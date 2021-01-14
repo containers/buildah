@@ -8,28 +8,16 @@ set -e
 # expectation mismatch.
 source $(dirname $0)/lib.sh
 
-req_env_var OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE
+req_env_vars OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE
 
 echo "Setting up $OS_RELEASE_ID $OS_RELEASE_VER"
 cd $GOSRC
 case "$OS_RELEASE_ID" in
     fedora)
-        # This can be removed when the kernel bug fix is included in Fedora
-        if [[ $OS_RELEASE_VER -le 32 ]] && [[ -z "$CONTAINER" ]]; then
-            warn "Switching io scheduler to 'deadline' to avoid RHBZ 1767539"
-            warn "aka https://bugzilla.kernel.org/show_bug.cgi?id=205447"
-            echo "mq-deadline" | sudo tee /sys/block/sda/queue/scheduler > /dev/null
-            echo -n "IO Scheduler set to: "
-            $SUDO cat /sys/block/sda/queue/scheduler
-        fi
-
         # Not executing IN_PODMAN container
         if [[ -z "$CONTAINER" ]]; then
             warn "Adding secondary testing partition & growing root filesystem"
             bash $SCRIPT_BASE/add_second_partition.sh
-
-            warn "TODO: Add (for htpasswd) to VM images (in libpod repo)"
-            dnf install -y httpd-tools
         fi
 
         warn "Hard-coding podman to use crun"
@@ -45,9 +33,6 @@ EOF
         fi
         ;;
     ubuntu)
-        warn "TODO: Add to VM images (in libpod repo)"
-        $SHORT_APTGET update
-        $SHORT_APTGET install apache2-utils
         ;;
     *)
         bad_os_id_ver
@@ -67,15 +52,23 @@ echo -e "[registries.search]\nregistries = ['docker.io', 'registry.fedoraproject
 
 show_env_vars
 
+if [[ -z "$CONTAINER" ]]; then
+    # Discovered reemergence of BFQ scheduler bug in kernel 5.8.12-200
+    # which causes a kernel panic when system is under heavy I/O load.
+    # Previously discovered in F32beta and confirmed fixed. It's been
+    # observed in F31 kernels as well.  Deploy workaround for all VMs
+    # to ensure a more stable I/O scheduler (elevator).
+    echo "mq-deadline" > /sys/block/sda/queue/scheduler
+    warn "I/O scheduler: $(cat /sys/block/sda/queue/scheduler)"
+fi
+
 if [[ -z "$CROSS_TARGET" ]]
 then
-    remove_storage_mountopt  # workaround issue 1945 (remove when resolved)
-
     execute_local_registry  # checks for existing port 5000 listener
 
     if [[ "$IN_PODMAN" == "true" ]]
     then
-        req_env_var IN_PODMAN_IMAGE IN_PODMAN_NAME
+        req_env_vars IN_PODMAN_IMAGE IN_PODMAN_NAME
         echo "Setting up image to use for \$IN_PODMAN=true testing"
         cd $GOSRC
         in_podman $IN_PODMAN_IMAGE $0

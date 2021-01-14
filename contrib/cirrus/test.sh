@@ -4,7 +4,7 @@ set -e
 
 source $(dirname $0)/lib.sh
 
-req_env_var IN_PODMAN IN_PODMAN_NAME GOSRC 1
+req_env_vars IN_PODMAN IN_PODMAN_NAME GOSRC 1
 
 if [[ "$IN_PODMAN" == "true" ]]
 then
@@ -41,28 +41,42 @@ then
             showrun make test-unit
             ;;
         conformance)
-            case "$OS_RELEASE_ID" in
-            fedora)
-                warn "Installing moby-engine"
-                dnf install -y moby-engine
-                systemctl enable --now docker
-                ;;
-            ubuntu)
-                warn "Installing docker.io"
-                $LONG_APTGET install docker.io
-                systemctl enable --now docker
-                ;;
-            *)
+            # Typically it's undesireable to install packages at runtime.
+            # This test compares images built with the "latest" version
+            # of docker, against images built with buildah. Runtime installs
+            # are required to ensure the latest docker version is used.
+            [[ "$OS_RELEASE_ID" == "ubuntu" ]] || \
                 bad_os_id_ver
-                ;;
-            esac
+
+            warn "Installing upstream docker from docker.com"
+            # Ref: https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository
+            curl --fail --silent --location \
+                --url  https://download.docker.com/linux/ubuntu/gpg | \
+                gpg --dearmor > \
+                /etc/apt/trusted.gpg.d/docker_com.gpg
+            add-apt-repository --yes --no-update \
+                "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+                $(lsb_release -cs) \
+                stable"
+            $SHORT_APTGET update
+            $LONG_APTGET install \
+                apt-transport-https \
+                ca-certificates \
+                containerd.io \
+                curl \
+                docker-ce \
+                docker-ce-cli \
+                gnupg-agent \
+                software-properties-common
+
+            systemctl enable --now docker
             showrun make test-conformance
             ;;
         integration)
             showrun make test-integration
             ;;
         *)
-            die 1 "First parameter to $(basename $0) not supported: '$1'"
+            die "First parameter to $(basename $0) not supported: '$1'"
             ;;
     esac
 else
