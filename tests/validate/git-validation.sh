@@ -11,7 +11,7 @@ if [[ -z "$(type -P git-validation)" ]]; then
 	exit 1
 fi
 
-GITVALIDATE_EPOCH="${GITVALIDATE_EPOCH:-1f8bf4dba27d9a157f966dad3a1e0f58091091d8}"
+GITVALIDATE_EPOCH="${GITVALIDATE_EPOCH:-474febf0dcb3c76c23a88f3b83834c81f20a7e5c}"
 
 OUTPUT_OPTIONS="-q"
 if [[ "$CI" == 'true' ]]; then
