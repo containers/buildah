@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.20.0-dev
+Version:        1.19.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,21 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Fri Jan 8, 2021 Tom Sweeney <tsweeney@redhat.com> 1.20.0-dev-1
+* Thu Jan 14, 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.1-1
+- use local image name for pull policy checks
+- Vendor in common 0.33.1
+- Fix conformance test false-failures
+- Fix config-flags-verification test on F33
+- Fix bud capabilities test
+- Cirrus: Support new VM Images in get_ci_vm.sh
+- Cirrus: Make tests pass with new VM Images
+- Cirrus: Collect cri-o-runc version
+- Cirrus: Update VM Images + Rearrange tasks
+- Cirrus: Clarify task names / improve readability
+- Stop overriding the location of the blob info cache
+- build(deps): bump github.com/fsouza/go-dockerclient from 1.6.6 to 1.7.0
+- Update nix pin with `make nixpkgs`
+- Bump to v1.20.0-dev
 
 * Fri Jan 8, 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.0-1
 - Update vendor of containers/storage and containers/common
