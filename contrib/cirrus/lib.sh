@@ -60,8 +60,8 @@ OS_RELEASE_VER="$(source /etc/os-release; echo $VERSION_ID | cut -d '.' -f 1)"
 OS_REL_VER="${OS_RELEASE_ID}-${OS_RELEASE_VER}"
 
 # FQINs needed for testing
-REGISTRY_FQIN=${REGISTRY_FQIN:-docker.io/library/registry}
-ALPINE_FQIN=${ALPINE_FQIN:-docker.io/library/alpine}
+REGISTRY_FQIN=${REGISTRY_FQIN:-quay.io/libpod/registry:2.6}
+ALPINE_FQIN=${ALPINE_FQIN:-quay.io/libpod/alpine:3.10.2}
 
 # for in-container testing
 IN_PODMAN_IMAGE="$OS_RELEASE_ID:$OS_RELEASE_VER"

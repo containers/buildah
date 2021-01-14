@@ -97,26 +97,6 @@ gce_instance:
     binary_artifacts:
         path: ./bin/*
 
-
-'cirrus-ci/only_prs/unit_task':
-
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
-
-    # not supported by bors-ng
-    # allow_failures: $CI == $CI
-
-    timeout_in: 30m
-
-    setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
-    build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
-    # FIXME: These tests mostly/always fail
-    unit_test_script: '${SCRIPT_BASE}/test.sh unit |& ${_TIMESTAMP} || true'
-
-    binary_artifacts:
-        path: ./bin/*
-
-
 # This task runs `make vendor` followed by ./hack/tree_status.sh to check
 # whether the git tree is clean.  The reasoning for that is to make sure
 # that the vendor.conf, the code and the vendored packages in ./vendor are
@@ -144,103 +124,14 @@ gce_instance:
         - './hack/tree_status.sh'
 
 
-'cirrus-ci/only_prs/cross_task':
-
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
-
-    depends_on:
-        - 'cirrus-ci/only_prs/gate'
-        - 'cirrus-ci/only_prs/vendor'
-
-    container:
-        image: registry.fedoraproject.org/fedora:30
-
-    env:
-        matrix:
-            CROSS_TARGET: darwin
-
-    setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
-    build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
-
-    binary_artifacts:
-        path: ./bin/*
-
-
-'cirrus-ci/required/testing_task':
-
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
-
-    depends_on:
-        - 'cirrus-ci/only_prs/gate'
-        - 'cirrus-ci/only_prs/vendor'
-
-    gce_instance:  # Only need to specify differences from defaults (above)
-        matrix:  # Duplicate this task for each matrix product.
-            image_name: "${FEDORA_CACHE_IMAGE_NAME}"
-            # TODO: Re-enable once prior image is F30 and above is F31
-            # image_name: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-            image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
-            image_name: "${PRIOR_UBUNTU_CACHE_IMAGE_NAME}"
-
-    # Separate scripts for separate outputs, makes debugging easier.
-    setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
-    build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
-    integration_test_script: '${SCRIPT_BASE}/test.sh integration |& ${_TIMESTAMP}'
-
-    binary_artifacts:
-        path: ./bin/*
-
-    always: &standardlogs
-        audit_log_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh audit'
-        df_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh df'
-        journal_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh journal'
-        podman_system_info_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh podman'
-        buildah_version_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh buildah_version'
-        buildah_info_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh buildah_info'
-        package_versions_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh packages'
-
-
-'cirrus-ci/required/in_podman_task':
-
-    # see bors.toml
-    skip: $CIRRUS_BRANCH =~ ".*\.tmp"
-
-    depends_on:
-        - 'cirrus-ci/only_prs/gate'
-        - 'cirrus-ci/only_prs/vendor'
-
-    env:
-        # This is key, it causes the scripts to re-execute themselves inside a container.
-        IN_PODMAN: 'true'
-        BUILDAH_ISOLATION: 'chroot'
-        STORAGE_DRIVER: 'vfs'
-        STORAGE_OPTIONS: ''
-
-    # Separate scripts for separate outputs, makes debugging easier.
-    setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
-    build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
-    integration_test_script: '${SCRIPT_BASE}/test.sh integration |& ${_TIMESTAMP}'
-
-    binary_artifacts:
-        path: ./bin/*
-
-    always:
-        <<: *standardlogs
-
-# TODO: Bors-ng has trouble interpreting multiple status-checks as being required
-#       when their names contain wild-cards (like `testing%`).  Until that issue
-#       can be fixed, use a single "test" to represent pass/fail status of all
-#       required checks.
 'cirrus-ci/success_task':
 
     # see bors.toml
     skip: $CIRRUS_BRANCH =~ ".*\.tmp"
 
     depends_on:
-        - "cirrus-ci/required/testing"
-        - "cirrus-ci/required/in_podman"
+        - 'cirrus-ci/only_prs/gate'
+        - 'cirrus-ci/only_prs/vendor'
 
     env:
         CIRRUS_WORKING_DIR: /tmp
