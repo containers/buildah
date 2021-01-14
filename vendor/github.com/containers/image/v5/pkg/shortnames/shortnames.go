@@ -235,9 +235,15 @@ func (c *PullCandidate) Record() error {
 // Furthermore, before attempting to pull callers *should* call
 // `(Resolved).Description` and afterwards use
 // `(Resolved).FormatPullErrors` in case of pull errors.
-func Resolve(ctx *types.SystemContext, name string) (*Resolved, error) {
+func Resolve(ctx *types.SystemContext, name string, localImageName string) (*Resolved, error) {
 	resolved := &Resolved{}
-
+	if localImageName != "" {
+		_, localRef, err := parseUnnormalizedShortName(name)
+		if err != nil {
+			return nil, err
+		}
+		resolved.addCandidate(reference.TagNameOnly(localRef))
+	}
 	// Create a copy of the system context to make it usable beyond this
 	// function call.
 	var sys *types.SystemContext
@@ -454,6 +460,5 @@ func ResolveLocally(ctx *types.SystemContext, name string) ([]reference.Named, e
 
 		candidates = append(candidates, named)
 	}
-
 	return candidates, nil
 }
