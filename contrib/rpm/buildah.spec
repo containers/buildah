@@ -100,7 +100,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Fri Jan 8, 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.1-1
+* Thu Jan 14, 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.1-1
 - Cherry pick localhost fix and update CI configuration for release-1.19 branch
 
 * Fri Jan 8, 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.0-1
