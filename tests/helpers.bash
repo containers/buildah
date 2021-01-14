@@ -56,6 +56,10 @@ function teardown() {
 }
 
 function _prefetch() {
+	# Tell podman to use the same mirror registries as buildah, to
+	# avoid docker.io
+	export REGISTRIES_CONFIG_PATH=${TESTSDIR}/registries.conf
+
 	if [ -z "${_BUILDAH_IMAGE_CACHEDIR}" ]; then
             _pgid=$(sed -ne 's/^NSpgid:\s*//p' /proc/$$/status)
             export _BUILDAH_IMAGE_CACHEDIR=${BATS_TMPDIR}/buildah-image-cache.$_pgid
