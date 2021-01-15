@@ -78,10 +78,12 @@ func mountHelper(contentDir, source, dest string, _, _ int, graphOptions []strin
 		workDir := filepath.Join(contentDir, "work")
 		upperDir := filepath.Join(contentDir, "upper")
 		st, err := os.Stat(dest)
-		if err != nil {
-			return mount, err
+		if err == nil {
+			if err := os.Chmod(upperDir, st.Mode()); err != nil {
+				return mount, err
+			}
 		}
-		if err := os.Chmod(upperDir, st.Mode()); err != nil {
+		if !os.IsNotExist(err) {
 			return mount, err
 		}
 		overlayOptions = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s,private", source, upperDir, workDir)
