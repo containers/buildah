@@ -263,7 +263,12 @@ func Runtime() string {
 		return "crun"
 	}
 
-	return DefaultRuntime
+	conf, err := config.Default()
+	if err != nil {
+		logrus.Warnf("Error loading container config when searching for local runtime: %v", err)
+		return DefaultRuntime
+	}
+	return conf.Engine.OCIRuntime
 }
 
 // StringInSlice returns a boolean indicating if the exact value s is present
