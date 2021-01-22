@@ -13,14 +13,28 @@ In this tutorial I'll show you how to create a simple CLI tool that creates an i
 
 Bootstrap the installation of development dependencies of Buildah by following the [Building from scratch](https://github.com/slinkydeveloper/buildah/blob/master/install.md#building-from-scratch) instructions and in particular creating a directory for the Buildah project by completing the instructions in the [Installation from GitHub](https://github.com/containers/buildah/blob/master/install.md#installation-from-github) section of that page.
 
-Now let's bootstrap our project. Assuming you are in the directory of the project, run:
+Now let's bootstrap our project. Assuming you are in the directory of the project, run the following to initialize the go modules:
 
 
 ```shell
 go mod init
 ```
 
-To initialize the go modules. Now import Buildah as a dependency:
+Next, we should import Buildah as a dependency. However, make sure that you have the following
+developer packages installed:
+
+```shell
+dnf install btrfs-progs-devel gpgme-devel device-mapper-devel
+```
+
+Depending on your Linux distribution, the names of the packages can be slightly different. For instance, on
+OpenSUSE it would be
+
+```shell
+zypper in libbtrfs-devel libgpgme-devel device-mapper-devel
+```
+
+Now import Buildah as a dependency:
 
 ```shell
 go get github.com/containers/buildah
