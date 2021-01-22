@@ -19,8 +19,6 @@ env:
     CIRRUS_CLONE_DEPTH: 50
     # Unless set by in_podman.sh, default to operating outside of a podman container
     IN_PODMAN: 'false'
-    # Not cross-compiling by default
-    CROSS_TARGET: ""
 
     ####
     #### Cache-image names to test with
@@ -176,12 +174,14 @@ cross_build_task:
     depends_on:
       - unit
 
-    env:
-        matrix:
-            CROSS_TARGET: cross
+    osx_instance:
+        image: 'catalina-base'
 
-    setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
-    build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
+    script:
+        - brew install go
+        - brew install go-md2man
+        - brew install gpgme
+        - make cross CGO_ENABLED=0
 
     binary_artifacts:
         path: ./bin/*

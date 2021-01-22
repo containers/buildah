@@ -62,17 +62,14 @@ if [[ -z "$CONTAINER" ]]; then
     warn "I/O scheduler: $(cat /sys/block/sda/queue/scheduler)"
 fi
 
-if [[ -z "$CROSS_TARGET" ]]
-then
-    execute_local_registry  # checks for existing port 5000 listener
+execute_local_registry  # checks for existing port 5000 listener
 
-    if [[ "$IN_PODMAN" == "true" ]]
-    then
-        req_env_vars IN_PODMAN_IMAGE IN_PODMAN_NAME
-        echo "Setting up image to use for \$IN_PODMAN=true testing"
-        cd $GOSRC
-        in_podman $IN_PODMAN_IMAGE $0
-        showrun podman commit $IN_PODMAN_NAME $IN_PODMAN_NAME
-        showrun podman rm -f $IN_PODMAN_NAME
-    fi
+if [[ "$IN_PODMAN" == "true" ]]
+then
+    req_env_vars IN_PODMAN_IMAGE IN_PODMAN_NAME
+    echo "Setting up image to use for \$IN_PODMAN=true testing"
+    cd $GOSRC
+    in_podman $IN_PODMAN_IMAGE $0
+    showrun podman commit $IN_PODMAN_NAME $IN_PODMAN_NAME
+    showrun podman rm -f $IN_PODMAN_NAME
 fi

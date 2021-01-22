@@ -49,5 +49,5 @@ case $1 in
         # Any not-present packages will be listed as such
         $PKG_LST_CMD ${PKG_NAMES[@]} | sort -u
         ;;
-    *) die 1 "Warning, $(basename $0) doesn't know how to handle the parameter '$1'"
+    *) die "Warning, $(basename $0) doesn't know how to handle the parameter '$1'"
 esac

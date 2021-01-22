@@ -39,9 +39,6 @@ else
     ) > /dev/stderr
 fi
 
-# Not cross-compiling by default
-CROSS_TARGET="${CROSS_TARGET:-}"
-
 # Essential default paths, many are overridden when executing under Cirrus-CI
 # others are duplicated here, to assist in debugging.
 GOPATH="${GOPATH:-/var/tmp/go}"

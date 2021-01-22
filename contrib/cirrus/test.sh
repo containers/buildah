@@ -12,8 +12,7 @@ then
     # Host build environment != container environment
     showrun make clean
     in_podman --rm $IN_PODMAN_NAME:latest $0 $1
-elif [[ -z "$CROSS_TARGET" ]]
-then
+else
     cd $GOSRC
 
     showrun make
@@ -79,6 +78,4 @@ then
             die "First parameter to $(basename $0) not supported: '$1'"
             ;;
     esac
-else
-    echo "Testing a cross-compiled $CROSS_TARGET target not possible on this platform"
 fi
