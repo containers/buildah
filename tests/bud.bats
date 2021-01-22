@@ -2154,9 +2154,15 @@ EOM
 }
 
 @test "bud with --build-arg" {
-  _prefetch alpine
-  run_buildah --log-level "warn" bud --signature-policy ${TESTSDIR}/policy.json -t test ${TESTSDIR}/bud/build-arg
+  _prefetch alpine busybox
+  target=busybox-image
+  run_buildah --log-level "warn" bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/build-arg
   expect_output --substring 'missing .+ build argument'
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg foo=bar ${TESTSDIR}/bud/build-arg
+  expect_output --substring "bar"
+  export foo=hello-world
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg foo ${TESTSDIR}/bud/build-arg
+  expect_output --substring "hello-world"
 }
 
 @test "bud arg and env var with same name" {
