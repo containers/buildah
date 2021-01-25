@@ -129,7 +129,12 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 			if len(av) > 1 {
 				args[av[0]] = av[1]
 			} else {
-				delete(args, av[0])
+				// check if the env is set in the local environment and use that value if it is
+				if val, present := os.LookupEnv(av[0]); present {
+					args[av[0]] = val
+				} else {
+					delete(args, av[0])
+				}
 			}
 		}
 	}
