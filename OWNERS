@@ -1,13 +1,16 @@
 approvers:
   - TomSweeneyRedHat
+  - ashley-cui
   - cevich
   - giuseppe
   - nalind
   - rhatdan
+  - umohnani8
   - vrothberg
-reviewers:
+reviewers
   - QiWang19
   - TomSweeneyRedHat
+  - ashley-cui
   - baude
   - cevich
   - edsantiago
