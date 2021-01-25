@@ -2,7 +2,10 @@ package util
 
 import (
 	"fmt"
+	"os"
 	"testing"
+
+	"github.com/containers/common/pkg/config"
 )
 
 func TestMergeEnv(t *testing.T) {
@@ -35,5 +38,20 @@ func TestMergeEnv(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+func TestRuntime(t *testing.T) {
+	os.Setenv("CONTAINERS_CONF", "/dev/null")
+	conf, _ := config.Default()
+	defaultRuntime := conf.Engine.OCIRuntime
+	runtime := Runtime()
+	if runtime != defaultRuntime {
+		t.Fatalf("expected %v, got %v", runtime, defaultRuntime)
+	}
+	defaultRuntime = "myoci"
+	os.Setenv("BUILDAH_RUNTIME", defaultRuntime)
+	runtime = Runtime()
+	if runtime != defaultRuntime {
+		t.Fatalf("expected %v, got %v", runtime, defaultRuntime)
 	}
 }
