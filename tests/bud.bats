@@ -303,17 +303,17 @@ symlink(subdir)"
   # two more, starting at the "echo $user" instruction
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test1 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah images -a
-  expect_line_count 7
+  expect_line_count 8
 
   # one more, because we added a new name to the same image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test2 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah images -a
-  expect_line_count 8
+  expect_line_count 9
 
   # two more, starting at the "echo $user" instruction
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah images -a
-  expect_line_count 10
+  expect_line_count 12
 }
 
 @test "bud with --rm flag" {
@@ -1688,13 +1688,14 @@ _EOF
 }
 
 @test "bud-build-arg-cache" {
-  _prefetch busybox
+  _prefetch busybox alpine
   target=derived-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' ${target}
   targetid="$output"
 
-  # With build args, we should not find the previous build as a cached result.
+  # With build args, we should not find the previous build as a cached result. This will be true because there is a RUN command after all the ARG
+  # commands in the containerfile, so this does not truly test if the ARG commands were using cache or not. There is a test for that case below.
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup --build-arg=PGDATA=/pgdata ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' ${target}
   argsid="$output"
@@ -1716,6 +1717,30 @@ _EOF
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=PGDATA=/pgdata --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' ${target}
   expect_output "$argsid"
+
+  # If build-arg is specified via the command line and is different from the previous cached build, it should not use the cached layers.
+  # Note, this containerfile does not have any RUN commands and we verify that the ARG steps are being rebuilt when a change is detected.
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test-img -f Dockerfile4 ${TESTSDIR}/bud/build-arg
+  run_buildah inspect -f '{{.FromImageID}}' test-img
+  initialid="$output"
+
+  # Build the same containerfile again and verify that the cached layers were used
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test-img-1 -f Dockerfile4 ${TESTSDIR}/bud/build-arg
+  run_buildah inspect -f '{{.FromImageID}}' test-img-1
+  expect_output "$initialid"
+
+  # Set the build-arg flag and verify that the cached layers are not used
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test-img-2 --build-arg TEST=foo -f Dockerfile4 ${TESTSDIR}/bud/build-arg
+  run_buildah inspect -f '{{.FromImageID}}' test-img-2
+  argsid="$output"
+  [[ "$argsid" != "$initialid" ]]
+
+  # Set the build-arg via an ENV in the local environment and verify that the cached layers are not used
+  export TEST=bar
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test-img-3 --build-arg TEST -f Dockerfile4 ${TESTSDIR}/bud/build-arg
+  run_buildah inspect -f '{{.FromImageID}}' test-img-3
+  argsid="$output"
+  [[ "$argsid" != "$initialid" ]]
 }
 
 @test "bud test RUN with a priv'd command" {
