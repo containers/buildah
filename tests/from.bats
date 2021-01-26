@@ -19,6 +19,18 @@ load helpers
   check_options_flag_err "--cred=fake fake"
 }
 
+@test "from-with-digest" {
+  run_buildah pull alpine
+  run_buildah inspect --format "{{.FromImageID}}" alpine
+  digest=$output
+
+  run_buildah from "sha256:$digest"
+  run_buildah rm $output
+
+  run_buildah 125 from sha256:1111111111111111111111111111111111111111111111111111111111111111
+  expect_output --substring "error locating image with ID \"1111111111111111111111111111111111111111111111111111111111111111\""
+}
+
 @test "commit-to-from-elsewhere" {
   elsewhere=${TESTDIR}/elsewhere-img
   mkdir -p ${elsewhere}
