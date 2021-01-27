@@ -1,0 +1,3 @@
+FROM alpine
+RUN echo "hello"
+ENV foo=bar

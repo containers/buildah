@@ -115,7 +115,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		SystemContext:       systemContext,
 		BlobDirectory:       iopts.blobCache,
 		AllTags:             iopts.allTags,
-		ReportWriter:        os.Stderr,
+		ReportWriter:        os.Stdout,
 		RemoveSignatures:    iopts.removeSignatures,
 		MaxRetries:          maxPullPushRetries,
 		RetryDelay:          pullPushRetryDelay,

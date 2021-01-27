@@ -215,7 +215,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	}
 
 	if !iopts.quiet {
-		options.ReportWriter = os.Stderr
+		options.ReportWriter = os.Stdout
 	}
 	id, ref, _, err := builder.Commit(ctx, dest, options)
 	if err != nil {

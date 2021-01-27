@@ -195,7 +195,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		OciEncryptLayers:    encLayers,
 	}
 	if !iopts.quiet {
-		options.ReportWriter = os.Stderr
+		options.ReportWriter = os.Stdout
 	}
 
 	ref, digest, err := buildah.Push(getContext(), src, dest, options)

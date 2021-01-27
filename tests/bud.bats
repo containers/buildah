@@ -1687,6 +1687,15 @@ _EOF
   test -s "${root}"/subdir/file2.txt
 }
 
+@test "bud should write to stdout and not stderr" {
+  _prefetch alpine
+  target=testimage
+  mkdir ${TESTDIR}/tmp
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1 ${TESTSDIR}/bud/dockerfile > ${TESTDIR}/tmp/stdout.txt 2> ${TESTDIR}/tmp/stderr.txt
+  run cat ${TESTDIR}/tmp/stderr.txt
+  expect_output ""
+}
+
 @test "bud-build-arg-cache" {
   _prefetch busybox alpine
   target=derived-image

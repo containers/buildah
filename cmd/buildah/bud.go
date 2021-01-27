@@ -210,7 +210,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 	var stdout, stderr, reporter *os.File
 	stdout = os.Stdout
 	stderr = os.Stderr
-	reporter = os.Stderr
+	reporter = os.Stdout
 	if c.Flag("logfile").Changed {
 		f, err := os.OpenFile(iopts.Logfile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 		if err != nil {

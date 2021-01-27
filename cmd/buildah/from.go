@@ -298,7 +298,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	}
 
 	if !iopts.quiet {
-		options.ReportWriter = os.Stderr
+		options.ReportWriter = os.Stdout
 	}
 
 	builder, err := buildah.NewBuilder(getContext(), store, options)

@@ -708,7 +708,7 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 		options.ImageListSelection = cp.CopyAllImages
 	}
 	if !opts.quiet {
-		options.ReportWriter = os.Stderr
+		options.ReportWriter = os.Stdout
 	}
 
 	_, digest, err := list.Push(getContext(), dest, options)
