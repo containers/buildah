@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
 	github.com/containers/common v0.33.1
-	github.com/containers/image/v5 v5.9.0
+	github.com/containers/image/v5 v5.10.1
 	github.com/containers/ocicrypt v1.0.3
 	github.com/containers/storage v1.24.5
 	github.com/docker/distribution v2.7.1+incompatible
@@ -35,7 +35,7 @@ require (
 	go.etcd.io/bbolt v1.3.5
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
-	golang.org/x/sys v0.0.0-20201201145000-ef89a241ccb3
+	golang.org/x/sys v0.0.0-20201218084310-7d0127a74742
 	k8s.io/klog v1.0.0 // indirect
 )
 
