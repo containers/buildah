@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.19.2
+Version:        1.19.3
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,11 +100,23 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Jan 28, 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.3-1
+- [ci:docs] Fix man page for buildah push
+- Vendor in containers/image v5.10.1
+- Rebuild layer if a change in ARG is detected
+- Bump golang.org/x/crypto to latest rel-1.19
+- local image lookup by digest
+- Use build-arg ENV val from local environment if set
+- Pick default OCI Runtime from containers.conf
+
 * Fri Jan 15, 2021 Dan Walsh <dwalsh@redhat.com> 1.19.2-1
-- If overlay destination does not exists, do not throw error
+- If overlay mount point destination does not exists, do not throw error
+- Vendor in containers/common
 
 * Thu Jan 14, 2021 Dan Walsh <dwalsh@redhat.com> 1.19.1-1
+- Cherry pick localhost fix and update CI configuration for release-1.19
 - use local image name for pull policy checks
+- Vendor in common 0.33.1
 
 * Fri Jan 8, 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.0-1
 - Update vendor of containers/storage and containers/common
