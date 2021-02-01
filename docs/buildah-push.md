@@ -81,7 +81,7 @@ Layer(s) to encrypt: 0-indexed layer indices with support for negative indexing 
 
 **--format**, **-f**
 
-Manifest Type (oci, v2s1, or v2s2) to use when saving image to directory using the 'dir:' transport (default is manifest type of source)
+Manifest Type (oci, v2s2, or v2s1) to use when pushing an image. (default is manifest type of the source image)
 
 **--quiet**, **-q**
 
