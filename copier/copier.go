@@ -1294,7 +1294,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 		dirUID, dirGID = req.PutOptions.ChownDirs.UID, req.PutOptions.ChownDirs.GID
 		defaultDirUID, defaultDirGID = dirUID, dirGID
 	}
-	defaultDirMode := os.FileMode(0755)
+	defaultDirMode := os.FileMode(0777)
 	if req.PutOptions.ChmodDirs != nil {
 		defaultDirMode = *req.PutOptions.ChmodDirs
 	}

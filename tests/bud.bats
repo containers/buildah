@@ -1172,11 +1172,11 @@ function _test_http() {
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-create-absolute-path
-  expect_output --substring "permissions=755"
+  expect_output --substring "permissions=777"
 
   run_buildah from --name ${ctrName} ${imgName}
   run_buildah run ${ctrName} -- stat -c "%a" /usr/lib/python3.7/distutils
-  expect_output "755"
+  expect_output "777"
 }
 
 @test "bud with COPY of single file creates relative path with correct permissions" {
@@ -1184,11 +1184,11 @@ function _test_http() {
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-create-relative-path
-  expect_output --substring "permissions=755"
+  expect_output --substring "permissions=777"
 
   run_buildah from --name ${ctrName} ${imgName}
   run_buildah run ${ctrName} -- stat -c "%a" lib/custom
-  expect_output "755"
+  expect_output "777"
 }
 
 @test "bud with ADD of single file creates absolute path with correct permissions" {
@@ -1196,11 +1196,11 @@ function _test_http() {
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/add-create-absolute-path
-  expect_output --substring "permissions=755"
+  expect_output --substring "permissions=777"
 
   run_buildah from --name ${ctrName} ${imgName}
   run_buildah run ${ctrName} -- stat -c "%a" /usr/lib/python3.7/distutils
-  expect_output "755"
+  expect_output "777"
 }
 
 @test "bud with ADD of single file creates relative path with correct permissions" {
@@ -1208,11 +1208,11 @@ function _test_http() {
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/add-create-relative-path
-  expect_output --substring "permissions=755"
+  expect_output --substring "permissions=777"
 
   run_buildah from --name ${ctrName} ${imgName}
   run_buildah run ${ctrName} -- stat -c "%a" lib/custom
-  expect_output "755"
+  expect_output "777"
 }
 
 @test "bud multi-stage COPY creates absolute path with correct permissions" {
@@ -1220,11 +1220,11 @@ function _test_http() {
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.absolute -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths
-  expect_output --substring "permissions=755"
+  expect_output --substring "permissions=777"
 
   run_buildah from --name ${ctrName} ${imgName}
   run_buildah run ${ctrName} -- stat -c "%a" /my/bin
-  expect_output "755"
+  expect_output "777"
 }
 
 @test "bud multi-stage COPY creates relative path with correct permissions" {
@@ -1232,11 +1232,11 @@ function _test_http() {
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.relative -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths
-  expect_output --substring "permissions=755"
+  expect_output --substring "permissions=777"
 
   run_buildah from --name ${ctrName} ${imgName}
   run_buildah run ${ctrName} -- stat -c "%a" my/bin
-  expect_output "755"
+  expect_output "777"
 }
 
 @test "bud multi-stage COPY with invalid from statement" {
