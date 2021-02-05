@@ -26,6 +26,13 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah manifest add foo ${IMAGE_LIST}
 }
 
+@test "manifest-add local image" {
+    target=scratch-image
+    run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+    run_buildah manifest create foo
+    run_buildah manifest add foo ${target}
+}
+
 @test "manifest-add-one" {
     run_buildah manifest create foo
     run_buildah manifest add --arch=arm64 foo ${IMAGE_LIST_INSTANCE}

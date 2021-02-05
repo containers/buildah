@@ -566,9 +566,9 @@ function _test_http() {
   starthttpd "${TESTSDIR}/bud/$testdir"
   target=scratch-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json \
-              -t ${target} \
-              "$@"         \
-              http://0.0.0.0:${HTTP_SERVER_PORT}/$urlpath
+	      -t ${target} \
+	      "$@"         \
+	      http://0.0.0.0:${HTTP_SERVER_PORT}/$urlpath
   stophttpd
   run_buildah from ${target}
 }
@@ -2506,4 +2506,48 @@ _EOF
 #  cid=$output
 #  run_buildah run $cid arch
 #  expect_output --substring "aarch64"
+}
+
+@test "bud with --manifest flag new manifest" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run echo hello
+_EOF
+
+  run_buildah bud -q --manifest=testlist -t arch-test --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
+  cid=$output
+  run_buildah images
+  expect_output --substring testlist
+
+  run_buildah inspect --format '{{ .FromImageDigest }}' $cid
+  digest=$output
+
+  run_buildah manifest inspect testlist
+  expect_output --substring $digest
+}
+
+@test "bud with --manifest flag existing manifest" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run echo hello
+_EOF
+
+  run_buildah manifest create testlist
+
+  run_buildah bud -q --manifest=testlist -t arch-test --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
+  cid=$output
+  run_buildah images
+  expect_output --substring testlist
+
+  run_buildah inspect --format '{{ .FromImageDigest }}' $cid
+  digest=$output
+
+  run_buildah manifest inspect testlist
+  expect_output --substring $digest
 }
