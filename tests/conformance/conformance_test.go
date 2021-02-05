@@ -1469,7 +1469,8 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name: "add-permissions",
+		name:          "add-permissions",
+		withoutDocker: true,
 		dockerfileContents: strings.Join([]string{
 			"FROM scratch",
 			fmt.Sprintf("# Does ADD preserve permissions differently for archives and files?"),
@@ -1970,9 +1971,10 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "dockerignore-minimal-test", // from #2237
-		contextDir: "dockerignore/minimal_test",
-		fsSkip:     []string{"(dir):tmp:mtime", "(dir):tmp:(dir):stuff:mtime"},
+		name:          "dockerignore-minimal-test", // from #2237
+		contextDir:    "dockerignore/minimal_test",
+		withoutDocker: true,
+		fsSkip:        []string{"(dir):tmp:mtime", "(dir):tmp:(dir):stuff:mtime"},
 	},
 
 	{
@@ -2703,9 +2705,10 @@ var internalTestCases = []testCase{
 		// included in the build context archive, so they only get
 		// created implicitly when extracted, so there's no point in us
 		// trying to preserve any of that, either
-		name:       "dockerignore-allowlist-subsubdir-file",
-		contextDir: "dockerignore/allowlist/subsubdir-file",
-		fsSkip:     []string{"(dir):folder:mtime", "(dir):folder:(dir):subfolder:mtime", "file:mtime"},
+		name:          "dockerignore-allowlist-subsubdir-file",
+		contextDir:    "dockerignore/allowlist/subsubdir-file",
+		withoutDocker: true,
+		fsSkip:        []string{"(dir):folder:mtime", "(dir):folder:(dir):subfolder:mtime", "file:mtime"},
 	},
 
 	{
@@ -2721,8 +2724,9 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "dockerignore-allowlist-alternating",
-		contextDir: "dockerignore/allowlist/alternating",
+		name:          "dockerignore-allowlist-alternating",
+		contextDir:    "dockerignore/allowlist/alternating",
+		withoutDocker: true,
 		fsSkip: []string{
 			"(dir):subdir1:mtime",
 			"(dir):subdir1:(dir):subdir2:(dir):subdir3:mtime",
@@ -2751,8 +2755,9 @@ var internalTestCases = []testCase{
 	},
 
 	{
-		name:       "tar-g",
-		contextDir: "tar-g",
-		fsSkip:     []string{"(dir):tmp:mtime"},
+		name:          "tar-g",
+		contextDir:    "tar-g",
+		withoutDocker: true,
+		fsSkip:        []string{"(dir):tmp:mtime"},
 	},
 }
