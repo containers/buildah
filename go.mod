@@ -3,7 +3,7 @@ module github.com/containers/buildah
 go 1.12
 
 require (
-	github.com/containernetworking/cni v0.7.2-0.20190904153231-83439463f784
+	github.com/containernetworking/cni v0.8.1
 	github.com/containers/common v0.33.1
 	github.com/containers/image/v5 v5.10.1
 	github.com/containers/ocicrypt v1.1.0
