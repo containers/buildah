@@ -307,7 +307,15 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 
 	digest, err := list.Add(getContext(), systemContext, ref, opts.all)
 	if err != nil {
-		return err
+		var storeErr error
+		// check if the local image exists
+		if ref, _, storeErr = util.FindImage(store, "", systemContext, imageSpec); storeErr != nil {
+			return err
+		}
+		digest, storeErr = list.Add(getContext(), systemContext, ref, opts.all)
+		if storeErr != nil {
+			return err
+		}
 	}
 
 	if opts.os != "" {

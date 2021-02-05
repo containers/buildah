@@ -115,6 +115,7 @@ type Executor struct {
 	imageInfoLock                  sync.Mutex
 	imageInfoCache                 map[string]imageTypeAndHistoryAndDiffIDs
 	fromOverride                   string
+	manifest                       string
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -231,6 +232,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		logRusage:                      options.LogRusage,
 		imageInfoCache:                 make(map[string]imageTypeAndHistoryAndDiffIDs),
 		fromOverride:                   options.From,
+		manifest:                       options.Manifest,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
