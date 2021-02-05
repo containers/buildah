@@ -1276,6 +1276,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		MaxRetries:            s.executor.maxPullPushRetries,
 		RetryDelay:            s.executor.retryPullPushDelay,
 		HistoryTimestamp:      s.executor.timestamp,
+		Manifest:              s.executor.manifest,
 	}
 	imgID, _, manifestDigest, err := s.builder.Commit(ctx, imageRef, options)
 	if err != nil {
