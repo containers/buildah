@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/formats"
 	"github.com/containers/buildah/util"
 	"github.com/containers/storage"
@@ -67,7 +68,7 @@ type containersResults struct {
 
 func init() {
 	var (
-		containersDescription = "\n  Lists containers which appear to be " + buildah.Package + " working containers, their\n  names and IDs, and the names and IDs of the images from which they were\n  initialized."
+		containersDescription = "\n  Lists containers which appear to be " + define.Package + " working containers, their\n  names and IDs, and the names and IDs of the images from which they were\n  initialized."
 		opts                  containersResults
 	)
 	containersCommand := &cobra.Command{

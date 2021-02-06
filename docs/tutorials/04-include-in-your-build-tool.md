@@ -56,9 +56,9 @@ Define the builder options:
 ```go
 builderOpts := buildah.BuilderOptions{
     FromImage:        "node:12-alpine", // Starting image
-    Isolation:        buildah.IsolationChroot, // Isolation environment
-    CommonBuildOpts:  &buildah.CommonBuildOptions{},
-    ConfigureNetwork: buildah.NetworkDefault,
+    Isolation:        define.IsolationChroot, // Isolation environment
+    CommonBuildOpts:  &define.CommonBuildOptions{},
+    ConfigureNetwork: define.NetworkDefault,
     SystemContext: 	  &types.SystemContext {},
 }
 ```
@@ -90,7 +90,7 @@ imageRef, err := is.Transport.ParseStoreReference(buildStore, "docker.io/myusern
 Now you can run commit the build:
 
 ```go
-imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOptions{})
+imageId, _, _, err := builder.Commit(context.TODO(), imageRef, define.CommitOptions{})
 ```
 
 ## Rootless mode
@@ -115,6 +115,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	"github.com/containers/storage/pkg/unshare"
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
@@ -141,9 +142,9 @@ func main() {
 
 	opts := buildah.BuilderOptions{
 		FromImage:        "node:12-alpine",
-		Isolation:        buildah.IsolationChroot,
-		CommonBuildOpts:  &buildah.CommonBuildOptions{},
-		ConfigureNetwork: buildah.NetworkDefault,
+		Isolation:        define.IsolationChroot,
+		CommonBuildOpts:  &define.CommonBuildOptions{},
+		ConfigureNetwork: define.NetworkDefault,
 		SystemContext: 	  &types.SystemContext {},
 	}
 
@@ -167,7 +168,7 @@ func main() {
 		panic(err)
 	}
 
-	imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOptions{})
+	imageId, _, _, err := builder.Commit(context.TODO(), imageRef, define.CommitOptions{})
 
 	fmt.Printf("Image built! %s\n", imageId)
 }

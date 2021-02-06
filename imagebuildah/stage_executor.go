@@ -13,6 +13,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/copier"
+	"github.com/containers/buildah/define"
 	buildahdocker "github.com/containers/buildah/docker"
 	"github.com/containers/buildah/pkg/rusage"
 	"github.com/containers/buildah/util"
@@ -275,7 +276,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		// The From field says to read the content from another
 		// container.  Update the ID mappings and
 		// all-content-comes-from-below-this-directory value.
-		var idMappingOptions *buildah.IDMappingOptions
+		var idMappingOptions *define.IDMappingOptions
 		var copyExcludes []string
 		stripSetuid := false
 		stripSetgid := false
@@ -1234,7 +1235,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		s.builder.SetHealthcheck(nil)
 	}
 	s.builder.ClearLabels()
-	s.builder.SetLabel(buildah.BuilderIdentityAnnotation, buildah.Version)
+	s.builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
 	for k, v := range config.Labels {
 		s.builder.SetLabel(k, v)
 	}

@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/completion"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
@@ -361,7 +361,7 @@ func DefaultFormat() string {
 	if format != "" {
 		return format
 	}
-	return buildah.OCI
+	return define.OCI
 }
 
 // DefaultIsolation returns the default image format
@@ -373,7 +373,7 @@ func DefaultIsolation() string {
 	if unshare.IsRootless() {
 		return "rootless"
 	}
-	return buildah.OCI
+	return define.OCI
 }
 
 // DefaultHistory returns the default add-history setting
