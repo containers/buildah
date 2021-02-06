@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.19.3
+Version:        1.19.4
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,14 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Feb 8, 2021 Dan Walsh <dwalsh@redhat.com> 1.19.4-1
+- run: fix check for host pid namespace
+- bump containernetworking/cni library to v0.8.1 - fix for CVE-2021-20206
+- Finish plumbing for buildah bud --manifest
+- buildah manifest add localimage should work
+- Fix build arg check
+- --iidfile: print hash prefix
+
 * Thu Jan 28, 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.3-1
 - [ci:docs] Fix man page for buildah push
 - Vendor in containers/image v5.10.1
