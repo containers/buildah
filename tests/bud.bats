@@ -2562,3 +2562,25 @@ _EOF
   run_buildah manifest inspect testlist
   expect_output --substring $digest
 }
+
+@test "bud test empty newdir" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+cat > $mytmpdir/Containerfile << _EOF
+FROM alpine as galaxy
+
+RUN mkdir -p /usr/share/ansible/roles /usr/share/ansible/collections
+RUN echo "bar"
+RUN echo "foo" > /usr/share/ansible/collections/file.txt
+
+FROM galaxy
+
+RUN mkdir -p /usr/share/ansible/roles /usr/share/ansible/collections
+COPY --from=galaxy /usr/share/ansible/roles /usr/share/ansible/roles
+COPY --from=galaxy /usr/share/ansible/collections /usr/share/ansible/collections
+_EOF
+
+  run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t testbud $mytmpdir                                                   
+  expect_output --substring "COPY --from=galaxy /usr/share/ansible/collections /usr/share/ansible/collections"
+}
