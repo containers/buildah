@@ -771,10 +771,47 @@ function _test_http() {
   expect_output --substring "blah -> /test-log"     "ls -l \$root/data/log"
 }
 
+@test "bud with symlinks and --layers" {
+  _prefetch alpine
+  target=alpine-image
+  run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/symlink
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
+  cid=$output
+  run_buildah mount ${cid}
+  root=$output
+  run ls $root/data/log
+  [ "$status" -eq 0 ]
+  expect_output --substring "test"     "ls \$root/data/log"
+  expect_output --substring "blah.txt" "ls \$root/data/log"
+
+  run ls -al $root
+  [ "$status" -eq 0 ]
+  expect_output --substring "test-log -> /data/log" "ls -l \$root/data/log"
+  expect_output --substring "blah -> /test-log"     "ls -l \$root/data/log"
+}
+
 @test "bud with symlinks to relative path" {
   _prefetch alpine
   target=alpine-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.relative-symlink ${TESTSDIR}/bud/symlink
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
+  cid=$output
+  run_buildah mount ${cid}
+  root=$output
+  run ls $root/log
+  [ "$status" -eq 0 ]
+  expect_output --substring "test" "ls \$root/log"
+
+  run ls -al $root
+  [ "$status" -eq 0 ]
+  expect_output --substring "test-log -> ../log" "ls -l \$root/log"
+  test -r $root/var/data/empty
+}
+
+@test "bud with symlinks to relative path and --layers" {
+  _prefetch alpine
+  target=alpine-image
+  run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.relative-symlink ${TESTSDIR}/bud/symlink
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
   cid=$output
   run_buildah mount ${cid}
@@ -815,10 +852,42 @@ function _test_http() {
   expect_output --substring "foo -> /data/log" "ls -al \$root/test-log"
 }
 
+@test "bud with multiple symlinks in a path and --layers" {
+  _prefetch alpine
+  target=alpine-image
+  run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.multiple-symlinks ${TESTSDIR}/bud/symlink
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
+  cid=$output
+  run_buildah mount ${cid}
+  root=$output
+  run ls $root/data/log
+  [ "$status" -eq 0 ]
+  expect_output --substring "bin"      "ls \$root/data/log"
+  expect_output --substring "blah.txt" "ls \$root/data/log"
+
+  run ls -al $root/myuser
+  [ "$status" -eq 0 ]
+  expect_output --substring "log -> /test" "ls -al \$root/myuser"
+
+  run ls -al $root/test
+  [ "$status" -eq 0 ]
+  expect_output --substring "bar -> /test-log" "ls -al \$root/test"
+
+  run ls -al $root/test-log
+  [ "$status" -eq 0 ]
+  expect_output --substring "foo -> /data/log" "ls -al \$root/test-log"
+}
+
 @test "bud with multiple symlink pointing to itself" {
   _prefetch alpine
   target=alpine-image
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.symlink-points-to-itself ${TESTSDIR}/bud/symlink
+}
+
+@test "bud with multiple symlink pointing to itself and --layers" {
+  _prefetch alpine
+  target=alpine-image
+  run_buildah 1 bud --layers --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.symlink-points-to-itself ${TESTSDIR}/bud/symlink
 }
 
 @test "bud multi-stage with symlink to absolute path" {
@@ -838,10 +907,40 @@ function _test_http() {
   expect_output "symlink-test" "cat \$root/bin/myexe"
 }
 
+@test "bud multi-stage with symlink to absolute path and --layers" {
+  _prefetch ubuntu
+  target=ubuntu-image
+  run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.absolute-symlink ${TESTSDIR}/bud/symlink
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
+  cid=$output
+  run_buildah mount ${cid}
+  root=$output
+  run ls $root/bin
+  [ "$status" -eq 0 ]
+  expect_output --substring "myexe" "ls \$root/bin"
+
+  run cat $root/bin/myexe
+  [ "$status" -eq 0 ]
+  expect_output "symlink-test" "cat \$root/bin/myexe"
+}
+
 @test "bud multi-stage with dir symlink to absolute path" {
   _prefetch ubuntu
   target=ubuntu-image
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.absolute-dir-symlink ${TESTSDIR}/bud/symlink
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
+  cid=$output
+  run_buildah mount ${cid}
+  root=$output
+  run ls $root/data
+  [ "$status" -eq 0 ]
+  expect_output --substring "myexe" "ls \$root/data"
+}
+
+@test "bud multi-stage with dir symlink to absolute path and --layers" {
+  _prefetch ubuntu
+  target=ubuntu-image
+  run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.absolute-dir-symlink ${TESTSDIR}/bud/symlink
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
   cid=$output
   run_buildah mount ${cid}
