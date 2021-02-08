@@ -27,6 +27,7 @@ import (
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/capabilities"
+	"github.com/containers/common/pkg/chown"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/subscriptions"
 	"github.com/containers/storage/pkg/idtools"
@@ -1739,7 +1740,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 			}
 		}
 		if foundU {
-			if err := chownSourceVolume(host, processUID, processGID); err != nil {
+			if err := chown.ChangeHostPathOwnership(host, true, processUID, processGID); err != nil {
 				return specs.Mount{}, err
 			}
 		}
@@ -1762,7 +1763,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 
 			// If chown true, add correct ownership to the overlay temp directories.
 			if foundU {
-				if err := chownSourceVolume(contentDir, processUID, processGID); err != nil {
+				if err := chown.ChangeHostPathOwnership(contentDir, true, processUID, processGID); err != nil {
 					return specs.Mount{}, err
 				}
 			}
@@ -1808,39 +1809,6 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 		mounts = append(mounts, mount)
 	}
 	return mounts, nil
-}
-
-// chownSourceVolume changes the ownership of a volume source directory or file within the host.
-func chownSourceVolume(path string, UID, GID int) error {
-	fi, err := os.Lstat(path)
-	if err != nil {
-		// Skip if path does not exist
-		if os.IsNotExist(err) {
-			logrus.Debugf("error returning file info of %q: %v", path, err)
-			return nil
-		}
-		return err
-	}
-
-	currentUID := int(fi.Sys().(*syscall.Stat_t).Uid)
-	currentGID := int(fi.Sys().(*syscall.Stat_t).Gid)
-
-	if UID != currentUID || GID != currentGID {
-		err := filepath.Walk(path, func(filePath string, f os.FileInfo, err error) error {
-			return os.Lchown(filePath, UID, GID)
-		})
-
-		if err != nil {
-			// Skip if path does not exist
-			if os.IsNotExist(err) {
-				logrus.Debugf("error changing the uid and gid of %q: %v", path, err)
-				return nil
-			}
-			return err
-		}
-	}
-
-	return nil
 }
 
 func setupMaskedPaths(g *generate.Generator) {
