@@ -368,6 +368,7 @@ symlink(subdir)"
   target=scratch-image
   run_buildah bud --iidfile ${TESTDIR}/output.iid --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   iid=$(cat ${TESTDIR}/output.iid)
+  [[ "$iid" == "sha256:"* ]]
   run_buildah from ${iid}
   expect_output "${target}-working-container"
 }
