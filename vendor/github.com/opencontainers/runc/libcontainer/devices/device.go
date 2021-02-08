@@ -1,22 +1,17 @@
-package configs
+package devices
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
-
-	"golang.org/x/sys/unix"
 )
 
 const (
 	Wildcard = -1
 )
 
-// TODO Windows: This can be factored out in the future
-
 type Device struct {
-	DeviceRule
+	Rule
 
 	// Path to the device.
 	Path string `json:"path"`
@@ -31,10 +26,10 @@ type Device struct {
 	Gid uint32 `json:"gid"`
 }
 
-// DevicePermissions is a cgroupv1-style string to represent device access. It
+// Permissions is a cgroupv1-style string to represent device access. It
 // has to be a string for backward compatibility reasons, hence why it has
 // methods to do set operations.
-type DevicePermissions string
+type Permissions string
 
 const (
 	deviceRead uint = (1 << iota)
@@ -42,7 +37,7 @@ const (
 	deviceMknod
 )
 
-func (p DevicePermissions) toSet() uint {
+func (p Permissions) toSet() uint {
 	var set uint
 	for _, perm := range p {
 		switch perm {
@@ -57,7 +52,7 @@ func (p DevicePermissions) toSet() uint {
 	return set
 }
 
-func fromSet(set uint) DevicePermissions {
+func fromSet(set uint) Permissions {
 	var perm string
 	if set&deviceRead == deviceRead {
 		perm += "r"
@@ -68,53 +63,53 @@ func fromSet(set uint) DevicePermissions {
 	if set&deviceMknod == deviceMknod {
 		perm += "m"
 	}
-	return DevicePermissions(perm)
+	return Permissions(perm)
 }
 
-// Union returns the union of the two sets of DevicePermissions.
-func (p DevicePermissions) Union(o DevicePermissions) DevicePermissions {
+// Union returns the union of the two sets of Permissions.
+func (p Permissions) Union(o Permissions) Permissions {
 	lhs := p.toSet()
 	rhs := o.toSet()
 	return fromSet(lhs | rhs)
 }
 
-// Difference returns the set difference of the two sets of DevicePermissions.
+// Difference returns the set difference of the two sets of Permissions.
 // In set notation, A.Difference(B) gives you A\B.
-func (p DevicePermissions) Difference(o DevicePermissions) DevicePermissions {
+func (p Permissions) Difference(o Permissions) Permissions {
 	lhs := p.toSet()
 	rhs := o.toSet()
 	return fromSet(lhs &^ rhs)
 }
 
-// Intersection computes the intersection of the two sets of DevicePermissions.
-func (p DevicePermissions) Intersection(o DevicePermissions) DevicePermissions {
+// Intersection computes the intersection of the two sets of Permissions.
+func (p Permissions) Intersection(o Permissions) Permissions {
 	lhs := p.toSet()
 	rhs := o.toSet()
 	return fromSet(lhs & rhs)
 }
 
-// IsEmpty returns whether the set of permissions in a DevicePermissions is
+// IsEmpty returns whether the set of permissions in a Permissions is
 // empty.
-func (p DevicePermissions) IsEmpty() bool {
-	return p == DevicePermissions("")
+func (p Permissions) IsEmpty() bool {
+	return p == Permissions("")
 }
 
 // IsValid returns whether the set of permissions is a subset of valid
 // permissions (namely, {r,w,m}).
-func (p DevicePermissions) IsValid() bool {
+func (p Permissions) IsValid() bool {
 	return p == fromSet(p.toSet())
 }
 
-type DeviceType rune
+type Type rune
 
 const (
-	WildcardDevice DeviceType = 'a'
-	BlockDevice    DeviceType = 'b'
-	CharDevice     DeviceType = 'c' // or 'u'
-	FifoDevice     DeviceType = 'p'
+	WildcardDevice Type = 'a'
+	BlockDevice    Type = 'b'
+	CharDevice     Type = 'c' // or 'u'
+	FifoDevice     Type = 'p'
 )
 
-func (t DeviceType) IsValid() bool {
+func (t Type) IsValid() bool {
 	switch t {
 	case WildcardDevice, BlockDevice, CharDevice, FifoDevice:
 		return true
@@ -123,7 +118,7 @@ func (t DeviceType) IsValid() bool {
 	}
 }
 
-func (t DeviceType) CanMknod() bool {
+func (t Type) CanMknod() bool {
 	switch t {
 	case BlockDevice, CharDevice, FifoDevice:
 		return true
@@ -132,7 +127,7 @@ func (t DeviceType) CanMknod() bool {
 	}
 }
 
-func (t DeviceType) CanCgroup() bool {
+func (t Type) CanCgroup() bool {
 	switch t {
 	case WildcardDevice, BlockDevice, CharDevice:
 		return true
@@ -141,10 +136,10 @@ func (t DeviceType) CanCgroup() bool {
 	}
 }
 
-type DeviceRule struct {
+type Rule struct {
 	// Type of device ('c' for char, 'b' for block). If set to 'a', this rule
 	// acts as a wildcard and all fields other than Allow are ignored.
-	Type DeviceType `json:"type"`
+	Type Type `json:"type"`
 
 	// Major is the device's major number.
 	Major int64 `json:"major"`
@@ -154,13 +149,13 @@ type DeviceRule struct {
 
 	// Permissions is the set of permissions that this rule applies to (in the
 	// cgroupv1 format -- any combination of "rwm").
-	Permissions DevicePermissions `json:"permissions"`
+	Permissions Permissions `json:"permissions"`
 
 	// Allow specifies whether this rule is allowed.
 	Allow bool `json:"allow"`
 }
 
-func (d *DeviceRule) CgroupString() string {
+func (d *Rule) CgroupString() string {
 	var (
 		major = strconv.FormatInt(d.Major, 10)
 		minor = strconv.FormatInt(d.Minor, 10)
@@ -172,11 +167,4 @@ func (d *DeviceRule) CgroupString() string {
 		minor = "*"
 	}
 	return fmt.Sprintf("%c %s:%s %s", d.Type, major, minor, d.Permissions)
-}
-
-func (d *DeviceRule) Mkdev() (uint64, error) {
-	if d.Major == Wildcard || d.Minor == Wildcard {
-		return 0, errors.New("cannot mkdev() device with wildcards")
-	}
-	return unix.Mkdev(uint32(d.Major), uint32(d.Minor)), nil
 }

@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/containernetworking/cni v0.8.1
-	github.com/containers/common v0.34.0
+	github.com/containers/common v0.34.2
 	github.com/containers/image/v5 v5.10.1
 	github.com/containers/ocicrypt v1.1.0
 	github.com/containers/storage v1.25.0
@@ -20,8 +20,8 @@ require (
 	github.com/onsi/gomega v1.10.5
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
-	github.com/opencontainers/runc v1.0.0-rc91
-	github.com/opencontainers/runtime-spec v1.0.3-0.20200710190001-3e4195d92445
+	github.com/opencontainers/runc v1.0.0-rc93
+	github.com/opencontainers/runtime-spec v1.0.3-0.20200929063507-e6143ca7d51d
 	github.com/opencontainers/runtime-tools v0.9.0
 	github.com/opencontainers/selinux v1.8.0
 	github.com/openshift/imagebuilder v1.1.8
@@ -31,7 +31,7 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
+	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.5
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
