@@ -2,6 +2,9 @@
 
 # Changelog
 
+- v1.19.5 (2021-02-09)
+    Vendor in latest containers/image and common
+
 ## v1.19.4 (2021-02-06)
     run: fix check for host pid namespace
     bump containernetworking/cni library to v0.8.1 - fix for CVE-2021-20206
