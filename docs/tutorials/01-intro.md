@@ -100,6 +100,11 @@ Nope. This really is empty. The package installer `dnf` is not even inside this 
 
     # scratchmnt=$(buildah mount $newcontainer)
 
+Note: If attempting to mount in rootless mode, the command fails. Mounting an image needs to be done in a different mount namespace. Enter the mount namespace by executing the `buildah unshare` command. See buildah-mount(1) man page for more information.
+
+    $ buildah unshare
+    # scratchmnt=$(buildah mount $newcontainer)
+
 By echoing `$scratchmnt` we can see the path for the [overlay image](https://wiki.archlinux.org/index.php/Overlay_filesystem), which gives you a link directly to the root file system of the container.
 
     # echo $scratchmnt
