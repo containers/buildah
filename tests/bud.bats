@@ -300,7 +300,15 @@ symlink(subdir)"
   run_buildah images -a
   expect_line_count 5
 
-  # two more, starting at the "echo $user" instruction
+  # running the same build again does not run the commands again
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=0 --layers -t test -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
+  if [[ "$output" =~ "MAo=" ]]; then
+    # MAo= is the base64 of "0\n" (i.e. `echo 0`)
+    printf "Expected command not to run again if layer is cached\n" >&2
+    false
+  fi
+
+  # two more, starting at the "echo $user | base64" instruction
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test1 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah images -a
   expect_line_count 8
@@ -310,7 +318,7 @@ symlink(subdir)"
   run_buildah images -a
   expect_line_count 9
 
-  # two more, starting at the "echo $user" instruction
+  # two more, starting at the "echo $user | base64" instruction
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah images -a
   expect_line_count 12
