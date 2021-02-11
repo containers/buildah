@@ -27,6 +27,7 @@ BUILDAH\_HISTORY environment variable. `export BUILDAH_HISTORY=true`
 Add an image *annotation* (e.g. annotation=*annotation*) to the image manifest
 of any images which will be built using the specified container. Can be used multiple times.
 If *annotation* has a trailing `-`, then the *annotation* is removed from the config.
+If the *annotation* is set to "-" then all annotations are removed from the config.
 
 **--arch** *architecture*
 
@@ -81,6 +82,7 @@ executed together.
 Add a value (e.g. env=*value*) to the environment for containers based on any
 images which will be built using the specified container. Can be used multiple times.
 If *env* has a trailing `-`, then the *env* is removed from the config.
+If the *env* is set to "-" then all environment variables are removed from the config.
 
 **--healthcheck** *command*
 
@@ -143,6 +145,7 @@ Note: this setting is not present in the OCIv1 image format, so it is discarded 
 Add an image *label* (e.g. label=*value*) to the image configuration of any
 images which will be built using the specified container. Can be used multiple times.
 If *label* has a trailing `-`, then the *label* is removed from the config.
+If the *label* is set to "-" then all labels are removed from the config.
 
 **--onbuild** *onbuild command*
 
@@ -161,6 +164,8 @@ its OS is kept, otherwise the host's OS's name is recorded.
 
 Add a *port* to expose when running containers based on any images which
 will be built using the specified container. Can be used multiple times.
+If *port* has a trailing `-`, and is already set, then the *port* is removed from the config.
+If the port is set to "-" then all exposed ports settings are removed from the config.
 
 **--shell** *shell*
 
@@ -184,6 +189,7 @@ If names are used, the container should include entries for those names in its
 **--volume**, **-v** *volume*
 
 Add a location in the directory tree which should be marked as a *volume* in any images which will be built using the specified container. Can be used multiple times. If *volume* has a trailing `-`, and is already set, then the *volume* is removed from the config.
+If the *volume* is set to "-" then all volumes are removed from the config.
 
 **--workingdir** *directory*
 
@@ -214,6 +220,9 @@ buildah config --volume /usr/myvol containerID
 
 buildah config --volume /usr/myvol- containerID
 
+buildah config --port 1234 --port 8080 containerID
+
+buildah config --env 1234- containerID
 
 ## SEE ALSO
 buildah(1)

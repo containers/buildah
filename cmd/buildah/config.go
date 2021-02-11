@@ -190,14 +190,22 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 	}
 	if c.Flag("port").Changed {
 		for _, portSpec := range iopts.ports {
-			builder.SetPort(portSpec)
+			switch {
+			case string(portSpec[0]) == "-":
+				builder.ClearPorts()
+			case strings.HasSuffix(portSpec, "-"):
+				builder.UnsetPort(strings.TrimSuffix(portSpec, "-"))
+			default:
+				builder.SetPort(portSpec)
+			}
 		}
 		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) EXPOSE %s", strings.Join(iopts.ports, " "))
 	}
 
 	for _, envSpec := range iopts.env {
 		env := strings.SplitN(envSpec, "=", 2)
-		if len(env) > 1 {
+		switch {
+		case len(env) > 1:
 			var unexpanded []string
 			getenv := func(name string) string {
 				for _, envvar := range builder.Env() {
@@ -212,11 +220,17 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 			}
 			env[1] = os.Expand(env[1], getenv)
 			builder.SetEnv(env[0], env[1])
-		} else if strings.HasSuffix(env[0], "-") {
-			env[0] = strings.TrimSuffix(env[0], "-")
-			builder.UnsetEnv(env[0])
-		} else {
-			return errors.Errorf("error setting env %q: no value given.", env[0])
+
+		case env[0] == "-":
+			builder.ClearEnv()
+		case strings.HasSuffix(env[0], "-"):
+			builder.UnsetEnv(strings.TrimSuffix(env[0], "-"))
+		default:
+			value := os.Getenv(env[0])
+			if value == "" {
+				return errors.Errorf("error setting env %q: no value given.", env[0])
+			}
+			builder.SetEnv(env[0], value)
 		}
 	}
 	conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ENV %s", strings.Join(iopts.env, " "))
@@ -234,15 +248,12 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 	if c.Flag("volume").Changed {
 		if volSpec := iopts.volume; len(volSpec) > 0 {
 			for _, volVal := range volSpec {
-				if strings.HasSuffix(volVal, "-") {
-					rmVol := strings.TrimSuffix(volVal, "-")
-					if builder.CheckVolume(rmVol) {
-						builder.RemoveVolume(rmVol)
-					} else {
-						fmt.Printf("volume %s cannot be removed because it does not exist, adding volume %s\n", rmVol, volVal)
-						builder.AddVolume(volVal)
-					}
-				} else {
+				switch {
+				case volVal == "-":
+					builder.ClearVolumes()
+				case strings.HasSuffix(volVal, "-"):
+					builder.RemoveVolume(strings.TrimSuffix(volVal, "-"))
+				default:
 					builder.AddVolume(volVal)
 				}
 				conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) VOLUME %s", volVal)
@@ -255,13 +266,15 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 	if c.Flag("label").Changed {
 		for _, labelSpec := range iopts.label {
 			label := strings.SplitN(labelSpec, "=", 2)
-			if len(label) > 1 {
+			switch {
+			case len(label) > 1:
 				builder.SetLabel(label[0], label[1])
-			} else if strings.HasSuffix(label[0], "-") {
-				label[0] = strings.TrimSuffix(label[0], "-")
-				builder.UnsetLabel(label[0])
-			} else {
-				return errors.Errorf("error adding label %q: no value given", label[0])
+			case label[0] == "-":
+				builder.ClearLabels()
+			case strings.HasSuffix(label[0], "-"):
+				builder.UnsetLabel(strings.TrimSuffix(label[0], "-"))
+			default:
+				builder.SetLabel(label[0], "")
 			}
 		}
 		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) LABEL %s", strings.Join(iopts.label, " "))
@@ -297,13 +310,15 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 	if c.Flag("annotation").Changed {
 		for _, annotationSpec := range iopts.annotation {
 			annotation := strings.SplitN(annotationSpec, "=", 2)
-			if len(annotation) > 1 {
+			switch {
+			case len(annotation) > 1:
 				builder.SetAnnotation(annotation[0], annotation[1])
-			} else if strings.HasSuffix(annotation[0], "-") {
-				annotation[0] = strings.TrimSuffix(annotation[0], "-")
-				builder.UnsetAnnotation(annotation[0])
-			} else {
-				return errors.Errorf("error adding annotation %q: no value given", annotation[0])
+			case annotation[0] == "-":
+				builder.ClearAnnotations()
+			case strings.HasSuffix(annotation[0], "-"):
+				builder.UnsetAnnotation(strings.TrimSuffix(annotation[0], "-"))
+			default:
+				builder.SetAnnotation(annotation[0], "")
 			}
 		}
 	}
