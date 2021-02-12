@@ -89,6 +89,8 @@ github.com/containers/ocicrypt v1.1.0/go.mod h1:b8AOe0YR67uU8OqfVNcznfFpAzu3rdgU
 github.com/containers/storage v1.24.5/go.mod h1:YC+2pY8SkfEAcZkwycxYbpK8EiRbx5soPPwz9dxe4IQ=
 github.com/containers/storage v1.25.0 h1:p0PLlQcWmtE+7XLfOCR0WuYyMTby1yozpI4DaKOtWTA=
 github.com/containers/storage v1.25.0/go.mod h1:UxTYd5F4mPVqmDRcRL0PBS8+HP74aBn96eahnhEvPtk=
+github.com/containers/storage v1.25.1-0.20210211165435-4b14efb34e07 h1:oqr2Yu33PWYbujYHcSDKXwbyZj83/bxAS7/2Tt8e+oo=
+github.com/containers/storage v1.25.1-0.20210211165435-4b14efb34e07/go.mod h1:NXVcxyRN2sRKfMaPlyuzslA7enBu/vcU+lKg3LoWERs=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.13+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-semver v0.3.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
