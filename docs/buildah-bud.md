@@ -66,7 +66,7 @@ list of variables that can be overridden within the Containerfile at run time.
 
 **--cache-from**
 
-Images to utilise as potential cache sources. Buildah does not currently support caching so this is a NOOP.
+Images to utilise as potential cache sources. Buildah does not currently support --cache-from so this is a NOOP.
 
 **--cap-add**=*CAP\_xxx*
 

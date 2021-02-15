@@ -272,7 +272,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 	}
 
 	if c.Flag("cache-from").Changed {
-		logrus.Debugf("build caching not enabled so --cache-from flag has no effect")
+		logrus.Debugf("build --cache-from not enabled, has no effect")
 	}
 
 	if c.Flag("compress").Changed {
