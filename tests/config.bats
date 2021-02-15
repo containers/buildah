@@ -19,11 +19,8 @@ load helpers
 @test "config-flags-verification" {
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
-  run_buildah 125 config --label LABEL $cid
-  expect_output --substring 'error adding label "LABEL": no value given'
-
-  run_buildah 125 config --annotation ANNOTATION $cid
-  expect_output --substring 'error adding annotation "ANNOTATION": no value given'
+  run_buildah config --label LABEL $cid
+  run_buildah config --annotation ANNOTATION $cid
 
   run_buildah 125 config --healthcheck 'AB "CD' $cid
   expect_output --substring 'error parsing --healthcheck "AB \"CD": invalid command line string'
@@ -150,6 +147,49 @@ function check_matrix() {
   check_matrix 'Config.Cmd' '[/COMMAND ARG1 ARG2]'
 }
 
+@test "config remove all" {
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah config \
+   --port 12345 \
+   --annotation ANNOTATION=VALUE1,VALUE2 \
+   --env VARIABLE=VALUE1,VALUE2 \
+   --volume /VOLUME \
+   --label LABEL=VALUE \
+  $cid
+  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+
+  run_buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci
+  expect_output "map[ANNOTATION:VALUE1,VALUE2]"
+  run_buildah inspect              --format '{{.ImageAnnotations}}'                      $cid
+  expect_output "map[ANNOTATION:VALUE1,VALUE2]"
+  check_matrix 'Config.ExposedPorts' 'map[12345:{}]'
+  check_matrix 'Config.Env'          '[VARIABLE=VALUE1,VALUE2]'
+  check_matrix 'Config.Labels.LABEL' 'VALUE'
+
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah config \
+   --port - \
+   --annotation - \
+   --env - \
+   --volume - \
+   --label - \
+  $cid
+
+  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
+  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+
+  run_buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci
+  expect_output "map[]"
+  run_buildah inspect              --format '{{.ImageAnnotations}}'                      $cid
+  expect_output "map[]"
+  check_matrix 'Config.ExposedPorts' 'map[]'
+  check_matrix 'Config.Env'          '[]'
+  check_matrix 'Config.Labels.LABEL' '<no value>'
+}
+
 @test "config" {
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
@@ -237,6 +277,21 @@ function check_matrix() {
   rm -rf /VOLUME
 }
 
+@test "config env using local environment" {
+  export foo=bar
+  run_buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah config --env 'foo' $cid
+  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid env-image-docker
+  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid env-image-oci
+
+  run_buildah inspect --type=image --format '{{.Docker.Config.Env}}' env-image-docker
+  expect_output --substring "foo=bar"
+
+  run_buildah inspect --type=image --format '{{.OCIv1.Config.Env}}' env-image-docker
+  expect_output --substring "foo=bar"
+}
+
 @test "config env using --env expansion" {
   run_buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
@@ -277,6 +332,7 @@ function check_matrix() {
    --volume /VOLUME \
    --env VARIABLE=VALUE1,VALUE2 \
    --label LABEL=VALUE \
+   --port 12345 \
    --annotation ANNOTATION=VALUE1,VALUE2 \
   $cid
 
@@ -288,6 +344,7 @@ function check_matrix() {
   check_matrix 'Config.Volumes'      "map[/VOLUME:{}]"
   check_matrix 'Config.Env'          '[VARIABLE=VALUE1,VALUE2]'
   check_matrix 'Config.Labels.LABEL' 'VALUE'
+  check_matrix 'Config.ExposedPorts' 'map[12345:{}]'
   run_buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci
   expect_output "map[ANNOTATION:VALUE1,VALUE2]"
   run_buildah inspect              --format '{{.ImageAnnotations}}'                      $cid
@@ -298,6 +355,7 @@ function check_matrix() {
    --volume /VOLUME- \
    --env VARIABLE- \
    --label LABEL- \
+   --port 12345- \
    --annotation ANNOTATION- \
   $cid
 
@@ -308,12 +366,11 @@ function check_matrix() {
   check_matrix 'Config.Volumes'      'map[]'
   check_matrix 'Config.Env'          '[]'
   check_matrix 'Config.Labels.LABEL' '<no value>'
+  check_matrix 'Config.ExposedPorts' 'map[]'
   run_buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci
   expect_output "map[]"
   run_buildah inspect              --format '{{.ImageAnnotations}}'                      $cid
   expect_output "map[]"
-
-
 
   run_buildah config \
    --created-by COINCIDENCE \
@@ -328,5 +385,5 @@ function check_matrix() {
   run_buildah inspect --format '{{.ImageCreatedBy}}' $cid
   expect_output "COINCIDENCE"
 
-  check_matrix 'Config.Volumes'      "map[/VOLUME-:{}]"
+  check_matrix 'Config.Volumes'      "map[]"
 }
