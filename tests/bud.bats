@@ -2314,7 +2314,9 @@ EOM
 
 @test "bud capabilities test" {
   _prefetch busybox
-  run_buildah bud -t testcap --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/capabilities/Dockerfile
+  # --cap-add necessary b/c https://github.com/containers/common/pull/319
+  # removed cap_net_raw, cap_mknod, and cap_audit_write
+  run_buildah bud --cap-add cap_net_raw,cap_mknod,cap_audit_write -t testcap --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/capabilities/Dockerfile
   expect_output --substring "uid=3267"
   expect_output --substring "CapBnd:	00000000a80425fb"
   expect_output --substring "CapEff:	0000000000000000"
