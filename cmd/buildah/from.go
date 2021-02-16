@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
@@ -210,15 +211,15 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return errors.Errorf("can only set one of 'pull' or 'pull-always' or 'pull-never'")
 	}
 
-	pullPolicy := buildah.PullIfMissing
+	pullPolicy := define.PullIfMissing
 	if iopts.pull {
-		pullPolicy = buildah.PullIfNewer
+		pullPolicy = define.PullIfNewer
 	}
 	if iopts.pullAlways {
-		pullPolicy = buildah.PullAlways
+		pullPolicy = define.PullAlways
 	}
 	if iopts.pullNever {
-		pullPolicy = buildah.PullNever
+		pullPolicy = define.PullNever
 	}
 
 	signaturePolicy := iopts.signaturePolicy
@@ -252,7 +253,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if err != nil {
 		return err
 	}
-	devices := buildah.ContainerDevices{}
+	devices := define.ContainerDevices{}
 	for _, device := range append(defaultContainerConfig.Containers.Devices, iopts.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {

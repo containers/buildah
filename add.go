@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah/copier"
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/chrootuser"
 	"github.com/containers/storage/pkg/fileutils"
 	"github.com/containers/storage/pkg/idtools"
@@ -51,7 +52,7 @@ type AddAndCopyOptions struct {
 	// ID mapping options to use when contents to be copied are part of
 	// another container, and need ownerships to be mapped from the host to
 	// that container's values before copying them into the container.
-	IDMappingOptions *IDMappingOptions
+	IDMappingOptions *define.IDMappingOptions
 	// DryRun indicates that the content should be digested, but not actually
 	// copied into the container.
 	DryRun bool
@@ -303,6 +304,13 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 		renameTarget = filepath.Base(extractDirectory)
 		extractDirectory = filepath.Dir(extractDirectory)
 	}
+
+	// if the destination is a directory that doesn't yet exist, let's copy it.
+	newDestDirFound := false
+	if (len(destStats) == 1 || len(destStats[0].Globbed) == 0) && destMustBeDirectory && !destCanBeFile {
+		newDestDirFound = true
+	}
+
 	if len(destStats) == 1 && len(destStats[0].Globbed) == 1 && destStats[0].Results[destStats[0].Globbed[0]].IsRegular {
 		if destMustBeDirectory {
 			return errors.Errorf("destination %v already exists but is not a directory", destination)
@@ -414,6 +422,11 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					globInfo := localSourceStat.Results[glob]
 					if !globInfo.IsDir || !includeDirectoryAnyway(rel, pm) {
 						continue
+					}
+				} else {
+					// if the destination is a directory that doesn't yet exist, and is not excluded, let's copy it.
+					if newDestDirFound {
+						itemsCopied++
 					}
 				}
 			} else {

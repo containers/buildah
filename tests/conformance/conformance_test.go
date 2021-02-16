@@ -22,6 +22,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/copier"
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/imagebuildah"
 	"github.com/containers/image/v5/docker/daemon"
 	"github.com/containers/image/v5/image"
@@ -507,8 +508,8 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 	output := &bytes.Buffer{}
 	options := imagebuildah.BuildOptions{
 		ContextDirectory: contextDir,
-		CommonBuildOpts:  &buildah.CommonBuildOptions{},
-		NamespaceOptions: []buildah.NamespaceOption{{
+		CommonBuildOpts:  &define.CommonBuildOptions{},
+		NamespaceOptions: []define.NamespaceOption{{
 			Name: string(rspec.NetworkNamespace),
 			Host: true,
 		}},

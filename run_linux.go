@@ -24,6 +24,7 @@ import (
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/chroot"
 	"github.com/containers/buildah/copier"
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/capabilities"
@@ -39,7 +40,6 @@ import (
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
@@ -51,7 +51,7 @@ import (
 )
 
 // ContainerDevices is an alias for a slice of github.com/opencontainers/runc/libcontainer/configs.Device structures.
-type ContainerDevices = []devices.Device
+type ContainerDevices define.ContainerDevices
 
 func setChildProcess() error {
 	if err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, uintptr(1), 0, 0, 0); err != nil {
@@ -63,7 +63,7 @@ func setChildProcess() error {
 
 // Run runs the specified command in the container's root filesystem.
 func (b *Builder) Run(command []string, options RunOptions) error {
-	p, err := ioutil.TempDir("", Package)
+	p, err := ioutil.TempDir("", define.Package)
 	if err != nil {
 		return err
 	}
@@ -87,10 +87,10 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	g := &gp
 
 	isolation := options.Isolation
-	if isolation == IsolationDefault {
+	if isolation == define.IsolationDefault {
 		isolation = b.Isolation
-		if isolation == IsolationDefault {
-			isolation = IsolationOCI
+		if isolation == define.IsolationDefault {
+			isolation = define.IsolationOCI
 		}
 	}
 	if err := checkAndOverrideIsolationOptions(isolation, &options); err != nil {
@@ -200,7 +200,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			return err
 		}
 		// Only bind /etc/hosts if there's a network
-		if options.ConfigureNetwork != NetworkDisabled {
+		if options.ConfigureNetwork != define.NetworkDisabled {
 			bindFiles["/etc/hosts"] = hostFile
 		}
 	}
@@ -211,7 +211,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			return err
 		}
 		// Only bind /etc/resolv.conf if there's a network
-		if options.ConfigureNetwork != NetworkDisabled {
+		if options.ConfigureNetwork != define.NetworkDisabled {
 			bindFiles["/etc/resolv.conf"] = resolvFile
 		}
 	}
@@ -234,7 +234,7 @@ id=%q
 image=%q
 imageid=%q
 rootless=%d
-`, Version, b.Container, b.ContainerID, b.FromImage, b.FromImageID, rootless)
+`, define.Version, b.Container, b.ContainerID, b.FromImage, b.FromImageID, rootless)
 
 		if err = ioutils.AtomicWriteFile(containerenvPath, []byte(containerenv), 0755); err != nil {
 			return err
@@ -266,14 +266,14 @@ rootless=%d
 	}
 
 	switch isolation {
-	case IsolationOCI:
+	case define.IsolationOCI:
 		var moreCreateArgs []string
 		if options.NoPivot {
 			moreCreateArgs = []string{"--no-pivot"}
 		} else {
 			moreCreateArgs = nil
 		}
-		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, Package+"-"+filepath.Base(path))
+		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, define.Package+"-"+filepath.Base(path))
 	case IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr)
 	case IsolationOCIRootless:
@@ -284,14 +284,14 @@ rootless=%d
 		if err := setupRootlessSpecChanges(spec, path, b.CommonBuildOpts.ShmSize); err != nil {
 			return err
 		}
-		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, Package+"-"+filepath.Base(path))
+		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, define.Package+"-"+filepath.Base(path))
 	default:
 		err = errors.Errorf("don't know how to run this command")
 	}
 	return err
 }
 
-func addCommonOptsToSpec(commonOpts *CommonBuildOptions, g *generate.Generator) error {
+func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Generator) error {
 	// Resources - CPU
 	if commonOpts.CPUPeriod != 0 {
 		g.SetLinuxResourcesCPUPeriod(commonOpts.CPUPeriod)
@@ -393,7 +393,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 	return mounts, nil
 }
 
-func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions NamespaceOptions) error {
+func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions define.NamespaceOptions) error {
 	// Start building a new list of mounts.
 	var mounts []specs.Mount
 	haveMount := func(destination string) bool {
@@ -535,7 +535,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 }
 
 // addNetworkConfig copies files from host and sets them up to bind mount into container
-func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDPair, dnsServers, dnsSearch, dnsOptions []string, namespaceOptions NamespaceOptions) (string, error) {
+func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDPair, dnsServers, dnsSearch, dnsOptions []string, namespaceOptions define.NamespaceOptions) (string, error) {
 	stat, err := os.Stat(hostPath)
 	if err != nil {
 		return "", err
@@ -678,7 +678,7 @@ func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, termina
 	}
 }
 
-func runUsingRuntime(isolation Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, bundlePath, containerName string) (wstatus unix.WaitStatus, err error) {
+func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, bundlePath, containerName string) (wstatus unix.WaitStatus, err error) {
 	// Lock the caller to a single OS-level thread.
 	runtime.LockOSThread()
 
@@ -1040,7 +1040,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 	}, nil
 }
 
-func runConfigureNetwork(isolation Isolation, options RunOptions, configureNetworks []string, pid int, containerName string, command []string) (teardown func(), err error) {
+func runConfigureNetwork(isolation define.Isolation, options RunOptions, configureNetworks []string, pid int, containerName string, command []string) (teardown func(), err error) {
 	var netconf, undo []*libcni.NetworkConfigList
 
 	if isolation == IsolationOCIRootless {
@@ -1504,7 +1504,7 @@ func runUsingRuntimeMain() {
 	os.Exit(1)
 }
 
-func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, idmapOptions IDMappingOptions, policy NetworkConfigurationPolicy) (configureNetwork bool, configureNetworks []string, configureUTS bool, err error) {
+func setupNamespaces(g *generate.Generator, namespaceOptions define.NamespaceOptions, idmapOptions define.IDMappingOptions, policy define.NetworkConfigurationPolicy) (configureNetwork bool, configureNetworks []string, configureUTS bool, err error) {
 	// Set namespace options in the container configuration.
 	configureUserns := false
 	specifiedNetwork := false
@@ -1523,7 +1523,7 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 					configureNetworks = strings.Split(namespaceOption.Path, ",")
 					namespaceOption.Path = ""
 				}
-				configureNetwork = (policy != NetworkDisabled)
+				configureNetwork = (policy != define.NetworkDisabled)
 			}
 		case string(specs.UTSNamespace):
 			configureUTS = false
@@ -1572,7 +1572,7 @@ func setupNamespaces(g *generate.Generator, namespaceOptions NamespaceOptions, i
 			if err := g.AddOrReplaceLinuxNamespace(string(specs.NetworkNamespace), ""); err != nil {
 				return false, nil, false, errors.Wrapf(err, "error adding new %q namespace for run", string(specs.NetworkNamespace))
 			}
-			configureNetwork = (policy != NetworkDisabled)
+			configureNetwork = (policy != define.NetworkDisabled)
 		}
 	} else {
 		if err := g.RemoveLinuxNamespace(string(specs.UserNamespace)); err != nil {
@@ -2084,7 +2084,7 @@ func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, shmSize string
 	return nil
 }
 
-func (b *Builder) runUsingRuntimeSubproc(isolation Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (err error) {
+func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (err error) {
 	var confwg sync.WaitGroup
 	config, conferr := json.Marshal(runUsingRuntimeSubprocOptions{
 		Options:           options,
@@ -2144,13 +2144,13 @@ func (b *Builder) runUsingRuntimeSubproc(isolation Isolation, options RunOptions
 	return err
 }
 
-func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) error {
+func checkAndOverrideIsolationOptions(isolation define.Isolation, options *RunOptions) error {
 	switch isolation {
 	case IsolationOCIRootless:
 		if ns := options.NamespaceOptions.Find(string(specs.IPCNamespace)); ns == nil || ns.Host {
 			logrus.Debugf("Forcing use of an IPC namespace.")
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.IPCNamespace)})
+		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.IPCNamespace)})
 		_, err := exec.LookPath("slirp4netns")
 		hostNetworking := err != nil
 		networkNamespacePath := ""
@@ -2162,7 +2162,7 @@ func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) 
 				networkNamespacePath = ""
 			}
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{
+		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{
 			Name: string(specs.NetworkNamespace),
 			Host: hostNetworking,
 			Path: networkNamespacePath,
@@ -2170,11 +2170,11 @@ func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) 
 		if ns := options.NamespaceOptions.Find(string(specs.PIDNamespace)); ns == nil || ns.Host {
 			logrus.Debugf("Forcing use of a PID namespace.")
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.PIDNamespace), Host: false})
+		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.PIDNamespace), Host: false})
 		if ns := options.NamespaceOptions.Find(string(specs.UserNamespace)); ns == nil || ns.Host {
 			logrus.Debugf("Forcing use of a user namespace.")
 		}
-		options.NamespaceOptions.AddOrReplace(NamespaceOption{Name: string(specs.UserNamespace)})
+		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.UserNamespace)})
 	case IsolationOCI:
 		pidns := options.NamespaceOptions.Find(string(specs.PIDNamespace))
 		userns := options.NamespaceOptions.Find(string(specs.UserNamespace))
@@ -2187,8 +2187,8 @@ func checkAndOverrideIsolationOptions(isolation Isolation, options *RunOptions) 
 
 // DefaultNamespaceOptions returns the default namespace settings from the
 // runtime-tools generator library.
-func DefaultNamespaceOptions() (NamespaceOptions, error) {
-	options := NamespaceOptions{
+func DefaultNamespaceOptions() (define.NamespaceOptions, error) {
+	options := define.NamespaceOptions{
 		{Name: string(specs.CgroupNamespace), Host: true},
 		{Name: string(specs.IPCNamespace), Host: true},
 		{Name: string(specs.MountNamespace), Host: true},
@@ -2204,7 +2204,7 @@ func DefaultNamespaceOptions() (NamespaceOptions, error) {
 	spec := g.Config
 	if spec.Linux != nil {
 		for _, ns := range spec.Linux.Namespaces {
-			options.AddOrReplace(NamespaceOption{
+			options.AddOrReplace(define.NamespaceOption{
 				Name: string(ns.Type),
 				Path: ns.Path,
 			})
@@ -2231,7 +2231,7 @@ type runUsingRuntimeSubprocOptions struct {
 	ConfigureNetworks []string
 	MoreCreateArgs    []string
 	ContainerName     string
-	Isolation         Isolation
+	Isolation         define.Isolation
 }
 
 func init() {

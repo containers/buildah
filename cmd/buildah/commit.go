@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
@@ -168,7 +169,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	}
 
 	// Add builder identity information.
-	builder.SetLabel(buildah.BuilderIdentityAnnotation, buildah.Version)
+	builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
 
 	encConfig, encLayers, err := getEncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
 	if err != nil {

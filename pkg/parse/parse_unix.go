@@ -6,13 +6,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containers/buildah/define"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/pkg/errors"
 )
 
-func DeviceFromPath(device string) ([]devices.Device, error) {
-	var devs []devices.Device
+func DeviceFromPath(device string) (define.ContainerDevices, error) {
+	var devs define.ContainerDevices
 	src, dst, permissions, err := Device(device)
 	if err != nil {
 		return nil, err
