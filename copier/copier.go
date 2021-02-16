@@ -557,6 +557,9 @@ func copierWithSubprocess(bulkReader io.Reader, bulkWriter io.Writer, req reques
 		return killAndReturn(err, "error encoding request for copier subprocess")
 	}
 	if err = decoder.Decode(&resp); err != nil {
+		if errors.Is(err, io.EOF) && errorBuffer.Len() > 0 {
+			return killAndReturn(errors.New(errorBuffer.String()), "error in copier subprocess")
+		}
 		return killAndReturn(err, "error decoding response from copier subprocess")
 	}
 	if err = encoder.Encode(&request{Request: requestQuit}); err != nil {
