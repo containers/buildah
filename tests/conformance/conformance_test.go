@@ -2603,6 +2603,24 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name:       "add-parent-symlink",
+		contextDir: "add/parent-symlink",
+		fsSkip:     []string{"(dir):testsubdir:mtime"},
+	},
+
+	{
+		name:       "add-parent-dangling",
+		contextDir: "add/parent-dangling",
+		fsSkip:     []string{"(dir):symlink:mtime", "(dir):symlink-target:mtime"},
+	},
+
+	{
+		name:       "add-parent-clean",
+		contextDir: "add/parent-clean",
+		fsSkip:     []string{"(dir):symlink:mtime", "(dir):symlink-target:mtime", "(dir):symlink-target:(dir):subdirectory:mtime"},
+	},
+
+	{
 		name:       "add-archive-1",
 		contextDir: "add/archive",
 		dockerfile: "Dockerfile.1",
