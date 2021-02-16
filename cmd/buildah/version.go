@@ -7,7 +7,7 @@ import (
 	"time"
 
 	cniversion "github.com/containernetworking/cni/pkg/version"
-	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	iversion "github.com/containers/image/v5/version"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
@@ -33,7 +33,7 @@ func versionCmd(c *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Println("Version:        ", buildah.Version)
+	fmt.Println("Version:        ", define.Version)
 	fmt.Println("Go Version:     ", runtime.Version())
 	fmt.Println("Image Spec:     ", ispecs.Version)
 	fmt.Println("Runtime Spec:   ", rspecs.Version)

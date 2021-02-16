@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/config"
@@ -56,7 +57,7 @@ type Executor struct {
 	stages                         map[string]*StageExecutor
 	store                          storage.Store
 	contextDir                     string
-	pullPolicy                     buildah.PullPolicy
+	pullPolicy                     define.PullPolicy
 	registry                       string
 	ignoreUnrecognizedInstructions bool
 	quiet                          bool
@@ -74,13 +75,13 @@ type Executor struct {
 	signaturePolicyPath            string
 	systemContext                  *types.SystemContext
 	reportWriter                   io.Writer
-	isolation                      buildah.Isolation
-	namespaceOptions               []buildah.NamespaceOption
-	configureNetwork               buildah.NetworkConfigurationPolicy
+	isolation                      define.Isolation
+	namespaceOptions               []define.NamespaceOption
+	configureNetwork               define.NetworkConfigurationPolicy
 	cniPluginPath                  string
 	cniConfigDir                   string
-	idmappingOptions               *buildah.IDMappingOptions
-	commonBuildOptions             *buildah.CommonBuildOptions
+	idmappingOptions               *define.IDMappingOptions
+	commonBuildOptions             *define.CommonBuildOptions
 	defaultMountsFilePath          string
 	iidfile                        string
 	squash                         bool
@@ -98,7 +99,7 @@ type Executor struct {
 	excludes                       []string
 	unusedArgs                     map[string]struct{}
 	capabilities                   []string
-	devices                        buildah.ContainerDevices
+	devices                        define.ContainerDevices
 	signBy                         string
 	architecture                   string
 	timestamp                      *time.Time
@@ -144,7 +145,7 @@ func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Nod
 		return nil, err
 	}
 
-	devices := buildah.ContainerDevices{}
+	devices := define.ContainerDevices{}
 	for _, device := range append(defaultContainerConfig.Containers.Devices, options.Devices...) {
 		dev, err := parse.DeviceFromPath(device)
 		if err != nil {

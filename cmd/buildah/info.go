@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
@@ -96,7 +97,7 @@ func debugInfo() map[string]interface{} {
 	info := map[string]interface{}{}
 	info["compiler"] = runtime.Compiler
 	info["go version"] = runtime.Version()
-	info["buildah version"] = buildah.Version
+	info["buildah version"] = define.Version
 	info["git commit"] = GitCommit
 	return info
 }

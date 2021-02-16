@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
@@ -112,7 +113,7 @@ func pullTestImage(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	commonOpts := &buildah.CommonBuildOptions{
+	commonOpts := &define.CommonBuildOptions{
 		LabelOpts: nil,
 	}
 	options := buildah.BuilderOptions{

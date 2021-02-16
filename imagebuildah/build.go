@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
@@ -28,10 +28,10 @@ import (
 )
 
 const (
-	PullIfMissing = buildah.PullIfMissing
-	PullAlways    = buildah.PullAlways
-	PullIfNewer   = buildah.PullIfNewer
-	PullNever     = buildah.PullNever
+	PullIfMissing = define.PullIfMissing
+	PullAlways    = define.PullAlways
+	PullIfNewer   = define.PullIfNewer
+	PullNever     = define.PullNever
 
 	Gzip         = archive.Gzip
 	Bzip2        = archive.Bzip2
@@ -50,7 +50,7 @@ type BuildOptions struct {
 	ContextDirectory string
 	// PullPolicy controls whether or not we pull images.  It should be one
 	// of PullIfMissing, PullAlways, PullIfNewer, or PullNever.
-	PullPolicy buildah.PullPolicy
+	PullPolicy define.PullPolicy
 	// Registry is a value which is prepended to the image's name, if it
 	// needs to be pulled and the image name alone can not be resolved to a
 	// reference to a source image.  No separator is implicitly added.
@@ -63,7 +63,7 @@ type BuildOptions struct {
 	// Quiet tells us whether or not to announce steps as we go through them.
 	Quiet bool
 	// Isolation controls how Run() runs things.
-	Isolation buildah.Isolation
+	Isolation define.Isolation
 	// Runtime is the name of the command to run for RUN instructions when
 	// Isolation is either IsolationDefault or IsolationOCI.  It should
 	// accept the same arguments and flags that runc does.
@@ -111,13 +111,13 @@ type BuildOptions struct {
 	SystemContext *types.SystemContext
 	// NamespaceOptions controls how we set up namespaces processes that we
 	// might need when handling RUN instructions.
-	NamespaceOptions []buildah.NamespaceOption
+	NamespaceOptions []define.NamespaceOption
 	// ConfigureNetwork controls whether or not network interfaces and
 	// routing are configured for a new network namespace (i.e., when not
 	// joining another's namespace and not just using the host's
 	// namespace), effectively deciding whether or not the process has a
 	// usable network.
-	ConfigureNetwork buildah.NetworkConfigurationPolicy
+	ConfigureNetwork define.NetworkConfigurationPolicy
 	// CNIPluginPath is the location of CNI plugin helpers, if they should be
 	// run from a location other than the default location.
 	CNIPluginPath string
@@ -126,7 +126,7 @@ type BuildOptions struct {
 	CNIConfigDir string
 	// ID mapping options to use if we're setting up our own user namespace
 	// when handling RUN instructions.
-	IDMappingOptions *buildah.IDMappingOptions
+	IDMappingOptions *define.IDMappingOptions
 	// AddCapabilities is a list of capabilities to add to the default set when
 	// handling RUN instructions.
 	AddCapabilities []string
@@ -135,7 +135,7 @@ type BuildOptions struct {
 	// will be dropped.
 	DropCapabilities []string
 	// CommonBuildOpts is *required*.
-	CommonBuildOpts *buildah.CommonBuildOptions
+	CommonBuildOpts *define.CommonBuildOptions
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
 	DefaultMountsFilePath string
 	// IIDFile tells the builder to write the image ID to the specified file
