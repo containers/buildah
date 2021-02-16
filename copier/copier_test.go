@@ -430,14 +430,14 @@ func testPut(t *testing.T) {
 				}
 
 				dir, err := makeContextFromArchive(makeArchive(testArchives[i].headers, testArchives[i].contents), topdir)
-				require.Nil(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, topdir)
+				require.NoErrorf(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, topdir)
 				defer os.RemoveAll(dir)
 
 				// enumerate what we expect to have created
 				expected := make([]enumeratedFile, 0, len(testArchives[i].headers)+1)
 				if topdir != "" && topdir != "." {
 					info, err := os.Stat(filepath.Join(dir, topdir))
-					require.Nil(t, err, "error statting directory %q", filepath.Join(dir, topdir))
+					require.NoErrorf(t, err, "error statting directory %q", filepath.Join(dir, topdir))
 					expected = append(expected, enumeratedFile{
 						name:      filepath.FromSlash(topdir),
 						mode:      info.Mode() & os.ModePerm,
@@ -457,7 +457,7 @@ func testPut(t *testing.T) {
 
 				// enumerate what we actually created
 				fileList, err := enumerateFiles(dir)
-				require.Nil(t, err, "error walking context directory for archive %q, topdir=%q", testArchives[i].name, topdir)
+				require.NoErrorf(t, err, "error walking context directory for archive %q, topdir=%q", testArchives[i].name, topdir)
 				sort.Slice(fileList, func(i, j int) bool { return strings.Compare(fileList[i].name, fileList[j].name) < 0 })
 
 				// make sure they're the same
@@ -492,12 +492,12 @@ func testPut(t *testing.T) {
 				}
 
 				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.Nil(t, err, "error creating temporary directory")
+				require.NoError(t, err, "error creating temporary directory")
 				defer os.RemoveAll(tmp)
 
 				archive := makeArchive(testArchives[i].headers, testArchives[i].contents)
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, Rename: renames.renames}, archive)
-				require.Nil(t, err, "error extracting archive %q to directory %q", testArchives[i].name, tmp)
+				require.NoErrorf(t, err, "error extracting archive %q to directory %q", testArchives[i].name, tmp)
 
 				var found []string
 				err = filepath.Walk(tmp, func(path string, info os.FileInfo, err error) error {
@@ -514,7 +514,7 @@ func testPut(t *testing.T) {
 					found = append(found, rel)
 					return nil
 				})
-				require.Nil(t, err, "error walking context directory for archive %q under %q", testArchives[i].name, tmp)
+				require.NoErrorf(t, err, "error walking context directory for archive %q under %q", testArchives[i].name, tmp)
 				sort.Strings(found)
 
 				expected := renames.expected
@@ -533,7 +533,7 @@ func testPut(t *testing.T) {
 					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0755, Linkname: "target", ModTime: testDate},
 				})
 				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.Nil(t, err, "error creating temporary directory")
+				require.NoError(t, err, "error creating temporary directory")
 				defer os.RemoveAll(tmp)
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
 				if overwrite {
@@ -541,7 +541,7 @@ func testPut(t *testing.T) {
 						assert.Nilf(t, err, "expected to overwrite directory with type %c: %v", typeFlag, err)
 					}
 				} else {
-					assert.NotNilf(t, err, "expected an error trying to overwrite directory with type %c", typeFlag)
+					assert.Errorf(t, err, "expected an error trying to overwrite directory with type %c", typeFlag)
 				}
 			})
 		}
@@ -559,7 +559,7 @@ func testPut(t *testing.T) {
 					{Name: "unrelated", Typeflag: tar.TypeReg, Size: 0, Mode: 0600, ModTime: testDate},
 				})
 				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.Nil(t, err, "error creating temporary directory")
+				require.NoError(t, err, "error creating temporary directory")
 				defer os.RemoveAll(tmp)
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, IgnoreDevices: ignoreDevices}, bytes.NewReader(archive))
 				require.Nilf(t, err, "expected to extract content with typeflag %c without an error: %v", typeFlag, err)
@@ -606,11 +606,12 @@ func testStat(t *testing.T) {
 		for _, topdir := range []string{"", ".", "top"} {
 			for _, testArchive := range testArchives {
 				if uid != 0 && testArchive.rootOnly {
-					t.Skipf("test archive %q can only be tested with root privileges, skipping", testArchive.name)
+					t.Logf("test archive %q can only be tested with root privileges, skipping", testArchive.name)
+					continue
 				}
 
 				dir, err := makeContextFromArchive(makeArchive(testArchive.headers, testArchive.contents), topdir)
-				require.Nil(t, err, "error creating context from archive %q", testArchive.name)
+				require.NoErrorf(t, err, "error creating context from archive %q", testArchive.name)
 				defer os.RemoveAll(dir)
 
 				root := dir
@@ -631,7 +632,7 @@ func testStat(t *testing.T) {
 							Excludes:         excludes,
 						}
 						stats, err := Stat(root, topdir, options, []string{name})
-						require.Nil(t, err, "error statting %q: %v", name, err)
+						require.NoErrorf(t, err, "error statting %q: %v", name, err)
 						for _, st := range stats {
 							// should not have gotten an error
 							require.Emptyf(t, st.Error, "expected no error from stat %q", st.Glob)
@@ -647,7 +648,7 @@ func testStat(t *testing.T) {
 									toStat = filepath.Join(root, topdir, name)
 								}
 								_, err = os.Lstat(toStat)
-								require.Nil(t, err, "got error on lstat() of returned value %q(%q(%q)): %v", toStat, glob, name, err)
+								require.NoErrorf(t, err, "got error on lstat() of returned value %q(%q(%q)): %v", toStat, glob, name, err)
 								result := st.Results[glob]
 
 								switch testItem.Typeflag {
@@ -703,11 +704,12 @@ func testGetSingle(t *testing.T) {
 				}
 
 				if uid != 0 && testArchive.rootOnly {
-					t.Skipf("test archive %q can only be tested with root privileges, skipping", testArchive.name)
+					t.Logf("test archive %q can only be tested with root privileges, skipping", testArchive.name)
+					continue
 				}
 
 				dir, err := makeContextFromArchive(makeArchive(testArchive.headers, testArchive.contents), topdir)
-				require.Nil(t, err, "error creating context from archive %q", testArchive.name)
+				require.NoErrorf(t, err, "error creating context from archive %q", testArchive.name)
 				defer os.RemoveAll(dir)
 
 				root := dir
@@ -724,7 +726,7 @@ func testGetSingle(t *testing.T) {
 						if err != nil && isExpectedError(err, topdir != "" && topdir != ".", testItem.Name, testArchive.expectedGetErrors) {
 							return
 						}
-						require.Nil(t, err, "error getting %q under %q", name, filepath.Join(root, topdir))
+						require.NoErrorf(t, err, "error getting %q under %q", name, filepath.Join(root, topdir))
 						// we'll check subdirectories later
 						if testItem.Typeflag == tar.TypeDir {
 							return
@@ -790,7 +792,7 @@ func testGetSingle(t *testing.T) {
 											}
 											assert.Equal(t, io.EOF.Error(), err.Error(), "expected EOF at end of archive, got %q", err.Error())
 											wg.Wait()
-											assert.Nil(t, getErr, "unexpected error from Get(%q): %v", name, getErr)
+											assert.NoErrorf(t, getErr, "unexpected error from Get(%q): %v", name, getErr)
 											pipeReader.Close()
 										})
 									}
@@ -799,7 +801,7 @@ func testGetSingle(t *testing.T) {
 						}
 
 						wg.Wait()
-						assert.Nil(t, getErr, "unexpected error from Get(%q): %v", name, getErr)
+						assert.NoErrorf(t, getErr, "unexpected error from Get(%q): %v", name, getErr)
 						pipeReader.Close()
 					})
 				}
@@ -1312,7 +1314,7 @@ func testGetMultiple(t *testing.T) {
 	for _, topdir := range []string{"", ".", "top"} {
 		for _, testArchive := range getTestArchives {
 			dir, err := makeContextFromArchive(makeArchive(testArchive.headers, testArchive.contents), topdir)
-			require.Nil(t, err, "error creating context from archive %q", testArchive.name)
+			require.NoErrorf(t, err, "error creating context from archive %q", testArchive.name)
 			defer os.RemoveAll(dir)
 
 			root := dir
@@ -1349,7 +1351,7 @@ func testGetMultiple(t *testing.T) {
 					if err != nil && isExpectedError(err, topdir != "" && topdir != ".", testCase.pattern, testArchive.expectedGetErrors) {
 						return
 					}
-					require.Nil(t, err, "error getting %q under %q", testCase.pattern, filepath.Join(root, topdir))
+					require.NoErrorf(t, err, "error getting %q under %q", testCase.pattern, filepath.Join(root, topdir))
 					// see what we get when we get this pattern
 					pipeReader, pipeWriter := io.Pipe()
 					var getErr error
@@ -1377,7 +1379,7 @@ func testGetMultiple(t *testing.T) {
 					sort.Strings(expectedContents)
 					assert.Equal(t, io.EOF.Error(), err.Error(), "expected EOF at end of archive, got %q", err.Error())
 					wg.Wait()
-					assert.Nil(t, getErr, "unexpected error from Get(%q)", testCase.pattern)
+					assert.NoErrorf(t, getErr, "unexpected error from Get(%q)", testCase.pattern)
 					assert.Equal(t, expectedContents, actualContents, "Get(%q,excludes=%v) didn't produce the right set of items", testCase.pattern, excludes)
 				})
 			}
@@ -1413,16 +1415,20 @@ func testEval(t *testing.T) {
 		{"7a", "../target/subdirectory", "link/foo", "target/subdirectory/foo"},
 		{"8a", "/../target/subdirectory", "link/foo", "target/subdirectory/foo"},
 		{"9a", "../../target/subdirectory", "link/foo", "target/subdirectory/foo"},
-		{"0b", "target", "link/../foo", "foo"},                    // inputPath is lexically cleaned to "foo" early
-		{"1b", "/target", "link/../foo", "foo"},                   // inputPath is lexically cleaned to "foo" early
-		{"2b", "../target", "link/../foo", "foo"},                 // inputPath is lexically cleaned to "foo" early
-		{"3b", "/../target", "link/../foo", "foo"},                // inputPath is lexically cleaned to "foo" early
-		{"4b", "../../target", "link/../foo", "foo"},              // inputPath is lexically cleaned to "foo" early
-		{"5b", "target/subdirectory", "link/../foo", "foo"},       // inputPath is lexically cleaned to "foo" early
-		{"6b", "/target/subdirectory", "link/../foo", "foo"},      // inputPath is lexically cleaned to "foo" early
-		{"7b", "../target/subdirectory", "link/../foo", "foo"},    // inputPath is lexically cleaned to "foo" early
-		{"8b", "/../target/subdirectory", "link/../foo", "foo"},   // inputPath is lexically cleaned to "foo" early
-		{"9b", "../../target/subdirectory", "link/../foo", "foo"}, // inputPath is lexically cleaned to "foo" early
+		// inputPath is lexically cleaned to "foo" early, so callers
+		// won't get values consistent with the kernel, but we use the
+		// result for ADD and COPY, where docker build seems to have
+		// the same limitation
+		{"0b", "target", "link/../foo", "foo"},
+		{"1b", "/target", "link/../foo", "foo"},
+		{"2b", "../target", "link/../foo", "foo"},
+		{"3b", "/../target", "link/../foo", "foo"},
+		{"4b", "../../target", "link/../foo", "foo"},
+		{"5b", "target/subdirectory", "link/../foo", "foo"},
+		{"6b", "/target/subdirectory", "link/../foo", "foo"},
+		{"7b", "../target/subdirectory", "link/../foo", "foo"},
+		{"8b", "/../target/subdirectory", "link/../foo", "foo"},
+		{"9b", "../../target/subdirectory", "link/../foo", "foo"},
 	}
 	for _, vector := range vectors {
 		t.Run(fmt.Sprintf("id=%s", vector.id), func(t *testing.T) {
@@ -1545,7 +1551,7 @@ func testMkdir(t *testing.T) {
 			for _, testCase := range testArchives[i].testCases {
 				t.Run(testCase.name, func(t *testing.T) {
 					dir, err := makeContextFromArchive(makeArchive(testArchives[i].headers, nil), "")
-					require.Nil(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, "")
+					require.NoErrorf(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, "")
 					defer os.RemoveAll(dir)
 					root := dir
 					options := MkdirOptions{ChownNew: &idtools.IDPair{UID: os.Getuid(), GID: os.Getgid()}}
@@ -1561,9 +1567,9 @@ func testMkdir(t *testing.T) {
 						beforeNames = append(beforeNames, rel)
 						return nil
 					})
-					require.Nil(t, err, "error walking directory to catalog pre-Mkdir contents: %v", err)
+					require.NoErrorf(t, err, "error walking directory to catalog pre-Mkdir contents: %v", err)
 					err = Mkdir(root, testCase.create, options)
-					require.Nil(t, err, "error creating directory %q under %q with Mkdir: %v", testCase.create, root, err)
+					require.NoErrorf(t, err, "error creating directory %q under %q with Mkdir: %v", testCase.create, root, err)
 					err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 						if info == nil || err != nil {
 							return err
@@ -1575,7 +1581,7 @@ func testMkdir(t *testing.T) {
 						afterNames = append(afterNames, rel)
 						return nil
 					})
-					require.Nil(t, err, "error walking directory to catalog post-Mkdir contents: %v", err)
+					require.NoErrorf(t, err, "error walking directory to catalog post-Mkdir contents: %v", err)
 					expected := append([]string{}, beforeNames...)
 					for _, expect := range testCase.expect {
 						expected = append(expected, filepath.FromSlash(expect))

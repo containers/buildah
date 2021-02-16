@@ -711,7 +711,7 @@ func copierMain() {
 			var err error
 			chrooted, err = chroot(req.Root)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error changing to intended-new-root directory %q: %v", req.Root, err)
+				fmt.Fprintf(os.Stderr, "%v", err)
 				os.Exit(1)
 			}
 		}
