@@ -283,6 +283,7 @@ type GetOptions struct {
 	StripXattrs        bool              // don't record extended attributes of items being copied. no effect on archives being extracted
 	KeepDirectoryNames bool              // don't strip the top directory's basename from the paths of items in subdirectories
 	Rename             map[string]string // rename items with the specified names, or under the specified names
+	NoDerefSymlinks    bool              // don't follow symlinks when globs match them
 }
 
 // Get produces an archive containing items that match the specified glob
@@ -1081,7 +1082,7 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 			// chase links. if we hit a dead end, we should just fail
 			followedLinks := 0
 			const maxFollowedLinks = 16
-			for info.Mode()&os.ModeType == os.ModeSymlink && followedLinks < maxFollowedLinks {
+			for !req.GetOptions.NoDerefSymlinks && info.Mode()&os.ModeType == os.ModeSymlink && followedLinks < maxFollowedLinks {
 				path, err := os.Readlink(item)
 				if err != nil {
 					continue

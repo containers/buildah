@@ -828,6 +828,7 @@ func testGetMultiple(t *testing.T) {
 		stripXattrs        bool
 		keepDirectoryNames bool
 		renames            map[string]string
+		noDerefSymlinks    bool
 	}
 	var getTestArchives = []struct {
 		name              string
@@ -843,6 +844,7 @@ func testGetMultiple(t *testing.T) {
 				{Name: "file-a", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: 0600},
 				{Name: "file-b", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 23, Mode: 0600},
 				{Name: "link-a", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "file-a", Size: 23, Mode: 0600},
+				{Name: "link-c", Uid: uid, Gid: gid, Typeflag: tar.TypeSymlink, Linkname: "subdir-c", Mode: 0700, ModTime: testDate},
 				{Name: "archive-a", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 0, Mode: 0600},
 				{Name: "non-archive-a", Uid: uid, Gid: gid, Typeflag: tar.TypeReg, Size: 1199, Mode: 0600},
 				{Name: "hlink-0", Uid: uid, Gid: gid, Typeflag: tar.TypeLink, Linkname: "file-0", Size: 123456789, Mode: 0600},
@@ -882,6 +884,7 @@ func testGetMultiple(t *testing.T) {
 						"file-a",
 						"file-b",
 						"link-a",
+						"link-c",
 						"hlink-0",
 						"something-a",
 						"archive-a",
@@ -925,7 +928,9 @@ func testGetMultiple(t *testing.T) {
 						"file-n",           // from subdir-b
 						"file-o",           // from subdir-b
 						"file-p",           // from subdir-c
+						"file-p",           // from link-c -> subdir-c
 						"file-q",           // from subdir-c
+						"file-q",           // from link-c -> subdir-c
 						"hlink-0",          // from subdir-d
 						"subdir-f",         // from subdir-e
 						"subdir-f/hlink-b", // from subdir-e
@@ -938,6 +943,7 @@ func testGetMultiple(t *testing.T) {
 					items: []string{
 						"file-0",
 						"file-b",
+						"link-c",
 						"hlink-0",
 						"subdir-a/file-c",
 						"subdir-b",
@@ -963,8 +969,10 @@ func testGetMultiple(t *testing.T) {
 						"file-c",
 						"file-n",
 						"file-o",
-						"file-p",
-						"file-q",
+						"file-p", // from subdir-c
+						"file-p", // from link-c -> subdir-c
+						"file-q", // from subdir-c
+						"file-q", // from link-c -> subdir-c
 						"hlink-0",
 						"hlink-0",
 						"subdir-f",
@@ -980,6 +988,7 @@ func testGetMultiple(t *testing.T) {
 						"file-a",
 						"file-b",
 						"link-a",
+						"link-c",
 						"hlink-0",
 						"something-a",
 						"archive-a",
@@ -1019,6 +1028,8 @@ func testGetMultiple(t *testing.T) {
 						"file-o",
 						"file-o",
 						"file-p",
+						"file-p",
+						"file-q",
 						"file-q",
 						"hlink-0",
 						"hlink-0",
@@ -1037,6 +1048,8 @@ func testGetMultiple(t *testing.T) {
 					items: []string{
 						"file-c",
 						"file-p",
+						"file-p",
+						"file-q",
 						"file-q",
 					},
 				},
@@ -1046,6 +1059,7 @@ func testGetMultiple(t *testing.T) {
 					exclude: []string{"*", "!**/*-c"},
 					items: []string{
 						"subdir-a/file-c",
+						"link-c",
 						"subdir-c",
 						"subdir-c/file-p",
 						"subdir-c/file-q",
@@ -1257,6 +1271,40 @@ func testGetMultiple(t *testing.T) {
 						"subdir-b/file-c",
 					},
 				},
+				{
+					name:            "no-deref-symlinks-baseline",
+					pattern:         "*-a",
+					noDerefSymlinks: true,
+					items: []string{
+						"file-a",
+						"link-a",
+						"archive-a",
+						"non-archive-a",
+						"something-a",
+						"file-n", // from subdir-a
+						"file-o", // from subdir-a
+						"file-a", // from subdir-a
+						"file-b", // from subdir-a
+						"file-c", // from subdir-a
+					},
+				},
+				{
+					name:            "no-deref-symlinks-directory",
+					pattern:         "link-c",
+					noDerefSymlinks: true,
+					items: []string{
+						"link-c",
+					},
+				},
+				{
+					name:            "deref-symlinks-directory",
+					pattern:         "link-c",
+					noDerefSymlinks: false,
+					items: []string{
+						"file-p", // from link-c -> subdir-c
+						"file-q", // from link-c -> subdir-c
+					},
+				},
 			},
 		},
 	}
@@ -1292,6 +1340,7 @@ func testGetMultiple(t *testing.T) {
 					StripXattrs:        testCase.stripXattrs,
 					KeepDirectoryNames: testCase.keepDirectoryNames,
 					Rename:             testCase.renames,
+					NoDerefSymlinks:    testCase.noDerefSymlinks,
 				}
 
 				t.Run(fmt.Sprintf("topdir=%s,archive=%s,case=%s,pattern=%s", topdir, testArchive.name, testCase.name, testCase.pattern), func(t *testing.T) {
