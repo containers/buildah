@@ -1142,7 +1142,8 @@ func handleRename(rename map[string]string, name string) string {
 			return path.Join(mappedPrefix, remainder)
 		}
 		if prefix[len(prefix)-1] == '/' {
-			if mappedPrefix, ok := rename[prefix[:len(prefix)-1]]; ok {
+			prefix = prefix[:len(prefix)-1]
+			if mappedPrefix, ok := rename[prefix]; ok {
 				return path.Join(mappedPrefix, remainder)
 			}
 		}

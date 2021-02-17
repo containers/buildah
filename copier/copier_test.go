@@ -1505,3 +1505,27 @@ func TestCleanerSubdirectory(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleRename(t *testing.T) {
+	renames := map[string]string{
+		"a":   "b",
+		"c":   "d",
+		"a/1": "a/2",
+	}
+	testCases := [][2]string{
+		{"a", "b"},
+		{"a/1", "a/2"},
+		{"a/1/2", "a/2/2"},
+		{"a/1/2/3", "a/2/2/3"},
+		{"a/2/3/4", "b/2/3/4"},
+		{"a/2/3", "b/2/3"},
+		{"a/2", "b/2"},
+		{"c/2", "d/2"},
+	}
+	for i, testCase := range testCases {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			renamed := handleRename(renames, testCase[0])
+			assert.Equal(t, testCase[1], renamed, "expected to get %q, got %q", testCase[1], renamed)
+		})
+	}
+}
