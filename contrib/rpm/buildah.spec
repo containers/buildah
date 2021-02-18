@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.19.5
+Version:        1.19.6
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,15 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Feb 18, 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.6-1
+-  Bump c/containers/storage v1.24.6
+-  Don't fail copy to emptydir
+-  Workaround for RHEL gating test failure
+-  Fix config-flags-verification test on F33
+-  Fix bud capabilities test
+-  Stop overriding the location of the blob info cache
+-  Fix caching layers with build args
+
 * Tue Feb 9, 2021 Dan Walsh <dwalsh@redhat.com> 1.19.5-1
 - Vendor in latest containers/image and common
 
