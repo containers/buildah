@@ -42,12 +42,12 @@ github.com/blang/semver
 github.com/chzyer/readline
 # github.com/containerd/cgroups v0.0.0-20200531161412-0dbf7f05ba59
 github.com/containerd/cgroups/stats/v1
-# github.com/containerd/containerd v1.4.1
+# github.com/containerd/containerd v1.4.3
 github.com/containerd/containerd/errdefs
 github.com/containerd/containerd/log
 github.com/containerd/containerd/platforms
 github.com/containerd/containerd/sys
-# github.com/containerd/continuity v0.0.0-20200928162600-f2cc35102c2a
+# github.com/containerd/continuity v0.0.0-20210208174643-50096c924a4e
 github.com/containerd/continuity/fs
 github.com/containerd/continuity/sysx
 # github.com/containernetworking/cni v0.8.1
@@ -193,7 +193,7 @@ github.com/docker/distribution/registry/client/auth/challenge
 github.com/docker/distribution/registry/client/transport
 github.com/docker/distribution/registry/storage/cache
 github.com/docker/distribution/registry/storage/cache/memory
-# github.com/docker/docker v20.10.0-beta1.0.20201113105859-b6bfff2a628f+incompatible
+# github.com/docker/docker v20.10.3-0.20210216175712-646072ed6524+incompatible
 github.com/docker/docker/api
 github.com/docker/docker/api/types
 github.com/docker/docker/api/types/blkiodev
@@ -239,13 +239,13 @@ github.com/docker/libnetwork/resolvconf/dns
 github.com/docker/libnetwork/types
 # github.com/fsnotify/fsnotify v1.4.9
 github.com/fsnotify/fsnotify
-# github.com/fsouza/go-dockerclient v1.7.0
+# github.com/fsouza/go-dockerclient v1.7.1
 github.com/fsouza/go-dockerclient
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
 # github.com/godbus/dbus/v5 v5.0.3
 github.com/godbus/dbus/v5
-# github.com/gogo/protobuf v1.3.1
+# github.com/gogo/protobuf v1.3.2
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
@@ -307,7 +307,7 @@ github.com/mistifyio/go-zfs
 github.com/moby/sys/mount
 # github.com/moby/sys/mountinfo v0.4.0
 github.com/moby/sys/mountinfo
-# github.com/moby/term v0.0.0-20201110203204-bea5bbe245bf
+# github.com/moby/term v0.0.0-20201216013528-df9cb8a40635
 github.com/moby/term
 github.com/moby/term/windows
 # github.com/morikuni/aec v1.0.0
@@ -490,7 +490,8 @@ golang.org/x/net/trace
 # golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20210112080510-489259a85091
+# golang.org/x/sys v0.0.0-20210216224549-f992740a1bac
+golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
