@@ -5,9 +5,9 @@ go 1.12
 require (
 	github.com/containernetworking/cni v0.8.1
 	github.com/containers/common v0.35.0
-	github.com/containers/image/v5 v5.10.2
+	github.com/containers/image/v5 v5.10.3
 	github.com/containers/ocicrypt v1.1.0
-	github.com/containers/storage v1.25.1-0.20210211165435-4b14efb34e07
+	github.com/containers/storage v1.26.0
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316
