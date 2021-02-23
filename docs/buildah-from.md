@@ -53,10 +53,6 @@ Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option c
 
 Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host. (Examples: aarch64, arm, i686, ppc64le, s390x, x86_64)
 
-**--arch**="ARCH"
-
-Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host.
-
 **--authfile** *path*
 
 Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `buildah login`.
@@ -278,10 +274,6 @@ that a new network namespace should be created, or it can be "host" to indicate
 that the network namespace in which `Buildah` itself is being run should be
 reused, or it can be the path to a network namespace which is already in use by
 another process.
-
-**--os**="OS"
-
-Set the OS of the image to be pulled instead of using the current operating system of the host.
 
 **--os**="OS"
 
