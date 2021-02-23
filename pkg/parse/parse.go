@@ -959,7 +959,7 @@ func defaultIsolation() (define.Isolation, error) {
 func IsolationOption(isolation string) (define.Isolation, error) {
 	if isolation != "" {
 		switch strings.ToLower(isolation) {
-		case "oci":
+		case "oci", "default":
 			return define.IsolationOCI, nil
 		case "rootless":
 			return define.IsolationOCIRootless, nil
