@@ -237,9 +237,9 @@ integration_task:
         - env:
             DISTRO_NV: "${FEDORA_NAME}"
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
-        - env:
-            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+        # - env:
+        #     DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+        #     IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
         - env:
             DISTRO_NV: "${UBUNTU_NAME}"
             IMAGE_NAME: "${UBUNTU_CACHE_IMAGE_NAME}"
