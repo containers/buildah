@@ -162,6 +162,17 @@ load helpers
   expect_output --substring bin.*bin
 }
 
+@test "add with chmod" {
+  _prefetch busybox
+  createrandom ${TESTDIR}/randomfile
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
+  run_buildah add --chmod 777 $cid ${TESTDIR}/randomfile /tmp/random
+  run_buildah run $cid ls -l /tmp/random
+
+  expect_output --substring rwxrwxrwx
+}
+
 @test "add url" {
   _prefetch busybox
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox

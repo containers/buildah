@@ -194,6 +194,48 @@ load helpers
   expect_output "nobody:root" "stat UG /subdir"
 }
 
+@test "copy --chmod" {
+  mkdir -p ${TESTDIR}/subdir
+  mkdir -p ${TESTDIR}/other-subdir
+  createrandom ${TESTDIR}/subdir/randomfile
+  createrandom ${TESTDIR}/subdir/other-randomfile
+  createrandom ${TESTDIR}/randomfile
+  createrandom ${TESTDIR}/other-subdir/randomfile
+  createrandom ${TESTDIR}/other-subdir/other-randomfile
+
+  _prefetch alpine
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah config --workingdir / $cid
+  run_buildah copy --chmod 777 $cid ${TESTDIR}/randomfile
+  run_buildah copy --chmod 700 $cid ${TESTDIR}/randomfile /randomfile2
+  run_buildah copy --chmod 755 $cid ${TESTDIR}/randomfile /randomfile3
+  run_buildah copy --chmod 660 $cid ${TESTDIR}/subdir /subdir
+
+  run_buildah run $cid ls -l /randomfile
+  expect_output --substring rwxrwxrwx
+
+  run_buildah run $cid ls -l /randomfile2
+  expect_output --substring rwx------
+
+  run_buildah run $cid ls -l /randomfile3
+  expect_output --substring rwxr-xr-x
+
+  for i in randomfile other-randomfile ; do
+      run_buildah run $cid ls -l /subdir/$i
+      expect_output --substring rw-rw----
+  done
+
+  run_buildah run $cid ls -l /subdir
+  expect_output --substring rw-rw----
+
+  run_buildah copy --chmod 600 $cid ${TESTDIR}/other-subdir /subdir
+  for i in randomfile other-randomfile ; do
+      run_buildah run $cid ls -l /subdir/$i
+      expect_output --substring rw-------
+  done
+}
+
 @test "copy-symlink" {
   createrandom ${TESTDIR}/randomfile
   ln -s ${TESTDIR}/randomfile ${TESTDIR}/link-randomfile
