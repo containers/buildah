@@ -1235,7 +1235,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		s.builder.SetHealthcheck(nil)
 	}
 	s.builder.ClearLabels()
-	s.builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
+
 	for k, v := range config.Labels {
 		s.builder.SetLabel(k, v)
 	}
@@ -1247,6 +1247,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 			s.builder.SetLabel(label[0], "")
 		}
 	}
+	s.builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
 	for _, annotationSpec := range s.executor.annotations {
 		annotation := strings.SplitN(annotationSpec, "=", 2)
 		if len(annotation) > 1 {
