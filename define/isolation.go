@@ -21,14 +21,12 @@ const (
 // String converts a Isolation into a string.
 func (i Isolation) String() string {
 	switch i {
-	case IsolationDefault:
-		return "IsolationDefault"
-	case IsolationOCI:
-		return "IsolationOCI"
+	case IsolationDefault, IsolationOCI:
+		return "oci"
 	case IsolationChroot:
-		return "IsolationChroot"
+		return "chroot"
 	case IsolationOCIRootless:
-		return "IsolationOCIRootless"
+		return "rootless"
 	}
 	return fmt.Sprintf("unrecognized isolation type %d", i)
 }
