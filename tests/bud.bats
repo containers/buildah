@@ -1131,12 +1131,60 @@ function _test_http() {
   expect_output --substring "3267"
 }
 
+@test "bud with combined chown and chmod copy" {
+  _prefetch alpine
+  imgName=alpine-image
+  ctrName=alpine-chmod
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json  -t ${imgName} -f ${TESTSDIR}/bud/copy-chmod/Dockerfile.combined ${TESTSDIR}/bud/copy-chmod
+  expect_output --substring "chmod:777 user:2367 group:3267"
+}
+
+@test "bud with combined chown and chmod add" {
+  _prefetch alpine
+  imgName=alpine-image
+  ctrName=alpine-chmod
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json  -t ${imgName} -f ${TESTSDIR}/bud/add-chmod/Dockerfile.combined ${TESTSDIR}/bud/add-chmod
+  expect_output --substring "chmod:777 user:2367 group:3267"
+}
+
 @test "bud with chown copy with bad chown flag in Dockerfile with --layers" {
   _prefetch alpine
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/copy-chown/Dockerfile.bad ${TESTSDIR}/bud/copy-chown
-  expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
+  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image|stage> flags"
+}
+
+@test "bud with chmod copy" {
+  _prefetch alpine
+  imgName=alpine-image
+  ctrName=alpine-chmod
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/copy-chmod
+  expect_output --substring "rwxrwxrwx"
+  run_buildah from --name ${ctrName} ${imgName}
+  run_buildah run alpine-chmod ls -l /tmp/copychmod.txt
+  # Validate that output starts with 777 == "rwxrwxrwx"
+  expect_output --substring "rwxrwxrwx"
+}
+
+@test "bud with chmod copy with bad chmod flag in Dockerfile with --layers" {
+  _prefetch alpine
+  imgName=alpine-image
+  ctrName=alpine-chmod
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/copy-chmod/Dockerfile.bad ${TESTSDIR}/bud/copy-chmod
+  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image|stage> flags"
+}
+
+@test "bud with chmod add" {
+  _prefetch alpine
+  imgName=alpine-image
+  ctrName=alpine-chmod
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} ${TESTSDIR}/bud/add-chmod
+  expect_output --substring "rwxrwxrwx"
+  run_buildah from --name ${ctrName} ${imgName}
+  run_buildah run alpine-chmod ls -l /tmp/addchmod.txt
+  # Validate that rights equal 777 == "rwxrwxrwx"
+  expect_output --substring "rwxrwxrwx"
 }
 
 @test "bud with chown add" {
@@ -1160,7 +1208,15 @@ function _test_http() {
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/add-chown/Dockerfile.bad ${TESTSDIR}/bud/add-chown
-  expect_output --substring "ADD only supports the --chown=<uid:gid> flag"
+  expect_output --substring "ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flags"
+}
+
+@test "bud with chmod add with bad chmod flag in Dockerfile with --layers" {
+  _prefetch alpine
+  imgName=alpine-image
+  ctrName=alpine-chmod
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/add-chmod/Dockerfile.bad ${TESTSDIR}/bud/add-chmod
+  expect_output --substring "ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flags"
 }
 
 @test "bud with ADD file construct" {
