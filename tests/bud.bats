@@ -395,6 +395,18 @@ symlink(subdir)"
   expect_output "$want_output"
 }
 
+@test "bud-from-scratch-override-version-label" {
+  run_buildah --version
+  local -a output_fields=($output)
+  buildah_version=${output_fields[2]}
+  want_output='map["io.buildah.version":"'$buildah_version'"]'
+
+  target=scratch-image
+  run_buildah bud --label "io.buildah.version=oldversion" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
+  expect_output "$want_output"
+}
+
 @test "bud-from-scratch-annotation" {
   target=scratch-image
   run_buildah bud --annotation "test=annotation1,annotation2=z" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
