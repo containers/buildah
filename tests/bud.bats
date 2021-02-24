@@ -2586,3 +2586,29 @@ _EOF
   run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t testbud $mytmpdir                                                   
   expect_output --substring "COPY --from=galaxy /usr/share/ansible/collections /usr/share/ansible/collections"
 }
+
+@test "bud retain intermediary image" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+cat > $mytmpdir/Containerfile.a << _EOF
+FROM alpine
+LABEL image=a
+RUN echo foo
+_EOF
+
+cat > $mytmpdir/Containerfile.b << _EOF
+FROM image-a
+FROM scratch
+_EOF
+
+  run_buildah bud -f Containerfile.a -q --manifest=testlist -t image-a --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
+  cid=$output
+  run_buildah images -f "label=image=a"
+  expect_output --substring image-a
+
+  run_buildah bud -f Containerfile.b -q --manifest=testlist -t image-b --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
+  cid=$output
+  run_buildah images
+  expect_output --substring image-a
+}
