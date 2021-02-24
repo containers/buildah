@@ -1,0 +1,141 @@
+name: build multi-arch images
+
+on:
+  push:
+    branches: [ master ]
+  schedule:
+  - cron:  '0 8 * * *'
+  # allows to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  multi:
+    name: multi-arch Buildah build
+    env:
+      BUILDAH_QUAY_REGISTRY: quay.io/buildah
+      CONTAINERS_QUAY_REGISTRY: quay.io/containers
+      # list of architectures for build
+      PLATFORMS: linux/amd64,linux/s390x,linux/ppc64le,linux/arm64
+
+    # build several images in parallel(upstream and stable)
+    strategy:
+      matrix:
+        # where the Dockerfiles for builds are located at contrib/buildahimage directory
+        source:
+        - upstream
+        - stable
+    runs-on: ubuntu-latest
+    # internal registry for temporary build before push
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+        with:
+          driver-opts: network=host
+          install: true
+
+      - name: Build and push local Buildah
+        uses: docker/build-push-action@v2
+        with:
+          context: contrib/buildahimage/${{ matrix.source }}
+          file: ./contrib/buildahimage/${{ matrix.source }}/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: |
+            localhost:5000/buildah/${{ matrix.source }}
+
+      # Simple verification that container works
+      - name: amd64 container sniff test
+        id: sniff_test
+        run: |
+          VERSION_OUTPUT="$(docker run localhost:5000/buildah/${{ matrix.source }} buildah version)"
+          echo "$VERSION_OUTPUT"
+          echo ::set-output name=version_output::$VERSION_OUTPUT
+
+      # Generate image related info - names, labels
+      - name: Generate image information
+        id: image_info
+        run: |
+          # have special environment variable for image name.
+          # Names are different for upstream and stable Buildah images
+          if [ "${{ matrix.source }}" == "upstream" ]; then
+            # quay.io/buildah/upstream:master
+            echo ::set-output name=buildah_tag::"${{ env.BUILDAH_QUAY_REGISTRY}}/${{ matrix.source }}:master"
+          fi
+
+          if [ "${{ matrix.source }}" == "stable" ]; then
+            VERSION=v"$(echo "${{ steps.sniff_test.outputs.version_output }}" | head -n 1 | awk '{print $2}')"
+            # quay.io/buildah/stable:vX.X.X
+            echo ::set-output name=buildah_tag::"${{ env.BUILDAH_QUAY_REGISTRY}}/${{ matrix.source }}:${VERSION}"
+            # quay.io/contaners/buildah:vX.X.X
+            echo ::set-output name=containers_tag::"${{ env.CONTAINERS_QUAY_REGISTRY}}/buildah:${VERSION}"
+          fi
+
+          # have labels environment variable to use it in the further steps.
+          # Env variable is used to store multi-line value
+          echo "LABELS<<EOF" >> $GITHUB_ENV
+          echo "org.opencontainers.image.source=${{ github.event.repository.html_url }}" >> $GITHUB_ENV
+          echo "org.opencontainers.image.revision=${{ github.sha }}" >> $GITHUB_ENV
+          echo "org.opencontainers.image.created=$(date -u --iso-8601=seconds)" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      # Separate steps to login and push for buildah and containers quay
+      # repositories are required, because 2 sets of credentials are used and `docker
+      # login` as well as `podman login` do not support having 2 different
+      # credential sets for 1 registry.
+      # At the same time reuse of non-shell steps is not supported by Github Actions via
+      # anchors or composite actions
+
+      # Push to buildah Quay repo stable and upstream Buildah
+      - name: Login to buildah Quay registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.BUILDAH_QUAY_REGISTRY }}
+          username: ${{ secrets.BUILDAH_QUAY_USERNAME }}
+          password: ${{ secrets.BUILDAH_QUAY_PASSWORD }}
+
+      - name: Push images to buildah Quay
+        uses: docker/build-push-action@v2
+        with:
+          cache-from: type=registry,ref=localhost:5000/buildah/${{ matrix.source }}
+          cache-to: type=inline
+          context: contrib/buildahimage/${{ matrix.source }}
+          file: ./contrib/buildahimage/${{ matrix.source }}/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: ${{ steps.image_info.outputs.buildah_tag }}
+          labels: |
+            ${{ env.LABELS }}
+
+      # Push to containers Quay repo only stable Buildah
+      - name: Login to containers Quay registry
+        if: ${{ matrix.source == 'stable' }}
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.CONTAINERS_QUAY_REGISTRY}}
+          username: ${{ secrets.CONTAINERS_QUAY_USERNAME }}
+          password: ${{ secrets.CONTAINERS_QUAY_PASSWORD }}
+
+      - name: Push images to containers Quay
+        if: ${{ matrix.source == 'stable' }}
+        uses: docker/build-push-action@v2
+        with:
+          cache-from: type=registry,ref=localhost:5000/buildah/${{ matrix.source }}
+          cache-to: type=inline
+          context: contrib/buildahimage/${{ matrix.source }}
+          file: ./contrib/buildahimage/${{ matrix.source }}/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: ${{ steps.image_info.outputs.containers_tag }}
+          labels: |
+            ${{ env.LABELS }}
