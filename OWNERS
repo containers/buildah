@@ -3,11 +3,12 @@ approvers:
   - ashley-cui
   - cevich
   - giuseppe
+  - lsm5
   - nalind
   - rhatdan
   - umohnani8
   - vrothberg
-reviewers
+reviewers:
   - QiWang19
   - TomSweeneyRedHat
   - ashley-cui
@@ -17,6 +18,7 @@ reviewers
   - giuseppe
   - haircommander
   - jwhonce
+  - lsm5
   - mheon
   - mrunalp
   - nalind
