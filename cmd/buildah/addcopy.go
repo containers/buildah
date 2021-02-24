@@ -13,6 +13,7 @@ import (
 
 type addCopyResults struct {
 	addHistory bool
+	chmod      string
 	chown      string
 	quiet      bool
 	ignoreFile string
@@ -56,6 +57,7 @@ func init() {
 	addFlags.SetInterspersed(false)
 	addFlags.BoolVar(&addOpts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
 	addFlags.StringVar(&addOpts.chown, "chown", "", "set the user and group ownership of the destination content")
+	addFlags.StringVar(&addOpts.chmod, "chmod", "", "set the access permissions of the destination content")
 	addFlags.StringVar(&addOpts.contextdir, "contextdir", "", "context directory path")
 	addFlags.StringVar(&addOpts.ignoreFile, "ignorefile", "", "path to .dockerignore file")
 	addFlags.BoolVarP(&addOpts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
@@ -65,6 +67,7 @@ func init() {
 	copyFlags.SetInterspersed(false)
 	copyFlags.BoolVar(&copyOpts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
 	copyFlags.StringVar(&copyOpts.chown, "chown", "", "set the user and group ownership of the destination content")
+	copyFlags.StringVar(&copyOpts.chmod, "chmod", "", "set the access permissions of the destination content")
 	copyFlags.StringVar(&copyOpts.ignoreFile, "ignorefile", "", "path to .dockerignore file")
 	copyFlags.StringVar(&copyOpts.contextdir, "contextdir", "", "context directory path")
 	copyFlags.BoolVarP(&copyOpts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
@@ -108,6 +111,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, extractLocalArc
 	builder.ContentDigester.Restart()
 
 	options := buildah.AddAndCopyOptions{
+		Chmod:      iopts.chmod,
 		Chown:      iopts.chown,
 		ContextDir: iopts.contextdir,
 	}

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -29,6 +30,8 @@ import (
 
 // AddAndCopyOptions holds options for add and copy commands.
 type AddAndCopyOptions struct {
+	//Chmod sets the access permissions of the destination content.
+	Chmod string
 	// Chown is a spec for the user who should be given ownership over the
 	// newly-added content, potentially overriding permissions which would
 	// otherwise be set to 0:0.
@@ -73,7 +76,7 @@ func sourceIsRemote(source string) bool {
 }
 
 // getURL writes a tar archive containing the named content
-func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, writer io.Writer) error {
+func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, writer io.Writer, chmod *os.FileMode) error {
 	url, err := url.Parse(src)
 	if err != nil {
 		return err
@@ -130,13 +133,17 @@ func getURL(src string, chown *idtools.IDPair, mountpoint, renameTarget string, 
 		uid = chown.UID
 		gid = chown.GID
 	}
+	var mode int64 = 0600
+	if chmod != nil {
+		mode = int64(*chmod)
+	}
 	hdr := tar.Header{
 		Typeflag: tar.TypeReg,
 		Name:     name,
 		Size:     size,
 		Uid:      uid,
 		Gid:      gid,
-		Mode:     0600,
+		Mode:     mode,
 		ModTime:  date,
 	}
 	err = tw.WriteHeader(&hdr)
@@ -251,6 +258,16 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 			return errors.Wrapf(err, "error looking up UID/GID for %q", options.Chown)
 		}
 	}
+	var chmodDirsFiles *os.FileMode
+	if options.Chmod != "" {
+		p, err := strconv.ParseUint(options.Chmod, 8, 32)
+		if err != nil {
+			return errors.Wrapf(err, "error parsing chmod %q", options.Chmod)
+		}
+		perm := os.FileMode(p)
+		chmodDirsFiles = &perm
+	}
+
 	chownDirs = &idtools.IDPair{UID: int(user.UID), GID: int(user.GID)}
 	chownFiles = &idtools.IDPair{UID: int(user.UID), GID: int(user.GID)}
 	if options.Chown == "" && options.PreserveOwnership {
@@ -340,7 +357,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 			pipeReader, pipeWriter := io.Pipe()
 			wg.Add(1)
 			go func() {
-				getErr = getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter)
+				getErr = getURL(src, chownFiles, mountPoint, renameTarget, pipeWriter, chmodDirsFiles)
 				pipeWriter.Close()
 				wg.Done()
 			}()
@@ -459,9 +476,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 					Excludes:       options.Excludes,
 					ExpandArchives: extract,
 					ChownDirs:      chownDirs,
-					ChmodDirs:      nil,
+					ChmodDirs:      chmodDirsFiles,
 					ChownFiles:     chownFiles,
-					ChmodFiles:     nil,
+					ChmodFiles:     chmodDirsFiles,
 					StripSetuidBit: options.StripSetuidBit,
 					StripSetgidBit: options.StripSetgidBit,
 					StripStickyBit: options.StripStickyBit,

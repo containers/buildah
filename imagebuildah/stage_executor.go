@@ -322,6 +322,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			}
 		}
 		options := buildah.AddAndCopyOptions{
+			Chmod:             copy.Chmod,
 			Chown:             copy.Chown,
 			PreserveOwnership: preserveOwnership,
 			ContextDir:        contextDir,
@@ -723,15 +724,15 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		}
 
 		// Check if there's a --from if the step command is COPY.
-		// Also check the chown flag for validity.
+		// Also check the chmod and the chown flags for validity.
 		for _, flag := range step.Flags {
 			command := strings.ToUpper(step.Command)
-			// chown and from flags should have an '=' sign, '--chown=' or '--from='
-			if command == "COPY" && (flag == "--chown" || flag == "--from") {
-				return "", nil, errors.Errorf("COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags")
+			// chmod, chown and from flags should have an '=' sign, '--chmod=', '--chown=' or '--from='
+			if command == "COPY" && (flag == "--chmod" || flag == "--chown" || flag == "--from") {
+				return "", nil, errors.Errorf("COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image|stage> flags")
 			}
-			if command == "ADD" && flag == "--chown" {
-				return "", nil, errors.Errorf("ADD only supports the --chown=<uid:gid> flag")
+			if command == "ADD" && (flag == "--chmod" || flag == "--chown") {
+				return "", nil, errors.Errorf("ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flags")
 			}
 			if strings.Contains(flag, "--from") && command == "COPY" {
 				arr := strings.Split(flag, "=")
