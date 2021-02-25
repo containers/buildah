@@ -132,7 +132,7 @@ func before(cmd *cobra.Command) error {
 	}
 
 	switch cmd.Use {
-	case "", "help", "version", "mount":
+	case "", "help", "version", "mount", "login", "logout":
 		return nil
 	}
 	unshare.MaybeReexecUsingUserNamespace(false)
