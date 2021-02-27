@@ -49,6 +49,8 @@ buildah copy containerID '/myapp/app.conf' '/myapp/app.conf'
 
 buildah copy --chown myuser:mygroup containerID '/myapp/app.conf' '/myapp/app.conf'
 
+buildah copy --chmod 660 containerID '/myapp/app.conf' '/myapp/app.conf'
+
 buildah copy containerID '/home/myuser/myproject.go'
 
 buildah copy containerID '/home/myuser/myfiles.tar' '/tmp'
