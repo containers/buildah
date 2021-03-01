@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"runtime"
 	"strings"
 
 	"github.com/containers/buildah/define"
@@ -127,6 +128,34 @@ func resolveLocalImage(systemContext *types.SystemContext, store storage.Store, 
 	return nil, "", "", nil, nil
 }
 
+func imageMatch(ctx context.Context, ref types.ImageReference, systemContext *types.SystemContext) bool {
+	img, err := ref.NewImage(ctx, systemContext)
+	if err != nil {
+		logrus.Warnf("Failed to create newImage in imageMatch: %v", err)
+		return false
+	}
+	defer img.Close()
+	data, err := img.Inspect(ctx)
+	if err != nil {
+		logrus.Warnf("Failed to inspect img %s: %v", ref, err)
+		return false
+	}
+	os := systemContext.OSChoice
+	if os == "" {
+		os = runtime.GOOS
+	}
+	arch := systemContext.ArchitectureChoice
+	if arch == "" {
+		arch = runtime.GOARCH
+	}
+	if os == data.Os && arch == data.Architecture {
+		if systemContext.VariantChoice == "" || systemContext.VariantChoice == data.Variant {
+			return true
+		}
+	}
+	return false
+}
+
 func resolveImage(ctx context.Context, systemContext *types.SystemContext, store storage.Store, options BuilderOptions) (types.ImageReference, string, *storage.Image, error) {
 	if systemContext == nil {
 		systemContext = &types.SystemContext{}
@@ -159,7 +188,7 @@ func resolveImage(ctx context.Context, systemContext *types.SystemContext, store
 	}
 
 	if options.PullPolicy == define.PullNever || options.PullPolicy == define.PullIfMissing {
-		if localImage != nil {
+		if localImage != nil && imageMatch(ctx, localImageRef, systemContext) {
 			return localImageRef, localImageRef.Transport().Name(), localImage, nil
 		}
 		if options.PullPolicy == define.PullNever {
