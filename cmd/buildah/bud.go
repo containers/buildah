@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
@@ -110,15 +111,15 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		return err
 	}
 
-	pullPolicy := imagebuildah.PullIfMissing
+	pullPolicy := define.PullIfMissing
 	if iopts.Pull {
-		pullPolicy = imagebuildah.PullIfNewer
+		pullPolicy = define.PullIfNewer
 	}
 	if iopts.PullAlways {
-		pullPolicy = imagebuildah.PullAlways
+		pullPolicy = define.PullAlways
 	}
 	if iopts.PullNever {
-		pullPolicy = imagebuildah.PullNever
+		pullPolicy = define.PullNever
 	}
 	logrus.Debugf("Pull Policy for pull [%v]", pullPolicy)
 
@@ -160,7 +161,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		}
 	} else {
 		// The context directory could be a URL.  Try to handle that.
-		tempDir, subDir, err := imagebuildah.TempDirForURL("", "buildah", cliArgs[0])
+		tempDir, subDir, err := define.TempDirForURL("", "buildah", cliArgs[0])
 		if err != nil {
 			return errors.Wrapf(err, "error prepping temporary context directory")
 		}
@@ -279,9 +280,9 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		logrus.Debugf("--compress option specified but is ignored")
 	}
 
-	compression := imagebuildah.Gzip
+	compression := define.Gzip
 	if iopts.DisableCompression {
-		compression = imagebuildah.Uncompressed
+		compression = define.Uncompressed
 	}
 
 	if c.Flag("disable-content-trust").Changed {
@@ -310,7 +311,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		return errors.Wrapf(err, "unable to obtain decrypt config")
 	}
 
-	options := imagebuildah.BuildOptions{
+	options := define.BuildOptions{
 		AddCapabilities:         iopts.CapAdd,
 		AdditionalTags:          tags,
 		Annotations:             iopts.Annotation,

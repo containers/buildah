@@ -13,8 +13,6 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/completion"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/buildah/util"
-	"github.com/containers/common/pkg/auth"
 	commonComp "github.com/containers/common/pkg/completion"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/storage/pkg/unshare"
@@ -143,8 +141,8 @@ func GetNameSpaceFlags(flags *NameSpaceResults) pflag.FlagSet {
 	fs := pflag.FlagSet{}
 	fs.StringVar(&flags.IPC, string(specs.IPCNamespace), "", "'private', `path` of IPC namespace to join, or 'host'")
 	fs.StringVar(&flags.Network, string(specs.NetworkNamespace), "", "'private', 'none', 'ns:path' of network namespace to join, or 'host'")
-	fs.StringVar(&flags.CNIConfigDir, "cni-config-dir", util.DefaultCNIConfigDir, "`directory` of CNI configuration files")
-	fs.StringVar(&flags.CNIPlugInPath, "cni-plugin-path", util.DefaultCNIPluginPath, "`path` of CNI network plugins")
+	fs.StringVar(&flags.CNIConfigDir, "cni-config-dir", define.DefaultCNIConfigDir, "`directory` of CNI configuration files")
+	fs.StringVar(&flags.CNIPlugInPath, "cni-plugin-path", define.DefaultCNIPluginPath, "`path` of CNI network plugins")
 	fs.StringVar(&flags.PID, string(specs.PIDNamespace), "", "private, `path` of PID namespace to join, or 'host'")
 	fs.StringVar(&flags.UTS, string(specs.UTSNamespace), "", "private, :`path` of UTS namespace to join, or 'host'")
 	return fs
@@ -177,7 +175,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs := pflag.FlagSet{}
 	fs.String("arch", runtime.GOARCH, "set the ARCH of the image to the provided value instead of the architecture of the host")
 	fs.StringArrayVar(&flags.Annotation, "annotation", []string{}, "Set metadata for an image (default [])")
-	fs.StringVar(&flags.Authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file.")
+	fs.StringVar(&flags.Authfile, "authfile", "", "path of the authentication file.")
 	fs.StringArrayVar(&flags.BuildArg, "build-arg", []string{}, "`argument=value` to supply to the builder")
 	fs.StringVar(&flags.CacheFrom, "cache-from", "", "Images to utilise as potential cache sources. The build process does not currently support caching so this is a NOOP.")
 	fs.StringVar(&flags.CertDir, "cert-dir", "", "use certificates at the specified path to access the registry")

@@ -7,7 +7,6 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
@@ -125,9 +124,9 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	if len(args) > 0 {
 		image = args[0]
 	}
-	compress := imagebuildah.Gzip
+	compress := define.Gzip
 	if iopts.disableCompression {
-		compress = imagebuildah.Uncompressed
+		compress = define.Uncompressed
 	}
 
 	format, err := getFormat(iopts.format)

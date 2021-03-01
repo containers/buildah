@@ -127,7 +127,7 @@ type imageTypeAndHistoryAndDiffIDs struct {
 }
 
 // NewExecutor creates a new instance of the imagebuilder.Executor interface.
-func NewExecutor(store storage.Store, options BuildOptions, mainNode *parser.Node) (*Executor, error) {
+func NewExecutor(store storage.Store, options define.BuildOptions, mainNode *parser.Node) (*Executor, error) {
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get container config")
