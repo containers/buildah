@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/containernetworking/cni v0.8.1
 	github.com/containers/common v0.35.0
-	github.com/containers/image/v5 v5.10.3
+	github.com/containers/image/v5 v5.10.4
 	github.com/containers/ocicrypt v1.1.0
 	github.com/containers/storage v1.26.0
 	github.com/docker/distribution v2.7.1+incompatible
