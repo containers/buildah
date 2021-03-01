@@ -217,16 +217,22 @@ load helpers
   skip_if_rootless
 
   _prefetch alpine
-  run_buildah from --quiet --memory=40m --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --memory=40m --memory-swap=70m --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
 
   # Life is much more complicated under cgroups v2
   mpath='/sys/fs/cgroup/memory/memory.limit_in_bytes'
+  spath='/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes'
+  expect_sw=73400320
   if is_cgroupsv2; then
       mpath="/sys/fs/cgroup\$(awk -F: '{print \$3}' /proc/self/cgroup)/memory.max"
+      spath="/sys/fs/cgroup\$(awk -F: '{print \$3}' /proc/self/cgroup)/memory.swap.max"
+      expect_sw=31457280
   fi
   run_buildah run $cid sh -c "cat $mpath"
   expect_output "41943040" "$mpath"
+  run_buildah run $cid sh -c "cat $spath"
+  expect_output "$expect_sw" "$spath"
 }
 
 @test "from volume test" {
@@ -438,4 +444,53 @@ load helpers
   cid=$output
 #  run_buildah run $cid arch
 #  expect_output "s390x"
+}
+
+@test "from --authfile test" {
+  _prefetch busybox
+  run_buildah login --tls-verify=false --authfile ${TESTDIR}/test.auth --username testuser --password testpassword localhost:5000
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --authfile ${TESTDIR}/test.auth busybox docker://localhost:5000/buildah/busybox:latest
+  target=busybox-image
+  run_buildah from -q --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --authfile ${TESTDIR}/test.auth docker://localhost:5000/buildah/busybox:latest
+  run_buildah rm $output
+  run_buildah rmi localhost:5000/buildah/busybox:latest
+}
+
+@test "from --cap-add/--cap-drop test" {
+  _prefetch alpine
+  # Try with default caps.
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah run $cid grep ^CapEff /proc/self/status
+  defaultcaps="$output"
+  run_buildah rm $cid
+  # Try adding DAC_OVERRIDE.
+  run_buildah from --quiet --cap-add CAP_DAC_OVERRIDE --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah run $cid grep ^CapEff /proc/self/status
+  addedcaps="$output"
+  run_buildah rm $cid
+  # Try dropping DAC_OVERRIDE.
+  run_buildah from --quiet --cap-drop CAP_DAC_OVERRIDE --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah run $cid grep ^CapEff /proc/self/status
+  droppedcaps="$output"
+  run_buildah rm $cid
+  # Okay, now the "dropped" and "added" should be different.
+  test "$addedcaps" != "$droppedcaps"
+  # And one or the other should be different from the default, with the other being the same.
+  if test "$defaultcaps" == "$addedcaps" ; then
+    test "$defaultcaps" != "$droppedcaps"
+  fi
+  if test "$defaultcaps" == "$droppedcaps" ; then
+    test "$defaultcaps" != "$addedcaps"
+  fi
+}
+
+@test "from ulimit test" {
+  _prefetch alpine
+  run_buildah from -q --ulimit cpu=300 --signature-policy ${TESTDIR}/policy.json alpine
+  cid=$output
+  run_buildah run $cid /bin/sh -c "ulimit -t"
+  expect_output "300" "ulimit -t"
 }

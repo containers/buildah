@@ -59,3 +59,21 @@ load helpers
   expect_output --substring --from="${lines[0]}" '^[0-9a-f]{64}$'
   expect_output --substring --from="${lines[1]}" '^[0-9a-f]{64}$'
 }
+
+@test "containers all test" {
+  _prefetch alpine busybox
+  run_buildah from --quiet --pull=false --signature-policy ${TESTDIR}/policy.json alpine
+  podman run -d --root ${TESTDIR}/root --storage-driver ${STORAGE_DRIVER} busybox
+  run_buildah containers
+  expect_line_count 2
+  run_buildah containers -a
+  expect_line_count 3
+}
+
+@test "containers notruncate test" {
+  _prefetch alpine
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah containers --notruncate
+  expect_line_count 2
+  expect_output --substring --from="${lines[1]}" '^[0-9a-f]{64}'
+}

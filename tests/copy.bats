@@ -325,3 +325,17 @@ stuff/mystuff"
   run_buildah umount $cid
   expect_output --from="$filelist" "$expect" "container file list"
 }
+
+@test "copy-quiet" {
+  createrandom ${TESTDIR}/randomfile
+  _prefetch alpine
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah mount $cid
+  root=$output
+  run_buildah copy --quiet $cid ${TESTDIR}/randomfile /
+  expect_output ""
+  cmp ${TESTDIR}/randomfile $root/randomfile
+  run_buildah umount $cid
+  run_buildah rm $cid
+}

@@ -533,3 +533,15 @@ function configure_and_check_user() {
 	expect_output --substring "nameserver 110.110.0.110"
 	run_buildah rm -a
 }
+
+@test "run --user" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run --user sync $cid whoami
+	expect_output "sync"
+	run_buildah 125 run --user noexist $cid whoami
+	expect_output --substring "unknown user error"
+}
