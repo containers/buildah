@@ -70,6 +70,7 @@ func isArchivePath(path string) bool {
 type requestType string
 
 const (
+	requestEval  requestType = "EVAL"
 	requestStat  requestType = "STAT"
 	requestGet   requestType = "GET"
 	requestPut   requestType = "PUT"
@@ -95,6 +96,8 @@ type request struct {
 
 func (req *request) Excludes() []string {
 	switch req.Request {
+	case requestEval:
+		return nil
 	case requestStat:
 		return req.StatOptions.Excludes
 	case requestGet:
@@ -112,6 +115,8 @@ func (req *request) Excludes() []string {
 
 func (req *request) UIDMap() []idtools.IDMap {
 	switch req.Request {
+	case requestEval:
+		return nil
 	case requestStat:
 		return nil
 	case requestGet:
@@ -129,6 +134,8 @@ func (req *request) UIDMap() []idtools.IDMap {
 
 func (req *request) GIDMap() []idtools.IDMap {
 	switch req.Request {
+	case requestEval:
+		return nil
 	case requestStat:
 		return nil
 	case requestGet:
@@ -148,6 +155,7 @@ func (req *request) GIDMap() []idtools.IDMap {
 type response struct {
 	Error string `json:",omitempty"`
 	Stat  statResponse
+	Eval  evalResponse
 	Get   getResponse
 	Put   putResponse
 	Mkdir mkdirResponse
@@ -156,6 +164,11 @@ type response struct {
 // statResponse encodes a response for a single Stat request.
 type statResponse struct {
 	Globs []*StatsForGlob
+}
+
+// evalResponse encodes a response for a single Eval request.
+type evalResponse struct {
+	Evaluated string
 }
 
 // StatsForGlob encode results for a single glob pattern passed to Stat().
@@ -190,6 +203,33 @@ type putResponse struct {
 
 // mkdirResponse encodes a response for a single Mkdir request.
 type mkdirResponse struct {
+}
+
+// EvalOptions controls parts of Eval()'s behavior.
+type EvalOptions struct {
+}
+
+// Eval evaluates the directory's path, including any intermediate symbolic
+// links.
+// If root is specified and the current OS supports it, and the calling process
+// has the necessary privileges, evaluation is performed in a chrooted context.
+// If the directory is specified as an absolute path, it should either be the
+// root directory or a subdirectory of the root directory.  Otherwise, the
+// directory is treated as a path relative to the root directory.
+func Eval(root string, directory string, options EvalOptions) (string, error) {
+	req := request{
+		Request:   requestEval,
+		Root:      root,
+		Directory: directory,
+	}
+	resp, err := copier(nil, nil, req)
+	if err != nil {
+		return "", err
+	}
+	if resp.Error != "" {
+		return "", errors.New(resp.Error)
+	}
+	return resp.Eval.Evaluated, nil
 }
 
 // StatOptions controls parts of Stat()'s behavior.
@@ -765,6 +805,9 @@ func copierHandler(bulkReader io.Reader, bulkWriter io.Writer, req request) (*re
 	switch req.Request {
 	default:
 		return nil, nil, errors.Errorf("not an implemented request type: %q", req.Request)
+	case requestEval:
+		resp := copierHandlerEval(req)
+		return resp, nil, nil
 	case requestStat:
 		resp := copierHandlerStat(req, pm)
 		return resp, nil, nil
@@ -871,6 +914,17 @@ func resolvePath(root, path string, pm *fileutils.PatternMatcher) (string, error
 		components = components[1:]
 	}
 	return workingPath, nil
+}
+
+func copierHandlerEval(req request) *response {
+	errorResponse := func(fmtspec string, args ...interface{}) *response {
+		return &response{Error: fmt.Sprintf(fmtspec, args...), Eval: evalResponse{}}
+	}
+	resolvedTarget, err := resolvePath(req.Root, req.Directory, nil)
+	if err != nil {
+		return errorResponse("copier: eval: error resolving %q: %v", req.Directory, err)
+	}
+	return &response{Eval: evalResponse{Evaluated: filepath.Join(req.rootPrefix, resolvedTarget)}}
 }
 
 func copierHandlerStat(req request, pm *fileutils.PatternMatcher) *response {

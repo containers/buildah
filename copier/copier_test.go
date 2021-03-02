@@ -1336,6 +1336,60 @@ func testGetMultiple(t *testing.T) {
 	}
 }
 
+func TestEvalNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	testEval(t)
+	canChroot = couldChroot
+}
+
+func testEval(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "copier-test-")
+	if err != nil {
+		require.NoError(t, err, "error creating temporary directory")
+	}
+	defer os.RemoveAll(tmp)
+	options := EvalOptions{}
+	linkname := filepath.Join(tmp, "link")
+	vectors := []struct {
+		id, linkTarget, inputPath, evaluatedPath string
+	}{
+		{"0a", "target", "link/foo", "target/foo"},
+		{"1a", "/target", "link/foo", "target/foo"},
+		{"2a", "../target", "link/foo", "target/foo"},
+		{"3a", "/../target", "link/foo", "target/foo"},
+		{"4a", "../../target", "link/foo", "target/foo"},
+		{"5a", "target/subdirectory", "link/foo", "target/subdirectory/foo"},
+		{"6a", "/target/subdirectory", "link/foo", "target/subdirectory/foo"},
+		{"7a", "../target/subdirectory", "link/foo", "target/subdirectory/foo"},
+		{"8a", "/../target/subdirectory", "link/foo", "target/subdirectory/foo"},
+		{"9a", "../../target/subdirectory", "link/foo", "target/subdirectory/foo"},
+		{"0b", "target", "link/../foo", "foo"},                    // inputPath is lexically cleaned to "foo" early
+		{"1b", "/target", "link/../foo", "foo"},                   // inputPath is lexically cleaned to "foo" early
+		{"2b", "../target", "link/../foo", "foo"},                 // inputPath is lexically cleaned to "foo" early
+		{"3b", "/../target", "link/../foo", "foo"},                // inputPath is lexically cleaned to "foo" early
+		{"4b", "../../target", "link/../foo", "foo"},              // inputPath is lexically cleaned to "foo" early
+		{"5b", "target/subdirectory", "link/../foo", "foo"},       // inputPath is lexically cleaned to "foo" early
+		{"6b", "/target/subdirectory", "link/../foo", "foo"},      // inputPath is lexically cleaned to "foo" early
+		{"7b", "../target/subdirectory", "link/../foo", "foo"},    // inputPath is lexically cleaned to "foo" early
+		{"8b", "/../target/subdirectory", "link/../foo", "foo"},   // inputPath is lexically cleaned to "foo" early
+		{"9b", "../../target/subdirectory", "link/../foo", "foo"}, // inputPath is lexically cleaned to "foo" early
+	}
+	for _, vector := range vectors {
+		t.Run(fmt.Sprintf("id=%s", vector.id), func(t *testing.T) {
+			err = os.Symlink(vector.linkTarget, linkname)
+			if err != nil && os.IsExist(err) {
+				os.Remove(linkname)
+				err = os.Symlink(vector.linkTarget, linkname)
+			}
+			require.NoErrorf(t, err, "error creating link from %q to %q", linkname, vector.linkTarget)
+			evaluated, err := Eval(tmp, filepath.Join(tmp, vector.inputPath), options)
+			require.NoErrorf(t, err, "error evaluating %q: %v", vector.inputPath, err)
+			require.Equalf(t, filepath.Join(tmp, vector.evaluatedPath), evaluated, "evaluation of %q with %q pointing to %q failed", vector.inputPath, linkname, vector.linkTarget)
+		})
+	}
+}
+
 func TestMkdirNoChroot(t *testing.T) {
 	couldChroot := canChroot
 	canChroot = false
