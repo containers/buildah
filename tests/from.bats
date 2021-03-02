@@ -458,32 +458,33 @@ load helpers
 
 @test "from --cap-add/--cap-drop test" {
   _prefetch alpine
+  CAP_DAC_OVERRIDE=2  # unlikely to change
+
   # Try with default caps.
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah run $cid grep ^CapEff /proc/self/status
+  run_buildah run $cid awk '/^CapEff/{print $2;}' /proc/self/status
   defaultcaps="$output"
   run_buildah rm $cid
-  # Try adding DAC_OVERRIDE.
-  run_buildah from --quiet --cap-add CAP_DAC_OVERRIDE --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-  cid=$output
-  run_buildah run $cid grep ^CapEff /proc/self/status
-  addedcaps="$output"
-  run_buildah rm $cid
-  # Try dropping DAC_OVERRIDE.
-  run_buildah from --quiet --cap-drop CAP_DAC_OVERRIDE --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-  cid=$output
-  run_buildah run $cid grep ^CapEff /proc/self/status
-  droppedcaps="$output"
-  run_buildah rm $cid
-  # Okay, now the "dropped" and "added" should be different.
-  test "$addedcaps" != "$droppedcaps"
-  # And one or the other should be different from the default, with the other being the same.
-  if test "$defaultcaps" == "$addedcaps" ; then
-    test "$defaultcaps" != "$droppedcaps"
-  fi
-  if test "$defaultcaps" == "$droppedcaps" ; then
-    test "$defaultcaps" != "$addedcaps"
+
+  if ((0x$defaultcaps & 0x$CAP_DAC_OVERRIDE)); then
+    run_buildah from --quiet --cap-drop CAP_DAC_OVERRIDE --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+    cid=$output
+    run_buildah run $cid awk '/^CapEff/{print $2;}' /proc/self/status
+    droppedcaps="$output"
+    run_buildah rm $cid
+    if ((0x$droppedcaps & 0x$CAP_DAC_OVERRIDE)); then
+      die "--cap-drop did not drop DAC_OVERRIDE: $droppedcaps"
+    fi
+  else
+    run_buildah from --quiet --cap-add CAP_DAC_OVERRIDE --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+    cid=$output
+    run_buildah run $cid awk '/^CapEff/{print $2;}' /proc/self/status
+    addedcaps="$output"
+    run_buildah rm $cid
+    if (( !(0x$addedcaps & 0x$CAP_DAC_OVERRIDE) )); then
+      die "--cap-add did not add DAC_OVERRIDE: $addedcaps"
+    fi
   fi
 }
 
