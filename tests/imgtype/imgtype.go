@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/docker"
 	"github.com/containers/buildah/util"
 	"github.com/containers/image/v5/manifest"
@@ -35,7 +36,7 @@ func main() {
 	driver := flag.String("storage-driver", storeOptions.GraphDriverName, "storage driver")
 	opts := flag.String("storage-opts", "", "storage option list (comma separated)")
 	policy := flag.String("signature-policy", "", "signature policy file")
-	mtype := flag.String("expected-manifest-type", buildah.OCIv1ImageManifest, "expected manifest type")
+	mtype := flag.String("expected-manifest-type", define.OCIv1ImageManifest, "expected manifest type")
 	showm := flag.Bool("show-manifest", false, "output the manifest JSON")
 	rebuildm := flag.Bool("rebuild-manifest", false, "rebuild the manifest JSON")
 	showc := flag.Bool("show-config", false, "output the configuration JSON")
@@ -46,10 +47,10 @@ func main() {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 	switch *mtype {
-	case buildah.OCIv1ImageManifest:
+	case define.OCIv1ImageManifest:
 		expectedManifestType = *mtype
 		expectedConfigType = v1.MediaTypeImageConfig
-	case buildah.Dockerv2ImageManifest:
+	case define.Dockerv2ImageManifest:
 		expectedManifestType = *mtype
 		expectedConfigType = manifest.DockerV2Schema2ConfigMediaType
 	case "*":
@@ -57,7 +58,7 @@ func main() {
 		expectedConfigType = ""
 	default:
 		logrus.Errorf("unknown -expected-manifest-type value, expected either %q or %q or %q",
-			buildah.OCIv1ImageManifest, buildah.Dockerv2ImageManifest, "*")
+			define.OCIv1ImageManifest, define.Dockerv2ImageManifest, "*")
 		return
 	}
 	if root != nil {
@@ -145,7 +146,7 @@ func main() {
 		}
 
 		switch expectedManifestType {
-		case buildah.OCIv1ImageManifest:
+		case define.OCIv1ImageManifest:
 			err = json.Unmarshal(manifest, &oManifest)
 			if err != nil {
 				logrus.Errorf("error parsing manifest from %q: %v", image, err)
@@ -160,7 +161,7 @@ func main() {
 			}
 			manifestType = v1.MediaTypeImageManifest
 			configType = oManifest.Config.MediaType
-		case buildah.Dockerv2ImageManifest:
+		case define.Dockerv2ImageManifest:
 			err = json.Unmarshal(manifest, &dManifest)
 			if err != nil {
 				logrus.Errorf("error parsing manifest from %q: %v", image, err)
@@ -178,7 +179,7 @@ func main() {
 		}
 
 		switch manifestType {
-		case buildah.OCIv1ImageManifest:
+		case define.OCIv1ImageManifest:
 			if rebuildm != nil && *rebuildm {
 				err = json.Unmarshal(manifest, &oManifest)
 				if err != nil {
@@ -207,7 +208,7 @@ func main() {
 					continue
 				}
 			}
-		case buildah.Dockerv2ImageManifest:
+		case define.Dockerv2ImageManifest:
 			if rebuildm != nil && *rebuildm {
 				err = json.Unmarshal(manifest, &dManifest)
 				if err != nil {

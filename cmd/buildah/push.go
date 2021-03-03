@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
-	"github.com/containers/buildah/imagebuildah"
+	"github.com/containers/buildah/define"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
@@ -125,9 +125,9 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		return errors.New("Only two arguments are necessary to push: source and destination")
 	}
 
-	compress := imagebuildah.Gzip
+	compress := define.Gzip
 	if iopts.disableCompression {
-		compress = imagebuildah.Uncompressed
+		compress = define.Uncompressed
 	}
 
 	store, err := getStore(c)

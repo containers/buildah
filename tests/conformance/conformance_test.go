@@ -506,7 +506,7 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 	}
 	// set up build options
 	output := &bytes.Buffer{}
-	options := imagebuildah.BuildOptions{
+	options := define.BuildOptions{
 		ContextDirectory: contextDir,
 		CommonBuildOpts:  &define.CommonBuildOptions{},
 		NamespaceOptions: []define.NamespaceOption{{

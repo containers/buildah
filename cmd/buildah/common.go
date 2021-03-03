@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/define"
 	"github.com/containers/common/pkg/umask"
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
@@ -397,10 +398,10 @@ func getChildren(ctx context.Context, sc *types.SystemContext, store storage.Sto
 
 func getFormat(format string) (string, error) {
 	switch format {
-	case buildah.OCI:
-		return buildah.OCIv1ImageManifest, nil
-	case buildah.DOCKER:
-		return buildah.Dockerv2ImageManifest, nil
+	case define.OCI:
+		return define.OCIv1ImageManifest, nil
+	case define.DOCKER:
+		return define.Dockerv2ImageManifest, nil
 	default:
 		return "", errors.Errorf("unrecognized image type %q", format)
 	}
