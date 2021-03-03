@@ -491,12 +491,10 @@ func testPut(t *testing.T) {
 					t.Skipf("test archive %q can only be tested with root privileges, skipping", testArchives[i].name)
 				}
 
-				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.NoError(t, err, "error creating temporary directory")
-				defer os.RemoveAll(tmp)
+				tmp := t.TempDir()
 
 				archive := makeArchive(testArchives[i].headers, testArchives[i].contents)
-				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, Rename: renames.renames}, archive)
+				err := Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, Rename: renames.renames}, archive)
 				require.NoErrorf(t, err, "error extracting archive %q to directory %q", testArchives[i].name, tmp)
 
 				var found []string
@@ -532,10 +530,8 @@ func testPut(t *testing.T) {
 					{Name: "test", Typeflag: tar.TypeDir, Size: 0, Mode: 0755, ModTime: testDate},
 					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0755, Linkname: "target", ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.NoError(t, err, "error creating temporary directory")
-				defer os.RemoveAll(tmp)
-				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
+				tmp := t.TempDir()
+				err := Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
 				if overwrite {
 					if unwrapError(err) != syscall.EPERM {
 						assert.Nilf(t, err, "expected to overwrite directory with type %c: %v", typeFlag, err)
@@ -558,10 +554,8 @@ func testPut(t *testing.T) {
 					{Name: "link", Typeflag: tar.TypeLink, Size: 0, Mode: 0600, ModTime: testDate, Linkname: "test"},
 					{Name: "unrelated", Typeflag: tar.TypeReg, Size: 0, Mode: 0600, ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.NoError(t, err, "error creating temporary directory")
-				defer os.RemoveAll(tmp)
-				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, IgnoreDevices: ignoreDevices}, bytes.NewReader(archive))
+				tmp := t.TempDir()
+				err := Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, IgnoreDevices: ignoreDevices}, bytes.NewReader(archive))
 				require.Nilf(t, err, "expected to extract content with typeflag %c without an error: %v", typeFlag, err)
 				fileList, err := enumerateFiles(tmp)
 				require.Nilf(t, err, "unexpected error scanning the contents of extraction directory for typeflag %c: %v", typeFlag, err)
