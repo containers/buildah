@@ -46,6 +46,16 @@ func TestGetMultipleChroot(t *testing.T) {
 	canChroot = couldChroot
 }
 
+func TestEvalChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skipf("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	testEval(t)
+	canChroot = couldChroot
+}
+
 func TestMkdirChroot(t *testing.T) {
 	if uid != 0 {
 		t.Skipf("chroot() requires root privileges, skipping")
