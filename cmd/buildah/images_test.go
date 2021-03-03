@@ -176,7 +176,7 @@ func TestOutputImagesArgNoMatch(t *testing.T) {
 	_, err = captureOutputWithError(func() error {
 		return outputImages(getContext(), &testSystemContext, store, images[:1], nil, "foo:", opts)
 	})
-	if err == nil || err.Error() != "No such image foo:" {
+	if err == nil || err.Error() != "No such image: foo:" {
 		t.Fatalf("expected error arg no match")
 	}
 }
