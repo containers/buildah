@@ -30,7 +30,7 @@ load helpers
   [ "$status" -ne 0 ]
 }
 
-@test "overlay dest permissions" {
+@test "overlay source permissions" {
   if test \! -e /usr/bin/fuse-overlayfs -a "$BUILDAH_ISOLATION" = "rootless"; then
     skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION" and no /usr/bin/fuse-overlayfs present
   elif test "$STORAGE_DRIVER" = "vfs"; then
@@ -38,17 +38,13 @@ load helpers
   fi
   image=alpine
   mkdir ${TESTDIR}/lower
-  run_buildah from --quiet --quiet --signature-policy ${TESTSDIR}/policy.json $image
-  cid=$output
-  run_buildah run $cid sh -c 'ls -ld /tmp | cut -f1 -d" "'
-  permission=$output
-  run_buildah rm $cid
-
-  run_buildah from --quiet -v ${TESTDIR}/lower:/tmp:O --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  chmod 770 ${TESTDIR}/lower
+  permissions=`ls -ld ${TESTDIR}/lower | cut -f1 -d" "`
+  run_buildah from --quiet -v ${TESTDIR}/lower:/tmp/test:O --quiet --signature-policy ${TESTSDIR}/policy.json $image
   cid=$output
 
   # This should succeed
-  run_buildah run $cid sh -c 'ls -ld /tmp | cut -f1 -d" "'
+  run_buildah run $cid sh -c 'ls -ld /tmp/test | cut -f1 -d" "'
   expect_output $permission
 
   # Create and remove content in the overlay directory, should succeed
