@@ -60,14 +60,22 @@ load helpers
   expect_output --substring --from="${lines[1]}" '^[0-9a-f]{64}$'
 }
 
+function run_podman() {
+  run podman --root ${TESTDIR}/root --storage-driver ${STORAGE_DRIVER} --events-backend none $@
+  echo $output
+  return $status
+}
+
 @test "containers all test" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTDIR}/policy.json alpine
-  podman run -d --root ${TESTDIR}/root --storage-driver ${STORAGE_DRIVER} busybox
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_podman run --name podman-container busybox ls || die "podman run failed."
   run_buildah containers
   expect_line_count 2
   run_buildah containers -a
   expect_line_count 3
+  expect_output --substring --from="${lines[2]}" 'podman-container'
+  run_podman rm podman-container || die "podman rm failed."
 }
 
 @test "containers notruncate test" {
