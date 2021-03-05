@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.19.7
+Version:        1.19.8
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Mar 8, 2021 Valentin Rothberg <rothberg@redhat.com> 1.19.8-1
+- copier: support ignoring EPERMs
+
 * Thu Mar 4, 2021 Dan Walsh <dwalsh@redhat.com> 1.19.7-1
 - Set upperdir permissions based on source
 
