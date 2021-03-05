@@ -45,6 +45,11 @@ const (
 	// manifest, suitable for specifying as a value of the
 	// PreferredManifestType member of a CommitOptions structure.
 	Dockerv2ImageManifest = manifest.DockerV2Schema2MediaType
+
+	// OCI used to define the "oci" image format
+	OCI = "oci"
+	// DOCKER used to define the "docker" image format
+	DOCKER = "docker"
 )
 
 var (
