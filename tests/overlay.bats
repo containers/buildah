@@ -18,12 +18,13 @@ load helpers
   # This should succeed
   run_buildah run $cid ls /lower/foo
 
-  # Create and remove content in the overlay directory, should succeed
+  # Create and remove content in the overlay directory, should succeed,
+  # resetting the contents between each run.
   run_buildah run $cid touch /lower/bar
   run_buildah run $cid rm /lower/foo
 
   # This should fail, second runs of containers go back to original
-  run_buildah 125 run $cid ls /lower/bar
+  run_buildah 1 run $cid ls /lower/bar
 
   # This should fail
   run ls ${TESTDIR}/lower/bar
@@ -37,24 +38,24 @@ load helpers
     skip "skipping overlay test because \$STORAGE_DRIVER = $STORAGE_DRIVER"
   fi
   image=alpine
-  mkdir ${TESTDIR}/lower
-  chmod 770 ${TESTDIR}/lower
-  permissions=`ls -ld ${TESTDIR}/lower | cut -f1 -d" "`
+  mkdir -m 770 ${TESTDIR}/lower
+  permission=`stat -c %a ${TESTDIR}/lower`
   run_buildah from --quiet -v ${TESTDIR}/lower:/tmp/test:O --quiet --signature-policy ${TESTSDIR}/policy.json $image
   cid=$output
 
   # This should succeed
-  run_buildah run $cid sh -c 'ls -ld /tmp/test | cut -f1 -d" "'
+  run_buildah run $cid sh -c 'stat -c %a /tmp/test'
   expect_output $permission
 
   # Create and remove content in the overlay directory, should succeed
-  run_buildah run $cid touch /lower/bar
-  run_buildah run $cid rm /lower/foo
+  touch ${TESTDIR}/lower/foo
+  run_buildah run $cid touch /tmp/test/bar
+  run_buildah run $cid rm /tmp/test/foo
 
   # This should fail, second runs of containers go back to original
-  run_buildah 125 run $cid ls /lower/bar
+  run_buildah 1 run $cid ls /tmp/test/bar
 
-  # This should fail
+  # This should fail since /tmp/test was an overlay, not a bind mount
   run ls ${TESTDIR}/lower/bar
   [ "$status" -ne 0 ]
 }

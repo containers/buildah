@@ -149,6 +149,10 @@ unit_task:
     binary_artifacts:
         path: ./bin/*
 
+    env:
+        matrix:
+            STORAGE_DRIVER: 'vfs'
+            STORAGE_DRIVER: 'overlay'
 
 conformance_task:
     name: "Docker Build Conformance"
@@ -165,6 +169,10 @@ conformance_task:
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     conformance_test_script: '${SCRIPT_BASE}/test.sh conformance |& ${_TIMESTAMP}'
 
+    env:
+        matrix:
+            STORAGE_DRIVER: 'vfs'
+            STORAGE_DRIVER: 'overlay'
 
 # Confirm cross-compile ALL archetectures on a Mac OS-X VM.
 cross_build_task:
@@ -268,6 +276,10 @@ integration_task:
         package_versions_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh packages'
         golang_version_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh golang'
 
+    env:
+        matrix:
+            STORAGE_DRIVER: 'vfs'
+            STORAGE_DRIVER: 'overlay'
 
 in_podman_task:
     name: "Containerized Integration"
@@ -281,7 +293,6 @@ in_podman_task:
         IN_PODMAN: 'true'
         BUILDAH_ISOLATION: 'chroot'
         STORAGE_DRIVER: 'vfs'
-        STORAGE_OPTIONS: ''
 
     # Separate scripts for separate outputs, makes debugging easier.
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
