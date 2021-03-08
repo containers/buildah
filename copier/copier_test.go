@@ -491,9 +491,8 @@ func testPut(t *testing.T) {
 					t.Skipf("test archive %q can only be tested with root privileges, skipping", testArchives[i].name)
 				}
 
-				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.NoError(t, err, "error creating temporary directory")
-				defer os.RemoveAll(tmp)
+				tmp, err := ioutil.TempDir("", "")
+				require.NoError(t, err, "error creating temp directory")
 
 				archive := makeArchive(testArchives[i].headers, testArchives[i].contents)
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, Rename: renames.renames}, archive)
@@ -532,9 +531,8 @@ func testPut(t *testing.T) {
 					{Name: "test", Typeflag: tar.TypeDir, Size: 0, Mode: 0755, ModTime: testDate},
 					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0755, Linkname: "target", ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.NoError(t, err, "error creating temporary directory")
-				defer os.RemoveAll(tmp)
+				tmp, err := ioutil.TempDir("", "")
+				require.NoError(t, err, "error creating temp directory")
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
 				if overwrite {
 					if unwrapError(err) != syscall.EPERM {
@@ -558,9 +556,8 @@ func testPut(t *testing.T) {
 					{Name: "link", Typeflag: tar.TypeLink, Size: 0, Mode: 0600, ModTime: testDate, Linkname: "test"},
 					{Name: "unrelated", Typeflag: tar.TypeReg, Size: 0, Mode: 0600, ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.NoError(t, err, "error creating temporary directory")
-				defer os.RemoveAll(tmp)
+				tmp, err := ioutil.TempDir("", "")
+				require.NoError(t, err, "error creating temp directory")
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, IgnoreDevices: ignoreDevices}, bytes.NewReader(archive))
 				require.Nilf(t, err, "expected to extract content with typeflag %c without an error: %v", typeFlag, err)
 				fileList, err := enumerateFiles(tmp)
