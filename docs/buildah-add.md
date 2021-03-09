@@ -51,6 +51,8 @@ buildah add containerID '/myapp/app.conf' '/myapp/app.conf'
 
 buildah add --chown myuser:mygroup containerID '/myapp/app.conf' '/myapp/app.conf'
 
+buildah add --chmod 660 containerID '/myapp/app.conf' '/myapp/app.conf'
+
 buildah add containerID '/home/myuser/myproject.go'
 
 buildah add containerID '/home/myuser/myfiles.tar' '/tmp'

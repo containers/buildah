@@ -357,3 +357,16 @@ load helpers
   umount $testdir
   rm -rf $testdir
 }
+
+@test "pull-policy --missing --arch" {
+  # Make sure missing image works
+  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --policy missing --arch amd64 alpine
+  amdiid=$output
+
+  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --policy missing --arch arm64 alpine
+  armiid=$output
+
+  if [[ $amdiid == $armiid ]]; then
+      expect_output "[different arch images were not pulled]"
+  fi
+}

@@ -36,11 +36,11 @@ const (
 	// OCIv1ImageManifest is the MIME type of an OCIv1 image manifest,
 	// suitable for specifying as a value of the PreferredManifestType
 	// member of a CommitOptions structure.  It is also the default.
-	OCIv1ImageManifest = v1.MediaTypeImageManifest
+	OCIv1ImageManifest = define.OCIv1ImageManifest
 	// Dockerv2ImageManifest is the MIME type of a Docker v2s2 image
 	// manifest, suitable for specifying as a value of the
 	// PreferredManifestType member of a CommitOptions structure.
-	Dockerv2ImageManifest = manifest.DockerV2Schema2MediaType
+	Dockerv2ImageManifest = define.Dockerv2ImageManifest
 )
 
 type containerImageRef struct {
@@ -705,7 +705,7 @@ func (b *Builder) makeImageRef(options CommitOptions, exporting bool) (types.Ima
 	}
 	manifestType := options.PreferredManifestType
 	if manifestType == "" {
-		manifestType = OCIv1ImageManifest
+		manifestType = define.OCIv1ImageManifest
 	}
 	oconfig, err := json.Marshal(&b.OCIv1)
 	if err != nil {

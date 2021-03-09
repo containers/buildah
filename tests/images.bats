@@ -148,7 +148,7 @@ load helpers
 
 @test "specify a nonexistent image" {
   run_buildah 125 images alpine
-  expect_output --from="${lines[0]}" "No such image alpine"
+  expect_output --from="${lines[0]}" "No such image: alpine"
   expect_line_count 1
 }
 

@@ -255,13 +255,13 @@ rootless=%d
 	if options.CNIConfigDir == "" {
 		options.CNIConfigDir = b.CNIConfigDir
 		if b.CNIConfigDir == "" {
-			options.CNIConfigDir = util.DefaultCNIConfigDir
+			options.CNIConfigDir = define.DefaultCNIConfigDir
 		}
 	}
 	if options.CNIPluginPath == "" {
 		options.CNIPluginPath = b.CNIPluginPath
 		if b.CNIPluginPath == "" {
-			options.CNIPluginPath = util.DefaultCNIPluginPath
+			options.CNIPluginPath = define.DefaultCNIPluginPath
 		}
 	}
 
@@ -1585,7 +1585,7 @@ func setupNamespaces(g *generate.Generator, namespaceOptions define.NamespaceOpt
 		}
 	}
 	if configureNetwork && !unshare.IsRootless() {
-		for name, val := range util.DefaultNetworkSysctl {
+		for name, val := range define.DefaultNetworkSysctl {
 			// Check that the sysctl we are adding is actually supported
 			// by the kernel
 			p := filepath.Join("/proc/sys", strings.Replace(name, ".", "/", -1))

@@ -243,6 +243,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 
 	// initialize storage for buildah
 	options := storage.StoreOptions{
+		GraphDriverName:     os.Getenv("STORAGE_DRIVER"),
 		GraphRoot:           rootDir,
 		RunRoot:             runrootDir,
 		RootlessStoragePath: rootDir,
@@ -506,7 +507,7 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 	}
 	// set up build options
 	output := &bytes.Buffer{}
-	options := imagebuildah.BuildOptions{
+	options := define.BuildOptions{
 		ContextDirectory: contextDir,
 		CommonBuildOpts:  &define.CommonBuildOptions{},
 		NamespaceOptions: []define.NamespaceOption{{
@@ -2600,6 +2601,24 @@ var internalTestCases = []testCase{
 			`USER 66:66`,
 			`COPY --chown=1:1 /script /script`,
 		}, "\n"),
+	},
+
+	{
+		name:       "add-parent-symlink",
+		contextDir: "add/parent-symlink",
+		fsSkip:     []string{"(dir):testsubdir:mtime"},
+	},
+
+	{
+		name:       "add-parent-dangling",
+		contextDir: "add/parent-dangling",
+		fsSkip:     []string{"(dir):symlink:mtime", "(dir):symlink-target:mtime"},
+	},
+
+	{
+		name:       "add-parent-clean",
+		contextDir: "add/parent-clean",
+		fsSkip:     []string{"(dir):symlink:mtime", "(dir):symlink-target:mtime", "(dir):symlink-target:(dir):subdirectory:mtime"},
 	},
 
 	{

@@ -360,7 +360,7 @@ func outputImages(ctx context.Context, systemContext *types.SystemContext, store
 	}
 
 	if !found && argName != "" {
-		return errors.Errorf("No such image %s", argName)
+		return errors.Errorf("No such image: %s", argName)
 	}
 	if opts.json {
 		data, err := json.MarshalIndent(jsonImages, "", "    ")

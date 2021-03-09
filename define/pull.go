@@ -25,24 +25,19 @@ const (
 	// take, signalling that the source image should not be pulled from a
 	// registry.
 	PullNever
-
-	// OCI used to define the "oci" image format
-	OCI = "oci"
-	// DOCKER used to define the "docker" image format
-	DOCKER = "docker"
 )
 
 // String converts a PullPolicy into a string.
 func (p PullPolicy) String() string {
 	switch p {
 	case PullIfMissing:
-		return "PullIfMissing"
+		return "missing"
 	case PullAlways:
-		return "PullAlways"
+		return "always"
 	case PullIfNewer:
-		return "PullIfNewer"
+		return "ifnewer"
 	case PullNever:
-		return "PullNever"
+		return "never"
 	}
 	return fmt.Sprintf("unrecognized policy %d", p)
 }

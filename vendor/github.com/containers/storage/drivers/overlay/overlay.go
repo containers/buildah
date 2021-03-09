@@ -816,7 +816,7 @@ func (d *Driver) getLowerDirs(id string) ([]string, error) {
 			// Let's go ahead and recreate those symlinks.
 			if err != nil {
 				if os.IsNotExist(err) {
-					logrus.Warnf("Can't read link %q because it does not exist. Going through storage to recreate the missing symlinks.", lower)
+					logrus.Warnf("Can't read link %q because it does not exist. A storage corruption might have occurred, attempting to recreate the missing symlinks. It might be best wipe the storage to avoid further errors due to storage corruption.", lower)
 					if err := d.recreateSymlinks(); err != nil {
 						return nil, fmt.Errorf("error recreating the missing symlinks: %v", err)
 					}

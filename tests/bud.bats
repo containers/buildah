@@ -2680,3 +2680,24 @@ _EOF
   run_buildah images
   expect_output --substring image-a
 }
+
+@test "bud --pull=false --arch test" {
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+cat > $mytmpdir/Containerfile << _EOF
+FROM registry.access.redhat.com/ubi8-minimal
+_EOF
+  run_buildah bud -f Containerfile --pull=false -q --arch=amd64 -t image-amd --signature-policy ${TESTSDIR}/policy.json ${mytmpdir}
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "architecture" }}' image-amd
+  expect_output --substring x86_64
+
+  run_buildah bud -f Containerfile --pull=false -q --arch=arm64 -t image-arm --signature-policy ${TESTSDIR}/policy.json ${mytmpdir}
+  run_buildah inspect --format '{{ index .Docker.Config.Labels "architecture" }}' image-arm
+  expect_output --substring arm64
+
+  run_buildah inspect --format '{{ .FromImageID }}' image-arm
+  fromiid=$output
+
+  run_buildah inspect --format '{{ index .OCIv1.Architecture  }}'  $fromiid
+  expect_output --substring arm64
+}
