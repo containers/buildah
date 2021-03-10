@@ -571,6 +571,8 @@ suitable user name to use as the default setting for this option.
 
 Users can specify the maps directly using `--userns-uid-map` described in the buildah(1) man page.
 
+**NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootlful.
+
 **--userns-gid-map-group** *group*
 
 Specifies that a GID mapping which should be used to set ownership, at the
@@ -583,6 +585,8 @@ specified, `buildah` will assume that the specified user name is also a
 suitable group name to use as the default setting for this option.
 
 Users can specify the maps directly using `--userns-gid-map` described in the buildah(1) man page.
+
+**NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootlful.
 
 **--uts** *how*
 
