@@ -62,26 +62,37 @@ jobs:
           echo "$VERSION_OUTPUT"
           echo ::set-output name=version_output::$VERSION_OUTPUT
 
-      # Generate image related info - names, labels
+      # Generate image related info - names, labels, check whether to push
       - name: Generate image information
         id: image_info
         run: |
-          # have special environment variable for image name.
+          # Have special environment variable for image name.
           # Names are different for upstream and stable Buildah images
           if [ "${{ matrix.source }}" == "upstream" ]; then
-            # quay.io/buildah/upstream:master
-            echo ::set-output name=buildah_tag::"${{ env.BUILDAH_QUAY_REGISTRY}}/${{ matrix.source }}:master"
+            # quay.io/buildah/upstream:main
+            # Always push upstream image to buildah repository
+            echo ::set-output name=buildah_push::'true'
+            # Never push upstream image to containers repository
+            echo ::set-output name=containers_push::'false'
+            echo ::set-output name=buildah_tag::"${{ env.BUILDAH_QUAY_REGISTRY}}/${{ matrix.source }}:main"
           fi
 
           if [ "${{ matrix.source }}" == "stable" ]; then
             VERSION=v"$(echo "${{ steps.sniff_test.outputs.version_output }}" | head -n 1 | awk '{print $2}')"
             # quay.io/buildah/stable:vX.X.X
+            # Check if stable image with current version already exists and make decision if new one needs to be pushed
+            PUSH=$(docker pull ${{ env.BUILDAH_QUAY_REGISTRY}}/${{ matrix.source }}:${VERSION} &>/dev/null && echo 'false' || echo 'true')
+            echo ::set-output name=buildah_push::${PUSH}
             echo ::set-output name=buildah_tag::"${{ env.BUILDAH_QUAY_REGISTRY}}/${{ matrix.source }}:${VERSION}"
+
             # quay.io/contaners/buildah:vX.X.X
+            # Check if stable image with current version already exists and make decision if new one needs to be pushed
+            PUSH=$(docker pull ${{ env.CONTAINERS_QUAY_REGISTRY}}/buildah:${VERSION} &>/dev/null && echo 'false' || echo 'true')
+            echo ::set-output name=containers_push::${PUSH}
             echo ::set-output name=containers_tag::"${{ env.CONTAINERS_QUAY_REGISTRY}}/buildah:${VERSION}"
           fi
 
-          # have labels environment variable to use it in the further steps.
+          # Have labels environment variable to use it in the further steps.
           # Env variable is used to store multi-line value
           echo "LABELS<<EOF" >> $GITHUB_ENV
           echo "org.opencontainers.image.source=${{ github.event.repository.html_url }}" >> $GITHUB_ENV
@@ -99,6 +110,7 @@ jobs:
       # Push to buildah Quay repo stable and upstream Buildah
       - name: Login to buildah Quay registry
         uses: docker/login-action@v1
+        if: ${{ steps.image_info.outputs.buildah_push == 'true' }}
         with:
           registry: ${{ env.BUILDAH_QUAY_REGISTRY }}
           username: ${{ secrets.BUILDAH_QUAY_USERNAME }}
@@ -106,6 +118,7 @@ jobs:
 
       - name: Push images to buildah Quay
         uses: docker/build-push-action@v2
+        if: ${{ steps.image_info.outputs.buildah_push == 'true' }}
         with:
           cache-from: type=registry,ref=localhost:5000/buildah/${{ matrix.source }}
           cache-to: type=inline
@@ -119,7 +132,7 @@ jobs:
 
       # Push to containers Quay repo only stable Buildah
       - name: Login to containers Quay registry
-        if: ${{ matrix.source == 'stable' }}
+        if: ${{ steps.image_info.outputs.containers_push == 'true' }}
         uses: docker/login-action@v1
         with:
           registry: ${{ env.CONTAINERS_QUAY_REGISTRY}}
@@ -127,7 +140,7 @@ jobs:
           password: ${{ secrets.CONTAINERS_QUAY_PASSWORD }}
 
       - name: Push images to containers Quay
-        if: ${{ matrix.source == 'stable' }}
+        if: ${{ steps.image_info.outputs.containers_push == 'true' }}
         uses: docker/build-push-action@v2
         with:
           cache-from: type=registry,ref=localhost:5000/buildah/${{ matrix.source }}
