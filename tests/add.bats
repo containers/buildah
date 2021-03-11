@@ -232,3 +232,15 @@ stuff/mystuff"
   run_buildah umount $cid
   expect_output --from="$filelist" "$expect" "container file list"
 }
+
+@test "add quietly" {
+  _prefetch busybox
+  createrandom ${TESTDIR}/randomfile
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
+  run_buildah add --quiet $cid ${TESTDIR}/randomfile /tmp/random
+  expect_output ""
+  run_buildah mount $cid
+  croot=$output
+  cmp ${TESTDIR}/randomfile ${croot}/tmp/random
+}

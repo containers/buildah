@@ -59,3 +59,11 @@ load helpers
   expect_output --substring --from="${lines[0]}" '^[0-9a-f]{64}$'
   expect_output --substring --from="${lines[1]}" '^[0-9a-f]{64}$'
 }
+
+@test "containers notruncate test" {
+  _prefetch alpine
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah containers --notruncate
+  expect_line_count 2
+  expect_output --substring --from="${lines[1]}" '^[0-9a-f]{64}'
+}
