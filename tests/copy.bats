@@ -259,6 +259,28 @@ load helpers
   cmp ${TESTDIR}/randomfile $newroot/link-randomfile
 }
 
+@test "ignore-socket" {
+  createrandom ${TESTDIR}/randomfile
+  nc -lkU ${TESTDIR}/test.socket &
+  while ! test -e ${TESTDIR}/test.socket; do sleep 0.1; done
+  kill $!
+
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah mount $cid
+  root=$output
+  run_buildah config --workingdir / $cid
+  run_buildah unmount $cid
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah rm $cid
+
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  newcid=$output
+  run_buildah mount $newcid
+  newroot=$output
+  test \! -e $newroot/test.socket
+}
+
 @test "copy-symlink-archive-suffix" {
   createrandom ${TESTDIR}/randomfile.tar.gz
   ln -s ${TESTDIR}/randomfile.tar.gz ${TESTDIR}/link-randomfile.tar.gz
