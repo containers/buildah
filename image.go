@@ -146,14 +146,16 @@ func computeLayerMIMEType(what string, layerCompression archive.Compression) (om
 }
 
 // Extract the container's whole filesystem as if it were a single layer.
-func (i *containerImageRef) extractRootfs() (io.ReadCloser, error) {
+func (i *containerImageRef) extractRootfs() (io.ReadCloser, chan error, error) {
 	var uidMap, gidMap []idtools.IDMap
 	mountPoint, err := i.store.Mount(i.containerID, i.mountLabel)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error mounting container %q", i.containerID)
+		return nil, nil, errors.Wrapf(err, "error mounting container %q", i.containerID)
 	}
 	pipeReader, pipeWriter := io.Pipe()
+	errChan := make(chan error, 1)
 	go func() {
+		defer close(errChan)
 		if i.idMappingOptions != nil {
 			uidMap, gidMap = convertRuntimeIDMaps(i.idMappingOptions.UIDMap, i.idMappingOptions.GIDMap)
 		}
@@ -162,7 +164,9 @@ func (i *containerImageRef) extractRootfs() (io.ReadCloser, error) {
 			GIDMap: gidMap,
 		}
 		err = copier.Get(mountPoint, mountPoint, copierOptions, []string{"."}, pipeWriter)
+		errChan <- err
 		pipeWriter.Close()
+
 	}()
 	return ioutils.NewReadCloserWrapper(pipeReader, func() error {
 		if err = pipeReader.Close(); err != nil {
@@ -175,7 +179,7 @@ func (i *containerImageRef) extractRootfs() (io.ReadCloser, error) {
 			err = err2
 		}
 		return err
-	}), nil
+	}), errChan, nil
 }
 
 // Build fresh copies of the container configuration structures so that we can edit them
@@ -357,9 +361,10 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			Compression: &noCompression,
 		}
 		var rc io.ReadCloser
+		var errChan chan error
 		if i.squash {
 			// Extract the root filesystem as a single layer.
-			rc, err = i.extractRootfs()
+			rc, errChan, err = i.extractRootfs()
 			if err != nil {
 				return nil, err
 			}
@@ -417,6 +422,14 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		writeCloser.Close()
 		layerFile.Close()
 		rc.Close()
+
+		if errChan != nil {
+			err = <-errChan
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		if err != nil {
 			return nil, errors.Wrapf(err, "error storing %s to file", what)
 		}
