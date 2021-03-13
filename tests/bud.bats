@@ -37,6 +37,28 @@ load helpers
   run_buildah 1 run myctr ls -l subdir/sub2.txt
 }
 
+@test "bud with .containerignore" {
+  _prefetch alpine busybox
+  run_buildah 125 bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/containerignore/Dockerfile ${TESTSDIR}/bud/containerignore
+  expect_output --substring 'error building.*"COPY subdir \./".*no such file or directory'
+
+  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/containerignore/Dockerfile.succeed ${TESTSDIR}/bud/containerignore
+
+  run_buildah from --name myctr testbud
+
+  run_buildah 1 run myctr ls -l test1.txt
+
+  run_buildah run myctr ls -l test2.txt
+
+  run_buildah 1 run myctr ls -l sub1.txt
+
+  run_buildah 1 run myctr ls -l sub2.txt
+
+  run_buildah run myctr ls -l subdir/sub1.txt
+
+  run_buildah 1 run myctr ls -l subdir/sub2.txt
+}
+
 @test "bud with .dockerignore - unmatched" {
   # Here .dockerignore contains 'unmatched', which will not match anything.
   # Therefore everything in the subdirectory should be copied into the image.
