@@ -2701,3 +2701,14 @@ _EOF
   run_buildah inspect --format '{{ index .OCIv1.Architecture  }}'  $fromiid
   expect_output --substring arm64
 }
+
+@test "bud --file with directory" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir1
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+_EOF
+
+  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+}
