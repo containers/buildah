@@ -50,10 +50,11 @@ Valid placeholders for the Go template are listed below:
 
 | **Placeholder** | **Description**                          |
 | --------------- | -----------------------------------------|
+| .Tag            | Image Tag                                |
 | .ID             | Image ID                                 |
 | .Name           | Image Name                               |
 | .Digest         | Image Digest                             |
-| .CreatedAt      | Creation date Pretty Formatted            |
+| .CreatedAt      | Creation date Pretty Formatted           |
 | .Size           | Image Size                               |
 | .CreatedAtRaw   | Creation date in raw format              |
 | .ReadOnly       | Indicates if image came from a R/O store |
