@@ -290,7 +290,7 @@ Write the image ID to the file.
 
 **--ignorefile**
 
-Path to an alternative .dockerignore file.
+Path to an alternative .containerignore (.dockerignore) file.
 
 **--ipc** *how*
 
@@ -803,22 +803,20 @@ are stored while pulling and pushing images.  Defaults to '/var/tmp'.
 
 ## Files
 
-### `.dockerignore`
+### `.containerignore`/`.dockerignore`
 
-If the file .dockerignore exists in the context directory, `buildah copy` reads
-its contents. Use `--ignorefile` flag to override .dockerignore path location.
-Buildah uses the content to exclude files and directories from the context
-directory, when executing COPY and ADD directives in the
-Containerfile/Dockerfile
+If the .containerignore/.dockerignore file exists in the context directory,
+`buildah bud` reads its contents. If both exist, then .containerignore is used.
+Use the `--ignorefile` flag to override the ignore file path location. Buildah uses the content to exclude files and directories from the context directory, when executing COPY and ADD directives in the Containerfile/Dockerfile
 
-Users can specify a series of Unix shell globals in a .dockerignore file to
-identify files/directories to exclude.
+Users can specify a series of Unix shell globals in a
+.containerignore/.dockerignore file to identify files/directories to exclude.
 
 Buildah supports a special wildcard string `**` which matches any number of
 directories (including zero). For example, **/*.go will exclude all files that
 end with .go that are found in all directories.
 
-Example .dockerignore file:
+Example .containerignore file:
 
 ```
 # exclude this content for image
@@ -837,7 +835,7 @@ Excludes files and directories starting with `output` from any directory.
 Excludes files named src and the directory src as well as any content in it.
 
 Lines starting with ! (exclamation mark) can be used to make exceptions to
-exclusions. The following is an example .dockerignore file that uses this
+exclusions. The following is an example .containerignore/.dockerignore file that uses this
 mechanism:
 ```
 *.doc

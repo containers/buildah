@@ -39,7 +39,7 @@ by symbolic links outside of the chroot will fail.
 
 **--ignorefile**
 
-Path to an alternative .dockerignore file. Requires --contextdir be specified.
+Path to an alternative .containerignore (.dockerignore) file. Requires \-\-contextdir be specified.
 
 **--quiet**, **-q**
 
@@ -65,7 +65,10 @@ buildah add containerID 'passwd' 'certs.d' /etc
 
 ## FILES
 
-### .dockerignore
+### .containerignore/.dockerignore
+
+If the .containerignore/.dockerignore file exists in the context directory,
+`buildah add` reads its contents. If both exist, then .containerignore is used.
 
 When the \fB\fC\-\-ignorefile\fR option is specified Buildah reads the
 content to exclude files and directories from the source directory, when
@@ -78,7 +81,7 @@ Buildah supports a special wildcard string `**` which matches any number of
 directories (including zero). For example, **/*.go will exclude all files that
 end with .go that are found in all directories.
 
-Example .dockerignore file:
+Example .containerignore/.dockerignore file:
 
 ```
 # here are files we want to exclude
@@ -97,7 +100,7 @@ Excludes files and directories starting with `output` from any directory.
 Excludes files named src and the directory src as well as any content in it.
 
 Lines starting with ! (exclamation mark) can be used to make exceptions to
-exclusions. The following is an example .dockerignore file that uses this
+exclusions. The following is an example .containerignore file that uses this
 mechanism:
 ```
 *.doc
