@@ -84,12 +84,21 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 				return "", nil, err
 			}
 
+			var contents *os.File
 			// If given a directory, add '/Dockerfile' to it.
 			if dinfo.Mode().IsDir() {
-				dfile = filepath.Join(dfile, "Dockerfile")
+				for _, file := range []string{"Containerfile", "Dockerfile"} {
+					f := filepath.Join(dfile, file)
+					logrus.Debugf("reading local %q", f)
+					contents, err = os.Open(f)
+					if err == nil {
+						break
+					}
+				}
+			} else {
+				contents, err = os.Open(dfile)
 			}
-			logrus.Debugf("reading local Dockerfile %q", dfile)
-			contents, err := os.Open(dfile)
+
 			if err != nil {
 				return "", nil, err
 			}
