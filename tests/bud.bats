@@ -727,6 +727,26 @@ function _test_http() {
   expect_output "testuser testgroup"
 }
 
+@test "bud-builtin-volume-symlink" {
+  # This Dockerfile needs us to be able to handle a working RUN instruction.
+  skip_if_no_runtime
+
+  _prefetch alpine
+  target=volume-symlink
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/volume-symlink
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
+  cid=$output
+  run_buildah run $cid echo hello
+  expect_output "hello"
+
+  target=volume-no-symlink
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/volume-symlink/Dockerfile.no-symlink ${TESTSDIR}/bud/volume-symlink
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
+  cid=$output
+  run_buildah run $cid echo hello
+  expect_output "hello"
+}
+
 @test "bud-from-glob" {
   _prefetch alpine
   target=alpine-image

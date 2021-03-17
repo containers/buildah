@@ -359,7 +359,17 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 			}
 			initializeVolume = true
 		}
-		stat, err := os.Stat(srcPath)
+		// Check if srcPath is a symlink
+		stat, err := os.Lstat(srcPath)
+		// If srcPath is a symlink, follow the link and ensure the destination exists
+		if err == nil && stat != nil && (stat.Mode()&os.ModeSymlink != 0) {
+			srcPath, err = copier.Eval(mountPoint, volume, copier.EvalOptions{})
+			if err != nil {
+				return nil, errors.Wrapf(err, "evaluating symlink %q", srcPath)
+			}
+			// Stat the destination of the evaluated symlink
+			stat, err = os.Stat(srcPath)
+		}
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return nil, err
