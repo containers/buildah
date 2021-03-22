@@ -601,7 +601,7 @@ func SystemContextFromOptions(c *cobra.Command) (*types.SystemContext, error) {
 	creds, err := c.Flags().GetString("creds")
 	if err == nil && c.Flag("creds").Changed {
 		var err error
-		ctx.DockerAuthConfig, err = getDockerAuth(creds)
+		ctx.DockerAuthConfig, err = AuthConfig(creds)
 		if err != nil {
 			return nil, err
 		}
@@ -734,7 +734,9 @@ func parseCreds(creds string) (string, string) {
 	return up[0], up[1]
 }
 
-func getDockerAuth(creds string) (*types.DockerAuthConfig, error) {
+// AuthConfig parses the creds in format [username[:password] into an auth
+// config.
+func AuthConfig(creds string) (*types.DockerAuthConfig, error) {
 	username, password := parseCreds(creds)
 	if username == "" {
 		fmt.Print("Username: ")
