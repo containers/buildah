@@ -251,9 +251,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 
 	// Find out which user (and group) the destination should belong to.
 	var chownDirs, chownFiles *idtools.IDPair
-	var user specs.User
+	var userUID, userGID uint32
 	if options.Chown != "" {
-		user, _, err = b.user(mountPoint, options.Chown)
+		userUID, userGID, err = b.userForCopy(mountPoint, options.Chown)
 		if err != nil {
 			return errors.Wrapf(err, "error looking up UID/GID for %q", options.Chown)
 		}
@@ -268,8 +268,8 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 		chmodDirsFiles = &perm
 	}
 
-	chownDirs = &idtools.IDPair{UID: int(user.UID), GID: int(user.GID)}
-	chownFiles = &idtools.IDPair{UID: int(user.UID), GID: int(user.GID)}
+	chownDirs = &idtools.IDPair{UID: int(userUID), GID: int(userGID)}
+	chownFiles = &idtools.IDPair{UID: int(userUID), GID: int(userGID)}
 	if options.Chown == "" && options.PreserveOwnership {
 		chownDirs = nil
 		chownFiles = nil
@@ -570,8 +570,9 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 	return nil
 }
 
-// user returns the user (and group) information which the destination should belong to.
-func (b *Builder) user(mountPoint string, userspec string) (specs.User, string, error) {
+// userForRun returns the user (and group) information which we should use for
+// running commands
+func (b *Builder) userForRun(mountPoint string, userspec string) (specs.User, string, error) {
 	if userspec == "" {
 		userspec = b.User()
 	}
@@ -594,4 +595,19 @@ func (b *Builder) user(mountPoint string, userspec string) (specs.User, string, 
 
 	}
 	return u, homeDir, err
+}
+
+// userForCopy returns the user (and group) information which we should use for
+// setting ownership of contents being copied.  It's just like what
+// userForRun() does, except for the case where we're passed a single numeric
+// value, where we need to use that value for both the UID and the GID.
+func (b *Builder) userForCopy(mountPoint string, userspec string) (uint32, uint32, error) {
+	if id, err := strconv.ParseUint(userspec, 10, 32); err == nil {
+		return uint32(id), uint32(id), nil
+	}
+	user, _, err := b.userForRun(mountPoint, userspec)
+	if err != nil {
+		return 0xffffffff, 0xffffffff, err
+	}
+	return user.UID, user.GID, nil
 }

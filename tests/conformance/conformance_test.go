@@ -1375,6 +1375,12 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name:       "copy with --chown",
+		contextDir: "copychown",
+		fsSkip:     []string{"(dir):usr:(dir):bin:mtime", "(dir):usr:(dir):local:(dir):bin:mtime"},
+	},
+
+	{
 		name:       "directory with slash",
 		contextDir: "overlapdirwithslash",
 	},
