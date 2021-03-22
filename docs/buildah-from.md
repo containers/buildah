@@ -397,7 +397,7 @@ If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-uid-map
 are specified, but --userns-gid-map is specified, the UID map will be set to
 use the same numeric values as the GID map.
 
-**NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootlful.
+**NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootful.
 
 **--userns-gid-map-group** *mapping*
 
@@ -420,7 +420,7 @@ If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-gid-map
 are specified, but --userns-uid-map is specified, the GID map will be set to
 use the same numeric values as the UID map.
 
-**NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootlful.
+**NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootful.
 
 **--userns-uid-map-user** *user*
 
