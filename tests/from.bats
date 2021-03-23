@@ -425,7 +425,7 @@ load helpers
   fi
 
   _prefetch docker.io/busybox
-  podman run --name busyboxc-podman -d busybox top
+  podman run --name busyboxc-podman -d docker.io/busybox top
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc docker.io/busybox
   expect_output --substring "busyboxc"
   podman rm -f busyboxc-podman
