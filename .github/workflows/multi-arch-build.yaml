@@ -81,13 +81,13 @@ jobs:
             VERSION=v"$(echo "${{ steps.sniff_test.outputs.version_output }}" | head -n 1 | awk '{print $2}')"
             # quay.io/buildah/stable:vX.X.X
             # Check if stable image with current version already exists and make decision if new one needs to be pushed
-            PUSH=$(docker pull ${{ env.BUILDAH_QUAY_REGISTRY}}/${{ matrix.source }}:${VERSION} &>/dev/null && echo 'false' || echo 'true')
+            PUSH=$(skopeo list-tags docker://${{ env.BUILDAH_QUAY_REGISTRY}}/${{ matrix.source }} | jq -r .Tags[] | grep -q "^${VERSION}$" && echo 'false' || echo 'true')
             echo ::set-output name=buildah_push::${PUSH}
             echo ::set-output name=buildah_tag::"${{ env.BUILDAH_QUAY_REGISTRY}}/${{ matrix.source }}:${VERSION}"
 
             # quay.io/contaners/buildah:vX.X.X
             # Check if stable image with current version already exists and make decision if new one needs to be pushed
-            PUSH=$(docker pull ${{ env.CONTAINERS_QUAY_REGISTRY}}/buildah:${VERSION} &>/dev/null && echo 'false' || echo 'true')
+            PUSH=$(skopeo list-tags docker://${{ env.CONTAINERS_QUAY_REGISTRY}}/buildah| jq -r .Tags[] | grep -q "^${VERSION}$" && echo 'false' || echo 'true')
             echo ::set-output name=containers_push::${PUSH}
             echo ::set-output name=containers_tag::"${{ env.CONTAINERS_QUAY_REGISTRY}}/buildah:${VERSION}"
           fi
