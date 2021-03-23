@@ -1967,7 +1967,7 @@ func getDNSIP(dnsServers []string) (dns []net.IP, err error) {
 
 func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, options RunOptions) (string, error) {
 	// Set the user UID/GID/supplemental group list/capabilities lists.
-	user, homeDir, err := b.user(mountPoint, options.User)
+	user, homeDir, err := b.userForRun(mountPoint, options.User)
 	if err != nil {
 		return "", err
 	}
