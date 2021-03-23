@@ -79,12 +79,12 @@ function _prefetch() {
                 echo "# [restoring from cache: $_BUILDAH_IMAGE_CACHEDIR / $img]" >&2
                 podman $_podman_opts load -i $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
             else
-                echo "# [podman pull $img]" >&2
-                podman $_podman_opts pull $img || (
+                echo "# [buildah pull $img]" >&2
+                buildah pull $img || (
                     echo "Retrying:"
-                    podman $_podman_opts pull $img || (
+                    buildah pull $img || (
                         echo "Re-retrying:"
-                        podman $_podman_opts pull $img
+                        buildah pull $img
                     )
                 )
                 rm -f $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
