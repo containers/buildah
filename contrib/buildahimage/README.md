@@ -22,6 +22,8 @@ The container images are:
   * quay.io/buildah/testing - This image is built using the latest version of Buildah that is or was in updates testing for Fedora.  At times this may be the same as the stable image.  This container image will primarily be used by the development teams for verification testing when a new package is created.  Built with buildahimage/testing/Dockerfile.
   * quay.io/buildah/stable:version - This image is built 'by hand' using a Fedora based container.  An RPM is first pulled from the [Fedora Updates System](https://bodhi.fedoraproject.org/) and the image is built from there.  For more details, see the Containerfile used to build it, buildahimage/stablebyhand/Containerfile.buildahstable
 
+`quay.io/buildah/upstream:main`, `quay.io/buildah/stable:version`, `quay.io/containers/buildah:version` images are multi-arch ones and available for `linux/amd64`, `linux/s390x`, `linux/arm64`, `linux/ppc64le` architectures.
+
 ## Sample Usage
 
 Although not required, it is suggested that [Podman](https://github.com/containers/podman) be used with these container images.
