@@ -166,7 +166,7 @@ func cloneToDirectory(url, dir string) error {
 		cmd = exec.Command("git", "clone", url, dir)
 	} else {
 		logrus.Debugf("cloning repo %q and branch %q to %q", gitBranch[0], gitBranch[1], dir)
-		cmd = exec.Command("git", "clone", "-b", gitBranch[1], gitBranch[0], dir)
+		cmd = exec.Command("git", "clone", "--recurse-submodules", "-b", gitBranch[1], gitBranch[0], dir)
 	}
 	return cmd.Run()
 }
