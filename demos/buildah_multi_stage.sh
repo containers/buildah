@@ -1,7 +1,7 @@
 #!/usr/bin/env bash 
 
 # author : tsweeney (based on ipbabble's other demos) 
-# Based on Alex Ellis blog (https://blog.alexellis.io/multi-stage-docker-builds)
+# Based on Alex Ellis blog (https://blog.alexellis.io/mutli-stage-docker-builds - note multi is misspelled)
 # Assumptions install buildah and podman
 # Set some of the variables below
 
