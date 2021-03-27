@@ -219,6 +219,7 @@ function check_matrix() {
    --healthcheck-interval 6s \
    --healthcheck-timeout 7s \
    --healthcheck-retries 8 \
+   --onbuild "RUN touch /foo" \
   $cid
 
   run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
@@ -274,6 +275,8 @@ function check_matrix() {
   expect_output "7s"
   run_buildah inspect               -f      '{{.Docker.Config.Healthcheck.Retries}}'     scratch-image-docker
   expect_output "8"
+  run_buildah inspect               -f      '{{.Docker.Config.OnBuild}}'                 scratch-image-docker
+  expect_output "[RUN touch /foo]"
   rm -rf /VOLUME
 }
 
