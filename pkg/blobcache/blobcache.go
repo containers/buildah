@@ -141,7 +141,7 @@ func (r *blobCacheReference) HasBlob(blobinfo types.BlobInfo) (bool, int64, erro
 			return true, fileInfo.Size(), nil
 		}
 		if !os.IsNotExist(err) {
-			return false, -1, errors.Wrapf(err, "error checking size of %q", filename)
+			return false, -1, errors.Wrap(err, "checking size")
 		}
 	}
 
@@ -155,7 +155,7 @@ func (r *blobCacheReference) Directory() string {
 func (r *blobCacheReference) ClearCache() error {
 	f, err := os.Open(r.directory)
 	if err != nil {
-		return errors.Wrapf(err, "error opening directory %q", r.directory)
+		return errors.WithStack(err)
 	}
 	defer f.Close()
 	names, err := f.Readdirnames(-1)
@@ -165,7 +165,7 @@ func (r *blobCacheReference) ClearCache() error {
 	for _, name := range names {
 		pathname := filepath.Join(r.directory, name)
 		if err = os.RemoveAll(pathname); err != nil {
-			return errors.Wrapf(err, "error removing %q while clearing cache for %q", pathname, transports.ImageName(r))
+			return errors.Wrapf(err, "clearing cache for %q", transports.ImageName(r))
 		}
 	}
 	return nil
@@ -216,7 +216,7 @@ func (s *blobCacheSource) GetManifest(ctx context.Context, instanceDigest *diges
 		}
 		if !os.IsNotExist(err) {
 			s.cacheErrors++
-			return nil, "", errors.Wrapf(err, "error checking for manifest file %q", filename)
+			return nil, "", errors.Wrap(err, "checking for manifest file")
 		}
 	}
 	s.cacheMisses++
@@ -246,7 +246,7 @@ func (s *blobCacheSource) GetBlob(ctx context.Context, blobinfo types.BlobInfo, 
 				s.mu.Lock()
 				s.cacheErrors++
 				s.mu.Unlock()
-				return nil, -1, errors.Wrapf(err, "error checking for cache file %q", filepath.Join(s.reference.directory, filename))
+				return nil, -1, errors.Wrap(err, "checking for cache")
 			}
 		}
 	}
