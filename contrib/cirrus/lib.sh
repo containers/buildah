@@ -10,9 +10,13 @@
 _waserrexit=0
 if [[ "$SHELLOPTS" =~ errexit ]]; then _waserrexit=1; fi
 set +e  # Assumed in F33 for setting global vars
-source /etc/profile
-source /etc/environment
 set -a
+if [[ -r "/etc/automation_environment" ]]; then
+    source /etc/automation_environment
+else # prior to automation library v2.0, this was necessary
+    source /etc/profile
+    source /etc/environment
+fi
 USER="$(whoami)"
 HOME="$(getent passwd $USER | cut -d : -f 6)"
 # Some platforms set and make this read-only

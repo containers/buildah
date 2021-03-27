@@ -31,7 +31,7 @@ env:
     UBUNTU_NAME: "ubuntu-2010"
     PRIOR_UBUNTU_NAME: "ubuntu-2004"
 
-    IMAGE_SUFFIX: "c6102133168668672"
+    IMAGE_SUFFIX: "c4720503194648576"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
     PRIOR_FEDORA_CACHE_IMAGE_NAME: "prior-fedora-${IMAGE_SUFFIX}"
     UBUNTU_CACHE_IMAGE_NAME: "ubuntu-${IMAGE_SUFFIX}"
@@ -133,7 +133,7 @@ vendor_task:
 
 
 unit_task:
-    name: "Unit tests"
+    name: 'Unit tests w/ $STORAGE_DRIVER'
     alias: unit
 
     depends_on:
@@ -142,6 +142,12 @@ unit_task:
 
     timeout_in: 45m
 
+    matrix:
+        - env:
+              STORAGE_DRIVER: 'vfs'
+        - env:
+              STORAGE_DRIVER: 'overlay'
+
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     build_script: '${SCRIPT_BASE}/build.sh |& ${_TIMESTAMP}'
     unit_test_script: '${SCRIPT_BASE}/test.sh unit |& ${_TIMESTAMP}'
@@ -149,13 +155,9 @@ unit_task:
     binary_artifacts:
         path: ./bin/*
 
-    env:
-        matrix:
-            STORAGE_DRIVER: 'vfs'
-            STORAGE_DRIVER: 'overlay'
 
 conformance_task:
-    name: "Docker Build Conformance"
+    name: 'Build Conformance w/ $STORAGE_DRIVER'
     alias: conformance
 
     depends_on:
@@ -166,13 +168,15 @@ conformance_task:
 
     timeout_in: 20m
 
+    matrix:
+        - env:
+            STORAGE_DRIVER: 'vfs'
+        - env:
+            STORAGE_DRIVER: 'overlay'
+
     setup_script: '${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
     conformance_test_script: '${SCRIPT_BASE}/test.sh conformance |& ${_TIMESTAMP}'
 
-    env:
-        matrix:
-            STORAGE_DRIVER: 'vfs'
-            STORAGE_DRIVER: 'overlay'
 
 # Confirm cross-compile ALL archetectures on a Mac OS-X VM.
 cross_build_task:
@@ -235,25 +239,47 @@ static_build_task:
 
 
 integration_task:
-    name: "Integration $DISTRO_NV"
+    name: "Integration $DISTRO_NV w/ $STORAGE_DRIVER"
     alias: integration
 
     depends_on:
       - unit
 
     matrix:
+        # VFS
         - env:
             DISTRO_NV: "${FEDORA_NAME}"
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
         # - env:
         #     DISTRO_NV: "${PRIOR_FEDORA_NAME}"
         #     IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+        #     STORAGE_DRIVER: 'vfs'
         - env:
             DISTRO_NV: "${UBUNTU_NAME}"
             IMAGE_NAME: "${UBUNTU_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
         - env:
             DISTRO_NV: "${PRIOR_UBUNTU_NAME}"
             IMAGE_NAME: "${PRIOR_UBUNTU_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
+        # OVERLAY
+        - env:
+            DISTRO_NV: "${FEDORA_NAME}"
+            IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+        # - env:
+        #     DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+        #     IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+        #     STORAGE_DRIVER: 'overlay'
+        - env:
+            DISTRO_NV: "${UBUNTU_NAME}"
+            IMAGE_NAME: "${UBUNTU_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
+        - env:
+            DISTRO_NV: "${PRIOR_UBUNTU_NAME}"
+            IMAGE_NAME: "${PRIOR_UBUNTU_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
 
     gce_instance:
         image_name: "$IMAGE_NAME"
@@ -276,10 +302,6 @@ integration_task:
         package_versions_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh packages'
         golang_version_script: '$GOSRC/$SCRIPT_BASE/logcollector.sh golang'
 
-    env:
-        matrix:
-            STORAGE_DRIVER: 'vfs'
-            STORAGE_DRIVER: 'overlay'
 
 in_podman_task:
     name: "Containerized Integration"
