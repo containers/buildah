@@ -67,3 +67,19 @@ load helpers
   expect_line_count 2
   expect_output --substring --from="${lines[1]}" '^[0-9a-f]{64}'
 }
+
+@test "containers all test" {
+  skip_if_in_container
+  run which podman
+  if [[ $status -ne 0 ]]; then
+    skip "podman is not installed"
+  fi
+
+  _prefetch alpine busybox
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  podman create --root ${TESTDIR}/root --storage-driver ${STORAGE_DRIVER} busybox ls
+  run_buildah containers
+  expect_line_count 2
+  run_buildah containers -a
+  expect_line_count 3
+}
