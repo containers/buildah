@@ -519,6 +519,30 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 		return err
 	}
 
+	// some special reconcilation of secretMounts with volumes needs to occur on OpenShift, as we cannot have
+	// the secretMounts mount over /run/secrets if the openshift/builder image is mounting host entitlements
+	// as file and subdirs in /run/secrets
+	volumesOverRunSecrets := false
+	for _, mount := range volumes {
+		if strings.HasPrefix(mount.Destination, "/run/secrets") {
+			volumesOverRunSecrets = true
+			break
+		}
+	}
+	if volumesOverRunSecrets {
+		for i, mount := range secretMounts {
+			logrus.Debugf("setupMounts secretMounts looking mount src %s dest %s type %s ", mount.Source, mount.Destination, mount.Type)
+			if mount.Destination == "/run/secrets" {
+				//HACK: currently, only system-fips is mounted directly into /run/secrets, but if MountsWithUIDGID
+				// and what it calls changes, this code will need to adjust
+				logrus.Infof("setupMounts secretMounts hack changing src/dest to end with system-fips")
+				secretMounts[i].Destination = "/run/secrets/system-fips"
+				secretMounts[i].Source = filepath.Join(secretMounts[i].Source, "system-fips")
+			}
+
+		}
+	}
+
 	// Add them all, in the preferred order, except where they conflict with something that was previously added.
 	for _, mount := range append(append(append(append(append(volumes, builtins...), secretMounts...), bindFileMounts...), specMounts...), sysfsMount...) {
 		if haveMount(mount.Destination) {
