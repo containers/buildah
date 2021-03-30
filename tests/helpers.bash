@@ -16,94 +16,94 @@ BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 export GPG_TTY=/dev/null
 
 function setup() {
-	pushd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
+    pushd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 
-	suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | od -An -tx1 | sed -e 's, ,,g')
-	TESTDIR=${BATS_TMPDIR}/tmp${suffix}
-	rm -fr ${TESTDIR}
-	mkdir -p ${TESTDIR}/{root,runroot}
+    suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | od -An -tx1 | sed -e 's, ,,g')
+    TESTDIR=${BATS_TMPDIR}/tmp${suffix}
+    rm -fr ${TESTDIR}
+    mkdir -p ${TESTDIR}/{root,runroot}
 }
 
 function starthttpd() {
-	pushd ${2:-${TESTDIR}} > /dev/null
-	go build -o serve ${TESTSDIR}/serve/serve.go
-	HTTP_SERVER_PORT=$((RANDOM+32768))
-	./serve ${HTTP_SERVER_PORT} ${1:-${BATS_TMPDIR}} &
-	HTTP_SERVER_PID=$!
-	popd > /dev/null
+    pushd ${2:-${TESTDIR}} > /dev/null
+    go build -o serve ${TESTSDIR}/serve/serve.go
+    HTTP_SERVER_PORT=$((RANDOM+32768))
+    ./serve ${HTTP_SERVER_PORT} ${1:-${BATS_TMPDIR}} &
+    HTTP_SERVER_PID=$!
+    popd > /dev/null
 }
 
 function stophttpd() {
-	if test -n "$HTTP_SERVER_PID" ; then
-		kill -HUP ${HTTP_SERVER_PID}
-		unset HTTP_SERVER_PID
-		unset HTTP_SERVER_PORT
-	fi
-	true
+    if test -n "$HTTP_SERVER_PID" ; then
+        kill -HUP ${HTTP_SERVER_PID}
+        unset HTTP_SERVER_PID
+        unset HTTP_SERVER_PORT
+    fi
+    true
 }
 
 function teardown() {
-	stophttpd
+    stophttpd
 
-        # Workaround for #1991 - buildah + overlayfs leaks mount points.
-        # Many tests leave behind /var/tmp/.../root/overlay and sub-mounts;
-        # let's find those and clean them up, otherwise 'rm -rf' fails.
-        # 'sort -r' guarantees that we umount deepest subpaths first.
-        mount |\
-            awk '$3 ~ testdir { print $3 }' testdir="^${TESTDIR}/" |\
-            sort -r |\
-            xargs --no-run-if-empty --max-lines=1 umount
+    # Workaround for #1991 - buildah + overlayfs leaks mount points.
+    # Many tests leave behind /var/tmp/.../root/overlay and sub-mounts;
+    # let's find those and clean them up, otherwise 'rm -rf' fails.
+    # 'sort -r' guarantees that we umount deepest subpaths first.
+    mount |\
+        awk '$3 ~ testdir { print $3 }' testdir="^${TESTDIR}/" |\
+        sort -r |\
+        xargs --no-run-if-empty --max-lines=1 umount
 
-	rm -fr ${TESTDIR}
+    rm -fr ${TESTDIR}
 
-	popd
+    popd
 }
 
 function _prefetch() {
-	# Tell podman to use the same mirror registries as buildah, to
-	# avoid docker.io
-	export REGISTRIES_CONFIG_PATH=${TESTSDIR}/registries.conf
+    # Tell podman to use the same mirror registries as buildah, to
+    # avoid docker.io
+    export REGISTRIES_CONFIG_PATH=${TESTSDIR}/registries.conf
 
-	if [ -z "${_BUILDAH_IMAGE_CACHEDIR}" ]; then
-            _pgid=$(sed -ne 's/^NSpgid:\s*//p' /proc/$$/status)
-            export _BUILDAH_IMAGE_CACHEDIR=${BATS_TMPDIR}/buildah-image-cache.$_pgid
-            mkdir -p ${_BUILDAH_IMAGE_CACHEDIR}
-        fi
+    if [ -z "${_BUILDAH_IMAGE_CACHEDIR}" ]; then
+        _pgid=$(sed -ne 's/^NSpgid:\s*//p' /proc/$$/status)
+        export _BUILDAH_IMAGE_CACHEDIR=${BATS_TMPDIR}/buildah-image-cache.$_pgid
+        mkdir -p ${_BUILDAH_IMAGE_CACHEDIR}
+    fi
 
-        local _podman_opts="--root ${TESTDIR}/root --storage-driver ${STORAGE_DRIVER}"
+    local _podman_opts="--root ${TESTDIR}/root --storage-driver ${STORAGE_DRIVER}"
 
-        for img in "$@"; do
-            echo "# [checking for: $img]" >&2
-            fname=$(tr -c a-zA-Z0-9.- - <<< "$img")
-            if [ -e $_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]; then
-                echo "# [restoring from cache: $_BUILDAH_IMAGE_CACHEDIR / $img]" >&2
-                podman $_podman_opts load -i $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
-            else
-                echo "# [buildah pull $img]" >&2
+    for img in "$@"; do
+        echo "# [checking for: $img]" >&2
+        fname=$(tr -c a-zA-Z0-9.- - <<< "$img")
+        if [ -e $_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]; then
+            echo "# [restoring from cache: $_BUILDAH_IMAGE_CACHEDIR / $img]" >&2
+            podman $_podman_opts load -i $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
+        else
+            echo "# [buildah pull $img]" >&2
+            buildah pull $img || (
+                echo "Retrying:"
                 buildah pull $img || (
-                    echo "Retrying:"
-                    buildah pull $img || (
-                        echo "Re-retrying:"
-                        buildah pull $img
-                    )
+                    echo "Re-retrying:"
+                    buildah pull $img
                 )
-                rm -f $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
-                echo "# [podman save --format oci-archive $img >$_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]" >&2
-                podman $_podman_opts save --format oci-archive --output=${_BUILDAH_IMAGE_CACHEDIR}/$fname.tar $img
-            fi
-        done
+            )
+            rm -f $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
+            echo "# [podman save --format oci-archive $img >$_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]" >&2
+            podman $_podman_opts save --format oci-archive --output=${_BUILDAH_IMAGE_CACHEDIR}/$fname.tar $img
+        fi
+    done
 }
 
 function createrandom() {
-	dd if=/dev/urandom bs=1 count=${2:-256} of=${1:-${BATS_TMPDIR}/randomfile} status=none
+    dd if=/dev/urandom bs=1 count=${2:-256} of=${1:-${BATS_TMPDIR}/randomfile} status=none
 }
 
 function buildah() {
-	${BUILDAH_BINARY} --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
+    ${BUILDAH_BINARY} --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
 }
 
 function imgtype() {
-	${IMGTYPE_BINARY} -root ${TESTDIR}/root -runroot ${TESTDIR}/runroot -storage-driver ${STORAGE_DRIVER} "$@"
+    ${IMGTYPE_BINARY} -root ${TESTDIR}/root -runroot ${TESTDIR}/runroot -storage-driver ${STORAGE_DRIVER} "$@"
 }
 
 #################
@@ -246,7 +246,7 @@ function expect_output() {
         fi
         expect='[no output]'
     elif [ "$actual" = "$expect" ]; then
-	return
+        return
     elif [ -n "$check_substring" ]; then
         if [[ "$actual" =~ $expect ]]; then
             return
