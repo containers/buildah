@@ -122,3 +122,22 @@ func TestIsolation(t *testing.T) {
 		}
 	}
 }
+
+func TestParsePlatform(t *testing.T) {
+	os, arch, variant, err := Platform("a/b/c")
+	assert.NoError(t, err)
+	assert.NoError(t, err)
+	assert.Equal(t, os, "a")
+	assert.Equal(t, arch, "b")
+	assert.Equal(t, variant, "c")
+
+	os, arch, variant, err = Platform("a/b")
+	assert.NoError(t, err)
+	assert.NoError(t, err)
+	assert.Equal(t, os, "a")
+	assert.Equal(t, arch, "b")
+	assert.Equal(t, variant, "")
+
+	_, _, _, err = Platform("a")
+	assert.Error(t, err)
+}
