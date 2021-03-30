@@ -6,6 +6,7 @@ import (
 
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAddRlimits(t *testing.T) {
@@ -78,6 +79,28 @@ func TestAddRlimits(t *testing.T) {
 		err := addRlimits(tst.ulimit, &g, []string{})
 		if testErr := tst.test(err, &g); testErr != nil {
 			t.Errorf("test %#v failed: %v", tst.name, testErr)
+		}
+	}
+}
+
+func TestPathCovers(t *testing.T) {
+	testCases := []struct {
+		parent, subdirectory string
+		covers               bool
+	}{
+		{"/", "/subdirectory", true},
+		{"/run/secrets", "/run/secrets/other", true},
+		{"/run/secrets", "/run/tmp", false},
+		{"/run/secrets", "/run/secrets2", false},
+		{"/run/secrets", "/tmp", false},
+		{"/run", "/tmp", false},
+		{"/run", "/run", true},
+	}
+	for i, testCase := range testCases {
+		if testCase.covers {
+			assert.Truef(t, pathCovers(testCase.parent, testCase.subdirectory), "case %d: parent=%q,subdirectory=%q", i, testCase.parent, testCase.subdirectory)
+		} else {
+			assert.Falsef(t, pathCovers(testCase.parent, testCase.subdirectory), "case %d: parent=%q,subdirectory=%q", i, testCase.parent, testCase.subdirectory)
 		}
 	}
 }

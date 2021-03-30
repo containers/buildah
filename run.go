@@ -3,6 +3,7 @@ package buildah
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 
 	"github.com/containers/buildah/define"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -134,4 +135,21 @@ type RunOptions struct {
 	DropCapabilities []string
 	// Devices are the additional devices to add to the containers
 	Devices define.ContainerDevices
+}
+
+func pathCovers(parent, subdirectory string) bool {
+	parent = filepath.Clean(parent)
+	dir := filepath.Clean(subdirectory)
+	for dir != "" {
+		if dir == parent {
+			return true
+		}
+		up, _ := filepath.Split(dir)
+		up = filepath.Clean(up)
+		if up == dir {
+			return false
+		}
+		dir = up
+	}
+	return false
 }

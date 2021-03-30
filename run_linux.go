@@ -525,6 +525,11 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 			// Already mounting something there, no need to bother with this one.
 			continue
 		}
+		for _, knownMount := range mounts {
+			if pathCovers(mount.Destination, knownMount.Destination) {
+				logrus.Warnf("configured mount %q hides other configured mount %q", mount.Destination, knownMount.Destination)
+			}
+		}
 		// Add the mount.
 		mounts = append(mounts, mount)
 	}
