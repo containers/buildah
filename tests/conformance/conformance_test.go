@@ -1972,6 +1972,27 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name:       "copy-absolute-directory-1",
+		contextDir: "copyblahblub",
+		dockerfile: "Dockerfile",
+		fsSkip:     []string{"(dir):var:mtime"},
+	},
+
+	{
+		name:       "copy-absolute-directory-2",
+		contextDir: "copyblahblub",
+		dockerfile: "Dockerfile2",
+		fsSkip:     []string{"(dir):var:mtime"},
+	},
+
+	{
+		name:       "copy-absolute-directory-3",
+		contextDir: "copyblahblub",
+		dockerfile: "Dockerfile3",
+		fsSkip:     []string{"(dir):var:mtime"},
+	},
+
+	{
 		name: "multi-stage-through-base",
 		dockerfileContents: strings.Join([]string{
 			"FROM alpine AS base",
