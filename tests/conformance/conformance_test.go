@@ -1355,7 +1355,12 @@ var internalTestCases = []testCase{
 	{
 		name:       "copy from symlink source",
 		contextDir: "copysymlink",
-		fsSkip:     []string{},
+	},
+
+	{
+		name:       "copy-symlink-2",
+		contextDir: "copysymlink",
+		dockerfile: "Dockerfile2",
 	},
 
 	{
