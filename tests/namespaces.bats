@@ -254,7 +254,12 @@ general_namespace() {
       ;;
     esac
 
-    for different in $types ; do
+    if [ "$nsflag" = "userns" ]; then
+      # "run" doesn't have --userns option.
+      continue
+    fi
+
+    for different in ${types[@]} ; do
       # Check that, if we override it, we get what we specify for "run".
       run_buildah run $RUNOPTS --"$nsflag"=$different "$ctr" readlink /proc/self/ns/"$nstype"
       [ "$output" != "" ]
@@ -266,7 +271,7 @@ general_namespace() {
         expect_output "$mynamespace"
         ;;
       /*)
-        expect_output "$(readlink $namespace)"
+        expect_output "$(readlink $different)"
         ;;
       esac
     done
