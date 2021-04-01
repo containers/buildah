@@ -137,7 +137,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		DropCapabilities: iopts.capDrop,
 	}
 
-	if c.Flag("terminal").Changed {
+	if c.Flag("terminal").Changed || c.Flag("tty").Changed {
 		if iopts.terminal {
 			options.Terminal = buildah.WithTerminal
 		} else {
