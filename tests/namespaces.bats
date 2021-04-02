@@ -341,7 +341,7 @@ general_namespace() {
             [ "$output" != "" ]
             run_buildah run --tty=true  $ctr pwd
             [ "$output" != "" ]
-            run_buildah run --tty=false $ctr pwd
+            run_buildah run --terminal=false $ctr pwd
             [ "$output" != "" ]
           done
         done
