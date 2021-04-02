@@ -481,7 +481,6 @@ return 1
      --add-history
      --help
      -t
-     --tty
      --terminal
      -h
   "

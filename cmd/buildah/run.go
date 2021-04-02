@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -46,7 +45,7 @@ func init() {
 
 		},
 		Example: `buildah run containerID -- ps -auxw
-  buildah run --tty containerID /bin/bash
+  buildah run --terminal containerID /bin/bash
   buildah run --volume /path/on/host:/path/in/container:ro,z containerID /bin/sh`,
 	}
 	runCommand.SetUsageTemplate(UsageTemplate())
@@ -62,12 +61,7 @@ func init() {
 	flags.StringVar(&opts.runtime, "runtime", "", "`path` to an alternate OCI runtime")
 	flags.StringSliceVar(&opts.runtimeFlag, "runtime-flag", []string{}, "add global flags for the container runtime")
 	flags.BoolVar(&opts.noPivot, "no-pivot", false, "do not use pivot root to jail process inside rootfs")
-	// TODO add-third alias for tty
 	flags.BoolVarP(&opts.terminal, "terminal", "t", false, "allocate a pseudo-TTY in the container")
-	flags.BoolVar(&opts.terminal, "tty", false, "allocate a pseudo-TTY in the container")
-	if err := flags.MarkHidden("tty"); err != nil {
-		panic(fmt.Sprintf("error marking tty flag as hidden: %v", err))
-	}
 	flags.StringArrayVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
 	flags.StringArrayVar(&opts.mounts, "mount", []string{}, "Attach a filesystem mount to the container (default [])")
 
