@@ -1355,7 +1355,12 @@ var internalTestCases = []testCase{
 	{
 		name:       "copy from symlink source",
 		contextDir: "copysymlink",
-		fsSkip:     []string{},
+	},
+
+	{
+		name:       "copy-symlink-2",
+		contextDir: "copysymlink",
+		dockerfile: "Dockerfile2",
 	},
 
 	{
@@ -1950,6 +1955,41 @@ var internalTestCases = []testCase{
 		contextDir:   "dockerignore/integration3",
 		shouldFailAt: 4,
 		failureRegex: "(no such file or directory)|(file not found)",
+	},
+
+	{
+		name:       "copy-empty-1",
+		contextDir: "copyempty",
+		dockerfile: "Dockerfile",
+		fsSkip:     []string{"(dir):usr:(dir):local:mtime", "(dir):usr:(dir):local:(dir):tmp:mtime"},
+	},
+
+	{
+		name:       "copy-empty-2",
+		contextDir: "copyempty",
+		dockerfile: "Dockerfile2",
+		fsSkip:     []string{"(dir):usr:(dir):local:mtime", "(dir):usr:(dir):local:(dir):tmp:mtime"},
+	},
+
+	{
+		name:       "copy-absolute-directory-1",
+		contextDir: "copyblahblub",
+		dockerfile: "Dockerfile",
+		fsSkip:     []string{"(dir):var:mtime"},
+	},
+
+	{
+		name:       "copy-absolute-directory-2",
+		contextDir: "copyblahblub",
+		dockerfile: "Dockerfile2",
+		fsSkip:     []string{"(dir):var:mtime"},
+	},
+
+	{
+		name:       "copy-absolute-directory-3",
+		contextDir: "copyblahblub",
+		dockerfile: "Dockerfile3",
+		fsSkip:     []string{"(dir):var:mtime"},
 	},
 
 	{

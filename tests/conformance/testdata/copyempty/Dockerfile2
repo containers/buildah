@@ -1,0 +1,2 @@
+FROM centos:7
+COPY script1 "" script2 /usr/local/tmp/
