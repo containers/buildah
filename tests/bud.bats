@@ -400,7 +400,7 @@ symlink(subdir)"
   target=scratch-image
   run_buildah bud --iidfile ${TESTDIR}/output.iid --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
   iid=$(cat ${TESTDIR}/output.iid)
-  [[ "$iid" == "sha256:"* ]]
+  expect_output --substring --from="$iid" '^sha256:[0-9a-f]{64}$'
   run_buildah from ${iid}
   expect_output "${target}-working-container"
 }
@@ -1820,24 +1820,26 @@ _EOF
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup --build-arg=PGDATA=/pgdata ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' ${target}
   argsid="$output"
-  [[ "$argsid" != "$targetid" ]]
+  if [[ "$argsid" == "$initialid" ]]; then
+      die ".FromImageID of test-img-2 ($argsid) == same as test-img, it should be different"
+  fi
 
   # With build args, even in a different order, we should end up using the previous build as a cached result.
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup --build-arg=PGDATA=/pgdata ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' ${target}
-  expect_output "$argsid"
+  expect_output "$argsid" "FromImageID of build 3"
 
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup --build-arg=PGDATA=/pgdata --build-arg=UID=17122 ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' ${target}
-  expect_output "$argsid"
+  expect_output "$argsid" "FromImageID of build 4"
 
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=USERNAME=praiskup --build-arg=PGDATA=/pgdata --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' ${target}
-  expect_output "$argsid"
+  expect_output "$argsid" "FromImageID of build 5"
 
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=PGDATA=/pgdata --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' ${target}
-  expect_output "$argsid"
+  expect_output "$argsid" "FromImageID of build 6"
 
   # If build-arg is specified via the command line and is different from the previous cached build, it should not use the cached layers.
   # Note, this containerfile does not have any RUN commands and we verify that the ARG steps are being rebuilt when a change is detected.
@@ -1848,20 +1850,24 @@ _EOF
   # Build the same containerfile again and verify that the cached layers were used
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test-img-1 -f Dockerfile4 ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' test-img-1
-  expect_output "$initialid"
+  expect_output "$initialid" "FromImageID of test-img-1 should match test-img"
 
   # Set the build-arg flag and verify that the cached layers are not used
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test-img-2 --build-arg TEST=foo -f Dockerfile4 ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' test-img-2
   argsid="$output"
-  [[ "$argsid" != "$initialid" ]]
+  if [[ "$argsid" == "$initialid" ]]; then
+      die ".FromImageID of test-img-2 ($argsid) == same as test-img, it should be different"
+  fi
 
   # Set the build-arg via an ENV in the local environment and verify that the cached layers are not used
   export TEST=bar
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test-img-3 --build-arg TEST -f Dockerfile4 ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' test-img-3
   argsid="$output"
-  [[ "$argsid" != "$initialid" ]]
+  if [[ "$argsid" == "$initialid" ]]; then
+      die ".FromImageID of test-img-3 ($argsid) == same as test-img, it should be different"
+  fi
 }
 
 @test "bud test RUN with a priv'd command" {
@@ -1891,19 +1897,19 @@ _EOF
   run stat -c "%d:%i" ${root}/subdir/test1.txt
   id1=$output
   run stat -c "%h" ${root}/subdir/test1.txt
-  expect_output 4
+  expect_output 4 "test1: number of hardlinks"
   run stat -c "%d:%i" ${root}/subdir/test2.txt
   expect_output $id1 "stat(test2) == stat(test1)"
   run stat -c "%h" ${root}/subdir/test2.txt
-  expect_output 4
+  expect_output 4 "test2: number of hardlinks"
   run stat -c "%d:%i" ${root}/test3.txt
   expect_output $id1 "stat(test3) == stat(test1)"
   run stat -c "%h" ${root}/test3.txt
-  expect_output 4
+  expect_output 4 "test3: number of hardlinks"
   run stat -c "%d:%i" ${root}/test4.txt
   expect_output $id1 "stat(test4) == stat(test1)"
   run stat -c "%h" ${root}/test4.txt
-  expect_output 4
+  expect_output 4 "test4: number of hardlinks"
 }
 
 @test "bud without any arguments should succeed" {
@@ -2043,8 +2049,7 @@ _EOF
 @test "bud with Dockerfile from stdin" {
   _prefetch alpine
   target=df-stdin
-  cat ${TESTSDIR}/bud/context-from-stdin/Dockerfile | buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -
-  [ "$?" -eq 0 ]
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} - < ${TESTSDIR}/bud/context-from-stdin/Dockerfile
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
@@ -2061,8 +2066,8 @@ _EOF
 @test "bud with Dockerfile from stdin tar" {
   _prefetch alpine
   target=df-stdin
-  tar -c -C ${TESTSDIR}/bud/context-from-stdin . | buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -
-  [ "$?" -eq 0 ]
+  # 'cmd1 < <(cmd2)' == 'cmd2 | cmd1' but runs cmd1 in this shell, not sub.
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} - < <(tar -c -C ${TESTSDIR}/bud/context-from-stdin .)
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
@@ -2693,7 +2698,7 @@ COPY --from=galaxy /usr/share/ansible/roles /usr/share/ansible/roles
 COPY --from=galaxy /usr/share/ansible/collections /usr/share/ansible/collections
 _EOF
 
-  run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t testbud $mytmpdir                                                   
+  run_buildah bud --layers --signature-policy ${TESTSDIR}/policy.json -t testbud $mytmpdir
   expect_output --substring "COPY --from=galaxy /usr/share/ansible/collections /usr/share/ansible/collections"
 }
 
