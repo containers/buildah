@@ -250,6 +250,9 @@ function configure_and_check_user() {
 	run_buildah run -v ${TESTDIR}/was-empty:/var/multi-level/subdirectory        $cid touch /var/multi-level/subdirectory/testfile
 	# And check the same for file volumes.
 	run_buildah run -v ${TESTDIR}/was-empty/testfile:/var/different-multi-level/subdirectory/testfile        $cid touch /var/different-multi-level/subdirectory/testfile
+	# And check the same for file volumes.
+	# Make sure directories show up inside of container on builtin mounts
+	run_buildah run -v ${TESTDIR}/was-empty:/run/secrets/testdir $cid ls -ld /run/secrets/testdir
 }
 
 @test "run --volume with U flag" {

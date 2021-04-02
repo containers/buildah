@@ -529,8 +529,9 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 		return err
 	}
 
+	allMounts := util.SortMounts(append(append(append(append(append(volumes, builtins...), secretMounts...), bindFileMounts...), specMounts...), sysfsMount...))
 	// Add them all, in the preferred order, except where they conflict with something that was previously added.
-	for _, mount := range append(append(append(append(append(volumes, builtins...), secretMounts...), bindFileMounts...), specMounts...), sysfsMount...) {
+	for _, mount := range allMounts {
 		if haveMount(mount.Destination) {
 			// Already mounting something there, no need to bother with this one.
 			continue
