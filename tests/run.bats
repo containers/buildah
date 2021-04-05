@@ -567,7 +567,10 @@ _EOF
 	run_buildah from --security-opt seccomp=${TESTDIR}/seccomp.json --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 
+	local found_runtime=
+
 	if [ -n "$(command -v runc)" ]; then
+		found_runtime=y
 		run_buildah ? run --runtime=runc --runtime-flag=debug $cid true
 		if [ "$status" -eq 0 ]; then
 			[ -n "$output" ]
@@ -579,9 +582,15 @@ _EOF
 	fi
 
 	if [ -n "$(command -v crun)" ]; then
+		found_runtime=y
 		run_buildah run --runtime=crun --runtime-flag=debug $cid true
 		[ -n "$output" ]
 	fi
+
+	if [ -z "${found_runtime}" ]; then
+		skip "Did not find 'runc' nor 'crun' in \$PATH - could not run this test!"
+	fi
+
 }
 
 @test "run --terminal" {
