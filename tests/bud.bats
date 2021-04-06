@@ -2738,6 +2738,9 @@ _EOF
   run_buildah inspect --format '{{ index .Docker.Config.Labels "architecture" }}' image-amd
   expect_output --substring x86_64
 
+  # Tag the image to localhost/ubi8-minimal to make sure that the image gets
+  # pulled since the local one does not match the requested architecture.
+  run_buildah tag image-amd localhost/ubi8-minimal
   run_buildah bud -f Containerfile --pull=false -q --arch=arm64 -t image-arm --signature-policy ${TESTSDIR}/policy.json ${mytmpdir}
   run_buildah inspect --format '{{ index .Docker.Config.Labels "architecture" }}' image-arm
   expect_output --substring arm64
