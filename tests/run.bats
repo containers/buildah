@@ -548,3 +548,63 @@ function configure_and_check_user() {
 	run_buildah 125 run --user noexist $cid whoami
 	expect_output --substring "unknown user error"
 }
+
+@test "run --runtime --runtime-flag" {
+	skip_if_in_container
+	skip_if_no_runtime
+
+	_prefetch alpine
+
+	# Use seccomp to make crun output a warning message because crun writes few logs.
+	cat > ${TESTDIR}/seccomp.json << _EOF
+{
+    "defaultAction": "SCMP_ACT_ALLOW",
+    "syscalls": [
+        {
+	        "name": "unknown",
+			"action": "SCMP_ACT_KILL"
+	    }
+    ]
+}
+_EOF
+	run_buildah from --security-opt seccomp=${TESTDIR}/seccomp.json --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+
+	local found_runtime=
+
+	if [ -n "$(command -v runc)" ]; then
+		found_runtime=y
+		run_buildah ? run --runtime=runc --runtime-flag=debug $cid true
+		if [ "$status" -eq 0 ]; then
+			[ -n "$output" ]
+		else
+			# runc fully supports cgroup v2 (unified mode) since v1.0.0-rc93.
+			# older runc doesn't work on cgroup v2.
+			expect_output --substring "this version of runc doesn't work on cgroups v2" "should fail by unsupportability for cgroupv2"
+		fi
+	fi
+
+	if [ -n "$(command -v crun)" ]; then
+		found_runtime=y
+		run_buildah run --runtime=crun --runtime-flag=debug $cid true
+		[ -n "$output" ]
+	fi
+
+	if [ -z "${found_runtime}" ]; then
+		skip "Did not find 'runc' nor 'crun' in \$PATH - could not run this test!"
+	fi
+
+}
+
+@test "run --terminal" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run --terminal=true $cid ls --color=auto
+	colored="$output"
+	run_buildah run --terminal=false $cid ls --color=auto
+	uncolored="$output"
+	[ "$colored" != "$uncolored" ]
+}
