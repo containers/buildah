@@ -3,22 +3,37 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/containers/buildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
+	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/common/pkg/auth"
+	"github.com/containers/storage"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
 type addCopyResults struct {
-	addHistory bool
-	chmod      string
-	chown      string
-	quiet      bool
-	ignoreFile string
-	contextdir string
+	addHistory       bool
+	chmod            string
+	chown            string
+	quiet            bool
+	ignoreFile       string
+	contextdir       string
+	from             string
+	blobCache        string
+	decryptionKeys   []string
+	removeSignatures bool
+	signaturePolicy  string
+	authfile         string
+	creds            string
+	tlsVerify        bool
+	certDir          string
 }
 
 func createCommand(addCopy string, desc string, short string, opts *addCopyResults) *cobra.Command {
@@ -38,11 +53,44 @@ func createCommand(addCopy string, desc string, short string, opts *addCopyResul
 func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	flags.SetInterspersed(false)
 	flags.BoolVar(&opts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
+	flags.StringVar(&opts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
+	if err := flags.MarkHidden("authfile"); err != nil {
+		panic(fmt.Sprintf("error marking authfile as hidden: %v", err))
+	}
+	flags.StringVar(&opts.blobCache, "blob-cache", "", "store copies of pulled image blobs in the specified directory")
+	if err := flags.MarkHidden("blob-cache"); err != nil {
+		panic(fmt.Sprintf("error marking blob-cache as hidden: %v", err))
+	}
+	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access registries")
+	if err := flags.MarkHidden("cert-dir"); err != nil {
+		panic(fmt.Sprintf("error marking cert-dir as hidden: %v", err))
+	}
 	flags.StringVar(&opts.chown, "chown", "", "set the user and group ownership of the destination content")
 	flags.StringVar(&opts.chmod, "chmod", "", "set the access permissions of the destination content")
+	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing registries when pulling images")
+	if err := flags.MarkHidden("creds"); err != nil {
+		panic(fmt.Sprintf("error marking creds as hidden: %v", err))
+	}
+	flags.StringVar(&opts.from, "from", "", "use the specified container's or image's root directory as the source root directory")
+	flags.StringSliceVar(&opts.decryptionKeys, "decryption-key", nil, "key needed to decrypt a pulled image")
+	if err := flags.MarkHidden("decryption-key"); err != nil {
+		panic(fmt.Sprintf("error marking decryption-key as hidden: %v", err))
+	}
 	flags.StringVar(&opts.ignoreFile, "ignorefile", "", "path to .dockerignore file")
 	flags.StringVar(&opts.contextdir, "contextdir", "", "context directory path")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
+	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing registries when pulling images. TLS verification cannot be used when talking to an insecure registry.")
+	if err := flags.MarkHidden("tls-verify"); err != nil {
+		panic(fmt.Sprintf("error marking tls-verify as hidden: %v", err))
+	}
+	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pulling image")
+	if err := flags.MarkHidden("remove-signatures"); err != nil {
+		panic(fmt.Sprintf("error marking remove-signatures as hidden: %v", err))
+	}
+	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
+	if err := flags.MarkHidden("signature-policy"); err != nil {
+		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
+	}
 }
 
 func init() {
@@ -97,6 +145,73 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		return err
 	}
 
+	var from *buildah.Builder
+	unmountFrom := false
+	removeFrom := false
+	var idMappingOptions *buildah.IDMappingOptions
+	contextdir := iopts.contextdir
+
+	if iopts.from != "" {
+		if from, err = openBuilder(getContext(), store, iopts.from); err != nil && errors.Cause(err) == storage.ErrContainerUnknown {
+			systemContext, err2 := parse.SystemContextFromOptions(c)
+			if err2 != nil {
+				return errors.Wrap(err2, "error building system context")
+			}
+			decConfig, err2 := getDecryptConfig(iopts.decryptionKeys)
+			if err2 != nil {
+				return errors.Wrapf(err2, "unable to obtain decrypt config")
+			}
+			options := buildah.BuilderOptions{
+				FromImage:           iopts.from,
+				BlobDirectory:       iopts.blobCache,
+				SignaturePolicyPath: iopts.signaturePolicy,
+				SystemContext:       systemContext,
+				MaxPullRetries:      maxPullPushRetries,
+				PullRetryDelay:      pullPushRetryDelay,
+				OciDecryptConfig:    decConfig,
+			}
+			if !iopts.quiet {
+				options.ReportWriter = os.Stderr
+			}
+			if from, err = buildah.NewBuilder(getContext(), store, options); err != nil {
+				return errors.Wrapf(err, "no container named %q, error copying content from image %q", iopts.from, iopts.from)
+			}
+			removeFrom = true
+			defer func() {
+				if !removeFrom {
+					return
+				}
+				if err := from.Delete(); err != nil {
+					logrus.Errorf("error deleting %q temporary working container %q", iopts.from, from.Container)
+				}
+			}()
+		}
+		if err != nil {
+			return errors.Wrapf(err, "error reading build container %q", iopts.from)
+		}
+		fromMountPoint, err := from.Mount(from.MountLabel)
+		if err != nil {
+			return errors.Wrapf(err, "error mounting %q container %q", iopts.from, from.Container)
+		}
+		unmountFrom = true
+		defer func() {
+			if !unmountFrom {
+				return
+			}
+			if err := from.Unmount(); err != nil {
+				logrus.Errorf("error unmounting %q container %q", iopts.from, from.Container)
+			}
+			if err := from.Save(); err != nil {
+				logrus.Errorf("error saving information about %q container %q", iopts.from, from.Container)
+			}
+		}()
+		idMappingOptions = &from.IDMappingOptions
+		contextdir = filepath.Join(fromMountPoint, iopts.contextdir)
+		for i := range args {
+			args[i] = filepath.Join(fromMountPoint, args[i])
+		}
+	}
+
 	builder, err := openBuilder(getContext(), store, name)
 	if err != nil {
 		return errors.Wrapf(err, "error reading build container %q", name)
@@ -105,9 +220,10 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	builder.ContentDigester.Restart()
 
 	options := buildah.AddAndCopyOptions{
-		Chmod:      iopts.chmod,
-		Chown:      iopts.chown,
-		ContextDir: iopts.contextdir,
+		Chmod:            iopts.chmod,
+		Chown:            iopts.chown,
+		ContextDir:       contextdir,
+		IDMappingOptions: idMappingOptions,
 	}
 	if iopts.ignoreFile != "" {
 		if iopts.contextdir == "" {
@@ -125,6 +241,21 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	err = builder.Add(dest, extractLocalArchives, options, args...)
 	if err != nil {
 		return errors.Wrapf(err, "error adding content to container %q", builder.Container)
+	}
+	if unmountFrom {
+		if err := from.Unmount(); err != nil {
+			return errors.Wrapf(err, "error unmounting %q container %q", iopts.from, from.Container)
+		}
+		if err := from.Save(); err != nil {
+			return errors.Wrapf(err, "error saving information about %q container %q", iopts.from, from.Container)
+		}
+		unmountFrom = false
+	}
+	if removeFrom {
+		if err := from.Delete(); err != nil {
+			return errors.Wrapf(err, "error deleting %q temporary working container %q", iopts.from, from.Container)
+		}
+		removeFrom = false
 	}
 
 	contentType, digest := builder.ContentDigester.Digest()

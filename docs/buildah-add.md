@@ -1,4 +1,4 @@
-# buildah-add "1" "March 2017" "buildah"
+# buildah-add "1" "April 2021" "buildah"
 
 ## NAME
 buildah\-add - Add the contents of a file, URL, or a directory to a container.
@@ -37,6 +37,13 @@ Build context directory. Specifying a context directory causes Buildah to
 chroot into that context directory. This means copying files pointed at
 by symbolic links outside of the chroot will fail.
 
+**--from** *containerOrImage*
+
+Use the root directory of the specified working container or image as the root
+directory when resolving absolute source paths and the path of the context
+directory.  If an image needs to be pulled, options recognized by `buildah pull`
+can be used.
+
 **--ignorefile**
 
 Path to an alternative .containerignore (.dockerignore) file. Requires \-\-contextdir be specified.
@@ -70,11 +77,11 @@ buildah add containerID 'passwd' 'certs.d' /etc
 If the .containerignore/.dockerignore file exists in the context directory,
 `buildah add` reads its contents. If both exist, then .containerignore is used.
 
-When the \fB\fC\-\-ignorefile\fR option is specified Buildah reads the
-content to exclude files and directories from the source directory, when
-copying content into the image.
+When the \fB\fC\-\-ignorefile\fR option is specified Buildah reads it and
+uses it to decide which content to exclude when copying content into the
+working container.
 
-Users can specify a series of Unix shell globals in a ignore file to
+Users can specify a series of Unix shell glob patterns in an ignore file to
 identify files/directories to exclude.
 
 Buildah supports a special wildcard string `**` which matches any number of
@@ -107,7 +114,7 @@ mechanism:
 !Help.doc
 ```
 
-Exclude all doc files except Help.doc from the image.
+Exclude all doc files except Help.doc when copying content into the container.
 
 This functionality is compatible with the handling of .dockerignore files described here:
 
