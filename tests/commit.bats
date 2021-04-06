@@ -244,3 +244,14 @@ load helpers
 
   rm -rf ${TESTDIR}/tmp
 }
+
+@test "commit with authfile" {
+  _prefetch busybox
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
+  run_buildah run $cid touch /test
+
+  run_buildah login --authfile ${TESTDIR}/test.auth --username testuser --password testpassword --tls-verify=false localhost:5000
+  run_buildah commit --authfile ${TESTDIR}/test.auth --signature-policy ${TESTSDIR}/policy.json --tls-verify=false $cid docker://localhost:5000/buildah/my-busybox
+  expect_output --substring "Writing manifest to image destination"
+}
