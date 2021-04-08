@@ -2762,3 +2762,19 @@ _EOF
 
   run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
 }
+
+@test "bud --authfile" {
+  _prefetch alpine
+  run_buildah login --tls-verify=false --authfile ${TESTDIR}/test.auth --username testuser --password testpassword localhost:5000
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --authfile ${TESTDIR}/test.auth alpine docker://localhost:5000/buildah/alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+FROM localhost:5000/buildah/alpine
+RUN touch /test
+_EOF
+  run_buildah bud -t myalpine --authfile ${TESTDIR}/test.auth --tls-verify=false --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  run_buildah rmi localhost:5000/buildah/alpine
+  run_buildah rmi myalpine
+}

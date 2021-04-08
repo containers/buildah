@@ -96,6 +96,28 @@ EOM
   # Make sure we can fetch it
   run_buildah from --pull-always --cert-dir=$BUILDAH_AUTHDIR --tls-verify=true --creds=testuser:testpassword localhost:5000/my-alpine
   expect_output --from="${lines[-1]}" "localhost-working-container"
+  cid="${lines[-1]}"
+
+  # Commit with correct credentials
+  run_buildah run $cid touch testfile
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --cert-dir=$BUILDAH_AUTHDIR --tls-verify=true --creds=testuser:testpassword $cid docker://localhost:5000/my-alpine
+
+  # Create Dockerfile for bud tests
+  mkdir -p ${TESTDIR}/dockerdir
+  DOCKERFILE=${TESTDIR}/dockerdir/Dockerfile
+  /bin/cat <<EOM >$DOCKERFILE
+FROM localhost:5000/my-alpine
+RUN rm testfile
+EOM
+
+  # Remove containers and images before bud tests
+  run_buildah rm --all
+  run_buildah rmi -f --all
+
+  # bud with correct credentials
+  run_buildah bud -f $DOCKERFILE --signature-policy ${TESTSDIR}/policy.json --cert-dir=$BUILDAH_AUTHDIR --tls-verify=true --creds=testuser:testpassword .
+  expect_output --from="${lines[0]}" "STEP 1: FROM localhost:5000/my-alpine"
+  expect_output --substring "Writing manifest to image destination"
 }
 
 
