@@ -534,6 +534,8 @@ return 1
      -h
      --quiet
      -q
+     --tls-verify
+     --remove-signatures
   "
 
      local options_with_args="
@@ -541,6 +543,11 @@ return 1
      --chmod
      --contextdir
      --ignorefile
+     --from
+     --authfile
+     --cert-dir
+     --creds
+     --decryption-key
   "
 
      local all_options="$options_with_args $boolean_options"
@@ -559,6 +566,8 @@ return 1
      -h
      --quiet
      -q
+     --tls-verify
+     --remove-signatures
     "
 
      local options_with_args="
@@ -566,6 +575,11 @@ return 1
      --chmod
      --contextdir
      --ignorefile
+     --from
+     --authfile
+     --cert-dir
+     --creds
+     --decryption-key
   "
 
      local all_options="$options_with_args $boolean_options"

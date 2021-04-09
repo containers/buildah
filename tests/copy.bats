@@ -361,3 +361,40 @@ stuff/mystuff"
   run_buildah umount $cid
   run_buildah rm $cid
 }
+
+@test "copy-from-container" {
+  _prefetch busybox
+  createrandom ${TESTDIR}/randomfile
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  from=$output
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
+  run_buildah copy --quiet $from ${TESTDIR}/randomfile /tmp/random
+  expect_output ""
+  run_buildah copy --quiet --signature-policy ${TESTSDIR}/policy.json --from $from $cid /tmp/random /tmp/random # absolute path
+  expect_output ""
+  run_buildah copy --quiet --signature-policy ${TESTSDIR}/policy.json --from $from $cid  tmp/random /tmp/random2 # relative path
+  expect_output ""
+  run_buildah mount $cid
+  croot=$output
+  cmp ${TESTDIR}/randomfile ${croot}/tmp/random
+  cmp ${TESTDIR}/randomfile ${croot}/tmp/random2
+}
+
+@test "copy-from-image" {
+  _prefetch busybox
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
+  run_buildah add --signature-policy ${TESTSDIR}/policy.json --quiet --from ubuntu $cid /etc/passwd /tmp/passwd # should pull the image, absolute path
+  expect_output ""
+  run_buildah add --quiet --signature-policy ${TESTSDIR}/policy.json --from ubuntu $cid  etc/passwd /tmp/passwd2 # relative path
+  expect_output ""
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ubuntu
+  ubuntu=$output
+  run_buildah mount $cid
+  croot=$output
+  run_buildah mount $ubuntu
+  ubuntu=$output
+  cmp $ubuntu/etc/passwd ${croot}/tmp/passwd
+  cmp $ubuntu/etc/passwd ${croot}/tmp/passwd2
+}
