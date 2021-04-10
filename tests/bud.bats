@@ -78,7 +78,7 @@ load helpers
   # Build, create a container, mount it, and list all files therein
   run_buildah bud -t testbud2 --signature-policy ${TESTSDIR}/policy.json ${TESTDIR}/dockerignore2
 
-  run_buildah from testbud2
+  run_buildah from --pull=false testbud2
   cid=$output
 
   run_buildah mount $cid
@@ -249,7 +249,7 @@ symlink(subdir)"
   _prefetch busybox
   target=foo
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-final-slash
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json ${target}
+  run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json ${target}
   cid="$output"
   run_buildah run ${cid} /test/ls -lR /test/ls
 }
@@ -2152,8 +2152,7 @@ _EOF
 @test "bud pull never" {
   target=pull
   run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull-never ${TESTSDIR}/bud/pull
-  expect_output --substring "pull policy is \"never\" but \""
-  expect_output --substring "\" could not be found locally"
+  expect_output --substring "busybox: image not known"
 
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull ${TESTSDIR}/bud/pull
   expect_output --substring "COMMIT pull"

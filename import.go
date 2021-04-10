@@ -153,7 +153,7 @@ func importBuilderFromImage(ctx context.Context, store storage.Store, options Im
 
 	systemContext := getSystemContext(store, options.SystemContext, options.SignaturePolicyPath)
 
-	_, img, err := util.FindImage(store, "", systemContext, options.Image)
+	_, img, err := util.FindImage(store, systemContext, options.Image)
 	if err != nil {
 		return nil, errors.Wrapf(err, "importing settings")
 	}

@@ -22,25 +22,33 @@ Show the image digests.
 
 **--filter**, **-f**=[]
 
-Filter output based on conditions provided (default []).  Valid
-keywords are 'before', 'dangling', 'label', 'readonly' and 'since' .
+Filter output based on conditions provided (default []).
 
   Filters:
 
-  **before==TIMESTRING**
-    Filter on images created before the given time.Time.
+  **after,since=image**
+    Filter on images created since the given image.
+
+  **before=image**
+    Filter on images created before the given image.
 
   **dangling=true|false**
-    Show dangling images. Dangling images are a file system layer that was used in a previous build of an image and is no longer referenced by any active images. They are denoted with the <none> tag, consume disk space and serve no active purpose.
+    Show dangling images. An images is considered to be dangling if it has no associated names and tags.
 
-  **label**
+  **id=id**
+    Show image with this specific ID.
+
+  **intermediate=true|false**
+    Show intermediate images. An images is considered to be an indermediate image if it is dangling and has no children.
+
+  **label=key[=value]**
     Filter by images labels key and/or value.
 
   **readonly=true|false**
-     Show only read only images or Read/Write images. The default is to show both.  Read/Only images can be configured by modifying the  "additionalimagestores" in the /etc/containers/storage.conf file.
+    Show only read only images or Read/Write images. The default is to show both.  Read/Only images can be configured by modifying the  "additionalimagestores" in the /etc/containers/storage.conf file.
 
-  **since==TIMESTRING**
-    Filter on images created since the given time.Time.
+  **reference=reference**
+    Show images matching the specified reference. Wildcards are supported (e.g., "reference=*fedora:3*").
 
 **--format**="TEMPLATE"
 
