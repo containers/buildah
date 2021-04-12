@@ -22,6 +22,10 @@ function setup() {
     TESTDIR=${BATS_TMPDIR}/tmp${suffix}
     rm -fr ${TESTDIR}
     mkdir -p ${TESTDIR}/{root,runroot}
+
+    # Common options for all buildah and podman invocations
+    ROOTDIR_OPTS="--root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER}"
+    REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf"
 }
 
 function starthttpd() {
@@ -60,24 +64,18 @@ function teardown() {
 }
 
 function _prefetch() {
-    # Tell podman to use the same mirror registries as buildah, to
-    # avoid docker.io
-    export REGISTRIES_CONFIG_PATH=${TESTSDIR}/registries.conf
-
     if [ -z "${_BUILDAH_IMAGE_CACHEDIR}" ]; then
         _pgid=$(sed -ne 's/^NSpgid:\s*//p' /proc/$$/status)
         export _BUILDAH_IMAGE_CACHEDIR=${BATS_TMPDIR}/buildah-image-cache.$_pgid
         mkdir -p ${_BUILDAH_IMAGE_CACHEDIR}
     fi
 
-    local _podman_opts="--root ${TESTDIR}/root --storage-driver ${STORAGE_DRIVER}"
-
     for img in "$@"; do
         echo "# [checking for: $img]" >&2
         fname=$(tr -c a-zA-Z0-9.- - <<< "$img")
         if [ -e $_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]; then
             echo "# [restoring from cache: $_BUILDAH_IMAGE_CACHEDIR / $img]" >&2
-            podman $_podman_opts load -i $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
+            podman load -i $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
         else
             echo "# [buildah pull $img]" >&2
             buildah pull $img || (
@@ -89,7 +87,7 @@ function _prefetch() {
             )
             rm -f $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
             echo "# [podman save --format oci-archive $img >$_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]" >&2
-            podman $_podman_opts save --format oci-archive --output=${_BUILDAH_IMAGE_CACHEDIR}/$fname.tar $img
+            podman save --format oci-archive --output=${_BUILDAH_IMAGE_CACHEDIR}/$fname.tar $img
         fi
     done
 }
@@ -99,11 +97,15 @@ function createrandom() {
 }
 
 function buildah() {
-    ${BUILDAH_BINARY} --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
+    ${BUILDAH_BINARY} ${REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
 }
 
 function imgtype() {
-    ${IMGTYPE_BINARY} -root ${TESTDIR}/root -runroot ${TESTDIR}/runroot -storage-driver ${STORAGE_DRIVER} "$@"
+    ${IMGTYPE_BINARY} ${ROOTDIR_OPTS} "$@"
+}
+
+function podman() {
+    command podman ${REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
 }
 
 #################
@@ -146,7 +148,7 @@ function run_buildah() {
 
         # stdout is only emitted upon error; this echo is to help a debugger
         echo "\$ $BUILDAH_BINARY $*"
-        run timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} --registries-conf ${TESTSDIR}/registries.conf --root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER} "$@"
+        run timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} ${REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
         # without "quotes", multiple lines are glommed together into one
         if [ -n "$output" ]; then
             echo "$output"
