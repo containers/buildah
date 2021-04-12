@@ -26,12 +26,12 @@ env:
     # GCE project where images live
     IMAGE_PROJECT: "libpod-218412"
     # See https://github.com/containers/podman/blob/master/contrib/cirrus/README.md#test_build_cache_images_task-task
-    FEDORA_NAME: "fedora-33"
-    PRIOR_FEDORA_NAME: "fedora-32"
+    FEDORA_NAME: "fedora-34beta"
+    PRIOR_FEDORA_NAME: "fedora-33"
     UBUNTU_NAME: "ubuntu-2010"
     PRIOR_UBUNTU_NAME: "ubuntu-2004"
 
-    IMAGE_SUFFIX: "c4720503194648576"
+    IMAGE_SUFFIX: "c5032481331085312"
     FEDORA_CACHE_IMAGE_NAME: "fedora-${IMAGE_SUFFIX}"
     PRIOR_FEDORA_CACHE_IMAGE_NAME: "prior-fedora-${IMAGE_SUFFIX}"
     UBUNTU_CACHE_IMAGE_NAME: "ubuntu-${IMAGE_SUFFIX}"
@@ -212,6 +212,9 @@ static_build_task:
         memory: 12
         disk: 200
 
+    env:
+        NIX_FQIN: "docker.io/nixos/nix:latest"
+
     init_script: |
         set -ex
         setenforce 0
@@ -227,8 +230,16 @@ static_build_task:
         set -ex
         mkdir -p .cache
         mv .cache /nix
-        if [[ -z $(ls -A /nix) ]]; then podman run --rm --privileged -ti -v /:/mnt nixos/nix cp -rfT /nix /mnt/nix; fi
-        podman run --rm --privileged -ti -v /nix:/nix -v ${PWD}:${PWD} -w ${PWD} nixos/nix nix --print-build-logs --option cores 8 --option max-jobs 8 build --file nix/
+        if [[ -z $(ls -A /nix) ]]; then
+            podman run --rm --privileged -i -v /:/mnt \
+                $NIX_FQIN \
+                cp -rfT /nix /mnt/nix
+        fi
+        podman run --rm --privileged -i -v /nix:/nix \
+            -v ${PWD}:${PWD} -w ${PWD} \
+            $NIX_FQIN \
+            nix --print-build-logs --option cores 8 \
+            --option max-jobs 8 build --file nix/
 
     binaries_artifacts:
         path: "result/bin/buildah"
@@ -251,10 +262,10 @@ integration_task:
             DISTRO_NV: "${FEDORA_NAME}"
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'vfs'
-        # - env:
-        #     DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-        #     IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-        #     STORAGE_DRIVER: 'vfs'
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'vfs'
         - env:
             DISTRO_NV: "${UBUNTU_NAME}"
             IMAGE_NAME: "${UBUNTU_CACHE_IMAGE_NAME}"
@@ -268,10 +279,10 @@ integration_task:
             DISTRO_NV: "${FEDORA_NAME}"
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
-        # - env:
-        #     DISTRO_NV: "${PRIOR_FEDORA_NAME}"
-        #     IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-        #     STORAGE_DRIVER: 'overlay'
+        - env:
+            DISTRO_NV: "${PRIOR_FEDORA_NAME}"
+            IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
+            STORAGE_DRIVER: 'overlay'
         - env:
             DISTRO_NV: "${UBUNTU_NAME}"
             IMAGE_NAME: "${UBUNTU_CACHE_IMAGE_NAME}"
