@@ -7,7 +7,7 @@ require (
 	github.com/containers/common v0.35.4
 	github.com/containers/image/v5 v5.10.5
 	github.com/containers/ocicrypt v1.1.0
-	github.com/containers/storage v1.28.1
+	github.com/containers/storage v1.29.0
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316
@@ -26,7 +26,6 @@ require (
 	github.com/opencontainers/selinux v1.8.0
 	github.com/openshift/imagebuilder v1.2.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200616122406-847368b35ebf
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
@@ -36,7 +35,7 @@ require (
 	go.etcd.io/bbolt v1.3.5
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
-	golang.org/x/sys v0.0.0-20210216224549-f992740a1bac
+	golang.org/x/sys v0.0.0-20210324051608-47abb6519492
 	k8s.io/klog v1.0.0 // indirect
 )
 
