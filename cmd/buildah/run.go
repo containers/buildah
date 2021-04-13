@@ -56,7 +56,7 @@ func init() {
 	flags.StringSliceVar(&opts.capAdd, "cap-add", []string{}, "add the specified capability (default [])")
 	flags.StringSliceVar(&opts.capDrop, "cap-drop", []string{}, "drop the specified capability (default [])")
 	flags.StringVar(&opts.hostname, "hostname", "", "set the hostname inside of the container")
-	flags.StringVar(&opts.isolation, "isolation", buildahcli.DefaultIsolation(), "`type` of process isolation to use. Use BUILDAH_ISOLATION environment variable to override.")
+	flags.StringVar(&opts.isolation, "isolation", "", "`type` of process isolation to use. Use BUILDAH_ISOLATION environment variable to override.")
 	// Do not set a default runtime here, we'll do that later in the processing.
 	flags.StringVar(&opts.runtime, "runtime", "", "`path` to an alternate OCI runtime")
 	flags.StringSliceVar(&opts.runtimeFlag, "runtime-flag", []string{}, "add global flags for the container runtime")

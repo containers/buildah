@@ -495,3 +495,19 @@ load helpers
   run_buildah run $cid /bin/sh -c "ulimit -t"
   expect_output "300" "ulimit -t"
 }
+
+@test "from isolation test" {
+  _prefetch alpine
+  run_buildah from -q --isolation chroot --signature-policy ${TESTDIR}/policy.json alpine
+  cid=$output
+  run_buildah inspect $cid
+  expect_output --substring '"Isolation": "chroot"'
+
+  if [ -z "${BUILDAH_ISOLATION}" ]; then
+    run readlink /proc/self/ns/pid
+    host_pidns=$output
+    run_buildah run --pid private $cid readlink /proc/self/ns/pid
+    # chroot isolation doesn't make a new PID namespace.
+    expect_output "${host_pidns}"
+  fi
+}
