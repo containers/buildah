@@ -25,8 +25,8 @@
 %global shortcommit    %(c=%{commit}; echo ${c:0:7})
 
 Name:           buildah
-# Bump version in buildah.go too
-Version:        1.20.1-dev
+# Bump version in define/types.go too
+Version:        1.20.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,36 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Thu Mar 25, 2021 Daniel J Walsh <dwalsh@redhat.com> 1.20.1-dev-1
+* Tue Apr 13, 2021 Tom Sweeney <tsweeney@redhat.com> 1.20.1-1
+- Run container with isolation type set at 'from'
+- bats helpers.bash - minor refactoring
+- Bump containers/storage vendor to v1.29.0
+- build(deps): bump github.com/onsi/ginkgo from 1.16.0 to 1.16.1
+- Cirrus: Update VMs w/ F34beta
+- CLI add/copy: add a --from option
+- build(deps): bump github.com/onsi/ginkgo from 1.15.2 to 1.16.0
+- Add authentication system tests for 'commit' and 'bud'
+- fix local image lookup for custom platform
+- Double-check existence of OCI runtimes
+- Cirrus: Make use of shared get_ci_vm container
+- Add system tests of "buildah run"
+- Update nix pin with `make nixpkgs`
+- Remove some stuttering on returns errors
+- Setup alias for --tty to --terminal
+- Add conformance tests for COPY /...
+- Put a few more minutes on the clock for the CI conformance test
+- Add a conformance test for COPY --from $symlink
+- Add conformance tests for COPY ""
+- Check for symlink in builtin volume
+- Sort all mounts by destination directory
+- System-test cleanup
+- Export parse.Platform string to be used by podman-remote
+- blobcache: fix sequencing error
+- build(deps): bump github.com/containers/common from 0.35.3 to 0.35.4
+- Fix URL in demos/buildah_multi_stage.sh
+- Add a few system tests
+- [NO TESTS NEEDED] Use --recurse-modules when building git context
+- Bump to v1.20.1-dev
 
 * Thu Mar 25, 2021 Daniel J Walsh <dwalsh@redhat.com> 1.20.0-1
 - vendor in containers/storage v1.28.1
