@@ -285,6 +285,7 @@ type GetOptions struct {
 	Rename             map[string]string // rename items with the specified names, or under the specified names
 	NoDerefSymlinks    bool              // don't follow symlinks when globs match them
 	IgnoreUnreadable   bool              // ignore errors reading items, instead of returning an error
+	NoCrossDevice      bool              // if a subdirectory is a mountpoint with a different device number, include it but skip its contents
 }
 
 // Get produces an archive containing items that match the specified glob
@@ -1072,6 +1073,10 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 	if len(queue) == 0 {
 		return errorResponse("copier: get: globs %v matched nothing (%d filtered out): %v", req.Globs, globMatchedCount, syscall.ENOENT)
 	}
+	topInfo, err := os.Stat(req.Directory)
+	if err != nil {
+		return errorResponse("copier: get: error reading info about directory %q: %v", req.Directory, err)
+	}
 	cb := func() error {
 		tw := tar.NewWriter(bulkWriter)
 		defer tw.Close()
@@ -1168,14 +1173,22 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 						}
 						symlinkTarget = target
 					}
+					// if it's a directory and we're staying on one device, and it's on a
+					// different device than the one we started from, skip its contents
+					var ok error
+					if info.Mode().IsDir() && req.GetOptions.NoCrossDevice {
+						if !sameDevice(topInfo, info) {
+							ok = filepath.SkipDir
+						}
+					}
 					// add the item to the outgoing tar stream
 					if err := copierHandlerGetOne(info, symlinkTarget, rel, path, options, tw, hardlinkChecker, idMappings); err != nil {
 						if req.GetOptions.IgnoreUnreadable && errorIsPermission(err) {
-							return nil
+							return ok
 						}
 						return err
 					}
-					return nil
+					return ok
 				}
 				// walk the directory tree, checking/adding items individually
 				if err := filepath.Walk(item, walkfn); err != nil {

@@ -11,11 +11,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/syndtr/gocapability/capability"
+	"golang.org/x/sys/unix"
 )
 
 func init() {
@@ -144,5 +146,49 @@ func testGetPermissionError(t *testing.T) {
 				assert.Truef(t, errorIsPermission(err), "expected the error (%v) to be a permission error", err)
 			}
 		})
+	}
+}
+
+func TestGetNoCrossDevice(t *testing.T) {
+	if uid != 0 {
+		t.Skip("test requires root privileges, skipping")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "copier-test-noxdev-")
+	require.NoError(t, err, "error creating temporary directory")
+	defer os.RemoveAll(tmpdir)
+
+	err = unix.Unshare(unix.CLONE_NEWNS)
+	require.NoError(t, err, "error creating new mount namespace")
+
+	subdir := filepath.Join(tmpdir, "subdir")
+	err = os.Mkdir(subdir, 0755)
+	require.NoErrorf(t, err, "error creating %q", subdir)
+
+	err = mount.Mount("tmpfs", subdir, "tmpfs", "rw")
+	require.NoErrorf(t, err, "error mounting tmpfs at %q", subdir)
+	defer func() {
+		err := mount.Unmount(subdir)
+		assert.NoErrorf(t, err, "error unmounting %q", subdir)
+	}()
+
+	skipped := filepath.Join(subdir, "skipped.txt")
+	err = ioutil.WriteFile(skipped, []byte("this file should have been skipped\n"), 0644)
+	require.NoErrorf(t, err, "error writing file at %q", skipped)
+
+	var buf bytes.Buffer
+	err = Get(tmpdir, tmpdir, GetOptions{NoCrossDevice: true}, []string{"/"}, &buf) // grab contents of tmpdir
+	require.NoErrorf(t, err, "error reading contents at %q", tmpdir)
+
+	tr := tar.NewReader(&buf)
+	th, err := tr.Next() // should be the "subdir" directory
+	require.NoError(t, err, "error reading first entry archived")
+	assert.Equal(t, "subdir", th.Name, `first entry in archive was not named "subdir"`)
+
+	th, err = tr.Next()
+	assert.Error(t, err, "should not have gotten a second entry in archive")
+	assert.True(t, errors.Is(err, io.EOF), "expected an EOF trying to read a second entry in archive")
+	if err == nil {
+		t.Logf("got unexpected entry for %q", th.Name)
 	}
 }
