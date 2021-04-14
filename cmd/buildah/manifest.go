@@ -12,6 +12,7 @@ import (
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/libimage"
 	"github.com/containers/common/libimage/manifests"
 	"github.com/containers/common/pkg/auth"
 	cp "github.com/containers/image/v5/copy"
@@ -52,6 +53,7 @@ func init() {
 		manifestAnnotateDescription = "\n  Adds or updates information about an entry in a manifest list or image index."
 		manifestInspectDescription  = "\n  Display the contents of a manifest list or image index."
 		manifestPushDescription     = "\n  Pushes manifest lists and image indexes to registries."
+		manifestRmDescription       = "\n  Remove one or more manifest lists from local storage."
 		manifestCreateOpts          manifestCreateOpts
 		manifestAddOpts             manifestAddOpts
 		manifestRemoveOpts          manifestRemoveOpts
@@ -67,9 +69,10 @@ func init() {
   buildah manifest add localhost/list localhost/image
   buildah manifest annotate --annotation A=B localhost/list localhost/image
   buildah manifest annotate --annotation A=B localhost/list sha256:entryManifestDigest
-  buildah manifest remove localhost/list sha256:entryManifestDigest
   buildah manifest inspect localhost/list
-  buildah manifest push localhost/list transport:destination`,
+  buildah manifest push localhost/list transport:destination
+  buildah manifest remove localhost/list sha256:entryManifestDigest
+  buildah manifest rm localhost/list`,
 	}
 	manifestCommand.SetUsageTemplate(UsageTemplate())
 	rootCmd.AddCommand(manifestCommand)
@@ -204,6 +207,19 @@ func init() {
 	flags.BoolVarP(&manifestPushOpts.quiet, "quiet", "q", false, "don't output progress information when pushing lists")
 	flags.SetNormalizeFunc(cli.AliasFlags)
 	manifestCommand.AddCommand(manifestPushCommand)
+
+	manifestRmCommand := &cobra.Command{
+		Use:   "rm",
+		Short: "Remove manifest list",
+		Long:  manifestRmDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return manifestRmCmd(cmd, args)
+		},
+		Example: `buildah manifest rm mylist:v1.11`,
+		Args:    cobra.MinimumNArgs(1),
+	}
+	manifestRmCommand.SetUsageTemplate(UsageTemplate())
+	manifestCommand.AddCommand(manifestRmCommand)
 }
 
 func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts) error {
@@ -425,6 +441,35 @@ func manifestRemoveCmd(c *cobra.Command, args []string, opts manifestRemoveOpts)
 	}
 
 	return nil
+}
+
+func manifestRmCmd(c *cobra.Command, args []string) error {
+	store, err := getStore(c)
+	if err != nil {
+		return err
+	}
+
+	systemContext, err := parse.SystemContextFromOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error building system context")
+	}
+
+	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
+	if err != nil {
+		return err
+	}
+
+	options := &libimage.RemoveImagesOptions{
+		Filters: []string{"readonly=false"},
+	}
+	untagged, removed, err := runtime.RemoveImages(context.Background(), args, options)
+	for _, u := range untagged {
+		fmt.Printf("untagged: %s\n", u)
+	}
+	for _, r := range removed {
+		fmt.Printf("%s\n", r)
+	}
+	return err
 }
 
 func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateOpts) error {
