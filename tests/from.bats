@@ -511,3 +511,27 @@ load helpers
     expect_output "${host_pidns}"
   fi
 }
+
+@test "from cgroup-parent test" {
+  _prefetch alpine
+  run_buildah from -q --cgroup-parent test-cgroup --signature-policy ${TESTDIR}/policy.json alpine
+  cid=$output
+  run_buildah run $cid /bin/sh -c 'cat /proc/$$/cgroup'
+  expect_output --substring "test-cgroup"
+}
+
+@test "from cni config test" {
+  _prefetch alpine
+
+  cni_config_dir=${TESTDIR}/no-cni-configs
+  cni_plugin_path=${TESTDIR}/no-cni-plugin
+  mkdir -p ${cni_config_dir}
+  mkdir -p ${cni_plugin_path}
+  run_buildah from -q --cni-config-dir=${cni_config_dir} --cni-plugin-path=${cni_plugin_path} --signature-policy ${TESTDIR}/policy.json alpine
+  cid=$output
+
+  run_buildah inspect --format '{{.CNIConfigDir}}' $cid
+  expect_output "${cni_config_dir}"
+  run_buildah inspect --format '{{.CNIPluginPath}}' $cid
+  expect_output "${cni_plugin_path}"
+}
