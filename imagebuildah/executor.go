@@ -119,6 +119,7 @@ type Executor struct {
 	imageInfoCache                 map[string]imageTypeAndHistoryAndDiffIDs
 	fromOverride                   string
 	manifest                       string
+	secrets                        map[string]string
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -164,6 +165,11 @@ func NewExecutor(store storage.Store, options define.BuildOptions, mainNode *par
 		}
 
 		transientMounts = append([]Mount{Mount(mount)}, transientMounts...)
+	}
+
+	secrets, err := parse.Secrets(options.CommonBuildOpts.Secrets)
+	if err != nil {
+		return nil, err
 	}
 
 	jobs := 1
@@ -236,6 +242,7 @@ func NewExecutor(store storage.Store, options define.BuildOptions, mainNode *par
 		imageInfoCache:                 make(map[string]imageTypeAndHistoryAndDiffIDs),
 		fromOverride:                   options.From,
 		manifest:                       options.Manifest,
+		secrets:                        secrets,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr

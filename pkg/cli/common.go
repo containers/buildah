@@ -75,6 +75,7 @@ type BudResults struct {
 	Rm                  bool
 	Runtime             string
 	RuntimeFlags        []string
+	Secrets             []string
 	SignaturePolicy     string
 	SignBy              string
 	Squash              bool
@@ -207,6 +208,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.BoolVar(&flags.Rm, "rm", true, "Remove intermediate containers after a successful build")
 	// "runtime" definition moved to avoid name collision in podman build.  Defined in cmd/buildah/bud.go.
 	fs.StringSliceVar(&flags.RuntimeFlags, "runtime-flag", []string{}, "add global flags for the container runtime")
+	fs.StringArrayVar(&flags.Secrets, "secret", []string{}, "secret file to expose to the build")
 	fs.StringVar(&flags.SignBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
 	fs.StringVar(&flags.SignaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	if err := fs.MarkHidden("signature-policy"); err != nil {
@@ -245,6 +247,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["os"] = commonComp.AutocompleteNone
 	flagCompletion["platform"] = commonComp.AutocompleteNone
 	flagCompletion["runtime-flag"] = commonComp.AutocompleteNone
+	flagCompletion["secret"] = commonComp.AutocompleteNone
 	flagCompletion["sign-by"] = commonComp.AutocompleteNone
 	flagCompletion["signature-policy"] = commonComp.AutocompleteNone
 	flagCompletion["tag"] = commonComp.AutocompleteNone

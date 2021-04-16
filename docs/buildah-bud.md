@@ -465,6 +465,15 @@ consult the manpages of the selected container runtime.
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah bud, the option given would be `--runtime-flag log-format=json`.
 
+**--secret**=**id=id,src=path**
+Pass secret information to be used in the Containerfile for building images
+in a safe way that will not end up stored in the final image, or be seen in other stages.
+The secret will be mounted in the container at the default location of `/run/secrets/id`.
+
+To later use the secret, use the --mount flag in a `RUN` instruction within a `Containerfile`:
+
+`RUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret`
+
 **--security-opt**=[]
 
 Security Options
