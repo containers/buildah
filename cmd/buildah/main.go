@@ -92,7 +92,7 @@ func init() {
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.UserNSUID, "userns-uid-map", []string{}, "default `ctrID:hostID:length` UID mapping to use")
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.UserNSGID, "userns-gid-map", []string{}, "default `ctrID:hostID:length` GID mapping to use")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.DefaultMountsFile, "default-mounts-file", "", "path to default mounts file")
-	rootCmd.PersistentFlags().StringVar(&globalFlagResults.LogLevel, logLevel, "warn", `The log level to be used. Either "debug", "info", "warn" or "error".`)
+	rootCmd.PersistentFlags().StringVar(&globalFlagResults.LogLevel, logLevel, "warn", `The log level to be used. Either "trace", "debug", "info", "warn", "error", "fatal", or "panic".`)
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.CPUProfile, "cpu-profile", "", "`file` to write CPU profile")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.MemoryProfile, "memory-profile", "", "`file` to write memory profile")
 
@@ -220,7 +220,11 @@ func main() {
 	os.Setenv("TMPDIR", parse.GetTempDir())
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		if logrus.IsLevelEnabled(logrus.TraceLevel) {
+			fmt.Fprintf(os.Stderr, "%+v\n", err)
+		} else {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+		}
 		exitCode := cli.ExecErrorCodeGeneric
 		if ee, ok := (errors.Cause(err)).(*exec.ExitError); ok {
 			if w, ok := ee.Sys().(syscall.WaitStatus); ok {

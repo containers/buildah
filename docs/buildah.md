@@ -22,7 +22,7 @@ The Buildah package provides a command line tool which can be used to:
 
 **--log-level** **value**
 
-The log level to be used. Either "debug", "info", "warn" or "error", per default "warn".
+The log level to be used. Either "trace", "debug", "info", "warn", "error", "fatal", or "panic", defaulting to "warn".
 
 **--help, -h**
 
