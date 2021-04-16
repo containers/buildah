@@ -513,11 +513,22 @@ load helpers
 }
 
 @test "from cgroup-parent test" {
+  skip_if_chroot
+
   _prefetch alpine
+  # with cgroup-parent
   run_buildah from -q --cgroup-parent test-cgroup --signature-policy ${TESTDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid /bin/sh -c 'cat /proc/$$/cgroup'
   expect_output --substring "test-cgroup"
+
+  # without cgroup-parent
+  run_buildah from -q --signature-policy ${TESTDIR}/policy.json alpine
+  cid=$output
+  run_buildah run $cid /bin/sh -c 'cat /proc/$$/cgroup'
+  if [ -n "$(grep "test-cgroup" <<< "$output")" ]; then
+    die "Unexpected cgroup."
+  fi
 }
 
 @test "from cni config test" {
