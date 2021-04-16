@@ -8,7 +8,7 @@ import (
 
 func TestPutChroot(t *testing.T) {
 	if uid != 0 {
-		t.Skipf("chroot() requires root privileges, skipping")
+		t.Skip("chroot() requires root privileges, skipping")
 	}
 	couldChroot := canChroot
 	canChroot = true
@@ -18,7 +18,7 @@ func TestPutChroot(t *testing.T) {
 
 func TestStatChroot(t *testing.T) {
 	if uid != 0 {
-		t.Skipf("chroot() requires root privileges, skipping")
+		t.Skip("chroot() requires root privileges, skipping")
 	}
 	couldChroot := canChroot
 	canChroot = true
@@ -28,7 +28,7 @@ func TestStatChroot(t *testing.T) {
 
 func TestGetSingleChroot(t *testing.T) {
 	if uid != 0 {
-		t.Skipf("chroot() requires root privileges, skipping")
+		t.Skip("chroot() requires root privileges, skipping")
 	}
 	couldChroot := canChroot
 	canChroot = true
@@ -38,7 +38,7 @@ func TestGetSingleChroot(t *testing.T) {
 
 func TestGetMultipleChroot(t *testing.T) {
 	if uid != 0 {
-		t.Skipf("chroot() requires root privileges, skipping")
+		t.Skip("chroot() requires root privileges, skipping")
 	}
 	couldChroot := canChroot
 	canChroot = true
@@ -48,7 +48,7 @@ func TestGetMultipleChroot(t *testing.T) {
 
 func TestEvalChroot(t *testing.T) {
 	if uid != 0 {
-		t.Skipf("chroot() requires root privileges, skipping")
+		t.Skip("chroot() requires root privileges, skipping")
 	}
 	couldChroot := canChroot
 	canChroot = true
@@ -58,7 +58,7 @@ func TestEvalChroot(t *testing.T) {
 
 func TestMkdirChroot(t *testing.T) {
 	if uid != 0 {
-		t.Skipf("chroot() requires root privileges, skipping")
+		t.Skip("chroot() requires root privileges, skipping")
 	}
 	couldChroot := canChroot
 	canChroot = true
