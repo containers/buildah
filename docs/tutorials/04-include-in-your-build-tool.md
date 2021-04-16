@@ -1,6 +1,7 @@
 ![buildah logo](../../logos/buildah-logo_large.png)
 
 # Buildah Tutorial 4
+
 ## Include Buildah in your build tool
 
 The purpose of this tutorial is to demonstrate how to include Buildah as a library in your build tool.
@@ -14,7 +15,6 @@ In this tutorial I'll show you how to create a simple CLI tool that creates an i
 Bootstrap the installation of development dependencies of Buildah by following the [Building from scratch](https://github.com/slinkydeveloper/buildah/blob/master/install.md#building-from-scratch) instructions and in particular creating a directory for the Buildah project by completing the instructions in the [Installation from GitHub](https://github.com/containers/buildah/blob/master/install.md#installation-from-github) section of that page.
 
 Now let's bootstrap our project. Assuming you are in the directory of the project, run the following to initialize the go modules:
-
 
 ```shell
 go mod init
@@ -55,11 +55,11 @@ Define the builder options:
 
 ```go
 builderOpts := buildah.BuilderOptions{
-    FromImage:        "node:12-alpine", // Starting image
-    Isolation:        define.IsolationChroot, // Isolation environment
-    CommonBuildOpts:  &define.CommonBuildOptions{},
-    ConfigureNetwork: define.NetworkDefault,
-    SystemContext: 	  &types.SystemContext {},
+  FromImage:        "node:12-alpine", // Starting image
+  Isolation:        define.IsolationChroot, // Isolation environment
+  CommonBuildOpts:  &define.CommonBuildOptions{},
+  ConfigureNetwork: define.NetworkDefault,
+  SystemContext:    &types.SystemContext {},
 }
 ```
 
@@ -99,7 +99,7 @@ To enable rootless mode, import `github.com/containers/storage/pkg/unshare` and 
 
 ```go
 if buildah.InitReexec() {
-    return
+  return
 }
 unshare.MaybeReexecUsingUserNamespace(false)
 ```
@@ -112,64 +112,64 @@ This code ensures that your application is re executed in an isolated environmen
 package main
 
 import (
-	"context"
-	"fmt"
-	"github.com/containers/buildah"
-	"github.com/containers/buildah/define"
-	"github.com/containers/storage/pkg/unshare"
-	is "github.com/containers/image/v5/storage"
-	"github.com/containers/image/v5/types"
-	"github.com/containers/storage"
+  "context"
+  "fmt"
+  "github.com/containers/buildah"
+  "github.com/containers/buildah/define"
+  "github.com/containers/storage/pkg/unshare"
+  is "github.com/containers/image/v5/storage"
+  "github.com/containers/image/v5/types"
+  "github.com/containers/storage"
 )
 
 func main() {
-	if buildah.InitReexec() {
-		return
-	}
-	unshare.MaybeReexecUsingUserNamespace(false)
+  if buildah.InitReexec() {
+    return
+  }
+  unshare.MaybeReexecUsingUserNamespace(false)
 
-	buildStoreOptions, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
+  buildStoreOptions, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
 
-	if err != nil {
-		panic(err)
-	}
+  if err != nil {
+    panic(err)
+  }
 
-	buildStore, err := storage.GetStore(buildStoreOptions)
+  buildStore, err := storage.GetStore(buildStoreOptions)
 
-	if err != nil {
-		panic(err)
-	}
+  if err != nil {
+    panic(err)
+  }
 
-	opts := buildah.BuilderOptions{
-		FromImage:        "node:12-alpine",
-		Isolation:        define.IsolationChroot,
-		CommonBuildOpts:  &define.CommonBuildOptions{},
-		ConfigureNetwork: define.NetworkDefault,
-		SystemContext: 	  &types.SystemContext {},
-	}
+  opts := buildah.BuilderOptions{
+    FromImage:        "node:12-alpine",
+    Isolation:        define.IsolationChroot,
+    CommonBuildOpts:  &define.CommonBuildOptions{},
+    ConfigureNetwork: define.NetworkDefault,
+    SystemContext:    &types.SystemContext {},
+  }
 
-	builder, err := buildah.NewBuilder(context.TODO(), buildStore, opts)
+  builder, err := buildah.NewBuilder(context.TODO(), buildStore, opts)
 
-	if err != nil {
-		panic(err)
-	}
+  if err != nil {
+    panic(err)
+  }
 
-	err = builder.Add("/home/node/", false, buildah.AddAndCopyOptions{}, "script.js")
+  err = builder.Add("/home/node/", false, buildah.AddAndCopyOptions{}, "script.js")
 
-	if err != nil {
-		panic(err)
-	}
+  if err != nil {
+    panic(err)
+  }
 
-	builder.SetCmd([]string{"node", "/home/node/script.js"})
+  builder.SetCmd([]string{"node", "/home/node/script.js"})
 
-	imageRef, err := is.Transport.ParseStoreReference(buildStore, "docker.io/myusername/my-image")
+  imageRef, err := is.Transport.ParseStoreReference(buildStore, "docker.io/myusername/my-image")
 
-	if err != nil {
-		panic(err)
-	}
+  if err != nil {
+    panic(err)
+  }
 
-	imageId, _, _, err := builder.Commit(context.TODO(), imageRef, define.CommitOptions{})
+  imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOptions{})
 
-	fmt.Printf("Image built! %s\n", imageId)
+  fmt.Printf("Image built! %s\n", imageId)
 }
 ```
