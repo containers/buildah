@@ -2778,3 +2778,26 @@ _EOF
   run_buildah rmi localhost:5000/buildah/alpine
   run_buildah rmi myalpine
 }
+
+@test "bud with undefined build arg directory" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir1
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+ARG SECRET="Itismysecret"
+FROM alpine
+ARG SECRET
+ARG NEWSECRET
+RUN echo $SECRET
+FROM alpine
+RUN echo "$SECRET"
+_EOF
+
+  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  ! expect_output --substring '\-\-build-arg SECRET=<VALUE>'
+  expect_output --substring '\-\-build-arg NEWSECRET=<VALUE>'
+
+  run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json --build-arg NEWSECRET="VerySecret" --file ${mytmpdir} .
+  ! expect_output --substring '\-\-build-arg SECRET=<VALUE>'
+  ! expect_output --substring '\-\-build-arg NEWSECRET=<VALUE>'
+}
