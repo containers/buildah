@@ -2,6 +2,7 @@ package dockerclient
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -793,9 +794,151 @@ func (e *ClientExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) er
 
 // CopyContainer copies the provided content into a destination container.
 func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []string, copies ...imagebuilder.Copy) error {
+	chownUid, chownGid := -1, -1
+	chown := func(h *tar.Header, r io.Reader) (data []byte, update bool, skip bool, err error) {
+		if chownUid != -1 {
+			h.Uid = chownUid
+		}
+		if chownGid != -1 {
+			h.Gid = chownGid
+		}
+		return nil, false, false, nil
+	}
+	readFile := func(path string) ([]byte, error) {
+		var buffer, contents bytes.Buffer
+		if err := e.Client.DownloadFromContainer(e.Container.ID, docker.DownloadFromContainerOptions{
+			OutputStream: &buffer,
+			Path:         path,
+			Context:      context.TODO(),
+		}); err != nil {
+			return nil, err
+		}
+		tr := tar.NewReader(&buffer)
+		hdr, err := tr.Next()
+		if err != nil {
+			return nil, err
+		}
+		if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA {
+			return nil, fmt.Errorf("expected %q to be a regular file, but it was of type %q", path, string(hdr.Typeflag))
+		}
+		if filepath.FromSlash(hdr.Name) != filepath.Base(path) {
+			return nil, fmt.Errorf("error reading contents of %q: got %q instead", path, hdr.Name)
+		}
+		n, err := io.Copy(&contents, tr)
+		if err != nil {
+			return nil, fmt.Errorf("error reading contents of %q: %v", path, err)
+		}
+		if n != hdr.Size {
+			return nil, fmt.Errorf("size mismatch reading contents of %q: %v", path, err)
+		}
+		hdr, err = tr.Next()
+		if err != nil && !errorIsEOF(err) {
+			return nil, fmt.Errorf("error reading archive of %q: %v", path, err)
+		}
+		if err == nil {
+			return nil, fmt.Errorf("got unexpected extra content while reading archive of %q: %v", path, err)
+		}
+		return contents.Bytes(), nil
+	}
+	parse := func(file []byte, matchField int, key string, numFields, readField int) (string, error) {
+		var value *string
+		scanner := bufio.NewScanner(bytes.NewReader(file))
+		for scanner.Scan() {
+			line := scanner.Text()
+			fields := strings.SplitN(line, ":", numFields)
+			if len(fields) != numFields {
+				return "", fmt.Errorf("error parsing line %q: incorrect number of fields", line)
+			}
+			if fields[matchField] != key {
+				continue
+			}
+			v := fields[readField]
+			value = &v
+		}
+		if err := scanner.Err(); err != nil {
+			return "", fmt.Errorf("error scanning file: %v", err)
+		}
+		if value == nil {
+			return "", os.ErrNotExist
+		}
+		return *value, nil
+	}
 	for _, c := range copies {
+		chownUid, chownGid = -1, -1
+		if c.Chown != "" {
+			spec := strings.SplitN(c.Chown, ":", 2)
+			if len(spec) == 2 {
+				parsedUid, err := strconv.ParseUint(spec[0], 10, 32)
+				if err != nil {
+					// maybe it's a user name? look up the UID
+					passwdFile, err := readFile("/etc/passwd")
+					if err != nil {
+						return err
+					}
+					uid, err := parse(passwdFile, 0, spec[0], 7, 2)
+					if err != nil {
+						return fmt.Errorf("error reading UID value from passwd file for --chown=%s: %v", spec[0], err)
+					}
+					parsedUid, err = strconv.ParseUint(uid, 10, 32)
+					if err != nil {
+						return fmt.Errorf("error parsing UID value %q from passwd file for --chown=%s", uid, c.Chown)
+					}
+				}
+				parsedGid, err := strconv.ParseUint(spec[1], 10, 32)
+				if err != nil {
+					// maybe it's a group name? look up the GID
+					groupFile, err := readFile("/etc/group")
+					if err != nil {
+						return err
+					}
+					gid, err := parse(groupFile, 0, spec[1], 4, 2)
+					if err != nil {
+						return err
+					}
+					parsedGid, err = strconv.ParseUint(gid, 10, 32)
+					if err != nil {
+						return fmt.Errorf("error parsing GID value %q from group file for --chown=%s", gid, c.Chown)
+					}
+				}
+				chownUid = int(parsedUid)
+				chownGid = int(parsedGid)
+			} else {
+				var parsedUid, parsedGid uint64
+				if id, err := strconv.ParseUint(spec[0], 10, 32); err == nil {
+					// it's an ID. use it as both the UID and the GID
+					parsedUid = id
+					parsedGid = id
+				} else {
+					// it's a user name, we'll need to look up their UID and primary GID
+					passwdFile, err := readFile("/etc/passwd")
+					if err != nil {
+						return err
+					}
+					// read the UID and primary GID
+					uid, err := parse(passwdFile, 0, spec[0], 7, 2)
+					if err != nil {
+						return fmt.Errorf("error reading UID value from /etc/passwd for --chown=%s", c.Chown)
+					}
+					gid, err := parse(passwdFile, 0, spec[0], 7, 3)
+					if err != nil {
+						return fmt.Errorf("error reading GID value from /etc/passwd for --chown=%s", c.Chown)
+					}
+					if parsedUid, err = strconv.ParseUint(uid, 10, 32); err != nil {
+						return fmt.Errorf("error parsing UID value %q from /etc/passwd for --chown=%s", uid, c.Chown)
+					}
+					if parsedGid, err = strconv.ParseUint(gid, 10, 32); err != nil {
+						return fmt.Errorf("error parsing GID value %q from /etc/passwd for --chown=%s", gid, c.Chown)
+					}
+				}
+				chownUid = int(parsedUid)
+				chownGid = int(parsedGid)
+			}
+		}
 		// TODO: reuse source
 		for _, src := range c.Src {
+			if src == "" {
+				src = "*"
+			}
 			klog.V(4).Infof("Archiving %s download=%t fromFS=%t from=%s", src, c.Download, c.FromFS, c.From)
 			var r io.Reader
 			var closer io.Closer
@@ -808,8 +951,16 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 			if err != nil {
 				return err
 			}
-
-			klog.V(5).Infof("Uploading to %s at %s", container.ID, c.Dest)
+			asOwner := ""
+			if c.Chown != "" {
+				filtered, err := transformArchive(r, false, chown)
+				if err != nil {
+					return err
+				}
+				r = filtered
+				asOwner = fmt.Sprintf(" as %d:%d", chownUid, chownGid)
+			}
+			klog.V(5).Infof("Uploading to %s%s at %s", container.ID, asOwner, c.Dest)
 			if klog.V(6) {
 				logArchiveOutput(r, "Archive file for %s")
 			}
@@ -1083,7 +1234,7 @@ func snapshotPath(path, containerID, tempDir string, client *docker.Client) (str
 			}
 			return len(h.Name) > 0
 		})
-		if err == nil || err == io.EOF {
+		if err == nil || errorIsEOF(err) {
 			tw.Flush()
 			w.Close()
 			klog.V(5).Infof("Snapshot rewritten from %s", path)
