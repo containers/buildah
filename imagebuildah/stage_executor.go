@@ -372,7 +372,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			StripSetgidBit:    stripSetgid,
 		}
 		if err := s.builder.Add(copy.Dest, copy.Download, options, sources...); err != nil {
-			return errors.Wrapf(err, "error adding sources %v", sources)
+			return err
 		}
 	}
 	return nil

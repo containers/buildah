@@ -2811,3 +2811,10 @@ _EOF
   ! expect_output --substring '\-\-build-arg SECRET=<VALUE>'
   ! expect_output --substring '\-\-build-arg NEWSECRET=<VALUE>'
 }
+
+@test "bud with .dockerignore - 3" {
+  run_buildah bud -t test --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
+  run_buildah bud -t test2 -f Containerfile.missing --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
+  run_buildah 125 bud -t test3 -f Containerfile.bad --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
+  expect_output --substring 'error building.*"COPY \*foo /testdir".*no such file or directory'
+}

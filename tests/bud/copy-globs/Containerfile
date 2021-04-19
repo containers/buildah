@@ -1,0 +1,3 @@
+FROM scratch
+# *txt exists so should succeed
+COPY *.txt /testdir
