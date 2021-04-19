@@ -158,7 +158,7 @@ func archiveFromURL(src, dst, tempDir string, check DirectoryCheck) (io.Reader, 
 func archiveFromDisk(directory string, src, dst string, allowDownload bool, excludes []string, check DirectoryCheck) (io.Reader, io.Closer, error) {
 	var err error
 	if filepath.IsAbs(src) {
-		src, err = filepath.Rel(filepath.Dir(src), src)
+		src, err = filepath.Rel(directory, filepath.Join(directory, src))
 		if err != nil {
 			return nil, nil, err
 		}
