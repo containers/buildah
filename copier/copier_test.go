@@ -491,10 +491,12 @@ func testPut(t *testing.T) {
 					t.Skipf("test archive %q can only be tested with root privileges, skipping", testArchives[i].name)
 				}
 
-				tmp := t.TempDir()
+				tmp, err := ioutil.TempDir("", "copier-test-")
+				require.NoErrorf(t, err, "error creating temporary directory")
+				defer os.RemoveAll(tmp)
 
 				archive := makeArchive(testArchives[i].headers, testArchives[i].contents)
-				err := Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, Rename: renames.renames}, archive)
+				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, Rename: renames.renames}, archive)
 				require.NoErrorf(t, err, "error extracting archive %q to directory %q", testArchives[i].name, tmp)
 
 				var found []string
@@ -530,8 +532,10 @@ func testPut(t *testing.T) {
 					{Name: "test", Typeflag: tar.TypeDir, Size: 0, Mode: 0755, ModTime: testDate},
 					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0755, Linkname: "target", ModTime: testDate},
 				})
-				tmp := t.TempDir()
-				err := Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
+				tmp, err := ioutil.TempDir("", "copier-test-")
+				require.NoErrorf(t, err, "error creating temporary directory")
+				defer os.RemoveAll(tmp)
+				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
 				if overwrite {
 					if unwrapError(err) != syscall.EPERM {
 						assert.Nilf(t, err, "expected to overwrite directory with type %c: %v", typeFlag, err)
@@ -554,8 +558,10 @@ func testPut(t *testing.T) {
 					{Name: "link", Typeflag: tar.TypeLink, Size: 0, Mode: 0600, ModTime: testDate, Linkname: "test"},
 					{Name: "unrelated", Typeflag: tar.TypeReg, Size: 0, Mode: 0600, ModTime: testDate},
 				})
-				tmp := t.TempDir()
-				err := Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, IgnoreDevices: ignoreDevices}, bytes.NewReader(archive))
+				tmp, err := ioutil.TempDir("", "copier-test-")
+				require.NoErrorf(t, err, "error creating temporary directory")
+				defer os.RemoveAll(tmp)
+				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, IgnoreDevices: ignoreDevices}, bytes.NewReader(archive))
 				require.Nilf(t, err, "expected to extract content with typeflag %c without an error: %v", typeFlag, err)
 				fileList, err := enumerateFiles(tmp)
 				require.Nilf(t, err, "unexpected error scanning the contents of extraction directory for typeflag %c: %v", typeFlag, err)
@@ -1629,6 +1635,189 @@ func TestHandleRename(t *testing.T) {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			renamed := handleRename(renames, testCase[0])
 			assert.Equal(t, testCase[1], renamed, "expected to get %q, got %q", testCase[1], renamed)
+		})
+	}
+}
+
+func TestRemoveNoChroot(t *testing.T) {
+	couldChroot := canChroot
+	canChroot = false
+	testRemove(t)
+	canChroot = couldChroot
+}
+
+func testRemove(t *testing.T) {
+	type testCase struct {
+		name    string
+		remove  string
+		all     bool
+		fail    bool
+		removed []string
+	}
+	testArchives := []struct {
+		name      string
+		headers   []tar.Header
+		testCases []testCase
+	}{
+		{
+			name: "regular",
+			headers: []tar.Header{
+				{Name: "subdir-a", Typeflag: tar.TypeDir, Mode: 0755, ModTime: testDate},
+				{Name: "subdir-a/file-a", Typeflag: tar.TypeReg, Mode: 0755, ModTime: testDate},
+				{Name: "subdir-a/file-b", Typeflag: tar.TypeReg, Mode: 0755, ModTime: testDate},
+				{Name: "subdir-a/subdir-b", Typeflag: tar.TypeDir, Mode: 0755, ModTime: testDate},
+				{Name: "subdir-a/subdir-b/subdir-c", Typeflag: tar.TypeDir, Mode: 0755, ModTime: testDate},
+				{Name: "subdir-a/subdir-b/subdir-c/parent", Typeflag: tar.TypeSymlink, Linkname: "..", ModTime: testDate},
+				{Name: "subdir-a/subdir-b/subdir-c/link-b", Typeflag: tar.TypeSymlink, Linkname: "../../file-b", ModTime: testDate},
+				{Name: "subdir-a/subdir-b/subdir-c/root", Typeflag: tar.TypeSymlink, Linkname: "/", ModTime: testDate},
+				{Name: "subdir-a/subdir-d", Typeflag: tar.TypeDir, Mode: 0755, ModTime: testDate},
+				{Name: "subdir-a/subdir-e", Typeflag: tar.TypeDir, Mode: 0755, ModTime: testDate},
+				{Name: "subdir-a/subdir-e/subdir-f", Typeflag: tar.TypeDir, Mode: 0755, ModTime: testDate},
+			},
+			testCases: []testCase{
+				{
+					name:    "file",
+					remove:  "subdir-a/file-a",
+					removed: []string{"subdir-a/file-a"},
+				},
+				{
+					name:    "file-all",
+					remove:  "subdir-a/file-a",
+					all:     true,
+					removed: []string{"subdir-a/file-a"},
+				},
+				{
+					name:   "subdir",
+					remove: "subdir-a/subdir-b",
+					all:    false,
+					fail:   true,
+				},
+				{
+					name:   "subdir-all",
+					remove: "subdir-a/subdir-b/subdir-c",
+					all:    true,
+					removed: []string{
+						"subdir-a/subdir-b/subdir-c",
+						"subdir-a/subdir-b/subdir-c/parent",
+						"subdir-a/subdir-b/subdir-c/link-b",
+						"subdir-a/subdir-b/subdir-c/root",
+					},
+				},
+				{
+					name:    "file-link",
+					remove:  "subdir-a/subdir-b/subdir-c/link-b",
+					removed: []string{"subdir-a/subdir-b/subdir-c/link-b"},
+				},
+				{
+					name:    "file-link-all",
+					remove:  "subdir-a/subdir-b/subdir-c/link-b",
+					all:     true,
+					removed: []string{"subdir-a/subdir-b/subdir-c/link-b"},
+				},
+				{
+					name:    "file-link-indirect",
+					remove:  "subdir-a/subdir-b/subdir-c/parent/subdir-c/link-b",
+					removed: []string{"subdir-a/subdir-b/subdir-c/link-b"},
+				},
+				{
+					name:    "file-link-indirect-all",
+					remove:  "subdir-a/subdir-b/subdir-c/parent/subdir-c/link-b",
+					all:     true,
+					removed: []string{"subdir-a/subdir-b/subdir-c/link-b"},
+				},
+				{
+					name:    "dir-link",
+					remove:  "subdir-a/subdir-b/subdir-c/root",
+					removed: []string{"subdir-a/subdir-b/subdir-c/root"},
+				},
+				{
+					name:    "dir-link-all",
+					remove:  "subdir-a/subdir-b/subdir-c/root",
+					all:     true,
+					removed: []string{"subdir-a/subdir-b/subdir-c/root"},
+				},
+				{
+					name:    "dir-through-link",
+					remove:  "subdir-a/subdir-b/subdir-c/root/subdir-a/subdir-d",
+					removed: []string{"subdir-a/subdir-d"},
+				},
+				{
+					name:    "dir-through-link-all",
+					remove:  "subdir-a/subdir-b/subdir-c/root/subdir-a/subdir-d",
+					all:     true,
+					removed: []string{"subdir-a/subdir-d"},
+				},
+				{
+					name:   "tree-through-link",
+					remove: "subdir-a/subdir-b/subdir-c/root/subdir-a/subdir-e",
+					all:    false,
+					fail:   true,
+				},
+				{
+					name:    "tree-through-link-all",
+					remove:  "subdir-a/subdir-b/subdir-c/root/subdir-a/subdir-e",
+					all:     true,
+					removed: []string{"subdir-a/subdir-e", "subdir-a/subdir-e/subdir-f"},
+				},
+			},
+		},
+	}
+	for i := range testArchives {
+		t.Run(testArchives[i].name, func(t *testing.T) {
+			for _, testCase := range testArchives[i].testCases {
+				t.Run(testCase.name, func(t *testing.T) {
+					dir, err := makeContextFromArchive(makeArchive(testArchives[i].headers, nil), "")
+					require.NoErrorf(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, "")
+					defer os.RemoveAll(dir)
+					root := dir
+					options := RemoveOptions{All: testCase.all}
+					beforeNames := make(map[string]struct{})
+					err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+						if info == nil || err != nil {
+							return err
+						}
+						rel, err := filepath.Rel(dir, path)
+						if err != nil {
+							return err
+						}
+						beforeNames[rel] = struct{}{}
+						return nil
+					})
+					require.NoErrorf(t, err, "error walking directory to catalog pre-Remove contents: %v", err)
+					err = Remove(root, testCase.remove, options)
+					if testCase.fail {
+						require.Errorf(t, err, "did not expect to succeed removing item %q under %q with Remove", testCase.remove, root)
+						return
+					}
+					require.NoErrorf(t, err, "error removing item %q under %q with Remove: %v", testCase.remove, root, err)
+					afterNames := make(map[string]struct{})
+					err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+						if info == nil || err != nil {
+							return err
+						}
+						rel, err := filepath.Rel(dir, path)
+						if err != nil {
+							return err
+						}
+						afterNames[rel] = struct{}{}
+						return nil
+					})
+					require.NoErrorf(t, err, "error walking directory to catalog post-Remove contents: %v", err)
+					var removed []string
+					for beforeName := range beforeNames {
+						if _, stillPresent := afterNames[beforeName]; !stillPresent {
+							removed = append(removed, beforeName)
+						}
+					}
+					var expected []string
+					for _, expect := range testCase.removed {
+						expected = append(expected, filepath.FromSlash(expect))
+					}
+					sort.Strings(expected)
+					sort.Strings(removed)
+					assert.Equal(t, expected, removed, "expected different paths to be missing")
+				})
+			}
 		})
 	}
 }

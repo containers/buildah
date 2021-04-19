@@ -65,3 +65,13 @@ func TestMkdirChroot(t *testing.T) {
 	testMkdir(t)
 	canChroot = couldChroot
 }
+
+func TestRemoveChroot(t *testing.T) {
+	if uid != 0 {
+		t.Skip("chroot() requires root privileges, skipping")
+	}
+	couldChroot := canChroot
+	canChroot = true
+	testRemove(t)
+	canChroot = couldChroot
+}
