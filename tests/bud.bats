@@ -396,6 +396,16 @@ symlink(subdir)"
   expect_output "${target}-working-container"
 }
 
+@test "bud with --tag " {
+  target=scratch-image
+  run_buildah bud --quiet=false --tag test1 --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  expect_output --substring "Successfully tagged localhost/test1:latest"
+
+  run_buildah bud --quiet=false --tag test1 --tag test2 --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  expect_output --substring "Successfully tagged localhost/test1:latest"
+  expect_output --substring "Successfully tagged localhost/test2:latest"
+}
+
 @test "bud-from-scratch-iid" {
   target=scratch-image
   run_buildah bud --iidfile ${TESTDIR}/output.iid --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
