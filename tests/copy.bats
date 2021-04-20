@@ -261,9 +261,20 @@ load helpers
 
 @test "ignore-socket" {
   createrandom ${TESTDIR}/randomfile
+  # This seems to be the least-worst way to create a socket: run and kill nc
   nc -lkU ${TESTDIR}/test.socket &
-  while ! test -e ${TESTDIR}/test.socket; do sleep 0.1; done
-  kill $!
+  nc_pid=$!
+  # This should succeed fairly quickly. We test with a timeout in case of
+  # failure (likely reason: 'nc' not installed.)
+  retries=50
+  while ! test -e ${TESTDIR}/test.socket; do
+      sleep 0.1
+      retries=$((retries - 1))
+      if [[ $retries -eq 0 ]]; then
+          die "Timed out waiting for ${TESTDIR}/test.socket (is nc installed?)"
+      fi
+  done
+  kill $nc_pid
 
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
