@@ -508,7 +508,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	}
 
 	// Get the list of subscriptions mounts.
-	secretMounts := subscriptions.MountsWithUIDGID(b.MountLabel, cdir, b.DefaultMountsFilePath, mountPoint, int(rootUID), int(rootGID), unshare.IsRootless(), false)
+	subscriptionMounts := subscriptions.MountsWithUIDGID(b.MountLabel, cdir, b.DefaultMountsFilePath, mountPoint, int(rootUID), int(rootGID), unshare.IsRootless(), false)
 
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
@@ -529,7 +529,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 		return err
 	}
 
-	allMounts := util.SortMounts(append(append(append(append(append(volumes, builtins...), secretMounts...), bindFileMounts...), specMounts...), sysfsMount...))
+	allMounts := util.SortMounts(append(append(append(append(append(volumes, builtins...), subscriptionMounts...), bindFileMounts...), specMounts...), sysfsMount...))
 	// Add them all, in the preferred order, except where they conflict with something that was previously added.
 	for _, mount := range allMounts {
 		if haveMount(mount.Destination) {
