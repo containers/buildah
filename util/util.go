@@ -275,11 +275,6 @@ func Runtime() string {
 		return runtime
 	}
 
-	// Need to switch default until runc supports cgroups v2
-	if unified, _ := IsCgroup2UnifiedMode(); unified {
-		return "crun"
-	}
-
 	conf, err := config.Default()
 	if err != nil {
 		logrus.Warnf("Error loading container config when searching for local runtime: %v", err)
