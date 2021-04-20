@@ -61,8 +61,6 @@ var (
 )
 
 func init() {
-	logrus.SetFormatter(&logrus.TextFormatter{DisableTimestamp: true})
-
 	var (
 		defaultStoreDriverOptions []string
 	)
