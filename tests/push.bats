@@ -140,10 +140,7 @@ load helpers
 }
 
 @test "buildah push image to docker and docker registry" {
-  run which docker
-  if [[ $status -ne 0 ]]; then
-    skip "docker is not installed"
-  fi
+  skip_if_no_docker
 
   _prefetch busybox
   run_buildah push --signature-policy ${TESTSDIR}/policy.json busybox docker-daemon:buildah/busybox:latest
