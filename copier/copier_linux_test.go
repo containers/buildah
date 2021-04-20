@@ -113,8 +113,10 @@ func TestGetPermissionErrorChroot(t *testing.T) {
 
 func testGetPermissionError(t *testing.T) {
 	dropCaps := []capability.Cap{capability.CAP_DAC_OVERRIDE, capability.CAP_DAC_READ_SEARCH}
-	tmp := t.TempDir()
-	err := os.Mkdir(filepath.Join(tmp, "unreadable-directory"), 0000)
+	tmp, err := ioutil.TempDir("", "copier-test-")
+	require.NoErrorf(t, err, "error creating temporary directory")
+	defer os.RemoveAll(tmp)
+	err = os.Mkdir(filepath.Join(tmp, "unreadable-directory"), 0000)
 	require.NoError(t, err, "error creating an unreadable directory")
 	err = os.Mkdir(filepath.Join(tmp, "readable-directory"), 0755)
 	require.NoError(t, err, "error creating a readable directory")
