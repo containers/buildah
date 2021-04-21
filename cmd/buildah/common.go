@@ -455,7 +455,6 @@ func Tail(a []string) []string {
 func UsageTemplate() string {
 	return `Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
-
   {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
 
 Aliases:
