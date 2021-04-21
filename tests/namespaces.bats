@@ -206,12 +206,47 @@ load helpers
 
     # Check that a container with mapped-layer can be committed.
     run_buildah commit "$ctr" localhost/alpine-working:$i
+
+
+    # Also test bud command
+    # Build an image using these mappings.
+    echo "Building image with ${uidmapargs[$i]} ${gidmapargs[$i]}"
+    run_buildah bud ${uidmapargs[$i]} ${gidmapargs[$i]} $RUNOPTS --signature-policy ${TESTSDIR}/policy.json \
+                    -t localhost/alpine-bud:$i -f ${TESTSDIR}/bud/namespaces/Containerfile $TESTDIR
+    # If we specified mappings, expect to be in a different namespace by default.
+    result="$(grep -A1 'ReadlinkResult' <<< "$output" | tail -n1)"
+    case x"${uidmapargs[$i]}""${gidmapargs[$i]}" in
+    x)
+      if test "$BUILDAH_ISOLATION" != "chroot" -a "$BUILDAH_ISOLATION" != "rootless" ; then
+        expect_output --from="$result" "$mynamespace"
+      fi
+      ;;
+    *)
+      [ "$result" != "$mynamespace" ]
+      ;;
+    esac
+    # Check that we got the mappings that we expected.
+    result="$(grep -A1 'UidMapResult' <<< "$output" | tail -n1)"
+    uidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$result")
+    result="$(grep -A1 'GidMapResult' <<< "$output" | tail -n1)"
+    gidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "$result")
+    echo With settings "$map", expected UID map "${uidmaps[$i]}", got UID map "${uidmap}", expected GID map "${gidmaps[$i]}", got GID map "${gidmap}".
+    expect_output --from="$uidmap" "${uidmaps[$i]}"
+    expect_output --from="$gidmap" "${gidmaps[$i]}"
+    # Check that if we copy a file into the container, it gets the right permissions.
+    expect_output --substring "StatSomefileResult=1:1"
+    # Check that if we copy a directory into the container, its contents get the right permissions.
+    expect_output --substring "StatSomedirResult=0:0"
+    # bud strips suid.
+    expect_output --substring "StatSomeotherfileResult=0:0 700"
   done
 }
 
 general_namespace() {
   mkdir -p $TESTDIR/no-cni-configs
   RUNOPTS="--cni-config-dir=${TESTDIR}/no-cni-configs ${RUNC_BINARY:+--runtime $RUNC_BINARY}"
+  mytmpdir=$TESTDIR/my-dir
+  mkdir -p ${mytmpdir}
 
   # The name of the /proc/self/ns/$link.
   nstype="$1"
@@ -254,27 +289,44 @@ general_namespace() {
       ;;
     esac
 
-    if [ "$nsflag" = "userns" ]; then
-      # "run" doesn't have --userns option.
-      continue
+    # "run" doesn't have --userns option.
+    if [ "$nsflag" != "userns" ]; then
+      for different in ${types[@]} ; do
+        # Check that, if we override it, we get what we specify for "run".
+       run_buildah run $RUNOPTS --"$nsflag"=$different "$ctr" readlink /proc/self/ns/"$nstype"
+        [ "$output" != "" ]
+        case "$different" in
+        ""|container|private)
+          [ "$output" != "$mynamespace" ]
+          ;;
+       host)
+          expect_output "$mynamespace"
+          ;;
+        /*)
+          expect_output "$(readlink $different)"
+          ;;
+        esac
+     done
     fi
 
-    for different in ${types[@]} ; do
-      # Check that, if we override it, we get what we specify for "run".
-      run_buildah run $RUNOPTS --"$nsflag"=$different "$ctr" readlink /proc/self/ns/"$nstype"
-      [ "$output" != "" ]
-      case "$different" in
-      ""|container|private)
-        [ "$output" != "$mynamespace" ]
-        ;;
-      host)
-        expect_output "$mynamespace"
-        ;;
-      /*)
-        expect_output "$(readlink $different)"
-        ;;
-      esac
-    done
+    # Also check "from" command
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+RUN echo "TargetOutput" && readlink /proc/self/ns/$nstype
+_EOF
+    run_buildah bud --"$nsflag"=$namespace $RUNOPTS --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+    result=$(grep -A1 "TargetOutput" <<< "$output" | tail -n1)
+    case "$namespace" in
+    ""|container|private)
+      [ "$result" != "$mynamespace" ]
+      ;;
+    host)
+      expect_output --from="$result" "$mynamespace"
+      ;;
+    /*)
+      expect_output --from="$result" "$(readlink $namespace)"
+      ;;
+    esac
 
   done
 }
