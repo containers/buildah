@@ -92,15 +92,8 @@ load helpers
 }
 
 @test "pull-from-docker-daemon" {
-  run systemctl status docker
-  if [[ ! "$output" =~ "active (running)" ]]
-  then
-     skip "Skip the test as docker services is not running"
-  fi
+  skip_if_no_docker
 
-  run systemctl start docker
-  echo "$output"
-  [ "$status" -eq 0 ]
   run docker pull alpine
   echo "$output"
   [ "$status" -eq 0 ]

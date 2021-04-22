@@ -661,19 +661,31 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		fmt.Fprintf(b.out, "[Warning] one or more build args were not consumed: %v\n", unusedList)
 	}
 
-	if len(b.additionalTags) > 0 {
-		if dest, err := b.resolveNameToImageRef(b.output); err == nil {
-			switch dest.Transport().Name() {
-			case is.Transport.Name():
-				img, err := is.Transport.GetStoreImage(b.store, dest)
-				if err != nil {
-					return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
-				}
+	// Add additional tags and print image names recorded in storage
+	if dest, err := b.resolveNameToImageRef(b.output); err == nil {
+		switch dest.Transport().Name() {
+		case is.Transport.Name():
+			img, err := is.Transport.GetStoreImage(b.store, dest)
+			if err != nil {
+				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
+			}
+			if len(b.additionalTags) > 0 {
 				if err = util.AddImageNames(b.store, "", b.systemContext, img, b.additionalTags); err != nil {
 					return imageID, ref, errors.Wrapf(err, "error setting image names to %v", append(img.Names, b.additionalTags...))
 				}
 				logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
-			default:
+			}
+			// Report back the caller the tags applied, if any.
+			img, err = is.Transport.GetStoreImage(b.store, dest)
+			if err != nil {
+				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
+			}
+			for _, name := range img.Names {
+				fmt.Fprintf(b.out, "Successfully tagged %s\n", name)
+			}
+
+		default:
+			if len(b.additionalTags) > 0 {
 				logrus.Warnf("don't know how to add tags to images stored in %q transport", dest.Transport().Name())
 			}
 		}

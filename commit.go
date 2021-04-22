@@ -341,30 +341,6 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 		systemContext.OCIInsecureSkipTLSVerify = true
 		systemContext.DockerDaemonInsecureSkipTLSVerify = true
 	}
-	if len(options.AdditionalTags) > 0 {
-		names, err := util.ExpandNames(options.AdditionalTags, "", systemContext, b.store)
-		if err != nil {
-			return imgID, nil, "", err
-		}
-		for _, name := range names {
-			additionalDest, err := docker.Transport.ParseReference(name)
-			if err != nil {
-				return imgID, nil, "", errors.Wrapf(err, "error parsing image name %q as an image reference", name)
-			}
-			insecure, err := checkRegistrySourcesAllows("commit to", additionalDest)
-			if err != nil {
-				return imgID, nil, "", err
-			}
-			if insecure {
-				if systemContext.DockerInsecureSkipTLSVerify == types.OptionalBoolFalse {
-					return imgID, nil, "", errors.Errorf("can't require tls verification on an insecured registry")
-				}
-				systemContext.DockerInsecureSkipTLSVerify = types.OptionalBoolTrue
-				systemContext.OCIInsecureSkipTLSVerify = true
-				systemContext.DockerDaemonInsecureSkipTLSVerify = true
-			}
-		}
-	}
 	logrus.Debugf("committing image with reference %q is allowed by policy", transports.ImageName(dest))
 
 	// Check if the base image is already in the destination and it's some kind of local
