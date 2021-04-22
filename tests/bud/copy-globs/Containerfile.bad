@@ -1,0 +1,3 @@
+FROM scratch
+# No match so should fail
+COPY *foo /testdir
