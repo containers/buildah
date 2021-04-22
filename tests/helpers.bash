@@ -358,3 +358,17 @@ function skip_if_in_container() {
         skip "This test is not working inside a container"
     fi
 }
+
+#######################
+#  skip_if_no_docker  #
+#######################
+function skip_if_no_docker() {
+  which docker                  || skip "docker is not installed"
+  systemctl -q is-active docker || skip "docker.service is not active"
+
+  # Confirm that this is really truly docker, not podman.
+  docker_version=$(docker --version)
+  if [[ $docker_version =~ podman ]]; then
+    skip "this test needs actual docker, not podman-docker"
+  fi
+}
