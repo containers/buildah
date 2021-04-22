@@ -424,7 +424,6 @@ return 1
      --isolation
      --ipc
      --label
-     --loglevel
      --manifest
      -m
      --memory
