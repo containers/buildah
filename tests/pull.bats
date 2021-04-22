@@ -30,7 +30,7 @@ load helpers
 
 @test "pull-blocked" {
   run_buildah 125 --registries-conf ${TESTSDIR}/registries.conf.block pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
-  expect_output --substring "is blocked by configuration"
+  expect_output --substring "registry docker.io is blocked in"
 
   run_buildah --retry --registries-conf ${TESTSDIR}/registries.conf       pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
 }
@@ -65,7 +65,7 @@ load helpers
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine"
   run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
-  expect_output "Non-docker transport is not supported, for --all-tags pulling"
+  expect_output --substring "pulling all tags is not supported for docker-archive transport"
 }
 
 @test "pull-from-oci-archive" {
@@ -76,7 +76,7 @@ load helpers
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine"
   run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/alp.tar
-  expect_output "Non-docker transport is not supported, for --all-tags pulling"
+  expect_output --substring "pulling all tags is not supported for oci-archive transport"
 }
 
 @test "pull-from-local-directory" {
@@ -88,7 +88,7 @@ load helpers
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "localhost${TESTDIR}/buildahtest:latest"
   run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
-  expect_output "Non-docker transport is not supported, for --all-tags pulling"
+  expect_output --substring "pulling all tags is not supported for dir transport"
 }
 
 @test "pull-from-docker-daemon" {
@@ -102,7 +102,7 @@ load helpers
   expect_output --substring "alpine:latest"
   run_buildah rmi alpine
   run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-daemon:docker.io/library/alpine:latest
-  expect_output --substring "Non-docker transport is not supported, for --all-tags pulling"
+  expect_output --substring "pulling all tags is not supported for docker-daemon transport"
 }
 
 @test "pull-all-tags" {
@@ -127,7 +127,7 @@ load helpers
   # Now pull with --all-tags, and confirm that we see all expected tag strings
   run_buildah pull $opts --all-tags localhost:5000/myalpine
   for tag in "${tags[@]}"; do
-      expect_output --substring "Pulling localhost:5000/myalpine:$tag"
+      expect_output --substring "Trying to pull localhost:5000/myalpine:$tag"
   done
 
   # Confirm that 'images -a' lists all of them. <Brackets> help confirm
@@ -151,25 +151,25 @@ load helpers
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "localhost${TESTDIR}/alpine:latest"
   run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
-  expect_output "Non-docker transport is not supported, for --all-tags pulling"
+  expect_output --substring "pulling all tags is not supported for oci transport"
 }
 
 @test "pull-denied-by-registry-sources" {
   export BUILD_REGISTRY_SOURCES='{"blockedRegistries": ["docker.io"]}'
 
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
-  expect_output --substring 'pull from registry at "docker.io" denied by policy: it is in the blocked registries list'
+  expect_output --substring 'registry "docker.io" denied by policy: it is in the blocked registries list'
 
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
-  expect_output --substring 'pull from registry at "docker.io" denied by policy: it is in the blocked registries list'
+  expect_output --substring 'registry "docker.io" denied by policy: it is in the blocked registries list'
 
   export BUILD_REGISTRY_SOURCES='{"allowedRegistries": ["some-other-registry.example.com"]}'
 
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
-  expect_output --substring 'pull from registry at "docker.io" denied by policy: not in allowed registries list'
+  expect_output --substring 'registry "docker.io" denied by policy: not in allowed registries list'
 
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
-  expect_output --substring 'pull from registry at "docker.io" denied by policy: not in allowed registries list'
+  expect_output --substring 'registry "docker.io" denied by policy: not in allowed registries list'
 }
 
 @test "pull should fail with nonexistent authfile" {
@@ -278,11 +278,11 @@ load helpers
 @test "pull-policy" {
   mkdir ${TESTDIR}/buildahtest
   run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --policy bogus alpine
-  expect_output --substring "unrecognized pull policy bogus"
+  expect_output --substring "unsupported pull policy \"bogus\""
 
   #  If image does not exist the never will fail
   run_buildah 125 pull -q --signature-policy ${TESTSDIR}/policy.json --policy never alpine
-  expect_output --substring "could not be found locally"
+  expect_output --substring "image not known"
   run_buildah 125 inspect --type image alpine
   expect_output --substring "image not known"
 

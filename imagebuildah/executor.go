@@ -16,10 +16,12 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/libimage"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
 	is "github.com/containers/image/v5/storage"
+	storageTransport "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
@@ -301,22 +303,34 @@ func (b *Executor) startStage(ctx context.Context, stage *imagebuilder.Stage, st
 
 // resolveNameToImageRef creates a types.ImageReference for the output name in local storage
 func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, error) {
-	imageRef, err := alltransports.ParseImageName(output)
-	if err != nil {
-		candidates, _, _, err := util.ResolveName(output, "", b.systemContext, b.store)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error parsing target image name %q", output)
-		}
-		if len(candidates) == 0 {
-			return nil, errors.Errorf("error parsing target image name %q", output)
-		}
-		imageRef2, err2 := is.Transport.ParseStoreReference(b.store, candidates[0])
-		if err2 != nil {
-			return nil, errors.Wrapf(err, "error parsing target image name %q", output)
-		}
-		return imageRef2, nil
+	if imageRef, err := alltransports.ParseImageName(output); err == nil {
+		return imageRef, nil
 	}
-	return imageRef, nil
+	runtime, err := libimage.RuntimeFromStore(b.store, &libimage.RuntimeOptions{SystemContext: b.systemContext})
+	if err != nil {
+		return nil, err
+	}
+	// If we can resolve the image locally, make sure we use the resolved name.
+	localImage, resolvedName, err := runtime.LookupImage(output, nil)
+	if err != nil {
+		return nil, err
+	}
+	if localImage != nil {
+		output = resolvedName
+	}
+	// If we cannot find an image, make sure we normalize the name
+	// according the conventions and rules in libimage (e.g.,
+	// "localhost/" prefixing).
+	named, err := libimage.NormalizeName(output)
+	if err != nil {
+		return nil, err
+	}
+	imageRef, err := storageTransport.Transport.ParseStoreReference(b.store, named.String())
+	if err == nil {
+		return imageRef, nil
+	}
+
+	return imageRef, err
 }
 
 // waitForStage waits for an entry to be added to terminatedStage indicating
@@ -670,7 +684,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
 			if len(b.additionalTags) > 0 {
-				if err = util.AddImageNames(b.store, "", b.systemContext, img, b.additionalTags); err != nil {
+				if err = util.TagImage(b.store, b.systemContext, img, b.additionalTags); err != nil {
 					return imageID, ref, errors.Wrapf(err, "error setting image names to %v", append(img.Names, b.additionalTags...))
 				}
 				logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)

@@ -587,6 +587,14 @@ func SystemContextFromOptions(c *cobra.Command) (*types.SystemContext, error) {
 		ctx.OCIInsecureSkipTLSVerify = !tlsVerify
 		ctx.DockerDaemonInsecureSkipTLSVerify = !tlsVerify
 	}
+	disableCompression, err := c.Flags().GetBool("disable-compression")
+	if err == nil {
+		if disableCompression {
+			ctx.OCIAcceptUncompressedLayers = true
+		} else {
+			ctx.DirForceCompress = true
+		}
+	}
 	creds, err := c.Flags().GetString("creds")
 	if err == nil && c.Flag("creds").Changed {
 		var err error

@@ -83,7 +83,7 @@ load helpers
   _prefetch busybox
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
   run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json busybox
-  expect_output --substring "docker://busybox"
+  expect_output --substring "busybox"
 }
 
 @test "push should fail with nonexistent authfile" {
@@ -107,7 +107,6 @@ load helpers
 
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json --quiet busybox
   run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json busybox docker://registry.example.com/evenbusierbox
-  expect_output --substring 'push to registry at "registry.example.com" denied by policy: it is in the blocked registries list'
 
   export BUILD_REGISTRY_SOURCES='{"allowedRegistries": ["some-other-registry.example.com"]}'
 
@@ -118,7 +117,7 @@ load helpers
 
   run_buildah pull --signature-policy ${TESTSDIR}/policy.json --quiet busybox
   run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json busybox docker://registry.example.com/evenbusierbox
-  expect_output --substring 'push to registry at "registry.example.com" denied by policy: not in allowed registries list'
+  expect_output --substring 'registry "registry.example.com" denied by policy: not in allowed registries list'
 }
 
 

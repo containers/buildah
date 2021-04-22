@@ -9,10 +9,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/containers/buildah/manifests"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/libimage/manifests"
 	"github.com/containers/common/pkg/auth"
 	cp "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/manifest"
@@ -225,7 +225,7 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 
 	list := manifests.Create()
 
-	names, err := util.ExpandNames([]string{listImageSpec}, "", systemContext, store)
+	names, err := util.ExpandNames([]string{listImageSpec}, systemContext, store)
 	if err != nil {
 		return errors.Wrapf(err, "error encountered while expanding image name %q", listImageSpec)
 	}
@@ -235,7 +235,7 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 		if err != nil {
 			if ref, err = alltransports.ParseImageName(util.DefaultTransport + imageSpec); err != nil {
 				// check if the local image exists
-				if ref, _, err = util.FindImage(store, "", systemContext, imageSpec); err != nil {
+				if ref, _, err = util.FindImage(store, systemContext, imageSpec); err != nil {
 					return err
 				}
 			}
@@ -285,7 +285,7 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	_, listImage, err := util.FindImage(store, "", systemContext, listImageSpec)
+	_, listImage, err := util.FindImage(store, systemContext, listImageSpec)
 	if err != nil {
 		return err
 	}
@@ -294,7 +294,7 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 	if err != nil {
 		if ref, err = alltransports.ParseImageName(util.DefaultTransport + imageSpec); err != nil {
 			// check if the local image exists
-			if ref, _, err = util.FindImage(store, "", systemContext, imageSpec); err != nil {
+			if ref, _, err = util.FindImage(store, systemContext, imageSpec); err != nil {
 				return err
 			}
 		}
@@ -309,7 +309,7 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 	if err != nil {
 		var storeErr error
 		// check if the local image exists
-		if ref, _, storeErr = util.FindImage(store, "", systemContext, imageSpec); storeErr != nil {
+		if ref, _, storeErr = util.FindImage(store, systemContext, imageSpec); storeErr != nil {
 			return err
 		}
 		digest, storeErr = list.Add(getContext(), systemContext, ref, opts.all)
@@ -404,7 +404,7 @@ func manifestRemoveCmd(c *cobra.Command, args []string, opts manifestRemoveOpts)
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	_, listImage, err := util.FindImage(store, "", systemContext, listImageSpec)
+	_, listImage, err := util.FindImage(store, systemContext, listImageSpec)
 	if err != nil {
 		return err
 	}
@@ -461,7 +461,7 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	_, listImage, err := util.FindImage(store, "", systemContext, listImageSpec)
+	_, listImage, err := util.FindImage(store, systemContext, listImageSpec)
 	if err != nil {
 		return err
 	}
@@ -474,7 +474,7 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 	digest, err := digest.Parse(imageSpec)
 	if err != nil {
 		ctx := getContext()
-		ref, _, err := util.FindImage(store, "", systemContext, imageSpec)
+		ref, _, err := util.FindImage(store, systemContext, imageSpec)
 		if err != nil {
 			return err
 		}
@@ -573,12 +573,15 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 }
 
 func manifestInspect(ctx context.Context, store storage.Store, systemContext *types.SystemContext, imageSpec string) error {
+	// TODO: at some point `libimage` should support resolving manifests
+	// like that.  Similar to `libimage.Runtime.LookupImage` we could
+	// implement a `*.LookupImageIndex`.
 	refs, err := util.ResolveNameToReferences(store, systemContext, imageSpec)
 	if err != nil {
 		logrus.Debugf("error parsing reference to image %q: %v", imageSpec, err)
 	}
 
-	if ref, _, err := util.FindImage(store, "", systemContext, imageSpec); err == nil {
+	if ref, _, err := util.FindImage(store, systemContext, imageSpec); err == nil {
 		refs = append(refs, ref)
 	} else if ref, err := alltransports.ParseImageName(imageSpec); err == nil {
 		refs = append(refs, ref)
@@ -676,7 +679,7 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 }
 
 func manifestPush(systemContext *types.SystemContext, store storage.Store, listImageSpec, destSpec string, opts pushOptions) error {
-	_, listImage, err := util.FindImage(store, "", systemContext, listImageSpec)
+	_, listImage, err := util.FindImage(store, systemContext, listImageSpec)
 	if err != nil {
 		return err
 	}

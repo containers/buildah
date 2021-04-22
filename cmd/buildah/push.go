@@ -1,20 +1,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 
-	"github.com/containers/buildah"
-	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/pkg/blobcache"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/buildah/util"
+	"github.com/containers/common/libimage"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/transports"
-	"github.com/containers/image/v5/transports/alltransports"
+	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -39,6 +39,55 @@ type pushOptions struct {
 	tlsVerify          bool
 	encryptionKeys     []string
 	encryptLayers      []int
+}
+
+// translates the pushOptions into libimage.PushOptions.
+func (iopts *pushOptions) toLibimagePushOptions() (*libimage.PushOptions, error) {
+	pushOptions := &libimage.PushOptions{}
+	pushOptions.PolicyAllowStorage = true
+	pushOptions.AuthFilePath = iopts.authfile
+	pushOptions.CertDirPath = iopts.certDir
+	pushOptions.Credentials = iopts.creds
+	pushOptions.RemoveSignatures = iopts.removeSignatures
+	pushOptions.SignaturePolicyPath = iopts.signaturePolicy
+	pushOptions.SignBy = iopts.signBy
+
+	if iopts.blobCache != "" {
+		compress := types.Compress
+		if iopts.disableCompression {
+			compress = types.PreserveOriginal
+		}
+		pushOptions.SourceLookupReferenceFunc = blobcache.CacheLookupReferenceFunc(iopts.blobCache, compress)
+	}
+
+	var manifestType string
+	if iopts.format != "" {
+		switch iopts.format {
+		case "oci":
+			manifestType = imgspecv1.MediaTypeImageManifest
+		case "v2s1":
+			manifestType = manifest.DockerV2Schema1SignedMediaType
+		case "v2s2", "docker":
+			manifestType = manifest.DockerV2Schema2MediaType
+		default:
+			return nil, errors.Errorf("unknown format %q. Choose on of the supported formats: 'oci', 'v2s1', or 'v2s2'", iopts.format)
+		}
+	}
+	pushOptions.ManifestMIMEType = manifestType
+
+	encConfig, encLayers, err := getEncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to obtain encryption config")
+	}
+	pushOptions.OciEncryptConfig = encConfig
+	pushOptions.OciEncryptLayers = encLayers
+	pushOptions.InsecureSkipTLSVerify = types.NewOptionalBool(!iopts.tlsVerify)
+
+	if !iopts.quiet {
+		pushOptions.Writer = os.Stderr
+	}
+
+	return pushOptions, nil
 }
 
 func init() {
@@ -125,35 +174,9 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		return errors.New("Only two arguments are necessary to push: source and destination")
 	}
 
-	compress := define.Gzip
-	if iopts.disableCompression {
-		compress = define.Uncompressed
-	}
-
 	store, err := getStore(c)
 	if err != nil {
 		return err
-	}
-
-	dest, err := alltransports.ParseImageName(destSpec)
-	// add the docker:// transport to see if they neglected it.
-	if err != nil {
-		destTransport := strings.Split(destSpec, ":")[0]
-		if t := transports.Get(destTransport); t != nil {
-			return err
-		}
-
-		if strings.Contains(destSpec, "://") {
-			return err
-		}
-
-		destSpec = "docker://" + destSpec
-		dest2, err2 := alltransports.ParseImageName(destSpec)
-		if err2 != nil {
-			return err
-		}
-		dest = dest2
-		logrus.Debugf("Assuming docker:// as the transport method for DESTINATION: %s", destSpec)
 	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)
@@ -161,72 +184,42 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	var manifestType string
-	if iopts.format != "" {
-		switch iopts.format {
-		case "oci":
-			manifestType = imgspecv1.MediaTypeImageManifest
-		case "v2s1":
-			manifestType = manifest.DockerV2Schema1SignedMediaType
-		case "v2s2", "docker":
-			manifestType = manifest.DockerV2Schema2MediaType
-		default:
-			return errors.Errorf("unknown format %q. Choose on of the supported formats: 'oci', 'v2s1', or 'v2s2'", iopts.format)
-		}
-	}
-
-	encConfig, encLayers, err := getEncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
+	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
-		return errors.Wrapf(err, "unable to obtain encryption config")
+		return err
 	}
 
-	options := buildah.PushOptions{
-		Compression:         compress,
-		ManifestType:        manifestType,
-		SignaturePolicyPath: iopts.signaturePolicy,
-		Store:               store,
-		SystemContext:       systemContext,
-		BlobDirectory:       iopts.blobCache,
-		RemoveSignatures:    iopts.removeSignatures,
-		SignBy:              iopts.signBy,
-		MaxRetries:          maxPullPushRetries,
-		RetryDelay:          pullPushRetryDelay,
-		OciEncryptConfig:    encConfig,
-		OciEncryptLayers:    encLayers,
-	}
-	if !iopts.quiet {
-		options.ReportWriter = os.Stderr
-	}
-
-	ref, digest, err := buildah.Push(getContext(), src, dest, options)
+	pushOptions, err := iopts.toLibimagePushOptions()
 	if err != nil {
-		if errors.Cause(err) != storage.ErrImageUnknown {
+		return err
+	}
+
+	pushedManifestBytes, pushError := runtime.Push(context.Background(), src, destSpec, pushOptions)
+	if pushError != nil {
+		// TODO: maybe we find a way to handle that transparently in libimage?
+		if errors.Cause(pushError) != storage.ErrImageUnknown {
 			// Image might be a manifest so attempt a manifest push
 			if manifestsErr := manifestPush(systemContext, store, src, destSpec, iopts); manifestsErr == nil {
 				return nil
 			}
 		}
-		return util.GetFailureCause(err, errors.Wrapf(err, "error pushing image %q to %q", src, destSpec))
+		return pushError
 	}
-	if ref != nil {
-		logrus.Debugf("pushed image %q with digest %s", ref, digest.String())
-	} else {
-		logrus.Debugf("pushed image with digest %s", digest.String())
-	}
-
-	logrus.Debugf("Successfully pushed %s with digest %s", transports.ImageName(dest), digest.String())
 
 	if iopts.digestfile != "" {
-		if err = ioutil.WriteFile(iopts.digestfile, []byte(digest.String()), 0644); err != nil {
-			return util.GetFailureCause(err, errors.Wrapf(err, "failed to write digest to file %q", iopts.digestfile))
+		manifestDigest, err := manifest.Digest(pushedManifestBytes)
+		if err != nil {
+			return err
+		}
+
+		if err := ioutil.WriteFile(iopts.digestfile, []byte(manifestDigest.String()), 0644); err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
-// getListOfTransports gets the transports supported from the image library
-// and strips of the "tarball" transport from the string of transports returned
 func getListOfTransports() string {
 	allTransports := strings.Join(transports.ListNames(), ",")
 	return strings.Replace(allTransports, ",tarball", "", 1)
