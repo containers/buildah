@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah/define"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/retry"
 	cp "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/docker"
@@ -16,6 +17,7 @@ import (
 	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/unshare"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -35,7 +37,7 @@ func getCopyOptions(store storage.Store, reportWriter io.Writer, sourceSystemCon
 	if destinationSystemContext != nil {
 		*destinationCtx = *destinationSystemContext
 	}
-	return &cp.Options{
+	options := cp.Options{
 		ReportWriter:          reportWriter,
 		SourceCtx:             sourceCtx,
 		DestinationCtx:        destinationCtx,
@@ -46,6 +48,13 @@ func getCopyOptions(store storage.Store, reportWriter io.Writer, sourceSystemCon
 		OciDecryptConfig:      ociDecryptConfig,
 		OciEncryptLayers:      ociEncryptLayers,
 	}
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		logrus.Warnf("failed to get container config for copy options: %v", err)
+	} else {
+		options.MaxParallelDownloads = defaultContainerConfig.Engine.ImageParallelCopies
+	}
+	return &options
 }
 
 func getSystemContext(store storage.Store, defaults *types.SystemContext, signaturePolicyPath string) *types.SystemContext {
