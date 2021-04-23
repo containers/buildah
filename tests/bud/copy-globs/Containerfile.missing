@@ -1,0 +1,3 @@
+FROM scratch
+# No match for *foo, but *txt exists so should succeed
+COPY *foo *.txt /testdir

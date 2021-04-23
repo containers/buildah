@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/containers/buildah/docker"
+	"github.com/containers/common/libimage"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
@@ -80,6 +81,21 @@ func makeFilename(blobSum digest.Digest, isConfig bool) string {
 		return blobSum.String() + ".config"
 	}
 	return blobSum.String()
+}
+
+// CacheLookupReferenceFunc wraps a BlobCache into a
+// libimage.LookupReferenceFunc to allow for using a BlobCache during
+// image-copy operations.
+func CacheLookupReferenceFunc(directory string, compress types.LayerCompression) libimage.LookupReferenceFunc {
+	// NOTE: this prevents us from moving BlobCache around and generalizes
+	// the libimage API.
+	return func(ref types.ImageReference) (types.ImageReference, error) {
+		ref, err := NewBlobCache(ref, directory, compress)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error using blobcache %q", directory)
+		}
+		return ref, nil
+	}
 }
 
 // NewBlobCache creates a new blob cache that wraps an image reference.  Any blobs which are

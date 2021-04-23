@@ -988,11 +988,13 @@ func copierHandlerStat(req request, pm *fileutils.PatternMatcher) *response {
 		s := StatsForGlob{
 			Glob: req.preservedGlobs[i],
 		}
-		stats = append(stats, &s)
 		// glob this pattern
 		globMatched, err := filepath.Glob(glob)
 		if err != nil {
 			s.Error = fmt.Sprintf("copier: stat: %q while matching glob pattern %q", err.Error(), glob)
+		}
+
+		if len(globMatched) == 0 && strings.ContainsAny(glob, "*?[") {
 			continue
 		}
 		// collect the matches
@@ -1079,6 +1081,14 @@ func copierHandlerStat(req request, pm *fileutils.PatternMatcher) *response {
 			s.Results = nil
 			s.Error = fmt.Sprintf("copier: stat: %q: %v", glob, syscall.ENOENT)
 		}
+		stats = append(stats, &s)
+	}
+	// no matches -> error
+	if len(stats) == 0 {
+		s := StatsForGlob{
+			Error: fmt.Sprintf("copier: stat: %q: %v", req.Globs, syscall.ENOENT),
+		}
+		stats = append(stats, &s)
 	}
 	return &response{Stat: statResponse{Globs: stats}}
 }

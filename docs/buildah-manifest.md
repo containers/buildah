@@ -25,6 +25,7 @@ The `buildah manifest` command provides subcommands which can be used to:
 | inspect  | [buildah-manifest-inspect(1)](buildah-manifest-inspect.md)   | Display the contents of a manifest list or image index.                     |
 | push     | [buildah-manifest-push(1)](buildah-manifest-push.md)         | Push a manifest list or image index to a registry or other location.        |
 | remove   | [buildah-manifest-remove(1)](buildah-manifest-remove.md)     | Remove an image from a manifest list or image index.                        |
+| rm       | [buildah-manifest-rm(1)](buildah-manifest-rm.md)             | Remove manifest list from local storage.                                    |
 
 ## SEE ALSO
-buildah(1), buildah-manifest-create(1), buildah-manifest-add(1), buildah-manifest-remove(1), buildah-manifest-annotate(1), buildah-manifest-inspect(1), buildah-manifest-push(1)
+buildah(1), buildah-manifest-create(1), buildah-manifest-add(1), buildah-manifest-remove(1), buildah-manifest-annotate(1), buildah-manifest-inspect(1), buildah-manifest-push(1), buildah-manifest-rm(1)

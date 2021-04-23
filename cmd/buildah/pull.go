@@ -107,7 +107,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 
 	policy, ok := define.PolicyMap[iopts.pullPolicy]
 	if !ok {
-		return fmt.Errorf("unrecognized pull policy %s", iopts.pullPolicy)
+		return fmt.Errorf("unsupported pull policy %q", iopts.pullPolicy)
 	}
 	options := buildah.PullOptions{
 		SignaturePolicyPath: iopts.signaturePolicy,

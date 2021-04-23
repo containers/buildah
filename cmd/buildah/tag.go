@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/containers/buildah/pkg/parse"
-	"github.com/containers/buildah/util"
+	"github.com/containers/common/libimage"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -30,12 +30,21 @@ func tagCmd(c *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
-	_, img, err := util.FindImage(store, "", systemContext, args[0])
+	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
-		return errors.Wrapf(err, "error finding local image %q", args[0])
+		return err
 	}
-	if err := util.AddImageNames(store, "", systemContext, img, args[1:]); err != nil {
-		return errors.Wrapf(err, "error adding names %v to image %q", args[1:], args[0])
+
+	lookupOptions := libimage.LookupImageOptions{IgnorePlatform: true}
+	image, _, err := runtime.LookupImage(args[0], &lookupOptions)
+	if err != nil {
+		return err
+	}
+
+	for _, tag := range args[1:] {
+		if err := image.Tag(tag); err != nil {
+			return err
+		}
 	}
 	return nil
 }

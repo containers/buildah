@@ -48,7 +48,7 @@ load helpers
   cid2=$output
 
   run_buildah 125 images --noheading --filter since k8s.gcr.io/pause
-  expect_output 'invalid filter: "since" requires value'
+  expect_output 'invalid image filter "since": must be in the format "filter=value"'
 
 
   run_buildah images --noheading --filter since=k8s.gcr.io/pause
@@ -148,7 +148,7 @@ load helpers
 
 @test "specify a nonexistent image" {
   run_buildah 125 images alpine
-  expect_output --from="${lines[0]}" "No such image: alpine"
+  expect_output --from="${lines[0]}" "alpine: image not known"
   expect_line_count 1
 }
 

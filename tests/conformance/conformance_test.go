@@ -1926,6 +1926,36 @@ var internalTestCases = []testCase{
 	},
 
 	{
+		name: "copy-multiple-missing-file-with-glob",
+		dockerfileContents: strings.Join([]string{
+			"FROM scratch",
+			"COPY file-z.txt subdir-* subdir/",
+		}, "\n"),
+		contextDir:   "dockerignore/populated",
+		shouldFailAt: 2,
+	},
+
+	{
+		name: "copy-multiple-missing-file-with-nomatch-on-glob",
+		dockerfileContents: strings.Join([]string{
+			"FROM scratch",
+			"COPY missing* subdir/",
+		}, "\n"),
+		contextDir:   "dockerignore/populated",
+		shouldFailAt: 2,
+	},
+
+	{
+		name: "copy-multiple-some-missing-glob",
+		dockerfileContents: strings.Join([]string{
+			"FROM scratch",
+			"COPY file-a.txt subdir-* file-?.txt missing* subdir/",
+		}, "\n"),
+		contextDir: "dockerignore/populated",
+		fsSkip:     []string{"(dir):subdir:mtime"},
+	},
+
+	{
 		name: "file-in-workdir-in-other-stage",
 		dockerfileContents: strings.Join([]string{
 			"FROM scratch AS base",

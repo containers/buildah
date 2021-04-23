@@ -424,7 +424,6 @@ return 1
      --isolation
      --ipc
      --label
-     --loglevel
      --manifest
      -m
      --memory
@@ -766,6 +765,7 @@ return 1
         inspect
         push
         remove
+        rm
      "
      __buildah_subcommands "$subcommands" && return
 
@@ -901,6 +901,24 @@ return 1
  }
 
  _buildah_manifest_remove() {
+     local boolean_options="
+     --help
+     -h
+  "
+
+     local options_with_args="
+  "
+
+     local all_options="$options_with_args $boolean_options"
+
+     case "$cur" in
+         -*)
+             COMPREPLY=($(compgen -W "$boolean_options $options_with_args" -- "$cur"))
+             ;;
+     esac
+ }
+
+ _buildah_manifest_rm() {
      local boolean_options="
      --help
      -h
