@@ -3057,7 +3057,7 @@ _EOF
 @test "bud with --pull-always" {
   _prefetch docker.io/library/alpine
   run_buildah bud --pull-always --signature-policy ${TESTSDIR}/policy.json -t testpull ${TESTSDIR}/bud/containerfile
-  expect_output --from="${lines[1]}" "Getting image source signatures"
+  expect_output --from="${lines[1]}" "Trying to pull docker.io/library/alpine:latest..."
 }
 
 @test "bud with --memory and --memory-swap" {
