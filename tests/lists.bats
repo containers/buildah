@@ -24,6 +24,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 @test "manifest-add" {
     run_buildah manifest create foo
     run_buildah manifest add foo ${IMAGE_LIST}
+    run_buildah manifest rm foo
 }
 
 @test "manifest-add local image" {
@@ -31,6 +32,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
     run_buildah manifest create foo
     run_buildah manifest add foo ${target}
+    run_buildah manifest rm foo
 }
 
 @test "manifest-add-one" {
@@ -74,6 +76,11 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah manifest create foo
     run_buildah manifest add foo ${IMAGE_LIST}
     run_buildah 125 manifest remove foo sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+}
+
+@test "manifest-rm failures" {
+    run_buildah 125 manifest rm foo1
+    expect_output --substring "foo1: image not known"
 }
 
 @test "manifest-push" {
