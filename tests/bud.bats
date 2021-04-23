@@ -2826,7 +2826,7 @@ _EOF
 
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p ${mytmpdir}
-cat > $mytmpdir/Containerfile << _EOF
+  cat > $mytmpdir/Containerfile << _EOF
 from alpine
 run echo hello
 _EOF
@@ -2835,15 +2835,22 @@ _EOF
 
   if [ -n "$(command -v runc)" ]; then
     found_runtime=y
-    run_buildah ? bud --runtime=runc --runtime-flag=debug \
-                      -q -t alpine-bud-runc --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-    if [ "$status" -eq 0 ]; then
-      expect_output --substring "nsexec started"
+    if is_cgroupsv2; then
+      # The result with cgroup v2 depneds on the version of runc.
+      run_buildah ? bud --runtime=runc --runtime-flag=debug \
+                        -q -t alpine-bud-runc --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+      if [ "$status" -eq 0 ]; then
+        expect_output --substring "nsexec started"
+      else
+        # If it fails, this is because this version of runc doesn't support cgroup v2.
+        expect_output --substring "this version of runc doesn't work on cgroups v2" "should fail by unsupportability for cgroupv2"
+      fi
     else
-      # runc fully supports cgroup v2 (unified mode) since v1.0.0-rc93.
-      # older runc doesn't work on cgroup v2.
-      expect_output --substring "this version of runc doesn't work on cgroups v2" "should fail by unsupportability for cgroupv2"
+      run_buildah bud --runtime=runc --runtime-flag=debug \
+                      -q -t alpine-bud-runc --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+      expect_output --substring "nsexec started"
     fi
+
   fi
 
   if [ -n "$(command -v crun)" ]; then
@@ -2868,7 +2875,7 @@ _EOF
   fi
 
   if [ -z "${found_runtime}" ]; then
-    skip "Did not find 'runc' nor 'crun' in \$PATH - could not run this test!"
+    die "Did not find 'runc' nor 'crun' in \$PATH - could not run this test!"
   fi
 
 }
@@ -2880,14 +2887,15 @@ _EOF
 
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p ${mytmpdir}
-cat > $mytmpdir/Containerfile << _EOF
+  cat > $mytmpdir/Containerfile << _EOF
 from alpine
-run cat /etc/hosts
+run grep "myhostname" /etc/hosts
 _EOF
 
-  run_buildah bud --add-host=localhost:127.0.0.1 -t testbud \
+  ip=123.45.67.$(( $RANDOM % 256 ))
+  run_buildah bud --add-host=myhostname:$ip -t testbud \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  expect_output --substring "127.0.0.1 +localhost"
+  expect_output --from="${lines[2]}" --substring "^$ip[^\S]+myhostname"
 }
 
 @test "bud with --cgroup-parent" {
@@ -2898,7 +2906,7 @@ _EOF
 
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p ${mytmpdir}
-cat > $mytmpdir/Containerfile << _EOF
+  cat > $mytmpdir/Containerfile << _EOF
 from alpine
 run cat /proc/self/cgroup
 _EOF
@@ -2906,7 +2914,11 @@ _EOF
   # with cgroup-parent
   run_buildah bud --cgroup-parent test-cgroup -t with-flag \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  expect_output --substring "test-cgroup"
+  if is_cgroupsv2; then
+    expect_output --from="${lines[2]}" "0::/test-cgroup"
+  else
+    expect_output --substring "/test-cgroup"
+  fi
 
   # without cgroup-parent
   run_buildah bud -t without-flag \
@@ -2929,7 +2941,7 @@ _EOF
   if is_cgroupsv2; then
     cat > $mytmpdir/Containerfile << _EOF
 from alpine
-run cat /sys/fs/cgroup/\$(cat /proc/self/cgroup | awk -F : '{print \$NF}')/cpu.max
+run cat /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max
 _EOF
   else
     cat > $mytmpdir/Containerfile << _EOF
@@ -2940,7 +2952,7 @@ _EOF
 
   run_buildah bud --cpu-period=1234 --cpu-quota=5678 -t testcpu \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  expect_output --substring "5678 1234"
+  expect_output --from="${lines[2]}" "5678 1234"
 }
 
 @test "bud with --cpu-shares" {
@@ -2951,7 +2963,7 @@ _EOF
   _prefetch alpine
 
   local shares=12345
-  local result=
+  local expect=
 
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p ${mytmpdir}
@@ -2959,20 +2971,20 @@ _EOF
   if is_cgroupsv2; then
     cat > $mytmpdir/Containerfile << _EOF
 from alpine
-run printf "weight " && cat /sys/fs/cgroup/\$(cat /proc/self/cgroup | awk -F : '{print \$NF}')/cpu.weight
+run printf "weight " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight
 _EOF
-    result=$((1 + ((${shares} - 2) * 9999) / 262142))
+    expect="weight $((1 + ((${shares} - 2) * 9999) / 262142))"
   else
     cat > $mytmpdir/Containerfile << _EOF
 from alpine
 run printf "weight " && cat /sys/fs/cgroup/cpu/cpu.shares
 _EOF
-    result="weight ${shares}"
+    expect="weight ${shares}"
   fi
 
   run_buildah bud --cpu-shares=${shares} -t testcpu \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  expect_output --substring "${result}"
+  expect_output --from="${lines[2]}" "${expect}"
 }
 
 @test "bud with --cpuset-cpus" {
@@ -2988,7 +3000,7 @@ _EOF
   if is_cgroupsv2; then
     cat > $mytmpdir/Containerfile << _EOF
 from alpine
-run printf "cpuset-cpus " && cat /sys/fs/cgroup/\$(cat /proc/self/cgroup | awk -F : '{print \$NF}')/cpuset.cpus
+run printf "cpuset-cpus " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.cpus
 _EOF
   else
     cat > $mytmpdir/Containerfile << _EOF
@@ -2999,7 +3011,7 @@ _EOF
 
   run_buildah bud --cpuset-cpus=0 -t testcpuset \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  expect_output --substring "cpuset-cpus 0"
+  expect_output --from="${lines[2]}" "cpuset-cpus 0"
 }
 
 @test "bud with --cpuset-mems" {
@@ -3019,7 +3031,7 @@ _EOF
 
   run_buildah bud --cpuset-mems=0 -t testcpuset \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  expect_output --substring "cpuset-mems 0"
+  expect_output --from="${lines[2]}" "cpuset-mems 0"
 }
 
 @test "bud with --isolation" {
@@ -3040,13 +3052,13 @@ _EOF
   run_buildah bud --isolation chroot -t testisolation --pid private \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
   # chroot isolation doesn't make a new PID namespace.
-  expect_output --substring $(printf %q ${host_pidns})
+  expect_output --from="${lines[2]}" "${host_pidns}"
 }
 
 @test "bud with --pull-always" {
   _prefetch docker.io/library/alpine
   run_buildah bud --pull-always --signature-policy ${TESTSDIR}/policy.json -t testpull ${TESTSDIR}/bud/containerfile
-  expect_output --substring "Getting image source signatures"
+  expect_output --from="${lines[1]}" "Getting image source signatures"
 }
 
 @test "bud with --memory and --memory-swap" {
@@ -3063,8 +3075,8 @@ _EOF
   if is_cgroupsv2; then
     cat > $mytmpdir/Containerfile << _EOF
 from alpine
-run printf "memory-max=" && cat /sys/fs/cgroup/\$(cat /proc/self/cgroup | awk -F : '{print \$NF}')/memory.max
-run printf "memory-swap-result=" && cat /sys/fs/cgroup/\$(cat /proc/self/cgroup | awk -F : '{print \$NF}')/memory.swap.max
+run printf "memory-max=" && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/memory.max
+run printf "memory-swap-result=" && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/memory.swap.max
 _EOF
     expect_swap=31457280
   else
@@ -3078,8 +3090,8 @@ _EOF
 
   run_buildah bud --memory=40m --memory-swap=70m -t testmemory \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  expect_output --substring "memory-max=41943040"
-  expect_output --substring "memory-swap-result=${expect_sw}"
+  expect_output --from="${lines[2]}" "memory-max=41943040"
+  expect_output --from="${lines[4]}" "memory-swap-result=${expect_swap}"
 }
 
 @test "bud with --shm-size" {
@@ -3097,7 +3109,7 @@ _EOF
 
   run_buildah bud --shm-size=80m -t testshm \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  expect_output --substring " 80.0M "
+  expect_output --from="${lines[3]}" --substring "shm[^\S]+80.0M"
 }
 
 @test "bud with --ulimit" {
@@ -3112,5 +3124,5 @@ _EOF
 
   run_buildah bud --ulimit cpu=300 -t testulimit \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  expect_output --substring "ulimit=300"
+  expect_output --from="${lines[2]}" "ulimit=300"
 }
