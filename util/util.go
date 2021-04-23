@@ -161,7 +161,9 @@ func ExpandNames(names []string, systemContext *types.SystemContext, store stora
 }
 
 // FindImage locates the locally-stored image which corresponds to a given name.
-func FindImage(store storage.Store, systemContext *types.SystemContext, image string) (types.ImageReference, *storage.Image, error) {
+// Please note that the `firstRegistry` argument has been deprecated and has no
+// effect anymore.
+func FindImage(store storage.Store, firstRegistry string, systemContext *types.SystemContext, image string) (types.ImageReference, *storage.Image, error) {
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
 		return nil, nil, err
@@ -212,8 +214,10 @@ func ResolveNameToReferences(
 	return refs, nil
 }
 
-// TagImage adds the specified names to the specified image.
-func TagImage(store storage.Store, systemContext *types.SystemContext, image *storage.Image, addNames []string) error {
+// AddImageNames adds the specified names to the specified image.  Please note
+// that the `firstRegistry` argument has been deprecated and has no effect
+// anymore.
+func AddImageNames(store storage.Store, firstRegistry string, systemContext *types.SystemContext, image *storage.Image, addNames []string) error {
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
 		return err

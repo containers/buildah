@@ -174,7 +174,7 @@ func (b *Builder) addManifest(ctx context.Context, manifestName string, imageSpe
 	var create bool
 	systemContext := &types.SystemContext{}
 	var list manifests.List
-	_, listImage, err := util.FindImage(b.store, systemContext, manifestName)
+	_, listImage, err := util.FindImage(b.store, "", systemContext, manifestName)
 	if err != nil {
 		create = true
 		list = manifests.Create()
@@ -194,7 +194,7 @@ func (b *Builder) addManifest(ctx context.Context, manifestName string, imageSpe
 	if err != nil {
 		if ref, err = alltransports.ParseImageName(util.DefaultTransport + imageSpec); err != nil {
 			// check if the local image exists
-			if ref, _, err = util.FindImage(b.store, systemContext, imageSpec); err != nil {
+			if ref, _, err = util.FindImage(b.store, "", systemContext, imageSpec); err != nil {
 				return "", err
 			}
 		}
@@ -355,7 +355,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 			if err != nil {
 				return imgID, nil, "", errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
-			if err = util.TagImage(b.store, systemContext, img, options.AdditionalTags); err != nil {
+			if err = util.AddImageNames(b.store, "", systemContext, img, options.AdditionalTags); err != nil {
 				return imgID, nil, "", errors.Wrapf(err, "error setting image names to %v", append(img.Names, options.AdditionalTags...))
 			}
 			logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)

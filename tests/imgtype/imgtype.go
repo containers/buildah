@@ -105,7 +105,7 @@ func main() {
 		manifestType := ""
 		configType := ""
 
-		ref, _, err := util.FindImage(store, systemContext, image)
+		ref, _, err := util.FindImage(store, "", systemContext, image)
 		if err != nil {
 			ref2, err2 := alltransports.ParseImageName(image)
 			if err2 != nil {

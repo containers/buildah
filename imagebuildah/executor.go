@@ -684,7 +684,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
 			if len(b.additionalTags) > 0 {
-				if err = util.TagImage(b.store, b.systemContext, img, b.additionalTags); err != nil {
+				if err = util.AddImageNames(b.store, "", b.systemContext, img, b.additionalTags); err != nil {
 					return imageID, ref, errors.Wrapf(err, "error setting image names to %v", append(img.Names, b.additionalTags...))
 				}
 				logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
