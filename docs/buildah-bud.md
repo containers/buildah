@@ -349,12 +349,6 @@ environment variable. `export BUILDAH_LAYERS=true`
 Log output which would be sent to standard output and standard error to the
 specified file instead of to standard output and standard error.
 
-**--loglevel** *number*
-
-Adjust the logging level up or down.  Valid option values range from -2 to 3,
-with 3 being roughly equivalent to using the global *--log-level=debug* option, and
-values below 0 omitting even error messages which accompany fatal errors.
-
 **--manifest** "manifest"
 
 Name of the manifest list to which the image will be added. Creates the manifest list

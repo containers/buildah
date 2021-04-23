@@ -64,7 +64,6 @@ type BudResults struct {
 	Iidfile             string
 	Label               []string
 	Logfile             string
-	Loglevel            int
 	Manifest            string
 	NoCache             bool
 	Timestamp           int64
@@ -191,7 +190,10 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.IntVar(&flags.Jobs, "jobs", 1, "how many stages to run in parallel")
 	fs.StringArrayVar(&flags.Label, "label", []string{}, "Set metadata for an image (default [])")
 	fs.StringVar(&flags.Logfile, "logfile", "", "log to `file` instead of stdout/stderr")
-	fs.IntVar(&flags.Loglevel, "loglevel", 0, "adjust logging level (range from -2 to 3)")
+	fs.Int("loglevel", 0, "NO LONGER USED, flag ignored, and hidden")
+	if err := fs.MarkHidden("loglevel"); err != nil {
+		panic(fmt.Sprintf("error marking the loglevel flag as hidden: %v", err))
+	}
 	fs.BoolVar(&flags.LogRusage, "log-rusage", false, "log resource usage at each build step")
 	if err := fs.MarkHidden("log-rusage"); err != nil {
 		panic(fmt.Sprintf("error marking the log-rusage flag as hidden: %v", err))
@@ -240,7 +242,6 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["jobs"] = commonComp.AutocompleteNone
 	flagCompletion["label"] = commonComp.AutocompleteNone
 	flagCompletion["logfile"] = commonComp.AutocompleteDefault
-	flagCompletion["loglevel"] = commonComp.AutocompleteDefault
 	flagCompletion["manifest"] = commonComp.AutocompleteDefault
 	flagCompletion["os"] = commonComp.AutocompleteNone
 	flagCompletion["platform"] = commonComp.AutocompleteNone
