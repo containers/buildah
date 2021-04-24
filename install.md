@@ -29,14 +29,20 @@ sudo dnf -y module disable container-tools
 sudo dnf -y install 'dnf-command(copr)'
 sudo dnf -y copr enable rhcontainerbot/container-selinux
 sudo curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/CentOS_8/devel:kubic:libcontainers:stable.repo
-sudo dnf -y install buildah
+# OPTIONAL FOR RUNC USERS: crun will be installed by default. Install runc first if you prefer runc
+sudo dnf -y --refresh install runc
+# Install Buildah
+sudo dnf -y --refresh install buildah
 
 # CentOS 8 Stream
 sudo dnf -y module disable container-tools
 sudo dnf -y install 'dnf-command(copr)'
 sudo dnf -y copr enable rhcontainerbot/container-selinux
 sudo curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/CentOS_8_Stream/devel:kubic:libcontainers:stable.repo
-sudo dnf -y install buildah
+# OPTIONAL FOR RUNC USERS: crun will be installed by default. Install runc first if you prefer runc
+sudo dnf -y --refresh install runc
+# Install Buildah
+sudo dnf -y --refresh install buildah
 ```
 
 
