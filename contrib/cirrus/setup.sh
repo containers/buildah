@@ -42,10 +42,6 @@ esac
 # Previously, golang was not installed
 source $(dirname $0)/lib.sh
 
-X="export GPG_TTY=/dev/null"
-echo "Setting $X in /etc/environment for proper GPG functioning under automation"
-echo "$X" >> /etc/environment
-
 echo "Configuring /etc/containers/registries.conf"
 mkdir -p /etc/containers
 echo -e "[registries.search]\nregistries = ['docker.io', 'registry.fedoraproject.org', 'quay.io']" | tee /etc/containers/registries.conf
