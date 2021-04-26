@@ -2817,7 +2817,7 @@ _EOF
 }
 
 @test "bud with --runtime and --runtime-flag" {
-  # This Dockerfile needs us to be able to handle a working RUN instruction.
+  # This Containerfile needs us to be able to handle a working RUN instruction.
   skip_if_no_runtime
   skip_if_chroot
 
@@ -2835,7 +2835,7 @@ _EOF
   if [ -n "$(command -v runc)" ]; then
     found_runtime=y
     if is_cgroupsv2; then
-      # The result with cgroup v2 depneds on the version of runc.
+      # The result with cgroup v2 depends on the version of runc.
       run_buildah ? bud --runtime=runc --runtime-flag=debug \
                         -q -t alpine-bud-runc --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
       if [ "$status" -eq 0 ]; then
@@ -2894,7 +2894,7 @@ _EOF
   ip=123.45.67.$(( $RANDOM % 256 ))
   run_buildah bud --add-host=myhostname:$ip -t testbud \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  expect_output --from="${lines[2]}" --substring "^$ip[^\S]+myhostname"
+  expect_output --from="${lines[2]}" --substring "^$ip\s+myhostname"
 }
 
 @test "bud with --cgroup-parent" {
@@ -3108,7 +3108,7 @@ _EOF
 
   run_buildah bud --shm-size=80m -t testshm \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  expect_output --from="${lines[3]}" --substring "shm[^\S]+80.0M"
+  expect_output --from="${lines[3]}" --substring "shm\s+80.0M"
 }
 
 @test "bud with --ulimit" {
