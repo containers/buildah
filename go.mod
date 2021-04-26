@@ -24,7 +24,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.0.3-0.20200929063507-e6143ca7d51d
 	github.com/opencontainers/runtime-tools v0.9.0
 	github.com/opencontainers/selinux v1.8.0
-	github.com/openshift/imagebuilder v1.2.1
+	github.com/openshift/imagebuilder v1.2.2-0.20210415181909-87f3e48c2656
 	github.com/pkg/errors v0.9.1
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200616122406-847368b35ebf
 	github.com/sirupsen/logrus v1.8.1

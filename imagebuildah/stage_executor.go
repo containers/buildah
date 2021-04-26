@@ -411,6 +411,8 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		Quiet:            s.executor.quiet,
 		NamespaceOptions: s.executor.namespaceOptions,
 		Terminal:         buildah.WithoutTerminal,
+		Secrets:          s.executor.secrets,
+		RunMounts:        run.Mounts,
 	}
 	if config.NetworkDisabled {
 		options.ConfigureNetwork = buildah.NetworkDisabled

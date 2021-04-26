@@ -2527,7 +2527,7 @@ EOF
   run cmp url1  url2
   [[ "$status" -ne 0 ]]
 
-  # The first rounds of builds should all be different from each other, as a sanith thing.
+  # The first rounds of builds should all be different from each other, as a sanity thing.
   run cmp copy1 prev1
   [[ "$status" -ne 0 ]]
   run cmp copy1 add1
@@ -2816,4 +2816,61 @@ _EOF
   run_buildah bud -t test2 -f Containerfile.missing --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
   run_buildah 125 bud -t test3 -f Containerfile.bad --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
   expect_output --substring 'error building.*"COPY \*foo /testdir".*no such file or directory'
+}
+
+@test "bud with containerfile secret" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir1
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/mysecret << _EOF
+SOMESECRETDATA
+_EOF
+
+  run_buildah bud --secret=id=mysecret,src=${mytmpdir}/mysecret --signature-policy ${TESTSDIR}/policy.json  -t secretimg -f ${TESTSDIR}/bud/run-mounts/Dockerfile.secret ${TESTSDIR}/bud/run-mounts
+  expect_output --substring "SOMESECRETDATA"
+
+  run_buildah from secretimg
+  run_buildah 1 run secretimg-working-container cat /run/secrets/mysecret
+  expect_output --substring "cat: can't open '/run/secrets/mysecret': No such file or directory"
+  run_buildah rm -a
+}
+
+@test "bud with containerfile secret accessed on second RUN" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir1
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/mysecret << _EOF
+SOMESECRETDATA
+_EOF
+
+  run_buildah 1 bud --secret=id=mysecret,src=${mytmpdir}/mysecret --signature-policy ${TESTSDIR}/policy.json  -t secretimg -f ${TESTSDIR}/bud/run-mounts/Dockerfile.secret-access ${TESTSDIR}/bud/run-mounts
+  expect_output --substring "SOMESECRETDATA"
+  expect_output --substring "cat: can't open '/mysecret': No such file or directory"
+}
+
+@test "bud with containerfile secret options" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir1
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/mysecret << _EOF
+SOMESECRETDATA
+_EOF
+
+  run_buildah bud --secret=id=mysecret,src=${mytmpdir}/mysecret --signature-policy ${TESTSDIR}/policy.json  -t secretopts -f ${TESTSDIR}/bud/run-mounts/Dockerfile.secret-options ${TESTSDIR}/bud/run-mounts
+  expect_output --substring "444"
+  expect_output --substring "1000"
+  expect_output --substring "1001"
+}
+
+@test "bud with containerfile secret not required" {
+  _prefetch alpine
+
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json  -t secretnotreq -f ${TESTSDIR}/bud/run-mounts/Dockerfile.secret-not-required ${TESTSDIR}/bud/run-mounts
+}
+
+@test "bud with containerfile secret required" {
+  _prefetch alpine
+
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json  -t secretreq -f ${TESTSDIR}/bud/run-mounts/Dockerfile.secret-required ${TESTSDIR}/bud/run-mounts
+  expect_output --substring "secret required but no secret with id mysecret found"
 }
