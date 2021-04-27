@@ -271,6 +271,10 @@ func (s *StageExecutor) volumeCacheRestoreVFS() (err error) {
 // don't already have a cache file.
 func (s *StageExecutor) volumeCacheSaveOverlay() (mounts []specs.Mount, err error) {
 	for cachedPath := range s.volumeCache {
+		err = copier.Mkdir(s.mountPoint, filepath.Join(s.mountPoint, cachedPath), copier.MkdirOptions{})
+		if err != nil {
+			return nil, errors.Wrapf(err, "ensuring volume exists")
+		}
 		volumePath := filepath.Join(s.mountPoint, cachedPath)
 		mount := specs.Mount{
 			Source:      volumePath,
