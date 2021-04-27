@@ -24,7 +24,7 @@ import (
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
-	"github.com/containers/storage/pkg/archive"
+	"github.com/containers/storage/pkg/chrootarchive"
 	docker "github.com/fsouza/go-dockerclient"
 	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -81,12 +81,12 @@ func (s *StageExecutor) Preserve(path string) error {
 		// This path is already a subdirectory of a volume path that
 		// we're already preserving, so there's nothing new to be done
 		// except ensure that it exists.
-		archivedPath := filepath.Join(s.mountPoint, path)
-		if err := os.MkdirAll(archivedPath, 0755); err != nil {
+		createdDirPerms := os.FileMode(0755)
+		if err := copier.Mkdir(s.mountPoint, filepath.Join(s.mountPoint, path), copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
 			return errors.Wrapf(err, "error ensuring volume path exists")
 		}
 		if err := s.volumeCacheInvalidate(path); err != nil {
-			return errors.Wrapf(err, "error ensuring volume path %q is preserved", archivedPath)
+			return errors.Wrapf(err, "error ensuring volume path %q is preserved", filepath.Join(s.mountPoint, path))
 		}
 		return nil
 	}
@@ -113,12 +113,13 @@ func (s *StageExecutor) Preserve(path string) error {
 		archivedPath = evaluated
 		path = string(os.PathSeparator) + symLink
 	} else {
-		return errors.Wrapf(err, "error reading symbolic link to %q", path)
+		return errors.Wrapf(err, "error evaluating path %q", path)
 	}
 
 	st, err := os.Stat(archivedPath)
 	if os.IsNotExist(err) {
-		if err = os.MkdirAll(archivedPath, 0755); err != nil {
+		createdDirPerms := os.FileMode(0755)
+		if err = copier.Mkdir(s.mountPoint, archivedPath, copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
 			return errors.Wrapf(err, "error ensuring volume path exists")
 		}
 		st, err = os.Stat(archivedPath)
@@ -185,8 +186,7 @@ func (s *StageExecutor) volumeCacheInvalidate(path string) error {
 			return err
 		}
 		archivedPath := filepath.Join(s.mountPoint, cachedPath)
-		logrus.Debugf("invalidated volume cache for %q from %q", archivedPath, s.volumeCache[cachedPath])
-		delete(s.volumeCache, cachedPath)
+		logrus.Debugf("invalidated volume cache %q for %q from %q", archivedPath, path, s.volumeCache[cachedPath])
 	}
 	return nil
 }
@@ -224,7 +224,7 @@ func (s *StageExecutor) volumeCacheSaveVFS() (mounts []specs.Mount, err error) {
 			return nil, err
 		}
 		defer cache.Close()
-		rc, err := archive.Tar(archivedPath, archive.Uncompressed)
+		rc, err := chrootarchive.Tar(archivedPath, nil, s.mountPoint)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error archiving %q", archivedPath)
 		}
@@ -247,20 +247,24 @@ func (s *StageExecutor) volumeCacheSaveVFS() (mounts []specs.Mount, err error) {
 // Restore the contents of each of the executor's list of volumes.
 func (s *StageExecutor) volumeCacheRestoreVFS() (err error) {
 	for cachedPath, cacheFile := range s.volumeCache {
-		archivedPath := filepath.Join(s.mountPoint, cachedPath)
+		archivedPath, err := copier.Eval(s.mountPoint, filepath.Join(s.mountPoint, cachedPath), copier.EvalOptions{})
+		if err != nil {
+			return errors.Wrapf(err, "error evaluating volume path")
+		}
 		logrus.Debugf("restoring contents of volume %q from %q", archivedPath, cacheFile)
 		cache, err := os.Open(cacheFile)
 		if err != nil {
 			return err
 		}
 		defer cache.Close()
-		if err := os.RemoveAll(archivedPath); err != nil {
+		if err := copier.Remove(s.mountPoint, archivedPath, copier.RemoveOptions{All: true}); err != nil {
 			return err
 		}
-		if err := os.MkdirAll(archivedPath, 0755); err != nil {
+		createdDirPerms := os.FileMode(0755)
+		if err := copier.Mkdir(s.mountPoint, archivedPath, copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
 			return err
 		}
-		err = archive.Untar(cache, archivedPath, nil)
+		err = chrootarchive.Untar(cache, archivedPath, nil)
 		if err != nil {
 			return errors.Wrapf(err, "error extracting archive at %q", archivedPath)
 		}
