@@ -102,9 +102,16 @@ func (s *StageExecutor) Preserve(path string) error {
 
 	// Try and resolve the symlink (if one exists)
 	// Set archivedPath and path based on whether a symlink is found or not
-	if symLink, err := resolveSymlink(s.mountPoint, path); err == nil {
-		archivedPath = filepath.Join(s.mountPoint, symLink)
-		path = symLink
+	if evaluated, err := copier.Eval(s.mountPoint, filepath.Join(s.mountPoint, path), copier.EvalOptions{}); err == nil {
+		symLink, err := filepath.Rel(s.mountPoint, evaluated)
+		if err != nil {
+			return errors.Wrapf(err, "making evaluated path %q relative to %q", evaluated, s.mountPoint)
+		}
+		if strings.HasPrefix(symLink, ".."+string(os.PathSeparator)) {
+			return errors.Errorf("evaluated path %q was not below %q", evaluated, s.mountPoint)
+		}
+		archivedPath = evaluated
+		path = string(os.PathSeparator) + symLink
 	} else {
 		return errors.Wrapf(err, "error reading symbolic link to %q", path)
 	}

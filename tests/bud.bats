@@ -893,7 +893,7 @@ function _test_http() {
 @test "bud with multiple symlink pointing to itself" {
   _prefetch alpine
   target=alpine-image
-  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.symlink-points-to-itself ${TESTSDIR}/bud/symlink
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.symlink-points-to-itself ${TESTSDIR}/bud/symlink
 }
 
 @test "bud multi-stage with symlink to absolute path" {
