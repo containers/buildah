@@ -3126,7 +3126,7 @@ _EOF
   expect_output --from="${lines[2]}" "ulimit=300"
 }
 
-@test "bud with .dockerignore - 3" {
+@test "bud with .dockerignore - #3" {
   run_buildah bud -t test --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
   run_buildah bud -t test2 -f Containerfile.missing --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
   run_buildah 125 bud -t test3 -f Containerfile.bad --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
