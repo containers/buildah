@@ -3,7 +3,7 @@ RUN echo "ReadlinkResult" && readlink /proc/self/ns/user
 RUN echo "UidMapResult" && cat /proc/self/uid_map
 RUN echo "GidMapResult" && cat /proc/self/gid_map
 COPY --chown=1:1 somefile /
-RUN printf "StatSomefileResult=" && stat -c '%u:%g' /somefile
+RUN echo "StatSomefileResult" && stat -c '%u:%g' /somefile
 COPY somedir /somedir
-RUN printf "StatSomedirResult=" && stat -c '%u:%g' /somedir
-RUN printf "StatSomeotherfileResult=" && stat -c '%u:%g %a' /somedir/someotherfile
+RUN echo "StatSomedirResult" && stat -c '%u:%g' /somedir
+RUN echo "StatSomeotherfileResult" && stat -c '%u:%g %a' /somedir/someotherfile
