@@ -3,38 +3,28 @@
 # Library of common, shared utility functions.  This file is intended
 # to be sourced by other scripts, not called directly.
 
+# BEGIN Global export of all variables
+set -a
+
 # Due to differences across platforms and runtime execution environments,
 # handling of the (otherwise) default shell setup is non-uniform.  Rather
 # than attempt to workaround differences, simply force-load/set required
 # items every time this library is utilized.
-_waserrexit=0
-if [[ "$SHELLOPTS" =~ errexit ]]; then _waserrexit=1; fi
-set +e  # Assumed in F33 for setting global vars
-set -a
-if [[ -r "/etc/automation_environment" ]]; then
-    source /etc/automation_environment
-else # prior to automation library v2.0, this was necessary
-    source /etc/profile
-    source /etc/environment
-fi
 USER="$(whoami)"
 HOME="$(getent passwd $USER | cut -d : -f 6)"
 # Some platforms set and make this read-only
 [[ -n "$UID" ]] || \
     UID=$(getent passwd $USER | cut -d : -f 3)
-if ((_waserrexit)); then set -e; fi
 
-# During VM Image build, the 'containers/automation' installation
-# was performed.  The final step of that installation sets the
-# installation location in $AUTOMATION_LIB_PATH in /etc/environment
-# or in the default shell profile.
+# Automation library installed at image-build time,
+# defining $AUTOMATION_LIB_PATH in this file.
+if [[ -r "/etc/automation_environment" ]]; then
+    source /etc/automation_environment
+fi
 # shellcheck disable=SC2154
 if [[ -n "$AUTOMATION_LIB_PATH" ]]; then
-    for libname in defaults anchors console_output utils; do
-        # There's no way shellcheck can process this location
-        # shellcheck disable=SC1090
-        source $AUTOMATION_LIB_PATH/${libname}.sh
-    done
+        # shellcheck source=/usr/share/automation/lib/common_lib.sh
+        source $AUTOMATION_LIB_PATH/common_lib.sh
 else
     (
     echo "WARNING: It does not appear that containers/automation was installed."
@@ -42,6 +32,9 @@ else
     echo "         This ${BASH_SOURCE[0]} was loaded by ${BASH_SOURCE[1]}"
     ) > /dev/stderr
 fi
+
+# Required for proper GPG functioning under automation
+GPG_TTY="${GPG_TTY:-/dev/null}"
 
 # Essential default paths, many are overridden when executing under Cirrus-CI
 # others are duplicated here, to assist in debugging.
@@ -112,17 +105,11 @@ LONG_DNFY="bigto dnf -y"
 # Allow easy substitution for debugging if needed
 CONTAINER_RUNTIME="showrun ${CONTAINER_RUNTIME:-podman}"
 
+# END Global export of all variables
 set +a
 
 bad_os_id_ver() {
     die "Unknown/Unsupported distro. $OS_RELEASE_ID and/or version $OS_RELEASE_VER for $(basename $0)"
-}
-
-showrun() {
-    local -a context
-    context=($(caller 0))
-    echo "+ $@  # ${context[2]}:${context[0]} in ${context[1]}()" > /dev/stderr
-    "$@"
 }
 
 # Remove all files provided by the distro version of buildah.

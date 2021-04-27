@@ -31,7 +31,6 @@ if [[ "$1" == "--config" ]]; then
     cat <<EOF
 DESTDIR="/var/tmp/go/src/github.com/containers/buildah"
 UPSTREAM_REPO="https://github.com/containers/buildah.git"
-CI_ENVFILE="/etc/environment"
 GCLOUD_PROJECT="buildah"
 GCLOUD_IMGPROJECT="libpod-218412"
 GCLOUD_CFG="buildah"
