@@ -193,37 +193,55 @@ func (s *StageExecutor) volumeCacheInvalidate(path string) error {
 
 // Save the contents of each of the executor's list of volumes for which we
 // don't already have a cache file.
-func (s *StageExecutor) volumeCacheSaveVFS() error {
+func (s *StageExecutor) volumeCacheSaveVFS() (mounts []specs.Mount, err error) {
 	for cachedPath, cacheFile := range s.volumeCache {
-		archivedPath := filepath.Join(s.mountPoint, cachedPath)
-		_, err := os.Stat(cacheFile)
+		archivedPath, err := copier.Eval(s.mountPoint, filepath.Join(s.mountPoint, cachedPath), copier.EvalOptions{})
+		if err != nil {
+			return nil, errors.Wrapf(err, "error evaluating volume path")
+		}
+		relativePath, err := filepath.Rel(s.mountPoint, archivedPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error converting %q into a path relative to %q", archivedPath, s.mountPoint)
+		}
+		if strings.HasPrefix(relativePath, ".."+string(os.PathSeparator)) {
+			return nil, errors.Errorf("error converting %q into a path relative to %q", archivedPath, s.mountPoint)
+		}
+		_, err = os.Stat(cacheFile)
 		if err == nil {
 			logrus.Debugf("contents of volume %q are already cached in %q", archivedPath, cacheFile)
 			continue
 		}
 		if !os.IsNotExist(err) {
-			return err
+			return nil, err
 		}
-		if err := os.MkdirAll(archivedPath, 0755); err != nil {
-			return errors.Wrapf(err, "error ensuring volume path exists")
+		createdDirPerms := os.FileMode(0755)
+		if err := copier.Mkdir(s.mountPoint, archivedPath, copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
+			return nil, errors.Wrapf(err, "error ensuring volume path exists")
 		}
 		logrus.Debugf("caching contents of volume %q in %q", archivedPath, cacheFile)
 		cache, err := os.Create(cacheFile)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer cache.Close()
 		rc, err := archive.Tar(archivedPath, archive.Uncompressed)
 		if err != nil {
-			return errors.Wrapf(err, "error archiving %q", archivedPath)
+			return nil, errors.Wrapf(err, "error archiving %q", archivedPath)
 		}
 		defer rc.Close()
 		_, err = io.Copy(cache, rc)
 		if err != nil {
-			return errors.Wrapf(err, "error archiving %q to %q", archivedPath, cacheFile)
+			return nil, errors.Wrapf(err, "error archiving %q to %q", archivedPath, cacheFile)
 		}
+		mount := specs.Mount{
+			Source:      archivedPath,
+			Destination: string(os.PathSeparator) + relativePath,
+			Type:        "bind",
+			Options:     []string{"private"},
+		}
+		mounts = append(mounts, mount)
 	}
-	return nil
+	return nil, nil
 }
 
 // Restore the contents of each of the executor's list of volumes.
@@ -298,7 +316,7 @@ func (s *StageExecutor) volumeCacheSave() (mounts []specs.Mount, err error) {
 	case "overlay":
 		return s.volumeCacheSaveOverlay()
 	}
-	return nil, s.volumeCacheSaveVFS()
+	return s.volumeCacheSaveVFS()
 }
 
 // Reset the contents of each of the executor's list of volumes.
