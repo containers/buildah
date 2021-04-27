@@ -348,16 +348,16 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
 	for _, volume := range builtinVolumes {
-		subdir := digest.Canonical.FromString(volume).Hex()
-		volumePath := filepath.Join(containerDir, "buildah-volumes", subdir)
-		srcPath := filepath.Join(mountPoint, volume)
+		volumePath := filepath.Join(containerDir, "buildah-volumes", digest.Canonical.FromString(volume).Hex())
 		initializeVolume := false
-		// If we need to, initialize the volume path's initial contents.
+		// If we need to, create the directory that we'll use to hold
+		// the volume contents.  If we do need to create it, then we'll
+		// need to populate it, too, so make a note of that.
 		if _, err := os.Stat(volumePath); err != nil {
 			if !os.IsNotExist(err) {
 				return nil, err
 			}
-			logrus.Debugf("setting up built-in volume at %q", volumePath)
+			logrus.Debugf("setting up built-in volume path at %q for %q", volumePath, volume)
 			if err = os.MkdirAll(volumePath, 0755); err != nil {
 				return nil, err
 			}
@@ -366,28 +366,25 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 			}
 			initializeVolume = true
 		}
-		// Check if srcPath is a symlink
-		stat, err := os.Lstat(srcPath)
-		// If srcPath is a symlink, follow the link and ensure the destination exists
-		if err == nil && stat != nil && (stat.Mode()&os.ModeSymlink != 0) {
-			srcPath, err = copier.Eval(mountPoint, volume, copier.EvalOptions{})
-			if err != nil {
-				return nil, errors.Wrapf(err, "evaluating symlink %q", srcPath)
-			}
-			// Stat the destination of the evaluated symlink
-			stat, err = os.Stat(srcPath)
-		}
+		// Make sure the volume exists in the rootfs and read its attributes.
+		createDirPerms := os.FileMode(0755)
+		err := copier.Mkdir(mountPoint, filepath.Join(mountPoint, volume), copier.MkdirOptions{
+			ChownNew: &hostOwner,
+			ChmodNew: &createDirPerms,
+		})
 		if err != nil {
-			if !os.IsNotExist(err) {
-				return nil, err
-			}
-			if err = idtools.MkdirAllAndChownNew(srcPath, 0755, hostOwner); err != nil {
-				return nil, err
-			}
-			if stat, err = os.Stat(srcPath); err != nil {
-				return nil, err
-			}
+			return nil, errors.Wrapf(err, "ensuring volume path %q", filepath.Join(mountPoint, volume))
 		}
+		srcPath, err := copier.Eval(mountPoint, filepath.Join(mountPoint, volume), copier.EvalOptions{})
+		if err != nil {
+			return nil, errors.Wrapf(err, "evaluating path %q", srcPath)
+		}
+		stat, err := os.Stat(srcPath)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+		// If we need to populate the mounted volume's contents with
+		// content from the rootfs, set it up now.
 		if initializeVolume {
 			if err = os.Chmod(volumePath, stat.Mode().Perm()); err != nil {
 				return nil, err
@@ -395,6 +392,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 			if err = os.Chown(volumePath, int(stat.Sys().(*syscall.Stat_t).Uid), int(stat.Sys().(*syscall.Stat_t).Gid)); err != nil {
 				return nil, err
 			}
+			logrus.Debugf("populating directory %q for volume %q using contents of %q", volumePath, volume, srcPath)
 			if err = extractWithTar(mountPoint, srcPath, volumePath); err != nil && !os.IsNotExist(errors.Cause(err)) {
 				return nil, errors.Wrapf(err, "error populating directory %q for volume %q using contents of %q", volumePath, volume, srcPath)
 			}
@@ -517,10 +515,12 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	// Get the list of subscriptions mounts.
 	subscriptionMounts := subscriptions.MountsWithUIDGID(b.MountLabel, cdir, b.DefaultMountsFilePath, mountPoint, int(rootUID), int(rootGID), unshare.IsRootless(), false)
 
+	// Get the list of mounts that are just for this Run() call.
 	runMounts, runTargets, err := runSetupRunMounts(runFileMounts, secrets, b.MountLabel, cdir, spec.Linux.UIDMappings, spec.Linux.GIDMappings)
 	if err != nil {
 		return nil, err
 	}
+
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
 	builtins, err := runSetupBuiltinVolumes(b.MountLabel, mountPoint, cdir, builtinVolumes, int(rootUID), int(rootGID))
