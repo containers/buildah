@@ -2446,6 +2446,11 @@ EOM
   expect_output --substring "uid=3267"
   expect_output --substring "CapBnd:	00000000a80425fb"
   expect_output --substring "CapEff:	0000000000000000"
+
+  run_buildah bud --cap-drop cap_chown,cap_dac_override,cap_fowner -t testcapd --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/capabilities/Dockerfile
+  expect_output --substring "uid=3267"
+  expect_output --substring "CapBnd:	00000000800405f0"
+  expect_output --substring "CapEff:	0000000000000000"
 }
 
 @test "bud does not gobble stdin" {
@@ -2809,6 +2814,316 @@ _EOF
   run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json --build-arg NEWSECRET="VerySecret" --file ${mytmpdir} .
   ! expect_output --substring '\-\-build-arg SECRET=<VALUE>'
   ! expect_output --substring '\-\-build-arg NEWSECRET=<VALUE>'
+}
+
+@test "bud with --runtime and --runtime-flag" {
+  # This Containerfile needs us to be able to handle a working RUN instruction.
+  skip_if_no_runtime
+  skip_if_chroot
+
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run echo hello
+_EOF
+
+  local found_runtime=
+
+  if [ -n "$(command -v runc)" ]; then
+    found_runtime=y
+    if is_cgroupsv2; then
+      # The result with cgroup v2 depends on the version of runc.
+      run_buildah ? bud --runtime=runc --runtime-flag=debug \
+                        -q -t alpine-bud-runc --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+      if [ "$status" -eq 0 ]; then
+        expect_output --substring "nsexec started"
+      else
+        # If it fails, this is because this version of runc doesn't support cgroup v2.
+        expect_output --substring "this version of runc doesn't work on cgroups v2" "should fail by unsupportability for cgroupv2"
+      fi
+    else
+      run_buildah bud --runtime=runc --runtime-flag=debug \
+                      -q -t alpine-bud-runc --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+      expect_output --substring "nsexec started"
+    fi
+
+  fi
+
+  if [ -n "$(command -v crun)" ]; then
+    found_runtime=y
+
+    # Use seccomp to make crun output a warning message because crun writes few logs.
+    cat > ${TESTDIR}/seccomp.json << _EOF
+{
+    "defaultAction": "SCMP_ACT_ALLOW",
+    "syscalls": [
+      {
+        "name": "unknown",
+        "action": "SCMP_ACT_KILL"
+	    }
+    ]
+}
+_EOF
+
+    run_buildah bud --runtime=crun --runtime-flag=debug --security-opt seccomp=${TESTDIR}/seccomp.json \
+                    -q -t alpine-bud-crun --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+    expect_output --substring "unknown seccomp syscall"
+  fi
+
+  if [ -z "${found_runtime}" ]; then
+    die "Did not find 'runc' nor 'crun' in \$PATH - could not run this test!"
+  fi
+
+}
+
+@test "bud with --add-host" {
+  skip_if_no_runtime
+
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run grep "myhostname" /etc/hosts
+_EOF
+
+  ip=123.45.67.$(( $RANDOM % 256 ))
+  run_buildah bud --add-host=myhostname:$ip -t testbud \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --from="${lines[2]}" --substring "^$ip\s+myhostname"
+}
+
+@test "bud with --cgroup-parent" {
+  skip_if_no_runtime
+  skip_if_chroot
+
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run cat /proc/self/cgroup
+_EOF
+
+  # with cgroup-parent
+  run_buildah bud --cgroup-parent test-cgroup -t with-flag \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  if is_cgroupsv2; then
+    expect_output --from="${lines[2]}" "0::/test-cgroup"
+  else
+    expect_output --substring "/test-cgroup"
+  fi
+
+  # without cgroup-parent
+  run_buildah bud -t without-flag \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  if [ -n "$(grep "test-cgroup" <<< "$output")" ]; then
+    die "Unexpected cgroup."
+  fi
+}
+
+@test "bud with --cpu-period and --cpu-quota" {
+  skip_if_chroot
+  skip_if_rootless
+  skip_if_no_runtime
+
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+
+  if is_cgroupsv2; then
+    cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run cat /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max
+_EOF
+  else
+    cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run echo "\$(cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us) \$(cat /sys/fs/cgroup/cpu/cpu.cfs_period_us)"
+_EOF
+  fi
+
+  run_buildah bud --cpu-period=1234 --cpu-quota=5678 -t testcpu \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --from="${lines[2]}" "5678 1234"
+}
+
+@test "bud with --cpu-shares" {
+  skip_if_chroot
+  skip_if_rootless
+  skip_if_no_runtime
+
+  _prefetch alpine
+
+  local shares=12345
+  local expect=
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+
+  if is_cgroupsv2; then
+    cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run printf "weight " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight
+_EOF
+    expect="weight $((1 + ((${shares} - 2) * 9999) / 262142))"
+  else
+    cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run printf "weight " && cat /sys/fs/cgroup/cpu/cpu.shares
+_EOF
+    expect="weight ${shares}"
+  fi
+
+  run_buildah bud --cpu-shares=${shares} -t testcpu \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --from="${lines[2]}" "${expect}"
+}
+
+@test "bud with --cpuset-cpus" {
+  skip_if_chroot
+  skip_if_rootless
+  skip_if_no_runtime
+
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+
+  if is_cgroupsv2; then
+    cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run printf "cpuset-cpus " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.cpus
+_EOF
+  else
+    cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run printf "cpuset-cpus " && cat /sys/fs/cgroup/cpuset/cpuset.cpus
+_EOF
+  fi
+
+  run_buildah bud --cpuset-cpus=0 -t testcpuset \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --from="${lines[2]}" "cpuset-cpus 0"
+}
+
+@test "bud with --cpuset-mems" {
+  skip_if_chroot
+  skip_if_rootless
+  skip_if_no_runtime
+  skip_if_cgroupsv2
+
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run printf "cpuset-mems " && cat /sys/fs/cgroup/cpuset/cpuset.mems
+_EOF
+
+  run_buildah bud --cpuset-mems=0 -t testcpuset \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --from="${lines[2]}" "cpuset-mems 0"
+}
+
+@test "bud with --isolation" {
+  skip_if_no_runtime
+  test -z "${BUILDAH_ISOLATION}" || skip "BUILDAH_ISOLATION=${BUILDAH_ISOLATION} overrides --isolation"
+
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run readlink /proc/self/ns/pid
+_EOF
+
+  run readlink /proc/self/ns/pid
+  host_pidns=$output
+  run_buildah bud --isolation chroot -t testisolation --pid private \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  # chroot isolation doesn't make a new PID namespace.
+  expect_output --from="${lines[2]}" "${host_pidns}"
+}
+
+@test "bud with --pull-always" {
+  _prefetch docker.io/library/alpine
+  run_buildah bud --pull-always --signature-policy ${TESTSDIR}/policy.json -t testpull ${TESTSDIR}/bud/containerfile
+  expect_output --from="${lines[1]}" "Trying to pull docker.io/library/alpine:latest..."
+}
+
+@test "bud with --memory and --memory-swap" {
+  skip_if_chroot
+  skip_if_no_runtime
+  skip_if_rootless
+
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+
+  local expect_swap=
+  if is_cgroupsv2; then
+    cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run printf "memory-max=" && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/memory.max
+run printf "memory-swap-result=" && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/memory.swap.max
+_EOF
+    expect_swap=31457280
+  else
+    cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run printf "memory-max=" && cat /sys/fs/cgroup/memory/memory.limit_in_bytes
+run printf "memory-swap-result=" && cat /sys/fs/cgroup/memory/memory.memsw.limit_in_bytes
+_EOF
+    expect_swap=73400320
+  fi
+
+  run_buildah bud --memory=40m --memory-swap=70m -t testmemory \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --from="${lines[2]}" "memory-max=41943040"
+  expect_output --from="${lines[4]}" "memory-swap-result=${expect_swap}"
+}
+
+@test "bud with --shm-size" {
+  skip_if_chroot
+  skip_if_no_runtime
+
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run df -h /dev/shm
+_EOF
+
+  run_buildah bud --shm-size=80m -t testshm \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --from="${lines[3]}" --substring "shm\s+80.0M"
+}
+
+@test "bud with --ulimit" {
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run printf "ulimit=" && ulimit -t
+_EOF
+
+  run_buildah bud --ulimit cpu=300 -t testulimit \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --from="${lines[2]}" "ulimit=300"
 }
 
 @test "bud with .dockerignore - 3" {
