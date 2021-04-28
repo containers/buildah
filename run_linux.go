@@ -829,7 +829,7 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 	logrus.Debugf("Running %q", create.Args)
 	err = create.Run()
 	if err != nil {
-		return 1, errors.Wrapf(err, "error creating container for %v: %s", pargs, runCollectOutput(errorFds, closeBeforeReadingErrorFds))
+		return 1, errors.Wrapf(err, "error from %s creating container for %v: %s", runtime, pargs, runCollectOutput(errorFds, closeBeforeReadingErrorFds))
 	}
 	defer func() {
 		err2 := del.Run()
@@ -837,7 +837,7 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 			if err == nil {
 				err = errors.Wrapf(err2, "error deleting container")
 			} else {
-				logrus.Infof("error deleting container: %v", err2)
+				logrus.Infof("error from %s deleting container: %v", runtime, err2)
 			}
 		}
 	}()
@@ -890,13 +890,13 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 	logrus.Debugf("Running %q", start.Args)
 	err = start.Run()
 	if err != nil {
-		return 1, errors.Wrapf(err, "error starting container")
+		return 1, errors.Wrapf(err, "error from %s starting container", runtime)
 	}
 	stopped := false
 	defer func() {
 		if !stopped {
 			if err2 := kill.Run(); err2 != nil {
-				logrus.Infof("error stopping container: %v", err2)
+				logrus.Infof("error from %s stopping container: %v", runtime, err2)
 			}
 		}
 	}()
@@ -911,10 +911,10 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 		stat.Stderr = os.Stderr
 		stateOutput, err := stat.Output()
 		if err != nil {
-			return 1, errors.Wrapf(err, "error reading container state (got output: %q)", string(stateOutput))
+			return 1, errors.Wrapf(err, "error reading container state from %s (got output: %q)", runtime, string(stateOutput))
 		}
 		if err = json.Unmarshal(stateOutput, &state); err != nil {
-			return 1, errors.Wrapf(err, "error parsing container state %q", string(stateOutput))
+			return 1, errors.Wrapf(err, "error parsing container state %q from %s", string(stateOutput), runtime)
 		}
 		switch state.Status {
 		case "running":
