@@ -63,58 +63,37 @@ load helpers
   # Check that with settings that don't require a user namespace, we can request to use a per-container network namespace.
   run_buildah run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
   if [[ $output == $mynetns ]]; then
-      expect_output "[output should not be '$mynetns']"
+      die "[/proc/self/ns/net (--net=container) should not be '$mynetns']"
   fi
 
   run_buildah run $RUNOPTS --net=private "$ctr" readlink /proc/self/ns/net
   if [[ $output == $mynetns ]]; then
-      expect_output "[output should not be '$mynetns']"
+      die "[/proc/self/ns/net (--net=private) should not be '$mynetns']"
   fi
 }
 
-idmapping_check_namespace() {
-  local _uidmapargs=$1
-  local _gidmapargs=$2
-  local _mynamespace=$3
-  local _output=$4
-
-  [ "$_output" != "" ]
-  if [ -z "${_uidmapargs}${_gidmapargs}" ]; then
-    if test "$BUILDAH_ISOLATION" != "chroot" -a "$BUILDAH_ISOLATION" != "rootless" ; then
-      expect_output --from="$_output" "$_mynamespace"
-    fi
-  else
-    [ "$_output" != "$_mynamespace" ]
-  fi
-}
-
+# Helper for idmapping test: check UID or GID mapping
+# NOTE SIDE EFFECT: sets $rootxid for possible use by caller
 idmapping_check_map() {
-  local _output_uidmap=$1
-  local _output_gidmap=$2
-  local _expect_uidmap=$3
-  local _expect_gidmap=$4
+  local _output_idmap=$1
+  local _expect_idmap=$2
+  local _testname=$3
 
-  [ -n "$_output_uidmap" ]
-  local uidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "${_output_uidmap}")
-  [ -n "$_output_gidmap" ]
-  local gidmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "${_output_gidmap}")
-  echo expected UID map "${_expect_uidmap}", got UID map "${uidmap}", expected GID map "${_expect_gid_map}", got GID map "${gidmap}".
-  expect_output --from="$uidmap" "${_expect_uidmap}"
-  expect_output --from="$gidmap" "${_expect_gidmap}"
-  # these vars are global
-  rootuid=$(sed -E -e 's,^([^ ]*) (.*) ([^ ]*),\2,' <<< "$uidmap")
-  rootgid=$(sed -E -e 's,^([^ ]*) (.*) ([^ ]*),\2,' <<< "$gidmap")
+  [ -n "$_output_idmap" ]
+  local _idmap=$(sed -E -e 's, +, ,g' -e 's,^ +,,g' <<< "${_output_idmap}")
+  expect_output --from="$_idmap" "${_expect_idmap}" "$_testname"
+
+  # SIDE EFFECT: Global: our caller may want this
+  rootxid=$(sed -E -e 's,^([^ ]*) (.*) ([^ ]*),\2,' <<< "$_idmap")
 }
 
+# Helper for idmapping test: check file permissions
 idmapping_check_permission() {
   local _output_file_stat=$1
   local _output_dir_stat=$2
-  local _output_otherfile_stat=$3
-  local _expect_otherfile_stat=$4
 
   expect_output --from="${_output_file_stat}" "1:1" "Check if a copied file gets the right permissions"
   expect_output --from="${_output_dir_stat}" "0:0" "Check if a copied directory gets the right permissions"
-  expect_output --from="${_output_otherfile_stat}" "${_expect_otherfile_stat}" "Check if another copied file gets the right permissions"
 }
 
 @test "idmapping" {
@@ -200,6 +179,21 @@ idmapping_check_permission() {
   chmod u+s ${TESTDIR}/somedir/someotherfile
 
   for i in $(seq 0 "$((${#uidmaps[*]}-1))") ; do
+    # local helper function for checking /proc/self/ns/user
+    function idmapping_check_namespace() {
+      local _output=$1
+      local _testname=$2
+
+      [ "$_output" != "" ]
+      if [ -z "${uidmapargs[$i]}${gidmapargs[$i]}" ]; then
+        if test "$BUILDAH_ISOLATION" != "chroot" -a "$BUILDAH_ISOLATION" != "rootless" ; then
+          expect_output --from="$_output" "$mynamespace" "/proc/self/ns/user ($_testname)"
+        fi
+      else
+        [ "$_output" != "$mynamespace" ]
+      fi
+    }
+
     # Create a container using these mappings.
     echo "Building container with --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine"
     _prefetch alpine
@@ -208,13 +202,16 @@ idmapping_check_permission() {
 
     # If we specified mappings, expect to be in a different namespace by default.
     run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/user
-    idmapping_check_namespace "${uidmapargs[$i]}" "${gidmapargs[$i]}" "$mynamespace" "$output"
-    # Check that we got the mappings that we expected.
+    idmapping_check_namespace "$output" "container"
+    # Check that we got the UID and GID mappings that we expected.
+    # rootuid/rootgid are obtained (side effect) from helper function
     run_buildah run $RUNOPTS "$ctr" cat /proc/self/uid_map
-    output_uidmap="$output"
+    idmapping_check_map "$output" "${uidmaps[$i]}" "uid_map"
+    rootuid=$rootxid
+
     run_buildah run $RUNOPTS "$ctr" cat /proc/self/gid_map
-    output_gidmap="$output"
-    idmapping_check_map "$output_uidmap" "$output_gidmap" "${uidmaps[$i]}" "${gidmaps[$i]}"
+    idmapping_check_map "$output" "${gidmaps[$i]}" "gid_map"
+    rootgid=$rootxid
 
     # Check that if we copy a file into the container, it gets the right permissions.
     run_buildah copy --chown 1:1 "$ctr" ${TESTDIR}/somefile /
@@ -224,9 +221,10 @@ idmapping_check_permission() {
     run_buildah copy "$ctr" ${TESTDIR}/somedir /somedir
     run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g' /somedir
     output_dir_stat="$output"
+    idmapping_check_permission "$output_file_stat" "$output_dir_stat"
+
     run_buildah run $RUNOPTS "$ctr" stat -c '%u:%g %a' /somedir/someotherfile
-    output_otherfile_stat="$output"
-    idmapping_check_permission "$output_file_stat" "$output_dir_stat" "$output_otherfile_stat" "0:0 4700"
+    expect_output "0:0 4700" "stat(someotherfile), in container test"
 
     # Check that the copied file has the right permissions on host.
     run_buildah mount "$ctr"
@@ -246,11 +244,12 @@ idmapping_check_permission() {
                     -t localhost/alpine-bud:$i -f ${TESTSDIR}/bud/namespaces/Containerfile $TESTDIR
     # If we specified mappings, expect to be in a different namespace by default.
     output_namespace="$(grep -A1 'ReadlinkResult' <<< "$output" | tail -n1)"
-    idmapping_check_namespace "${uidmapargs[$i]}" "${gidmapargs[$i]}" "$mynamespace" "$output_namespace"
+    idmapping_check_namespace "${output_namespace}" "bud"
     # Check that we got the mappings that we expected.
     output_uidmap="$(grep -A1 'UidMapResult' <<< "$output" | tail -n1)"
     output_gidmap="$(grep -A1 'GidMapResult' <<< "$output" | tail -n1)"
-    idmapping_check_map "$output_uidmap" "$output_gidmap" "${uidmaps[$i]}" "${gidmaps[$i]}"
+    idmapping_check_map "$output_uidmap" "${uidmaps[$i]}" "UidMapResult"
+    idmapping_check_map "$output_gidmap" "${gidmaps[$i]}" "GidMapResult"
 
     # Check that if we copy a file into the container, it gets the right permissions.
     output_file_stat="$(grep -A1 'StatSomefileResult' <<< "$output" | tail -n1)"
@@ -258,7 +257,8 @@ idmapping_check_permission() {
     output_dir_stat="$(grep -A1 'StatSomedirResult' <<< "$output" | tail -n1)"
     output_otherfile_stat="$(grep -A1 'StatSomeotherfileResult' <<< "$output" | tail -n1)"
     # bud strips suid.
-    idmapping_check_permission "$output_file_stat" "$output_dir_stat" "$output_otherfile_stat" "0:0 700"
+    idmapping_check_permission "$output_file_stat" "$output_dir_stat"
+    expect_output --from="${output_otherfile_stat}" "0:0 700" "stat(someotherfile), in bud test"
   done
 }
 
