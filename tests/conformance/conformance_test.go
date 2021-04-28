@@ -1451,15 +1451,18 @@ var internalTestCases = []testCase{
 		contextDir:      "mount",
 		buildahRegex:    "/tmp/test/file.*?regular file.*?/tmp/test/file2.*?regular file",
 		withoutDocker:   true,
-		transientMounts: []string{"@@TEMPDIR@@:/tmp/test"},
+		transientMounts: []string{"@@TEMPDIR@@:/tmp/test" + selinuxMountFlag()},
 	},
 
 	{
-		name:            "transient-mount",
-		contextDir:      "transientmount",
-		buildahRegex:    "file2.*?FROM busybox ENV name value",
-		withoutDocker:   true,
-		transientMounts: []string{"@@TEMPDIR@@:/mountdir", "@@TEMPDIR@@/Dockerfile.env:/mountfile"},
+		name:          "transient-mount",
+		contextDir:    "transientmount",
+		buildahRegex:  "file2.*?FROM busybox ENV name value",
+		withoutDocker: true,
+		transientMounts: []string{
+			"@@TEMPDIR@@:/mountdir" + selinuxMountFlag(),
+			"@@TEMPDIR@@/Dockerfile.env:/mountfile" + selinuxMountFlag(),
+		},
 	},
 
 	{

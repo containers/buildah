@@ -20,3 +20,5 @@ ADD Dockerfile /vol/Dockerfile
 RUN stat /vol/Dockerfile
 ADD Dockerfile /vol/Dockerfile2
 RUN stat /vol/Dockerfile2
+# We should still be saving and restoring volume caches.
+RUN dd if=/dev/zero bs=512 count=1 of=/vol/subvol/subvolfile
