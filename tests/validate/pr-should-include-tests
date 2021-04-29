@@ -19,7 +19,16 @@ fi
 # HEAD should be good enough, but the CIRRUS envariable allows us to test
 head=${CIRRUS_CHANGE_IN_REPO:-HEAD}
 # Base of this PR. Here we absolutely rely on cirrus.
-base=$(git merge-base ${DEST_BRANCH:-master} $head)
+base=$(git merge-base ${GITVALIDATE_EPOCH:-master} $head)
+
+# Sanity check:
+if [[ -z "$base" ]]; then
+    echo "$(basename $0): internal error: could not determine merge-base"
+    echo "   head                  = $head"
+    echo "   CIRRUS_CHANGE_IN_REPO = $CIRRUS_CHANGE_IN_REPO"
+    echo "   GITVALIDATE_EPOCH     = $GITVALIDATE_EPOCH"
+    exit 1
+fi
 
 # This gives us a list of files touched in all commits, e.g.
 #    A    foo.c
