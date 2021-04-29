@@ -11,7 +11,8 @@ buildah\-login - Login to a container registry
 and password. **buildah login** reads in the username and password from STDIN.
 The username and password can also be set using the **username** and **password** flags.
 The path of the authentication file can be specified by the user by setting the **authfile**
-flag. The default path used is **${XDG\_RUNTIME_DIR}/containers/auth.json**.
+flag. The default path used is **${XDG\_RUNTIME_DIR}/containers/auth.json**. If XDG_RUNTIME_DIR
+is not set, the default is /run/containers/$UID/auth.json.
 
 **buildah [GLOBAL OPTIONS]**
 
@@ -35,7 +36,7 @@ Username for registry
 
 **--authfile**
 
-Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json
+Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using using `buildah login`.
 
 Note: You can also override the default path of the authentication file by setting the REGISTRY\_AUTH\_FILE
 environment variable. `export REGISTRY_AUTH_FILE=path`
