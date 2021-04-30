@@ -17,7 +17,7 @@ func NormalizeName(name string) (reference.Named, error) {
 	// NOTE: this code is in symmetrie with containers/image/pkg/shortnames.
 	ref, err := reference.Parse(name)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "error normalizing name %q", name)
 	}
 
 	named, ok := ref.(reference.Named)
@@ -61,16 +61,24 @@ type NameTagPair struct {
 	Name string
 	// Tag of the RepoTag. Maybe "<none>".
 	Tag string
+
+	// for internal use
+	named reference.Named
 }
 
 // ToNameTagsPairs splits repoTags into name&tag pairs.
 // Guaranteed to return at least one pair.
-func ToNameTagPairs(repoTags []reference.NamedTagged) ([]NameTagPair, error) {
+func ToNameTagPairs(repoTags []reference.Named) ([]NameTagPair, error) {
 	none := "<none>"
 
 	var pairs []NameTagPair
-	for _, named := range repoTags {
-		pair := NameTagPair{Name: named.Name(), Tag: none}
+	for i, named := range repoTags {
+		pair := NameTagPair{
+			Name:  named.Name(),
+			Tag:   none,
+			named: repoTags[i],
+		}
+
 		if tagged, isTagged := named.(reference.NamedTagged); isTagged {
 			pair.Tag = tagged.Tag()
 		}

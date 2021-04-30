@@ -16,7 +16,7 @@ func (i *Image) toOCI(ctx context.Context) (*ociv1.Image, error) {
 		return nil, err
 	}
 
-	img, err := ref.NewImage(ctx, &i.runtime.systemContext)
+	img, err := ref.NewImage(ctx, i.runtime.systemContextCopy())
 	if err != nil {
 		return nil, err
 	}

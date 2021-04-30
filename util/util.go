@@ -173,9 +173,6 @@ func FindImage(store storage.Store, firstRegistry string, systemContext *types.S
 	if err != nil {
 		return nil, nil, err
 	}
-	if localImage == nil {
-		return nil, nil, errors.Wrap(storage.ErrImageUnknown, image)
-	}
 	ref, err := localImage.StorageReference()
 	if err != nil {
 		return nil, nil, err
@@ -226,9 +223,6 @@ func AddImageNames(store storage.Store, firstRegistry string, systemContext *typ
 	localImage, _, err := runtime.LookupImage(image.ID, nil)
 	if err != nil {
 		return err
-	}
-	if localImage == nil {
-		return errors.Errorf("could not find libimage for %s", image.ID)
 	}
 
 	for _, tag := range addNames {

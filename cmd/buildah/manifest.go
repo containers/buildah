@@ -21,6 +21,7 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
+	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -462,14 +463,21 @@ func manifestRmCmd(c *cobra.Command, args []string) error {
 	options := &libimage.RemoveImagesOptions{
 		Filters: []string{"readonly=false"},
 	}
-	untagged, removed, err := runtime.RemoveImages(context.Background(), args, options)
-	for _, u := range untagged {
-		fmt.Printf("untagged: %s\n", u)
+	rmiReports, rmiErrors := runtime.RemoveImages(context.Background(), args, options)
+	for _, r := range rmiReports {
+		for _, u := range r.Untagged {
+			fmt.Printf("untagged: %s\n", u)
+		}
 	}
-	for _, r := range removed {
-		fmt.Printf("%s\n", r)
+	for _, r := range rmiReports {
+		if r.Removed {
+			fmt.Printf("%s\n", r.ID)
+		}
 	}
-	return err
+
+	var multiE *multierror.Error
+	multiE = multierror.Append(multiE, rmiErrors...)
+	return multiE.ErrorOrNil()
 }
 
 func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateOpts) error {

@@ -4,19 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/disiqueira/gotree/v3"
 	"github.com/docker/go-units"
-)
-
-const (
-	imageTreeMiddleItem   = "├── "
-	imageTreeContinueItem = "│   "
-	imageTreeLastItem     = "└── "
 )
 
 // Tree generates a tree for the specified image and its layers.  Use
 // `traverseChildren` to traverse the layers of all children.  By default, only
 // layers of the image are printed.
-func (i *Image) Tree(traverseChildren bool) (*strings.Builder, error) {
+func (i *Image) Tree(traverseChildren bool) (string, error) {
 	// NOTE: a string builder prevents us from copying to much data around
 	// and compile the string when and where needed.
 	sb := &strings.Builder{}
@@ -24,85 +19,78 @@ func (i *Image) Tree(traverseChildren bool) (*strings.Builder, error) {
 	// First print the pretty header for the target image.
 	size, err := i.Size()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	repoTags, err := i.RepoTags()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	fmt.Fprintf(sb, "Image ID: %s\n", i.ID()[:12])
 	fmt.Fprintf(sb, "Tags:     %s\n", repoTags)
 	fmt.Fprintf(sb, "Size:     %v\n", units.HumanSizeWithPrecision(float64(size), 4))
 	if i.TopLayer() != "" {
-		fmt.Fprintf(sb, "Image Layers\n")
+		fmt.Fprintf(sb, "Image Layers")
 	} else {
-		fmt.Fprintf(sb, "No Image Layers\n")
+		fmt.Fprintf(sb, "No Image Layers")
 	}
+
+	tree := gotree.New(sb.String())
 
 	layerTree, err := i.runtime.layerTree()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	imageNode := layerTree.node(i.TopLayer())
+
 	// Traverse the entire tree down to all children.
 	if traverseChildren {
-		return imageTreeTraverseChildren(sb, imageNode, "", true)
+		if err := imageTreeTraverseChildren(imageNode, tree); err != nil {
+			return "", err
+		}
+	} else {
+		// Walk all layers of the image and assemlbe their data.
+		for parentNode := imageNode; parentNode != nil; parentNode = parentNode.parent {
+			if parentNode.layer == nil {
+				break // we're done
+			}
+			var tags string
+			repoTags, err := parentNode.repoTags()
+			if err != nil {
+				return "", err
+			}
+			if len(repoTags) > 0 {
+				tags = fmt.Sprintf(" Top Layer of: %s", repoTags)
+			}
+			tree.Add(fmt.Sprintf("ID: %s Size: %7v%s", parentNode.layer.ID[:12], units.HumanSizeWithPrecision(float64(parentNode.layer.UncompressedSize), 4), tags))
+		}
 	}
 
-	// Walk all layers of the image and assemlbe their data.
-	for parentNode := imageNode.parent; parentNode != nil; parentNode = parentNode.parent {
-		indent := imageTreeMiddleItem
-		if parentNode.parent == nil {
-			indent = imageTreeLastItem
-		}
-
-		var tags string
-		repoTags, err := parentNode.repoTags()
-		if err != nil {
-			return nil, err
-		}
-		if len(repoTags) > 0 {
-			tags = fmt.Sprintf(" Top Layer of: %s", repoTags)
-		}
-		fmt.Fprintf(sb, "%s ID: %s Size: %7v%s\n", indent, parentNode.layer.ID[:12], units.HumanSizeWithPrecision(float64(parentNode.layer.UncompressedSize), 4), tags)
-	}
-
-	return sb, nil
+	return tree.Print(), nil
 }
 
-func imageTreeTraverseChildren(sb *strings.Builder, node *layerNode, prefix string, last bool) (*strings.Builder, error) {
-	numChildren := len(node.children)
-	if numChildren == 0 {
-		return sb, nil
+func imageTreeTraverseChildren(node *layerNode, parent gotree.Tree) error {
+	var tags string
+	repoTags, err := node.repoTags()
+	if err != nil {
+		return err
 	}
-	sb.WriteString(prefix)
-
-	intend := imageTreeMiddleItem
-	if !last {
-		prefix += imageTreeContinueItem
-	} else {
-		intend = imageTreeLastItem
-		prefix += " "
+	if len(repoTags) > 0 {
+		tags = fmt.Sprintf(" Top Layer of: %s", repoTags)
 	}
 
+	newNode := parent.Add(fmt.Sprintf("ID: %s Size: %7v%s", node.layer.ID[:12], units.HumanSizeWithPrecision(float64(node.layer.UncompressedSize), 4), tags))
+
+	if len(node.children) <= 1 {
+		newNode = parent
+	}
 	for i := range node.children {
 		child := node.children[i]
-		var tags string
-		repoTags, err := child.repoTags()
-		if err != nil {
-			return nil, err
-		}
-		if len(repoTags) > 0 {
-			tags = fmt.Sprintf(" Top Layer of: %s", repoTags)
-		}
-		fmt.Fprintf(sb, "%sID: %s Size: %7v%s\n", intend, child.layer.ID[:12], units.HumanSizeWithPrecision(float64(child.layer.UncompressedSize), 4), tags)
-		sb, err = imageTreeTraverseChildren(sb, child, prefix, i == numChildren-1)
-		if err != nil {
-			return nil, err
+		if err := imageTreeTraverseChildren(child, newNode); err != nil {
+			return err
 		}
 	}
 
-	return sb, nil
+	return nil
 }

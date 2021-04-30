@@ -3,6 +3,7 @@ package libimage
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -69,13 +70,47 @@ type SearchFilter struct {
 	IsOfficial types.OptionalBool
 }
 
-func (r *Runtime) Search(ctx context.Context, term string, options SearchOptions) ([]SearchResult, error) {
-	searchRegistries, err := sysregistriesv2.UnqualifiedSearchRegistries(&r.systemContext)
-	if err != nil {
-		return nil, err
+// ParseSearchFilter turns the filter into a SearchFilter that can be used for
+// searching images.
+func ParseSearchFilter(filter []string) (*SearchFilter, error) {
+	sFilter := new(SearchFilter)
+	for _, f := range filter {
+		arr := strings.SplitN(f, "=", 2)
+		switch arr[0] {
+		case "stars":
+			if len(arr) < 2 {
+				return nil, errors.Errorf("invalid `stars` filter %q, should be stars=<value>", filter)
+			}
+			stars, err := strconv.Atoi(arr[1])
+			if err != nil {
+				return nil, errors.Wrapf(err, "incorrect value type for stars filter")
+			}
+			sFilter.Stars = stars
+		case "is-automated":
+			if len(arr) == 2 && arr[1] == "false" {
+				sFilter.IsAutomated = types.OptionalBoolFalse
+			} else {
+				sFilter.IsAutomated = types.OptionalBoolTrue
+			}
+		case "is-official":
+			if len(arr) == 2 && arr[1] == "false" {
+				sFilter.IsOfficial = types.OptionalBoolFalse
+			} else {
+				sFilter.IsOfficial = types.OptionalBoolTrue
+			}
+		default:
+			return nil, errors.Errorf("invalid filter type %q", f)
+		}
+	}
+	return sFilter, nil
+}
+
+func (r *Runtime) Search(ctx context.Context, term string, options *SearchOptions) ([]SearchResult, error) {
+	if options == nil {
+		options = &SearchOptions{}
 	}
 
-	logrus.Debugf("Searching images matching term %s at the following registries %s", term, searchRegistries)
+	var searchRegistries []string
 
 	// Try to extract a registry from the specified search term.  We
 	// consider everything before the first slash to be the registry.  Note
@@ -85,7 +120,15 @@ func (r *Runtime) Search(ctx context.Context, term string, options SearchOptions
 	if spl := strings.SplitN(term, "/", 2); len(spl) > 1 {
 		searchRegistries = append(searchRegistries, spl[0])
 		term = spl[1]
+	} else {
+		regs, err := sysregistriesv2.UnqualifiedSearchRegistries(r.systemContextCopy())
+		if err != nil {
+			return nil, err
+		}
+		searchRegistries = regs
 	}
+
+	logrus.Debugf("Searching images matching term %s at the following registries %s", term, searchRegistries)
 
 	// searchOutputData is used as a return value for searching in parallel.
 	type searchOutputData struct {
@@ -130,27 +173,27 @@ func (r *Runtime) Search(ctx context.Context, term string, options SearchOptions
 	return results, multiErr
 }
 
-func (r *Runtime) searchImageInRegistry(ctx context.Context, term, registry string, options SearchOptions) ([]SearchResult, error) {
+func (r *Runtime) searchImageInRegistry(ctx context.Context, term, registry string, options *SearchOptions) ([]SearchResult, error) {
 	// Max number of queries by default is 25
 	limit := searchMaxQueries
 	if options.Limit > 0 {
 		limit = options.Limit
 	}
 
-	sys := r.systemContext
+	sys := r.systemContextCopy()
 	if options.InsecureSkipTLSVerify != types.OptionalBoolUndefined {
 		sys.DockerInsecureSkipTLSVerify = options.InsecureSkipTLSVerify
 	}
 
 	if options.ListTags {
-		results, err := searchRepositoryTags(ctx, &sys, registry, term, options)
+		results, err := searchRepositoryTags(ctx, sys, registry, term, options)
 		if err != nil {
 			return []SearchResult{}, err
 		}
 		return results, nil
 	}
 
-	results, err := dockerTransport.SearchRegistry(ctx, &sys, registry, term, limit)
+	results, err := dockerTransport.SearchRegistry(ctx, sys, registry, term, limit)
 	if err != nil {
 		return []SearchResult{}, err
 	}
@@ -209,7 +252,7 @@ func (r *Runtime) searchImageInRegistry(ctx context.Context, term, registry stri
 	return paramsArr, nil
 }
 
-func searchRepositoryTags(ctx context.Context, sys *types.SystemContext, registry, term string, options SearchOptions) ([]SearchResult, error) {
+func searchRepositoryTags(ctx context.Context, sys *types.SystemContext, registry, term string, options *SearchOptions) ([]SearchResult, error) {
 	dockerPrefix := "docker://"
 	imageRef, err := alltransports.ParseImageName(fmt.Sprintf("%s/%s", registry, term))
 	if err == nil && imageRef.Transport().Name() != dockerTransport.Transport.Name() {

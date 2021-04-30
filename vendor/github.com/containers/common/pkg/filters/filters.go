@@ -69,9 +69,11 @@ func FiltersFromRequest(r *http.Request) ([]string, error) {
 	}
 
 	for filterKey, filterSlice := range filters {
+		f := filterKey
 		for _, filterValue := range filterSlice {
-			libpodFilters = append(libpodFilters, fmt.Sprintf("%s=%s", filterKey, filterValue))
+			f += "=" + filterValue
 		}
+		libpodFilters = append(libpodFilters, f)
 	}
 
 	return libpodFilters, nil

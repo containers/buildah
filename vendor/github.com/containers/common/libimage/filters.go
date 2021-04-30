@@ -9,6 +9,7 @@ import (
 	"time"
 
 	filtersPkg "github.com/containers/common/pkg/filters"
+	"github.com/containers/common/pkg/timetype"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -45,15 +46,12 @@ func filterImages(images []*Image, filters []filterFunc) ([]*Image, error) {
 
 // compileImageFilters creates `filterFunc`s for the specified filters.  The
 // required format is `key=value` with the following supported keys:
-//           after, since, before, dangling, id, label, readonly, reference, intermediate
+//           after, since, before, containers, dangling, id, label, readonly, reference, intermediate
 func (r *Runtime) compileImageFilters(ctx context.Context, filters []string) ([]filterFunc, error) {
 	logrus.Tracef("Parsing image filters %s", filters)
 
 	filterFuncs := []filterFunc{}
-	visitedKeys := make(map[string]bool)
-
 	for _, filter := range filters {
-		// First, parse the filter.
 		var key, value string
 		split := strings.SplitN(filter, "=", 2)
 		if len(split) != 2 {
@@ -62,13 +60,6 @@ func (r *Runtime) compileImageFilters(ctx context.Context, filters []string) ([]
 
 		key = split[0]
 		value = split[1]
-
-		if _, exists := visitedKeys[key]; exists {
-			return nil, errors.Errorf("image filter %q specified multiple times", key)
-		}
-		visitedKeys[key] = true
-
-		// Second, dispatch the filters.
 		switch key {
 
 		case "after", "since":
@@ -84,6 +75,13 @@ func (r *Runtime) compileImageFilters(ctx context.Context, filters []string) ([]
 				return nil, errors.Wrapf(err, "could not find local image for filter %q", filter)
 			}
 			filterFuncs = append(filterFuncs, filterBefore(img.Created()))
+
+		case "containers":
+			containers, err := strconv.ParseBool(value)
+			if err != nil {
+				return nil, errors.Wrapf(err, "non-boolean value %q for dangling filter", value)
+			}
+			filterFuncs = append(filterFuncs, filterContainers(containers))
 
 		case "dangling":
 			dangling, err := strconv.ParseBool(value)
@@ -114,6 +112,18 @@ func (r *Runtime) compileImageFilters(ctx context.Context, filters []string) ([]
 
 		case "reference":
 			filterFuncs = append(filterFuncs, filterReference(value))
+
+		case "until":
+			ts, err := timetype.GetTimestamp(value, time.Now())
+			if err != nil {
+				return nil, err
+			}
+			seconds, nanoseconds, err := timetype.ParseTimestamps(ts, 0)
+			if err != nil {
+				return nil, err
+			}
+			until := time.Unix(seconds, nanoseconds)
+			filterFuncs = append(filterFuncs, filterBefore(until))
 
 		default:
 			return nil, errors.Errorf("unsupported image filter %q", key)
@@ -176,6 +186,17 @@ func filterBefore(value time.Time) filterFunc {
 func filterReadOnly(value bool) filterFunc {
 	return func(img *Image) (bool, error) {
 		return img.IsReadOnly() == value, nil
+	}
+}
+
+// filterContainers creates a container filter for matching the specified value.
+func filterContainers(value bool) filterFunc {
+	return func(img *Image) (bool, error) {
+		ctrs, err := img.Containers()
+		if err != nil {
+			return false, err
+		}
+		return (len(ctrs) > 0) == value, nil
 	}
 }
 

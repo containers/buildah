@@ -317,22 +317,11 @@ func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, e
 	if err != nil {
 		return nil, err
 	}
-	// If we can resolve the image locally, make sure we use the resolved name.
-	localImage, resolvedName, err := runtime.LookupImage(output, nil)
+	resolved, err := runtime.ResolveName(output)
 	if err != nil {
 		return nil, err
 	}
-	if localImage != nil {
-		output = resolvedName
-	}
-	// If we cannot find an image, make sure we normalize the name
-	// according the conventions and rules in libimage (e.g.,
-	// "localhost/" prefixing).
-	named, err := libimage.NormalizeName(output)
-	if err != nil {
-		return nil, err
-	}
-	imageRef, err := storageTransport.Transport.ParseStoreReference(b.store, named.String())
+	imageRef, err := storageTransport.Transport.ParseStoreReference(b.store, resolved)
 	if err == nil {
 		return imageRef, nil
 	}

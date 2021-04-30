@@ -48,6 +48,8 @@ type CopyOptions struct {
 	BlobInfoCacheDirPath string
 	// Path to the certificates directory.
 	CertDirPath string
+	// Force layer compression when copying to a `dir` transport destination.
+	DirForceCompress bool
 	// Allow contacting registries over HTTP, or HTTPS with failed TLS
 	// verification. Note that this does not affect other TLS connections.
 	InsecureSkipTLSVerify types.OptionalBool
@@ -115,6 +117,9 @@ type CopyOptions struct {
 	// "username[:password]".  Cannot be used in combination with
 	// Username/Password.
 	Credentials string
+	// IdentityToken is used to authenticate the user and get
+	// an access token for the registry.
+	IdentityToken string `json:"identitytoken,omitempty"`
 
 	// ----- internal -----------------------------------------------------
 
@@ -146,30 +151,33 @@ var (
 // getDockerAuthConfig extracts a docker auth config from the CopyOptions.  Returns
 // nil if no credentials are set.
 func (options *CopyOptions) getDockerAuthConfig() (*types.DockerAuthConfig, error) {
+	authConf := &types.DockerAuthConfig{IdentityToken: options.IdentityToken}
+
 	if options.Username != "" {
 		if options.Credentials != "" {
 			return nil, errors.New("username/password cannot be used with credentials")
 		}
-		return &types.DockerAuthConfig{
-			Username: options.Username,
-			Password: options.Password,
-		}, nil
+		authConf.Username = options.Username
+		authConf.Password = options.Password
+		return authConf, nil
 	}
 
 	if options.Credentials != "" {
-		var username, password string
 		split := strings.SplitN(options.Credentials, ":", 2)
 		switch len(split) {
 		case 1:
-			username = split[0]
+			authConf.Username = split[0]
 		default:
-			username = split[0]
-			password = split[1]
+			authConf.Username = split[0]
+			authConf.Password = split[1]
 		}
-		return &types.DockerAuthConfig{
-			Username: username,
-			Password: password,
-		}, nil
+		return authConf, nil
+	}
+
+	// We should return nil unless a token was set.  That's especially
+	// useful for Podman's remote API.
+	if options.IdentityToken != "" {
+		return authConf, nil
 	}
 
 	return nil, nil
@@ -178,8 +186,9 @@ func (options *CopyOptions) getDockerAuthConfig() (*types.DockerAuthConfig, erro
 // newCopier creates a copier.  Note that fields in options *may* overwrite the
 // counterparts of the specified system context.  Please make sure to call
 // `(*copier).close()`.
-func newCopier(sys *types.SystemContext, options *CopyOptions) (*copier, error) {
+func (r *Runtime) newCopier(options *CopyOptions) (*copier, error) {
 	c := copier{}
+	c.systemContext = r.systemContextCopy()
 
 	if options.SourceLookupReferenceFunc != nil {
 		c.sourceLookup = options.SourceLookupReferenceFunc
@@ -189,10 +198,13 @@ func newCopier(sys *types.SystemContext, options *CopyOptions) (*copier, error) 
 		c.destinationLookup = options.DestinationLookupReferenceFunc
 	}
 
-	c.systemContext = sys
-	if c.systemContext == nil {
-		c.systemContext = &types.SystemContext{}
+	if options.InsecureSkipTLSVerify != types.OptionalBoolUndefined {
+		c.systemContext.DockerInsecureSkipTLSVerify = options.InsecureSkipTLSVerify
+		c.systemContext.OCIInsecureSkipTLSVerify = options.InsecureSkipTLSVerify == types.OptionalBoolTrue
+		c.systemContext.DockerDaemonInsecureSkipTLSVerify = options.InsecureSkipTLSVerify == types.OptionalBoolTrue
 	}
+
+	c.systemContext.DirForceCompress = c.systemContext.DirForceCompress || options.DirForceCompress
 
 	if options.AuthFilePath != "" {
 		c.systemContext.AuthFilePath = options.AuthFilePath
@@ -226,7 +238,11 @@ func newCopier(sys *types.SystemContext, options *CopyOptions) (*copier, error) 
 		c.systemContext.BlobInfoCacheDir = options.BlobInfoCacheDirPath
 	}
 
-	policy, err := signature.DefaultPolicy(sys)
+	if options.CertDirPath != "" {
+		c.systemContext.DockerCertPath = options.CertDirPath
+	}
+
+	policy, err := signature.DefaultPolicy(c.systemContext)
 	if err != nil {
 		return nil, err
 	}

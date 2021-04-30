@@ -4,9 +4,9 @@ import (
 	"context"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
-	libimageTypes "github.com/containers/common/libimage/types"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
 	storageTransport "github.com/containers/image/v5/storage"
@@ -40,7 +40,7 @@ type Image struct {
 		// Inspect data we get from containers/image.
 		partialInspectData *types.ImageInspectInfo
 		// Fully assembled image data.
-		completeInspectData *libimageTypes.ImageData
+		completeInspectData *ImageData
 		// Corresponding OCI image.
 		ociv1Image *ociv1.Image
 	}
@@ -131,7 +131,7 @@ func (i *Image) Created() time.Time {
 func (i *Image) Labels(ctx context.Context) (map[string]string, error) {
 	data, err := i.inspectInfo(ctx)
 	if err != nil {
-		isManifestList, listErr := i.isManifestList(ctx)
+		isManifestList, listErr := i.IsManifestList(ctx)
 		if listErr != nil {
 			err = errors.Wrapf(err, "fallback error checking whether image is a manifest list: %v", err)
 		} else if isManifestList {
@@ -208,7 +208,9 @@ func (i *Image) removeContainers(fn RemoveContainerFunc) error {
 	// Execute the custom removal func if specified.
 	if fn != nil {
 		logrus.Debugf("Removing containers of image %s with custom removal function", i.ID())
-		return fn(i.ID())
+		if err := fn(i.ID()); err != nil {
+			return err
+		}
 	}
 
 	containers, err := i.Containers()
@@ -234,59 +236,182 @@ func (i *Image) removeContainers(fn RemoveContainerFunc) error {
 // an image specified by imageID.
 type RemoveContainerFunc func(imageID string) error
 
-// RemoveImageOptions allow for customizing image removal.
-type RemoveImageOptions struct {
-	// Force will remove all containers from the local storage that are
-	// using a removed image.  Use RemoveContainerFunc for a custom logic.
-	// If set, all child images will be removed as well.
-	Force bool
-	// RemoveContainerFunc allows for a custom logic for removing
-	// containers using a specific image.  By default, all containers in
-	// the local containers storage will be removed (if Force is set).
-	RemoveContainerFunc RemoveContainerFunc
+// RemoveImagesReport is the assembled data from removing *one* image.
+type RemoveImageReport struct {
+	// ID of the image.
+	ID string
+	// Image was removed.
+	Removed bool
+	// Size of the removed image.  Only set when explicitly requested in
+	// RemoveImagesOptions.
+	Size int64
+	// The untagged tags.
+	Untagged []string
 }
 
-// Remove removes the image along with all dangling parent images that no other
+// remove removes the image along with all dangling parent images that no other
 // image depends on.  The image must not be set read-only and not be used by
-// containers.  Callers must make sure to remove containers before image
-// removal and may use `(*Image).Containers()` to get a list of containers
-// using the image.
+// containers.
 //
 // If the image is used by containers return storage.ErrImageUsedByContainer.
 // Use force to remove these containers.
-func (i *Image) Remove(ctx context.Context, options *RemoveImageOptions) error {
+//
+// NOTE: the rmMap is used to assemble image-removal data across multiple
+// invocations of this function.  The recursive nature requires some
+// bookkeeping to make sure that all data is aggregated correctly.
+//
+// This function is internal.  Users of libimage should always use
+// `(*Runtime).RemoveImages()`.
+func (i *Image) remove(ctx context.Context, rmMap map[string]*RemoveImageReport, referencedBy string, options *RemoveImagesOptions) error {
+	// If referencedBy is empty, the image is considered to be removed via
+	// `image remove --all` which alters the logic below.
+
+	// The removal logic below is complex.  There is a number of rules
+	// inherited from Podman and Buildah (and Docker).  This function
+	// should be the *only* place to extend the removal logic so we keep it
+	// sealed in one place.  Make sure to add verbose comments to leave
+	// some breadcrumbs for future readers.
 	logrus.Debugf("Removing image %s", i.ID())
+
 	if i.IsReadOnly() {
 		return errors.Errorf("cannot remove read-only image %q", i.ID())
 	}
 
-	if options == nil {
-		options = &RemoveImageOptions{}
+	// Check if already visisted this image.
+	report, exists := rmMap[i.ID()]
+	if exists {
+		// If the image has already been removed, we're done.
+		if report.Removed {
+			return nil
+		}
+	} else {
+		report = &RemoveImageReport{ID: i.ID()}
+		rmMap[i.ID()] = report
 	}
 
+	// The image may have already been (partially) removed, so we need to
+	// have a closer look at the errors.  On top, image removal should be
+	// tolerant toward corrupted images.
+	handleError := func(err error) error {
+		switch errors.Cause(err) {
+		case storage.ErrImageUnknown, storage.ErrNotAnImage, storage.ErrLayerUnknown:
+			// The image or layers of the image may already
+			// have been removed in which case we consider
+			// the image to be removed.
+			return nil
+		default:
+			return err
+		}
+	}
+
+	// Calculate the size if requested.  `podman-image-prune` likes to
+	// report the regained size.
+	if options.WithSize {
+		size, err := i.Size()
+		if handleError(err) != nil {
+			return err
+		}
+		report.Size = size
+	}
+
+	skipRemove := false
+	numNames := len(i.Names())
+
+	// NOTE: the `numNames == 1` check is not only a performance
+	// optimization but also preserves exiting Podman/Docker behaviour.
+	// If image "foo" is used by a container and has only this tag/name,
+	// an `rmi foo` will not untag "foo" but instead attempt to remove the
+	// entire image.  If there's a container using "foo", we should get an
+	// error.
+	if options.Force || referencedBy == "" || numNames == 1 {
+		// DO NOTHING, the image will be removed
+	} else {
+		byID := strings.HasPrefix(i.ID(), referencedBy)
+		byDigest := strings.HasPrefix(referencedBy, "sha256:")
+		if byID && numNames > 1 {
+			return errors.Errorf("unable to delete image %q by ID with more than one tag (%s): please force removal", i.ID(), i.Names())
+		} else if byDigest && numNames > 1 {
+			// FIXME - Docker will remove the digest but containers storage
+			// does not support that yet, so our hands are tied.
+			return errors.Errorf("unable to delete image %q by digest with more than one tag (%s): please force removal", i.ID(), i.Names())
+		}
+
+		// Only try to untag if we know it's not an ID or digest.
+		if !byID && !byDigest {
+			if err := i.Untag(referencedBy); handleError(err) != nil {
+				return err
+			}
+			report.Untagged = append(report.Untagged, referencedBy)
+
+			// If there's still tags left, we cannot delete it.
+			skipRemove = len(i.Names()) > 0
+		}
+	}
+
+	if skipRemove {
+		return nil
+	}
+
+	// Perform the actual removal. First, remove containers if needed.
 	if options.Force {
 		if err := i.removeContainers(options.RemoveContainerFunc); err != nil {
 			return err
 		}
 	}
 
+	// Podman/Docker compat: we only report an image as removed if it has
+	// no children. Otherwise, the data is effectively still present in the
+	// storage despite the image being removed.
+	hasChildren, err := i.HasChildren(ctx)
+	if err != nil {
+		// We must be tolerant toward corrupted images.
+		// See containers/podman commit fd9dd7065d44.
+		logrus.Warnf("error determining if an image is a parent: %v, ignoring the error", err)
+		hasChildren = false
+	}
+
 	// If there's a dangling parent that no other image depends on, remove
 	// it recursively.
 	parent, err := i.Parent(ctx)
 	if err != nil {
-		return err
+		// We must be tolerant toward corrupted images.
+		// See containers/podman commit fd9dd7065d44.
+		logrus.Warnf("error determining parent of image: %v, ignoring the error", err)
+		parent = nil
 	}
 
-	if _, err := i.runtime.store.DeleteImage(i.ID(), true); err != nil {
+	if _, err := i.runtime.store.DeleteImage(i.ID(), true); handleError(err) != nil {
 		return err
 	}
-	delete(i.runtime.imageIDmap, i.ID())
+	report.Untagged = append(report.Untagged, i.Names()...)
 
-	if parent == nil || !parent.IsDangling() {
+	if !hasChildren {
+		report.Removed = true
+	}
+
+	// Check if can remove the parent image.
+	if parent == nil {
 		return nil
 	}
 
-	return parent.Remove(ctx, options)
+	if !parent.IsDangling() {
+		return nil
+	}
+
+	// If the image has siblings, we don't remove the parent.
+	hasSiblings, err := parent.HasChildren(ctx)
+	if err != nil {
+		// See Podman commit fd9dd7065d44: we need to
+		// be tolerant toward corrupted images.
+		logrus.Warnf("error determining if an image is a parent: %v, ignoring the error", err)
+		hasSiblings = false
+	}
+	if hasSiblings {
+		return nil
+	}
+
+	// Recurse into removing the parent.
+	return parent.remove(ctx, rmMap, "", options)
 }
 
 // Tag the image with the specified name and store it in the local containers
@@ -307,15 +432,28 @@ func (i *Image) Tag(name string) error {
 	return i.reload()
 }
 
+// to have some symmetry with the errors from containers/storage.
+var errTagUnknown = errors.New("tag not known")
+
+// TODO (@vrothberg) - `docker rmi sha256:` will remove the digest from the
+// image.  However, that's something containers storage does not support.
+var errUntagDigest = errors.New("untag by digest not supported")
+
 // Untag the image with the specified name and make the change persistent in
 // the local containers storage.  The name is normalized according to the rules
 // of NormalizeName.
 func (i *Image) Untag(name string) error {
+	if strings.HasPrefix(name, "sha256:") {
+		return errors.Wrap(errUntagDigest, name)
+	}
+
 	ref, err := NormalizeName(name)
 	if err != nil {
 		return errors.Wrapf(err, "error normalizing name %q", name)
 	}
 	name = ref.String()
+
+	logrus.Debugf("Untagging %q from image %s", ref.String(), i.ID())
 
 	removedName := false
 	newNames := []string{}
@@ -328,10 +466,8 @@ func (i *Image) Untag(name string) error {
 	}
 
 	if !removedName {
-		return nil
+		return errors.Wrap(errTagUnknown, name)
 	}
-
-	logrus.Debugf("Untagging %q from image %s", ref.String(), i.ID())
 
 	if err := i.runtime.store.SetNames(i.ID(), newNames); err != nil {
 		return err
@@ -353,25 +489,78 @@ func (i *Image) RepoTags() ([]string, error) {
 	return repoTags, nil
 }
 
-// NammedTaggedRepoTags returns the repotags associated with the image as a
+// NamedTaggedRepoTags returns the repotags associated with the image as a
 // slice of reference.NamedTagged.
 func (i *Image) NamedTaggedRepoTags() ([]reference.NamedTagged, error) {
 	var repoTags []reference.NamedTagged
 	for _, name := range i.Names() {
-		named, err := reference.ParseNormalizedNamed(name)
+		parsed, err := reference.Parse(name)
 		if err != nil {
 			return nil, err
 		}
-		if tagged, isTagged := named.(reference.NamedTagged); isTagged {
-			repoTags = append(repoTags, tagged)
+		named, isNamed := parsed.(reference.Named)
+		if !isNamed {
+			continue
+		}
+		tagged, isTagged := named.(reference.NamedTagged)
+		if !isTagged {
+			continue
+		}
+		repoTags = append(repoTags, tagged)
+	}
+	return repoTags, nil
+}
+
+// NamedRepoTags returns the repotags associated with the image as a
+// slice of reference.Named.
+func (i *Image) NamedRepoTags() ([]reference.Named, error) {
+	var repoTags []reference.Named
+	for _, name := range i.Names() {
+		parsed, err := reference.Parse(name)
+		if err != nil {
+			return nil, err
+		}
+		if named, isNamed := parsed.(reference.Named); isNamed {
+			repoTags = append(repoTags, named)
 		}
 	}
 	return repoTags, nil
 }
 
-// RepoDigests returns a string array of repodigests associated with the image
+// inRepoTags looks for the specified name/tag pair in the image's repo tags.
+// Note that tag may be empty.
+func (i *Image) inRepoTags(name, tag string) (reference.Named, error) {
+	repoTags, err := i.NamedRepoTags()
+	if err != nil {
+		return nil, err
+	}
+
+	pairs, err := ToNameTagPairs(repoTags)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, pair := range pairs {
+		if tag != "" && tag != pair.Tag {
+			continue
+		}
+		if !strings.HasSuffix(pair.Name, name) {
+			continue
+		}
+		if len(pair.Name) == len(name) { // full match
+			return pair.named, nil
+		}
+		if pair.Name[len(pair.Name)-len(name)-1] == '/' { // matches at repo
+			return pair.named, nil
+		}
+	}
+
+	return nil, nil
+}
+
+// RepoDigests returns a string array of repodigests associated with the image.
 func (i *Image) RepoDigests() ([]string, error) {
-	var repoDigests []string
+	repoDigests := []string{}
 	added := make(map[string]struct{})
 
 	for _, name := range i.Names() {
@@ -413,6 +602,32 @@ func (i *Image) Mount(ctx context.Context, mountOptions []string, mountLabel str
 		return "", err
 	}
 	logrus.Debugf("Mounted image %s at %q", i.ID(), mountPoint)
+	return mountPoint, nil
+}
+
+// Mountpoint returns the path to image's mount point.  The path is empty if
+// the image is not mounted.
+func (i *Image) Mountpoint() (string, error) {
+	mountedTimes, err := i.runtime.store.Mounted(i.TopLayer())
+	if err != nil || mountedTimes == 0 {
+		if errors.Cause(err) == storage.ErrLayerUnknown {
+			// Can happen, Podman did it, but there's no
+			// explanation why.
+			err = nil
+		}
+		return "", err
+	}
+
+	layer, err := i.runtime.store.Layer(i.TopLayer())
+	if err != nil {
+		return "", err
+	}
+
+	mountPoint, err := filepath.EvalSymlinks(layer.MountPoint)
+	if err != nil {
+		return "", err
+	}
+
 	return mountPoint, nil
 }
 
@@ -460,7 +675,7 @@ func (i *Image) HasDifferentDigest(ctx context.Context, remoteRef types.ImageRef
 		return false, err
 	}
 
-	sys := i.runtime.systemContext
+	sys := i.runtime.systemContextCopy()
 	sys.ArchitectureChoice = inspectInfo.Architecture
 	// OS and variant may not be set, so let's check to avoid accidental
 	// overrides of the runtime settings.
@@ -471,7 +686,7 @@ func (i *Image) HasDifferentDigest(ctx context.Context, remoteRef types.ImageRef
 		sys.VariantChoice = inspectInfo.Variant
 	}
 
-	remoteImg, err := remoteRef.NewImage(ctx, &sys)
+	remoteImg, err := remoteRef.NewImage(ctx, sys)
 	if err != nil {
 		return false, err
 	}
@@ -490,7 +705,7 @@ func (i *Image) HasDifferentDigest(ctx context.Context, remoteRef types.ImageRef
 }
 
 // driverData gets the driver data from the store on a layer
-func (i *Image) driverData() (*libimageTypes.DriverData, error) {
+func (i *Image) driverData() (*DriverData, error) {
 	store := i.runtime.store
 	layerID := i.TopLayer()
 	driver, err := store.GraphDriver()
@@ -504,7 +719,7 @@ func (i *Image) driverData() (*libimageTypes.DriverData, error) {
 	if mountTimes, err := store.Mounted(layerID); mountTimes == 0 || err != nil {
 		delete(metaData, "MergedDir")
 	}
-	return &libimageTypes.DriverData{
+	return &DriverData{
 		Name: driver.String(),
 		Data: metaData,
 	}, nil
@@ -524,27 +739,6 @@ func (i *Image) StorageReference() (types.ImageReference, error) {
 	return ref, nil
 }
 
-// isManifestList returns true if the image is a manifest list (Docker) or an
-// image index (OCI).  This information may be useful to make certain execution
-// paths more robust.
-// NOTE: please use this function only to optimize specific execution paths.
-// In general, errors should only be suppressed when necessary.
-func (i *Image) isManifestList(ctx context.Context) (bool, error) {
-	ref, err := i.StorageReference()
-	if err != nil {
-		return false, err
-	}
-	imgRef, err := ref.NewImageSource(ctx, &i.runtime.systemContext)
-	if err != nil {
-		return false, err
-	}
-	_, manifestType, err := imgRef.GetManifest(ctx, nil)
-	if err != nil {
-		return false, err
-	}
-	return manifest.MIMETypeIsMultiImage(manifestType), nil
-}
-
 // source returns the possibly cached image reference.
 func (i *Image) source(ctx context.Context) (types.ImageSource, error) {
 	if i.cached.imageSource != nil {
@@ -554,12 +748,38 @@ func (i *Image) source(ctx context.Context) (types.ImageSource, error) {
 	if err != nil {
 		return nil, err
 	}
-	src, err := ref.NewImageSource(ctx, &i.runtime.systemContext)
+	src, err := ref.NewImageSource(ctx, i.runtime.systemContextCopy())
 	if err != nil {
 		return nil, err
 	}
 	i.cached.imageSource = src
 	return src, nil
+}
+
+// rawConfigBlob returns the image's config as a raw byte slice.  Users need to
+// unmarshal it to the corresponding type (OCI, Docker v2s{1,2})
+func (i *Image) rawConfigBlob(ctx context.Context) ([]byte, error) {
+	ref, err := i.StorageReference()
+	if err != nil {
+		return nil, err
+	}
+
+	imageCloser, err := ref.NewImage(ctx, i.runtime.systemContextCopy())
+	if err != nil {
+		return nil, err
+	}
+	defer imageCloser.Close()
+
+	return imageCloser.ConfigBlob(ctx)
+}
+
+// Manifest returns the raw data and the MIME type of the image's manifest.
+func (i *Image) Manifest(ctx context.Context) (rawManifest []byte, mimeType string, err error) {
+	src, err := i.source(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	return src.GetManifest(ctx, nil)
 }
 
 // getImageDigest creates an image object and uses the hex value of the digest as the image ID

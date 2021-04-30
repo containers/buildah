@@ -2,13 +2,23 @@ package libimage
 
 import (
 	"context"
+	"time"
 
-	libimageTypes "github.com/containers/common/libimage/types"
 	"github.com/containers/storage"
 )
 
+// ImageHistory contains the history information of an image.
+type ImageHistory struct {
+	ID        string     `json:"id"`
+	Created   *time.Time `json:"created"`
+	CreatedBy string     `json:"createdBy"`
+	Size      int64      `json:"size"`
+	Comment   string     `json:"comment"`
+	Tags      []string   `json:"tags"`
+}
+
 // History computes the image history of the image including all of its parents.
-func (i *Image) History(ctx context.Context) ([]libimageTypes.ImageHistory, error) {
+func (i *Image) History(ctx context.Context) ([]ImageHistory, error) {
 	ociImage, err := i.toOCI(ctx)
 	if err != nil {
 		return nil, err
@@ -19,7 +29,7 @@ func (i *Image) History(ctx context.Context) ([]libimageTypes.ImageHistory, erro
 		return nil, err
 	}
 
-	var allHistory []libimageTypes.ImageHistory
+	var allHistory []ImageHistory
 	var layer *storage.Layer
 	if i.TopLayer() != "" {
 		layer, err = i.runtime.store.Layer(i.TopLayer())
@@ -33,7 +43,7 @@ func (i *Image) History(ctx context.Context) ([]libimageTypes.ImageHistory, erro
 	numHistories := len(ociImage.History) - 1
 	usedIDs := make(map[string]bool) // prevents assigning images IDs more than once
 	for x := numHistories; x >= 0; x-- {
-		history := libimageTypes.ImageHistory{
+		history := ImageHistory{
 			ID:        "<missing>", // may be overridden below
 			Created:   ociImage.History[x].Created,
 			CreatedBy: ociImage.History[x].CreatedBy,
