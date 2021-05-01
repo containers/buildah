@@ -153,6 +153,20 @@ load helpers
 	expect_output "/tmp" "invalid cmd & entrypoint, pwd"
 }
 
+# Helper for run-user test. Generates a UID or GID that is not present
+# in the given idfile (mounted /etc/passwd or /etc/group)
+function random_unused_id() {
+    local idfile=$1
+
+    while :;do
+        id=$RANDOM
+        if ! fgrep -q :$id: $idfile; then
+            echo $id
+            return
+        fi
+    done
+}
+
 function configure_and_check_user() {
     local setting=$1
     local expect_u=$2
@@ -183,10 +197,10 @@ function configure_and_check_user() {
 	testuser=jimbo
 	testbogususer=nosuchuser
 	testgroup=jimbogroup
-	testuid=$RANDOM
-	testotheruid=$RANDOM
-	testgid=$RANDOM
-	testgroupid=$RANDOM
+	testuid=$(random_unused_id $root/etc/passwd)
+	testotheruid=$(random_unused_id $root/etc/passwd)
+	testgid=$(random_unused_id $root/etc/group)
+	testgroupid=$(random_unused_id $root/etc/group)
 	echo "$testuser:x:$testuid:$testgid:Jimbo Jenkins:/home/$testuser:/bin/sh" >> $root/etc/passwd
 	echo "$testgroup:x:$testgroupid:" >> $root/etc/group
 
