@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/retry"
 	"github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/docker/reference"
@@ -266,6 +267,13 @@ func newCopier(sys *types.SystemContext, options *CopyOptions) (*copier, error) 
 	c.imageCopyOptions.RemoveSignatures = options.RemoveSignatures
 	c.imageCopyOptions.SignBy = options.SignBy
 	c.imageCopyOptions.ReportWriter = options.Writer
+
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		logrus.Warnf("failed to get container config for copy options: %v", err)
+	} else {
+		c.imageCopyOptions.MaxParallelDownloads = defaultContainerConfig.Engine.ImageParallelCopies
+	}
 
 	return &c, nil
 }
