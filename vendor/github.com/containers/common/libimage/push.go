@@ -6,8 +6,6 @@ import (
 	dockerArchiveTransport "github.com/containers/image/v5/docker/archive"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/transports/alltransports"
-	"github.com/containers/storage"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -34,9 +32,6 @@ func (r *Runtime) Push(ctx context.Context, source, destination string, options 
 	image, resolvedSource, err := r.LookupImage(source, nil)
 	if err != nil {
 		return nil, err
-	}
-	if image == nil {
-		return nil, errors.Wrap(storage.ErrImageUnknown, source)
 	}
 
 	srcRef, err := image.StorageReference()
@@ -77,7 +72,7 @@ func (r *Runtime) Push(ctx context.Context, source, destination string, options 
 		}
 	}
 
-	c, err := newCopier(&r.systemContext, &options.CopyOptions)
+	c, err := r.newCopier(&options.CopyOptions)
 	if err != nil {
 		return nil, err
 	}

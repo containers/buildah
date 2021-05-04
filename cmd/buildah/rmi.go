@@ -7,6 +7,7 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/libimage"
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -87,12 +88,19 @@ func rmiCmd(c *cobra.Command, args []string, iopts rmiOptions) error {
 	}
 	options.Force = iopts.force
 
-	untagged, removed, err := runtime.RemoveImages(context.Background(), args, options)
-	for _, u := range untagged {
-		fmt.Printf("untagged: %s\n", u)
+	rmiReports, rmiErrors := runtime.RemoveImages(context.Background(), args, options)
+	for _, r := range rmiReports {
+		for _, u := range r.Untagged {
+			fmt.Printf("untagged: %s\n", u)
+		}
 	}
-	for _, r := range removed {
-		fmt.Printf("%s\n", r)
+	for _, r := range rmiReports {
+		if r.Removed {
+			fmt.Printf("%s\n", r.ID)
+		}
 	}
-	return err
+
+	var multiE *multierror.Error
+	multiE = multierror.Append(multiE, rmiErrors...)
+	return multiE.ErrorOrNil()
 }

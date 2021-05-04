@@ -3,20 +3,67 @@ package libimage
 import (
 	"context"
 	"encoding/json"
+	"time"
 
-	libimageTypes "github.com/containers/common/libimage/types"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
+	"github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
 
+// ImageData contains the inspected data of an image.
+type ImageData struct {
+	ID           string                        `json:"Id"`
+	Digest       digest.Digest                 `json:"Digest"`
+	RepoTags     []string                      `json:"RepoTags"`
+	RepoDigests  []string                      `json:"RepoDigests"`
+	Parent       string                        `json:"Parent"`
+	Comment      string                        `json:"Comment"`
+	Created      *time.Time                    `json:"Created"`
+	Config       *ociv1.ImageConfig            `json:"Config"`
+	Version      string                        `json:"Version"`
+	Author       string                        `json:"Author"`
+	Architecture string                        `json:"Architecture"`
+	Os           string                        `json:"Os"`
+	Size         int64                         `json:"Size"`
+	VirtualSize  int64                         `json:"VirtualSize"`
+	GraphDriver  *DriverData                   `json:"GraphDriver"`
+	RootFS       *RootFS                       `json:"RootFS"`
+	Labels       map[string]string             `json:"Labels"`
+	Annotations  map[string]string             `json:"Annotations"`
+	ManifestType string                        `json:"ManifestType"`
+	User         string                        `json:"User"`
+	History      []ociv1.History               `json:"History"`
+	NamesHistory []string                      `json:"NamesHistory"`
+	HealthCheck  *manifest.Schema2HealthConfig `json:"Healthcheck,omitempty"`
+}
+
+// DriverData includes data on the storage driver of the image.
+type DriverData struct {
+	Name string            `json:"Name"`
+	Data map[string]string `json:"Data"`
+}
+
+// RootFS includes data on the root filesystem of the image.
+type RootFS struct {
+	Type   string          `json:"Type"`
+	Layers []digest.Digest `json:"Layers"`
+}
+
 // Inspect inspects the image.  Use `withSize` to also perform the
 // comparatively expensive size computation of the image.
-func (i *Image) Inspect(ctx context.Context, withSize bool) (*libimageTypes.ImageData, error) {
+func (i *Image) Inspect(ctx context.Context, withSize bool) (*ImageData, error) {
 	logrus.Debugf("Inspecting image %s", i.ID())
 
 	if i.cached.completeInspectData != nil {
+		if withSize && i.cached.completeInspectData.Size == int64(-1) {
+			size, err := i.Size()
+			if err != nil {
+				return nil, err
+			}
+			i.cached.completeInspectData.Size = size
+		}
 		return i.cached.completeInspectData, nil
 	}
 
@@ -54,7 +101,7 @@ func (i *Image) Inspect(ctx context.Context, withSize bool) (*libimageTypes.Imag
 		}
 	}
 
-	data := &libimageTypes.ImageData{
+	data := &ImageData{
 		ID:           i.ID(),
 		RepoTags:     repoTags,
 		RepoDigests:  repoDigests,
@@ -68,7 +115,7 @@ func (i *Image) Inspect(ctx context.Context, withSize bool) (*libimageTypes.Imag
 		VirtualSize:  size, // TODO: they should be different (inherited from Podman)
 		Digest:       i.Digest(),
 		Labels:       info.Labels,
-		RootFS: &libimageTypes.RootFS{
+		RootFS: &RootFS{
 			Type:   ociImage.RootFS.Type,
 			Layers: ociImage.RootFS.DiffIDs,
 		},
@@ -108,13 +155,22 @@ func (i *Image) Inspect(ctx context.Context, withSize bool) (*libimageTypes.Imag
 		}
 
 	// Docker image
-	case manifest.DockerV2Schema2MediaType:
-		var dockerManifest manifest.Schema2Image
-		if err := json.Unmarshal(manifestRaw, &dockerManifest); err != nil {
+	case manifest.DockerV2Schema1MediaType, manifest.DockerV2Schema2MediaType:
+		rawConfig, err := i.rawConfigBlob(ctx)
+		if err != nil {
+			return nil, err
+		}
+		var dockerManifest manifest.Schema2V1Image
+		if err := json.Unmarshal(rawConfig, &dockerManifest); err != nil {
 			return nil, err
 		}
 		data.Comment = dockerManifest.Comment
 		data.HealthCheck = dockerManifest.ContainerConfig.Healthcheck
+	}
+
+	if data.Annotations == nil {
+		// Podman compat
+		data.Annotations = make(map[string]string)
 	}
 
 	i.cached.completeInspectData = data
@@ -134,7 +190,7 @@ func (i *Image) inspectInfo(ctx context.Context) (*types.ImageInspectInfo, error
 		return nil, err
 	}
 
-	img, err := ref.NewImage(ctx, &i.runtime.systemContext)
+	img, err := ref.NewImage(ctx, i.runtime.systemContextCopy())
 	if err != nil {
 		return nil, err
 	}

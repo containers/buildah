@@ -77,7 +77,7 @@ func (r *Runtime) saveSingleImage(ctx context.Context, name, format, path string
 	// Unless the image was referenced by ID, use the resolved name as a
 	// tag.
 	var tag string
-	if strings.HasPrefix(image.ID(), imageName) {
+	if !strings.HasPrefix(image.ID(), imageName) {
 		tag = imageName
 	}
 
@@ -108,8 +108,7 @@ func (r *Runtime) saveSingleImage(ctx context.Context, name, format, path string
 		return err
 	}
 
-	sys := r.systemContext
-	c, err := newCopier(&sys, &options.CopyOptions)
+	c, err := r.newCopier(&options.CopyOptions)
 	if err != nil {
 		return err
 	}
@@ -163,7 +162,7 @@ func (r *Runtime) saveDockerArchive(ctx context.Context, names []string, path st
 		localImages[image.ID()] = local
 	}
 
-	writer, err := dockerArchiveTransport.NewWriter(&r.systemContext, path)
+	writer, err := dockerArchiveTransport.NewWriter(r.systemContextCopy(), path)
 	if err != nil {
 		return err
 	}
@@ -177,9 +176,8 @@ func (r *Runtime) saveDockerArchive(ctx context.Context, names []string, path st
 
 		copyOpts := options.CopyOptions
 		copyOpts.dockerArchiveAdditionalTags = local.tags
-		sys := r.systemContext // prevent copier from modifying the runtime's context
 
-		c, err := newCopier(&sys, &copyOpts)
+		c, err := r.newCopier(&copyOpts)
 		if err != nil {
 			return err
 		}

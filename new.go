@@ -9,7 +9,7 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/blobcache"
 	"github.com/containers/common/libimage"
-	libimageTypes "github.com/containers/common/libimage/types"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/transports"
@@ -119,7 +119,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 			return nil, err
 		}
 
-		pullPolicy, err := libimageTypes.ParsePullPolicy(options.PullPolicy.String())
+		pullPolicy, err := config.ParsePullPolicy(options.PullPolicy.String())
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +138,6 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 
 		if options.BlobDirectory != "" {
 			pullOptions.DestinationLookupReferenceFunc = blobcache.CacheLookupReferenceFunc(options.BlobDirectory, types.PreserveOriginal)
-			//			pullOptions.SourceLookupReferenceFunc = blobcache.CacheLookupReferenceFunc(options.BlobDirectory, types.PreserveOriginal)
 		}
 
 		pulledImages, err := imageRuntime.Pull(ctx, options.FromImage, pullPolicy, &pullOptions)

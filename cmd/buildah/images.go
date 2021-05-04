@@ -252,7 +252,7 @@ func formatImages(images []*libimage.Image, opts imageOptions) error {
 		outputParam.Size = formattedSize(size)
 		outputParam.ReadOnly = image.IsReadOnly()
 
-		repoTags, err := image.NamedTaggedRepoTags()
+		repoTags, err := image.NamedRepoTags()
 		if err != nil {
 			return err
 		}

@@ -3,11 +3,13 @@ package libimage
 import (
 	"context"
 	"errors"
+	"os"
 
 	dirTransport "github.com/containers/image/v5/directory"
 	dockerArchiveTransport "github.com/containers/image/v5/docker/archive"
 	ociArchiveTransport "github.com/containers/image/v5/oci/archive"
 	ociTransport "github.com/containers/image/v5/oci/layout"
+	"github.com/containers/image/v5/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -33,6 +35,7 @@ func (r *Runtime) Load(ctx context.Context, path string, options *LoadOptions) (
 	for _, f := range []func() ([]string, error){
 		// OCI
 		func() ([]string, error) {
+			logrus.Debugf("-> Attempting to load %q as an OCI directory", path)
 			ref, err := ociTransport.NewReference(path, "")
 			if err != nil {
 				return nil, err
@@ -42,6 +45,7 @@ func (r *Runtime) Load(ctx context.Context, path string, options *LoadOptions) (
 
 		// OCI-ARCHIVE
 		func() ([]string, error) {
+			logrus.Debugf("-> Attempting to load %q as an OCI archive", path)
 			ref, err := ociArchiveTransport.NewReference(path, "")
 			if err != nil {
 				return nil, err
@@ -51,6 +55,7 @@ func (r *Runtime) Load(ctx context.Context, path string, options *LoadOptions) (
 
 		// DIR
 		func() ([]string, error) {
+			logrus.Debugf("-> Attempting to load %q as a Docker dir", path)
 			ref, err := dirTransport.NewReference(path)
 			if err != nil {
 				return nil, err
@@ -60,11 +65,12 @@ func (r *Runtime) Load(ctx context.Context, path string, options *LoadOptions) (
 
 		// DOCKER-ARCHIVE
 		func() ([]string, error) {
+			logrus.Debugf("-> Attempting to load %q as a Docker archive", path)
 			ref, err := dockerArchiveTransport.ParseReference(path)
 			if err != nil {
 				return nil, err
 			}
-			return r.copyFromDockerArchive(ctx, ref, &options.CopyOptions)
+			return r.loadMultiImageDockerArchive(ctx, ref, &options.CopyOptions)
 		},
 
 		// Give a decent error message if nothing above worked.
@@ -80,4 +86,40 @@ func (r *Runtime) Load(ctx context.Context, path string, options *LoadOptions) (
 	}
 
 	return nil, loadError
+}
+
+// loadMultiImageDockerArchive loads the docker archive specified by ref.  In
+// case the path@reference notation was used, only the specifiec image will be
+// loaded.  Otherwise, all images will be loaded.
+func (r *Runtime) loadMultiImageDockerArchive(ctx context.Context, ref types.ImageReference, options *CopyOptions) ([]string, error) {
+	// If we cannot stat the path, it either does not exist OR the correct
+	// syntax to reference an image within the archive was used, so we
+	// should.
+	path := ref.StringWithinTransport()
+	if _, err := os.Stat(path); err != nil {
+		return r.copyFromDockerArchive(ctx, ref, options)
+	}
+
+	reader, err := dockerArchiveTransport.NewReader(r.systemContextCopy(), path)
+	if err != nil {
+		return nil, err
+	}
+
+	refLists, err := reader.List()
+	if err != nil {
+		return nil, err
+	}
+
+	var copiedImages []string
+	for _, list := range refLists {
+		for _, listRef := range list {
+			names, err := r.copyFromDockerArchiveReaderReference(ctx, reader, listRef, options)
+			if err != nil {
+				return nil, err
+			}
+			copiedImages = append(copiedImages, names...)
+		}
+	}
+
+	return copiedImages, nil
 }

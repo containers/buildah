@@ -82,10 +82,11 @@ func (r *Runtime) Import(ctx context.Context, path string, options *ImportOption
 
 	name := options.Tag
 	if name == "" {
-		name, err = getImageDigest(ctx, srcRef, &r.systemContext)
+		name, err = getImageDigest(ctx, srcRef, r.systemContextCopy())
 		if err != nil {
 			return "", err
 		}
+		name = "sha256:" + name[1:] // strip leading "@"
 	}
 
 	destRef, err := storageTransport.Transport.ParseStoreReference(r.store, name)
@@ -93,7 +94,7 @@ func (r *Runtime) Import(ctx context.Context, path string, options *ImportOption
 		return "", err
 	}
 
-	c, err := newCopier(&r.systemContext, &options.CopyOptions)
+	c, err := r.newCopier(&options.CopyOptions)
 	if err != nil {
 		return "", err
 	}

@@ -8,7 +8,7 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/blobcache"
 	"github.com/containers/common/libimage"
-	libimageTypes "github.com/containers/common/libimage/types"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/types"
 	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage"
@@ -73,7 +73,7 @@ func Pull(ctx context.Context, imageName string, options PullOptions) (imageID s
 		libimageOptions.DestinationLookupReferenceFunc = blobcache.CacheLookupReferenceFunc(options.BlobDirectory, types.PreserveOriginal)
 	}
 
-	pullPolicy, err := libimageTypes.ParsePullPolicy(options.PullPolicy.String())
+	pullPolicy, err := config.ParsePullPolicy(options.PullPolicy.String())
 	if err != nil {
 		return "", err
 	}

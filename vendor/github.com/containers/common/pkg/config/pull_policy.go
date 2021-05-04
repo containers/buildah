@@ -1,4 +1,4 @@
-package libimage
+package config
 
 import (
 	"fmt"
@@ -12,28 +12,28 @@ import (
 // Supported string values are:
 // * "always"  <-> PullPolicyAlways
 // * "missing" <-> PullPolicyMissing
-// * "newer"   <-> PullPolicyNewer
+// * "newer"  <-> PullPolicyNewer
 // * "never"   <-> PullPolicyNever
 type PullPolicy int
 
 const (
-	// This default value forces callers to setup a custom default policy.
-	// Some tools use different policies (e.g., buildah-bud versus
-	// podman-build).
-	PullPolicyUnsupported PullPolicy = iota
 	// Always pull the image.
-	PullPolicyAlways
+	PullPolicyAlways PullPolicy = iota
 	// Pull the image only if it could not be found in the local containers
 	// storage.
 	PullPolicyMissing
+	// Never pull the image but use the one from the local containers
+	// storage.
+	PullPolicyNever
 	// Pull if the image on the registry is new than the one in the local
 	// containers storage.  An image is considered to be newer when the
 	// digests are different.  Comparing the time stamps is prone to
 	// errors.
 	PullPolicyNewer
-	// Never pull the image but use the one from the local containers
-	// storage.
-	PullPolicyNever
+
+	// Ideally this should be the first `ioata` but backwards compatibility
+	// prevents us from changing the values.
+	PullPolicyUnsupported = -1
 )
 
 // String converts a PullPolicy into a string.
@@ -71,20 +71,25 @@ func (p PullPolicy) Validate() error {
 //
 // Supported string values are:
 // * "always"  <-> PullPolicyAlways
-// * "missing" <-> PullPolicyMissing
-// * "newer"   <-> PullPolicyNewer
+// * "missing" <-> PullPolicyMissing (also "ifnotpresent" and "")
+// * "newer"   <-> PullPolicyNewer (also "ifnewer")
 // * "never"   <-> PullPolicyNever
 func ParsePullPolicy(s string) (PullPolicy, error) {
 	switch s {
 	case "always":
 		return PullPolicyAlways, nil
-	case "missing":
+	case "missing", "ifnotpresent", "":
 		return PullPolicyMissing, nil
-	case "newer":
+	case "newer", "ifnewer":
 		return PullPolicyNewer, nil
 	case "never":
-		return PullPolicyMissing, nil
+		return PullPolicyNever, nil
 	default:
 		return PullPolicyUnsupported, errors.Errorf("unsupported pull policy %q", s)
 	}
+}
+
+// Deprecated: please use `ParsePullPolicy` instead.
+func ValidatePullPolicy(s string) (PullPolicy, error) {
+	return ParsePullPolicy(s)
 }

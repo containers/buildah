@@ -37,7 +37,7 @@ load helpers
 
 @test "pull-from-registry" {
   run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json busybox:glibc
-  run_buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json busybox:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "busybox:glibc"
   expect_output --substring "busybox:latest"

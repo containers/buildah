@@ -40,13 +40,9 @@ load helpers
 
 @test "remove multiple non-existent images errors" {
   run_buildah 125 rmi image1 image2 image3
-  expect_output --from="${lines[0]}" "image1: image not known"
-
-  run_buildah 125 rmi image2 image3
-  expect_output --from="${lines[0]}" "image2: image not known"
-
-  run_buildah 125 rmi image3
-  expect_output --from="${lines[0]}" "image3: image not known"
+  expect_output --from="${lines[1]}" --substring " image1: image not known"
+  expect_output --from="${lines[2]}" --substring " image2: image not known"
+  expect_output --from="${lines[3]}" --substring " image3: image not known"
 }
 
 @test "remove all images" {
@@ -189,13 +185,14 @@ load helpers
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
   run_buildah rm -a
 
-  # Since it has children, alpine will only be untagged (Podman compat).
+  # Since it has children, alpine will only be untagged (Podman compat) but not
+  # marked as removed.  However, it won't show up in the image list anymore.
   run_buildah rmi alpine
   expect_output --substring "untagged: "
   run_buildah images -q
   expect_line_count 1
   run_buildah images -q -a
-  expect_line_count 2
+  expect_line_count 1
 }
 
 @test "rmi with cached images" {
@@ -208,7 +205,7 @@ load helpers
   expect_line_count 9
   run_buildah rmi test2
   run_buildah images -a -q
-  expect_line_count 6
+  expect_line_count 7
   run_buildah rmi test1
   run_buildah images -a -q
   expect_line_count 1
