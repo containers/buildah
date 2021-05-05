@@ -16,13 +16,23 @@ default to `/`.
 
 The container images are:
 
-  * quay.io/containers/buildah - This image is built using the latest stable version of Buildah in a Fedora based container.  Built with buildahimage/stable/Dockerfile.
-  * quay.io/buildah/stable - This image is built using the latest stable version of Buildah in a Fedora based container.  Built with buildahimage/stable/Dockerfile.
-  * quay.io/buildah/upstream - This image is built using the latest code found in this GitHub repository.  When someone creates a commit and pushes it, the image is created.  Due to that the image changes frequently and is not guaranteed to be stable.  Built with buildahimage/upstream/Dockerfile.
-  * quay.io/buildah/testing - This image is built using the latest version of Buildah that is or was in updates testing for Fedora.  At times this may be the same as the stable image.  This container image will primarily be used by the development teams for verification testing when a new package is created.  Built with buildahimage/testing/Dockerfile.
-  * quay.io/buildah/stable:version - This image is built 'by hand' using a Fedora based container.  An RPM is first pulled from the [Fedora Updates System](https://bodhi.fedoraproject.org/) and the image is built from there.  For more details, see the Containerfile used to build it, buildahimage/stablebyhand/Containerfile.buildahstable
+  * `quay.io/containers/buildah:<version>` and `quay.io/buildah/stable:<version>` -
+    These images are built when a new Buildah version becomes available in
+    Fedora.  These images are intended to be unchanging and stable, they will
+    never be updated by automation once they've been pushed.  For build details,
+    please [see the configuration file](stable/Dockerfile).
+  * `quay.io/containers/buildah:latest` and `quay.io/buildah/stable:latest` -
+    Built daily using the same Dockerfile as above.  The buildah version
+    will remain the "latest" available in Fedora, however the other image
+    contents may vary compared to the version-tagged images.
+  * `quay.io/buildah/testing:latest` - This image is built daily, using the
+    latest version of Buildah that was in the Fedora `updates-testing` repository.
+    The image is Built with [the testing Dockerfile](testing/Dockerfile).
+  * `quay.io/buildah/upstream:latest` - This image is built daily using the latest
+    code found in this GitHub repository.  Due to the image changing frequently,
+    it's not guaranteed to be stable or even executable.  The image is built with
+    [the upstream Dockerfile](upstream/Dockerfile).
 
-`quay.io/buildah/upstream:main`, `quay.io/buildah/stable:version`, `quay.io/containers/buildah:version` images are multi-arch ones and available for `linux/amd64`, `linux/s390x`, `linux/arm64`, `linux/ppc64le` architectures.
 
 ## Sample Usage
 
