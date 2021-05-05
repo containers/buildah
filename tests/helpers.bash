@@ -21,11 +21,18 @@ function setup() {
     suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | od -An -tx1 | sed -e 's, ,,g')
     TESTDIR=${BATS_TMPDIR}/tmp${suffix}
     rm -fr ${TESTDIR}
-    mkdir -p ${TESTDIR}/{root,runroot}
-
+    mkdir -p ${TESTDIR}/{root,runroot,sigstore,registries.d}
+    echo "default-docker:                                                           " >> ${TESTDIR}/registries.d/default.yaml
+    echo "  sigstore-staging: file://${TESTDIR}/sigstore                            " >> ${TESTDIR}/registries.d/default.yaml
+    echo "docker:                                                                   " >> ${TESTDIR}/registries.d/default.yaml
+    echo "  registry.access.redhat.com:                                             " >> ${TESTDIR}/registries.d/default.yaml
+    echo "    sigstore: https://access.redhat.com/webassets/docker/content/sigstore " >> ${TESTDIR}/registries.d/default.yaml
+    echo "  registry.redhat.io:                                                     " >> ${TESTDIR}/registries.d/default.yaml
+    echo "    sigstore: https://registry.redhat.io/containers/sigstore              " >> ${TESTDIR}/registries.d/default.yaml
     # Common options for all buildah and podman invocations
     ROOTDIR_OPTS="--root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER}"
-    REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf"
+    BUILDAH_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf --registries-conf-dir ${TESTDIR}/registries.d"
+    PODMAN_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf"
 }
 
 function starthttpd() {
@@ -97,7 +104,7 @@ function createrandom() {
 }
 
 function buildah() {
-    ${BUILDAH_BINARY} ${REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
+    ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
 }
 
 function imgtype() {
@@ -105,7 +112,7 @@ function imgtype() {
 }
 
 function podman() {
-    command podman ${REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
+    command podman ${PODMAN_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
 }
 
 #################
@@ -148,7 +155,7 @@ function run_buildah() {
 
         # stdout is only emitted upon error; this echo is to help a debugger
         echo "\$ $BUILDAH_BINARY $*"
-        run timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} ${REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
+        run timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
         # without "quotes", multiple lines are glommed together into one
         if [ -n "$output" ]; then
             echo "$output"
