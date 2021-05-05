@@ -40,7 +40,7 @@ else
             showrun make test-unit
             ;;
         conformance)
-            # Typically it's undesireable to install packages at runtime.
+            # Typically it's undesirable to install packages at runtime.
             # This test compares images built with the "latest" version
             # of docker, against images built with buildah. Runtime installs
             # are required to ensure the latest docker version is used.
