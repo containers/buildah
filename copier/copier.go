@@ -1167,15 +1167,19 @@ func copierHandlerGet(bulkWriter io.Writer, req request, pm *fileutils.PatternMa
 					return errors.Wrapf(err, "copier: get: computing path of %q(%q) relative to %q", queue[i], item, req.Root)
 				}
 				if info, err = os.Lstat(item); err != nil {
-					return errors.Wrapf(err, "copier: get: lstat %q(%q)", queue[i], item)
+					logrus.Warning(errors.Wrapf(err, "copier: get: lstat %q(%q)", queue[i], item))
+					info = nil  // for code clarity
+				} else {
+					followedLinks++
 				}
-				followedLinks++
 			}
 			if followedLinks >= maxFollowedLinks {
 				return errors.Wrapf(syscall.ELOOP, "copier: get: resolving symlink %q(%q)", queue[i], item)
 			}
-			// evaluate excludes relative to the root directory
-			if info.Mode().IsDir() {
+			// Lstat failed, don't attempt to copy this file - it will likely fail.
+			if info == nil {
+				continue
+			} else if info.Mode().IsDir() { // evaluate excludes relative to root directory
 				// we don't expand any of the contents that are archives
 				options := req.GetOptions
 				options.ExpandArchives = false
