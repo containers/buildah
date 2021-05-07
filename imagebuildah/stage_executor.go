@@ -428,6 +428,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		stdin = devNull
 	}
 	options := buildah.RunOptions{
+		Logger:           s.executor.logger,
 		Hostname:         config.Hostname,
 		Runtime:          s.executor.runtime,
 		Args:             s.executor.runtimeArgs,
@@ -487,11 +488,11 @@ func (s *StageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 
 	switch logrus.GetLevel() {
 	case logrus.ErrorLevel:
-		logrus.Errorf(errStr)
+		s.executor.logger.Errorf(errStr)
 	case logrus.DebugLevel:
 		logrus.Debugf(err)
 	default:
-		logrus.Errorf("+(UNHANDLED LOGLEVEL) %#v", step)
+		s.executor.logger.Errorf("+(UNHANDLED LOGLEVEL) %#v", step)
 	}
 
 	return errors.Errorf(err)
