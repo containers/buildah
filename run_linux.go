@@ -851,6 +851,7 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 	if err != nil {
 		return 1, errors.Wrapf(err, "error parsing pid %s as a number", string(pidValue))
 	}
+	stopped := false
 	var reaping sync.WaitGroup
 	reaping.Add(1)
 	go func() {
@@ -861,6 +862,7 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 			wstatus = 0
 			logrus.Errorf("error waiting for container child process %d: %v\n", pid, err)
 		}
+		stopped = true
 	}()
 
 	if configureNetwork {
@@ -892,7 +894,6 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 	if err != nil {
 		return 1, errors.Wrapf(err, "error from %s starting container", runtime)
 	}
-	stopped := false
 	defer func() {
 		if !stopped {
 			if err2 := kill.Run(); err2 != nil {
@@ -911,6 +912,10 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 		stat.Stderr = os.Stderr
 		stateOutput, err := stat.Output()
 		if err != nil {
+			if stopped {
+				// container exited
+				break
+			}
 			return 1, errors.Wrapf(err, "error reading container state from %s (got output: %q)", runtime, string(stateOutput))
 		}
 		if err = json.Unmarshal(stateOutput, &state); err != nil {
