@@ -406,6 +406,15 @@ symlink(subdir)"
   expect_output --substring "Successfully tagged localhost/test2:latest"
 }
 
+@test "bud with bad --tag " {
+  target=scratch-image
+  run_buildah 125 bud --quiet=false --tag TEST1 --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  expect_output --substring "tag TEST1: invalid reference format: repository name must be lowercase"
+
+  run_buildah 125 bud --quiet=false --tag test1 --tag TEST2 --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  expect_output --substring "tag TEST2: invalid reference format: repository name must be lowercase"
+}
+
 @test "bud-from-scratch-iid" {
   target=scratch-image
   run_buildah bud --iidfile ${TESTDIR}/output.iid --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
