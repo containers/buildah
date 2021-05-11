@@ -190,6 +190,7 @@ cross_build_task:
         image: 'catalina-base'
 
     script:
+        - brew update
         - brew install go
         - brew install go-md2man
         - brew install gpgme

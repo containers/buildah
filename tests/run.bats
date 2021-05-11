@@ -355,6 +355,14 @@ function configure_and_check_user() {
 
 @test "Check if containers run with correct open files/processes limits" {
 	skip_if_no_runtime
+
+	# we need to not use the list of limits that are set in our default
+	# ${TESTSDIR}/containers.conf for the sake of other tests, and override
+	# any that might be picked up from system-wide configuration
+	echo '[containers]' > ${TESTDIR}/containers.conf
+	echo 'default_ulimits = []' >> ${TESTDIR}/containers.conf
+	export CONTAINERS_CONF=${TESTDIR}/containers.conf
+
 	_prefetch alpine
 	maxpids=$(cat /proc/sys/kernel/pid_max)
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
@@ -379,6 +387,8 @@ function configure_and_check_user() {
 	expect_output "300" "limits: open files (w/file & proc limits)"
 	run_buildah run $cid awk '/processes/{print $3}' /proc/self/limits
 	expect_output "100" "limits: processes (w/file & proc limits)"
+
+	unset CONTAINERS_CONF
 }
 
 @test "run-builtin-volume-omitted" {
