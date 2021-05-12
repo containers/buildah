@@ -131,13 +131,15 @@ symlink(subdir)"
 }
 
 @test "bud with --layers and --no-cache flags" {
-  _prefetch alpine
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
 
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTDIR}/use-layers
+  # Run with --pull-always to have a regression test for
+  # containers/podman/issues/10307.
+  run_buildah bud --pull-always --signature-policy ${TESTSDIR}/policy.json --layers -t test1 ${TESTDIR}/use-layers
   run_buildah images -a
   expect_line_count 8
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTDIR}/use-layers
+
+  run_buildah bud --pull-never --signature-policy ${TESTSDIR}/policy.json --layers -t test2 ${TESTDIR}/use-layers
   run_buildah images -a
   expect_line_count 10
   run_buildah inspect --format "{{index .Docker.ContainerConfig.Env 1}}" test1
@@ -149,7 +151,7 @@ symlink(subdir)"
   run_buildah inspect --format "{{.Docker.ContainerConfig.ExposedPorts}}" test2
   expect_output "map[8080/tcp:{}]"
   run_buildah inspect --format "{{index .Docker.History 2}}" test1
-  expect_output --substring "FROM localhost/alpine:latest"
+  expect_output --substring "FROM docker.io/library/alpine:latest"
 
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.2 ${TESTDIR}/use-layers
   run_buildah images -a
