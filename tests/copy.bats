@@ -392,6 +392,23 @@ stuff/mystuff"
   cmp ${TESTDIR}/randomfile ${croot}/tmp/random2
 }
 
+@test "copy-container-root" {
+  _prefetch busybox
+  createrandom ${TESTDIR}/randomfile
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  from=$output
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  cid=$output
+  run_buildah copy --quiet $from ${TESTDIR}/randomfile /tmp/random
+  expect_output ""
+  run_buildah copy --quiet --signature-policy ${TESTSDIR}/policy.json --from $from $cid / /tmp/
+  expect_output "" || \
+    expect_output --substring "copier: file disappeared while reading"
+  run_buildah mount $cid
+  croot=$output
+  cmp ${TESTDIR}/randomfile ${croot}/tmp/tmp/random
+}
+
 @test "copy-from-image" {
   _prefetch busybox
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
