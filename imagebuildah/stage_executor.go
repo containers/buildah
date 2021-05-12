@@ -500,7 +500,7 @@ func (s *StageExecutor) UnrecognizedInstruction(step *imagebuilder.Step) error {
 // prepare creates a working container based on the specified image, or if one
 // isn't specified, the first argument passed to the first FROM instruction we
 // can find in the stage's parsed tree.
-func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBConfig, rebase bool) (builder *buildah.Builder, err error) {
+func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBConfig, rebase bool, pullPolicy define.PullPolicy) (builder *buildah.Builder, err error) {
 	stage := s.stage
 	ib := stage.Builder
 	node := stage.Node
@@ -533,7 +533,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 	builderOptions := buildah.BuilderOptions{
 		Args:                  ib.Args,
 		FromImage:             from,
-		PullPolicy:            s.executor.pullPolicy,
+		PullPolicy:            pullPolicy,
 		Registry:              s.executor.registry,
 		BlobDirectory:         s.executor.blobDirectory,
 		SignaturePolicyPath:   s.executor.signaturePolicyPath,
@@ -661,7 +661,7 @@ func (s *StageExecutor) getImageRootfs(ctx context.Context, image string) (mount
 	if builder, ok := s.executor.containerMap[image]; ok {
 		return builder.MountPoint, nil
 	}
-	builder, err := s.prepare(ctx, image, false, false)
+	builder, err := s.prepare(ctx, image, false, false, s.executor.pullPolicy)
 	if err != nil {
 		return "", err
 	}
@@ -721,7 +721,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 	// Create the (first) working container for this stage.  Reinitializing
 	// the imagebuilder configuration may alter the list of steps we have,
 	// so take a snapshot of them *after* that.
-	if _, err := s.prepare(ctx, base, true, true); err != nil {
+	if _, err := s.prepare(ctx, base, true, true, s.executor.pullPolicy); err != nil {
 		return "", nil, err
 	}
 	children := stage.Node.Children
@@ -1017,7 +1017,10 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// creating a new working container with the
 			// just-committed or updated cached image as its new
 			// base image.
-			if _, err := s.prepare(ctx, imgID, false, true); err != nil {
+			// Enforce pull "never" since we already have an image
+			// ID that we really should not be pulling anymore (see
+			// containers/podman/issues/10307).
+			if _, err := s.prepare(ctx, imgID, false, true, define.PullNever); err != nil {
 				return "", nil, errors.Wrap(err, "error preparing container for next step")
 			}
 		}
