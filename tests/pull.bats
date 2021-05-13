@@ -298,9 +298,7 @@ load helpers
 
   # Pull image by default should change the image id
   run_buildah pull -q --policy always --signature-policy ${TESTSDIR}/policy.json alpine
-  if [[ $output == $iid ]]; then
-      expect_output "[output should not be '$iid']"
-  fi
+  assert "$output" != "$iid" "pulled image should have a new IID"
 
   # Recreate image
   run_buildah commit -q $cid docker.io/library/alpine
@@ -359,7 +357,5 @@ load helpers
   run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --policy missing --arch arm64 alpine
   armiid=$output
 
-  if [[ $amdiid == $armiid ]]; then
-      expect_output "[different arch images were not pulled]"
-  fi
+  assert "$amdiid" != "$armiid" "AMD and ARM ids should differ"
 }

@@ -23,19 +23,19 @@ load helpers
   run_buildah config --annotation ANNOTATION $cid
 
   run_buildah 125 config --healthcheck 'AB "CD' $cid
-  expect_output --substring 'error parsing --healthcheck "AB \"CD": invalid command line string'
+  expect_output --substring 'error parsing --healthcheck "AB \\"CD": invalid command line string'
 
   run_buildah 125 config --healthcheck-interval ABCD $cid
   expect_output --substring 'error parsing --healthcheck-interval "ABCD": time: invalid duration "?ABCD"?'
 
   run_buildah 125 config --cmd 'AB "CD' $cid
-  expect_output --substring 'error parsing --cmd "AB \"CD": invalid command line string'
+  expect_output --substring 'error parsing --cmd "AB \\"CD": invalid command line string'
 
   run_buildah 125 config --env ENV $cid
   expect_output --substring 'error setting env "ENV": no value given'
 
   run_buildah 125 config --shell 'AB "CD' $cid
-  expect_output --substring 'error parsing --shell "AB \"CD": invalid command line string'
+  expect_output --substring 'error parsing --shell "AB \\"CD": invalid command line string'
 }
 
 function check_matrix() {
