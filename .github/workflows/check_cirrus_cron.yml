@@ -9,7 +9,7 @@
 name: check_cirrus_cron
 
 on:
-    # Note: This only applies to the master branch.
+    # Note: This only applies to the default branch.
     schedule:
         # Assume cirrus cron jobs runs at least once per day
         - cron:  '59 23 * * *'
@@ -32,15 +32,12 @@ jobs:
         steps:
             - uses: actions/checkout@v2
               with:
-                  ref: master
                   persist-credentials: false
 
             # Avoid duplicating cron_failures.sh in buildah repo.
             - uses: actions/checkout@v2
               with:
-                  repository: https://github.com/containers/podman.git
-                  # This job always/must only run from podman master
-                  ref: master
+                  repository: containers/podman
                   path: '_podman'
                   persist-credentials: false
 
