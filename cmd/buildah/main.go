@@ -158,6 +158,9 @@ func before(cmd *cobra.Command) error {
 			logrus.Fatalf("error starting CPU profiling: %v", err)
 		}
 	}
+	if globalFlagResults.MemoryProfile != "" {
+		runtime.MemProfileRate = 1
+	}
 
 	defaultContainerConfig, err := config.Default()
 	if err != nil {

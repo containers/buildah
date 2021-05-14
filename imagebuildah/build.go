@@ -443,7 +443,7 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 		}
 		stages = stagesTargeted
 	}
-	return exec.Build(ctx, stages)
+	return exec.build(ctx, stages)
 }
 
 // preprocessContainerfileContents runs CPP(1) in preprocess-only mode on the input
