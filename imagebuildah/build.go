@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/storage"
@@ -56,6 +57,14 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		}
 	}(dockerfiles...)
 
+	for _, tag := range append([]string{options.Output}, options.AdditionalTags...) {
+		if tag == "" {
+			continue
+		}
+		if _, err := util.VerifyTagName(tag); err != nil {
+			return "", nil, errors.Wrapf(err, "tag %s", tag)
+		}
+	}
 	for _, dfile := range paths {
 		var data io.ReadCloser
 

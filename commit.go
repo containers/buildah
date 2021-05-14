@@ -18,7 +18,6 @@ import (
 	"github.com/containers/image/v5/signature"
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports"
-	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage"
@@ -190,13 +189,11 @@ func (b *Builder) addManifest(ctx context.Context, manifestName string, imageSpe
 		return "", errors.Wrapf(err, "error encountered while expanding image name %q", manifestName)
 	}
 
-	ref, err := alltransports.ParseImageName(imageSpec)
+	ref, err := util.VerifyTagName(imageSpec)
 	if err != nil {
-		if ref, err = alltransports.ParseImageName(util.DefaultTransport + imageSpec); err != nil {
-			// check if the local image exists
-			if ref, _, err = util.FindImage(b.store, "", systemContext, imageSpec); err != nil {
-				return "", err
-			}
+		// check if the local image exists
+		if ref, _, err = util.FindImage(b.store, "", systemContext, imageSpec); err != nil {
+			return "", err
 		}
 	}
 
