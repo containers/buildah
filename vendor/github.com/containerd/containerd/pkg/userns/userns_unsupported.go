@@ -1,3 +1,5 @@
+// +build !linux
+
 /*
    Copyright The containerd Authors.
 
@@ -14,10 +16,10 @@
    limitations under the License.
 */
 
-package sysx
+package userns
 
-import (
-	"syscall"
-)
-
-const ENODATA = syscall.ENODATA
+// RunningInUserNS is a stub for non-Linux systems
+// Always returns false
+func RunningInUserNS() bool {
+	return false
+}

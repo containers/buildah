@@ -2,6 +2,7 @@ package libimage
 
 import (
 	"context"
+	"time"
 
 	dockerArchiveTransport "github.com/containers/image/v5/docker/archive"
 	"github.com/containers/image/v5/docker/reference"
@@ -28,8 +29,10 @@ func (r *Runtime) Push(ctx context.Context, source, destination string, options 
 		options = &PushOptions{}
 	}
 
-	// Look up the local image.
-	image, resolvedSource, err := r.LookupImage(source, nil)
+	// Look up the local image.  Note that we need to ignore the platform
+	// and push what the user specified (containers/podman/issues/10344).
+	lookupOptions := &LookupImageOptions{IgnorePlatform: true}
+	image, resolvedSource, err := r.LookupImage(source, lookupOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +64,12 @@ func (r *Runtime) Push(ctx context.Context, source, destination string, options 
 		destRef = dockerRef
 	}
 
+	if r.eventChannel != nil {
+		r.writeEvent(&Event{ID: image.ID(), Name: destination, Time: time.Now(), Type: EventTypeImagePush})
+	}
+
 	// Buildah compat: Make sure to tag the destination image if it's a
-	// Docker archive. This way, we preseve the image name.
+	// Docker archive. This way, we preserve the image name.
 	if destRef.Transport().Name() == dockerArchiveTransport.Transport.Name() {
 		if named, err := reference.ParseNamed(resolvedSource); err == nil {
 			tagged, isTagged := named.(reference.NamedTagged)
