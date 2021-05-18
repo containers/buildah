@@ -299,8 +299,6 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 
-	defaultsMountFile, _ := c.PersistentFlags().GetString("defaults-mount-file")
-
 	imageOS, arch, err := parse.PlatformFromOptions(c)
 	if err != nil {
 		return err
@@ -324,7 +322,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		Compression:             compression,
 		ConfigureNetwork:        networkPolicy,
 		ContextDirectory:        contextDir,
-		DefaultMountsFilePath:   defaultsMountFile,
+		DefaultMountsFilePath:   globalFlagResults.DefaultMountsFile,
 		Devices:                 iopts.Devices,
 		DropCapabilities:        iopts.CapDrop,
 		Err:                     stderr,
