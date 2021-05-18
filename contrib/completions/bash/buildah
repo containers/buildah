@@ -498,7 +498,6 @@ return 1
      --pid
      --runtime
      --runtime-flag
-     --security-opt
      --user
      --uts
      --volume
