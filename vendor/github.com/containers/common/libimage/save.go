@@ -3,6 +3,7 @@ package libimage
 import (
 	"context"
 	"strings"
+	"time"
 
 	dirTransport "github.com/containers/image/v5/directory"
 	dockerArchiveTransport "github.com/containers/image/v5/docker/archive"
@@ -46,7 +47,7 @@ func (r *Runtime) Save(ctx context.Context, names []string, format, path string,
 		// All formats support saving 1.
 	default:
 		if format != "docker-archive" {
-			return errors.Errorf("unspported format %q for saving multiple images (only docker-archive)", format)
+			return errors.Errorf("unsupported format %q for saving multiple images (only docker-archive)", format)
 		}
 		if len(options.AdditionalTags) > 0 {
 			return errors.Errorf("cannot save multiple images with multiple tags")
@@ -56,13 +57,17 @@ func (r *Runtime) Save(ctx context.Context, names []string, format, path string,
 	// Dispatch the save operations.
 	switch format {
 	case "oci-archive", "oci-dir", "docker-dir":
+		if len(names) > 1 {
+			return errors.Errorf("%q does not support saving multiple images (%v)", format, names)
+		}
 		return r.saveSingleImage(ctx, names[0], format, path, options)
 
 	case "docker-archive":
+		options.ManifestMIMEType = manifest.DockerV2Schema2MediaType
 		return r.saveDockerArchive(ctx, names, path, options)
 	}
 
-	return errors.Errorf("unspported format %q for saving images", format)
+	return errors.Errorf("unsupported format %q for saving images", format)
 
 }
 
@@ -72,6 +77,10 @@ func (r *Runtime) saveSingleImage(ctx context.Context, name, format, path string
 	image, imageName, err := r.LookupImage(name, nil)
 	if err != nil {
 		return err
+	}
+
+	if r.eventChannel != nil {
+		r.writeEvent(&Event{ID: image.ID(), Name: path, Time: time.Now(), Type: EventTypeImageSave})
 	}
 
 	// Unless the image was referenced by ID, use the resolved name as a
@@ -101,7 +110,7 @@ func (r *Runtime) saveSingleImage(ctx context.Context, name, format, path string
 		options.ManifestMIMEType = manifest.DockerV2Schema2MediaType
 
 	default:
-		return errors.Errorf("unspported format %q for saving images", format)
+		return errors.Errorf("unsupported format %q for saving images", format)
 	}
 
 	if err != nil {
@@ -129,6 +138,18 @@ func (r *Runtime) saveDockerArchive(ctx context.Context, names []string, path st
 		tags  []reference.NamedTagged
 	}
 
+	additionalTags := []reference.NamedTagged{}
+	for _, tag := range options.AdditionalTags {
+		named, err := NormalizeName(tag)
+		if err == nil {
+			tagged, withTag := named.(reference.NamedTagged)
+			if !withTag {
+				return errors.Errorf("invalid additional tag %q: normalized to untagged %q", tag, named.String())
+			}
+			additionalTags = append(additionalTags, tagged)
+		}
+	}
+
 	orderedIDs := []string{}                    // to preserve the relative order
 	localImages := make(map[string]*localImage) // to assemble tags
 	visitedNames := make(map[string]bool)       // filters duplicate names
@@ -148,6 +169,7 @@ func (r *Runtime) saveDockerArchive(ctx context.Context, names []string, path st
 		local, exists := localImages[image.ID()]
 		if !exists {
 			local = &localImage{image: image}
+			local.tags = additionalTags
 			orderedIDs = append(orderedIDs, image.ID())
 		}
 		// Add the tag if the locally resolved name is properly tagged
@@ -160,6 +182,9 @@ func (r *Runtime) saveDockerArchive(ctx context.Context, names []string, path st
 			}
 		}
 		localImages[image.ID()] = local
+		if r.eventChannel != nil {
+			r.writeEvent(&Event{ID: image.ID(), Name: path, Time: time.Now(), Type: EventTypeImageSave})
+		}
 	}
 
 	writer, err := dockerArchiveTransport.NewWriter(r.systemContextCopy(), path)

@@ -84,7 +84,9 @@ func (i *Image) ID() string {
 }
 
 // Digest is a digest value that we can use to locate the image, if one was
-// specified at creation-time.
+// specified at creation-time.  Typically it is the digest of one among
+// possibly many digests that we have stored for the image, so many
+// applications are better off using the entire list returned by Digests().
 func (i *Image) Digest() digest.Digest {
 	return i.storageImage.Digest
 }
@@ -277,6 +279,10 @@ func (i *Image) remove(ctx context.Context, rmMap map[string]*RemoveImageReport,
 		return errors.Errorf("cannot remove read-only image %q", i.ID())
 	}
 
+	if i.runtime.eventChannel != nil {
+		i.runtime.writeEvent(&Event{ID: i.ID(), Name: referencedBy, Time: time.Now(), Type: EventTypeImageRemove})
+	}
+
 	// Check if already visisted this image.
 	report, exists := rmMap[i.ID()]
 	if exists {
@@ -423,6 +429,9 @@ func (i *Image) Tag(name string) error {
 	}
 
 	logrus.Debugf("Tagging image %s with %q", i.ID(), ref.String())
+	if i.runtime.eventChannel != nil {
+		i.runtime.writeEvent(&Event{ID: i.ID(), Name: name, Time: time.Now(), Type: EventTypeImageTag})
+	}
 
 	newNames := append(i.Names(), ref.String())
 	if err := i.runtime.store.SetNames(i.ID(), newNames); err != nil {
@@ -454,6 +463,9 @@ func (i *Image) Untag(name string) error {
 	name = ref.String()
 
 	logrus.Debugf("Untagging %q from image %s", ref.String(), i.ID())
+	if i.runtime.eventChannel != nil {
+		i.runtime.writeEvent(&Event{ID: i.ID(), Name: name, Time: time.Now(), Type: EventTypeImageUntag})
+	}
 
 	removedName := false
 	newNames := []string{}
@@ -593,6 +605,10 @@ func (i *Image) RepoDigests() ([]string, error) {
 // are directly passed down to the containers storage.  Returns the fully
 // evaluated path to the mount point.
 func (i *Image) Mount(ctx context.Context, mountOptions []string, mountLabel string) (string, error) {
+	if i.runtime.eventChannel != nil {
+		i.runtime.writeEvent(&Event{ID: i.ID(), Name: "", Time: time.Now(), Type: EventTypeImageMount})
+	}
+
 	mountPoint, err := i.runtime.store.MountImage(i.ID(), mountOptions, mountLabel)
 	if err != nil {
 		return "", err
@@ -634,6 +650,9 @@ func (i *Image) Mountpoint() (string, error) {
 // Unmount the image.  Use force to ignore the reference counter and forcefully
 // unmount.
 func (i *Image) Unmount(force bool) error {
+	if i.runtime.eventChannel != nil {
+		i.runtime.writeEvent(&Event{ID: i.ID(), Name: "", Time: time.Now(), Type: EventTypeImageUnmount})
+	}
 	logrus.Debugf("Unmounted image %s", i.ID())
 	_, err := i.runtime.store.UnmountImage(i.ID(), force)
 	return err
@@ -691,17 +710,43 @@ func (i *Image) HasDifferentDigest(ctx context.Context, remoteRef types.ImageRef
 		return false, err
 	}
 
-	rawManifest, _, err := remoteImg.Manifest(ctx)
+	rawManifest, rawManifestMIMEType, err := remoteImg.Manifest(ctx)
 	if err != nil {
 		return false, err
 	}
 
-	remoteDigest, err := manifest.Digest(rawManifest)
-	if err != nil {
-		return false, err
+	// If the remote ref's manifest is a list, try to zero in on the image
+	// in the list that we would eventually try to pull.
+	var remoteDigest digest.Digest
+	if manifest.MIMETypeIsMultiImage(rawManifestMIMEType) {
+		list, err := manifest.ListFromBlob(rawManifest, rawManifestMIMEType)
+		if err != nil {
+			return false, err
+		}
+		remoteDigest, err = list.ChooseInstance(sys)
+		if err != nil {
+			return false, err
+		}
+	} else {
+		remoteDigest, err = manifest.Digest(rawManifest)
+		if err != nil {
+			return false, err
+		}
 	}
 
-	return i.Digest().String() != remoteDigest.String(), nil
+	// Check if we already have that image's manifest in this image.  A
+	// single image can have multiple manifests that describe the same
+	// config blob and layers, so treat any match as a successful match.
+	for _, digest := range append(i.Digests(), i.Digest()) {
+		if digest.Validate() != nil {
+			continue
+		}
+		if digest.String() == remoteDigest.String() {
+			return false, nil
+		}
+	}
+	// No matching digest found in the local image.
+	return true, nil
 }
 
 // driverData gets the driver data from the store on a layer
