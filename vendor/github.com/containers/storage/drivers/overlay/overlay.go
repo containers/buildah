@@ -1155,10 +1155,6 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 	}
 	readWrite := true
 
-	if !d.SupportsShifting() || options.DisableShifting {
-		disableShifting = true
-	}
-
 	optsList := options.Options
 	if len(optsList) == 0 {
 		optsList = strings.Split(d.options.mountOptions, ",")
