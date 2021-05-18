@@ -11,6 +11,7 @@ import (
 
 	"github.com/containers/buildah/pkg/blobcache"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/libimage"
 	"github.com/containers/common/libimage/manifests"
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/docker/reference"
@@ -173,12 +174,16 @@ func (b *Builder) addManifest(ctx context.Context, manifestName string, imageSpe
 	var create bool
 	systemContext := &types.SystemContext{}
 	var list manifests.List
-	_, listImage, err := util.FindImage(b.store, "", systemContext, manifestName)
+	runtime, err := libimage.RuntimeFromStore(b.store, &libimage.RuntimeOptions{SystemContext: systemContext})
+	if err != nil {
+		return "", err
+	}
+	manifestList, err := runtime.LookupManifestList(manifestName)
 	if err != nil {
 		create = true
 		list = manifests.Create()
 	} else {
-		_, list, err = manifests.LoadFromImage(b.store, listImage.ID)
+		_, list, err = manifests.LoadFromImage(b.store, manifestList.ID())
 		if err != nil {
 			return "", err
 		}
@@ -204,7 +209,7 @@ func (b *Builder) addManifest(ctx context.Context, manifestName string, imageSpe
 	if create {
 		imageID, err = list.SaveToImage(b.store, "", names, manifest.DockerV2ListMediaType)
 	} else {
-		imageID, err = list.SaveToImage(b.store, listImage.ID, nil, "")
+		imageID, err = list.SaveToImage(b.store, manifestList.ID(), nil, "")
 	}
 	return imageID, err
 }
