@@ -41,7 +41,7 @@ load helpers
     # setup the test container
     _prefetch alpine
     run_buildah --default-mounts-file "$MOUNTS_PATH" \
-                from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+		from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
     cid=$output
 
     # test a standard mount to /run/secrets
@@ -67,6 +67,18 @@ load helpers
     # test permissions for a file-based mount within a sub-directory
     run_buildah run $cid stat -c %a /run/secrets/test-dir/file.txt
     expect_output 777
+
+    cat > $TESTDIR/Containerfile << _EOF
+from alpine
+run stat -c %a /run/secrets/file.txt
+run stat -c %a /run/secrets/test-dir
+run stat -c %a /run/secrets/test-dir/file.txt
+_EOF
+
+    run_buildah --default-mounts-file "$MOUNTS_PATH" bud $TESTDIR
+    expect_output --substring "604"
+    expect_output --substring "704"
+    expect_output --substring "777"
 
     # test a symlink
     run_buildah run $cid ls /run/secrets/mysymlink
