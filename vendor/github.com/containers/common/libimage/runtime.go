@@ -254,6 +254,12 @@ func (r *Runtime) lookupImageInLocalStorage(name, candidate string, options *Loo
 	// find a matching instance in the local containers storage.
 	isManifestList, err := image.IsManifestList(context.Background())
 	if err != nil {
+		if errors.Cause(err) == os.ErrNotExist {
+			// We must be tolerant toward corrupted images.
+			// See containers/podman commit fd9dd7065d44.
+			logrus.Warnf("error determining if an image is a manifest list: %v, ignoring the error", err)
+			return image, nil
+		}
 		return nil, err
 	}
 	if options.lookupManifest {
