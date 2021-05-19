@@ -301,8 +301,16 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
+	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
+	if err != nil {
+		return err
+	}
 
-	_, listImage, err := util.FindImage(store, "", systemContext, listImageSpec)
+	manifestList, err := runtime.LookupManifestList(listImageSpec)
+	if err != nil {
+		return err
+	}
+	_, list, err := manifests.LoadFromImage(store, manifestList.ID())
 	if err != nil {
 		return err
 	}
@@ -315,11 +323,6 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 				return err
 			}
 		}
-	}
-
-	_, list, err := manifests.LoadFromImage(store, listImage.ID)
-	if err != nil {
-		return err
 	}
 
 	digest, err := list.Add(getContext(), systemContext, ref, opts.all)
@@ -379,7 +382,7 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 		}
 	}
 
-	updatedListID, err := list.SaveToImage(store, listImage.ID, nil, "")
+	updatedListID, err := list.SaveToImage(store, manifestList.ID(), nil, "")
 	if err == nil {
 		fmt.Printf("%s: %s\n", updatedListID, digest.String())
 	}
@@ -421,25 +424,20 @@ func manifestRemoveCmd(c *cobra.Command, args []string, opts manifestRemoveOpts)
 		return errors.Wrapf(err, "error building system context")
 	}
 
-	_, listImage, err := util.FindImage(store, "", systemContext, listImageSpec)
+	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
+	if err != nil {
+		return err
+	}
+	manifestList, err := runtime.LookupManifestList(listImageSpec)
 	if err != nil {
 		return err
 	}
 
-	_, list, err := manifests.LoadFromImage(store, listImage.ID)
-	if err != nil {
+	if err := manifestList.RemoveInstance(instanceDigest); err != nil {
 		return err
 	}
 
-	err = list.Remove(instanceDigest)
-	if err != nil {
-		return err
-	}
-
-	updatedListID, err := list.SaveToImage(store, listImage.ID, nil, "")
-	if err == nil {
-		fmt.Printf("%s: %s\n", updatedListID, instanceDigest.String())
-	}
+	fmt.Printf("%s: %s\n", manifestList.ID(), instanceDigest.String())
 
 	return nil
 }
@@ -513,13 +511,17 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
-
-	_, listImage, err := util.FindImage(store, "", systemContext, listImageSpec)
+	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
 		return err
 	}
 
-	_, list, err := manifests.LoadFromImage(store, listImage.ID)
+	manifestList, err := runtime.LookupManifestList(listImageSpec)
+	if err != nil {
+		return err
+	}
+
+	_, list, err := manifests.LoadFromImage(store, manifestList.ID())
 	if err != nil {
 		return err
 	}
@@ -590,7 +592,7 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 		}
 	}
 
-	updatedListID, err := list.SaveToImage(store, listImage.ID, nil, "")
+	updatedListID, err := list.SaveToImage(store, manifestList.ID(), nil, "")
 	if err == nil {
 		fmt.Printf("%s: %s\n", updatedListID, digest.String())
 	}
@@ -626,6 +628,46 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 }
 
 func manifestInspect(ctx context.Context, store storage.Store, systemContext *types.SystemContext, imageSpec string) error {
+	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
+	if err != nil {
+		return err
+	}
+
+	printManifest := func(manifest []byte) error {
+		var b bytes.Buffer
+		err = json.Indent(&b, manifest, "", "    ")
+		if err != nil {
+			return errors.Wrapf(err, "error rendering manifest for display")
+		}
+
+		fmt.Printf("%s\n", b.String())
+		return nil
+	}
+
+	// Before doing a remote lookup, attempt to resolve the manifest list
+	// locally.
+	manifestList, err := runtime.LookupManifestList(imageSpec)
+	switch errors.Cause(err) {
+	case storage.ErrImageUnknown, libimage.ErrNotAManifestList:
+		// We need to do the remote inspection below.
+	case nil:
+		schema2List, err := manifestList.Inspect()
+		if err != nil {
+			return err
+		}
+
+		rawSchema2List, err := json.Marshal(schema2List)
+		if err != nil {
+			return err
+		}
+
+		return printManifest(rawSchema2List)
+
+	default:
+		// Fatal error.
+		return err
+	}
+
 	// TODO: at some point `libimage` should support resolving manifests
 	// like that.  Similar to `libimage.Runtime.LookupImage` we could
 	// implement a `*.LookupImageIndex`.
@@ -683,15 +725,7 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 		return latestErr
 	}
 
-	var b bytes.Buffer
-	err = json.Indent(&b, result, "", "    ")
-	if err != nil {
-		return errors.Wrapf(err, "error rendering manifest for display")
-	}
-
-	fmt.Printf("%s\n", b.String())
-
-	return nil
+	return printManifest(result)
 }
 
 func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
@@ -732,12 +766,17 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 }
 
 func manifestPush(systemContext *types.SystemContext, store storage.Store, listImageSpec, destSpec string, opts pushOptions) error {
-	_, listImage, err := util.FindImage(store, "", systemContext, listImageSpec)
+	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
 		return err
 	}
 
-	_, list, err := manifests.LoadFromImage(store, listImage.ID)
+	manifestList, err := runtime.LookupManifestList(listImageSpec)
+	if err != nil {
+		return err
+	}
+
+	_, list, err := manifests.LoadFromImage(store, manifestList.ID())
 	if err != nil {
 		return err
 	}
@@ -778,7 +817,7 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 	_, digest, err := list.Push(getContext(), dest, options)
 
 	if err == nil && opts.rm {
-		_, err = store.DeleteImage(listImage.ID, true)
+		_, err = store.DeleteImage(manifestList.ID(), true)
 	}
 
 	if opts.digestfile != "" {
