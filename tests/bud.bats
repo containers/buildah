@@ -1181,7 +1181,8 @@ function _test_http() {
 
 @test "bud with preprocessor error" {
   target=alpine-image
-  run_buildah 1 bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Error.in ${TESTSDIR}/bud/preprocess
+  run_buildah 0 bud -q --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Error.in ${TESTSDIR}/bud/preprocess
+  expect_output --substring "Ignoring <stdin>:5:2: error: #error"
 }
 
 @test "bud-with-rejected-name" {
@@ -2045,6 +2046,15 @@ _EOF
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
   [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
+}
+
+@test "bud with Containerfile.in" {
+  _prefetch alpine
+  target=alpine-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/containerfile/Containerfile.in ${TESTSDIR}/bud/containerfile
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM alpine"
+  expect_output --substring "success"
 }
 
 @test "bud with Dockerfile" {
