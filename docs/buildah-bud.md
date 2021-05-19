@@ -20,7 +20,7 @@ The build context directory can be specified as the http(s) URL of an archive, g
 
 If no context directory is specified, then Buildah will assume the current working directory as build context, which should contain a Containerfile.
 
-Containerfiles ending with a ".in" suffix will be preprocessed via CPP(1).  This can be useful to decompose Containerfiles into several reusable parts that can be used via CPP's **#include** directive.  Notice, a Containerfile.in file can still be used by other tools when manually preprocessing them via `cpp -E`.
+Containerfiles ending with a ".in" suffix will be preprocessed via cpp(1).  This can be useful to decompose Containerfiles into several reusable parts that can be used via CPP's **#include** directive.  Notice, a Containerfile.in file can still be used by other tools when manually preprocessing them via `cpp -E`. Any comments ( Lines beginning with `#` ) in included Containerfile(s) that are not preprocess commands, will be printed as warnings during builds.
 
 When the URL is an archive, the contents of the URL is downloaded to a temporary location and extracted before execution.
 
@@ -762,6 +762,8 @@ buildah bud --no-cache --rm=false -t imageName .
 
 buildah bud --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
 
+buildah bud -f Containerfile.in -t imageName .
+
 ### Building an multi-architecture image using a --manifest option (Requires emulation software)
 
 buildah bud --arch arm --manifest myimage /tmp/mysrc
@@ -861,7 +863,7 @@ registries.conf is the configuration file which specifies which container regist
 Signature policy file.  This defines the trust policy for container images.  Controls which container registries can be used for image, and whether or not the tool should trust the images.
 
 ## SEE ALSO
-buildah(1), CPP(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), containers-policy.json(5), containers-registries.conf(5), user\_namespaces(7), crun(1), runc(8)
+buildah(1), cpp(1), buildah-login(1), docker-login(1), namespaces(7), pid\_namespaces(7), containers-policy.json(5), containers-registries.conf(5), user\_namespaces(7), crun(1), runc(8)
 
 ## FOOTNOTES
 <a name="Footnote1">1</a>: The Buildah project is committed to inclusivity, a core value of open source. The `master` and `slave` mount propagation terminology used here is problematic and divisive, and should be changed. However, these terms are currently used within the Linux kernel and must be used as-is at this time. When the kernel maintainers rectify this usage, Buildah will follow suit immediately.
