@@ -23,7 +23,7 @@ The container images are:
     please [see the configuration file](stable/Dockerfile).
   * `quay.io/containers/buildah:latest` and `quay.io/buildah/stable:latest` -
     Built daily using the same Dockerfile as above.  The buildah version
-    will remain the "latest" available in Fedora, however the other image
+    will remain the "latest" available in Fedora, however the image
     contents may vary compared to the version-tagged images.
   * `quay.io/buildah/testing:latest` - This image is built daily, using the
     latest version of Buildah that was in the Fedora `updates-testing` repository.
