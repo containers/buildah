@@ -222,9 +222,11 @@ func (i *containerImageRef) createConfigsAndManifests() (v1.Image, v1.Manifest, 
 	dimage.RootFS = &docker.V2S2RootFS{}
 	dimage.RootFS.Type = docker.TypeLayers
 	dimage.RootFS.DiffIDs = []digest.Digest{}
-	// Only clear the history if we're squashing, otherwise leave it be so that we can append
-	// entries to it.
+	// Only clear the history if we're squashing, otherwise leave it be so
+	// that we can append entries to it.  Clear the parent, too, we no
+	// longer include its layers and history.
 	if i.squash {
+		dimage.Parent = ""
 		dimage.History = []docker.V2S2History{}
 	}
 
