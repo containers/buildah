@@ -121,4 +121,8 @@ function check_lengths() {
 	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
         expect_output "1" "len(DiffIDs) - image with FROM, USER, and 2xCOPY (--layers)"
+
+	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --format docker -t squashed ${TESTDIR}/squashed
+	run_buildah inspect -t image -f '{{.Docker.Parent}}' squashed
+        expect_output "" "should have no parent image set"
 }
