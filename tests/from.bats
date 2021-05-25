@@ -46,19 +46,24 @@ load helpers
 
   run_buildah from --quiet --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
   expect_output "$(basename ${elsewhere})-working-container"
+
+  run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
+  cid=$output
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid oci-archive:${elsewhere}.oci
+  run_buildah rm $cid
+
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json oci-archive:${elsewhere}.oci
+  expect_output "oci-archive-working-container"
   run_buildah rm $output
 
   run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid docker-archive:${elsewhere}.docker
   run_buildah rm $cid
 
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
-  expect_output "elsewhere-img-working-container"
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json docker-archive:${elsewhere}.docker
+  expect_output "docker-archive-working-container"
   run_buildah rm $output
-
-  run_buildah from --quiet --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
-  expect_output "$(basename ${elsewhere})-working-container"
 }
 
 @test "from-tagged-image" {
