@@ -402,8 +402,8 @@ load helpers
 @test "from encrypted registry image" {
   _prefetch busybox
   mkdir ${TESTDIR}/tmp
-  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
-  openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 1024
+  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 2048
+  openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 2048
   openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
   run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:5000/buildah/busybox_encrypted:latest
 
@@ -417,6 +417,7 @@ load helpers
 
   # Providing the right key should succeed
   run_buildah from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+  run_buildah rm -a
   run_buildah rmi localhost:5000/buildah/busybox_encrypted:latest
 
   rm -rf ${TESTDIR}/tmp

@@ -24,20 +24,21 @@ import (
 )
 
 type globalFlags struct {
-	Debug             bool
-	LogLevel          string
-	Root              string
-	RunRoot           string
-	StorageDriver     string
-	RegistriesConf    string
-	RegistriesConfDir string
-	DefaultMountsFile string
-	StorageOpts       []string
-	UserNSUID         []string
-	UserNSGID         []string
-	CPUProfile        string
-	cpuProfileFile    *os.File
-	MemoryProfile     string
+	Debug                      bool
+	LogLevel                   string
+	Root                       string
+	RunRoot                    string
+	StorageDriver              string
+	RegistriesConf             string
+	RegistriesConfDir          string
+	DefaultMountsFile          string
+	StorageOpts                []string
+	UserNSUID                  []string
+	UserNSGID                  []string
+	CPUProfile                 string
+	cpuProfileFile             *os.File
+	MemoryProfile              string
+	UserShortNameAliasConfPath string
 }
 
 var rootCmd = &cobra.Command{
@@ -83,6 +84,7 @@ func init() {
 	// TODO Need to allow for environment variable
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.RegistriesConf, "registries-conf", "", "path to registries.conf file (not usually used)")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.RegistriesConfDir, "registries-conf-dir", "", "path to registries.conf.d directory (not usually used)")
+	rootCmd.PersistentFlags().StringVar(&globalFlagResults.UserShortNameAliasConfPath, "short-name-alias-conf", "", "path to short name alias cache file (not usually used)")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.Root, "root", storageOptions.GraphRoot, "storage root dir")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.RunRoot, "runroot", storageOptions.RunRoot, "storage state dir")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.StorageDriver, "storage-driver", storageOptions.GraphDriverName, "storage-driver")
