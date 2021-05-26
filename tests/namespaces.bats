@@ -62,14 +62,12 @@ load helpers
 
   # Check that with settings that don't require a user namespace, we can request to use a per-container network namespace.
   run_buildah run $RUNOPTS --net=container "$ctr" readlink /proc/self/ns/net
-  if [[ $output == $mynetns ]]; then
-      die "[/proc/self/ns/net (--net=container) should not be '$mynetns']"
-  fi
+  assert "$output" != "$mynetns" \
+         "[/proc/self/ns/net (--net=container) should not be '$mynetns']"
 
   run_buildah run $RUNOPTS --net=private "$ctr" readlink /proc/self/ns/net
-  if [[ $output == $mynetns ]]; then
-      die "[/proc/self/ns/net (--net=private) should not be '$mynetns']"
-  fi
+  assert "$output" != "$mynetns" \
+         "[/proc/self/ns/net (--net=private) should not be '$mynetns']"
 }
 
 # Helper for idmapping test: check UID or GID mapping

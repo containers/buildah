@@ -27,9 +27,8 @@ load helpers
   run_buildah from --quiet --quiet --signature-policy ${TESTSDIR}/policy.json $image
   cid1=$output
   run_buildah run $cid1 sh -c 'tr \\0 \\n < /proc/self/attr/current'
-  if [ "$output" = "$firstlabel" ]; then
-      die "Second container has the same label as first (both '$output')"
-  fi
+  assert "$output" != "$firstlabel" \
+         "Second container has the same label as first (both '$output')"
 }
 
 @test "selinux spc" {

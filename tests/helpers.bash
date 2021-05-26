@@ -18,17 +18,23 @@ export GPG_TTY=/dev/null
 function setup() {
     pushd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 
-    suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | od -An -tx1 | sed -e 's, ,,g')
-    TESTDIR=${BATS_TMPDIR}/tmp${suffix}
-    rm -fr ${TESTDIR}
+    # buildah/podman: "repository name must be lowercase".
+    # me: "but it's a local file path, not a repository name!"
+    # buildah/podman: "i dont care. no caps anywhere!"
+    TESTDIR=$(mktemp -d --dry-run --tmpdir=${BATS_TMPDIR:-${TMPDIR:-/tmp}} buildah_tests.XXXXXX | tr A-Z a-z)
+    mkdir --mode=0700 $TESTDIR
+
     mkdir -p ${TESTDIR}/{root,runroot,sigstore,registries.d}
-    echo "default-docker:                                                           " >> ${TESTDIR}/registries.d/default.yaml
-    echo "  sigstore-staging: file://${TESTDIR}/sigstore                            " >> ${TESTDIR}/registries.d/default.yaml
-    echo "docker:                                                                   " >> ${TESTDIR}/registries.d/default.yaml
-    echo "  registry.access.redhat.com:                                             " >> ${TESTDIR}/registries.d/default.yaml
-    echo "    sigstore: https://access.redhat.com/webassets/docker/content/sigstore " >> ${TESTDIR}/registries.d/default.yaml
-    echo "  registry.redhat.io:                                                     " >> ${TESTDIR}/registries.d/default.yaml
-    echo "    sigstore: https://registry.redhat.io/containers/sigstore              " >> ${TESTDIR}/registries.d/default.yaml
+    cat >${TESTDIR}/registries.d/default.yaml <<EOF
+default-docker:
+  sigstore-staging: file://${TESTDIR}/sigstore
+docker:
+  registry.access.redhat.com:
+    sigstore: https://access.redhat.com/webassets/docker/content/sigstore
+  registry.redhat.io:
+    sigstore: https://registry.redhat.io/containers/sigstore
+EOF
+
     # Common options for all buildah and podman invocations
     ROOTDIR_OPTS="--root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER}"
     BUILDAH_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf --registries-conf-dir ${TESTDIR}/registries.d"
@@ -205,33 +211,109 @@ function die() {
     false
 }
 
-###################
-#  expect_output  #  Compare actual vs expected string; fail if mismatch
-###################
+############
+#  assert  #  Compare actual vs expected string; fail if mismatch
+############
 #
-# Compares $output against the given string argument. Optional second
-# argument is descriptive text to show as the error message (default:
-# the command most recently run by 'run_buildah'). This text can be
-# useful to isolate a failure when there are multiple identical
-# run_buildah invocations, and the difference is solely in the
-# config or setup; see, e.g., run.bats:run-cmd().
+# Compares string (default: $output) against the given string argument.
+# By default we do an exact-match comparison against $output, but there
+# are two different ways to invoke us, each with an optional description:
 #
-# By default we run an exact string comparison; use --substring to
-# look for the given string anywhere in $output.
+#      xpect               "EXPECT" [DESCRIPTION]
+#      xpect "RESULT" "OP" "EXPECT" [DESCRIPTION]
 #
-# By default we look in "$output", which is set in run_buildah().
-# To override, use --from="some-other-string" (e.g. "${lines[0]}")
+# The first form (one or two arguments) does an exact-match comparison
+# of "$output" against "EXPECT". The second (three or four args) compares
+# the first parameter against EXPECT, using the given OPerator. If present,
+# DESCRIPTION will be displayed on test failure.
 #
 # Examples:
 #
-#   expect_output "this is exactly what we expect"
-#   expect_output "foo=bar"  "description of this particular test"
-#   expect_output --from="${lines[0]}"  "expected first line"
+#   xpect "this is exactly what we expect"
+#   xpect "${lines[0]}" =~ "^abc"  "first line begins with abc"
+#
+function assert() {
+    local actual_string="$output"
+    local operator='=='
+    local expect_string="$1"
+    local testname="$2"
+
+    case "${#*}" in
+        0)   die "Internal error: 'assert' requires one or more arguments" ;;
+        1|2) ;;
+        3|4) actual_string="$1"
+             operator="$2"
+             expect_string="$3"
+             testname="$4"
+             ;;
+        *)   die "Internal error: too many arguments to 'assert" ;;
+    esac
+
+    # Comparisons.
+    # Special case: there is no !~ operator, so fake it via '! x =~ y'
+    local not=
+    local actual_op="$operator"
+    if [[ $operator == '!~' ]]; then
+        not='!'
+        actual_op='=~'
+    fi
+    if [[ $operator == '=' || $operator == '==' ]]; then
+        # Special case: we can't use '=' or '==' inside [[ ... ]] because
+        # the right-hand side is treated as a pattern... and '[xy]' will
+        # not compare literally. There seems to be no way to turn that off.
+        if [ "$actual_string" = "$expect_string" ]; then
+            return
+        fi
+    else
+        if eval "[[ $not \$actual_string $actual_op \$expect_string ]]"; then
+            return
+        elif [ $? -gt 1 ]; then
+            die "Internal error: could not process 'actual' $operator 'expect'"
+        fi
+    fi
+
+    # Test has failed. Get a descriptive test name.
+    if [ -z "$testname" ]; then
+        testname="${MOST_RECENT_BUILDAH_COMMAND:-[no test name given]}"
+    fi
+
+    # Display optimization: the typical case for 'expect' is an
+    # exact match ('='), but there are also '=~' or '!~' or '-ge'
+    # and the like. Omit the '=' but show the others; and always
+    # align subsequent output lines for ease of comparison.
+    local op=''
+    local ws=''
+    if [ "$operator" != '==' ]; then
+        op="$operator "
+        ws=$(printf "%*s" ${#op} "")
+    fi
+
+    # This is a multi-line message, which may in turn contain multi-line
+    # output, so let's format it ourself, readably
+    local actual_split
+    IFS=$'\n' read -rd '' -a actual_split <<<"$actual_string" || true
+    printf "#/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\n"    >&2
+    printf "#|     FAIL: %s\n" "$testname"                        >&2
+    printf "#| expected: %s'%s'\n" "$op" "$expect_string"         >&2
+    printf "#|   actual: %s'%s'\n" "$ws" "${actual_split[0]}"     >&2
+    local line
+    for line in "${actual_split[@]:1}"; do
+        printf "#|         > %s'%s'\n" "$ws" "$line"              >&2
+    done
+    printf "#\\^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"   >&2
+    false
+}
+
+###################
+#  expect_output  #  [obsolete; kept for compatibility]
+###################
+#
+# An earlier version of assert().
 #
 function expect_output() {
     # By default we examine $output, the result of run_buildah
     local actual="$output"
-    local check_substring=
+    local operator='=='
 
     # option processing: recognize --from="...", --substring
     local opt
@@ -239,43 +321,14 @@ function expect_output() {
         local value=$(expr "$opt" : '[^=]*=\(.*\)')
         case "$opt" in
             --from=*)       actual="$value";   shift;;
-            --substring)    check_substring=1; shift;;
+            --substring)    operator='=~';     shift;;
             --)             shift; break;;
             -*)             die "Invalid option '$opt'" ;;
             *)              break;;
         esac
     done
 
-    local expect="$1"
-    local testname="${2:-${MOST_RECENT_BUILDAH_COMMAND:-[no test name given]}}"
-
-    if [ -z "$expect" ]; then
-        if [ -z "$actual" ]; then
-            return
-        fi
-        expect='[no output]'
-    elif [ "$actual" = "$expect" ]; then
-        return
-    elif [ -n "$check_substring" ]; then
-        if [[ "$actual" =~ $expect ]]; then
-            return
-        fi
-    fi
-
-    # This is a multi-line message, which may in turn contain multi-line
-    # output, so let's format it ourselves, readably
-    local -a actual_split
-    readarray -t actual_split <<<"$actual"
-    printf "#/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\n" >&2
-    printf "#|     FAIL: %s\n" "$testname"                     >&2
-    printf "#| expected: '%s'\n" "$expect"                     >&2
-    printf "#|   actual: '%s'\n" "${actual_split[0]}"          >&2
-    local line
-    for line in "${actual_split[@]:1}"; do
-        printf "#|         > '%s'\n" "$line"                   >&2
-    done
-    printf "#\\^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n" >&2
-    false
+    assert "$actual" "$operator" "$@"
 }
 
 #######################
