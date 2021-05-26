@@ -58,7 +58,7 @@ github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.38.4
+# github.com/containers/common v0.39.0
 github.com/containers/common/libimage
 github.com/containers/common/libimage/manifests
 github.com/containers/common/pkg/apparmor
@@ -143,7 +143,7 @@ github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
 github.com/containers/ocicrypt/utils/keyprovider
-# github.com/containers/storage v1.31.2
+# github.com/containers/storage v1.32.0
 github.com/containers/storage
 github.com/containers/storage/drivers
 github.com/containers/storage/drivers/aufs
