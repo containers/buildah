@@ -86,8 +86,10 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 	if len(args) > 1 {
 		return errors.Errorf("too many arguments specified")
 	}
-	if err := auth.CheckAuthFile(iopts.authfile); err != nil {
-		return err
+	if c.Flag("authfile").Changed {
+		if err := auth.CheckAuthFile(iopts.authfile); err != nil {
+			return err
+		}
 	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)

@@ -176,6 +176,12 @@ load helpers
   run_buildah 125 pull --authfile /tmp/nonexistent --signature-policy ${TESTSDIR}/policy.json alpine
 }
 
+@test "pull with nonexistent REGISTRY_AUTH_FILE: succeeds" {
+  # This field should be ignored
+  export REGISTRY_AUTH_FILE=/tmp/nonexistent
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json alpine
+}
+
 @test "pull encrypted local image" {
   _prefetch busybox
   mkdir ${TESTDIR}/tmp

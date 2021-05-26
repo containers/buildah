@@ -188,9 +188,12 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return errors.Errorf("too many arguments specified")
 	}
 
-	if err := auth.CheckAuthFile(iopts.authfile); err != nil {
-		return err
+	if c.Flag("authfile").Changed {
+		if err := auth.CheckAuthFile(iopts.authfile); err != nil {
+			return err
+		}
 	}
+
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")

@@ -270,8 +270,10 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 }
 
 func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error {
-	if err := auth.CheckAuthFile(opts.authfile); err != nil {
-		return err
+	if c.Flag("authfile").Changed {
+		if err := auth.CheckAuthFile(opts.authfile); err != nil {
+			return err
+		}
 	}
 
 	listImageSpec := ""
@@ -729,8 +731,10 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 }
 
 func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
-	if err := auth.CheckAuthFile(opts.authfile); err != nil {
-		return err
+	if c.Flag("authfile").Changed {
+		if err := auth.CheckAuthFile(opts.authfile); err != nil {
+			return err
+		}
 	}
 
 	listImageSpec := ""

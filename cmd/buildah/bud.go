@@ -107,8 +107,10 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 			tags = tags[1:]
 		}
 	}
-	if err := auth.CheckAuthFile(iopts.BudResults.Authfile); err != nil {
-		return err
+	if c.Flag("authfile").Changed {
+		if err := auth.CheckAuthFile(iopts.BudResults.Authfile); err != nil {
+			return err
+		}
 	}
 
 	pullPolicy := define.PullIfMissing

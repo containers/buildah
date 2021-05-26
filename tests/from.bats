@@ -360,6 +360,12 @@ load helpers
   expect_output "checking authfile: stat /no/such/file: no such file or directory"
 }
 
+@test "from with nonexistent REGISTRY_AUTH_FILE: succeeds" {
+  # This field should be ignored
+  export REGISTRY_AUTH_FILE=/tmp/nonexistent
+  run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json alpine
+}
+
 @test "from --pull-always: emits 'Getting' even if image is cached" {
   _prefetch docker.io/busybox
   run buildah pull --signature-policy ${TESTSDIR}/policy.json docker.io/busybox

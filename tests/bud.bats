@@ -2193,6 +2193,13 @@ _EOF
   run_buildah 125 bud --authfile /tmp/nonexistent --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
 }
 
+@test "bud with nonexistent REGISTRY_AUTH_FILE: succeeds" {
+  # This field should be ignored
+  export REGISTRY_AUTH_FILE=/tmp/nonexistent
+  target=alpine-image
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
+}
+
 @test "bud COPY with URL should fail" {
   mkdir ${TESTSDIR}/bud/copy
   FILE=${TESTSDIR}/bud/copy/Dockerfile.url

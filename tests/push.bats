@@ -95,6 +95,17 @@ load helpers
   run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json --authfile /tmp/nonexistent $imageid dir:${TESTDIR}/my-tmp-dir
 }
 
+@test "pull with nonexistent REGISTRY_AUTH_FILE: succeeds" {
+  # This field should be ignored
+  export REGISTRY_AUTH_FILE=/tmp/nonexistent
+  _prefetch alpine
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah images -q
+  imageid=$output
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json $imageid dir:${TESTDIR}/my-tmp-dir
+}
+
 @test "push-denied-by-registry-sources" {
   _prefetch busybox
 

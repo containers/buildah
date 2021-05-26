@@ -117,6 +117,14 @@ load helpers
   run_buildah 125 commit --authfile /tmp/nonexistent --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
 }
 
+@test "commit with nonexistent REGISTRY_AUTH_FILE: succeeds" {
+  # This field should be ignored
+  export REGISTRY_AUTH_FILE=/tmp/nonexistent
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
+}
+
 @test "commit-builder-identity" {
 	_prefetch alpine
 	run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
