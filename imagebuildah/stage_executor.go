@@ -704,8 +704,8 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				fmt.Fprintf(s.executor.out, "error gathering resource usage information: %v\n", err)
 				return
 			}
-			if !s.executor.quiet && s.executor.logRusage {
-				fmt.Fprintf(s.executor.out, "%s\n", rusage.FormatDiff(usage.Subtract(resourceUsage)))
+			if s.executor.rusageLogFile != nil {
+				fmt.Fprintf(s.executor.rusageLogFile, "%s\n", rusage.FormatDiff(usage.Subtract(resourceUsage)))
 			}
 			resourceUsage = usage
 		}
