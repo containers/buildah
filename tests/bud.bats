@@ -1568,8 +1568,8 @@ function _test_http() {
   _prefetch alpine ubuntu
   target=target
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --target mytarget ${TESTSDIR}/bud/target
-  expect_output --substring "STEP 1: FROM ubuntu:latest"
-  expect_output --substring "STEP 3: FROM alpine:latest AS mytarget"
+  expect_output --substring "\[1/2] STEP 1/2: FROM ubuntu:latest"
+  expect_output --substring "\[2/2] STEP 1/2: FROM alpine:latest AS mytarget"
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
@@ -1614,7 +1614,7 @@ function _test_http() {
   target=alpine-image
   ctr=alpine-ctr
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-symlink
-  expect_output --substring "STEP 5: RUN ln -s "
+  expect_output --substring "STEP 5/6: RUN ln -s "
 
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
   expect_output --substring ${ctr}
@@ -1631,7 +1631,7 @@ function _test_http() {
   target=ubuntu-image
   ctr=ubuntu-ctr
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/dest-symlink-dangling
-  expect_output --substring "STEP 3: RUN ln -s "
+  expect_output --substring "STEP 3/5: RUN ln -s "
 
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
   expect_output --substring ${ctr}
@@ -1648,7 +1648,7 @@ function _test_http() {
   target=alpine-image
   ctr=alpine-ctr
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/workdir-symlink
-  expect_output --substring "STEP 3: RUN ln -sf "
+  expect_output --substring "STEP 3/6: RUN ln -sf "
 
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
   expect_output --substring ${ctr}
@@ -1665,7 +1665,7 @@ function _test_http() {
   target=alpine-image
   ctr=alpine-ctr
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile-2 ${TESTSDIR}/bud/workdir-symlink
-  expect_output --substring "STEP 2: RUN ln -sf "
+  expect_output --substring "STEP 2/6: RUN ln -sf "
 
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
   expect_output --substring ${ctr}
@@ -1685,7 +1685,7 @@ function _test_http() {
   target=alpine-image
   ctr=alpine-ctr
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile-3 ${TESTSDIR}/bud/workdir-symlink
-  expect_output --substring "STEP 2: RUN ln -sf "
+  expect_output --substring "STEP 2/9: RUN ln -sf "
 
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name=${ctr} ${target}
   expect_output --substring ${ctr}
@@ -1892,11 +1892,11 @@ _EOF
   fi
 }
 
-@test "bud test RUN with a priv'd command" {
+@test "bud test RUN with a privileged command" {
   _prefetch alpine
   target=alpinepriv
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-privd/Dockerfile ${TESTSDIR}/bud/run-privd
-  expect_output --substring "STEP 3: COMMIT"
+  expect_output --substring "[^:][^[:graph:]]COMMIT ${target}"
   run_buildah images -q
   expect_line_count 2
 }
@@ -2380,7 +2380,7 @@ EOM
 
   run_buildah bud --build-arg base=alpine --build-arg toolchainname=busybox --build-arg destinationpath=/tmp --pull=false --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/from-with-arg/Containerfile .
   expect_output --substring "FROM alpine"
-  expect_output --substring 'STEP 4: COPY --from=\$\{toolchainname\} \/ \$\{destinationpath\}'
+  expect_output --substring 'STEP 4/4: COPY --from=\$\{toolchainname\} \/ \$\{destinationpath\}'
   run_buildah rm -a
 }
 
@@ -2628,12 +2628,12 @@ EOF
 }
 
 @test "bud-replace-from-in-containerfile" {
-  _prefetch alpine
+  _prefetch alpine busybox
   # override the first FROM (fedora) image in the Containerfile
   # with alpine, leave the second (busybox) alone.
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --from=alpine ${TESTSDIR}/bud/build-with-from
-  expect_output --substring "STEP 1: FROM alpine AS builder"
-  expect_output --substring "STEP 2: FROM busybox"
+  expect_output --substring "\[1/2] STEP 1/1: FROM alpine AS builder"
+  expect_output --substring "\[2/2] STEP 1/2: FROM busybox"
 }
 
 @test "bud test no --stdin" {

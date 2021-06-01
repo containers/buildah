@@ -68,7 +68,7 @@ EOM
 
   # bud test this should work
   run_buildah bud -f $DOCKERFILE --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds=testuser:testpassword .
-  expect_output --from="${lines[0]}" "STEP 1: FROM localhost:5000/my-alpine"
+  expect_output --from="${lines[0]}" "STEP 1/1: FROM localhost:5000/my-alpine"
   expect_output --substring "Writing manifest to image destination"
 }
 
@@ -116,7 +116,7 @@ EOM
 
   # bud with correct credentials
   run_buildah bud -f $DOCKERFILE --signature-policy ${TESTSDIR}/policy.json --cert-dir=$BUILDAH_AUTHDIR --tls-verify=true --creds=testuser:testpassword .
-  expect_output --from="${lines[0]}" "STEP 1: FROM localhost:5000/my-alpine"
+  expect_output --from="${lines[0]}" "STEP 1/2: FROM localhost:5000/my-alpine"
   expect_output --substring "Writing manifest to image destination"
 }
 
