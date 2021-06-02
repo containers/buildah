@@ -36,8 +36,10 @@ require (
 	go.etcd.io/bbolt v1.3.5
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
-	golang.org/x/sys v0.0.0-20210426230700-d19ff857e887
+	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015
 	k8s.io/klog v1.0.0 // indirect
 )
 
 replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
+
+replace github.com/containers/image/v5 => github.com/vrothberg/image/v5 v5.0.0-20210602134004-4a23c7b9bbdf
