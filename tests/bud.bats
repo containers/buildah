@@ -2423,6 +2423,19 @@ EOM
   expect_output --substring ".*\(system\).*\(user\).*\(elapsed\).*input.*output"
 }
 
+@test "bud with-rusage-logfile" {
+  _prefetch alpine
+  run_buildah bud --log-rusage --rusage-logfile "foo.log" --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/shell
+  # the logfile should exist
+  if [ ! -e "foo.log" ]; then die "foo.log not present!"; fi
+  # expect that foo.log only contains lines that were formatted using pkg/rusage.FormatDiff()
+  formatted_lines=$(grep ".*\(system\).*\(user\).*\(elapsed\).*input.*output" foo.log | wc -l)
+  line_count=$(cat foo.log | wc -l)
+  if [[ "$formatted_lines" -ne "$line_count" ]]; then
+      die "Got ${formatted_lines} lines formatted with pkg/rusage.FormatDiff() but foo.log has ${line_count} lines"
+  fi
+}
+
 @test "bud-caching-from-scratch" {
   _prefetch alpine
   # run the build once

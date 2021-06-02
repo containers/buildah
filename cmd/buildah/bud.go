@@ -334,6 +334,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		Isolation:               isolation,
 		Labels:                  iopts.Label,
 		Layers:                  layers,
+		LogRusage:               iopts.LogRusage,
 		Manifest:                iopts.Manifest,
 		MaxPullPushRetries:      maxPullPushRetries,
 		NamespaceOptions:        namespaceOptions,
@@ -349,6 +350,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		ReportWriter:            reporter,
 		Runtime:                 iopts.Runtime,
 		RuntimeArgs:             runtimeFlags,
+		RusageLogFile:           iopts.RusageLogFile,
 		SignBy:                  iopts.SignBy,
 		SignaturePolicyPath:     iopts.SignaturePolicy,
 		Squash:                  iopts.Squash,
@@ -357,7 +359,6 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		TransientMounts:         iopts.Volumes,
 		OciDecryptConfig:        decConfig,
 		Jobs:                    &iopts.Jobs,
-		LogRusage:               iopts.LogRusage,
 	}
 	if iopts.IgnoreFile != "" {
 		excludes, err := parseDockerignore(iopts.IgnoreFile)
