@@ -106,7 +106,7 @@ sudo yum -y install buildah
 
 Raspberry Pi OS use the standard Debian's repositories,
 so it is fully compatible with Debian's arm64 repository.
-You can simply follow the [steps for Debian](#debian) to install podman.
+You can simply follow the [steps for Debian](#debian) to install buildah.
 
 
 ### [RHEL8 Beta](https://www.redhat.com/en/blog/powering-its-future-while-preserving-present-introducing-red-hat-enterprise-linux-8-beta?intcmp=701f2000001Cz6OAAS)
