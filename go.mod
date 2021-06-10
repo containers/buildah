@@ -11,7 +11,7 @@ require (
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316
-	github.com/fsouza/go-dockerclient v1.7.2
+	github.com/fsouza/go-dockerclient v1.7.3
 	github.com/ghodss/yaml v1.0.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ishidawataru/sctp v0.0.0-20210226210310-f2269e66cdee // indirect
