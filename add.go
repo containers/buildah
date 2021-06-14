@@ -287,7 +287,7 @@ func (b *Builder) Add(destination string, extract bool, options AddAndCopyOption
 			destination = tmpDestination
 		}
 	}
-	destMustBeDirectory := (len(sources) > 1) || strings.HasSuffix(destination, string(os.PathSeparator))
+	destMustBeDirectory := (len(sources) > 1) || strings.HasSuffix(destination, string(os.PathSeparator)) || destination == b.WorkDir()
 	destCanBeFile := false
 	if len(sources) == 1 {
 		if len(remoteSources) == 1 {
