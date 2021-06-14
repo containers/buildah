@@ -154,7 +154,7 @@ sudo apt-get -qq -y install buildah
 ### Kernel Version Requirements
 To run Buildah on Red Hat Enterprise Linux or CentOS, version 7.4 or higher is required.
 On other Linux distributions Buildah requires a kernel version of 4.0 or
-higher in order to support the OverlayFS filesystem.  The kernel version can be checked
+higher in order to support the OverlayFS filesystem, or later than 4.18.0 for [fuse-overlayfs](https://github.com/containers/fuse-overlayfs/blob/master/README.md).  The kernel version can be checked
 with the 'uname -a' command.
 
 ### runc Requirement
