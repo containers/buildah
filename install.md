@@ -357,7 +357,7 @@ majority of these files are commonly contained in the `containers-common` packag
 
 ### [registries.conf](https://github.com/containers/buildah/blob/master/docs/samples/registries.conf)
 
-#### Man Page: [registries.conf.5](https://github.com/containers/image/blob/master/docs/containers-registries.conf.5.md)
+#### Man Page: [registries.conf.5](https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md)
 
 `/etc/containers/registries.conf`
 
@@ -426,7 +426,7 @@ The link above takes you to the seccomp.json
 
 `/etc/containers/policy.json`
 
-#### Man Page: [policy.json.5](https://github.com/containers/image/blob/master/docs/policy.json.md)
+#### Man Page: [policy.json.5](https://github.com/containers/image/blob/main/docs/policy.json.md)
 
 
 #### Example from the Fedora `containers-common` package:
