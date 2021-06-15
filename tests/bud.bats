@@ -1830,6 +1830,20 @@ _EOF
   test -s "${root}"/subdir/file2.txt
 }
 
+# regression test for https://github.com/containers/podman/issues/10671
+@test "bud-copy-workdir --layers" {
+  _prefetch alpine
+
+  target=testimage
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile.2 ${TESTSDIR}/bud/copy-workdir
+  run_buildah from ${target}
+  cid="$output"
+  run_buildah mount "${cid}"
+  root="$output"
+  test -d "${root}"/subdir
+  test -s "${root}"/subdir/file1.txt
+}
+
 @test "bud-build-arg-cache" {
   _prefetch busybox alpine
   target=derived-image
