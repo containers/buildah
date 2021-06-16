@@ -2,6 +2,7 @@
 
 BUILDAH_BINARY=${BUILDAH_BINARY:-$(dirname ${BASH_SOURCE})/../bin/buildah}
 IMGTYPE_BINARY=${IMGTYPE_BINARY:-$(dirname ${BASH_SOURCE})/../bin/imgtype}
+COPY_BINARY=${COPY_BINARY:-$(dirname ${BASH_SOURCE})/../bin/copy}
 TESTSDIR=${TESTSDIR:-$(dirname ${BASH_SOURCE})}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
@@ -33,7 +34,6 @@ function setup() {
     ROOTDIR_OPTS="--root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER}"
     BUILDAH_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf --registries-conf-dir ${TESTDIR}/registries.d --short-name-alias-conf ${TESTDIR}/cache/shortnames.conf"
     PODMAN_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf"
-    COPY_OPTS="$ROOTDIR_OPTS $BUILDAH_REGISTRY_OPTS"
 }
 
 function starthttpd() {
@@ -96,18 +96,18 @@ function _prefetch() {
         fname=$(tr -c a-zA-Z0-9.- - <<< "$img")
         if [ -d $_BUILDAH_IMAGE_CACHEDIR/$fname ]; then
             echo "# [restoring from cache: $_BUILDAH_IMAGE_CACHEDIR / $img]" >&2
-            copy $COPY_OPTS dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:"$img"
+            copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:"$img"
         else
             rm -fr $_BUILDAH_IMAGE_CACHEDIR/$fname
-            echo "# [copy $COPY_OPTS docker://$img dir:$_BUILDAH_IMAGE_CACHEDIR/$fname]" >&2
+            echo "# [copy docker://$img dir:$_BUILDAH_IMAGE_CACHEDIR/$fname]" >&2
             for attempt in $(seq 3) ; do
-                if copy $COPY_OPTS docker://"$img" dir:$_BUILDAH_IMAGE_CACHEDIR/$fname ; then
+                if copy docker://"$img" dir:$_BUILDAH_IMAGE_CACHEDIR/$fname ; then
                     break
                 fi
                 sleep 5
             done
-            echo "# [copy $COPY_OPTS dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:$img]" >&2
-            copy $COPY_OPTS dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:"$img"
+            echo "# [copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:$img]" >&2
+            copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:"$img"
         fi
     done
 }
@@ -122,6 +122,10 @@ function buildah() {
 
 function imgtype() {
     ${IMGTYPE_BINARY} ${ROOTDIR_OPTS} "$@"
+}
+
+function copy() {
+    ${COPY_BINARY} ${ROOTDIR_OPTS} ${BUILDAH_REGISTRY_OPTS} "$@"
 }
 
 function podman() {
