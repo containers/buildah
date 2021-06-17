@@ -12,6 +12,7 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/storage"
+	"github.com/openshift/imagebuilder"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -150,6 +151,9 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	removeFrom := false
 	var idMappingOptions *buildah.IDMappingOptions
 	contextdir := iopts.contextdir
+	if iopts.ignoreFile != "" && contextdir == "" {
+		return errors.Errorf("--ignore options requires that you specify a context dir using --contextdir")
+	}
 
 	if iopts.from != "" {
 		if from, err = openBuilder(getContext(), store, iopts.from); err != nil && errors.Cause(err) == storage.ErrContainerUnknown {
@@ -225,12 +229,13 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 		ContextDir:       contextdir,
 		IDMappingOptions: idMappingOptions,
 	}
-	if iopts.ignoreFile != "" {
-		if iopts.contextdir == "" {
-			return errors.Errorf("--ignore options requires that you specify a context dir using --contextdir")
+	if iopts.contextdir != "" {
+		var excludes []string
+		if iopts.ignoreFile != "" {
+			excludes, err = parseDockerignore(iopts.ignoreFile)
+		} else {
+			excludes, err = imagebuilder.ParseDockerignore(contextdir)
 		}
-
-		excludes, err := parseDockerignore(iopts.ignoreFile)
 		if err != nil {
 			return err
 		}

@@ -409,7 +409,7 @@ stuff/mystuff"
   cmp ${TESTDIR}/randomfile ${croot}/tmp/tmp/random
 }
 
-@test "copy-from-image" {
+@test "add-from-image" {
   _prefetch busybox
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid=$output
@@ -425,4 +425,23 @@ stuff/mystuff"
   ubuntu=$output
   cmp $ubuntu/etc/passwd ${croot}/tmp/passwd
   cmp $ubuntu/etc/passwd ${croot}/tmp/passwd2
+}
+
+@test "copy with .dockerignore" {
+  _prefetch alpine busybox
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  from=$output
+  run_buildah copy --contextdir=${TESTSDIR}/bud/dockerignore $from ${TESTSDIR}/bud/dockerignore ./
+
+  run_buildah 1 run $from ls -l test1.txt
+
+  run_buildah run $from ls -l test2.txt
+
+  run_buildah 1 run $from ls -l sub1.txt
+
+  run_buildah 1 run $from ls -l sub2.txt
+
+  run_buildah run $from ls -l subdir/sub1.txt
+
+  run_buildah 1 run $from ls -l subdir/sub2.txt
 }
