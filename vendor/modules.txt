@@ -60,7 +60,7 @@ github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.39.0
+# github.com/containers/common v0.39.0 => github.com/vrothberg/common v0.0.3-0.20210617082209-6b56f305481d
 github.com/containers/common/libimage
 github.com/containers/common/libimage/manifests
 github.com/containers/common/pkg/apparmor
@@ -289,7 +289,7 @@ github.com/imdario/mergo
 github.com/inconshreveable/mousetrap
 # github.com/ishidawataru/sctp v0.0.0-20210226210310-f2269e66cdee
 github.com/ishidawataru/sctp
-# github.com/jinzhu/copier v0.3.0
+# github.com/jinzhu/copier v0.3.2
 github.com/jinzhu/copier
 # github.com/json-iterator/go v1.1.11
 github.com/json-iterator/go

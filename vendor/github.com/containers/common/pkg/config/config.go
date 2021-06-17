@@ -137,6 +137,11 @@ type ContainersConfig struct {
 	// Negative values indicate that the log file won't be truncated.
 	LogSizeMax int64 `toml:"log_size_max,omitempty"`
 
+	// Specifies default format tag for container log messages.
+	// This is useful for creating a specific tag for container log messages.
+	// Containers logs default to truncated container ID as a tag.
+	LogTag string `toml:"log_tag,omitempty"`
+
 	// NetNS indicates how to create a network namespace for the container
 	NetNS string `toml:"netns,omitempty"`
 

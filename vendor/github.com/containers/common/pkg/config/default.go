@@ -144,8 +144,6 @@ func DefaultConfig() (*Config, error) {
 		return nil, err
 	}
 
-	netns := "bridge"
-
 	cniConfig := _cniConfigDir
 
 	defaultEngineConfig.SignaturePolicyPath = DefaultSignaturePolicyPath
@@ -161,7 +159,6 @@ func DefaultConfig() (*Config, error) {
 				defaultEngineConfig.SignaturePolicyPath = DefaultSignaturePolicyPath
 			}
 		}
-		netns = "slirp4netns"
 		cniConfig = filepath.Join(configHome, _cniConfigDirRootless)
 	}
 
@@ -195,14 +192,12 @@ func DefaultConfig() (*Config, error) {
 			Init:               false,
 			InitPath:           "",
 			IPCNS:              "private",
-			LogDriver:          DefaultLogDriver,
+			LogDriver:          defaultLogDriver(),
 			LogSizeMax:         DefaultLogSizeMax,
-			NetNS:              netns,
 			NoHosts:            false,
 			PidsLimit:          DefaultPidsLimit,
 			PidNS:              "private",
 			RootlessNetworking: DefaultRootlessNetwork,
-			SeccompProfile:     SeccompDefaultPath,
 			ShmSize:            DefaultShmSize,
 			TZ:                 "",
 			Umask:              "0022",
