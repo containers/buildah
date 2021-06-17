@@ -20,16 +20,16 @@ All the cached credentials can be removed by setting the **all** flag.
 
 ## OPTIONS
 
+**--all**, **-a**
+
+Remove the cached credentials for all registries in the auth file
+
 **--authfile**
 
 Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json.  If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json.
 
 Note: You can also override the default path of the authentication file by setting the REGISTRY\_AUTH\_FILE
 environment variable. `export REGISTRY_AUTH_FILE=path`
-
-**--all**, **-a**
-
-Remove the cached credentials for all registries in the auth file
 
 **--help**, **-h**
 
