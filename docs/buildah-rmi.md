@@ -1,26 +1,31 @@
 # buildah-rmi "1" "March 2017" "buildah"
 
 ## NAME
+
 buildah\-rmi - Removes one or more images.
 
 ## SYNOPSIS
+
 **buildah rmi** [*image* ...]
 
 ## DESCRIPTION
+
 Removes one or more locally stored images.
+Passing an argument _image_ deletes it, along with any of its dangling (untagged) parent images.
 
 ## LIMITATIONS
+
 If the image was pushed to a directory path using the 'dir:' transport
-the rmi command can not remove the image.  Instead standard file system
+the rmi command can not remove the image. Instead standard file system
 commands should be used.
-If _imageID_ is a name, but does not include a registry name, buildah will attempt to find and remove an image named using the registry name *localhost*, if no such image is found, it will search for the intended image by attempting to expand the given name using the names of registries provided in the system's registries configuration file, registries.conf.
+If _imageID_ is a name, but does not include a registry name, buildah will attempt to find and remove an image named using the registry name _localhost_, if no such image is found, it will search for the intended image by attempting to expand the given name using the names of registries provided in the system's registries configuration file, registries.conf.
 
 ## OPTIONS
 
 **--all**, **-a**
 
 All local images will be removed from the system that do not have containers using the image as a reference image.
-An image name or id cannot be provided when this option is used.  Read/Only images configured by modifying the  "additionalimagestores" in the /etc/containers/storage.conf file, can not be removed.
+An image name or id cannot be provided when this option is used. Read/Only images configured by modifying the "additionalimagestores" in the /etc/containers/storage.conf file, can not be removed.
 
 **--prune**, **-p**
 
@@ -58,4 +63,5 @@ storage.conf is the storage configuration file for all tools using containers/st
 The storage configuration file specifies all of the available container storage options for tools using shared container storage.
 
 ## SEE ALSO
+
 buildah(1), containers-registries.conf(5), containers-storage.conf(5)
