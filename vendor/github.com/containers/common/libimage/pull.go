@@ -52,6 +52,7 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 		options = &PullOptions{}
 	}
 
+	var possiblyUnqualifiedName string // used for short-name resolution
 	ref, err := alltransports.ParseImageName(name)
 	if err != nil {
 		// If the image clearly refers to a local one, we can look it up directly.
@@ -67,6 +68,15 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 			return []*Image{local}, err
 		}
 
+		// Docker compat: strip off the tag iff name is tagged and digested
+		// (e.g., fedora:latest@sha256...).  In that case, the tag is stripped
+		// off and entirely ignored.  The digest is the sole source of truth.
+		normalizedName, normalizeError := normalizeTaggedDigestedString(name)
+		if normalizeError != nil {
+			return nil, normalizeError
+		}
+		name = normalizedName
+
 		// If the input does not include a transport assume it refers
 		// to a registry.
 		dockerRef, dockerErr := alltransports.ParseImageName("docker://" + name)
@@ -74,6 +84,17 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 			return nil, err
 		}
 		ref = dockerRef
+		possiblyUnqualifiedName = name
+	} else if ref.Transport().Name() == registryTransport.Transport.Name() {
+		// Normalize the input if we're referring to the docker
+		// transport directly. That makes sure that a `docker://fedora`
+		// will resolve directly to `docker.io/library/fedora:latest`
+		// and not be subject to short-name resolution.
+		named := ref.DockerReference()
+		if named == nil {
+			return nil, errors.New("internal error: unexpected nil reference")
+		}
+		possiblyUnqualifiedName = named.String()
 	}
 
 	if options.AllTags && ref.Transport().Name() != registryTransport.Transport.Name() {
@@ -94,7 +115,7 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 
 	// DOCKER REGISTRY
 	case registryTransport.Transport.Name():
-		pulledImages, pullError = r.copyFromRegistry(ctx, ref, strings.TrimPrefix(name, "docker://"), pullPolicy, options)
+		pulledImages, pullError = r.copyFromRegistry(ctx, ref, possiblyUnqualifiedName, pullPolicy, options)
 
 	// DOCKER ARCHIVE
 	case dockerArchiveTransport.Transport.Name():
@@ -330,7 +351,7 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 	// attempt pulling that instead of doing the full short-name dance.
 	localImage, resolvedImageName, err = r.LookupImage(imageName, nil)
 	if err != nil && errors.Cause(err) != storage.ErrImageUnknown {
-		return nil, errors.Wrap(err, "error looking up local image")
+		logrus.Errorf("Looking up %s in local storage: %v", imageName, err)
 	}
 
 	if pullPolicy == config.PullPolicyNever {

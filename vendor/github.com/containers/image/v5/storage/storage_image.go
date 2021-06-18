@@ -76,12 +76,12 @@ type storageImageDestination struct {
 	indexToStorageID map[int]*string
 	// All accesses to below data are protected by `lock` which is made
 	// *explicit* in the code.
-	blobDiffIDs         map[digest.Digest]digest.Digest           // Mapping from layer blobsums to their corresponding DiffIDs
-	fileSizes           map[digest.Digest]int64                   // Mapping from layer blobsums to their sizes
-	filenames           map[digest.Digest]string                  // Mapping from layer blobsums to names of files we used to hold them
-	currentIndex        int                                       // The index of the layer to be committed (i.e., lower indices have already been committed)
-	indexToPulledBlob   map[int]*types.BlobInfo                   // Mapping from layer (by index) to pulled down blob
-	blobAdditionalLayer map[digest.Digest]storage.AdditionalLayer // Mapping from layer blobsums to their corresponding additional layer
+	blobDiffIDs            map[digest.Digest]digest.Digest           // Mapping from layer blobsums to their corresponding DiffIDs
+	fileSizes              map[digest.Digest]int64                   // Mapping from layer blobsums to their sizes
+	filenames              map[digest.Digest]string                  // Mapping from layer blobsums to names of files we used to hold them
+	currentIndex           int                                       // The index of the layer to be committed (i.e., lower indices have already been committed)
+	indexToPulledLayerInfo map[int]*manifest.LayerInfo               // Mapping from layer (by index) to pulled down blob
+	blobAdditionalLayer    map[digest.Digest]storage.AdditionalLayer // Mapping from layer blobsums to their corresponding additional layer
 }
 
 type storageImageCloser struct {
@@ -392,17 +392,17 @@ func newImageDestination(sys *types.SystemContext, imageRef storageReference) (*
 		return nil, errors.Wrapf(err, "error creating a temporary directory")
 	}
 	image := &storageImageDestination{
-		imageRef:            imageRef,
-		directory:           directory,
-		signatureses:        make(map[digest.Digest][]byte),
-		blobDiffIDs:         make(map[digest.Digest]digest.Digest),
-		blobAdditionalLayer: make(map[digest.Digest]storage.AdditionalLayer),
-		fileSizes:           make(map[digest.Digest]int64),
-		filenames:           make(map[digest.Digest]string),
-		SignatureSizes:      []int{},
-		SignaturesSizes:     make(map[digest.Digest][]int),
-		indexToStorageID:    make(map[int]*string),
-		indexToPulledBlob:   make(map[int]*types.BlobInfo),
+		imageRef:               imageRef,
+		directory:              directory,
+		signatureses:           make(map[digest.Digest][]byte),
+		blobDiffIDs:            make(map[digest.Digest]digest.Digest),
+		blobAdditionalLayer:    make(map[digest.Digest]storage.AdditionalLayer),
+		fileSizes:              make(map[digest.Digest]int64),
+		filenames:              make(map[digest.Digest]string),
+		SignatureSizes:         []int{},
+		SignaturesSizes:        make(map[digest.Digest][]int),
+		indexToStorageID:       make(map[int]*string),
+		indexToPulledLayerInfo: make(map[int]*manifest.LayerInfo),
 	}
 	return image, nil
 }
@@ -751,7 +751,10 @@ func (s *storageImageDestination) queueOrCommit(ctx context.Context, blob types.
 	// caller is the "worker" routine comitting layers.  All other routines
 	// can continue pulling and queuing in layers.
 	s.lock.Lock()
-	s.indexToPulledBlob[index] = &blob
+	s.indexToPulledLayerInfo[index] = &manifest.LayerInfo{
+		BlobInfo:   blob,
+		EmptyLayer: emptyLayer,
+	}
 
 	// We're still waiting for at least one previous/parent layer to be
 	// committed, so there's nothing to do.
@@ -760,14 +763,10 @@ func (s *storageImageDestination) queueOrCommit(ctx context.Context, blob types.
 		return nil
 	}
 
-	for info := s.indexToPulledBlob[index]; info != nil; info = s.indexToPulledBlob[index] {
+	for info := s.indexToPulledLayerInfo[index]; info != nil; info = s.indexToPulledLayerInfo[index] {
 		s.lock.Unlock()
-		layerInfo := manifest.LayerInfo{
-			BlobInfo:   *info,
-			EmptyLayer: emptyLayer,
-		}
 		// Note: commitLayer locks on-demand.
-		if err := s.commitLayer(ctx, layerInfo, index); err != nil {
+		if err := s.commitLayer(ctx, *info, index); err != nil {
 			return err
 		}
 		s.lock.Lock()

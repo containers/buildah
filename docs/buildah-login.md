@@ -22,6 +22,26 @@ is not set, the default is /run/containers/$UID/auth.json.
 
 ## OPTIONS
 
+**--authfile**
+
+Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using using `buildah login`.
+
+Note: You can also override the default path of the authentication file by setting the REGISTRY\_AUTH\_FILE
+environment variable. `export REGISTRY_AUTH_FILE=path`
+
+**--cert-dir** *path*
+
+Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
+The default certificates directory is _/etc/containers/certs.d_.
+
+**--get-login**
+
+Return the logged-in user for the registry.  Return error if no login is found.
+
+**--help**, **-h**
+
+Print usage statement
+
 **--password**, **-p**
 
 Password for registry
@@ -30,26 +50,6 @@ Password for registry
 
 Take the password from stdin
 
-**--username**, **-u**
-
-Username for registry
-
-**--authfile**
-
-Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using using `buildah login`.
-
-Note: You can also override the default path of the authentication file by setting the REGISTRY\_AUTH\_FILE
-environment variable. `export REGISTRY_AUTH_FILE=path`
-
-**--get-login**
-
-Return the logged-in user for the registry.  Return error if no login is found.
-
-**--cert-dir** *path*
-
-Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
-The default certificates directory is _/etc/containers/certs.d_.
-
 **--tls-verify**
 
 Require HTTPS and verification of certificates when talking to container registries (default: true). If explicitly set to true,
@@ -57,9 +57,13 @@ then TLS verification will be used. If set to false, then TLS verification will 
 TLS verification will be used unless the target registry is listed as an insecure registry in registries.conf.
 TLS verification cannot be used when talking to an insecure registry.
 
-**--help**, **-h**
+**--username**, **-u**
 
-Print usage statement
+Username for registry
+
+**--verbose**, **-v**
+
+print detailed information about credential store
 
 ## EXAMPLES
 
