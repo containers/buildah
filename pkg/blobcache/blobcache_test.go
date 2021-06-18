@@ -14,10 +14,10 @@ import (
 	"testing"
 
 	cp "github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/directory"
 	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/pkg/blobinfocache/none"
 	"github.com/containers/image/v5/signature"
-	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/archive"
 	digest "github.com/opencontainers/go-digest"
@@ -123,10 +123,9 @@ func TestBlobCache(t *testing.T) {
 					t.Fatalf("error creating temporary source directory: %v", err)
 				}
 				defer os.RemoveAll(srcdir)
-				srcName := "dir:" + srcdir
-				srcRef, err := alltransports.ParseImageName(srcName)
+				srcRef, err := directory.NewReference(srcdir)
 				if err != nil {
-					t.Fatalf("error parsing source image name %q: %v", srcName, err)
+					t.Fatalf("error creating source image name reference for %q: %v", srcdir, err)
 				}
 				cachedSrcRef, err := NewBlobCache(srcRef, cacheDir, desiredCompression)
 				if err != nil {
@@ -220,10 +219,9 @@ func TestBlobCache(t *testing.T) {
 					t.Fatalf("error creating temporary destination directory: %v", err)
 				}
 				defer os.RemoveAll(destdir)
-				destName := "dir:" + destdir
-				destRef, err := alltransports.ParseImageName(destName)
+				destRef, err := directory.NewReference(destdir)
 				if err != nil {
-					t.Fatalf("error parsing destination image name %q: %v", destName, err)
+					t.Fatalf("error creating destination image reference for %q: %v", destdir, err)
 				}
 				options := cp.Options{
 					SourceCtx:      &systemContext,

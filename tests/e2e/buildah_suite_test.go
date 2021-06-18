@@ -14,9 +14,10 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/directory"
+	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/storage"
-	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	sstorage "github.com/containers/storage"
 	"github.com/containers/storage/pkg/reexec"
@@ -200,7 +201,6 @@ func (p *BuildAhTest) SystemExec(command string, args []string) *BuildAhSession 
 
 // CreateArtifact creates a cached image in the artifact dir
 func (p *BuildAhTest) CreateArtifact(image string) error {
-	imageName := fmt.Sprintf("docker://%s", image)
 	systemContext := types.SystemContext{
 		SignaturePolicyPath: p.SignaturePath,
 	}
@@ -217,16 +217,16 @@ func (p *BuildAhTest) CreateArtifact(image string) error {
 	}()
 	options := &copy.Options{}
 
-	importRef, err := alltransports.ParseImageName(imageName)
+	importRef, err := docker.ParseReference("//" + image)
 	if err != nil {
 		return errors.Errorf("error parsing image name %v: %v", image, err)
 	}
 
 	imageDir := strings.Replace(image, "/", "_", -1)
-	exportTo := filepath.Join("dir:", p.ArtifactPath, imageDir)
-	exportRef, err := alltransports.ParseImageName(exportTo)
+	exportDir := filepath.Join(p.ArtifactPath, imageDir)
+	exportRef, err := directory.NewReference(exportDir)
 	if err != nil {
-		return errors.Errorf("error parsing image name %v: %v", exportTo, err)
+		return errors.Errorf("error creating image reference for %v: %v", exportDir, err)
 	}
 
 	_, err = copy.Image(context.Background(), policyContext, exportRef, importRef, options)
@@ -259,10 +259,10 @@ func (p *BuildAhTest) RestoreArtifact(image string) error {
 	}
 
 	imageDir := strings.Replace(image, "/", "_", -1)
-	importFrom := fmt.Sprintf("dir:%s", filepath.Join(p.ArtifactPath, imageDir))
-	importRef, err := alltransports.ParseImageName(importFrom)
+	importDir := filepath.Join(p.ArtifactPath, imageDir)
+	importRef, err := directory.NewReference(importDir)
 	if err != nil {
-		return errors.Errorf("error parsing image name %v: %v", image, err)
+		return errors.Errorf("error creating image reference for %v: %v", image, err)
 	}
 	systemContext := types.SystemContext{
 		SignaturePolicyPath: p.SignaturePath,
@@ -280,7 +280,7 @@ func (p *BuildAhTest) RestoreArtifact(image string) error {
 	}()
 	_, err = copy.Image(context.Background(), policyContext, ref, importRef, options)
 	if err != nil {
-		return errors.Errorf("error importing %s: %v", importFrom, err)
+		return errors.Errorf("error importing %s: %v", importDir, err)
 	}
 	return nil
 }
