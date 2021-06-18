@@ -445,3 +445,26 @@ stuff/mystuff"
 
   run_buildah 1 run $from ls -l subdir/sub2.txt
 }
+
+@test "copy-preserving-extended-attributes" {
+  createrandom ${TESTDIR}/randomfile
+  image="registry.fedoraproject.org/fedora-minimal"
+  _prefetch $image
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  first="$output"
+  run_buildah run $first microdnf -y install /usr/bin/getfattr /usr/bin/setfattr /usr/sbin/setcap
+  run_buildah copy $first ${TESTDIR}/randomfile /
+  # set security.capability
+  run buildah run $first setcap cap_setuid=ep /randomfile
+  # set user.something
+  run buildah run $first setfattr user.yeah=butno /randomfile
+  # copy the file to a second container
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  second="$output"
+  run_buildah copy --from $first $second /randomfile /
+  # compare what the extended attributes look like. if we're on a system with SELinux, there's a label in here, too
+  run buildah run $first sh -c "getfattr -d -m . --absolute-names /randomfile | sort"
+  expected="$output"
+  run buildah run $first sh -c "getfattr -d -m . --absolute-names /randomfile | sort"
+  expect_output "$expected"
+}
