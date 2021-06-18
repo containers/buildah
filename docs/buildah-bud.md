@@ -289,7 +289,7 @@ those.
 
 Write the image ID to the file.
 
-**--ignorefile**
+**--ignorefile** *file*
 
 Path to an alternative .containerignore (.dockerignore) file.
 
