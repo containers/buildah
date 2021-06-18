@@ -29,7 +29,7 @@ Sets the access permissions of the destination content. Accepts the numerical fo
 
 Sets the user and group ownership of the destination content.
 
-**--contextdir**
+**--contextdir** *directory*
 
 Build context directory. Specifying a context directory causes Buildah to
 chroot into a the context directory. This means copying files pointed at
@@ -42,7 +42,7 @@ directory when resolving absolute source paths and the path of the context
 directory.  If an image needs to be pulled, options recognized by `buildah pull`
 can be used.
 
-**--ignorefile**
+**--ignorefile** *file*
 
 Path to an alternative .containerignore (.dockerignore) file. Requires \-\-contextdir be specified.
 
