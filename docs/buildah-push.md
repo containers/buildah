@@ -85,7 +85,7 @@ Layer(s) to encrypt: 0-indexed layer indices with support for negative indexing 
 
 **--format**, **-f**
 
-Manifest Type (oci, v2s2, or v2s1) to use when pushing an image. (default is manifest type of the source image)
+Manifest Type (oci, v2s2, or v2s1) to use when pushing an image. (default is manifest type of the source image, with fallbacks)
 
 **--quiet**, **-q**
 
