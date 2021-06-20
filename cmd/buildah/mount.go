@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -9,6 +10,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+type jsonMount struct {
+	Container  string `json:"container,omitempty"`
+	MountPoint string `json:"mountPoint"`
+}
 
 func init() {
 	var (
@@ -20,13 +26,14 @@ func init() {
   view/modify the content in the containers root file system.
 `
 		noTruncate bool
+		outputJSON bool
 	)
 	mountCommand := &cobra.Command{
 		Use:   "mount",
 		Short: "Mount a working container's root filesystem",
 		Long:  mountDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return mountCmd(cmd, args)
+			return mountCmd(cmd, args, outputJSON)
 		},
 		Example: `buildah mount
   buildah mount containerID
@@ -41,6 +48,7 @@ func init() {
 
 	flags := mountCommand.Flags()
 	flags.SetInterspersed(false)
+	flags.BoolVar(&outputJSON, "json", false, "output in JSON format")
 	flags.BoolVar(&noTruncate, "notruncate", false, "do not truncate output")
 	rootCmd.AddCommand(mountCommand)
 	if err := flags.MarkHidden("notruncate"); err != nil {
@@ -48,7 +56,7 @@ func init() {
 	}
 }
 
-func mountCmd(c *cobra.Command, args []string) error {
+func mountCmd(c *cobra.Command, args []string, outputJSON bool) error {
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
@@ -58,6 +66,7 @@ func mountCmd(c *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	var jsonMounts []jsonMount
 	var lastError error
 	if len(args) > 0 {
 		// Do not allow to mount a graphdriver that is not vfs if we are creating the userns as part
@@ -86,8 +95,16 @@ func mountCmd(c *cobra.Command, args []string) error {
 				continue
 			}
 			if len(args) > 1 {
+				if outputJSON {
+					jsonMounts = append(jsonMounts, jsonMount{Container: name, MountPoint: mountPoint})
+					continue
+				}
 				fmt.Printf("%s %s\n", name, mountPoint)
 			} else {
+				if outputJSON {
+					jsonMounts = append(jsonMounts, jsonMount{MountPoint: mountPoint})
+					continue
+				}
 				fmt.Printf("%s\n", mountPoint)
 			}
 		}
@@ -96,15 +113,29 @@ func mountCmd(c *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.Wrapf(err, "error reading build containers")
 		}
+
 		for _, builder := range builders {
 			mounted, err := builder.Mounted()
 			if err != nil {
 				return err
 			}
 			if mounted {
+				if outputJSON {
+					jsonMounts = append(jsonMounts, jsonMount{Container: builder.Container, MountPoint: builder.MountPoint})
+					continue
+				}
 				fmt.Printf("%s %s\n", builder.Container, builder.MountPoint)
 			}
 		}
 	}
+
+	if outputJSON {
+		data, err := json.MarshalIndent(jsonMounts, "", "    ")
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s\n", data)
+	}
+
 	return lastError
 }

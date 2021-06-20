@@ -12,7 +12,12 @@ Shows the following information: Version, Go Version, Image Spec, Runtime Spec, 
 ## OPTIONS
 
 **--help, -h**
-  Print usage statement
+
+Print usage statement
+
+**--json**
+
+Output in JSON format.
 
 ## EXAMPLE
 
