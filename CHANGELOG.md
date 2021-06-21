@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.17.2 (2021-06-21)
+    chroot: fix environment value leakage to intermediate processes
+    (CVE-2021-3602)
+
 ## v1.17.1 (2020-11-16)
     copier.Get(): ignore ENOTSUP/ENOSYS when listing xattrs
     copier: try to force loading of nsswitch modules before chroot()
