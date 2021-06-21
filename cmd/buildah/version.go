@@ -48,7 +48,7 @@ func init() {
 		Short: "Display the Buildah version information",
 		Long:  "Displays Buildah version information.",
 		RunE: func(c *cobra.Command, args []string) error {
-			return versionCmd(c, args, opts)
+			return versionCmd(opts)
 		},
 		Args:    cobra.NoArgs,
 		Example: `buildah version`,
@@ -61,7 +61,7 @@ func init() {
 	rootCmd.AddCommand(versionCommand)
 }
 
-func versionCmd(c *cobra.Command, args []string, opts versionOptions) error {
+func versionCmd(opts versionOptions) error {
 	var err error
 	buildTime := int64(0)
 	if buildInfo != "" {
