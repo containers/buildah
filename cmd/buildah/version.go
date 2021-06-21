@@ -48,52 +48,7 @@ func init() {
 		Short: "Display the Buildah version information",
 		Long:  "Displays Buildah version information.",
 		RunE: func(c *cobra.Command, args []string) error {
-			var err error
-			buildTime := int64(0)
-			if buildInfo != "" {
-				//converting unix time from string to int64
-				buildTime, err = strconv.ParseInt(buildInfo, 10, 64)
-				if err != nil {
-					return err
-				}
-			}
-
-			version := versionInfo{
-				Version:       define.Version,
-				GoVersion:     runtime.Version(),
-				ImageSpec:     ispecs.Version,
-				RuntimeSpec:   rspecs.Version,
-				CniSpec:       cniversion.Current(),
-				LibcniVersion: cniVersion,
-				ImageVersion:  iversion.Version,
-				GitCommit:     GitCommit,
-				Built:         time.Unix(buildTime, 0).Format(time.ANSIC),
-				OsArch:        runtime.GOOS + "/" + runtime.GOARCH,
-			}
-
-			if opts.json {
-				data, err := json.MarshalIndent(version, "", "    ")
-				if err != nil {
-					return err
-				}
-				fmt.Printf("%s\n", data)
-				return nil
-			}
-
-			fmt.Println("Version:        ", version.Version)
-			fmt.Println("Go Version:     ", version.GoVersion)
-			fmt.Println("Image Spec:     ", version.ImageSpec)
-			fmt.Println("Runtime Spec:   ", version.RuntimeSpec)
-			fmt.Println("CNI Spec:       ", version.CniSpec)
-			fmt.Println("libcni Version: ", version.LibcniVersion)
-			fmt.Println("image Version:  ", version.ImageVersion)
-			fmt.Println("Git Commit:     ", version.GitCommit)
-
-			//Prints out the build time in readable format
-			fmt.Println("Built:          ", version.Built)
-			fmt.Println("OS/Arch:        ", version.OsArch)
-
-			return nil
+			return versionCmd(c, args, opts)
 		},
 		Args:    cobra.NoArgs,
 		Example: `buildah version`,
@@ -104,4 +59,53 @@ func init() {
 	flags.BoolVar(&opts.json, "json", false, "output in JSON format")
 
 	rootCmd.AddCommand(versionCommand)
+}
+
+func versionCmd(c *cobra.Command, args []string, opts versionOptions) error {
+	var err error
+	buildTime := int64(0)
+	if buildInfo != "" {
+		//converting unix time from string to int64
+		buildTime, err = strconv.ParseInt(buildInfo, 10, 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	version := versionInfo{
+		Version:       define.Version,
+		GoVersion:     runtime.Version(),
+		ImageSpec:     ispecs.Version,
+		RuntimeSpec:   rspecs.Version,
+		CniSpec:       cniversion.Current(),
+		LibcniVersion: cniVersion,
+		ImageVersion:  iversion.Version,
+		GitCommit:     GitCommit,
+		Built:         time.Unix(buildTime, 0).Format(time.ANSIC),
+		OsArch:        runtime.GOOS + "/" + runtime.GOARCH,
+	}
+
+	if opts.json {
+		data, err := json.MarshalIndent(version, "", "    ")
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s\n", data)
+		return nil
+	}
+
+	fmt.Println("Version:        ", version.Version)
+	fmt.Println("Go Version:     ", version.GoVersion)
+	fmt.Println("Image Spec:     ", version.ImageSpec)
+	fmt.Println("Runtime Spec:   ", version.RuntimeSpec)
+	fmt.Println("CNI Spec:       ", version.CniSpec)
+	fmt.Println("libcni Version: ", version.LibcniVersion)
+	fmt.Println("image Version:  ", version.ImageVersion)
+	fmt.Println("Git Commit:     ", version.GitCommit)
+
+	//Prints out the build time in readable format
+	fmt.Println("Built:          ", version.Built)
+	fmt.Println("OS/Arch:        ", version.OsArch)
+
+	return nil
 }
