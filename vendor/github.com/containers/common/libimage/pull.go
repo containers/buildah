@@ -349,7 +349,12 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 	// resolved name for pulling.  Assume we're doing a `pull foo`.
 	// If there's already a local image "localhost/foo", then we should
 	// attempt pulling that instead of doing the full short-name dance.
-	localImage, resolvedImageName, err = r.LookupImage(imageName, nil)
+	lookupOptions := &LookupImageOptions{
+		Architecture: options.Architecture,
+		OS:           options.OS,
+		Variant:      options.Variant,
+	}
+	localImage, resolvedImageName, err = r.LookupImage(imageName, lookupOptions)
 	if err != nil && errors.Cause(err) != storage.ErrImageUnknown {
 		logrus.Errorf("Looking up %s in local storage: %v", imageName, err)
 	}
