@@ -204,9 +204,8 @@ github.com/containernetworking/cni v0.8.1 h1:7zpDnQ3T3s4ucOuJ/ZCLrYBxzkg0AELFfII
 github.com/containernetworking/cni v0.8.1/go.mod h1:LGwApLUm2FpoOfxTDEeq8T9ipbpZ61X79hmU3w8FmsY=
 github.com/containernetworking/plugins v0.8.6/go.mod h1:qnw5mN19D8fIwkqW7oHHYDHVlzhJpcY6TQxn/fUyDDM=
 github.com/containernetworking/plugins v0.9.1/go.mod h1:xP/idU2ldlzN6m4p5LmGiwRDjeJr6FLK6vuiUwoH7P8=
-github.com/containers/common v0.40.0 h1:6Q40GoVS3AI2QZbQPLRDS+K7G61JgHqlqvkOYYAJrOo=
-github.com/containers/common v0.40.0/go.mod h1:qLkP2aIaPfiXJS4u/QSSNkUFEEV+dg5d6GOTKsdlZ7g=
-github.com/containers/image/v5 v5.13.0/go.mod h1:GkWursKDlDcUIT7L7vZf70tADvZCk/Ga0wgS0MuF0ag=
+github.com/containers/common v0.40.1 h1:ehhWdMyglWC1+UWMNSZMeIemJ5wCEGP/0oGlCDg4q7M=
+github.com/containers/common v0.40.1/go.mod h1:X4F+6vmeAWKMMTNHlOBwOnkf5TQAkQACcuNsKjfcodw=
 github.com/containers/image/v5 v5.13.2 h1:AgYunV/9d2fRkrmo23wH2MkqeHolFd6oQCkK+1PpuFA=
 github.com/containers/image/v5 v5.13.2/go.mod h1:GkWursKDlDcUIT7L7vZf70tADvZCk/Ga0wgS0MuF0ag=
 github.com/containers/libtrust v0.0.0-20190913040956-14b96171aa3b h1:Q8ePgVfHDplZ7U33NwHZkrVELsZP5fYj9pM5WBZB2GE=
