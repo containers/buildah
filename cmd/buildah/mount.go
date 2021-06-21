@@ -16,6 +16,10 @@ type jsonMount struct {
 	MountPoint string `json:"mountPoint"`
 }
 
+type mountOptions struct {
+	json bool
+}
+
 func init() {
 	var (
 		mountDescription = `buildah mount
@@ -25,15 +29,15 @@ func init() {
   into the usernamespace. Afterwards you can buildah mount the container and
   view/modify the content in the containers root file system.
 `
+		opts       mountOptions
 		noTruncate bool
-		outputJSON bool
 	)
 	mountCommand := &cobra.Command{
 		Use:   "mount",
 		Short: "Mount a working container's root filesystem",
 		Long:  mountDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return mountCmd(cmd, args, outputJSON)
+			return mountCmd(cmd, args, opts)
 		},
 		Example: `buildah mount
   buildah mount containerID
@@ -48,7 +52,7 @@ func init() {
 
 	flags := mountCommand.Flags()
 	flags.SetInterspersed(false)
-	flags.BoolVar(&outputJSON, "json", false, "output in JSON format")
+	flags.BoolVar(&opts.json, "json", false, "output in JSON format")
 	flags.BoolVar(&noTruncate, "notruncate", false, "do not truncate output")
 	rootCmd.AddCommand(mountCommand)
 	if err := flags.MarkHidden("notruncate"); err != nil {
@@ -56,7 +60,7 @@ func init() {
 	}
 }
 
-func mountCmd(c *cobra.Command, args []string, outputJSON bool) error {
+func mountCmd(c *cobra.Command, args []string, opts mountOptions) error {
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
@@ -95,13 +99,13 @@ func mountCmd(c *cobra.Command, args []string, outputJSON bool) error {
 				continue
 			}
 			if len(args) > 1 {
-				if outputJSON {
+				if opts.json {
 					jsonMounts = append(jsonMounts, jsonMount{Container: name, MountPoint: mountPoint})
 					continue
 				}
 				fmt.Printf("%s %s\n", name, mountPoint)
 			} else {
-				if outputJSON {
+				if opts.json {
 					jsonMounts = append(jsonMounts, jsonMount{MountPoint: mountPoint})
 					continue
 				}
@@ -120,7 +124,7 @@ func mountCmd(c *cobra.Command, args []string, outputJSON bool) error {
 				return err
 			}
 			if mounted {
-				if outputJSON {
+				if opts.json {
 					jsonMounts = append(jsonMounts, jsonMount{Container: builder.Container, MountPoint: builder.MountPoint})
 					continue
 				}
@@ -129,7 +133,7 @@ func mountCmd(c *cobra.Command, args []string, outputJSON bool) error {
 		}
 	}
 
-	if outputJSON {
+	if opts.json {
 		data, err := json.MarshalIndent(jsonMounts, "", "    ")
 		if err != nil {
 			return err
