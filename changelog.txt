@@ -1,3 +1,7 @@
+- Changelog for v1.21.3 (2021-07-01)
+  * chroot: fix environment value leakage to intermediate processes
+  (CVE-2021-3602).
+
 - Changelog for v1.21.2 (2021-06-28)
   * vendor common@v0.38.12 and storage@v1.31.3
 
