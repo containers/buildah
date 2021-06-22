@@ -26,6 +26,10 @@ returned.
 
 ## OPTIONS
 
+**--json**
+
+Output in JSON format.
+
 ## EXAMPLE
 
 ```
