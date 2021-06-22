@@ -30,6 +30,7 @@ import (
 	"github.com/containers/common/pkg/capabilities"
 	"github.com/containers/common/pkg/chown"
 	"github.com/containers/common/pkg/config"
+	"github.com/containers/common/pkg/defaultnet"
 	"github.com/containers/common/pkg/subscriptions"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
@@ -1075,8 +1076,19 @@ func runConfigureNetwork(isolation define.Isolation, options RunOptions, configu
 			return setupRootlessNetwork(pid)
 		}
 	}
-	// Scan for CNI configuration files.
 	confdir := options.CNIConfigDir
+
+	// Create a default configuration if one is not present.
+	// Need to pull containers.conf settings for this one.
+	containersConf, err := config.Default()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get container config")
+	}
+	if err := defaultnet.Create(containersConf.Network.DefaultNetwork, containersConf.Network.DefaultSubnet, confdir, confdir, containersConf.Engine.MachineEnabled); err != nil {
+		logrus.Errorf("Failed to created default CNI network: %v", err)
+	}
+
+	// Scan for CNI configuration files.
 	files, err := libcni.ConfFiles(confdir, []string{".conf"})
 	if err != nil {
 		return nil, errors.Wrapf(err, "error finding CNI networking configuration files named *.conf in directory %q", confdir)
