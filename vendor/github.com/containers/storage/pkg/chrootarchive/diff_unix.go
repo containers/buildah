@@ -15,7 +15,7 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/system"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/opencontainers/runc/libcontainer/userns"
 )
 
 type applyLayerResponse struct {
@@ -35,7 +35,6 @@ func applyLayer() {
 	runtime.LockOSThread()
 	flag.Parse()
 
-	inUserns := rsystem.RunningInUserNS()
 	if err := chroot(flag.Arg(0)); err != nil {
 		fatal(err)
 	}
@@ -51,9 +50,7 @@ func applyLayer() {
 		fatal(err)
 	}
 
-	if inUserns {
-		options.InUserNS = true
-	}
+	options.InUserNS = userns.RunningInUserNS()
 
 	if tmpDir, err = ioutil.TempDir("/", "temp-storage-extract"); err != nil {
 		fatal(err)
@@ -94,9 +91,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
-		if rsystem.RunningInUserNS() {
-			options.InUserNS = true
-		}
+		options.InUserNS = userns.RunningInUserNS()
 	}
 	if options.ExcludePatterns == nil {
 		options.ExcludePatterns = []string{}
