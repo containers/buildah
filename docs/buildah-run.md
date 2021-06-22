@@ -58,6 +58,12 @@ not disabled.
 List of directories in which the CNI plugins which will be used for configuring
 network namespaces can be found.
 
+**--env**, **-e** *env=value*
+
+Temporarily add a value (e.g. env=*value*) to the environment for the running
+process. Unlike `buildah config --env`, the environment will not persist to
+later calls to `buildah run` or to the built image. Can be used multiple times.
+
 **--hostname**
 
 Set the hostname inside of the running container.
@@ -258,6 +264,12 @@ example, to bind mount the source directory `/foo` do
 will convert /foo into a `shared` mount point.  The propagation properties of the source
 mount can be changed directly. For instance if `/` is the source mount for
 `/foo`, then use `mount --make-shared /` to convert `/` into a `shared` mount.
+
+**--workingdir** *directory*
+
+Temporarily set the working *directory* for the running process. Unlike
+`buildah config --workingdir`, the workingdir will not persist to later
+calls to `buildah run` or the built image.
 
 
 NOTE: End parsing of options with the `--` option, so that other
