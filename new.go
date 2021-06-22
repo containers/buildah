@@ -299,7 +299,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		}
 	}
 
-	if err := builder.initConfig(ctx, src); err != nil {
+	if err := builder.initConfig(ctx, src, systemContext); err != nil {
 		return nil, errors.Wrapf(err, "error preparing image configuration")
 	}
 	err = builder.Save()

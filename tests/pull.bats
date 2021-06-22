@@ -336,6 +336,23 @@ load helpers
   run_buildah rmi alpine
 }
 
+@test "pull --platform" {
+  mkdir ${TESTDIR}/buildahtest
+  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --platform linux/bogus alpine
+  expect_output --substring "no image found in manifest list"
+
+  # Make sure missing image works
+  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --platform linux/arm64 alpine
+
+  run_buildah inspect --format "{{ .Docker.Architecture }}" alpine
+  expect_output arm64
+
+  run_buildah inspect --format "{{ .OCIv1.Architecture }}" alpine
+  expect_output arm64
+
+  run_buildah rmi alpine
+}
+
 @test "pull image with TMPDIR set" {
   testdir=${TESTDIR}/buildah-test
   mkdir -p $testdir

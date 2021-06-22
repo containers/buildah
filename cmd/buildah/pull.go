@@ -11,6 +11,7 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -67,6 +68,7 @@ func init() {
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pulling images")
 	flags.String("os", runtime.GOOS, "prefer `OS` instead of the running OS for choosing images")
 	flags.String("arch", runtime.GOARCH, "prefer `ARCH` instead of the architecture of the machine for choosing images")
+	flags.StringSlice("platform", []string{parse.DefaultPlatform()}, "prefer OS/ARCH instead of the current operating system and architecture for choosing images")
 	flags.String("variant", "", "override the `variant` of the specified image")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	if err := flags.MarkHidden("blob-cache"); err != nil {
@@ -93,6 +95,13 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
+	}
+	platforms, err := parse.PlatformsFromOptions(c)
+	if err != nil {
+		return err
+	}
+	if len(platforms) > 1 {
+		logrus.Warnf("ignoring platforms other than %+v: %+v", platforms[0], platforms[1:])
 	}
 
 	store, err := getStore(c)

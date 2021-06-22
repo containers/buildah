@@ -26,7 +26,7 @@ All tagged images in the repository will be pulled.
 
 **--arch**="ARCH"
 
-Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host. (Examples: aarch64, arm, i686, ppc64le, s390x, x86_64)
+Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host. (Examples: arm, arm64, 386, amd64, ppc64le, s390x)
 
 **--authfile** *path*
 
@@ -60,9 +60,19 @@ If an image needs to be pulled from the registry, suppress progress output.
 
 Set the OS of the image to be pulled instead of using the current operating system of the host.
 
-**--os**="OS"
+**--platform**="OS/ARCH[/VARIANT]"
 
-Set the OS of the image to be pulled to the provided value instead of using the current operating system of the host.
+Set the OS/ARCH of the image to be pulled
+to the provided value instead of using the current operating system and
+architecture of the host (for example `linux/arm`).  If `--platform`
+is set, then the values of the `--arch`, `--os`, and `--variant` options will
+be overridden.
+
+OS/ARCH pairs are those used by the Go Programming Language.  In several cases
+the ARCH value for a platform differs from one produced by other tools such as
+the `arch` command.  Valid OS and architecture name combinations are listed as
+values for $GOOS and $GOARCH at https://golang.org/doc/install/source#environment,
+and can also be found by running `go tool dist list`.
 
 **--policy**=**always**|**missing**|**never**
 

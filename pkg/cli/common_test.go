@@ -22,7 +22,7 @@ func testFlagCompletion(t *testing.T, flags pflag.FlagSet, flagCompletions compl
 	// make sure no unnecessary flag completion functions are defined
 	for name := range flagCompletions {
 		if flag := flags.Lookup(name); flag == nil {
-			t.Errorf("Flag %q does not exists but has a shell completion function set.", name)
+			t.Errorf("Flag %q does not exist but has a shell completion function set.", name)
 		}
 	}
 }

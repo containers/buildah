@@ -3300,3 +3300,31 @@ _EOF
   run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json  -t secretreq -f ${TESTSDIR}/bud/run-mounts/Dockerfile.secret-required ${TESTSDIR}/bud/run-mounts
   expect_output --substring "secret required but no secret with id mysecret found"
 }
+
+@test "bud-multiple-platform-values" {
+  outputlist=testlist
+  # check if we can run a couple of 32-bit versions of an image, and if we can,
+  # assume that emulation for other architectures is in place.
+  os=`go env GOOS`
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name try-386 --platform=$os/386 alpine
+  run buildah run try-386 true
+  if test $status -ne 0 ; then
+    skip "unable to run 386 container, assuming emulation is not available"
+  fi
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name try-arm --platform=$os/arm alpine
+  run buildah run try-arm true
+  if test $status -ne 0 ; then
+    skip "unable to run arm container, assuming emulation is not available"
+  fi
+  # build for those architectures - RUN gets exercised
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --jobs=0 --platform=$os/arm,$os/386 --manifest $outputlist ${TESTSDIR}/bud/multiarch
+  run_buildah manifest inspect $outputlist
+  list="$output"
+  run jq -r '.manifests[0].digest' <<< "$list"
+  d1="$output"
+  run jq -r '.manifests[1].digest' <<< "$list"
+  d2="$output"
+  test -n "$d1"
+  test -n "$d2"
+  test "$d1" != "$d2"
+}

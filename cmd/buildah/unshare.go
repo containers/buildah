@@ -33,7 +33,7 @@ func init() {
 	unshareCommand.SetUsageTemplate(UsageTemplate())
 	flags := unshareCommand.Flags()
 	flags.SetInterspersed(false)
-	flags.StringSliceVar(&unshareMounts, "mount", []string{}, "mount the specified containers (default [])")
+	flags.StringSliceVarP(&unshareMounts, "mount", "m", []string{}, "mount the specified containers (default [])")
 	rootCmd.AddCommand(unshareCommand)
 }
 

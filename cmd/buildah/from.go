@@ -195,6 +195,13 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if err != nil {
 		return errors.Wrapf(err, "error building system context")
 	}
+	platforms, err := parse.PlatformsFromOptions(c)
+	if err != nil {
+		return err
+	}
+	if len(platforms) > 1 {
+		logrus.Warnf("ignoring platforms other than %+v: %+v", platforms[0], platforms[1:])
+	}
 
 	pullFlagsCount := 0
 	if c.Flag("pull").Changed {

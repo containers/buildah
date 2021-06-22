@@ -207,7 +207,6 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringVar(&flags.Manifest, "manifest", "", "add the image to the specified manifest list. Creates manifest if it does not exist")
 	fs.BoolVar(&flags.NoCache, "no-cache", false, "Do not use existing cached images for the container build. Build from the start with a new set of cached layers.")
 	fs.String("os", runtime.GOOS, "set the OS to the provided value instead of the current operating system of the host")
-	fs.String("platform", parse.DefaultPlatform(), "set the OS/ARCH to the provided value instead of the current operating system and architecture of the host (for example `linux/arm`)")
 	fs.BoolVar(&flags.Pull, "pull", true, "pull the image from the registry if newer or not present in store, if false, only pull the image if not present")
 	fs.BoolVar(&flags.PullAlways, "pull-always", false, "pull the image even if the named image is present in store")
 	fs.BoolVar(&flags.PullNever, "pull-never", false, "do not pull the image, use the image present in store if available")
@@ -251,7 +250,6 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["logfile"] = commonComp.AutocompleteDefault
 	flagCompletion["manifest"] = commonComp.AutocompleteDefault
 	flagCompletion["os"] = commonComp.AutocompleteNone
-	flagCompletion["platform"] = commonComp.AutocompleteNone
 	flagCompletion["runtime-flag"] = commonComp.AutocompleteNone
 	flagCompletion["secret"] = commonComp.AutocompleteNone
 	flagCompletion["sign-by"] = commonComp.AutocompleteNone
@@ -295,6 +293,7 @@ func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, 
 	fs.StringVar(&flags.MemorySwap, "memory-swap", "", "swap limit equal to memory plus swap: '-1' to enable unlimited swap")
 	fs.String("arch", runtime.GOARCH, "set the ARCH of the image to the provided value instead of the architecture of the host")
 	fs.String("os", runtime.GOOS, "prefer `OS` instead of the running OS when pulling images")
+	fs.StringSlice("platform", []string{parse.DefaultPlatform()}, "set the OS/ARCH/VARIANT of the image to the provided value instead of the current operating system and architecture of the host (for example `linux/arm`)")
 	fs.String("variant", "", "override the `variant` of the specified image")
 	fs.StringArrayVar(&flags.SecurityOpt, "security-opt", []string{}, "security options (default [])")
 	fs.StringVar(&flags.ShmSize, "shm-size", defaultContainerConfig.Containers.ShmSize, "size of '/dev/shm'. The format is `<number><unit>`.")
@@ -333,6 +332,7 @@ func GetFromAndBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["memory"] = commonComp.AutocompleteNone
 	flagCompletion["memory-swap"] = commonComp.AutocompleteNone
 	flagCompletion["os"] = commonComp.AutocompleteNone
+	flagCompletion["platform"] = commonComp.AutocompleteNone
 	flagCompletion["security-opt"] = commonComp.AutocompleteNone
 	flagCompletion["shm-size"] = commonComp.AutocompleteNone
 	flagCompletion["ulimit"] = commonComp.AutocompleteNone

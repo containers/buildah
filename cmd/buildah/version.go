@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/containerd/containerd/platforms"
 	cniversion "github.com/containernetworking/cni/pkg/version"
 	"github.com/containers/buildah/define"
 	iversion "github.com/containers/image/v5/version"
@@ -33,6 +34,7 @@ type versionInfo struct {
 	GitCommit     string `json:"gitCommit"`
 	Built         string `json:"built"`
 	OsArch        string `json:"osArch"`
+	BuildPlatform string `json:"buildPlatform"`
 }
 
 type versionOptions struct {
@@ -83,6 +85,7 @@ func versionCmd(opts versionOptions) error {
 		GitCommit:     GitCommit,
 		Built:         time.Unix(buildTime, 0).Format(time.ANSIC),
 		OsArch:        runtime.GOOS + "/" + runtime.GOARCH,
+		BuildPlatform: platforms.DefaultString(),
 	}
 
 	if opts.json {
@@ -106,6 +109,7 @@ func versionCmd(opts versionOptions) error {
 	//Prints out the build time in readable format
 	fmt.Println("Built:          ", version.Built)
 	fmt.Println("OS/Arch:        ", version.OsArch)
+	fmt.Println("BuildPlatform:  ", version.BuildPlatform)
 
 	return nil
 }
