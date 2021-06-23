@@ -15,30 +15,7 @@ Image stored in local container/storage
 
 ## DESTINATION
 
- The DESTINATION is a location to store container images. If omitted, the source image parameter will be reused as destination.
-
- The Image "DESTINATION" uses a "transport":"details" format. Multiple transports are supported:
-
-  **dir:**_path_
-  An existing local directory _path_ storing the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
-
-  **docker://**_docker-reference_
-  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in `$XDG\_RUNTIME\_DIR/containers/auth.json`, which is set using `(buildah login)`. If the authorization state is not found there, `$HOME/.docker/config.json` is checked, which is set using `(docker login)`.
-  If _docker-reference_ does not include a registry name, the image will be pushed to a registry running on *localhost*.
-
-  **docker-archive:**_path_[**:**_docker-reference_]
-  An image is stored in the `docker save` formatted file.  _docker-reference_ is only used when creating such a file, and it must not contain a digest.
-
-  **docker-daemon:**_docker-reference_
-  An image _docker_reference_ stored in the docker daemon internal storage. If _docker_reference_ does not begin with a valid registry name (a domain name containing "." or the reserved name "localhost") then the default registry name "docker.io" will be prepended. _docker_reference_ must contain either a tag or a digest. Alternatively, when reading images, the format can also be docker-daemon:algo:digest (an image ID).
-
-  **oci:**_path_**:**_tag_
-  An image _tag_ in a directory compliant with "Open Container Image Layout Specification" at _path_.
-
-  **oci-archive:**_path_**:**_tag_
-  An image _tag_ in a tar archive compliant with "Open Container Image Layout Specification" at _path_.
-
-If the transport part of DESTINATION is omitted, "docker://" is assumed.
+ DESTINATION is the location the container image is pushed to. It supports all transports from `containers-transports(5)` (see examples below). If no transport is specified, the `docker` (i.e., container registry) transport is used.
 
 ## OPTIONS
 
