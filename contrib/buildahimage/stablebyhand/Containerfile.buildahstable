@@ -25,7 +25,7 @@ FROM registry.fedoraproject.org/fedora:latest
 COPY /tmp/buildah-1.14.3-1.fc31.x86_64.rpm /tmp
 RUN useradd build; yum -y update; yum -y reinstall shadow-utils; yum -y install /tmp/buildah-1.14.3-1.fc31.x86_64.rpm fuse-overlayfs xz --exclude container-selinux; rm -rf /var/cache /var/log/dnf* /var/log/yum.* /tmp/buildah*.rpm
 
-ADD https://raw.githubusercontent.com/containers/buildah/master/contrib/buildahimage/stable/containers.conf /etc/containers/
+ADD https://raw.githubusercontent.com/containers/buildah/main/contrib/buildahimage/stable/containers.conf /etc/containers/
 
 # Adjust storage.conf to enable Fuse storage.
 RUN chmod 644 /etc/containers/containers.conf; sed -i -e 's|^#mount_program|mount_program|g' -e '/additionalimage.*/a "/var/lib/shared",' -e 's|^mountopt[[:space:]]*=.*$|mountopt = "nodev,fsync=0"|g' /etc/containers/storage.conf

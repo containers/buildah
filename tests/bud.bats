@@ -1016,14 +1016,14 @@ function _test_http() {
 
 @test "bud with Dockerfile from valid URL" {
   target=url-image
-  url=https://raw.githubusercontent.com/containers/buildah/master/tests/bud/from-scratch/Dockerfile
+  url=https://raw.githubusercontent.com/containers/buildah/main/tests/bud/from-scratch/Dockerfile
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${url}
   run_buildah from ${target}
 }
 
 @test "bud with Dockerfile from invalid URL" {
   target=url-image
-  url=https://raw.githubusercontent.com/containers/buildah/master/tests/bud/from-scratch/Dockerfile.bogus
+  url=https://raw.githubusercontent.com/containers/buildah/main/tests/bud/from-scratch/Dockerfile.bogus
   run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${url}
 }
 

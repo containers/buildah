@@ -1,4 +1,4 @@
-![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
+![buildah logo](https://cdn.rawgit.com/containers/buildah/main/logos/buildah-logo_large.png)
 
 # Installation Instructions
 
@@ -193,7 +193,7 @@ The CNI library needs to be configured so that it will know which plugins to
 call to set up namespaces.  Usually, this configuration takes the form of one
 or more configuration files in the `/etc/cni/net.d` directory.  A set of example
 configuration files is included in the
-[`docs/cni-examples`](https://github.com/containers/buildah/tree/master/docs/cni-examples)
+[`docs/cni-examples`](https://github.com/containers/buildah/tree/main/docs/cni-examples)
 directory of this source tree.
 
 ## Package Installation
@@ -355,7 +355,7 @@ This project is using [go modules](https://github.com/golang/go/wiki/Modules) fo
 The following configuration files are required in order for Buildah to run appropriately.  The
 majority of these files are commonly contained in the `containers-common` package.
 
-### [registries.conf](https://github.com/containers/buildah/blob/master/docs/samples/registries.conf)
+### [registries.conf](https://github.com/containers/buildah/blob/main/docs/samples/registries.conf)
 
 #### Man Page: [registries.conf.5](https://github.com/containers/image/blob/main/docs/containers-registries.conf.5.md)
 
@@ -394,7 +394,7 @@ registries = []
 registries = []
 ```
 
-### [mounts.conf](https://src.fedoraproject.org/rpms/skopeo/blob/master/f/mounts.conf)
+### [mounts.conf](https://src.fedoraproject.org/rpms/skopeo/blob/main/f/mounts.conf)
 
 `/usr/share/containers/mounts.conf` and optionally `/etc/containers/mounts.conf`
 
@@ -413,7 +413,7 @@ cat /usr/share/containers/mounts.conf
 /usr/share/rhel/secrets:/run/secrets
 ```
 
-### [seccomp.json](https://src.fedoraproject.org/rpms/skopeo/blob/master/f/seccomp.json)
+### [seccomp.json](https://src.fedoraproject.org/rpms/skopeo/blob/main/f/seccomp.json)
 
 `/usr/share/containers/seccomp.json`
 
@@ -422,7 +422,7 @@ containers.  This file is usually provided by the containers-common package.
 
 The link above takes you to the seccomp.json
 
-### [policy.json](https://github.com/containers/skopeo/blob/master/default-policy.json)
+### [policy.json](https://github.com/containers/skopeo/blob/main/default-policy.json)
 
 `/etc/containers/policy.json`
 

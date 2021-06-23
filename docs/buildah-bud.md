@@ -125,7 +125,7 @@ microseconds.
 
 On some systems, changing the CPU limits may not be allowed for non-root
 users. For more details, see
-https://github.com/containers/podman/blob/master/troubleshooting.md#26-running-containers-with-cpu-limits-fails-with-a-permissions-error
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-cpu-limits-fails-with-a-permissions-error
 
 **--cpu-quota**=*0*
 
@@ -137,7 +137,7 @@ to the quota you specify.
 
 On some systems, changing the CPU limits may not be allowed for non-root
 users. For more details, see
-https://github.com/containers/podman/blob/master/troubleshooting.md#26-running-containers-with-cpu-limits-fails-with-a-permissions-error
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-cpu-limits-fails-with-a-permissions-error
 
 **--cpu-shares**, **-c**=*0*
 

@@ -2,7 +2,7 @@
 Thanks for sending a pull request!
 
 Please make sure you've read and understood our contributing guidelines
-(https://github.com/containers/buildah/blob/master/CONTRIBUTING.md) as well as ensuring
+(https://github.com/containers/buildah/blob/main/CONTRIBUTING.md) as well as ensuring
 that all your commits are signed with `git commit -s`.
 -->
 

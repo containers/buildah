@@ -12,7 +12,7 @@ In this tutorial I'll show you how to create a simple CLI tool that creates an i
 
 ## Bootstrap the project and install the dependencies
 
-Bootstrap the installation of development dependencies of Buildah by following the [Building from scratch](https://github.com/slinkydeveloper/buildah/blob/master/install.md#building-from-scratch) instructions and in particular creating a directory for the Buildah project by completing the instructions in the [Installation from GitHub](https://github.com/containers/buildah/blob/master/install.md#installation-from-github) section of that page.
+Bootstrap the installation of development dependencies of Buildah by following the [Building from scratch](https://github.com/slinkydeveloper/buildah/blob/main/install.md#building-from-scratch) instructions and in particular creating a directory for the Buildah project by completing the instructions in the [Installation from GitHub](https://github.com/containers/buildah/blob/main/install.md#installation-from-github) section of that page.
 
 Now let's bootstrap our project. Assuming you are in the directory of the project, run the following to initialize the go modules:
 
@@ -44,7 +44,7 @@ go get github.com/containers/buildah
 
 Now you can develop your application. To access to the build features of Buildah, you need to instantiate `buildah.Builder`. This struct has methods to configure the build, define the build steps and run it.
 
-To instantiate a `Builder`, you need a `storage.Store` (the Store interface found in [store.go](https://github.com/containers/storage/blob/master/store.go)) from [`github.com/containers/storage`](https://github.com/containers/storage), where the intermediate and result images will be stored:
+To instantiate a `Builder`, you need a `storage.Store` (the Store interface found in [store.go](https://github.com/containers/storage/blob/main/store.go)) from [`github.com/containers/storage`](https://github.com/containers/storage), where the intermediate and result images will be stored:
 
 ```go
 buildStoreOptions, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
