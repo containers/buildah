@@ -1,11 +1,11 @@
-![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
+![buildah logo](https://cdn.rawgit.com/containers/buildah/main/logos/buildah-logo_large.png)
 
 # Buildah Tutorial 2
 ## Using Buildah with container registries
 
 The purpose of this tutorial is to demonstrate how Buildah can be used to move OCI compliant images in and out of private or public registries.
 
-In the [first tutorial](https://github.com/containers/buildah/blob/master/docs/tutorials/01-intro.md) we built an image from scratch that we called `fedora-bashecho` and we pushed it to a local Docker repository using the `docker-daemon` protocol. We are going to use the same image to push to a private Docker registry.
+In the [first tutorial](https://github.com/containers/buildah/blob/main/docs/tutorials/01-intro.md) we built an image from scratch that we called `fedora-bashecho` and we pushed it to a local Docker repository using the `docker-daemon` protocol. We are going to use the same image to push to a private Docker registry.
 
 First we must pull down a registry. As a shortcut we will save the container name that is returned from the `buildah from` command, into a bash variable called `registry`. This is just like we did in Tutorial 1:
 

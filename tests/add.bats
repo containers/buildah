@@ -177,10 +177,10 @@ load helpers
   _prefetch busybox
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid=$output
-  run_buildah add $cid https://github.com/containers/buildah/raw/master/README.md
+  run_buildah add $cid https://github.com/containers/buildah/raw/main/README.md
   run_buildah run $cid ls /README.md
 
-  run_buildah add $cid https://github.com/containers/buildah/raw/master/README.md /home
+  run_buildah add $cid https://github.com/containers/buildah/raw/main/README.md /home
   run_buildah run $cid ls /home/README.md
 }
 
