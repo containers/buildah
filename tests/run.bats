@@ -227,6 +227,24 @@ function configure_and_check_user() {
 	expect_output --substring "unknown user" "run as unknown user"
 }
 
+@test "run --env" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah config --env foo=foo $cid
+	# Ensure foo=foo from `buildah config`
+	run_buildah run $cid -- /bin/sh -c 'echo $foo'
+	expect_output "foo"
+	# Ensure foo=bar from --env override
+	run_buildah run --env foo=bar $cid -- /bin/sh -c 'echo $foo'
+	expect_output "bar"
+	# Ensure that the --env override did not persist
+	run_buildah run $cid -- /bin/sh -c 'echo $foo'
+	expect_output "foo"
+}
+
 @test "run --hostname" {
 	skip_if_no_runtime
 
@@ -286,6 +304,21 @@ function configure_and_check_user() {
   # Test created file has correct UID and GID ownership.
   run_buildah run --user 888:888 --volume ${TESTDIR}/testdata:/mnt:z,U "$ctr" stat -c "%u:%g" /mnt/testfile1.txt
   expect_output "888:888"
+}
+
+@test "run --workingdir" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run $cid pwd
+	expect_output "/"
+	run_buildah run --workingdir /bin $cid pwd
+	expect_output "/bin"
+	# Ensure the /bin workingdir override did not persist
+	run_buildah run $cid pwd
+	expect_output "/"
 }
 
 @test "run --mount" {

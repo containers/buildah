@@ -17,6 +17,7 @@ type runInputOptions struct {
 	addHistory  bool
 	capAdd      []string
 	capDrop     []string
+	env         []string
 	hostname    string
 	isolation   string
 	mounts      []string
@@ -25,6 +26,7 @@ type runInputOptions struct {
 	noPivot     bool
 	terminal    bool
 	volumes     []string
+	workingDir  string
 	*buildahcli.NameSpaceResults
 }
 
@@ -56,6 +58,7 @@ func init() {
 	flags.BoolVar(&opts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
 	flags.StringSliceVar(&opts.capAdd, "cap-add", []string{}, "add the specified capability (default [])")
 	flags.StringSliceVar(&opts.capDrop, "cap-drop", []string{}, "drop the specified capability (default [])")
+	flags.StringArrayVarP(&opts.env, "env", "e", []string{}, "add environment variable to be set temporarily when running command (default [])")
 	flags.StringVar(&opts.hostname, "hostname", "", "set the hostname inside of the container")
 	flags.StringVar(&opts.isolation, "isolation", "", "`type` of process isolation to use. Use BUILDAH_ISOLATION environment variable to override.")
 	// Do not set a default runtime here, we'll do that later in the processing.
@@ -65,6 +68,7 @@ func init() {
 	flags.BoolVarP(&opts.terminal, "terminal", "t", false, "allocate a pseudo-TTY in the container")
 	flags.StringArrayVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
 	flags.StringArrayVar(&opts.mounts, "mount", []string{}, "Attach a filesystem mount to the container (default [])")
+	flags.StringVar(&opts.workingDir, "workingdir", "", "temporarily set working directory for command (default to container's workingdir)")
 
 	userFlags := getUserFlags()
 	namespaceFlags := buildahcli.GetNameSpaceFlags(&namespaceResults)
@@ -130,6 +134,8 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		CNIConfigDir:     iopts.CNIConfigDir,
 		AddCapabilities:  iopts.capAdd,
 		DropCapabilities: iopts.capDrop,
+		Env:              iopts.env,
+		WorkingDir:       iopts.workingDir,
 	}
 
 	if c.Flag("terminal").Changed {
