@@ -35,6 +35,7 @@ func applyLayer() {
 	runtime.LockOSThread()
 	flag.Parse()
 
+	inUserns := userns.RunningInUserNS()
 	if err := chroot(flag.Arg(0)); err != nil {
 		fatal(err)
 	}
@@ -50,7 +51,9 @@ func applyLayer() {
 		fatal(err)
 	}
 
-	options.InUserNS = userns.RunningInUserNS()
+	if inUserns {
+		options.InUserNS = true
+	}
 
 	if tmpDir, err = ioutil.TempDir("/", "temp-storage-extract"); err != nil {
 		fatal(err)
@@ -91,7 +94,9 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
-		options.InUserNS = userns.RunningInUserNS()
+		if userns.RunningInUserNS() {
+			options.InUserNS = true
+		}
 	}
 	if options.ExcludePatterns == nil {
 		options.ExcludePatterns = []string{}
