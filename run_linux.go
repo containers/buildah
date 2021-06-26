@@ -1182,16 +1182,21 @@ func runConfigureNetwork(isolation define.Isolation, options RunOptions, configu
 	return teardown, nil
 }
 
-func setNonblock(logger *logrus.Logger, fd int, description string, nonblocking bool) error { //nolint:interfacer
-	err := unix.SetNonblock(fd, nonblocking)
+func setNonblock(logger *logrus.Logger, fd int, description string, nonblocking bool) (bool, error) { //nolint:interfacer
+	mask, err := unix.FcntlInt(uintptr(fd), unix.F_GETFL, 0)
 	if err != nil {
+		return false, err
+	}
+	blocked := mask&unix.O_NONBLOCK == 0
+
+	if err := unix.SetNonblock(fd, nonblocking); err != nil {
 		if nonblocking {
 			logger.Errorf("error setting %s to nonblocking: %v", description, err)
 		} else {
 			logger.Errorf("error setting descriptor %s blocking: %v", description, err)
 		}
 	}
-	return err
+	return blocked, err
 }
 
 func runCopyStdio(logger *logrus.Logger, stdio *sync.WaitGroup, copyPipes bool, stdioPipe [][]int, copyConsole bool, consoleListener *net.UnixListener, finishCopy []int, finishedCopy chan struct{}, spec *specs.Spec) {
@@ -1261,8 +1266,12 @@ func runCopyStdio(logger *logrus.Logger, stdio *sync.WaitGroup, copyPipes bool, 
 	}
 	// Set our reading descriptors to non-blocking.
 	for rfd, wfd := range relayMap {
-		if err := setNonblock(logger, rfd, readDesc[rfd], true); err != nil {
+		blocked, err := setNonblock(logger, rfd, readDesc[rfd], true)
+		if err != nil {
 			return
+		}
+		if blocked {
+			defer setNonblock(logger, rfd, readDesc[rfd], false) // nolint:errcheck
 		}
 		setNonblock(logger, wfd, writeDesc[wfd], false) // nolint:errcheck
 	}
