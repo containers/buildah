@@ -54,6 +54,11 @@ type Runtime struct {
 }
 
 // Returns a copy of the runtime's system context.
+func (r *Runtime) SystemContext() *types.SystemContext {
+	return r.systemContextCopy()
+}
+
+// Returns a copy of the runtime's system context.
 func (r *Runtime) systemContextCopy() *types.SystemContext {
 	var sys types.SystemContext
 	deepcopy.Copy(&sys, &r.systemContext)
@@ -144,9 +149,8 @@ func (r *Runtime) Exists(name string) (bool, error) {
 	if image == nil {
 		return false, nil
 	}
-	// Inspect the image to make sure if it's corrupted or not.
-	if _, err := image.Inspect(context.Background(), false); err != nil {
-		logrus.Errorf("Image %s exists in local storage but may be corrupted: %v", name, err)
+	if err := image.isCorrupted(name); err != nil {
+		logrus.Error(err)
 		return false, nil
 	}
 	return true, nil

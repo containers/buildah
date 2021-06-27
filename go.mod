@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/containernetworking/cni v0.8.1
-	github.com/containers/common v0.40.1
+	github.com/containers/common v0.40.2-0.20210625071643-594139994adb
 	github.com/containers/image/v5 v5.13.2
 	github.com/containers/ocicrypt v1.1.1
 	github.com/containers/storage v1.32.5
