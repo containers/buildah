@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/containernetworking/cni v0.8.1
-	github.com/containers/common v0.38.4
+	github.com/containers/common v0.38.11
 	github.com/containers/image/v5 v5.12.0
 	github.com/containers/ocicrypt v1.1.1
 	github.com/containers/storage v1.31.1
@@ -41,3 +41,5 @@ require (
 )
 
 replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
+
+replace github.com/containers/common => github.com/vrothberg/common v0.0.3-0.20210627115020-fdd82b5b2d21
