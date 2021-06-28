@@ -116,7 +116,7 @@ type Executor struct {
 	stagesSemaphore                *semaphore.Weighted
 	jobs                           int
 	logRusage                      bool
-	rusageLogFile                  *os.File
+	rusageLogFile                  io.Writer
 	imageInfoLock                  sync.Mutex
 	imageInfoCache                 map[string]imageTypeAndHistoryAndDiffIDs
 	fromOverride                   string
@@ -184,10 +184,11 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 		writer = ioutil.Discard
 	}
 
-	var rusageLogFile *os.File
+	var rusageLogFile io.Writer
+
 	if options.LogRusage && !options.Quiet {
 		if options.RusageLogFile == "" {
-			rusageLogFile = os.Stdout
+			rusageLogFile = options.Out
 		} else {
 			rusageLogFile, err = os.OpenFile(options.RusageLogFile, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
@@ -545,10 +546,12 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 		cleanupImages = nil
 
-		if b.rusageLogFile != nil && b.rusageLogFile != os.Stdout {
+		if b.rusageLogFile != nil && b.rusageLogFile != b.out {
 			// we deliberately ignore the error here, as this
 			// function can be called multiple times
-			b.rusageLogFile.Close()
+			if closer, ok := b.rusageLogFile.(interface{ Close() error }); ok {
+				closer.Close()
+			}
 		}
 		return lastErr
 	}
