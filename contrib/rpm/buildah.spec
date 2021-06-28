@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.21.1
+Version:        1.21.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Jun 28, 2021 Tom Sweeney <tsweeney@redhat.com> 1.21.2-1
+  * vendor common@v0.38.12 and storage@v1.31.3
+
 * Thu Jun 3, 2021 Daniel J Walsh <dwalsh@redhat.com> 1.21.1-1
 - Fix handling of auth.json file while in a user namespace
 
