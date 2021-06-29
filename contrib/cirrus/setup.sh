@@ -33,6 +33,10 @@ EOF
         fi
         ;;
     ubuntu)
+        if [[ "$1" == "conformance" ]]; then
+            msg "Installing previously downloaded/cached packages"
+            bigto dpkg -i $PACKAGE_DOWNLOAD_DIR/*.deb
+        fi
         ;;
     *)
         bad_os_id_ver
