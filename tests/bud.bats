@@ -2853,6 +2853,7 @@ _EOF
 
   local found_runtime=
 
+  local flag_accepted_rx="level=debug.*msg=.*/runc"
   if [ -n "$(command -v runc)" ]; then
     found_runtime=y
     if is_cgroupsv2; then
@@ -2860,7 +2861,7 @@ _EOF
       run_buildah ? bud --runtime=runc --runtime-flag=debug \
                         -q -t alpine-bud-runc --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
       if [ "$status" -eq 0 ]; then
-        expect_output --substring "nsexec started"
+        expect_output --substring "$flag_accepted_rx"
       else
         # If it fails, this is because this version of runc doesn't support cgroup v2.
         expect_output --substring "this version of runc doesn't work on cgroups v2" "should fail by unsupportability for cgroupv2"
@@ -2868,7 +2869,7 @@ _EOF
     else
       run_buildah bud --runtime=runc --runtime-flag=debug \
                       -q -t alpine-bud-runc --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-      expect_output --substring "nsexec started"
+      expect_output --substring "$flag_accepted_rx"
     fi
 
   fi
