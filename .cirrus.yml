@@ -358,9 +358,12 @@ success_task:
       - static_build
 
     container:
-        image: "quay.io/libpod/fedora-minimal:latest"
+        image: "quay.io/libpod/alpine:latest"
         cpu: 1
         memory: 1
+
+    env:
+        CIRRUS_SHELL: direct  # execute command directly
 
     clone_script: mkdir -p $CIRRUS_WORKING_DIR
     script: /bin/true
