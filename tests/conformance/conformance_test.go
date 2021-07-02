@@ -1933,7 +1933,7 @@ var internalTestCases = []testCase{
 		name:         "copy-integration1",
 		contextDir:   "dockerignore/integration1",
 		shouldFailAt: 3,
-		failureRegex: "no such file or directory",
+		failureRegex: "(no such file or directory)|(file not found)|(file does not exist)",
 	},
 
 	{
@@ -1945,9 +1945,8 @@ var internalTestCases = []testCase{
 		name:         "copy-integration3",
 		contextDir:   "dockerignore/integration3",
 		shouldFailAt: 4,
-		failureRegex: "no such file or directory",
+		failureRegex: "(no such file or directory)|(file not found)|(file does not exist)",
 	},
-
 	{
 		name: "multi-stage-through-base",
 		dockerfileContents: strings.Join([]string{
@@ -2654,14 +2653,14 @@ var internalTestCases = []testCase{
 		name:         "dockerignore-allowlist-subdir-nofile-dir",
 		contextDir:   "dockerignore/allowlist/subdir-nofile",
 		shouldFailAt: 2,
-		failureRegex: "no such file or directory",
+		failureRegex: "(no such file or directory)|(file not found)|(file does not exist)",
 	},
 
 	{
 		name:         "dockerignore-allowlist-subdir-nofile-file",
 		contextDir:   "dockerignore/allowlist/subdir-nofile",
 		shouldFailAt: 2,
-		failureRegex: "no such file or directory",
+		failureRegex: "(no such file or directory)|(file not found)|(file does not exist)",
 	},
 
 	{
@@ -2730,14 +2729,14 @@ var internalTestCases = []testCase{
 		name:         "dockerignore-allowlist-alternating-nothing",
 		contextDir:   "dockerignore/allowlist/alternating-nothing",
 		shouldFailAt: 7,
-		failureRegex: "no such file or directory",
+		failureRegex: "(no such file or directory)|(file not found)|(file does not exist)",
 	},
 
 	{
 		name:         "dockerignore-allowlist-alternating-other",
 		contextDir:   "dockerignore/allowlist/alternating-other",
 		shouldFailAt: 7,
-		failureRegex: "no such file or directory",
+		failureRegex: "(no such file or directory)|(file not found)|(file does not exist)",
 	},
 
 	{
