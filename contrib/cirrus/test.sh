@@ -51,6 +51,11 @@ else
             showrun make test-conformance
             ;;
         integration)
+            # FIXME: drop the `rm` below once containers.conf has been fixed.
+            # It complains about failing to "to decode the keys ["secret"
+            # "secret.opts"]" which is in process of getting fixed but will
+            # take a while until it hits all distributions.
+            showrun rm /usr/share/containers/containers.conf
             showrun make test-integration
             ;;
         *)
