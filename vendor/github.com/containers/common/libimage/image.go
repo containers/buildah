@@ -61,6 +61,24 @@ func (i *Image) reload() error {
 	return nil
 }
 
+// isCorrupted returns an error if the image may be corrupted.
+func (i *Image) isCorrupted(name string) error {
+	// If it's a manifest list, we're good for now.
+	if _, err := i.getManifestList(); err == nil {
+		return nil
+	}
+
+	ref, err := i.StorageReference()
+	if err != nil {
+		return err
+	}
+
+	if _, err := ref.NewImage(context.Background(), nil); err != nil {
+		return errors.Errorf("Image %s exists in local storage but may be corrupted: %v", name, err)
+	}
+	return nil
+}
+
 // Names returns associated names with the image which may be a mix of tags and
 // digests.
 func (i *Image) Names() []string {
@@ -280,7 +298,7 @@ func (i *Image) remove(ctx context.Context, rmMap map[string]*RemoveImageReport,
 	}
 
 	if i.runtime.eventChannel != nil {
-		i.runtime.writeEvent(&Event{ID: i.ID(), Name: referencedBy, Time: time.Now(), Type: EventTypeImageRemove})
+		defer i.runtime.writeEvent(&Event{ID: i.ID(), Name: referencedBy, Time: time.Now(), Type: EventTypeImageRemove})
 	}
 
 	// Check if already visisted this image.
@@ -432,7 +450,7 @@ func (i *Image) Tag(name string) error {
 
 	logrus.Debugf("Tagging image %s with %q", i.ID(), ref.String())
 	if i.runtime.eventChannel != nil {
-		i.runtime.writeEvent(&Event{ID: i.ID(), Name: name, Time: time.Now(), Type: EventTypeImageTag})
+		defer i.runtime.writeEvent(&Event{ID: i.ID(), Name: name, Time: time.Now(), Type: EventTypeImageTag})
 	}
 
 	newNames := append(i.Names(), ref.String())
@@ -466,7 +484,7 @@ func (i *Image) Untag(name string) error {
 
 	logrus.Debugf("Untagging %q from image %s", ref.String(), i.ID())
 	if i.runtime.eventChannel != nil {
-		i.runtime.writeEvent(&Event{ID: i.ID(), Name: name, Time: time.Now(), Type: EventTypeImageUntag})
+		defer i.runtime.writeEvent(&Event{ID: i.ID(), Name: name, Time: time.Now(), Type: EventTypeImageUntag})
 	}
 
 	removedName := false
@@ -608,7 +626,7 @@ func (i *Image) RepoDigests() ([]string, error) {
 // evaluated path to the mount point.
 func (i *Image) Mount(ctx context.Context, mountOptions []string, mountLabel string) (string, error) {
 	if i.runtime.eventChannel != nil {
-		i.runtime.writeEvent(&Event{ID: i.ID(), Name: "", Time: time.Now(), Type: EventTypeImageMount})
+		defer i.runtime.writeEvent(&Event{ID: i.ID(), Name: "", Time: time.Now(), Type: EventTypeImageMount})
 	}
 
 	mountPoint, err := i.runtime.store.MountImage(i.ID(), mountOptions, mountLabel)
@@ -653,7 +671,7 @@ func (i *Image) Mountpoint() (string, error) {
 // unmount.
 func (i *Image) Unmount(force bool) error {
 	if i.runtime.eventChannel != nil {
-		i.runtime.writeEvent(&Event{ID: i.ID(), Name: "", Time: time.Now(), Type: EventTypeImageUnmount})
+		defer i.runtime.writeEvent(&Event{ID: i.ID(), Name: "", Time: time.Now(), Type: EventTypeImageUnmount})
 	}
 	logrus.Debugf("Unmounted image %s", i.ID())
 	_, err := i.runtime.store.UnmountImage(i.ID(), force)
