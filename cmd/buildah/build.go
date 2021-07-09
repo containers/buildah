@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type budOptions struct {
+type buildOptions struct {
 	*buildahcli.LayerResults
 	*buildahcli.BudResults
 	*buildahcli.UserNSResults
@@ -28,61 +28,61 @@ type budOptions struct {
 }
 
 func init() {
-	budDescription := `
-  Builds an OCI image using instructions in one or more Dockerfiles.
+	buildDescription := `
+  Builds an OCI image using instructions in one or more Containerfiles.
 
   If no arguments are specified, Buildah will use the current working directory
-  as the build context and look for a Dockerfile. The build fails if no
-  Dockerfile is present.`
+  as the build context and look for a Containerfile or a Dockerfile. The build fails if no
+  Containerfile/Dockerfile is present.`
 
 	layerFlagsResults := buildahcli.LayerResults{}
-	budFlagResults := buildahcli.BudResults{}
+	buildFlagResults := buildahcli.BudResults{}
 	fromAndBudResults := buildahcli.FromAndBudResults{}
 	userNSResults := buildahcli.UserNSResults{}
 	namespaceResults := buildahcli.NameSpaceResults{}
 
-	budCommand := &cobra.Command{
-		Use:     "bud",
-		Aliases: []string{"build-using-dockerfile"},
-		Short:   "Build an image using instructions in a Dockerfile",
-		Long:    budDescription,
+	buildCommand := &cobra.Command{
+		Use:     "build",
+		Aliases: []string{"build-using-dockerfile", "bud"},
+		Short:   "Build an image using instructions in a Containerfile",
+		Long:    buildDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			br := budOptions{
+			br := buildOptions{
 				&layerFlagsResults,
-				&budFlagResults,
+				&buildFlagResults,
 				&userNSResults,
 				&fromAndBudResults,
 				&namespaceResults,
 			}
-			return budCmd(cmd, args, br)
+			return buildCmd(cmd, args, br)
 		},
-		Example: `buildah bud
-  buildah bud -f Dockerfile.simple .
-  buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
-  buildah bud -f Dockerfile.simple -f Dockerfile.notsosimple .`,
+		Example: `buildah build
+  buildah build -f Containerfile.simple .
+  buildah build --volume /home/test:/myvol:ro,Z -t imageName .
+  buildah build -f Dockerfile.simple -f Containerfile.notsosimple .`,
 	}
-	budCommand.SetUsageTemplate(UsageTemplate())
+	buildCommand.SetUsageTemplate(UsageTemplate())
 
-	flags := budCommand.Flags()
+	flags := buildCommand.Flags()
 	flags.SetInterspersed(false)
 
-	// BUD is a all common flags
-	budFlags := buildahcli.GetBudFlags(&budFlagResults)
-	budFlags.StringVar(&budFlagResults.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
+	// build is a all common flags
+	buildFlags := buildahcli.GetBudFlags(&buildFlagResults)
+	buildFlags.StringVar(&buildFlagResults.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
 
 	layerFlags := buildahcli.GetLayerFlags(&layerFlagsResults)
 	fromAndBudFlags, err := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
 	if err != nil {
-		logrus.Errorf("failed to setup From and Bud flags: %v", err)
+		logrus.Errorf("failed to setup From and Build flags: %v", err)
 		os.Exit(1)
 	}
 
-	flags.AddFlagSet(&budFlags)
+	flags.AddFlagSet(&buildFlags)
 	flags.AddFlagSet(&layerFlags)
 	flags.AddFlagSet(&fromAndBudFlags)
 	flags.SetNormalizeFunc(buildahcli.AliasFlags)
 
-	rootCmd.AddCommand(budCommand)
+	rootCmd.AddCommand(buildCommand)
 }
 
 func getDockerfiles(files []string) []string {
@@ -97,7 +97,7 @@ func getDockerfiles(files []string) []string {
 	return dockerfiles
 }
 
-func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
+func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 	output := ""
 	tags := []string{}
 	if c.Flag("tag").Changed {

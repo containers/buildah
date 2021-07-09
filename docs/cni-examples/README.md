@@ -1,5 +1,5 @@
 When [buildah](https://github.com/containers/buildah)'s `buildah run`
-command is used, or when  `buildah build-using-dockerfile` needs to handle a
+command is used, or when  `buildah build` needs to handle a
 `RUN` instruction, the processes which `buildah` starts are run in their own
 network namespace unless the `--network=host` option is used.
 
