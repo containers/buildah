@@ -767,7 +767,9 @@ buildah bud -f Containerfile.in -t imageName .
 ### Building an multi-architecture image using a --manifest option (Requires emulation software)
 
 buildah bud --arch arm --manifest myimage /tmp/mysrc
+
 buildah bud --arch amd64 --manifest myimage /tmp/mysrc
+
 buildah bud --arch s390x --manifest myimage /tmp/mysrc
 
 ### Building an image using a URL
