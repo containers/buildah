@@ -1,0 +1,3 @@
+FROM busybox
+STOPSIGNAL STOP
+ADD . .

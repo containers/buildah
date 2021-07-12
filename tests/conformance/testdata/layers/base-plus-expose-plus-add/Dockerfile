@@ -1,0 +1,3 @@
+FROM busybox
+EXPOSE 8080
+ADD . .

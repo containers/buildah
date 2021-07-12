@@ -62,7 +62,8 @@ type containerImageRef struct {
 	preferredManifestType string
 	squash                bool
 	emptyLayer            bool
-	idMappingOptions      *define.IDMappingOptions
+	emptyLayerIfRedundant bool
+	idMappingOptions      *IDMappingOptions
 	parent                string
 	blobDirectory         string
 	preEmptyLayers        []v1.History
@@ -404,6 +405,18 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			return nil, errors.Wrapf(err, "error compressing %s", what)
 		}
 		writer := io.MultiWriter(writeCloser, srcHasher.Hash())
+		// Set up to check if the layer diff contains any changes.
+		skipCurrentLayer := i.emptyLayerIfRedundant && layerID == i.layerID
+		if skipCurrentLayer {
+			nestedWriteCloser := ioutils.NewWriteCloserWrapper(writer, writeCloser.Close)
+			writeCloser = newTarFilterer(nestedWriteCloser, func(hdr *tar.Header) (bool, bool, io.Reader) {
+				// the layer blob would be empty if there are no items, in which case
+				// we'll never be called
+				skipCurrentLayer = false
+				return false, false, nil
+			})
+			writer = io.Writer(writeCloser)
+		}
 		// Use specified timestamps in the layer, if we're doing that for
 		// history entries.
 		if i.created != nil {
@@ -456,6 +469,11 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		finalBlobName := filepath.Join(path, destHasher.Digest().String())
 		if err = os.Rename(filepath.Join(path, "layer"), finalBlobName); err != nil {
 			return nil, errors.Wrapf(err, "error storing %s to file while renaming %q to %q", what, filepath.Join(path, "layer"), finalBlobName)
+		}
+		// If we're skipping this layer if its empty, bail out of adding the layer.
+		if skipCurrentLayer {
+			i.emptyLayer = true
+			continue
 		}
 		// Add a note in the manifest about the layer.  The blobs are identified by their possibly-
 		// compressed blob digests.
@@ -791,6 +809,7 @@ func (b *Builder) makeImageRef(options CommitOptions) (types.ImageReference, err
 		preferredManifestType: manifestType,
 		squash:                options.Squash,
 		emptyLayer:            options.EmptyLayer && !options.Squash,
+		emptyLayerIfRedundant: options.EmptyLayerIfRedundant && !options.Squash,
 		idMappingOptions:      &b.IDMappingOptions,
 		parent:                parent,
 		blobDirectory:         options.BlobDirectory,

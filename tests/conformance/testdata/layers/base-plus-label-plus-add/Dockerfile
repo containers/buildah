@@ -1,0 +1,3 @@
+FROM busybox
+LABEL FOO=BAR
+ADD . .
