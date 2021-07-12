@@ -1183,6 +1183,7 @@ esac
    local commands=(
        add
        bud
+       build
        build-using-dockerfile
        commit
        config

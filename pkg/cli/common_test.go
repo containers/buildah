@@ -48,7 +48,7 @@ func TestBudFlagsCompletion(t *testing.T) {
 func TestFromAndBudFlagsCompletions(t *testing.T) {
 	flags, err := GetFromAndBudFlags(&FromAndBudResults{}, &UserNSResults{}, &NameSpaceResults{})
 	if err != nil {
-		t.Error("Could load the from and bud flags.")
+		t.Error("Could load the from and build flags.")
 	}
 	flagCompletions := GetFromAndBudFlagsCompletions()
 	testFlagCompletion(t, flags, flagCompletions)
