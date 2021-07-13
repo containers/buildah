@@ -158,6 +158,7 @@ Buildah can set up environment variables from the env entry in the [engine] tabl
 | buildah-rm(1)         | Removes one or more working containers.                                                              |
 | buildah-rmi(1)        | Removes one or more images.                                                                          |
 | buildah-run(1)        | Run a command inside of the container.                                                               |
+| buildah-source(1)     | Create, push, pull and manage source images and associated source artifacts.                         |
 | buildah-tag(1)        | Add an additional name to a local image.                                                             |
 | buildah-umount(1)     | Unmount a working container's root file system.                                                      |
 | buildah-unshare(1)    | Launch a command in a user namespace with modified ID mappings.                                      |
