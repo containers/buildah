@@ -1,6 +1,10 @@
 ![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
 
 # Changelog
+## v1.21.3 (2021-07-01)
+    chroot: fix environment value leakage to intermediate processes
+    (CVE-2021-3602).
+
 ## v1.21.2 (2021-06-28)
   * vendor common@v0.38.12 and storage@v1.31.3
 
