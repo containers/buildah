@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.16.7
+Version:        1.16.8
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,12 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Jun 21 2021 Nalin Dahyabhai <nalin@redhat.com> 1.16.8-1
+- Move away from using docker.io
+- Turn off PRIOR_UBUNTU Test until vm is updated
+- chroot: fix environment value leakage to intermediate processes
+  (CVE-2021-3602)
+
 * Mon Nov 30 2020 Nalin Dahyabhai <nalin@redhat.com> 1.16.7-1
 - Bump github.com/containers/common from v0.21.0 to v0.22.0.
 - Bump github.com/containers/image from v5.5.2 to v5.6.0.
