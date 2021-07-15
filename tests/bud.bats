@@ -1231,6 +1231,14 @@ function _test_http() {
   expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image|stage> flags"
 }
 
+@test "bud with chown copy with unknown substitutions in Dockerfile" {
+  _prefetch alpine
+  imgName=alpine-image
+  ctrName=alpine-chown
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json -t ${imgName} -f ${TESTSDIR}/bud/copy-chown/Dockerfile.bad2 ${TESTSDIR}/bud/copy-chown
+  expect_output --substring "error looking up UID/GID for \":\": can't find uid for user"
+}
+
 @test "bud with chmod copy" {
   _prefetch alpine
   imgName=alpine-image
