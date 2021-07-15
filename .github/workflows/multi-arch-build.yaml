@@ -1,6 +1,6 @@
 ---
 
-# Please see contrib/buildahimage/README.md for details on the intentions
+# Please see contrib/<reponame>image/README.md for details on the intentions
 # of this workflow.
 #
 # BIG FAT WARNING:  This workflow is duplicated across containers/skopeo,
@@ -11,7 +11,7 @@
 name: build multi-arch images
 
 on:
-  # Upstream buildah tends to be very active, with many merges per day.
+  # Upstream tends to be very active, with many merges per day.
   # Only run this daily via cron schedule, or manually, not by branch push.
   schedule:
     - cron:  '0 8 * * *'
@@ -20,19 +20,23 @@ on:
 
 jobs:
   multi:
-    name: multi-arch Buildah build
+    name: multi-arch image build
     env:
-      BUILDAH_QUAY_REGISTRY: quay.io/buildah
+      REPONAME: buildah  # No easy way to parse this out of $GITHUB_REPOSITORY
+      # Server/namespace value used to format FQIN
+      REPONAME_QUAY_REGISTRY: quay.io/buildah
       CONTAINERS_QUAY_REGISTRY: quay.io/containers
       # list of architectures for build
       PLATFORMS: linux/amd64,linux/s390x,linux/ppc64le,linux/arm64
+      # Command to execute in container to obtain project version number
+      VERSION_CMD: "buildah --version"
 
     # build several images (upstream, testing, stable) in parallel
     strategy:
       # By default, failure of one matrix item cancels all others
       fail-fast: false
       matrix:
-        # Builds are located under contrib/buildahimage/<source> directory
+        # Builds are located under contrib/<reponame>image/<source> directory
         source:
           - upstream
           - testing
@@ -57,14 +61,14 @@ jobs:
           driver-opts: network=host
           install: true
 
-      - name: Build and locally push Buildah
+      - name: Build and locally push image
         uses: docker/build-push-action@v2
         with:
-          context: contrib/buildahimage/${{ matrix.source }}
-          file: ./contrib/buildahimage/${{ matrix.source }}/Dockerfile
+          context: contrib/${{ env.REPONAME }}image/${{ matrix.source }}
+          file: ./contrib/${{ env.REPONAME }}image/${{ matrix.source }}/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true
-          tags: localhost:5000/buildah/${{ matrix.source }}
+          tags: localhost:5000/${{ env.REPONAME }}/${{ matrix.source }}
 
       # Simple verification that stable images work, and
       # also grab version number use in forming the FQIN.
@@ -72,39 +76,42 @@ jobs:
         if: matrix.source == 'stable'
         id: sniff_test
         run: |
-          VERSION_OUTPUT="$(docker run localhost:5000/buildah/${{ matrix.source }} \
-                            buildah --storage-driver=vfs version)"
+          podman pull --tls-verify=false \
+                            localhost:5000/$REPONAME/${{ matrix.source }}
+          VERSION_OUTPUT=$(podman run \
+                           localhost:5000/$REPONAME/${{ matrix.source }} \
+                           $VERSION_CMD)
           echo "$VERSION_OUTPUT"
-          VERSION=$(grep -Em1 '^Version: ' <<<"$VERSION_OUTPUT" | awk '{print $2}')
+          VERSION=$(awk -r -e "/^${REPONAME} version /"'{print $3}' <<<"$VERSION_OUTPUT")
           test -n "$VERSION"
-          echo "::set-output name=version::${VERSION}"
+          echo "::set-output name=version::$VERSION"
 
-      - name: Generate buildah reg. image FQIN(s)
-        id: buildah_reg
+      - name: Generate image FQIN(s) to push
+        id: gen_fqin
         run: |
           if [[ "${{ matrix.source }}" == 'stable' ]]; then
-            # The `buildah version` in image just built
+            # The command version in image just built
             VERSION='v${{ steps.sniff_test.outputs.version }}'
             # workaround vim syntax-highlight bug: '
             # Image tags previously pushed to quay
             ALLTAGS=$(skopeo list-tags \
-                      docker://$BUILDAH_QUAY_REGISTRY/stable | \
+                      docker://$REPONAME_QUAY_REGISTRY/stable | \
                       jq -r '.Tags[]')
 
-            # New version? Push quay.io/buildah/stable:vX.X.X and :latest
+            # New version? Push quay.io/$REPONAME/stable:vX.X.X and :latest
             if ! fgrep -qx "$VERSION" <<<"$ALLTAGS"; then
               # Assume version-tag is also the most up to date (i.e. "latest")
-              FQIN="$BUILDAH_QUAY_REGISTRY/stable:$VERSION,$BUILDAH_QUAY_REGISTRY/stable:latest"
+              FQIN="$REPONAME_QUAY_REGISTRY/stable:$VERSION,$REPONAME_QUAY_REGISTRY/stable:latest"
             else # Not a new version-tagged image
               # Assume other contents changed, so this is the "new" latest.
-              FQIN="$BUILDAH_QUAY_REGISTRY/stable:latest"
+              FQIN="$REPONAME_QUAY_REGISTRY/stable:latest"
             fi
           elif [[ "${{ matrix.source }}" == 'testing' ]]; then
             # Assume some contents changed, always push latest testing.
-            FQIN="$BUILDAH_QUAY_REGISTRY/testing:latest"
+            FQIN="$REPONAME_QUAY_REGISTRY/testing:latest"
           elif [[ "${{ matrix.source }}" == 'upstream' ]]; then
             # Assume some contents changed, always push latest upstream.
-            FQIN="$BUILDAH_QUAY_REGISTRY/upstream:latest"
+            FQIN="$REPONAME_QUAY_REGISTRY/upstream:latest"
           else
             echo "::error::Unknown matrix item '${{ matrix.source }}'"
             exit 1
@@ -123,14 +130,14 @@ jobs:
           VERSION='v${{ steps.sniff_test.outputs.version }}'
           # workaround vim syntax-highlight bug: '
           ALLTAGS=$(skopeo list-tags \
-                    docker://$CONTAINERS_QUAY_REGISTRY/buildah | \
+                    docker://$CONTAINERS_QUAY_REGISTRY/$REPONAME | \
                     jq -r '.Tags[]')
 
-          # New version? Push quay.io/containers/buildah:vX.X.X and latest
+          # New version? Push quay.io/containers/$REPONAME:vX.X.X and latest
           if ! fgrep -qx "$VERSION" <<<"$ALLTAGS"; then
-            FQIN="$CONTAINERS_QUAY_REGISTRY/buildah:$VERSION,$CONTAINERS_QUAY_REGISTRY/buildah:latest"
+            FQIN="$CONTAINERS_QUAY_REGISTRY/$REPONAME:$VERSION,$CONTAINERS_QUAY_REGISTRY/$REPONAME:latest"
           else # Not a new version-tagged image, only update latest.
-            FQIN="$CONTAINERS_QUAY_REGISTRY/buildah:latest"
+            FQIN="$CONTAINERS_QUAY_REGISTRY/$REPONAME:latest"
           fi
           echo "::warning::Pushing $FQIN"
           echo "::set-output name=fqin::${FQIN}"
@@ -150,40 +157,39 @@ jobs:
           DELIMITER
           EOF
 
-      # Separate steps to login and push for buildah and containers quay
-      # repositories are required, because 2 sets of credentials are used and `docker
-      # login` as well as `buildah login` do not support having 2 different
-      # credential sets for 1 registry.
-      # At the same time reuse of non-shell steps is not supported by Github Actions
-      # via anchors or composite actions
+      # Separate steps to login and push for $REPONAME_QUAY_REGISTRY and
+      # $CONTAINERS_QUAY_REGISTRY are required, because 2 sets of credentials
+      # are used and namespaced within the registry.  At the same time, reuse
+      # of non-shell steps is not supported by Github Actions nor are YAML
+      # anchors/aliases, nor composite actions.
 
-      # Push to 'buildah' Quay repo for stable, testing. and upstream
-      - name: Login to 'buildah' Quay registry
+      # Push to $REPONAME_QUAY_REGISTRY for stable, testing. and upstream
+      - name: Login to ${{ env.REPONAME_QUAY_REGISTRY }}
         uses: docker/login-action@v1
-        if: steps.buildah_reg.outputs.push == 'true'
+        if: steps.gen_fqin.outputs.push == 'true'
         with:
-          registry: ${{ env.BUILDAH_QUAY_REGISTRY }}
+          registry: ${{ env.REPONAME_QUAY_REGISTRY }}
           # N/B: Secrets are not passed to workflows that are triggered
           #      by a pull request from a fork
-          username: ${{ secrets.BUILDAH_QUAY_USERNAME }}
-          password: ${{ secrets.BUILDAH_QUAY_PASSWORD }}
+          username: ${{ secrets.REPONAME_QUAY_USERNAME }}
+          password: ${{ secrets.REPONAME_QUAY_PASSWORD }}
 
-      - name: Push images to 'buildah' Quay
+      - name: Push images to ${{ steps.gen_fqin.outputs.fqin }}
         uses: docker/build-push-action@v2
-        if: steps.buildah_reg.outputs.push == 'true'
+        if: steps.gen_fqin.outputs.push == 'true'
         with:
-          cache-from: type=registry,ref=localhost:5000/buildah/${{ matrix.source }}
+          cache-from: type=registry,ref=localhost:5000/${{ env.REPONAME }}/${{ matrix.source }}
           cache-to: type=inline
-          context: contrib/buildahimage/${{ matrix.source }}
-          file: ./contrib/buildahimage/${{ matrix.source }}/Dockerfile
+          context: contrib/${{ env.REPONAME }}image/${{ matrix.source }}
+          file: ./contrib/${{ env.REPONAME }}image/${{ matrix.source }}/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true
-          tags: ${{ steps.buildah_reg.outputs.fqin }}
+          tags: ${{ steps.gen_fqin.outputs.fqin }}
           labels: |
             ${{ env.LABELS }}
 
-      # Push to 'containers' Quay repo only stable buildah
-      - name: Login to 'containers' Quay registry
+      # Push to $CONTAINERS_QUAY_REGISTRY only stable
+      - name: Login to ${{ env.CONTAINERS_QUAY_REGISTRY }}
         if: steps.containers_reg.outputs.push == 'true'
         uses: docker/login-action@v1
         with:
@@ -191,14 +197,14 @@ jobs:
           username: ${{ secrets.CONTAINERS_QUAY_USERNAME }}
           password: ${{ secrets.CONTAINERS_QUAY_PASSWORD }}
 
-      - name: Push images to 'containers' Quay
+      - name: Push images to ${{ steps.containers_reg.outputs.fqin }}
         if: steps.containers_reg.outputs.push == 'true'
         uses: docker/build-push-action@v2
         with:
-          cache-from: type=registry,ref=localhost:5000/buildah/${{ matrix.source }}
+          cache-from: type=registry,ref=localhost:5000/${{ env.REPONAME }}/${{ matrix.source }}
           cache-to: type=inline
-          context: contrib/buildahimage/${{ matrix.source }}
-          file: ./contrib/buildahimage/${{ matrix.source }}/Dockerfile
+          context: contrib/${{ env.REPONAME }}image/${{ matrix.source }}
+          file: ./contrib/${{ env.REPONAME }}image/${{ matrix.source }}/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true
           tags: ${{ steps.containers_reg.outputs.fqin }}
