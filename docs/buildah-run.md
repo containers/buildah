@@ -76,10 +76,13 @@ process.
 Controls what type of isolation is used for running the process.  Recognized
 types include *oci* (OCI-compatible runtime, the default), *rootless*
 (OCI-compatible runtime invoked using a modified configuration, with
-*--no-new-keyring* added to its *create* invocation, with network and
-UTS namespaces disabled, and IPC, PID, and user namespaces enabled;
-the default for unprivileged users), and *chroot* (an internal wrapper
-that leans more toward chroot(1) than container technology).
+*--no-new-keyring* added to its *create* invocation, reusing the host's network
+and UTS namespaces, and creating private IPC, PID, mount, and user namespaces;
+the default for unprivileged users), and *chroot* (an internal wrapper that
+leans more toward chroot(1) than container technology, reusing the host's
+control group, network, IPC, and PID namespaces, and creating private mount and
+UTS namespaces, and creating user namespaces only when they're required for ID
+mapping).
 
 Note: You can also override the default isolation type by setting the
 BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`

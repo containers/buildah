@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.17.1
+Version:        1.17.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,10 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Jun 21 2021 Nalin Dahyabhai <nalin@redhat.com> 1.17.2-1
+- chroot: fix environment value leakage to intermediate processes
+  (CVE-2021-3602)
+
 * Mon Nov 16 2020 Nalin Dahyabhai <nalin@redhat.com> 1.17.1-1
 - copier.Get(): ignore ENOTSUP/ENOSYS when listing xattrs
 - copier: try to force loading of nsswitch modules before chroot()
