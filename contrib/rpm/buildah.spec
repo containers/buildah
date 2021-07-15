@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.19.8
+Version:        1.19.9
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,10 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Jun 21 2021 Nalin Dahyabhai <nalin@redhat.com> 1.19.9-1
+- chroot: fix environment value leakage to intermediate processes
+  (CVE-2021-3602).
+
 * Mon Mar 8, 2021 Valentin Rothberg <rothberg@redhat.com> 1.19.8-1
 - copier: support ignoring EPERMs
 
