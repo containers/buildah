@@ -60,7 +60,7 @@ github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.40.2-0.20210707094508-0a4a1906d4b2
+# github.com/containers/common v0.41.1-0.20210721112610-c95d2f794edf
 github.com/containers/common/libimage
 github.com/containers/common/libimage/manifests
 github.com/containers/common/pkg/apparmor
