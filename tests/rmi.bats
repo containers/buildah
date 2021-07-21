@@ -155,6 +155,21 @@ load helpers
   expect_output ""
 }
 
+@test "attempt to prune non-dangling empty images" {
+  # Regression test for containers/podman/issues/10832
+  ctxdir=${TESTDIR}/bud
+  mkdir -p $ctxdir
+  cat >$ctxdir/Dockerfile <<EOF
+FROM scratch
+ENV test1=test1
+ENV test2=test2
+EOF
+
+  run_buildah bud -t test $ctxdir
+  run_buildah rmi --prune
+  expect_output "" "no image gets pruned"
+}
+
 @test "use conflicting commands to remove images" {
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
