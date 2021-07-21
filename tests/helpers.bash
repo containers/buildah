@@ -2,9 +2,10 @@
 
 BUILDAH_BINARY=${BUILDAH_BINARY:-$(dirname ${BASH_SOURCE})/../bin/buildah}
 IMGTYPE_BINARY=${IMGTYPE_BINARY:-$(dirname ${BASH_SOURCE})/../bin/imgtype}
+COPY_BINARY=${COPY_BINARY:-$(dirname ${BASH_SOURCE})/../bin/copy}
 TESTSDIR=${TESTSDIR:-$(dirname ${BASH_SOURCE})}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
-PATH=$(dirname ${BASH_SOURCE})/..:${PATH}
+PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
 OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)
 
 # Default timeout for a buildah command.
@@ -21,7 +22,7 @@ function setup() {
     suffix=$(dd if=/dev/urandom bs=12 count=1 status=none | od -An -tx1 | sed -e 's, ,,g')
     TESTDIR=${BATS_TMPDIR}/tmp${suffix}
     rm -fr ${TESTDIR}
-    mkdir -p ${TESTDIR}/{root,runroot,sigstore,registries.d}
+    mkdir -p ${TESTDIR}/{root,runroot,sigstore,registries.d,cache}
     echo "default-docker:                                                           " >> ${TESTDIR}/registries.d/default.yaml
     echo "  sigstore-staging: file://${TESTDIR}/sigstore                            " >> ${TESTDIR}/registries.d/default.yaml
     echo "docker:                                                                   " >> ${TESTDIR}/registries.d/default.yaml
@@ -31,7 +32,7 @@ function setup() {
     echo "    sigstore: https://registry.redhat.io/containers/sigstore              " >> ${TESTDIR}/registries.d/default.yaml
     # Common options for all buildah and podman invocations
     ROOTDIR_OPTS="--root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER}"
-    BUILDAH_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf --registries-conf-dir ${TESTDIR}/registries.d"
+    BUILDAH_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf --registries-conf-dir ${TESTDIR}/registries.d --short-name-alias-conf ${TESTDIR}/cache/shortnames.conf"
     PODMAN_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf"
 }
 
@@ -70,6 +71,18 @@ function teardown() {
     popd
 }
 
+function normalize_image_name() {
+    for img in "$@"; do
+        if [[ "${img##*/}" == "$img" ]] ; then
+            echo -n docker.io/library/"$img"
+        elif [[ docker.io/"${img##*/}" == "$img" ]] ; then
+            echo -n docker.io/library/"${img##*/}"
+        else
+            echo -n "$img"
+        fi
+    done
+}
+
 function _prefetch() {
     if [ -z "${_BUILDAH_IMAGE_CACHEDIR}" ]; then
         _pgid=$(sed -ne 's/^NSpgid:\s*//p' /proc/$$/status)
@@ -78,23 +91,23 @@ function _prefetch() {
     fi
 
     for img in "$@"; do
+        img=$(normalize_image_name "$img")
         echo "# [checking for: $img]" >&2
         fname=$(tr -c a-zA-Z0-9.- - <<< "$img")
-        if [ -e $_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]; then
+        if [ -d $_BUILDAH_IMAGE_CACHEDIR/$fname ]; then
             echo "# [restoring from cache: $_BUILDAH_IMAGE_CACHEDIR / $img]" >&2
-            podman load -i $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
+            copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:"$img"
         else
-            echo "# [buildah pull $img]" >&2
-            buildah pull $img || (
-                echo "Retrying:"
-                buildah pull $img || (
-                    echo "Re-retrying:"
-                    buildah pull $img
-                )
-            )
-            rm -f $_BUILDAH_IMAGE_CACHEDIR/$fname.tar
-            echo "# [podman save --format oci-archive $img >$_BUILDAH_IMAGE_CACHEDIR/$fname.tar ]" >&2
-            podman save --format oci-archive --output=${_BUILDAH_IMAGE_CACHEDIR}/$fname.tar $img
+            rm -fr $_BUILDAH_IMAGE_CACHEDIR/$fname
+            echo "# [copy docker://$img dir:$_BUILDAH_IMAGE_CACHEDIR/$fname]" >&2
+            for attempt in $(seq 3) ; do
+                if copy docker://"$img" dir:$_BUILDAH_IMAGE_CACHEDIR/$fname ; then
+                    break
+                fi
+                sleep 5
+            done
+            echo "# [copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:$img]" >&2
+            copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:"$img"
         fi
     done
 }
@@ -109,6 +122,10 @@ function buildah() {
 
 function imgtype() {
     ${IMGTYPE_BINARY} ${ROOTDIR_OPTS} "$@"
+}
+
+function copy() {
+    ${COPY_BINARY} ${ROOTDIR_OPTS} ${BUILDAH_REGISTRY_OPTS} "$@"
 }
 
 function podman() {
@@ -155,7 +172,7 @@ function run_buildah() {
 
         # stdout is only emitted upon error; this echo is to help a debugger
         echo "\$ $BUILDAH_BINARY $*"
-        run timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
+        run env CONTAINERS_CONF=${CONTAINERS_CONF:-$(dirname ${BASH_SOURCE})/containers.conf} timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
         # without "quotes", multiple lines are glommed together into one
         if [ -n "$output" ]; then
             echo "$output"
