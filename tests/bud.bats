@@ -280,6 +280,11 @@ symlink(subdir)"
   ! test -r "$root"/tmp/postCommit
 }
 
+@test "bud-multistage-pull-always" {
+  _prefetch busybox
+  run_buildah bud --pull-always --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.extended ${TESTSDIR}/bud/multi-stage-builds
+}
+
 @test "bud with --layers and symlink file" {
   _prefetch alpine
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
