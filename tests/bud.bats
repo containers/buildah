@@ -3074,16 +3074,23 @@ _EOF
   skip_if_chroot
   skip_if_rootless
   skip_if_no_runtime
-  skip_if_cgroupsv2
 
   _prefetch alpine
 
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p ${mytmpdir}
-  cat > $mytmpdir/Containerfile << _EOF
+
+  if is_cgroupsv2; then
+    cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run printf "cpuset-mems " && cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.mems
+_EOF
+  else
+    cat > $mytmpdir/Containerfile << _EOF
 from alpine
 run printf "cpuset-mems " && cat /sys/fs/cgroup/cpuset/cpuset.mems
 _EOF
+  fi
 
   run_buildah bud --cpuset-mems=0 -t testcpuset \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
