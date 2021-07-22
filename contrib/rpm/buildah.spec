@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.21.3
+Version:        1.21.4
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,11 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Jul 22 2021 Nalin Dahyabhai <nalin@redhat.com> 1.21.4-1
+- tests: make it easer to override the location of the copy helper
+- tests: add and use a "copy" helper instead of podman load/save
+- vendor containers/common@v0.38.16
+
 * Thu Jul 1 2021 Nalin Dahyabhai <nalin@redhat.com> 1.21.3-1
 - chroot: fix environment value leakage to intermediate processes
   (CVE-2021-3602)

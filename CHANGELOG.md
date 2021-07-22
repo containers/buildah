@@ -1,12 +1,17 @@
 ![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
 
 # Changelog
+## v1.21.4 (2021-07-22)
+    tests: make it easer to override the location of the copy helper
+    tests: add and use a "copy" helper instead of podman load/save
+    vendor containers/common@v0.38.16
+
 ## v1.21.3 (2021-07-01)
     chroot: fix environment value leakage to intermediate processes
     (CVE-2021-3602).
 
 ## v1.21.2 (2021-06-28)
-  * vendor common@v0.38.12 and storage@v1.31.3
+    vendor common@v0.38.12 and storage@v1.31.3
 
 ## v1.21.1 (2021-06-02)
     Fix handling of auth.json file while in a user namespace

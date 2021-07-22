@@ -1,3 +1,8 @@
+- Changelog for v1.21.4 (2021-07-22)
+  * tests: make it easer to override the location of the copy helper
+  * tests: add and use a "copy" helper instead of podman load/save
+  * vendor containers/common@v0.38.16
+
 - Changelog for v1.21.3 (2021-07-01)
   * chroot: fix environment value leakage to intermediate processes
   (CVE-2021-3602).
