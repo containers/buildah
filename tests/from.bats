@@ -157,12 +157,15 @@ load helpers
   skip_if_chroot
   skip_if_rootless
   skip_if_no_runtime
-  skip_if_cgroupsv2
 
   _prefetch alpine
   run_buildah from --quiet --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
+  if is_cgroupsv2; then
+    run_buildah run $cid /bin/sh -c "cut -d ' ' -f 2 /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max"
+  else
+    run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_period_us
+  fi
   expect_output "5000"
 }
 
@@ -170,12 +173,15 @@ load helpers
   skip_if_chroot
   skip_if_rootless
   skip_if_no_runtime
-  skip_if_cgroupsv2
 
   _prefetch alpine
   run_buildah from --quiet --cpu-quota=5000 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
+  if is_cgroupsv2; then
+    run_buildah run $cid /bin/sh -c "cut -d ' ' -f 1 /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max"
+  else
+    run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us
+  fi
   expect_output "5000"
 }
 
@@ -183,25 +189,33 @@ load helpers
   skip_if_chroot
   skip_if_rootless
   skip_if_no_runtime
-  skip_if_cgroupsv2
 
   _prefetch alpine
-  run_buildah from --quiet --cpu-shares=2 --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  shares=2
+  run_buildah from --quiet --cpu-shares=${shares} --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.shares
-  expect_output "2"
+  if is_cgroupsv2; then
+    run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight"
+    expect_output "$((1 + ((${shares} - 2) * 9999) / 262142))"
+  else
+    run_buildah run $cid cat /sys/fs/cgroup/cpu/cpu.shares
+    expect_output "${shares}"
+  fi
 }
 
 @test "from cpuset-cpus test" {
   skip_if_chroot
   skip_if_rootless
   skip_if_no_runtime
-  skip_if_cgroupsv2 "cgroupsv2: fails with EPERM on writing cpuset.cpus"
 
   _prefetch alpine
   run_buildah from --quiet --cpuset-cpus=0 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
+  if is_cgroupsv2; then
+    run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.cpus"
+  else
+    run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.cpus
+  fi
   expect_output "0"
 }
 
@@ -209,12 +223,15 @@ load helpers
   skip_if_chroot
   skip_if_rootless
   skip_if_no_runtime
-  skip_if_cgroupsv2 "cgroupsv2: fails with EPERM on writing cpuset.mems"
 
   _prefetch alpine
   run_buildah from --quiet --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
+  if is_cgroupsv2; then
+   run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.mems"
+  else
+    run_buildah run $cid cat /sys/fs/cgroup/cpuset/cpuset.mems
+  fi
   expect_output "0"
 }
 
