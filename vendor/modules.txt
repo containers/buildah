@@ -83,7 +83,7 @@ github.com/containers/common/pkg/supplemented
 github.com/containers/common/pkg/timetype
 github.com/containers/common/pkg/umask
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.13.2
+# github.com/containers/image/v5 v5.14.0
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
 github.com/containers/image/v5/directory/explicitfilepath
@@ -163,6 +163,9 @@ github.com/containers/storage/drivers/windows
 github.com/containers/storage/drivers/zfs
 github.com/containers/storage/pkg/archive
 github.com/containers/storage/pkg/chrootarchive
+github.com/containers/storage/pkg/chunked
+github.com/containers/storage/pkg/chunked/compressor
+github.com/containers/storage/pkg/chunked/internal
 github.com/containers/storage/pkg/config
 github.com/containers/storage/pkg/devicemapper
 github.com/containers/storage/pkg/directory
@@ -463,7 +466,7 @@ github.com/ulikunitz/xz/lzma
 github.com/vbatts/tar-split/archive/tar
 github.com/vbatts/tar-split/tar/asm
 github.com/vbatts/tar-split/tar/storage
-# github.com/vbauerster/mpb/v7 v7.0.2
+# github.com/vbauerster/mpb/v7 v7.0.3
 github.com/vbauerster/mpb/v7
 github.com/vbauerster/mpb/v7/cwriter
 github.com/vbauerster/mpb/v7/decor
@@ -511,7 +514,7 @@ golang.org/x/net/proxy
 golang.org/x/net/trace
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20210603125802-9665404d3644
+# golang.org/x/sys v0.0.0-20210616094352-59db8d763f22
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
