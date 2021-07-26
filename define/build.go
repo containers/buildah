@@ -71,6 +71,8 @@ type CommonBuildOptions struct {
 	Volumes []string
 	// Secrets are the available secrets to use in a build
 	Secrets []string
+	// SSHSources is the available ssh agent connections to forward in the build
+	SSHSources []string
 }
 
 // BuildOptions can be used to alter how an image is built.

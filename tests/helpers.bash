@@ -7,7 +7,6 @@ TESTSDIR=${TESTSDIR:-$(dirname ${BASH_SOURCE})}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
 OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)
-
 # Default timeout for a buildah command.
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 
@@ -16,7 +15,11 @@ BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 # attached.
 export GPG_TTY=/dev/null
 
-function setup() {
+function setup(){
+    setup_tests
+}
+
+function setup_tests() {
     pushd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 
     # buildah/podman: "repository name must be lowercase".
@@ -60,7 +63,11 @@ function stophttpd() {
     true
 }
 
-function teardown() {
+function teardown(){
+    teardown_tests
+}
+
+function teardown_tests() {
     stophttpd
 
     # Workaround for #1991 - buildah + overlayfs leaks mount points.

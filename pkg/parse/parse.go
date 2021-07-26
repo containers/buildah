@@ -15,6 +15,7 @@ import (
 	"unicode"
 
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/common/pkg/parse"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
@@ -127,6 +128,7 @@ func CommonBuildOptions(c *cobra.Command) (*define.CommonBuildOptions, error) {
 	}
 
 	secrets, _ := c.Flags().GetStringArray("secret")
+	sshsources, _ := c.Flags().GetStringArray("ssh")
 
 	commonOpts := &define.CommonBuildOptions{
 		AddHost:      addHost,
@@ -146,6 +148,7 @@ func CommonBuildOptions(c *cobra.Command) (*define.CommonBuildOptions, error) {
 		Ulimit:       ulimit,
 		Volumes:      volumes,
 		Secrets:      secrets,
+		SSHSources:   sshsources,
 	}
 	securityOpts, _ := c.Flags().GetStringArray("security-opt")
 	if err := parseSecurityOpts(securityOpts, commonOpts); err != nil {
@@ -1019,6 +1022,25 @@ func Secrets(secrets []string) (map[string]string, error) {
 		} else {
 			return nil, invalidSyntax
 		}
+	}
+	return parsed, nil
+}
+
+// SSH parses the --ssh flag
+func SSH(sshSources []string) (map[string]*sshagent.Source, error) {
+	parsed := make(map[string]*sshagent.Source)
+	var paths []string
+	for _, v := range sshSources {
+		parts := strings.SplitN(v, "=", 2)
+		if len(parts) > 1 {
+			paths = strings.Split(parts[1], ",")
+		}
+
+		source, err := sshagent.NewSource(paths)
+		if err != nil {
+			return nil, err
+		}
+		parsed[parts[0]] = source
 	}
 	return parsed, nil
 }

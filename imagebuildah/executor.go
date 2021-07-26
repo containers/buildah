@@ -15,6 +15,7 @@ import (
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libimage"
 	"github.com/containers/common/pkg/config"
@@ -122,6 +123,7 @@ type Executor struct {
 	fromOverride                   string
 	manifest                       string
 	secrets                        map[string]string
+	sshsources                     map[string]*sshagent.Source
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -172,7 +174,10 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 	if err != nil {
 		return nil, err
 	}
-
+	sshsources, err := parse.SSH(options.CommonBuildOpts.SSHSources)
+	if err != nil {
+		return nil, err
+	}
 	jobs := 1
 	if options.Jobs != nil {
 		jobs = *options.Jobs
@@ -259,6 +264,7 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 		fromOverride:                   options.From,
 		manifest:                       options.Manifest,
 		secrets:                        secrets,
+		sshsources:                     sshsources,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
