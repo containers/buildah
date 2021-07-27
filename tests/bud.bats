@@ -2893,7 +2893,9 @@ _EOF
 
   local found_runtime=
 
-  local flag_accepted_rx="level=debug.*msg=.*/runc"
+  # runc-1.0.0-70.rc92 and 1.0.1-3 have completely different
+  # debug messages. This is the only string common to both.
+  local flag_accepted_rx="level=debug.*msg=.child process in init"
   if [ -n "$(command -v runc)" ]; then
     found_runtime=y
     if is_cgroupsv2; then
