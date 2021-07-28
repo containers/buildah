@@ -8,7 +8,7 @@ FROM centos:7
 
 # Remove directories used by yum that are just taking
 # up space.
-RUN useradd build; yum -y update; rpm --restore --quiet shadow-utils; yum -y install buildah fuse-overlayfs xz; rm -rf /var/cache /var/log/dnf* /var/log/yum.*;
+RUN useradd build; yum -y update; rpm --restore shadow-utils 2>/dev/null; yum -y install buildah fuse-overlayfs xz; rm -rf /var/cache /var/log/dnf* /var/log/yum.*;
 
 ADD https://raw.githubusercontent.com/containers/buildah/main/contrib/buildahimage/stable/containers.conf /etc/containers/
 

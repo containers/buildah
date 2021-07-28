@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+# buildahimages-are-sane - validate changes against buildah-images Dockerfiles
+#
+ME=$(basename $0)
+
+# HEAD should be good enough, but the CIRRUS envariable allows us to test
+head=${CIRRUS_CHANGE_IN_REPO:-HEAD}
+# Base of this PR. Here we absolutely rely on cirrus.
+base=$(git merge-base ${GITVALIDATE_EPOCH:-main} $head)
+
+# Sanity check:
+if [[ -z "$base" ]]; then
+    echo "$(basename $0): internal error: could not determine merge-base"
+    echo "   head                  = $head"
+    echo "   CIRRUS_CHANGE_IN_REPO = $CIRRUS_CHANGE_IN_REPO"
+    echo "   GITVALIDATE_EPOCH     = $GITVALIDATE_EPOCH"
+    exit 1
+fi
+
+# Helper function: confirms that shadow-utils is sane in the built image
+function build_and_check() {
+    local dir=$1
+
+    echo "$ME: Checking $dir"
+
+    # Clean up preexisting image
+    bin/buildah rmi -f buildah &>/dev/null || true
+
+    # Quiet by default, but show logs if anything fails.
+    logfile=$(mktemp --tmpdir $ME.build.XXXXXXX)
+    bin/buildah bud -t buildah $dir > $logfile 2>&1
+    if [[ $? -ne 0 ]]; then
+        echo "$ME: buildah-bud failed:"
+        sed -e 's/^/  /' <$logfile
+        exit 1
+    fi
+
+    ctr=$(bin/buildah from buildah)
+    rpmqv=$(bin/buildah run $ctr rpm -qV shadow-utils)
+    if [[ -n "$rpmqv" ]]; then
+        echo "$ME: rpm-qv failed on $dir:"
+        echo "  $rpmqv"
+        exit 1
+    fi
+
+    bin/buildah rm $ctr &>/dev/null
+    bin/buildah rmi buildah &>/dev/null
+}
+
+# This gives us a list of files touched in all commits, e.g.
+#    A    file1
+#    M    subdir/file2
+# We look for Added or Modified files under contrib/buildahimage; if there
+# aren't any, we have nothing to do.
+#
+# Notes:
+#    --no-renames ensures that renamed files show up as 'A'dded.
+#    we omit 'stablebyhand' because it does not have a Containerfile
+touched=$(git diff --name-status --no-renames $base $head |\
+              grep -v /stablebyhand |\
+              sed -n -E -e 's;^[AM][[:space:]]+(contrib/buildahimage/[^/]+)/.*;\1;p' |\
+              uniq)
+
+for dir in $touched; do
+    build_and_check $dir
+done

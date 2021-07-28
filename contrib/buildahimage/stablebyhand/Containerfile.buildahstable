@@ -23,7 +23,7 @@ FROM registry.fedoraproject.org/fedora:latest
 # `podman push quay.io/buildah/stable:v1.14.3 docker://quay.io/buildah/stable:v1.14.3`
 #
 COPY /tmp/buildah-1.14.3-1.fc31.x86_64.rpm /tmp
-RUN useradd build; yum -y update; rpm --restore --quiet shadow-utils; yum -y install /tmp/buildah-1.14.3-1.fc31.x86_64.rpm fuse-overlayfs xz --exclude container-selinux; rm -rf /var/cache /var/log/dnf* /var/log/yum.* /tmp/buildah*.rpm
+RUN useradd build; yum -y update;  rpm --restore shadow-utils 2>/dev/null; yum -y install /tmp/buildah-1.14.3-1.fc31.x86_64.rpm fuse-overlayfs xz --exclude container-selinux; rm -rf /var/cache /var/log/dnf* /var/log/yum.* /tmp/buildah*.rpm
 
 ADD https://raw.githubusercontent.com/containers/buildah/main/contrib/buildahimage/stable/containers.conf /etc/containers/
 
