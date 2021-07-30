@@ -15,6 +15,7 @@ import (
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
 	buildahdocker "github.com/containers/buildah/docker"
+	"github.com/containers/buildah/imagebuildah/cache"
 	"github.com/containers/buildah/pkg/rusage"
 	"github.com/containers/buildah/util"
 	cp "github.com/containers/image/v5/copy"
@@ -23,7 +24,6 @@ import (
 	is "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
-	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/chrootarchive"
 	docker "github.com/fsouza/go-dockerclient"
 	digest "github.com/opencontainers/go-digest"
@@ -918,10 +918,16 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		// determining if a cached layer with the same build args already exists
 		// and that is done in the if block below.
 		if checkForLayers && step.Command != "arg" {
-
-			cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
+			err = s.executor.layerProvider.PopulateLayer(ctx, s.builder.TopLayer)
 			if err != nil {
-				return "", nil, errors.Wrap(err, "error checking if cached image exists from a previous build")
+				return "", nil, errors.Wrap(err, "failed while populating layers from a previous builds")
+			}
+
+			nextCreatedBy := s.getCreatedBy(node, addedContentSummary)
+
+			cacheID, err = s.cachedIntermediateImageExists(ctx, s.stepRequiresLayer(step), s.builder.TopLayer, nextCreatedBy)
+			if err != nil {
+				return "", nil, errors.Wrap(err, "failed when obtaining image id from a previous build")
 			}
 		}
 
@@ -950,9 +956,16 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// Check if there's already an image based on our parent that
 			// has the same change that we just made.
 			if checkForLayers {
-				cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
+				err = s.executor.layerProvider.PopulateLayer(ctx, s.builder.TopLayer)
 				if err != nil {
-					return "", nil, errors.Wrap(err, "error checking if cached image exists from a previous build")
+					return "", nil, errors.Wrap(err, "failed while populating layers from a previous builds")
+				}
+
+				nextCreatedBy := s.getCreatedBy(node, addedContentSummary)
+
+				cacheID, err = s.cachedIntermediateImageExists(ctx, s.stepRequiresLayer(step), s.builder.TopLayer, nextCreatedBy)
+				if err != nil {
+					return "", nil, errors.Wrap(err, "failed when obtaining image id from a previous build")
 				}
 			}
 		} else {
@@ -1026,79 +1039,6 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		}
 	}
 	return imgID, ref, nil
-}
-
-func historyEntriesEqual(base, derived v1.History) bool {
-	if base.CreatedBy != derived.CreatedBy {
-		return false
-	}
-	if base.Comment != derived.Comment {
-		return false
-	}
-	if base.Author != derived.Author {
-		return false
-	}
-	if base.EmptyLayer != derived.EmptyLayer {
-		return false
-	}
-	if base.Created != nil && derived.Created == nil {
-		return false
-	}
-	if base.Created == nil && derived.Created != nil {
-		return false
-	}
-	if base.Created != nil && derived.Created != nil && !base.Created.Equal(*derived.Created) {
-		return false
-	}
-	return true
-}
-
-// historyAndDiffIDsMatch returns true if a candidate history matches the
-// history of our base image (if we have one), plus the current instruction,
-// and if the list of diff IDs for the images do for the part of the history
-// that we're comparing.
-// Used to verify whether a cache of the intermediate image exists and whether
-// to run the build again.
-func (s *StageExecutor) historyAndDiffIDsMatch(baseHistory []v1.History, baseDiffIDs []digest.Digest, child *parser.Node, history []v1.History, diffIDs []digest.Digest, addedContentSummary string, buildAddsLayer bool) bool {
-	// our history should be as long as the base's, plus one entry for what
-	// we're doing
-	if len(history) != len(baseHistory)+1 {
-		return false
-	}
-	// check that each entry in the base history corresponds to an entry in
-	// our history, and count how many of them add a layer diff
-	expectedDiffIDs := 0
-	for i := range baseHistory {
-		if !historyEntriesEqual(baseHistory[i], history[i]) {
-			return false
-		}
-		if !baseHistory[i].EmptyLayer {
-			expectedDiffIDs++
-		}
-	}
-	if len(baseDiffIDs) != expectedDiffIDs {
-		return false
-	}
-	if buildAddsLayer {
-		// we're adding a layer, so we should have exactly one more
-		// layer than the base image
-		if len(diffIDs) != expectedDiffIDs+1 {
-			return false
-		}
-	} else {
-		// we're not adding a layer, so we should have exactly the same
-		// layers as the base image
-		if len(diffIDs) != expectedDiffIDs {
-			return false
-		}
-	}
-	// compare the diffs for the layers that we should have in common
-	for i := range baseDiffIDs {
-		if diffIDs[i] != baseDiffIDs[i] {
-			return false
-		}
-	}
-	return history[len(baseHistory)].CreatedBy == s.getCreatedBy(child, addedContentSummary)
 }
 
 // getCreatedBy returns the command the image at node will be created by.  If
@@ -1193,68 +1133,34 @@ func (s *StageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 	return img.ID, ref, nil
 }
 
-// intermediateImageExists returns true if an intermediate image of currNode exists in the image store from a previous build.
-// It verifies this by checking the parent of the top layer of the image and the history.
-func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *parser.Node, addedContentDigest string, buildAddsLayer bool) (string, error) {
-	// Get the list of images available in the image store
-	images, err := s.executor.store.Images()
-	if err != nil {
-		return "", errors.Wrap(err, "error getting image list from store")
-	}
+// currentLayerKey calculates the key for the layer that is about to be build
+func (s *StageExecutor) currentLayerKey(ctx context.Context, buildAddsLayer bool, parentLayerID string, nextCreatedBy string) (string, error) {
 	var baseHistory []v1.History
 	var baseDiffIDs []digest.Digest
 	if s.builder.FromImageID != "" {
+		var err error
 		_, baseHistory, baseDiffIDs, err = s.executor.getImageTypeAndHistoryAndDiffIDs(ctx, s.builder.FromImageID)
 		if err != nil {
 			return "", errors.Wrapf(err, "error getting history of base image %q", s.builder.FromImageID)
 		}
 	}
-	for _, image := range images {
-		var imageTopLayer *storage.Layer
-		var imageParentLayerID string
-		if image.TopLayer != "" {
-			imageTopLayer, err = s.executor.store.Layer(image.TopLayer)
-			if err != nil {
-				return "", errors.Wrapf(err, "error getting top layer info")
-			}
-			// Figure out which layer from this image we should
-			// compare our container's base layer to.
-			imageParentLayerID = imageTopLayer.ID
-			// If we haven't added a layer here, then our base
-			// layer should be the same as the image's layer.  If
-			// did add a layer, then our base layer should be the
-			// same as the parent of the image's layer.
-			if buildAddsLayer {
-				imageParentLayerID = imageTopLayer.Parent
-			}
-		}
-		// If the parent of the top layer of an image is equal to the current build image's top layer,
-		// it means that this image is potentially a cached intermediate image from a previous
-		// build.
-		if s.builder.TopLayer != imageParentLayerID {
-			continue
-		}
-		// Next we double check that the history of this image is equivalent to the previous
-		// lines in the Dockerfile up till the point we are at in the build.
-		manifestType, history, diffIDs, err := s.executor.getImageTypeAndHistoryAndDiffIDs(ctx, image.ID)
-		if err != nil {
-			// It's possible that this image is for another architecture, which results
-			// in a custom-crafted error message that we'd have to use substring matching
-			// to recognize.  Instead, ignore the image.
-			logrus.Debugf("error getting history of %q (%v), ignoring it", image.ID, err)
-			continue
-		}
-		// If this candidate isn't of the type that we're building, then it may have lost
-		// some format-specific information that a building-without-cache run wouldn't lose.
-		if manifestType != s.executor.outputFormat {
-			continue
-		}
-		// children + currNode is the point of the Dockerfile we are currently at.
-		if s.historyAndDiffIDsMatch(baseHistory, baseDiffIDs, currNode, history, diffIDs, addedContentDigest, buildAddsLayer) {
-			return image.ID, nil
-		}
+
+	layerKey := cache.CalculateBuildLayerKey(s.executor.outputFormat, buildAddsLayer, parentLayerID, nextCreatedBy, baseHistory, baseDiffIDs)
+	return layerKey, nil
+}
+
+// cachedIntermediateImageExists returns the layer image id if exists
+func (s *StageExecutor) cachedIntermediateImageExists(ctx context.Context, buildAddsLayer bool, parentLayerID string, nextCreatedBy string) (string, error) {
+	layerKey, err := s.currentLayerKey(ctx, buildAddsLayer, parentLayerID, nextCreatedBy)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to obtain the layer key")
 	}
-	return "", nil
+
+	cacheID, err := s.executor.layerProvider.Load(layerKey)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to obtain the layer id")
+	}
+	return cacheID, nil
 }
 
 // commit writes the container's contents to an image, using a passed-in tag as

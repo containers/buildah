@@ -14,6 +14,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/imagebuildah/cache"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libimage"
@@ -59,6 +60,7 @@ type Executor struct {
 	logger                         *logrus.Logger
 	stages                         map[string]*StageExecutor
 	store                          storage.Store
+	layerProvider                  cache.LayerProvider
 	contextDir                     string
 	pullPolicy                     define.PullPolicy
 	registry                       string
@@ -200,6 +202,7 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 		logger:                         logger,
 		stages:                         make(map[string]*StageExecutor),
 		store:                          store,
+		layerProvider:                  cache.NewLocalLayerProvider(store),
 		contextDir:                     options.ContextDirectory,
 		excludes:                       excludes,
 		pullPolicy:                     options.PullPolicy,
