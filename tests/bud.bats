@@ -1510,7 +1510,7 @@ function _test_http() {
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg foo=bar --build-arg foo2=bar2 -f ${TESTSDIR}/bud/build-arg ${TESTSDIR}/bud/build-arg
   expect_output --substring "one or more build args were not consumed: \[foo2\]"
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg IMAGE=alpine -f ${TESTSDIR}/bud/build-arg/Dockerfile2 ${TESTSDIR}/bud/build-arg
-  ! expect_output --substring "one or more build args were not consumed: \[IMAGE\]"
+  assert "$output" !~ "one or more build args were not consumed: \[IMAGE\]"
   expect_output --substring "FROM alpine"
 }
 
@@ -1807,7 +1807,7 @@ _EOF
   run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json ${mytmpdir}
   expect_output --substring "file1"
   expect_output --substring "file2"
-  ! expect_output --substring "file3"
+  assert "$output" !~ "file3"
 }
 
 @test "bud copy with .dockerignore #2" {
@@ -1827,8 +1827,8 @@ RUN find /tmp/stuff -type f
 _EOF
 
   run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json ${mytmpdir}
-  ! expect_output --substring "file1"
-  ! expect_output --substring "file2"
+  assert "$output" !~ file1
+  assert "$output" !~ file2
 }
 
 @test "bud-copy-workdir" {
@@ -1869,9 +1869,8 @@ _EOF
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup --build-arg=PGDATA=/pgdata ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' ${target}
   argsid="$output"
-  if [[ "$argsid" == "$initialid" ]]; then
-      die ".FromImageID of test-img-2 ($argsid) == same as test-img, it should be different"
-  fi
+  assert "$argsid" != "$initialid" \
+         ".FromImageID of test-img-2 ($argsid) == same as test-img, it should be different"
 
   # With build args, even in a different order, we should end up using the previous build as a cached result.
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f Dockerfile3 --build-arg=UID=17122 --build-arg=CODE=/copr/coprs_frontend --build-arg=USERNAME=praiskup --build-arg=PGDATA=/pgdata ${TESTSDIR}/bud/build-arg
@@ -1905,18 +1904,16 @@ _EOF
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test-img-2 --build-arg TEST=foo -f Dockerfile4 ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' test-img-2
   argsid="$output"
-  if [[ "$argsid" == "$initialid" ]]; then
-      die ".FromImageID of test-img-2 ($argsid) == same as test-img, it should be different"
-  fi
+  assert "$argsid" != "$initialid" \
+         ".FromImageID of test-img-2 ($argsid) == same as test-img, it should be different"
 
   # Set the build-arg via an ENV in the local environment and verify that the cached layers are not used
   export TEST=bar
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test-img-3 --build-arg TEST -f Dockerfile4 ${TESTSDIR}/bud/build-arg
   run_buildah inspect -f '{{.FromImageID}}' test-img-3
   argsid="$output"
-  if [[ "$argsid" == "$initialid" ]]; then
-      die ".FromImageID of test-img-3 ($argsid) == same as test-img, it should be different"
-  fi
+  assert "$argsid" != "$initialid" \
+         ".FromImageID of test-img-3 ($argsid) == same as test-img, it should be different"
 }
 
 @test "bud test RUN with a privileged command" {
@@ -2869,12 +2866,12 @@ RUN echo "$SECRET"
 _EOF
 
   run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  ! expect_output --substring '\-\-build-arg SECRET=<VALUE>'
+  assert "$output" !~ '--build-arg SECRET=<VALUE>'
   expect_output --substring '\-\-build-arg NEWSECRET=<VALUE>'
 
   run_buildah bud -t testbud --signature-policy ${TESTSDIR}/policy.json --build-arg NEWSECRET="VerySecret" --file ${mytmpdir} .
-  ! expect_output --substring '\-\-build-arg SECRET=<VALUE>'
-  ! expect_output --substring '\-\-build-arg NEWSECRET=<VALUE>'
+  assert "$output" !~ '--build-arg SECRET=<VALUE>'
+  assert "$output" !~ '--build-arg NEWSECRET=<VALUE>'
 }
 
 @test "bud with --runtime and --runtime-flag" {
