@@ -12,7 +12,8 @@ import (
 func init() {
 	var (
 		opts = auth.LogoutOptions{
-			Stdout: os.Stdout,
+			Stdout:             os.Stdout,
+			AcceptRepositories: true,
 		}
 		logoutDescription = "Remove the cached username and password for the registry."
 	)
