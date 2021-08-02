@@ -228,8 +228,8 @@ github.com/containernetworking/plugins v0.9.1/go.mod h1:xP/idU2ldlzN6m4p5LmGiwRD
 github.com/containers/common v0.41.1-0.20210721112610-c95d2f794edf h1:z0ciG0ByyJG3WCBpLYd2XLThCC7UBaH7GeSfXY4sAqc=
 github.com/containers/common v0.41.1-0.20210721112610-c95d2f794edf/go.mod h1:Ba5YVNCnyX6xDtg1JqEHa2EMVMW5UbHmIyEqsEwpeGE=
 github.com/containers/image/v5 v5.13.2/go.mod h1:GkWursKDlDcUIT7L7vZf70tADvZCk/Ga0wgS0MuF0ag=
-github.com/containers/image/v5 v5.14.0 h1:ORaFZ/NwFjkSunMhxg9I8fQod8pgXkrYNiZzit/VqOE=
-github.com/containers/image/v5 v5.14.0/go.mod h1:SxiBKOcKuT+4yTjD0AskjO+UwFvNcVOJ9qlAw1HNSPU=
+github.com/containers/image/v5 v5.15.0 h1:NduhN20ptHNlf0uRny5iTJa2OodB9SLMEB4hKKbzBBs=
+github.com/containers/image/v5 v5.15.0/go.mod h1:gzdBcooi6AFdiqfzirUqv90hUyHyI0MMdaqKzACKr2s=
 github.com/containers/libtrust v0.0.0-20190913040956-14b96171aa3b h1:Q8ePgVfHDplZ7U33NwHZkrVELsZP5fYj9pM5WBZB2GE=
 github.com/containers/libtrust v0.0.0-20190913040956-14b96171aa3b/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/ocicrypt v1.0.1/go.mod h1:MeJDzk1RJHv89LjsH0Sp5KTY3ZYkjXO/C+bKAeWFIrc=
