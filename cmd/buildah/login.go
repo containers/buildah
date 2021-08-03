@@ -19,8 +19,10 @@ func init() {
 	var (
 		opts = loginReply{
 			loginOpts: auth.LoginOptions{
-				Stdin:  os.Stdin,
-				Stdout: os.Stdout},
+				Stdin:              os.Stdin,
+				Stdout:             os.Stdout,
+				AcceptRepositories: true,
+			},
 		}
 		loginDescription = "Login to a container registry on a specified server."
 	)
