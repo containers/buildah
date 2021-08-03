@@ -71,6 +71,11 @@ load helpers
   run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" scratch2
+  # Also check for base-image annotations.
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' scratch2
+  expect_output "" "no base digest for scratch"
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' scratch2
+  expect_output "" "no base name for scratch"
   run_buildah rm $cid
   run_buildah tag scratch2 scratch3
   # Set --pull=false to prevent looking for a newer scratch3 image.
@@ -379,11 +384,19 @@ load helpers
 
 @test "from --pull-always: emits 'Getting' even if image is cached" {
   _prefetch docker.io/busybox
+  run_buildah inspect --format "{{.FromImageDigest}}" docker.io/busybox
+  fromDigest="$output"
   run buildah pull --signature-policy ${TESTSDIR}/policy.json docker.io/busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc --pull-always docker.io/busybox
   expect_output --substring "Getting"
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json busyboxc fakename-img
   run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --pull-always fakename-img
+
+  # Also check for base-image annotations.
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' fakename-img
+  expect_output "$fromDigest" "base digest from busybox"
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' fakename-img
+  expect_output "docker.io/library/busybox:latest" "base name from busybox"
 }
 
 @test "from --quiet: should not emit progress messages" {
