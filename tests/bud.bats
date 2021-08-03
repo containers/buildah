@@ -178,13 +178,30 @@ symlink(subdir)"
 
 @test "bud with --layers and single and two line Dockerfiles" {
   _prefetch alpine
+  run_buildah inspect --format "{{.FromImageDigest}}" alpine
+  fromDigest="$output"
+
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test -f Dockerfile.5 ${TESTSDIR}/bud/use-layers
   run_buildah images -a
   expect_line_count 3
 
+  # Also check for base-image annotations.
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' test
+  expect_output "$fromDigest" "base digest from alpine"
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' test
+  expect_output "docker.io/library/alpine:latest" "base name from alpine"
+
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test1 -f Dockerfile.6 ${TESTSDIR}/bud/use-layers
   run_buildah images -a
   expect_line_count 4
+
+  # Note that the base-image annotations are empty here since a Container with
+  # a single FROM line is effectively just a tag and it does not create a new
+  # image.
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' test1
+  expect_output "" "base digest from alpine"
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' test1
+  expect_output "" "base name from alpine"
 }
 
 @test "bud with --layers, multistage, and COPY with --from" {
@@ -258,8 +275,18 @@ symlink(subdir)"
 
 @test "bud-multistage-reused" {
   _prefetch alpine busybox
+  run_buildah inspect --format "{{.FromImageDigest}}" busybox
+  fromDigest="$output"
+
   target=foo
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.reused ${TESTSDIR}/bud/multi-stage-builds
+
+  # Also check for base-image annotations.
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
+  expect_output "$fromDigest" "base digest from busybox"
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' ${target}
+  expect_output "docker.io/library/busybox:latest" "base name from busybox"
+
   run_buildah from --signature-policy ${TESTSDIR}/policy.json ${target}
   run_buildah rmi -f ${target}
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json -t ${target} --layers -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.reused ${TESTSDIR}/bud/multi-stage-builds
@@ -403,6 +430,22 @@ symlink(subdir)"
   expect_output "${target}-working-container"
 }
 
+@test "bud-from-scratch-untagged" {
+  run_buildah bud --iidfile ${TESTDIR}/output.iid --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/from-scratch
+  iid=$(cat ${TESTDIR}/output.iid)
+  expect_output --substring --from="$iid" '^sha256:[0-9a-f]{64}$'
+  run_buildah from ${iid}
+  buildctr="$output"
+  run_buildah commit $buildctr new-image
+
+  run_buildah inspect --format "{{.FromImageDigest}}" $iid
+  fromDigest="$output"
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' new-image
+  expect_output "$fromDigest" "digest for untagged base image"
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.name" }}' new-image
+  expect_output "" "no base name for untagged base image"
+}
+
 @test "bud with --tag " {
   target=scratch-image
   run_buildah bud --quiet=false --tag test1 --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
@@ -458,8 +501,8 @@ symlink(subdir)"
 @test "bud-from-scratch-annotation" {
   target=scratch-image
   run_buildah bud --annotation "test=annotation1,annotation2=z" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
-  run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' ${target}
-  expect_output 'map["test":"annotation1,annotation2=z"]'
+  run_buildah inspect --format '{{index .ImageAnnotations "test"}}' ${target}
+  expect_output "annotation1,annotation2=z"
 }
 
 @test "bud-from-scratch-layers" {
@@ -2029,8 +2072,8 @@ _EOF
   _prefetch alpine
   target=no-change-image
   run_buildah bud --annotation "test=annotation" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/no-change
-  run_buildah inspect --format '{{printf "%q" .ImageAnnotations}}' ${target}
-  expect_output 'map["test":"annotation"]'
+  run_buildah inspect --format '{{index .ImageAnnotations "test"}}' ${target}
+  expect_output "annotation"
 }
 
 @test "bud-squash-layers" {

@@ -160,10 +160,10 @@ function check_matrix() {
   run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
   run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
 
-  run_buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci
-  expect_output "map[ANNOTATION:VALUE1,VALUE2]"
-  run_buildah inspect              --format '{{.ImageAnnotations}}'                      $cid
-  expect_output "map[ANNOTATION:VALUE1,VALUE2]"
+  run_buildah inspect --type=image --format '{{index .ImageAnnotations "ANNOTATION"}}' scratch-image-oci
+  expect_output "VALUE1,VALUE2"
+  run_buildah inspect              --format '{{index .ImageAnnotations "ANNOTATION"}}' $cid
+  expect_output "VALUE1,VALUE2"
   check_matrix 'Config.ExposedPorts' 'map[12345:{}]'
   check_matrix 'Config.Env'          '[VARIABLE=VALUE1,VALUE2]'
   check_matrix 'Config.Labels.LABEL' 'VALUE'
@@ -253,10 +253,10 @@ function check_matrix() {
   expect_output "PROBABLY-EMPTY"
 
   # The following aren't part of the Docker v2 spec, so they're discarded when we save to Docker format.
-  run_buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci
-  expect_output "map[ANNOTATION:VALUE1,VALUE2]"
-  run_buildah inspect              --format '{{.ImageAnnotations}}'                      $cid
-  expect_output "map[ANNOTATION:VALUE1,VALUE2]"
+  run_buildah inspect --type=image --format '{{index .ImageAnnotations "ANNOTATION"}}'   scratch-image-oci
+  expect_output "VALUE1,VALUE2"
+  run_buildah inspect              --format '{{index .ImageAnnotations "ANNOTATION"}}'   $cid
+  expect_output "VALUE1,VALUE2"
   run_buildah inspect --type=image --format '{{.Docker.Comment}}'                        scratch-image-docker
   expect_output "INFORMATIVE"
   run_buildah inspect --type=image --format '{{.Docker.Config.Domainname}}'              scratch-image-docker
@@ -348,10 +348,10 @@ function check_matrix() {
   check_matrix 'Config.Env'          '[VARIABLE=VALUE1,VALUE2]'
   check_matrix 'Config.Labels.LABEL' 'VALUE'
   check_matrix 'Config.ExposedPorts' 'map[12345:{}]'
-  run_buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci
-  expect_output "map[ANNOTATION:VALUE1,VALUE2]"
-  run_buildah inspect              --format '{{.ImageAnnotations}}'                      $cid
-  expect_output "map[ANNOTATION:VALUE1,VALUE2]"
+  run_buildah inspect --type=image --format '{{index .ImageAnnotations "ANNOTATION"}}' scratch-image-oci
+  expect_output "VALUE1,VALUE2"
+  run_buildah inspect              --format '{{index .ImageAnnotations "ANNOTATION"}}' $cid
+  expect_output "VALUE1,VALUE2"
 
   run_buildah config \
    --created-by COINCIDENCE \
@@ -370,10 +370,10 @@ function check_matrix() {
   check_matrix 'Config.Env'          '[]'
   check_matrix 'Config.Labels.LABEL' '<no value>'
   check_matrix 'Config.ExposedPorts' 'map[]'
-  run_buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci
-  expect_output "map[]"
-  run_buildah inspect              --format '{{.ImageAnnotations}}'                      $cid
-  expect_output "map[]"
+  run_buildah inspect --type=image --format '{{index .ImageAnnotations "ANNOTATION"}}' scratch-image-oci
+  expect_output ""
+  run_buildah inspect              --format '{{index .ImageAnnotations "ANNOTATION"}}' $cid
+  expect_output ""
 
   run_buildah config \
    --created-by COINCIDENCE \
