@@ -207,7 +207,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 
 	if !(contains(volumes, "/etc/resolv.conf") || (len(b.CommonBuildOpts.DNSServers) == 1 && strings.ToLower(b.CommonBuildOpts.DNSServers[0]) == "none")) {
-		resolvFile, err := b.addNetworkConfig(path, "/etc/resolv.conf", rootIDPair, b.CommonBuildOpts.DNSServers, b.CommonBuildOpts.DNSSearch, b.CommonBuildOpts.DNSOptions, namespaceOptions)
+		resolvFile, err := b.addResolvConf(path, rootIDPair, b.CommonBuildOpts.DNSServers, b.CommonBuildOpts.DNSSearch, b.CommonBuildOpts.DNSOptions, namespaceOptions)
 		if err != nil {
 			return err
 		}
@@ -557,19 +557,52 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	return runTargets, nil
 }
 
-// addNetworkConfig copies files from host and sets them up to bind mount into container
-func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDPair, dnsServers, dnsSearch, dnsOptions []string, namespaceOptions define.NamespaceOptions) (string, error) {
-	stat, err := os.Stat(hostPath)
+// addResolvConf copies files from host and sets them up to bind mount into container
+func (b *Builder) addResolvConf(rdir string, chownOpts *idtools.IDPair, dnsServers, dnsSearch, dnsOptions []string, namespaceOptions define.NamespaceOptions) (string, error) {
+	resolvConf := "/etc/resolv.conf"
+
+	stat, err := os.Stat(resolvConf)
 	if err != nil {
 		return "", err
 	}
-	contents, err := ioutil.ReadFile(hostPath)
-	if err != nil {
+	contents, err := ioutil.ReadFile(resolvConf)
+	// resolv.conf doesn't have to exists
+	if err != nil && !os.IsNotExist(err) {
 		return "", err
 	}
 
+	netns := false
+	ns := namespaceOptions.Find(string(spec.NetworkNamespace))
+	if ns != nil && !ns.Host {
+		netns = true
+	}
+
+	nameservers := resolvconf.GetNameservers(contents, types.IPv4)
+	// check if systemd-resolved is used, assume it is used when 127.0.0.53 is the only nameserver
+	if len(nameservers) == 1 && nameservers[0] == "127.0.0.53" && netns {
+		// read the actual resolv.conf file for systemd-resolved
+		resolvedContents, err := ioutil.ReadFile("/run/systemd/resolve/resolv.conf")
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return "", errors.Wrapf(err, "detected that systemd-resolved is in use, but could not locate real resolv.conf")
+			}
+		} else {
+			contents = resolvedContents
+		}
+	}
+
+	// Ensure that the container's /etc/resolv.conf is compatible with its
+	// network configuration.
+	if netns {
+		// FIXME handle IPv6
+		resolve, err := resolvconf.FilterResolvDNS(contents, true)
+		if err != nil {
+			return "", errors.Wrapf(err, "error parsing host resolv.conf")
+		}
+		contents = resolve.Content
+	}
 	search := resolvconf.GetSearchDomains(contents)
-	nameservers := resolvconf.GetNameservers(contents, types.IP)
+	nameservers = resolvconf.GetNameservers(contents, types.IP)
 	options := resolvconf.GetOptions(contents)
 
 	defaultContainerConfig, err := config.Default()
@@ -582,7 +615,6 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 	}
 
 	if b.Isolation == IsolationOCIRootless {
-		ns := namespaceOptions.Find(string(specs.NetworkNamespace))
 		if ns != nil && !ns.Host && ns.Path == "" {
 			// if we are using slirp4netns, also add the built-in DNS server.
 			logrus.Debugf("adding slirp4netns 10.0.2.3 built-in DNS server")
@@ -607,7 +639,7 @@ func (b *Builder) addNetworkConfig(rdir, hostPath string, chownOpts *idtools.IDP
 		options = dnsOptions
 	}
 
-	cfile := filepath.Join(rdir, filepath.Base(hostPath))
+	cfile := filepath.Join(rdir, filepath.Base(resolvConf))
 	if _, err = resolvconf.Build(cfile, nameservers, search, options); err != nil {
 		return "", errors.Wrapf(err, "error building resolv.conf for container %s", b.ContainerID)
 	}
