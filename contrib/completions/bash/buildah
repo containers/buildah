@@ -434,6 +434,7 @@ return 1
      --os
      --pid
      --platform
+     --platforms
      --runtime
      --runtime-flag
      --security-opt

@@ -7,6 +7,7 @@ import (
 	"github.com/containers/image/v5/types"
 	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage/pkg/archive"
+	"golang.org/x/sync/semaphore"
 )
 
 // CommonBuildOptions are resources that can be defined by flags for both buildah from and build-using-dockerfile
@@ -214,7 +215,10 @@ type BuildOptions struct {
 	// encrypted if non-nil. If nil, it does not attempt to decrypt an image.
 	OciDecryptConfig *encconfig.DecryptConfig
 	// Jobs is the number of stages to run in parallel.  If not specified it defaults to 1.
+	// Ignored if a JobSemaphore is provided.
 	Jobs *int
+	// JobSemaphore, for when you want Jobs to be shared with more than just this build.
+	JobSemaphore *semaphore.Weighted
 	// LogRusage logs resource usage for each step.
 	LogRusage bool
 	// File to which the Rusage logs will be saved to instead of stdout

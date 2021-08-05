@@ -252,6 +252,7 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 		retryPullPushDelay:             options.PullPushRetryDelay,
 		ociDecryptConfig:               options.OciDecryptConfig,
 		terminatedStage:                make(map[string]struct{}),
+		stagesSemaphore:                options.JobSemaphore,
 		jobs:                           jobs,
 		logRusage:                      options.LogRusage,
 		rusageLogFile:                  rusageLogFile,
@@ -618,14 +619,16 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 
 	ch := make(chan Result)
 
-	jobs := int64(b.jobs)
-	if jobs < 0 {
-		return "", nil, errors.New("error building: invalid value for jobs.  It must be a positive integer")
-	} else if jobs == 0 {
-		jobs = int64(len(stages))
-	}
+	if b.stagesSemaphore == nil {
+		jobs := int64(b.jobs)
+		if jobs < 0 {
+			return "", nil, errors.New("error building: invalid value for jobs.  It must be a positive integer")
+		} else if jobs == 0 {
+			jobs = int64(len(stages))
+		}
 
-	b.stagesSemaphore = semaphore.NewWeighted(jobs)
+		b.stagesSemaphore = semaphore.NewWeighted(jobs)
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(len(stages))

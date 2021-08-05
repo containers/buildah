@@ -471,15 +471,45 @@ load helpers
 @test "from --arch test" {
   skip_if_no_runtime
 
+  _prefetch alpine
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --arch=arm64 alpine
+  other=$output
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --arch=$(go env GOARCH) alpine
   cid=$output
-#  run_buildah run $cid arch
-#  expect_output "aarch64"
+  run_buildah copy --from $other $cid /etc/apk/arch /root/other-arch
+  run_buildah run $cid cat /root/other-arch
+  expect_output "aarch64"
 
   run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --arch=s390x alpine
+  other=$output
+  run_buildah copy --from $other $cid /etc/apk/arch /root/other-arch
+  run_buildah run $cid cat /root/other-arch
+  expect_output "s390x"
+}
+
+@test "from --platform test" {
+  skip_if_no_runtime
+
+  run_buildah version
+  platform=$(grep ^BuildPlatform: <<< "$output")
+  echo "$platform"
+  platform=${platform##* }
+  echo "$platform"
+
+  _prefetch alpine
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --platform=linux/arm64 alpine
+  other=$output
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --platform=${platform} alpine
   cid=$output
-#  run_buildah run $cid arch
-#  expect_output "s390x"
+  run_buildah copy --from $other $cid /etc/apk/arch /root/other-arch
+  run_buildah run $cid cat /root/other-arch
+  expect_output "aarch64"
+
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --platform=linux/s390x alpine
+  other=$output
+  run_buildah copy --from $other $cid /etc/apk/arch /root/other-arch
+  run_buildah run $cid cat /root/other-arch
+  expect_output "s390x"
 }
 
 @test "from --authfile test" {

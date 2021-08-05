@@ -51,7 +51,7 @@ Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option c
 
 **--arch**="ARCH"
 
-Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host. (Examples: aarch64, arm, i686, ppc64le, s390x, x86_64)
+Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host. (Examples: arm, arm64, 386, amd64, ppc64le, s390x)
 
 **--authfile** *path*
 
@@ -294,6 +294,24 @@ that a new PID namespace should be created, or it can be "host" to indicate
 that the PID namespace in which `Buildah` itself is being run should be reused,
 or it can be the path to a PID namespace which is already in use by another
 process.
+
+**--platform**="OS/ARCH[/VARIANT]"
+
+Set the OS/ARCH of the image to be pulled
+to the provided value instead of using the current operating system and
+architecture of the host (for example `linux/arm`). If `--platform`
+is set, then the values of the `--arch`, `--os`, and `--variant` options will
+be overridden.
+
+OS/ARCH pairs are those used by the Go Programming Language.  In several cases
+the ARCH value for a platform differs from one produced by other tools such as
+the `arch` command.  Valid OS and architecture name combinations are listed as
+values for $GOOS and $GOARCH at https://golang.org/doc/install/source#environment,
+and can also be found by running `go tool dist list`.
+
+While `buildah from` is happy to pull an image for any platform that exists,
+`buildah run` will not be able to run binaries provided by that image without
+the help of emulation provided by packages like `qemu-user-static`.
 
 **--pull**
 

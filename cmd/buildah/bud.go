@@ -13,10 +13,16 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/libimage"
+	"github.com/containers/common/libimage/manifests"
 	"github.com/containers/common/pkg/auth"
+	"github.com/containers/image/v5/manifest"
+	"github.com/containers/storage"
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/semaphore"
 )
 
 type budOptions struct {
@@ -299,7 +305,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 
-	imageOS, arch, err := parse.PlatformFromOptions(c)
+	platforms, err := parse.PlatformsFromOptions(c)
 	if err != nil {
 		return err
 	}
@@ -309,75 +315,119 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		return errors.Wrapf(err, "unable to obtain decrypt config")
 	}
 
-	options := define.BuildOptions{
-		AddCapabilities:         iopts.CapAdd,
-		AdditionalTags:          tags,
-		Annotations:             iopts.Annotation,
-		Architecture:            arch,
-		Args:                    args,
-		BlobDirectory:           iopts.BlobCache,
-		CNIConfigDir:            iopts.CNIConfigDir,
-		CNIPluginPath:           iopts.CNIPlugInPath,
-		CommonBuildOpts:         commonOpts,
-		Compression:             compression,
-		ConfigureNetwork:        networkPolicy,
-		ContextDirectory:        contextDir,
-		DefaultMountsFilePath:   globalFlagResults.DefaultMountsFile,
-		Devices:                 iopts.Devices,
-		DropCapabilities:        iopts.CapDrop,
-		Err:                     stderr,
-		ForceRmIntermediateCtrs: iopts.ForceRm,
-		From:                    iopts.From,
-		IDMappingOptions:        idmappingOptions,
-		IIDFile:                 iopts.Iidfile,
-		In:                      stdin,
-		Isolation:               isolation,
-		Labels:                  iopts.Label,
-		Layers:                  layers,
-		LogRusage:               iopts.LogRusage,
-		Manifest:                iopts.Manifest,
-		MaxPullPushRetries:      maxPullPushRetries,
-		NamespaceOptions:        namespaceOptions,
-		NoCache:                 iopts.NoCache,
-		OS:                      imageOS,
-		Out:                     stdout,
-		Output:                  output,
-		OutputFormat:            format,
-		PullPolicy:              pullPolicy,
-		PullPushRetryDelay:      pullPushRetryDelay,
-		Quiet:                   iopts.Quiet,
-		RemoveIntermediateCtrs:  iopts.Rm,
-		ReportWriter:            reporter,
-		Runtime:                 iopts.Runtime,
-		RuntimeArgs:             runtimeFlags,
-		RusageLogFile:           iopts.RusageLogFile,
-		SignBy:                  iopts.SignBy,
-		SignaturePolicyPath:     iopts.SignaturePolicy,
-		Squash:                  iopts.Squash,
-		SystemContext:           systemContext,
-		Target:                  iopts.Target,
-		TransientMounts:         iopts.Volumes,
-		OciDecryptConfig:        decConfig,
-		Jobs:                    &iopts.Jobs,
+	var (
+		jobSemaphore *semaphore.Weighted
+		builds       multierror.Group
+	)
+	if iopts.Jobs > 0 {
+		jobSemaphore = semaphore.NewWeighted(int64(iopts.Jobs))
+		iopts.Jobs = 0
 	}
-	if iopts.IgnoreFile != "" {
-		excludes, err := parseDockerignore(iopts.IgnoreFile)
+	if iopts.Manifest != "" {
+		// Ensure that the list's ID is known before we spawn off any
+		// goroutines that'll want to modify it, so that they don't
+		// race and create two lists, one of which will rapidly become
+		// ignored.
+		rt, err := libimage.RuntimeFromStore(store, nil)
 		if err != nil {
 			return err
 		}
-		options.Excludes = excludes
+		_, err = rt.LookupManifestList(iopts.Manifest)
+		if err != nil && errors.Cause(err) == storage.ErrImageUnknown {
+			list := manifests.Create()
+			_, err = list.SaveToImage(store, "", []string{iopts.Manifest}, manifest.DockerV2ListMediaType)
+		}
+		if err != nil {
+			return err
+		}
 	}
+	var excludes []string
+	if iopts.IgnoreFile != "" {
+		if excludes, err = parseDockerignore(iopts.IgnoreFile); err != nil {
+			return err
+		}
+	}
+	var timestamp *time.Time
 	if c.Flag("timestamp").Changed {
-		timestamp := time.Unix(iopts.Timestamp, 0).UTC()
-		options.Timestamp = &timestamp
+		t := time.Unix(iopts.Timestamp, 0).UTC()
+		timestamp = &t
 	}
+	for _, platform := range platforms {
+		platform := platform
+		builds.Go(func() error {
+			platformContext := *systemContext
+			platformContext.OSChoice = platform.OS
+			platformContext.ArchitectureChoice = platform.Arch
+			platformContext.VariantChoice = platform.Variant
+			options := define.BuildOptions{
+				AddCapabilities:         iopts.CapAdd,
+				AdditionalTags:          tags,
+				Annotations:             iopts.Annotation,
+				Architecture:            platform.Arch,
+				Args:                    args,
+				BlobDirectory:           iopts.BlobCache,
+				CNIConfigDir:            iopts.CNIConfigDir,
+				CNIPluginPath:           iopts.CNIPlugInPath,
+				CommonBuildOpts:         commonOpts,
+				Compression:             compression,
+				ConfigureNetwork:        networkPolicy,
+				ContextDirectory:        contextDir,
+				DefaultMountsFilePath:   globalFlagResults.DefaultMountsFile,
+				Devices:                 iopts.Devices,
+				DropCapabilities:        iopts.CapDrop,
+				Err:                     stderr,
+				ForceRmIntermediateCtrs: iopts.ForceRm,
+				From:                    iopts.From,
+				IDMappingOptions:        idmappingOptions,
+				IIDFile:                 iopts.Iidfile,
+				In:                      stdin,
+				Isolation:               isolation,
+				Labels:                  iopts.Label,
+				Layers:                  layers,
+				LogRusage:               iopts.LogRusage,
+				Manifest:                iopts.Manifest,
+				MaxPullPushRetries:      maxPullPushRetries,
+				NamespaceOptions:        namespaceOptions,
+				NoCache:                 iopts.NoCache,
+				OS:                      platform.OS,
+				Out:                     stdout,
+				Output:                  output,
+				OutputFormat:            format,
+				PullPolicy:              pullPolicy,
+				PullPushRetryDelay:      pullPushRetryDelay,
+				Quiet:                   iopts.Quiet,
+				RemoveIntermediateCtrs:  iopts.Rm,
+				ReportWriter:            reporter,
+				Runtime:                 iopts.Runtime,
+				RuntimeArgs:             runtimeFlags,
+				RusageLogFile:           iopts.RusageLogFile,
+				SignBy:                  iopts.SignBy,
+				SignaturePolicyPath:     iopts.SignaturePolicy,
+				Squash:                  iopts.Squash,
+				SystemContext:           &platformContext,
+				Target:                  iopts.Target,
+				TransientMounts:         iopts.Volumes,
+				OciDecryptConfig:        decConfig,
+				Jobs:                    &iopts.Jobs,
+				JobSemaphore:            jobSemaphore,
+				Excludes:                excludes,
+				Timestamp:               timestamp,
+			}
+			if iopts.Quiet {
+				options.ReportWriter = ioutil.Discard
+			}
 
-	if iopts.Quiet {
-		options.ReportWriter = ioutil.Discard
+			_, _, err = imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)
+			return err
+		})
 	}
-
-	_, _, err = imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)
-	return err
+	if merr := builds.Wait(); merr != nil {
+		if merr.Len() == 1 {
+			return merr.Errors[0]
+		}
+		return merr.ErrorOrNil()
+	}
+	return nil
 }
 
 // discoverContainerfile tries to find a Containerfile or a Dockerfile within the provided `path`.
