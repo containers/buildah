@@ -702,6 +702,10 @@ func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, termina
 }
 
 func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, bundlePath, containerName string) (wstatus unix.WaitStatus, err error) {
+	if options.Logger == nil {
+		options.Logger = logrus.StandardLogger()
+	}
+
 	// Lock the caller to a single OS-level thread.
 	runtime.LockOSThread()
 
