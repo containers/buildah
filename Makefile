@@ -1,7 +1,7 @@
 export GOPROXY=https://proxy.golang.org
 
 APPARMORTAG := $(shell hack/apparmor_tag.sh)
-STORAGETAGS := $(shell ./btrfs_tag.sh) $(shell ./btrfs_installed_tag.sh) $(shell ./libdm_tag.sh)
+STORAGETAGS := $(shell ./hack/btrfs_tag.sh) $(shell ./hack/btrfs_installed_tag.sh) $(shell ./hack/libdm_tag.sh) $(shell ./hack/libsubid_tag.sh)
 SECURITYTAGS ?= seccomp $(APPARMORTAG)
 TAGS ?= $(SECURITYTAGS) $(STORAGETAGS)
 BUILDTAGS += $(TAGS)
@@ -171,7 +171,7 @@ test-unit: tests/testreport/testreport
 	$(GO_TEST) -v -tags "$(STORAGETAGS) $(SECURITYTAGS)" -cover -race ./cmd/buildah -args --root $$tmp/root --runroot $$tmp/runroot --storage-driver vfs --signature-policy $(shell pwd)/tests/policy.json --registries-conf $(shell pwd)/tests/registries.conf
 
 vendor-in-container:
-	podman run --privileged --rm --env HOME=/root -v `pwd`:/src -w /src docker.io/library/golang:1.13 make vendor
+	podman run --privileged --rm --env HOME=/root -v `pwd`:/src -w /src docker.io/library/golang:1.16 make vendor
 
 .PHONY: vendor
 vendor:
@@ -181,4 +181,4 @@ vendor:
 
 .PHONY: lint
 lint: install.tools
-	./tests/tools/build/golangci-lint run $(LINTFLAGS)
+	./tests/tools/build/golangci-lint run $(LINTFLAGS) --build-tags $(STORAGETAGS)
