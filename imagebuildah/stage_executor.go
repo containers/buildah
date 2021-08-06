@@ -447,6 +447,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		NamespaceOptions: s.executor.namespaceOptions,
 		Terminal:         buildah.WithoutTerminal,
 		Secrets:          s.executor.secrets,
+		SSHSources:       s.executor.sshsources,
 		RunMounts:        run.Mounts,
 	}
 	if config.NetworkDisabled {

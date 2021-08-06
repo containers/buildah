@@ -1,0 +1,5 @@
+FROM alpine
+
+RUN apk add openssh-client
+
+RUN --mount=type=ssh,id=default ssh-add -l -E md5

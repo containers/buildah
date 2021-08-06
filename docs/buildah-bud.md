@@ -519,6 +519,14 @@ Sign the built image using the GPG key that matches the specified fingerprint.
 Squash all of the image's new layers into a single new layer; any preexisting layers
 are not squashed.
 
+**--ssh**=**default**|*id[=socket>|<key>[,<key>]*
+SSH agent socket or keys to expose to the build.
+The socket path can be left empty to use the value of `default=$SSH_AUTH_SOCK`
+
+To later use the ssh agent, use the --mount flag in a `RUN` instruction within a `Containerfile`:
+
+`RUN --mount=type=secret,id=id mycmd`
+
 **--stdin**
 
 Pass stdin into the RUN containers. Sometime commands being RUN within a Containerfile
