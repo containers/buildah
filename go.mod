@@ -3,7 +3,7 @@ module github.com/containers/buildah
 go 1.12
 
 require (
-	github.com/containerd/containerd v1.5.1
+	github.com/containerd/containerd v1.5.5
 	github.com/containernetworking/cni v0.8.1
 	github.com/containers/common v0.42.1
 	github.com/containers/image/v5 v5.15.0
