@@ -3328,3 +3328,9 @@ _EOF
   test -n "$d2"
   test "$d1" != "$d2"
 }
+
+@test "bud-multiple-platform-no-partial-manifest-list" {
+  outputlist=localhost/testlist
+  run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --platform=linux/arm,linux/amd64 --manifest $outputlist -f ${TESTSDIR}/bud/multiarch/Dockerfile.fail ${TESTSDIR}/bud/multiarch
+  run_buildah 125 manifest inspect $outputlist
+}

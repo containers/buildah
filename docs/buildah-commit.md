@@ -69,9 +69,9 @@ environment variable.  `export BUILDAH\_FORMAT=docker`
 
 Write the image ID to the file.
 
-**--manifest** "manifest"
+**--manifest** "listName"
 
-Name of the manifest list to which the image will be added. Creates the manifest list
+Name of the manifest list to which the built image will be added. Creates the manifest list
 if it does not exist. This option is useful for building multi architecture images.
 
 **--quiet**, **-q**
@@ -130,7 +130,7 @@ This example commits the container to the image on the local registry using cred
 This example saves an image based on the container, but stores dates based on epoch time.
 `buildah commit --timestamp=0 containerID newImageName`
 
-### Building an multi-architecture image using a --manifest option (Requires emulation software)
+### Building an multi-architecture image using the --manifest option (requires emulation software)
 
 ```
 #!/bin/sh

@@ -10,7 +10,6 @@ import (
 )
 
 func init() {
-
 	umountCommand := &cobra.Command{
 		Use:     "umount",
 		Aliases: []string{"unmount"},

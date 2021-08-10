@@ -354,7 +354,7 @@ environment variable. `export BUILDAH_LAYERS=true`
 Log output which would be sent to standard output and standard error to the
 specified file instead of to standard output and standard error.
 
-**--manifest** "manifest"
+**--manifest** "listName"
 
 Name of the manifest list to which the built image will be added.  Creates the
 manifest list if it does not exist.  This option is useful for building multi
@@ -795,13 +795,17 @@ buildah bud --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
 
 buildah bud -f Containerfile.in -t imageName .
 
-### Building an multi-architecture image using a --manifest option (Requires emulation software)
+### Building an multi-architecture image using the --manifest option (requires emulation software)
 
 buildah bud --arch arm --manifest myimage /tmp/mysrc
 
 buildah bud --arch amd64 --manifest myimage /tmp/mysrc
 
 buildah bud --arch s390x --manifest myimage /tmp/mysrc
+
+buildah bud --platform linux/s390x,linux/ppc64le,linux/amd64 --manifest myimage /tmp/mysrc
+
+buildah bud --platform linux/arm64 --platform linux/amd64 --manifest myimage /tmp/mysrc
 
 ### Building an image using a URL
 

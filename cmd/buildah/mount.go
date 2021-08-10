@@ -61,7 +61,6 @@ func init() {
 }
 
 func mountCmd(c *cobra.Command, args []string, opts mountOptions) error {
-
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}

@@ -378,7 +378,10 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		options.ReportWriter = ioutil.Discard
 	}
 
-	_, _, err = imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)
+	id, ref, err := imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)
+	if err == nil && options.Manifest != "" {
+		logrus.Debugf("manifest list id = %q, ref = %q", id, ref.String())
+	}
 	return err
 }
 

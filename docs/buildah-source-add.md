@@ -15,6 +15,7 @@ Note that the buildah-source command and all its subcommands are experimental
 and may be subject to future changes
 
 ## OPTIONS
+
 **--annotation** *key=value*
 
 Add an annotation to the layer descriptor in the source-image manifest.  The input format is `key=value`.
