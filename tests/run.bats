@@ -558,39 +558,61 @@ function configure_and_check_user() {
 }
 
 @test "run check /etc/resolv.conf" {
-        skip_if_no_runtime
+	skip_if_no_runtime
 
-        ${OCI} --version
-        _prefetch debian
+	${OCI} --version
+	_prefetch alpine
 
-        run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-        cid=$output
-        run_buildah run --isolation=chroot --network=container $cid cat /etc/resolv.conf
-	expect_output --substring "nameserver"
-        m=$(buildah mount $cid)
-	run cat $m/etc/resolv.conf
-	[ "$status" -eq 0 ]
-	expect_output --substring ""
+	# Make sure to read the correct /etc/resolv.conf file in case of systemd-resolved.
+	resolve_file=$(readlink -f /etc/resolv.conf)
+	if [[ "$resolve_file" == "/run/systemd/resolve/stub-resolv.conf" ]]; then
+		resolve_file="/run/systemd/resolve/resolv.conf"
+	fi
+
+	run grep nameserver $resolve_file
+	# filter out 127... nameservers
+	run grep -v "nameserver 127." <<< "$output"
+	nameservers="$output"
+	# in case of rootless add extra slirp4netns nameserver
+	if is_rootless; then
+		nameservers="nameserver 10.0.2.3
+$output"
+	fi
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run --network=private $cid grep nameserver /etc/resolv.conf
+	# check that no 127... nameserver is in resolv.conf
+	assert "$output" !~ "^nameserver 127." "Container contains local nameserver"
+	assert "$nameservers" "Container nameservers match correct host nameservers"
+	if ! is_rootless; then
+		run_buildah mount $cid
+		assert "$output" != ""
+		assert "$(< $output/etc/resolv.conf)" = "" "resolv.conf is empty"
+	fi
 	run_buildah rm -a
 
-        run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-        cid=$output
-        run_buildah run --isolation=chroot --network=host $cid cat /etc/resolv.conf
-	expect_output --substring "nameserver"
-        m=$(buildah mount $cid)
-	run cat $m/etc/resolv.conf
-	[ "$status" -eq 0 ]
-	expect_output --substring ""
+	run grep nameserver /etc/resolv.conf
+	nameservers="$output"
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run --isolation=chroot --network=host $cid grep nameserver /etc/resolv.conf
+	assert "$nameservers" "Container nameservers match the host nameservers"
+	if ! is_rootless; then
+		run_buildah mount $cid
+		assert "$output" != ""
+		assert "$(< $output/etc/resolv.conf)" = "" "resolv.conf is empty"
+	fi
 	run_buildah rm -a
 
-        run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-        cid=$output
-        run_buildah run --isolation=chroot --network=none $cid sh -c 'echo "nameserver 110.110.0.110" >> /etc/resolv.conf; cat /etc/resolv.conf'
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run --isolation=chroot --network=none $cid sh -c 'echo "nameserver 110.110.0.110" >> /etc/resolv.conf; cat /etc/resolv.conf'
 	expect_output "nameserver 110.110.0.110"
-        m=$(buildah mount $cid)
-	run cat $m/etc/resolv.conf
-	[ "$status" -eq 0 ]
-	expect_output --substring "nameserver 110.110.0.110"
+	if ! is_rootless; then
+		run_buildah mount $cid
+		assert "$output" != ""
+		assert "$(< $output/etc/resolv.conf)" =~ "^nameserver 110.110.0.110" "Nameserver is set in the image resolv.conf file"
+	fi
 	run_buildah rm -a
 }
 

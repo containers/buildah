@@ -388,6 +388,13 @@ function check_options_flag_err() {
     [[ $output = *"No options ($flag) can be specified after"* ]]
 }
 
+#################
+#  is_rootless  #  Check if we run as normal user
+#################
+function is_rootless() {
+    [ "$(id -u)" -ne 0 ]
+}
+
 ####################
 #  skip_if_chroot  #
 ####################
