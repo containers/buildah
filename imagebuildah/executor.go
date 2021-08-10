@@ -124,6 +124,7 @@ type Executor struct {
 	manifest                       string
 	secrets                        map[string]string
 	sshsources                     map[string]*sshagent.Source
+	logPrefix                      string
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -133,8 +134,8 @@ type imageTypeAndHistoryAndDiffIDs struct {
 	err          error
 }
 
-// NewExecutor creates a new instance of the imagebuilder.Executor interface.
-func NewExecutor(logger *logrus.Logger, store storage.Store, options define.BuildOptions, mainNode *parser.Node) (*Executor, error) {
+// newExecutor creates a new instance of the imagebuilder.Executor interface.
+func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, options define.BuildOptions, mainNode *parser.Node) (*Executor, error) {
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get container config")
@@ -266,6 +267,7 @@ func NewExecutor(logger *logrus.Logger, store storage.Store, options define.Buil
 		manifest:                       options.Manifest,
 		secrets:                        secrets,
 		sshsources:                     sshsources,
+		logPrefix:                      logPrefix,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr
@@ -442,7 +444,7 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 	if stageExecutor.log == nil {
 		stepCounter := 0
 		stageExecutor.log = func(format string, args ...interface{}) {
-			prefix := ""
+			prefix := b.logPrefix
 			if len(stages) > 1 {
 				prefix += fmt.Sprintf("[%d/%d] ", stageIndex+1, len(stages))
 			}

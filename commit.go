@@ -197,7 +197,7 @@ func (b *Builder) addManifest(ctx context.Context, manifestName string, imageSpe
 
 	names, err := util.ExpandNames([]string{manifestName}, systemContext, b.store)
 	if err != nil {
-		return "", errors.Wrapf(err, "error encountered while expanding image name %q", manifestName)
+		return "", errors.Wrapf(err, "error encountered while expanding manifest list name %q", manifestName)
 	}
 
 	ref, err := util.VerifyTagName(imageSpec)
