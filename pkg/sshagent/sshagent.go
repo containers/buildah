@@ -170,7 +170,7 @@ func (a *readOnlyAgent) Lock(_ []byte) error {
 }
 
 // Source is what the forwarded agent's source is
-// The source of the forwarded agent can be from a socket on the host, or from indvidual key files
+// The source of the forwarded agent can be from a socket on the host, or from individual key files
 type Source struct {
 	Socket string
 	Keys   []interface{}
