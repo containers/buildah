@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
+	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 func sendThatFile(basepath string) func(w http.ResponseWriter, r *http.Request) {
@@ -30,11 +34,40 @@ func sendThatFile(basepath string) func(w http.ResponseWriter, r *http.Request) 
 
 func main() {
 	args := os.Args
-	if len(args) < 3 {
-		log.Fatal("requires listening port and subdirectory path")
+	if len(args) < 2 {
+		log.Fatal("requires subdirectory path [and optional port [and optional port file name]]")
 	}
-	port := args[1]
-	basedir := args[2]
+	basedir := args[1]
+	port := "0"
+	if len(args) > 2 {
+		port = args[2]
+	}
 	http.HandleFunc("/", sendThatFile(basedir))
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	server := http.Server{
+		Addr: ":" + port,
+		BaseContext: func(l net.Listener) context.Context {
+			if tcp, ok := l.Addr().(*net.TCPAddr); ok {
+				if len(args) > 3 {
+					f, err := ioutil.TempFile(filepath.Dir(args[3]), filepath.Base(args[3]))
+					if err != nil {
+						log.Fatalf("%v", err)
+					}
+					tempName := f.Name()
+					bytes := []byte(strconv.Itoa(tcp.Port))
+					if n, err := f.Write(bytes); err != nil || n != len(bytes) {
+						if err != nil {
+							log.Fatalf("%v", err)
+						}
+						log.Fatalf("short write: %d != %d", n, len(bytes))
+					}
+					f.Close()
+					if err := os.Rename(tempName, args[3]); err != nil {
+						log.Fatalf("rename: %v", err)
+					}
+				}
+			}
+			return context.Background()
+		},
+	}
+	log.Fatal(server.ListenAndServe())
 }
