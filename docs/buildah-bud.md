@@ -44,7 +44,7 @@ Note: this information is not present in Docker image formats, so it is discarde
 
 **--arch**="ARCH"
 
-Set the ARCH of the image to be pulled to the provided value instead of using the architecture of the host. (Examples: arm, arm64, 386, amd64, ppc64le, s390x)
+Set the ARCH of the image to be built, and that of the base image to be pulled, if the build uses one, to the provided value instead of using the architecture of the host. (Examples: arm, arm64, 386, amd64, ppc64le, s390x)
 
 **--authfile** *path*
 
@@ -214,6 +214,7 @@ from inside a rootless container will fail. The **crun**(1) runtime offers a
 workaround for this by adding the option **--annotation run.oci.keep_original_groups=1**.
 
 **--disable-compression**, **-D**
+
 Don't compress filesystem layers when building the image unless it is required
 by the location where the image is being written.  This is the default setting,
 because image layers are compressed automatically when they are pushed to
@@ -287,7 +288,8 @@ those.
 
 **--iidfile** *ImageIDfile*
 
-Write the image ID to the file.
+Write the built image's ID to the file.  When `--platform` is specified more
+than once, attempting to use this option will trigger an error.
 
 **--ignorefile** *file*
 
@@ -322,7 +324,7 @@ BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
 Run up to N concurrent stages in parallel.  If the number of jobs is greater than 1,
 stdin will be read from /dev/null.  If 0 is specified, then there is
-no limit in the number of jobs that run in parallel.
+no limit on the number of jobs that run in parallel.
 
 **--label** *label*
 
@@ -354,8 +356,9 @@ specified file instead of to standard output and standard error.
 
 **--manifest** "manifest"
 
-Name of the manifest list to which the image will be added. Creates the manifest list
-if it does not exist. This option is useful for building multi architecture images.
+Name of the manifest list to which the built image will be added.  Creates the
+manifest list if it does not exist.  This option is useful for building multi
+architecture images.
 
 **--memory**, **-m**=""
 
@@ -395,7 +398,7 @@ Do not use existing cached images for the container build. Build from the start 
 
 **--os**="OS"
 
-Set the OS of the image to be pulled instead of using the current operating system of the host.
+Set the OS of the image to be built, and that of the base image to be pulled, if the build uses one, instead of using the current operating system of the host.
 
 **--pid** *how*
 
@@ -479,6 +482,7 @@ Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-for
 to buildah bud, the option given would be `--runtime-flag log-format=json`.
 
 **--secret**=**id=id,src=path**
+
 Pass secret information to be used in the Containerfile for building images
 in a safe way that will not end up stored in the final image, or be seen in other stages.
 The secret will be mounted in the container at the default location of `/run/secrets/id`.
@@ -520,6 +524,7 @@ Squash all of the image's new layers into a single new layer; any preexisting la
 are not squashed.
 
 **--ssh**=**default**|*id[=socket>|<key>[,<key>]*
+
 SSH agent socket or keys to expose to the build.
 The socket path can be left empty to use the value of `default=$SSH_AUTH_SOCK`
 

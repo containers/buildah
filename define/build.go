@@ -230,4 +230,8 @@ type BuildOptions struct {
 	// From is the image name to use to replace the value specified in the first
 	// FROM instruction in the Containerfile
 	From string
+	// Platforms is the list of parsed OS/Arch/Variant triples that we want
+	// to build the image for.  If this slice has items in it, the OS and
+	// Architecture fields above are ignored.
+	Platforms []struct{ OS, Arch, Variant string }
 }
