@@ -112,7 +112,7 @@ type Executor struct {
 	retryPullPushDelay             time.Duration
 	ociDecryptConfig               *encconfig.DecryptConfig
 	lastError                      error
-	terminatedStage                map[string]struct{}
+	terminatedStage                map[string]error
 	stagesLock                     sync.Mutex
 	stagesSemaphore                *semaphore.Weighted
 	jobs                           int
@@ -257,7 +257,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		maxPullPushRetries:             options.MaxPullPushRetries,
 		retryPullPushDelay:             options.PullPushRetryDelay,
 		ociDecryptConfig:               options.OciDecryptConfig,
-		terminatedStage:                make(map[string]struct{}),
+		terminatedStage:                make(map[string]error),
 		stagesSemaphore:                options.JobSemaphore,
 		jobs:                           jobs,
 		logRusage:                      options.LogRusage,
@@ -367,9 +367,12 @@ func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebu
 		}
 
 		b.stagesLock.Lock()
-		_, terminated := b.terminatedStage[name]
+		terminationError, terminated := b.terminatedStage[name]
 		b.stagesLock.Unlock()
 
+		if terminationError != nil {
+			return false, terminationError
+		}
 		if terminated {
 			return true, nil
 		}
@@ -680,11 +683,11 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		stage := stages[r.Index]
 
 		b.stagesLock.Lock()
-		b.terminatedStage[stage.Name] = struct{}{}
-		b.terminatedStage[fmt.Sprintf("%d", stage.Position)] = struct{}{}
-		b.stagesLock.Unlock()
+		b.terminatedStage[stage.Name] = r.Error
+		b.terminatedStage[fmt.Sprintf("%d", stage.Position)] = r.Error
 
 		if r.Error != nil {
+			b.stagesLock.Unlock()
 			b.lastError = r.Error
 			return "", nil, r.Error
 		}
@@ -692,9 +695,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		// If this is an intermediate stage, make a note of the ID, so
 		// that we can look it up later.
 		if r.Index < len(stages)-1 && r.ImageID != "" {
-			b.stagesLock.Lock()
 			b.imageMap[stage.Name] = r.ImageID
-			b.stagesLock.Unlock()
 			// We're not populating the cache with intermediate
 			// images, so add this one to the list of images that
 			// we'll remove later.
@@ -706,6 +707,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			imageID = r.ImageID
 			ref = r.Ref
 		}
+		b.stagesLock.Unlock()
 	}
 
 	if len(b.unusedArgs) > 0 {
