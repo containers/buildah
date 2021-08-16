@@ -48,9 +48,23 @@ EOF
 function starthttpd() {
     pushd ${2:-${TESTDIR}} > /dev/null
     go build -o serve ${TESTSDIR}/serve/serve.go
-    HTTP_SERVER_PORT=$((RANDOM+32768))
-    ./serve ${HTTP_SERVER_PORT} ${1:-${BATS_TMPDIR}} &
+    portfile=$(mktemp)
+    if test -z "${portfile}"; then
+        echo error creating temporaty file
+        exit 1
+    fi
+    ./serve ${1:-${BATS_TMPDIR}} 0 ${portfile} &
     HTTP_SERVER_PID=$!
+    waited=0
+    while ! test -s ${portfile} ; do
+        sleep 0.1
+        if test $((++waited)) -ge 300 ; then
+            echo test http server did not start within timeout
+            exit 1
+        fi
+    done
+    HTTP_SERVER_PORT=$(cat ${portfile})
+    rm -f ${portfile}
     popd > /dev/null
 }
 
