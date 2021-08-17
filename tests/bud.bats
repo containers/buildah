@@ -507,8 +507,8 @@ symlink(subdir)"
 
 @test "bud-from-scratch-layers" {
   target=scratch-image
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f  ${TESTSDIR}/bud/from-scratch/Dockerfile2 -t ${target} ${TESTSDIR}/bud/from-scratch
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f  ${TESTSDIR}/bud/from-scratch/Dockerfile2 -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f  ${TESTSDIR}/bud/from-scratch/Containerfile2 -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json -f  ${TESTSDIR}/bud/from-scratch/Containerfile2 -t ${target} ${TESTSDIR}/bud/from-scratch
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah images
@@ -688,7 +688,7 @@ function _test_http() {
 }
 
 @test "bud-http-Dockerfile" {
-  _test_http from-scratch Dockerfile
+  _test_http from-scratch Containerfile
 }
 
 @test "bud-http-context-with-Dockerfile" {
@@ -1097,29 +1097,29 @@ function _test_http() {
 
 @test "bud with --cpu-shares flag, no argument" {
   target=bud-flag
-  run_buildah 125 bud --cpu-shares --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah 125 bud --cpu-shares --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Containerfile ${TESTSDIR}/bud/from-scratch
 }
 
 @test "bud with --cpu-shares flag, invalid argument" {
   target=bud-flag
-  run_buildah 125 bud --cpu-shares bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah 125 bud --cpu-shares bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Containerfile ${TESTSDIR}/bud/from-scratch
   expect_output --substring "invalid argument \"bogus\" for "
 }
 
 @test "bud with --cpu-shares flag, valid argument" {
   target=bud-flag
-  run_buildah bud --cpu-shares 2 --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah bud --cpu-shares 2 --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Containerfile ${TESTSDIR}/bud/from-scratch
   run_buildah from ${target}
 }
 
 @test "bud with --cpu-shares short flag (-c), no argument" {
   target=bud-flag
-  run_buildah 125 bud -c --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah 125 bud -c --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Containerfile ${TESTSDIR}/bud/from-scratch
 }
 
 @test "bud with --cpu-shares short flag (-c), invalid argument" {
   target=bud-flag
-  run_buildah 125 bud -c bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Dockerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah 125 bud -c bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Containerfile ${TESTSDIR}/bud/from-scratch
   expect_output --substring "invalid argument \"bogus\" for "
 }
 
@@ -2294,7 +2294,7 @@ EOM
 
 @test "bud with custom arch" {
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json \
-    -f ${TESTSDIR}/bud/from-scratch/Dockerfile \
+    -f ${TESTSDIR}/bud/from-scratch/Containerfile \
     -t arch-test \
     --arch=arm
 
@@ -2307,7 +2307,7 @@ EOM
 
 @test "bud with custom os" {
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json \
-    -f ${TESTSDIR}/bud/from-scratch/Dockerfile \
+    -f ${TESTSDIR}/bud/from-scratch/Containerfile \
     -t os-test \
     --os=windows
 
@@ -2320,7 +2320,7 @@ EOM
 
 @test "bud with custom platform" {
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json \
-    -f ${TESTSDIR}/bud/from-scratch/Dockerfile \
+    -f ${TESTSDIR}/bud/from-scratch/Containerfile \
     -t platform-test \
     --platform=windows/arm
 

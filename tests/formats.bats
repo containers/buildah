@@ -58,9 +58,9 @@ function check_imgtype() {
 }
 
 @test "bud-formats" {
-  run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t scratch-image-default -f Dockerfile ${TESTSDIR}/bud/from-scratch
-  run_buildah build-using-dockerfile --format docker --signature-policy ${TESTSDIR}/policy.json -t scratch-image-docker -f Dockerfile ${TESTSDIR}/bud/from-scratch
-  run_buildah build-using-dockerfile --format oci --signature-policy ${TESTSDIR}/policy.json -t scratch-image-oci -f Dockerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t scratch-image-default -f Containerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah build-using-dockerfile --format docker --signature-policy ${TESTSDIR}/policy.json -t scratch-image-docker -f Containerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah build-using-dockerfile --format oci --signature-policy ${TESTSDIR}/policy.json -t scratch-image-oci -f Containerfile ${TESTSDIR}/bud/from-scratch
 
   check_imgtype scratch-image-default oci
   check_imgtype scratch-image-oci     oci
