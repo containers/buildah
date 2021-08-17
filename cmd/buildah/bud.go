@@ -12,6 +12,7 @@ import (
 	"github.com/containers/buildah/imagebuildah"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	buildahutil "github.com/containers/buildah/pkg/util"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/auth"
 	"github.com/pkg/errors"
@@ -191,7 +192,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 
 	if len(containerfiles) == 0 {
 		// Try to find the Containerfile/Dockerfile within the contextDir
-		containerfile, err := discoverContainerfile(contextDir)
+		containerfile, err := buildahutil.DiscoverContainerfile(contextDir)
 		if err != nil {
 			return err
 		}
@@ -383,45 +384,4 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		logrus.Debugf("manifest list id = %q, ref = %q", id, ref.String())
 	}
 	return err
-}
-
-// discoverContainerfile tries to find a Containerfile or a Dockerfile within the provided `path`.
-func discoverContainerfile(path string) (foundCtrFile string, err error) {
-	// Test for existence of the file
-	target, err := os.Stat(path)
-	if err != nil {
-		return "", errors.Wrap(err, "discovering Containerfile")
-	}
-
-	switch mode := target.Mode(); {
-	case mode.IsDir():
-		// If the path is a real directory, we assume a Containerfile or a Dockerfile within it
-		ctrfile := filepath.Join(path, "Containerfile")
-
-		// Test for existence of the Containerfile file
-		file, err := os.Stat(ctrfile)
-		if err != nil {
-			// See if we have a Dockerfile within it
-			ctrfile = filepath.Join(path, "Dockerfile")
-
-			// Test for existence of the Dockerfile file
-			file, err = os.Stat(ctrfile)
-			if err != nil {
-				return "", errors.Wrap(err, "cannot find Containerfile or Dockerfile in context directory")
-			}
-		}
-
-		// The file exists, now verify the correct mode
-		if mode := file.Mode(); mode.IsRegular() {
-			foundCtrFile = ctrfile
-		} else {
-			return "", errors.Errorf("assumed Containerfile %q is not a file", ctrfile)
-		}
-
-	case mode.IsRegular():
-		// If the context dir is a file, we assume this as Containerfile
-		foundCtrFile = path
-	}
-
-	return foundCtrFile, nil
 }
