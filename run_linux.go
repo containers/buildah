@@ -1782,7 +1782,6 @@ func (b *Builder) cleanupTempVolumes() {
 }
 
 func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string, optionMounts []specs.Mount, rootUID, rootGID, processUID, processGID int) (mounts []specs.Mount, Err error) {
-
 	// Make sure the overlay directory is clean before running
 	containerDir, err := b.store.ContainerDirectory(b.ContainerID)
 	if err != nil {
@@ -1844,7 +1843,6 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 
 			overlayMount, err := overlay.Mount(contentDir, host, container, rootUID, rootGID, b.store.GraphOptions())
 			if err == nil {
-
 				b.TempVolumes[contentDir] = true
 			}
 

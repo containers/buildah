@@ -205,7 +205,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	if err := fs.MarkHidden("rusage-logfile"); err != nil {
 		panic(fmt.Sprintf("error marking the rusage-logfile flag as hidden: %v", err))
 	}
-	fs.StringVar(&flags.Manifest, "manifest", "", "add the image to the specified manifest list. Creates manifest if it does not exist")
+	fs.StringVar(&flags.Manifest, "manifest", "", "add the image to the specified manifest list. Creates manifest list if it does not exist")
 	fs.BoolVar(&flags.NoCache, "no-cache", false, "Do not use existing cached images for the container build. Build from the start with a new set of cached layers.")
 	fs.String("os", runtime.GOOS, "set the OS to the provided value instead of the current operating system of the host")
 	fs.BoolVar(&flags.Pull, "pull", true, "pull the image from the registry if newer or not present in store, if false, only pull the image if not present")

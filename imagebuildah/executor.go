@@ -438,7 +438,7 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 	}
 
 	if err != nil {
-		logrus.Debugf("Build(node.Children=%#v)", node.Children)
+		logrus.Debugf("buildStage(node.Children=%#v)", node.Children)
 		return "", nil, err
 	}
 

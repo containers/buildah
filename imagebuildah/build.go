@@ -11,18 +11,20 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/manifests"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libimage"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
+	istorage "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/hashicorp/go-multierror"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/openshift/imagebuilder"
 	"github.com/openshift/imagebuilder/dockerfile/parser"
@@ -91,7 +93,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		var data io.ReadCloser
 
 		if strings.HasPrefix(dfile, "http://") || strings.HasPrefix(dfile, "https://") {
-			logrus.Debugf("reading remote Dockerfile %q", dfile)
+			logger.Debugf("reading remote Dockerfile %q", dfile)
 			resp, err := http.Get(dfile)
 			if err != nil {
 				return "", nil, err
@@ -120,7 +122,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			if dinfo.Mode().IsDir() {
 				for _, file := range []string{"Containerfile", "Dockerfile"} {
 					f := filepath.Join(dfile, file)
-					logrus.Debugf("reading local %q", f)
+					logger.Debugf("reading local %q", f)
 					contents, err = os.Open(f)
 					if err == nil {
 						break
@@ -170,28 +172,14 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		options.JobSemaphore = semaphore.NewWeighted(int64(*options.Jobs))
 	}
 
-	if options.Manifest != "" && len(options.Platforms) > 0 {
-		// Ensure that the list's ID is known before we spawn off any
-		// goroutines that'll want to modify it, so that they don't
-		// race and create two lists, one of which will rapidly become
-		// ignored.
-		names, err := util.ExpandNames([]string{options.Manifest}, options.SystemContext, store)
-		if err != nil {
-			return "", nil, errors.Wrapf(err, "while expanding manifest list name %q", options.Manifest)
-		}
-		rt, err := libimage.RuntimeFromStore(store, nil)
-		if err != nil {
-			return "", nil, err
-		}
-		_, err = rt.LookupManifestList(options.Manifest)
-		if err != nil && errors.Cause(err) == storage.ErrImageUnknown {
-			list := manifests.Create()
-			_, err = list.SaveToImage(store, "", names, manifest.DockerV2ListMediaType)
-		}
-		if err != nil {
-			return "", nil, err
-		}
+	manifestList := options.Manifest
+	options.Manifest = ""
+	type instance struct {
+		v1.Platform
+		ID string
 	}
+	var instances []instance
+	var instancesLock sync.Mutex
 
 	var builds multierror.Group
 	if options.SystemContext == nil {
@@ -227,6 +215,16 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 				return err
 			}
 			id, ref = thisID, thisRef
+			instancesLock.Lock()
+			instances = append(instances, instance{
+				ID: thisID,
+				Platform: v1.Platform{
+					OS:           platformContext.OSChoice,
+					Architecture: platformContext.ArchitectureChoice,
+					Variant:      platformContext.VariantChoice,
+				},
+			})
+			instancesLock.Unlock()
 			return nil
 		})
 	}
@@ -237,17 +235,71 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		}
 		return "", nil, merr.ErrorOrNil()
 	}
-	if options.Manifest != "" {
+
+	if manifestList != "" {
 		rt, err := libimage.RuntimeFromStore(store, nil)
 		if err != nil {
 			return "", nil, err
 		}
-		list, err := rt.LookupManifestList(options.Manifest)
+		// Create the manifest list ourselves, so that it's not in a
+		// partially-populated state at any point if we're creating it
+		// fresh.
+		list, err := rt.LookupManifestList(manifestList)
+		if err != nil && errors.Cause(err) == storage.ErrImageUnknown {
+			list, err = rt.CreateManifestList(manifestList)
+		}
 		if err != nil {
 			return "", nil, err
 		}
+		// Add each instance to the list in turn.
+		storeTransportName := istorage.Transport.Name()
+		for _, instance := range instances {
+			instanceDigest, err := list.Add(ctx, storeTransportName+":"+instance.ID, nil)
+			if err != nil {
+				return "", nil, err
+			}
+			err = list.AnnotateInstance(instanceDigest, &libimage.ManifestListAnnotateOptions{
+				Architecture: instance.Architecture,
+				OS:           instance.OS,
+				Variant:      instance.Variant,
+			})
+			if err != nil {
+				return "", nil, err
+			}
+		}
 		id, ref = list.ID(), nil
+		// Put together a canonical reference
+		storeRef, err := istorage.Transport.NewStoreReference(store, nil, list.ID())
+		if err != nil {
+			return "", nil, err
+		}
+		imgSource, err := storeRef.NewImageSource(ctx, nil)
+		if err != nil {
+			return "", nil, err
+		}
+		defer imgSource.Close()
+		manifestBytes, _, err := imgSource.GetManifest(ctx, nil)
+		if err != nil {
+			return "", nil, err
+		}
+		manifestDigest, err := manifest.Digest(manifestBytes)
+		if err != nil {
+			return "", nil, err
+		}
+		img, err := store.Image(id)
+		if err != nil {
+			return "", nil, err
+		}
+		for _, name := range img.Names {
+			if named, err := reference.ParseNamed(name); err == nil {
+				if r, err := reference.WithDigest(reference.TrimNamed(named), manifestDigest); err == nil {
+					ref = r
+					break
+				}
+			}
+		}
 	}
+
 	return id, ref, nil
 }
 
