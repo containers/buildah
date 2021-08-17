@@ -19,7 +19,7 @@ type WalkFunc = filepath.WalkFunc
 //
 // Note that this implementation only supports primitive error handling:
 //
-// - no errors are ever passed to WalkFn;
+// - no errors are ever passed to walkFn;
 //
 // - once a walkFn returns any error, all further processing stops
 // and the error is returned to the caller of Walk;
@@ -95,7 +95,7 @@ func WalkN(root string, walkFn WalkFunc, num int) error {
 	return err
 }
 
-// walkArgs holds the arguments that were passed to the Walk or WalkLimit
+// walkArgs holds the arguments that were passed to the Walk or WalkN
 // functions.
 type walkArgs struct {
 	path string
