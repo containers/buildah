@@ -29,11 +29,11 @@ type budOptions struct {
 
 func init() {
 	budDescription := `
-  Builds an OCI image using instructions in one or more Dockerfiles.
+  Builds an OCI image using instructions in one or more Containerfiles.
 
   If no arguments are specified, Buildah will use the current working directory
-  as the build context and look for a Dockerfile. The build fails if no
-  Dockerfile is present.`
+  as the build context and look for a Containerfile. The build fails if no
+  Containerfile nor Dockerfile is present.`
 
 	layerFlagsResults := buildahcli.LayerResults{}
 	budFlagResults := buildahcli.BudResults{}
@@ -44,7 +44,7 @@ func init() {
 	budCommand := &cobra.Command{
 		Use:     "bud",
 		Aliases: []string{"build-using-dockerfile"},
-		Short:   "Build an image using instructions in a Dockerfile",
+		Short:   "Build an image using instructions in a Containerfile",
 		Long:    budDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			br := budOptions{
@@ -57,9 +57,9 @@ func init() {
 			return budCmd(cmd, args, br)
 		},
 		Example: `buildah bud
-  buildah bud -f Dockerfile.simple .
+  buildah bud -f Containerfile.simple .
   buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
-  buildah bud -f Dockerfile.simple -f Dockerfile.notsosimple .`,
+  buildah bud -f Containerfile.simple -f Containerfile.notsosimple .`,
 	}
 	budCommand.SetUsageTemplate(UsageTemplate())
 
@@ -85,16 +85,16 @@ func init() {
 	rootCmd.AddCommand(budCommand)
 }
 
-func getDockerfiles(files []string) []string {
-	var dockerfiles []string
+func getContainerfiles(files []string) []string {
+	var containerfiles []string
 	for _, f := range files {
 		if f == "-" {
-			dockerfiles = append(dockerfiles, "/dev/stdin")
+			containerfiles = append(containerfiles, "/dev/stdin")
 		} else {
-			dockerfiles = append(dockerfiles, f)
+			containerfiles = append(containerfiles, f)
 		}
 	}
-	return dockerfiles
+	return containerfiles
 }
 
 func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
@@ -140,7 +140,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		}
 	}
 
-	dockerfiles := getDockerfiles(iopts.File)
+	containerfiles := getContainerfiles(iopts.File)
 	format, err := getFormat(iopts.Format)
 	if err != nil {
 		return err
@@ -189,14 +189,14 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		return err
 	}
 
-	if len(dockerfiles) == 0 {
+	if len(containerfiles) == 0 {
 		// Try to find the Containerfile/Dockerfile within the contextDir
-		dockerFile, err := discoverContainerfile(contextDir)
+		containerfile, err := discoverContainerfile(contextDir)
 		if err != nil {
 			return err
 		}
-		dockerfiles = append(dockerfiles, dockerFile)
-		contextDir = filepath.Dir(dockerFile)
+		containerfiles = append(containerfiles, containerfile)
+		contextDir = filepath.Dir(containerfile)
 	}
 
 	contextDir, err = filepath.EvalSymlinks(contextDir)
@@ -311,7 +311,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 
 	var excludes []string
 	if iopts.IgnoreFile != "" {
-		if excludes, err = parseDockerignore(iopts.IgnoreFile); err != nil {
+		if excludes, err = parseIgnore(iopts.IgnoreFile); err != nil {
 			return err
 		}
 	}
@@ -378,7 +378,7 @@ func budCmd(c *cobra.Command, inputArgs []string, iopts budOptions) error {
 		options.ReportWriter = ioutil.Discard
 	}
 
-	id, ref, err := imagebuildah.BuildDockerfiles(getContext(), store, options, dockerfiles...)
+	id, ref, err := imagebuildah.BuildDockerfiles(getContext(), store, options, containerfiles...)
 	if err == nil && options.Manifest != "" {
 		logrus.Debugf("manifest list id = %q, ref = %q", id, ref.String())
 	}

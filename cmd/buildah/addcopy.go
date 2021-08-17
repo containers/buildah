@@ -77,7 +77,7 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	if err := flags.MarkHidden("decryption-key"); err != nil {
 		panic(fmt.Sprintf("error marking decryption-key as hidden: %v", err))
 	}
-	flags.StringVar(&opts.ignoreFile, "ignorefile", "", "path to .dockerignore file")
+	flags.StringVar(&opts.ignoreFile, "ignorefile", "", "path to .containerignore file")
 	flags.StringVar(&opts.contextdir, "contextdir", "", "context directory path")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing registries when pulling images. TLS verification cannot be used when talking to an insecure registry.")
@@ -232,7 +232,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	if iopts.contextdir != "" {
 		var excludes []string
 		if iopts.ignoreFile != "" {
-			excludes, err = parseDockerignore(iopts.ignoreFile)
+			excludes, err = parseIgnore(iopts.ignoreFile)
 		} else {
 			excludes, err = imagebuilder.ParseDockerignore(contextdir)
 		}
@@ -274,7 +274,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	return builder.Save()
 }
 
-func parseDockerignore(ignoreFile string) ([]string, error) {
+func parseIgnore(ignoreFile string) ([]string, error) {
 	var excludes []string
 	ignore, err := ioutil.ReadFile(ignoreFile)
 	if err != nil {
