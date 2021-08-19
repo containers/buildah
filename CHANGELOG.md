@@ -1,6 +1,9 @@
 ![buildah logo](https://cdn.rawgit.com/containers/buildah/main/logos/buildah-logo_large.png)
 
 # Changelog
+## v1.22.2 (2021-08-19)
+  * [release-1.22] bump c/image to v5.15.2
+
 ## v1.22.1 (2021-08-17)
   * [release-1.22] Bump c/storage to v1.34.1
   * Post-branch commit
