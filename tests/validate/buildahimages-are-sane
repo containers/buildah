@@ -44,6 +44,13 @@ function build_and_check() {
         exit 1
     fi
 
+    owner=$(buildah run $ctr stat -c "%U:%G" /home/build/.local/share/containers)
+    if [[ "${owner}" != "build:build" ]]; then
+        echo "$ME: ownership of /home/build/.local/share/containers failed on $dir:"
+        echo "  ${owner}"
+        exit 1
+    fi
+
     bin/buildah rm $ctr &>/dev/null
     bin/buildah rmi buildah &>/dev/null
 }
