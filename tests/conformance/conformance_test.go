@@ -2864,4 +2864,10 @@ var internalTestCases = []testCase{
 		withoutDocker: true,
 		fsSkip:        []string{"(dir):tmp:mtime"},
 	},
+
+	{
+		name:       "dockerignore-exceptions-skip",
+		contextDir: "dockerignore/exceptions-skip",
+		fsSkip:     []string{"(dir):volume:mtime"},
+	},
 }

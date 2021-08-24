@@ -152,7 +152,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	var idMappingOptions *buildah.IDMappingOptions
 	contextdir := iopts.contextdir
 	if iopts.ignoreFile != "" && contextdir == "" {
-		return errors.Errorf("--ignore options requires that you specify a context dir using --contextdir")
+		return errors.Errorf("--ignorefile option requires that you specify a context dir using --contextdir")
 	}
 
 	if iopts.from != "" {
