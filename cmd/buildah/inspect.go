@@ -12,7 +12,7 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 const (
@@ -120,7 +120,7 @@ func inspectCmd(c *cobra.Command, args []string, iopts inspectResults) error {
 		if err = t.Execute(os.Stdout, out); err != nil {
 			return err
 		}
-		if terminal.IsTerminal(int(os.Stdout.Fd())) {
+		if term.IsTerminal(int(os.Stdout.Fd())) {
 			fmt.Println()
 		}
 		return nil
@@ -128,7 +128,7 @@ func inspectCmd(c *cobra.Command, args []string, iopts inspectResults) error {
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "    ")
-	if terminal.IsTerminal(int(os.Stdout.Fd())) {
+	if term.IsTerminal(int(os.Stdout.Fd())) {
 		enc.SetEscapeHTML(false)
 	}
 	return enc.Encode(out)

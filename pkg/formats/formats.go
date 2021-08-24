@@ -12,7 +12,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 const (
@@ -70,7 +70,7 @@ func setJSONFormatEncoder(isTerminal bool, w io.Writer) *json.Encoder {
 // Out method for JSON Arrays
 func (j JSONStructArray) Out() error {
 	buf := bytes.NewBuffer(nil)
-	enc := setJSONFormatEncoder(terminal.IsTerminal(int(os.Stdout.Fd())), buf)
+	enc := setJSONFormatEncoder(term.IsTerminal(int(os.Stdout.Fd())), buf)
 	if err := enc.Encode(j.Output); err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (y YAMLStruct) Out() error {
 
 // humanNewLine prints a new line at the end of the output only if stdout is the terminal
 func humanNewLine() {
-	if terminal.IsTerminal(int(os.Stdout.Fd())) {
+	if term.IsTerminal(int(os.Stdout.Fd())) {
 		fmt.Println()
 	}
 }
