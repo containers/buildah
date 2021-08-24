@@ -234,9 +234,9 @@ OCI container images built with `buildah` are completely standard as expected. S
 
     # dnf -y remove docker
 
-## Using Dockerfiles with Buildah
+## Using Containerfiles/Dockerfiles with Buildah
 
-What if you have been using Docker for a while and have some existing Dockerfiles. Not a problem. Buildah can build images using a Dockerfile. The `build-using-dockerfile`, or `bud` for short, takes a Dockerfile as input and produces an OCI image.
+What if you have been using Docker for a while and have some existing Dockerfiles. Not a problem. Buildah can build images using a Dockerfile. The `build` command takes a Dockerfile as input and produces an OCI image.
 
 Find one of your Dockerfiles or create a file called Dockerfile. Use the following example or some variation if you'd like:
 
@@ -254,13 +254,13 @@ Find one of your Dockerfiles or create a file called Dockerfile. Use the followi
     # Run the httpd
     CMD ["/usr/sbin/httpd", "-DFOREGROUND"]
 
-Now run `buildah bud` with the name of the Dockerfile and the name to be given to the created image (e.g. fedora-httpd):
+Now run `buildah build` with the name of the Dockerfile and the name to be given to the created image (e.g. fedora-httpd):
 
-    # buildah bud -f Dockerfile -t fedora-httpd .
+    # buildah build -f Dockerfile -t fedora-httpd .
 
-or, because `buildah bud` defaults to Dockerfile (note the period at the end of the example):
+or, because `buildah build` defaults to Dockerfile (note the period at the end of the example):
 
-    # buildah bud -t fedora-httpd .
+    # buildah build -t fedora-httpd .
 
 You will see all the steps of the Dockerfile executing. Afterwards `buildah images` will show you the new image. Now we need to create the container using `buildah from` and test it with `buildah run`:
 
