@@ -12,7 +12,7 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 type infoResults struct {
@@ -79,14 +79,14 @@ func infoCmd(c *cobra.Command, iopts infoResults) error {
 		if err = t.Execute(os.Stdout, info); err != nil {
 			return err
 		}
-		if terminal.IsTerminal(int(os.Stdout.Fd())) {
+		if term.IsTerminal(int(os.Stdout.Fd())) {
 			fmt.Println()
 		}
 		return nil
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "    ")
-	if terminal.IsTerminal(int(os.Stdout.Fd())) {
+	if term.IsTerminal(int(os.Stdout.Fd())) {
 		enc.SetEscapeHTML(false)
 	}
 	return enc.Encode(info)

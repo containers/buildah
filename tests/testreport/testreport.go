@@ -17,8 +17,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/gocapability/capability"
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sys/unix"
+	"golang.org/x/term"
 )
 
 func getVersion(r *types.TestReport) {
@@ -35,12 +35,12 @@ func getHostname(r *types.TestReport) error {
 }
 
 func getProcessTerminal(r *types.TestReport) error {
-	r.Spec.Process.Terminal = terminal.IsTerminal(unix.Stdin)
+	r.Spec.Process.Terminal = term.IsTerminal(unix.Stdin)
 	return nil
 }
 
 func getProcessConsoleSize(r *types.TestReport) error {
-	if terminal.IsTerminal(unix.Stdin) {
+	if term.IsTerminal(unix.Stdin) {
 		winsize, err := unix.IoctlGetWinsize(unix.Stdin, unix.TIOCGWINSZ)
 		if err != nil {
 			return errors.Wrapf(err, "error reading size of terminal on stdin")
