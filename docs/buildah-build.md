@@ -1,15 +1,17 @@
-# buildah-bud "1" "April 2017" "buildah"
+# buildah-build "1" "April 2017" "buildah"
 
 ## NAME
-buildah\-bud - Build an image using instructions from Containerfiles
+buildah\-build - Build an image using instructions from Containerfiles
 
 ## SYNOPSIS
 
-**buildah build-using-dockerfile** [*options*] [*context*]
+**buildah build** [*options*] [*context*]
 
 **buildah bud** [*options*] [*context*]
 
-**bud** is an alias for **build-using-dockerfile**.
+**buildah build-using-dockerfile** [*options*] [*context*]
+
+**build** has aliases **bud** and **build-using-dockerfile**.
 
 ## DESCRIPTION
 Builds an image using instructions from one or more Containerfiles or Dockerfiles and a specified
@@ -479,7 +481,7 @@ Adds global flags for the container rutime. To list the supported flags, please
 consult the manpages of the selected container runtime.
 
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
-to buildah bud, the option given would be `--runtime-flag log-format=json`.
+to buildah build, the option given would be `--runtime-flag log-format=json`.
 
 **--secret**=**id=id,src=path**
 
@@ -749,59 +751,59 @@ Please refer to the [Using Build Time Variables](#using-build-time-variables) se
 
 ### Build an image using local Containerfiles
 
-buildah bud .
+buildah build .
 
-buildah bud -f Containerfile .
+buildah build -f Containerfile .
 
-cat ~/Dockerfile | buildah bud -f - .
+cat ~/Dockerfile | buildah build -f - .
 
-buildah bud -f Dockerfile.simple -f Dockerfile.notsosimple .
+buildah build -f Dockerfile.simple -f Dockerfile.notsosimple .
 
-buildah bud --timestamp=$(date '+%s') -t imageName .
+buildah build --timestamp=$(date '+%s') -t imageName .
 
-buildah bud -t imageName .
+buildah build -t imageName .
 
-buildah bud --tls-verify=true -t imageName -f Dockerfile.simple .
+buildah build --tls-verify=true -t imageName -f Dockerfile.simple .
 
-buildah bud --tls-verify=false -t imageName .
+buildah build --tls-verify=false -t imageName .
 
-buildah bud --runtime-flag log-format=json .
+buildah build --runtime-flag log-format=json .
 
-buildah bud -f Containerfile --runtime-flag debug .
+buildah build -f Containerfile --runtime-flag debug .
 
-buildah bud --authfile /tmp/auths/myauths.json --cert-dir ~/auth --tls-verify=true --creds=username:password -t imageName -f Dockerfile.simple .
+buildah build --authfile /tmp/auths/myauths.json --cert-dir ~/auth --tls-verify=true --creds=username:password -t imageName -f Dockerfile.simple .
 
-buildah bud --memory 40m --cpu-period 10000 --cpu-quota 50000 --ulimit nofile=1024:1028 -t imageName .
+buildah build --memory 40m --cpu-period 10000 --cpu-quota 50000 --ulimit nofile=1024:1028 -t imageName .
 
-buildah bud --security-opt label=level:s0:c100,c200 --cgroup-parent /path/to/cgroup/parent -t imageName .
+buildah build --security-opt label=level:s0:c100,c200 --cgroup-parent /path/to/cgroup/parent -t imageName .
 
-buildah bud --arch=arm --variant v7 -t imageName .
+buildah build --arch=arm --variant v7 -t imageName .
 
-buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
+buildah build --volume /home/test:/myvol:ro,Z -t imageName .
 
-buildah bud -v /home/test:/myvol:z,U -t imageName .
+buildah build -v /home/test:/myvol:z,U -t imageName .
 
-buildah bud -v /var/lib/dnf:/var/lib/dnf:O -t imageName .
+buildah build -v /var/lib/dnf:/var/lib/dnf:O -t imageName .
 
-buildah bud --layers -t imageName .
+buildah build --layers -t imageName .
 
-buildah bud --no-cache -t imageName .
+buildah build --no-cache -t imageName .
 
-buildah bud -f Containerfile --layers --force-rm -t imageName .
+buildah build -f Containerfile --layers --force-rm -t imageName .
 
-buildah bud --no-cache --rm=false -t imageName .
+buildah build --no-cache --rm=false -t imageName .
 
-buildah bud --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
+buildah build --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
 
-buildah bud -f Containerfile.in -t imageName .
+buildah build -f Containerfile.in -t imageName .
 
 ### Building an multi-architecture image using the --manifest option (requires emulation software)
 
-buildah bud --arch arm --manifest myimage /tmp/mysrc
+buildah build --arch arm --manifest myimage /tmp/mysrc
 
-buildah bud --arch amd64 --manifest myimage /tmp/mysrc
+buildah build --arch amd64 --manifest myimage /tmp/mysrc
 
-buildah bud --arch s390x --manifest myimage /tmp/mysrc
+buildah build --arch s390x --manifest myimage /tmp/mysrc
 
 buildah bud --platform linux/s390x,linux/ppc64le,linux/amd64 --manifest myimage /tmp/mysrc
 
@@ -811,21 +813,21 @@ buildah bud --platform linux/arm64 --platform linux/amd64 --manifest myimage /tm
 
   This will clone the specified GitHub repository from the URL and use it as context. The Containerfile or Dockerfile at the root of the repository is used as the context of the build. This only works if the GitHub repository is a dedicated repository.
 
-  buildah bud github.com/scollier/purpletest
+  buildah build github.com/scollier/purpletest
 
   Note: You can set an arbitrary Git repository via the git:// scheme.
 
 ### Building an image using a URL to a tarball'ed context
   Buildah will fetch the tarball archive, decompress it and use its contents as the build context.  The Containerfile or Dockerfile at the root of the archive and the rest of the archive will get used as the context of the build. If you pass an -f PATH/Containerfile option as well, the system will look for that file inside the contents of the tarball.
 
-  buildah bud -f dev/Containerfile https://10.10.10.1/docker/context.tar.gz
+  buildah build -f dev/Containerfile https://10.10.10.1/docker/context.tar.gz
 
   Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
 
 ### Using Build Time Variables
 #### Replace the value set for the HTTP_PROXY environment variable within the Containerfile.
 
-buildah bud --build-arg=HTTP_PROXY="http://127.0.0.1:8321"
+buildah build --build-arg=HTTP_PROXY="http://127.0.0.1:8321"
 
 ## ENVIRONMENT
 
@@ -849,7 +851,7 @@ are stored while pulling and pushing images.  Defaults to '/var/tmp'.
 ### `.containerignore`/`.dockerignore`
 
 If the .containerignore/.dockerignore file exists in the context directory,
-`buildah bud` reads its contents. If both exist, then .containerignore is used.
+`buildah build` reads its contents. If both exist, then .containerignore is used.
 Use the `--ignorefile` flag to override the ignore file path location. Buildah uses the content to exclude files and directories from the context directory, when executing COPY and ADD directives in the Containerfile/Dockerfile
 
 Users can specify a series of Unix shell globals in a

@@ -85,7 +85,7 @@ familiar container cli commands.
 Some of the commands between the projects overlap:
 
 * build
-The `podman build` and `buildah bud` commands have significant overlap as Podman borrows large pieces of the `podman build` implementation from Buildah.
+The `podman build` and `buildah build` commands have significant overlap as Podman borrows large pieces of the `podman build` implementation from Buildah.
 
 * run
 The `buildah run` and `podman run` commands are similar but different.  As explained above Podman and Buildah have a different concept of a container.  An easy way to think of it is the `buildah run` command emulates the RUN command in a Dockerfile while the `podman run` command emulates the `docker run` command in functionality.  As Buildah and Podman have somewhat different concepts of containers, you can not see Podman containers from within Buildah or vice versa.

@@ -57,7 +57,7 @@ EOF
 Now to create the first container and verify that ONBUILD has been set:
 
 ```
-# buildah bud --format=docker -f Dockerfile -t onbuild-image .
+# buildah build --format=docker -f Dockerfile -t onbuild-image .
 # buildah inspect --format '{{.Docker.Config.OnBuild}}' onbuild-image
 [RUN touch /bar]
 ```
@@ -65,7 +65,7 @@ Now to create the first container and verify that ONBUILD has been set:
 The second container is now created and the `/bar` file will be created within it:
 
 ```
-# buildah bud --format=docker -f Dockerfile-2 -t result-image .
+# buildah build --format=docker -f Dockerfile-2 -t result-image .
 STEP 1: FROM onbuild-image
 STEP 2: RUN touch /bar    # Note /bar created here based on the ONBUILD in Dockerfile
 STEP 3: RUN touch /baz
@@ -94,7 +94,7 @@ First a Fedora container will be created with `buildah from`, then the `/foo` fi
 The onbuild-image has been created, so now create a container from it using the same commands as the first example using the second Dockerfile:
 
 ```
-# buildah bud --format=docker -f Dockerfile-2 -t result-image .
+# buildah build --format=docker -f Dockerfile-2 -t result-image .
 STEP 1: FROM onbuild-image
 STEP 2: RUN touch /bar    # Note /bar created here based on the ONBUILD in Dockerfile
 STEP 3: RUN touch /baz
