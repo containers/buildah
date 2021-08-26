@@ -58,14 +58,15 @@ Valid placeholders for the Go template are listed below:
 
 | **Placeholder** | **Description**                          |
 | --------------- | -----------------------------------------|
-| .Tag            | Image Tag                                |
+| .Created        | Creation date in epoch time              |
+| .CreatedAt      | Creation date Pretty Formatted           |
+| .CreatedAtRaw   | Creation date in raw format              |
+| .Digest         | Image Digest                             |
 | .ID             | Image ID                                 |
 | .Name           | Image Name                               |
-| .Digest         | Image Digest                             |
-| .CreatedAt      | Creation date Pretty Formatted           |
-| .Size           | Image Size                               |
-| .CreatedAtRaw   | Creation date in raw format              |
 | .ReadOnly       | Indicates if image came from a R/O store |
+| .Size           | Image Size                               |
+| .Tag            | Image Tag                                |
 
 **--history**
 
