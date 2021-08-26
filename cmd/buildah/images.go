@@ -25,6 +25,7 @@ type jsonImage struct {
 	Digest       string    `json:"digest"`
 	CreatedAt    string    `json:"createdat"`
 	Size         string    `json:"size"`
+	Created      int64     `json:"created"`
 	CreatedAtRaw time.Time `json:"createdatraw"`
 	ReadOnly     bool      `json:"readonly"`
 	History      []string  `json:"history"`
@@ -35,6 +36,7 @@ type imageOutputParams struct {
 	ID           string
 	Name         string
 	Digest       string
+	Created      int64
 	CreatedAt    string
 	Size         string
 	CreatedAtRaw time.Time
@@ -204,6 +206,7 @@ func formatImagesJSON(images []*libimage.Image, opts imageOptions) error {
 		jsonImages = append(jsonImages,
 			jsonImage{
 				CreatedAtRaw: created,
+				Created:      created.Unix(),
 				CreatedAt:    units.HumanDuration(time.Since(created)) + " ago",
 				Digest:       image.Digest().String(),
 				ID:           truncateID(image.ID(), opts.truncate),
@@ -246,6 +249,7 @@ func formatImages(images []*libimage.Image, opts imageOptions) error {
 		}
 		created := image.Created()
 		outputParam.CreatedAtRaw = created
+		outputParam.Created = created.Unix()
 		outputParam.CreatedAt = units.HumanDuration(time.Since(created)) + " ago"
 		outputParam.Digest = image.Digest().String()
 		outputParam.ID = truncateID(image.ID(), opts.truncate)
