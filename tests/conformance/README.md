@@ -2,7 +2,7 @@
 
 # Buildah/Docker Conformance Test Suite
 
-The conformance test for buildah is used to verify the images built with Buildah are equivalent to those built by Docker.  It does this by building an image using the version of buildah library that's being tested, building what should be the same image using `docker build`, and comparing them.
+The conformance test for buildah is used to verify the images built with Buildah are equivalent to those built by Docker.  It does this by building an image using the version of buildah library that's being tested, building what should be the same image using the docker engine's build API, and comparing them.
 
 ## Installing dependencies
 
@@ -15,17 +15,17 @@ Conformance tests use Docker CE to build images to be compared with images built
 
 ## Run conformance tests
 
-You can run the test with go test:
+You can run all of the tests with go test:
 ```
 go test -v -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh) $(./libdm_tag.sh)" ./tests/conformance
 ```
 
-If you want to run one of the test cases you can use flag "-run":
+If you want to run one of the test cases you can use the "-run" flag:
 ```
 go test -v -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh) $(./libdm_tag.sh)" -run TestConformance/shell ./tests/conformance
 ```
 
 If you also want to build and compare on a line-by-line basis, run:
 ```
-go test -v -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh) $(./libdm_tag.sh)" ./tests/conformance -compare-layers
+go test -v -timeout=60m -tags "$(./btrfs_tag.sh) $(./btrfs_installed_tag.sh) $(./libdm_tag.sh)" ./tests/conformance -compare-layers
 ```
