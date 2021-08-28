@@ -55,7 +55,8 @@ var (
 		"created",
 		"container",
 		"docker_version",
-		"hostname",
+		"container_config:hostname",
+		"config:hostname",
 		"config:image",
 		"container_config:cmd",
 		"container_config:image",
@@ -477,6 +478,11 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 
 	// the report on the imagebuilder image should be there if we expected the build to succeed
 	if compareImagebuilder && !test.withoutImagebuilder {
+		originalDockerConfig, ociDockerConfig, fsDocker = readReport(t, filepath.Join(dockerDir, t.Name()))
+		if t.Failed() {
+			t.FailNow()
+		}
+
 		originalImagebuilderConfig, ociImagebuilderConfig, fsImagebuilder := readReport(t, filepath.Join(imagebuilderDir, t.Name()))
 		if t.Failed() {
 			t.FailNow()
@@ -1063,13 +1069,11 @@ func compareJSON(a, b map[string]interface{}, skip []string) (missKeys, leftKeys
 			// this field in the object is itself an object (e.g.
 			// "config" or "container_config"), so recursively
 			// compare them
-			nextSkip := skip
+			var nextSkip []string
+			prefix := k + ":"
 			for _, s := range skip {
-				if strings.Contains(s, ":") {
-					tmp := strings.Split(s, ":")
-					if tmp[0] == k {
-						nextSkip = append(nextSkip, strings.Join(tmp[1:], ":"))
-					}
+				if strings.HasPrefix(s, prefix) {
+					nextSkip = append(nextSkip, strings.TrimPrefix(s, prefix))
 				}
 			}
 			submiss, subleft, subdiff, ok := compareJSON(v.(map[string]interface{}), vb.(map[string]interface{}), nextSkip)
@@ -1405,8 +1409,9 @@ var internalTestCases = []testCase{
 		name:       "edgecases",
 		dockerfile: "Dockerfile.edgecases",
 		fsSkip: []string{
-			"(dir):test:mtime", "(dir):test2:mtime", "(dir):test3:mtime", "(dir):test3:(dir):copy:mtime",
-			"(dir):tmp:mtime", "(dir):tmp:passwd:mtime",
+			"(dir):test:mtime", "(dir):test:(dir):copy:mtime", "(dir):test2:mtime", "(dir):test3:mtime",
+			"(dir):test3:(dir):copy:mtime",
+			"(dir):test3:(dir):test:mtime", "(dir):tmp:mtime", "(dir):tmp:(dir):passwd:mtime",
 		},
 	},
 
@@ -1480,7 +1485,7 @@ var internalTestCases = []testCase{
 			"(dir):go:(dir):src:(dir):github.com:mtime",
 			"(dir):go:(dir):src:(dir):github.com:(dir):openshift:mtime",
 			"(dir):go:(dir):src:(dir):github.com:(dir):openshift:(dir):ocp-release-operator-sdk:mtime",
-			"env-contents.txt:mtime",
+			"(dir):env-contents.txt:mtime",
 		},
 	},
 
@@ -1657,7 +1662,7 @@ var internalTestCases = []testCase{
 		dockerfileContents: strings.Join([]string{
 			"FROM busybox@sha256:9ddee63a712cea977267342e8750ecbc60d3aab25f04ceacfa795e6fce341793 AS build",
 			"RUN mkdir -p /target/subdir",
-			"RUN cp /etc/passwd /target/",
+			"RUN cp -p /etc/passwd /target/",
 			"RUN ln /target/passwd /target/subdir/passwd",
 			"RUN ln /target/subdir/passwd /target/subdir/passwd2",
 			"FROM scratch",
@@ -1968,7 +1973,7 @@ var internalTestCases = []testCase{
 			"COPY --from=base . .", // --from=otherstage ignores that stage's WORKDIR
 		}, "\n"),
 		contextDir: "dockerignore/populated",
-		fsSkip:     []string{"(dir):subdir:mtime"},
+		fsSkip:     []string{"(dir):subdir:mtime", "(dir):subdir:(dir):subdir:mtime"},
 	},
 
 	{
@@ -2029,7 +2034,7 @@ var internalTestCases = []testCase{
 		name: "multi-stage-through-base",
 		dockerfileContents: strings.Join([]string{
 			"FROM alpine AS base",
-			"RUN touch /1",
+			"RUN touch -t @1485449953 /1",
 			"ENV LOCAL=/1",
 			"RUN find $LOCAL",
 			"FROM base",
@@ -2044,7 +2049,7 @@ var internalTestCases = []testCase{
 			"FROM busybox as layer",
 			"RUN touch /root/layer",
 			"FROM layer as derived",
-			"RUN touch /root/derived ; rm /root/layer",
+			"RUN touch -t @1485449953 /root/derived ; rm /root/layer",
 			"FROM busybox AS output",
 			"COPY --from=layer /root /root",
 		}, "\n"),
@@ -2642,7 +2647,7 @@ var internalTestCases = []testCase{
 		name: "copy-from-owner", // from issue #2518
 		dockerfileContents: strings.Join([]string{
 			`FROM alpine`,
-			`RUN set -ex; touch /test; chown 65:65 /test`,
+			`RUN set -ex; touch -t @1485449953 /test; chown 65:65 /test`,
 			`FROM scratch`,
 			`USER 66:66`,
 			`COPY --from=0 /test /test`,
@@ -2654,7 +2659,7 @@ var internalTestCases = []testCase{
 		name: "copy-from-owner-with-chown", // issue #2518, but with chown to override
 		dockerfileContents: strings.Join([]string{
 			`FROM alpine`,
-			`RUN set -ex; touch /test; chown 65:65 /test`,
+			`RUN set -ex; touch -t @1485449953 /test; chown 65:65 /test`,
 			`FROM scratch`,
 			`USER 66:66`,
 			`COPY --from=0 --chown=1:1 /test /test`,
@@ -2685,13 +2690,13 @@ var internalTestCases = []testCase{
 	{
 		name:       "add-parent-symlink",
 		contextDir: "add/parent-symlink",
-		fsSkip:     []string{"(dir):testsubdir:mtime"},
+		fsSkip:     []string{"(dir):testsubdir:mtime", "(dir):testsubdir:(dir):etc:mtime"},
 	},
 
 	{
 		name:       "add-parent-dangling",
 		contextDir: "add/parent-dangling",
-		fsSkip:     []string{"(dir):symlink:mtime", "(dir):symlink-target:mtime"},
+		fsSkip:     []string{"(dir):symlink:mtime", "(dir):symlink-target:mtime", "(dir):symlink-target:(dir):subdirectory:mtime"},
 	},
 
 	{
