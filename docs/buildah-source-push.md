@@ -1,4 +1,4 @@
-# buildah-source-push "24" "March 2021" "buildah"
+# buildah-source-push "1" "March 2021" "buildah"
 
 ## NAME
 buildah\-source\-push - Push a source image from a specified path to a registry.

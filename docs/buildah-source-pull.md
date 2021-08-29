@@ -1,4 +1,4 @@
-# buildah-source-pull "24" "March 2021" "buildah"
+# buildah-source-pull "1" "March 2021" "buildah"
 
 ## NAME
 buildah\-source\-pull - Pull a source image from a registry to a specified path

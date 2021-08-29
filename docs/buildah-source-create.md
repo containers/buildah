@@ -1,4 +1,4 @@
-# buildah-source-create "24" "March 2021" "buildah"
+# buildah-source-create "1" "March 2021" "buildah"
 
 ## NAME
 buildah\-source\-create - Create and initialize a source image
