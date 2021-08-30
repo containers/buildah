@@ -28,3 +28,15 @@ load helpers
   run_buildah inspect --format '{{ .FromImageID }}' busybox1-working-container
   expect_output $id
 }
+
+# Tagging a manifest list should tag manifest list instead of resolved image
+@test "tag a manifest list" {
+    run_buildah manifest create foobar
+    run_buildah manifest add foobar busybox
+    run_buildah tag foobar foobar2
+    run_buildah manifest inspect foobar
+    foobar_inspect=$output
+    run_buildah manifest inspect foobar2
+    # Output of tagged manifest list should be same
+    expect_output "$foobar_inspect"
+}

@@ -35,7 +35,9 @@ func tagCmd(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	image, _, err := runtime.LookupImage(args[0], nil)
+	// Allow tagging manifest list instead of resolving instances from manifest
+	lookupOptions := &libimage.LookupImageOptions{ManifestList: true}
+	image, _, err := runtime.LookupImage(args[0], lookupOptions)
 	if err != nil {
 		return err
 	}

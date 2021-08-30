@@ -161,7 +161,13 @@ type LookupImageOptions struct {
 
 	// If set, do not look for items/instances in the manifest list that
 	// match the current platform but return the manifest list as is.
+	// only check for manifest list, return ErrNotAManifestList if not found.
 	lookupManifest bool
+
+	// If matching images resolves to a manifest list, return manifest list
+	// instead of resolving to image instance, if manifest list is not found
+	// try resolving image.
+	ManifestList bool
 
 	// If the image resolves to a manifest list, we usually lookup a
 	// matching instance and error if none could be found.  In this case,
@@ -305,11 +311,14 @@ func (r *Runtime) lookupImageInLocalStorage(name, candidate string, options *Loo
 		}
 		return nil, err
 	}
-	if options.lookupManifest {
+	if options.lookupManifest || options.ManifestList {
 		if isManifestList {
 			return image, nil
 		}
-		return nil, errors.Wrapf(ErrNotAManifestList, candidate)
+		// return ErrNotAManifestList if lookupManifest is set otherwise try resolving image.
+		if options.lookupManifest {
+			return nil, errors.Wrapf(ErrNotAManifestList, candidate)
+		}
 	}
 
 	if isManifestList {
