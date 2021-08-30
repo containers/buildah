@@ -152,7 +152,7 @@ function imgtype() {
 }
 
 function copy() {
-    ${COPY_BINARY} ${ROOTDIR_OPTS} ${BUILDAH_REGISTRY_OPTS} "$@"
+    ${COPY_BINARY} --max-parallel-downloads=1 ${ROOTDIR_OPTS} ${BUILDAH_REGISTRY_OPTS} "$@"
 }
 
 function podman() {
