@@ -21,6 +21,7 @@ func main() {
 	var storeOptions storage.StoreOptions
 	var systemContext types.SystemContext
 	var logLevel string
+	var maxParallelDownloads uint
 
 	if buildah.InitReexec() {
 		return
@@ -78,9 +79,10 @@ func main() {
 			}()
 
 			options := cp.Options{
-				ReportWriter:   os.Stdout,
-				SourceCtx:      &systemContext,
-				DestinationCtx: &systemContext,
+				ReportWriter:         os.Stdout,
+				SourceCtx:            &systemContext,
+				DestinationCtx:       &systemContext,
+				MaxParallelDownloads: maxParallelDownloads,
 			}
 			if _, err = cp.Image(context.TODO(), policyContext, dest, src, &options); err != nil {
 				return err
@@ -105,6 +107,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&systemContext.SignaturePolicyPath, "signature-policy", "", "`pathname` of signature policy file")
 	rootCmd.PersistentFlags().StringVar(&systemContext.UserShortNameAliasConfPath, "short-name-alias-conf", "", "`pathname` of short name alias cache file (not usually used)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "warn", "logging level")
+	rootCmd.PersistentFlags().UintVar(&maxParallelDownloads, "max-parallel-downloads", 0, "maximum `number` of blobs to copy at once")
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

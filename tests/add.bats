@@ -200,7 +200,7 @@ load helpers
   run_buildah run $cid ls /Makefile
 }
 
-@test "add --ignore" {
+@test "add --ignorefile" {
   mytest=${TESTDIR}/mytest
   mkdir -p ${mytest}
   touch ${mytest}/mystuff
@@ -221,7 +221,7 @@ stuff/mystuff"
   cid=$output
 
   run_buildah 125 copy --ignorefile ${mytest}/.ignore $cid ${mytest} /stuff
-  expect_output -- "--ignore options requires that you specify a context dir using --contextdir" "container file list"
+  expect_output -- "--ignorefile option requires that you specify a context dir using --contextdir" "container file list"
 
   run_buildah add --contextdir=${mytest} --ignorefile ${mytest}/.ignore $cid ${mytest} /stuff
 

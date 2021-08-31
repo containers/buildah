@@ -15,7 +15,7 @@ load helpers
   expect_output --substring "options use-vc"
 }
 
-@test "bud with .dockerignore" {
+@test "bud with .dockerignore #1" {
   _prefetch alpine busybox
   run_buildah 125 build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
   expect_output --substring 'error building.*"COPY subdir \./".*no such file or directory'
@@ -32,9 +32,7 @@ load helpers
 
   run_buildah 1 run myctr ls -l sub2.txt
 
-  run_buildah run myctr ls -l subdir/sub1.txt
-
-  run_buildah 1 run myctr ls -l subdir/sub2.txt
+  run_buildah 1 run myctr ls -l subdir/
 }
 
 @test "bud with .containerignore" {
@@ -54,9 +52,7 @@ load helpers
 
   run_buildah 1 run myctr ls -l sub2.txt
 
-  run_buildah run myctr ls -l subdir/sub1.txt
-
-  run_buildah 1 run myctr ls -l subdir/sub2.txt
+  run_buildah 1 run myctr ls -l subdir/
 }
 
 @test "bud with .dockerignore - unmatched" {
@@ -67,7 +63,7 @@ load helpers
   # bud subdir, because of rpm: as of 2020-04-01 rpmbuild 4.16 alpha
   # on rawhide no longer packages circular symlinks (rpm issue #1159).
   # We used to include these symlinks in git and the rpm; now we need to
-  # set them up manually as part of test setup.
+  # set them up manually as part of test setup to be able to package tests.
   cp -a ${TESTSDIR}/bud/dockerignore2 ${TESTDIR}/dockerignore2
 
   # Create symlinks, including bad ones
@@ -111,7 +107,7 @@ symlink(subdir)"
   expect_output --from="$filelist" "$expect" "container file list"
 }
 
-@test "bud with .dockerignore - 3" {
+@test "bud with .dockerignore #2" {
   run_buildah 125 build -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
   expect_output --substring 'error building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
 }
@@ -1571,6 +1567,7 @@ function _test_http() {
 
 @test "bud with copy-from in Dockerfile no prior FROM" {
   _prefetch php:7.2
+  _prefetch composer
   target=php-image
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from ${TESTSDIR}/bud/copy-from
 
@@ -1833,8 +1830,8 @@ function _test_http() {
   _prefetch alpine
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p $mytmpdir/stuff/huge/usr/bin/
-  (cd $mytmpdir/stuff/huge/usr/bin/; touch file1 file2)
-  (cd $mytmpdir/stuff/huge/usr/; touch file3)
+  touch $mytmpdir/stuff/huge/usr/bin/{file1,file2}
+  touch $mytmpdir/stuff/huge/usr/file3
 
   cat > $mytmpdir/.dockerignore << _EOF
 stuff/huge/*
@@ -1857,7 +1854,7 @@ _EOF
   _prefetch alpine
   mytmpdir=${TESTDIR}/my-dir1
   mkdir -p $mytmpdir/stuff/huge/usr/bin/
-  (cd $mytmpdir/stuff/huge/usr/bin/; touch file1 file2)
+  touch $mytmpdir/stuff/huge/usr/bin/{file1,file2}
 
   cat > $mytmpdir/.dockerignore << _EOF
 stuff/huge/*
@@ -2670,7 +2667,7 @@ EOF
   run_buildah build ${TESTSDIR}/bud/terminal
 }
 
-@test "bud --ignore containerignore" {
+@test "bud --ignorefile containerignore" {
   _prefetch alpine busybox
 
   CONTEXTDIR=${TESTDIR}/dockerignore
@@ -2689,9 +2686,7 @@ EOF
 
   run_buildah 1 run myctr ls -l sub2.txt
 
-  run_buildah run myctr ls -l subdir/sub1.txt
-
-  run_buildah 1 run myctr ls -l subdir/sub2.txt
+  run_buildah 1 run myctr ls -l subdir/
 }
 
 @test "bud with network options" {
@@ -3244,7 +3239,7 @@ _EOF
   expect_output --from="${lines[2]}" "ulimit=300"
 }
 
-@test "bud with .dockerignore - #3" {
+@test "bud with .dockerignore #3" {
   run_buildah build -t test --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
   run_buildah build -t test2 -f Containerfile.missing --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
   run_buildah 125 build -t test3 -f Containerfile.bad --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs

@@ -326,7 +326,7 @@ load helpers
   expect_output --substring "no such file or directory"
 }
 
-@test "copy --ignore" {
+@test "copy --ignorefile" {
   mytest=${TESTDIR}/mytest
   mkdir -p ${mytest}
   touch ${mytest}/mystuff
@@ -347,7 +347,7 @@ stuff/mystuff"
   cid=$output
 
   run_buildah 125 copy --ignorefile ${mytest}/.ignore $cid ${mytest} /stuff
-  expect_output -- "--ignore options requires that you specify a context dir using --contextdir" "container file list"
+  expect_output -- "--ignorefile option requires that you specify a context dir using --contextdir" "container file list"
 
   run_buildah copy --contextdir=${mytest} --ignorefile ${mytest}/.ignore $cid ${mytest} /stuff
 
@@ -441,9 +441,7 @@ stuff/mystuff"
 
   run_buildah 1 run $from ls -l sub2.txt
 
-  run_buildah run $from ls -l subdir/sub1.txt
-
-  run_buildah 1 run $from ls -l subdir/sub2.txt
+  run_buildah 1 run $from ls -l subdir/
 }
 
 @test "copy-preserving-extended-attributes" {
