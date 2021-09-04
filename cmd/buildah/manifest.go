@@ -459,7 +459,8 @@ func manifestRmCmd(c *cobra.Command, args []string) error {
 	}
 
 	options := &libimage.RemoveImagesOptions{
-		Filters: []string{"readonly=false"},
+		Filters:        []string{"readonly=false"},
+		LookupManifest: true,
 	}
 	rmiReports, rmiErrors := runtime.RemoveImages(context.Background(), args, options)
 	for _, r := range rmiReports {

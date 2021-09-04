@@ -541,6 +541,11 @@ type RemoveImagesOptions struct {
 	// using a removed image.  Use RemoveContainerFunc for a custom logic.
 	// If set, all child images will be removed as well.
 	Force bool
+	// LookupManifest will expect all specified names to be manifest lists (no instance look up).
+	// This allows for removing manifest lists.
+	// By default, RemoveImages will attempt to resolve to a manifest instance matching
+	// the local platform (i.e., os, architecture, variant).
+	LookupManifest bool
 	// RemoveContainerFunc allows for a custom logic for removing
 	// containers using a specific image.  By default, all containers in
 	// the local containers storage will be removed (if Force is set).
@@ -600,13 +605,22 @@ func (r *Runtime) RemoveImages(ctx context.Context, names []string, options *Rem
 	toDelete := []string{}
 	// Look up images in the local containers storage and fill out
 	// toDelete and the deleteMap.
+
 	switch {
 	case len(names) > 0:
+		// prepare lookupOptions
+		var lookupOptions *LookupImageOptions
+		if options.LookupManifest {
+			// LookupManifest configured as true make sure we only remove manifests and no referenced images.
+			lookupOptions = &LookupImageOptions{lookupManifest: true}
+		} else {
+			lookupOptions = &LookupImageOptions{returnManifestIfNoInstance: true}
+		}
 		// Look up the images one-by-one.  That allows for removing
 		// images that have been looked up successfully while reporting
 		// lookup errors at the end.
 		for _, name := range names {
-			img, resolvedName, err := r.LookupImage(name, &LookupImageOptions{returnManifestIfNoInstance: true})
+			img, resolvedName, err := r.LookupImage(name, lookupOptions)
 			if err != nil {
 				appendError(err)
 				continue

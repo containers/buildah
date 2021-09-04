@@ -52,3 +52,20 @@ load helpers
   run_buildah 125 rm -a "$cid"
   expect_output --substring "when using the --all switch, you may not pass any containers names or IDs"
 }
+
+@test "remove a single tagged manifest list" {
+  _prefetch busybox
+  run_buildah manifest create manifestsample
+  run_buildah manifest add manifestsample busybox
+  run_buildah tag manifestsample manifestsample2
+  run_buildah manifest rm manifestsample2
+  # Output should only untag the listed manifest nothing else
+  expect_output "untagged: localhost/manifestsample2:latest"
+  run_buildah manifest rm manifestsample
+  # Since actual list is getting removed it will also print the image id of list
+  # So check for substring instead of exact match
+  expect_output --substring "untagged: localhost/manifestsample:latest"
+  # Check if busybox is still there
+  run_buildah images
+  expect_output --substring "busybox"
+}
