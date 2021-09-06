@@ -1,11 +1,43 @@
 package util
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 )
+
+// Mirrors path to a tmpfile if path points to a
+// file descriptor instead of actual file on filesystem
+// reason: operations with file descriptors are can lead
+// to edge cases where content on FD is not in a consumable
+// state after first consumption.
+// returns path as string and bool to confirm if temp file
+// was created and needs to be cleaned up.
+func MirrorToTempFileIfPathIsDescriptor(file string) (string, bool) {
+	// one use-case is discussed here
+	// https://github.com/containers/buildah/issues/3070
+	if !strings.HasPrefix(file, "/dev/fd") {
+		return file, false
+	}
+	b, err := ioutil.ReadFile(file)
+	if err != nil {
+		// if anything goes wrong return original path
+		return file, false
+	}
+	tmpfile, err := ioutil.TempFile(os.TempDir(), "buildah-temp-file")
+	if err != nil {
+		return file, false
+	}
+	if _, err := tmpfile.Write(b); err != nil {
+		// if anything goes wrong return original path
+		return file, false
+	}
+
+	return tmpfile.Name(), true
+}
 
 // DiscoverContainerfile tries to find a Containerfile or a Dockerfile within the provided `path`.
 func DiscoverContainerfile(path string) (foundCtrFile string, err error) {
