@@ -2208,6 +2208,10 @@ _EOF
   run_buildah build --signature-policy ${TESTSDIR}/policy.json --layers -t gittarget -f tests/bud/shell/Dockerfile git://github.com/containers/buildah#release-1.11-rhel
 }
 
+@test "bud using gitrepo with .git and branch" {
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --layers -t gittarget -f tests/bud/shell/Dockerfile https://github.com/containers/buildah.git#release-1.11-rhel
+}
+
 # Fixes #1906: buildah was not detecting changed tarfile
 @test "bud containerfile with tar archive in copy" {
   _prefetch busybox
