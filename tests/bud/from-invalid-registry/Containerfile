@@ -1,0 +1,3 @@
+FROM alpine as build
+# Invalid registry and image
+FROM myrepository.example/image:tag

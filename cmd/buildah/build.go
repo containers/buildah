@@ -100,6 +100,7 @@ func getContainerfiles(files []string) []string {
 
 func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 	output := ""
+	cleanTmpFile := false
 	tags := []string{}
 	if c.Flag("tag").Changed {
 		tags = iopts.Tag
@@ -110,6 +111,10 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 	}
 	if err := auth.CheckAuthFile(iopts.BudResults.Authfile); err != nil {
 		return err
+	}
+	iopts.BudResults.Authfile, cleanTmpFile = buildahutil.MirrorToTempFileIfPathIsDescriptor(iopts.BudResults.Authfile)
+	if cleanTmpFile {
+		defer os.Remove(iopts.BudResults.Authfile)
 	}
 
 	pullPolicy := define.PullIfMissing

@@ -2261,6 +2261,14 @@ _EOF
   run_buildah 125 build --authfile /tmp/nonexistent --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
 }
 
+
+@test "bud for multi-stage Containerfile with invalid registry and --authfile as a fd, should fail with no such host" {
+  target=alpine-multi-stage-image
+  run_buildah 125 build --authfile=<(echo "{ \"auths\": { \"myrepository.example\": { \"auth\": \"$(echo 'username:password' | base64 --wrap=0)\" } } }") -t ${target} --file ${TESTSDIR}/bud/from-invalid-registry/Containerfile
+  # Should fail with `no such host` instead of: error reading JSON file "/dev/fd/x"
+  expect_output --substring "no such host"
+}
+
 @test "bud COPY with URL should fail" {
   mkdir ${TESTSDIR}/bud/copy
   FILE=${TESTSDIR}/bud/copy/Dockerfile.url
