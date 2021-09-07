@@ -15,10 +15,20 @@ Passing an argument _image_ deletes it, along with any of its dangling (untagged
 
 ## LIMITATIONS
 
-If the image was pushed to a directory path using the 'dir:' transport
-the rmi command can not remove the image. Instead standard file system
-commands should be used.
-If _imageID_ is a name, but does not include a registry name, buildah will attempt to find and remove an image named using the registry name _localhost_, if no such image is found, it will search for the intended image by attempting to expand the given name using the names of registries provided in the system's registries configuration file, registries.conf.
+* If the image was pushed to a directory path using the 'dir:' transport,
+  the rmi command can not remove the image. Instead, standard file system
+  commands should be used.
+
+* If _imageID_ is a name, but does not include a registry name, buildah will
+  attempt to find and remove the named image using the registry name _localhost_,
+  if no such image is found, it will search for the intended image by attempting
+  to expand the given name using the names of registries provided in the system's
+  registries configuration file, registries.conf.
+
+* If the _imageID_ refers to a *manifest list* or *image index*, this command
+  will ***not*** do what you expect!  This command will remove the images
+  associated with the *manifest list* or *index* (not the manifest list/image index
+  itself). To remove that, use the `buildah manifest rm` subcommand instead.
 
 ## OPTIONS
 
