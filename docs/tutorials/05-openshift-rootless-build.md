@@ -284,7 +284,7 @@ sh-5.0$ mkdir output
 And finally build the image, testing that everything works as expected:
 
 ````console
-sh-5.0$ buildah -v /home/build/output:/output:rw -v /home/build/test-script.sh:/test-script.sh:ro build -t myimage -f Containerfile.test
+sh-5.0$ buildah -v /home/build/output:/output:rw -v /home/build/test-script.sh:/test-script.sh:ro build-using-dockerfile -t myimage -f Containerfile.test
 STEP 1: FROM fedora:33
 Getting image source signatures
 Copying blob 453ed60def9c done
