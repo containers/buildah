@@ -139,7 +139,7 @@ unit_task:
       - smoke
       - vendor
 
-    timeout_in: 50m
+    timeout_in: 1h
 
     matrix:
         - env:
