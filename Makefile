@@ -70,8 +70,11 @@ bin/buildah: $(SOURCES) cmd/buildah/*.go
 .PHONY: buildah
 buildah: bin/buildah
 
+LINUX_CROSS_TARGETS = $(addprefix bin/buildah.,$(subst /,.,$(shell $(GO) tool dist list | grep ^linux/)))
+DARWIN_CROSS_TARGETS = $(addprefix bin/buildah.,$(subst /,.,$(shell $(GO) tool dist list | grep ^darwin/)))
+WINDOWS_CROSS_TARGETS = $(addsuffix .exe,$(addprefix bin/buildah.,$(subst /,.,$(shell $(GO) tool dist list | grep ^windows/))))
 .PHONY: cross
-cross: bin/buildah.darwin.amd64 bin/buildah.linux.386 bin/buildah.linux.amd64 bin/buildah.linux.arm64 bin/buildah.linux.arm bin/buildah.linux.mips64 bin/buildah.linux.mips64le bin/buildah.linux.mips bin/buildah.linux.mipsle bin/buildah.linux.ppc64 bin/buildah.linux.ppc64le bin/buildah.linux.riscv64 bin/buildah.linux.s390x bin/buildah.windows.amd64.exe
+cross: $(LINUX_CROSS_TARGETS) $(DARWIN_CROSS_TARGETS) $(WINDOWS_CROSS_TARGETS)
 
 bin/buildah.%:
 	mkdir -p ./bin
