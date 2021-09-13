@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.22.0-dev
+Version:        
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Wed May 19, 2021 Tom Sweeney <tsweeney@redhat.com> 1.22.0-dev-1
+* Mon Sep 13, 2021 Daniel J Walsh <dwalsh@redhat.com> -1
 
 * Wed May 19, 2021 Tom Sweeney <tsweeney@redhat.com> 1.21.0-1
 - Don't blow up if cpp detects errors
