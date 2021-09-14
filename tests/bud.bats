@@ -3348,3 +3348,81 @@ _EOF
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --platform=linux/arm,linux/amd64 --manifest $outputlist -f ${TESTSDIR}/bud/multiarch/Dockerfile.fail ${TESTSDIR}/bud/multiarch
   run_buildah 125 manifest inspect $outputlist
 }
+
+
+# * Performs multi-stage build with label1=value1 and verifies
+# * Relabels build with label1=value2 and verifies
+# * Rebuild with label1=value1 and makes sure everything is used from cache
+@test "bud-multistage-relabel" {
+  _prefetch alpine busybox
+  run_buildah inspect --format "{{.FromImageDigest}}" busybox
+  fromDigest="$output"
+
+  target=relabel
+  run_buildah build --layers --label "label1=value1" --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.reused ${TESTSDIR}/bud/multi-stage-builds
+
+  # Store base digest of first image
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
+  firstDigest="$output"
+
+  # Store image id of first build
+  run_buildah inspect --format '{{ .FromImageID }}' ${target}
+  firstImageID="$output"
+
+  # Label of first build must contain label1:value1
+  run_buildah inspect --format '{{ .Docker.ContainerConfig.Labels }}' ${target}
+  expect_output --substring "label1:value1"
+
+  # Rebuild with new label
+  run_buildah build --layers --label "label1=value2" --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.reused ${TESTSDIR}/bud/multi-stage-builds
+
+  # Base digest should match with first build
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
+  expect_output "$firstDigest" "base digest from busybox"
+
+  # Label of second build must contain label1:value2
+  run_buildah inspect --format '{{ .Docker.ContainerConfig.Labels }}' ${target}
+  expect_output --substring "label1:value2"
+
+  # Rebuild everything with label1=value1 and everything should be cached from first image
+  run_buildah build --layers --label "label1=value1" --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.reused ${TESTSDIR}/bud/multi-stage-builds
+
+  # Enitre image must be picked from cache
+  run_buildah inspect --format '{{ .FromImageID }}' ${target}
+  expect_output "$firstImageID" "Image ID cached from first build"
+
+  run_buildah rmi -f ${target}
+}
+
+
+@test "bud-from-relabel" {
+  _prefetch alpine busybox
+
+  run_buildah inspect --format "{{.FromImageDigest}}" alpine
+  alpineDigest="$output"
+
+  run_buildah inspect --format "{{.FromImageDigest}}" busybox
+  busyboxDigest="$output"
+
+  target=relabel2
+  run_buildah build --layers --label "label1=value1" --from=alpine -t ${target} ${TESTSDIR}/bud/from-scratch
+
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
+  expect_output "$alpineDigest" "base digest from alpine"
+
+  # Label of second build must contain label1:value1
+  run_buildah inspect --format '{{ .Docker.ContainerConfig.Labels }}' ${target}
+  expect_output --substring "label1:value1"
+
+
+  run_buildah build --layers --label "label1=value2" --from=busybox -t ${target} ${TESTSDIR}/bud/from-scratch
+
+  run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' ${target}
+  expect_output "$busyboxDigest" "base digest from busybox"
+
+  # Label of second build must contain label1:value2
+  run_buildah inspect --format '{{ .Docker.ContainerConfig.Labels }}' ${target}
+  expect_output --substring "label1:value2"
+
+  run_buildah rmi -f ${target}
+}
