@@ -2870,4 +2870,16 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/exceptions-skip",
 		fsSkip:     []string{"(dir):volume:mtime"},
 	},
+
+	{
+		name:       "dockerignore-exceptions-weirdness-1",
+		contextDir: "dockerignore/exceptions-weirdness-1",
+		fsSkip:     []string{"(dir):newdir:mtime", "(dir):newdir:(dir):subdir:mtime"},
+	},
+
+	{
+		name:       "dockerignore-exceptions-weirdness-2",
+		contextDir: "dockerignore/exceptions-weirdness-2",
+		fsSkip:     []string{"(dir):newdir:mtime", "(dir):newdir:(dir):subdir:mtime"},
+	},
 }
