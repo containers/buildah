@@ -1,0 +1,3 @@
+subdir
+!*/sub1*
+!subdir/sub3*
