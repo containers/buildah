@@ -21,7 +21,7 @@ case "$OS_RELEASE_ID" in
         fi
 
         warn "Hard-coding podman to use crun"
-	cat > /etc/containers/containers.conf <<EOF
+        cat > /etc/containers/containers.conf <<EOF
 [engine]
 runtime="crun"
 EOF
@@ -34,8 +34,19 @@ EOF
         ;;
     ubuntu)
         if [[ "$1" == "conformance" ]]; then
+            # Need to re-build lists (removed during image production)
+            lilto apt-get -qq -y update
             msg "Installing previously downloaded/cached packages"
-            bigto dpkg -i $PACKAGE_DOWNLOAD_DIR/*.deb
+            $SHORT_APTGET install --no-download --ignore-missing containerd.io docker-ce docker-ce-cli
+
+            # At the time of this comment, Ubuntu is using systemd-resolved
+            # which interfears badly with conformance testing.  Some tests
+            # need to run dnsmasq on port 53.
+            if [[ -r "/run/systemd/resolve/resolv.conf" ]]; then
+                msg "Disabling systemd-resolved service"
+                systemctl stop systemd-resolved.service
+                cp /run/systemd/resolve/resolv.conf /etc/
+            fi
         fi
         ;;
     *)
