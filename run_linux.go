@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -891,7 +892,7 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 	if err != nil {
 		return 1, errors.Wrapf(err, "error parsing pid %s as a number", string(pidValue))
 	}
-	stopped := false
+	var stopped uint32
 	var reaping sync.WaitGroup
 	reaping.Add(1)
 	go func() {
@@ -902,7 +903,7 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 			wstatus = 0
 			options.Logger.Errorf("error waiting for container child process %d: %v\n", pid, err)
 		}
-		stopped = true
+		atomic.StoreUint32(&stopped, 1)
 	}()
 
 	if configureNetwork {
@@ -935,7 +936,7 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 		return 1, errors.Wrapf(err, "error from %s starting container", runtime)
 	}
 	defer func() {
-		if !stopped {
+		if atomic.LoadUint32(&stopped) == 0 {
 			if err2 := kill.Run(); err2 != nil {
 				options.Logger.Infof("error from %s stopping container: %v", runtime, err2)
 			}
@@ -952,7 +953,7 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 		stat.Stderr = os.Stderr
 		stateOutput, err := stat.Output()
 		if err != nil {
-			if stopped {
+			if atomic.LoadUint32(&stopped) != 0 {
 				// container exited
 				break
 			}
@@ -964,20 +965,20 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 		switch state.Status {
 		case "running":
 		case "stopped":
-			stopped = true
+			atomic.StoreUint32(&stopped, 1)
 		default:
 			return 1, errors.Errorf("container status unexpectedly changed to %q", state.Status)
 		}
-		if stopped {
+		if atomic.LoadUint32(&stopped) != 0 {
 			break
 		}
 		select {
 		case <-finishedCopy:
-			stopped = true
+			atomic.StoreUint32(&stopped, 1)
 		case <-time.After(time.Until(now.Add(100 * time.Millisecond))):
 			continue
 		}
-		if stopped {
+		if atomic.LoadUint32(&stopped) != 0 {
 			break
 		}
 	}
