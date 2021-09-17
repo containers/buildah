@@ -318,6 +318,35 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 		}
 		mainNode.Children = append(mainNode.Children, additionalNode.Children...)
 	}
+
+	// Check if any modifications done to labels
+	// add them to node-layer so it becomes regular
+	// layer.
+	// Reason: Docker adds label modification as
+	// last step which can be processed as regular
+	// steps and if no modification is done to layers
+	// its easier to re-use cached layers.
+	if len(options.Labels) > 0 {
+		for _, labelSpec := range options.Labels {
+			label := strings.SplitN(labelSpec, "=", 2)
+			labelLine := ""
+			key := label[0]
+			value := ""
+			if len(label) > 1 {
+				value = label[1]
+			}
+			// check from only empty key since docker supports empty value
+			if key != "" {
+				labelLine = fmt.Sprintf("LABEL %q=%q\n", key, value)
+				additionalNode, err := imagebuilder.ParseDockerfile(strings.NewReader(labelLine))
+				if err != nil {
+					return "", nil, errors.Wrapf(err, "error while adding additional LABEL steps")
+				}
+				mainNode.Children = append(mainNode.Children, additionalNode.Children...)
+			}
+		}
+	}
+
 	exec, err := newExecutor(logger, logPrefix, store, options, mainNode)
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "error creating build executor")
