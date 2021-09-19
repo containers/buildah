@@ -545,6 +545,11 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 		return nil, err
 	}
 
+	// prepare list of mount destinations which can be cleaned up safely.
+	// we can clean bindFiles, subscriptionMounts and specMounts
+	// everything other than these might have users content
+	mountArtifacts.RunMountTargets = append(append(append(mountArtifacts.RunMountTargets, cleanableDestinationListFromMounts(bindFileMounts)...), cleanableDestinationListFromMounts(subscriptionMounts)...), cleanableDestinationListFromMounts(specMounts)...)
+
 	allMounts := util.SortMounts(append(append(append(append(append(append(volumes, builtins...), runMounts...), subscriptionMounts...), bindFileMounts...), specMounts...), sysfsMount...))
 	// Add them all, in the preferred order, except where they conflict with something that was previously added.
 	for _, mount := range allMounts {
@@ -559,6 +564,23 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	// Set the list in the spec.
 	spec.Mounts = mounts
 	return mountArtifacts, nil
+}
+
+// Destinations which can be cleaned up after every RUN
+func cleanableDestinationListFromMounts(mounts []spec.Mount) []string {
+	mountDest := []string{}
+	for _, mount := range mounts {
+		// Add all destination to mountArtifacts so that they can be cleaned up later
+		if mount.Destination != "" {
+			// we dont want to remove destinations with  /etc, /dev, /sys, /proc as rootfs already contains these files
+			// and unionfs will create a `whiteout` i.e `.wh` files on removal of overlapping files from these directories.
+			// everything other than these will be cleanedup
+			if !strings.HasPrefix(mount.Destination, "/etc") && !strings.HasPrefix(mount.Destination, "/dev") && !strings.HasPrefix(mount.Destination, "/sys") && !strings.HasPrefix(mount.Destination, "/proc") {
+				mountDest = append(mountDest, mount.Destination)
+			}
+		}
+	}
+	return mountDest
 }
 
 // addResolvConf copies files from host and sets them up to bind mount into container

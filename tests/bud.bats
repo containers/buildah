@@ -3446,3 +3446,55 @@ _EOF
 
   run_buildah rmi -f ${target}
 }
+
+@test "bud with run should not leave mounts behind cleanup test" {
+  skip_if_in_container
+  run which podman
+  if [[ $status -ne 0 ]]; then
+    skip "podman is not installed"
+  fi
+
+  # Create target dir where we will export tar
+  target=cleanable
+  mkdir ${TESTDIR}/${target}
+
+  # Build and export container to tar
+  run_buildah build --no-cache --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/containerfile/Containerfile.in ${TESTSDIR}/bud/containerfile
+  podman export $(podman create --name ${target} ${target}) --output=${TESTDIR}/${target}.tar
+
+  # We are done exporting so remove images and containers which are not needed
+  podman rm -f ${target}
+  run_buildah rmi ${target}
+
+  # Explode tar
+  tar -xf ${TESTDIR}/${target}.tar -C ${TESTDIR}/${target}
+  count=$(ls -A ${TESTDIR}/${target}/run | wc -l)
+  ## exported /run should be empty
+  assert "$count" == "0"
+}
+
+@test "bud with custom files in /run/ should persist cleanup test" {
+  skip_if_in_container
+  run which podman
+  if [[ $status -ne 0 ]]; then
+    skip "podman is not installed"
+  fi
+
+  # Create target dir where we will export tar
+  target=cleanable
+  mkdir ${TESTDIR}/${target}
+
+  # Build and export container to tar
+  run_buildah build --no-cache --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/add-run-dir
+  podman export $(podman create --name ${target} ${target}) --output=${TESTDIR}/${target}.tar
+
+  # We are done exporting so remove images and containers which are not needed
+  podman rm -f ${target}
+  run_buildah rmi ${target}
+
+  # Explode tar
+  tar -xf ${TESTDIR}/${target}.tar -C ${TESTDIR}/${target}
+  count=$(ls -A ${TESTDIR}/${target}/run | wc -l)
+  ## exported /run should not be empty
+  assert "$count" == "1"
+}
