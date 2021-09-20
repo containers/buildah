@@ -11,6 +11,7 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/docker"
 	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/stringid"
@@ -28,18 +29,24 @@ func unmarshalConvertedConfig(ctx context.Context, dest interface{}, img types.I
 		return errors.Wrapf(err, "error getting manifest MIME type for %q", transports.ImageName(img.Reference()))
 	}
 	if wantedManifestMIMEType != actualManifestMIMEType {
+		layerInfos := img.LayerInfos()
+		for i := range layerInfos { // force the "compression" to gzip, which is supported by all of the formats we care about
+			layerInfos[i].CompressionOperation = types.Compress
+			layerInfos[i].CompressionAlgorithm = &compression.Gzip
+		}
 		updatedImg, err := img.UpdatedImage(ctx, types.ManifestUpdateOptions{
+			LayerInfos: layerInfos,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "resetting recorded compression for %q", transports.ImageName(img.Reference()))
+		}
+		secondUpdatedImg, err := updatedImg.UpdatedImage(ctx, types.ManifestUpdateOptions{
 			ManifestMIMEType: wantedManifestMIMEType,
-			InformationOnly: types.ManifestUpdateInformation{ // Strictly speaking, every value in here is invalid. But…
-				Destination:  nil, // Destination is technically required, but actually necessary only for conversion _to_ v2s1.  Leave it nil, we will crash if that ever changes.
-				LayerInfos:   nil, // LayerInfos is necessary for size information in v2s2/OCI manifests, but the code can work with nil, and we are not reading the converted manifest at all.
-				LayerDiffIDs: nil, // LayerDiffIDs are actually embedded in the converted manifest, but the code can work with nil, and the values are not needed until pushing the finished image, at which time containerImageRef.NewImageSource builds the values from scratch.
-			},
 		})
 		if err != nil {
 			return errors.Wrapf(err, "error converting image %q from %q to %q", transports.ImageName(img.Reference()), actualManifestMIMEType, wantedManifestMIMEType)
 		}
-		img = updatedImg
+		img = secondUpdatedImg
 	}
 	config, err := img.ConfigBlob(ctx)
 	if err != nil {
