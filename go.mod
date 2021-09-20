@@ -34,10 +34,11 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
+	github.com/vbauerster/mpb/v7 v7.1.5 // indirect
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20210820121016-41cdb8703e55
+	golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 	k8s.io/klog v1.0.0 // indirect
 )

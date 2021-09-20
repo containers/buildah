@@ -268,32 +268,37 @@ func (b *Bar) SetPriority(priority int) {
 // if bar is already in complete state. If drop is true bar will be
 // removed as well.
 func (b *Bar) Abort(drop bool) {
+	done := make(chan struct{})
 	select {
 	case b.operateState <- func(s *bState) {
 		if s.completed == true {
+			close(done)
 			return
 		}
-		if drop {
-			b.container.dropBar(b)
-			b.cancel()
-			return
-		}
+		// container must be run during lifetime of this inner goroutine
+		// we control this by done channel declared above
 		go func() {
-			var uncompleted int
-			b.container.traverseBars(func(bar *Bar) bool {
-				if b != bar && !bar.Completed() {
-					uncompleted++
-					return false
+			if drop {
+				b.container.dropBar(b)
+			} else {
+				var uncompleted int
+				b.container.traverseBars(func(bar *Bar) bool {
+					if b != bar && !bar.Completed() {
+						uncompleted++
+						return false
+					}
+					return true
+				})
+				if uncompleted == 0 {
+					b.container.refreshCh <- time.Now()
 				}
-				return true
-			})
-			if uncompleted == 0 {
-				b.container.refreshCh <- time.Now()
 			}
-			b.cancel()
+			close(done) // release hold of Abort
 		}()
+		b.cancel()
 	}:
-		<-b.done
+		// guarantee: container is alive during lifetime of this hold
+		<-done
 	case <-b.done:
 	}
 }
