@@ -612,3 +612,8 @@ load helpers
   run_buildah inspect --format '{{.CNIPluginPath}}' $cid
   expect_output "${cni_plugin_path}"
 }
+
+@test "from-image-with-zstd-compression" {
+  copy --format oci --dest-compress --dest-compress-format zstd docker://quay.io/libpod/alpine_nginx:latest dir:${TESTDIR}/base-image
+  run_buildah from dir:${TESTDIR}/base-image
+}
