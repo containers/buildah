@@ -3,15 +3,19 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/containers/buildah"
 	cp "github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/signature"
 	imageStorage "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/unshare"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -22,6 +26,9 @@ func main() {
 	var systemContext types.SystemContext
 	var logLevel string
 	var maxParallelDownloads uint
+	var compressionFormat string
+	var manifestFormat string
+	compressionLevel := -1
 
 	if buildah.InitReexec() {
 		return
@@ -35,6 +42,22 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cobra.ExactArgs(2)(cmd, args); err != nil {
 				return err
+			}
+			if compressionLevel != -1 {
+				systemContext.CompressionLevel = &compressionLevel
+			}
+			if compressionFormat != "" {
+				alg, err := compression.AlgorithmByName(compressionFormat)
+				if err != nil {
+					return err
+				}
+				systemContext.CompressionFormat = &alg
+			}
+			switch strings.ToLower(manifestFormat) {
+			case "oci":
+				manifestFormat = v1.MediaTypeImageManifest
+			case "docker", "dockerv2s2":
+				manifestFormat = manifest.DockerV2Schema2MediaType
 			}
 
 			level, err := logrus.ParseLevel(logLevel)
@@ -79,10 +102,11 @@ func main() {
 			}()
 
 			options := cp.Options{
-				ReportWriter:         os.Stdout,
-				SourceCtx:            &systemContext,
-				DestinationCtx:       &systemContext,
-				MaxParallelDownloads: maxParallelDownloads,
+				ReportWriter:          os.Stdout,
+				SourceCtx:             &systemContext,
+				DestinationCtx:        &systemContext,
+				MaxParallelDownloads:  maxParallelDownloads,
+				ForceManifestMIMEType: manifestFormat,
 			}
 			if _, err = cp.Image(context.TODO(), policyContext, dest, src, &options); err != nil {
 				return err
@@ -108,6 +132,11 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&systemContext.UserShortNameAliasConfPath, "short-name-alias-conf", "", "`pathname` of short name alias cache file (not usually used)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "warn", "logging level")
 	rootCmd.PersistentFlags().UintVar(&maxParallelDownloads, "max-parallel-downloads", 0, "maximum `number` of blobs to copy at once")
+	rootCmd.PersistentFlags().StringVar(&manifestFormat, "format", "", "image manifest type")
+	rootCmd.PersistentFlags().BoolVar(&systemContext.DirForceCompress, "dest-compress", false, "force compression of layers for dir: destinations")
+	rootCmd.PersistentFlags().BoolVar(&systemContext.DirForceDecompress, "dest-decompress", false, "force decompression of layers for dir: destinations")
+	rootCmd.PersistentFlags().StringVar(&compressionFormat, "dest-compress-format", "", "compression type")
+	rootCmd.PersistentFlags().IntVar(&compressionLevel, "dest-compress-level", 0, "compression level")
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
