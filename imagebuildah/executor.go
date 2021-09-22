@@ -521,9 +521,9 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				lastErr = err
 			}
 		}
+		cleanupStages = nil
 		b.stagesLock.Unlock()
 
-		cleanupStages = nil
 		// Clean up any builders that we used to get data from images.
 		for _, builder := range b.containerMap {
 			if err := builder.Delete(); err != nil {
@@ -628,7 +628,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		Error   error
 	}
 
-	ch := make(chan Result)
+	ch := make(chan Result, len(stages))
 
 	if b.stagesSemaphore == nil {
 		jobs := int64(b.jobs)
@@ -645,19 +645,43 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	wg.Add(len(stages))
 
 	go func() {
+		cancel := false
 		for stageIndex := range stages {
 			index := stageIndex
 			// Acquire the semaphore before creating the goroutine so we are sure they
 			// run in the specified order.
 			if err := b.stagesSemaphore.Acquire(ctx, 1); err != nil {
+				cancel = true
 				b.lastError = err
-				return
+				ch <- Result{
+					Index: index,
+					Error: err,
+				}
+				wg.Done()
+				continue
 			}
+			b.stagesLock.Lock()
+			cleanupStages := cleanupStages
+			b.stagesLock.Unlock()
 			go func() {
 				defer b.stagesSemaphore.Release(1)
 				defer wg.Done()
+				if cancel || cleanupStages == nil {
+					var err error
+					if stages[index].Name != strconv.Itoa(index) {
+						err = errors.Errorf("not building stage %d: build canceled", index)
+					} else {
+						err = errors.Errorf("not building stage %d (%s): build canceled", index, stages[index].Name)
+					}
+					ch <- Result{
+						Index: index,
+						Error: err,
+					}
+					return
+				}
 				stageID, stageRef, stageErr := b.buildStage(ctx, cleanupStages, stages, index)
 				if stageErr != nil {
+					cancel = true
 					ch <- Result{
 						Index: index,
 						Error: stageErr,
