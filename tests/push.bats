@@ -203,3 +203,14 @@ load helpers
   run_buildah push --quiet --signature-policy ${TESTSDIR}/policy.json alpine dir:$mytmpdir
   expect_output ""
 }
+
+@test "push with --compression-format" {
+  _prefetch alpine
+  run_buildah from --quiet --pull alpine
+  cid=$output
+  run_buildah images -q
+  imageid=$output
+  run_buildah push --format oci --compression-format zstd:chunked $imageid dir:${TESTDIR}/zstd
+  # Verify there is some zstd compressed layer.
+  grep application/vnd.oci.image.layer.v1.tar+zstd ${TESTDIR}/zstd/manifest.json
+}

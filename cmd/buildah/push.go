@@ -13,6 +13,7 @@ import (
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/storage"
@@ -31,6 +32,8 @@ type pushOptions struct {
 	digestfile         string
 	disableCompression bool
 	format             string
+	compressionFormat  string
+	compressionLevel   int
 	rm                 bool
 	quiet              bool
 	removeSignatures   bool
@@ -79,6 +82,8 @@ func init() {
 	flags.StringVar(&opts.digestfile, "digestfile", "", "after copying the image, write the digest of the resulting image to the file")
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", false, "don't compress layers")
 	flags.StringVarP(&opts.format, "format", "f", "", "manifest type (oci, v2s1, or v2s2) to use in the destination (default is manifest type of source, with fallbacks)")
+	flags.StringVar(&opts.compressionFormat, "compression-format", "", "compression format to use")
+	flags.IntVar(&opts.compressionLevel, "compression-level", 0, "compression level to use")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pushing images")
 	flags.BoolVar(&opts.rm, "rm", false, "remove the manifest list if push succeeds")
 	flags.BoolVarP(&opts.removeSignatures, "remove-signatures", "", false, "don't copy signatures when pushing image")
@@ -196,6 +201,16 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 	}
 	if !iopts.quiet {
 		options.ReportWriter = os.Stderr
+	}
+	if iopts.compressionFormat != "" {
+		algo, err := compression.AlgorithmByName(iopts.compressionFormat)
+		if err != nil {
+			return err
+		}
+		options.CompressionFormat = &algo
+	}
+	if c.Flag("compression-level").Changed {
+		options.CompressionLevel = &iopts.compressionLevel
 	}
 
 	ref, digest, err := buildah.Push(getContext(), src, dest, options)

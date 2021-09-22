@@ -38,6 +38,16 @@ environment variable. `export REGISTRY_AUTH_FILE=path`
 Use certificates at *path* (\*.crt, \*.cert, \*.key) to connect to the registry.
 The default certificates directory is _/etc/containers/certs.d_.
 
+**--compression-format** *format*
+
+Specifies the compression format to use.  Supported values are: `gzip`, `zstd` and `zstd:chunked`.
+
+**--compression-level** *level*
+
+Specify the compression level used with the compression.
+
+Specifies the compression level to use.  The value is specific to the compression algorithm used, e.g. for zstd the accepted values are in the range 1-20 (inclusive), while for gzip it is 1-9 (inclusive).
+
 **--creds** *creds*
 
 The [username[:password]] to use to authenticate with the registry if required.
