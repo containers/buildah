@@ -234,6 +234,9 @@ type EngineConfig struct {
 	// EventsLogger determines where events should be logged.
 	EventsLogger string `toml:"events_logger,omitempty"`
 
+	// graphRoot internal stores the location of the graphroot
+	graphRoot string
+
 	// HelperBinariesDir is a list of directories which are used to search for
 	// helper binaries.
 	HelperBinariesDir []string `toml:"helper_binaries_dir"`
@@ -332,7 +335,7 @@ type EngineConfig struct {
 	// ActiveService index to Destinations added v2.0.3
 	ActiveService string `toml:"active_service,omitempty"`
 
-	// Destinations mapped by service Names
+	// ServiceDestinations mapped by service Names
 	ServiceDestinations map[string]Destination `toml:"service_destinations,omitempty"`
 
 	// RuntimePath is the path to OCI runtime binary for launching containers.
@@ -376,6 +379,10 @@ type EngineConfig struct {
 	// containers/storage. As such this is not exposed via the config file.
 	StateType RuntimeStateStore `toml:"-"`
 
+	// ServiceTimeout is the number of seconds to wait without a connection
+	// before the `podman system service` times out and exits
+	ServiceTimeout uint `toml:"service_timeout,omitempty"`
+
 	// StaticDir is the path to a persistent directory to store container
 	// files.
 	StaticDir string `toml:"static_dir,omitempty"`
@@ -383,6 +390,12 @@ type EngineConfig struct {
 	// StopTimeout is the number of seconds to wait for container to exit
 	// before sending kill signal.
 	StopTimeout uint `toml:"stop_timeout,omitempty"`
+
+	// ImageCopyTmpDir is the default location for storing temporary
+	// container image content,  Can be overridden with the TMPDIR
+	// environment variable.  If you specify "storage", then the
+	// location of the container/storage tmp directory will be used.
+	ImageCopyTmpDir string `toml:"image_copy_tmp_dir,omitempty"`
 
 	// TmpDir is the path to a temporary directory to store per-boot container
 	// files. Must be stored in a tmpfs.
@@ -1147,4 +1160,23 @@ func (c *Config) FindHelperBinary(name string, searchPATH bool) (string, error) 
 		return "", errors.Errorf("could not find %q because there are no helper binary directories configured", name)
 	}
 	return "", errors.Errorf("could not find %q in one of %v", name, c.Engine.HelperBinariesDir)
+}
+
+// ImageCopyTmpDir default directory to store tempory image files during copy
+func (c *Config) ImageCopyTmpDir() (string, error) {
+	if path, found := os.LookupEnv("TMPDIR"); found {
+		return path, nil
+	}
+	switch c.Engine.ImageCopyTmpDir {
+	case "":
+		return "", nil
+	case "storage":
+		return filepath.Join(c.Engine.graphRoot, "tmp"), nil
+	default:
+		if filepath.IsAbs(c.Engine.ImageCopyTmpDir) {
+			return c.Engine.ImageCopyTmpDir, nil
+		}
+	}
+
+	return "", errors.Errorf("invalid image_copy_tmp_dir value %q (relative paths are not accepted)", c.Engine.ImageCopyTmpDir)
 }
