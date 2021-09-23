@@ -10,7 +10,6 @@ BINDIR := $(PREFIX)/bin
 BASHINSTALLDIR = $(PREFIX)/share/bash-completion/completions
 BUILDFLAGS := -tags "$(BUILDTAGS)"
 BUILDAH := buildah
-RACEFLAGS := $(shell go test -race ./pkg/rusage > /dev/null 2>&1 && echo -race)
 
 GO := go
 GO110 := 1.10
@@ -23,6 +22,7 @@ else
 export GO_BUILD=$(GO) build
 export GO_TEST=$(GO) test
 endif
+RACEFLAGS := $(shell $(GO_TEST) -race ./pkg/dummy > /dev/null 2>&1 && echo -race)
 
 GIT_COMMIT ?= $(if $(shell git rev-parse --short HEAD),$(shell git rev-parse --short HEAD),$(error "git failed"))
 SOURCE_DATE_EPOCH ?= $(if $(shell date +%s),$(shell date +%s),$(error "date failed"))
@@ -71,9 +71,10 @@ bin/buildah: $(SOURCES) cmd/buildah/*.go
 .PHONY: buildah
 buildah: bin/buildah
 
-LINUX_CROSS_TARGETS = $(addprefix bin/buildah.,$(subst /,.,$(shell $(GO) tool dist list | grep ^linux/)))
-DARWIN_CROSS_TARGETS = $(addprefix bin/buildah.,$(subst /,.,$(shell $(GO) tool dist list | grep ^darwin/)))
-WINDOWS_CROSS_TARGETS = $(addsuffix .exe,$(addprefix bin/buildah.,$(subst /,.,$(shell $(GO) tool dist list | grep ^windows/))))
+ALL_CROSS_TARGETS := $(addprefix bin/buildah.,$(subst /,.,$(shell $(GO) tool dist list)))
+LINUX_CROSS_TARGETS := $(filter bin/buildah.linux.%,$(ALL_CROSS_TARGETS))
+DARWIN_CROSS_TARGETS := $(filter bin/buildah.darwin.%,$(ALL_CROSS_TARGETS))
+WINDOWS_CROSS_TARGETS := $(addsuffix .exe,$(filter bin/buildah.windows.%,$(ALL_CROSS_TARGETS)))
 .PHONY: cross
 cross: $(LINUX_CROSS_TARGETS) $(DARWIN_CROSS_TARGETS) $(WINDOWS_CROSS_TARGETS)
 
