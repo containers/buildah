@@ -32,6 +32,9 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/reexec"
+	dockertypes "github.com/docker/docker/api/types"
+	dockerdockerclient "github.com/docker/docker/client"
+	dockerarchive "github.com/docker/docker/pkg/archive"
 	docker "github.com/fsouza/go-dockerclient"
 	digest "github.com/opencontainers/go-digest"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
@@ -158,6 +161,7 @@ func TestConformance(t *testing.T) {
 
 func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	test := internalTestCases[testIndex]
+	ctx := context.TODO()
 
 	cwd, err := os.Getwd()
 	require.Nil(t, err, "error finding current directory")
@@ -285,7 +289,17 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 		}
 	}
 
-	// connect to dockerd
+	// connect to dockerd using the docker client library
+	dockerClient, err := dockerdockerclient.NewClientWithOpts(dockerdockerclient.FromEnv)
+	require.Nil(t, err, "unable to initialize docker.client")
+	dockerClient.NegotiateAPIVersion(ctx)
+	if test.dockerUseBuildKit {
+		if err := dockerClient.NewVersionError("1.38", "buildkit"); err != nil {
+			t.Skipf("%v", err)
+		}
+	}
+
+	// connect to dockerd using go-dockerclient
 	client, err := docker.NewClientFromEnv()
 	require.Nil(t, err, "unable to initialize docker client")
 	var dockerVersion []string
@@ -307,7 +321,6 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 
 	// decide whether we're building just one image for this Dockerfile, or
 	// one for each line in it after the first, which we'll assume is a FROM
-	ctx := context.TODO()
 	if compareLayers {
 		// build and compare one line at a time
 		line := 1
@@ -317,7 +330,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 				if line > 1 || !bytes.HasPrefix(dockerfileContents, []byte("FROM ")) {
 					// hack: skip trying to build just the first FROM line
 					t.Run(fmt.Sprintf("%d", line), func(t *testing.T) {
-						testConformanceInternalBuild(ctx, t, cwd, store, client, fmt.Sprintf("%s.%d", buildahImage, line), fmt.Sprintf("%s.%d", dockerImage, line), fmt.Sprintf("%s.%d", imagebuilderImage, line), contextDir, dockerfileName, dockerfileContents[:i+1], test, line, i == len(dockerfileContents)-1, dockerVersion)
+						testConformanceInternalBuild(ctx, t, cwd, store, client, dockerClient, fmt.Sprintf("%s.%d", buildahImage, line), fmt.Sprintf("%s.%d", dockerImage, line), fmt.Sprintf("%s.%d", imagebuilderImage, line), contextDir, dockerfileName, dockerfileContents[:i+1], test, line, i == len(dockerfileContents)-1, dockerVersion)
 					})
 				}
 				line++
@@ -325,11 +338,11 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 		}
 	} else {
 		// build to completion
-		testConformanceInternalBuild(ctx, t, cwd, store, client, buildahImage, dockerImage, imagebuilderImage, contextDir, dockerfileName, dockerfileContents, test, 0, true, dockerVersion)
+		testConformanceInternalBuild(ctx, t, cwd, store, client, dockerClient, buildahImage, dockerImage, imagebuilderImage, contextDir, dockerfileName, dockerfileContents, test, 0, true, dockerVersion)
 	}
 }
 
-func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string, store storage.Store, client *docker.Client, buildahImage, dockerImage, imagebuilderImage, contextDir, dockerfileName string, dockerfileContents []byte, test testCase, line int, finalOfSeveral bool, dockerVersion []string) {
+func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string, store storage.Store, client *docker.Client, dockerClient *dockerdockerclient.Client, buildahImage, dockerImage, imagebuilderImage, contextDir, dockerfileName string, dockerfileContents []byte, test testCase, line int, finalOfSeveral bool, dockerVersion []string) {
 	var buildahLog, dockerLog, imagebuilderLog []byte
 	var buildahRef, dockerRef, imagebuilderRef types.ImageReference
 
@@ -368,7 +381,7 @@ func testConformanceInternalBuild(ctx context.Context, t *testing.T, cwd string,
 
 	// build using docker
 	if !test.withoutDocker {
-		dockerRef, dockerLog = buildUsingDocker(ctx, t, client, test, dockerImage, contextDir, dockerfileName, line, finalOfSeveral)
+		dockerRef, dockerLog = buildUsingDocker(ctx, t, client, dockerClient, test, dockerImage, contextDir, dockerfileName, line, finalOfSeveral)
 		if dockerRef != nil {
 			defer func() {
 				err := client.RemoveImageExtended(dockerImage, docker.RemoveImageOptions{
@@ -553,28 +566,60 @@ func buildUsingBuildah(ctx context.Context, t *testing.T, store storage.Store, t
 	return buildahRef, []byte(outputString)
 }
 
-func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, test testCase, dockerImage, contextDir, dockerfileName string, line int, finalOfSeveral bool) (dockerRef types.ImageReference, dockerLog []byte) {
+func buildUsingDocker(ctx context.Context, t *testing.T, client *docker.Client, dockerClient *dockerdockerclient.Client, test testCase, dockerImage, contextDir, dockerfileName string, line int, finalOfSeveral bool) (dockerRef types.ImageReference, dockerLog []byte) {
 	// compute the path of the dockerfile relative to the build context
 	dockerfileRelativePath, err := filepath.Rel(contextDir, dockerfileName)
 	require.Nil(t, err, "unable to compute path of dockerfile %q relative to context directory %q", dockerfileName, contextDir)
 
 	// set up build options
 	output := &bytes.Buffer{}
-	options := docker.BuildImageOptions{
-		Context:             ctx,
-		ContextDir:          contextDir,
-		Dockerfile:          dockerfileRelativePath,
-		OutputStream:        output,
-		Name:                dockerImage,
-		NoCache:             true,
-		RmTmpContainer:      true,
-		ForceRmTmpContainer: true,
+	if test.dockerUseBuildKit {
+		dockerOptions := dockertypes.ImageBuildOptions{
+			Dockerfile:  dockerfileRelativePath,
+			Tags:        []string{dockerImage},
+			NoCache:     true,
+			Remove:      true,
+			ForceRemove: true,
+			Version:     dockertypes.BuilderBuildKit,
+		}
+		var buildContextReader io.Reader
+		if contextDir != "" {
+			rc, err := dockerarchive.Tar(contextDir, dockerarchive.Uncompressed)
+			assert.Nil(t, err, "error archiving context directory %q", contextDir)
+			defer rc.Close()
+			buildContextReader = rc
+		}
+		// build the image and gather output. log the output if the build part of the test failed
+		response, err := dockerClient.ImageBuild(ctx, buildContextReader, dockerOptions)
+		if err != nil {
+			output.WriteString("\n" + err.Error())
+		}
+		if response.Body != nil {
+			_, err = io.Copy(output, response.Body)
+			response.Body.Close()
+			if err != nil {
+				t.Logf("error while reading buildkit response: %v", err)
+			}
+		}
+	} else {
+		options := docker.BuildImageOptions{
+			Context:             ctx,
+			ContextDir:          contextDir,
+			Dockerfile:          dockerfileRelativePath,
+			OutputStream:        output,
+			Name:                dockerImage,
+			NoCache:             true,
+			RmTmpContainer:      true,
+			ForceRmTmpContainer: true,
+		}
+		// build the image and gather output. log the output if the build part of the test failed
+		err = client.BuildImage(options)
+		if err != nil {
+			output.WriteString("\n" + err.Error())
+		}
 	}
-
-	// build the image and gather output. log the output if the build part of the test failed
-	err = client.BuildImage(options)
-	if err != nil {
-		output.WriteString("\n" + err.Error())
+	if _, err := dockerClient.BuildCachePrune(ctx, dockertypes.BuildCachePruneOptions{All: true}); err != nil {
+		t.Logf("docker build cache prune: %v", err)
 	}
 
 	outputString := output.String()
@@ -1207,6 +1252,7 @@ type testCase struct {
 	imagebuilderErrRegex string                    // if set, expect this to be present in output
 	failureRegex         string                    // if set, expect this to be present in output when the build fails
 	withoutDocker        bool                      // don't build this with docker, because it depends on a buildah-specific feature
+	dockerUseBuildKit    bool                      // if building with docker, request that dockerd use buildkit
 	withoutImagebuilder  bool                      // don't build this with imagebuilder, because it depends on a buildah-specific feature
 	transientMounts      []string                  // one possible buildah-specific feature
 	fsSkip               []string                  // expected filesystem differences, typically timestamps on files or directories we create or modify during the build and don't reset
@@ -2881,5 +2927,11 @@ var internalTestCases = []testCase{
 		name:       "dockerignore-exceptions-weirdness-2",
 		contextDir: "dockerignore/exceptions-weirdness-2",
 		fsSkip:     []string{"(dir):newdir:mtime", "(dir):newdir:(dir):subdir:mtime"},
+	},
+
+	{
+		name:              "multistage-builtin-args",
+		dockerfile:        "Dockerfile.margs",
+		dockerUseBuildKit: true,
 	},
 }

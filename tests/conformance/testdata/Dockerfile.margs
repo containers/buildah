@@ -1,0 +1,39 @@
+FROM alpine
+ARG BUILDPLATFORM
+ARG BUILDOS
+ARG BUILDARCH
+ARG BUILDVARIANT
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+RUN mkdir first
+RUN echo ${BUILDPLATFORM}  > first/buildplatform=`echo ${BUILDPLATFORM} | sed s,/,_,g`
+RUN echo ${BUILDOS}        > first/buildos=`echo ${BUILDOS} | sed s,/,_,g`
+RUN echo ${BUILDARCH}      > first/buildarch=`echo ${BUILDARCH} | sed s,/,_,g`
+RUN echo ${BUILDVARIANT}   > first/buildvariant=`echo ${BUILDVARIANT} | sed s,/,_,g`
+RUN echo ${TARGETPLATFORM} > first/targetplatform=`echo ${TARGETPLATFORM} | sed s,/,_,g`
+RUN echo ${TARGETOS}       > first/targetos=`echo ${TARGETOS} | sed s,/,_,g`
+RUN echo ${TARGETARCH}     > first/targetarch=`echo ${TARGETARCH} | sed s,/,_,g`
+RUN echo ${TARGETVARIANT}  > first/targetvariant=`echo ${TARGETVARIANT} | sed s,/,_,g`
+
+FROM alpine
+ARG BUILDPLATFORM
+ARG BUILDOS
+ARG BUILDARCH
+ARG BUILDVARIANT
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+RUN mkdir second
+RUN echo ${BUILDPLATFORM}  > second/buildplatform=`echo ${BUILDPLATFORM} | sed s,/,_,g`
+RUN echo ${BUILDOS}        > second/buildos=`echo ${BUILDOS} | sed s,/,_,g`
+RUN echo ${BUILDARCH}      > second/buildarch=`echo ${BUILDARCH} | sed s,/,_,g`
+RUN echo ${BUILDVARIANT}   > second/buildvariant=`echo ${BUILDVARIANT} | sed s,/,_,g`
+RUN echo ${TARGETPLATFORM} > second/targetplatform=`echo ${TARGETPLATFORM} | sed s,/,_,g`
+RUN echo ${TARGETOS}       > second/targetos=`echo ${TARGETOS} | sed s,/,_,g`
+RUN echo ${TARGETARCH}     > second/targetarch=`echo ${TARGETARCH} | sed s,/,_,g`
+RUN echo ${TARGETVARIANT}  > second/targetvariant=`echo ${TARGETVARIANT} | sed s,/,_,g`
+COPY --from=0 first/* ./first/
+RUN touch -r /etc/os-release first first/* second second/*
