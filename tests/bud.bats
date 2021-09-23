@@ -3349,6 +3349,26 @@ _EOF
   run_buildah 125 manifest inspect $outputlist
 }
 
+@test "bud-multiple-platform-failure" {
+  # check if we can run a couple of 32-bit versions of an image, and if we can,
+  # assume that emulation for other architectures is in place.
+  os=`go env GOOS`
+  if test "$os" != linux ; then
+    skip "test Dockerfile is ubi, we can't run it"
+  fi
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name try-386 --platform=$os/386 alpine
+  run buildah run try-386 true
+  if test $status -ne 0 ; then
+    skip "unable to run 386 container, assuming emulation is not available"
+  fi
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name try-arm --platform=$os/arm alpine
+  run buildah run try-arm true
+  if test $status -ne 0 ; then
+    skip "unable to run arm container, assuming emulation is not available"
+  fi
+  run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json --jobs=0 --platform=linux/arm64,linux/amd64 --manifest $outputlist -f ${TESTSDIR}/bud/multiarch/Dockerfile.fail-multistage ${TESTSDIR}/bud/multiarch
+  expect_output --substring 'error building at STEP "RUN false"'
+}
 
 # * Performs multi-stage build with label1=value1 and verifies
 # * Relabels build with label1=value2 and verifies

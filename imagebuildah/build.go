@@ -168,7 +168,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		files = append(files, b.Bytes())
 	}
 
-	if options.Jobs != nil && *options.Jobs != 0 {
+	if options.JobSemaphore == nil && options.Jobs != nil && *options.Jobs != 0 {
 		options.JobSemaphore = semaphore.NewWeighted(int64(*options.Jobs))
 	}
 
@@ -201,6 +201,8 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		platformContext.VariantChoice = platform.Variant
 		platformOptions := options
 		platformOptions.SystemContext = &platformContext
+		platformOptions.OS = platform.OS
+		platformOptions.Architecture = platform.Arch
 		logPrefix := ""
 		if len(options.Platforms) > 1 {
 			logPrefix = "[" + platform.OS + "/" + platform.Arch
