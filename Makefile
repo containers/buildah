@@ -12,6 +12,8 @@ BUILDFLAGS := -tags "$(BUILDTAGS)"
 BUILDAH := buildah
 
 GO := go
+GO_LDFLAGS := $(shell if $(GO) version|grep -q gccgo; then echo "-gccgoflags"; else echo "-ldflags"; fi)
+GO_GCFLAGS := $(shell if $(GO) version|grep -q gccgo; then echo "-gccgoflags"; else echo "-gcflags"; fi)
 GO110 := 1.10
 GOVERSION := $(findstring $(GO110),$(shell go version))
 # test for go module support
@@ -34,7 +36,7 @@ RUNC_COMMIT := v1.0.0-rc8
 LIBSECCOMP_COMMIT := release-2.3
 
 EXTRA_LDFLAGS ?=
-BUILDAH_LDFLAGS := -ldflags '-X main.GitCommit=$(GIT_COMMIT) -X main.buildInfo=$(SOURCE_DATE_EPOCH) -X main.cniVersion=$(CNI_COMMIT) $(EXTRA_LDFLAGS)'
+BUILDAH_LDFLAGS := $(GO_LDFLAGS) '-X main.GitCommit=$(GIT_COMMIT) -X main.buildInfo=$(SOURCE_DATE_EPOCH) -X main.cniVersion=$(CNI_COMMIT) $(EXTRA_LDFLAGS)'
 SOURCES=*.go imagebuildah/*.go bind/*.go chroot/*.go copier/*.go docker/*.go manifests/*.go pkg/blobcache/*.go pkg/chrootuser/*.go pkg/cli/*.go pkg/completion/*.go pkg/formats/*.go pkg/overlay/*.go pkg/parse/*.go pkg/rusage/*.go pkg/sshagent/*.go pkg/umask/*.go pkg/util/*.go util/*.go
 
 LINTFLAGS ?=
@@ -66,7 +68,7 @@ static:
 	cp -rfp ./result/bin/* ./bin/
 
 bin/buildah: $(SOURCES) cmd/buildah/*.go
-	$(GO_BUILD) $(BUILDAH_LDFLAGS) -gcflags "$(GOGCFLAGS)" -o $@ $(BUILDFLAGS) ./cmd/buildah
+	$(GO_BUILD) $(BUILDAH_LDFLAGS) $(GO_GCFLAGS) "$(GOGCFLAGS)" -o $@ $(BUILDFLAGS) ./cmd/buildah
 
 .PHONY: buildah
 buildah: bin/buildah
@@ -166,7 +168,7 @@ test-integration: install.tools
 	cd tests; ./test_runner.sh
 
 tests/testreport/testreport: tests/testreport/testreport.go
-	$(GO_BUILD) -ldflags "-linkmode external -extldflags -static" -tags "$(STORAGETAGS) $(SECURITYTAGS)" -o tests/testreport/testreport ./tests/testreport/testreport.go
+	$(GO_BUILD) $(GO_LDFLAGS) "-linkmode external -extldflags -static" -tags "$(STORAGETAGS) $(SECURITYTAGS)" -o tests/testreport/testreport ./tests/testreport/testreport.go
 
 .PHONY: test-unit
 test-unit: tests/testreport/testreport
