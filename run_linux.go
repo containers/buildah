@@ -100,14 +100,18 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return err
 	}
 
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get container config")
+	}
 	// hardwire the environment to match docker build to avoid subtle and hard-to-debug differences due to containers.conf
-	b.configureEnvironment(g, options, []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"})
+	b.configureEnvironment(g, options, defaultContainerConfig.GetDefaultEnv())
 
 	if b.CommonBuildOpts == nil {
 		return errors.Errorf("Invalid format on container you must recreate the container")
 	}
 
-	if err := addCommonOptsToSpec(b.CommonBuildOpts, g); err != nil {
+	if err := addCommonOptsToSpec(b.CommonBuildOpts, g, defaultContainerConfig); err != nil {
 		return err
 	}
 
@@ -304,7 +308,7 @@ rootless=%d
 	return err
 }
 
-func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Generator) error {
+func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Generator, cfg *config.Config) error {
 	// Resources - CPU
 	if commonOpts.CPUPeriod != 0 {
 		g.SetLinuxResourcesCPUPeriod(commonOpts.CPUPeriod)
@@ -335,12 +339,8 @@ func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Gene
 		g.SetLinuxCgroupsPath(commonOpts.CgroupParent)
 	}
 
-	defaultContainerConfig, err := config.Default()
-	if err != nil {
-		return errors.Wrapf(err, "failed to get container config")
-	}
 	// Other process resource limits
-	if err := addRlimits(commonOpts.Ulimit, g, defaultContainerConfig.Containers.DefaultUlimits); err != nil {
+	if err := addRlimits(commonOpts.Ulimit, g, cfg.Containers.DefaultUlimits); err != nil {
 		return err
 	}
 

@@ -9,7 +9,6 @@ load helpers
 	skip "selinux is disabled"
     fi
 
-
     export CONTAINERS_CONF=${TESTSDIR}/containers.conf
     cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
     run_buildah --log-level=error run $cid sh -c "cat /proc/self/attr/current | grep container_t"
@@ -84,4 +83,15 @@ load helpers
     cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
     run_buildah --log-level=error run $cid sh -c 'df /dev/shm | awk '\''/shm/{print $4}'\'''
     expect_output "200"
+}
+
+@test "containers.conf env test" {
+    if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
+  fi
+
+    export CONTAINERS_CONF=${TESTSDIR}/containers.conf
+    cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
+    run_buildah --log-level=error run $cid printenv
+    expect_output --substring "foo=bar"
 }
