@@ -523,7 +523,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 
 	// Get the list of mounts that are just for this Run() call.
 	// TODO: acui: de-spaghettify run mounts
-	runMounts, mountArtifacts, err := runSetupRunMounts(runFileMounts, secrets, sshSources, b.MountLabel, cdir, spec.Linux.UIDMappings, spec.Linux.GIDMappings, b.ProcessLabel)
+	runMounts, mountArtifacts, err := b.runSetupRunMounts(runFileMounts, secrets, sshSources, b.MountLabel, cdir, spec.Linux.UIDMappings, spec.Linux.GIDMappings, b.ProcessLabel)
 	if err != nil {
 		return nil, err
 	}
@@ -1125,7 +1125,7 @@ func runConfigureNetwork(isolation define.Isolation, options RunOptions, configu
 		return nil, errors.Wrapf(err, "failed to get container config")
 	}
 	if err := defaultnet.Create(containersConf.Network.DefaultNetwork, containersConf.Network.DefaultSubnet, confdir, confdir, containersConf.Engine.MachineEnabled); err != nil {
-		logrus.Errorf("Failed to created default CNI network: %v", err)
+		options.Logger.Errorf("Failed to created default CNI network: %v", err)
 	}
 
 	// Scan for CNI configuration files.
@@ -2325,7 +2325,7 @@ func init() {
 }
 
 // runSetupRunMounts sets up mounts that exist only in this RUN, not in subsequent runs
-func runSetupRunMounts(mounts []string, secrets map[string]string, sshSources map[string]*sshagent.Source, mountlabel string, containerWorkingDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, processLabel string) ([]spec.Mount, *runMountArtifacts, error) {
+func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]string, sshSources map[string]*sshagent.Source, mountlabel string, containerWorkingDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, processLabel string) ([]spec.Mount, *runMountArtifacts, error) {
 	mountTargets := make([]string, 0, 10)
 	finalMounts := make([]specs.Mount, 0, len(mounts))
 	agents := make([]*sshagent.AgentServer, 0, len(mounts))
@@ -2355,7 +2355,7 @@ func runSetupRunMounts(mounts []string, secrets map[string]string, sshSources ma
 
 			}
 		case "ssh":
-			mount, agent, err := getSSHMount(tokens, sshCount, sshSources, mountlabel, uidmap, gidmap, processLabel)
+			mount, agent, err := b.getSSHMount(tokens, sshCount, sshSources, mountlabel, uidmap, gidmap, processLabel)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -2482,7 +2482,7 @@ func getSecretMount(tokens []string, secrets map[string]string, mountlabel strin
 }
 
 // getSSHMount parses the --mount type=ssh flag in the Containerfile, checks if there's an ssh source provided, and creates and starts an ssh-agent to be forwarded into the container
-func getSSHMount(tokens []string, count int, sshsources map[string]*sshagent.Source, mountlabel string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, processLabel string) (*spec.Mount, *sshagent.AgentServer, error) {
+func (b *Builder) getSSHMount(tokens []string, count int, sshsources map[string]*sshagent.Source, mountlabel string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, processLabel string) (*spec.Mount, *sshagent.AgentServer, error) {
 	errInvalidSyntax := errors.New("ssh should have syntax id=id[,target=path,required=bool,mode=uint,uid=uint,gid=uint")
 
 	var err error
@@ -2557,13 +2557,13 @@ func getSSHMount(tokens []string, count int, sshsources map[string]*sshagent.Sou
 
 	if err := label.Relabel(filepath.Dir(hostSock), mountlabel, false); err != nil {
 		if shutdownErr := fwdAgent.Shutdown(); shutdownErr != nil {
-			logrus.Errorf("error shutting down agent: %v", shutdownErr)
+			b.Logger.Errorf("error shutting down agent: %v", shutdownErr)
 		}
 		return nil, nil, err
 	}
 	if err := label.Relabel(hostSock, mountlabel, false); err != nil {
 		if shutdownErr := fwdAgent.Shutdown(); shutdownErr != nil {
-			logrus.Errorf("error shutting down agent: %v", shutdownErr)
+			b.Logger.Errorf("error shutting down agent: %v", shutdownErr)
 		}
 		return nil, nil, err
 	}
@@ -2571,19 +2571,19 @@ func getSSHMount(tokens []string, count int, sshsources map[string]*sshagent.Sou
 	hostUID, hostGID, err := util.GetHostIDs(uidmap, gidmap, uid, gid)
 	if err != nil {
 		if shutdownErr := fwdAgent.Shutdown(); shutdownErr != nil {
-			logrus.Errorf("error shutting down agent: %v", shutdownErr)
+			b.Logger.Errorf("error shutting down agent: %v", shutdownErr)
 		}
 		return nil, nil, err
 	}
 	if err := os.Lchown(hostSock, int(hostUID), int(hostGID)); err != nil {
 		if shutdownErr := fwdAgent.Shutdown(); shutdownErr != nil {
-			logrus.Errorf("error shutting down agent: %v", shutdownErr)
+			b.Logger.Errorf("error shutting down agent: %v", shutdownErr)
 		}
 		return nil, nil, err
 	}
 	if err := os.Chmod(hostSock, os.FileMode(mode)); err != nil {
 		if shutdownErr := fwdAgent.Shutdown(); shutdownErr != nil {
-			logrus.Errorf("error shutting down agent: %v", shutdownErr)
+			b.Logger.Errorf("error shutting down agent: %v", shutdownErr)
 		}
 		return nil, nil, err
 	}

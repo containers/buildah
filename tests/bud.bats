@@ -879,7 +879,7 @@ function _test_http() {
   _prefetch ubuntu
   target=ubuntu-image
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/shell/Dockerfile.build-shell-custom ${TESTSDIR}/bud/shell
-  expect_output --substring "SHELL=/bin/sh"
+  expect_output --substring "SHELL is not supported for OCI image format, \[/bin/bash -c\] will be ignored."
 }
 
 @test "bud with symlinks" {
