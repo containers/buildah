@@ -9,11 +9,11 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"unicode"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/common/pkg/parse"
@@ -669,7 +669,7 @@ const platformSep = "/"
 
 // DefaultPlatform returns the standard platform for the current system
 func DefaultPlatform() string {
-	return runtime.GOOS + platformSep + runtime.GOARCH
+	return platforms.DefaultString()
 }
 
 // Platform separates the platform string into os, arch and variant,

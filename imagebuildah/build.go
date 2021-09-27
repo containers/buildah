@@ -10,15 +10,19 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libimage"
 	"github.com/containers/common/pkg/config"
+	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/pkg/shortnames"
 	istorage "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
@@ -193,23 +197,33 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		})
 	}
 
+	if options.AllPlatforms {
+		options.Platforms, err = platformsForBaseImages(ctx, logger, paths, files, options.From, options.Args, options.SystemContext)
+		if err != nil {
+			return "", nil, err
+		}
+	}
+
 	systemContext := options.SystemContext
 	for _, platform := range options.Platforms {
 		platformContext := *systemContext
-		platformContext.OSChoice = platform.OS
-		platformContext.ArchitectureChoice = platform.Arch
-		platformContext.VariantChoice = platform.Variant
+		platformSpec := platforms.Normalize(v1.Platform{
+			OS:           platform.OS,
+			Architecture: platform.Arch,
+			Variant:      platform.Variant,
+		})
+		if platformSpec.OS != "" && platformSpec.Architecture != "" {
+			platformContext.OSChoice = platformSpec.OS
+			platformContext.ArchitectureChoice = platformSpec.Architecture
+			platformContext.VariantChoice = platformSpec.Variant
+		}
 		platformOptions := options
 		platformOptions.SystemContext = &platformContext
-		platformOptions.OS = platform.OS
-		platformOptions.Architecture = platform.Arch
+		platformOptions.OS = platformContext.OSChoice
+		platformOptions.Architecture = platformContext.ArchitectureChoice
 		logPrefix := ""
 		if len(options.Platforms) > 1 {
-			logPrefix = "[" + platform.OS + "/" + platform.Arch
-			if platform.Variant != "" {
-				logPrefix += "/" + platform.Variant
-			}
-			logPrefix += "] "
+			logPrefix = "[" + platforms.Format(platformSpec) + "] "
 		}
 		builds.Go(func() error {
 			thisID, thisRef, err := buildDockerfilesOnce(ctx, store, logger, logPrefix, platformOptions, paths, files)
@@ -219,12 +233,8 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			id, ref = thisID, thisRef
 			instancesLock.Lock()
 			instances = append(instances, instance{
-				ID: thisID,
-				Platform: v1.Platform{
-					OS:           platformContext.OSChoice,
-					Architecture: platformContext.ArchitectureChoice,
-					Variant:      platformContext.VariantChoice,
-				},
+				ID:       thisID,
+				Platform: platformSpec,
 			})
 			instancesLock.Unlock()
 			return nil
@@ -430,4 +440,195 @@ func preprocessContainerfileContents(logger *logrus.Logger, containerfile string
 		}
 	}
 	return &stdoutBuffer, nil
+}
+
+// platformsForBaseImages resolves the names of base images from the
+// dockerfiles, and if they are all valid references to manifest lists, returns
+// the list of platforms that are supported by all of the base images.
+func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfilepaths []string, dockerfiles [][]byte, from string, args map[string]string, systemContext *types.SystemContext) ([]struct{ OS, Arch, Variant string }, error) {
+	baseImages, err := baseImages(dockerfilepaths, dockerfiles, from, args)
+	if err != nil {
+		return nil, errors.Wrapf(err, "determining list of base images")
+	}
+	logrus.Debugf("unresolved base images: %v", baseImages)
+	if len(baseImages) == 0 {
+		return nil, errors.Wrapf(err, "build uses no non-scratch base images")
+	}
+	targetPlatforms := make(map[string]struct{})
+	var platformList []struct{ OS, Arch, Variant string }
+	for baseImageIndex, baseImage := range baseImages {
+		resolved, err := shortnames.Resolve(systemContext, baseImage)
+		if err != nil {
+			return nil, errors.Wrapf(err, "resolving image name %q", baseImage)
+		}
+		var manifestBytes []byte
+		var manifestType string
+		for _, candidate := range resolved.PullCandidates {
+			ref, err := docker.NewReference(candidate.Value)
+			if err != nil {
+				logrus.Debugf("parsing image reference %q: %v", candidate.Value.String(), err)
+				continue
+			}
+			src, err := ref.NewImageSource(ctx, systemContext)
+			if err != nil {
+				logrus.Debugf("preparing to read image manifest for %q: %v", baseImage, err)
+				continue
+			}
+			candidateBytes, candidateType, err := src.GetManifest(ctx, nil)
+			_ = src.Close()
+			if err != nil {
+				logrus.Debugf("reading image manifest for %q: %v", baseImage, err)
+				continue
+			}
+			if !manifest.MIMETypeIsMultiImage(candidateType) {
+				logrus.Debugf("base image %q is not a reference to a manifest list: %v", baseImage, err)
+				continue
+			}
+			if err := candidate.Record(); err != nil {
+				logrus.Debugf("error recording name %q for base image %q: %v", candidate.Value.String(), baseImage, err)
+				continue
+			}
+			baseImage = candidate.Value.String()
+			manifestBytes, manifestType = candidateBytes, candidateType
+			break
+		}
+		if len(manifestBytes) == 0 {
+			if len(resolved.PullCandidates) > 0 {
+				return nil, errors.Errorf("base image name %q didn't resolve to a manifest list", baseImage)
+			}
+			return nil, errors.Errorf("base image name %q didn't resolve to anything", baseImage)
+		}
+		if manifestType != v1.MediaTypeImageIndex {
+			list, err := manifest.ListFromBlob(manifestBytes, manifestType)
+			if err != nil {
+				return nil, errors.Wrapf(err, "parsing manifest list from base image %q", baseImage)
+			}
+			list, err = list.ConvertToMIMEType(v1.MediaTypeImageIndex)
+			if err != nil {
+				return nil, errors.Wrapf(err, "converting manifest list from base image %q to v2s2 list", baseImage)
+			}
+			manifestBytes, err = list.Serialize()
+			if err != nil {
+				return nil, errors.Wrapf(err, "encoding converted v2s2 manifest list for base image %q", baseImage)
+			}
+		}
+		index, err := manifest.OCI1IndexFromManifest(manifestBytes)
+		if err != nil {
+			return nil, errors.Wrapf(err, "decoding manifest list for base image %q", baseImage)
+		}
+		if baseImageIndex == 0 {
+			// populate the list with the first image's normalized platforms
+			for _, instance := range index.Manifests {
+				if instance.Platform == nil {
+					continue
+				}
+				platform := platforms.Normalize(*instance.Platform)
+				targetPlatforms[platforms.Format(platform)] = struct{}{}
+				logger.Debugf("image %q supports %q", baseImage, platforms.Format(platform))
+			}
+		} else {
+			// prune the list of any normalized platforms this base image doesn't support
+			imagePlatforms := make(map[string]struct{})
+			for _, instance := range index.Manifests {
+				if instance.Platform == nil {
+					continue
+				}
+				platform := platforms.Normalize(*instance.Platform)
+				imagePlatforms[platforms.Format(platform)] = struct{}{}
+				logger.Debugf("image %q supports %q", baseImage, platforms.Format(platform))
+			}
+			var removed []string
+			for platform := range targetPlatforms {
+				if _, present := imagePlatforms[platform]; !present {
+					removed = append(removed, platform)
+					logger.Debugf("image %q does not support %q", baseImage, platform)
+				}
+			}
+			for _, remove := range removed {
+				delete(targetPlatforms, remove)
+			}
+		}
+		if baseImageIndex == len(baseImages)-1 && len(targetPlatforms) > 0 {
+			// extract the list
+			for platform := range targetPlatforms {
+				platform, err := platforms.Parse(platform)
+				if err != nil {
+					return nil, errors.Wrapf(err, "parsing platform double/triple %q", platform)
+				}
+				platformList = append(platformList, struct{ OS, Arch, Variant string }{
+					OS:      platform.OS,
+					Arch:    platform.Architecture,
+					Variant: platform.Variant,
+				})
+				logger.Debugf("base images all support %q", platform)
+			}
+		}
+	}
+	if len(platformList) == 0 {
+		return nil, errors.New("base images have no platforms in common")
+	}
+	return platformList, nil
+}
+
+// baseImages parses the dockerfilecontents, possibly replacing the first
+// stage's base image with FROM, and returns the list of base images as
+// provided.  Each entry in the dockerfilenames slice corresponds to a slice in
+// dockerfilecontents.
+func baseImages(dockerfilenames []string, dockerfilecontents [][]byte, from string, args map[string]string) ([]string, error) {
+	mainNode, err := imagebuilder.ParseDockerfile(bytes.NewReader(dockerfilecontents[0]))
+	if err != nil {
+		return nil, errors.Wrapf(err, "error parsing main Dockerfile: %s", dockerfilenames[0])
+	}
+
+	for i, d := range dockerfilecontents[1:] {
+		additionalNode, err := imagebuilder.ParseDockerfile(bytes.NewReader(d))
+		if err != nil {
+			return nil, errors.Wrapf(err, "error parsing additional Dockerfile %s", dockerfilenames[i])
+		}
+		mainNode.Children = append(mainNode.Children, additionalNode.Children...)
+	}
+
+	b := imagebuilder.NewBuilder(args)
+	defaultContainerConfig, err := config.Default()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get container config")
+	}
+	b.Env = defaultContainerConfig.GetDefaultEnv()
+	stages, err := imagebuilder.NewStages(mainNode, b)
+	if err != nil {
+		return nil, errors.Wrap(err, "error reading multiple stages")
+	}
+	var baseImages []string
+	nicknames := make(map[string]bool)
+	for stageIndex, stage := range stages {
+		node := stage.Node // first line
+		for node != nil {  // each line
+			for _, child := range node.Children { // tokens on this line, though we only care about the first
+				switch strings.ToUpper(child.Value) { // first token - instruction
+				case "FROM":
+					if child.Next != nil { // second token on this line
+						// If we have a fromOverride, replace the value of
+						// image name for the first FROM in the Containerfile.
+						if from != "" {
+							child.Next.Value = from
+							from = ""
+						}
+						base := child.Next.Value
+						if base != "scratch" && !nicknames[base] {
+							// TODO: this didn't undergo variable and arg
+							// expansion, so if the AS clause in another
+							// FROM instruction uses argument values,
+							// we might not record the right value here.
+							baseImages = append(baseImages, base)
+						}
+					}
+				}
+			}
+			node = node.Next // next line
+		}
+		if stage.Name != strconv.Itoa(stageIndex) {
+			nicknames[stage.Name] = true
+		}
+	}
+	return baseImages, nil
 }

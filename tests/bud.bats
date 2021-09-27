@@ -3366,8 +3366,19 @@ _EOF
   if test $status -ne 0 ; then
     skip "unable to run arm container, assuming emulation is not available"
   fi
+  outputlist=localhost/testlist
   run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json --jobs=0 --platform=linux/arm64,linux/amd64 --manifest $outputlist -f ${TESTSDIR}/bud/multiarch/Dockerfile.fail-multistage ${TESTSDIR}/bud/multiarch
   expect_output --substring 'error building at STEP "RUN false"'
+}
+
+@test "bud-multiple-platform-no-run" {
+  outputlist=localhost/testlist
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --jobs=0 --all-platforms --manifest $outputlist -f ${TESTSDIR}/bud/multiarch/Dockerfile.no-run ${TESTSDIR}/bud/multiarch
+  run_buildah manifest inspect $outputlist
+  echo "$output"
+  run jq '.manifests | length' <<< "$output"
+  echo "$output"
+  [[ "$output" -gt 1 ]] # should at least be more than one entry in there, right?
 }
 
 # * Performs multi-stage build with label1=value1 and verifies

@@ -38,6 +38,10 @@ Add a custom host-to-IP mapping (host:ip)
 
 Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option can be set multiple times.
 
+**--all-platforms**
+
+Instead of building for a set of platforms specified using the **--platform** option, inspect the build's base images, and build for all of the platforms for which they are all available.  Stages that use *scratch* as a starting point can not be inspected, so at least one non-*scratch* stage must be present for detection to work usefully.
+
 **--annotation** *annotation*
 
 Add an image *annotation* (e.g. annotation=*value*) to the image metadata. Can be used multiple times.
@@ -808,6 +812,8 @@ buildah build --arch s390x --manifest myimage /tmp/mysrc
 buildah bud --platform linux/s390x,linux/ppc64le,linux/amd64 --manifest myimage /tmp/mysrc
 
 buildah bud --platform linux/arm64 --platform linux/amd64 --manifest myimage /tmp/mysrc
+
+buildah bud --all-platforms --manifest myimage /tmp/mysrc
 
 ### Building an image using a URL
 

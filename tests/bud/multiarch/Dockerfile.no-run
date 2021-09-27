@@ -1,0 +1,7 @@
+# A base image that is known to be a manifest list.
+FROM docker.io/library/alpine
+COPY Dockerfile.no-run /root/
+# A different base image that is known to be a manifest list, supporting a
+# different but partially-overlapping set of platforms.
+FROM registry.access.redhat.com/ubi8-micro
+COPY --from=0 /root/Dockerfile.no-run /root/

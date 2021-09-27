@@ -329,6 +329,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 	options := define.BuildOptions{
 		AddCapabilities:         iopts.CapAdd,
 		AdditionalTags:          tags,
+		AllPlatforms:            iopts.AllPlatforms,
 		Annotations:             iopts.Annotation,
 		Architecture:            systemContext.ArchitectureChoice,
 		Args:                    args,
