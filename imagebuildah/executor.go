@@ -353,7 +353,7 @@ func (b *Executor) resolveNameToImageRef(output string) (types.ImageReference, e
 func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebuilder.Stages) (bool, error) {
 	found := false
 	for _, otherStage := range stages {
-		if otherStage.Name == name || fmt.Sprintf("%d", otherStage.Position) == name {
+		if otherStage.Name == name || strconv.Itoa(otherStage.Position) == name {
 			found = true
 			break
 		}
@@ -708,7 +708,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 
 		b.stagesLock.Lock()
 		b.terminatedStage[stage.Name] = r.Error
-		b.terminatedStage[fmt.Sprintf("%d", stage.Position)] = r.Error
+		b.terminatedStage[strconv.Itoa(stage.Position)] = r.Error
 
 		if r.Error != nil {
 			b.stagesLock.Unlock()

@@ -1,8 +1,8 @@
 package util
 
 import (
-	"fmt"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/containers/common/pkg/config"
@@ -28,7 +28,7 @@ func TestMergeEnv(t *testing.T) {
 		},
 	}
 	for i, test := range tests {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			result := MergeEnv(test[0], test[1])
 			if len(result) != len(test[2]) {
 				t.Fatalf("expected %v, got %v", test[2], result)

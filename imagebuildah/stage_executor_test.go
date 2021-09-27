@@ -2,7 +2,7 @@ package imagebuildah
 
 import (
 	"encoding/json"
-	"fmt"
+	"strconv"
 	"testing"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -87,7 +87,7 @@ func TestHistoryEntriesEqual(t *testing.T) {
 		},
 	}
 	for i := range testCases {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			var a, b v1.History
 			err := json.Unmarshal([]byte(testCases[i].a), &a)
 			require.Nil(t, err, "error unmarshalling history %q: %v", testCases[i].a, err)

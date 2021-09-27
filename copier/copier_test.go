@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -1632,7 +1633,7 @@ func TestHandleRename(t *testing.T) {
 		{"c/2", "d/2"},
 	}
 	for i, testCase := range testCases {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			renamed := handleRename(renames, testCase[0])
 			assert.Equal(t, testCase[1], renamed, "expected to get %q, got %q", testCase[1], renamed)
 		})
