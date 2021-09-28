@@ -439,6 +439,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		User:             config.User,
 		WorkingDir:       config.WorkingDir,
 		Entrypoint:       config.Entrypoint,
+		ContextDir:       s.executor.contextDir,
 		Cmd:              config.Cmd,
 		Stdin:            stdin,
 		Stdout:           s.executor.out,

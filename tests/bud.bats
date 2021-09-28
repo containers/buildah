@@ -3510,3 +3510,43 @@ _EOF
   ## exported /run should not be empty
   assert "$count" == "1"
 }
+
+@test "bud-with-mount-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfile ${TESTSDIR}/bud/buildkit-mount/
+  expect_output --substring "hello"
+  run_buildah rmi -f testbud
+}
+
+@test "bud-with-mount-no-source-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfile2 ${TESTSDIR}/bud/buildkit-mount/
+  expect_output --substring "hello"
+  run_buildah rmi -f testbud
+}
+
+@test "bud-with-mount-no-subdir-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfile ${TESTSDIR}/bud/buildkit-mount/subdir/
+  expect_output --substring "hello"
+  run_buildah rmi -f testbud
+}
+
+@test "bud-with-mount-relative-path-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfile4 ${TESTSDIR}/bud/buildkit-mount/
+  expect_output --substring "hello"
+  run_buildah rmi -f testbud
+}
+
+@test "bud-with-mount-with-rw-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  run_buildah build --isolation chroot -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfile3 ${TESTSDIR}/bud/buildkit-mount/subdir/
+  expect_output --substring "world"
+  run_buildah rmi -f testbud
+}

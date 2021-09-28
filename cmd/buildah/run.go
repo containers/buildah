@@ -17,6 +17,7 @@ type runInputOptions struct {
 	addHistory  bool
 	capAdd      []string
 	capDrop     []string
+	contextDir  string
 	env         []string
 	hostname    string
 	isolation   string
@@ -58,6 +59,7 @@ func init() {
 	flags.BoolVar(&opts.addHistory, "add-history", false, "add an entry for this operation to the image's history.  Use BUILDAH_HISTORY environment variable to override. (default false)")
 	flags.StringSliceVar(&opts.capAdd, "cap-add", []string{}, "add the specified capability (default [])")
 	flags.StringSliceVar(&opts.capDrop, "cap-drop", []string{}, "drop the specified capability (default [])")
+	flags.StringVar(&opts.contextDir, "contextdir", "", "context directory path")
 	flags.StringArrayVarP(&opts.env, "env", "e", []string{}, "add environment variable to be set temporarily when running command (default [])")
 	flags.StringVar(&opts.hostname, "hostname", "", "set the hostname inside of the container")
 	flags.StringVar(&opts.isolation, "isolation", "", "`type` of process isolation to use. Use BUILDAH_ISOLATION environment variable to override.")
@@ -130,6 +132,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		Isolation:        isolation,
 		NamespaceOptions: namespaceOptions,
 		ConfigureNetwork: networkPolicy,
+		ContextDir:       iopts.contextDir,
 		CNIPluginPath:    iopts.CNIPlugInPath,
 		CNIConfigDir:     iopts.CNIConfigDir,
 		AddCapabilities:  iopts.capAdd,
@@ -146,7 +149,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		}
 	}
 
-	mounts, err := parse.GetVolumes(iopts.volumes, iopts.mounts)
+	mounts, err := parse.GetVolumes(iopts.volumes, iopts.mounts, iopts.contextDir)
 	if err != nil {
 		return err
 	}

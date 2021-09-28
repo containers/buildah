@@ -257,8 +257,8 @@ func getVolumeMounts(volumes []string) (map[string]specs.Mount, error) {
 }
 
 // GetVolumes gets the volumes from --volume and --mount
-func GetVolumes(volumes []string, mounts []string) ([]specs.Mount, error) {
-	unifiedMounts, err := getMounts(mounts)
+func GetVolumes(volumes []string, mounts []string, contextDir string) ([]specs.Mount, error) {
+	unifiedMounts, err := getMounts(mounts, contextDir)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +284,7 @@ func GetVolumes(volumes []string, mounts []string) ([]specs.Mount, error) {
 // spec mounts.
 // buildah run --mount type=bind,src=/etc/resolv.conf,target=/etc/resolv.conf ...
 // buildah run --mount type=tmpfs,target=/dev/shm ...
-func getMounts(mounts []string) (map[string]specs.Mount, error) {
+func getMounts(mounts []string, contextDir string) (map[string]specs.Mount, error) {
 	finalMounts := make(map[string]specs.Mount)
 
 	errInvalidSyntax := errors.Errorf("incorrect mount format: should be --mount type=<bind|tmpfs>,[src=<host-dir>,]target=<ctr-dir>[,options]")
@@ -307,7 +307,7 @@ func getMounts(mounts []string) (map[string]specs.Mount, error) {
 		tokens := strings.Split(arr[1], ",")
 		switch kv[1] {
 		case TypeBind:
-			mount, err := GetBindMount(tokens)
+			mount, err := GetBindMount(tokens, contextDir)
 			if err != nil {
 				return nil, err
 			}
@@ -333,27 +333,30 @@ func getMounts(mounts []string) (map[string]specs.Mount, error) {
 }
 
 // GetBindMount parses a single bind mount entry from the --mount flag.
-func GetBindMount(args []string) (specs.Mount, error) {
+func GetBindMount(args []string, contextDir string) (specs.Mount, error) {
 	newMount := specs.Mount{
 		Type: TypeBind,
 	}
 
-	setSource := false
 	setDest := false
+	bindNonRecursive := false
 
 	for _, val := range args {
 		kv := strings.SplitN(val, "=", 2)
 		switch kv[0] {
 		case "bind-nonrecursive":
 			newMount.Options = append(newMount.Options, "bind")
+			bindNonRecursive = true
 		case "ro", "nosuid", "nodev", "noexec":
 			// TODO: detect duplication of these options.
 			// (Is this necessary?)
 			newMount.Options = append(newMount.Options, kv[0])
+		case "rw", "readwrite":
+			newMount.Options = append(newMount.Options, "rw")
 		case "readonly":
 			// Alias for "ro"
 			newMount.Options = append(newMount.Options, "ro")
-		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z":
+		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z", "U":
 			newMount.Options = append(newMount.Options, kv[0])
 		case "bind-propagation":
 			if len(kv) == 1 {
@@ -368,7 +371,6 @@ func GetBindMount(args []string) (specs.Mount, error) {
 				return newMount, err
 			}
 			newMount.Source = kv[1]
-			setSource = true
 		case "target", "dst", "destination":
 			if len(kv) == 1 {
 				return newMount, errors.Wrapf(optionArgError, kv[0])
@@ -387,12 +389,20 @@ func GetBindMount(args []string) (specs.Mount, error) {
 		}
 	}
 
+	// buildkit parity: default bind option must be `rbind`
+	// unless specified
+	if !bindNonRecursive {
+		newMount.Options = append(newMount.Options, "rbind")
+	}
+
 	if !setDest {
 		return newMount, noDestError
 	}
 
-	if !setSource {
-		newMount.Source = newMount.Destination
+	// buildkit parity: support absolute path for sources from current build context
+	if strings.HasPrefix(newMount.Source, ".") || newMount.Source == "" || !filepath.IsAbs(newMount.Source) {
+		// path should be /contextDir/specified path
+		newMount.Source = filepath.Join(contextDir, filepath.Clean(string(filepath.Separator)+newMount.Source))
 	}
 
 	opts, err := parse.ValidateVolumeOpts(newMount.Options)

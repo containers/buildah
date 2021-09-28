@@ -93,6 +93,8 @@ type RunOptions struct {
 	User string
 	// WorkingDir is an override for the working directory.
 	WorkingDir string
+	// ContextDir is used as the root directory for the source location for mounts that are of type "bind".
+	ContextDir string
 	// Shell is default shell to run in a container.
 	Shell string
 	// Cmd is an override for the configured default command.
