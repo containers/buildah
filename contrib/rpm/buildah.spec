@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.23.0
+Version:        1.23.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,10 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Sep 27, 2021 Ashley Cui <acui@redhat.com> 1.23.1-1
+- Vendor containers/common v0.44.2
+- post-1.23 branch fixups
+
 * Mon Sep 13, 2021 Daniel J Walsh <dwalsh@redhat.com> 1.23.0-1
 - Vendor in containers/common v0.44.0
 - build(deps): bump github.com/containers/storage from 1.35.0 to 1.36.0
