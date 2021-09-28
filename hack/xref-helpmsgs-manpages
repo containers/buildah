@@ -229,11 +229,11 @@ sub tool_help {
 
 
 ##############
-#  tool_man  #  Parse contents of <tool>-*.md
+#  tool_man  #  Parse contents of <tool>-*.1.md
 ##############
 sub tool_man {
     my $command = shift;
-    my $subpath = "$Markdown_Path/$command.md";
+    my $subpath = "$Markdown_Path/$command.1.md";
     my $manpath = "$FindBin::Bin/../$subpath";
     print "** $subpath \n"                              if $debug;
 
@@ -254,12 +254,12 @@ sub tool_man {
         elsif ($line =~ /^\#\#\s+(SUB)?COMMANDS/) {
             $section = 'commands';
         }
-        elsif ($line =~ /^\#\#/) {
+        elsif ($line =~ /^\#\#[^#]/) {
             $section = '';
         }
 
         # This will be a table containing subcommand names, links to man pages.
-        # The format is slightly different between buildah.md and subcommands.
+        # The format is slightly different between buildah.1.md and subcommands.
         elsif ($section eq 'commands') {
             # In tool.1.md
             if ($line =~ /^\|\s*buildah-(\S+?)\(\d\)/) {
@@ -269,7 +269,7 @@ sub tool_man {
             }
 
             # In tool-<subcommand>.1.md
-            elsif ($line =~ /^\|\s+(\S+)\s+\|\s+\[\S+\]\((\S+)\.md\)/) {
+            elsif ($line =~ /^\|\s+(\S+)\s+\|\s+\[\S+\]\((\S+)\.1\.md\)/) {
                 # $1 will be changed by recursion _*BEFORE*_ left-hand assignment
                 my $subcmd = $1;
                 if ($previous_subcmd gt $subcmd) {
