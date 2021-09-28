@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -193,7 +194,7 @@ func TestProcessEnv(t *testing.T) {
 	testMinimal(t,
 		func(g *generate.Generator, rootDir, bundleDir string) {
 			g.ClearProcessEnv()
-			g.AddProcessEnv("PARENT_TEST_PID", fmt.Sprintf("%d", syscall.Getpid()))
+			g.AddProcessEnv("PARENT_TEST_PID", strconv.Itoa(syscall.Getpid()))
 		},
 		func(t *testing.T, report *types.TestReport) {
 			for _, ev := range report.Spec.Process.Env {
