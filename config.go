@@ -254,7 +254,7 @@ func (b *Builder) ClearOnBuild() {
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetOnBuild(onBuild string) {
 	if onBuild != "" && b.Format != define.Dockerv2ImageManifest {
-		logrus.Warnf("ONBUILD is not supported for OCI image format, %s will be ignored. Must use `docker` format", onBuild)
+		b.Logger.Warnf("ONBUILD is not supported for OCI image format, %s will be ignored. Must use `docker` format", onBuild)
 	}
 	b.Docker.Config.OnBuild = append(b.Docker.Config.OnBuild, onBuild)
 }
@@ -286,7 +286,7 @@ func (b *Builder) Shell() []string {
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetShell(shell []string) {
 	if len(shell) > 0 && b.Format != define.Dockerv2ImageManifest {
-		logrus.Warnf("SHELL is not supported for OCI image format, %s will be ignored. Must use `docker` format", shell)
+		b.Logger.Warnf("SHELL is not supported for OCI image format, %s will be ignored. Must use `docker` format", shell)
 	}
 
 	b.Docker.Config.Shell = copyStringSlice(shell)
@@ -523,7 +523,7 @@ func (b *Builder) Domainname() string {
 // discarded when writing images using OCIv1 formats.
 func (b *Builder) SetDomainname(name string) {
 	if name != "" && b.Format != define.Dockerv2ImageManifest {
-		logrus.Warnf("DOMAINNAME is not supported for OCI image format, domainname %s will be ignored. Must use `docker` format", name)
+		b.Logger.Warnf("DOMAINNAME is not supported for OCI image format, domainname %s will be ignored. Must use `docker` format", name)
 	}
 	b.Docker.Config.Domainname = name
 }
@@ -600,7 +600,7 @@ func (b *Builder) SetHealthcheck(config *docker.HealthConfig) {
 	b.Docker.Config.Healthcheck = nil
 	if config != nil {
 		if b.Format != define.Dockerv2ImageManifest {
-			logrus.Warnf("Healthcheck is not supported for OCI image format and will be ignored. Must use `docker` format")
+			b.Logger.Warnf("HEALTHCHECK is not supported for OCI image format and will be ignored. Must use `docker` format")
 		}
 		b.Docker.Config.Healthcheck = &docker.HealthConfig{
 			Test:        copyStringSlice(config.Test),
