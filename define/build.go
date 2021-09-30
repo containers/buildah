@@ -234,4 +234,8 @@ type BuildOptions struct {
 	// to build the image for.  If this slice has items in it, the OS and
 	// Architecture fields above are ignored.
 	Platforms []struct{ OS, Arch, Variant string }
+	// AllPlatforms tells the builder to set the list of target platforms
+	// to match the set of platforms for which all of the build's base
+	// images are available.  If this field is set, Platforms is ignored.
+	AllPlatforms bool
 }

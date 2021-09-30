@@ -378,6 +378,7 @@ return 1
 
  _buildah_bud() {
      local boolean_options="
+     --all-platforms
      --help
      -h
      --layers

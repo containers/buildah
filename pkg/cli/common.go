@@ -48,6 +48,7 @@ type NameSpaceResults struct {
 
 // BudResults represents the results for Build flags
 type BudResults struct {
+	AllPlatforms        bool
 	Annotation          []string
 	Authfile            string
 	BuildArg            []string
@@ -175,6 +176,7 @@ func GetLayerFlags(flags *LayerResults) pflag.FlagSet {
 // GetBudFlags returns common build flags
 func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs := pflag.FlagSet{}
+	fs.BoolVar(&flags.AllPlatforms, "all-platforms", false, "attempt to build for all base image platforms")
 	fs.String("arch", runtime.GOARCH, "set the ARCH of the image to the provided value instead of the architecture of the host")
 	fs.StringArrayVar(&flags.Annotation, "annotation", []string{}, "Set metadata for an image (default [])")
 	fs.StringVar(&flags.Authfile, "authfile", "", "path of the authentication file.")
