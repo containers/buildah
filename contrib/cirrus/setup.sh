@@ -37,7 +37,11 @@ EOF
             # Need to re-build lists (removed during image production)
             lilto apt-get -qq -y update
             msg "Installing previously downloaded/cached packages"
-            $SHORT_APTGET install --no-download --ignore-missing containerd.io docker-ce docker-ce-cli
+            # TODO: Workaround metadata update (above) ruining usefulness
+            # of pre-populated package cache.
+            # Ref: https://github.com/containers/automation_images/issues/95
+            # i.e. this should at least specify --no-download
+            $SHORT_APTGET install containerd.io docker-ce docker-ce-cli
 
             # At the time of this comment, Ubuntu is using systemd-resolved
             # which interfears badly with conformance testing.  Some tests
