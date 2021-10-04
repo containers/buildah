@@ -55,11 +55,7 @@ Define the builder options:
 
 ```go
 builderOpts := buildah.BuilderOptions{
-  FromImage:        "node:12-alpine", // Starting image
-  Isolation:        define.IsolationChroot, // Isolation environment
-  CommonBuildOpts:  &define.CommonBuildOptions{},
-  ConfigureNetwork: define.NetworkDefault,
-  SystemContext:    &types.SystemContext {},
+  FromImage: "node:12-alpine", // base image
 }
 ```
 
@@ -90,7 +86,7 @@ imageRef, err := is.Transport.ParseStoreReference(buildStore, "docker.io/myusern
 Now you can run commit the build:
 
 ```go
-imageId, _, _, err := builder.Commit(context.TODO(), imageRef, define.CommitOptions{})
+imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOptions{})
 ```
 
 ## Rootless mode
@@ -104,7 +100,7 @@ if buildah.InitReexec() {
 unshare.MaybeReexecUsingUserNamespace(false)
 ```
 
-This code ensures that your application is re executed in an isolated environment with root privileges.
+This code ensures that your application is re-executed in a user namespace where it has root privileges.
 
 ## Complete code
 
@@ -114,12 +110,11 @@ package main
 import (
   "context"
   "fmt"
+
   "github.com/containers/buildah"
-  "github.com/containers/buildah/define"
-  "github.com/containers/storage/pkg/unshare"
   is "github.com/containers/image/v5/storage"
-  "github.com/containers/image/v5/types"
   "github.com/containers/storage"
+  "github.com/containers/storage/pkg/unshare"
 )
 
 func main() {
@@ -129,33 +124,27 @@ func main() {
   unshare.MaybeReexecUsingUserNamespace(false)
 
   buildStoreOptions, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
-
   if err != nil {
     panic(err)
   }
 
   buildStore, err := storage.GetStore(buildStoreOptions)
-
   if err != nil {
     panic(err)
   }
+  defer buildStore.Shutdown(false)
 
-  opts := buildah.BuilderOptions{
+  builderOpts := buildah.BuilderOptions{
     FromImage:        "node:12-alpine",
-    Isolation:        define.IsolationChroot,
-    CommonBuildOpts:  &define.CommonBuildOptions{},
-    ConfigureNetwork: define.NetworkDefault,
-    SystemContext:    &types.SystemContext {},
   }
 
-  builder, err := buildah.NewBuilder(context.TODO(), buildStore, opts)
-
+  builder, err := buildah.NewBuilder(context.TODO(), buildStore, builderOpts)
   if err != nil {
     panic(err)
   }
+  defer builder.Delete()
 
   err = builder.Add("/home/node/", false, buildah.AddAndCopyOptions{}, "script.js")
-
   if err != nil {
     panic(err)
   }
@@ -163,12 +152,14 @@ func main() {
   builder.SetCmd([]string{"node", "/home/node/script.js"})
 
   imageRef, err := is.Transport.ParseStoreReference(buildStore, "docker.io/myusername/my-image")
-
   if err != nil {
     panic(err)
   }
 
   imageId, _, _, err := builder.Commit(context.TODO(), imageRef, buildah.CommitOptions{})
+  if err != nil {
+    panic(err)
+  }
 
   fmt.Printf("Image built! %s\n", imageId)
 }
