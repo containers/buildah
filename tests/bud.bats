@@ -1272,7 +1272,7 @@ function _test_http() {
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/copy-chown/Dockerfile.bad ${TESTSDIR}/bud/copy-chown
-  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image|stage> flags"
+  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image\|stage> flags"
 }
 
 @test "bud with chown copy with unknown substitutions in Dockerfile" {
@@ -1300,7 +1300,7 @@ function _test_http() {
   imgName=alpine-image
   ctrName=alpine-chmod
   run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json --layers -t ${imgName} -f ${TESTSDIR}/bud/copy-chmod/Dockerfile.bad ${TESTSDIR}/bud/copy-chmod
-  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image|stage> flags"
+  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image\|stage> flags"
 }
 
 @test "bud with chmod add" {
@@ -1439,7 +1439,7 @@ function _test_http() {
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/copy-multistage-paths/Dockerfile.invalid_from -t ${imgName} ${TESTSDIR}/bud/copy-multistage-paths
-  expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
+  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image\|stage> flags"
 }
 
 @test "bud COPY to root succeeds" {
@@ -1566,9 +1566,8 @@ function _test_http() {
 }
 
 @test "bud with copy-from in Dockerfile no prior FROM" {
-  _prefetch php:7.2
-  _prefetch composer
-  target=php-image
+  _prefetch busybox quay.io/libpod/testimage:20210610
+  target=no-prior-from
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from ${TESTSDIR}/bud/copy-from
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${target}
@@ -1576,14 +1575,16 @@ function _test_http() {
   run_buildah mount ${ctr}
   mnt=$output
 
-  test -e $mnt/usr/local/bin/composer
+  newfile="/home/busyboxpodman/copied-testimage-id"
+  test -e $mnt/$newfile
+  expect_output --from="$(< $mnt/$newfile)" "20210610" "Contents of $newfile"
 }
 
 @test "bud with copy-from with bad from flag in Dockerfile with --layers" {
-  _prefetch php:7.2
-  target=php-image
+  _prefetch busybox
+  target=bad-from-flag
   run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json --layers -t ${target} -f ${TESTSDIR}/bud/copy-from/Dockerfile.bad ${TESTSDIR}/bud/copy-from
-  expect_output --substring "COPY only supports the --chown=<uid:gid> and the --from=<image|stage> flags"
+  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image\|stage> flags"
 }
 
 @test "bud with copy-from referencing the base image" {
