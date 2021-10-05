@@ -34,10 +34,10 @@ EOF
         ;;
     ubuntu)
         if [[ "$1" == "conformance" ]]; then
-            # Need to re-build lists (removed during image production)
-            lilto apt-get -qq -y update
             msg "Installing previously downloaded/cached packages"
-            $SHORT_APTGET install --no-download --ignore-missing containerd.io docker-ce docker-ce-cli
+            ooe.sh dpkg -i \
+                $PACKAGE_DOWNLOAD_DIR/containerd.io*.deb \
+                $PACKAGE_DOWNLOAD_DIR/docker-ce*.deb
 
             # At the time of this comment, Ubuntu is using systemd-resolved
             # which interfears badly with conformance testing.  Some tests
