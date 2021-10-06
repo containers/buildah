@@ -61,6 +61,10 @@ If the authorization state is not found there, $HOME/.docker/config.json is chec
 Note: You can also override the default path of the authentication file by setting the REGISTRY\_AUTH\_FILE
 environment variable. `export REGISTRY_AUTH_FILE=path`
 
+**--base-images**
+
+Extract the base images from all Containerfiles but do not perform the actual build.
+
 **--build-arg** *arg=value*
 
 Specifies a build argument and its value, which will be interpolated in

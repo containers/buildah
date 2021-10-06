@@ -1,0 +1,9 @@
+FROM alpine
+
+FROM busybox
+
+FROM scratch
+
+FROM busybox
+
+FROM fedora

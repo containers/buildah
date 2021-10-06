@@ -18,7 +18,7 @@ load helpers
 @test "bud with .dockerignore #1" {
   _prefetch alpine busybox
   run_buildah 125 build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
-  expect_output --substring 'error building.*"COPY subdir \./".*no such file or directory'
+  expect_output --subst/ring 'error building.*"COPY subdir \./".*no such file or directory'
 
   run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile.succeed ${TESTSDIR}/bud/dockerignore
 

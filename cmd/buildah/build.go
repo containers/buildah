@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -27,6 +28,8 @@ type buildOptions struct {
 	*buildahcli.FromAndBudResults
 	*buildahcli.NameSpaceResults
 }
+
+var buildExtractBaseImages bool
 
 func init() {
 	buildDescription := `
@@ -70,6 +73,7 @@ func init() {
 	// build is a all common flags
 	buildFlags := buildahcli.GetBudFlags(&buildFlagResults)
 	buildFlags.StringVar(&buildFlagResults.Runtime, "runtime", util.Runtime(), "`path` to an alternate runtime. Use BUILDAH_RUNTIME environment variable to override.")
+	buildFlags.BoolVar(&buildExtractBaseImages, "base-images", false, "extract the base images but do not perform the build")
 
 	layerFlags := buildahcli.GetLayerFlags(&layerFlagsResults)
 	fromAndBudFlags, err := buildahcli.GetFromAndBudFlags(&fromAndBudResults, &userNSResults, &namespaceResults)
@@ -383,6 +387,17 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 	}
 	if iopts.Quiet {
 		options.ReportWriter = ioutil.Discard
+	}
+
+	if buildExtractBaseImages {
+		baseImages, err := imagebuildah.BaseImages(getContext(), options, containerfiles)
+		if err != nil {
+			return err
+		}
+		for _, img := range baseImages {
+			fmt.Printf(" * %s\n", img)
+		}
+		return nil
 	}
 
 	id, ref, err := imagebuildah.BuildDockerfiles(getContext(), store, options, containerfiles...)

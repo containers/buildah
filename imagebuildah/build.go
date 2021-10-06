@@ -55,43 +55,42 @@ type Mount = specs.Mount
 
 type BuildOptions = define.BuildOptions
 
-// BuildDockerfiles parses a set of one or more Dockerfiles (which may be
-// URLs), creates one or more new Executors, and then runs
-// Prepare/Execute/Commit/Delete over the entire set of instructions.
-// If the Manifest option is set, returns the ID of the manifest list, else it
-// returns the ID of the built image, and if a name was assigned to it, a
-// canonical reference for that image.
-func BuildDockerfiles(ctx context.Context, store storage.Store, options define.BuildOptions, paths ...string) (id string, ref reference.Canonical, err error) {
-	if len(paths) == 0 {
-		return "", nil, errors.Errorf("error building: no dockerfiles specified")
+// BaeImages extracts the set of base images from the specified containerfiles
+func BaseImages(ctx context.Context, options define.BuildOptions, containerfiles []string) ([]string, error) {
+	if len(containerfiles) == 0 {
+		return nil, errors.Errorf("error extracting: no containerfiles specified")
 	}
-	if len(options.Platforms) > 1 && options.IIDFile != "" {
-		return "", nil, errors.Errorf("building multiple images, but iidfile %q can only be used to store one image ID", options.IIDFile)
+	logger := loggerFromOptions(options)
+
+	dockerfiles, err := readDockerfiles(logger, options, containerfiles)
+	if err != nil {
+		return nil, err
 	}
 
-	logger := logrus.New()
-	if options.Err != nil {
-		logger.SetOutput(options.Err)
-	} else {
-		logger.SetOutput(os.Stderr)
+	baseImages, err := baseImages(containerfiles, dockerfiles, options.From, options.Args)
+	if err != nil {
+		return nil, errors.Wrapf(err, "determining list of base images")
 	}
-	logger.SetLevel(logrus.GetLevel())
 
+	filter := make(map[string]bool)
+	unique := []string{}
+	for _, img := range baseImages {
+		if _, ok := filter[img]; !ok {
+			filter[img] = true
+			unique = append(unique, img)
+		}
+	}
+
+	return unique, nil
+}
+
+func readDockerfiles(logger *logrus.Logger, options define.BuildOptions, paths []string) ([][]byte, error) {
 	var dockerfiles []io.ReadCloser
 	defer func(dockerfiles ...io.ReadCloser) {
 		for _, d := range dockerfiles {
 			d.Close()
 		}
 	}(dockerfiles...)
-
-	for _, tag := range append([]string{options.Output}, options.AdditionalTags...) {
-		if tag == "" {
-			continue
-		}
-		if _, err := util.VerifyTagName(tag); err != nil {
-			return "", nil, errors.Wrapf(err, "tag %s", tag)
-		}
-	}
 
 	for _, dfile := range paths {
 		var data io.ReadCloser
@@ -100,11 +99,11 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			logger.Debugf("reading remote Dockerfile %q", dfile)
 			resp, err := http.Get(dfile)
 			if err != nil {
-				return "", nil, err
+				return nil, err
 			}
 			if resp.ContentLength == 0 {
 				resp.Body.Close()
-				return "", nil, errors.Errorf("no contents in %q", dfile)
+				return nil, errors.Errorf("no contents in %q", dfile)
 			}
 			data = resp.Body
 		} else {
@@ -118,7 +117,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 				}
 			}
 			if err != nil {
-				return "", nil, err
+				return nil, err
 			}
 
 			var contents *os.File
@@ -137,16 +136,16 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			}
 
 			if err != nil {
-				return "", nil, err
+				return nil, err
 			}
 			dinfo, err = contents.Stat()
 			if err != nil {
 				contents.Close()
-				return "", nil, errors.Wrapf(err, "error reading info about %q", dfile)
+				return nil, errors.Wrapf(err, "error reading info about %q", dfile)
 			}
 			if dinfo.Mode().IsRegular() && dinfo.Size() == 0 {
 				contents.Close()
-				return "", nil, errors.Errorf("no contents in %q", dfile)
+				return nil, errors.Errorf("no contents in %q", dfile)
 			}
 			data = contents
 		}
@@ -155,7 +154,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		if strings.HasSuffix(dfile, ".in") {
 			pData, err := preprocessContainerfileContents(logger, dfile, data, options.ContextDirectory)
 			if err != nil {
-				return "", nil, err
+				return nil, err
 			}
 			data = ioutil.NopCloser(pData)
 		}
@@ -167,9 +166,53 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	for _, dockerfile := range dockerfiles {
 		var b bytes.Buffer
 		if _, err := b.ReadFrom(dockerfile); err != nil {
-			return "", nil, err
+			return nil, err
 		}
 		files = append(files, b.Bytes())
+	}
+
+	return files, nil
+}
+
+func loggerFromOptions(options define.BuildOptions) *logrus.Logger {
+	logger := logrus.New()
+	if options.Err != nil {
+		logger.SetOutput(options.Err)
+	} else {
+		logger.SetOutput(os.Stderr)
+	}
+	logger.SetLevel(logrus.GetLevel())
+	return logger
+}
+
+// BuildDockerfiles parses a set of one or more Dockerfiles (which may be
+// URLs), creates one or more new Executors, and then runs
+// Prepare/Execute/Commit/Delete over the entire set of instructions.
+// If the Manifest option is set, returns the ID of the manifest list, else it
+// returns the ID of the built image, and if a name was assigned to it, a
+// canonical reference for that image.
+func BuildDockerfiles(ctx context.Context, store storage.Store, options define.BuildOptions, paths ...string) (id string, ref reference.Canonical, err error) {
+	if len(paths) == 0 {
+		return "", nil, errors.Errorf("error building: no dockerfiles specified")
+	}
+	if len(options.Platforms) > 1 && options.IIDFile != "" {
+		return "", nil, errors.Errorf("building multiple images, but iidfile %q can only be used to store one image ID", options.IIDFile)
+	}
+
+	logger := loggerFromOptions(options)
+
+	for _, tag := range append([]string{options.Output}, options.AdditionalTags...) {
+		if tag == "" {
+			continue
+		}
+		if _, err := util.VerifyTagName(tag); err != nil {
+			return "", nil, errors.Wrapf(err, "tag %s", tag)
+		}
+	}
+
+	files, err := readDockerfiles(logger, options, paths)
+	if err != nil {
+		return "", nil, err
 	}
 
 	if options.JobSemaphore == nil && options.Jobs != nil && *options.Jobs != 0 {
