@@ -27,6 +27,7 @@ import (
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/overlay"
+	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/capabilities"
@@ -248,7 +249,7 @@ rootless=%d
 
 		bindFiles["/run/.containerenv"] = containerenvPath
 	}
-	runArtifacts, err := b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, volumes, b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, namespaceOptions, options.Secrets, options.SSHSources, options.RunMounts)
+	runArtifacts, err := b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, volumes, b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, namespaceOptions, options.Secrets, options.SSHSources, options.RunMounts, options.ContextDir)
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container %q", b.ContainerID)
 	}
@@ -414,7 +415,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 	return mounts, nil
 }
 
-func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions define.NamespaceOptions, secrets map[string]string, sshSources map[string]*sshagent.Source, runFileMounts []string) (*runMountArtifacts, error) {
+func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions define.NamespaceOptions, secrets map[string]string, sshSources map[string]*sshagent.Source, runFileMounts []string, contextDir string) (*runMountArtifacts, error) {
 	// Start building a new list of mounts.
 	var mounts []specs.Mount
 	haveMount := func(destination string) bool {
@@ -518,23 +519,24 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 		return nil, err
 	}
 
+	// Get host UID and GID of the container process.
+	processUID, processGID, err := util.GetHostIDs(spec.Linux.UIDMappings, spec.Linux.GIDMappings, spec.Process.User.UID, spec.Process.User.GID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Get the list of subscriptions mounts.
 	subscriptionMounts := subscriptions.MountsWithUIDGID(b.MountLabel, cdir, b.DefaultMountsFilePath, mountPoint, int(rootUID), int(rootGID), unshare.IsRootless(), false)
 
 	// Get the list of mounts that are just for this Run() call.
 	// TODO: acui: de-spaghettify run mounts
-	runMounts, mountArtifacts, err := b.runSetupRunMounts(runFileMounts, secrets, sshSources, b.MountLabel, cdir, spec.Linux.UIDMappings, spec.Linux.GIDMappings, b.ProcessLabel)
+	runMounts, mountArtifacts, err := b.runSetupRunMounts(runFileMounts, secrets, sshSources, cdir, contextDir, spec.Linux.UIDMappings, spec.Linux.GIDMappings, int(rootUID), int(rootGID), int(processUID), int(processGID))
 	if err != nil {
 		return nil, err
 	}
 	// Add temporary copies of the contents of volume locations at the
 	// volume locations, unless we already have something there.
 	builtins, err := runSetupBuiltinVolumes(b.MountLabel, mountPoint, cdir, builtinVolumes, int(rootUID), int(rootGID))
-	if err != nil {
-		return nil, err
-	}
-	// Get host UID and GID of the container process.
-	processUID, processGID, err := util.GetHostIDs(spec.Linux.UIDMappings, spec.Linux.GIDMappings, spec.Process.User.UID, spec.Process.User.GID)
 	if err != nil {
 		return nil, err
 	}
@@ -2347,7 +2349,7 @@ func init() {
 }
 
 // runSetupRunMounts sets up mounts that exist only in this RUN, not in subsequent runs
-func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]string, sshSources map[string]*sshagent.Source, mountlabel string, containerWorkingDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, processLabel string) ([]spec.Mount, *runMountArtifacts, error) {
+func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]string, sshSources map[string]*sshagent.Source, containerWorkingDir string, contextDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, rootUID int, rootGID int, processUID int, processGID int) ([]spec.Mount, *runMountArtifacts, error) {
 	mountTargets := make([]string, 0, 10)
 	finalMounts := make([]specs.Mount, 0, len(mounts))
 	agents := make([]*sshagent.AgentServer, 0, len(mounts))
@@ -2367,7 +2369,7 @@ func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]string, 
 		// For now, we only support type secret.
 		switch kv[1] {
 		case "secret":
-			mount, err := getSecretMount(tokens, secrets, mountlabel, containerWorkingDir, uidmap, gidmap)
+			mount, err := getSecretMount(tokens, secrets, b.MountLabel, containerWorkingDir, uidmap, gidmap)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -2377,7 +2379,7 @@ func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]string, 
 
 			}
 		case "ssh":
-			mount, agent, err := b.getSSHMount(tokens, sshCount, sshSources, mountlabel, uidmap, gidmap, processLabel)
+			mount, agent, err := b.getSSHMount(tokens, sshCount, sshSources, b.MountLabel, uidmap, gidmap, b.ProcessLabel)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -2391,6 +2393,13 @@ func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]string, 
 				// Count is needed as the default destination of the ssh sock inside the container is  /run/buildkit/ssh_agent.{i}
 				sshCount++
 			}
+		case "bind":
+			mount, err := b.getBindMount(tokens, contextDir, rootUID, rootGID, processUID, processGID)
+			if err != nil {
+				return nil, nil, err
+			}
+			finalMounts = append(finalMounts, *mount)
+			mountTargets = append(mountTargets, mount.Destination)
 		default:
 			return nil, nil, errors.Errorf("invalid mount type %q", kv[1])
 		}
@@ -2401,6 +2410,23 @@ func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]string, 
 		SSHAuthSock:     defaultSSHSock,
 	}
 	return finalMounts, artifacts, nil
+}
+
+func (b *Builder) getBindMount(tokens []string, contextDir string, rootUID, rootGID, processUID, processGID int) (*spec.Mount, error) {
+	if contextDir == "" {
+		return nil, errors.New("Context Directory for current run invocation is not configured")
+	}
+	var optionMounts []specs.Mount
+	mount, err := parse.GetBindMount(tokens, contextDir)
+	if err != nil {
+		return nil, err
+	}
+	optionMounts = append(optionMounts, mount)
+	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, rootUID, rootGID, processUID, processGID)
+	if err != nil {
+		return nil, err
+	}
+	return &volumes[0], nil
 }
 
 func getSecretMount(tokens []string, secrets map[string]string, mountlabel string, containerWorkingDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping) (*spec.Mount, error) {

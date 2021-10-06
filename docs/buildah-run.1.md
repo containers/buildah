@@ -58,6 +58,12 @@ not disabled.
 List of directories in which the CNI plugins which will be used for configuring
 network namespaces can be found.
 
+**--contextdir** *directory*
+
+Allows setting context directory for current RUN invocation. Specifying a context
+directory causes RUN context to consider context directory as root directory for
+specified source in `--mount` of type 'bind'.
+
 **--env**, **-e** *env=value*
 
 Temporarily add a value (e.g. env=*value*) to the environment for the running
