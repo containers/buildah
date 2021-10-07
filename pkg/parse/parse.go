@@ -37,6 +37,11 @@ const (
 	TypeBind = "bind"
 	// TypeTmpfs is the type for mounting tmpfs
 	TypeTmpfs = "tmpfs"
+	// TypeCache is the type for mounting a common persistent cache from host
+	TypeCache = "cache"
+	// mount=type=cache must create a persistent directory on host so its available for all consecutive builds.
+	// Lifecycle of following directory will be inherited from how host machine treats temporary directory
+	BuildahCacheDir = "buildah-cache"
 )
 
 var (
@@ -315,6 +320,15 @@ func getMounts(mounts []string, contextDir string) (map[string]specs.Mount, erro
 				return nil, errors.Wrapf(errDuplicateDest, mount.Destination)
 			}
 			finalMounts[mount.Destination] = mount
+		case TypeCache:
+			mount, err := GetCacheMount(tokens)
+			if err != nil {
+				return nil, err
+			}
+			if _, ok := finalMounts[mount.Destination]; ok {
+				return nil, errors.Wrapf(errDuplicateDest, mount.Destination)
+			}
+			finalMounts[mount.Destination] = mount
 		case TypeTmpfs:
 			mount, err := GetTmpfsMount(tokens)
 			if err != nil {
@@ -404,6 +418,125 @@ func GetBindMount(args []string, contextDir string) (specs.Mount, error) {
 		// path should be /contextDir/specified path
 		newMount.Source = filepath.Join(contextDir, filepath.Clean(string(filepath.Separator)+newMount.Source))
 	}
+
+	opts, err := parse.ValidateVolumeOpts(newMount.Options)
+	if err != nil {
+		return newMount, err
+	}
+	newMount.Options = opts
+
+	return newMount, nil
+}
+
+// GetCacheMount parses a single cache mount entry from the --mount flag.
+func GetCacheMount(args []string) (specs.Mount, error) {
+	var err error
+	var (
+		setDest     bool
+		setShared   bool
+		setReadOnly bool
+	)
+	newMount := specs.Mount{
+		Type: TypeBind,
+	}
+	// if id is set a new subdirectory with `id` will be created under /host-temp/buildah-build-cache/id
+	id := ""
+	//buidkit parity: cache directory defaults to 755
+	mode := 0755
+	//buidkit parity: cache directory defaults to uid 0 if not specified
+	uid := 0
+	//buidkit parity: cache directory defaults to gid 0 if not specified
+	gid := 0
+
+	for _, val := range args {
+		kv := strings.SplitN(val, "=", 2)
+		switch kv[0] {
+		case "nosuid", "nodev", "noexec":
+			// TODO: detect duplication of these options.
+			// (Is this necessary?)
+			newMount.Options = append(newMount.Options, kv[0])
+		case "rw", "readwrite":
+			newMount.Options = append(newMount.Options, "rw")
+		case "readonly", "ro":
+			// Alias for "ro"
+			newMount.Options = append(newMount.Options, "ro")
+			setReadOnly = true
+		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z", "U":
+			newMount.Options = append(newMount.Options, kv[0])
+			setShared = true
+		case "bind-propagation":
+			if len(kv) == 1 {
+				return newMount, errors.Wrapf(optionArgError, kv[0])
+			}
+			newMount.Options = append(newMount.Options, kv[1])
+		case "id":
+			id = kv[1]
+		case "target", "dst", "destination":
+			if len(kv) == 1 {
+				return newMount, errors.Wrapf(optionArgError, kv[0])
+			}
+			if err := parse.ValidateVolumeCtrDir(kv[1]); err != nil {
+				return newMount, err
+			}
+			newMount.Destination = kv[1]
+			setDest = true
+		case "mode":
+			mode, err = strconv.Atoi(kv[1])
+			if err != nil {
+				return newMount, errors.Wrapf(err, "Unable to parse cache mode")
+			}
+		case "uid":
+			uid, err = strconv.Atoi(kv[1])
+			if err != nil {
+				return newMount, errors.Wrapf(err, "Unable to parse cache uid")
+			}
+		case "gid":
+			gid, err = strconv.Atoi(kv[1])
+			if err != nil {
+				return newMount, errors.Wrapf(err, "Unable to parse cache gid")
+			}
+		default:
+			return newMount, errors.Wrapf(errBadMntOption, kv[0])
+		}
+	}
+
+	if !setDest {
+		return newMount, noDestError
+	}
+
+	// since type is cache and cache can be resused by consecutive builds
+	// create a common cache directory, which should persists on hosts within temp lifecycle
+	// add subdirectory if specified
+	if id != "" {
+		newMount.Source = filepath.Join(GetTempDir(), BuildahCacheDir, id)
+	} else {
+		newMount.Source = filepath.Join(GetTempDir(), BuildahCacheDir)
+	}
+	// create cache on host if not present
+	err = os.MkdirAll(newMount.Source, os.FileMode(mode))
+	if err != nil {
+		return newMount, errors.Wrapf(err, "Unable to create build cache directory")
+	}
+	//buidkit parity: change uid and gid if specificed otheriwise keep `0`
+	err = os.Chown(newMount.Source, uid, gid)
+	if err != nil {
+		return newMount, errors.Wrapf(err, "Unable to change uid,gid of cache directory")
+	}
+
+	// buildkit parity: default sharing should be shared
+	// unless specified
+	if !setShared {
+		newMount.Options = append(newMount.Options, "shared")
+	}
+
+	// buildkit parity: cache must writable unless `ro` or `readonly` is configured explicitly
+	if !setReadOnly {
+		newMount.Options = append(newMount.Options, "rw")
+	}
+
+	// buildkit parity: default bind option for cache must be `rbind`
+	// since we are actually looking for arbitrary content under cache directory
+	newMount.Options = append(newMount.Options, "rbind")
 
 	opts, err := parse.ValidateVolumeOpts(newMount.Options)
 	if err != nil {
