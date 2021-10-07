@@ -3550,3 +3550,12 @@ _EOF
   expect_output --substring "world"
   run_buildah rmi -f testbud
 }
+
+@test "bud-with-mount-with-tmpfs-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  # tmpfs mount: target should be available on container without creating any special directory on container
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfiletmpfs
+  [ "$status" -eq 0 ]
+  run_buildah rmi -f testbud
+}
