@@ -317,7 +317,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 
 	var excludes []string
 	if iopts.IgnoreFile != "" {
-		if excludes, err = parseIgnore(iopts.IgnoreFile); err != nil {
+		if excludes, _, err = parse.ContainerIgnoreFile(contextDir, iopts.IgnoreFile); err != nil {
 			return err
 		}
 	}
@@ -350,6 +350,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		IIDFile:                 iopts.Iidfile,
 		In:                      stdin,
 		Isolation:               isolation,
+		IgnoreFile:              iopts.IgnoreFile,
 		Labels:                  iopts.Label,
 		Layers:                  layers,
 		LogRusage:               iopts.LogRusage,

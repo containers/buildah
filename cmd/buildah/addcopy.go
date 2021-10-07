@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +11,6 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/storage"
-	"github.com/openshift/imagebuilder"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -231,11 +229,8 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	}
 	if iopts.contextdir != "" {
 		var excludes []string
-		if iopts.ignoreFile != "" {
-			excludes, err = parseIgnore(iopts.ignoreFile)
-		} else {
-			excludes, err = imagebuilder.ParseDockerignore(contextdir)
-		}
+
+		excludes, options.IgnoreFile, err = parse.ContainerIgnoreFile(options.ContextDir, iopts.ignoreFile)
 		if err != nil {
 			return err
 		}
@@ -272,19 +267,4 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	}
 	conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) %s %s%s", verb, contentType, digest.Hex())
 	return builder.Save()
-}
-
-func parseIgnore(ignoreFile string) ([]string, error) {
-	var excludes []string
-	ignore, err := ioutil.ReadFile(ignoreFile)
-	if err != nil {
-		return excludes, err
-	}
-	for _, e := range strings.Split(string(ignore), "\n") {
-		if len(e) == 0 || e[0] == '#' {
-			continue
-		}
-		excludes = append(excludes, e)
-	}
-	return excludes, nil
 }

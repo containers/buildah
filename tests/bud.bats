@@ -110,6 +110,7 @@ symlink(subdir)"
 @test "bud with .dockerignore #2" {
   run_buildah 125 build -t testbud3 --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dockerignore3
   expect_output --substring 'error building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
+  expect_output --substring $(realpath "${TESTSDIR}/bud/dockerignore3/.dockerignore")
 }
 
 @test "bud-flags-order-verification" {
