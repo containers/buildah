@@ -94,14 +94,49 @@ A Containerfile is similar to a Makefile.
   # Executable form
   RUN ["executable", "param1", "param2"]
   ```
+**RUN mounts**
 
-**RUN Secrets*
+**--mount**=*type=TYPE,TYPE-SPECIFIC-OPTION[,...]*
+
+Attach a filesystem mount to the container
+
+Current supported mount TYPES are bind, and tmpfs.
+
+       e.g.
+
+       mount=type=bind,source=/path/on/host,destination=/path/in/container
+
+       mount=type=tmpfs,tmpfs-size=512M,destination=/path/in/container
+
+       Common Options:
+
+              · src, source: mount source spec for bind and volume. Mandatory for bind.
+
+              · dst, destination, target: mount destination spec.
+
+              · ro, read-only: true or false (default).
+
+       Options specific to bind:
+
+              · bind-propagation: shared, slave, private, rshared, rslave, or rprivate(default). See also mount(2).
+
+              . bind-nonrecursive: do not setup a recursive bind mount.  By default it is recursive.
+
+       Options specific to tmpfs:
+
+              · tmpfs-size: Size of the tmpfs mount in bytes. Unlimited by default in Linux.
+
+              · tmpfs-mode: File mode of the tmpfs in octal. (e.g. 700 or 0700.) Defaults to 1777 in Linux.
+
+              · tmpcopyup: Path that is shadowed by the tmpfs mount is recursively copied up to the tmpfs itself.
+
+**RUN Secrets**
 
 The RUN command has a feature to allow the passing of secret information into the image build. These secrets files can be used during the RUN command but are not committed to the final image. The `RUN` command supports the `--mount` option to identify the secret file. A secret file from the host is mounted into the container while the image is being built.
 
 Container engines pass secret the secret file into the build using the `--secret` flag.
 
-**RUN --mount* options:
+**--mount**=*type=secret,TYPE-SPECIFIC-OPTION[,...]*
 
 - `id` is the identifier to for the secret passed into the `buildah bud --secret` or `podman build --secret`. This identifier is associated with the RUN --mount identifier to use in the Containerfile.
 
