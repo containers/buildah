@@ -2400,6 +2400,13 @@ func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]string, 
 			}
 			finalMounts = append(finalMounts, *mount)
 			mountTargets = append(mountTargets, mount.Destination)
+		case "tmpfs":
+			mount, err := b.getTmpfsMount(tokens, rootUID, rootGID, processUID, processGID)
+			if err != nil {
+				return nil, nil, err
+			}
+			finalMounts = append(finalMounts, *mount)
+			mountTargets = append(mountTargets, mount.Destination)
 		default:
 			return nil, nil, errors.Errorf("invalid mount type %q", kv[1])
 		}
@@ -2418,6 +2425,20 @@ func (b *Builder) getBindMount(tokens []string, contextDir string, rootUID, root
 	}
 	var optionMounts []specs.Mount
 	mount, err := parse.GetBindMount(tokens, contextDir)
+	if err != nil {
+		return nil, err
+	}
+	optionMounts = append(optionMounts, mount)
+	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, rootUID, rootGID, processUID, processGID)
+	if err != nil {
+		return nil, err
+	}
+	return &volumes[0], nil
+}
+
+func (b *Builder) getTmpfsMount(tokens []string, rootUID, rootGID, processUID, processGID int) (*spec.Mount, error) {
+	var optionMounts []specs.Mount
+	mount, err := parse.GetTmpfsMount(tokens)
 	if err != nil {
 		return nil, err
 	}
