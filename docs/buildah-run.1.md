@@ -131,6 +131,8 @@ Current supported mount TYPES are bind, and tmpfs. <sup>[[1]](#Footnote1)</sup>
 
               · tmpfs-mode: File mode of the tmpfs in octal. (e.g. 700 or 0700.) Defaults to 1777 in Linux.
 
+              · tmpcopyup: Path that is shadowed by the tmpfs mount is recursively copied up to the tmpfs itself.
+
 **--network**, **--net**=*mode*
 
 Sets the configuration for the network namespace for the container.

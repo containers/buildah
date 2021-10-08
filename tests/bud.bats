@@ -3559,3 +3559,11 @@ _EOF
   [ "$status" -eq 0 ]
   run_buildah rmi -f testbud
 }
+
+@test "bud-with-mount-with-tmpfs-with-copyup-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfiletmpfscopyup
+  expect_output --substring "certs"
+  run_buildah rmi -f testbud
+}

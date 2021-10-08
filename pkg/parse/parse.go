@@ -431,6 +431,9 @@ func GetTmpfsMount(args []string) (specs.Mount, error) {
 		case "readonly":
 			// Alias for "ro"
 			newMount.Options = append(newMount.Options, "ro")
+		case "tmpcopyup":
+			//the path that is shadowed by the tmpfs mount is recursively copied up to the tmpfs itself.
+			newMount.Options = append(newMount.Options, kv[0])
 		case "tmpfs-mode":
 			if len(kv) == 1 {
 				return newMount, errors.Wrapf(optionArgError, kv[0])
