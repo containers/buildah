@@ -68,7 +68,7 @@ print detailed information about credential store
 ## EXAMPLES
 
 ```
-$ buildah login docker.io
+$ buildah login quay.io
 Username: qiwanredhat
 Password:
 Login Succeeded!
@@ -80,7 +80,7 @@ Login Succeeded!
 ```
 
 ```
-$ buildah login --authfile ./auth.json docker.io
+$ buildah login --authfile ./auth.json quay.io
 Username: qiwanredhat
 Password:
 Login Succeeded!
@@ -97,12 +97,12 @@ Login Succeeded!
 ```
 
 ```
-$ buildah login -u testuser  --password-stdin < pw.txt docker.io
+$ buildah login -u testuser  --password-stdin < pw.txt quay.io
 Login Succeeded!
 ```
 
 ```
-$ echo $testpassword | buildah login -u testuser --password-stdin docker.io
+$ echo $testpassword | buildah login -u testuser --password-stdin quay.io
 Login Succeeded!
 ```
 

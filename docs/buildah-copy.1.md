@@ -114,9 +114,9 @@ mechanism:
 
 Exclude all doc files except Help.doc when copying content into the container.
 
-This functionality is compatible with the handling of .dockerignore files described here:
+This functionality is compatible with the handling of .containerignore files described here:
 
-https://docs.docker.com/engine/reference/builder/#dockerignore-file
+https://github.com/containers/buildah/blob/main/docs/containerignore.5.md
 
 ## SEE ALSO
-buildah(1)
+buildah(1), containerignore(5)

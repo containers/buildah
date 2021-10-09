@@ -21,7 +21,7 @@ Multiple transports are supported:
   If _docker-reference_ does not include a registry name, *localhost* will be consulted first, followed by any registries named in the registries configuration.
 
   **docker-archive:**_path_
-  An image is retrieved as a `docker load` formatted file.
+  An image is retrieved as a `podman load` formatted file.
 
   **docker-daemon:**_docker-reference_
   An image _docker-reference_ stored in the docker daemon's internal storage.  _docker-reference_ must include either a tag or a digest.  Alternatively, when reading images, the format can also be docker-daemon:algo:digest (an image ID).
@@ -588,7 +588,7 @@ buildah from oci-archive:filename
 
 buildah from --name mycontainer dir:directoryname
 
-buildah from --pull-always --name "mycontainer" docker://myregistry.example.com/imagename
+buildah from --pull-always --name "mycontainer" myregistry.example.com/imagename
 
 buildah from --tls-verify=false myregistry/myrepository/imagename:imagetag
 

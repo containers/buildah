@@ -9,10 +9,6 @@ buildah\-build - Build an image using instructions from Containerfiles
 
 **buildah bud** [*options*] [*context*]
 
-**buildah build-using-dockerfile** [*options*] [*context*]
-
-**build** has aliases **bud** and **build-using-dockerfile**.
-
 ## DESCRIPTION
 Builds an image using instructions from one or more Containerfiles or Dockerfiles and a specified
 build context directory.  A Containerfile uses the same syntax as a Dockerfile internally.  For this
@@ -230,7 +226,7 @@ specifying **--disable-compression=false**.
 
 **--disable-content-trust**
 
-This is a Docker specific option to disable image verification to a Docker
+This is a Docker specific option to disable image verification to a Container
 registry and is not supported by Buildah.  This flag is a NOOP and provided
 solely for scripting compatibility.
 
@@ -759,15 +755,15 @@ buildah build .
 
 buildah build -f Containerfile .
 
-cat ~/Dockerfile | buildah build -f - .
+cat ~/Containerfile | buildah build -f - .
 
-buildah build -f Dockerfile.simple -f Dockerfile.notsosimple .
+buildah build -f Containerfile.simple -f Containerfile.notsosimple .
 
 buildah build --timestamp=$(date '+%s') -t imageName .
 
 buildah build -t imageName .
 
-buildah build --tls-verify=true -t imageName -f Dockerfile.simple .
+buildah build --tls-verify=true -t imageName -f Containerfile.simple .
 
 buildah build --tls-verify=false -t imageName .
 
@@ -775,7 +771,7 @@ buildah build --runtime-flag log-format=json .
 
 buildah build -f Containerfile --runtime-flag debug .
 
-buildah build --authfile /tmp/auths/myauths.json --cert-dir ~/auth --tls-verify=true --creds=username:password -t imageName -f Dockerfile.simple .
+buildah build --authfile /tmp/auths/myauths.json --cert-dir ~/auth --tls-verify=true --creds=username:password -t imageName -f Containerfile.simple .
 
 buildah build --memory 40m --cpu-period 10000 --cpu-quota 50000 --ulimit nofile=1024:1028 -t imageName .
 
@@ -826,7 +822,7 @@ buildah bud --all-platforms --manifest myimage /tmp/mysrc
 ### Building an image using a URL to a tarball'ed context
   Buildah will fetch the tarball archive, decompress it and use its contents as the build context.  The Containerfile or Dockerfile at the root of the archive and the rest of the archive will get used as the context of the build. If you pass an -f PATH/Containerfile option as well, the system will look for that file inside the contents of the tarball.
 
-  buildah build -f dev/Containerfile https://10.10.10.1/docker/context.tar.gz
+  buildah build -f dev/Containerfile https://10.10.10.1/buildah/context.tar.gz
 
   Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
 
@@ -895,9 +891,9 @@ mechanism:
 
 Exclude all doc files except Help.doc from the image.
 
-This functionality is compatible with the handling of .dockerignore files described here:
+This functionality is compatible with the handling of .containerignore files described here:
 
-https://docs.docker.com/engine/reference/builder/#dockerignore-file
+https://github.com/containers/buildah/blob/main/docs/containerignore.5.md
 
 **registries.conf** (`/etc/containers/registries.conf`)
 

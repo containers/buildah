@@ -129,10 +129,10 @@ This example pushes the image specified by the imageID and puts into the local d
  `# buildah push imageID docker-daemon:image:tag`
 
 This example pushes the image specified by the imageID and puts it into the registry on the localhost while turning off tls verification.
- `# buildah push --tls-verify=false imageID docker://localhost:5000/my-imageID`
+ `# buildah push --tls-verify=false imageID localhost:5000/my-imageID`
 
 This example pushes the image specified by the imageID and puts it into the registry on the localhost using credentials and certificates for authentication.
- `# buildah push --cert-dir ~/auth --tls-verify=true --creds=username:password imageID docker://localhost:5000/my-imageID`
+ `# buildah push --cert-dir ~/auth --tls-verify=true --creds=username:password imageID localhost:5000/my-imageID`
 
 ## ENVIRONMENT
 

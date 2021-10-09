@@ -70,7 +70,7 @@ Require HTTPS and verification of certificates when talking to container registr
 ## EXAMPLE
 
 ```
-buildah manifest push mylist:v1.11 docker://registry.example.org/mylist:v1.11
+buildah manifest push mylist:v1.11 registry.example.org/mylist:v1.11
 ```
 
 ## SEE ALSO
