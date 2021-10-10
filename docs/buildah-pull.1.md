@@ -64,15 +64,15 @@ Set the OS of the image to be pulled instead of using the current operating syst
 
 Set the OS/ARCH of the image to be pulled
 to the provided value instead of using the current operating system and
-architecture of the host (for example `linux/arm`).  If `--platform`
-is set, then the values of the `--arch`, `--os`, and `--variant` options will
-be overridden.
+architecture of the host (for example `linux/arm`).
 
 OS/ARCH pairs are those used by the Go Programming Language.  In several cases
 the ARCH value for a platform differs from one produced by other tools such as
 the `arch` command.  Valid OS and architecture name combinations are listed as
 values for $GOOS and $GOARCH at https://golang.org/doc/install/source#environment,
 and can also be found by running `go tool dist list`.
+
+**NOTE:** The `--platform` option may not be used in combination with the `--arch`, `--os`, or `--variant` options.
 
 **--policy**=**always**|**missing**|**never**
 

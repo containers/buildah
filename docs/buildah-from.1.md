@@ -299,9 +299,7 @@ process.
 
 Set the OS/ARCH of the image to be pulled
 to the provided value instead of using the current operating system and
-architecture of the host (for example `linux/arm`). If `--platform`
-is set, then the values of the `--arch`, `--os`, and `--variant` options will
-be overridden.
+architecture of the host (for example `linux/arm`).
 
 OS/ARCH pairs are those used by the Go Programming Language.  In several cases
 the ARCH value for a platform differs from one produced by other tools such as
@@ -312,6 +310,8 @@ and can also be found by running `go tool dist list`.
 While `buildah from` is happy to pull an image for any platform that exists,
 `buildah run` will not be able to run binaries provided by that image without
 the help of emulation provided by packages like `qemu-user-static`.
+
+**NOTE:** The `--platform` option may not be used in combination with the `--arch`, `--os`, or `--variant` options.
 
 **--pull**
 
