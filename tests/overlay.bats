@@ -60,3 +60,37 @@ load helpers
   run ls ${TESTDIR}/lower/bar
   [ "$status" -ne 0 ]
 }
+
+@test "overlay path contains colon" {
+  if test \! -e /usr/bin/fuse-overlayfs -a "$BUILDAH_ISOLATION" = "rootless"; then
+    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION" and no /usr/bin/fuse-overlayfs present
+  elif test "$STORAGE_DRIVER" = "vfs"; then
+    skip "skipping overlay test because \$STORAGE_DRIVER = $STORAGE_DRIVER"
+  fi
+  image=alpine
+  mkdir ${TESTDIR}/a:lower
+  touch ${TESTDIR}/a:lower/foo
+
+  # This should succeed.
+  # Add double backslash, because shell will escape.
+  run_buildah from --quiet -v ${TESTDIR}/a\\:lower:/a\\:lower:O --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  cid=$output
+
+  # This should succeed
+  run_buildah run $cid ls /a:lower/foo
+
+  # Mount volume when run
+  run_buildah run -v ${TESTDIR}/a\\:lower:/b\\:lower:O $cid ls /b:lower/foo
+
+  # Create and remove content in the overlay directory, should succeed,
+  # resetting the contents between each run.
+  run_buildah run $cid touch /a:lower/bar
+  run_buildah run $cid rm /a:lower/foo
+
+  # This should fail, second runs of containers go back to original
+  run_buildah 1 run $cid ls /a:lower/bar
+
+  # This should fail
+  run ls ${TESTDIR}/a:lower/bar
+  [ "$status" -ne 0 ]
+}

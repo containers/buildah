@@ -1925,7 +1925,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 	// Bind mount volumes given by the user when the container was created
 	for _, i := range volumeMounts {
 		var options []string
-		spliti := strings.Split(i, ":")
+		spliti := parse.SplitStringWithColonEscape(i)
 		if len(spliti) > 2 {
 			options = strings.Split(spliti[2], ",")
 		}
