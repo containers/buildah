@@ -58,10 +58,10 @@ Default state dir is configured in /etc/containers/storage.conf
 
 Pathname of the file which contains cached mappings between short image names
 and their corresponding fully-qualified names.  It is used for mapping from
-names of images specified using short names like "hello-world" which don't
+names of images specified using short names like "ubi8" which don't
 include a registry component and a corresponding fully-specified name which
 includes a registry and any other components, such as
-"docker.io/library/hello-world".  It is not recommended that this option be
+"registry.access.redhat.com/ubi8".  It is not recommended that this option be
 used, as the default behavior of using the system-wide cache
 (*/var/cache/containers/short-name-aliases.conf*) or per-user cache
 (*$HOME/.cache/containers/short-name-aliases.conf*) to supplement system-wide
@@ -139,7 +139,7 @@ Buildah can set up environment variables from the env entry in the [engine] tabl
 | Command    | Man Page                                         | Description                                                                                          |
 | ---------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
 | add        | [buildah-add(1)](buildah-add.1.md)               | Add the contents of a file, URL, or a directory to the container.                                    |
-| build      | [buildah-build(1)](buildah-build.1.md)           | Build an image using instructions from Dockerfiles.                                                  |
+| build      | [buildah-build(1)](buildah-build.1.md)           | Builds an OCI image using instructions in one or more Containerfiles.                                |
 | commit     | [buildah-commit(1)](buildah-commit.1.md)         | Create an image from a working container.                                                            |
 | config     | [buildah-config(1)](buildah-config.1.md)         | Update image configuration settings.                                                                 |
 | containers | [buildah-containers(1)](buildah-containers.1.md) | List the working containers and their base images.                                                   |
@@ -175,7 +175,7 @@ The storage configuration file specifies all of the available container storage 
 
 **mounts.conf** (`/usr/share/containers/mounts.conf` and optionally `/etc/containers/mounts.conf`)
 
-The mounts.conf files specify volume mount files or directories that are automatically mounted inside containers when executing the `buildah run` or `buildah build-using-dockerfile` commands.  Container processes can then use this content.  The volume mount content does not get committed to the final image.
+The mounts.conf files specify volume mount files or directories that are automatically mounted inside containers when executing the `buildah run` or `buildah build` commands.  Container processes can then use this content.  The volume mount content does not get committed to the final image.
 
 Usually these directories are used for passing secrets or credentials required by the package software to access remote package repositories.
 

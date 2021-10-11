@@ -65,36 +65,36 @@ Displays only the container IDs.
 buildah containers
 ```
 CONTAINER ID  BUILDER  IMAGE ID     IMAGE NAME                       CONTAINER NAME
-29bdb522fc62     *     3fd9065eaf02 docker.io/library/alpine:latest  alpine-working-container
-c6b04237ac8e     *     f9b6f7f7b9d3 docker.io/library/busybox:latest busybox-working-container
+ccf84de04b80     *     53ce4390f2ad registry.access.redhat.com/ub... ubi8-working-container
+45be1d806fc5     *     16ea53ea7c65 docker.io/library/busybox:latest busybox-working-container
 ```
 
 buildah containers --quiet
 ```
-29bdb522fc62d43fca0c1a0f11cfc6dfcfed169cf6cf25f928ebca1a612ff5b0
-c6b04237ac8e9d435ec9cf0e7eda91e302f2db9ef908418522c2d666352281eb
+ccf84de04b80c309ce6586997c79a769033dc4129db903c1882bc24a058438b8
+45be1d806fc533fcfc2beee77e424d87e5990d3ce9214d6b374677d6630bba07
 ```
 
 buildah containers -q --noheading --notruncate
 ```
-29bdb522fc62d43fca0c1a0f11cfc6dfcfed169cf6cf25f928ebca1a612ff5b0
-c6b04237ac8e9d435ec9cf0e7eda91e302f2db9ef908418522c2d666352281eb
+ccf84de04b80c309ce6586997c79a769033dc4129db903c1882bc24a058438b8
+45be1d806fc533fcfc2beee77e424d87e5990d3ce9214d6b374677d6630bba07
 ```
 
 buildah containers --json
 ```
 [
     {
-        "id": "29bdb522fc62d43fca0c1a0f11cfc6dfcfed169cf6cf25f928ebca1a612ff5b0",
+        "id": "ccf84de04b80c309ce6586997c79a769033dc4129db903c1882bc24a058438b8",
         "builder": true,
-        "imageid": "3fd9065eaf02feaf94d68376da52541925650b81698c53c6824d92ff63f98353",
-        "imagename": "docker.io/library/alpine:latest",
-        "containername": "alpine-working-container"
+        "imageid": "53ce4390f2adb1681eb1a90ec8b48c49c015e0a8d336c197637e7f65e365fa9e",
+        "imagename": "registry.access.redhat.com/ubi8:latest",
+        "containername": "ubi8-working-container"
     },
     {
-        "id": "c6b04237ac8e9d435ec9cf0e7eda91e302f2db9ef908418522c2d666352281eb",
+        "id": "45be1d806fc533fcfc2beee77e424d87e5990d3ce9214d6b374677d6630bba07",
         "builder": true,
-        "imageid": "f9b6f7f7b9d34113f66e16a9da3e921a580937aec98da344b852ca540aaa2242",
+        "imageid": "16ea53ea7c652456803632d67517b78a4f9075a10bfdc4fc6b7b4cbf2bc98497",
         "imagename": "docker.io/library/busybox:latest",
         "containername": "busybox-working-container"
     }
@@ -103,14 +103,14 @@ buildah containers --json
 
 buildah containers --format "{{.ContainerID}} {{.ContainerName}}"
 ```
-3fbeaa87e583ee7a3e6787b2d3af961ef21946a0c01a08938e4f52d53cce4c04 myalpine-working-container
-fbfd3505376ee639c3ed50f9d32b78445cd59198a1dfcacf2e7958cda2516d5c ubuntu-working-container
+ccf84de04b80c309ce6586997c79a769033dc4129db903c1882bc24a058438b8   ubi8-working-container
+45be1d806fc533fcfc2beee77e424d87e5990d3ce9214d6b374677d6630bba07   busybox-working-container
 ```
 
 buildah containers --format "Container ID: {{.ContainerID}}"
 ```
-Container ID: 3fbeaa87e583ee7a3e6787b2d3af961ef21946a0c01a08938e4f52d53cce4c04
-Container ID: fbfd3505376ee639c3ed50f9d32b78445cd59198a1dfcacf2e7958cda2516d5c
+Container   ID:   ccf84de04b80c309ce6586997c79a769033dc4129db903c1882bc24a058438b8
+Container   ID:   45be1d806fc533fcfc2beee77e424d87e5990d3ce9214d6b374677d6630bba07
 ```
 
 buildah containers --filter ancestor=ubuntu

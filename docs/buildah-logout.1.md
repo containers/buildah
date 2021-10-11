@@ -38,13 +38,13 @@ Print usage statement
 ## EXAMPLES
 
 ```
-$ buildah logout docker.io
-Removed login credentials for docker.io
+$ buildah logout quay.io
+Removed login credentials for quay.io
 ```
 
 ```
-$ buildah logout --authfile authdir/myauths.json docker.io
-Removed login credentials for docker.io
+$ buildah logout --authfile authdir/myauths.json quay.io
+Removed login credentials for quay.io
 ```
 
 ```

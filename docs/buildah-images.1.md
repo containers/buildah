@@ -107,18 +107,17 @@ buildah images --filter dangling=true
 buildah images --format "ImageID: {{.ID}}"
 
 ```
-# buildah images
-IMAGE NAME                                               IMAGE TAG            IMAGE ID             CREATED AT             SIZE
-docker.io/library/alpine                                 latest               3fd9065eaf02         Jan 9, 2018 16:10      4.41 MB
-localhost/test                                           latest               c0cfe75da054         Jun 13, 2018 15:52     4.42 MB
+$ buildah images
+REPOSITORY                        TAG        IMAGE ID       CREATED        SIZE
+registry.access.redhat.com/ubi8   latest     53ce4390f2ad   3 weeks ago    233 MB
+docker.io/library/busybox         latest     16ea53ea7c65   3 weeks ago    1.46 MB
+quay.io/libpod/testimage          20210610   9f9ec7f2fdef   4 months ago   7.99 MB
 ```
 
 ```
 # buildah images -a
 IMAGE NAME                                               IMAGE TAG            IMAGE ID             CREATED AT             SIZE
-docker.io/library/alpine                                 latest               3fd9065eaf02         Jan 9, 2018 16:10      4.41 MB
-<none>                                                   <none>               12515a2658dc         Jun 13, 2018 15:52     4.41 MB
-<none>                                                   <none>               fcc3ddd28930         Jun 13, 2018 15:52     4.41 MB
+registry.access.redhat.com/ubi8   latest     53ce4390f2ad   3 weeks ago    233 MB
 <none>                                                   <none>               8c6e16890c2b         Jun 13, 2018 15:52     4.42 MB
 localhost/test                                           latest               c0cfe75da054         Jun 13, 2018 15:52     4.42 MB
 ```
