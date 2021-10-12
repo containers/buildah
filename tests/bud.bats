@@ -3289,6 +3289,18 @@ _EOF
   expect_output --substring "cat: can't open '/mysecret': No such file or directory"
 }
 
+@test "bud with default mode perms" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir1
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/mysecret << _EOF
+SOMESECRETDATA
+_EOF
+
+  run_buildah bud --secret=id=mysecret,src=${mytmpdir}/mysecret --signature-policy ${TESTSDIR}/policy.json  -t secretmode -f ${TESTSDIR}/bud/run-mounts/Dockerfile.secret-mode ${TESTSDIR}/bud/run-mounts
+  expect_output --substring "400"
+}
+
 @test "bud with containerfile secret options" {
   _prefetch alpine
   mytmpdir=${TESTDIR}/my-dir1
