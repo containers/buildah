@@ -2459,7 +2459,7 @@ func getSecretMount(tokens []string, secrets map[string]string, mountlabel strin
 	var id, target string
 	var required bool
 	var uid, gid uint32
-	var mode uint32 = 400
+	var mode uint32 = 0400
 	for _, val := range tokens {
 		kv := strings.SplitN(val, "=", 2)
 		switch kv[0] {
