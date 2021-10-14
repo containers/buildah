@@ -102,13 +102,15 @@ A Containerfile is similar to a Makefile.
 
 Attach a filesystem mount to the container
 
-Current supported mount TYPES are bind, and tmpfs.
+Current supported mount TYPES are bind, cache, secret and tmpfs.
 
        e.g.
 
        mount=type=bind,source=/path/on/host,destination=/path/in/container
 
        mount=type=tmpfs,tmpfs-size=512M,destination=/path/in/container
+
+       mount=type=secret,id=mysecret cat /run/secrets/mysecret
 
        Common Options:
 
@@ -131,6 +133,19 @@ Current supported mount TYPES are bind, and tmpfs.
               · tmpfs-mode: File mode of the tmpfs in octal. (e.g. 700 or 0700.) Defaults to 1777 in Linux.
 
               · tmpcopyup: Path that is shadowed by the tmpfs mount is recursively copied up to the tmpfs itself.
+
+	Options specific to cache:
+
+              · id: Create a separate cache directory for a particular id.
+
+              · mode: File mode for new cache directory in octal. Default 0755.
+
+              · ro, readonly: read only cache if set.
+
+              · uid: uid for cache directory.
+
+              · gid: gid for cache directory.
+
 
 **RUN Secrets**
 

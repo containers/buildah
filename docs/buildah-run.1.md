@@ -103,13 +103,15 @@ BUILDAH\_ISOLATION environment variable.  `export BUILDAH_ISOLATION=oci`
 
 Attach a filesystem mount to the container
 
-Current supported mount TYPES are bind, and tmpfs. <sup>[[1]](#Footnote1)</sup>
+Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Footnote1)</sup>
 
        e.g.
 
        type=bind,source=/path/on/host,destination=/path/in/container
 
        type=tmpfs,tmpfs-size=512M,destination=/path/in/container
+
+       type=cache,target=/path/in/container
 
        Common Options:
 
@@ -132,6 +134,22 @@ Current supported mount TYPES are bind, and tmpfs. <sup>[[1]](#Footnote1)</sup>
               · tmpfs-mode: File mode of the tmpfs in octal. (e.g. 700 or 0700.) Defaults to 1777 in Linux.
 
               · tmpcopyup: Path that is shadowed by the tmpfs mount is recursively copied up to the tmpfs itself.
+
+       Options specific to secret:
+
+              · id: the identifier for the secret passed into the `buildah bud --secret` or `podman build --secret` command.
+
+       Options specific to cache:
+
+              · id: Create a separate cache directory for a particular id.
+
+              · mode: File mode for new cache directory in octal. Default 0755.
+
+              · ro, readonly: read only cache if set.
+
+              · uid: uid for cache directory.
+
+              · gid: gid for cache directory.
 
 **--network**, **--net**=*mode*
 

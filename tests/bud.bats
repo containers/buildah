@@ -3579,3 +3579,15 @@ _EOF
   expect_output --substring "certs"
   run_buildah rmi -f testbud
 }
+
+@test "bud-with-mount-cache-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  # try writing something to persistant cache
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfilecachewrite
+  # try reading something from persistant cache in a different build
+  run_buildah build -t testbud2 --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfilecacheread
+  expect_output --substring "hello"
+  run_buildah rmi -f testbud
+  run_buildah rmi -f testbud2
+}
