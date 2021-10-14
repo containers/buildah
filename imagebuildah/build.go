@@ -62,6 +62,10 @@ type BuildOptions = define.BuildOptions
 // returns the ID of the built image, and if a name was assigned to it, a
 // canonical reference for that image.
 func BuildDockerfiles(ctx context.Context, store storage.Store, options define.BuildOptions, paths ...string) (id string, ref reference.Canonical, err error) {
+	if options.CommonBuildOpts == nil {
+		options.CommonBuildOpts = &define.CommonBuildOptions{}
+	}
+
 	if len(paths) == 0 {
 		return "", nil, errors.Errorf("error building: no dockerfiles specified")
 	}
