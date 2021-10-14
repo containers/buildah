@@ -716,11 +716,29 @@ func (b *Builder) generateHosts(rdir, hostname string, addHosts []string, chownO
 		}
 		hosts.Write([]byte(fmt.Sprintf("%s\t%s\n", values[1], values[0])))
 	}
+	hosts.Write([]byte(fmt.Sprintf("127.0.0.1   %s %s\n", b.Container, hostname)))
+	hosts.Write([]byte(fmt.Sprintf("::1         %s %s\n", b.Container, hostname)))
 
-	if hostname != "" {
-		hosts.Write([]byte(fmt.Sprintf("127.0.0.1   %s\n", hostname)))
-		hosts.Write([]byte(fmt.Sprintf("::1         %s\n", hostname)))
+	// getLocalIP returns the non loopback local IP of the host
+	getLocalIP := func() string {
+		addrs, err := net.InterfaceAddrs()
+		if err != nil {
+			return ""
+		}
+		for _, address := range addrs {
+			// check the address type and if it is not a loopback the display it
+			if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ipnet.IP.To4() != nil {
+					return ipnet.IP.String()
+				}
+			}
+		}
+		return ""
 	}
+	if ip := getLocalIP(); ip != "" {
+		hosts.Write([]byte(fmt.Sprintf("%s         %s\n", ip, "host.containers.internal")))
+	}
+
 	cfile := filepath.Join(rdir, filepath.Base(hostPath))
 	if err = ioutils.AtomicWriteFile(cfile, hosts.Bytes(), stat.Mode().Perm()); err != nil {
 		return "", errors.Wrapf(err, "error writing /etc/hosts into the container")
