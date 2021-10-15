@@ -101,6 +101,7 @@ type Executor struct {
 	rootfsMap                      map[string]bool             // Holds the names of every stage whose rootfs is referenced in a COPY or ADD instruction.
 	blobDirectory                  string
 	excludes                       []string
+	ignoreFile                     string
 	unusedArgs                     map[string]struct{}
 	capabilities                   []string
 	devices                        define.ContainerDevices
@@ -143,7 +144,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 
 	excludes := options.Excludes
 	if len(excludes) == 0 {
-		excludes, err = imagebuilder.ParseDockerignore(options.ContextDirectory)
+		excludes, options.IgnoreFile, err = parse.ContainerIgnoreFile(options.ContextDirectory, options.IgnoreFile)
 		if err != nil {
 			return nil, err
 		}
@@ -208,6 +209,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		store:                          store,
 		contextDir:                     options.ContextDirectory,
 		excludes:                       excludes,
+		ignoreFile:                     options.IgnoreFile,
 		pullPolicy:                     options.PullPolicy,
 		registry:                       options.Registry,
 		ignoreUnrecognizedInstructions: options.IgnoreUnrecognizedInstructions,

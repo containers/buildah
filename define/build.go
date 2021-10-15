@@ -227,6 +227,8 @@ type BuildOptions struct {
 	RusageLogFile string
 	// Excludes is a list of excludes to be used instead of the .dockerignore file.
 	Excludes []string
+	// IgnoreFile is a name of the .containerignore file
+	IgnoreFile string
 	// From is the image name to use to replace the value specified in the first
 	// FROM instruction in the Containerfile
 	From string

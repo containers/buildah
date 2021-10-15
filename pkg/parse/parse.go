@@ -22,6 +22,7 @@ import (
 	"github.com/containers/storage/pkg/unshare"
 	units "github.com/docker/go-units"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/openshift/imagebuilder"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -1230,4 +1231,21 @@ func SSH(sshSources []string) (map[string]*sshagent.Source, error) {
 		parsed[parts[0]] = source
 	}
 	return parsed, nil
+}
+
+func ContainerIgnoreFile(contextDir, path string) ([]string, string, error) {
+	if path != "" {
+		excludes, err := imagebuilder.ParseIgnore(path)
+		return excludes, path, err
+	}
+	path = filepath.Join(contextDir, ".containerignore")
+	excludes, err := imagebuilder.ParseIgnore(path)
+	if os.IsNotExist(err) {
+		path = filepath.Join(contextDir, ".dockerignore")
+		excludes, err = imagebuilder.ParseIgnore(path)
+	}
+	if os.IsNotExist(err) {
+		return excludes, "", nil
+	}
+	return excludes, path, err
 }
