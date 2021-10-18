@@ -24,6 +24,9 @@ import (
 	"github.com/containers/buildah/chroot"
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal"
+	internalParse "github.com/containers/buildah/internal/parse"
+	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/sshagent"
@@ -35,12 +38,14 @@ import (
 	"github.com/containers/common/pkg/chown"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/subscriptions"
+	imagetypes "github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/stringid"
 	"github.com/containers/storage/pkg/unshare"
+	storagetypes "github.com/containers/storage/types"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
@@ -250,7 +255,7 @@ rootless=%d
 
 		bindFiles["/run/.containerenv"] = containerenvPath
 	}
-	runArtifacts, err := b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, volumes, b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, namespaceOptions, options.Secrets, options.SSHSources, options.RunMounts, options.ContextDir)
+	runArtifacts, err := b.setupMounts(options.SystemContext, mountPoint, spec, path, options.Mounts, bindFiles, volumes, b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, namespaceOptions, options.Secrets, options.SSHSources, options.RunMounts, options.ContextDir, options.StageMountPoints)
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container %q", b.ContainerID)
 	}
@@ -259,9 +264,16 @@ rootless=%d
 		spec.Process.Env = append(spec.Process.Env, sshenv)
 	}
 
+	// following run was called from `buildah run`
+	// and some images were mounted for this run
+	// add them to cleanup artifacts
+	if len(options.ExternalImageMounts) > 0 {
+		runArtifacts.MountedImages = append(runArtifacts.MountedImages, options.ExternalImageMounts...)
+	}
+
 	defer func() {
-		if err := cleanupRunMounts(mountPoint, runArtifacts); err != nil {
-			options.Logger.Errorf("unabe to cleanup run mounts %v", err)
+		if err := b.cleanupRunMounts(options.SystemContext, mountPoint, runArtifacts); err != nil {
+			options.Logger.Errorf("unable to cleanup run mounts %v", err)
 		}
 	}()
 
@@ -416,7 +428,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 	return mounts, nil
 }
 
-func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions define.NamespaceOptions, secrets map[string]define.Secret, sshSources map[string]*sshagent.Source, runFileMounts []string, contextDir string) (*runMountArtifacts, error) {
+func (b *Builder) setupMounts(context *imagetypes.SystemContext, mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions define.NamespaceOptions, secrets map[string]define.Secret, sshSources map[string]*sshagent.Source, runFileMounts []string, contextDir string, stageMountPoints map[string]internal.StageMountDetails) (*runMountArtifacts, error) {
 	// Start building a new list of mounts.
 	var mounts []specs.Mount
 	haveMount := func(destination string) bool {
@@ -531,7 +543,7 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 
 	// Get the list of mounts that are just for this Run() call.
 	// TODO: acui: de-spaghettify run mounts
-	runMounts, mountArtifacts, err := b.runSetupRunMounts(runFileMounts, secrets, sshSources, cdir, contextDir, spec.Linux.UIDMappings, spec.Linux.GIDMappings, int(rootUID), int(rootGID), int(processUID), int(processGID))
+	runMounts, mountArtifacts, err := b.runSetupRunMounts(context, runFileMounts, secrets, stageMountPoints, sshSources, cdir, contextDir, spec.Linux.UIDMappings, spec.Linux.GIDMappings, int(rootUID), int(rootGID), int(processUID), int(processGID))
 	if err != nil {
 		return nil, err
 	}
@@ -2407,9 +2419,10 @@ func init() {
 }
 
 // runSetupRunMounts sets up mounts that exist only in this RUN, not in subsequent runs
-func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]define.Secret, sshSources map[string]*sshagent.Source, containerWorkingDir string, contextDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, rootUID int, rootGID int, processUID int, processGID int) ([]spec.Mount, *runMountArtifacts, error) {
-	mountTargets := make([]string, 0, len(mounts))
+func (b *Builder) runSetupRunMounts(context *imagetypes.SystemContext, mounts []string, secrets map[string]define.Secret, stageMountPoints map[string]internal.StageMountDetails, sshSources map[string]*sshagent.Source, containerWorkingDir string, contextDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, rootUID int, rootGID int, processUID int, processGID int) ([]spec.Mount, *runMountArtifacts, error) {
+	mountTargets := make([]string, 0, 10)
 	tmpFiles := make([]string, 0, len(mounts))
+	mountImages := make([]string, 0, 10)
 	finalMounts := make([]specs.Mount, 0, len(mounts))
 	agents := make([]*sshagent.AgentServer, 0, len(mounts))
 	sshCount := 0
@@ -2455,12 +2468,16 @@ func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]define.S
 				sshCount++
 			}
 		case "bind":
-			mount, err := b.getBindMount(tokens, contextDir, rootUID, rootGID, processUID, processGID)
+			mount, image, err := b.getBindMount(context, tokens, contextDir, rootUID, rootGID, processUID, processGID, stageMountPoints)
 			if err != nil {
 				return nil, nil, err
 			}
 			finalMounts = append(finalMounts, *mount)
 			mountTargets = append(mountTargets, mount.Destination)
+			// only perform cleanup if image was mounted ignore everything else
+			if image != "" {
+				mountImages = append(mountImages, image)
+			}
 		case "tmpfs":
 			mount, err := b.getTmpfsMount(tokens, rootUID, rootGID, processUID, processGID)
 			if err != nil {
@@ -2469,7 +2486,7 @@ func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]define.S
 			finalMounts = append(finalMounts, *mount)
 			mountTargets = append(mountTargets, mount.Destination)
 		case "cache":
-			mount, err := b.getCacheMount(tokens, rootUID, rootGID, processUID, processGID)
+			mount, err := b.getCacheMount(tokens, rootUID, rootGID, processUID, processGID, stageMountPoints)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -2483,31 +2500,32 @@ func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]define.S
 		RunMountTargets: mountTargets,
 		TmpFiles:        tmpFiles,
 		Agents:          agents,
+		MountedImages:   mountImages,
 		SSHAuthSock:     defaultSSHSock,
 	}
 	return finalMounts, artifacts, nil
 }
 
-func (b *Builder) getBindMount(tokens []string, contextDir string, rootUID, rootGID, processUID, processGID int) (*spec.Mount, error) {
+func (b *Builder) getBindMount(context *imagetypes.SystemContext, tokens []string, contextDir string, rootUID, rootGID, processUID, processGID int, stageMountPoints map[string]internal.StageMountDetails) (*spec.Mount, string, error) {
 	if contextDir == "" {
-		return nil, errors.New("Context Directory for current run invocation is not configured")
+		return nil, "", errors.New("Context Directory for current run invocation is not configured")
 	}
 	var optionMounts []specs.Mount
-	mount, err := parse.GetBindMount(tokens, contextDir)
+	mount, image, err := internalParse.GetBindMount(context, tokens, contextDir, b.store, b.MountLabel, stageMountPoints)
 	if err != nil {
-		return nil, err
+		return nil, image, err
 	}
 	optionMounts = append(optionMounts, mount)
 	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, rootUID, rootGID, processUID, processGID)
 	if err != nil {
-		return nil, err
+		return nil, image, err
 	}
-	return &volumes[0], nil
+	return &volumes[0], image, nil
 }
 
 func (b *Builder) getTmpfsMount(tokens []string, rootUID, rootGID, processUID, processGID int) (*spec.Mount, error) {
 	var optionMounts []specs.Mount
-	mount, err := parse.GetTmpfsMount(tokens)
+	mount, err := internalParse.GetTmpfsMount(tokens)
 	if err != nil {
 		return nil, err
 	}
@@ -2519,9 +2537,9 @@ func (b *Builder) getTmpfsMount(tokens []string, rootUID, rootGID, processUID, p
 	return &volumes[0], nil
 }
 
-func (b *Builder) getCacheMount(tokens []string, rootUID, rootGID, processUID, processGID int) (*spec.Mount, error) {
+func (b *Builder) getCacheMount(tokens []string, rootUID, rootGID, processUID, processGID int, stageMountPoints map[string]internal.StageMountDetails) (*spec.Mount, error) {
 	var optionMounts []specs.Mount
-	mount, err := parse.GetCacheMount(tokens)
+	mount, err := internalParse.GetCacheMount(tokens, b.store, b.MountLabel, stageMountPoints)
 	if err != nil {
 		return nil, err
 	}
@@ -2767,10 +2785,29 @@ func (b *Builder) getSSHMount(tokens []string, count int, sshsources map[string]
 }
 
 // cleanupRunMounts cleans up run mounts so they only appear in this run.
-func cleanupRunMounts(mountpoint string, artifacts *runMountArtifacts) error {
+func (b *Builder) cleanupRunMounts(context *imagetypes.SystemContext, mountpoint string, artifacts *runMountArtifacts) error {
 	for _, agent := range artifacts.Agents {
 		err := agent.Shutdown()
 		if err != nil {
+			return err
+		}
+	}
+
+	//cleanup any mounted images for this run
+	for _, image := range artifacts.MountedImages {
+		if image != "" {
+			// if flow hits here some image was mounted for this run
+			i, err := internalUtil.LookupImage(context, b.store, image)
+			if err == nil {
+				// silently try to unmount and do nothing
+				// if image is being used by something else
+				_ = i.Unmount(false)
+			}
+			if errors.Cause(err) == storagetypes.ErrImageUnknown {
+				// Ignore only if ErrImageUnknown
+				// Reason: Image is already unmounted do nothing
+				continue
+			}
 			return err
 		}
 	}

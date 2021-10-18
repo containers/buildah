@@ -149,13 +149,20 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		}
 	}
 
-	mounts, err := parse.GetVolumes(iopts.volumes, iopts.mounts, iopts.contextDir)
+	systemContext, err := parse.SystemContextFromOptions(c)
+	if err != nil {
+		return errors.Wrapf(err, "error building system context")
+	}
+	mounts, mountedImages, err := parse.GetVolumes(systemContext, store, iopts.volumes, iopts.mounts, iopts.contextDir)
 	if err != nil {
 		return err
 	}
 	options.Mounts = mounts
+	// Run() will automatically clean them up.
+	options.ExternalImageMounts = mountedImages
 
 	runerr := builder.Run(args, options)
+
 	if runerr != nil {
 		logrus.Debugf("error running %v in container %q: %v", args, builder.Container, runerr)
 	}

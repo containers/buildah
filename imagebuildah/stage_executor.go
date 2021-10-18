@@ -15,6 +15,7 @@ import (
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
 	buildahdocker "github.com/containers/buildah/docker"
+	"github.com/containers/buildah/internal"
 	"github.com/containers/buildah/pkg/rusage"
 	"github.com/containers/buildah/util"
 	cp "github.com/containers/image/v5/copy"
@@ -413,10 +414,67 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 	return nil
 }
 
+// Returns a map of StageName/ImageName:internal.StageMountDetails for RunOpts if any --mount with from is provided
+// Stage can automatically cleanup this mounts when a stage is removed
+// check if RUN contains `--mount` with `from`. If yes pre-mount images or stages from executor for Run.
+// stages mounted here will we used be Run().
+func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]internal.StageMountDetails, error) {
+	stageMountPoints := make(map[string]internal.StageMountDetails)
+	for _, flag := range mountList {
+		if strings.Contains(flag, "from") {
+			arr := strings.SplitN(flag, ",", 2)
+			if len(arr) < 2 {
+				return nil, errors.Errorf("Invalid --mount command: %s", flag)
+			}
+			tokens := strings.Split(arr[1], ",")
+			for _, val := range tokens {
+				kv := strings.SplitN(val, "=", 2)
+				switch kv[0] {
+				case "from":
+					if len(kv) == 1 {
+						return nil, errors.Errorf("unable to resolve argument for `from=`: bad argument")
+					}
+					if kv[1] == "" {
+						return nil, errors.Errorf("unable to resolve argument for `from=`: from points to an empty value")
+					}
+					from, fromErr := imagebuilder.ProcessWord(kv[1], s.stage.Builder.Arguments())
+					if fromErr != nil {
+						return nil, errors.Wrapf(fromErr, "unable to resolve argument %q", kv[1])
+					}
+					// If the source's name corresponds to the
+					// result of an earlier stage, wait for that
+					// stage to finish being built.
+					if isStage, err := s.executor.waitForStage(s.ctx, from, s.stages[:s.index]); isStage && err != nil {
+						return nil, err
+					}
+					if otherStage, ok := s.executor.stages[from]; ok && otherStage.index < s.index {
+						stageMountPoints[from] = internal.StageMountDetails{IsStage: true, MountPoint: otherStage.mountPoint}
+						break
+					} else {
+						mountPoint, err := s.getImageRootfs(s.ctx, from)
+						if err != nil {
+							return nil, errors.Errorf("%s from=%s: no stage or image found with that name", flag, from)
+						}
+						stageMountPoints[from] = internal.StageMountDetails{IsStage: false, MountPoint: mountPoint}
+						break
+					}
+				default:
+					continue
+				}
+			}
+		}
+	}
+	return stageMountPoints, nil
+}
+
 // Run executes a RUN instruction using the stage's current working container
 // as a root directory.
 func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 	logrus.Debugf("RUN %#v, %#v", run, config)
+	stageMountPoints, err := s.runStageMountPoints(run.Mounts)
+	if err != nil {
+		return err
+	}
 	if s.builder == nil {
 		return errors.Errorf("no build container available")
 	}
@@ -451,6 +509,8 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		Secrets:          s.executor.secrets,
 		SSHSources:       s.executor.sshsources,
 		RunMounts:        run.Mounts,
+		StageMountPoints: stageMountPoints,
+		SystemContext:    s.executor.systemContext,
 	}
 	if config.NetworkDisabled {
 		options.ConfigureNetwork = buildah.NetworkDisabled

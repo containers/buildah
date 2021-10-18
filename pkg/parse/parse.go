@@ -15,9 +15,11 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/containers/buildah/define"
+	internalParse "github.com/containers/buildah/internal/parse"
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/common/pkg/parse"
 	"github.com/containers/image/v5/types"
+	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/unshare"
 	units "github.com/docker/go-units"
@@ -46,10 +48,7 @@ const (
 )
 
 var (
-	errBadMntOption  = errors.Errorf("invalid mount option")
 	errDuplicateDest = errors.Errorf("duplicate mount destination")
-	optionArgError   = errors.Errorf("must provide an argument for option")
-	noDestError      = errors.Errorf("must set volume destination")
 )
 
 // CommonBuildOptions parses the build options from the bud cli
@@ -296,18 +295,18 @@ func getVolumeMounts(volumes []string) (map[string]specs.Mount, error) {
 }
 
 // GetVolumes gets the volumes from --volume and --mount
-func GetVolumes(volumes []string, mounts []string, contextDir string) ([]specs.Mount, error) {
-	unifiedMounts, err := getMounts(mounts, contextDir)
+func GetVolumes(ctx *types.SystemContext, store storage.Store, volumes []string, mounts []string, contextDir string) ([]specs.Mount, []string, error) {
+	unifiedMounts, mountedImages, err := getMounts(ctx, store, mounts, contextDir)
 	if err != nil {
-		return nil, err
+		return nil, mountedImages, err
 	}
 	volumeMounts, err := getVolumeMounts(volumes)
 	if err != nil {
-		return nil, err
+		return nil, mountedImages, err
 	}
 	for dest, mount := range volumeMounts {
 		if _, ok := unifiedMounts[dest]; ok {
-			return nil, errors.Wrapf(errDuplicateDest, dest)
+			return nil, mountedImages, errors.Wrapf(errDuplicateDest, dest)
 		}
 		unifiedMounts[dest] = mount
 	}
@@ -316,15 +315,16 @@ func GetVolumes(volumes []string, mounts []string, contextDir string) ([]specs.M
 	for _, mount := range unifiedMounts {
 		finalMounts = append(finalMounts, mount)
 	}
-	return finalMounts, nil
+	return finalMounts, mountedImages, nil
 }
 
 // getMounts takes user-provided input from the --mount flag and creates OCI
 // spec mounts.
 // buildah run --mount type=bind,src=/etc/resolv.conf,target=/etc/resolv.conf ...
 // buildah run --mount type=tmpfs,target=/dev/shm ...
-func getMounts(mounts []string, contextDir string) (map[string]specs.Mount, error) {
+func getMounts(ctx *types.SystemContext, store storage.Store, mounts []string, contextDir string) (map[string]specs.Mount, []string, error) {
 	finalMounts := make(map[string]specs.Mount)
+	mountedImages := make([]string, 0)
 
 	errInvalidSyntax := errors.Errorf("incorrect mount format: should be --mount type=<bind|tmpfs>,[src=<host-dir>,]target=<ctr-dir>[,options]")
 
@@ -334,304 +334,51 @@ func getMounts(mounts []string, contextDir string) (map[string]specs.Mount, erro
 	for _, mount := range mounts {
 		arr := strings.SplitN(mount, ",", 2)
 		if len(arr) < 2 {
-			return nil, errors.Wrapf(errInvalidSyntax, "%q", mount)
+			return nil, mountedImages, errors.Wrapf(errInvalidSyntax, "%q", mount)
 		}
 		kv := strings.Split(arr[0], "=")
 		// TODO: type is not explicitly required in Docker.
 		// If not specified, it defaults to "volume".
 		if len(kv) != 2 || kv[0] != "type" {
-			return nil, errors.Wrapf(errInvalidSyntax, "%q", mount)
+			return nil, mountedImages, errors.Wrapf(errInvalidSyntax, "%q", mount)
 		}
 
 		tokens := strings.Split(arr[1], ",")
 		switch kv[1] {
 		case TypeBind:
-			mount, err := GetBindMount(tokens, contextDir)
+			mount, image, err := internalParse.GetBindMount(ctx, tokens, contextDir, store, "", nil)
 			if err != nil {
-				return nil, err
+				return nil, mountedImages, err
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, errors.Wrapf(errDuplicateDest, mount.Destination)
+				return nil, mountedImages, errors.Wrapf(errDuplicateDest, mount.Destination)
 			}
 			finalMounts[mount.Destination] = mount
+			mountedImages = append(mountedImages, image)
 		case TypeCache:
-			mount, err := GetCacheMount(tokens)
+			mount, err := internalParse.GetCacheMount(tokens, store, "", nil)
 			if err != nil {
-				return nil, err
+				return nil, mountedImages, err
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, errors.Wrapf(errDuplicateDest, mount.Destination)
+				return nil, mountedImages, errors.Wrapf(errDuplicateDest, mount.Destination)
 			}
 			finalMounts[mount.Destination] = mount
 		case TypeTmpfs:
-			mount, err := GetTmpfsMount(tokens)
+			mount, err := internalParse.GetTmpfsMount(tokens)
 			if err != nil {
-				return nil, err
+				return nil, mountedImages, err
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, errors.Wrapf(errDuplicateDest, mount.Destination)
+				return nil, mountedImages, errors.Wrapf(errDuplicateDest, mount.Destination)
 			}
 			finalMounts[mount.Destination] = mount
 		default:
-			return nil, errors.Errorf("invalid filesystem type %q", kv[1])
+			return nil, mountedImages, errors.Errorf("invalid filesystem type %q", kv[1])
 		}
 	}
 
-	return finalMounts, nil
-}
-
-// GetBindMount parses a single bind mount entry from the --mount flag.
-func GetBindMount(args []string, contextDir string) (specs.Mount, error) {
-	newMount := specs.Mount{
-		Type: TypeBind,
-	}
-
-	setDest := false
-	bindNonRecursive := false
-
-	for _, val := range args {
-		kv := strings.SplitN(val, "=", 2)
-		switch kv[0] {
-		case "bind-nonrecursive":
-			newMount.Options = append(newMount.Options, "bind")
-			bindNonRecursive = true
-		case "ro", "nosuid", "nodev", "noexec":
-			// TODO: detect duplication of these options.
-			// (Is this necessary?)
-			newMount.Options = append(newMount.Options, kv[0])
-		case "rw", "readwrite":
-			newMount.Options = append(newMount.Options, "rw")
-		case "readonly":
-			// Alias for "ro"
-			newMount.Options = append(newMount.Options, "ro")
-		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z", "U":
-			newMount.Options = append(newMount.Options, kv[0])
-		case "bind-propagation":
-			if len(kv) == 1 {
-				return newMount, errors.Wrapf(optionArgError, kv[0])
-			}
-			newMount.Options = append(newMount.Options, kv[1])
-		case "src", "source":
-			if len(kv) == 1 {
-				return newMount, errors.Wrapf(optionArgError, kv[0])
-			}
-			if err := parse.ValidateVolumeHostDir(kv[1]); err != nil {
-				return newMount, err
-			}
-			newMount.Source = kv[1]
-		case "target", "dst", "destination":
-			if len(kv) == 1 {
-				return newMount, errors.Wrapf(optionArgError, kv[0])
-			}
-			if err := parse.ValidateVolumeCtrDir(kv[1]); err != nil {
-				return newMount, err
-			}
-			newMount.Destination = kv[1]
-			setDest = true
-		case "consistency":
-			// Option for OS X only, has no meaning on other platforms
-			// and can thus be safely ignored.
-			// See also the handling of the equivalent "delegated" and "cached" in ValidateVolumeOpts
-		default:
-			return newMount, errors.Wrapf(errBadMntOption, kv[0])
-		}
-	}
-
-	// buildkit parity: default bind option must be `rbind`
-	// unless specified
-	if !bindNonRecursive {
-		newMount.Options = append(newMount.Options, "rbind")
-	}
-
-	if !setDest {
-		return newMount, noDestError
-	}
-
-	// buildkit parity: support absolute path for sources from current build context
-	if strings.HasPrefix(newMount.Source, ".") || newMount.Source == "" || !filepath.IsAbs(newMount.Source) {
-		// path should be /contextDir/specified path
-		newMount.Source = filepath.Join(contextDir, filepath.Clean(string(filepath.Separator)+newMount.Source))
-	}
-
-	opts, err := parse.ValidateVolumeOpts(newMount.Options)
-	if err != nil {
-		return newMount, err
-	}
-	newMount.Options = opts
-
-	return newMount, nil
-}
-
-// GetCacheMount parses a single cache mount entry from the --mount flag.
-func GetCacheMount(args []string) (specs.Mount, error) {
-	var err error
-	var (
-		setDest     bool
-		setShared   bool
-		setReadOnly bool
-	)
-	newMount := specs.Mount{
-		Type: TypeBind,
-	}
-	// if id is set a new subdirectory with `id` will be created under /host-temp/buildah-build-cache/id
-	id := ""
-	//buidkit parity: cache directory defaults to 755
-	mode := 0755
-	//buidkit parity: cache directory defaults to uid 0 if not specified
-	uid := 0
-	//buidkit parity: cache directory defaults to gid 0 if not specified
-	gid := 0
-
-	for _, val := range args {
-		kv := strings.SplitN(val, "=", 2)
-		switch kv[0] {
-		case "nosuid", "nodev", "noexec":
-			// TODO: detect duplication of these options.
-			// (Is this necessary?)
-			newMount.Options = append(newMount.Options, kv[0])
-		case "rw", "readwrite":
-			newMount.Options = append(newMount.Options, "rw")
-		case "readonly", "ro":
-			// Alias for "ro"
-			newMount.Options = append(newMount.Options, "ro")
-			setReadOnly = true
-		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z", "U":
-			newMount.Options = append(newMount.Options, kv[0])
-			setShared = true
-		case "bind-propagation":
-			if len(kv) == 1 {
-				return newMount, errors.Wrapf(optionArgError, kv[0])
-			}
-			newMount.Options = append(newMount.Options, kv[1])
-		case "id":
-			id = kv[1]
-		case "target", "dst", "destination":
-			if len(kv) == 1 {
-				return newMount, errors.Wrapf(optionArgError, kv[0])
-			}
-			if err := parse.ValidateVolumeCtrDir(kv[1]); err != nil {
-				return newMount, err
-			}
-			newMount.Destination = kv[1]
-			setDest = true
-		case "mode":
-			mode, err = strconv.Atoi(kv[1])
-			if err != nil {
-				return newMount, errors.Wrapf(err, "Unable to parse cache mode")
-			}
-		case "uid":
-			uid, err = strconv.Atoi(kv[1])
-			if err != nil {
-				return newMount, errors.Wrapf(err, "Unable to parse cache uid")
-			}
-		case "gid":
-			gid, err = strconv.Atoi(kv[1])
-			if err != nil {
-				return newMount, errors.Wrapf(err, "Unable to parse cache gid")
-			}
-		default:
-			return newMount, errors.Wrapf(errBadMntOption, kv[0])
-		}
-	}
-
-	if !setDest {
-		return newMount, noDestError
-	}
-
-	// since type is cache and cache can be resused by consecutive builds
-	// create a common cache directory, which should persists on hosts within temp lifecycle
-	// add subdirectory if specified
-	if id != "" {
-		newMount.Source = filepath.Join(GetTempDir(), BuildahCacheDir, id)
-	} else {
-		newMount.Source = filepath.Join(GetTempDir(), BuildahCacheDir)
-	}
-	// create cache on host if not present
-	err = os.MkdirAll(newMount.Source, os.FileMode(mode))
-	if err != nil {
-		return newMount, errors.Wrapf(err, "Unable to create build cache directory")
-	}
-	//buidkit parity: change uid and gid if specificed otheriwise keep `0`
-	err = os.Chown(newMount.Source, uid, gid)
-	if err != nil {
-		return newMount, errors.Wrapf(err, "Unable to change uid,gid of cache directory")
-	}
-
-	// buildkit parity: default sharing should be shared
-	// unless specified
-	if !setShared {
-		newMount.Options = append(newMount.Options, "shared")
-	}
-
-	// buildkit parity: cache must writable unless `ro` or `readonly` is configured explicitly
-	if !setReadOnly {
-		newMount.Options = append(newMount.Options, "rw")
-	}
-
-	// buildkit parity: default bind option for cache must be `rbind`
-	// since we are actually looking for arbitrary content under cache directory
-	newMount.Options = append(newMount.Options, "rbind")
-
-	opts, err := parse.ValidateVolumeOpts(newMount.Options)
-	if err != nil {
-		return newMount, err
-	}
-	newMount.Options = opts
-
-	return newMount, nil
-}
-
-// GetTmpfsMount parses a single tmpfs mount entry from the --mount flag
-func GetTmpfsMount(args []string) (specs.Mount, error) {
-	newMount := specs.Mount{
-		Type:   TypeTmpfs,
-		Source: TypeTmpfs,
-	}
-
-	setDest := false
-
-	for _, val := range args {
-		kv := strings.SplitN(val, "=", 2)
-		switch kv[0] {
-		case "ro", "nosuid", "nodev", "noexec":
-			newMount.Options = append(newMount.Options, kv[0])
-		case "readonly":
-			// Alias for "ro"
-			newMount.Options = append(newMount.Options, "ro")
-		case "tmpcopyup":
-			//the path that is shadowed by the tmpfs mount is recursively copied up to the tmpfs itself.
-			newMount.Options = append(newMount.Options, kv[0])
-		case "tmpfs-mode":
-			if len(kv) == 1 {
-				return newMount, errors.Wrapf(optionArgError, kv[0])
-			}
-			newMount.Options = append(newMount.Options, fmt.Sprintf("mode=%s", kv[1]))
-		case "tmpfs-size":
-			if len(kv) == 1 {
-				return newMount, errors.Wrapf(optionArgError, kv[0])
-			}
-			newMount.Options = append(newMount.Options, fmt.Sprintf("size=%s", kv[1]))
-		case "src", "source":
-			return newMount, errors.Errorf("source is not supported with tmpfs mounts")
-		case "target", "dst", "destination":
-			if len(kv) == 1 {
-				return newMount, errors.Wrapf(optionArgError, kv[0])
-			}
-			if err := parse.ValidateVolumeCtrDir(kv[1]); err != nil {
-				return newMount, err
-			}
-			newMount.Destination = kv[1]
-			setDest = true
-		default:
-			return newMount, errors.Wrapf(errBadMntOption, kv[0])
-		}
-	}
-
-	if !setDest {
-		return newMount, noDestError
-	}
-
-	return newMount, nil
+	return finalMounts, mountedImages, nil
 }
 
 // ValidateVolumeHostDir validates a volume mount's source directory
