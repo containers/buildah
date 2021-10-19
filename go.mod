@@ -44,3 +44,5 @@ require (
 )
 
 replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
+
+replace github.com/containers/common => github.com/vrothberg/common v0.0.3-0.20211018125314-1039100afe76
