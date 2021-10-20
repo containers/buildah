@@ -3592,3 +3592,8 @@ _EOF
   run_buildah rmi -f testbud
   run_buildah rmi -f testbud2
 }
+
+@test "bud with user in groups" {
+  target=bud-group
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/group
+}

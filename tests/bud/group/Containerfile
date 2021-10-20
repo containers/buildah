@@ -1,0 +1,11 @@
+FROM alpine
+
+RUN adduser -D -g 'Susan' susan \
+  && addgroup cool_kids \
+  && addgroup susan cool_kids \
+  && addgroup good_kids \
+  && addgroup susan good_kids
+
+USER susan
+
+RUN groups  | grep cool_kids

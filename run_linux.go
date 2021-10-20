@@ -2148,7 +2148,6 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 }
 
 func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, shmSize string) error {
-	spec.Process.User.AdditionalGids = nil
 	spec.Linux.Resources = nil
 
 	emptyDir := filepath.Join(bundleDir, "empty")
