@@ -3329,6 +3329,38 @@ _EOF
   expect_output --substring "secret required but no secret with id mysecret found"
 }
 
+@test "bud with containerfile env secret" {
+  export MYSECRET=SOMESECRETDATA
+  run_buildah build --secret=id=mysecret,src=MYSECRET,type=env --signature-policy ${TESTSDIR}/policy.json  -t secretimg -f ${TESTSDIR}/bud/run-mounts/Dockerfile.secret ${TESTSDIR}/bud/run-mounts
+  expect_output --substring "SOMESECRETDATA"
+
+  run_buildah from secretimg
+  run_buildah 1 run secretimg-working-container cat /run/secrets/mysecret
+  expect_output --substring "cat: can't open '/run/secrets/mysecret': No such file or directory"
+  run_buildah rm -a
+
+  run_buildah build --secret=id=mysecret,env=MYSECRET --signature-policy ${TESTSDIR}/policy.json  -t secretimg -f ${TESTSDIR}/bud/run-mounts/Dockerfile.secret ${TESTSDIR}/bud/run-mounts
+  expect_output --substring "SOMESECRETDATA"
+
+  run_buildah from secretimg
+  run_buildah 1 run secretimg-working-container cat /run/secrets/mysecret
+  expect_output --substring "cat: can't open '/run/secrets/mysecret': No such file or directory"
+  run_buildah rm -a
+}
+
+@test "bud with containerfile env secret priority" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir1
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/mysecret << _EOF
+SOMESECRETDATA
+_EOF
+
+  export mysecret=ENVDATA
+  run_buildah build --secret=id=mysecret --signature-policy ${TESTSDIR}/policy.json  -t secretimg -f ${TESTSDIR}/bud/run-mounts/Dockerfile.secret ${TESTSDIR}/bud/run-mounts
+  expect_output --substring "ENVDATA"
+}
+
 @test "bud-multiple-platform-values" {
   outputlist=testlist
   # check if we can run a couple of 32-bit versions of an image, and if we can,

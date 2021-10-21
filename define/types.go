@@ -93,6 +93,13 @@ type IDMappingOptions struct {
 	GIDMap         []specs.LinuxIDMapping
 }
 
+// Secret is a secret source that can be used in a RUN
+type Secret struct {
+	ID         string
+	Source     string
+	SourceType string
+}
+
 // TempDirForURL checks if the passed-in string looks like a URL or -.  If it is,
 // TempDirForURL creates a temporary directory, arranges for its contents to be
 // the contents of that URL, and returns the temporary directory's path, along
