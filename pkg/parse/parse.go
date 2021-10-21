@@ -205,10 +205,39 @@ func parseSecurityOpts(securityOpts []string, commonOpts *define.CommonBuildOpti
 	return nil
 }
 
+// Split string into slice by colon. Backslash-escaped colon (i.e. "\:") will not be regarded as separator
+func SplitStringWithColonEscape(str string) []string {
+	result := make([]string, 0, 3)
+	sb := &strings.Builder{}
+	for idx, r := range str {
+		if r == ':' {
+			// the colon is backslash-escaped
+			if idx-1 > 0 && str[idx-1] == '\\' {
+				sb.WriteRune(r)
+			} else {
+				// os.Stat will fail if path contains escaped colon
+				result = append(result, revertEscapedColon(sb.String()))
+				sb.Reset()
+			}
+		} else {
+			sb.WriteRune(r)
+		}
+	}
+	if sb.Len() > 0 {
+		result = append(result, revertEscapedColon(sb.String()))
+	}
+	return result
+}
+
+// Convert "\:" to ":"
+func revertEscapedColon(source string) string {
+	return strings.ReplaceAll(source, "\\:", ":")
+}
+
 // Volume parses the input of --volume
 func Volume(volume string) (specs.Mount, error) {
 	mount := specs.Mount{}
-	arr := strings.SplitN(volume, ":", 3)
+	arr := SplitStringWithColonEscape(volume)
 	if len(arr) < 2 {
 		return mount, errors.Errorf("incorrect volume format %q, should be host-dir:ctr-dir[:option]", volume)
 	}

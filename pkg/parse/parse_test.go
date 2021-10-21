@@ -141,3 +141,19 @@ func TestParsePlatform(t *testing.T) {
 	_, _, _, err = Platform("a")
 	assert.Error(t, err)
 }
+
+func TestSplitStringWithColonEscape(t *testing.T) {
+	tests := []struct {
+		volume         string
+		expectedResult []string
+	}{
+		{"/root/a:/root/test:O", []string{"/root/a", "/root/test", "O"}},
+		{"/root/a\\:b/c:/root/test:O", []string{"/root/a:b/c", "/root/test", "O"}},
+		{"/root/a:/root/test\\:test1/a:O", []string{"/root/a", "/root/test:test1/a", "O"}},
+		{"/root/a\\:b/c:/root/test\\:test1/a:O", []string{"/root/a:b/c", "/root/test:test1/a", "O"}},
+	}
+	for _, args := range tests {
+		val := SplitStringWithColonEscape(args.volume)
+		assert.Equal(t, val, args.expectedResult)
+	}
+}
