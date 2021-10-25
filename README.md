@@ -77,7 +77,9 @@ From [`./examples/lighttpd.sh`](examples/lighttpd.sh):
 
 ```bash
 $ cat > lighttpd.sh <<"EOF"
-#!/usr/bin/env bash -x
+#!/usr/bin/env bash
+
+set -x
 
 ctr1=$(buildah from "${1:-fedora}")
 
