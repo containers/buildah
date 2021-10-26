@@ -238,7 +238,7 @@ func runUsingChrootMain() {
 		// Set the kernel's lock to "unlocked".
 		locked := 0
 		if result, _, err := unix.Syscall(unix.SYS_IOCTL, uintptr(ptyMasterFd), unix.TIOCSPTLCK, uintptr(unsafe.Pointer(&locked))); int(result) == -1 {
-			logrus.Errorf("error locking PTY descriptor: %v", err)
+			logrus.Errorf("error unlocking PTY descriptor: %v", err)
 			os.Exit(1)
 		}
 		// Get a handle for the other end.
