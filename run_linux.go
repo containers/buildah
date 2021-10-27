@@ -154,7 +154,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	setupTerminal(g, options.Terminal, options.TerminalSize)
 
-	configureNetwork, configureNetworks, err := b.configureNamespaces(g, options)
+	configureNetwork, configureNetworks, err := b.configureNamespaces(g, &options)
 	if err != nil {
 		return err
 	}
@@ -1733,7 +1733,7 @@ func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOpti
 	return configureNetwork, configureNetworks, configureUTS, nil
 }
 
-func (b *Builder) configureNamespaces(g *generate.Generator, options RunOptions) (bool, []string, error) {
+func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions) (bool, []string, error) {
 	defaultNamespaceOptions, err := DefaultNamespaceOptions()
 	if err != nil {
 		return false, nil, err
@@ -1744,8 +1744,17 @@ func (b *Builder) configureNamespaces(g *generate.Generator, options RunOptions)
 	namespaceOptions.AddOrReplace(options.NamespaceOptions...)
 
 	networkPolicy := options.ConfigureNetwork
+	//Nothing was specified explictily so network policy should be inherited from builder
 	if networkPolicy == NetworkDefault {
 		networkPolicy = b.ConfigureNetwork
+
+		// If builder policy was NetworkDisabled and
+		// we want to disable network for this run.
+		// reset options.ConfigureNetwork to NetworkDisabled
+		// since it will be treated as source of truth later.
+		if networkPolicy == NetworkDisabled {
+			options.ConfigureNetwork = networkPolicy
+		}
 	}
 
 	configureNetwork, configureNetworks, configureUTS, err := setupNamespaces(options.Logger, g, namespaceOptions, b.IDMappingOptions, networkPolicy)

@@ -1065,11 +1065,13 @@ func NamespaceOptions(c *cobra.Command) (namespaceOptions define.NamespaceOption
 			switch how {
 			case "", "container", "private":
 				logrus.Debugf("setting %q namespace to %q", what, "")
+				policy = define.NetworkEnabled
 				options.AddOrReplace(define.NamespaceOption{
 					Name: what,
 				})
 			case "host":
 				logrus.Debugf("setting %q namespace to host", what)
+				policy = define.NetworkEnabled
 				options.AddOrReplace(define.NamespaceOption{
 					Name: what,
 					Host: true,

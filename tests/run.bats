@@ -623,6 +623,20 @@ $output"
 	run_buildah rm -a
 }
 
+@test "run --network should override build --network" {
+	skip_if_no_runtime
+
+	run_buildah from --network=none --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	# should fail by default
+	run_buildah 1 run $cid wget google.com
+	expect_output --substring "bad"
+	# try pinging external website
+	run_buildah run --network=private $cid wget google.com
+	expect_output --substring "index.html"
+	run_buildah rm -a
+}
+
 @test "run --user" {
 	skip_if_no_runtime
 
