@@ -1212,35 +1212,60 @@ func GetTempDir() string {
 }
 
 // Secrets parses the --secret flag
-func Secrets(secrets []string) (map[string]string, error) {
-	parsed := make(map[string]string)
-	invalidSyntax := errors.Errorf("incorrect secret flag format: should be --secret id=foo,src=bar")
+func Secrets(secrets []string) (map[string]define.Secret, error) {
+	invalidSyntax := errors.Errorf("incorrect secret flag format: should be --secret id=foo,src=bar[,env=ENV,type=file|env]")
+	parsed := make(map[string]define.Secret)
 	for _, secret := range secrets {
-		split := strings.Split(secret, ",")
-		if len(split) > 2 {
-			return nil, invalidSyntax
-		}
-		if len(split) == 2 {
-			id := strings.Split(split[0], "=")
-			src := strings.Split(split[1], "=")
-			if len(split) == 2 && strings.ToLower(id[0]) == "id" && strings.ToLower(src[0]) == "src" {
-				fullPath, err := filepath.Abs(src[1])
-				if err != nil {
-					return nil, err
+		tokens := strings.Split(secret, ",")
+		var id, src, typ string
+		for _, val := range tokens {
+			kv := strings.SplitN(val, "=", 2)
+			switch kv[0] {
+			case "id":
+				id = kv[1]
+			case "src":
+				src = kv[1]
+			case "env":
+				src = kv[1]
+				typ = "env"
+			case "type":
+				if kv[1] != "file" && kv[1] != "env" {
+					return nil, errors.New("invalid secret type, must be file or env")
 				}
-				_, err = os.Stat(fullPath)
-				if err == nil {
-					parsed[id[1]] = fullPath
-				}
-				if err != nil {
-					return nil, errors.Wrap(err, "could not parse secrets")
-				}
-			} else {
-				return nil, invalidSyntax
+				typ = kv[1]
 			}
-		} else {
+		}
+		if id == "" {
 			return nil, invalidSyntax
 		}
+		if src == "" {
+			src = id
+		}
+		if typ == "" {
+			if _, ok := os.LookupEnv(id); ok {
+				typ = "env"
+			} else {
+				typ = "file"
+			}
+		}
+
+		if typ == "file" {
+			fullPath, err := filepath.Abs(src)
+			if err != nil {
+				return nil, errors.Wrap(err, "could not parse secrets")
+			}
+			_, err = os.Stat(fullPath)
+			if err != nil {
+				return nil, errors.Wrap(err, "could not parse secrets")
+			}
+			src = fullPath
+		}
+		newSecret := define.Secret{
+			Source:     src,
+			SourceType: typ,
+		}
+		parsed[id] = newSecret
+
 	}
 	return parsed, nil
 }

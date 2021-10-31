@@ -123,7 +123,7 @@ type Executor struct {
 	imageInfoCache                 map[string]imageTypeAndHistoryAndDiffIDs
 	fromOverride                   string
 	manifest                       string
-	secrets                        map[string]string
+	secrets                        map[string]define.Secret
 	sshsources                     map[string]*sshagent.Source
 	logPrefix                      string
 }

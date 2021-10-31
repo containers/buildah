@@ -415,7 +415,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 	return mounts, nil
 }
 
-func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions define.NamespaceOptions, secrets map[string]string, sshSources map[string]*sshagent.Source, runFileMounts []string, contextDir string) (*runMountArtifacts, error) {
+func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions define.NamespaceOptions, secrets map[string]define.Secret, sshSources map[string]*sshagent.Source, runFileMounts []string, contextDir string) (*runMountArtifacts, error) {
 	// Start building a new list of mounts.
 	var mounts []specs.Mount
 	haveMount := func(destination string) bool {
@@ -2375,8 +2375,9 @@ func init() {
 }
 
 // runSetupRunMounts sets up mounts that exist only in this RUN, not in subsequent runs
-func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]string, sshSources map[string]*sshagent.Source, containerWorkingDir string, contextDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, rootUID int, rootGID int, processUID int, processGID int) ([]spec.Mount, *runMountArtifacts, error) {
-	mountTargets := make([]string, 0, 10)
+func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]define.Secret, sshSources map[string]*sshagent.Source, containerWorkingDir string, contextDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping, rootUID int, rootGID int, processUID int, processGID int) ([]spec.Mount, *runMountArtifacts, error) {
+	mountTargets := make([]string, 0, len(mounts))
+	tmpFiles := make([]string, 0, len(mounts))
 	finalMounts := make([]specs.Mount, 0, len(mounts))
 	agents := make([]*sshagent.AgentServer, 0, len(mounts))
 	sshCount := 0
@@ -2395,14 +2396,16 @@ func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]string, 
 		// For now, we only support type secret.
 		switch kv[1] {
 		case "secret":
-			mount, err := getSecretMount(tokens, secrets, b.MountLabel, containerWorkingDir, uidmap, gidmap)
+			mount, envFile, err := getSecretMount(tokens, secrets, b.MountLabel, containerWorkingDir, uidmap, gidmap)
 			if err != nil {
 				return nil, nil, err
 			}
 			if mount != nil {
 				finalMounts = append(finalMounts, *mount)
 				mountTargets = append(mountTargets, mount.Destination)
-
+				if envFile != "" {
+					tmpFiles = append(tmpFiles, envFile)
+				}
 			}
 		case "ssh":
 			mount, agent, err := b.getSSHMount(tokens, sshCount, sshSources, b.MountLabel, uidmap, gidmap, b.ProcessLabel)
@@ -2446,6 +2449,7 @@ func (b *Builder) runSetupRunMounts(mounts []string, secrets map[string]string, 
 	}
 	artifacts := &runMountArtifacts{
 		RunMountTargets: mountTargets,
+		TmpFiles:        tmpFiles,
 		Agents:          agents,
 		SSHAuthSock:     defaultSSHSock,
 	}
@@ -2497,10 +2501,10 @@ func (b *Builder) getCacheMount(tokens []string, rootUID, rootGID, processUID, p
 	return &volumes[0], nil
 }
 
-func getSecretMount(tokens []string, secrets map[string]string, mountlabel string, containerWorkingDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping) (*spec.Mount, error) {
+func getSecretMount(tokens []string, secrets map[string]define.Secret, mountlabel string, containerWorkingDir string, uidmap []spec.LinuxIDMapping, gidmap []spec.LinuxIDMapping) (*spec.Mount, string, error) {
 	errInvalidSyntax := errors.New("secret should have syntax id=id[,target=path,required=bool,mode=uint,uid=uint,gid=uint")
 	if len(tokens) == 0 {
-		return nil, errInvalidSyntax
+		return nil, "", errInvalidSyntax
 	}
 	var err error
 	var id, target string
@@ -2517,76 +2521,94 @@ func getSecretMount(tokens []string, secrets map[string]string, mountlabel strin
 		case "required":
 			required, err = strconv.ParseBool(kv[1])
 			if err != nil {
-				return nil, errInvalidSyntax
+				return nil, "", errInvalidSyntax
 			}
 		case "mode":
 			mode64, err := strconv.ParseUint(kv[1], 8, 32)
 			if err != nil {
-				return nil, errInvalidSyntax
+				return nil, "", errInvalidSyntax
 			}
 			mode = uint32(mode64)
 		case "uid":
 			uid64, err := strconv.ParseUint(kv[1], 10, 32)
 			if err != nil {
-				return nil, errInvalidSyntax
+				return nil, "", errInvalidSyntax
 			}
 			uid = uint32(uid64)
 		case "gid":
 			gid64, err := strconv.ParseUint(kv[1], 10, 32)
 			if err != nil {
-				return nil, errInvalidSyntax
+				return nil, "", errInvalidSyntax
 			}
 			gid = uint32(gid64)
 		default:
-			return nil, errInvalidSyntax
+			return nil, "", errInvalidSyntax
 		}
 	}
 
 	if id == "" {
-		return nil, errInvalidSyntax
+		return nil, "", errInvalidSyntax
 	}
 	// Default location for secretis is /run/secrets/id
 	if target == "" {
 		target = "/run/secrets/" + id
 	}
 
-	src, ok := secrets[id]
+	secr, ok := secrets[id]
 	if !ok {
 		if required {
-			return nil, errors.Errorf("secret required but no secret with id %s found", id)
+			return nil, "", errors.Errorf("secret required but no secret with id %s found", id)
 		}
-		return nil, nil
+		return nil, "", nil
+	}
+	var data []byte
+	var envFile string
+	var ctrFileOnHost string
+
+	switch secr.SourceType {
+	case "env":
+		data = []byte(os.Getenv(secr.Source))
+		tmpFile, err := ioutil.TempFile("/dev/shm", "buildah*")
+		if err != nil {
+			return nil, "", err
+		}
+		envFile = tmpFile.Name()
+		ctrFileOnHost = tmpFile.Name()
+	case "file":
+		data, err = ioutil.ReadFile(secr.Source)
+		if err != nil {
+			return nil, "", err
+		}
+		ctrFileOnHost = filepath.Join(containerWorkingDir, "secrets", id)
+		_, err = os.Stat(ctrFileOnHost)
+		if !os.IsNotExist(err) {
+			return nil, "", err
+		}
+	default:
+		return nil, "", errors.New("invalid source secret type")
 	}
 
-	// Copy secrets to container working dir, since we need to chmod, chown and relabel it
-	// for the container user and we don't want to mess with the original file
-	ctrFileOnHost := filepath.Join(containerWorkingDir, "secrets", id)
-	_, err = os.Stat(ctrFileOnHost)
-	if os.IsNotExist(err) {
-		data, err := ioutil.ReadFile(src)
-		if err != nil {
-			return nil, err
-		}
-		if err := os.MkdirAll(filepath.Dir(ctrFileOnHost), 0644); err != nil {
-			return nil, err
-		}
-		if err := ioutil.WriteFile(ctrFileOnHost, data, 0644); err != nil {
-			return nil, err
-		}
+	// Copy secrets to container working dir (or tmp dir if it's an env), since we need to chmod,
+	// chown and relabel it for the container user and we don't want to mess with the original file
+	if err := os.MkdirAll(filepath.Dir(ctrFileOnHost), 0644); err != nil {
+		return nil, "", err
+	}
+	if err := ioutil.WriteFile(ctrFileOnHost, data, 0644); err != nil {
+		return nil, "", err
 	}
 
 	if err := label.Relabel(ctrFileOnHost, mountlabel, false); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	hostUID, hostGID, err := util.GetHostIDs(uidmap, gidmap, uid, gid)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err := os.Lchown(ctrFileOnHost, int(hostUID), int(hostGID)); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err := os.Chmod(ctrFileOnHost, os.FileMode(mode)); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	newMount := specs.Mount{
 		Destination: target,
@@ -2594,7 +2616,7 @@ func getSecretMount(tokens []string, secrets map[string]string, mountlabel strin
 		Source:      ctrFileOnHost,
 		Options:     []string{"bind", "rprivate", "ro"},
 	}
-	return &newMount, nil
+	return &newMount, envFile, nil
 }
 
 // getSSHMount parses the --mount type=ssh flag in the Containerfile, checks if there's an ssh source provided, and creates and starts an ssh-agent to be forwarded into the container
@@ -2730,5 +2752,15 @@ func cleanupRunMounts(mountpoint string, artifacts *runMountArtifacts) error {
 			return err
 		}
 	}
-	return nil
+	var prevErr error
+	for _, path := range artifacts.TmpFiles {
+		err := os.Remove(path)
+		if !os.IsNotExist(err) {
+			if prevErr != nil {
+				logrus.Error(prevErr)
+			}
+			prevErr = err
+		}
+	}
+	return prevErr
 }
