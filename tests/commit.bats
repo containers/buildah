@@ -39,6 +39,19 @@ load helpers
   expect_output --from="$mediatype" "application/vnd.docker.image.rootfs.diff.tar.gzip"
 }
 
+@test "commit --unsetenv PATH" {
+  _prefetch alpine
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah commit --unsetenv PATH --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-oci
+  run_buildah commit --unsetenv PATH --format docker --disable-compression=false --signature-policy ${TESTSDIR}/policy.json $cid alpine-image-docker
+
+  run_buildah inspect --type=image --format '{{.OCIv1.Config.Env}}' alpine-image-oci
+  expect_output "[]" "No Path should be defined"
+  run_buildah inspect --type=image --format '{{.Docker.Config.Env}}' alpine-image-docker
+  expect_output "[]" "No Path should be defined"
+}
+
 @test "commit quiet test" {
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine

@@ -87,6 +87,7 @@ type BudResults struct {
 	Jobs                int
 	LogRusage           bool
 	RusageLogFile       string
+	UnsetEnvs           []string
 }
 
 // FromAndBugResults represents the results for common flags
@@ -231,6 +232,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.Int64Var(&flags.Timestamp, "timestamp", 0, "set created timestamp to the specified epoch seconds to allow for deterministic builds, defaults to current time")
 	fs.BoolVar(&flags.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 	fs.String("variant", "", "override the `variant` of the specified image")
+	fs.StringSliceVar(&flags.UnsetEnvs, "unsetenv", nil, "Unset environment variable from final image")
 	return fs
 }
 
@@ -263,6 +265,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["target"] = commonComp.AutocompleteNone
 	flagCompletion["timestamp"] = commonComp.AutocompleteNone
 	flagCompletion["variant"] = commonComp.AutocompleteNone
+	flagCompletion["unsetenv"] = commonComp.AutocompleteNone
 	return flagCompletion
 }
 

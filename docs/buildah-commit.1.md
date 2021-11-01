@@ -101,6 +101,10 @@ When --timestamp is set, the created timestamp is always set to the time specifi
 
 Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
 
+**--unsetenv** *env*
+
+Unset environment variables from the final image.
+
 ## EXAMPLE
 
 This example saves an image based on the container.
