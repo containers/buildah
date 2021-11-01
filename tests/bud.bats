@@ -366,17 +366,44 @@ symlink(subdir)"
   # two more, starting at the "echo $user | base64" instruction
   run_buildah build --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test1 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah images -a
-  expect_line_count 8
+  expect_line_count 7
 
   # one more, because we added a new name to the same image
   run_buildah build --signature-policy ${TESTSDIR}/policy.json --build-arg=user=1 --layers -t test2 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah images -a
-  expect_line_count 9
+  expect_line_count 8
 
   # two more, starting at the "echo $user | base64" instruction
   run_buildah build --signature-policy ${TESTSDIR}/policy.json --layers -t test3 -f Dockerfile.build-args ${TESTSDIR}/bud/use-layers
   run_buildah images -a
-  expect_line_count 12
+  expect_line_count 11
+}
+
+
+@test "bud with --layers and --build-args: override ARG with ENV and image must be cached" {
+  _prefetch alpine
+  #when ARG is overriden by config
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --build-arg=FOO=1 --layers -t args-cache -f ${TESTSDIR}/bud/with-arg/Dockerfile
+  run_buildah inspect -f '{{.FromImageID}}' args-cache
+  idbefore="$output"
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --build-arg=FOO=12 --layers -t args-cache -f ${TESTSDIR}/bud/with-arg/Dockerfile
+  run_buildah inspect -f '{{.FromImageID}}' args-cache
+  expect_output --substring ${idbefore}
+  run_buildah rmi args-cache
+}
+
+@test "bud with --layers and --build-args: use raw ARG and cache should not be used" {
+  # when ARG is used as a raw value
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --build-arg=FOO=1 --layers -t args-cache -f ${TESTSDIR}/bud/with-arg/Dockerfile2
+  run_buildah inspect -f '{{.FromImageID}}' args-cache
+  idbefore="$output"
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --build-arg=FOO=12 --layers -t args-cache -f ${TESTSDIR}/bud/with-arg/Dockerfile2
+  run_buildah inspect -f '{{.FromImageID}}' args-cache
+  idafter="$output"
+  run_buildah rmi args-cache
+
+  assert "$idbefore" != "$idafter" \
+         ".Args changed so final image id should be different"
 }
 
 @test "bud with --rm flag" {

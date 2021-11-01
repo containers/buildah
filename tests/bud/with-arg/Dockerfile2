@@ -1,0 +1,4 @@
+FROM alpine
+ARG FOO
+ENV FOO=${FOO}
+RUN echo $FOO

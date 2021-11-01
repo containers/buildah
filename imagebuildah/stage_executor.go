@@ -1112,10 +1112,10 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 	}
 	switch strings.ToUpper(node.Value) {
 	case "ARG":
-		buildArgs := s.getBuildArgs()
+		buildArgs := s.getBuildArgsKey()
 		return "/bin/sh -c #(nop) ARG " + buildArgs
 	case "RUN":
-		buildArgs := s.getBuildArgs()
+		buildArgs := s.getBuildArgsResolvedForRun()
 		if buildArgs != "" {
 			return "|" + strconv.Itoa(len(strings.Split(buildArgs, " "))) + " " + buildArgs + " /bin/sh -c " + node.Original[4:]
 		}
@@ -1133,10 +1133,47 @@ func (s *StageExecutor) getCreatedBy(node *parser.Node, addedContentSummary stri
 
 // getBuildArgs returns a string of the build-args specified during the build process
 // it excludes any build-args that were not used in the build process
-func (s *StageExecutor) getBuildArgs() string {
-	buildArgs := s.stage.Builder.Arguments()
-	sort.Strings(buildArgs)
-	return strings.Join(buildArgs, " ")
+// values for args are overridden by the values specified using ENV.
+// Reason: Values from ENV will always override values specified arg.
+func (s *StageExecutor) getBuildArgsResolvedForRun() string {
+	var envs []string
+	configuredEnvs := make(map[string]string)
+	dockerConfig := s.stage.Builder.Config()
+
+	for _, env := range dockerConfig.Env {
+		splitv := strings.SplitN(env, "=", 2)
+		if len(splitv) == 2 {
+			configuredEnvs[splitv[0]] = splitv[1]
+		}
+	}
+
+	for key, value := range s.stage.Builder.Args {
+		if _, ok := s.stage.Builder.AllowedArgs[key]; ok {
+			// if value was in image it will be given higher priority
+			// so please embed that into build history
+			_, inImage := configuredEnvs[key]
+			if inImage {
+				envs = append(envs, fmt.Sprintf("%s=%s", key, configuredEnvs[key]))
+			} else {
+				envs = append(envs, fmt.Sprintf("%s=%s", key, value))
+			}
+		}
+	}
+	sort.Strings(envs)
+	return strings.Join(envs, " ")
+}
+
+// getBuildArgs key returns set args are key which were specified during the build process
+// following function will be exclusively used by build history
+func (s *StageExecutor) getBuildArgsKey() string {
+	var envs []string
+	for key := range s.stage.Builder.Args {
+		if _, ok := s.stage.Builder.AllowedArgs[key]; ok {
+			envs = append(envs, key)
+		}
+	}
+	sort.Strings(envs)
+	return strings.Join(envs, " ")
 }
 
 // tagExistingImage adds names to an image already in the store
