@@ -1,7 +1,8 @@
 PREFIX := /usr/local
 DATADIR := ${PREFIX}/share
 MANDIR := $(DATADIR)/man
-GOMD2MAN ?= $(shell command -v go-md2man || echo '$(GOBIN)/go-md2man')
+# Following go-md2man is guaranteed on host
+GOMD2MAN ?= ../tests/tools/build/go-md2man
 
 docs: $(patsubst %.md,%,$(wildcard *.md))
 
