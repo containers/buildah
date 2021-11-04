@@ -50,6 +50,11 @@ load helpers
   run_buildah run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
   expect_output "$mynetns"
 
+  # Check that we are not bind mounting /sys from the host with --net=container
+  host_sys=$(grep "/sys " /proc/self/mountinfo | cut -d ' ' -f 3)
+  run_buildah run $RUNOPTS --net=container "$ctr" sh -c 'grep "/sys " /proc/self/mountinfo | cut -d " " -f 3'
+  assert "$output" != "$host_sys"
+
   # Create a container that doesn't use that mapping.
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
   ctr="$output"
