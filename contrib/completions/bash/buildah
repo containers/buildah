@@ -301,6 +301,7 @@ return 1
        --stop-signal
        --user
        -u
+       --variant
        --volume
        -v
        --workingdir
@@ -435,7 +436,6 @@ return 1
      --os
      --pid
      --platform
-     --platforms
      --runtime
      --runtime-flag
      --security-opt
@@ -451,6 +451,7 @@ return 1
      --userns-uid-map-user
      --userns-gid-map-group
      --uts
+     --variant
      --volume
      -v
   "
@@ -1099,6 +1100,7 @@ esac
 
      local options_with_args="
      --add-host
+     --arch
      --authfile
      --cap-add
      --cap-drop
@@ -1123,7 +1125,9 @@ esac
      --name
      --net
      --network
+     --os
      --pid
+     --platform
      --security-opt
      --shm-size
      --ulimit
@@ -1133,6 +1137,7 @@ esac
      --userns-uid-map-user
      --userns-gid-map-group
      --uts
+     --variant
      --volume
   "
 

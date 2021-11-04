@@ -43,6 +43,7 @@ type configResults struct {
 	shell                  string
 	stopSignal             string
 	user                   string
+	variant                string
 	volume                 []string
 	workingDir             string
 }
@@ -91,6 +92,7 @@ func init() {
 	flags.StringVar(&opts.shell, "shell", "", "add `shell` to run in containers")
 	flags.StringVar(&opts.stopSignal, "stop-signal", "", "set `stop signal` for containers based on image")
 	flags.StringVarP(&opts.user, "user", "u", "", "set default `user` to run inside containers based on image")
+	flags.StringVar(&opts.variant, "variant", "", "set architecture `variant` of the target image")
 	flags.StringSliceVarP(&opts.volume, "volume", "v", []string{}, "add default `volume` path to be created for containers based on image (default [])")
 	flags.StringVar(&opts.workingDir, "workingdir", "", "set working `directory` for containers based on image")
 
@@ -168,6 +170,9 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 	}
 	if c.Flag("arch").Changed {
 		builder.SetArchitecture(iopts.arch)
+	}
+	if c.Flag("variant").Changed {
+		builder.SetVariant(iopts.variant)
 	}
 	if c.Flag("os").Changed {
 		builder.SetOS(iopts.os)

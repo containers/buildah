@@ -198,6 +198,7 @@ function check_matrix() {
    --created-by COINCIDENCE \
    --arch amd64 \
    --os linux \
+   --variant abc \
    --user likes:things \
    --port 12345 \
    --env VARIABLE=VALUE1,VALUE2 \
@@ -228,6 +229,7 @@ function check_matrix() {
   check_matrix 'Author'       'TESTAUTHOR'
   check_matrix 'Architecture' 'amd64'
   check_matrix 'OS'           'linux'
+  check_matrix 'Variant'      'abc'
 
   run_buildah inspect --format '{{.ImageCreatedBy}}' $cid
   expect_output "COINCIDENCE"

@@ -186,6 +186,13 @@ or UID, optionally followed by a group name or GID, separated by a colon (':').
 If names are used, the container should include entries for those names in its
 */etc/passwd* and */etc/group* files.
 
+**--variant** *variant*
+
+Set the target architecture *variant* for any images which will be built using
+the specified container.  By default, if the container was based on an image,
+that image's target architecture and variant information is kept, otherwise the
+host's architecture and variant are recorded.
+
 **--volume**, **-v** *volume*
 
 Add a location in the directory tree which should be marked as a *volume* in any images which will be built using the specified container. Can be used multiple times. If *volume* has a trailing `-`, and is already set, then the *volume* is removed from the config.
