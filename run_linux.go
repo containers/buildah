@@ -2164,6 +2164,13 @@ func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, shmSize string
 		return err
 	}
 
+	// If the container has a network namespace, we can create a fresh /sys mount
+	for _, ns := range spec.Linux.Namespaces {
+		if ns.Type == specs.NetworkNamespace {
+			return nil
+		}
+	}
+
 	// Replace /sys with a read-only bind mount.
 	mounts := []specs.Mount{
 		{
