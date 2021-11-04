@@ -265,7 +265,7 @@ or, because `buildah build` defaults to Dockerfile (note the period at the end o
 You will see all the steps of the Dockerfile executing. Afterwards `buildah images` will show you the new image. Now we need to create the container using `buildah from` and test it with `buildah run`:
 
     # httpcontainer=$(buildah from fedora-httpd)
-    # buildah run $httpcontainer
+    # buildah run $httpcontainer /usr/sbin/httpd -DFOREGROUND
 
 While that container is running, in another shell run:
 
