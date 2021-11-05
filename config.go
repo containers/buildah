@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/docker"
 	"github.com/containers/image/v5/manifest"
@@ -133,6 +134,10 @@ func (b *Builder) fixupConfig(sys *types.SystemContext) {
 		} else {
 			b.SetArchitecture(runtime.GOARCH)
 		}
+		// in case the arch string we started with was shorthand for a known arch+variant pair, normalize it
+		ps := platforms.Normalize(ociv1.Platform{OS: b.OS(), Architecture: b.Architecture(), Variant: b.Variant()})
+		b.SetArchitecture(ps.Architecture)
+		b.SetVariant(ps.Variant)
 	}
 	if b.Format == define.Dockerv2ImageManifest && b.Hostname() == "" {
 		b.SetHostname(stringid.TruncateID(stringid.GenerateRandomID()))
@@ -210,6 +215,21 @@ func (b *Builder) Architecture() string {
 func (b *Builder) SetArchitecture(arch string) {
 	b.OCIv1.Architecture = arch
 	b.Docker.Architecture = arch
+}
+
+// Variant returns a name of the architecture variant on which the container,
+// or a container built using an image built from this container, is intended
+// to be run.
+func (b *Builder) Variant() string {
+	return b.OCIv1.Variant
+}
+
+// SetVariant sets the name of the architecture variant on which the container,
+// or a container built using an image built from this container, is intended
+// to be run.
+func (b *Builder) SetVariant(variant string) {
+	b.Docker.Variant = variant
+	b.OCIv1.Variant = variant
 }
 
 // Maintainer returns contact information for the person who built the image.

@@ -113,3 +113,14 @@ load helpers
 	run_buildah inspect --format "{{.Docker}}" alpine
         expect_output --substring '\{'
 }
+
+@test "inspect-format-docker-variant" {
+	# github.com/containerd/containerd/platforms.Normalize() converts Arch:"armhf" to Arch:"arm"+Variant:"v7",
+	# so check that platform normalization happens at least for that one
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json --arch=armhf scratch
+	cid=$output
+	run_buildah inspect --format "{{.Docker.Architecture}}" $cid
+	[[ "$output" == "arm" ]]
+	run_buildah inspect --format "{{.Docker.Variant}}" $cid
+	[[ "$output" == "v7" ]]
+}
