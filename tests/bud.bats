@@ -738,6 +738,19 @@ function _test_http() {
   run_buildah from ${target}
 }
 
+@test "bud-git-context-failure" {
+  # We need git to be around to try cloning a repository, even though it'll fail
+  # and exit with return code 128.
+  if ! which git ; then
+    skip "no git in PATH"
+  fi
+  target=giturl-image
+  gitrepo=git:///tmp/no-such-repository
+  run_buildah 128 build --signature-policy ${TESTSDIR}/policy.json -t ${target} "${gitrepo}"
+  # Expect part of what git would have told us... before things went horribly wrong
+  expect_output --substring "Cloning into '"
+}
+
 @test "bud-github-context" {
   target=github-image
   # Any repo should do, but this one is small and is FROM: scratch.
