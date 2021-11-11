@@ -82,7 +82,7 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	_ = cmd.RegisterFlagCompletionFunc("encryption-key", completion.AutocompleteNone)
 
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
-	_ = cmd.RegisterFlagCompletionFunc("cirt-dir", completion.AutocompleteDefault)
+	_ = cmd.RegisterFlagCompletionFunc("cert-dir", completion.AutocompleteDefault)
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	_ = cmd.RegisterFlagCompletionFunc("creds", completion.AutocompleteNone)
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", true, "don't compress layers")
