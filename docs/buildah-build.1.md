@@ -586,6 +586,10 @@ include:
   "sigpending": maximum number of pending signals (ulimit -i)
   "stack": maximum stack size (ulimit -s)
 
+**--unsetenv** *env*
+
+Unset environment variables from the final image.
+
 **--userns** *how*
 
 Sets the configuration for user namespaces when handling `RUN` instructions.

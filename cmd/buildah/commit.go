@@ -11,6 +11,7 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/auth"
+	"github.com/containers/common/pkg/completion"
 	"github.com/containers/image/v5/pkg/shortnames"
 	storageTransport "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -40,6 +41,7 @@ type commitInputOptions struct {
 	tlsVerify          bool
 	encryptionKeys     []string
 	encryptLayers      []int
+	unsetenvs          []string
 }
 
 func init() {
@@ -59,30 +61,45 @@ func init() {
   buildah commit containerID docker://localhost:5000/imageId`,
 	}
 	commitCommand.SetUsageTemplate(UsageTemplate())
-	flags := commitCommand.Flags()
+	commitListFlagSet(commitCommand, &opts)
+	rootCmd.AddCommand(commitCommand)
+
+}
+
+func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
+	flags := cmd.Flags()
 	flags.SetInterspersed(false)
 
 	flags.StringVar(&opts.authfile, "authfile", auth.GetDefaultAuthFile(), "path of the authentication file. Use REGISTRY_AUTH_FILE environment variable to override")
+	_ = cmd.RegisterFlagCompletionFunc("authfile", completion.AutocompleteDefault)
 	flags.StringVar(&opts.blobCache, "blob-cache", "", "assume image blobs in the specified directory will be available for pushing")
-	flags.StringSliceVar(&opts.encryptionKeys, "encryption-key", nil, "key with the encryption protocol to use needed to encrypt the image (e.g. jwe:/path/to/key.pem)")
-	flags.IntSliceVar(&opts.encryptLayers, "encrypt-layer", nil, "layers to encrypt, 0-indexed layer indices with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer). If not defined, will encrypt all layers if encryption-key flag is specified")
-
 	if err := flags.MarkHidden("blob-cache"); err != nil {
 		panic(fmt.Sprintf("error marking blob-cache as hidden: %v", err))
 	}
+	flags.StringSliceVar(&opts.encryptionKeys, "encryption-key", nil, "key with the encryption protocol to use needed to encrypt the image (e.g. jwe:/path/to/key.pem)")
+	_ = cmd.RegisterFlagCompletionFunc("encryption-key", completion.AutocompleteDefault)
+	flags.IntSliceVar(&opts.encryptLayers, "encrypt-layer", nil, "layers to encrypt, 0-indexed layer indices with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer). If not defined, will encrypt all layers if encryption-key flag is specified")
+	_ = cmd.RegisterFlagCompletionFunc("encryption-key", completion.AutocompleteNone)
 
 	flags.StringVar(&opts.certDir, "cert-dir", "", "use certificates at the specified path to access the registry")
+	_ = cmd.RegisterFlagCompletionFunc("cirt-dir", completion.AutocompleteDefault)
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
+	_ = cmd.RegisterFlagCompletionFunc("creds", completion.AutocompleteNone)
 	flags.BoolVarP(&opts.disableCompression, "disable-compression", "D", true, "don't compress layers")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
+	_ = cmd.RegisterFlagCompletionFunc("format", completion.AutocompleteNone)
 	flags.StringVar(&opts.manifest, "manifest", "", "adds created image to the specified manifest list. Creates manifest list if it does not exist")
+	_ = cmd.RegisterFlagCompletionFunc("manifest", completion.AutocompleteNone)
 	flags.StringVar(&opts.iidfile, "iidfile", "", "write the image ID to the file")
+	_ = cmd.RegisterFlagCompletionFunc("iidfile", completion.AutocompleteDefault)
 	flags.BoolVar(&opts.omitTimestamp, "omit-timestamp", false, "set created timestamp to epoch 0 to allow for deterministic builds")
 	flags.Int64Var(&opts.timestamp, "timestamp", 0, "set created timestamp to epoch seconds to allow for deterministic builds, defaults to current time")
+	_ = cmd.RegisterFlagCompletionFunc("timestamp", completion.AutocompleteNone)
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when writing images")
 	flags.StringVar(&opts.referenceTime, "reference-time", "", "set the timestamp on the image to match the named `file`")
+	_ = cmd.RegisterFlagCompletionFunc("reference-time", completion.AutocompleteNone)
 	flags.StringVar(&opts.signBy, "sign-by", "", "sign the image using a GPG key with the specified `FINGERPRINT`")
-
+	_ = cmd.RegisterFlagCompletionFunc("sign-by", completion.AutocompleteNone)
 	if err := flags.MarkHidden("omit-timestamp"); err != nil {
 		panic(fmt.Sprintf("error marking omit-timestamp as hidden: %v", err))
 	}
@@ -92,6 +109,7 @@ func init() {
 
 	flags.BoolVar(&opts.rm, "rm", false, "remove the container and its content after committing it to an image. Default leaves the container and its content in place.")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
+	_ = cmd.RegisterFlagCompletionFunc("signature-policy", completion.AutocompleteDefault)
 
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
@@ -100,8 +118,8 @@ func init() {
 	flags.BoolVar(&opts.squash, "squash", false, "produce an image with only one layer")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "Require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 
-	rootCmd.AddCommand(commitCommand)
-
+	flags.StringSliceVar(&opts.unsetenvs, "unsetenv", nil, "unset env from final image")
+	_ = cmd.RegisterFlagCompletionFunc("unsetenv", completion.AutocompleteNone)
 }
 
 func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error {
@@ -190,6 +208,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		SignBy:                iopts.signBy,
 		OciEncryptConfig:      encConfig,
 		OciEncryptLayers:      encLayers,
+		UnsetEnvs:             iopts.unsetenvs,
 	}
 	exclusiveFlags := 0
 	if c.Flag("reference-time").Changed {

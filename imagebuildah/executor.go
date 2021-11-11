@@ -126,6 +126,7 @@ type Executor struct {
 	secrets                        map[string]define.Secret
 	sshsources                     map[string]*sshagent.Source
 	logPrefix                      string
+	unsetEnvs                      []string
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -270,6 +271,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		secrets:                        secrets,
 		sshsources:                     sshsources,
 		logPrefix:                      logPrefix,
+		unsetEnvs:                      options.UnsetEnvs,
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr

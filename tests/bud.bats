@@ -454,6 +454,17 @@ symlink(subdir)"
   expect_output "${target}-working-container"
 }
 
+@test "build --unsetenv PATH" {
+  _prefetch alpine
+  target=scratch-image
+  run_buildah build --unsetenv PATH --signature-policy ${TESTSDIR}/policy.json -t oci-${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah inspect --type=image --format '{{.OCIv1.Config.Env}}' oci-${target}
+  expect_output "[]" "No Path should be defined"
+  run_buildah build --unsetenv PATH --signature-policy ${TESTSDIR}/policy.json --format docker -t docker-${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah inspect --type=image --format '{{.OCIv1.Config.Env}}' docker-${target}
+  expect_output "[]" "No Path should be defined"
+}
+
 @test "bud-from-scratch-untagged" {
   run_buildah build --iidfile ${TESTDIR}/output.iid --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/from-scratch
   iid=$(cat ${TESTDIR}/output.iid)

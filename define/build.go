@@ -240,4 +240,6 @@ type BuildOptions struct {
 	// to match the set of platforms for which all of the build's base
 	// images are available.  If this field is set, Platforms is ignored.
 	AllPlatforms bool
+	// UnsetEnvs is a list of environments to not add to final image.
+	UnsetEnvs []string
 }
