@@ -35,7 +35,9 @@ EOF
     ubuntu)
         if [[ "$1" == "conformance" ]]; then
             msg "Installing previously downloaded/cached packages"
-            bigto dpkg -i $PACKAGE_DOWNLOAD_DIR/*.deb
+            ooe.sh dpkg -i \
+                $PACKAGE_DOWNLOAD_DIR/containerd.io*.deb \
+                $PACKAGE_DOWNLOAD_DIR/docker-ce*.deb
         fi
         ;;
     *)
