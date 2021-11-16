@@ -7,6 +7,10 @@ load helpers
   expect_output --substring "non-directory/Dockerfile: not a directory"
 }
 
+@test "bud stdio is usable pipes" {
+  run_buildah build ${TESTSDIR}/bud/stdio
+}
+
 @test "bud with --dns* flags" {
   _prefetch alpine
   run_buildah build --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc  --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dns/Dockerfile  ${TESTSDIR}/bud/dns
