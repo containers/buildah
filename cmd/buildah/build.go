@@ -108,6 +108,13 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 			output = tags[0]
 			tags = tags[1:]
 		}
+		if c.Flag("manifest").Changed {
+			for _, tag := range tags {
+				if tag == iopts.Manifest {
+					return errors.New("the same name must not be specified for both '--tag' and '--manifest'")
+				}
+			}
+		}
 	}
 	if err := auth.CheckAuthFile(iopts.BudResults.Authfile); err != nil {
 		return err

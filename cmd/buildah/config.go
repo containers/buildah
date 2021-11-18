@@ -306,7 +306,6 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 		builder.SetHostname(name)
 	}
 	if c.Flag("onbuild").Changed {
-		fmt.Println("--------------->")
 		for _, onbuild := range iopts.onbuild {
 			builder.SetOnBuild(onbuild)
 			conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) ONBUILD %s", onbuild)

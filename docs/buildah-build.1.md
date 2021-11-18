@@ -356,11 +356,13 @@ environment variable. `export BUILDAH_LAYERS=true`
 Log output which would be sent to standard output and standard error to the
 specified file instead of to standard output and standard error.
 
-**--manifest** "listName"
+**--manifest** *listName*
 
 Name of the manifest list to which the built image will be added.  Creates the
 manifest list if it does not exist.  This option is useful for building multi
 architecture images.
+If _listName_ does not include a registry name component, the registry name
+*localhost* will be prepended to the list name.
 
 **--memory**, **-m**=""
 

@@ -3,17 +3,17 @@
 # Buildah Tutorial 3
 ## Using ONBUILD in Buildah
 
-The purpose of this tutorial is to demonstrate how Buildah can use a Dockerfile with the ONBUILD instruction within it or how the ONBUILD instruction can be used with the `buildah config` command.  The ONBUILD instruction stores a command in the meta data of a container image which is then invoked when a secondary container image is created.  The image can have multiple ONBUILD instructions.  Note: The ONBUILD instructions do not change the content of the image that contain the instructions, only the container images that are created from this image are changed based on the FROM command.
+The purpose of this tutorial is to demonstrate how Buildah can use a Dockerfile with the ONBUILD instruction within it or how the ONBUILD instruction can be used with the `buildah config` command.  The ONBUILD instruction stores a command in the meta data of a container image which is then invoked when the image is used as a base image.  The image can have multiple ONBUILD instructions.  Note: The ONBUILD instructions do not change the content of the image that contain the instructions, only the container images that are created from this image are changed based on the FROM command.
 
-Container images that are compliant with the [Open Container Initiative][] (OCI) [image specification][] do not support the ONBUILD instruction.  Images that are created by Buildah are OCI compliant by default.  Therefore only containers that are created by Buildah that use the Docker format can use the ONBUILD instruction.  The OCI format can be overridden in Buildah by specifying the Docker format with the `--format=docker` option or by setting the BUILDAH_FORMAT environment variable to 'docker'.  Regardless of the format selected, Buildah is capable of working seamlessly with either OCI or Docker compliant images and containers.
+Container images that are compliant with the [Open Container Initiative][] (OCI) [image specification][] do not support the ONBUILD instruction.  Images that are created by Buildah are in the OCI format by default.  Only container images that are created by Buildah in the Docker format can use the ONBUILD instruction.  The OCI format can be overridden in Buildah by specifying the Docker format with the `--format=docker` option or by setting the BUILDAH_FORMAT environment variable to 'docker'.  Regardless of the format selected, Buildah is capable of working seamlessly with either OCI or Docker compliant images and containers.
 
-On to the tutorial.  The first step is to install Buildah.  In short, the `buildah run` command emulates the RUN command that is found in a Dockerfile while the `podman run` command emulates the `docker run` command.  For the purpose of this tutorial Buildah's run command will be used.  As an aside, Podman is aimed at managing containers, images, and pods while Buildah focuses on the building of containers.  For more info on Podman, please go to [GitHub][].
+On to the tutorial.  The first step is to install Buildah.  In short, the `buildah run` command emulates the RUN command that is found in a Dockerfile while the `podman run` command emulates the `docker run` command.  For the purpose of this tutorial Buildah's run command will be used.  As an aside, Podman is aimed at managing containers, images, and pods while Buildah focuses on the building of container images.  For more info on Podman, please go to [Podman's site][].
 
 ## Setup
 
 The following assumes installation on Fedora.
 
-Run as root because you will need to be root for running Buildah commands (at the time of this writing work is underway to allow non-root access):
+Run as root because you will need to be root for installing the Buildah package:
 
     $ sudo -s
 
@@ -33,11 +33,11 @@ We can also see that there are also no containers by running:
 
 The two examples that will be shown are relatively simple, but they illustrate how a command or a number of commands can be setup in a master image such that they will be added to a secondary container image that is created from it.  This is extremely useful if you need to setup an environment where your containers have 75% of the same content, but need a few individual tweaks.  This can be helpful in setting up a environment for maven or java development containers for instance.  In this way you can create a single Dockerfile with all the common setup steps as ONBUILD commands and then really minimize the buildah commands or instructions in a second Dockerfile that would be necessary to complete the creation of the container image.
 
-NOTE: In the examples below the option `--format=docker` is used in several places.  If you wanted to omit that, you could define the `BUILDAH_FORMAT` and set it to 'docker'.  On Fedora that command would be `export BUILDAH_FORMAT docker`.
+NOTE: In the examples below the option `--format=docker` is used in several places.  If you wanted to omit that, you could define the `BUILDAH_FORMAT` environment variable and set it to 'docker'.  On Fedora that command would be `export BUILDAH_FORMAT=docker`.
+
 ## ONBUILD in a Dockerfile - Example 1
 
-
-The first example was provided by Chris Collins (GitHub @clcollins), the idea is a file `/bar` will be created in the secondary container image only, and not in the primary image.
+The first example was provided by Chris Collins (GitHub @clcollins), the idea is a file `/bar` will be created in the derived container images only, and not in our original image.
 
 First create two Dockerfiles:
 
@@ -54,7 +54,7 @@ RUN touch /baz
 EOF
 ```
 
-Now to create the first container and verify that ONBUILD has been set:
+Now to create the first container image and verify that ONBUILD has been set:
 
 ```
 # buildah build --format=docker -f Dockerfile -t onbuild-image .
@@ -62,14 +62,14 @@ Now to create the first container and verify that ONBUILD has been set:
 [RUN touch /bar]
 ```
 
-The second container is now created and the `/bar` file will be created within it:
+The second container image is now created and the `/bar` file will be created within it:
 
 ```
 # buildah build --format=docker -f Dockerfile-2 -t result-image .
 STEP 1: FROM onbuild-image
-STEP 2: RUN touch /bar    # Note /bar created here based on the ONBUILD in Dockerfile
+STEP 2: RUN touch /bar    # Note /bar is created here based on the ONBUILD in the base image
 STEP 3: RUN touch /baz
-STEP 4: COMMIT containers-storage:[overlay@/var/lib/containers/storage+/run/containers/storage:overlay.override_kernel_check=true]localhost/result-image:latest
+COMMIT result-image
 {output edited for brevity}
 $ container=$(sudo buildah from result-image:latest)
 # buildah run $container ls /bar /foo /baz
@@ -80,7 +80,7 @@ $ container=$(sudo buildah from result-image:latest)
 
 Instead of using a Dockerfile to create the onbuild-image, Buildah allows you to build an image and configure it directly with the same commands that can be found in a Dockerfile.  This allows for easy on the fly manipulation of your image.  Let's look at the previous example without the use of a Dockerfile when building the primary container image.
 
-First a Fedora container will be created with `buildah from`, then the `/foo` file will be added with `buildah run`.  The `buildah config` command will configure  ONBUILD to add `/bar` when a container image is created from the primary image, and finally the image will be saved with `buildah commit`.
+First a Fedora container will be created with `buildah from`, then the `/foo` file will be added with `buildah run`.  The `buildah config` command will configure ONBUILD to add `/bar` when a container image is created from the primary image, and finally the image will be saved with `buildah commit`.
 
 ```
 # buildah from --format=docker --name onbuild-container fedora:latest
@@ -96,11 +96,11 @@ The onbuild-image has been created, so now create a container from it using the 
 ```
 # buildah build --format=docker -f Dockerfile-2 -t result-image .
 STEP 1: FROM onbuild-image
-STEP 2: RUN touch /bar    # Note /bar created here based on the ONBUILD in Dockerfile
+STEP 2: RUN touch /bar    #  Note /bar is created here based on the ONBUILD in the base image
 STEP 3: RUN touch /baz
-STEP 4: COMMIT containers-storage:[overlay@/var/lib/containers/storage+/run/containers/storage:overlay.override_kernel_check=true]localhost/result-image:latest
+COMMIT result-image
 {output edited for brevity}
-$ container=$(sudo buildah from result-image:latest)
+$ container=$(buildah from result-image)
 # buildah run $container ls /bar /foo /baz
 /bar  /baz  /foo
 ```
@@ -116,7 +116,7 @@ result-container
 
 ## ONBUILD via `buildah config` - Example 2
 
-For this example the ONBUILD instructions in the primary container image will be used to copy a shell script and then run it in the secondary container image.  For the script, we'll make use of the shell script from the [Introduction Tutorial][].  First create a file in the local directory called `runecho.sh` containing the following:
+For this example the ONBUILD instructions in the primary container image will be used to copy a shell script and then run it in the secondary container image.  For the script, we'll make use of the shell script from the [Introduction Tutorial](01-intro.md).  First create a file in the local directory called `runecho.sh` containing the following:
 
 ```
 #!/usr/bin/env bash
@@ -142,10 +142,10 @@ onbuild-container-2
 # buildah commit --format=docker onbuild-container-2 onbuild-image-2
 {output edited for brevity}
 # buildah inspect --format '{{.Docker.Config.OnBuild}}' onbuild-image-2
-[COPY ./runecho.sh /usr/bin/runecho.sh RUN /usr/bin/runecho.sh &> /tmp/runecho.txt]
+[COPY ./runecho.sh /usr/bin/runecho.sh RUN /usr/bin/runecho.sh]
 ```
 
-Now the result container can be created from the primary container image onbuild-image-2.  The runecho.sh script will be copied to the containers /usr/bin directory and then run from there when the secondary container image is created.
+Now the secondary container can be created from the second primary container image onbuild-image-2.  The runecho.sh script will be copied to the container's /usr/bin directory and then run from there when the secondary container is created.
 
 ```
 # buildah from --format=docker --name result-container-2 onbuild-image-2
@@ -162,7 +162,7 @@ This is a new container pull ipbabble [ 8 ]
 This is a new container pull ipbabble [ 9 ]
 result-container-2
 ```
-As result-container has the script stored in /usr/bin still and it can be run at anytime.
+As result-container-2 has a copy of the script stored in its /usr/bin it can be run at anytime.
 
 ```
 # buildah run result-container-2 /usr/bin/runecho.sh
@@ -187,7 +187,7 @@ If you have any suggestions or issues please post them at the [Buildah Issues pa
 
 For more information on Buildah and how you might contribute please visit the [Buildah home page on GitHub](https://github.com/containers/buildah).
 
-[GitHub]: https://github.com/containers/podman/
+[Podman's site]: https://podman.io/
 [image specification]: https://github.com/opencontainers/runtime-spec
 [Introduction Tutorial]: 01-intro.md
 [Open Container Initiative]: https://www.opencontainers.org/

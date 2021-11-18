@@ -70,7 +70,9 @@ type CommonBuildOptions struct {
 	Ulimit []string
 	// Volumes to bind mount into the container
 	Volumes []string
-	// Secrets are the available secrets to use in a build
+	// Secrets are the available secrets to use in a build.  Each item in the
+	// slice takes the form "id=foo,src=bar", where both "id" and "src" are
+	// required, in that order, and "bar" is the name of a file.
 	Secrets []string
 	// SSHSources is the available ssh agent connections to forward in the build
 	SSHSources []string
