@@ -3143,6 +3143,20 @@ _EOF
   expect_output --from="${lines[2]}" "5678 1234"
 }
 
+@test "bud check mount /sys/fs/cgroup" {
+  skip_if_rootless_and_cgroupv1
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run ls /sys/fs/cgroup
+_EOF
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir}/Containerfile .
+  expect_output --substring "cpu"
+  expect_output --substring "memory"
+}
+
 @test "bud with --cpu-shares" {
   skip_if_chroot
   skip_if_rootless

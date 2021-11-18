@@ -59,8 +59,7 @@ load helpers
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
   ctr="$output"
 
-  # Check that with settings that don't require a user namespace, we don't get a new network namespace by default.
-  run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
+  run_buildah run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
   expect_output "$mynetns"
 
   # Check that with settings that don't require a user namespace, we can request to use a per-container network namespace.
@@ -71,6 +70,10 @@ load helpers
   run_buildah run $RUNOPTS --net=private "$ctr" readlink /proc/self/ns/net
   assert "$output" != "$mynetns" \
          "[/proc/self/ns/net (--net=private) should not be '$mynetns']"
+
+  run_buildah run $RUNOPTS "$ctr" readlink /proc/self/ns/net
+  assert "$output" != "$mynetns" \
+         "[/proc/self/ns/net (--net="") should not be '$mynetns']"
 }
 
 # Helper for idmapping test: check UID or GID mapping

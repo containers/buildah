@@ -1005,13 +1005,6 @@ func IDMappingOptions(c *cobra.Command, isolation define.Isolation) (usernsOptio
 	}
 	usernsOptions = define.NamespaceOptions{usernsOption}
 
-	usernetwork := c.Flags().Lookup("network")
-	if usernetwork != nil && !usernetwork.Changed {
-		usernsOptions = append(usernsOptions, define.NamespaceOption{
-			Name: string(specs.NetworkNamespace),
-			Host: usernsOption.Host,
-		})
-	}
 	// If the user requested that we use the host namespace, but also that
 	// we use mappings, that's not going to work.
 	if (len(uidmap) != 0 || len(gidmap) != 0) && usernsOption.Host {
