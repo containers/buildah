@@ -752,31 +752,15 @@ func (b *Builder) makeImageRef(options CommitOptions) (types.ImageReference, err
 	if manifestType == "" {
 		manifestType = define.OCIv1ImageManifest
 	}
-	oci1 := b.OCIv1
-	docker := b.Docker
+
 	for _, u := range options.UnsetEnvs {
-		var env []string
-		for _, e := range oci1.Config.Env {
-			if strings.HasPrefix(e, u+"=") {
-				continue
-			}
-			env = append(env, e)
-		}
-		oci1.Config.Env = env
-		env = []string{}
-		for _, e := range docker.Config.Env {
-			if strings.HasPrefix(e, u+"=") {
-				continue
-			}
-			env = append(env, e)
-		}
-		docker.Config.Env = env
+		b.UnsetEnv(u)
 	}
-	oconfig, err := json.Marshal(&oci1)
+	oconfig, err := json.Marshal(&b.OCIv1)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error encoding OCI-format image configuration %#v", b.OCIv1)
 	}
-	dconfig, err := json.Marshal(&docker)
+	dconfig, err := json.Marshal(&b.Docker)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error encoding docker-format image configuration %#v", b.Docker)
 	}
