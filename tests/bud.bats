@@ -3100,14 +3100,13 @@ run cat /proc/self/cgroup
 _EOF
 
   # with cgroup-parent
-  run_buildah build --cgroup-parent test-cgroup -t with-flag \
+  run_buildah build --cgroupns=host --cgroup-parent test-cgroup -t with-flag \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
   if is_cgroupsv2; then
     expect_output --from="${lines[2]}" "0::/test-cgroup"
   else
     expect_output --substring "/test-cgroup"
   fi
-
   # without cgroup-parent
   run_buildah build -t without-flag \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
@@ -3118,7 +3117,7 @@ _EOF
 
 @test "bud with --cpu-period and --cpu-quota" {
   skip_if_chroot
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine

@@ -64,6 +64,13 @@ Allows setting context directory for current RUN invocation. Specifying a contex
 directory causes RUN context to consider context directory as root directory for
 specified source in `--mount` of type 'bind'.
 
+**--cgroupns** *how*
+
+Sets the configuration for the cgroup namespaces for the container.
+The configured value can be "" (the empty string) or "private" to indicate
+that a new cgroup namespace should be created, or it can be "host" to indicate
+that the cgroup namespace in which `buildah` itself is being run should be reused.
+
 **--env**, **-e** *env=value*
 
 Temporarily add a value (e.g. env=*value*) to the environment for the running

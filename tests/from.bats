@@ -583,7 +583,7 @@ load helpers
 
   _prefetch alpine
   # with cgroup-parent
-  run_buildah from -q --cgroup-parent test-cgroup --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from -q --cgroupns=host --cgroup-parent test-cgroup --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run $cid /bin/sh -c 'cat /proc/$$/cgroup'
   expect_output --substring "test-cgroup"

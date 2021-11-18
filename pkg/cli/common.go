@@ -38,6 +38,7 @@ type UserNSResults struct {
 
 // NameSpaceResults represents the results for Namespace flags
 type NameSpaceResults struct {
+	Cgroup        string
 	IPC           string
 	Network       string
 	CNIConfigDir  string
@@ -143,6 +144,7 @@ func GetUserNSFlagsCompletions() commonComp.FlagCompletions {
 // GetNameSpaceFlags returns the common flags for a namespace menu
 func GetNameSpaceFlags(flags *NameSpaceResults) pflag.FlagSet {
 	fs := pflag.FlagSet{}
+	fs.StringVar(&flags.Cgroup, "cgroupns", "", "'private', or 'host'")
 	fs.StringVar(&flags.IPC, string(specs.IPCNamespace), "", "'private', `path` of IPC namespace to join, or 'host'")
 	fs.StringVar(&flags.Network, string(specs.NetworkNamespace), "", "'private', 'none', 'ns:path' of network namespace to join, or 'host'")
 	fs.StringVar(&flags.CNIConfigDir, "cni-config-dir", define.DefaultCNIConfigDir, "`directory` of CNI configuration files")
@@ -155,6 +157,7 @@ func GetNameSpaceFlags(flags *NameSpaceResults) pflag.FlagSet {
 // GetNameSpaceFlagsCompletions returns the FlagCompletions for the namespace flags
 func GetNameSpaceFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion := commonComp.FlagCompletions{}
+	flagCompletion["cgroupns"] = completion.AutocompleteNamespaceFlag
 	flagCompletion[string(specs.IPCNamespace)] = completion.AutocompleteNamespaceFlag
 	flagCompletion[string(specs.NetworkNamespace)] = completion.AutocompleteNamespaceFlag
 	flagCompletion["cni-config-dir"] = commonComp.AutocompleteDefault

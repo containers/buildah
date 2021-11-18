@@ -408,22 +408,24 @@ _EOF
       for pid in host container private; do
         for userns in host container private; do
           for uts in host container private; do
+	    for cgroupns in host container private; do
 
-            if test $userns == private -o $userns == container -a $pid == host ; then
-              # We can't mount a fresh /proc, and OCI runtime won't let us bind mount the host's.
-              continue
-            fi
+              if test $userns == private -o $userns == container -a $pid == host ; then
+                # We can't mount a fresh /proc, and OCI runtime won't let us bind mount the host's.
+                continue
+              fi
 
-            echo "buildah from --signature-policy ${TESTSDIR}/policy.json --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts alpine"
-            run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts alpine
-            [ "$output" != "" ]
-            ctr="$output"
-            run_buildah run $ctr pwd
-            [ "$output" != "" ]
-            run_buildah run --tty=true  $ctr pwd
-            [ "$output" != "" ]
-            run_buildah run --terminal=false $ctr pwd
-            [ "$output" != "" ]
+              echo "buildah from --signature-policy ${TESTSDIR}/policy.json --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine"
+              run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine
+              [ "$output" != "" ]
+              ctr="$output"
+              run_buildah run $ctr pwd
+              [ "$output" != "" ]
+              run_buildah run --tty=true  $ctr pwd
+              [ "$output" != "" ]
+              run_buildah run --terminal=false $ctr pwd
+              [ "$output" != "" ]
+	    done
           done
         done
       done

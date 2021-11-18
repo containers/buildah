@@ -91,6 +91,14 @@ The default certificates directory is _/etc/containers/certs.d_.
 
 Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
+**--cgroupns** *how*
+
+Sets the configuration for IPC namespaces when the container is subsequently
+used for `buildah run`.
+The configured value can be "" (the empty string) or "private" to indicate
+that a new cgroup namespace should be created, or it can be "host" to indicate
+that the cgroup namespace in which `buildah` itself is being run should be reused.
+
 **--cidfile** *ContainerIDFile*
 
 Write the container ID to the file.
