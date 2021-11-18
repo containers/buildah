@@ -38,6 +38,9 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 	if err != nil {
 		t.Fatalf("generate.New(%q): %v", "linux", err)
 	}
+	if err = setupSeccomp(g.Config, ""); err != nil {
+		t.Fatalf("setupSeccomp(%q): %v", "", err)
+	}
 
 	tempDir, err := ioutil.TempDir("", "chroot-test")
 	if err != nil {
