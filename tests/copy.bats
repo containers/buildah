@@ -446,7 +446,7 @@ stuff/mystuff"
 
 @test "copy-preserving-extended-attributes" {
   createrandom ${TESTDIR}/randomfile
-  image="registry.fedoraproject.org/fedora-minimal"
+  image="quay.io/libpod/fedora-minimal:34"
   _prefetch $image
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image
   first="$output"
