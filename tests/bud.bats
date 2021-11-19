@@ -460,13 +460,27 @@ symlink(subdir)"
 
 @test "build --unsetenv PATH" {
   _prefetch alpine
-  target=scratch-image
-  run_buildah build --unsetenv PATH --signature-policy ${TESTSDIR}/policy.json -t oci-${target} ${TESTSDIR}/bud/from-scratch
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+ENV date="today"
+ENV foo="bar"
+ENV container="buildah"
+_EOF
+  target=unsetenv-image
+  run_buildah build --unsetenv PATH --signature-policy ${TESTSDIR}/policy.json -t oci-${target} -f $mytmpdir/Containerfile .
   run_buildah inspect --type=image --format '{{.OCIv1.Config.Env}}' oci-${target}
-  expect_output "[]" "No Path should be defined"
-  run_buildah build --unsetenv PATH --signature-policy ${TESTSDIR}/policy.json --format docker -t docker-${target} ${TESTSDIR}/bud/from-scratch
+  expect_output "[date=today foo=bar container=buildah]" "No Path should be defined"
+  run_buildah inspect --type=image --format '{{.Docker.Config.Env}}' oci-${target}
+  expect_output "[date=today foo=bar container=buildah]" "No Path should be defined"
+  cat > $mytmpdir/Containerfile << _EOF
+FROM oci-${target}
+ENV date="tomorrow"
+_EOF
+  run_buildah build --format docker --unsetenv PATH --unsetenv foo --signature-policy ${TESTSDIR}/policy.json -t docker-${target} -f $mytmpdir/Containerfile .
   run_buildah inspect --type=image --format '{{.OCIv1.Config.Env}}' docker-${target}
-  expect_output "[]" "No Path should be defined"
+  expect_output "[container=buildah date=tomorrow]" "No Path should be defined"
+  run_buildah inspect --type=image --format '{{.Docker.Config.Env}}' docker-${target}
+  expect_output "[container=buildah date=tomorrow]" "No Path should be defined"
 }
 
 @test "bud-from-scratch-untagged" {
