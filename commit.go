@@ -248,12 +248,27 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	}
 	nameToRemove := ""
 	if dest == nil {
-		nameToRemove = stringid.GenerateRandomID() + "-tmp"
-		dest2, err := is.Transport.ParseStoreReference(b.store, nameToRemove)
-		if err != nil {
-			return imgID, nil, "", errors.Wrapf(err, "error creating temporary destination reference for image")
+		attempts := 0
+		for {
+			generatedName := stringid.GenerateRandomID() + "-tmp"
+			dest2, err := is.Transport.ParseStoreReference(b.store, generatedName)
+			if err != nil {
+				return imgID, nil, "", errors.Wrapf(err, "error creating temporary destination reference for image")
+			}
+			_, err = is.Transport.GetStoreImage(b.store, dest2)
+			if err != nil {
+				if errors.Cause(err) == storage.ErrImageUnknown {
+					nameToRemove = generatedName
+					dest = dest2
+					break
+				}
+				return imgID, nil, "", errors.Wrapf(err, "unexpected error checking for existence of image %q in local storage", transports.ImageName(dest2))
+			}
+			attempts++
+			if attempts >= 100 {
+				return imgID, nil, "", errors.Errorf("too many attempts generating random image name, last failure: %v", err)
+			}
 		}
-		dest = dest2
 	}
 
 	systemContext := getSystemContext(b.store, options.SystemContext, options.SignaturePolicyPath)
