@@ -719,23 +719,7 @@ func (b *Builder) generateHosts(rdir, hostname string, addHosts []string, chownO
 	hosts.Write([]byte(fmt.Sprintf("127.0.0.1   %s %s\n", b.Container, hostname)))
 	hosts.Write([]byte(fmt.Sprintf("::1         %s %s\n", b.Container, hostname)))
 
-	// getLocalIP returns the non loopback local IP of the host
-	getLocalIP := func() string {
-		addrs, err := net.InterfaceAddrs()
-		if err != nil {
-			return ""
-		}
-		for _, address := range addrs {
-			// check the address type and if it is not a loopback the display it
-			if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-				if ipnet.IP.To4() != nil {
-					return ipnet.IP.String()
-				}
-			}
-		}
-		return ""
-	}
-	if ip := getLocalIP(); ip != "" {
+	if ip := util.LocalIP(); ip != "" {
 		hosts.Write([]byte(fmt.Sprintf("%s         %s\n", ip, "host.containers.internal")))
 	}
 
