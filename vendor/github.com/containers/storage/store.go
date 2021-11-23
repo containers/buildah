@@ -575,10 +575,11 @@ type ContainerOptions struct {
 	// container's layer will inherit settings from the image's top layer
 	// or, if it is not being created based on an image, the Store object.
 	types.IDMappingOptions
-	LabelOpts []string
-	Flags     map[string]interface{}
-	MountOpts []string
-	Volatile  bool
+	LabelOpts  []string
+	Flags      map[string]interface{}
+	MountOpts  []string
+	Volatile   bool
+	StorageOpt map[string]string
 }
 
 type store struct {
@@ -1384,7 +1385,7 @@ func (s *store) CreateContainer(id string, names []string, image, layer, metadat
 		options.Flags["MountLabel"] = mountLabel
 	}
 
-	clayer, err := rlstore.Create(layer, imageTopLayer, nil, options.Flags["MountLabel"].(string), nil, layerOptions, true)
+	clayer, err := rlstore.Create(layer, imageTopLayer, nil, options.Flags["MountLabel"].(string), options.StorageOpt, layerOptions, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2370,22 +2371,16 @@ func (s *store) DeleteImage(id string, commit bool) (layers []string, err error)
 		if err != nil {
 			return nil, err
 		}
-		childrenByParent := make(map[string]*[]string)
+		childrenByParent := make(map[string][]string)
 		for _, layer := range layers {
-			parent := layer.Parent
-			if list, ok := childrenByParent[parent]; ok {
-				newList := append(*list, layer.ID)
-				childrenByParent[parent] = &newList
-			} else {
-				childrenByParent[parent] = &([]string{layer.ID})
-			}
+			childrenByParent[layer.Parent] = append(childrenByParent[layer.Parent], layer.ID)
 		}
-		otherImagesByTopLayer := make(map[string]string)
+		otherImagesTopLayers := make(map[string]struct{})
 		for _, img := range images {
 			if img.ID != id {
-				otherImagesByTopLayer[img.TopLayer] = img.ID
+				otherImagesTopLayers[img.TopLayer] = struct{}{}
 				for _, layerID := range img.MappedTopLayers {
-					otherImagesByTopLayer[layerID] = img.ID
+					otherImagesTopLayers[layerID] = struct{}{}
 				}
 			}
 		}
@@ -2395,43 +2390,46 @@ func (s *store) DeleteImage(id string, commit bool) (layers []string, err error)
 			}
 		}
 		layer := image.TopLayer
-		lastRemoved := ""
+		layersToRemoveMap := make(map[string]struct{})
 		for layer != "" {
 			if rcstore.Exists(layer) {
 				break
 			}
-			if _, ok := otherImagesByTopLayer[layer]; ok {
+			if _, used := otherImagesTopLayers[layer]; used {
 				break
 			}
 			parent := ""
 			if l, err := rlstore.Get(layer); err == nil {
 				parent = l.Parent
 			}
-			hasOtherRefs := func() bool {
+			hasChildrenNotBeingRemoved := func() bool {
 				layersToCheck := []string{layer}
 				if layer == image.TopLayer {
 					layersToCheck = append(layersToCheck, image.MappedTopLayers...)
 				}
 				for _, layer := range layersToCheck {
-					if childList, ok := childrenByParent[layer]; ok && childList != nil {
-						children := *childList
-						for _, child := range children {
-							if child != lastRemoved {
-								return true
+					if childList := childrenByParent[layer]; len(childList) > 0 {
+						for _, child := range childList {
+							if _, childIsSlatedForRemoval := layersToRemoveMap[child]; childIsSlatedForRemoval {
+								continue
 							}
+							return true
 						}
 					}
 				}
 				return false
 			}
-			if hasOtherRefs() {
+			if hasChildrenNotBeingRemoved() {
 				break
 			}
-			lastRemoved = layer
 			if layer == image.TopLayer {
 				layersToRemove = append(layersToRemove, image.MappedTopLayers...)
+				for _, mappedTopLayer := range image.MappedTopLayers {
+					layersToRemoveMap[mappedTopLayer] = struct{}{}
+				}
 			}
-			layersToRemove = append(layersToRemove, lastRemoved)
+			layersToRemove = append(layersToRemove, layer)
+			layersToRemoveMap[layer] = struct{}{}
 			layer = parent
 		}
 	} else {
@@ -2830,10 +2828,33 @@ func (s *store) Diff(from, to string, options *DiffOptions) (io.ReadCloser, erro
 	if err != nil {
 		return nil, err
 	}
+
+	// NaiveDiff could cause mounts to happen without a lock, so be safe
+	// and treat the .Diff operation as a Mount.
+	s.graphLock.Lock()
+	defer s.graphLock.Unlock()
+
+	modified, err := s.graphLock.Modified()
+	if err != nil {
+		return nil, err
+	}
+
+	// We need to make sure the home mount is present when the Mount is done.
+	if modified {
+		s.graphDriver = nil
+		s.layerStore = nil
+		s.graphDriver, err = s.getGraphDriver()
+		if err != nil {
+			return nil, err
+		}
+		s.lastLoaded = time.Now()
+	}
+
 	for _, s := range append([]ROLayerStore{lstore}, lstores...) {
 		store := s
 		store.RLock()
 		if err := store.ReloadIfChanged(); err != nil {
+			store.Unlock()
 			return nil, err
 		}
 		if store.Exists(to) {
