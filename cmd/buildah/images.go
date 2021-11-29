@@ -58,7 +58,7 @@ type imageOptions struct {
 
 type imageResults struct {
 	imageOptions
-	filter string
+	filter []string
 }
 
 var imagesHeader = map[string]string{
@@ -93,7 +93,7 @@ func init() {
 	flags.SetInterspersed(false)
 	flags.BoolVarP(&opts.all, "all", "a", false, "show all images, including intermediate images from a build")
 	flags.BoolVar(&opts.digests, "digests", false, "show digests")
-	flags.StringVarP(&opts.filter, "filter", "f", "", "filter output based on conditions provided")
+	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "filter output based on conditions provided")
 	flags.StringVar(&opts.format, "format", "", "pretty-print images using a Go template")
 	flags.BoolVar(&opts.json, "json", false, "output in JSON format")
 	flags.BoolVarP(&opts.noHeading, "noheading", "n", false, "do not print column headings")
@@ -135,8 +135,8 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 	ctx := context.Background()
 
 	options := &libimage.ListImagesOptions{}
-	if iopts.filter != "" {
-		options.Filters = []string{iopts.filter}
+	if len(iopts.filter) > 0 {
+		options.Filters = iopts.filter
 	}
 	if !iopts.all {
 		options.Filters = append(options.Filters, "intermediate=false")

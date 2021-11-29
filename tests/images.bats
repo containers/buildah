@@ -53,6 +53,11 @@ load helpers
 
   run_buildah images --noheading --filter since=k8s.gcr.io/pause
   expect_line_count 1
+
+  # pause* and u* should only give us pause image not busybox since its a AND between
+  # two filters
+  run_buildah images --noheading --filter "reference=pause*" --filter "reference=u*"
+  expect_line_count 1
 }
 
 @test "images format test" {
