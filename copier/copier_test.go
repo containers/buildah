@@ -533,6 +533,7 @@ func testPut(t *testing.T) {
 					{Name: "target", Typeflag: tar.TypeSymlink, Mode: 0755, Linkname: "target", ModTime: testDate},
 					{Name: "target", Typeflag: tar.TypeReg, Size: 123, Mode: 0755, ModTime: testDate},
 					{Name: "test", Typeflag: tar.TypeDir, Size: 0, Mode: 0755, ModTime: testDate},
+					{Name: "test/content", Typeflag: tar.TypeReg, Size: 0, Mode: 0755, ModTime: testDate},
 					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0755, Linkname: "target", ModTime: testDate},
 				})
 				tmp, err := ioutil.TempDir("", "copier-test-")
