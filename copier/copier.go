@@ -1652,7 +1652,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 							break
 						}
 					}
-					if err = os.Remove(path); err == nil {
+					if err = os.RemoveAll(path); err == nil {
 						err = os.Link(linkTarget, path)
 					}
 				}
@@ -1667,7 +1667,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 							break
 						}
 					}
-					if err = os.Remove(path); err == nil {
+					if err = os.RemoveAll(path); err == nil {
 						err = os.Symlink(filepath.FromSlash(hdr.Linkname), filepath.FromSlash(path))
 					}
 				}
@@ -1682,7 +1682,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 							break
 						}
 					}
-					if err = os.Remove(path); err == nil {
+					if err = os.RemoveAll(path); err == nil {
 						err = mknod(path, chrMode(0600), int(mkdev(devMajor, devMinor)))
 					}
 				}
@@ -1697,7 +1697,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 							break
 						}
 					}
-					if err = os.Remove(path); err == nil {
+					if err = os.RemoveAll(path); err == nil {
 						err = mknod(path, blkMode(0600), int(mkdev(devMajor, devMinor)))
 					}
 				}
@@ -1729,7 +1729,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 							break
 						}
 					}
-					if err = os.Remove(path); err == nil {
+					if err = os.RemoveAll(path); err == nil {
 						err = mkfifo(path, 0600)
 					}
 				}
