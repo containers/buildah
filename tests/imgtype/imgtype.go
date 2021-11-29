@@ -159,7 +159,7 @@ func main() {
 				errors = true
 				continue
 			}
-			manifestType = v1.MediaTypeImageManifest
+			manifestType = oManifest.MediaType
 			configType = oManifest.Config.MediaType
 		case define.Dockerv2ImageManifest:
 			err = json.Unmarshal(manifest, &dManifest)
