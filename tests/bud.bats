@@ -3100,14 +3100,13 @@ run cat /proc/self/cgroup
 _EOF
 
   # with cgroup-parent
-  run_buildah build --cgroup-parent test-cgroup -t with-flag \
+  run_buildah build --cgroupns=host --cgroup-parent test-cgroup -t with-flag \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
   if is_cgroupsv2; then
     expect_output --from="${lines[2]}" "0::/test-cgroup"
   else
     expect_output --substring "/test-cgroup"
   fi
-
   # without cgroup-parent
   run_buildah build -t without-flag \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
@@ -3118,7 +3117,7 @@ _EOF
 
 @test "bud with --cpu-period and --cpu-quota" {
   skip_if_chroot
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
@@ -3141,6 +3140,20 @@ _EOF
   run_buildah build --cpu-period=1234 --cpu-quota=5678 -t testcpu \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
   expect_output --from="${lines[2]}" "5678 1234"
+}
+
+@test "bud check mount /sys/fs/cgroup" {
+  skip_if_rootless_and_cgroupv1
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run ls /sys/fs/cgroup
+_EOF
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir}/Containerfile .
+  expect_output --substring "cpu"
+  expect_output --substring "memory"
 }
 
 @test "bud with --cpu-shares" {

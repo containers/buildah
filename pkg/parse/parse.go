@@ -1005,13 +1005,6 @@ func IDMappingOptions(c *cobra.Command, isolation define.Isolation) (usernsOptio
 	}
 	usernsOptions = define.NamespaceOptions{usernsOption}
 
-	usernetwork := c.Flags().Lookup("network")
-	if usernetwork != nil && !usernetwork.Changed {
-		usernsOptions = append(usernsOptions, define.NamespaceOption{
-			Name: string(specs.NetworkNamespace),
-			Host: usernsOption.Host,
-		})
-	}
 	// If the user requested that we use the host namespace, but also that
 	// we use mappings, that's not going to work.
 	if (len(uidmap) != 0 || len(gidmap) != 0) && usernsOption.Host {
@@ -1055,12 +1048,14 @@ func parseIDMap(spec []string) (m [][3]uint32, err error) {
 func NamespaceOptions(c *cobra.Command) (namespaceOptions define.NamespaceOptions, networkPolicy define.NetworkConfigurationPolicy, err error) {
 	options := make(define.NamespaceOptions, 0, 7)
 	policy := define.NetworkDefault
-	for _, what := range []string{string(specs.IPCNamespace), "network", string(specs.PIDNamespace), string(specs.UTSNamespace)} {
+	for _, what := range []string{"cgroupns", string(specs.IPCNamespace), "network", string(specs.PIDNamespace), string(specs.UTSNamespace)} {
 		if c.Flags().Lookup(what) != nil && c.Flag(what).Changed {
 			how := c.Flag(what).Value.String()
 			switch what {
 			case "network":
 				what = string(specs.NetworkNamespace)
+			case "cgroupns":
+				what = string(specs.CgroupNamespace)
 			}
 			switch how {
 			case "", "container", "private":
