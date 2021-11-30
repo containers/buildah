@@ -54,6 +54,7 @@ func Create(ctx context.Context, sourcePath string, options CreateOptions) error
 	// Create and write the manifest.
 	manifest := specV1.Manifest{
 		Versioned: spec.Versioned{SchemaVersion: 2},
+		MediaType: specV1.MediaTypeImageManifest,
 		Config: specV1.Descriptor{
 			MediaType: MediaTypeSourceImageConfig,
 			Digest:    configBlob.Digest,

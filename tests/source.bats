@@ -10,8 +10,8 @@ load helpers
   # Inspect the index.json
   run jq -r .manifests[0].mediaType $srcdir/index.json
   expect_output "application/vnd.oci.image.manifest.v1+json"
-  run jq -r .manifests[0].size $srcdir/index.json
-  expect_output "199"
+  run jq -r .mediaType $srcdir/index.json
+  expect_output null # TODO: common#839 will change this to "application/vnd.oci.image.index.v1+json"
   # Digest of manifest
   run jq -r .manifests[0].digest $srcdir/index.json
   manifestDigest=${output//sha256:/} # strip off the sha256 prefix
@@ -25,6 +25,8 @@ load helpers
   expect_output "null"
   run jq -r .config.mediaType $srcdir/blobs/sha256/$manifestDigest
   expect_output "application/vnd.oci.source.image.config.v1+json"
+  run jq -r .mediaType $srcdir/blobs/sha256/$manifestDigest
+  expect_output "application/vnd.oci.image.manifest.v1+json"
   run jq -r .config.size $srcdir/blobs/sha256/$manifestDigest
   [ "$status" -eq 0 ] # let's not check the size (afraid of time-stamp impacts)
   # Digest of config

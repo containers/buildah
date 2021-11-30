@@ -102,6 +102,7 @@ func TestBlobCache(t *testing.T) {
 					Versioned: specs.Versioned{
 						SchemaVersion: 2,
 					},
+					MediaType: v1.MediaTypeImageManifest,
 					Config: v1.Descriptor{
 						MediaType: v1.MediaTypeImageConfig,
 						Digest:    configInfo.Digest,
