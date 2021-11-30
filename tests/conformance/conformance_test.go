@@ -2870,4 +2870,9 @@ var internalTestCases = []testCase{
 		contextDir: "dockerignore/exceptions-skip",
 		fsSkip:     []string{"(dir):volume:mtime"},
 	},
+
+	{
+		name:       "replace-symlink-with-directory",
+		contextDir: "replace/symlink-with-directory",
+	},
 }
