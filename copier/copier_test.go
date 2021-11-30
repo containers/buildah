@@ -528,6 +528,9 @@ func testPut(t *testing.T) {
 		for _, typeFlag := range []byte{tar.TypeReg, tar.TypeLink, tar.TypeSymlink, tar.TypeChar, tar.TypeBlock, tar.TypeFifo} {
 			t.Run(fmt.Sprintf("overwrite=%v,type=%c", overwrite, typeFlag), func(t *testing.T) {
 				archive := makeArchiveSlice([]tar.Header{
+					{Name: "target", Typeflag: tar.TypeSymlink, Mode: 0755, Linkname: "target", ModTime: testDate},
+					{Name: "target", Typeflag: tar.TypeDir, Mode: 0755, ModTime: testDate},
+					{Name: "target", Typeflag: tar.TypeSymlink, Mode: 0755, Linkname: "target", ModTime: testDate},
 					{Name: "target", Typeflag: tar.TypeReg, Size: 123, Mode: 0755, ModTime: testDate},
 					{Name: "test", Typeflag: tar.TypeDir, Size: 0, Mode: 0755, ModTime: testDate},
 					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0755, Linkname: "target", ModTime: testDate},

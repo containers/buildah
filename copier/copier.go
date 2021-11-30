@@ -1631,7 +1631,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				// only check the length if there wasn't an error, which we'll
 				// check along with errors for other types of entries
 				if err == nil && written != hdr.Size {
-					return errors.Errorf("copier: put: error creating %q: incorrect length (%d != %d)", path, written, hdr.Size)
+					return errors.Errorf("copier: put: error creating regular file %q: incorrect length (%d != %d)", path, written, hdr.Size)
 				}
 			case tar.TypeLink:
 				var linkTarget string
@@ -1704,7 +1704,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 			case tar.TypeDir:
 				if err = os.Mkdir(path, 0700); err != nil && os.IsExist(err) {
 					var st os.FileInfo
-					if st, err = os.Stat(path); err == nil && !st.IsDir() {
+					if st, err = os.Lstat(path); err == nil && !st.IsDir() {
 						// it's not a directory, so remove it and mkdir
 						if err = os.Remove(path); err == nil {
 							err = os.Mkdir(path, 0700)

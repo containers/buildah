@@ -2859,4 +2859,9 @@ var internalTestCases = []testCase{
 		withoutDocker: true,
 		fsSkip:        []string{"(dir):tmp:mtime"},
 	},
+
+	{
+		name:       "replace-symlink-with-directory",
+		contextDir: "replace/symlink-with-directory",
+	},
 }
