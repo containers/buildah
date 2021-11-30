@@ -2934,4 +2934,9 @@ var internalTestCases = []testCase{
 		dockerfile:        "Dockerfile.margs",
 		dockerUseBuildKit: true,
 	},
+
+	{
+		name:       "replace-symlink-with-directory",
+		contextDir: "replace/symlink-with-directory",
+	},
 }
