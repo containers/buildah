@@ -2,7 +2,6 @@ package libimage
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/containers/image/v5/manifest"
@@ -51,18 +50,38 @@ type RootFS struct {
 	Layers []digest.Digest `json:"Layers"`
 }
 
-// Inspect inspects the image.  Use `withSize` to also perform the
-// comparatively expensive size computation of the image.
-func (i *Image) Inspect(ctx context.Context, withSize bool) (*ImageData, error) {
+// InspectOptions allow for customizing inspecting images.
+type InspectOptions struct {
+	// Compute the size of the image (expensive).
+	WithSize bool
+	// Compute the parent of the image (expensive).
+	WithParent bool
+}
+
+// Inspect inspects the image.
+func (i *Image) Inspect(ctx context.Context, options *InspectOptions) (*ImageData, error) {
 	logrus.Debugf("Inspecting image %s", i.ID())
 
+	if options == nil {
+		options = &InspectOptions{}
+	}
+
 	if i.cached.completeInspectData != nil {
-		if withSize && i.cached.completeInspectData.Size == int64(-1) {
+		if options.WithSize && i.cached.completeInspectData.Size == int64(-1) {
 			size, err := i.Size()
 			if err != nil {
 				return nil, err
 			}
 			i.cached.completeInspectData.Size = size
+		}
+		if options.WithParent && i.cached.completeInspectData.Parent == "" {
+			parentImage, err := i.Parent(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if parentImage != nil {
+				i.cached.completeInspectData.Parent = parentImage.ID()
+			}
 		}
 		return i.cached.completeInspectData, nil
 	}
@@ -76,10 +95,7 @@ func (i *Image) Inspect(ctx context.Context, withSize bool) (*ImageData, error) 
 	if err != nil {
 		return nil, err
 	}
-	parentImage, err := i.Parent(ctx)
-	if err != nil {
-		return nil, err
-	}
+
 	repoTags, err := i.RepoTags()
 	if err != nil {
 		return nil, err
@@ -94,7 +110,7 @@ func (i *Image) Inspect(ctx context.Context, withSize bool) (*ImageData, error) 
 	}
 
 	size := int64(-1)
-	if withSize {
+	if options.WithSize {
 		size, err = i.Size()
 		if err != nil {
 			return nil, err
@@ -125,8 +141,14 @@ func (i *Image) Inspect(ctx context.Context, withSize bool) (*ImageData, error) 
 		NamesHistory: i.NamesHistory(),
 	}
 
-	if parentImage != nil {
-		data.Parent = parentImage.ID()
+	if options.WithParent {
+		parentImage, err := i.Parent(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if parentImage != nil {
+			data.Parent = parentImage.ID()
+		}
 	}
 
 	// Determine the format of the image.  How we determine certain data
@@ -165,7 +187,12 @@ func (i *Image) Inspect(ctx context.Context, withSize bool) (*ImageData, error) 
 			return nil, err
 		}
 		data.Comment = dockerManifest.Comment
+		// NOTE: Health checks may be listed in the container config or
+		// the config.
 		data.HealthCheck = dockerManifest.ContainerConfig.Healthcheck
+		if data.HealthCheck == nil {
+			data.HealthCheck = dockerManifest.Config.Healthcheck
+		}
 	}
 
 	if data.Annotations == nil {

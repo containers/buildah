@@ -3,13 +3,14 @@ package libimage
 import (
 	"context"
 	"fmt"
-	"path/filepath"
+	"path"
 	"strconv"
 	"strings"
 	"time"
 
 	filtersPkg "github.com/containers/common/pkg/filters"
 	"github.com/containers/common/pkg/timetype"
+	"github.com/containers/image/v5/docker/reference"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -18,26 +19,53 @@ import (
 // indicates that the image matches the criteria.
 type filterFunc func(*Image) (bool, error)
 
-// filterImages returns a slice of images which are passing all specified
-// filters.
-func filterImages(images []*Image, filters []filterFunc) ([]*Image, error) {
-	if len(filters) == 0 {
-		return images, nil
-	}
-	result := []*Image{}
-	for i := range images {
-		include := true
-		var err error
-		for _, filter := range filters {
-			include, err = filter(images[i])
+// Apply the specified filters.  At least one filter of each key must apply.
+func (i *Image) applyFilters(filters map[string][]filterFunc) (bool, error) {
+	matches := false
+	for key := range filters { // and
+		matches = false
+		for _, filter := range filters[key] { // or
+			var err error
+			matches, err = filter(i)
 			if err != nil {
-				return nil, err
+				// Some images may have been corrupted in the
+				// meantime, so do an extra check and make the
+				// error non-fatal (see containers/podman/issues/12582).
+				if errCorrupted := i.isCorrupted(""); errCorrupted != nil {
+					logrus.Errorf(errCorrupted.Error())
+					return false, nil
+				}
+				return false, err
 			}
-			if !include {
+			if matches {
 				break
 			}
 		}
-		if include {
+		if !matches {
+			return false, nil
+		}
+	}
+	return matches, nil
+}
+
+// filterImages returns a slice of images which are passing all specified
+// filters.
+func (r *Runtime) filterImages(ctx context.Context, images []*Image, options *ListImagesOptions) ([]*Image, error) {
+	if len(options.Filters) == 0 || len(images) == 0 {
+		return images, nil
+	}
+
+	filters, err := r.compileImageFilters(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	result := []*Image{}
+	for i := range images {
+		match, err := images[i].applyFilters(filters)
+		if err != nil {
+			return nil, err
+		}
+		if match {
 			result = append(result, images[i])
 		}
 	}
@@ -47,15 +75,29 @@ func filterImages(images []*Image, filters []filterFunc) ([]*Image, error) {
 // compileImageFilters creates `filterFunc`s for the specified filters.  The
 // required format is `key=value` with the following supported keys:
 //           after, since, before, containers, dangling, id, label, readonly, reference, intermediate
-func (r *Runtime) compileImageFilters(ctx context.Context, filters []string) ([]filterFunc, error) {
-	logrus.Tracef("Parsing image filters %s", filters)
+func (r *Runtime) compileImageFilters(ctx context.Context, options *ListImagesOptions) (map[string][]filterFunc, error) {
+	logrus.Tracef("Parsing image filters %s", options.Filters)
 
-	filterFuncs := []filterFunc{}
-	for _, filter := range filters {
+	var tree *layerTree
+	getTree := func() (*layerTree, error) {
+		if tree == nil {
+			t, err := r.layerTree()
+			if err != nil {
+				return nil, err
+			}
+			tree = t
+		}
+		return tree, nil
+	}
+
+	filters := map[string][]filterFunc{}
+	duplicate := map[string]bool{}
+	for _, f := range options.Filters {
 		var key, value string
-		split := strings.SplitN(filter, "=", 2)
+		var filter filterFunc
+		split := strings.SplitN(f, "=", 2)
 		if len(split) != 2 {
-			return nil, errors.Errorf("invalid image filter %q: must be in the format %q", filter, "filter=value")
+			return nil, errors.Errorf("invalid image filter %q: must be in the format %q", f, "filter=value")
 		}
 
 		key = split[0]
@@ -63,94 +105,188 @@ func (r *Runtime) compileImageFilters(ctx context.Context, filters []string) ([]
 		switch key {
 
 		case "after", "since":
-			img, _, err := r.LookupImage(value, nil)
+			img, err := r.time(key, value)
 			if err != nil {
-				return nil, errors.Wrapf(err, "could not find local image for filter %q", filter)
+				return nil, err
 			}
-			filterFuncs = append(filterFuncs, filterAfter(img.Created()))
+			key = "since"
+			filter = filterAfter(img.Created())
 
 		case "before":
-			img, _, err := r.LookupImage(value, nil)
+			img, err := r.time(key, value)
 			if err != nil {
-				return nil, errors.Wrapf(err, "could not find local image for filter %q", filter)
+				return nil, err
 			}
-			filterFuncs = append(filterFuncs, filterBefore(img.Created()))
+			filter = filterBefore(img.Created())
 
 		case "containers":
-			containers, err := strconv.ParseBool(value)
-			if err != nil {
-				return nil, errors.Wrapf(err, "non-boolean value %q for dangling filter", value)
+			if err := r.containers(duplicate, key, value, options.IsExternalContainerFunc); err != nil {
+				return nil, err
 			}
-			filterFuncs = append(filterFuncs, filterContainers(containers))
+			filter = filterContainers(value, options.IsExternalContainerFunc)
 
 		case "dangling":
-			dangling, err := strconv.ParseBool(value)
+			dangling, err := r.bool(duplicate, key, value)
 			if err != nil {
-				return nil, errors.Wrapf(err, "non-boolean value %q for dangling filter", value)
+				return nil, err
 			}
-			filterFuncs = append(filterFuncs, filterDangling(ctx, dangling))
+			t, err := getTree()
+			if err != nil {
+				return nil, err
+			}
+
+			filter = filterDangling(ctx, dangling, t)
 
 		case "id":
-			filterFuncs = append(filterFuncs, filterID(value))
+			filter = filterID(value)
 
 		case "intermediate":
-			intermediate, err := strconv.ParseBool(value)
+			intermediate, err := r.bool(duplicate, key, value)
 			if err != nil {
-				return nil, errors.Wrapf(err, "non-boolean value %q for intermediate filter", value)
+				return nil, err
 			}
-			filterFuncs = append(filterFuncs, filterIntermediate(ctx, intermediate))
+			t, err := getTree()
+			if err != nil {
+				return nil, err
+			}
+
+			filter = filterIntermediate(ctx, intermediate, t)
 
 		case "label":
-			filterFuncs = append(filterFuncs, filterLabel(ctx, value))
+			filter = filterLabel(ctx, value)
 
 		case "readonly":
-			readOnly, err := strconv.ParseBool(value)
+			readOnly, err := r.bool(duplicate, key, value)
 			if err != nil {
-				return nil, errors.Wrapf(err, "non-boolean value %q for readonly filter", value)
+				return nil, err
 			}
-			filterFuncs = append(filterFuncs, filterReadOnly(readOnly))
+			filter = filterReadOnly(readOnly)
+
+		case "manifest":
+			manifest, err := r.bool(duplicate, key, value)
+			if err != nil {
+				return nil, err
+			}
+			duplicate[key] = true
+			filter = filterManifest(ctx, manifest)
 
 		case "reference":
-			filterFuncs = append(filterFuncs, filterReference(value))
+			filter = filterReferences(value)
 
 		case "until":
-			ts, err := timetype.GetTimestamp(value, time.Now())
+			until, err := r.until(value)
 			if err != nil {
 				return nil, err
 			}
-			seconds, nanoseconds, err := timetype.ParseTimestamps(ts, 0)
-			if err != nil {
-				return nil, err
-			}
-			until := time.Unix(seconds, nanoseconds)
-			filterFuncs = append(filterFuncs, filterBefore(until))
+			filter = filterBefore(until)
 
 		default:
 			return nil, errors.Errorf("unsupported image filter %q", key)
 		}
+		filters[key] = append(filters[key], filter)
 	}
 
-	return filterFuncs, nil
+	return filters, nil
 }
 
-// filterReference creates a reference filter for matching the specified value.
-func filterReference(value string) filterFunc {
-	// Replacing all '/' with '|' so that filepath.Match() can work '|'
-	// character is not valid in image name, so this is safe.
-	//
-	// TODO: this has been copied from Podman and requires some more review
-	// and especially tests.
-	filter := fmt.Sprintf("*%s*", value)
-	filter = strings.ReplaceAll(filter, "/", "|")
-	return func(img *Image) (bool, error) {
-		if len(value) < 1 {
-			return true, nil
+func (r *Runtime) containers(duplicate map[string]bool, key, value string, externalFunc IsExternalContainerFunc) error {
+	if duplicate[key] {
+		return errors.Errorf("specifying %q filter more then once is not supported", key)
+	}
+	duplicate[key] = true
+	switch value {
+	case "false", "true":
+	case "external":
+		if externalFunc == nil {
+			return fmt.Errorf("libimage error: external containers filter without callback")
 		}
-		for _, name := range img.Names() {
-			newName := strings.ReplaceAll(name, "/", "|")
-			match, _ := filepath.Match(filter, newName)
-			if match {
-				return true, nil
+	default:
+		return fmt.Errorf("unsupported value %q for containers filter", value)
+	}
+	return nil
+}
+
+func (r *Runtime) until(value string) (time.Time, error) {
+	var until time.Time
+	ts, err := timetype.GetTimestamp(value, time.Now())
+	if err != nil {
+		return until, err
+	}
+	seconds, nanoseconds, err := timetype.ParseTimestamps(ts, 0)
+	if err != nil {
+		return until, err
+	}
+	return time.Unix(seconds, nanoseconds), nil
+}
+
+func (r *Runtime) time(key, value string) (*Image, error) {
+	img, _, err := r.LookupImage(value, nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not find local image for filter filter %q=%q", key, value)
+	}
+	return img, nil
+}
+
+func (r *Runtime) bool(duplicate map[string]bool, key, value string) (bool, error) {
+	if duplicate[key] {
+		return false, errors.Errorf("specifying %q filter more then once is not supported", key)
+	}
+	duplicate[key] = true
+	set, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, errors.Wrapf(err, "non-boolean value %q for %s filter", key, value)
+	}
+	return set, nil
+}
+
+// filterManifest filters whether or not the image is a manifest list
+func filterManifest(ctx context.Context, value bool) filterFunc {
+	return func(img *Image) (bool, error) {
+		isManifestList, err := img.IsManifestList(ctx)
+		if err != nil {
+			return false, err
+		}
+		return isManifestList == value, nil
+	}
+}
+
+// filterReferences creates a reference filter for matching the specified value.
+func filterReferences(value string) filterFunc {
+	return func(img *Image) (bool, error) {
+		refs, err := img.NamesReferences()
+		if err != nil {
+			return false, err
+		}
+
+		for _, ref := range refs {
+			refString := ref.String() // FQN with tag/digest
+			candidates := []string{refString}
+
+			// Split the reference into 3 components (twice if diggested/tagged):
+			// 1) Fully-qualified reference
+			// 2) Without domain
+			// 3) Without domain and path
+			if named, isNamed := ref.(reference.Named); isNamed {
+				candidates = append(candidates,
+					reference.Path(named),                           // path/name without tag/digest (Path() removes it)
+					refString[strings.LastIndex(refString, "/")+1:]) // name with tag/digest
+
+				trimmedString := reference.TrimNamed(named).String()
+				if refString != trimmedString {
+					tagOrDigest := refString[len(trimmedString):]
+					candidates = append(candidates,
+						trimmedString,                     // FQN without tag/digest
+						reference.Path(named)+tagOrDigest, // path/name with tag/digest
+						trimmedString[strings.LastIndex(trimmedString, "/")+1:]) // name without tag/digest
+				}
+			}
+
+			for _, candidate := range candidates {
+				// path.Match() is also used by Docker's reference.FamiliarMatch().
+				matched, _ := path.Match(value, candidate)
+				if matched {
+					return true, nil
+				}
 			}
 		}
 		return false, nil
@@ -190,20 +326,35 @@ func filterReadOnly(value bool) filterFunc {
 }
 
 // filterContainers creates a container filter for matching the specified value.
-func filterContainers(value bool) filterFunc {
+func filterContainers(value string, fn IsExternalContainerFunc) filterFunc {
 	return func(img *Image) (bool, error) {
 		ctrs, err := img.Containers()
 		if err != nil {
 			return false, err
 		}
-		return (len(ctrs) > 0) == value, nil
+		if value != "external" {
+			boolValue := value == "true"
+			return (len(ctrs) > 0) == boolValue, nil
+		}
+
+		// Check whether all associated containers are external ones.
+		for _, c := range ctrs {
+			isExternal, err := fn(c)
+			if err != nil {
+				return false, fmt.Errorf("checking if %s is an external container in filter: %w", c, err)
+			}
+			if !isExternal {
+				return isExternal, nil
+			}
+		}
+		return true, nil
 	}
 }
 
 // filterDangling creates a dangling filter for matching the specified value.
-func filterDangling(ctx context.Context, value bool) filterFunc {
+func filterDangling(ctx context.Context, value bool, tree *layerTree) filterFunc {
 	return func(img *Image) (bool, error) {
-		isDangling, err := img.IsDangling(ctx)
+		isDangling, err := img.isDangling(ctx, tree)
 		if err != nil {
 			return false, err
 		}
@@ -221,9 +372,9 @@ func filterID(value string) filterFunc {
 // filterIntermediate creates an intermediate filter for images.  An image is
 // considered to be an intermediate image if it is dangling (i.e., no tags) and
 // has no children (i.e., no other image depends on it).
-func filterIntermediate(ctx context.Context, value bool) filterFunc {
+func filterIntermediate(ctx context.Context, value bool, tree *layerTree) filterFunc {
 	return func(img *Image) (bool, error) {
-		isIntermediate, err := img.IsIntermediate(ctx)
+		isIntermediate, err := img.isIntermediate(ctx, tree)
 		if err != nil {
 			return false, err
 		}
