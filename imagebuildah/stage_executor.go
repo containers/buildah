@@ -558,6 +558,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		MaxPullRetries:        s.executor.maxPullPushRetries,
 		PullRetryDelay:        s.executor.retryPullPushDelay,
 		OciDecryptConfig:      s.executor.ociDecryptConfig,
+		Logger:                s.executor.logger,
 	}
 
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)

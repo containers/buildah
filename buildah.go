@@ -271,6 +271,8 @@ type BuilderOptions struct {
 	// to store copies of layer blobs that we pull down, if any.  It should
 	// already exist.
 	BlobDirectory string
+	// Logger is the logrus logger to write log messages with
+	Logger *logrus.Logger `json:"-"`
 	// Mount signals to NewBuilder() that the container should be mounted
 	// immediately.
 	Mount bool
