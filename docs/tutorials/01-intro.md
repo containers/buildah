@@ -195,7 +195,7 @@ And you can see there is a new image called `localhost/fedora-bashecho:latest`. 
 
     # buildah inspect --type=image fedora-bashecho
 
-Later when you want to create a new container or containers from this image, you simply need need to do `buildah from fedora-bashecho`. This will create a new container based on this image for you.
+Later when you want to create a new container or containers from this image, you simply need to do `buildah from fedora-bashecho`. This will create a new container based on this image for you.
 
 Now that you have the new image you can remove the scratch container called working-container:
 
