@@ -46,27 +46,10 @@ else
             # are required to ensure the latest docker version is used.
             [[ "$OS_RELEASE_ID" == "ubuntu" ]] || \
                 bad_os_id_ver
-
-            warn "Installing upstream docker from docker.com"
-            # Ref: https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository
-            curl --fail --silent --location \
-                --url  https://download.docker.com/linux/ubuntu/gpg | \
-                gpg --dearmor > \
-                /etc/apt/trusted.gpg.d/docker_com.gpg
-            add-apt-repository --yes --no-update \
-                "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-                $(lsb_release -cs) \
-                stable"
-            $SHORT_APTGET update
-            $LONG_APTGET install \
-                apt-transport-https \
-                ca-certificates \
-                containerd.io \
-                curl \
-                docker-ce \
-                docker-ce-cli \
-                gnupg-agent \
-                software-properties-common
+            warn "Installing previously downloaded/cached docker packages"
+            ooe.sh dpkg -i \
+                $PACKAGE_DOWNLOAD_DIR/containerd.io*.deb \
+                $PACKAGE_DOWNLOAD_DIR/docker-ce*.deb
 
             systemctl enable --now docker
             showrun make test-conformance
