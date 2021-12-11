@@ -3641,7 +3641,8 @@ _EOF
 @test "bud-with-mount-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfile ${TESTSDIR}/bud/buildkit-mount/
+  cp -R ${TESTSDIR}/bud/buildkit-mount ${TESTDIR}/buildkit-mount
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfile ${TESTDIR}/buildkit-mount/
   expect_output --substring "hello"
   run_buildah rmi -f testbud
 }
@@ -3649,7 +3650,8 @@ _EOF
 @test "bud-with-mount-no-source-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfile2 ${TESTSDIR}/bud/buildkit-mount/
+  cp -R ${TESTSDIR}/bud/buildkit-mount ${TESTDIR}/buildkit-mount
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfile2 ${TESTDIR}/buildkit-mount/
   expect_output --substring "hello"
   run_buildah rmi -f testbud
 }
@@ -3657,7 +3659,8 @@ _EOF
 @test "bud-with-mount-no-subdir-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfile ${TESTSDIR}/bud/buildkit-mount/subdir/
+  cp -R ${TESTSDIR}/bud/buildkit-mount ${TESTDIR}/buildkit-mount
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfile ${TESTDIR}/buildkit-mount/subdir/
   expect_output --substring "hello"
   run_buildah rmi -f testbud
 }
@@ -3665,7 +3668,8 @@ _EOF
 @test "bud-with-mount-relative-path-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfile4 ${TESTSDIR}/bud/buildkit-mount/
+  cp -R ${TESTSDIR}/bud/buildkit-mount ${TESTDIR}/buildkit-mount
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfile4 ${TESTDIR}/buildkit-mount/
   expect_output --substring "hello"
   run_buildah rmi -f testbud
 }
@@ -3673,7 +3677,8 @@ _EOF
 @test "bud-with-mount-with-rw-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  run_buildah build --isolation chroot -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfile3 ${TESTSDIR}/bud/buildkit-mount/subdir/
+  cp -R ${TESTSDIR}/bud/buildkit-mount ${TESTDIR}/buildkit-mount
+  run_buildah build --isolation chroot -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfile3 ${TESTDIR}/buildkit-mount/subdir/
   expect_output --substring "world"
   run_buildah rmi -f testbud
 }
@@ -3681,8 +3686,9 @@ _EOF
 @test "bud-with-mount-with-tmpfs-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
+  cp -R ${TESTSDIR}/bud/buildkit-mount ${TESTDIR}/buildkit-mount
   # tmpfs mount: target should be available on container without creating any special directory on container
-  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfiletmpfs
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfiletmpfs
   [ "$status" -eq 0 ]
   run_buildah rmi -f testbud
 }
@@ -3690,7 +3696,8 @@ _EOF
 @test "bud-with-mount-with-tmpfs-with-copyup-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfiletmpfscopyup
+  cp -R ${TESTSDIR}/bud/buildkit-mount ${TESTDIR}/buildkit-mount
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfiletmpfscopyup
   expect_output --substring "certs"
   run_buildah rmi -f testbud
 }
@@ -3698,10 +3705,11 @@ _EOF
 @test "bud-with-mount-cache-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
+  cp -R ${TESTSDIR}/bud/buildkit-mount ${TESTDIR}/buildkit-mount
   # try writing something to persistant cache
-  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfilecachewrite
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfilecachewrite
   # try reading something from persistant cache in a different build
-  run_buildah build -t testbud2 --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount/Dockerfilecacheread
+  run_buildah build -t testbud2 --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfilecacheread
   expect_output --substring "hello"
   run_buildah rmi -f testbud
   run_buildah rmi -f testbud2
