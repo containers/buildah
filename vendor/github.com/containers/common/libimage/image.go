@@ -2,6 +2,7 @@ package libimage
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -43,6 +44,8 @@ type Image struct {
 		completeInspectData *ImageData
 		// Corresponding OCI image.
 		ociv1Image *ociv1.Image
+		// Names() parsed into references.
+		namesReferences []reference.Reference
 	}
 }
 
@@ -51,13 +54,14 @@ func (i *Image) reload() error {
 	logrus.Tracef("Reloading image %s", i.ID())
 	img, err := i.runtime.store.Image(i.ID())
 	if err != nil {
-		return errors.Wrap(err, "error reloading image")
+		return errors.Wrap(err, "reloading image")
 	}
 	i.storageImage = img
 	i.cached.imageSource = nil
 	i.cached.partialInspectData = nil
 	i.cached.completeInspectData = nil
 	i.cached.ociv1Image = nil
+	i.cached.namesReferences = nil
 	return nil
 }
 
@@ -86,6 +90,23 @@ func (i *Image) isCorrupted(name string) error {
 // digests.
 func (i *Image) Names() []string {
 	return i.storageImage.Names
+}
+
+// NamesReferences returns Names() as references.
+func (i *Image) NamesReferences() ([]reference.Reference, error) {
+	if i.cached.namesReferences != nil {
+		return i.cached.namesReferences, nil
+	}
+	refs := make([]reference.Reference, 0, len(i.Names()))
+	for _, name := range i.Names() {
+		ref, err := reference.Parse(name)
+		if err != nil {
+			return nil, err
+		}
+		refs = append(refs, ref)
+	}
+	i.cached.namesReferences = refs
+	return refs, nil
 }
 
 // StorageImage returns the underlying storage.Image.
@@ -127,10 +148,16 @@ func (i *Image) IsReadOnly() bool {
 // IsDangling returns true if the image is dangling, that is an untagged image
 // without children.
 func (i *Image) IsDangling(ctx context.Context) (bool, error) {
+	return i.isDangling(ctx, nil)
+}
+
+// isDangling returns true if the image is dangling, that is an untagged image
+// without children.  If tree is nil, it will created for this invocation only.
+func (i *Image) isDangling(ctx context.Context, tree *layerTree) (bool, error) {
 	if len(i.Names()) > 0 {
 		return false, nil
 	}
-	children, err := i.getChildren(ctx, false)
+	children, err := i.getChildren(ctx, false, tree)
 	if err != nil {
 		return false, err
 	}
@@ -140,10 +167,17 @@ func (i *Image) IsDangling(ctx context.Context) (bool, error) {
 // IsIntermediate returns true if the image is an intermediate image, that is
 // an untagged image with children.
 func (i *Image) IsIntermediate(ctx context.Context) (bool, error) {
+	return i.isIntermediate(ctx, nil)
+}
+
+// isIntermediate returns true if the image is an intermediate image, that is
+// an untagged image with children.  If tree is nil, it will created for this
+// invocation only.
+func (i *Image) isIntermediate(ctx context.Context, tree *layerTree) (bool, error) {
 	if len(i.Names()) > 0 {
 		return false, nil
 	}
-	children, err := i.getChildren(ctx, false)
+	children, err := i.getChildren(ctx, false, tree)
 	if err != nil {
 		return false, err
 	}
@@ -188,7 +222,7 @@ func (i *Image) Parent(ctx context.Context) (*Image, error) {
 
 // HasChildren returns indicates if the image has children.
 func (i *Image) HasChildren(ctx context.Context) (bool, error) {
-	children, err := i.getChildren(ctx, false)
+	children, err := i.getChildren(ctx, false, nil)
 	if err != nil {
 		return false, err
 	}
@@ -197,7 +231,7 @@ func (i *Image) HasChildren(ctx context.Context) (bool, error) {
 
 // Children returns the image's children.
 func (i *Image) Children(ctx context.Context) ([]*Image, error) {
-	children, err := i.getChildren(ctx, true)
+	children, err := i.getChildren(ctx, true, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -205,13 +239,16 @@ func (i *Image) Children(ctx context.Context) ([]*Image, error) {
 }
 
 // getChildren returns a list of imageIDs that depend on the image. If all is
-// false, only the first child image is returned.
-func (i *Image) getChildren(ctx context.Context, all bool) ([]*Image, error) {
-	tree, err := i.runtime.layerTree()
-	if err != nil {
-		return nil, err
+// false, only the first child image is returned.  If tree is nil, it will be
+// created for this invocation only.
+func (i *Image) getChildren(ctx context.Context, all bool, tree *layerTree) ([]*Image, error) {
+	if tree == nil {
+		t, err := i.runtime.layerTree()
+		if err != nil {
+			return nil, err
+		}
+		tree = t
 	}
-
 	return tree.children(ctx, i, all)
 }
 
@@ -232,11 +269,15 @@ func (i *Image) Containers() ([]string, error) {
 }
 
 // removeContainers removes all containers using the image.
-func (i *Image) removeContainers(fn RemoveContainerFunc) error {
-	// Execute the custom removal func if specified.
-	if fn != nil {
+func (i *Image) removeContainers(options *RemoveImagesOptions) error {
+	if !options.Force && !options.ExternalContainers {
+		// Nothing to do.
+		return nil
+	}
+
+	if options.Force && options.RemoveContainerFunc != nil {
 		logrus.Debugf("Removing containers of image %s with custom removal function", i.ID())
-		if err := fn(i.ID()); err != nil {
+		if err := options.RemoveContainerFunc(i.ID()); err != nil {
 			return err
 		}
 	}
@@ -244,6 +285,19 @@ func (i *Image) removeContainers(fn RemoveContainerFunc) error {
 	containers, err := i.Containers()
 	if err != nil {
 		return err
+	}
+
+	if !options.Force && options.ExternalContainers {
+		// All containers must be external ones.
+		for _, cID := range containers {
+			isExternal, err := options.IsExternalContainerFunc(cID)
+			if err != nil {
+				return fmt.Errorf("checking if %s is an external container: %w", cID, err)
+			}
+			if !isExternal {
+				return fmt.Errorf("cannot remove container %s: not an external container", cID)
+			}
+		}
 	}
 
 	logrus.Debugf("Removing containers of image %s from the local containers storage", i.ID())
@@ -392,11 +446,9 @@ func (i *Image) removeRecursive(ctx context.Context, rmMap map[string]*RemoveIma
 		return processedIDs, nil
 	}
 
-	// Perform the actual removal. First, remove containers if needed.
-	if options.Force {
-		if err := i.removeContainers(options.RemoveContainerFunc); err != nil {
-			return processedIDs, err
-		}
+	// Perform the container removal, if needed.
+	if err := i.removeContainers(options); err != nil {
+		return processedIDs, err
 	}
 
 	// Podman/Docker compat: we only report an image as removed if it has
@@ -406,7 +458,7 @@ func (i *Image) removeRecursive(ctx context.Context, rmMap map[string]*RemoveIma
 	if err != nil {
 		// We must be tolerant toward corrupted images.
 		// See containers/podman commit fd9dd7065d44.
-		logrus.Warnf("error determining if an image is a parent: %v, ignoring the error", err)
+		logrus.Warnf("Failed to determine if an image is a parent: %v, ignoring the error", err)
 		hasChildren = false
 	}
 
@@ -416,7 +468,7 @@ func (i *Image) removeRecursive(ctx context.Context, rmMap map[string]*RemoveIma
 	if err != nil {
 		// We must be tolerant toward corrupted images.
 		// See containers/podman commit fd9dd7065d44.
-		logrus.Warnf("error determining parent of image: %v, ignoring the error", err)
+		logrus.Warnf("Failed to determine parent of image: %v, ignoring the error", err)
 		parent = nil
 	}
 
@@ -440,7 +492,7 @@ func (i *Image) removeRecursive(ctx context.Context, rmMap map[string]*RemoveIma
 	if err != nil {
 		// See Podman commit fd9dd7065d44: we need to
 		// be tolerant toward corrupted images.
-		logrus.Warnf("error determining if an image is a parent: %v, ignoring the error", err)
+		logrus.Warnf("Failed to determine if an image is a parent: %v, ignoring the error", err)
 		danglingParent = false
 	}
 	if !danglingParent {
@@ -462,7 +514,7 @@ func (i *Image) Tag(name string) error {
 
 	ref, err := NormalizeName(name)
 	if err != nil {
-		return errors.Wrapf(err, "error normalizing name %q", name)
+		return errors.Wrapf(err, "normalizing name %q", name)
 	}
 
 	if _, isDigested := ref.(reference.Digested); isDigested {
@@ -499,7 +551,7 @@ func (i *Image) Untag(name string) error {
 
 	ref, err := NormalizeName(name)
 	if err != nil {
-		return errors.Wrapf(err, "error normalizing name %q", name)
+		return errors.Wrapf(err, "normalizing name %q", name)
 	}
 
 	// FIXME: this is breaking Podman CI but must be re-enabled once
@@ -592,8 +644,7 @@ func (i *Image) NamedRepoTags() ([]reference.Named, error) {
 }
 
 // inRepoTags looks for the specified name/tag pair in the image's repo tags.
-// Note that tag may be empty.
-func (i *Image) inRepoTags(name, tag string) (reference.Named, error) {
+func (i *Image) inRepoTags(namedTagged reference.NamedTagged) (reference.Named, error) {
 	repoTags, err := i.NamedRepoTags()
 	if err != nil {
 		return nil, err
@@ -604,8 +655,10 @@ func (i *Image) inRepoTags(name, tag string) (reference.Named, error) {
 		return nil, err
 	}
 
+	name := namedTagged.Name()
+	tag := namedTagged.Tag()
 	for _, pair := range pairs {
-		if tag != "" && tag != pair.Tag {
+		if tag != pair.Tag {
 			continue
 		}
 		if !strings.HasSuffix(pair.Name, name) {
@@ -885,12 +938,12 @@ func getImageID(ctx context.Context, src types.ImageReference, sys *types.System
 	}
 	defer func() {
 		if err := newImg.Close(); err != nil {
-			logrus.Errorf("failed to close image: %q", err)
+			logrus.Errorf("Failed to close image: %q", err)
 		}
 	}()
 	imageDigest := newImg.ConfigInfo().Digest
 	if err = imageDigest.Validate(); err != nil {
-		return "", errors.Wrapf(err, "error getting config info")
+		return "", errors.Wrapf(err, "getting config info")
 	}
 	return "@" + imageDigest.Encoded(), nil
 }

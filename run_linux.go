@@ -31,6 +31,7 @@ import (
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/capabilities"
+	"github.com/containers/common/pkg/cgroups"
 	"github.com/containers/common/pkg/chown"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/defaultnet"
@@ -2144,8 +2145,6 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 }
 
 func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, shmSize string) error {
-	spec.Linux.Resources = nil
-
 	emptyDir := filepath.Join(bundleDir, "empty")
 	if err := os.Mkdir(emptyDir, 0); err != nil {
 		return err
@@ -2197,9 +2196,33 @@ func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, shmSize string
 			Options:     []string{bind.NoBindOption, "rbind", "private", "nodev", "noexec", "nosuid", "ro"},
 		},
 	}
-	// Cover up /sys/fs/cgroup, if it exist in our source for /sys.
-	if _, err := os.Stat("/sys/fs/cgroup"); err == nil {
-		spec.Linux.MaskedPaths = append(spec.Linux.MaskedPaths, "/sys/fs/cgroup")
+
+	cgroup2, err := cgroups.IsCgroup2UnifiedMode()
+	if err != nil {
+		return err
+	}
+	if cgroup2 {
+		hasCgroupNs := false
+		for _, ns := range spec.Linux.Namespaces {
+			if ns.Type == specs.CgroupNamespace {
+				hasCgroupNs = true
+				break
+			}
+		}
+		if hasCgroupNs {
+			mounts = append(mounts, specs.Mount{
+				Destination: "/sys/fs/cgroup",
+				Type:        "cgroup",
+				Source:      "cgroup",
+				Options:     []string{"private", "rw"},
+			})
+		}
+	} else {
+		spec.Linux.Resources = nil
+		// Cover up /sys/fs/cgroup, if it exist in our source for /sys.
+		if _, err := os.Stat("/sys/fs/cgroup"); err == nil {
+			spec.Linux.MaskedPaths = append(spec.Linux.MaskedPaths, "/sys/fs/cgroup")
+		}
 	}
 	// Keep anything that isn't under /dev, /proc, or /sys.
 	for i := range spec.Mounts {

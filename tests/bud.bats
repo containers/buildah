@@ -3158,7 +3158,7 @@ _EOF
 
 @test "bud with --cpu-shares" {
   skip_if_chroot
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
@@ -3190,7 +3190,7 @@ _EOF
 
 @test "bud with --cpuset-cpus" {
   skip_if_chroot
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
@@ -3217,7 +3217,7 @@ _EOF
 
 @test "bud with --cpuset-mems" {
   skip_if_chroot
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
@@ -3272,7 +3272,7 @@ _EOF
 @test "bud with --memory and --memory-swap" {
   skip_if_chroot
   skip_if_no_runtime
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
 
   _prefetch alpine
 

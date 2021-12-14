@@ -2,6 +2,7 @@ package libimage
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
@@ -12,9 +13,23 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	deepcopy "github.com/jinzhu/copier"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
+
+// Faster than the standard library, see https://github.com/json-iterator/go.
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+// tmpdir returns a path to a temporary directory.
+func tmpdir() string {
+	tmpdir := os.Getenv("TMPDIR")
+	if tmpdir == "" {
+		tmpdir = "/var/tmp"
+	}
+
+	return tmpdir
+}
 
 // RuntimeOptions allow for creating a customized Runtime.
 type RuntimeOptions struct {
@@ -306,7 +321,7 @@ func (r *Runtime) lookupImageInLocalStorage(name, candidate string, options *Loo
 		if errors.Cause(err) == os.ErrNotExist {
 			// We must be tolerant toward corrupted images.
 			// See containers/podman commit fd9dd7065d44.
-			logrus.Warnf("error determining if an image is a manifest list: %v, ignoring the error", err)
+			logrus.Warnf("Failed to determine if an image is a manifest list: %v, ignoring the error", err)
 			return image, nil
 		}
 		return nil, err
@@ -374,16 +389,17 @@ func (r *Runtime) lookupImageInDigestsAndRepoTags(name string, options *LookupIm
 		return nil, "", err
 	}
 
-	if !shortnames.IsShortName(name) {
-		named, err := reference.ParseNormalizedNamed(name)
-		if err != nil {
-			return nil, "", err
-		}
-		digested, hasDigest := named.(reference.Digested)
-		if !hasDigest {
-			return nil, "", errors.Wrap(storage.ErrImageUnknown, name)
-		}
+	ref, err := reference.Parse(name) // Warning! This is not ParseNormalizedNamed
+	if err != nil {
+		return nil, "", err
+	}
+	named, isNamed := ref.(reference.Named)
+	if !isNamed {
+		return nil, "", errors.Wrap(storage.ErrImageUnknown, name)
+	}
 
+	digested, isDigested := named.(reference.Digested)
+	if isDigested {
 		logrus.Debug("Looking for image with matching recorded digests")
 		digest := digested.Digest()
 		for _, image := range allImages {
@@ -393,22 +409,23 @@ func (r *Runtime) lookupImageInDigestsAndRepoTags(name string, options *LookupIm
 				}
 			}
 		}
-
 		return nil, "", errors.Wrap(storage.ErrImageUnknown, name)
 	}
 
-	// Podman compat: if we're looking for a short name but couldn't
-	// resolve it via the registries.conf dance, we need to look at *all*
-	// images and check if the name we're looking for matches a repo tag.
-	// Split the name into a repo/tag pair
-	split := strings.SplitN(name, ":", 2)
-	repo := split[0]
-	tag := ""
-	if len(split) == 2 {
-		tag = split[1]
+	if !shortnames.IsShortName(name) {
+		return nil, "", errors.Wrap(storage.ErrImageUnknown, name)
 	}
+
+	named = reference.TagNameOnly(named) // Make sure to add ":latest" if needed
+	namedTagged, isNammedTagged := named.(reference.NamedTagged)
+	if !isNammedTagged {
+		// NOTE: this should never happen since we already know it's
+		// not a digested reference.
+		return nil, "", fmt.Errorf("%s: %w (could not cast to tagged)", name, storage.ErrImageUnknown)
+	}
+
 	for _, image := range allImages {
-		named, err := image.inRepoTags(repo, tag)
+		named, err := image.inRepoTags(namedTagged)
 		if err != nil {
 			return nil, "", err
 		}
@@ -484,10 +501,16 @@ func (r *Runtime) imageReferenceMatchesContext(ref types.ImageReference, options
 	return true, nil
 }
 
+// IsExternalContainerFunc allows for checking whether the specified container
+// is an external one.  The definition of an external container can be set by
+// callers.
+type IsExternalContainerFunc func(containerID string) (bool, error)
+
 // ListImagesOptions allow for customizing listing images.
 type ListImagesOptions struct {
 	// Filters to filter the listed images.  Supported filters are
 	// * after,before,since=image
+	// * containers=true,false,external
 	// * dangling=true,false
 	// * intermediate=true,false (useful for pruning images)
 	// * id=id
@@ -495,6 +518,11 @@ type ListImagesOptions struct {
 	// * readonly=true,false
 	// * reference=name[:tag] (wildcards allowed)
 	Filters []string
+	// IsExternalContainerFunc allows for checking whether the specified
+	// container is an external one (when containers=external filter is
+	// used).  The definition of an external container can be set by
+	// callers.
+	IsExternalContainerFunc IsExternalContainerFunc
 }
 
 // ListImages lists images in the local container storage.  If names are
@@ -523,16 +551,7 @@ func (r *Runtime) ListImages(ctx context.Context, names []string, options *ListI
 		}
 	}
 
-	var filters []filterFunc
-	if len(options.Filters) > 0 {
-		compiledFilters, err := r.compileImageFilters(ctx, options.Filters)
-		if err != nil {
-			return nil, err
-		}
-		filters = append(filters, compiledFilters...)
-	}
-
-	return filterImages(images, filters)
+	return r.filterImages(ctx, images, options)
 }
 
 // RemoveImagesOptions allow for customizing image removal.
@@ -550,8 +569,17 @@ type RemoveImagesOptions struct {
 	// containers using a specific image.  By default, all containers in
 	// the local containers storage will be removed (if Force is set).
 	RemoveContainerFunc RemoveContainerFunc
+	// IsExternalContainerFunc allows for checking whether the specified
+	// container is an external one (when containers=external filter is
+	// used).  The definition of an external container can be set by
+	// callers.
+	IsExternalContainerFunc IsExternalContainerFunc
+	// Remove external containers even when Force is false.  Requires
+	// IsExternalContainerFunc to be specified.
+	ExternalContainers bool
 	// Filters to filter the removed images.  Supported filters are
 	// * after,before,since=image
+	// * containers=true,false,external
 	// * dangling=true,false
 	// * intermediate=true,false (useful for pruning images)
 	// * id=id
@@ -579,6 +607,10 @@ type RemoveImagesOptions struct {
 func (r *Runtime) RemoveImages(ctx context.Context, names []string, options *RemoveImagesOptions) (reports []*RemoveImageReport, rmErrors []error) {
 	if options == nil {
 		options = &RemoveImagesOptions{}
+	}
+
+	if options.ExternalContainers && options.IsExternalContainerFunc == nil {
+		return nil, []error{fmt.Errorf("libimage error: cannot remove external containers without callback")}
 	}
 
 	// The logic here may require some explanation.  Image removal is
@@ -635,7 +667,11 @@ func (r *Runtime) RemoveImages(ctx context.Context, names []string, options *Rem
 		}
 
 	default:
-		filteredImages, err := r.ListImages(ctx, nil, &ListImagesOptions{Filters: options.Filters})
+		options := &ListImagesOptions{
+			IsExternalContainerFunc: options.IsExternalContainerFunc,
+			Filters:                 options.Filters,
+		}
+		filteredImages, err := r.ListImages(ctx, nil, options)
 		if err != nil {
 			appendError(err)
 			return nil, rmErrors

@@ -21,6 +21,7 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	digest "github.com/opencontainers/go-digest"
+	ociSpec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -169,6 +170,20 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 	return localImages, pullError
 }
 
+// nameFromAnnotations returns a reference string to be used as an image name,
+// or an empty string.  The annotations map may be nil.
+func nameFromAnnotations(annotations map[string]string) string {
+	if annotations == nil {
+		return ""
+	}
+	// buildkit/containerd are using a custom annotation see
+	// containers/podman/issues/12560.
+	if annotations["io.containerd.image.name"] != "" {
+		return annotations["io.containerd.image.name"]
+	}
+	return annotations[ociSpec.AnnotationRefName]
+}
+
 // copyFromDefault is the default copier for a number of transports.  Other
 // transports require some specific dancing, sometimes Yoga.
 func (r *Runtime) copyFromDefault(ctx context.Context, ref types.ImageReference, options *CopyOptions) ([]string, error) {
@@ -201,15 +216,16 @@ func (r *Runtime) copyFromDefault(ctx context.Context, ref types.ImageReference,
 		if err != nil {
 			return nil, err
 		}
-		// if index.json has no reference name, compute the image ID instead
-		if manifestDescriptor.Annotations == nil || manifestDescriptor.Annotations["org.opencontainers.image.ref.name"] == "" {
+		storageName = nameFromAnnotations(manifestDescriptor.Annotations)
+		switch len(storageName) {
+		case 0:
+			// If there's no reference name in the annotations, compute an ID.
 			storageName, err = getImageID(ctx, ref, nil)
 			if err != nil {
 				return nil, err
 			}
 			imageName = "sha256:" + storageName[1:]
-		} else {
-			storageName = manifestDescriptor.Annotations["org.opencontainers.image.ref.name"]
+		default:
 			named, err := NormalizeName(storageName)
 			if err != nil {
 				return nil, err
@@ -454,7 +470,7 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 		// NOTE that this is will even override --pull={false,never}.  This is
 		// very likely a bug but a consistent one in Podman/Buildah and should
 		// be addressed at a later point.
-		if pullPolicy != config.PullPolicyAlways {
+		if pullPolicy != config.PullPolicyAlways && pullPolicy != config.PullPolicyNever {
 			switch {
 			// User input clearly refer to a local image.
 			case strings.HasPrefix(imageName, "localhost/"):
@@ -477,10 +493,10 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 
 	if pullPolicy == config.PullPolicyNever {
 		if localImage != nil {
-			logrus.Debugf("Pull policy %q but no local image has been found for %s", pullPolicy, imageName)
+			logrus.Debugf("Pull policy %q and %s resolved to local image %s", pullPolicy, imageName, resolvedImageName)
 			return []string{resolvedImageName}, nil
 		}
-		logrus.Debugf("Pull policy %q and %s resolved to local image %s", pullPolicy, imageName, resolvedImageName)
+		logrus.Debugf("Pull policy %q but no local image has been found for %s", pullPolicy, imageName)
 		return nil, errors.Wrap(storage.ErrImageUnknown, imageName)
 	}
 

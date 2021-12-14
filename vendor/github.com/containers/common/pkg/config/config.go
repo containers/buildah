@@ -140,7 +140,7 @@ type ContainersConfig struct {
 	// will be truncated. It can be expressed as a human-friendly string
 	// that is parsed to bytes.
 	// Negative values indicate that the log file won't be truncated.
-	LogSizeMax int64 `toml:"log_size_max,omitempty"`
+	LogSizeMax int64 `toml:"log_size_max,omitempty,omitzero"`
 
 	// Specifies default format tag for container log messages.
 	// This is useful for creating a specific tag for container log messages.
@@ -155,7 +155,7 @@ type ContainersConfig struct {
 
 	// PidsLimit is the number of processes each container is restricted to
 	// by the cgroup process number controller.
-	PidsLimit int64 `toml:"pids_limit,omitempty"`
+	PidsLimit int64 `toml:"pids_limit,omitempty,omitzero"`
 
 	// PidNS indicates how to create a pid namespace for the container
 	PidNS string `toml:"pidns,omitempty"`
@@ -192,7 +192,7 @@ type ContainersConfig struct {
 	UserNS string `toml:"userns,omitempty"`
 
 	// UserNSSize how many UIDs to allocate for automatically created UserNS
-	UserNSSize int `toml:"userns_size,omitempty"`
+	UserNSSize int `toml:"userns_size,omitempty,omitzero"`
 }
 
 // EngineConfig contains configuration options used to set up a engine runtime
@@ -214,6 +214,12 @@ type EngineConfig struct {
 	// ConmonPath is the path to the Conmon binary used for managing containers.
 	// The first path pointing to a valid file will be used.
 	ConmonPath []string `toml:"conmon_path,omitempty"`
+
+	// CompatAPIEnforceDockerHub enforces using docker.io for completing
+	// short names in Podman's compatibility REST API.  Note that this will
+	// ignore unqualified-search-registries and short-name aliases defined
+	// in containers-registries.conf(5).
+	CompatAPIEnforceDockerHub bool `toml:"compat_api_enforce_docker_hub,omitempty"`
 
 	// DetachKeys is the sequence of keys used to detach a container.
 	DetachKeys string `toml:"detach_keys,omitempty"`
@@ -259,7 +265,7 @@ type EngineConfig struct {
 	// ImageParallelCopies indicates the maximum number of image layers
 	// to be copied simultaneously. If this is zero, container engines
 	// will fall back to containers/image defaults.
-	ImageParallelCopies uint `toml:"image_parallel_copies,omitempty"`
+	ImageParallelCopies uint `toml:"image_parallel_copies,omitempty,omitzero"`
 
 	// ImageDefaultFormat specified the manifest Type (oci, v2s2, or v2s1)
 	// to use when pulling, pushing, building container images. By default
@@ -308,7 +314,7 @@ type EngineConfig struct {
 
 	// NumLocks is the number of locks to make available for containers and
 	// pods.
-	NumLocks uint32 `toml:"num_locks,omitempty"`
+	NumLocks uint32 `toml:"num_locks,omitempty,omitzero"`
 
 	// OCIRuntime is the OCI runtime to use.
 	OCIRuntime string `toml:"runtime,omitempty"`
@@ -380,7 +386,7 @@ type EngineConfig struct {
 
 	// ServiceTimeout is the number of seconds to wait without a connection
 	// before the `podman system service` times out and exits
-	ServiceTimeout uint `toml:"service_timeout,omitempty"`
+	ServiceTimeout uint `toml:"service_timeout,omitempty,omitzero"`
 
 	// StaticDir is the path to a persistent directory to store container
 	// files.
@@ -388,7 +394,7 @@ type EngineConfig struct {
 
 	// StopTimeout is the number of seconds to wait for container to exit
 	// before sending kill signal.
-	StopTimeout uint `toml:"stop_timeout,omitempty"`
+	StopTimeout uint `toml:"stop_timeout,omitempty,omitzero"`
 
 	// ImageCopyTmpDir is the default location for storing temporary
 	// container image content,  Can be overridden with the TMPDIR
@@ -413,7 +419,10 @@ type EngineConfig struct {
 
 	// ChownCopiedFiles tells the container engine whether to chown files copied
 	// into a container to the container's primary uid/gid.
-	ChownCopiedFiles bool `toml:"chown_copied_files"`
+	ChownCopiedFiles bool `toml:"chown_copied_files,omitempty"`
+
+	// CompressionFormat is the compression format used to compress image layers.
+	CompressionFormat string `toml:"compression_format,omitempty"`
 }
 
 // SetOptions contains a subset of options in a Config. It's used to indicate if
@@ -461,6 +470,10 @@ type SetOptions struct {
 
 // NetworkConfig represents the "network" TOML config table
 type NetworkConfig struct {
+	// NetworkBackend determines what backend should be used for Podman's
+	// networking.
+	NetworkBackend string `toml:"network_backend,omitempty"`
+
 	// CNIPluginDirs is where CNI plugin binaries are stored.
 	CNIPluginDirs []string `toml:"cni_plugin_dirs,omitempty"`
 
@@ -492,13 +505,15 @@ type SecretConfig struct {
 // MachineConfig represents the "machine" TOML config table
 type MachineConfig struct {
 	// Number of CPU's a machine is created with.
-	CPUs uint64 `toml:"cpus,omitempty"`
+	CPUs uint64 `toml:"cpus,omitempty,omitzero"`
 	// DiskSize is the size of the disk in GB created when init-ing a podman-machine VM
-	DiskSize uint64 `toml:"disk_size,omitempty"`
+	DiskSize uint64 `toml:"disk_size,omitempty,omitzero"`
 	// MachineImage is the image used when init-ing a podman-machine VM
 	Image string `toml:"image,omitempty"`
 	// Memory in MB a machine is created with.
-	Memory uint64 `toml:"memory,omitempty"`
+	Memory uint64 `toml:"memory,omitempty,omitzero"`
+	// Username to use for rootless podman when init-ing a podman machine VM
+	User string `toml:"user,omitempty"`
 }
 
 // Destination represents destination for remote service
@@ -559,6 +574,10 @@ func NewConfig(userConfigPath string) (*Config, error) {
 		return nil, err
 	}
 
+	if err := config.setupEnv(); err != nil {
+		return nil, err
+	}
+
 	return config, nil
 }
 
@@ -574,7 +593,7 @@ func readConfigFromFile(path string, config *Config) error {
 	}
 	keys := meta.Undecoded()
 	if len(keys) > 0 {
-		logrus.Warningf("Failed to decode the keys %q from %q.", keys, path)
+		logrus.Debugf("Failed to decode the keys %q from %q.", keys, path)
 	}
 
 	return nil
@@ -1067,17 +1086,6 @@ func ReadCustomConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	// hack since Ommitempty does not seem to work with Write
-	c, err := Default()
-	if err != nil {
-		if os.IsNotExist(errors.Cause(err)) {
-			c, err = DefaultConfig()
-		}
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	newConfig := &Config{}
 	if _, err := os.Stat(path); err == nil {
 		if err := readConfigFromFile(path, newConfig); err != nil {
@@ -1088,11 +1096,6 @@ func ReadCustomConfig() (*Config, error) {
 			return nil, err
 		}
 	}
-	newConfig.Containers.LogSizeMax = c.Containers.LogSizeMax
-	newConfig.Containers.PidsLimit = c.Containers.PidsLimit
-	newConfig.Containers.UserNSSize = c.Containers.UserNSSize
-	newConfig.Engine.NumLocks = c.Engine.NumLocks
-	newConfig.Engine.StopTimeout = c.Engine.StopTimeout
 	return newConfig, nil
 }
 
@@ -1158,7 +1161,14 @@ func (c *Config) ActiveDestination() (uri, identity string, err error) {
 // FindHelperBinary will search the given binary name in the configured directories.
 // If searchPATH is set to true it will also search in $PATH.
 func (c *Config) FindHelperBinary(name string, searchPATH bool) (string, error) {
-	for _, path := range c.Engine.HelperBinariesDir {
+	dir_list := c.Engine.HelperBinariesDir
+
+	// If set, search this directory first. This is used in testing.
+	if dir, found := os.LookupEnv("CONTAINERS_HELPER_BINARY_DIR"); found {
+		dir_list = append([]string{dir}, dir_list...)
+	}
+
+	for _, path := range dir_list {
 		fullpath := filepath.Join(path, name)
 		if fi, err := os.Stat(fullpath); err == nil && fi.Mode().IsRegular() {
 			return fullpath, nil
@@ -1167,10 +1177,11 @@ func (c *Config) FindHelperBinary(name string, searchPATH bool) (string, error) 
 	if searchPATH {
 		return exec.LookPath(name)
 	}
+	configHint := "To resolve this error, set the helper_binaries_dir key in the `[engine]` section of containers.conf to the directory containing your helper binaries."
 	if len(c.Engine.HelperBinariesDir) == 0 {
-		return "", errors.Errorf("could not find %q because there are no helper binary directories configured", name)
+		return "", errors.Errorf("could not find %q because there are no helper binary directories configured.  %s", name, configHint)
 	}
-	return "", errors.Errorf("could not find %q in one of %v", name, c.Engine.HelperBinariesDir)
+	return "", errors.Errorf("could not find %q in one of %v.  %s", name, c.Engine.HelperBinariesDir, configHint)
 }
 
 // ImageCopyTmpDir default directory to store tempory image files during copy
@@ -1190,4 +1201,24 @@ func (c *Config) ImageCopyTmpDir() (string, error) {
 	}
 
 	return "", errors.Errorf("invalid image_copy_tmp_dir value %q (relative paths are not accepted)", c.Engine.ImageCopyTmpDir)
+}
+
+// setupEnv sets the environment variables for the engine
+func (c *Config) setupEnv() error {
+	for _, env := range c.Engine.Env {
+		splitEnv := strings.SplitN(env, "=", 2)
+		if len(splitEnv) != 2 {
+			logrus.Warnf("invalid environment variable for engine %s, valid configuration is KEY=value pair", env)
+			continue
+		}
+		// skip if the env is already defined
+		if _, ok := os.LookupEnv(splitEnv[0]); ok {
+			logrus.Debugf("environment variable %s is already defined, skip the settings from containers.conf", splitEnv[0])
+			continue
+		}
+		if err := os.Setenv(splitEnv[0], splitEnv[1]); err != nil {
+			return err
+		}
+	}
+	return nil
 }

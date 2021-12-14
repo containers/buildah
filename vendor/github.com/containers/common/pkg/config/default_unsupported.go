@@ -1,6 +1,17 @@
-// +build !linux
+// +build !linux,!windows
 
 package config
+
+// getDefaultMachineImage returns the default machine image stream
+// On Linux/Mac, this returns the FCOS stream
+func getDefaultMachineImage() string {
+	return "testing"
+}
+
+// getDefaultMachineUser returns the user to use for rootless podman
+func getDefaultMachineUser() string {
+	return "core"
+}
 
 // getDefaultRootlessNetwork returns the default rootless network configuration.
 // It is "cni" for non-Linux OSes (to better support `podman-machine` usecases).

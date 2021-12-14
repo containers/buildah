@@ -160,7 +160,7 @@ load helpers
 
 @test "from cpu-period test" {
   skip_if_chroot
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
@@ -176,7 +176,7 @@ load helpers
 
 @test "from cpu-quota test" {
   skip_if_chroot
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
@@ -192,7 +192,7 @@ load helpers
 
 @test "from cpu-shares test" {
   skip_if_chroot
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
@@ -210,7 +210,7 @@ load helpers
 
 @test "from cpuset-cpus test" {
   skip_if_chroot
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
@@ -226,7 +226,7 @@ load helpers
 
 @test "from cpuset-mems test" {
   skip_if_chroot
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
   _prefetch alpine
@@ -242,7 +242,7 @@ load helpers
 
 @test "from memory test" {
   skip_if_chroot
-  skip_if_rootless
+  skip_if_rootless_and_cgroupv1
 
   _prefetch alpine
   run_buildah from --quiet --memory=40m --memory-swap=70m --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
