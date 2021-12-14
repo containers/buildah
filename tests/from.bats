@@ -92,6 +92,10 @@ load helpers
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json localhost/alpine2
   expect_output "alpine2-working-container"
   run_buildah rm $output
+  tmp=$RANDOM
+  run_buildah from --suffix $tmp --quiet --signature-policy ${TESTSDIR}/policy.json localhost/alpine2
+  expect_output "alpine2-$tmp"
+  run_buildah rm $output
   run_buildah rmi alpine alpine2
 
   run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine

@@ -36,6 +36,8 @@ type fromReply struct {
 	*buildahcli.NameSpaceResults
 }
 
+var suffix string
+
 func init() {
 	var (
 		fromDescription = "\n  Creates a new working container, either from scratch or using a specified\n  image as a starting point."
@@ -74,6 +76,11 @@ func init() {
 	flags.BoolVar(&opts.pullNever, "pull-never", false, "do not pull the image, use the image present in store if available")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pulling images")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
+	flags.StringVar(&suffix, "suffix", "", "suffix to add to intermediate containers")
+	if err := flags.MarkHidden("suffix"); err != nil {
+		panic(fmt.Sprintf("error marking the suffix flag as hidden: %v", err))
+	}
+
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
 	}
@@ -284,6 +291,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	options := buildah.BuilderOptions{
 		FromImage:             args[0],
 		Container:             iopts.name,
+		ContainerSuffix:       suffix,
 		PullPolicy:            pullPolicy,
 		SignaturePolicyPath:   signaturePolicy,
 		SystemContext:         systemContext,
