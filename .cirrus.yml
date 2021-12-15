@@ -197,53 +197,6 @@ cross_build_task:
         path: ./bin/*
 
 
-static_build_task:
-    name: "Static Build"
-    alias: static_build
-    only_if: *not_docs
-    depends_on:
-      - unit
-
-    gce_instance:
-        image_name: "${FEDORA_CACHE_IMAGE_NAME}"
-        cpu: 8
-        memory: 12
-        disk: 200
-
-    env:
-        NIX_FQIN: "docker.io/nixos/nix:latest"
-
-    init_script: |
-        set -ex
-        setenforce 0
-
-    nix_cache:
-      folder: '.cache'
-      fingerprint_script: cat nix/*
-
-    build_script: |
-        set -ex
-        mkdir -p .cache
-        mv .cache /nix
-        if [[ -z $(ls -A /nix) ]]; then
-            podman run --rm --privileged -i -v /:/mnt \
-                $NIX_FQIN \
-                cp -rfT /nix /mnt/nix
-        fi
-        podman run --rm --privileged -i -v /nix:/nix \
-            -v ${PWD}:${PWD} -w ${PWD} \
-            $NIX_FQIN \
-            nix --print-build-logs --option cores 8 \
-            --option max-jobs 8 build --file nix/
-
-    binaries_artifacts:
-        path: "result/bin/buildah"
-
-    save_cache_script: |
-        mv /nix .cache
-        chown -Rf $(whoami) .cache
-
-
 integration_task:
     name: "Integration $DISTRO_NV w/ $STORAGE_DRIVER"
     alias: integration
@@ -342,7 +295,6 @@ success_task:
       - cross_build
       - integration
       - in_podman
-      - static_build
 
     container:
         image: "quay.io/libpod/alpine:latest"
