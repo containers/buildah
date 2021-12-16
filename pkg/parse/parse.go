@@ -71,9 +71,13 @@ func CommonBuildOptions(c *cobra.Command) (*define.CommonBuildOptions, error) {
 
 	memSwapValue, _ := c.Flags().GetString("memory-swap")
 	if memSwapValue != "" {
-		memorySwap, err = units.RAMInBytes(memSwapValue)
-		if err != nil {
-			return nil, errors.Wrapf(err, "invalid value for memory-swap")
+		if memSwapValue == "-1" {
+			memorySwap = -1
+		} else {
+			memorySwap, err = units.RAMInBytes(memSwapValue)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid value for memory-swap")
+			}
 		}
 	}
 

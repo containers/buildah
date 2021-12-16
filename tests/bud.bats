@@ -458,6 +458,12 @@ symlink(subdir)"
   expect_output "${target}-working-container"
 }
 
+@test "bud-with-unlimited-memory-swap" {
+  target=scratch-image
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --memory-swap -1 -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah rmi -f ${target}
+}
+
 @test "build --unsetenv PATH" {
   _prefetch alpine
   cat > $mytmpdir/Containerfile << _EOF
