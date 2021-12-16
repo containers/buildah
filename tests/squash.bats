@@ -126,3 +126,18 @@ function check_lengths() {
 	run_buildah inspect -t image -f '{{.Docker.Parent}}' squashed
         expect_output "" "should have no parent image set"
 }
+
+
+@test "bud-squash-should-use-cache" {
+  _prefetch alpine
+  # populate cache from simple build
+  run_buildah build --layers -t test --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/layers-squash/Dockerfile.multi-stage
+  # create another squashed build and check if we are using cache for everything.
+  # instead of last instruction in last stage
+  run_buildah build --layers --squash -t testsquash --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/layers-squash/Dockerfile.multi-stage
+  expect_output --substring "Using cache"
+  run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' testsquash
+  expect_output "1" "should only container 1 diff"
+  run_buildah rmi -f testsquash
+  run_buildah rmi -f test
+}

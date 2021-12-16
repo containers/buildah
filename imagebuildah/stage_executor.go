@@ -974,7 +974,13 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			}
 		}
 
-		if cacheID != "" && !(s.executor.squash && lastInstruction) {
+		// We want to save history for other layers during a squashed build.
+		// Toggle flag allows executor to treat other instruction and layers
+		// as regular builds and only perform squashing at last
+		squashToggle := false
+		// Note: If the build has squash, we must try to re-use as many layers as possible if cache is found.
+		// So only perform commit if its the lastInstruction of lastStage.
+		if cacheID != "" {
 			logCacheHit(cacheID)
 			// A suitable cached image was found, so we can just
 			// reuse it.  If we need to add a name to the resulting
@@ -988,6 +994,13 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				}
 			}
 		} else {
+			if s.executor.squash {
+				// We want to save history for other layers during a squashed build.
+				// squashToggle flag allows executor to treat other instruction and layers
+				// as regular builds and only perform squashing at last
+				s.executor.squash = false
+				squashToggle = true
+			}
 			// We're not going to find any more cache hits, so we
 			// can stop looking for them.
 			checkForLayers = false
@@ -999,6 +1012,17 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				return "", nil, errors.Wrapf(err, "error committing container for step %+v", *step)
 			}
 		}
+
+		// Perform final squash for this build as we are one the,
+		// last instruction of last stage
+		if (s.executor.squash || squashToggle) && lastInstruction && lastStage {
+			s.executor.squash = true
+			imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), !s.stepRequiresLayer(step), commitName)
+			if err != nil {
+				return "", nil, errors.Wrapf(err, "error committing final squash step %+v", *step)
+			}
+		}
+
 		logImageID(imgID)
 
 		// Update our working container to be based off of the cached
