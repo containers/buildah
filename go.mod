@@ -31,14 +31,14 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200616122406-847368b35ebf
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/cobra v1.2.1
+	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97
+	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359
+	golang.org/x/sys v0.0.0-20211205182925-97ca703d548d
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 	k8s.io/klog v1.0.0 // indirect
 )

@@ -39,7 +39,7 @@ github.com/acarl005/stripansi
 github.com/beorn7/perks/quantile
 # github.com/blang/semver v3.5.1+incompatible
 github.com/blang/semver
-# github.com/cespare/xxhash/v2 v2.1.1
+# github.com/cespare/xxhash/v2 v2.1.2
 github.com/cespare/xxhash/v2
 # github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 github.com/chzyer/readline
@@ -445,7 +445,7 @@ github.com/rivo/uniseg
 github.com/seccomp/libseccomp-golang
 # github.com/sirupsen/logrus v1.8.1 => github.com/sirupsen/logrus v1.4.2
 github.com/sirupsen/logrus
-# github.com/spf13/cobra v1.2.1
+# github.com/spf13/cobra v1.3.0
 github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 github.com/spf13/pflag
@@ -488,7 +488,7 @@ go.opencensus.io/internal
 go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/tracestate
-# golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97
+# golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/cast5
 golang.org/x/crypto/chacha20
@@ -524,7 +524,7 @@ golang.org/x/net/trace
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359
+# golang.org/x/sys v0.0.0-20211205182925-97ca703d548d
 golang.org/x/sys/cpu
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
@@ -554,9 +554,9 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/genproto v0.0.0-20211005153810-c76a74d43a8e
+# google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.41.0
+# google.golang.org/grpc v1.42.0
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff
