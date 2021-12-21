@@ -80,6 +80,8 @@ type CommonBuildOptions struct {
 
 // BuildOptions can be used to alter how an image is built.
 type BuildOptions struct {
+	// ContainerSuffix it the name to suffix containers with
+	ContainerSuffix string
 	// ContextDirectory is the default source location for COPY and ADD
 	// commands.
 	ContextDirectory string

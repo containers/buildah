@@ -539,6 +539,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		Args:                  ib.Args,
 		FromImage:             from,
 		PullPolicy:            pullPolicy,
+		ContainerSuffix:       s.executor.containerSuffix,
 		Registry:              s.executor.registry,
 		BlobDirectory:         s.executor.blobDirectory,
 		SignaturePolicyPath:   s.executor.signaturePolicyPath,
