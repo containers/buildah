@@ -1,8 +1,7 @@
 # Multi Progress Bar
 
 [![GoDoc](https://pkg.go.dev/badge/github.com/vbauerster/mpb)](https://pkg.go.dev/github.com/vbauerster/mpb/v7)
-[![Build Status](https://travis-ci.org/vbauerster/mpb.svg?branch=master)](https://travis-ci.org/vbauerster/mpb)
-[![Go Report Card](https://goreportcard.com/badge/github.com/vbauerster/mpb)](https://goreportcard.com/report/github.com/vbauerster/mpb)
+[![Test status](https://github.com/vbauerster/mpb/actions/workflows/test.yml/badge.svg)](https://github.com/vbauerster/mpb/actions/workflows/test.yml)
 [![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/vbauerster)
 
 **mpb** is a Go lib for rendering progress bars in terminal applications.
@@ -37,10 +36,10 @@ func main() {
 
     total := 100
     name := "Single Bar:"
-    // adding a single bar, which will inherit container's width
-    bar := p.Add(int64(total),
-        // progress bar filler with customized style
-        mpb.NewBarFiller(mpb.BarStyle().Lbound("╢").Filler("▌").Tip("▌").Padding("░").Rbound("╟")),
+    // create a single bar, which will inherit container's width
+    bar := p.New(int64(total),
+        // BarFillerBuilder with custom style
+        mpb.BarStyle().Lbound("╢").Filler("▌").Tip("▌").Padding("░").Rbound("╟"),
         mpb.PrependDecorators(
             // display our name with one space on the right
             decor.Name(name, decor.WC{W: len(name) + 1, C: decor.DidentRight}),
@@ -66,7 +65,7 @@ func main() {
 
 ```go
     var wg sync.WaitGroup
-    // passed &wg will be accounted at p.Wait() call
+    // passed wg will be accounted at p.Wait() call
     p := mpb.New(mpb.WithWaitGroup(&wg))
     total, numBars := 100, 3
     wg.Add(numBars)
@@ -104,7 +103,7 @@ func main() {
             }
         }()
     }
-    // Waiting for passed &wg and for all bars to complete and flush
+    // wait for passed wg and for all bars to complete and flush
     p.Wait()
 ```
 

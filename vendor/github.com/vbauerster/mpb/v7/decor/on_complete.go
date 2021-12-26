@@ -1,6 +1,6 @@
 package decor
 
-// OnComplete returns decorator, which wraps provided decorator, with
+// OnComplete returns decorator, which wraps provided decorator with
 // sole purpose to display provided message on complete event.
 //
 //	`decorator` Decorator to wrap
@@ -8,6 +8,9 @@ package decor
 //	`message` message to display on complete event
 //
 func OnComplete(decorator Decorator, message string) Decorator {
+	if decorator == nil {
+		return nil
+	}
 	d := &onCompleteWrapper{
 		Decorator: decorator,
 		msg:       message,
