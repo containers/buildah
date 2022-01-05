@@ -764,7 +764,8 @@ func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, termina
 	}
 }
 
-func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, bundlePath, containerName string) (wstatus unix.WaitStatus, err error) {
+func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs []string, spec *specs.Spec, bundlePath, containerName string,
+	containerCreateW io.WriteCloser, containerStartR io.ReadCloser) (wstatus unix.WaitStatus, err error) {
 	if options.Logger == nil {
 		options.Logger = logrus.StandardLogger()
 	}
@@ -937,13 +938,16 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 	}()
 
 	if configureNetwork {
-		teardown, err := runConfigureNetwork(isolation, options, configureNetworks, pid, containerName, pargs)
-		if teardown != nil {
-			defer teardown()
-		}
-		if err != nil {
+		if _, err := containerCreateW.Write([]byte{1}); err != nil {
 			return 1, err
 		}
+		containerCreateW.Close()
+		logrus.Debug("waiting for parent start message")
+		b := make([]byte, 1)
+		if _, err := containerStartR.Read(b); err != nil {
+			return 1, errors.Wrap(err, "did not get container start message from parent")
+		}
+		containerStartR.Close()
 	}
 
 	if copyPipes {
@@ -1138,7 +1142,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 	}, nil
 }
 
-func runConfigureNetwork(isolation define.Isolation, options RunOptions, configureNetworks []string, pid int, containerName string, command []string) (teardown func(), err error) {
+func runConfigureNetwork(isolation define.Isolation, options RunOptions, configureNetworks []string, pid int, containerName string) (teardown func(), err error) {
 	var netconf, undo []*libcni.NetworkConfigList
 
 	if isolation == IsolationOCIRootless {
@@ -1172,7 +1176,7 @@ func runConfigureNetwork(isolation define.Isolation, options RunOptions, configu
 	for _, file := range files {
 		nc, err := libcni.ConfFromFile(file)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error loading networking configuration from file %q for %v", file, command)
+			return nil, errors.Wrapf(err, "error loading networking configuration from file %q", file)
 		}
 		if len(configureNetworks) > 0 && nc.Network != nil && (nc.Network.Name == "" || !util.StringInSlice(nc.Network.Name, configureNetworks)) {
 			if nc.Network.Name == "" {
@@ -1187,7 +1191,7 @@ func runConfigureNetwork(isolation define.Isolation, options RunOptions, configu
 		}
 		cl, err := libcni.ConfListFromConf(nc)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error converting networking configuration from file %q for %v", file, command)
+			return nil, errors.Wrapf(err, "error converting networking configuration from file %q", file)
 		}
 		logrus.Debugf("using network configuration from %q", file)
 		netconf = append(netconf, cl)
@@ -1195,7 +1199,7 @@ func runConfigureNetwork(isolation define.Isolation, options RunOptions, configu
 	for _, list := range lists {
 		cl, err := libcni.ConfListFromFile(list)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error loading networking configuration list from file %q for %v", list, command)
+			return nil, errors.Wrapf(err, "error loading networking configuration list from file %q", list)
 		}
 		if len(configureNetworks) > 0 && (cl.Name == "" || !util.StringInSlice(cl.Name, configureNetworks)) {
 			if cl.Name == "" {
@@ -1216,7 +1220,7 @@ func runConfigureNetwork(isolation define.Isolation, options RunOptions, configu
 	netns := fmt.Sprintf("/proc/%d/ns/net", pid)
 	netFD, err := unix.Open(netns, unix.O_RDONLY, 0)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error opening network namespace for %v", command)
+		return nil, errors.Wrapf(err, "error opening network namespace")
 	}
 	mynetns := fmt.Sprintf("/proc/%d/fd/%d", unix.Getpid(), netFD)
 	// Build our search path for the plugins.
@@ -1227,7 +1231,7 @@ func runConfigureNetwork(isolation define.Isolation, options RunOptions, configu
 	teardown = func() {
 		for _, nc := range undo {
 			if err = cni.DelNetworkList(context.Background(), nc, rtconf[nc]); err != nil {
-				options.Logger.Errorf("error cleaning up network %v for %v: %v", rtconf[nc].IfName, command, err)
+				options.Logger.Errorf("error cleaning up network %v: %v", rtconf[nc].IfName, err)
 			}
 		}
 		unix.Close(netFD)
@@ -1244,7 +1248,7 @@ func runConfigureNetwork(isolation define.Isolation, options RunOptions, configu
 		// Bring it up.
 		_, err := cni.AddNetworkList(context.Background(), nc, rtconf[nc])
 		if err != nil {
-			return teardown, errors.Wrapf(err, "error configuring network list %v for %v", rtconf[nc].IfName, command)
+			return teardown, errors.Wrapf(err, "error configuring network list %v", rtconf[nc].IfName)
 		}
 		// Add it to the list of networks to take down when the container process exits.
 		undo = append([]*libcni.NetworkConfigList{nc}, undo...)
@@ -1606,8 +1610,24 @@ func runUsingRuntimeMain() {
 		os.Exit(1)
 	}
 
+	// open the pipes used to communicate with the parent process
+	var containerCreateW *os.File
+	var containerStartR *os.File
+	if options.ConfigureNetwork {
+		containerCreateW = os.NewFile(4, "containercreatepipe")
+		if containerCreateW == nil {
+			fmt.Fprintf(os.Stderr, "could not open fd 4\n")
+			os.Exit(1)
+		}
+		containerStartR = os.NewFile(5, "containerstartpipe")
+		if containerStartR == nil {
+			fmt.Fprintf(os.Stderr, "could not open fd 5\n")
+			os.Exit(1)
+		}
+	}
+
 	// Run the container, start to finish.
-	status, err := runUsingRuntime(options.Isolation, options.Options, options.ConfigureNetwork, options.ConfigureNetworks, options.MoreCreateArgs, ospec, options.BundlePath, options.ContainerName)
+	status, err := runUsingRuntime(options.Options, options.ConfigureNetwork, options.MoreCreateArgs, ospec, options.BundlePath, options.ContainerName, containerCreateW, containerStartR)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error running container: %v\n", err)
 		os.Exit(1)
@@ -2240,15 +2260,14 @@ func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, shmSize string
 func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (err error) {
 	var confwg sync.WaitGroup
 	config, conferr := json.Marshal(runUsingRuntimeSubprocOptions{
-		Options:           options,
-		Spec:              spec,
-		RootPath:          rootPath,
-		BundlePath:        bundlePath,
-		ConfigureNetwork:  configureNetwork,
-		ConfigureNetworks: configureNetworks,
-		MoreCreateArgs:    moreCreateArgs,
-		ContainerName:     containerName,
-		Isolation:         isolation,
+		Options:          options,
+		Spec:             spec,
+		RootPath:         rootPath,
+		BundlePath:       bundlePath,
+		ConfigureNetwork: configureNetwork,
+		MoreCreateArgs:   moreCreateArgs,
+		ContainerName:    containerName,
+		Isolation:        isolation,
 	})
 	if conferr != nil {
 		return errors.Wrapf(conferr, "error encoding configuration for %q", runUsingRuntimeCommand)
@@ -2280,12 +2299,67 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		}
 		confwg.Done()
 	}()
+
+	// create network configuration pipes
+	var containerCreateR, containerCreateW *os.File
+	var containerStartR, containerStartW *os.File
+	if configureNetwork {
+		containerCreateR, containerCreateW, err = os.Pipe()
+		if err != nil {
+			return errors.Wrapf(err, "error creating container create pipe")
+		}
+		defer containerCreateR.Close()
+		defer containerCreateW.Close()
+
+		containerStartR, containerStartW, err = os.Pipe()
+		if err != nil {
+			return errors.Wrapf(err, "error creating container create pipe")
+		}
+		defer containerStartR.Close()
+		defer containerStartW.Close()
+		cmd.ExtraFiles = []*os.File{containerCreateW, containerStartR}
+	}
+
 	cmd.ExtraFiles = append([]*os.File{preader}, cmd.ExtraFiles...)
 	defer preader.Close()
 	defer pwriter.Close()
-	err = cmd.Run()
-	if err != nil {
-		err = errors.Wrapf(err, "error while running runtime")
+	if err := cmd.Start(); err != nil {
+		return errors.Wrapf(err, "error while starting runtime")
+	}
+
+	if configureNetwork {
+		if err := waitForSync(containerCreateR); err != nil {
+			return errors.Wrap(err, "did not get container create message from subprocess")
+		}
+
+		// Make sure we read the container's exit status when it exits.
+		pidFile := filepath.Join(bundlePath, "pid")
+		pidValue, err := ioutil.ReadFile(pidFile)
+		if err != nil {
+			return err
+		}
+		pid, err := strconv.Atoi(strings.TrimSpace(string(pidValue)))
+		if err != nil {
+			return errors.Wrapf(err, "error parsing pid %s as a number", string(pidValue))
+		}
+
+		teardown, err := runConfigureNetwork(isolation, options, configureNetworks, pid, containerName)
+		if teardown != nil {
+			defer teardown()
+		}
+		if err != nil {
+			return err
+		}
+
+		logrus.Debug("network namespace successfully setup, send start message to child")
+		_, err = containerStartW.Write([]byte{1})
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return errors.Wrapf(err, "error while running runtime")
 	}
 	confwg.Wait()
 	if err == nil {
@@ -2294,6 +2368,16 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 	if conferr != nil {
 		logrus.Debugf("%v", conferr)
 	}
+	return err
+}
+
+// waitForSync waits for a maximum of 5 seconds to read something from the file
+func waitForSync(pipeR *os.File) error {
+	if err := pipeR.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return err
+	}
+	b := make([]byte, 16)
+	_, err := pipeR.Read(b)
 	return err
 }
 
@@ -2380,15 +2464,14 @@ func contains(volumes []string, v string) bool {
 }
 
 type runUsingRuntimeSubprocOptions struct {
-	Options           RunOptions
-	Spec              *specs.Spec
-	RootPath          string
-	BundlePath        string
-	ConfigureNetwork  bool
-	ConfigureNetworks []string
-	MoreCreateArgs    []string
-	ContainerName     string
-	Isolation         define.Isolation
+	Options          RunOptions
+	Spec             *specs.Spec
+	RootPath         string
+	BundlePath       string
+	ConfigureNetwork bool
+	MoreCreateArgs   []string
+	ContainerName    string
+	Isolation        define.Isolation
 }
 
 func init() {
