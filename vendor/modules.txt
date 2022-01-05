@@ -65,9 +65,17 @@ github.com/containernetworking/cni/pkg/types/create
 github.com/containernetworking/cni/pkg/types/internal
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.46.1-0.20211214155457-996e1c5eef6c
+# github.com/containernetworking/plugins v1.0.1
+github.com/containernetworking/plugins/pkg/ns
+# github.com/containers/common v0.46.1-0.20220107170704-97814789b1bb
 github.com/containers/common/libimage
 github.com/containers/common/libimage/manifests
+github.com/containers/common/libnetwork/cni
+github.com/containers/common/libnetwork/internal/util
+github.com/containers/common/libnetwork/netavark
+github.com/containers/common/libnetwork/network
+github.com/containers/common/libnetwork/types
+github.com/containers/common/libnetwork/util
 github.com/containers/common/pkg/apparmor
 github.com/containers/common/pkg/apparmor/internal/supported
 github.com/containers/common/pkg/auth
@@ -77,7 +85,6 @@ github.com/containers/common/pkg/cgroupv2
 github.com/containers/common/pkg/chown
 github.com/containers/common/pkg/completion
 github.com/containers/common/pkg/config
-github.com/containers/common/pkg/defaultnet
 github.com/containers/common/pkg/download
 github.com/containers/common/pkg/filters
 github.com/containers/common/pkg/manifests
@@ -89,8 +96,9 @@ github.com/containers/common/pkg/subscriptions
 github.com/containers/common/pkg/supplemented
 github.com/containers/common/pkg/timetype
 github.com/containers/common/pkg/umask
+github.com/containers/common/pkg/util
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.17.1-0.20211216201044-a36c455f959a
+# github.com/containers/image/v5 v5.17.1-0.20220106205022-73f80d60f0e1
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
 github.com/containers/image/v5/directory/explicitfilepath
@@ -387,7 +395,7 @@ github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
 # github.com/opencontainers/go-digest v1.0.0
 github.com/opencontainers/go-digest
-# github.com/opencontainers/image-spec v1.0.2 => github.com/opencontainers/image-spec v1.0.2-0.20211123152302-43a7dee1ec31
+# github.com/opencontainers/image-spec v1.0.3-0.20211202193544-a5463b7f9c84 => github.com/opencontainers/image-spec v1.0.2-0.20211123152302-43a7dee1ec31
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
 # github.com/opencontainers/runc v1.0.3
@@ -472,6 +480,11 @@ github.com/vbauerster/mpb/v7
 github.com/vbauerster/mpb/v7/cwriter
 github.com/vbauerster/mpb/v7/decor
 github.com/vbauerster/mpb/v7/internal
+# github.com/vishvananda/netlink v1.1.1-0.20210330154013-f5de75959ad5
+github.com/vishvananda/netlink
+github.com/vishvananda/netlink/nl
+# github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
+github.com/vishvananda/netns
 # github.com/xeipuuv/gojsonpointer v0.0.0-20190809123943-df4f5c81cb3b
 github.com/xeipuuv/gojsonpointer
 # github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415

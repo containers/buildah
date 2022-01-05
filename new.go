@@ -113,6 +113,17 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 		options.FromImage = ""
 	}
 
+	if options.NetworkInterface == nil {
+		// create the network interface
+		// Note: It is important to do this before we pull any images/create containers.
+		// The default backend detection logic needs an empty store to correctly detect
+		// that we can use netavark, if the store was not empty it will use CNI to not break existing installs.
+		options.NetworkInterface, err = getNetworkInterface(store, options.CNIConfigDir, options.CNIPluginPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	systemContext := getSystemContext(store, options.SystemContext, options.SignaturePolicyPath)
 
 	if options.FromImage != "" && options.FromImage != "scratch" {
@@ -286,14 +297,15 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 			UIDMap:         uidmap,
 			GIDMap:         gidmap,
 		},
-		Capabilities:    copyStringSlice(options.Capabilities),
-		CommonBuildOpts: options.CommonBuildOpts,
-		TopLayer:        topLayer,
-		Args:            options.Args,
-		Format:          options.Format,
-		TempVolumes:     map[string]bool{},
-		Devices:         options.Devices,
-		Logger:          options.Logger,
+		Capabilities:     copyStringSlice(options.Capabilities),
+		CommonBuildOpts:  options.CommonBuildOpts,
+		TopLayer:         topLayer,
+		Args:             options.Args,
+		Format:           options.Format,
+		TempVolumes:      map[string]bool{},
+		Devices:          options.Devices,
+		Logger:           options.Logger,
+		NetworkInterface: options.NetworkInterface,
 	}
 
 	if options.Mount {

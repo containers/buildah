@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/containers/storage/pkg/unshare"
 	systemdDbus "github.com/coreos/go-systemd/v22/dbus"
@@ -19,7 +18,6 @@ import (
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
 )
 
 var (
@@ -367,6 +365,29 @@ func readFileAsUint64(path string) (uint64, error) {
 	return ret, nil
 }
 
+func readFileByKeyAsUint64(path, key string) (uint64, error) {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	for _, line := range strings.Split(string(content), "\n") {
+		fields := strings.SplitN(line, " ", 2)
+		if fields[0] == key {
+			v := cleanString(string(fields[1]))
+			if v == "max" {
+				return math.MaxUint64, nil
+			}
+			ret, err := strconv.ParseUint(v, 10, 64)
+			if err != nil {
+				return ret, errors.Wrapf(err, "parse %s from %s", v, path)
+			}
+			return ret, nil
+		}
+	}
+
+	return 0, fmt.Errorf("no key named %s from %s", key, path)
+}
+
 // New creates a new cgroup control
 func New(path string, resources *spec.LinuxResources) (*CgroupControl, error) {
 	cgroup2, err := IsCgroup2UnifiedMode()
@@ -509,43 +530,6 @@ func dbusAuthConnection(uid int, createBus func(opts ...dbus.ConnOption) (*dbus.
 // Delete cleans a cgroup
 func (c *CgroupControl) Delete() error {
 	return c.DeleteByPath(c.path)
-}
-
-// rmDirRecursively delete recursively a cgroup directory.
-// It differs from os.RemoveAll as it doesn't attempt to unlink files.
-// On cgroupfs we are allowed only to rmdir empty directories.
-func rmDirRecursively(path string) error {
-	if err := os.Remove(path); err == nil || os.IsNotExist(err) {
-		return nil
-	}
-	entries, err := ioutil.ReadDir(path)
-	if err != nil {
-		return err
-	}
-	for _, i := range entries {
-		if i.IsDir() {
-			if err := rmDirRecursively(filepath.Join(path, i.Name())); err != nil {
-				return err
-			}
-		}
-	}
-
-	attempts := 0
-	for {
-		err := os.Remove(path)
-		if err == nil || os.IsNotExist(err) {
-			return nil
-		}
-		if errors.Is(err, unix.EBUSY) {
-			// attempt up to 5 seconds if the cgroup is busy
-			if attempts < 500 {
-				time.Sleep(time.Millisecond * 10)
-				attempts++
-				continue
-			}
-		}
-		return errors.Wrapf(err, "remove %s", path)
-	}
 }
 
 // DeleteByPathConn deletes the specified cgroup path using the specified

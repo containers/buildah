@@ -18,6 +18,7 @@ import (
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libimage"
+	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
@@ -85,49 +86,51 @@ type Executor struct {
 	configureNetwork               define.NetworkConfigurationPolicy
 	cniPluginPath                  string
 	cniConfigDir                   string
-	idmappingOptions               *define.IDMappingOptions
-	commonBuildOptions             *define.CommonBuildOptions
-	defaultMountsFilePath          string
-	iidfile                        string
-	squash                         bool
-	labels                         []string
-	annotations                    []string
-	layers                         bool
-	useCache                       bool
-	removeIntermediateCtrs         bool
-	forceRmIntermediateCtrs        bool
-	imageMap                       map[string]string           // Used to map images that we create to handle the AS construct.
-	containerMap                   map[string]*buildah.Builder // Used to map from image names to only-created-for-the-rootfs containers.
-	baseMap                        map[string]bool             // Holds the names of every base image, as given.
-	rootfsMap                      map[string]bool             // Holds the names of every stage whose rootfs is referenced in a COPY or ADD instruction.
-	blobDirectory                  string
-	excludes                       []string
-	ignoreFile                     string
-	unusedArgs                     map[string]struct{}
-	capabilities                   []string
-	devices                        define.ContainerDevices
-	signBy                         string
-	architecture                   string
-	timestamp                      *time.Time
-	os                             string
-	maxPullPushRetries             int
-	retryPullPushDelay             time.Duration
-	ociDecryptConfig               *encconfig.DecryptConfig
-	lastError                      error
-	terminatedStage                map[string]error
-	stagesLock                     sync.Mutex
-	stagesSemaphore                *semaphore.Weighted
-	jobs                           int
-	logRusage                      bool
-	rusageLogFile                  io.Writer
-	imageInfoLock                  sync.Mutex
-	imageInfoCache                 map[string]imageTypeAndHistoryAndDiffIDs
-	fromOverride                   string
-	manifest                       string
-	secrets                        map[string]define.Secret
-	sshsources                     map[string]*sshagent.Source
-	logPrefix                      string
-	unsetEnvs                      []string
+	// NetworkInterface is the libnetwork network interface used to setup CNI or netavark networks.
+	networkInterface        nettypes.ContainerNetwork
+	idmappingOptions        *define.IDMappingOptions
+	commonBuildOptions      *define.CommonBuildOptions
+	defaultMountsFilePath   string
+	iidfile                 string
+	squash                  bool
+	labels                  []string
+	annotations             []string
+	layers                  bool
+	useCache                bool
+	removeIntermediateCtrs  bool
+	forceRmIntermediateCtrs bool
+	imageMap                map[string]string           // Used to map images that we create to handle the AS construct.
+	containerMap            map[string]*buildah.Builder // Used to map from image names to only-created-for-the-rootfs containers.
+	baseMap                 map[string]bool             // Holds the names of every base image, as given.
+	rootfsMap               map[string]bool             // Holds the names of every stage whose rootfs is referenced in a COPY or ADD instruction.
+	blobDirectory           string
+	excludes                []string
+	ignoreFile              string
+	unusedArgs              map[string]struct{}
+	capabilities            []string
+	devices                 define.ContainerDevices
+	signBy                  string
+	architecture            string
+	timestamp               *time.Time
+	os                      string
+	maxPullPushRetries      int
+	retryPullPushDelay      time.Duration
+	ociDecryptConfig        *encconfig.DecryptConfig
+	lastError               error
+	terminatedStage         map[string]error
+	stagesLock              sync.Mutex
+	stagesSemaphore         *semaphore.Weighted
+	jobs                    int
+	logRusage               bool
+	rusageLogFile           io.Writer
+	imageInfoLock           sync.Mutex
+	imageInfoCache          map[string]imageTypeAndHistoryAndDiffIDs
+	fromOverride            string
+	manifest                string
+	secrets                 map[string]define.Secret
+	sshsources              map[string]*sshagent.Source
+	logPrefix               string
+	unsetEnvs               []string
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -236,6 +239,7 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		configureNetwork:               options.ConfigureNetwork,
 		cniPluginPath:                  options.CNIPluginPath,
 		cniConfigDir:                   options.CNIConfigDir,
+		networkInterface:               options.NetworkInterface,
 		idmappingOptions:               options.IDMappingOptions,
 		commonBuildOptions:             options.CommonBuildOpts,
 		defaultMountsFilePath:          options.DefaultMountsFilePath,

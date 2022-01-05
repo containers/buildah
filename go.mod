@@ -5,8 +5,8 @@ go 1.13
 require (
 	github.com/containerd/containerd v1.5.9
 	github.com/containernetworking/cni v1.0.1
-	github.com/containers/common v0.46.1-0.20211214155457-996e1c5eef6c
-	github.com/containers/image/v5 v5.17.1-0.20211216201044-a36c455f959a
+	github.com/containers/common v0.46.1-0.20220107170704-97814789b1bb
+	github.com/containers/image/v5 v5.17.1-0.20220106205022-73f80d60f0e1
 	github.com/containers/ocicrypt v1.1.2
 	github.com/containers/storage v1.37.1-0.20211122164443-82b8f06bfc08
 	github.com/docker/distribution v2.7.1+incompatible
@@ -22,7 +22,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.0.2
+	github.com/opencontainers/image-spec v1.0.3-0.20211202193544-a5463b7f9c84
 	github.com/opencontainers/runc v1.0.3
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/opencontainers/runtime-tools v0.9.0
