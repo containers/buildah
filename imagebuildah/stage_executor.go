@@ -550,6 +550,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		ConfigureNetwork:      s.executor.configureNetwork,
 		CNIPluginPath:         s.executor.cniPluginPath,
 		CNIConfigDir:          s.executor.cniConfigDir,
+		NetworkInterface:      s.executor.networkInterface,
 		IDMappingOptions:      s.executor.idmappingOptions,
 		CommonBuildOpts:       s.executor.commonBuildOptions,
 		DefaultMountsFilePath: s.executor.defaultMountsFilePath,

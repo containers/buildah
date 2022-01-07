@@ -4,6 +4,7 @@ import (
 	"io"
 	"time"
 
+	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/image/v5/types"
 	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage/pkg/archive"
@@ -161,6 +162,10 @@ type BuildOptions struct {
 	// CNIConfigDir is the location of CNI configuration files, if the files in
 	// the default configuration directory shouldn't be used.
 	CNIConfigDir string
+
+	// NetworkInterface is the libnetwork network interface used to setup CNI or netavark networks.
+	NetworkInterface nettypes.ContainerNetwork `json:"-"`
+
 	// ID mapping options to use if we're setting up our own user namespace
 	// when handling RUN instructions.
 	IDMappingOptions *IDMappingOptions

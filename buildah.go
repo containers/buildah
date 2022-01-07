@@ -13,6 +13,7 @@ import (
 
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/docker"
+	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/image/v5/types"
 	encconfig "github.com/containers/ocicrypt/config"
 	"github.com/containers/storage"
@@ -154,6 +155,10 @@ type Builder struct {
 	// CNIConfigDir is the location of CNI configuration files, if the files in
 	// the default configuration directory shouldn't be used.
 	CNIConfigDir string
+
+	// NetworkInterface is the libnetwork network interface used to setup CNI or netavark networks.
+	NetworkInterface nettypes.ContainerNetwork `json:"-"`
+
 	// ID mapping options to use when running processes in the container with non-host user namespaces.
 	IDMappingOptions define.IDMappingOptions
 	// Capabilities is a list of capabilities to use when running commands in the container.
@@ -311,6 +316,10 @@ type BuilderOptions struct {
 	// CNIConfigDir is the location of CNI configuration files, if the files in
 	// the default configuration directory shouldn't be used.
 	CNIConfigDir string
+
+	// NetworkInterface is the libnetwork network interface used to setup CNI or netavark networks.
+	NetworkInterface nettypes.ContainerNetwork `json:"-"`
+
 	// ID mapping options to use if we're setting up our own user namespace.
 	IDMappingOptions *define.IDMappingOptions
 	// Capabilities is a list of capabilities to use when
@@ -400,6 +409,12 @@ func OpenBuilder(store storage.Store, container string) (*Builder, error) {
 	if b.Type != containerType {
 		return nil, errors.Errorf("container %q is not a %s container (is a %q container)", container, define.Package, b.Type)
 	}
+
+	netInt, err := getNetworkInterface(store, b.CNIConfigDir, b.CNIPluginPath)
+	if err != nil {
+		return nil, err
+	}
+	b.NetworkInterface = netInt
 	b.store = store
 	b.fixupConfig(nil)
 	b.setupLogger()

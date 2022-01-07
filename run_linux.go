@@ -4,7 +4,6 @@ package buildah
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,7 +20,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containernetworking/cni/libcni"
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/chroot"
 	"github.com/containers/buildah/copier"
@@ -30,12 +28,14 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
+	"github.com/containers/common/libnetwork/network"
+	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/capabilities"
 	"github.com/containers/common/pkg/cgroups"
 	"github.com/containers/common/pkg/chown"
 	"github.com/containers/common/pkg/config"
-	"github.com/containers/common/pkg/defaultnet"
 	"github.com/containers/common/pkg/subscriptions"
+	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
@@ -764,7 +764,8 @@ func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, termina
 	}
 }
 
-func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, bundlePath, containerName string) (wstatus unix.WaitStatus, err error) {
+func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs []string, spec *specs.Spec, bundlePath, containerName string,
+	containerCreateW io.WriteCloser, containerStartR io.ReadCloser) (wstatus unix.WaitStatus, err error) {
 	if options.Logger == nil {
 		options.Logger = logrus.StandardLogger()
 	}
@@ -937,13 +938,16 @@ func runUsingRuntime(isolation define.Isolation, options RunOptions, configureNe
 	}()
 
 	if configureNetwork {
-		teardown, err := runConfigureNetwork(isolation, options, configureNetworks, pid, containerName, pargs)
-		if teardown != nil {
-			defer teardown()
-		}
-		if err != nil {
+		if _, err := containerCreateW.Write([]byte{1}); err != nil {
 			return 1, err
 		}
+		containerCreateW.Close()
+		logrus.Debug("waiting for parent start message")
+		b := make([]byte, 1)
+		if _, err := containerStartR.Read(b); err != nil {
+			return 1, errors.Wrap(err, "did not get container start message from parent")
+		}
+		containerStartR.Close()
 	}
 
 	if copyPipes {
@@ -1138,76 +1142,17 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 	}, nil
 }
 
-func runConfigureNetwork(isolation define.Isolation, options RunOptions, configureNetworks []string, pid int, containerName string, command []string) (teardown func(), err error) {
-	var netconf, undo []*libcni.NetworkConfigList
-
+func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, options RunOptions, configureNetworks []string, containerName string) (teardown func(), err error) {
 	if isolation == IsolationOCIRootless {
 		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil && !ns.Host && ns.Path == "" {
 			return setupRootlessNetwork(pid)
 		}
 	}
-	confdir := options.CNIConfigDir
 
-	// Create a default configuration if one is not present.
-	// Need to pull containers.conf settings for this one.
-	containersConf, err := config.Default()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get container config")
-	}
-	if err := defaultnet.Create(containersConf.Network.DefaultNetwork, containersConf.Network.DefaultSubnet, confdir, confdir, containersConf.Engine.MachineEnabled); err != nil {
-		options.Logger.Errorf("Failed to created default CNI network: %v", err)
+	if len(configureNetworks) == 0 {
+		configureNetworks = []string{b.NetworkInterface.DefaultNetworkName()}
 	}
 
-	// Scan for CNI configuration files.
-	files, err := libcni.ConfFiles(confdir, []string{".conf"})
-	if err != nil {
-		return nil, errors.Wrapf(err, "error finding CNI networking configuration files named *.conf in directory %q", confdir)
-	}
-	lists, err := libcni.ConfFiles(confdir, []string{".conflist"})
-	if err != nil {
-		return nil, errors.Wrapf(err, "error finding CNI networking configuration list files named *.conflist in directory %q", confdir)
-	}
-	logrus.Debugf("CNI network configuration file list: %#v", append(files, lists...))
-	// Read the CNI configuration files.
-	for _, file := range files {
-		nc, err := libcni.ConfFromFile(file)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error loading networking configuration from file %q for %v", file, command)
-		}
-		if len(configureNetworks) > 0 && nc.Network != nil && (nc.Network.Name == "" || !util.StringInSlice(nc.Network.Name, configureNetworks)) {
-			if nc.Network.Name == "" {
-				logrus.Debugf("configuration in %q has no name, skipping it", file)
-			} else {
-				logrus.Debugf("configuration in %q has name %q, skipping it", file, nc.Network.Name)
-			}
-			continue
-		}
-		if nc.Network == nil {
-			continue
-		}
-		cl, err := libcni.ConfListFromConf(nc)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error converting networking configuration from file %q for %v", file, command)
-		}
-		logrus.Debugf("using network configuration from %q", file)
-		netconf = append(netconf, cl)
-	}
-	for _, list := range lists {
-		cl, err := libcni.ConfListFromFile(list)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error loading networking configuration list from file %q for %v", list, command)
-		}
-		if len(configureNetworks) > 0 && (cl.Name == "" || !util.StringInSlice(cl.Name, configureNetworks)) {
-			if cl.Name == "" {
-				logrus.Debugf("configuration list in %q has no name, skipping it", list)
-			} else {
-				logrus.Debugf("configuration list in %q has name %q, skipping it", list, cl.Name)
-			}
-			continue
-		}
-		logrus.Debugf("using network configuration list from %q", list)
-		netconf = append(netconf, cl)
-	}
 	// Make sure we can access the container's network namespace,
 	// even after it exits, to successfully tear down the
 	// interfaces.  Ensure this by opening a handle to the network
@@ -1216,39 +1161,34 @@ func runConfigureNetwork(isolation define.Isolation, options RunOptions, configu
 	netns := fmt.Sprintf("/proc/%d/ns/net", pid)
 	netFD, err := unix.Open(netns, unix.O_RDONLY, 0)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error opening network namespace for %v", command)
+		return nil, errors.Wrapf(err, "error opening network namespace")
 	}
 	mynetns := fmt.Sprintf("/proc/%d/fd/%d", unix.Getpid(), netFD)
-	// Build our search path for the plugins.
-	pluginPaths := strings.Split(options.CNIPluginPath, string(os.PathListSeparator))
-	cni := libcni.CNIConfig{Path: pluginPaths}
-	// Configure the interfaces.
-	rtconf := make(map[*libcni.NetworkConfigList]*libcni.RuntimeConf)
+
+	networks := make(map[string]nettypes.PerNetworkOptions, len(configureNetworks))
+	for i, network := range configureNetworks {
+		networks[network] = nettypes.PerNetworkOptions{
+			InterfaceName: fmt.Sprintf("eth%d", i),
+		}
+	}
+
+	opts := nettypes.NetworkOptions{
+		ContainerID:   containerName,
+		ContainerName: containerName,
+		Networks:      networks,
+	}
+	_, err = b.NetworkInterface.Setup(mynetns, nettypes.SetupOptions{NetworkOptions: opts})
+	if err != nil {
+		return nil, err
+	}
+
 	teardown = func() {
-		for _, nc := range undo {
-			if err = cni.DelNetworkList(context.Background(), nc, rtconf[nc]); err != nil {
-				options.Logger.Errorf("error cleaning up network %v for %v: %v", rtconf[nc].IfName, command, err)
-			}
-		}
-		unix.Close(netFD)
-	}
-	for i, nc := range netconf {
-		// Build the runtime config for use with this network configuration.
-		rtconf[nc] = &libcni.RuntimeConf{
-			ContainerID:    containerName,
-			NetNS:          mynetns,
-			IfName:         fmt.Sprintf("if%d", i),
-			Args:           [][2]string{},
-			CapabilityArgs: map[string]interface{}{},
-		}
-		// Bring it up.
-		_, err := cni.AddNetworkList(context.Background(), nc, rtconf[nc])
+		err := b.NetworkInterface.Teardown(mynetns, nettypes.TeardownOptions{NetworkOptions: opts})
 		if err != nil {
-			return teardown, errors.Wrapf(err, "error configuring network list %v for %v", rtconf[nc].IfName, command)
+			options.Logger.Errorf("failed to cleanup network: %v", err)
 		}
-		// Add it to the list of networks to take down when the container process exits.
-		undo = append([]*libcni.NetworkConfigList{nc}, undo...)
 	}
+
 	return teardown, nil
 }
 
@@ -1606,8 +1546,24 @@ func runUsingRuntimeMain() {
 		os.Exit(1)
 	}
 
+	// open the pipes used to communicate with the parent process
+	var containerCreateW *os.File
+	var containerStartR *os.File
+	if options.ConfigureNetwork {
+		containerCreateW = os.NewFile(4, "containercreatepipe")
+		if containerCreateW == nil {
+			fmt.Fprintf(os.Stderr, "could not open fd 4\n")
+			os.Exit(1)
+		}
+		containerStartR = os.NewFile(5, "containerstartpipe")
+		if containerStartR == nil {
+			fmt.Fprintf(os.Stderr, "could not open fd 5\n")
+			os.Exit(1)
+		}
+	}
+
 	// Run the container, start to finish.
-	status, err := runUsingRuntime(options.Isolation, options.Options, options.ConfigureNetwork, options.ConfigureNetworks, options.MoreCreateArgs, ospec, options.BundlePath, options.ContainerName)
+	status, err := runUsingRuntime(options.Options, options.ConfigureNetwork, options.MoreCreateArgs, ospec, options.BundlePath, options.ContainerName, containerCreateW, containerStartR)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error running container: %v\n", err)
 		os.Exit(1)
@@ -2240,15 +2196,14 @@ func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, shmSize string
 func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (err error) {
 	var confwg sync.WaitGroup
 	config, conferr := json.Marshal(runUsingRuntimeSubprocOptions{
-		Options:           options,
-		Spec:              spec,
-		RootPath:          rootPath,
-		BundlePath:        bundlePath,
-		ConfigureNetwork:  configureNetwork,
-		ConfigureNetworks: configureNetworks,
-		MoreCreateArgs:    moreCreateArgs,
-		ContainerName:     containerName,
-		Isolation:         isolation,
+		Options:          options,
+		Spec:             spec,
+		RootPath:         rootPath,
+		BundlePath:       bundlePath,
+		ConfigureNetwork: configureNetwork,
+		MoreCreateArgs:   moreCreateArgs,
+		ContainerName:    containerName,
+		Isolation:        isolation,
 	})
 	if conferr != nil {
 		return errors.Wrapf(conferr, "error encoding configuration for %q", runUsingRuntimeCommand)
@@ -2280,12 +2235,69 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		}
 		confwg.Done()
 	}()
+
+	// create network configuration pipes
+	var containerCreateR, containerCreateW *os.File
+	var containerStartR, containerStartW *os.File
+	if configureNetwork {
+		containerCreateR, containerCreateW, err = os.Pipe()
+		if err != nil {
+			return errors.Wrapf(err, "error creating container create pipe")
+		}
+		defer containerCreateR.Close()
+		defer containerCreateW.Close()
+
+		containerStartR, containerStartW, err = os.Pipe()
+		if err != nil {
+			return errors.Wrapf(err, "error creating container create pipe")
+		}
+		defer containerStartR.Close()
+		defer containerStartW.Close()
+		cmd.ExtraFiles = []*os.File{containerCreateW, containerStartR}
+	}
+
 	cmd.ExtraFiles = append([]*os.File{preader}, cmd.ExtraFiles...)
 	defer preader.Close()
 	defer pwriter.Close()
-	err = cmd.Run()
-	if err != nil {
-		err = errors.Wrapf(err, "error while running runtime")
+	if err := cmd.Start(); err != nil {
+		return errors.Wrapf(err, "error while starting runtime")
+	}
+
+	if configureNetwork {
+		if err := waitForSync(containerCreateR); err != nil {
+			// we do not want to return here since we want to capture the exit code from the child via cmd.Wait()
+			// close the pipes here so that the child will not hang forever
+			containerCreateR.Close()
+			containerStartW.Close()
+			logrus.Errorf("did not get container create message from subprocess: %v", err)
+		} else {
+			pidFile := filepath.Join(bundlePath, "pid")
+			pidValue, err := ioutil.ReadFile(pidFile)
+			if err != nil {
+				return err
+			}
+			pid, err := strconv.Atoi(strings.TrimSpace(string(pidValue)))
+			if err != nil {
+				return errors.Wrapf(err, "error parsing pid %s as a number", string(pidValue))
+			}
+
+			teardown, err := b.runConfigureNetwork(pid, isolation, options, configureNetworks, containerName)
+			if teardown != nil {
+				defer teardown()
+			}
+			if err != nil {
+				return err
+			}
+
+			logrus.Debug("network namespace successfully setup, send start message to child")
+			_, err = containerStartW.Write([]byte{1})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if err := cmd.Wait(); err != nil {
+		return errors.Wrapf(err, "error while running runtime")
 	}
 	confwg.Wait()
 	if err == nil {
@@ -2294,6 +2306,16 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 	if conferr != nil {
 		logrus.Debugf("%v", conferr)
 	}
+	return err
+}
+
+// waitForSync waits for a maximum of 5 seconds to read something from the file
+func waitForSync(pipeR *os.File) error {
+	if err := pipeR.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return err
+	}
+	b := make([]byte, 16)
+	_, err := pipeR.Read(b)
 	return err
 }
 
@@ -2380,15 +2402,14 @@ func contains(volumes []string, v string) bool {
 }
 
 type runUsingRuntimeSubprocOptions struct {
-	Options           RunOptions
-	Spec              *specs.Spec
-	RootPath          string
-	BundlePath        string
-	ConfigureNetwork  bool
-	ConfigureNetworks []string
-	MoreCreateArgs    []string
-	ContainerName     string
-	Isolation         define.Isolation
+	Options          RunOptions
+	Spec             *specs.Spec
+	RootPath         string
+	BundlePath       string
+	ConfigureNetwork bool
+	MoreCreateArgs   []string
+	ContainerName    string
+	Isolation        define.Isolation
 }
 
 func init() {
@@ -2784,4 +2805,27 @@ func cleanupRunMounts(mountpoint string, artifacts *runMountArtifacts) error {
 		}
 	}
 	return prevErr
+}
+
+// getNetworkInterface creates the network interface
+func getNetworkInterface(store storage.Store, cniConfDir, cniPluginPath string) (nettypes.ContainerNetwork, error) {
+	conf, err := config.Default()
+	if err != nil {
+		return nil, err
+	}
+	// copy the config to not modify the default by accident
+	newconf := *conf
+	if len(cniConfDir) > 0 {
+		newconf.Network.NetworkConfigDir = cniConfDir
+	}
+	if len(cniPluginPath) > 0 {
+		plugins := strings.Split(cniPluginPath, string(os.PathListSeparator))
+		newconf.Network.CNIPluginDirs = plugins
+	}
+
+	_, netInt, err := network.NetworkBackend(store, &newconf, false)
+	if err != nil {
+		return nil, err
+	}
+	return netInt, nil
 }
