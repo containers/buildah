@@ -3725,3 +3725,21 @@ _EOF
   target=bud-group
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/group
 }
+
+@test "build proxy" {
+  _prefetch alpine
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+run printenv
+_EOF
+  target=env-image
+  check="FTP_PROXY="FTP" ftp_proxy=ftp http_proxy=http HTTPS_PROXY=HTTPS"
+  bogus="BOGUS_PROXY=BOGUS"
+  eval $check $bogus run_buildah build --unsetenv PATH --signature-policy ${TESTSDIR}/policy.json -t oci-${target} -f $mytmpdir/Containerfile .
+  for i in $check; do
+    expect_output --substring "$i" "Environment variables available within build"
+  done
+  if [ -n "$(grep "$bogus" <<< "$output")" ]; then
+    die "Unexpected bogus environment."
+  fi
+}
