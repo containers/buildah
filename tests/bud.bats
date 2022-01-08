@@ -3743,3 +3743,176 @@ _EOF
     die "Unexpected bogus environment."
   fi
 }
+
+@test "bud-with-mount-bind-from-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  mkdir ${TESTDIR}/bud
+  cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
+  # build base image which we will use as our `from`
+  run_buildah build -t buildkitbase --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbase ${TESTDIR}/bud/buildkit-mount-from/
+  # try reading something from another image in a different build
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebindfrom
+  expect_output --substring "hello"
+  run_buildah rmi -f buildkitbase
+  run_buildah rmi -f testbud
+}
+
+@test "bud-with-writeable-mount-bind-from-like-buildkit" {
+  if which selinuxenabled > /dev/null 2> /dev/null ; then
+	if selinuxenabled ; then
+                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
+                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
+		skip "skip if selinux enabled, since stages have different selinux label"
+	fi
+  fi
+  skip_if_no_runtime
+  skip_if_in_container
+  mkdir ${TESTDIR}/bud
+  cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
+  # build base image which we will use as our `from`
+  run_buildah build -t buildkitbase --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbase ${TESTDIR}/bud/buildkit-mount-from/
+  # try reading something from another image in a different build
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebindfromwriteable
+  expect_output --substring "world"
+  run_buildah rmi -f buildkitbase
+  run_buildah rmi -f testbud
+}
+
+@test "bud-with-mount-bind-from-without-source-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  mkdir ${TESTDIR}/bud
+  cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
+  # build base image which we will use as our `from`
+  run_buildah build -t buildkitbase --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbase ${TESTDIR}/bud/buildkit-mount-from/
+  # try reading something from another image in a different build
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebindfromwithoutsource
+  expect_output --substring "hello"
+  run_buildah rmi -f buildkitbase
+  run_buildah rmi -f testbud
+}
+
+@test "bud-with-mount-bind-from-with-empty-from-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  mkdir ${TESTDIR}/bud
+  cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
+  # build base image which we will use as our `from`
+  run_buildah build -t buildkitbase --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbase ${TESTDIR}/bud/buildkit-mount-from/
+  # try reading something from image in a different build
+  run_buildah 125 build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebindfromwithemptyfrom
+  expect_output --substring "points to an empty value"
+  run_buildah rmi -f buildkitbase
+}
+
+@test "bud-with-mount-cache-from-like-buildkit" {
+  if which selinuxenabled > /dev/null 2> /dev/null ; then
+	if selinuxenabled ; then
+                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
+                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
+		skip "skip if selinux enabled, since stages have different selinux label"
+	fi
+  fi
+  skip_if_no_runtime
+  skip_if_in_container
+  mkdir ${TESTDIR}/bud
+  cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
+  # try reading something from persistant cache in a different build
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilecachefrom ${TESTDIR}/bud/buildkit-mount-from/
+  expect_output --substring "hello"
+  run_buildah rmi -f testbud
+}
+
+# following test must fail
+@test "bud-with-mount-cache-image-from-like-buildkit" {
+  if which selinuxenabled > /dev/null 2> /dev/null ; then
+	if selinuxenabled ; then
+                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
+                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
+		skip "skip if selinux enabled, since stages have different selinux label"
+	fi
+  fi
+  skip_if_no_runtime
+  skip_if_in_container
+  mkdir ${TESTDIR}/bud
+  cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
+  # build base image which we will use as our `from`
+  run_buildah build -t buildkitbase --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbase ${TESTDIR}/bud/buildkit-mount-from/
+  # try reading something from persistant cache in a different build
+  run_buildah 125 build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilecachefromimage
+  expect_output --substring "hello"
+  run_buildah rmi -f buildkitbase
+}
+
+@test "bud-with-mount-cache-multiple-from-like-buildkit" {
+  if which selinuxenabled > /dev/null 2> /dev/null ; then
+	if selinuxenabled ; then
+                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
+                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
+		skip "skip if selinux enabled, since stages have different selinux label"
+	fi
+  fi
+  skip_if_no_runtime
+  skip_if_in_container
+  mkdir ${TESTDIR}/bud
+  cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
+  # try reading something from persistant cache in a different build
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilecachemultiplefrom ${TESTDIR}/bud/buildkit-mount-from/
+  expect_output --substring "hello"
+  expect_output --substring "hello2"
+  run_buildah rmi -f testbud
+}
+
+@test "bud-with-mount-bind-from-relative-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  mkdir ${TESTDIR}/bud
+  cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
+  # build base image which we will use as our `from`
+  run_buildah build -t buildkitbaserelative --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbaserelative ${TESTDIR}/bud/buildkit-mount-from/
+  # try reading something from image in a different build
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebindfromrelative
+  expect_output --substring "hello"
+  run_buildah rmi -f buildkitbaserelative
+  run_buildah rmi -f testbud
+}
+
+@test "bud-with-mount-bind-from-multistage-relative-like-buildkit" {
+  if which selinuxenabled > /dev/null 2> /dev/null ; then
+	if selinuxenabled ; then
+                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
+                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
+		skip "skip if selinux enabled, since stages have different selinux label"
+	fi
+  fi
+
+  mkdir ${TESTDIR}/bud
+  cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
+  skip_if_no_runtime
+  skip_if_in_container
+  # build base image which we will use as our `from`
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilemultistagefrom ${TESTDIR}/bud/buildkit-mount-from/
+  expect_output --substring "hello"
+  run_buildah rmi -f testbud
+}
+
+@test "bud-with-mount-bind-from-cache-multistage-relative-like-buildkit" {
+  if which selinuxenabled > /dev/null 2> /dev/null ; then
+	if selinuxenabled ; then
+                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
+                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
+		skip "skip if selinux enabled, since stages have different selinux label"
+	fi
+  fi
+
+  skip_if_no_runtime
+  skip_if_in_container
+  mkdir ${TESTDIR}/bud
+  cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
+  # build base image which we will use as our `from`
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilemultistagefromcache ${TESTDIR}/bud/buildkit-mount-from/
+  expect_output --substring "hello"
+  expect_output --substring "hello2"
+  run_buildah rmi -f testbud
+}

@@ -114,7 +114,7 @@ Current supported mount TYPES are bind, cache, secret and tmpfs.
 
        Common Options:
 
-              · src, source: mount source spec for bind and volume. Mandatory for bind.
+              · src, source: mount source spec for bind and volume. Mandatory for bind. If `from` is specified, `src` is the subpath in the `from` field.
 
               · dst, destination, target: mount destination spec.
 
@@ -125,6 +125,8 @@ Current supported mount TYPES are bind, cache, secret and tmpfs.
               · bind-propagation: shared, slave, private, rshared, rslave, or rprivate(default). See also mount(2).
 
               . bind-nonrecursive: do not setup a recursive bind mount.  By default it is recursive.
+
+              · from: stage or image name for the root of the source. Defaults to the build context.
 
        Options specific to tmpfs:
 
@@ -145,6 +147,8 @@ Current supported mount TYPES are bind, cache, secret and tmpfs.
               · uid: uid for cache directory.
 
               · gid: gid for cache directory.
+
+              · from: stage name for the root of the source. Defaults to host cache directory.
 
 
 **RUN Secrets**

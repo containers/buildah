@@ -5,7 +5,9 @@ import (
 	"io"
 
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal"
 	"github.com/containers/buildah/pkg/sshagent"
+	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
@@ -147,6 +149,14 @@ type RunOptions struct {
 	// RunMounts are mounts for this run. RunMounts for this run
 	// will not show up in subsequent runs.
 	RunMounts []string
+	// Map of stages and container mountpoint if any from stage executor
+	StageMountPoints map[string]internal.StageMountDetails
+	// External Image mounts to be cleaned up.
+	// Buildah run --mount could mount image before RUN calls, RUN could cleanup
+	// them up as well
+	ExternalImageMounts []string
+	// System context of current build
+	SystemContext *types.SystemContext
 }
 
 // RunMountArtifacts are the artifacts created when using a run mount.
@@ -155,6 +165,8 @@ type runMountArtifacts struct {
 	RunMountTargets []string
 	// TmpFiles are artifacts that need to be removed outside the container
 	TmpFiles []string
+	// Any external images which were mounted inside container
+	MountedImages []string
 	// Agents are the ssh agents started
 	Agents []*sshagent.AgentServer
 	// SSHAuthSock is the path to the ssh auth sock inside the container

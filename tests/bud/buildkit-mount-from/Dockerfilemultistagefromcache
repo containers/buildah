@@ -1,0 +1,11 @@
+FROM alpine as builder
+RUN mkdir subdir
+RUN mkdir subdir/subdir2
+COPY hello ./subdir/
+COPY hello2 ./subdir/subdir2/
+
+FROM alpine as second
+RUN --mount=type=cache,id=1,source=/subdir,from=builder,target=/test cat /test/hello
+
+FROM alpine as third
+RUN --mount=type=cache,id=2,source=/subdir/subdir2,from=builder,target=/test cat /test/hello2

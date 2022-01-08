@@ -337,13 +337,46 @@ function configure_and_check_user() {
 	mkdir -p ${TESTDIR}/was:empty
 	# As a baseline, this should succeed.
 	run_buildah run --mount type=tmpfs,dst=/var/tmpfs-not-empty                                           $cid touch /var/tmpfs-not-empty/testfile
-	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/not-empty${zflag:+,${zflag}}      $cid touch /var/not-empty/testfile
+	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/not-empty,rw${zflag:+,${zflag}}      $cid touch /var/not-empty/testfile
 	# If we're parsing the options at all, this should be read-only, so it should fail.
 	run_buildah 1 run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/not-empty,ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
 	# Even if the parent directory doesn't exist yet, this should succeed.
-	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/multi-level/subdirectory          $cid touch /var/multi-level/subdirectory/testfile
+	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/multi-level/subdirectory,rw          $cid touch /var/multi-level/subdirectory/testfile
 	# And check the same for file volumes.
-	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty/testfile,dst=/var/different-multi-level/subdirectory/testfile        $cid touch /var/different-multi-level/subdirectory/testfile
+	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty/testfile,dst=/var/different-multi-level/subdirectory/testfile,rw        $cid touch /var/different-multi-level/subdirectory/testfile
+}
+
+@test "run --mount=type=bind with from like buildkit" {
+	skip_if_no_runtime
+	zflag=
+	if which selinuxenabled > /dev/null 2> /dev/null ; then
+		if selinuxenabled ; then
+			skip "skip if selinux enabled, since stages have different selinux label"
+		fi
+	fi
+	run_buildah build -t buildkitbase --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbase ${TESTSDIR}/bud/buildkit-mount-from/
+	_prefetch alpine
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run --mount type=bind,source=.,from=buildkitbase,target=/test,z  $cid cat /test/hello
+	expect_output --substring "hello"
+	run_buildah rmi -f buildkitbase
+}
+
+@test "run --mount=type=cache like buildkit" {
+	skip_if_no_runtime
+	zflag=
+	if which selinuxenabled > /dev/null 2> /dev/null ; then
+		if selinuxenabled ; then
+			skip "skip if selinux enabled, since stages have different selinux label"
+		fi
+	fi
+	_prefetch alpine
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run --mount type=cache,target=/test,z  $cid sh -c 'echo "hello" > /test/hello && cat /test/hello'
+	run_buildah run --mount type=cache,target=/test,z  $cid cat /test/hello
+	expect_output --substring "hello"
 }
 
 @test "run symlinks" {
