@@ -621,3 +621,21 @@ load helpers
   copy --format oci --dest-compress --dest-compress-format zstd docker://quay.io/libpod/alpine_nginx:latest dir:${TESTDIR}/base-image
   run_buildah from dir:${TESTDIR}/base-image
 }
+
+@test "from proxy test" {
+  skip_if_no_runtime
+
+  _prefetch alpine
+  tmp=$RANDOM
+  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  FTP_PROXY=$tmp run_buildah run $cid printenv FTP_PROXY
+  expect_output "$tmp"
+  ftp_proxy=$tmp run_buildah run $cid printenv ftp_proxy
+  expect_output "$tmp"
+  HTTP_PROXY=$tmp run_buildah run $cid printenv HTTP_PROXY
+  expect_output "$tmp"
+  https_proxy=$tmp run_buildah run $cid printenv https_proxy
+  expect_output "$tmp"
+  BOGUS_PROXY=$tmp run_buildah 1 run $cid printenv BOGUS_PROXY
+}
