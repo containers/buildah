@@ -131,6 +131,8 @@ type Executor struct {
 	sshsources              map[string]*sshagent.Source
 	logPrefix               string
 	unsetEnvs               []string
+	processLabel            string // Shares processLabel of first stage container with containers of other stages in same build
+	mountLabel              string // Shares mountLabel of first stage container with containers of other stages in same build
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {

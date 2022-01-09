@@ -230,9 +230,20 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 
 	conflict := 100
 	for {
+
+		var flags map[string]interface{}
+		// check if we have predefined ProcessLabel and MountLabel
+		// this could be true if this is another stage in a build
+		if options.ProcessLabel != "" && options.MountLabel != "" {
+			flags = map[string]interface{}{
+				"ProcessLabel": options.ProcessLabel,
+				"MountLabel":   options.MountLabel,
+			}
+		}
 		coptions := storage.ContainerOptions{
 			LabelOpts:        options.CommonBuildOpts.LabelOpts,
 			IDMappingOptions: newContainerIDMappingOptions(options.IDMappingOptions),
+			Flags:            flags,
 			Volatile:         true,
 		}
 		container, err = store.CreateContainer("", []string{tmpName}, imageID, "", "", &coptions)

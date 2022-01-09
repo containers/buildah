@@ -621,11 +621,23 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 		PullRetryDelay:        s.executor.retryPullPushDelay,
 		OciDecryptConfig:      s.executor.ociDecryptConfig,
 		Logger:                s.executor.logger,
+		ProcessLabel:          s.executor.processLabel,
+		MountLabel:            s.executor.mountLabel,
 	}
 
 	builder, err = buildah.NewBuilder(ctx, s.executor.store, builderOptions)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error creating build container")
+	}
+
+	// If executor's ProcessLabel and MountLabel is empty means this is the first stage
+	// Make sure we share first stage's ProcessLabel and MountLabel with all other subsequent stages
+	// Doing this will ensure and one stage in same build can mount another stage even if `selinux`
+	// is enabled.
+
+	if s.executor.mountLabel == "" && s.executor.processLabel == "" {
+		s.executor.mountLabel = builder.MountLabel
+		s.executor.processLabel = builder.ProcessLabel
 	}
 
 	if initializeIBConfig {
