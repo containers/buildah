@@ -15,7 +15,6 @@ import (
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/idtools"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 )
 
@@ -113,8 +112,7 @@ func GetBindMount(ctx *types.SystemContext, args []string, contextDir string, st
 	isImageMounted := false
 	if fromImage != "" {
 		mountPoint := ""
-		//TODO: remove this selinux check when comment is resolved. https://github.com/containers/buildah/pull/3590#issuecomment-956349109
-		if additionalMountPoints != nil && (selinux.EnforceMode() != 1) {
+		if additionalMountPoints != nil {
 			if val, ok := additionalMountPoints[fromImage]; ok {
 				mountPoint = val.MountPoint
 			}
@@ -280,8 +278,7 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 		// do not create cache on host
 		// instead use read-only mounted stage as cache
 		mountPoint := ""
-		//TODO: remove this selinux check when comment is resolved. https://github.com/containers/buildah/pull/3590#issuecomment-956349109
-		if additionalMountPoints != nil && (selinux.EnforceMode() != 1) {
+		if additionalMountPoints != nil {
 			if val, ok := additionalMountPoints[fromStage]; ok {
 				if val.IsStage {
 					mountPoint = val.MountPoint

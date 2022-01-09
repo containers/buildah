@@ -3759,13 +3759,6 @@ _EOF
 }
 
 @test "bud-with-writeable-mount-bind-from-like-buildkit" {
-  if which selinuxenabled > /dev/null 2> /dev/null ; then
-	if selinuxenabled ; then
-                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
-                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
-		skip "skip if selinux enabled, since stages have different selinux label"
-	fi
-  fi
   skip_if_no_runtime
   skip_if_in_container
   mkdir ${TESTDIR}/bud
@@ -3807,13 +3800,6 @@ _EOF
 }
 
 @test "bud-with-mount-cache-from-like-buildkit" {
-  if which selinuxenabled > /dev/null 2> /dev/null ; then
-	if selinuxenabled ; then
-                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
-                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
-		skip "skip if selinux enabled, since stages have different selinux label"
-	fi
-  fi
   skip_if_no_runtime
   skip_if_in_container
   mkdir ${TESTDIR}/bud
@@ -3826,13 +3812,6 @@ _EOF
 
 # following test must fail
 @test "bud-with-mount-cache-image-from-like-buildkit" {
-  if which selinuxenabled > /dev/null 2> /dev/null ; then
-	if selinuxenabled ; then
-                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
-                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
-		skip "skip if selinux enabled, since stages have different selinux label"
-	fi
-  fi
   skip_if_no_runtime
   skip_if_in_container
   mkdir ${TESTDIR}/bud
@@ -3846,13 +3825,6 @@ _EOF
 }
 
 @test "bud-with-mount-cache-multiple-from-like-buildkit" {
-  if which selinuxenabled > /dev/null 2> /dev/null ; then
-	if selinuxenabled ; then
-                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
-                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
-		skip "skip if selinux enabled, since stages have different selinux label"
-	fi
-  fi
   skip_if_no_runtime
   skip_if_in_container
   mkdir ${TESTDIR}/bud
@@ -3879,14 +3851,6 @@ _EOF
 }
 
 @test "bud-with-mount-bind-from-multistage-relative-like-buildkit" {
-  if which selinuxenabled > /dev/null 2> /dev/null ; then
-	if selinuxenabled ; then
-                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
-                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
-		skip "skip if selinux enabled, since stages have different selinux label"
-	fi
-  fi
-
   mkdir ${TESTDIR}/bud
   cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
   skip_if_no_runtime
@@ -3898,14 +3862,6 @@ _EOF
 }
 
 @test "bud-with-mount-bind-from-cache-multistage-relative-like-buildkit" {
-  if which selinuxenabled > /dev/null 2> /dev/null ; then
-	if selinuxenabled ; then
-                #TODO: Once pending commit from https://github.com/containers/buildah/pull/3590 is merged
-                #See comment: https://github.com/containers/buildah/pull/3590#issuecomment-956349109
-		skip "skip if selinux enabled, since stages have different selinux label"
-	fi
-  fi
-
   skip_if_no_runtime
   skip_if_in_container
   mkdir ${TESTDIR}/bud
