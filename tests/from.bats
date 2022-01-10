@@ -41,11 +41,11 @@ load helpers
   run_buildah rm $cid
 
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
-  expect_output "elsewhere-img-working-container"
+  expect_output "dir-working-container"
   run_buildah rm $output
 
   run_buildah from --quiet --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
-  expect_output "$(basename ${elsewhere})-working-container"
+  expect_output "dir-working-container"
 
   run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
@@ -139,7 +139,7 @@ load helpers
   run_buildah rmi alpine
 
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/alp-dir
-  expect_output "alp-dir-working-container"
+  expect_output "dir-working-container"
 }
 
 @test "from the following transports: docker-archive and oci-archive with no image reference" {

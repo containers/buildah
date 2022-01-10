@@ -91,7 +91,7 @@ func (r *Runtime) compileImageFilters(ctx context.Context, options *ListImagesOp
 	}
 
 	filters := map[string][]filterFunc{}
-	duplicate := map[string]bool{}
+	duplicate := map[string]string{}
 	for _, f := range options.Filters {
 		var key, value string
 		var filter filterFunc
@@ -167,7 +167,6 @@ func (r *Runtime) compileImageFilters(ctx context.Context, options *ListImagesOp
 			if err != nil {
 				return nil, err
 			}
-			duplicate[key] = true
 			filter = filterManifest(ctx, manifest)
 
 		case "reference":
@@ -189,11 +188,11 @@ func (r *Runtime) compileImageFilters(ctx context.Context, options *ListImagesOp
 	return filters, nil
 }
 
-func (r *Runtime) containers(duplicate map[string]bool, key, value string, externalFunc IsExternalContainerFunc) error {
-	if duplicate[key] {
-		return errors.Errorf("specifying %q filter more then once is not supported", key)
+func (r *Runtime) containers(duplicate map[string]string, key, value string, externalFunc IsExternalContainerFunc) error {
+	if exists, ok := duplicate[key]; ok && exists != value {
+		return errors.Errorf("specifying %q filter more than once with different values is not supported", key)
 	}
-	duplicate[key] = true
+	duplicate[key] = value
 	switch value {
 	case "false", "true":
 	case "external":
@@ -227,11 +226,11 @@ func (r *Runtime) time(key, value string) (*Image, error) {
 	return img, nil
 }
 
-func (r *Runtime) bool(duplicate map[string]bool, key, value string) (bool, error) {
-	if duplicate[key] {
-		return false, errors.Errorf("specifying %q filter more then once is not supported", key)
+func (r *Runtime) bool(duplicate map[string]string, key, value string) (bool, error) {
+	if exists, ok := duplicate[key]; ok && exists != value {
+		return false, errors.Errorf("specifying %q filter more than once with different values is not supported", key)
 	}
-	duplicate[key] = true
+	duplicate[key] = value
 	set, err := strconv.ParseBool(value)
 	if err != nil {
 		return false, errors.Wrapf(err, "non-boolean value %q for %s filter", key, value)
