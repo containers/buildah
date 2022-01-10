@@ -2429,6 +2429,30 @@ EOM
   expect_output arm
 }
 
+@test "bud with custom platform and empty os or arch" {
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json \
+    -f ${TESTSDIR}/bud/from-scratch/Containerfile \
+    -t platform-test \
+    --platform=windows/
+
+  run_buildah inspect --format "{{ .Docker.OS }}" platform-test
+  expect_output windows
+
+  run_buildah inspect --format "{{ .OCIv1.OS }}" platform-test
+  expect_output windows
+
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json \
+    -f ${TESTSDIR}/bud/from-scratch/Containerfile \
+    -t platform-test2 \
+    --platform=/arm
+
+  run_buildah inspect --format "{{ .Docker.Architecture }}" platform-test2
+  expect_output arm
+
+  run_buildah inspect --format "{{ .OCIv1.Architecture }}" platform-test2
+  expect_output arm
+}
+
 @test "bud Add with linked tarball" {
   _prefetch alpine
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/symlink/Containerfile.add-tar-with-link -t testctr ${TESTSDIR}/bud/symlink

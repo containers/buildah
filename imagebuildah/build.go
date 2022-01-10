@@ -216,8 +216,12 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			Architecture: platform.Arch,
 			Variant:      platform.Variant,
 		})
-		if platformSpec.OS != "" && platformSpec.Architecture != "" {
+		// platforms.Normalize converts an empty os value to GOOS
+		// so we have to check the original value here to not overwrite the default for no reason
+		if platform.OS != "" {
 			platformContext.OSChoice = platformSpec.OS
+		}
+		if platform.Arch != "" {
 			platformContext.ArchitectureChoice = platformSpec.Architecture
 			platformContext.VariantChoice = platformSpec.Variant
 		}
