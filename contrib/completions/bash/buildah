@@ -404,8 +404,6 @@ return 1
      --cap-drop
      --cert-dir
      --cgroup-parent
-     --cni-config-dir
-     --cni-plugin-path
      --cpu-period
      --cpu-quota
      --cpu-shares
@@ -490,8 +488,6 @@ return 1
      local options_with_args="
      --cap-add
      --cap-drop
-     --cni-config-dir
-     --cni-plugin-path
      --hostname
      --ipc
      --isolation
@@ -1107,8 +1103,6 @@ esac
      --cert-dir
      --cgroup-parent
      --cidfile
-     --cni-config-dir
-     --cni-plugin-path
      --cpu-period
      --cpu-quota
      --cpu-shares

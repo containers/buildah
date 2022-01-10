@@ -34,10 +34,6 @@ const (
 	// DefaultRuntime if containers.conf fails.
 	DefaultRuntime = "runc"
 
-	DefaultCNIPluginPath = "/usr/libexec/cni:/opt/cni/bin"
-	// DefaultCNIConfigDir is the default location of CNI configuration files.
-	DefaultCNIConfigDir = "/etc/cni/net.d"
-
 	// OCIv1ImageManifest is the MIME type of an OCIv1 image manifest,
 	// suitable for specifying as a value of the PreferredManifestType
 	// member of a CommitOptions structure.  It is also the default.

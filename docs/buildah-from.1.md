@@ -103,18 +103,6 @@ that the cgroup namespace in which `buildah` itself is being run should be reuse
 
 Write the container ID to the file.
 
-**--cni-config-dir**=*directory*
-
-Location of CNI configuration files which will dictate which plugins will be
-used to configure network interfaces and routing when the container is
-subsequently used for `buildah run`, if processes to be started will be run in
-their own network namespaces, and networking is not disabled.
-
-**--cni-plugin-path**=*directory[:directory[:directory[...]]]*
-
-List of directories in which the CNI plugins which will be used for configuring
-network namespaces can be found.
-
 **--cpu-period**=*0*
 
 Limit the CPU CFS (Completely Fair Scheduler) period

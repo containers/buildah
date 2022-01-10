@@ -147,8 +147,10 @@ func GetNameSpaceFlags(flags *NameSpaceResults) pflag.FlagSet {
 	fs.StringVar(&flags.Cgroup, "cgroupns", "", "'private', or 'host'")
 	fs.StringVar(&flags.IPC, string(specs.IPCNamespace), "", "'private', `path` of IPC namespace to join, or 'host'")
 	fs.StringVar(&flags.Network, string(specs.NetworkNamespace), "", "'private', 'none', 'ns:path' of network namespace to join, or 'host'")
-	fs.StringVar(&flags.CNIConfigDir, "cni-config-dir", define.DefaultCNIConfigDir, "`directory` of CNI configuration files")
-	fs.StringVar(&flags.CNIPlugInPath, "cni-plugin-path", define.DefaultCNIPluginPath, "`path` of CNI network plugins")
+	fs.StringVar(&flags.CNIConfigDir, "cni-config-dir", "", "`directory` of CNI configuration files")
+	_ = fs.MarkHidden("cni-config-dir")
+	fs.StringVar(&flags.CNIPlugInPath, "cni-plugin-path", "", "`path` of CNI network plugins")
+	_ = fs.MarkHidden("cni-plugin-path")
 	fs.StringVar(&flags.PID, string(specs.PIDNamespace), "", "private, `path` of PID namespace to join, or 'host'")
 	fs.StringVar(&flags.UTS, string(specs.UTSNamespace), "", "private, :`path` of UTS namespace to join, or 'host'")
 	return fs
@@ -160,8 +162,6 @@ func GetNameSpaceFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["cgroupns"] = completion.AutocompleteNamespaceFlag
 	flagCompletion[string(specs.IPCNamespace)] = completion.AutocompleteNamespaceFlag
 	flagCompletion[string(specs.NetworkNamespace)] = completion.AutocompleteNamespaceFlag
-	flagCompletion["cni-config-dir"] = commonComp.AutocompleteDefault
-	flagCompletion["cni-plugin-path"] = commonComp.AutocompleteDefault
 	flagCompletion[string(specs.PIDNamespace)] = completion.AutocompleteNamespaceFlag
 	flagCompletion[string(specs.UTSNamespace)] = completion.AutocompleteNamespaceFlag
 	return flagCompletion
