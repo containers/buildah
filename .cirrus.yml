@@ -202,7 +202,8 @@ integration_task:
     alias: integration
     only_if: *not_docs
     depends_on:
-      - unit
+      - smoke
+      - vendor
 
     matrix:
         # VFS
@@ -259,7 +260,8 @@ in_podman_task:
     alias: in_podman
     only_if: *not_docs
     depends_on:
-        - unit
+      - smoke
+      - vendor
 
     env:
         # This is key, cause the scripts to re-execute themselves inside a container.
