@@ -340,6 +340,10 @@ type BuilderOptions struct {
 	// OciDecryptConfig contains the config that can be used to decrypt an image if it is
 	// encrypted if non-nil. If nil, it does not attempt to decrypt an image.
 	OciDecryptConfig *encconfig.DecryptConfig
+	// ProcessLabel is the SELinux process label associated with the container
+	ProcessLabel string
+	// MountLabel is the SELinux mount label associated with the container
+	MountLabel string
 }
 
 // ImportOptions are used to initialize a Builder from an existing container
