@@ -406,9 +406,15 @@ func (r *Runtime) lookupImageInDigestsAndRepoTags(name string, options *LookupIm
 		digest := digested.Digest()
 		for _, image := range allImages {
 			for _, d := range image.Digests() {
-				if d == digest {
-					return image, name, nil
+				if d != digest {
+					continue
 				}
+				// Also make sure that the matching image fits all criteria (e.g., manifest list).
+				if _, err := r.lookupImageInLocalStorage(name, image.ID(), options); err != nil {
+					return nil, "", err
+				}
+				return image, name, nil
+
 			}
 		}
 		return nil, "", errors.Wrap(storage.ErrImageUnknown, name)

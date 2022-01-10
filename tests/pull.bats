@@ -84,10 +84,12 @@ load helpers
   run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json alpine
   run_buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest dir:${TESTDIR}/buildahtest
   run_buildah rmi alpine
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
+  run_buildah pull --quiet --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
+  imageID="$output"
+  # Images pulled via the dir transport are untagged.
   run_buildah images --format "{{.Name}}:{{.Tag}}"
-  expect_output --substring "localhost${TESTDIR}/buildahtest:latest"
-  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
+  expect_output --substring "<none>:<none>"
+  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json dir:$imageID
   expect_output --substring "pulling all tags is not supported for dir transport"
 }
 
