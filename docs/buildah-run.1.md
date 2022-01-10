@@ -46,18 +46,6 @@ If a capability is specified to both the **--cap-add** and **--cap-drop**
 options, it will be dropped, regardless of the order in which the options were
 given.
 
-**--cni-config-dir**=*directory*
-
-Location of CNI configuration files which will dictate which plugins will be
-used to configure network interfaces and routing inside the running container,
-if the container will be run in its own network namespace, and networking is
-not disabled.
-
-**--cni-plugin-path**=*directory[:directory[:directory[...]]]*
-
-List of directories in which the CNI plugins which will be used for configuring
-network namespaces can be found.
-
 **--contextdir** *directory*
 
 Allows setting context directory for current RUN invocation. Specifying a context

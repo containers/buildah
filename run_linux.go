@@ -279,19 +279,6 @@ rootless=%d
 
 	defer b.cleanupTempVolumes()
 
-	if options.CNIConfigDir == "" {
-		options.CNIConfigDir = b.CNIConfigDir
-		if b.CNIConfigDir == "" {
-			options.CNIConfigDir = define.DefaultCNIConfigDir
-		}
-	}
-	if options.CNIPluginPath == "" {
-		options.CNIPluginPath = b.CNIPluginPath
-		if b.CNIPluginPath == "" {
-			options.CNIPluginPath = define.DefaultCNIPluginPath
-		}
-	}
-
 	switch isolation {
 	case define.IsolationOCI:
 		var moreCreateArgs []string

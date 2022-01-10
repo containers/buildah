@@ -113,18 +113,6 @@ This option is added to be aligned with other containers CLIs.
 Buildah doesn't send a copy of the context directory to a daemon or a remote server.
 Thus, compressing the data before sending it is irrelevant to Buildah.
 
-**--cni-config-dir**=*directory*
-
-Location of CNI configuration files which will dictate which plugins will be
-used to configure network interfaces and routing for containers created for
-handling `RUN` instructions, if those containers will be run in their own
-network namespaces, and networking is not disabled.
-
-**--cni-plugin-path**=*directory[:directory[:directory[...]]]*
-
-List of directories in which the CNI plugins which will be used for configuring
-network namespaces can be found.
-
 **--cpu-period**=*0*
 
 Set the CPU period for the Completely Fair Scheduler (CFS), which is a
