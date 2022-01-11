@@ -5,8 +5,8 @@ go 1.13
 require (
 	github.com/containerd/containerd v1.5.9
 	github.com/containernetworking/cni v1.0.1
-	github.com/containers/common v0.46.1-0.20220110152253-5476e2b8dc46
-	github.com/containers/image/v5 v5.17.1-0.20220106205022-73f80d60f0e1
+	github.com/containers/common v0.46.1-0.20220110165509-08c2c97e5e25
+	github.com/containers/image/v5 v5.18.0
 	github.com/containers/ocicrypt v1.1.2
 	github.com/containers/storage v1.37.1-0.20211122164443-82b8f06bfc08
 	github.com/docker/distribution v2.7.1+incompatible
@@ -36,7 +36,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20211214234402-4825e8c3871d
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
