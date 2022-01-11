@@ -803,11 +803,16 @@ func parseIDMap(spec []string) (m [][3]uint32, err error) {
 
 // NamespaceOptions parses the build options for all namespaces except for user namespace.
 func NamespaceOptions(c *cobra.Command) (namespaceOptions define.NamespaceOptions, networkPolicy define.NetworkConfigurationPolicy, err error) {
+	return NamespaceOptionsFromFlagSet(c.Flags(), c.Flag)
+}
+
+// NamespaceOptionsFromFlagSet parses the build options for all namespaces except for user namespace.
+func NamespaceOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name string) *pflag.Flag) (namespaceOptions define.NamespaceOptions, networkPolicy define.NetworkConfigurationPolicy, err error) {
 	options := make(define.NamespaceOptions, 0, 7)
 	policy := define.NetworkDefault
 	for _, what := range []string{"cgroupns", string(specs.IPCNamespace), "network", string(specs.PIDNamespace), string(specs.UTSNamespace)} {
-		if c.Flags().Lookup(what) != nil && c.Flag(what).Changed {
-			how := c.Flag(what).Value.String()
+		if flags.Lookup(what) != nil && findFlagFunc(what).Changed {
+			how := findFlagFunc(what).Value.String()
 			switch what {
 			case "network":
 				what = string(specs.NetworkNamespace)
