@@ -767,8 +767,11 @@ function _test_http() {
     skip "no ssh in PATH"
   fi
   target=giturl-image
-  # Any repo should do, but this one is small and is FROM: scratch.
-  gitrepo=git://github.com/projectatomic/nulecule-library
+  # Any repo would do, but this one is small, is FROM: scratch, and local.
+  if ! start_git_daemon ; then
+    skip "error running git daemon"
+  fi
+  gitrepo=git://localhost:${GITPORT}/repo
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} "${gitrepo}"
   run_buildah from ${target}
 }
@@ -2282,11 +2285,14 @@ _EOF
 }
 
 @test "bud using gitrepo and branch" {
-  run_buildah build --signature-policy ${TESTSDIR}/policy.json --layers -t gittarget -f tests/bud/shell/Dockerfile git://github.com/containers/buildah#release-1.11-rhel
+  if ! start_git_daemon ${TESTSDIR}/git-daemon/release-1.11-rhel.tar.gz ; then
+    skip "error running git daemon"
+  fi
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --layers -t gittarget -f ${TESTSDIR}/bud/shell/Dockerfile git://localhost:${GITPORT}/repo#release-1.11-rhel
 }
 
 @test "bud using gitrepo with .git and branch" {
-  run_buildah build --signature-policy ${TESTSDIR}/policy.json --layers -t gittarget -f tests/bud/shell/Dockerfile https://github.com/containers/buildah.git#release-1.11-rhel
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --layers -t gittarget -f ${TESTSDIR}/bud/shell/Dockerfile https://github.com/containers/buildah.git#release-1.11-rhel
 }
 
 # Fixes #1906: buildah was not detecting changed tarfile
