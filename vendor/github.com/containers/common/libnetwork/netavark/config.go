@@ -107,35 +107,10 @@ func (n *netavarkNetwork) networkCreate(newNetwork *types.Network, defaultNet bo
 			}
 		}
 	case types.MacVLANNetworkDriver:
-		if newNetwork.Internal {
-			return nil, errors.New("internal is not supported with macvlan")
+		err = createMacvlan(newNetwork)
+		if err != nil {
+			return nil, err
 		}
-		if newNetwork.NetworkInterface != "" {
-			interfaceNames, err := internalutil.GetLiveNetworkNames()
-			if err != nil {
-				return nil, err
-			}
-			if !util.StringInSlice(newNetwork.NetworkInterface, interfaceNames) {
-				return nil, errors.Errorf("parent interface %s does not exist", newNetwork.NetworkInterface)
-			}
-		}
-		if len(newNetwork.Subnets) == 0 {
-			return nil, errors.Errorf("macvlan driver needs at least one subnet specified, DHCP is not supported with netavark")
-		}
-		newNetwork.IPAMOptions["driver"] = types.HostLocalIPAMDriver
-
-		// validate the given options, we do not need them but just check to make sure they are valid
-		for key, value := range newNetwork.Options {
-			switch key {
-			case "mode":
-				if !util.StringInSlice(value, types.ValidMacVLANModes) {
-					return nil, errors.Errorf("unknown macvlan mode %q", value)
-				}
-			default:
-				return nil, errors.Errorf("unsupported macvlan network option %s", key)
-			}
-		}
-
 	default:
 		return nil, errors.Wrapf(types.ErrInvalidArg, "unsupported driver %s", newNetwork.Driver)
 	}
@@ -167,6 +142,43 @@ func (n *netavarkNetwork) networkCreate(newNetwork *types.Network, defaultNet bo
 	}
 
 	return newNetwork, nil
+}
+
+func createMacvlan(network *types.Network) error {
+	if network.Internal {
+		return errors.New("internal is not supported with macvlan")
+	}
+	if network.NetworkInterface != "" {
+		interfaceNames, err := internalutil.GetLiveNetworkNames()
+		if err != nil {
+			return err
+		}
+		if !util.StringInSlice(network.NetworkInterface, interfaceNames) {
+			return errors.Errorf("parent interface %s does not exist", network.NetworkInterface)
+		}
+	}
+	if len(network.Subnets) == 0 {
+		return errors.Errorf("macvlan driver needs at least one subnet specified, DHCP is not supported with netavark")
+	}
+	network.IPAMOptions["driver"] = types.HostLocalIPAMDriver
+
+	// validate the given options, we do not need them but just check to make sure they are valid
+	for key, value := range network.Options {
+		switch key {
+		case "mode":
+			if !util.StringInSlice(value, types.ValidMacVLANModes) {
+				return errors.Errorf("unknown macvlan mode %q", value)
+			}
+		case "mtu":
+			_, err := internalutil.ParseMTU(value)
+			if err != nil {
+				return err
+			}
+		default:
+			return errors.Errorf("unsupported macvlan network option %s", key)
+		}
+	}
+	return nil
 }
 
 // NetworkRemove will remove the Network with the given name or ID.
