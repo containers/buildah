@@ -109,14 +109,16 @@ func validatePerNetworkOpts(network *types.Network, netOpts *types.PerNetworkOpt
 	if netOpts.InterfaceName == "" {
 		return errors.Errorf("interface name on network %s is empty", network.Name)
 	}
-outer:
-	for _, ip := range netOpts.StaticIPs {
-		for _, s := range network.Subnets {
-			if s.Subnet.Contains(ip) {
-				continue outer
+	if network.IPAMOptions["driver"] == types.HostLocalIPAMDriver {
+	outer:
+		for _, ip := range netOpts.StaticIPs {
+			for _, s := range network.Subnets {
+				if s.Subnet.Contains(ip) {
+					continue outer
+				}
 			}
+			return errors.Errorf("requested static ip %s not in any subnet on network %s", ip.String(), network.Name)
 		}
-		return errors.Errorf("requested static ip %s not in any subnet on network %s", ip.String(), network.Name)
 	}
 	return nil
 }
