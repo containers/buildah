@@ -5,8 +5,23 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestCommonBuildOptionsFromFlagSet(t *testing.T) {
+	fs := pflag.NewFlagSet("testme", pflag.PanicOnError)
+	fs.String("memory", "1GB", "")
+	fs.String("shm-size", "5TB", "")
+	fs.String("cpuset-cpus", "1", "")
+	fs.String("cpuset-mems", "2", "")
+	fs.String("cgroup-parent", "none", "")
+	err := fs.Parse([]string{"--memory", "2GB"})
+	assert.NoError(t, err)
+	cbo, err := CommonBuildOptionsFromFlagSet(fs, fs.Lookup)
+	assert.NoError(t, err)
+	assert.Equal(t, cbo.Memory, int64(2147483648))
+}
 
 // TestDeviceParser verifies the given device strings is parsed correctly
 func TestDeviceParser(t *testing.T) {
