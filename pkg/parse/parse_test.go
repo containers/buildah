@@ -5,6 +5,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/containers/buildah/define"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
@@ -136,6 +138,20 @@ func TestIsolation(t *testing.T) {
 			assert.Error(t, fmt.Errorf("isolation %q not equal to user input %q", isolation.String(), expected))
 		}
 	}
+}
+
+func TestNamespaceOptions(t *testing.T) {
+	fs := pflag.NewFlagSet("testme", pflag.PanicOnError)
+	fs.String("cgroupns", "", "")
+	err := fs.Parse([]string{"--cgroupns", "private"})
+	assert.NoError(t, err)
+	nsos, np, err := NamespaceOptionsFromFlagSet(fs, fs.Lookup)
+	assert.NoError(t, err)
+	assert.Equal(t, np, define.NetworkEnabled)
+	nso := nsos.Find(string(specs.CgroupNamespace))
+	assert.Equal(t, *nso, define.NamespaceOption{
+		Name: string(specs.CgroupNamespace),
+	})
 }
 
 func TestParsePlatform(t *testing.T) {
