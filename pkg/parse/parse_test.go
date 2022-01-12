@@ -112,6 +112,25 @@ func TestDeviceFromPath(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestIDMappingOptions(t *testing.T) {
+	fs := pflag.NewFlagSet("testme", pflag.PanicOnError)
+	pfs := pflag.NewFlagSet("persist", pflag.PanicOnError)
+	fs.String("userns-uid-map-user", "", "")
+	fs.String("userns-gid-map-group", "", "")
+	fs.String("userns-uid-map", "", "")
+	fs.String("userns-gid-map", "", "")
+	fs.String("userns", "", "")
+	err := fs.Parse([]string{})
+	assert.NoError(t, err)
+	uos, _, err := IDMappingOptionsFromFlagSet(fs, pfs, fs.Lookup)
+	assert.NoError(t, err)
+	nso := uos.Find(string(specs.UserNamespace))
+	assert.Equal(t, *nso, define.NamespaceOption{
+		Host: true,
+		Name: string(specs.UserNamespace),
+	})
+}
+
 func TestIsolation(t *testing.T) {
 	def, err := defaultIsolation()
 	if err != nil {

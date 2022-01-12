@@ -664,8 +664,13 @@ func AuthConfig(creds string) (*types.DockerAuthConfig, error) {
 
 // IDMappingOptions parses the build options related to user namespaces and ID mapping.
 func IDMappingOptions(c *cobra.Command, isolation define.Isolation) (usernsOptions define.NamespaceOptions, idmapOptions *define.IDMappingOptions, err error) {
-	user := c.Flag("userns-uid-map-user").Value.String()
-	group := c.Flag("userns-gid-map-group").Value.String()
+	return IDMappingOptionsFromFlagSet(c.Flags(), c.PersistentFlags(), c.Flag)
+}
+
+// IDMappingOptionsFromFlagSet parses the build options related to user namespaces and ID mapping.
+func IDMappingOptionsFromFlagSet(flags *pflag.FlagSet, persistentFlags *pflag.FlagSet, findFlagFunc func(name string) *pflag.Flag) (usernsOptions define.NamespaceOptions, idmapOptions *define.IDMappingOptions, err error) {
+	user := findFlagFunc("userns-uid-map-user").Value.String()
+	group := findFlagFunc("userns-gid-map-group").Value.String()
 	// If only the user or group was specified, use the same value for the
 	// other, since we need both in order to initialize the maps using the
 	// names.
@@ -684,7 +689,7 @@ func IDMappingOptions(c *cobra.Command, isolation define.Isolation) (usernsOptio
 		}
 		mappings = submappings
 	}
-	globalOptions := c.PersistentFlags()
+	globalOptions := persistentFlags
 	// We'll parse the UID and GID mapping options the same way.
 	buildIDMap := func(basemap []idtools.IDMap, option string) ([]specs.LinuxIDMapping, error) {
 		outmap := make([]specs.LinuxIDMapping, 0, len(basemap))
@@ -702,8 +707,8 @@ func IDMappingOptions(c *cobra.Command, isolation define.Isolation) (usernsOptio
 		if globalOptions.Lookup(option) != nil && globalOptions.Lookup(option).Changed {
 			spec, _ = globalOptions.GetStringSlice(option)
 		}
-		if c.Flag(option).Changed {
-			spec, _ = c.Flags().GetStringSlice(option)
+		if findFlagFunc(option).Changed {
+			spec, _ = flags.GetStringSlice(option)
 		}
 		idmap, err := parseIDMap(spec)
 		if err != nil {
@@ -744,8 +749,8 @@ func IDMappingOptions(c *cobra.Command, isolation define.Isolation) (usernsOptio
 	}
 	// If the user specifically requested that we either use or don't use
 	// user namespaces, override that default.
-	if c.Flag("userns").Changed {
-		how := c.Flag("userns").Value.String()
+	if findFlagFunc("userns").Changed {
+		how := findFlagFunc("userns").Value.String()
 		switch how {
 		case "", "container", "private":
 			usernsOption.Host = false
