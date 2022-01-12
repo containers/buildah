@@ -2627,7 +2627,7 @@ func getSecretMount(tokens []string, secrets map[string]define.Secret, mountlabe
 
 	// Copy secrets to container working dir (or tmp dir if it's an env), since we need to chmod,
 	// chown and relabel it for the container user and we don't want to mess with the original file
-	if err := os.MkdirAll(filepath.Dir(ctrFileOnHost), 0644); err != nil {
+	if err := os.MkdirAll(filepath.Dir(ctrFileOnHost), 0755); err != nil {
 		return nil, "", err
 	}
 	if err := ioutil.WriteFile(ctrFileOnHost, data, 0644); err != nil {
