@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/containers/buildah/define"
+	"github.com/containers/image/v5/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
@@ -206,4 +207,18 @@ func TestSplitStringWithColonEscape(t *testing.T) {
 		val := SplitStringWithColonEscape(args.volume)
 		assert.Equal(t, val, args.expectedResult)
 	}
+}
+
+func TestSystemContextFromFlagSet(t *testing.T) {
+	fs := pflag.NewFlagSet("testme", pflag.PanicOnError)
+	fs.Bool("tls-verify", false, "")
+	err := fs.Parse([]string{"--tls-verify", "false"})
+	assert.NoError(t, err)
+	sc, err := SystemContextFromFlagSet(fs, fs.Lookup)
+	assert.NoError(t, err)
+	assert.Equal(t, sc, &types.SystemContext{
+		BigFilesTemporaryDir:        GetTempDir(),
+		DockerInsecureSkipTLSVerify: types.OptionalBoolFalse,
+		DockerRegistryUserAgent:     fmt.Sprintf("Buildah/%s", define.Version),
+	})
 }
