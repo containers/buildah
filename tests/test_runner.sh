@@ -19,4 +19,4 @@ function execute() {
 TESTS=${@:-.}
 
 # Run the tests.
-execute time bats --tap $TESTS
+execute time bats --tap $TESTS --filter

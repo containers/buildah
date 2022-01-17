@@ -1,0 +1,2 @@
+FROM --platform=linux/amd64 busybox
+RUN uname -m

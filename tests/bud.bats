@@ -2837,6 +2837,25 @@ EOF
   expect_output --substring "\[2/2] STEP 1/2: FROM busybox"
 }
 
+# Following test must fail since we are trying to run linux/arm64 on linux/amd64
+# Issue: https://github.com/containers/buildah/issues/3712
+@test "build-with-inline-platform" {
+  # Tries building image where baseImage has --platform=linux/arm64
+  run_buildah 1 build --signature-policy ${TESTSDIR}/policy.json -t test ${TESTSDIR}/bud/platform
+  expect_output --substring "Exec format error"
+}
+
+# Following test must pass since we want to tag image as arm64
+# Test for use-case described here: https://github.com/containers/buildah/issues/3261
+@test "build-with-inline-platform-amd-but-tag-as-arm" {
+  # Tries building image where baseImage has --platform=linux/arm64
+  run_buildah build --platform linux/arm64 --signature-policy ${TESTSDIR}/policy.json -t test -f ${TESTSDIR}/bud/platform/Dockerfileamd
+  run_buildah inspect --format '{{ .OCIv1.Architecture }}' test
+  # base image is pulled as amd64 but image must be tagged as arm64
+  expect_output --substring "arm64"
+
+}
+
 @test "bud test no --stdin" {
   _prefetch alpine
   mytmpdir=${TESTDIR}/my-dir

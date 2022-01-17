@@ -598,6 +598,25 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			for _, child := range node.Children { // tokens on this line, though we only care about the first
 				switch strings.ToUpper(child.Value) { // first token - instruction
 				case "FROM":
+					for _, flag := range child.Flags {
+						if strings.HasPrefix(flag, "--platform=") {
+							platformString := strings.TrimPrefix(flag, "--platform=")
+							os, arch, variant, err := parse.Platform(platformString)
+							if err != nil {
+								return "", nil, errors.Wrapf(err, "unable to parse platform %q", platformString)
+							}
+							// configure executor's system context for pull's being perform for base images
+							if arch != "" {
+								b.systemContext.ArchitectureChoice = arch
+							}
+							if os != "" {
+								b.systemContext.OSChoice = os
+							}
+							if variant != "" {
+								b.systemContext.VariantChoice = variant
+							}
+						}
+					}
 					if child.Next != nil { // second token on this line
 						// If we have a fromOverride, replace the value of
 						// image name for the first FROM in the Containerfile.
