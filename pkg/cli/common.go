@@ -171,7 +171,7 @@ func GetNameSpaceFlagsCompletions() commonComp.FlagCompletions {
 func GetLayerFlags(flags *LayerResults) pflag.FlagSet {
 	fs := pflag.FlagSet{}
 	fs.BoolVar(&flags.ForceRm, "force-rm", false, "Always remove intermediate containers after a build, even if the build is unsuccessful.")
-	fs.BoolVar(&flags.Layers, "layers", UseLayers(), fmt.Sprintf("cache intermediate layers during build. Use BUILDAH_LAYERS environment variable to override."))
+	fs.BoolVar(&flags.Layers, "layers", UseLayers(), "cache intermediate layers during build. Use BUILDAH_LAYERS environment variable to override.")
 	return fs
 }
 
