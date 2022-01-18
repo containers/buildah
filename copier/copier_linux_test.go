@@ -65,8 +65,12 @@ func getWrappedMain() {
 		os.Exit(1)
 	}
 	if len(options.DropCaps) > 0 {
-		caps, err := capability.NewPid(0)
+		caps, err := capability.NewPid2(0)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v", err)
+			os.Exit(1)
+		}
+		if err := caps.Load(); err != nil {
 			fmt.Fprintf(os.Stderr, "%v", err)
 			os.Exit(1)
 		}
