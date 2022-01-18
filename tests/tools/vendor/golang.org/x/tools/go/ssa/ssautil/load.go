@@ -46,7 +46,7 @@ func Packages(initial []*packages.Package, mode ssa.BuilderMode) (*ssa.Program, 
 //
 // AllPackages creates an SSA package for each well-typed package in the
 // initial list, plus all their dependencies. The resulting list of
-// packages corresponds to the list of intial packages, and may contain
+// packages corresponds to the list of initial packages, and may contain
 // a nil if SSA code could not be constructed for the corresponding
 // initial package due to type errors.
 //
@@ -129,7 +129,7 @@ func CreateProgram(lprog *loader.Program, mode ssa.BuilderMode) *ssa.Program {
 //
 // The operation fails if there were any type-checking or import errors.
 //
-// See ../ssa/example_test.go for an example.
+// See ../example_test.go for an example.
 //
 func BuildPackage(tc *types.Config, fset *token.FileSet, pkg *types.Package, files []*ast.File, mode ssa.BuilderMode) (*ssa.Package, *types.Info, error) {
 	if fset == nil {

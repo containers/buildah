@@ -1,0 +1,20 @@
+linters:
+  enable:
+    - gocognit
+    - gocritic
+    - gocyclo
+    - goerr113
+    - golint
+    - interfacer
+    - nakedret
+    - prealloc
+    - unconvert
+    - unparam
+
+linters-settings:
+  gocognit:
+    min-complexity: 15
+  gocyclo:
+    min-complexity: 10
+  nakedret:
+    max-func-lines: 0

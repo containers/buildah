@@ -1,38 +1,17 @@
 package golinters
 
 import (
-	"context"
-	"fmt"
+	"github.com/gordonklaus/ineffassign/pkg/ineffassign"
+	"golang.org/x/tools/go/analysis"
 
-	ineffassignAPI "github.com/golangci/ineffassign"
-
-	"github.com/golangci/golangci-lint/pkg/lint/linter"
-	"github.com/golangci/golangci-lint/pkg/result"
+	"github.com/golangci/golangci-lint/pkg/golinters/goanalysis"
 )
 
-type Ineffassign struct{}
-
-func (Ineffassign) Name() string {
-	return "ineffassign"
-}
-
-func (Ineffassign) Desc() string {
-	return "Detects when assignments to existing variables are not used"
-}
-
-func (lint Ineffassign) Run(ctx context.Context, lintCtx *linter.Context) ([]result.Issue, error) {
-	issues := ineffassignAPI.Run(getAllFileNames(lintCtx))
-	if len(issues) == 0 {
-		return nil, nil
-	}
-
-	res := make([]result.Issue, 0, len(issues))
-	for _, i := range issues {
-		res = append(res, result.Issue{
-			Pos:        i.Pos,
-			Text:       fmt.Sprintf("ineffectual assignment to %s", formatCode(i.IdentName, lintCtx.Cfg)),
-			FromLinter: lint.Name(),
-		})
-	}
-	return res, nil
+func NewIneffassign() *goanalysis.Linter {
+	return goanalysis.NewLinter(
+		"ineffassign",
+		"Detects when assignments to existing variables are not used",
+		[]*analysis.Analyzer{ineffassign.Analyzer},
+		nil,
+	).WithLoadMode(goanalysis.LoadModeSyntax)
 }

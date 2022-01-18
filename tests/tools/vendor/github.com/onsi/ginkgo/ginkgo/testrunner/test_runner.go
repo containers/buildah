@@ -49,11 +49,7 @@ func New(suite testsuite.TestSuite, numCPU int, parallelStream bool, timeout tim
 	}
 
 	if !suite.Precompiled {
-		dir, err := ioutil.TempDir("", "ginkgo")
-		if err != nil {
-			panic(fmt.Sprintf("couldn't create temporary directory... might be time to rm -rf:\n%s", err.Error()))
-		}
-		runner.compilationTargetPath = filepath.Join(dir, suite.PackageName+".test")
+		runner.compilationTargetPath, _ = filepath.Abs(filepath.Join(suite.Path, suite.PackageName+".test"))
 	}
 
 	return runner
@@ -156,7 +152,7 @@ func (t *TestRunner) CompileTo(path string) error {
 		fmt.Println(string(output))
 	}
 
-	if fileExists(path) == false {
+	if !fileExists(path) {
 		compiledFile := t.Suite.PackageName + ".test"
 		if fileExists(compiledFile) {
 			// seems like we are on an old go version that does not support the -o flag on go test
@@ -182,7 +178,7 @@ func (t *TestRunner) CompileTo(path string) error {
 
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
-	return err == nil || os.IsNotExist(err) == false
+	return err == nil || !os.IsNotExist(err)
 }
 
 // copyFile copies the contents of the file named src to the file named
@@ -248,7 +244,7 @@ func (t *TestRunner) CleanUp() {
 	if t.Suite.Precompiled {
 		return
 	}
-	os.RemoveAll(filepath.Dir(t.compilationTargetPath))
+	os.Remove(t.compilationTargetPath)
 }
 
 func (t *TestRunner) runSerialGinkgoSuite() RunResult {
@@ -523,7 +519,7 @@ func (t *TestRunner) combineCoverprofiles() {
 	lines := map[string]int{}
 	lineOrder := []string{}
 	for i, coverProfile := range profiles {
-		for _, line := range strings.Split(string(coverProfile), "\n")[1:] {
+		for _, line := range strings.Split(coverProfile, "\n")[1:] {
 			if len(line) == 0 {
 				continue
 			}

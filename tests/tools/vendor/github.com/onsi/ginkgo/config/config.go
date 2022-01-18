@@ -1,7 +1,7 @@
 /*
 Ginkgo accepts a number of configuration options.
 
-These are documented [here](http://onsi.github.io/ginkgo/#the_ginkgo_cli)
+These are documented [here](http://onsi.github.io/ginkgo/#the-ginkgo-cli)
 
 You can also learn more via
 
@@ -20,14 +20,14 @@ import (
 	"fmt"
 )
 
-const VERSION = "1.8.0"
+const VERSION = "1.16.4"
 
 type GinkgoConfigType struct {
 	RandomSeed         int64
 	RandomizeAllSpecs  bool
 	RegexScansFilePath bool
-	FocusString        string
-	SkipString         string
+	FocusStrings       []string
+	SkipStrings        []string
 	SkipMeasurements   bool
 	FailOnPending      bool
 	FailFast           bool
@@ -52,16 +52,23 @@ type DefaultReporterConfigType struct {
 	Succinct          bool
 	Verbose           bool
 	FullTrace         bool
+	ReportPassed      bool
+	ReportFile        string
 }
 
 var DefaultReporterConfig = DefaultReporterConfigType{}
 
 func processPrefix(prefix string) string {
 	if prefix != "" {
-		prefix = prefix + "."
+		prefix += "."
 	}
 	return prefix
 }
+
+type flagFunc func(string)
+
+func (f flagFunc) String() string     { return "" }
+func (f flagFunc) Set(s string) error { f(s); return nil }
 
 func Flags(flagSet *flag.FlagSet, prefix string, includeParallelFlags bool) {
 	prefix = processPrefix(prefix)
@@ -73,8 +80,8 @@ func Flags(flagSet *flag.FlagSet, prefix string, includeParallelFlags bool) {
 
 	flagSet.BoolVar(&(GinkgoConfig.DryRun), prefix+"dryRun", false, "If set, ginkgo will walk the test hierarchy without actually running anything.  Best paired with -v.")
 
-	flagSet.StringVar(&(GinkgoConfig.FocusString), prefix+"focus", "", "If set, ginkgo will only run specs that match this regular expression.")
-	flagSet.StringVar(&(GinkgoConfig.SkipString), prefix+"skip", "", "If set, ginkgo will only run specs that do not match this regular expression.")
+	flagSet.Var(flagFunc(flagFocus), prefix+"focus", "If set, ginkgo will only run specs that match this regular expression. Can be specified multiple times, values are ORed.")
+	flagSet.Var(flagFunc(flagSkip), prefix+"skip", "If set, ginkgo will only run specs that do not match this regular expression. Can be specified multiple times, values are ORed.")
 
 	flagSet.BoolVar(&(GinkgoConfig.RegexScansFilePath), prefix+"regexScansFilePath", false, "If set, ginkgo regex matching also will look at the file path (code location).")
 
@@ -98,6 +105,9 @@ func Flags(flagSet *flag.FlagSet, prefix string, includeParallelFlags bool) {
 	flagSet.BoolVar(&(DefaultReporterConfig.Verbose), prefix+"v", false, "If set, default reporter print out all specs as they begin.")
 	flagSet.BoolVar(&(DefaultReporterConfig.Succinct), prefix+"succinct", false, "If set, default reporter prints out a very succinct report")
 	flagSet.BoolVar(&(DefaultReporterConfig.FullTrace), prefix+"trace", false, "If set, default reporter prints out the full stack trace when a failure occurs")
+	flagSet.BoolVar(&(DefaultReporterConfig.ReportPassed), prefix+"reportPassed", false, "If set, default reporter prints out captured output of passed tests.")
+	flagSet.StringVar(&(DefaultReporterConfig.ReportFile), prefix+"reportFile", "", "Override the default reporter output file path.")
+
 }
 
 func BuildFlagArgs(prefix string, ginkgo GinkgoConfigType, reporter DefaultReporterConfigType) []string {
@@ -128,12 +138,12 @@ func BuildFlagArgs(prefix string, ginkgo GinkgoConfigType, reporter DefaultRepor
 		result = append(result, fmt.Sprintf("--%sdryRun", prefix))
 	}
 
-	if ginkgo.FocusString != "" {
-		result = append(result, fmt.Sprintf("--%sfocus=%s", prefix, ginkgo.FocusString))
+	for _, s := range ginkgo.FocusStrings {
+		result = append(result, fmt.Sprintf("--%sfocus=%s", prefix, s))
 	}
 
-	if ginkgo.SkipString != "" {
-		result = append(result, fmt.Sprintf("--%sskip=%s", prefix, ginkgo.SkipString))
+	for _, s := range ginkgo.SkipStrings {
+		result = append(result, fmt.Sprintf("--%sskip=%s", prefix, s))
 	}
 
 	if ginkgo.FlakeAttempts > 1 {
@@ -196,5 +206,27 @@ func BuildFlagArgs(prefix string, ginkgo GinkgoConfigType, reporter DefaultRepor
 		result = append(result, fmt.Sprintf("--%strace", prefix))
 	}
 
+	if reporter.ReportPassed {
+		result = append(result, fmt.Sprintf("--%sreportPassed", prefix))
+	}
+
+	if reporter.ReportFile != "" {
+		result = append(result, fmt.Sprintf("--%sreportFile=%s", prefix, reporter.ReportFile))
+	}
+
 	return result
+}
+
+// flagFocus implements the -focus flag.
+func flagFocus(arg string) {
+	if arg != "" {
+		GinkgoConfig.FocusStrings = append(GinkgoConfig.FocusStrings, arg)
+	}
+}
+
+// flagSkip implements the -skip flag.
+func flagSkip(arg string) {
+	if arg != "" {
+		GinkgoConfig.SkipStrings = append(GinkgoConfig.SkipStrings, arg)
+	}
 }

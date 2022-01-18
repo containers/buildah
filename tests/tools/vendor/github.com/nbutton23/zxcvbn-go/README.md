@@ -4,7 +4,7 @@ matching and conservative entropy calculations. It finds 10k common passwords,
 common American names and surnames, common English words, and common patterns
 like dates, repeats (aaa), sequences (abcd), and QWERTY patterns.
 
-Please refer to http://tech.dropbox.com/?p=165 for the full details and
+Please refer to https://dropbox.tech/security/zxcvbn-realistic-password-strength-estimation for the full details and
 motivation behind zxcbvn. The source code for the original JavaScript (well,
 actually CoffeeScript) implementation can be found at:
 
@@ -16,7 +16,7 @@ https://github.com/dropbox/python-zxcvbn
 
 For full motivation, see:
 
-http://tech.dropbox.com/?p=165
+https://dropbox.tech/security/zxcvbn-realistic-password-strength-estimation
 
 ------------------------------------------------------------------------
 Use
@@ -66,13 +66,13 @@ Thanks to Dan Wheeler (https://github.com/lowe) for the CoffeeScript implementat
 (see above.) To repeat his outside acknowledgements (which remain useful, as always):
 
 Many thanks to Mark Burnett for releasing his 10k top passwords list:
-http://xato.net/passwords/more-top-worst-passwords
+https://xato.net/passwords/more-top-worst-passwords
 and for his 2006 book,
 "Perfect Passwords: Selection, Protection, Authentication"
 
 Huge thanks to Wiktionary contributors for building a frequency list
 of English as used in television and movies:
-http://en.wiktionary.org/wiki/Wiktionary:Frequency_lists
+https://en.wiktionary.org/wiki/Wiktionary:Frequency_lists
 
 Last but not least, big thanks to xkcd :)
 https://xkcd.com/936/

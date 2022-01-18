@@ -1,3 +1,7 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package analysis
 
 import "go/token"
@@ -22,6 +26,19 @@ type Diagnostic struct {
 	// Diagnostics should not contain SuggestedFixes that overlap.
 	// Experimental: This API is experimental and may change in the future.
 	SuggestedFixes []SuggestedFix // optional
+
+	// Experimental: This API is experimental and may change in the future.
+	Related []RelatedInformation // optional
+}
+
+// RelatedInformation contains information related to a diagnostic.
+// For example, a diagnostic that flags duplicated declarations of a
+// variable may include one RelatedInformation per existing
+// declaration.
+type RelatedInformation struct {
+	Pos     token.Pos
+	End     token.Pos
+	Message string
 }
 
 // A SuggestedFix is a code change associated with a Diagnostic that a user can choose

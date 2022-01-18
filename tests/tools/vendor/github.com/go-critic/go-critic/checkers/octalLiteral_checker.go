@@ -3,80 +3,45 @@ package checkers
 import (
 	"go/ast"
 	"go/token"
-	"go/types"
+	"strings"
+	"unicode"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/framework/linter"
 	"github.com/go-toolsmith/astcast"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "octalLiteral"
-	info.Tags = []string{"diagnostic", "experimental"}
-	info.Summary = "Detects octal literals passed to functions"
+	info.Tags = []string{"style", "experimental", "opinionated"}
+	info.Summary = "Detects old-style octal literals"
 	info.Before = `foo(02)`
-	info.After = `foo(2)`
+	info.After = `foo(0o2)`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
-		c := &octalLiteralChecker{
-			ctx: ctx,
-			octFriendlyPkg: map[string]bool{
-				"os":        true,
-				"io/ioutil": true,
-			},
-		}
-		return astwalk.WalkerForExpr(c)
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
+		return astwalk.WalkerForExpr(&octalLiteralChecker{ctx: ctx}), nil
 	})
 }
 
 type octalLiteralChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
-
-	octFriendlyPkg map[string]bool
+	ctx *linter.CheckerContext
 }
 
 func (c *octalLiteralChecker) VisitExpr(expr ast.Expr) {
-	call := astcast.ToCallExpr(expr)
-	calledExpr := astcast.ToSelectorExpr(call.Fun)
-	ident := astcast.ToIdent(calledExpr.X)
-
-	if obj, ok := c.ctx.TypesInfo.ObjectOf(ident).(*types.PkgName); ok {
-		pkg := obj.Imported()
-		if c.octFriendlyPkg[pkg.Path()] {
-			return
-		}
+	lit := astcast.ToBasicLit(expr)
+	if lit.Kind != token.INT {
+		return
 	}
-
-	for _, arg := range call.Args {
-		if lit := astcast.ToBasicLit(c.unsign(arg)); len(lit.Value) > 1 &&
-			c.isIntLiteral(lit) &&
-			c.isOctalLiteral(lit) {
-			c.warn(call)
-			return
-		}
+	if !strings.HasPrefix(lit.Value, "0") || len(lit.Value) == 1 {
+		return
+	}
+	if unicode.IsDigit(rune(lit.Value[1])) {
+		c.warn(lit)
 	}
 }
 
-func (c *octalLiteralChecker) unsign(e ast.Expr) ast.Expr {
-	u, ok := e.(*ast.UnaryExpr)
-	if !ok {
-		return e
-	}
-	return u.X
-}
-
-func (c *octalLiteralChecker) isIntLiteral(lit *ast.BasicLit) bool {
-	return lit.Kind == token.INT
-}
-
-func (c *octalLiteralChecker) isOctalLiteral(lit *ast.BasicLit) bool {
-	return lit.Value[0] == '0' &&
-		lit.Value[1] != 'x' &&
-		lit.Value[1] != 'X'
-}
-
-func (c *octalLiteralChecker) warn(expr ast.Expr) {
-	c.ctx.Warn(expr, "suspicious octal args in `%s`", expr)
+func (c *octalLiteralChecker) warn(lit *ast.BasicLit) {
+	c.ctx.Warn(lit, "use new octal literal style, 0o%s", lit.Value[len("0"):])
 }

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package unix
@@ -12,6 +13,8 @@ import (
 	"sync"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/internal/unsafeheader"
 )
 
 var (
@@ -76,7 +79,7 @@ func SignalName(s syscall.Signal) string {
 // The signal name should start with "SIG".
 func SignalNum(s string) syscall.Signal {
 	signalNameMapOnce.Do(func() {
-		signalNameMap = make(map[string]syscall.Signal)
+		signalNameMap = make(map[string]syscall.Signal, len(signalList))
 		for _, signal := range signalList {
 			signalNameMap[signal.name] = signal.num
 		}
@@ -113,15 +116,12 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
 		return nil, errno
 	}
 
-	// Slice memory layout
-	var sl = struct {
-		addr uintptr
-		len  int
-		cap  int
-	}{addr, length, length}
-
-	// Use unsafe to turn sl into a []byte.
-	b := *(*[]byte)(unsafe.Pointer(&sl))
+	// Use unsafe to convert addr into a []byte.
+	var b []byte
+	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
+	hdr.Data = unsafe.Pointer(addr)
+	hdr.Cap = length
+	hdr.Len = length
 
 	// Register mapping in m and return it.
 	p := &b[cap(b)-1]
@@ -294,6 +294,13 @@ func GetsockoptTimeval(fd, level, opt int) (*Timeval, error) {
 	return &tv, err
 }
 
+func GetsockoptUint64(fd, level, opt int) (value uint64, err error) {
+	var n uint64
+	vallen := _Socklen(8)
+	err = getsockopt(fd, level, opt, unsafe.Pointer(&n), &vallen)
+	return n, err
+}
+
 func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
@@ -304,6 +311,10 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 		from, err = anyToSockaddr(fd, &rsa)
 	}
 	return
+}
+
+func Send(s int, buf []byte, flags int) (err error) {
+	return sendto(s, buf, flags, nil, 0)
 }
 
 func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
@@ -344,11 +355,19 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
 }
 
 func SetsockoptString(fd, level, opt int, s string) (err error) {
-	return setsockopt(fd, level, opt, unsafe.Pointer(&[]byte(s)[0]), uintptr(len(s)))
+	var p unsafe.Pointer
+	if len(s) > 0 {
+		p = unsafe.Pointer(&[]byte(s)[0])
+	}
+	return setsockopt(fd, level, opt, p, uintptr(len(s)))
 }
 
 func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
 	return setsockopt(fd, level, opt, unsafe.Pointer(tv), unsafe.Sizeof(*tv))
+}
+
+func SetsockoptUint64(fd, level, opt int, value uint64) (err error) {
+	return setsockopt(fd, level, opt, unsafe.Pointer(&value), 8)
 }
 
 func Socket(domain, typ, proto int) (fd int, err error) {

@@ -3,27 +3,27 @@ package checkers
 import (
 	"go/ast"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/framework/linter"
 	"github.com/go-toolsmith/astequal"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "paramTypeCombine"
 	info.Tags = []string{"style", "opinionated"}
 	info.Summary = "Detects if function parameters could be combined by type and suggest the way to do it"
 	info.Before = `func foo(a, b int, c, d int, e, f int, g int) {}`
 	info.After = `func foo(a, b, c, d, e, f, g int) {}`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
-		return astwalk.WalkerForFuncDecl(&paramTypeCombineChecker{ctx: ctx})
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
+		return astwalk.WalkerForFuncDecl(&paramTypeCombineChecker{ctx: ctx}), nil
 	})
 }
 
 type paramTypeCombineChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 }
 
 func (c *paramTypeCombineChecker) EnterFunc(*ast.FuncDecl) bool {
@@ -51,7 +51,8 @@ func (c *paramTypeCombineChecker) optimizeParams(params *ast.FieldList) *ast.Fie
 	// ast.Field have empty name list.
 	skip := params == nil ||
 		len(params.List) < 2 ||
-		len(params.List[0].Names) == 0
+		len(params.List[0].Names) == 0 ||
+		c.paramsAreMultiLine(params)
 	if skip {
 		return params
 	}
@@ -83,4 +84,10 @@ func (c *paramTypeCombineChecker) optimizeParams(params *ast.FieldList) *ast.Fie
 
 func (c *paramTypeCombineChecker) warn(f1, f2 *ast.FuncType) {
 	c.ctx.Warn(f1, "%s could be replaced with %s", f1, f2)
+}
+
+func (c *paramTypeCombineChecker) paramsAreMultiLine(params *ast.FieldList) bool {
+	startPos := c.ctx.FileSet.Position(params.Opening)
+	endPos := c.ctx.FileSet.Position(params.Closing)
+	return startPos.Line != endPos.Line
 }

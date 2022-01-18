@@ -4,14 +4,14 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/framework/linter"
 	"github.com/go-toolsmith/astcast"
 	"github.com/go-toolsmith/astequal"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "appendCombine"
 	info.Tags = []string{"performance"}
 	info.Summary = "Detects `append` chains to the same slice that can be done in a single `append` call"
@@ -20,17 +20,17 @@ xs = append(xs, 1)
 xs = append(xs, 2)`
 	info.After = `xs = append(xs, 1, 2)`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
-		return astwalk.WalkerForStmtList(&appendCombineChecker{ctx: ctx})
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
+		return astwalk.WalkerForStmtList(&appendCombineChecker{ctx: ctx}), nil
 	})
 }
 
 type appendCombineChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 }
 
-func (c *appendCombineChecker) VisitStmtList(list []ast.Stmt) {
+func (c *appendCombineChecker) VisitStmtList(_ ast.Node, list []ast.Stmt) {
 	var cause ast.Node // First append
 	var slice ast.Expr // Slice being appended to
 	chain := 0         // How much appends in a row we've seen

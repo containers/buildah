@@ -2,14 +2,17 @@ package analysisutil
 
 import (
 	"go/types"
+	"strconv"
 	"strings"
+
+	"golang.org/x/tools/go/analysis"
 )
 
-// RemoVendor removes vendoring infomation from import path.
+// RemoVendor removes vendoring information from import path.
 func RemoveVendor(path string) string {
-	i := strings.Index(path, "vendor")
+	i := strings.Index(path, "vendor/")
 	if i >= 0 {
-		return path[i+len("vendor")+1:]
+		return path[i+len("vendor/"):]
 	}
 	return path
 }
@@ -23,4 +26,24 @@ func LookupFromImports(imports []*types.Package, path, name string) types.Object
 		}
 	}
 	return nil
+}
+
+// Imported returns true when the given pass imports the pkg.
+func Imported(pkgPath string, pass *analysis.Pass) bool {
+	fs := pass.Files
+	if len(fs) == 0 {
+		return false
+	}
+	for _, f := range fs {
+		for _, i := range f.Imports {
+			path, err := strconv.Unquote(i.Path.Value)
+			if err != nil {
+				continue
+			}
+			if RemoveVendor(path) == pkgPath {
+				return true
+			}
+		}
+	}
+	return false
 }

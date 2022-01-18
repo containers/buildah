@@ -7,36 +7,39 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/framework/linter"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "commentFormatting"
-	info.Tags = []string{"style", "experimental"}
+	info.Tags = []string{"style"}
 	info.Summary = "Detects comments with non-idiomatic formatting"
 	info.Before = `//This is a comment`
 	info.After = `// This is a comment`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 		parts := []string{
-			`^//\w+:.*$`,      //key: value
-			`^//nolint$`,      //nolint
-			`^//line /.*:\d+`, //line /path/to/file:123
+			`^//go:generate .*$`, // e.g.: go:generate value
+			`^//[\w-]+:.*$`,      // e.g.: key: value
+			`^//nolint\b`,        // e.g.: nolint
+			`^//line /.*:\d+`,    // e.g.: line /path/to/file:123
+			`^//export \w+$`,     // e.g.: export Foo
+			`^//[/+#-]+.*$`,      // e.g.: vertical breaker /////////////
 		}
 		pat := "(?m)" + strings.Join(parts, "|")
 		pragmaRE := regexp.MustCompile(pat)
 		return astwalk.WalkerForComment(&commentFormattingChecker{
 			ctx:      ctx,
 			pragmaRE: pragmaRE,
-		})
+		}), nil
 	})
 }
 
 type commentFormattingChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 
 	pragmaRE *regexp.Regexp
 }
@@ -56,7 +59,7 @@ func (c *commentFormattingChecker) VisitComment(cg *ast.CommentGroup) {
 		// Make a decision based on a first comment text rune.
 		r, _ := utf8.DecodeRuneInString(comment.Text[len("//"):])
 		if !c.specialChar(r) && !unicode.IsSpace(r) {
-			c.warn(cg)
+			c.warn(comment)
 			return
 		}
 	}
@@ -72,6 +75,6 @@ func (c *commentFormattingChecker) specialChar(r rune) bool {
 	}
 }
 
-func (c *commentFormattingChecker) warn(cg *ast.CommentGroup) {
-	c.ctx.Warn(cg, "put a space between `//` and comment text")
+func (c *commentFormattingChecker) warn(comment *ast.Comment) {
+	c.ctx.Warn(comment, "put a space between `//` and comment text")
 }
