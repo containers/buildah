@@ -10,3 +10,4 @@ linters:
   enable:
     - revive
     - unconvert
+    - unparam
