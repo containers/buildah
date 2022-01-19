@@ -4,15 +4,15 @@ import (
 	"go/ast"
 	"go/types"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/framework/linter"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "unnamedResult"
 	info.Tags = []string{"style", "opinionated", "experimental"}
-	info.Params = lintpack.CheckerParams{
+	info.Params = linter.CheckerParams{
 		"checkExported": {
 			Value: false,
 			Usage: "whether to check exported functions",
@@ -22,16 +22,16 @@ func init() {
 	info.Before = `func f() (float64, float64)`
 	info.After = `func f() (x, y float64)`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 		c := &unnamedResultChecker{ctx: ctx}
 		c.checkExported = info.Params.Bool("checkExported")
-		return astwalk.WalkerForFuncDecl(c)
+		return astwalk.WalkerForFuncDecl(c), nil
 	})
 }
 
 type unnamedResultChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 
 	checkExported bool
 }
@@ -48,7 +48,7 @@ func (c *unnamedResultChecker) VisitFuncDecl(decl *ast.FuncDecl) {
 		return // Skip named results
 	}
 
-	typeName := func(x ast.Expr) string { return c.typeName(c.ctx.TypesInfo.TypeOf(x)) }
+	typeName := func(x ast.Expr) string { return c.typeName(c.ctx.TypeOf(x)) }
 	isError := func(x ast.Expr) bool { return qualifiedName(x) == "error" }
 	isBool := func(x ast.Expr) bool { return qualifiedName(x) == "bool" }
 

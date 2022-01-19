@@ -111,6 +111,11 @@ will output an executable file named `package.test`.  This can be run directly o
 
 	ginkgo <path-to-package.test>
 
+
+To print an outline of Ginkgo specs and containers in a file:
+
+	gingko outline <filename>
+
 To print out Ginkgo's version:
 
 	ginkgo version
@@ -153,6 +158,7 @@ func (c *Command) Matches(name string) bool {
 }
 
 func (c *Command) Run(args []string, additionalArgs []string) {
+	c.FlagSet.Usage = usage
 	c.FlagSet.Parse(args)
 	c.Command(c.FlagSet.Args(), additionalArgs)
 }
@@ -171,6 +177,7 @@ func init() {
 	Commands = append(Commands, BuildUnfocusCommand())
 	Commands = append(Commands, BuildVersionCommand())
 	Commands = append(Commands, BuildHelpCommand())
+	Commands = append(Commands, BuildOutlineCommand())
 }
 
 func main() {
@@ -215,20 +222,21 @@ func commandMatching(name string) (*Command, bool) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Ginkgo Version %s\n\n", config.VERSION)
+	fmt.Printf("Ginkgo Version %s\n\n", config.VERSION)
 	usageForCommand(DefaultCommand, false)
 	for _, command := range Commands {
-		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Printf("\n")
 		usageForCommand(command, false)
 	}
 }
 
 func usageForCommand(command *Command, longForm bool) {
-	fmt.Fprintf(os.Stderr, "%s\n%s\n", command.UsageCommand, strings.Repeat("-", len(command.UsageCommand)))
-	fmt.Fprintf(os.Stderr, "%s\n", strings.Join(command.Usage, "\n"))
+	fmt.Printf("%s\n%s\n", command.UsageCommand, strings.Repeat("-", len(command.UsageCommand)))
+	fmt.Printf("%s\n", strings.Join(command.Usage, "\n"))
 	if command.SuppressFlagDocumentation && !longForm {
-		fmt.Fprintf(os.Stderr, "%s\n", strings.Join(command.FlagDocSubstitute, "\n  "))
+		fmt.Printf("%s\n", strings.Join(command.FlagDocSubstitute, "\n  "))
 	} else {
+		command.FlagSet.SetOutput(os.Stdout)
 		command.FlagSet.PrintDefaults()
 	}
 }
@@ -286,9 +294,9 @@ func findSuites(args []string, recurseForAll bool, skipPackage string, allowPrec
 }
 
 func goFmt(path string) {
-	err := exec.Command("go", "fmt", path).Run()
+	out, err := exec.Command("go", "fmt", path).CombinedOutput()
 	if err != nil {
-		complainAndQuit("Could not fmt: " + err.Error())
+		complainAndQuit("Could not fmt: " + err.Error() + "\n" + string(out))
 	}
 }
 

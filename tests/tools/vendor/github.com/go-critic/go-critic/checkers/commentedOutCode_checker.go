@@ -7,13 +7,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/framework/linter"
 	"github.com/go-toolsmith/strparse"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "commentedOutCode"
 	info.Tags = []string{"diagnostic", "experimental"}
 	info.Summary = "Detects commented-out code inside function bodies"
@@ -22,17 +22,17 @@ func init() {
 foo(1, 2)`
 	info.After = `foo(1, 2)`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 		return astwalk.WalkerForLocalComment(&commentedOutCodeChecker{
 			ctx:              ctx,
 			notQuiteFuncCall: regexp.MustCompile(`\w+\s+\([^)]*\)\s*$`),
-		})
+		}), nil
 	})
 }
 
 type commentedOutCodeChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 	fn  *ast.FuncDecl
 
 	notQuiteFuncCall *regexp.Regexp

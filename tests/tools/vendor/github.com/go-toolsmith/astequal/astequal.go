@@ -60,6 +60,14 @@ func astNodeEq(x, y ast.Node) bool {
 	case ast.Decl:
 		y, ok := y.(ast.Decl)
 		return ok && astDeclEq(x, y)
+
+	case *ast.Field:
+		y, ok := y.(*ast.Field)
+		return ok && astFieldEq(x, y)
+	case *ast.FieldList:
+		y, ok := y.(*ast.FieldList)
+		return ok && astFieldListEq(x, y)
+
 	default:
 		return false
 	}

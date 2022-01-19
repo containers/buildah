@@ -1,7 +1,9 @@
 package integration
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,8 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"encoding/json"
 
 	"github.com/containers/buildah"
 	"github.com/containers/image/v5/copy"
@@ -163,15 +163,14 @@ func (s *BuildAhSession) GrepString(term string) (bool, []string) {
 
 // OutputToString formats session output to string
 func (s *BuildAhSession) OutputToString() string {
-	fields := strings.Fields(fmt.Sprintf("%s", s.Out.Contents()))
-	return strings.Join(fields, " ")
+	fields := bytes.Fields(s.Out.Contents())
+	return string(bytes.Join(fields, []byte{' '}))
 }
 
 // OutputToStringArray returns the output as a []string
 // where each array item is a line split by newline
 func (s *BuildAhSession) OutputToStringArray() []string {
-	output := fmt.Sprintf("%s", s.Out.Contents())
-	return strings.Split(output, "\n")
+	return strings.Split(string(s.Out.Contents()), "\n")
 }
 
 // IsJSONOutputValid attempts to unmarshall the session buffer
