@@ -389,7 +389,8 @@ Valid _mode_ values are:
 - **none**: no networking;
 - **host**: use the host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure;
 - **ns:**_path_: path to a network namespace to join;
-- `private`: create a new namespace for the container (default)
+- **private**: create a new namespace for the container (default)
+- **\<network name|ID\>**: Join the network with the given name or ID, e.g. use `--network mynet` to join the network with the name mynet. Only supported for rootful users.
 
 **--no-cache**
 
@@ -797,6 +798,8 @@ buildah build --no-cache --rm=false -t imageName .
 buildah build --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
 
 buildah build -f Containerfile.in -t imageName .
+
+buildah build --network mynet .
 
 ### Building an multi-architecture image using the --manifest option (requires emulation software)
 

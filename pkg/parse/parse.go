@@ -819,8 +819,6 @@ func NamespaceOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name st
 		if flags.Lookup(what) != nil && findFlagFunc(what).Changed {
 			how := findFlagFunc(what).Value.String()
 			switch what {
-			case "network":
-				what = string(specs.NetworkNamespace)
 			case "cgroupns":
 				what = string(specs.CgroupNamespace)
 			}
@@ -850,8 +848,11 @@ func NamespaceOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name st
 					}
 				}
 				how = strings.TrimPrefix(how, "ns:")
-				if _, err := os.Stat(how); err != nil {
-					return nil, define.NetworkDefault, errors.Wrapf(err, "checking %s namespace", what)
+				// if not a path we assume it is a comma separated network list, see setupNamespaces() in run_linux.go
+				if filepath.IsAbs(how) || what != string(specs.NetworkNamespace) {
+					if _, err := os.Stat(how); err != nil {
+						return nil, define.NetworkDefault, errors.Wrapf(err, "checking %s namespace", what)
+					}
 				}
 				policy = define.NetworkEnabled
 				logrus.Debugf("setting %q namespace to %q", what, how)

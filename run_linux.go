@@ -165,6 +165,11 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return err
 	}
 
+	// rootless and networks are not supported
+	if len(configureNetworks) > 0 && isolation == IsolationOCIRootless {
+		return errors.New("cannot use networks as rootless")
+	}
+
 	homeDir, err := b.configureUIDGID(g, mountPoint, options)
 	if err != nil {
 		return err
@@ -2344,8 +2349,7 @@ func checkAndOverrideIsolationOptions(isolation define.Isolation, options *RunOp
 		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil {
 			hostNetworking = ns.Host
 			networkNamespacePath = ns.Path
-			if !hostNetworking && networkNamespacePath != "" && !filepath.IsAbs(networkNamespacePath) {
-				logrus.Debugf("Disabling network namespace configuration.")
+			if hostNetworking {
 				networkNamespacePath = ""
 			}
 		}

@@ -582,6 +582,7 @@ function configure_and_check_user() {
 
 @test "run check /etc/hosts" {
 	skip_if_no_runtime
+	skip_if_in_container
 
 	${OCI} --version
 	_prefetch debian
@@ -589,7 +590,7 @@ function configure_and_check_user() {
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json debian
 	cid=$output
 	run_buildah 125 run --network=bogus $cid cat /etc/hosts
-	expect_output "checking network namespace: stat bogus: no such file or directory"
+    expect_output --substring "unable to find network with name or ID bogus: network not found"
 
 	run_buildah run $cid cat /etc/hosts
 	expect_output --substring "127.0.0.1.*$cid"
