@@ -39,10 +39,10 @@ github.com/cespare/xxhash/v2
 github.com/charithe/durationcheck
 # github.com/chavacava/garif v0.0.0-20210405164556-e8a0a408d6af
 github.com/chavacava/garif
-# github.com/cpuguy83/go-md2man v1.0.10
+# github.com/cpuguy83/go-md2man/v2 v2.0.1
 ## explicit
-github.com/cpuguy83/go-md2man
-github.com/cpuguy83/go-md2man/md2man
+github.com/cpuguy83/go-md2man/v2
+github.com/cpuguy83/go-md2man/v2/md2man
 # github.com/daixiang0/gci v0.2.9
 github.com/daixiang0/gci/pkg/gci
 # github.com/davecgh/go-spew v1.1.1
@@ -176,8 +176,6 @@ github.com/gostaticanalysis/nilerr
 github.com/hashicorp/errwrap
 # github.com/hashicorp/go-multierror v1.1.1
 github.com/hashicorp/go-multierror
-# github.com/hashicorp/go-version v1.2.1
-github.com/hashicorp/go-version
 # github.com/hashicorp/hcl v1.0.0
 github.com/hashicorp/hcl
 github.com/hashicorp/hcl/hcl/ast
@@ -269,7 +267,7 @@ github.com/nxadm/tail/watch
 github.com/nxadm/tail/winfile
 # github.com/olekukonko/tablewriter v0.0.5
 github.com/olekukonko/tablewriter
-# github.com/onsi/ginkgo v1.16.4
+# github.com/onsi/ginkgo v1.16.5
 ## explicit
 github.com/onsi/ginkgo/config
 github.com/onsi/ginkgo/formatter
@@ -335,8 +333,8 @@ github.com/quasilyte/go-ruleguard/ruleguard/textmatch
 github.com/quasilyte/go-ruleguard/ruleguard/typematch
 # github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95
 github.com/quasilyte/regex/syntax
-# github.com/russross/blackfriday v1.5.2
-github.com/russross/blackfriday
+# github.com/russross/blackfriday/v2 v2.1.0
+github.com/russross/blackfriday/v2
 # github.com/ryancurrah/gomodguard v1.2.3
 github.com/ryancurrah/gomodguard
 # github.com/ryanrolds/sqlclosecheck v0.3.0
@@ -406,15 +404,6 @@ github.com/ultraware/funlen
 github.com/ultraware/whitespace
 # github.com/uudashr/gocognit v1.0.5
 github.com/uudashr/gocognit
-# github.com/vbatts/git-validation v1.1.1-0.20200916181008-60cb8713913d
-## explicit
-github.com/vbatts/git-validation
-github.com/vbatts/git-validation/git
-github.com/vbatts/git-validation/rules/danglingwhitespace
-github.com/vbatts/git-validation/rules/dco
-github.com/vbatts/git-validation/rules/messageregexp
-github.com/vbatts/git-validation/rules/shortsubject
-github.com/vbatts/git-validation/validate
 # github.com/yeya24/promlinter v0.1.0
 github.com/yeya24/promlinter
 # golang.org/x/mod v0.5.0
