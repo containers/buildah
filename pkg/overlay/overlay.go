@@ -18,29 +18,29 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Overlay type holds various configuration options for overlay
-// MountWithOptions accepts following type so its easier to specify
+// Options type holds various configuration options for overlay
+// MountWithOptions accepts following type so it is easier to specify
 // more verbose configuration for overlay mount.
 type Options struct {
 	// The Upper directory is normally writable layer in an overlay mount.
 	// Note!! : Following API does not handles escaping or validates correctness of the values
 	// passed to UpperDirOptionFragment instead API will try to pass values as is it
-	// to the `mount` command. Its user's responsibility to make sure they pre-validate
+	// to the `mount` command. It is user's responsibility to make sure they pre-validate
 	// these values. Invalid inputs may lead to undefined behviour.
 	// This is provided as-is, use it if it works for you, we can/will change/break that in the future.
 	// See discussion here for more context: https://github.com/containers/buildah/pull/3715#discussion_r786036959
 	// TODO: Should we address above comment and handle escaping of metacharacters like
-	// `comma`, `backslash` ,`colon` and any other specical characters
+	// `comma`, `backslash` ,`colon` and any other special characters
 	UpperDirOptionFragment string
 	// The Workdir is used to prepare files as they are switched between the layers.
 	// Note!! : Following API does not handles escaping or validates correctness of the values
 	// passed to WorkDirOptionFragment instead API will try to pass values as is it
-	// to the `mount` command. Its user's responsibility to make sure they pre-validate
+	// to the `mount` command. It is user's responsibility to make sure they pre-validate
 	// these values. Invalid inputs may lead to undefined behviour.
 	// This is provided as-is, use it if it works for you, we can/will change/break that in the future.
 	// See discussion here for more context: https://github.com/containers/buildah/pull/3715#discussion_r786036959
 	// TODO: Should we address above comment and handle escaping of metacharacters like
-	// `comma`, `backslash` ,`colon` and any other specical characters
+	// `comma`, `backslash` ,`colon` and any other special characters
 	WorkDirOptionFragment string
 	// Graph options relayed from podman, will be responsible for choosing mount program
 	GraphOpts []string
