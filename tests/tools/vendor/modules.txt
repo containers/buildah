@@ -176,8 +176,6 @@ github.com/gostaticanalysis/nilerr
 github.com/hashicorp/errwrap
 # github.com/hashicorp/go-multierror v1.1.1
 github.com/hashicorp/go-multierror
-# github.com/hashicorp/go-version v1.2.1
-github.com/hashicorp/go-version
 # github.com/hashicorp/hcl v1.0.0
 github.com/hashicorp/hcl
 github.com/hashicorp/hcl/hcl/ast
@@ -406,15 +404,6 @@ github.com/ultraware/funlen
 github.com/ultraware/whitespace
 # github.com/uudashr/gocognit v1.0.5
 github.com/uudashr/gocognit
-# github.com/vbatts/git-validation v1.1.1-0.20200916181008-60cb8713913d
-## explicit
-github.com/vbatts/git-validation
-github.com/vbatts/git-validation/git
-github.com/vbatts/git-validation/rules/danglingwhitespace
-github.com/vbatts/git-validation/rules/dco
-github.com/vbatts/git-validation/rules/messageregexp
-github.com/vbatts/git-validation/rules/shortsubject
-github.com/vbatts/git-validation/validate
 # github.com/yeya24/promlinter v0.1.0
 github.com/yeya24/promlinter
 # golang.org/x/mod v0.5.0
