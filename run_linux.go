@@ -800,11 +800,10 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	runtime := options.Runtime
 	if runtime == "" {
 		runtime = util.Runtime()
-
-		localRuntime := util.FindLocalRuntime(runtime)
-		if localRuntime != "" {
-			runtime = localRuntime
-		}
+	}
+	localRuntime := util.FindLocalRuntime(runtime)
+	if localRuntime != "" {
+		runtime = localRuntime
 	}
 
 	// Default to just passing down our stdio.
