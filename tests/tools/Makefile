@@ -29,7 +29,7 @@ $(BUILDDIR)/git-validation:
 	$(GO_BUILD) -o $@ ./vendor/github.com/vbatts/git-validation
 
 $(BUILDDIR)/go-md2man:
-	$(GO_BUILD) -o $@ ./vendor/github.com/cpuguy83/go-md2man
+	$(GO_BUILD) -o $@ ./vendor/github.com/cpuguy83/go-md2man/v2
 
 $(BUILDDIR)/golangci-lint:
 	$(GO_BUILD) -o $@ ./vendor/github.com/golangci/golangci-lint/cmd/golangci-lint

@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/cpuguy83/go-md2man/md2man"
+	"github.com/cpuguy83/go-md2man/v2/md2man"
 )
 
 var inFilePath = flag.String("in", "", "Path to file to be processed (default: stdin)")

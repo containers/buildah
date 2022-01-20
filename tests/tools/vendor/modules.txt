@@ -39,10 +39,10 @@ github.com/cespare/xxhash/v2
 github.com/charithe/durationcheck
 # github.com/chavacava/garif v0.0.0-20210405164556-e8a0a408d6af
 github.com/chavacava/garif
-# github.com/cpuguy83/go-md2man v1.0.10
+# github.com/cpuguy83/go-md2man/v2 v2.0.1
 ## explicit
-github.com/cpuguy83/go-md2man
-github.com/cpuguy83/go-md2man/md2man
+github.com/cpuguy83/go-md2man/v2
+github.com/cpuguy83/go-md2man/v2/md2man
 # github.com/daixiang0/gci v0.2.9
 github.com/daixiang0/gci/pkg/gci
 # github.com/davecgh/go-spew v1.1.1
@@ -335,8 +335,8 @@ github.com/quasilyte/go-ruleguard/ruleguard/textmatch
 github.com/quasilyte/go-ruleguard/ruleguard/typematch
 # github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95
 github.com/quasilyte/regex/syntax
-# github.com/russross/blackfriday v1.5.2
-github.com/russross/blackfriday
+# github.com/russross/blackfriday/v2 v2.1.0
+github.com/russross/blackfriday/v2
 # github.com/ryancurrah/gomodguard v1.2.3
 github.com/ryancurrah/gomodguard
 # github.com/ryanrolds/sqlclosecheck v0.3.0

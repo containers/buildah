@@ -2,7 +2,7 @@ go-md2man 1 "January 2015" go-md2man "User Manual"
 ==================================================
 
 # NAME
-  go-md2man - Convert mardown files into manpages
+  go-md2man - Convert markdown files into manpages
 
 # SYNOPSIS
   go-md2man -in=[/path/to/md/file] -out=[/path/to/output]
@@ -16,7 +16,7 @@ go-md2man 1 "January 2015" go-md2man "User Manual"
 # Example
   Convert the markdown file "go-md2man.1.md" into a manpage.
 
-    go-md2man -in=README.md -out=go-md2man.1.out
+    go-md2man -in=go-md2man.1.md -out=go-md2man.1.out
 
 # HISTORY
   January 2015, Originally compiled by Brian Goff( cpuguy83@gmail.com )
