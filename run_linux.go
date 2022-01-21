@@ -119,7 +119,12 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 
 	if options.WorkingDir != "" {
-		g.SetProcessCwd(options.WorkingDir)
+		if filepath.IsAbs(options.WorkingDir) {
+			g.SetProcessCwd(options.WorkingDir)
+		} else {
+			// assume path is realtive to current working dir
+			g.SetProcessCwd(filepath.Join(b.WorkDir(), filepath.Clean(options.WorkingDir)))
+		}
 	} else if b.WorkDir() != "" {
 		g.SetProcessCwd(b.WorkDir())
 	}

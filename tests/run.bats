@@ -321,6 +321,29 @@ function configure_and_check_user() {
 	expect_output "/"
 }
 
+@test "run --workingdir relative versus absolute" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+
+	run_buildah build -t test-working-dir --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/workingdir/Dockerfile
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json test-working-dir
+	cid=$output
+	run_buildah run $cid pwd
+	expect_output "/hello"
+
+	# ensure relative working dir is treated properly
+	run_buildah run --workingdir ./test $cid pwd
+	expect_output "/hello/test"
+
+	# Ensure absolute working dir is treated properly
+	run_buildah run --workingdir /tmp $cid pwd
+	expect_output "/tmp"
+
+	run_buildah rm $cid
+	run_buildah rmi -a
+}
+
 @test "run --mount" {
 	skip_if_no_runtime
 
