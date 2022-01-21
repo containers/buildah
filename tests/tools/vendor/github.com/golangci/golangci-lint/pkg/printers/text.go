@@ -3,6 +3,7 @@ package printers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/fatih/color"
 
@@ -36,24 +37,23 @@ func (p Text) SprintfColored(ca color.Attribute, format string, args ...interfac
 	return c.Sprintf(format, args...)
 }
 
-func (p *Text) Print(ctx context.Context, issues <-chan result.Issue) error {
+func (p *Text) Print(ctx context.Context, issues []result.Issue) error {
 	for i := range issues {
-		i := i
-		p.printIssue(&i)
+		p.printIssue(&issues[i])
 
 		if !p.printIssuedLine {
 			continue
 		}
 
-		p.printSourceCode(&i)
-		p.printUnderLinePointer(&i)
+		p.printSourceCode(&issues[i])
+		p.printUnderLinePointer(&issues[i])
 	}
 
 	return nil
 }
 
 func (p Text) printIssue(i *result.Issue) {
-	text := p.SprintfColored(color.FgRed, "%s", i.Text)
+	text := p.SprintfColored(color.FgRed, "%s", strings.TrimSpace(i.Text))
 	if p.printLinterName {
 		text += fmt.Sprintf(" (%s)", i.FromLinter)
 	}

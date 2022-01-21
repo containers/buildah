@@ -7,3 +7,11 @@ updates:
     time: "10:00"
     timezone: Europe/Berlin
   open-pull-requests-limit: 10
+
+- package-ecosystem: gomod
+  directory: "tests/tools"
+  schedule:
+    interval: daily
+    time: "10:00"
+    timezone: Europe/Berlin
+  open-pull-requests-limit: 10

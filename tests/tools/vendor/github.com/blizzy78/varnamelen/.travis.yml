@@ -1,0 +1,7 @@
+language: go
+go:
+  - "1.15"
+before_script:
+  - go get github.com/mattn/goveralls
+after_script:
+  - goveralls -service=travis-ci

@@ -20,10 +20,18 @@ func NewValidator(m *Manager) *Validator {
 func (v Validator) validateLintersNames(cfg *config.Linters) error {
 	allNames := append([]string{}, cfg.Enable...)
 	allNames = append(allNames, cfg.Disable...)
+
+	unknownNames := []string{}
+
 	for _, name := range allNames {
-		if v.m.GetLinterConfig(name) == nil && v.m.GetMetaLinter(name) == nil {
-			return fmt.Errorf("no such linter %q", name)
+		if v.m.GetLinterConfigs(name) == nil {
+			unknownNames = append(unknownNames, name)
 		}
+	}
+
+	if len(unknownNames) > 0 {
+		return fmt.Errorf("unknown linters: '%v', run 'golangci-lint help linters' to see the list of supported linters",
+			strings.Join(unknownNames, ","))
 	}
 
 	return nil

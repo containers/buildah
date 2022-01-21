@@ -6,27 +6,28 @@ import (
 	"go/types"
 	"strings"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/framework/linter"
 	"github.com/go-toolsmith/astcast"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "flagName"
-	info.Tags = []string{"diagnostic", "experimental"}
-	info.Summary = "Detects flag names with whitespace"
+	info.Tags = []string{"diagnostic"}
+	info.Summary = "Detects suspicious flag names"
 	info.Before = `b := flag.Bool(" foo ", false, "description")`
 	info.After = `b := flag.Bool("foo", false, "description")`
+	info.Note = "https://github.com/golang/go/issues/41792"
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
-		return astwalk.WalkerForExpr(&flagNameChecker{ctx: ctx})
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
+		return astwalk.WalkerForExpr(&flagNameChecker{ctx: ctx}), nil
 	})
 }
 
 type flagNameChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 }
 
 func (c *flagNameChecker) VisitExpr(expr ast.Expr) {
@@ -58,9 +59,28 @@ func (c *flagNameChecker) checkFlagName(call *ast.CallExpr, arg ast.Expr) {
 		return // Non-constant name
 	}
 	name := constant.StringVal(cv)
-	if strings.Contains(name, " ") {
+	switch {
+	case name == "":
+		c.warnEmpty(call)
+	case strings.HasPrefix(name, "-"):
+		c.warnHypenPrefix(call, name)
+	case strings.Contains(name, "="):
+		c.warnEq(call, name)
+	case strings.Contains(name, " "):
 		c.warnWhitespace(call, name)
 	}
+}
+
+func (c *flagNameChecker) warnEmpty(cause ast.Node) {
+	c.ctx.Warn(cause, "empty flag name")
+}
+
+func (c *flagNameChecker) warnHypenPrefix(cause ast.Node, name string) {
+	c.ctx.Warn(cause, "flag name %q should not start with a hypen", name)
+}
+
+func (c *flagNameChecker) warnEq(cause ast.Node, name string) {
+	c.ctx.Warn(cause, "flag name %q should not contain '='", name)
 }
 
 func (c *flagNameChecker) warnWhitespace(cause ast.Node, name string) {

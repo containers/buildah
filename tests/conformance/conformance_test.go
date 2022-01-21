@@ -1540,7 +1540,7 @@ var internalTestCases = []testCase{
 		withoutDocker: true,
 		dockerfileContents: strings.Join([]string{
 			"FROM scratch",
-			fmt.Sprintf("# Does ADD preserve permissions differently for archives and files?"),
+			"# Does ADD preserve permissions differently for archives and files?",
 			"ADD archive.tar subdir1/",
 			"ADD archive/ subdir2/",
 		}, "\n"),
@@ -1626,7 +1626,7 @@ var internalTestCases = []testCase{
 		name: "copy-permissions",
 		dockerfileContents: strings.Join([]string{
 			"FROM scratch",
-			fmt.Sprintf("# Does COPY --chown change permissions on already-present directories?"),
+			"# Does COPY --chown change permissions on already-present directories?",
 			"COPY subdir/ subdir/",
 			"COPY --chown=99:99 subdir/ subdir/",
 		}, "\n"),
@@ -1665,7 +1665,7 @@ var internalTestCases = []testCase{
 		name: "copy-permissions-implicit",
 		dockerfileContents: strings.Join([]string{
 			"FROM scratch",
-			fmt.Sprintf("# Does COPY --chown change permissions on already-present directories?"),
+			"# Does COPY --chown change permissions on already-present directories?",
 			"COPY --chown=99:99 subdir/ subdir/",
 			"COPY subdir/ subdir/",
 		}, "\n"),

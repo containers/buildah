@@ -4,13 +4,13 @@ import (
 	"go/ast"
 	"go/token"
 
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/checkers/internal/lintutil"
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/framework/linter"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "unlabelStmt"
 	info.Tags = []string{"style", "experimental"}
 	info.Summary = "Detects redundant statement labels"
@@ -28,21 +28,21 @@ for x := range xs {
 	}
 }`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
-		return astwalk.WalkerForStmt(&unlabelStmtChecker{ctx: ctx})
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
+		return astwalk.WalkerForStmt(&unlabelStmtChecker{ctx: ctx}), nil
 	})
 }
 
 type unlabelStmtChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 }
 
 func (c *unlabelStmtChecker) EnterFunc(fn *ast.FuncDecl) bool {
 	if fn.Body == nil {
 		return false
 	}
-	// TODO(Quasilyte): should not do additional traversal here.
+	// TODO(quasilyte): should not do additional traversal here.
 	// For now, skip all functions that contain goto statement.
 	return !lintutil.ContainsNode(fn.Body, func(n ast.Node) bool {
 		br, ok := n.(*ast.BranchStmt)

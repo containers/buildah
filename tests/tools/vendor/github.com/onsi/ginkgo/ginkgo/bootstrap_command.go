@@ -12,6 +12,7 @@ import (
 
 	"go/build"
 
+	sprig "github.com/go-task/slim-sprig"
 	"github.com/onsi/ginkgo/ginkgo/nodot"
 )
 
@@ -36,6 +37,7 @@ func BuildBootstrapCommand() *Command {
 		},
 		Command: func(args []string, additionalArgs []string) {
 			generateBootstrap(agouti, noDot, internal, customBootstrapFile)
+			emitRCAdvertisement()
 		},
 	}
 }
@@ -131,10 +133,7 @@ func determinePackageName(name string, internal bool) string {
 
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
-	if err == nil {
-		return true
-	}
-	return false
+	return err == nil
 }
 
 func generateBootstrap(agouti, noDot, internal bool, customBootstrapFile string) {
@@ -179,7 +178,7 @@ func generateBootstrap(agouti, noDot, internal bool, customBootstrapFile string)
 		templateText = bootstrapText
 	}
 
-	bootstrapTemplate, err := template.New("bootstrap").Parse(templateText)
+	bootstrapTemplate, err := template.New("bootstrap").Funcs(sprig.TxtFuncMap()).Parse(templateText)
 	if err != nil {
 		panic(err.Error())
 	}

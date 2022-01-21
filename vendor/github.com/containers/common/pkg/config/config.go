@@ -72,6 +72,8 @@ type Config struct {
 	Network NetworkConfig `toml:"network"`
 	// Secret section defines configurations for the secret management
 	Secrets SecretConfig `toml:"secrets"`
+	// ConfigMap section defines configurations for the configmaps management
+	ConfigMaps ConfigMapConfig `toml:"configmaps"`
 }
 
 // ContainersConfig represents the "containers" TOML config table
@@ -178,11 +180,6 @@ type ContainersConfig struct {
 	// the container is started. Setting it to true may have negative
 	// performance implications.
 	PrepareVolumeOnCreate bool `toml:"prepare_volume_on_create,omitempty"`
-
-	// RootlessNetworking depicts the "kind" of networking for rootless
-	// containers.  Valid options are `slirp4netns` and `cni`. Default is
-	// `slirp4netns` on Linux, and `cni` on non-Linux OSes.
-	RootlessNetworking string `toml:"rootless_networking,omitempty"`
 
 	// SeccompProfile is the seccomp.json profile path which is used as the
 	// default for the runtime.
@@ -514,6 +511,17 @@ type SecretConfig struct {
 	Opts map[string]string `toml:"opts,omitempty"`
 }
 
+// ConfigMapConfig represents the "configmap" TOML config table
+type ConfigMapConfig struct {
+	// Driver specifies the configmap driver to use.
+	// Current valid value:
+	//  * file
+	//  * pass
+	Driver string `toml:"driver,omitempty"`
+	// Opts contains driver specific options
+	Opts map[string]string `toml:"opts,omitempty"`
+}
+
 // MachineConfig represents the "machine" TOML config table
 type MachineConfig struct {
 	// Number of CPU's a machine is created with.
@@ -822,21 +830,6 @@ func (c *ContainersConfig) Validate() error {
 // execution checks. It returns an `error` on validation failure, otherwise
 // `nil`.
 func (c *NetworkConfig) Validate() error {
-	expectedConfigDir := _cniConfigDir
-	if unshare.IsRootless() {
-		home, err := unshare.HomeDir()
-		if err != nil {
-			return err
-		}
-		expectedConfigDir = filepath.Join(home, _cniConfigDirRootless)
-	}
-	if c.NetworkConfigDir != expectedConfigDir {
-		err := isDirectory(c.NetworkConfigDir)
-		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrapf(err, "invalid network_config_dir: %s", c.NetworkConfigDir)
-		}
-	}
-
 	if stringsEq(c.CNIPluginDirs, DefaultCNIPluginDirs) {
 		return nil
 	}

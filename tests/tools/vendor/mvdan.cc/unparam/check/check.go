@@ -28,7 +28,7 @@ import (
 
 // UnusedParams returns a list of human-readable issues that point out unused
 // function parameters.
-func UnusedParams(tests bool, exported, debug bool, args ...string) ([]string, error) {
+func UnusedParams(tests, exported, debug bool, args ...string) ([]string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil, err
@@ -823,7 +823,7 @@ func dummyImpl(blk *ssa.BasicBlock) bool {
 //
 // Since this function parses all of the package's Go source files on disk, its
 // results are cached.
-func (c *Checker) declCounts(pkgDir string, pkgName string) map[string]int {
+func (c *Checker) declCounts(pkgDir, pkgName string) map[string]int {
 	key := pkgDir + ":" + pkgName
 	if m, ok := c.cachedDeclCounts[key]; ok {
 		return m

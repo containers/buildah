@@ -91,14 +91,11 @@ func insensitiviseMap(m map[string]interface{}) {
 func absPathify(inPath string) string {
 	jww.INFO.Println("Trying to resolve absolute path to", inPath)
 
-	if strings.HasPrefix(inPath, "$HOME") {
+	if inPath == "$HOME" || strings.HasPrefix(inPath, "$HOME"+string(os.PathSeparator)) {
 		inPath = userHomeDir() + inPath[5:]
 	}
 
-	if strings.HasPrefix(inPath, "$") {
-		end := strings.Index(inPath, string(os.PathSeparator))
-		inPath = os.Getenv(inPath[1:end]) + inPath[end:]
-	}
+	inPath = os.ExpandEnv(inPath)
 
 	if filepath.IsAbs(inPath) {
 		return filepath.Clean(inPath)
@@ -114,11 +111,11 @@ func absPathify(inPath string) string {
 	return ""
 }
 
-// Check if File / Directory Exists
+// Check if file Exists
 func exists(fs afero.Fs, path string) (bool, error) {
-	_, err := fs.Stat(path)
+	stat, err := fs.Stat(path)
 	if err == nil {
-		return true, nil
+		return !stat.IsDir(), nil
 	}
 	if os.IsNotExist(err) {
 		return false, nil

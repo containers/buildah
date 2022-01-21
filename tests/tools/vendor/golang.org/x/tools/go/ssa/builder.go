@@ -579,6 +579,8 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 					y.pos = e.Lparen
 				case *MakeInterface:
 					y.pos = e.Lparen
+				case *SliceToArrayPointer:
+					y.pos = e.Lparen
 				}
 			}
 			return y
@@ -635,7 +637,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		case token.EQL, token.NEQ, token.GTR, token.LSS, token.LEQ, token.GEQ:
 			cmp := emitCompare(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), e.OpPos)
 			// The type of x==y may be UntypedBool.
-			return emitConv(fn, cmp, DefaultType(tv.Type))
+			return emitConv(fn, cmp, types.Default(tv.Type))
 		default:
 			panic("illegal op in BinaryExpr: " + e.Op.String())
 		}
@@ -693,6 +695,10 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 	case *ast.SelectorExpr:
 		sel, ok := fn.Pkg.info.Selections[e]
 		if !ok {
+			// builtin unsafe.{Add,Slice}
+			if obj, ok := fn.Pkg.info.Uses[e.Sel].(*types.Builtin); ok {
+				return &Builtin{name: obj.Name(), sig: tv.Type.(*types.Signature)}
+			}
 			// qualified identifier
 			return b.expr(fn, e.Sel)
 		}
@@ -1194,7 +1200,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 		for _, e := range e.Elts {
 			e := e.(*ast.KeyValueExpr)
 
-			// If a key expression in a map literal is  itself a
+			// If a key expression in a map literal is itself a
 			// composite literal, the type may be omitted.
 			// For example:
 			//	map[*struct{}]bool{{}: true}
@@ -1746,6 +1752,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type, pos token.P
 				Index: k,
 			}
 			instr.setType(t.Elem())
+			instr.setPos(x.Pos())
 			v = fn.emit(instr)
 
 		case *types.Pointer: // *array
@@ -1754,6 +1761,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type, pos token.P
 				Index: k,
 			}
 			instr.setType(types.NewPointer(t.Elem().Underlying().(*types.Array).Elem()))
+			instr.setPos(x.Pos())
 			v = emitLoad(fn, fn.emit(instr))
 
 		case *types.Slice:
@@ -1762,6 +1770,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type, pos token.P
 				Index: k,
 			}
 			instr.setType(types.NewPointer(t.Elem()))
+			instr.setPos(x.Pos())
 			v = emitLoad(fn, fn.emit(instr))
 
 		default:

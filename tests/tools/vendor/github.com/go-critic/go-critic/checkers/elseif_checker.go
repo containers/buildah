@@ -3,16 +3,16 @@ package checkers
 import (
 	"go/ast"
 
-	"github.com/go-lintpack/lintpack"
-	"github.com/go-lintpack/lintpack/astwalk"
+	"github.com/go-critic/go-critic/checkers/internal/astwalk"
+	"github.com/go-critic/go-critic/framework/linter"
 	"github.com/go-toolsmith/astp"
 )
 
 func init() {
-	var info lintpack.CheckerInfo
+	var info linter.CheckerInfo
 	info.Name = "elseif"
 	info.Tags = []string{"style"}
-	info.Params = lintpack.CheckerParams{
+	info.Params = linter.CheckerParams{
 		"skipBalanced": {
 			Value: true,
 			Usage: "whether to skip balanced if-else pairs",
@@ -30,16 +30,16 @@ if cond1 {
 } else if x := cond2; x {
 }`
 
-	collection.AddChecker(&info, func(ctx *lintpack.CheckerContext) lintpack.FileWalker {
+	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 		c := &elseifChecker{ctx: ctx}
 		c.skipBalanced = info.Params.Bool("skipBalanced")
-		return astwalk.WalkerForStmt(c)
+		return astwalk.WalkerForStmt(c), nil
 	})
 }
 
 type elseifChecker struct {
 	astwalk.WalkHandler
-	ctx *lintpack.CheckerContext
+	ctx *linter.CheckerContext
 
 	skipBalanced bool
 }
@@ -59,7 +59,7 @@ func (c *elseifChecker) VisitStmt(stmt ast.Stmt) {
 		if balanced && c.skipBalanced {
 			return // Configured to skip balanced statements
 		}
-		if innerIfStmt.Else != nil {
+		if innerIfStmt.Else != nil || innerIfStmt.Init != nil {
 			return
 		}
 		c.warn(stmt.Else)

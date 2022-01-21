@@ -91,9 +91,12 @@ func getProcessCwd(r *types.TestReport) error {
 }
 
 func getProcessCapabilities(r *types.TestReport) error {
-	capabilities, err := capability.NewPid(0)
+	capabilities, err := capability.NewPid2(0)
 	if err != nil {
 		return errors.Wrapf(err, "error reading current capabilities")
+	}
+	if err := capabilities.Load(); err != nil {
+		return errors.Wrapf(err, "error loading capabilities")
 	}
 	if r.Spec.Process.Capabilities == nil {
 		r.Spec.Process.Capabilities = new(specs.LinuxCapabilities)
