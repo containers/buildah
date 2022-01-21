@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"time"
 
@@ -446,12 +447,18 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 	// If there's already a local image "localhost/foo", then we should
 	// attempt pulling that instead of doing the full short-name dance.
 	//
-	// NOTE: we must ignore the platform of a local image when doing
-	// lookups here, even if arch/os/variant is set.  Some images set an
-	// incorrect or even invalid platform (see containers/podman/issues/10682).
-	// Doing the lookup while ignoring the platform checks prevents
-	// redundantly downloading the same image.
-	localImage, resolvedImageName, err = r.LookupImage(imageName, nil)
+	// NOTE that we only do platform checks if the specified values differ
+	// from the local platform. Unfortunately, there are many images used
+	// in the wild which don't set the correct value(s) in the config
+	// causing various issues such as containers/podman/issues/10682.
+	lookupImageOptions := &LookupImageOptions{Variant: options.Variant}
+	if options.Architecture != runtime.GOARCH {
+		lookupImageOptions.Architecture = options.Architecture
+	}
+	if options.OS != runtime.GOOS {
+		lookupImageOptions.OS = options.OS
+	}
+	localImage, resolvedImageName, err = r.LookupImage(imageName, lookupImageOptions)
 	if err != nil && errors.Cause(err) != storage.ErrImageUnknown {
 		logrus.Errorf("Looking up %s in local storage: %v", imageName, err)
 	}

@@ -287,6 +287,35 @@ function configure_and_check_user() {
 	run_buildah run -v ${TESTDIR}/was-empty:/run/secrets/testdir $cid ls -ld /run/secrets/testdir
 }
 
+@test "run overlay --volume with custom upper and workdir" {
+	skip_if_no_runtime
+
+	zflag=
+	if which selinuxenabled > /dev/null 2> /dev/null ; then
+		if selinuxenabled ; then
+			zflag=z
+		fi
+	fi
+	${OCI} --version
+	_prefetch alpine
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	mkdir -p ${TESTDIR}/upperdir
+	mkdir -p ${TESTDIR}/workdir
+	mkdir -p ${TESTDIR}/lower
+
+	echo 'hello' >> ${TESTDIR}/lower/hello
+
+	# As a baseline, this should succeed.
+	run_buildah run -v ${TESTDIR}/lower:/test:O,upperdir=${TESTDIR}/upperdir,workdir=${TESTDIR}/workdir${zflag:+:${zflag}}  $cid cat /test/hello
+	expect_output "hello"
+	run_buildah run -v ${TESTDIR}/lower:/test:O,upperdir=${TESTDIR}/upperdir,workdir=${TESTDIR}/workdir${zflag:+:${zflag}}  $cid sh -c 'echo "world" > /test/world'
+
+	#upper dir should persist content
+	result="$(cat ${TESTDIR}/upperdir/world)"
+	test "$result" == "world"
+}
+
 @test "run --volume with U flag" {
   skip_if_no_runtime
 
