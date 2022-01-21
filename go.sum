@@ -270,8 +270,8 @@ github.com/containernetworking/plugins v0.8.6/go.mod h1:qnw5mN19D8fIwkqW7oHHYDHV
 github.com/containernetworking/plugins v0.9.1/go.mod h1:xP/idU2ldlzN6m4p5LmGiwRDjeJr6FLK6vuiUwoH7P8=
 github.com/containernetworking/plugins v1.0.1 h1:wwCfYbTCj5FC0EJgyzyjTXmqysOiJE9r712Z+2KVZAk=
 github.com/containernetworking/plugins v1.0.1/go.mod h1:QHCfGpaTwYTbbH+nZXKVTxNBDZcxSOplJT5ico8/FLE=
-github.com/containers/common v0.46.1-0.20220119203335-0e7aca71d00a h1:2f2PbMRN/Lu9sJpFFBpKv7g/8izZOUv9HObOnQWlS14=
-github.com/containers/common v0.46.1-0.20220119203335-0e7aca71d00a/go.mod h1:zIOEbgW3aBOXx9lsi91kcbX784HVH60ePkEBgbvPJ7g=
+github.com/containers/common v0.47.0 h1:3O+EVHvFz/VrBoffhCdzyNd49WZkTJ/VsZzDgQjR+nA=
+github.com/containers/common v0.47.0/go.mod h1:9+wnfBX52fFSqMDAvivlBB0WsQdOP3U9UZeKrYhJRTM=
 github.com/containers/image/v5 v5.18.0 h1:YbvpXl5zd6IbZnt4XiOU0+c24xBQAQL9q3/e5kyk19k=
 github.com/containers/image/v5 v5.18.0/go.mod h1:ybujPwS7YEAPhLXJ3vvZGdKftk+sPSvp/djg9qTPvro=
 github.com/containers/libtrust v0.0.0-20190913040956-14b96171aa3b h1:Q8ePgVfHDplZ7U33NwHZkrVELsZP5fYj9pM5WBZB2GE=
@@ -581,8 +581,8 @@ github.com/ishidawataru/sctp v0.0.0-20210226210310-f2269e66cdee h1:PAXLXk1heNZ5y
 github.com/ishidawataru/sctp v0.0.0-20210226210310-f2269e66cdee/go.mod h1:co9pwDoBCm1kGxawmb4sPq0cSIOOWNPT4KnHotMP1Zg=
 github.com/j-keck/arping v0.0.0-20160618110441-2cf9dc699c56/go.mod h1:ymszkNOg6tORTn+6F6j+Jc8TOr5osrynvN6ivFWZ2GA=
 github.com/j-keck/arping v1.0.2/go.mod h1:aJbELhR92bSk7tp79AWM/ftfc90EfEi2bQJrbBFOsPw=
-github.com/jinzhu/copier v0.3.4 h1:mfU6jI9PtCeUjkjQ322dlff9ELjGDu975C2p/nrubVI=
-github.com/jinzhu/copier v0.3.4/go.mod h1:DfbEm0FYsaqBcKcFuvmOZb218JkPGtvSHsKg8S8hyyg=
+github.com/jinzhu/copier v0.3.5 h1:GlvfUwHk62RokgqVNvYsku0TATCF7bAHVwEXoBh3iJg=
+github.com/jinzhu/copier v0.3.5/go.mod h1:DfbEm0FYsaqBcKcFuvmOZb218JkPGtvSHsKg8S8hyyg=
 github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
 github.com/jmespath/go-jmespath v0.0.0-20160803190731-bd40a432e4c7/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
 github.com/joefitzgerald/rainbow-reporter v0.1.0/go.mod h1:481CNgqmVHQZzdIbN52CupLJyoVwB10FQ/IQlF1pdL8=
