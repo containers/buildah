@@ -386,7 +386,7 @@ symlink(subdir)"
 
 @test "bud with --layers and --build-args: override ARG with ENV and image must be cached" {
   _prefetch alpine
-  #when ARG is overriden by config
+  #when ARG is overridden by config
   run_buildah build --signature-policy ${TESTSDIR}/policy.json --build-arg=FOO=1 --layers -t args-cache -f ${TESTSDIR}/bud/with-arg/Dockerfile
   run_buildah inspect -f '{{.FromImageID}}' args-cache
   idbefore="$output"
@@ -3742,9 +3742,9 @@ _EOF
   skip_if_no_runtime
   skip_if_in_container
   cp -R ${TESTSDIR}/bud/buildkit-mount ${TESTDIR}/buildkit-mount
-  # try writing something to persistant cache
+  # try writing something to persistent cache
   run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfilecachewrite
-  # try reading something from persistant cache in a different build
+  # try reading something from persistent cache in a different build
   run_buildah build -t testbud2 --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfilecacheread
   expect_output --substring "hello"
   run_buildah rmi -f testbud
@@ -3834,7 +3834,7 @@ _EOF
   skip_if_in_container
   mkdir ${TESTDIR}/bud
   cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
-  # try reading something from persistant cache in a different build
+  # try reading something from persistent cache in a different build
   run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilecachefrom ${TESTDIR}/bud/buildkit-mount-from/
   expect_output --substring "hello"
   run_buildah rmi -f testbud
@@ -3848,7 +3848,7 @@ _EOF
   cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
   # build base image which we will use as our `from`
   run_buildah build -t buildkitbase --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbase ${TESTDIR}/bud/buildkit-mount-from/
-  # try reading something from persistant cache in a different build
+  # try reading something from persistent cache in a different build
   run_buildah 125 build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilecachefromimage
   expect_output --substring "hello"
   run_buildah rmi -f buildkitbase
@@ -3859,7 +3859,7 @@ _EOF
   skip_if_in_container
   mkdir ${TESTDIR}/bud
   cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
-  # try reading something from persistant cache in a different build
+  # try reading something from persistent cache in a different build
   run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilecachemultiplefrom ${TESTDIR}/bud/buildkit-mount-from/
   expect_output --substring "hello"
   expect_output --substring "hello2"
