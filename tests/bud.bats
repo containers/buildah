@@ -2329,7 +2329,7 @@ _EOF
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull ${TESTSDIR}/bud/pull
   expect_output --substring "COMMIT pull"
 
-  run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull-never ${TESTSDIR}/bud/pull
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} --pull=never ${TESTSDIR}/bud/pull
   expect_output --substring "COMMIT pull"
 }
 
@@ -3302,6 +3302,8 @@ _EOF
 @test "bud with --pull-always" {
   _prefetch docker.io/library/alpine
   run_buildah build --pull-always --signature-policy ${TESTSDIR}/policy.json -t testpull ${TESTSDIR}/bud/containerfile
+  expect_output --from="${lines[1]}" "Trying to pull docker.io/library/alpine:latest..."
+  run_buildah build --pull=always --signature-policy ${TESTSDIR}/policy.json -t testpull ${TESTSDIR}/bud/containerfile
   expect_output --from="${lines[1]}" "Trying to pull docker.io/library/alpine:latest..."
 }
 

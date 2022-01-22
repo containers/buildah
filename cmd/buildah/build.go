@@ -124,14 +124,17 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		defer os.Remove(iopts.BudResults.Authfile)
 	}
 
+	// Allow for --pull, --pull=true, --pull=false, --pull=never, --pull=always
+	// --pull-always and --pull-never.  The --pull-never and --pull-always options
+	// will not be documented.
 	pullPolicy := define.PullIfMissing
-	if iopts.Pull {
+	if strings.EqualFold(strings.TrimSpace(iopts.Pull), "true") {
 		pullPolicy = define.PullIfNewer
 	}
-	if iopts.PullAlways {
+	if iopts.PullAlways || strings.EqualFold(strings.TrimSpace(iopts.Pull), "always") {
 		pullPolicy = define.PullAlways
 	}
-	if iopts.PullNever {
+	if iopts.PullNever || strings.EqualFold(strings.TrimSpace(iopts.Pull), "never") {
 		pullPolicy = define.PullNever
 	}
 	logrus.Debugf("Pull Policy for pull [%v]", pullPolicy)

@@ -368,7 +368,7 @@ load helpers
   echo "$output"
   expect_output --substring "busybox-working-container"
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull-never busybox
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull=never busybox
   echo "$output"
   expect_output --substring "busybox-working-container"
 }
@@ -394,7 +394,7 @@ load helpers
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc --pull-always docker.io/busybox
   expect_output --substring "Getting"
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json busyboxc fakename-img
-  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --pull-always fakename-img
+  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --pull=always fakename-img
 
   # Also check for base-image annotations.
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' fakename-img

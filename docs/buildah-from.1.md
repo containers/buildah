@@ -311,7 +311,7 @@ the help of emulation provided by packages like `qemu-user-static`.
 
 **--pull**
 
-When the flag is enabled, attempt to pull the latest image from the registries
+When the flag is enabled or set explicitly to `true` (with *--pull=true*), attempt to pull the latest image from the registries
 listed in registries.conf if a local image does not exist or the image is newer
 than the one in storage. Raise an error if the image is not in any listed
 registry and is not present locally.
@@ -320,17 +320,15 @@ If the flag is disabled (with *--pull=false*), do not pull the image from the
 registry, use only the local version. Raise an error if the image is not
 present locally.
 
-Defaults to *true*.
-
-**--pull-always**
-
-Pull the image from the first registry it is found in as listed in registries.conf.
+If the pull flag is set to `always` (with *--pull=always*),
+pull the image from the first registry it is found in as listed in registries.conf.
 Raise an error if not found in the registries, even if the image is present locally.
 
-**--pull-never**
-
+If the pull flag is set to `never` (with *--pull=never*),
 Do not pull the image from the registry, use only the local version. Raise an error
 if the image is not present locally.
+
+Defaults to *true*.
 
 **--quiet**, **-q**
 
