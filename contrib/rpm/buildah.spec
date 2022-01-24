@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.22.4-dev
+Version:        1.22.4
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,12 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Jan 24, 2022 Nalin Dahyabhai <nalin@redhat.com> 1.22.4-1
+- copier: RemoveAll possibly-directories
+- copier.Put: check for is-not-a-directory using lstat, not stat
+- Cirrus: Reduce CI tasks to releive (sic) maint. burden
+- Cirrus: Backport PR #3562: Cirrus: Fix defunct package metadata breaking cache
+
 * Fri Aug 20, 2021 Tom Sweeney <tsweeney@redhat.com> 1.22.4-dev-1
 
 * Fri Aug 20, 2021 Tom Sweeney <tsweeney@redhat.com> 1.22.3-1
