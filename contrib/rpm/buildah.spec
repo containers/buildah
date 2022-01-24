@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.23.1
+Version:        1.23.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,13 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Jan 24, 2022 Nalin Dahyabhai <nalin@redhat.com> 1.23.2-1
+- Bump containerd to v1.5.7
+- copier: RemoveAll possibly-directories
+- copier.Put: check for is-not-a-directory using lstat, not stat
+- Cirrus: Reduce CI tasks to releive (sic) maint. burden
+- Backport PR #3562: Cirrus: Fix defunct package metadata breaking cache
+
 * Mon Sep 27, 2021 Ashley Cui <acui@redhat.com> 1.23.1-1
 - Vendor containers/common v0.44.2
 - post-1.23 branch fixups

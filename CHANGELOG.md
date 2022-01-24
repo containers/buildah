@@ -2,6 +2,14 @@
 
 # Changelog
 
+## v1.23.2 (2022-01-24)
+
+    Bump containerd to v1.5.7
+    copier: RemoveAll possibly-directories
+    copier.Put: check for is-not-a-directory using lstat, not stat
+    Cirrus: Reduce CI tasks to releive (sic) maint. burden
+    Backport PR #3562: Cirrus: Fix defunct package metadata breaking cache
+
 ## v1.23.1 (2021-09-27)
 
     Vendor containers/common v0.44.2
