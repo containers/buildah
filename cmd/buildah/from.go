@@ -25,7 +25,7 @@ type fromReply struct {
 	creds           string
 	format          string
 	name            string
-	pull            bool
+	pull            string
 	pullAlways      bool
 	pullNever       bool
 	quiet           bool
@@ -71,9 +71,17 @@ func init() {
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	flags.StringVarP(&opts.format, "format", "f", defaultFormat(), "`format` of the image manifest and metadata")
 	flags.StringVar(&opts.name, "name", "", "`name` for the working container")
-	flags.BoolVar(&opts.pull, "pull", true, "pull the image from the registry if newer or not present in store, if false, only pull the image if not present")
+	flags.StringVar(&opts.pull, "pull", "true", "pull the image from the registry if newer or not present in store, if false, only pull the image if not present, if always, pull the image even if the named image is present in store, if never, only use the image present in store if available")
+	flags.Lookup("pull").NoOptDefVal = "true" //allow `--pull ` to be set to `true` as expected.
+
 	flags.BoolVar(&opts.pullAlways, "pull-always", false, "pull the image even if the named image is present in store")
+	if err := flags.MarkHidden("pull-always"); err != nil {
+		panic(fmt.Sprintf("error marking the pull-always flag as hidden: %v", err))
+	}
 	flags.BoolVar(&opts.pullNever, "pull-never", false, "do not pull the image, use the image present in store if available")
+	if err := flags.MarkHidden("pull-never"); err != nil {
+		panic(fmt.Sprintf("error marking the pull-never flag as hidden: %v", err))
+	}
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output progress information when pulling images")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	flags.StringVar(&suffix, "suffix", "", "suffix to add to intermediate containers")
@@ -225,16 +233,20 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		return errors.Errorf("can only set one of 'pull' or 'pull-always' or 'pull-never'")
 	}
 
+	// Allow for --pull, --pull=true, --pull=false, --pull=never, --pull=always
+	// --pull-always and --pull-never.  The --pull-never and --pull-always options
+	// will not be documented.
 	pullPolicy := define.PullIfMissing
-	if iopts.pull {
+	if strings.EqualFold(strings.TrimSpace(iopts.pull), "true") {
 		pullPolicy = define.PullIfNewer
 	}
-	if iopts.pullAlways {
+	if iopts.pullAlways || strings.EqualFold(strings.TrimSpace(iopts.pull), "always") {
 		pullPolicy = define.PullAlways
 	}
-	if iopts.pullNever {
+	if iopts.pullNever || strings.EqualFold(strings.TrimSpace(iopts.pull), "never") {
 		pullPolicy = define.PullNever
 	}
+	logrus.Debugf("Pull Policy for pull [%v]", pullPolicy)
 
 	signaturePolicy := iopts.signaturePolicy
 
