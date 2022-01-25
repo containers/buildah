@@ -8,7 +8,7 @@ buildah\-source\-pull - Pull a source image from a registry to a specified path
 
 ## DESCRIPTION
 Pull a source image from a registry to a specified path.  The pull operation
-will fail if the image does not comply with a source-image OCI rartifact.
+will fail if the image does not comply with a source-image OCI artifact.
 
 Note that the buildah-source command and all its subcommands are experimental
 and may be subject to future changes.

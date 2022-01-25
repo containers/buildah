@@ -6,7 +6,7 @@
 
 # INTRODUCTION
 
-Before container engines build image, they look for a file named .containerignore or .dockerignore in the root
+Before container engines build an image, they look for a file named .containerignore or .dockerignore in the root
 context directory. If one of these file exists, the CLI modifies the context to exclude files and
 directories that match patterns specified in the file. This avoids adding them to images using the ADD or COPY
 instruction.

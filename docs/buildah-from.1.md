@@ -55,7 +55,7 @@ Set the ARCH of the image to be pulled to the provided value instead of using th
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using using `buildah login`.
+Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.
 
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
@@ -107,14 +107,14 @@ Write the container ID to the file.
 
 Limit the CPU CFS (Completely Fair Scheduler) period
 
-Limit the container's CPU usage. This flag tell the kernel to restrict the container's CPU usage to the period you specify.
+Limit the container's CPU usage. This flag tells the kernel to restrict the container's CPU usage to the period you specify.
 
 **--cpu-quota**=*0*
 
 Limit the CPU CFS (Completely Fair Scheduler) quota
 
 Limit the container's CPU usage. By default, containers run with the full
-CPU resource. This flag tell the kernel to restrict the container's CPU usage
+CPU resource. This flag tells the kernel to restrict the container's CPU usage
 to the quota you specify.
 
 **--cpu-shares**, **-c**=*0*
@@ -527,14 +527,14 @@ Only the current container can use a private volume.
 
    The `:O` flag tells Buildah to mount the directory from the host as a temporary storage using the Overlay file system. The `RUN` command containers are allowed to modify contents within the mountpoint and are stored in the container storage in a separate directory.  In Overlay FS terms the source directory will be the lower, and the container storage directory will be the upper. Modifications to the mount point are destroyed when the `RUN` command finishes executing, similar to a tmpfs mount point.
 
-  Any subsequent execution of `RUN` commands sees the original source directory content, any changes from previous RUN commands no longer exists.
+  Any subsequent execution of `RUN` commands sees the original source directory content, any changes from previous RUN commands no longer exist.
 
   One use case of the `overlay` mount is sharing the package cache from the host into the container to allow speeding up builds.
 
   Note:
 
      - The `O` flag is not allowed to be specified with the `Z` or `z` flags. Content mounted into the container is labeled with the private label.
-       On SELinux systems, labels in the source directory needs to be readable by the container label. If not, SELinux container separation must be disabled for the container to work.
+       On SELinux systems, labels in the source directory need to be readable by the container label. If not, SELinux container separation must be disabled for the container to work.
      - Modification of the directory volume mounted into the container with an overlay mount can cause unexpected failures.  It is recommended that you do not modify the directory until the container finishes running.
 
 By default bind mounted volumes are `private`. That means any mounts done

@@ -50,7 +50,7 @@ Set the ARCH of the image to be built, and that of the base image to be pulled, 
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using using `buildah login`.
+Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.
 
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
@@ -129,7 +129,7 @@ https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-con
 Limit the CPU CFS (Completely Fair Scheduler) quota
 
 Limit the container's CPU usage. By default, containers run with the full
-CPU resource. This flag tell the kernel to restrict the container's CPU usage
+CPU resource. This flag tells the kernel to restrict the container's CPU usage
 to the quota you specify.
 
 On some systems, changing the CPU limits may not be allowed for non-root
@@ -328,7 +328,7 @@ no limit on the number of jobs that run in parallel.
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
 
 Users can set a special LABEL **io.containers.capabilities=CAP1,CAP2,CAP3** in
-a Containerfile that specified the list of Linux capabilities required for the
+a Containerfile that specifies the list of Linux capabilities required for the
 container to run properly. This label specified in a container image tells
 container engines, like Podman, to run the container with just these
 capabilities. The container engine launches the container with just the specified
@@ -531,7 +531,7 @@ To later use the ssh agent, use the --mount flag in a `RUN` instruction within a
 
 **--stdin**
 
-Pass stdin into the RUN containers. Sometime commands being RUN within a Containerfile
+Pass stdin into the RUN containers. Sometimes commands being RUN within a Containerfile
 want to request information from the user. For example apt asking for a confirmation for install.
 Use --stdin to be able to interact from the terminal during the build.
 
@@ -626,7 +626,7 @@ Users can specify the maps directly using `--userns-gid-map` described in the bu
 
 **--uts** *how*
 
-Sets the configuration for UTS namespaces when the handling `RUN` instructions.
+Sets the configuration for UTS namespaces when handling `RUN` instructions.
 The configured value can be "" (the empty string) or "container" to indicate
 that a new UTS namespace should be created, or it can be "host" to indicate
 that the UTS namespace in which `buildah` itself is being run should be reused,
@@ -688,14 +688,14 @@ Only the current container can use a private volume.
 
    The `:O` flag tells Buildah to mount the directory from the host as a temporary storage using the Overlay file system. The `RUN` command containers are allowed to modify contents within the mountpoint and are stored in the container storage in a separate directory.  In Overlay FS terms the source directory will be the lower, and the container storage directory will be the upper. Modifications to the mount point are destroyed when the `RUN` command finishes executing, similar to a tmpfs mount point.
 
-  Any subsequent execution of `RUN` commands sees the original source directory content, any changes from previous RUN commands no longer exists.
+  Any subsequent execution of `RUN` commands sees the original source directory content, any changes from previous RUN commands no longer exist.
 
   One use case of the `overlay` mount is sharing the package cache from the host into the container to allow speeding up builds.
 
   Note:
 
      - The `O` flag is not allowed to be specified with the `Z` or `z` flags. Content mounted into the container is labeled with the private label.
-       On SELinux systems, labels in the source directory needs to be readable by the container label. If not, SELinux container separation must be disabled for the container to work.
+       On SELinux systems, labels in the source directory need to be readable by the container label. If not, SELinux container separation must be disabled for the container to work.
      - Modification of the directory volume mounted into the container with an overlay mount can cause unexpected failures.  It is recommended that you do not modify the directory until the container finishes running.
 
 By default bind mounted volumes are `private`. That means any mounts done
@@ -872,7 +872,7 @@ src
 ```
 
 `*/*.c`
-Excludes files and directories whose names ends with .c in any top level subdirectory. For example, the source file include/rootless.c.
+Excludes files and directories whose names end with .c in any top level subdirectory. For example, the source file include/rootless.c.
 
 `**/output*`
 Excludes files and directories starting with `output` from any directory.
