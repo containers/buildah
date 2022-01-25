@@ -641,9 +641,9 @@ Set the architecture variant of the image to be pulled.
 
 **--volume**, **-v**[=*[HOST-DIR:CONTAINER-DIR[:OPTIONS]]*]
 
-   Create a bind mount. If you specify, ` -v /HOST-DIR:/CONTAINER-DIR`, Buildah
-   bind mounts `/HOST-DIR` in the host to `/CONTAINER-DIR` in the Buildah
-   container. The `OPTIONS` are a comma delimited list and can be: <sup>[[1]](#Footnote1)</sup>
+Mount a host directory into containers when executing *RUN* instructions during
+the build.  The `OPTIONS` are a comma delimited list and can be:
+<sup>[[1]](#Footnote1)</sup>
 
    * [rw|ro]
    * [U]
