@@ -234,7 +234,7 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 		default:
 			value := os.Getenv(env[0])
 			if value == "" {
-				return errors.Errorf("error setting env %q: no value given.", env[0])
+				return errors.Errorf("error setting env %q: no value given", env[0])
 			}
 			builder.SetEnv(env[0], value)
 		}

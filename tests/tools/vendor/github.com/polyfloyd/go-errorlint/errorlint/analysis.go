@@ -2,6 +2,8 @@ package errorlint
 
 import (
 	"flag"
+	"go/ast"
+	"go/types"
 	"sort"
 
 	"golang.org/x/tools/go/analysis"
@@ -31,8 +33,9 @@ func init() {
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	lints := []Lint{}
+	extInfo := newTypesInfoExt(pass.TypesInfo)
 	if checkComparison {
-		l := LintErrorComparisons(pass.Fset, *pass.TypesInfo)
+		l := LintErrorComparisons(pass.Fset, extInfo)
 		lints = append(lints, l...)
 	}
 	if checkAsserts {
@@ -49,4 +52,48 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		pass.Report(analysis.Diagnostic{Pos: l.Pos, Message: l.Message})
 	}
 	return nil, nil
+}
+
+type TypesInfoExt struct {
+	types.Info
+
+	// Maps AST nodes back to the node they are contain within.
+	NodeParent map[ast.Node]ast.Node
+
+	// Maps an object back to all identifiers to refer to it.
+	IdentifiersForObject map[types.Object][]*ast.Ident
+}
+
+func newTypesInfoExt(info *types.Info) *TypesInfoExt {
+	nodeParent := map[ast.Node]ast.Node{}
+	for node := range info.Scopes {
+		file, ok := node.(*ast.File)
+		if !ok {
+			continue
+		}
+		stack := []ast.Node{file}
+		ast.Inspect(file, func(n ast.Node) bool {
+			nodeParent[n] = stack[len(stack)-1]
+			if n == nil {
+				stack = stack[:len(stack)-1]
+			} else {
+				stack = append(stack, n)
+			}
+			return true
+		})
+	}
+
+	identifiersForObject := map[types.Object][]*ast.Ident{}
+	for node, obj := range info.Defs {
+		identifiersForObject[obj] = append(identifiersForObject[obj], node)
+	}
+	for node, obj := range info.Uses {
+		identifiersForObject[obj] = append(identifiersForObject[obj], node)
+	}
+
+	return &TypesInfoExt{
+		Info:                 *info,
+		NodeParent:           nodeParent,
+		IdentifiersForObject: identifiersForObject,
+	}
 }

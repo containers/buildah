@@ -87,6 +87,7 @@ func (c *unlabelStmtChecker) VisitStmt(stmt ast.Stmt) {
 	// Only for loops: if last stmt in list is a loop
 	// that contains labeled "continue" to the outer loop label,
 	// it can be refactored to use "break" instead.
+	// Exceptions: select statements with a labeled "continue" are ignored.
 	if c.isLoop(labeled.Stmt) {
 		body := c.blockStmtOf(labeled.Stmt)
 		if len(body.List) == 0 {
@@ -96,11 +97,21 @@ func (c *unlabelStmtChecker) VisitStmt(stmt ast.Stmt) {
 		if !c.isLoop(last) {
 			return
 		}
-		br := lintutil.FindNode(c.blockStmtOf(last), func(n ast.Node) bool {
-			br, ok := n.(*ast.BranchStmt)
-			return ok && br.Label != nil &&
-				br.Label.Name == name && br.Tok == token.CONTINUE
-		})
+		br := lintutil.FindNode(c.blockStmtOf(last),
+			func(n ast.Node) bool {
+				switch n.(type) {
+				case *ast.SelectStmt:
+					return false
+				default:
+					return true
+				}
+			},
+			func(n ast.Node) bool {
+				br, ok := n.(*ast.BranchStmt)
+				return ok && br.Label != nil &&
+					br.Label.Name == name && br.Tok == token.CONTINUE
+			})
+
 		if br != nil {
 			c.warnLabeledContinue(br, name)
 		}

@@ -11,6 +11,7 @@ func flags(config *Config) flag.FlagSet {
 	fs := flag.FlagSet{}
 	fs.Var(stringMap(config.RequiredAlias), "alias", "required import alias in form path:alias")
 	fs.BoolVar(&config.DisallowUnaliased, "no-unaliased", false, "do not allow unaliased imports of aliased packages")
+	fs.BoolVar(&config.DisallowExtraAliases, "no-extra-aliases", false, "do not allow non-required aliases")
 	return fs
 }
 

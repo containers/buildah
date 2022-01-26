@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"go/token"
 	"os"
+	"regexp"
+	"strconv"
 	"sync"
 )
 
@@ -64,13 +66,14 @@ func (l *Linter) lintPackage(filenames []string, ruleSet []Rule, config Config, 
 		if err != nil {
 			return err
 		}
-		if isGenerated(content) && !config.IgnoreGeneratedHeader {
+		if !config.IgnoreGeneratedHeader && isGenerated(content) {
 			continue
 		}
 
 		file, err := NewFile(filename, content, pkg)
 		if err != nil {
-			return err
+			addInvalidFileFailure(filename, err.Error(), failures)
+			continue
 		}
 		pkg.files[filename] = file
 	}
@@ -96,4 +99,43 @@ func isGenerated(src []byte) bool {
 		}
 	}
 	return false
+}
+
+// addInvalidFileFailure adds a failure for an invalid formatted file
+func addInvalidFileFailure(filename, errStr string, failures chan Failure) {
+	position := getPositionInvalidFile(filename, errStr)
+	failures <- Failure{
+		Confidence: 1,
+		Failure:    fmt.Sprintf("invalid file %s: %v", filename, errStr),
+		Category:   "validity",
+		Position:   position,
+	}
+}
+
+// errPosRegexp matches with an NewFile error message
+// i.e. :  corrupted.go:10:4: expected '}', found 'EOF
+// first group matches the line and the second group, the column
+var errPosRegexp = regexp.MustCompile(".*:(\\d*):(\\d*):.*$")
+
+// getPositionInvalidFile gets the position of the error in an invalid file
+func getPositionInvalidFile(filename, s string) FailurePosition {
+	pos := errPosRegexp.FindStringSubmatch(s)
+	if len(pos) < 3 {
+		return FailurePosition{}
+	}
+	line, err := strconv.Atoi(pos[1])
+	if err != nil {
+		return FailurePosition{}
+	}
+	column, err := strconv.Atoi(pos[2])
+	if err != nil {
+		return FailurePosition{}
+	}
+
+	return FailurePosition{
+		Start: token.Position{
+			Filename: filename,
+			Line:     line,
+			Column:   column,
+		}}
 }

@@ -1,15 +1,11 @@
 package exhaustive
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
-	"go/printer"
-	"go/token"
 	"go/types"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -17,428 +13,338 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-func isDefaultCase(c *ast.CaseClause) bool {
-	return c.List == nil // see doc comment on field
-}
+// nodeVisitor is like the visitor function used by Inspector.WithStack,
+// except that it returns an additional value: a short description of
+// the result of this node visit.
+//
+// The result is typically useful in debugging or in unit tests to check
+// that the nodeVisitor function took the expected code path.
+type nodeVisitor func(n ast.Node, push bool, stack []ast.Node) (proceed bool, result string)
 
-func checkSwitchStatements(
-	pass *analysis.Pass,
-	inspect *inspector.Inspector,
-) error {
-	comments := make(map[*ast.File]ast.CommentMap) // CommentMap per package file, lazily populated by reference
-	generated := make(map[*ast.File]bool)
-	return checkSwitchStatements_(pass, inspect, comments, generated)
-}
+// Result values returned by a node visitor constructed via switchStmtChecker.
+const (
+	resultNotPush              = "not push"
+	resultGeneratedFile        = "generated file"
+	resultNoSwitchTag          = "no switch tag"
+	resultTagNotValue          = "switch tag not value type"
+	resultTagNotNamed          = "switch tag not named type"
+	resultTagNoPkg             = "switch tag does not belong to regular package"
+	resultTagNotEnum           = "switch tag not known enum type"
+	resultSwitchIgnoreComment  = "switch statement has ignore comment"
+	resultEnumMembersAccounted = "requisite enum members accounted for"
+	resultDefaultCaseSuffices  = "default case presence satisfies exhaustiveness"
+	resultReportedDiagnostic   = "reported diagnostic"
+)
 
-func checkSwitchStatements_(
-	pass *analysis.Pass,
-	inspect *inspector.Inspector,
-	comments map[*ast.File]ast.CommentMap,
-	generated map[*ast.File]bool,
-) error {
-	inspect.WithStack([]ast.Node{&ast.SwitchStmt{}}, func(n ast.Node, push bool, stack []ast.Node) bool {
+// switchStmtChecker returns a node visitor that checks exhaustiveness
+// of enum switch statements for the supplied pass, and reports diagnostics for
+// switch statements that are non-exhaustive.
+func switchStmtChecker(pass *analysis.Pass, cfg config) nodeVisitor {
+	generated := make(map[*ast.File]bool)          // cached results
+	comments := make(map[*ast.File]ast.CommentMap) // cached results
+
+	return func(n ast.Node, push bool, stack []ast.Node) (bool, string) {
 		if !push {
-			return true
+			// The proceed return value should not matter; it is ignored by
+			// inspector package for pop calls.
+			// Nevertheless, return true to be on the safe side for the future.
+			return true, resultNotPush
 		}
 
 		file := stack[0].(*ast.File)
 
-		// Determine if file is a generated file, based on https://golang.org/s/generatedcode.
-		// If generated, don't check this file.
-		var isGenerated bool
-		if gen, ok := generated[file]; ok {
-			isGenerated = gen
-		} else {
-			isGenerated = isGeneratedFile(file)
-			generated[file] = isGenerated
+		// Determine if the file is a generated file, and save the result.
+		// If it is a generated file, don't check the file.
+		if _, ok := generated[file]; !ok {
+			generated[file] = isGeneratedFile(file)
 		}
-		if isGenerated && !fCheckGeneratedFiles {
-			// don't check
-			return true
+		if generated[file] && !cfg.checkGeneratedFiles {
+			// Don't check this file.
+			// Return false because the children nodes of node `n` don't have to be checked.
+			return false, resultGeneratedFile
 		}
 
 		sw := n.(*ast.SwitchStmt)
-		if sw.Tag == nil {
-			return true
+
+		if _, ok := comments[file]; !ok {
+			comments[file] = ast.NewCommentMap(pass.Fset, file, file.Comments)
 		}
+		if containsIgnoreDirective(comments[file].Filter(sw).Comments()) {
+			// Skip checking of this switch statement due to ignore directive comment.
+			// Still return true because there may be nested switch statements
+			// that are not to be ignored.
+			return true, resultSwitchIgnoreComment
+		}
+
+		if sw.Tag == nil {
+			return true, resultNoSwitchTag
+		}
+
 		t := pass.TypesInfo.Types[sw.Tag]
 		if !t.IsValue() {
-			return true
+			return true, resultTagNotValue
 		}
+
 		tagType, ok := t.Type.(*types.Named)
 		if !ok {
-			return true
+			return true, resultTagNotNamed
 		}
 
 		tagPkg := tagType.Obj().Pkg()
 		if tagPkg == nil {
-			// Doc comment: nil for labels and objects in the Universe scope.
+			// The Go documentation says: nil for labels and objects in the Universe scope.
 			// This happens for the `error` type, for example.
-			// Continuing would mean that ImportPackageFact panics.
-			return true
+			return true, resultTagNoPkg
 		}
 
-		var enums enumsFact
-		if !pass.ImportPackageFact(tagPkg, &enums) {
-			// Can't do anything further.
-			return true
+		enumTyp := enumType{tagType.Obj()}
+		members, ok := importFact(pass, enumTyp)
+		if !ok {
+			// switch tag's type is not a known enum type.
+			return true, resultTagNotEnum
 		}
 
-		em, isEnum := enums.Enums[tagType.Obj().Name()]
-		if !isEnum {
-			// Tag's type is not a known enum.
-			return true
+		samePkg := tagPkg == pass.Pkg // do the switch statement and the switch tag type (i.e. enum type) live in the same package?
+		checkUnexported := samePkg    // we want to include unexported members in the exhaustiveness check only if we're in the same package
+		checklist := makeChecklist(members, tagPkg, checkUnexported, cfg.ignoreEnumMembers)
+
+		hasDefaultCase := analyzeSwitchClauses(sw, tagPkg, members.NameToValue, pass.TypesInfo, func(val constantValue) {
+			checklist.found(val)
+		})
+
+		if len(checklist.remaining()) == 0 {
+			// All enum members accounted for.
+			// Nothing to report.
+			return true, resultEnumMembersAccounted
 		}
-
-		// Get comment map.
-		var allComments ast.CommentMap
-		if cm, ok := comments[file]; ok {
-			allComments = cm
-		} else {
-			allComments = ast.NewCommentMap(pass.Fset, file, file.Comments)
-			comments[file] = allComments
+		if hasDefaultCase && cfg.defaultSignifiesExhaustive {
+			// Though enum members are not accounted for,
+			// the existence of the default case signifies exhaustiveness.
+			// So don't report.
+			return true, resultDefaultCaseSuffices
 		}
+		pass.Report(makeDiagnostic(sw, samePkg, enumTyp, members, checklist.remaining()))
+		return true, resultReportedDiagnostic
+	}
+}
 
-		specificComments := allComments.Filter(sw)
-		for _, group := range specificComments.Comments() {
-			if containsIgnoreDirective(group.List) {
-				return true // skip checking due to ignore directive
-			}
-		}
+// config is configuration for checkSwitchStatements.
+type config struct {
+	defaultSignifiesExhaustive bool
+	checkGeneratedFiles        bool
+	ignoreEnumMembers          *regexp.Regexp // can be nil
+}
 
-		samePkg := tagPkg == pass.Pkg
-		checkUnexported := samePkg
+// checkSwitchStatements checks exhaustiveness of enum switch statements for the supplied
+// pass. It reports switch statements that are not exhaustive via pass.Report.
+func checkSwitchStatements(pass *analysis.Pass, inspect *inspector.Inspector, cfg config) {
+	f := switchStmtChecker(pass, cfg)
 
-		hitlist := hitlistFromEnumMembers(em, tagPkg, checkUnexported, fIgnorePattern.Get().(*regexp.Regexp))
-		if len(hitlist) == 0 {
-			return true
-		}
-
-		var defaultCase *ast.CaseClause
-		for _, stmt := range sw.Body.List {
-			caseCl := stmt.(*ast.CaseClause)
-			if isDefaultCase(caseCl) {
-				defaultCase = caseCl
-				continue // nothing more to do if it's the default case
-			}
-			for _, e := range caseCl.List {
-				e = astutil.Unparen(e)
-				if samePkg {
-					ident, ok := e.(*ast.Ident)
-					if !ok {
-						continue
-					}
-					updateHitlist(hitlist, em, ident.Name)
-				} else {
-					selExpr, ok := e.(*ast.SelectorExpr)
-					if !ok {
-						continue
-					}
-
-					// ensure X is package identifier
-					ident, ok := selExpr.X.(*ast.Ident)
-					if !ok {
-						continue
-					}
-					if !isPackageNameIdentifier(pass, ident) {
-						continue
-					}
-
-					updateHitlist(hitlist, em, selExpr.Sel.Name)
-				}
-			}
-		}
-
-		defaultSuffices := fDefaultSignifiesExhaustive && defaultCase != nil
-		shouldReport := len(hitlist) > 0 && !defaultSuffices
-
-		if shouldReport {
-			reportSwitch(pass, sw, defaultCase, samePkg, tagType, em, hitlist, file)
-		}
-		return true
+	inspect.WithStack([]ast.Node{&ast.SwitchStmt{}}, func(n ast.Node, push bool, stack []ast.Node) bool {
+		proceed, _ := f(n, push, stack)
+		return proceed
 	})
-
-	return nil
 }
 
-func updateHitlist(hitlist map[string]struct{}, em *enumMembers, foundName string) {
-	constVal, ok := em.NameToValue[foundName]
-	if !ok {
-		// only delete the name alone from hitlist
-		delete(hitlist, foundName)
-		return
-	}
-
-	// delete all of the same-valued names from hitlist
-	namesToDelete := em.ValueToNames[constVal]
-	for _, n := range namesToDelete {
-		delete(hitlist, n)
-	}
+func isDefaultCase(c *ast.CaseClause) bool {
+	return c.List == nil // see doc comment on List field
 }
 
-func isPackageNameIdentifier(pass *analysis.Pass, ident *ast.Ident) bool {
-	obj := pass.TypesInfo.ObjectOf(ident)
+func denotesPackage(ident *ast.Ident, info *types.Info) (*types.Package, bool) {
+	obj := info.ObjectOf(ident)
 	if obj == nil {
-		return false
+		return nil, false
 	}
-	_, ok := obj.(*types.PkgName)
-	return ok
-}
-
-func hitlistFromEnumMembers(em *enumMembers, enumPkg *types.Package, checkUnexported bool, ignorePattern *regexp.Regexp) map[string]struct{} {
-	hitlist := make(map[string]struct{})
-	for _, name := range em.OrderedNames {
-		if name == "_" {
-			// blank identifier is often used to skip entries in iota lists
-			continue
-		}
-		if ignorePattern != nil && ignorePattern.MatchString(enumPkg.Path()+"."+name) {
-			continue
-		}
-		if !ast.IsExported(name) && !checkUnexported {
-			continue
-		}
-		hitlist[name] = struct{}{}
-	}
-	return hitlist
-}
-
-func determineMissingOutput(missingMembers map[string]struct{}, em *enumMembers) []string {
-	constValMembers := make(map[string][]string) // value -> names
-	var otherMembers []string                    // non-constant value names
-
-	for m := range missingMembers {
-		if constVal, ok := em.NameToValue[m]; ok {
-			constValMembers[constVal] = append(constValMembers[constVal], m)
-		} else {
-			otherMembers = append(otherMembers, m)
-		}
-	}
-
-	missingOutput := make([]string, 0, len(constValMembers)+len(otherMembers))
-	for _, names := range constValMembers {
-		sort.Strings(names)
-		missingOutput = append(missingOutput, strings.Join(names, "|"))
-	}
-	missingOutput = append(missingOutput, otherMembers...)
-	sort.Strings(missingOutput)
-	return missingOutput
-}
-
-func reportSwitch(
-	pass *analysis.Pass,
-	sw *ast.SwitchStmt,
-	defaultCase *ast.CaseClause,
-	samePkg bool,
-	enumType *types.Named,
-	em *enumMembers,
-	missingMembers map[string]struct{},
-	f *ast.File,
-) {
-	missingOutput := determineMissingOutput(missingMembers, em)
-
-	var fixes []analysis.SuggestedFix
-	if fix, ok := computeFix(pass, pass.Fset, f, sw, defaultCase, enumType, samePkg, missingMembers); ok {
-		fixes = append(fixes, fix)
-	}
-
-	pass.Report(analysis.Diagnostic{
-		Pos:            sw.Pos(),
-		End:            sw.End(),
-		Message:        fmt.Sprintf("missing cases in switch of type %s: %s", enumTypeName(enumType, samePkg), strings.Join(missingOutput, ", ")),
-		SuggestedFixes: fixes,
-	})
-}
-
-func computeFix(pass *analysis.Pass, fset *token.FileSet, f *ast.File, sw *ast.SwitchStmt, defaultCase *ast.CaseClause, enumType *types.Named, samePkg bool, missingMembers map[string]struct{}) (analysis.SuggestedFix, bool) {
-	// Function and method calls may be mutative, so we don't want to reuse the
-	// call expression in the about-to-be-inserted case clause body. So we just
-	// don't suggest a fix in such situations.
-	//
-	// However, we need to make an exception for type conversions, which are
-	// also call expressions in the AST.
-	//
-	// We'll need to lookup type information for this, and can't rely solely
-	// on the AST.
-	if containsFuncCall(pass, sw.Tag) {
-		return analysis.SuggestedFix{}, false
-	}
-
-	textEdits := []analysis.TextEdit{missingCasesTextEdit(fset, f, samePkg, sw, defaultCase, enumType, missingMembers)}
-
-	// need to add "fmt" import if "fmt" import doesn't already exist
-	if !hasImportWithPath(fset, f, `"fmt"`) {
-		textEdits = append(textEdits, fmtImportTextEdit(fset, f))
-	}
-
-	missing := make([]string, 0, len(missingMembers))
-	for m := range missingMembers {
-		missing = append(missing, m)
-	}
-	sort.Strings(missing)
-
-	return analysis.SuggestedFix{
-		Message:   fmt.Sprintf("add case clause for: %s", strings.Join(missing, ", ")),
-		TextEdits: textEdits,
-	}, true
-}
-
-func containsFuncCall(pass *analysis.Pass, e ast.Expr) bool {
-	e = astutil.Unparen(e)
-	c, ok := e.(*ast.CallExpr)
+	n, ok := obj.(*types.PkgName)
 	if !ok {
-		return false
+		return nil, false
 	}
-	if _, isFunc := pass.TypesInfo.TypeOf(c.Fun).Underlying().(*types.Signature); isFunc {
-		return true
-	}
-	for _, a := range c.Args {
-		if containsFuncCall(pass, a) {
-			return true
-		}
-	}
-	return false
+	return n.Imported(), true
 }
 
-func firstImportDecl(fset *token.FileSet, f *ast.File) *ast.GenDecl {
-	for _, decl := range f.Decls {
-		genDecl, ok := decl.(*ast.GenDecl)
-		if ok && genDecl.Tok == token.IMPORT {
-			// first IMPORT GenDecl
-			return genDecl
+// analyzeSwitchClauses analyzes the clauses in the supplied switch statement.
+//
+// tagPkg is the package of the switch statement's tag value's type.
+// The info param should typically be pass.TypesInfo. The found function is
+// called for each enum member name found in the switch statement.
+//
+// The hasDefaultCase return value indicates whether the switch statement has a
+// default clause.
+func analyzeSwitchClauses(sw *ast.SwitchStmt, tagPkg *types.Package, members map[string]constantValue, info *types.Info, found func(val constantValue)) (hasDefaultCase bool) {
+	for _, stmt := range sw.Body.List {
+		caseCl := stmt.(*ast.CaseClause)
+		if isDefaultCase(caseCl) {
+			hasDefaultCase = true
+			continue // nothing more to do if it's the default case
+		}
+		for _, expr := range caseCl.List {
+			analyzeCaseClauseExpr(expr, tagPkg, members, info, found)
 		}
 	}
-	return nil
+	return hasDefaultCase
 }
 
-// copies an GenDecl in a manner such that appending to the returned GenDecl's Specs field
-// doesn't mutate the original GenDecl
-func copyGenDecl(im *ast.GenDecl) *ast.GenDecl {
-	imCopy := *im
-	imCopy.Specs = make([]ast.Spec, len(im.Specs))
-	for i := range im.Specs {
-		imCopy.Specs[i] = im.Specs[i]
-	}
-	return &imCopy
-}
-
-func hasImportWithPath(fset *token.FileSet, f *ast.File, pathLiteral string) bool {
-	igroups := astutil.Imports(fset, f)
-	for _, igroup := range igroups {
-		for _, importSpec := range igroup {
-			if importSpec.Path.Value == pathLiteral {
-				return true
-			}
+func analyzeCaseClauseExpr(e ast.Expr, tagPkg *types.Package, members map[string]constantValue, info *types.Info, found func(val constantValue)) {
+	handleIdent := func(ident *ast.Ident) {
+		obj := info.Uses[ident]
+		if obj == nil {
+			return
 		}
-	}
-	return false
-}
-
-func fmtImportTextEdit(fset *token.FileSet, f *ast.File) analysis.TextEdit {
-	firstDecl := firstImportDecl(fset, f)
-
-	if firstDecl == nil {
-		// file has no import declarations
-		// insert "fmt" import spec after package statement
-		return analysis.TextEdit{
-			Pos: f.Name.End() + 1, // end of package name + 1
-			End: f.Name.End() + 1,
-			NewText: []byte(`import (
-				"fmt"
-			)`),
+		if _, ok := obj.(*types.Const); !ok {
+			return
 		}
+
+		// There are two scenarios.
+		// See related test cases in typealias/quux/quux.go.
+		//
+		// ### Scenario 1
+		//
+		// Tag package and constant package are the same.
+		//
+		// For example:
+		//   var mode fs.FileMode
+		//   switch mode {
+		//   case fs.ModeDir:
+		//   }
+		//
+		// This is simple: we just use fs.ModeDir's value.
+		//
+		// ### Scenario 2
+		//
+		// Tag package and constant package are different.
+		//
+		// For example:
+		//   var mode fs.FileMode
+		//   switch mode {
+		//   case os.ModeDir:
+		//   }
+		//
+		// Or equivalently:
+		//   var mode os.FileMode // in effect, fs.FileMode because of type alias in package os
+		//   switch mode {
+		//   case os.ModeDir:
+		//   }
+		//
+		// In this scenario, too, we accept the case clause expr constant
+		// value, as is. If the Go type checker is okay with the
+		// name being listed in the case clause, we don't care much further.
+		//
+		found(determineConstVal(ident, info))
 	}
 
-	// copy because we'll be mutating its Specs field
-	firstDeclCopy := copyGenDecl(firstDecl)
+	e = astutil.Unparen(e)
+	switch e := e.(type) {
+	case *ast.Ident:
+		handleIdent(e)
 
-	// find insertion index for "fmt" import spec
-	var i int
-	for ; i < len(firstDeclCopy.Specs); i++ {
-		im := firstDeclCopy.Specs[i].(*ast.ImportSpec)
-		if v, _ := strconv.Unquote(im.Path.Value); v > "fmt" {
-			break
+	case *ast.SelectorExpr:
+		x := astutil.Unparen(e.X)
+		// Ensure we only see the form `pkg.Const`, and not e.g. `structVal.f`
+		// or `structVal.inner.f`.
+		// Check that X, which is everything except the rightmost *ast.Ident (or
+		// Sel), is also an *ast.Ident.
+		xIdent, ok := x.(*ast.Ident)
+		if !ok {
+			return
 		}
-	}
-
-	// insert "fmt" import spec at the index
-	fmtSpec := &ast.ImportSpec{
-		Path: &ast.BasicLit{
-			// NOTE: Pos field doesn't seem to be required for our
-			// purposes here.
-			Kind:  token.STRING,
-			Value: `"fmt"`,
-		},
-	}
-	s := firstDeclCopy.Specs // local var for easier comprehension of next line
-	s = append(s[:i], append([]ast.Spec{fmtSpec}, s[i:]...)...)
-	firstDeclCopy.Specs = s
-
-	// create the text edit
-	var buf bytes.Buffer
-	printer.Fprint(&buf, fset, firstDeclCopy)
-
-	return analysis.TextEdit{
-		Pos:     firstDecl.Pos(),
-		End:     firstDecl.End(),
-		NewText: buf.Bytes(),
+		// Doesn't matter which package, just that it denotes a package.
+		if _, ok := denotesPackage(xIdent, info); !ok {
+			return
+		}
+		handleIdent(e.Sel)
 	}
 }
 
-func missingCasesTextEdit(fset *token.FileSet, f *ast.File, samePkg bool, sw *ast.SwitchStmt, defaultCase *ast.CaseClause, enumType *types.Named, missingMembers map[string]struct{}) analysis.TextEdit {
-	// ... Construct insertion text for case clause and its body ...
-
-	var tag bytes.Buffer
-	printer.Fprint(&tag, fset, sw.Tag)
-
-	// If possible and if necessary, determine the package identifier based on
-	// the AST of other `case` clauses.
-	var pkgIdent *ast.Ident
-	if !samePkg {
-		for _, stmt := range sw.Body.List {
-			caseCl := stmt.(*ast.CaseClause)
-			if len(caseCl.List) != 0 { // guard against default case
-				if sel, ok := caseCl.List[0].(*ast.SelectorExpr); ok {
-					pkgIdent = sel.X.(*ast.Ident)
-					break
-				}
-			}
-		}
-	}
-
-	missing := make([]string, 0, len(missingMembers))
+// diagnosticMissingMembers constructs the list of missing enum members,
+// suitable for use in a reported diagnostic message.
+func diagnosticMissingMembers(missingMembers map[string]struct{}, em enumMembers) []string {
+	missingByConstVal := make(map[constantValue][]string) // missing members, keyed by constant value.
 	for m := range missingMembers {
-		if !samePkg {
-			if pkgIdent != nil {
-				// we were able to determine package identifier
-				missing = append(missing, pkgIdent.Name+"."+m)
-			} else {
-				// use the package name (may not be correct always)
-				//
-				// TODO: May need to also add import if the package isn't imported
-				// elsewhere. This (ie, a switch with zero case clauses) should
-				// happen rarely, so don't implement this for now.
-				missing = append(missing, enumType.Obj().Pkg().Name()+"."+m)
-			}
-		} else {
-			missing = append(missing, m)
+		val := em.NameToValue[m]
+		missingByConstVal[val] = append(missingByConstVal[val], m)
+	}
+
+	var out []string
+	for _, names := range missingByConstVal {
+		sort.Strings(names)
+		out = append(out, strings.Join(names, "|"))
+	}
+	sort.Strings(out)
+	return out
+}
+
+// diagnosticEnumTypeName returns a string representation of an enum type for
+// use in reported diagnostics.
+func diagnosticEnumTypeName(enumType *types.TypeName, samePkg bool) string {
+	if samePkg {
+		return enumType.Name()
+	}
+	return enumType.Pkg().Name() + "." + enumType.Name()
+}
+
+func makeDiagnostic(sw *ast.SwitchStmt, samePkg bool, enumTyp enumType, allMembers enumMembers, missingMembers map[string]struct{}) analysis.Diagnostic {
+	message := fmt.Sprintf("missing cases in switch of type %s: %s",
+		diagnosticEnumTypeName(enumTyp.TypeName, samePkg),
+		strings.Join(diagnosticMissingMembers(missingMembers, allMembers), ", "))
+
+	return analysis.Diagnostic{
+		Pos:     sw.Pos(),
+		End:     sw.End(),
+		Message: message,
+	}
+}
+
+// A checklist holds a set of enum member names that have to be
+// accounted for to satisfy exhaustiveness in an enum switch statement.
+//
+// The found method checks off member names from the set, based on
+// constant value, when a constant value is encoutered in the switch
+// statement's cases.
+//
+// The remaining method returns the member names not accounted for.
+//
+type checklist struct {
+	em    enumMembers
+	names map[string]struct{}
+}
+
+func makeChecklist(em enumMembers, enumPkg *types.Package, includeUnexported bool, ignore *regexp.Regexp) *checklist {
+	names := make(map[string]struct{})
+
+	add := func(memberName string) {
+		if memberName == "_" {
+			// Blank identifier is often used to skip entries in iota lists.
+			// Also, it can't be referenced anywhere (including in a switch
+			// statement's cases), so it doesn't make sense to include it
+			// as required member to satisfy exhaustiveness.
+			return
 		}
-	}
-	sort.Strings(missing)
-
-	insert := `case ` + strings.Join(missing, ", ") + `:
-	panic(fmt.Sprintf("unhandled value: %v",` + tag.String() + `))`
-
-	// ... Create the text edit ...
-
-	pos := sw.Body.Rbrace - 1 // put it as last case
-	if defaultCase != nil {
-		pos = defaultCase.Case - 2 // put it before the default case (why -2?)
+		if !ast.IsExported(memberName) && !includeUnexported {
+			return
+		}
+		if ignore != nil && ignore.MatchString(enumPkg.Path()+"."+memberName) {
+			return
+		}
+		names[memberName] = struct{}{}
 	}
 
-	return analysis.TextEdit{
-		Pos:     pos,
-		End:     pos,
-		NewText: []byte(insert),
+	for _, name := range em.Names {
+		add(name)
 	}
+
+	return &checklist{
+		em:    em,
+		names: names,
+	}
+}
+
+func (c *checklist) found(val constantValue) {
+	// Delete all of the same-valued names.
+	for _, name := range c.em.ValueToNames[val] {
+		delete(c.names, name)
+	}
+}
+
+func (c *checklist) remaining() map[string]struct{} {
+	return c.names
 }

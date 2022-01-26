@@ -9,18 +9,25 @@ import (
 )
 
 // FunctionLength lint.
-type FunctionLength struct{}
+type FunctionLength struct {
+	maxStmt  int
+	maxLines int
+}
 
 // Apply applies the rule to given file.
 func (r *FunctionLength) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
-	maxStmt, maxLines := r.parseArguments(arguments)
+	if r.maxLines == 0 {
+		maxStmt, maxLines := r.parseArguments(arguments)
+		r.maxStmt = int(maxStmt)
+		r.maxLines = int(maxLines)
+	}
 
 	var failures []lint.Failure
 
 	walker := lintFuncLength{
 		file:     file,
-		maxStmt:  int(maxStmt),
-		maxLines: int(maxLines),
+		maxStmt:  r.maxStmt,
+		maxLines: r.maxLines,
 		onFailure: func(failure lint.Failure) {
 			failures = append(failures, failure)
 		},

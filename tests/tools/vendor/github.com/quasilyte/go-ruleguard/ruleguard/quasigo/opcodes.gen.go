@@ -48,125 +48,137 @@ const (
 	// Stack effect: () -> (const:int)
 	opPushIntConst opcode = 10
 
-	// Encoding: 0x0b index:u8 (width=2)
-	// Stack effect: (value) -> ()
-	opSetLocal opcode = 11
+	// Encoding: 0x0b (width=1)
+	// Stack effect: (value:int) -> (value)
+	opConvIntToIface opcode = 11
 
 	// Encoding: 0x0c index:u8 (width=2)
-	// Stack effect: (value:int) -> ()
-	opSetIntLocal opcode = 12
+	// Stack effect: (value) -> ()
+	opSetLocal opcode = 12
 
 	// Encoding: 0x0d index:u8 (width=2)
-	// Stack effect: unchanged
-	opIncLocal opcode = 13
+	// Stack effect: (value:int) -> ()
+	opSetIntLocal opcode = 13
 
 	// Encoding: 0x0e index:u8 (width=2)
 	// Stack effect: unchanged
-	opDecLocal opcode = 14
+	opIncLocal opcode = 14
 
-	// Encoding: 0x0f (width=1)
-	// Stack effect: (value) -> (value)
-	opReturnTop opcode = 15
+	// Encoding: 0x0f index:u8 (width=2)
+	// Stack effect: unchanged
+	opDecLocal opcode = 15
 
 	// Encoding: 0x10 (width=1)
 	// Stack effect: (value) -> (value)
-	opReturnIntTop opcode = 16
+	opReturnTop opcode = 16
 
 	// Encoding: 0x11 (width=1)
-	// Stack effect: unchanged
-	opReturnFalse opcode = 17
+	// Stack effect: (value) -> (value)
+	opReturnIntTop opcode = 17
 
 	// Encoding: 0x12 (width=1)
 	// Stack effect: unchanged
-	opReturnTrue opcode = 18
+	opReturnFalse opcode = 18
 
-	// Encoding: 0x13 offset:i16 (width=3)
+	// Encoding: 0x13 (width=1)
 	// Stack effect: unchanged
-	opJump opcode = 19
+	opReturnTrue opcode = 19
 
-	// Encoding: 0x14 offset:i16 (width=3)
-	// Stack effect: (cond:bool) -> ()
-	opJumpFalse opcode = 20
+	// Encoding: 0x14 (width=1)
+	// Stack effect: unchanged
+	opReturn opcode = 20
 
 	// Encoding: 0x15 offset:i16 (width=3)
+	// Stack effect: unchanged
+	opJump opcode = 21
+
+	// Encoding: 0x16 offset:i16 (width=3)
 	// Stack effect: (cond:bool) -> ()
-	opJumpTrue opcode = 21
+	opJumpFalse opcode = 22
 
-	// Encoding: 0x16 funcid:u16 (width=3)
+	// Encoding: 0x17 offset:i16 (width=3)
+	// Stack effect: (cond:bool) -> ()
+	opJumpTrue opcode = 23
+
+	// Encoding: 0x18 len:u8 (width=2)
+	// Stack effect: unchanged
+	opSetVariadicLen opcode = 24
+
+	// Encoding: 0x19 funcid:u16 (width=3)
 	// Stack effect: (args...) -> (results...)
-	opCallNative opcode = 22
-
-	// Encoding: 0x17 (width=1)
-	// Stack effect: (value) -> (result:bool)
-	opIsNil opcode = 23
-
-	// Encoding: 0x18 (width=1)
-	// Stack effect: (value) -> (result:bool)
-	opIsNotNil opcode = 24
-
-	// Encoding: 0x19 (width=1)
-	// Stack effect: (value:bool) -> (result:bool)
-	opNot opcode = 25
+	opCallNative opcode = 25
 
 	// Encoding: 0x1a (width=1)
-	// Stack effect: (x:int y:int) -> (result:bool)
-	opEqInt opcode = 26
+	// Stack effect: (value) -> (result:bool)
+	opIsNil opcode = 26
 
 	// Encoding: 0x1b (width=1)
-	// Stack effect: (x:int y:int) -> (result:bool)
-	opNotEqInt opcode = 27
+	// Stack effect: (value) -> (result:bool)
+	opIsNotNil opcode = 27
 
 	// Encoding: 0x1c (width=1)
-	// Stack effect: (x:int y:int) -> (result:bool)
-	opGtInt opcode = 28
+	// Stack effect: (value:bool) -> (result:bool)
+	opNot opcode = 28
 
 	// Encoding: 0x1d (width=1)
 	// Stack effect: (x:int y:int) -> (result:bool)
-	opGtEqInt opcode = 29
+	opEqInt opcode = 29
 
 	// Encoding: 0x1e (width=1)
 	// Stack effect: (x:int y:int) -> (result:bool)
-	opLtInt opcode = 30
+	opNotEqInt opcode = 30
 
 	// Encoding: 0x1f (width=1)
 	// Stack effect: (x:int y:int) -> (result:bool)
-	opLtEqInt opcode = 31
+	opGtInt opcode = 31
 
 	// Encoding: 0x20 (width=1)
-	// Stack effect: (x:string y:string) -> (result:bool)
-	opEqString opcode = 32
+	// Stack effect: (x:int y:int) -> (result:bool)
+	opGtEqInt opcode = 32
 
 	// Encoding: 0x21 (width=1)
-	// Stack effect: (x:string y:string) -> (result:bool)
-	opNotEqString opcode = 33
+	// Stack effect: (x:int y:int) -> (result:bool)
+	opLtInt opcode = 33
 
 	// Encoding: 0x22 (width=1)
-	// Stack effect: (x:string y:string) -> (result:string)
-	opConcat opcode = 34
+	// Stack effect: (x:int y:int) -> (result:bool)
+	opLtEqInt opcode = 34
 
 	// Encoding: 0x23 (width=1)
-	// Stack effect: (x:int y:int) -> (result:int)
-	opAdd opcode = 35
+	// Stack effect: (x:string y:string) -> (result:bool)
+	opEqString opcode = 35
 
 	// Encoding: 0x24 (width=1)
-	// Stack effect: (x:int y:int) -> (result:int)
-	opSub opcode = 36
+	// Stack effect: (x:string y:string) -> (result:bool)
+	opNotEqString opcode = 36
 
 	// Encoding: 0x25 (width=1)
-	// Stack effect: (s:string from:int to:int) -> (result:string)
-	opStringSlice opcode = 37
+	// Stack effect: (x:string y:string) -> (result:string)
+	opConcat opcode = 37
 
 	// Encoding: 0x26 (width=1)
-	// Stack effect: (s:string from:int) -> (result:string)
-	opStringSliceFrom opcode = 38
+	// Stack effect: (x:int y:int) -> (result:int)
+	opAdd opcode = 38
 
 	// Encoding: 0x27 (width=1)
-	// Stack effect: (s:string to:int) -> (result:string)
-	opStringSliceTo opcode = 39
+	// Stack effect: (x:int y:int) -> (result:int)
+	opSub opcode = 39
 
 	// Encoding: 0x28 (width=1)
+	// Stack effect: (s:string from:int to:int) -> (result:string)
+	opStringSlice opcode = 40
+
+	// Encoding: 0x29 (width=1)
+	// Stack effect: (s:string from:int) -> (result:string)
+	opStringSliceFrom opcode = 41
+
+	// Encoding: 0x2a (width=1)
+	// Stack effect: (s:string to:int) -> (result:string)
+	opStringSliceTo opcode = 42
+
+	// Encoding: 0x2b (width=1)
 	// Stack effect: (s:string) -> (result:int)
-	opStringLen opcode = 40
+	opStringLen opcode = 43
 )
 
 type opcodeInfo struct {
@@ -186,6 +198,7 @@ var opcodeInfoTable = [256]opcodeInfo{
 	opPushTrue:        {width: 1},
 	opPushConst:       {width: 2},
 	opPushIntConst:    {width: 2},
+	opConvIntToIface:  {width: 1},
 	opSetLocal:        {width: 2},
 	opSetIntLocal:     {width: 2},
 	opIncLocal:        {width: 2},
@@ -194,9 +207,11 @@ var opcodeInfoTable = [256]opcodeInfo{
 	opReturnIntTop:    {width: 1},
 	opReturnFalse:     {width: 1},
 	opReturnTrue:      {width: 1},
+	opReturn:          {width: 1},
 	opJump:            {width: 3},
 	opJumpFalse:       {width: 3},
 	opJumpTrue:        {width: 3},
+	opSetVariadicLen:  {width: 2},
 	opCallNative:      {width: 3},
 	opIsNil:           {width: 1},
 	opIsNotNil:        {width: 1},

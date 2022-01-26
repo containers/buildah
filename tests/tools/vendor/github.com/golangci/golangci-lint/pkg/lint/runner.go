@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	gopackages "golang.org/x/tools/go/packages"
 
@@ -123,7 +124,7 @@ func (r *Runner) runLinterSafe(ctx context.Context, lintCtx *linter.Context,
 		// which affects to the next analysis.
 		// To avoid this issue, we clear type information from the packages.
 		// See https://github.com/golangci/golangci-lint/pull/944.
-		// Currently DoesChangeTypes is true only for `unused`.
+		// Currently, DoesChangeTypes is true only for `unused`.
 		lintCtx.ClearTypesInPackages()
 	}
 
@@ -192,20 +193,26 @@ func (r Runner) Run(ctx context.Context, linters []*linter.Config, lintCtx *lint
 	sw := timeutils.NewStopwatch("linters", r.Log)
 	defer sw.Print()
 
-	var issues []result.Issue
+	var (
+		lintErrors *multierror.Error
+		issues     []result.Issue
+	)
+
 	for _, lc := range linters {
 		lc := lc
 		sw.TrackStage(lc.Name(), func() {
 			linterIssues, err := r.runLinterSafe(ctx, lintCtx, lc)
 			if err != nil {
+				lintErrors = multierror.Append(lintErrors, fmt.Errorf("can't run linter %s: %w", lc.Linter.Name(), err))
 				r.Log.Warnf("Can't run linter %s: %v", lc.Linter.Name(), err)
+
 				return
 			}
 			issues = append(issues, linterIssues...)
 		})
 	}
 
-	return r.processLintResults(issues), nil
+	return r.processLintResults(issues), lintErrors.ErrorOrNil()
 }
 
 func (r *Runner) processIssues(issues []result.Issue, sw *timeutils.Stopwatch, statPerProcessor map[string]processorStat) []result.Issue {

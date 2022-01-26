@@ -20,19 +20,30 @@ func init() {
 	info.After = `// This is a comment`
 
 	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
-		parts := []string{
-			`^//go:generate .*$`, // e.g.: go:generate value
-			`^//[\w-]+:.*$`,      // e.g.: key: value
-			`^//nolint\b`,        // e.g.: nolint
-			`^//line /.*:\d+`,    // e.g.: line /path/to/file:123
-			`^//export \w+$`,     // e.g.: export Foo
-			`^//[/+#-]+.*$`,      // e.g.: vertical breaker /////////////
+		regexpPatterns := []*regexp.Regexp{
+			regexp.MustCompile(`^//[\w-]+:.*$`), // e.g.: key: value
 		}
-		pat := "(?m)" + strings.Join(parts, "|")
-		pragmaRE := regexp.MustCompile(pat)
+		equalPatterns := []string{
+			"//nolint",
+		}
+		parts := []string{
+			"//go:generate ",  // e.g.: go:generate value
+			"//line /",        // e.g.: line /path/to/file:123
+			"//nolint ",       // e.g.: nolint
+			"//noinspection ", // e.g.: noinspection ALL, some GoLand and friends versions
+			"//export ",       // e.g.: export Foo
+			"///",             // e.g.: vertical breaker /////////////
+			"//+",
+			"//#",
+			"//-",
+			"//!",
+		}
+
 		return astwalk.WalkerForComment(&commentFormattingChecker{
-			ctx:      ctx,
-			pragmaRE: pragmaRE,
+			ctx:            ctx,
+			partPatterns:   parts,
+			equalPatterns:  equalPatterns,
+			regexpPatterns: regexpPatterns,
 		}), nil
 	})
 }
@@ -41,19 +52,43 @@ type commentFormattingChecker struct {
 	astwalk.WalkHandler
 	ctx *linter.CheckerContext
 
-	pragmaRE *regexp.Regexp
+	partPatterns   []string
+	equalPatterns  []string
+	regexpPatterns []*regexp.Regexp
 }
 
 func (c *commentFormattingChecker) VisitComment(cg *ast.CommentGroup) {
 	if strings.HasPrefix(cg.List[0].Text, "/*") {
 		return
 	}
+
+outerLoop:
 	for _, comment := range cg.List {
-		if len(comment.Text) <= len("// ") {
+		commentLen := len(comment.Text)
+		if commentLen <= len("// ") {
 			continue
 		}
-		if c.pragmaRE.MatchString(comment.Text) {
-			continue
+
+		for _, p := range c.partPatterns {
+			if commentLen < len(p) {
+				continue
+			}
+
+			if strings.EqualFold(comment.Text[:len(p)], p) {
+				continue outerLoop
+			}
+		}
+
+		for _, p := range c.equalPatterns {
+			if strings.EqualFold(comment.Text, p) {
+				continue outerLoop
+			}
+		}
+
+		for _, p := range c.regexpPatterns {
+			if p.MatchString(comment.Text) {
+				continue outerLoop
+			}
 		}
 
 		// Make a decision based on a first comment text rune.
@@ -76,5 +111,9 @@ func (c *commentFormattingChecker) specialChar(r rune) bool {
 }
 
 func (c *commentFormattingChecker) warn(comment *ast.Comment) {
-	c.ctx.Warn(comment, "put a space between `//` and comment text")
+	c.ctx.WarnFixable(comment, linter.QuickFix{
+		From:        comment.Pos(),
+		To:          comment.End(),
+		Replacement: []byte(strings.Replace(comment.Text, "//", "// ", 1)),
+	}, "put a space between `//` and comment text")
 }

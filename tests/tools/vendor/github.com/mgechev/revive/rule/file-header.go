@@ -1,13 +1,16 @@
 package rule
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/mgechev/revive/lint"
 )
 
 // FileHeaderRule lints given else constructs.
-type FileHeaderRule struct{}
+type FileHeaderRule struct {
+	header string
+}
 
 var (
 	multiRegexp  = regexp.MustCompile("^/\\*")
@@ -16,11 +19,13 @@ var (
 
 // Apply applies the rule to given file.
 func (r *FileHeaderRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
-	checkNumberOfArguments(1, arguments, r.Name())
-
-	header, ok := arguments[0].(string)
-	if !ok {
-		panic(`invalid argument for "file-header" rule: first argument should be a string`)
+	if r.header == "" {
+		checkNumberOfArguments(1, arguments, r.Name())
+		var ok bool
+		r.header, ok = arguments[0].(string)
+		if !ok {
+			panic(fmt.Sprintf("invalid argument for \"file-header\" rule: first argument should be a string, got %T", arguments[0]))
+		}
 	}
 
 	failure := []lint.Failure{
@@ -50,7 +55,7 @@ func (r *FileHeaderRule) Apply(file *lint.File, arguments lint.Arguments) []lint
 		comment += text
 	}
 
-	regex, err := regexp.Compile(header)
+	regex, err := regexp.Compile(r.header)
 	if err != nil {
 		panic(err.Error())
 	}

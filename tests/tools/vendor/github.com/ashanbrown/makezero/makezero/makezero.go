@@ -12,6 +12,13 @@ import (
 	"regexp"
 )
 
+// a decl might include multiple var,
+// so var name with decl make final uniq obj
+type uniqDecl struct {
+	varName string
+	decl    interface{}
+}
+
 type Issue interface {
 	Details() string
 	Position() token.Position
@@ -58,7 +65,7 @@ type visitor struct {
 	comments []*ast.CommentGroup // comments to apply during this visit
 	info     *types.Info
 
-	nonZeroLengthSliceDecls map[interface{}]struct{}
+	nonZeroLengthSliceDecls map[uniqDecl]struct{}
 	fset                    *token.FileSet
 	issues                  []Issue
 }
@@ -81,7 +88,7 @@ func (l Linter) Run(fset *token.FileSet, info *types.Info, nodes ...ast.Node) ([
 			comments = file.Comments
 		}
 		visitor := visitor{
-			nonZeroLengthSliceDecls: make(map[interface{}]struct{}),
+			nonZeroLengthSliceDecls: make(map[uniqDecl]struct{}),
 			initLenMustBeZero:       l.initLenMustBeZero,
 			info:                    info,
 			fset:                    fset,
@@ -116,9 +123,9 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 				if len(right.Args) == 2 {
 					// ignore if not a slice or it has explicit zero length
 					if !v.isSlice(right.Args[0]) {
-						break
+						continue
 					} else if lit, ok := right.Args[1].(*ast.BasicLit); ok && lit.Kind == token.INT && lit.Value == "0" {
-						break
+						continue
 					}
 					if v.initLenMustBeZero && !v.hasNoLintOnSameLine(fun) {
 						v.issues = append(v.issues, MustHaveNonZeroInitLenIssue{
@@ -148,7 +155,10 @@ func (v *visitor) hasNonZeroInitialLength(ident *ast.Ident) bool {
 			ident.Name, v.fset.Position(ident.Pos()).String())
 		return false
 	}
-	_, exists := v.nonZeroLengthSliceDecls[ident.Obj.Decl]
+	_, exists := v.nonZeroLengthSliceDecls[uniqDecl{
+		varName: ident.Obj.Name,
+		decl:    ident.Obj.Decl,
+	}]
 	return exists
 }
 
@@ -160,7 +170,10 @@ func (v *visitor) recordNonZeroLengthSlices(node ast.Node) {
 	if ident.Obj == nil {
 		return
 	}
-	v.nonZeroLengthSliceDecls[ident.Obj.Decl] = struct{}{}
+	v.nonZeroLengthSliceDecls[uniqDecl{
+		varName: ident.Obj.Name,
+		decl:    ident.Obj.Decl,
+	}] = struct{}{}
 }
 
 func (v *visitor) isSlice(node ast.Node) bool {

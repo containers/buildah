@@ -80,11 +80,6 @@ func (r runner) run(pass *analysis.Pass) (interface{}, error) {
 
 	r.skipFile = map[*ast.File]bool{}
 	for _, f := range funcs {
-		if r.noImportedNetHTTP(f) {
-			// skip this
-			continue
-		}
-
 		// skip if the function is just referenced
 		var isreffunc bool
 		for i := 0; i < f.Signature.Results().Len(); i++ {

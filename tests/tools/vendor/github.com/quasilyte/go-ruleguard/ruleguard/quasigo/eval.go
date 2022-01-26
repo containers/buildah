@@ -99,6 +99,10 @@ func eval(env *EvalEnv, fn *Func, args []interface{}) CallResult {
 			stack.PushInt(fn.intConstants[id])
 			pc += 2
 
+		case opConvIntToIface:
+			stack.Push(stack.PopInt())
+			pc++
+
 		case opPushTrue:
 			stack.Push(true)
 			pc++
@@ -114,7 +118,12 @@ func eval(env *EvalEnv, fn *Func, args []interface{}) CallResult {
 			return CallResult{value: stack.top()}
 		case opReturnIntTop:
 			return CallResult{scalarValue: uint64(stack.topInt())}
+		case opReturn:
+			return CallResult{}
 
+		case opSetVariadicLen:
+			stack.variadicLen = int(code[pc+1])
+			pc += 2
 		case opCallNative:
 			id := decode16(code, pc+1)
 			fn := env.nativeFuncs[id].mappedFunc

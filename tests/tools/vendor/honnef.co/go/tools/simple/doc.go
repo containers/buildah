@@ -248,8 +248,7 @@ After:
 	"S1019": {
 		Title: "Simplify `make` call by omitting redundant arguments",
 		Text: `The \'make\' function has default values for the length and capacity
-arguments. For channels and maps, the length defaults to zero.
-Additionally, for slices the capacity defaults to the length.`,
+arguments. For channels, the length defaults to zero, and for slices, the capacity defaults to the length.`,
 		Since: "2017.1",
 	},
 

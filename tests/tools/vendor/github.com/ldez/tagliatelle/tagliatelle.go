@@ -97,8 +97,7 @@ func analyze(pass *analysis.Pass, config Config, n *ast.StructType, field *ast.F
 		}
 
 		if value == "" {
-			// skip empty value, it can change in the future
-			continue
+			value = fieldName
 		}
 
 		converter, err := getConverter(convName)

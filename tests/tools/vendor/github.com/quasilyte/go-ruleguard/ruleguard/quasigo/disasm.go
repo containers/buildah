@@ -47,6 +47,8 @@ func disasm(env *Env, fn *Func) string {
 			index := int(code[pc+1])
 			arg = index
 			comment = dbg.localNames[index]
+		case opSetVariadicLen:
+			arg = int(code[pc+1])
 		case opPushConst:
 			arg = int(code[pc+1])
 			comment = fmt.Sprintf("value=%#v", fn.constants[code[pc+1]])

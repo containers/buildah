@@ -8,24 +8,29 @@ import (
 )
 
 // FunctionResultsLimitRule lints given else constructs.
-type FunctionResultsLimitRule struct{}
+type FunctionResultsLimitRule struct {
+	max int
+}
 
 // Apply applies the rule to given file.
 func (r *FunctionResultsLimitRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
-	checkNumberOfArguments(1, arguments, r.Name())
+	if r.max == 0 {
+		checkNumberOfArguments(1, arguments, r.Name())
 
-	max, ok := arguments[0].(int64) // Alt. non panicking version
-	if !ok {
-		panic(fmt.Sprintf(`invalid value passed as return results number to the "function-result-limit" rule; need int64 but got %T`, arguments[0]))
-	}
-	if max < 0 {
-		panic(`the value passed as return results number to the "function-result-limit" rule cannot be negative`)
+		max, ok := arguments[0].(int64) // Alt. non panicking version
+		if !ok {
+			panic(fmt.Sprintf(`invalid value passed as return results number to the "function-result-limit" rule; need int64 but got %T`, arguments[0]))
+		}
+		if max < 0 {
+			panic(`the value passed as return results number to the "function-result-limit" rule cannot be negative`)
+		}
+		r.max = int(max)
 	}
 
 	var failures []lint.Failure
 
 	walker := lintFunctionResultsNum{
-		max: int(max),
+		max: r.max,
 		onFailure: func(failure lint.Failure) {
 			failures = append(failures, failure)
 		},

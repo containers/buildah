@@ -8,18 +8,21 @@ import (
 )
 
 // DeferRule lints unused params in functions.
-type DeferRule struct{}
+type DeferRule struct {
+	allow map[string]bool
+}
 
 // Apply applies the rule to given file.
 func (r *DeferRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
-	allow := r.allowFromArgs(arguments)
-
+	if r.allow == nil {
+		r.allow = r.allowFromArgs(arguments)
+	}
 	var failures []lint.Failure
 	onFailure := func(failure lint.Failure) {
 		failures = append(failures, failure)
 	}
 
-	w := lintDeferRule{onFailure: onFailure, allow: allow}
+	w := lintDeferRule{onFailure: onFailure, allow: r.allow}
 
 	ast.Walk(w, file.AST)
 
@@ -85,7 +88,7 @@ func (w lintDeferRule) Visit(node ast.Node) ast.Visitor {
 			w.newFailure("return in a defer function has no effect", n, 1.0, "logic", "return")
 		}
 	case *ast.CallExpr:
-		if isIdent(n.Fun, "recover") && !w.inADefer {
+		if !w.inADefer && isIdent(n.Fun, "recover") {
 			// confidence is not 1 because recover can be in a function that is deferred elsewhere
 			w.newFailure("recover must be called inside a deferred function", n, 0.8, "logic", "recover")
 		}

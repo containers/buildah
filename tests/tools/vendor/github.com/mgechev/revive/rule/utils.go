@@ -92,6 +92,7 @@ func validType(T types.Type) bool {
 		!strings.Contains(T.String(), "invalid type") // good but not foolproof
 }
 
+// isPkgDot checks if the expression is <pkg>.<name>
 func isPkgDot(expr ast.Expr, pkg, name string) bool {
 	sel, ok := expr.(*ast.SelectorExpr)
 	return ok && isIdent(sel.X, pkg) && isIdent(sel.Sel, name)
@@ -111,7 +112,7 @@ func srcLine(src []byte, p token.Position) string {
 
 // pick yields a list of nodes by picking them from a sub-ast with root node n.
 // Nodes are selected by applying the fselect function
-// f function is applied to each selected node before inseting it in the final result.
+// f function is applied to each selected node before inserting it in the final result.
 // If f==nil then it defaults to the identity function (ie it returns the node itself)
 func pick(n ast.Node, fselect func(n ast.Node) bool, f func(n ast.Node) []ast.Node) []ast.Node {
 	var result []ast.Node
@@ -129,14 +130,6 @@ func pick(n ast.Node, fselect func(n ast.Node) bool, f func(n ast.Node) []ast.No
 	}
 	p := picker{fselect: fselect, onSelect: onSelect}
 	ast.Walk(p, n)
-	return result
-}
-
-func pickFromExpList(l []ast.Expr, fselect func(n ast.Node) bool, f func(n ast.Node) []ast.Node) []ast.Node {
-	result := make([]ast.Node, 0)
-	for _, e := range l {
-		result = append(result, pick(e, fselect, f)...)
-	}
 	return result
 }
 

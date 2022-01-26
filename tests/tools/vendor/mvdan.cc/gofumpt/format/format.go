@@ -13,6 +13,7 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"os"
 	"reflect"
 	"regexp"
 	"sort"
@@ -24,6 +25,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/mod/semver"
 	"golang.org/x/tools/go/ast/astutil"
+
+	"mvdan.cc/gofumpt/internal/version"
 )
 
 type Options struct {
@@ -47,6 +50,11 @@ type Options struct {
 // source file.
 func Source(src []byte, opts Options) ([]byte, error) {
 	fset := token.NewFileSet()
+
+	// Ensure our parsed files never start with base 1,
+	// to ensure that using token.NoPos+1 will panic.
+	fset.AddFile("gofumpt_base.go", 1, 10)
+
 	file, err := parser.ParseFile(fset, "", src, parser.ParseComments)
 	if err != nil {
 		return nil, err
@@ -61,10 +69,25 @@ func Source(src []byte, opts Options) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+var rxCodeGenerated = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
+
 // File modifies a file and fset in place to follow gofumpt's format. The
 // changes might include manipulating adding or removing newlines in fset,
 // modifying the position of nodes, or modifying literal values.
 func File(fset *token.FileSet, file *ast.File, opts Options) {
+	simplify(file)
+
+	for _, cg := range file.Comments {
+		if cg.Pos() > file.Package {
+			break
+		}
+		for _, line := range cg.List {
+			if rxCodeGenerated.MatchString(line.Text) {
+				return
+			}
+		}
+	}
+
 	if opts.LangVersion == "" {
 		opts.LangVersion = "v1"
 	} else if opts.LangVersion[0] != 'v' {
@@ -78,16 +101,55 @@ func File(fset *token.FileSet, file *ast.File, opts Options) {
 		fset:    fset,
 		astFile: file,
 		Options: opts,
+
+		minSplitFactor: 0.4,
 	}
+	var topFuncType *ast.FuncType
 	pre := func(c *astutil.Cursor) bool {
 		f.applyPre(c)
-		if _, ok := c.Node().(*ast.BlockStmt); ok {
+		switch node := c.Node().(type) {
+		case *ast.FuncDecl:
+			topFuncType = node.Type
+		case *ast.FieldList:
+			ft, _ := c.Parent().(*ast.FuncType)
+			if ft == nil || ft != topFuncType {
+				break
+			}
+
+			// For top-level function declaration parameters,
+			// require the line split to be longer.
+			// This avoids func lines which are a bit too short,
+			// and allows func lines which are a bit longer.
+			//
+			// We don't just increase longLineLimit,
+			// as we still want splits at around the same place.
+			if ft.Params == node {
+				f.minSplitFactor = 0.6
+			}
+
+			// Don't split result parameters into multiple lines,
+			// as that can be easily confused for input parameters.
+			// TODO: consider the same for single-line func calls in
+			// if statements.
+			// TODO: perhaps just use a higher factor, like 0.8.
+			if ft.Results == node {
+				f.minSplitFactor = 1000
+			}
+		case *ast.BlockStmt:
 			f.blockLevel++
 		}
 		return true
 	}
 	post := func(c *astutil.Cursor) bool {
-		if _, ok := c.Node().(*ast.BlockStmt); ok {
+		f.applyPost(c)
+
+		// Reset minSplitFactor and blockLevel.
+		switch node := c.Node().(type) {
+		case *ast.FuncType:
+			if node == topFuncType {
+				f.minSplitFactor = 0.4
+			}
+		case *ast.BlockStmt:
 			f.blockLevel--
 		}
 		return true
@@ -95,9 +157,13 @@ func File(fset *token.FileSet, file *ast.File, opts Options) {
 	astutil.Apply(file, pre, post)
 }
 
-// Multiline nodes which could fit on a single line under this many
-// bytes may be collapsed onto a single line.
+// Multiline nodes which could easily fit on a single line under this many bytes
+// may be collapsed onto a single line.
 const shortLineLimit = 60
+
+// Single-line nodes which take over this many bytes, and could easily be split
+// into two lines of at least its minSplitFactor factor, may be split.
+const longLineLimit = 100
 
 var rxOctalInteger = regexp.MustCompile(`\A0[0-7_]+\z`)
 
@@ -109,7 +175,12 @@ type fumpter struct {
 
 	astFile *ast.File
 
+	// blockLevel is the number of indentation blocks we're currently under.
+	// It is used to approximate the levels of indentation a line will end
+	// up with.
 	blockLevel int
+
+	minSplitFactor float64
 }
 
 func (f *fumpter) commentsBetween(p1, p2 token.Pos) []*ast.CommentGroup {
@@ -210,50 +281,57 @@ func (f *fumpter) printLength(node ast.Node) int {
 	return int(count) + (f.blockLevel * 8)
 }
 
+func (f *fumpter) tabbedColumn(p token.Pos) int {
+	col := f.Position(p).Column
+
+	// Like in printLength, add an approximation of the indentation level.
+	// Since any existing tabs were already counted as one column, multiply
+	// the level by 7.
+	return col + (f.blockLevel * 7)
+}
+
+func (f *fumpter) lineEnd(line int) token.Pos {
+	if line < 1 {
+		panic("illegal line number")
+	}
+	total := f.LineCount()
+	if line > total {
+		panic("illegal line number")
+	}
+	if line == total {
+		return f.astFile.End()
+	}
+	return f.LineStart(line+1) - 1
+}
+
 // rxCommentDirective covers all common Go comment directives:
 //
-//   //go:         | standard Go directives, like go:noinline
-//   //some-words: | similar to the syntax above, like lint:ignore or go-sumtype:decl
-//   //line        | inserted line information for cmd/compile
-//   //export      | to mark cgo funcs for exporting
-//   //extern      | C function declarations for gccgo
-//   //sys(nb)?    | syscall function wrapper prototypes
-//   //nolint      | nolint directive for golangci
+//   //go:          | standard Go directives, like go:noinline
+//   //some-words:  | similar to the syntax above, like lint:ignore or go-sumtype:decl
+//   //line         | inserted line information for cmd/compile
+//   //export       | to mark cgo funcs for exporting
+//   //extern       | C function declarations for gccgo
+//   //sys(nb)?     | syscall function wrapper prototypes
+//   //nolint       | nolint directive for golangci
+//   //noinspection | noinspection directive for GoLand and friends
 //
 // Note that the "some-words:" matching expects a letter afterward, such as
 // "go:generate", to prevent matching false positives like "https://site".
-var rxCommentDirective = regexp.MustCompile(`^([a-z-]+:[a-z]+|line\b|export\b|extern\b|sys(nb)?\b|nolint\b)`)
+var rxCommentDirective = regexp.MustCompile(`^([a-z-]+:[a-z]+|line\b|export\b|extern\b|sys(nb)?\b|no(lint|inspection)\b)`)
 
-// visit takes either an ast.Node or a []ast.Stmt.
 func (f *fumpter) applyPre(c *astutil.Cursor) {
+	f.splitLongLine(c)
+
 	switch node := c.Node().(type) {
 	case *ast.File:
-		var lastMulti bool
-		var lastEnd token.Pos
-		for _, decl := range node.Decls {
-			pos := decl.Pos()
-			comments := f.commentsBetween(lastEnd, pos)
-			if len(comments) > 0 {
-				pos = comments[0].Pos()
-			}
-
-			// multiline top-level declarations should be separated
-			multi := f.Line(pos) < f.Line(decl.End())
-			if multi && lastMulti && f.Line(lastEnd)+1 == f.Line(pos) {
-				f.addNewline(lastEnd)
-			}
-
-			lastMulti = multi
-			lastEnd = decl.End()
-		}
-
-		// Join contiguous lone var/const/import lines; abort if there
-		// are empty lines or comments in between.
+		// Join contiguous lone var/const/import lines.
+		// Abort if there are empty lines or comments in between,
+		// including a leading comment, which could be a directive.
 		newDecls := make([]ast.Decl, 0, len(node.Decls))
 		for i := 0; i < len(node.Decls); {
 			newDecls = append(newDecls, node.Decls[i])
 			start, ok := node.Decls[i].(*ast.GenDecl)
-			if !ok || isCgoImport(start) {
+			if !ok || isCgoImport(start) || start.Doc != nil {
 				i++
 				continue
 			}
@@ -268,6 +346,10 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 				if c := f.inlineComment(cont.End()); c != nil {
 					// don't move an inline comment outside
 					start.Rparen = c.End()
+				} else {
+					// so the code below treats the joined
+					// decl group as multi-line
+					start.Rparen = cont.End()
 				}
 				lastPos = cont.Pos()
 				i++
@@ -275,10 +357,43 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 		}
 		node.Decls = newDecls
 
+		// Multiline top-level declarations should be separated by an
+		// empty line.
+		// Do this after the joining of lone declarations above,
+		// as joining single-line declarations makes then multi-line.
+		var lastMulti bool
+		var lastEnd token.Pos
+		for _, decl := range node.Decls {
+			pos := decl.Pos()
+			comments := f.commentsBetween(lastEnd, pos)
+			if len(comments) > 0 {
+				pos = comments[0].Pos()
+			}
+
+			multi := f.Line(pos) < f.Line(decl.End())
+			if multi && lastMulti && f.Line(lastEnd)+1 == f.Line(pos) {
+				f.addNewline(lastEnd)
+			}
+
+			lastMulti = multi
+			lastEnd = decl.End()
+		}
+
 		// Comments aren't nodes, so they're not walked by default.
 	groupLoop:
 		for _, group := range node.Comments {
 			for _, comment := range group.List {
+				if comment.Text == "//gofumpt:diagnose" || strings.HasPrefix(comment.Text, "//gofumpt:diagnose ") {
+					slc := []string{
+						"//gofumpt:diagnose",
+						version.String(),
+						"-lang=" + f.LangVersion,
+					}
+					if f.ExtraRules {
+						slc = append(slc, "-extra")
+					}
+					comment.Text = strings.Join(slc, " ")
+				}
 				body := strings.TrimPrefix(comment.Text, "//")
 				if body == comment.Text {
 					// /*-style comment
@@ -300,7 +415,7 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 				body := strings.TrimPrefix(comment.Text, "//")
 				r, _ := utf8.DecodeRuneInString(body)
 				if !unicode.IsSpace(r) {
-					comment.Text = "// " + strings.TrimPrefix(comment.Text, "//")
+					comment.Text = "// " + body
 				}
 			}
 		}
@@ -355,6 +470,31 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 			node.Rparen = token.NoPos
 		}
 
+	case *ast.InterfaceType:
+		var prev *ast.Field
+		for _, method := range node.Methods.List {
+			switch {
+			case prev == nil:
+				removeToPos := method.Pos()
+				if comments := f.commentsBetween(node.Interface, method.Pos()); len(comments) > 0 {
+					// only remove leading line upto the first comment
+					removeToPos = comments[0].Pos()
+				}
+				// remove leading lines if they exist
+				f.removeLines(f.Line(node.Interface)+1, f.Line(removeToPos))
+
+			case len(f.commentsBetween(prev.End(), method.Pos())) > 0:
+				// comments in between; leave newlines alone
+			case len(prev.Names) != len(method.Names):
+				// don't group type unions with methods
+			case len(prev.Names) == 1 && token.IsExported(prev.Names[0].Name) != token.IsExported(method.Names[0].Name):
+				// don't group exported and unexported methods together
+			default:
+				f.removeLinesBetween(prev.End(), method.Pos())
+			}
+			prev = method
+		}
+
 	case *ast.BlockStmt:
 		f.stmts(node.List)
 		comments := f.commentsBetween(node.Lbrace, node.Rbrace)
@@ -404,22 +544,104 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 			return
 		}
 		if sign != nil {
-			var lastParam *ast.Field
-			if l := sign.Results; l != nil && len(l.List) > 0 {
-				lastParam = l.List[len(l.List)-1]
-			} else if l := sign.Params; l != nil && len(l.List) > 0 {
-				lastParam = l.List[len(l.List)-1]
-			}
 			endLine := f.Line(sign.End())
-			if lastParam != nil && f.Line(sign.Pos()) != endLine && f.Line(lastParam.Pos()) == endLine {
+
+			paramClosingIsFirstCharOnEndLine := sign.Params != nil &&
+				f.Position(sign.Params.Closing).Column == 1 &&
+				f.Line(sign.Params.Closing) == endLine
+
+			resultClosingIsFirstCharOnEndLine := sign.Results != nil &&
+				f.Position(sign.Results.Closing).Column == 1 &&
+				f.Line(sign.Results.Closing) == endLine
+
+			endLineIsIndented := !(paramClosingIsFirstCharOnEndLine || resultClosingIsFirstCharOnEndLine)
+
+			if f.Line(sign.Pos()) != endLine && endLineIsIndented {
+				// is there an empty line?
+				isThereAnEmptyLine := endLine+1 != f.Line(bodyPos)
+
 				// The body is preceded by a multi-line function
-				// signature, and the empty line helps readability.
-				return
+				// signature, we move the `) {` to avoid the empty line.
+				switch {
+				case isThereAnEmptyLine && sign.Results != nil &&
+					!resultClosingIsFirstCharOnEndLine &&
+					sign.Results.Closing.IsValid(): // there may be no ")"
+					sign.Results.Closing += 1
+					f.addNewline(sign.Results.Closing)
+
+				case isThereAnEmptyLine && sign.Params != nil &&
+					!paramClosingIsFirstCharOnEndLine:
+					sign.Params.Closing += 1
+					f.addNewline(sign.Params.Closing)
+				}
 			}
 		}
 
 		f.removeLinesBetween(node.Lbrace, bodyPos)
 
+	case *ast.CaseClause:
+		f.stmts(node.Body)
+		openLine := f.Line(node.Case)
+		closeLine := f.Line(node.Colon)
+		if openLine == closeLine {
+			// nothing to do
+			break
+		}
+		if len(f.commentsBetween(node.Case, node.Colon)) > 0 {
+			// don't move comments
+			break
+		}
+		if f.printLength(node) > shortLineLimit {
+			// too long to collapse
+			break
+		}
+		f.removeLines(openLine, closeLine)
+
+	case *ast.CommClause:
+		f.stmts(node.Body)
+
+	case *ast.FieldList:
+		if node.NumFields() == 0 && len(f.commentsBetween(node.Pos(), node.End())) == 0 {
+			// Empty field lists should not contain a newline.
+			// Do not join the two lines if the first has an inline
+			// comment, as that can result in broken formatting.
+			openLine := f.Line(node.Pos())
+			closeLine := f.Line(node.End())
+			f.removeLines(openLine, closeLine)
+		}
+
+		// Merging adjacent fields (e.g. parameters) is disabled by default.
+		if !f.ExtraRules {
+			break
+		}
+		switch c.Parent().(type) {
+		case *ast.FuncDecl, *ast.FuncType, *ast.InterfaceType:
+			node.List = f.mergeAdjacentFields(node.List)
+			c.Replace(node)
+		case *ast.StructType:
+			// Do not merge adjacent fields in structs.
+		}
+
+	case *ast.BasicLit:
+		// Octal number literals were introduced in 1.13.
+		if semver.Compare(f.LangVersion, "v1.13") >= 0 {
+			if node.Kind == token.INT && rxOctalInteger.MatchString(node.Value) {
+				node.Value = "0o" + node.Value[1:]
+				c.Replace(node)
+			}
+		}
+
+	case *ast.AssignStmt:
+		// Only remove lines between the assignment token and the first right-hand side expression
+		f.removeLines(f.Line(node.TokPos), f.Line(node.Rhs[0].Pos()))
+	}
+}
+
+func (f *fumpter) applyPost(c *astutil.Cursor) {
+	switch node := c.Node().(type) {
+	// Adding newlines to composite literals happens as a "post" step, so
+	// that we can take into account whether "pre" steps added any newlines
+	// that would affect us here.
 	case *ast.CompositeLit:
 		if len(node.Elts) == 0 {
 			// doesn't have elements
@@ -434,16 +656,26 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 
 		newlineAroundElems := false
 		newlineBetweenElems := false
+		lastEnd := node.Lbrace
 		lastLine := openLine
 		for i, elem := range node.Elts {
-			if f.Line(elem.Pos()) > lastLine {
+			pos := elem.Pos()
+			comments := f.commentsBetween(lastEnd, pos)
+			if len(comments) > 0 {
+				pos = comments[0].Pos()
+			}
+			if curLine := f.Line(pos); curLine > lastLine {
 				if i == 0 {
 					newlineAroundElems = true
+
+					// remove leading lines if they exist
+					f.removeLines(openLine+1, curLine)
 				} else {
 					newlineBetweenElems = true
 				}
 			}
-			lastLine = f.Line(elem.End())
+			lastEnd = elem.End()
+			lastLine = f.Line(lastEnd)
 		}
 		if closeLine > lastLine {
 			newlineAroundElems = true
@@ -484,58 +716,100 @@ func (f *fumpter) applyPre(c *astutil.Cursor) {
 				f.addNewline(elem1.End())
 			}
 		}
+	}
+}
 
-	case *ast.CaseClause:
-		f.stmts(node.Body)
-		openLine := f.Line(node.Case)
-		closeLine := f.Line(node.Colon)
-		if openLine == closeLine {
-			// nothing to do
-			break
-		}
-		if len(f.commentsBetween(node.Case, node.Colon)) > 0 {
-			// don't move comments
-			break
-		}
-		if f.printLength(node) > shortLineLimit {
-			// too long to collapse
-			break
-		}
-		f.removeLines(openLine, closeLine)
+func (f *fumpter) splitLongLine(c *astutil.Cursor) {
+	if os.Getenv("GOFUMPT_SPLIT_LONG_LINES") != "on" {
+		// By default, this feature is turned off.
+		// Turn it on by setting GOFUMPT_SPLIT_LONG_LINES=on.
+		return
+	}
+	node := c.Node()
+	if node == nil {
+		return
+	}
 
-	case *ast.CommClause:
-		f.stmts(node.Body)
+	newlinePos := node.Pos()
+	start := f.Position(node.Pos())
+	end := f.Position(node.End())
 
-	case *ast.FieldList:
-		if node.NumFields() == 0 && f.inlineComment(node.Pos()) == nil {
-			// Empty field lists should not contain a newline.
-			// Do not join the two lines if the first has an inline
-			// comment, as that can result in broken formatting.
-			openLine := f.Line(node.Pos())
-			closeLine := f.Line(node.End())
-			f.removeLines(openLine, closeLine)
-		}
+	// If the node is already split in multiple lines, there's nothing to do.
+	if start.Line != end.Line {
+		return
+	}
 
-		// Merging adjacent fields (e.g. parameters) is disabled by default.
-		if !f.ExtraRules {
-			break
-		}
-		switch c.Parent().(type) {
-		case *ast.FuncDecl, *ast.FuncType, *ast.InterfaceType:
-			node.List = f.mergeAdjacentFields(node.List)
-			c.Replace(node)
-		case *ast.StructType:
-			// Do not merge adjacent fields in structs.
-		}
+	// Only split at the start of the current node if it's part of a list.
+	if _, ok := c.Parent().(*ast.BinaryExpr); ok {
+		// Chains of binary expressions are considered lists, too.
+	} else if c.Index() >= 0 {
+		// For the rest of the nodes, we're in a list if c.Index() >= 0.
+	} else {
+		return
+	}
 
-	case *ast.BasicLit:
-		// Octal number literals were introduced in 1.13.
-		if semver.Compare(f.LangVersion, "v1.13") >= 0 {
-			if node.Kind == token.INT && rxOctalInteger.MatchString(node.Value) {
-				node.Value = "0o" + node.Value[1:]
-				c.Replace(node)
-			}
-		}
+	// Like in printLength, add an approximation of the indentation level.
+	// Since any existing tabs were already counted as one column, multiply
+	// the level by 7.
+	startCol := start.Column + f.blockLevel*7
+	endCol := end.Column + f.blockLevel*7
+
+	// If this is a composite literal,
+	// and we were going to insert a newline before the entire literal,
+	// insert the newline before the first element instead.
+	// Since we'll add a newline after the last element too,
+	// this format is generally going to be nicer.
+	if comp := isComposite(node); comp != nil && len(comp.Elts) > 0 {
+		newlinePos = comp.Elts[0].Pos()
+	}
+
+	// If this is a function call,
+	// and we were to add a newline before the first argument,
+	// prefer adding the newline before the entire call.
+	// End-of-line parentheses aren't very nice, as we don't put their
+	// counterparts at the start of a line too.
+	// We do this by using the average of the two starting positions.
+	if call, _ := node.(*ast.CallExpr); call != nil && len(call.Args) > 0 {
+		first := f.Position(call.Args[0].Pos())
+		startCol += (first.Column - start.Column) / 2
+	}
+
+	// If the start position is too short, we definitely won't split the line.
+	if startCol <= shortLineLimit {
+		return
+	}
+
+	lineEnd := f.Position(f.lineEnd(start.Line))
+
+	// firstLength and secondLength are the split line lengths, excluding
+	// indentation.
+	firstLength := start.Column - f.blockLevel
+	if firstLength < 0 {
+		panic("negative length")
+	}
+	secondLength := lineEnd.Column - start.Column
+	if secondLength < 0 {
+		panic("negative length")
+	}
+
+	// If the line ends past the long line limit,
+	// and both splits are estimated to take at least minSplitFactor of the limit,
+	// then split the line.
+	minSplitLength := int(f.minSplitFactor * longLineLimit)
+	if endCol > longLineLimit &&
+		firstLength >= minSplitLength && secondLength >= minSplitLength {
+		f.addNewline(newlinePos)
+	}
+}
+
+func isComposite(node ast.Node) *ast.CompositeLit {
+	switch node := node.(type) {
+	case *ast.CompositeLit:
+		return node
+	case *ast.UnaryExpr:
+		return isComposite(node.X) // e.g. &T{}
+	default:
+		return nil
 	}
 }
 
@@ -571,13 +845,21 @@ func identEqual(expr ast.Expr, name string) bool {
 //
 //   import "C"
 //
+// or the equivalent:
+//
+//   import `C`
+//
 // Note that parentheses do not affect the result.
 func isCgoImport(decl *ast.GenDecl) bool {
 	if decl.Tok != token.IMPORT || len(decl.Specs) != 1 {
 		return false
 	}
 	spec := decl.Specs[0].(*ast.ImportSpec)
-	return spec.Path.Value == `"C"`
+	v, err := strconv.Unquote(spec.Path.Value)
+	if err != nil {
+		panic(err) // should never error
+	}
+	return v == "C"
 }
 
 // joinStdImports ensures that all standard library imports are together and at
@@ -653,7 +935,7 @@ func (f *fumpter) mergeAdjacentFields(fields []*ast.Field) []*ast.Field {
 
 	// Otherwise, iterate over adjacent pairs of fields, merging if possible,
 	// and mutating fields. Elements of fields may be mutated (if merged with
-	// following fields), discarded (if merged with a preceeding field), or left
+	// following fields), discarded (if merged with a preceding field), or left
 	// unchanged.
 	i := 0
 	for j := 1; j < len(fields); j++ {

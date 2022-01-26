@@ -7,12 +7,12 @@ import (
 	"go/types"
 	"path/filepath"
 
-	"github.com/quasilyte/go-ruleguard/internal/gogrep"
 	"github.com/quasilyte/go-ruleguard/internal/xtypes"
-	"github.com/quasilyte/go-ruleguard/nodetag"
 	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo"
 	"github.com/quasilyte/go-ruleguard/ruleguard/textmatch"
 	"github.com/quasilyte/go-ruleguard/ruleguard/typematch"
+	"github.com/quasilyte/gogrep"
+	"github.com/quasilyte/gogrep/nodetag"
 )
 
 const filterSuccess = matchFilterResult("")
@@ -189,6 +189,63 @@ func makeTypeImplementsFilter(src, varname string, iface *types.Interface) filte
 	}
 }
 
+func makeTypeHasPointersFilter(src, varname string) filterFunc {
+	return func(params *filterParams) matchFilterResult {
+		typ := params.typeofNode(params.subExpr(varname))
+		if typeHasPointers(typ) {
+			return filterSuccess
+		}
+		return filterFailure(src)
+	}
+}
+
+func makeTypeIsIntUintFilter(src, varname string, underlying bool, kind types.BasicKind) filterFunc {
+	return func(params *filterParams) matchFilterResult {
+		typ := params.typeofNode(params.subExpr(varname))
+		if underlying {
+			typ = typ.Underlying()
+		}
+		if basicType, ok := typ.(*types.Basic); ok {
+			first := kind
+			last := kind + 4
+			if basicType.Kind() >= first && basicType.Kind() <= last {
+				return filterSuccess
+			}
+		}
+		return filterFailure(src)
+	}
+}
+
+func makeTypeIsSignedFilter(src, varname string, underlying bool) filterFunc {
+	return func(params *filterParams) matchFilterResult {
+		typ := params.typeofNode(params.subExpr(varname))
+		if underlying {
+			typ = typ.Underlying()
+		}
+		if basicType, ok := typ.(*types.Basic); ok {
+			if basicType.Info()&types.IsInteger != 0 && basicType.Info()&types.IsUnsigned == 0 {
+				return filterSuccess
+			}
+		}
+		return filterFailure(src)
+	}
+}
+
+func makeTypeOfKindFilter(src, varname string, underlying bool, kind types.BasicInfo) filterFunc {
+	return func(params *filterParams) matchFilterResult {
+		typ := params.typeofNode(params.subExpr(varname))
+		if underlying {
+			typ = typ.Underlying()
+		}
+		if basicType, ok := typ.(*types.Basic); ok {
+			if basicType.Info()&kind != 0 {
+				return filterSuccess
+			}
+		}
+		return filterFailure(src)
+	}
+}
+
 func makeTypeIsFilter(src, varname string, underlying bool, pat *typematch.Pattern) filterFunc {
 	if underlying {
 		return func(params *filterParams) matchFilterResult {
@@ -197,7 +254,7 @@ func makeTypeIsFilter(src, varname string, underlying bool, pat *typematch.Patte
 					return pat.MatchIdentical(params.typeofNode(x).Underlying())
 				})
 			}
-			typ := params.typeofNode(params.subExpr(varname)).Underlying()
+			typ := params.typeofNode(params.subNode(varname)).Underlying()
 			if pat.MatchIdentical(typ) {
 				return filterSuccess
 			}
@@ -211,7 +268,7 @@ func makeTypeIsFilter(src, varname string, underlying bool, pat *typematch.Patte
 				return pat.MatchIdentical(params.typeofNode(x))
 			})
 		}
-		typ := params.typeofNode(params.subExpr(varname))
+		typ := params.typeofNode(params.subNode(varname))
 		if pat.MatchIdentical(typ) {
 			return filterSuccess
 		}
@@ -483,4 +540,32 @@ func nodeIs(n ast.Node, tag nodetag.Value) bool {
 		matched = (tag == nodetag.FromNode(n))
 	}
 	return matched
+}
+
+func typeHasPointers(typ types.Type) bool {
+	switch typ := typ.(type) {
+	case *types.Basic:
+		switch typ.Kind() {
+		case types.UnsafePointer, types.String, types.UntypedNil, types.UntypedString:
+			return true
+		}
+		return false
+
+	case *types.Named:
+		return typeHasPointers(typ.Underlying())
+
+	case *types.Struct:
+		for i := 0; i < typ.NumFields(); i++ {
+			if typeHasPointers(typ.Field(i).Type()) {
+				return true
+			}
+		}
+		return false
+
+	case *types.Array:
+		return typeHasPointers(typ.Elem())
+
+	default:
+		return true
+	}
 }

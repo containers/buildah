@@ -48,6 +48,7 @@ linters-settings:
 linters:
   enable-all: true
   disable:
+    - golint # deprecated
     - maligned # deprecated
     - interfacer # deprecated
     - scopelint # deprecated
@@ -69,6 +70,8 @@ linters:
     - prealloc
     - ifshort
     - forcetypeassert
+    - varnamelen
+    - nilnil
 
 issues:
   exclude-use-default: false

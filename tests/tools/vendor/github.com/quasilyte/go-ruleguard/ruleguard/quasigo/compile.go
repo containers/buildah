@@ -11,6 +11,8 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
+var voidType = &types.Tuple{}
+
 func compile(ctx *CompileContext, fn *ast.FuncDecl) (compiled *Func, err error) {
 	defer func() {
 		if err != nil {
@@ -74,10 +76,14 @@ type compileError string
 func (e compileError) Error() string { return string(e) }
 
 func (cl *compiler) compileFunc(fn *ast.FuncDecl) *Func {
-	if cl.fnType.Results().Len() != 1 {
-		panic(cl.errorf(fn.Name, "only functions with a single non-void results are supported"))
+	switch cl.fnType.Results().Len() {
+	case 0:
+		cl.retType = voidType
+	case 1:
+		cl.retType = cl.fnType.Results().At(0).Type()
+	default:
+		panic(cl.errorf(fn.Name, "multi-result functions are not supported"))
 	}
-	cl.retType = cl.fnType.Results().At(0).Type()
 
 	if !cl.isSupportedType(cl.retType) {
 		panic(cl.errorUnsupportedType(fn.Name, cl.retType, "function result"))
@@ -100,6 +106,10 @@ func (cl *compiler) compileFunc(fn *ast.FuncDecl) *Func {
 	}
 
 	cl.compileStmt(fn.Body)
+	if cl.retType == voidType {
+		cl.emit(opReturn)
+	}
+
 	compiled := &Func{
 		code:         cl.code,
 		constants:    cl.constants,
@@ -136,6 +146,9 @@ func (cl *compiler) compileStmt(stmt ast.Stmt) {
 	case *ast.BranchStmt:
 		cl.compileBranchStmt(stmt)
 
+	case *ast.ExprStmt:
+		cl.compileExprStmt(stmt)
+
 	case *ast.BlockStmt:
 		for i := range stmt.List {
 			cl.compileStmt(stmt.List[i])
@@ -170,6 +183,19 @@ func (cl *compiler) compileBranchStmt(branch *ast.BranchStmt) {
 	default:
 		panic(cl.errorf(branch, "can't compile %s yet", branch.Tok))
 	}
+}
+
+func (cl *compiler) compileExprStmt(stmt *ast.ExprStmt) {
+	if call, ok := stmt.X.(*ast.CallExpr); ok {
+		sig := cl.ctx.Types.TypeOf(call.Fun).(*types.Signature)
+		if sig.Results() != nil {
+			panic(cl.errorf(call, "only void funcs can be used in stmt context"))
+		}
+		cl.compileCallExpr(call)
+		return
+	}
+
+	panic(cl.errorf(stmt.X, "can't compile this expr stmt yet: %T", stmt.X))
 }
 
 func (cl *compiler) compileForStmt(stmt *ast.ForStmt) {
@@ -232,38 +258,43 @@ func (cl *compiler) compileIfStmt(stmt *ast.IfStmt) {
 }
 
 func (cl *compiler) compileAssignStmt(assign *ast.AssignStmt) {
-	if len(assign.Lhs) != 1 {
-		panic(cl.errorf(assign, "only single left operand is allowed in assignments"))
-	}
 	if len(assign.Rhs) != 1 {
 		panic(cl.errorf(assign, "only single right operand is allowed in assignments"))
 	}
-	lhs := assign.Lhs[0]
-	rhs := assign.Rhs[0]
-	varname, ok := lhs.(*ast.Ident)
-	if !ok {
-		panic(cl.errorf(lhs, "can assign only to simple variables"))
+	for _, lhs := range assign.Lhs {
+		_, ok := lhs.(*ast.Ident)
+		if !ok {
+			panic(cl.errorf(lhs, "can assign only to simple variables"))
+		}
 	}
 
+	rhs := assign.Rhs[0]
 	cl.compileExpr(rhs)
 
-	typ := cl.ctx.Types.TypeOf(varname)
 	if assign.Tok == token.DEFINE {
-		if _, ok := cl.locals[varname.String()]; ok {
-			panic(cl.errorf(lhs, "%s variable shadowing is not allowed", varname))
+		for i := len(assign.Lhs) - 1; i >= 0; i-- {
+			varname := assign.Lhs[i].(*ast.Ident)
+			typ := cl.ctx.Types.TypeOf(varname)
+			if _, ok := cl.locals[varname.String()]; ok {
+				panic(cl.errorf(varname, "%s variable shadowing is not allowed", varname))
+			}
+			if !cl.isSupportedType(typ) {
+				panic(cl.errorUnsupportedType(varname, typ, varname.String()+" local variable"))
+			}
+			if len(cl.locals) == maxFuncLocals {
+				panic(cl.errorf(varname, "can't define %s: too many locals", varname))
+			}
+			id := len(cl.locals)
+			cl.locals[varname.String()] = id
+			cl.emit8(pickOp(typeIsInt(typ), opSetIntLocal, opSetLocal), id)
 		}
-		if !cl.isSupportedType(typ) {
-			panic(cl.errorUnsupportedType(varname, typ, varname.String()+" local variable"))
-		}
-		if len(cl.locals) == maxFuncLocals {
-			panic(cl.errorf(lhs, "can't define %s: too many locals", varname))
-		}
-		id := len(cl.locals)
-		cl.locals[varname.String()] = id
-		cl.emit8(pickOp(typeIsInt(typ), opSetIntLocal, opSetLocal), id)
 	} else {
-		id := cl.getLocal(varname, varname.String())
-		cl.emit8(pickOp(typeIsInt(typ), opSetIntLocal, opSetLocal), id)
+		for i := len(assign.Lhs) - 1; i >= 0; i-- {
+			varname := assign.Lhs[i].(*ast.Ident)
+			typ := cl.ctx.Types.TypeOf(varname)
+			id := cl.getLocal(varname, varname.String())
+			cl.emit8(pickOp(typeIsInt(typ), opSetIntLocal, opSetLocal), id)
+		}
 	}
 }
 
@@ -279,6 +310,11 @@ func (cl *compiler) getLocal(v ast.Expr, varname string) int {
 }
 
 func (cl *compiler) compileReturnStmt(ret *ast.ReturnStmt) {
+	if cl.retType == voidType {
+		cl.emit(opReturn)
+		return
+	}
+
 	if ret.Results == nil {
 		panic(cl.errorf(ret, "'naked' return statements are not allowed"))
 	}
@@ -471,6 +507,20 @@ func (cl *compiler) compileBuiltinCall(fn *ast.Ident, call *ast.CallExpr) {
 			panic(cl.errorf(s, "can't compile len() with non-string argument yet"))
 		}
 		cl.emit(opStringLen)
+
+	case `println`:
+		if len(call.Args) != 1 {
+			panic(cl.errorf(call, "only 1-arg form of println() is supported"))
+		}
+		funcName := "Print"
+		if typeIsInt(cl.ctx.Types.TypeOf(call.Args[0])) {
+			funcName = "PrintInt"
+		}
+		key := funcKey{qualifier: "builtin", name: funcName}
+		if !cl.compileNativeCall(key, 0, nil, call.Args) {
+			panic(cl.errorf(fn, "builtin.%s native func is not registered", funcName))
+		}
+
 	default:
 		panic(cl.errorf(fn, "can't compile %s() builtin function call yet", fn))
 	}
@@ -498,19 +548,64 @@ func (cl *compiler) compileCallExpr(call *ast.CallExpr) {
 	} else {
 		key.qualifier = fn.Pkg().Path()
 	}
+	variadic := 0
+	if sig.Variadic() {
+		variadic = sig.Params().Len() - 1
+	}
+	if !cl.compileNativeCall(key, variadic, expr, call.Args) {
+		panic(cl.errorf(call.Fun, "can't compile a call to %s func", key))
+	}
+}
 
-	if funcID, ok := cl.ctx.Env.nameToNativeFuncID[key]; ok {
-		if expr != nil {
-			cl.compileExpr(expr)
+func (cl *compiler) compileNativeCall(key funcKey, variadic int, expr ast.Expr, args []ast.Expr) bool {
+	funcID, ok := cl.ctx.Env.nameToNativeFuncID[key]
+	if !ok {
+		return false
+	}
+	if expr != nil {
+		cl.compileExpr(expr)
+	}
+	if len(args) == 1 {
+		// Check that it's not a f(g()) call, where g() returns
+		// a multi-value result; we can't compile that yet.
+		if call, ok := args[0].(*ast.CallExpr); ok {
+			results := cl.ctx.Types.TypeOf(call.Fun).(*types.Signature).Results()
+			if results != nil && results.Len() > 1 {
+				panic(cl.errorf(args[0], "can't pass tuple as a func argument"))
+			}
 		}
-		for _, arg := range call.Args {
-			cl.compileExpr(arg)
-		}
-		cl.emit16(opCallNative, int(funcID))
-		return
 	}
 
-	panic(cl.errorf(call.Fun, "can't compile a call to %s func", key))
+	normalArgs := args
+	var variadicArgs []ast.Expr
+	if variadic != 0 {
+		normalArgs = args[:variadic]
+		variadicArgs = args[variadic:]
+	}
+
+	for _, arg := range normalArgs {
+		cl.compileExpr(arg)
+	}
+	if variadic != 0 {
+		for _, arg := range variadicArgs {
+			cl.compileExpr(arg)
+			// int-typed values should appear in the interface{}-typed
+			// objects slice, so we get all variadic args placed in one place.
+			if typeIsInt(cl.ctx.Types.TypeOf(arg)) {
+				cl.emit(opConvIntToIface)
+			}
+		}
+		if len(variadicArgs) > 255 {
+			panic(cl.errorf(expr, "too many variadic args"))
+		}
+		// Even if len(variadicArgs) is 0, we still need to overwrite
+		// the old variadicLen value, so the variadic func is not confused
+		// by some unrelated value.
+		cl.emit8(opSetVariadicLen, len(variadicArgs))
+	}
+
+	cl.emit16(opCallNative, int(funcID))
+	return true
 }
 
 func (cl *compiler) compileUnaryOp(op opcode, e *ast.UnaryExpr) {
@@ -681,6 +776,10 @@ func (cl *compiler) isUncondJump(op opcode) bool {
 }
 
 func (cl *compiler) isSupportedType(typ types.Type) bool {
+	if typ == voidType {
+		return true
+	}
+
 	switch typ := typ.Underlying().(type) {
 	case *types.Pointer:
 		// 1. Pointers to structs are supported.

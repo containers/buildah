@@ -11,7 +11,7 @@ type DisabledInterval struct {
 	RuleName string
 }
 
-// Rule defines an abstract rule interaface
+// Rule defines an abstract rule interface
 type Rule interface {
 	Name() string
 	Apply(*File, Arguments) []Failure

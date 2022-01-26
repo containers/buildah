@@ -12,8 +12,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-critic/go-critic/framework/linter"
 	"github.com/quasilyte/go-ruleguard/ruleguard"
+
+	"github.com/go-critic/go-critic/framework/linter"
 )
 
 func init() {
@@ -40,6 +41,14 @@ If flag is not set, log error and skip rule files that contain an error.
 If flag is set, the value must be a comma-separated list of error conditions.
 * 'import': rule refers to a package that cannot be loaded.
 * 'dsl':    gorule file does not comply with the ruleguard DSL.`,
+		},
+		"enable": {
+			Value: "<all>",
+			Usage: "comma-separated list of enabled groups or skip empty to enable everything",
+		},
+		"disable": {
+			Value: "",
+			Usage: "comma-separated list of disabled groups or skip empty to enable everything",
 		},
 	}
 	info.Summary = "Runs user-defined rules using ruleguard linter"
@@ -124,13 +133,43 @@ func newRuleguardChecker(info *linter.CheckerInfo, ctx *linter.CheckerContext) (
 	fset := token.NewFileSet()
 	filePatterns := strings.Split(rulesFlag, ",")
 
+	enabledGroups := make(map[string]bool)
+	disabledGroups := make(map[string]bool)
+
+	for _, g := range strings.Split(info.Params.String("disable"), ",") {
+		g = strings.TrimSpace(g)
+		disabledGroups[g] = true
+	}
+	flagEnable := info.Params.String("enable")
+	if flagEnable != "<all>" {
+		for _, g := range strings.Split(flagEnable, ",") {
+			g = strings.TrimSpace(g)
+			enabledGroups[g] = true
+		}
+	}
 	ruleguardDebug := os.Getenv("GOCRITIC_RULEGUARD_DEBUG") != ""
 
 	loadContext := &ruleguard.LoadContext{
 		Fset:         fset,
 		DebugImports: ruleguardDebug,
-		DebugPrint: func(s string) {
-			fmt.Println("debug:", s)
+		DebugPrint:   debugPrint,
+		GroupFilter: func(g string) bool {
+			whyDisabled := ""
+			enabled := flagEnable == "<all>" || enabledGroups[g]
+			switch {
+			case !enabled:
+				whyDisabled = "not enabled by -enabled flag"
+			case disabledGroups[g]:
+				whyDisabled = "disabled by -disable flag"
+			}
+			if ruleguardDebug {
+				if whyDisabled != "" {
+					debugPrint(fmt.Sprintf("(-) %s is %s", g, whyDisabled))
+				} else {
+					debugPrint(fmt.Sprintf("(+) %s is enabled", g))
+				}
+			}
+			return whyDisabled == ""
 		},
 	}
 
@@ -201,13 +240,14 @@ func runRuleguardEngine(ctx *linter.CheckerContext, f *ast.File, e *ruleguard.En
 	}
 	var reports []ruleguardReport
 
-	runCtx.Report = func(_ ruleguard.GoRuleInfo, n ast.Node, msg string, fix *ruleguard.Suggestion) {
+	runCtx.Report = func(data *ruleguard.ReportData) {
 		// TODO(quasilyte): investigate whether we should add a rule name as
 		// a message prefix here.
 		r := ruleguardReport{
-			node:    n,
-			message: msg,
+			node:    data.Node,
+			message: data.Message,
 		}
+		fix := data.Suggestion
 		if fix != nil {
 			r.fix = linter.QuickFix{
 				From:        fix.From,
@@ -235,4 +275,8 @@ func runRuleguardEngine(ctx *linter.CheckerContext, f *ast.File, e *ruleguard.En
 			ctx.Warn(report.node, "%s", report.message)
 		}
 	}
+}
+
+func debugPrint(s string) {
+	fmt.Println("debug:", s)
 }

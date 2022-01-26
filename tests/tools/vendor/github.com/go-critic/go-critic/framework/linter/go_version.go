@@ -27,25 +27,25 @@ func (v GoVersion) GreaterOrEqual(other GoVersion) bool {
 	return v.Major >= other.Major
 }
 
-func parseGoVersion(version string) GoVersion {
+func ParseGoVersion(version string) (GoVersion, error) {
+	var result GoVersion
 	version = strings.TrimPrefix(version, "go")
 	if version == "" {
-		return GoVersion{}
+		return result, nil
 	}
 	parts := strings.Split(version, ".")
 	if len(parts) != 2 {
-		panic(fmt.Sprintf("invalid Go version format: %s", version))
+		return result, fmt.Errorf("invalid Go version format: %s", version)
 	}
 	major, err := strconv.Atoi(parts[0])
 	if err != nil {
-		panic(fmt.Sprintf("invalid major version part: %s: %s", parts[0], err))
+		return result, fmt.Errorf("invalid major version part: %s: %w", parts[0], err)
 	}
 	minor, err := strconv.Atoi(parts[1])
 	if err != nil {
-		panic(fmt.Sprintf("invalid minor version part: %s: %s", parts[1], err))
+		return result, fmt.Errorf("invalid minor version part: %s: %w", parts[1], err)
 	}
-	return GoVersion{
-		Major: major,
-		Minor: minor,
-	}
+	result.Major = major
+	result.Minor = minor
+	return result, nil
 }

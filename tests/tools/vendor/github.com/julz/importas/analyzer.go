@@ -81,16 +81,41 @@ func visitImportSpecNode(config *Config, node *ast.ImportSpec, pass *analysis.Pa
 				TextEdits: findEdits(node, pass.TypesInfo.Uses, path, alias, required),
 			}},
 		})
+	} else if !exists && config.DisallowExtraAliases {
+		pass.Report(analysis.Diagnostic{
+			Pos:     node.Pos(),
+			End:     node.End(),
+			Message: fmt.Sprintf("import %q has alias %q which is not part of config", path, alias),
+			SuggestedFixes: []analysis.SuggestedFix{{
+				Message:   "remove alias",
+				TextEdits: findEdits(node, pass.TypesInfo.Uses, path, alias, ""),
+			}},
+		})
 	}
 }
 
 func findEdits(node ast.Node, uses map[*ast.Ident]types.Object, importPath, original, required string) []analysis.TextEdit {
 	// Edit the actual import line.
+	importLine := strconv.Quote(importPath)
+	if required != "" {
+		importLine = required + " " + importLine
+	}
 	result := []analysis.TextEdit{{
 		Pos:     node.Pos(),
 		End:     node.End(),
-		NewText: []byte(required + " " + strconv.Quote(importPath)),
+		NewText: []byte(importLine),
 	}}
+
+	packageReplacement := required
+	if required == "" {
+		packageParts := strings.Split(importPath, "/")
+		if len(packageParts) != 0 {
+			packageReplacement = packageParts[len(packageParts)-1]
+		} else {
+			// fall back to original
+			packageReplacement = original
+		}
+	}
 
 	// Edit all the uses of the alias in the code.
 	for use, pkg := range uses {
@@ -108,7 +133,7 @@ func findEdits(node ast.Node, uses map[*ast.Ident]types.Object, importPath, orig
 		result = append(result, analysis.TextEdit{
 			Pos:     use.Pos(),
 			End:     use.End(),
-			NewText: []byte(required),
+			NewText: []byte(packageReplacement),
 		})
 	}
 

@@ -250,6 +250,10 @@ func (v *visitor) parseCallerExpr(call *ast.CallExpr) ast.Visitor {
 		return v
 	}
 
+	if len(call.Args) == 0 {
+		return v
+	}
+
 	return v.parseOpts(call.Args[0], metricType)
 }
 

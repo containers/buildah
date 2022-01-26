@@ -61,8 +61,10 @@ func (w lintUnconditionalRecursionRule) Visit(node ast.Node) ast.Visitor {
 	case *ast.FuncDecl:
 		var rec *ast.Ident
 		switch {
-		case n.Recv == nil || n.Recv.NumFields() < 1 || len(n.Recv.List[0].Names) < 1:
+		case n.Recv == nil:
 			rec = nil
+		case n.Recv.NumFields() < 1 || len(n.Recv.List[0].Names) < 1:
+			rec = &ast.Ident{Name: "_"}
 		default:
 			rec = n.Recv.List[0].Names[0]
 		}

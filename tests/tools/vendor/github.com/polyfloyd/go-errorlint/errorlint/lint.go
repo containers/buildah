@@ -48,7 +48,7 @@ func LintFmtErrorfCalls(fset *token.FileSet, info types.Info) []Lint {
 		var lintArg ast.Expr
 		args := call.Args[1:]
 		for i := 0; i < len(args) && i < len(formatVerbs); i++ {
-			if info.Types[args[i]].Type.String() != "error" && !isErrorStringCall(info, args[i]) {
+			if !implementsError(info.Types[args[i]].Type) && !isErrorStringCall(info, args[i]) {
 				continue
 			}
 
@@ -121,7 +121,7 @@ func isFmtErrorfCallExpr(info types.Info, expr ast.Expr) (*ast.CallExpr, bool) {
 	return nil, false
 }
 
-func LintErrorComparisons(fset *token.FileSet, info types.Info) []Lint {
+func LintErrorComparisons(fset *token.FileSet, info *TypesInfoExt) []Lint {
 	lints := []Lint{}
 
 	for expr := range info.Types {
@@ -138,7 +138,7 @@ func LintErrorComparisons(fset *token.FileSet, info types.Info) []Lint {
 			continue
 		}
 		// Find comparisons of which one side is a of type error.
-		if !isErrorComparison(info, binExpr) {
+		if !isErrorComparison(info.Info, binExpr) {
 			continue
 		}
 
@@ -246,4 +246,21 @@ func LintErrorTypeAssertions(fset *token.FileSet, info types.Info) []Lint {
 func isErrorTypeAssertion(info types.Info, typeAssert *ast.TypeAssertExpr) bool {
 	t := info.Types[typeAssert.X]
 	return t.Type.String() == "error"
+}
+
+func implementsError(t types.Type) bool {
+	mset := types.NewMethodSet(t)
+
+	for i := 0; i < mset.Len(); i++ {
+		if mset.At(i).Kind() != types.MethodVal {
+			continue
+		}
+
+		obj := mset.At(i).Obj()
+		if obj.Name() == "Error" && obj.Type().String() == "func() string" {
+			return true
+		}
+	}
+
+	return false
 }

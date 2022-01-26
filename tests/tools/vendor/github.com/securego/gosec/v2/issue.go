@@ -88,16 +88,17 @@ var ruleToCWE = map[string]string{
 
 // Issue is returned by a gosec rule if it discovers an issue with the scanned code.
 type Issue struct {
-	Severity   Score         `json:"severity"`   // issue severity (how problematic it is)
-	Confidence Score         `json:"confidence"` // issue confidence (how sure we are we found it)
-	Cwe        *cwe.Weakness `json:"cwe"`        // Cwe associated with RuleID
-	RuleID     string        `json:"rule_id"`    // Human readable explanation
-	What       string        `json:"details"`    // Human readable explanation
-	File       string        `json:"file"`       // File name we found it in
-	Code       string        `json:"code"`       // Impacted code line
-	Line       string        `json:"line"`       // Line number in file
-	Col        string        `json:"column"`     // Column number in line
-	NoSec      bool          `json:"nosec"`      // true if the issue is nosec
+	Severity     Score             `json:"severity"`     // issue severity (how problematic it is)
+	Confidence   Score             `json:"confidence"`   // issue confidence (how sure we are we found it)
+	Cwe          *cwe.Weakness     `json:"cwe"`          // Cwe associated with RuleID
+	RuleID       string            `json:"rule_id"`      // Human readable explanation
+	What         string            `json:"details"`      // Human readable explanation
+	File         string            `json:"file"`         // File name we found it in
+	Code         string            `json:"code"`         // Impacted code line
+	Line         string            `json:"line"`         // Line number in file
+	Col          string            `json:"column"`       // Column number in line
+	NoSec        bool              `json:"nosec"`        // true if the issue is nosec
+	Suppressions []SuppressionInfo `json:"suppressions"` // Suppression info of the issue
 }
 
 // FileLocation point out the file path and line number in file
@@ -179,7 +180,7 @@ func NewIssue(ctx *Context, node ast.Node, ruleID, desc string, severity Score, 
 
 	var code string
 	if file, err := os.Open(fobj.Name()); err == nil {
-		defer file.Close() // #nosec
+		defer file.Close() //#nosec
 		s := codeSnippetStartLine(node, fobj)
 		e := codeSnippetEndLine(node, fobj)
 		code, err = codeSnippet(file, s, e, node)
@@ -199,4 +200,10 @@ func NewIssue(ctx *Context, node ast.Node, ruleID, desc string, severity Score, 
 		Code:       code,
 		Cwe:        GetCweByRule(ruleID),
 	}
+}
+
+// WithSuppressions set the suppressions of the issue
+func (i *Issue) WithSuppressions(suppressions []SuppressionInfo) *Issue {
+	i.Suppressions = suppressions
+	return i
 }

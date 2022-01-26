@@ -43,7 +43,7 @@ func (r *BlankImportsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failu
 			prev := file.AST.Imports[i-1]
 			prevPos := file.ToPosition(prev.Pos())
 
-			isSubsequentBlancInAGroup := isBlank(prev.Name) && prevPos.Line+1 == pos.Line && prev.Path.Value != embedImportPath
+			isSubsequentBlancInAGroup := prevPos.Line+1 == pos.Line && prev.Path.Value != embedImportPath && isBlank(prev.Name)
 			if isSubsequentBlancInAGroup {
 				continue
 			}
