@@ -135,6 +135,17 @@ func findMountProgram(graphOptions []string) string {
 	return ""
 }
 
+// mountWithMountProgram mount an overlay at mergeDir using the specified mount program
+// and overlay options.
+func mountWithMountProgram(mountProgram, overlayOptions, mergeDir string) error {
+	cmd := exec.Command(mountProgram, "-o", overlayOptions, mergeDir)
+
+	if err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "exec %s", mountProgram)
+	}
+	return nil
+}
+
 // MountWithOptions creates a subdir of the contentDir based on the source directory
 // from the source system.  It then mounts up the source directory on to the
 // generated mount point and returns the mount point to the caller.
@@ -180,10 +191,8 @@ func MountWithOptions(contentDir, source, dest string, opts *Options) (mount spe
 	if unshare.IsRootless() {
 		mountProgram := findMountProgram(opts.GraphOpts)
 		if mountProgram != "" {
-			cmd := exec.Command(mountProgram, "-o", overlayOptions, mergeDir)
-
-			if err := cmd.Run(); err != nil {
-				return mount, errors.Wrapf(err, "exec %s", mountProgram)
+			if err := mountWithMountProgram(mountProgram, overlayOptions, mergeDir); err != nil {
+				return mount, err
 			}
 
 			mount.Source = mergeDir
