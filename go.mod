@@ -6,7 +6,7 @@ require (
 	github.com/containerd/containerd v1.5.9
 	github.com/containernetworking/cni v1.0.1
 	github.com/containers/common v0.47.0
-	github.com/containers/image/v5 v5.18.0
+	github.com/containers/image/v5 v5.19.0
 	github.com/containers/ocicrypt v1.1.2
 	github.com/containers/storage v1.38.0
 	github.com/docker/distribution v2.7.1+incompatible
@@ -38,7 +38,7 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
+	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 	k8s.io/klog v1.0.0 // indirect
 )
