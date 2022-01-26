@@ -9,6 +9,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	"github.com/golangci/golangci-lint/pkg/exitcodes"
 	"github.com/golangci/golangci-lint/pkg/lint/linter"
 	"github.com/golangci/golangci-lint/pkg/logutils"
 )
@@ -53,8 +54,13 @@ func printLinterConfigs(lcs []*linter.Config) {
 			linterDescription = linterDescription[:firstNewline]
 		}
 
-		fmt.Fprintf(logutils.StdOut, "%s%s: %s [fast: %t, auto-fix: %t]\n", color.YellowString(lc.Name()),
-			altNamesStr, linterDescription, !lc.IsSlowLinter(), lc.CanAutoFix)
+		deprecatedMark := ""
+		if lc.IsDeprecated() {
+			deprecatedMark = " [" + color.RedString("deprecated") + "]"
+		}
+
+		fmt.Fprintf(logutils.StdOut, "%s%s%s: %s [fast: %t, auto-fix: %t]\n", color.YellowString(lc.Name()),
+			altNamesStr, deprecatedMark, linterDescription, !lc.IsSlowLinter(), lc.CanAutoFix)
 	}
 }
 
@@ -88,5 +94,5 @@ func (e *Executor) executeLintersHelp(_ *cobra.Command, args []string) {
 		fmt.Fprintf(logutils.StdOut, "%s: %s\n", color.YellowString(p), strings.Join(linterNames, ", "))
 	}
 
-	os.Exit(0)
+	os.Exit(exitcodes.Success)
 }

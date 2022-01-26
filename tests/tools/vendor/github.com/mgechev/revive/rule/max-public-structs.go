@@ -9,15 +9,20 @@ import (
 )
 
 // MaxPublicStructsRule lints given else constructs.
-type MaxPublicStructsRule struct{}
+type MaxPublicStructsRule struct {
+	max int64
+}
 
 // Apply applies the rule to given file.
 func (r *MaxPublicStructsRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
-	checkNumberOfArguments(1, arguments, r.Name())
+	if r.max < 1 {
+		checkNumberOfArguments(1, arguments, r.Name())
 
-	max, ok := arguments[0].(int64) // Alt. non panicking version
-	if !ok {
-		panic(`invalid value passed as argument number to the "max-public-structs" rule`)
+		max, ok := arguments[0].(int64) // Alt. non panicking version
+		if !ok {
+			panic(`invalid value passed as argument number to the "max-public-structs" rule`)
+		}
+		r.max = max
 	}
 
 	var failures []lint.Failure
@@ -32,7 +37,7 @@ func (r *MaxPublicStructsRule) Apply(file *lint.File, arguments lint.Arguments) 
 
 	ast.Walk(walker, fileAst)
 
-	if walker.current > max {
+	if walker.current > r.max {
 		walker.onFailure(lint.Failure{
 			Failure:    "you have exceeded the maximum number of public struct declarations",
 			Confidence: 1,

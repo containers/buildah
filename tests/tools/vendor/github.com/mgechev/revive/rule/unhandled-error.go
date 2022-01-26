@@ -9,27 +9,31 @@ import (
 )
 
 // UnhandledErrorRule lints given else constructs.
-type UnhandledErrorRule struct{}
+type UnhandledErrorRule struct {
+	ignoreList ignoreListType
+}
 
 type ignoreListType map[string]struct{}
 
 // Apply applies the rule to given file.
 func (r *UnhandledErrorRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
-	var failures []lint.Failure
+	if r.ignoreList == nil {
+		r.ignoreList = make(ignoreListType, len(args))
 
-	ignoreList := make(ignoreListType, len(args))
+		for _, arg := range args {
+			argStr, ok := arg.(string)
+			if !ok {
+				panic(fmt.Sprintf("Invalid argument to the unhandled-error rule. Expecting a string, got %T", arg))
+			}
 
-	for _, arg := range args {
-		argStr, ok := arg.(string)
-		if !ok {
-			panic(fmt.Sprintf("Invalid argument to the unhandled-error rule. Expecting a string, got %T", arg))
+			r.ignoreList[argStr] = struct{}{}
 		}
-
-		ignoreList[argStr] = struct{}{}
 	}
 
+	var failures []lint.Failure
+
 	walker := &lintUnhandledErrors{
-		ignoreList: ignoreList,
+		ignoreList: r.ignoreList,
 		pkg:        file.Pkg,
 		onFailure: func(failure lint.Failure) {
 			failures = append(failures, failure)

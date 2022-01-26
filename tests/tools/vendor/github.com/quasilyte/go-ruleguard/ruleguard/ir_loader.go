@@ -11,13 +11,13 @@ import (
 	"io/ioutil"
 	"regexp"
 
-	"github.com/quasilyte/go-ruleguard/internal/gogrep"
-	"github.com/quasilyte/go-ruleguard/nodetag"
 	"github.com/quasilyte/go-ruleguard/ruleguard/goutil"
 	"github.com/quasilyte/go-ruleguard/ruleguard/ir"
 	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo"
 	"github.com/quasilyte/go-ruleguard/ruleguard/textmatch"
 	"github.com/quasilyte/go-ruleguard/ruleguard/typematch"
+	"github.com/quasilyte/gogrep"
+	"github.com/quasilyte/gogrep/nodetag"
 )
 
 type irLoaderConfig struct {
@@ -253,7 +253,7 @@ func (l *irLoader) loadRuleGroup(group *ir.RuleGroup) error {
 	}
 
 	for _, rule := range group.Rules {
-		if err := l.loadRule(rule); err != nil {
+		if err := l.loadRule(group, rule); err != nil {
 			return err
 		}
 	}
@@ -261,7 +261,7 @@ func (l *irLoader) loadRuleGroup(group *ir.RuleGroup) error {
 	return nil
 }
 
-func (l *irLoader) loadRule(rule ir.Rule) error {
+func (l *irLoader) loadRule(group *ir.RuleGroup, rule ir.Rule) error {
 	proto := goRule{
 		line:       rule.Line,
 		group:      l.group,
@@ -282,7 +282,7 @@ func (l *irLoader) loadRule(rule ir.Rule) error {
 	}
 
 	for _, pat := range rule.SyntaxPatterns {
-		if err := l.loadSyntaxRule(proto, info, rule, pat.Value, pat.Line); err != nil {
+		if err := l.loadSyntaxRule(group, proto, info, rule, pat.Value, pat.Line); err != nil {
 			return err
 		}
 	}
@@ -312,11 +312,26 @@ func (l *irLoader) loadCommentRule(resultProto goRule, rule ir.Rule, src string,
 	return nil
 }
 
-func (l *irLoader) loadSyntaxRule(resultProto goRule, filterInfo filterInfo, rule ir.Rule, src string, line int) error {
+func (l *irLoader) loadSyntaxRule(group *ir.RuleGroup, resultProto goRule, filterInfo filterInfo, rule ir.Rule, src string, line int) error {
 	result := resultProto
 	result.line = line
 
-	pat, info, err := gogrep.Compile(l.gogrepFset, src, false)
+	var imports map[string]string
+	if len(group.Imports) != 0 {
+		imports = make(map[string]string)
+		for _, imported := range group.Imports {
+			imports[imported.Name] = imported.Path
+		}
+	}
+
+	gogrepConfig := gogrep.CompileConfig{
+		Fset:      l.gogrepFset,
+		Src:       src,
+		Strict:    false,
+		WithTypes: true,
+		Imports:   imports,
+	}
+	pat, info, err := gogrep.Compile(gogrepConfig)
 	if err != nil {
 		return l.errorf(rule.Line, err, "parse match pattern")
 	}
@@ -454,6 +469,25 @@ func (l *irLoader) unwrapStringExpr(filter ir.FilterExpr) string {
 	return ""
 }
 
+func (l *irLoader) stringToBasicKind(s string) types.BasicInfo {
+	switch s {
+	case "integer":
+		return types.IsInteger
+	case "unsigned":
+		return types.IsUnsigned
+	case "float":
+		return types.IsFloat
+	case "complex":
+		return types.IsComplex
+	case "untyped":
+		return types.IsUnsigned
+	case "numeric":
+		return types.IsNumeric
+	default:
+		return 0
+	}
+}
+
 func (l *irLoader) newFilter(filter ir.FilterExpr, info *filterInfo) (matchFilter, error) {
 	if filter.HasVar() {
 		info.Vars[filter.Value.(string)] = struct{}{}
@@ -506,6 +540,30 @@ func (l *irLoader) newFilter(filter ir.FilterExpr, info *filterInfo) (matchFilte
 			return result, err
 		}
 		result.fn = makeNodeIsFilter(result.src, filter.Value.(string), tag)
+
+	case ir.FilterVarTypeHasPointersOp:
+		result.fn = makeTypeHasPointersFilter(result.src, filter.Value.(string))
+
+	case ir.FilterVarTypeOfKindOp, ir.FilterVarTypeUnderlyingOfKindOp:
+		kindString := l.unwrapStringExpr(filter.Args[0])
+		if kindString == "" {
+			return result, l.errorf(filter.Line, nil, "expected a non-empty string argument")
+		}
+		underlying := filter.Op == ir.FilterVarTypeUnderlyingOfKindOp
+		switch kindString {
+		case "signed":
+			result.fn = makeTypeIsSignedFilter(result.src, filter.Value.(string), underlying)
+		case "int":
+			result.fn = makeTypeIsIntUintFilter(result.src, filter.Value.(string), underlying, types.Int)
+		case "uint":
+			result.fn = makeTypeIsIntUintFilter(result.src, filter.Value.(string), underlying, types.Uint)
+		default:
+			kind := l.stringToBasicKind(kindString)
+			if kind == 0 {
+				return result, l.errorf(filter.Line, nil, "unknown kind %s", kindString)
+			}
+			result.fn = makeTypeOfKindFilter(result.src, filter.Value.(string), underlying, kind)
+		}
 
 	case ir.FilterVarTypeIsOp, ir.FilterVarTypeUnderlyingIsOp:
 		typeString := l.unwrapStringExpr(filter.Args[0])

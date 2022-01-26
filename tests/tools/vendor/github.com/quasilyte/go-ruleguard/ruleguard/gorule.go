@@ -6,9 +6,9 @@ import (
 	"go/types"
 	"regexp"
 
-	"github.com/quasilyte/go-ruleguard/internal/gogrep"
-	"github.com/quasilyte/go-ruleguard/nodetag"
 	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo"
+	"github.com/quasilyte/gogrep"
+	"github.com/quasilyte/gogrep/nodetag"
 )
 
 type goRuleSet struct {
@@ -67,6 +67,8 @@ type filterParams struct {
 
 	deadcode bool
 
+	currentFunc *ast.FuncDecl
+
 	// varname is set only for custom filters before bytecode function is called.
 	varname string
 }
@@ -89,12 +91,16 @@ func (params *filterParams) subExpr(name string) ast.Expr {
 }
 
 func (params *filterParams) typeofNode(n ast.Node) types.Type {
-	if e, ok := n.(ast.Expr); ok {
-		if typ := params.ctx.Types.TypeOf(e); typ != nil {
-			return typ
-		}
+	var e ast.Expr
+	switch n := n.(type) {
+	case ast.Expr:
+		e = n
+	case *ast.Field:
+		e = n.Type
 	}
-
+	if typ := params.ctx.Types.TypeOf(e); typ != nil {
+		return typ
+	}
 	return types.Typ[types.Invalid]
 }
 

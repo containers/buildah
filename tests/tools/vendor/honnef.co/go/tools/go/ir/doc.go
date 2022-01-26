@@ -49,55 +49,56 @@
 // concrete type which of these interfaces it implements.
 //
 //                      Value?          Instruction?    Member?
-//   *Alloc             ✔               ✔
-//   *BinOp             ✔               ✔
-//   *BlankStore                        ✔
-//   *Builtin           ✔
-//   *Call              ✔               ✔
-//   *ChangeInterface   ✔               ✔
-//   *ChangeType        ✔               ✔
-//   *Const             ✔               ✔
-//   *Convert           ✔               ✔
-//   *DebugRef                          ✔
-//   *Defer             ✔               ✔
-//   *Extract           ✔               ✔
-//   *Field             ✔               ✔
-//   *FieldAddr         ✔               ✔
-//   *FreeVar           ✔
-//   *Function          ✔                               ✔ (func)
-//   *Global            ✔                               ✔ (var)
-//   *Go                ✔               ✔
-//   *If                                ✔
-//   *Index             ✔               ✔
-//   *IndexAddr         ✔               ✔
-//   *Jump                              ✔
-//   *Load              ✔               ✔
-//   *MakeChan          ✔               ✔
-//   *MakeClosure       ✔               ✔
-//   *MakeInterface     ✔               ✔
-//   *MakeMap           ✔               ✔
-//   *MakeSlice         ✔               ✔
-//   *MapLookup         ✔               ✔
-//   *MapUpdate         ✔               ✔
-//   *NamedConst                                        ✔ (const)
-//   *Next              ✔               ✔
-//   *Panic                             ✔
-//   *Parameter         ✔               ✔
-//   *Phi               ✔               ✔
-//   *Range             ✔               ✔
-//   *Recv              ✔               ✔
-//   *Return                            ✔
-//   *RunDefers                         ✔
-//   *Select            ✔               ✔
-//   *Send              ✔               ✔
-//   *Sigma             ✔               ✔
-//   *Slice             ✔               ✔
-//   *Store             ✔               ✔
-//   *StringLookup      ✔               ✔
-//   *Type                                              ✔ (type)
-//   *TypeAssert        ✔               ✔
-//   *UnOp              ✔               ✔
-//   *Unreachable                       ✔
+//   *Alloc                ✔               ✔
+//   *BinOp                ✔               ✔
+//   *BlankStore                           ✔
+//   *Builtin              ✔
+//   *Call                 ✔               ✔
+//   *ChangeInterface      ✔               ✔
+//   *ChangeType           ✔               ✔
+//   *Const                ✔               ✔
+//   *Convert              ✔               ✔
+//   *DebugRef                             ✔
+//   *Defer                ✔               ✔
+//   *Extract              ✔               ✔
+//   *Field                ✔               ✔
+//   *FieldAddr            ✔               ✔
+//   *FreeVar              ✔
+//   *Function             ✔                               ✔ (func)
+//   *Global               ✔                               ✔ (var)
+//   *Go                   ✔               ✔
+//   *If                                   ✔
+//   *Index                ✔               ✔
+//   *IndexAddr            ✔               ✔
+//   *Jump                                 ✔
+//   *Load                 ✔               ✔
+//   *MakeChan             ✔               ✔
+//   *MakeClosure          ✔               ✔
+//   *MakeInterface        ✔               ✔
+//   *MakeMap              ✔               ✔
+//   *MakeSlice            ✔               ✔
+//   *MapLookup            ✔               ✔
+//   *MapUpdate            ✔               ✔
+//   *NamedConst                                           ✔ (const)
+//   *Next                 ✔               ✔
+//   *Panic                                ✔
+//   *Parameter            ✔               ✔
+//   *Phi                  ✔               ✔
+//   *Range                ✔               ✔
+//   *Recv                 ✔               ✔
+//   *Return                               ✔
+//   *RunDefers                            ✔
+//   *Select               ✔               ✔
+//   *Send                 ✔               ✔
+//   *Sigma                ✔               ✔
+//   *Slice                ✔               ✔
+//   *SliceToArrayPointer  ✔               ✔
+//   *Store                ✔               ✔
+//   *StringLookup         ✔               ✔
+//   *Type                                                 ✔ (type)
+//   *TypeAssert           ✔               ✔
+//   *UnOp                 ✔               ✔
+//   *Unreachable                          ✔
 //
 // Other key types in this package include: Program, Package, Function
 // and BasicBlock.

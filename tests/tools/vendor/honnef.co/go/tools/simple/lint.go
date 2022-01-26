@@ -1174,7 +1174,8 @@ func CheckMakeLenCap(pass *analysis.Pass) (interface{}, error) {
 		if m, ok := code.Match(pass, checkMakeLenCapQ1, node); ok {
 			T := m.State["typ"].(ast.Expr)
 			size := m.State["size"].(ast.Node)
-			if _, ok := pass.TypesInfo.TypeOf(T).Underlying().(*types.Slice); ok {
+			switch pass.TypesInfo.TypeOf(T).Underlying().(type) {
+			case *types.Slice, *types.Map:
 				return
 			}
 			report.Report(pass, size, fmt.Sprintf("should use make(%s) instead", report.Render(pass, T)), report.FilterGenerated())

@@ -49,11 +49,11 @@ func (f *Friendly) Format(failures <-chan lint.Failure, config lint.Config) (str
 		sev := severity(config, failure)
 		f.printFriendlyFailure(failure, sev)
 		if sev == lint.SeverityWarning {
-			warningMap[failure.RuleName] = warningMap[failure.RuleName] + 1
+			warningMap[failure.RuleName]++
 			totalWarnings++
 		}
 		if sev == lint.SeverityError {
-			errorMap[failure.RuleName] = errorMap[failure.RuleName] + 1
+			errorMap[failure.RuleName]++
 			totalErrors++
 		}
 	}

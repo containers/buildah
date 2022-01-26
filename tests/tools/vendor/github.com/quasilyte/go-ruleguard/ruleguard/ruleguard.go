@@ -93,13 +93,29 @@ type RunContext struct {
 	DebugImports bool
 	DebugPrint   func(string)
 
-	Types  *types.Info
-	Sizes  types.Sizes
-	Fset   *token.FileSet
-	Report func(rule GoRuleInfo, n ast.Node, msg string, s *Suggestion)
-	Pkg    *types.Package
+	Types *types.Info
+	Sizes types.Sizes
+	Fset  *token.FileSet
+	Pkg   *types.Package
+
+	// Report is a function that is called for every successful ruleguard match.
+	// The pointer to ReportData is reused, it should not be kept.
+	// If you want to keep it after Report() returns, make a copy.
+	Report func(*ReportData)
 
 	GoVersion GoVersion
+}
+
+type ReportData struct {
+	RuleInfo   GoRuleInfo
+	Node       ast.Node
+	Message    string
+	Suggestion *Suggestion
+
+	// Experimental: fields below are part of the experiment.
+	// They'll probably be removed or changed over time.
+
+	Func *ast.FuncDecl
 }
 
 type Suggestion struct {

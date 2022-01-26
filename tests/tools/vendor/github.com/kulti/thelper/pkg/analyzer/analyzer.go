@@ -144,13 +144,15 @@ func (t thelper) run(pass *analysis.Pass) (interface{}, error) {
 			fd.Body = n.Body
 			fd.Name = n.Name
 		case *ast.CallExpr:
-			tbRunSubtestExpr := extractSubtestExp(pass, n, tCheckOpts.tbRun)
-			if tbRunSubtestExpr == nil {
-				tbRunSubtestExpr = extractSubtestExp(pass, n, bCheckOpts.tbRun)
+			tbRunSubtestExprs := extractSubtestExp(pass, n, tCheckOpts.tbRun, tCheckOpts.tbTestFuncType)
+			if len(tbRunSubtestExprs) == 0 {
+				tbRunSubtestExprs = extractSubtestExp(pass, n, bCheckOpts.tbRun, bCheckOpts.tbTestFuncType)
 			}
 
-			if tbRunSubtestExpr != nil {
-				reports.Filter(funcDefPosition(pass, tbRunSubtestExpr))
+			if len(tbRunSubtestExprs) > 0 {
+				for _, expr := range tbRunSubtestExprs {
+					reports.Filter(funcDefPosition(pass, expr))
+				}
 			} else {
 				reports.NoFilter(funcDefPosition(pass, n.Fun))
 			}
@@ -170,15 +172,16 @@ func (t thelper) run(pass *analysis.Pass) (interface{}, error) {
 }
 
 type checkFuncOpts struct {
-	skipPrefix string
-	varName    string
-	tbHelper   types.Object
-	tbRun      types.Object
-	tbType     types.Type
-	ctxType    types.Type
-	checkBegin bool
-	checkFirst bool
-	checkName  bool
+	skipPrefix     string
+	varName        string
+	tbHelper       types.Object
+	tbRun          types.Object
+	tbTestFuncType types.Type
+	tbType         types.Type
+	ctxType        types.Type
+	checkBegin     bool
+	checkFirst     bool
+	checkName      bool
 }
 
 func (t thelper) buildCheckFuncOpts(pass *analysis.Pass) (checkFuncOpts, checkFuncOpts, checkFuncOpts, bool) {
@@ -222,16 +225,19 @@ func (t thelper) buildTestCheckFuncOpts(pass *analysis.Pass, ctxType types.Type)
 		return checkFuncOpts{}, false
 	}
 
+	tbType := types.NewPointer(tObj.Type())
+	tVar := types.NewVar(token.NoPos, nil, "t", tbType)
 	return checkFuncOpts{
-		skipPrefix: "Test",
-		varName:    "t",
-		tbHelper:   tHelper,
-		tbRun:      tRun,
-		tbType:     types.NewPointer(tObj.Type()),
-		ctxType:    ctxType,
-		checkBegin: t.enabledChecks.Enabled(checkTBegin),
-		checkFirst: t.enabledChecks.Enabled(checkTFirst),
-		checkName:  t.enabledChecks.Enabled(checkTName),
+		skipPrefix:     "Test",
+		varName:        "t",
+		tbHelper:       tHelper,
+		tbRun:          tRun,
+		tbType:         tbType,
+		tbTestFuncType: types.NewSignature(nil, types.NewTuple(tVar), nil, false),
+		ctxType:        ctxType,
+		checkBegin:     t.enabledChecks.Enabled(checkTBegin),
+		checkFirst:     t.enabledChecks.Enabled(checkTFirst),
+		checkName:      t.enabledChecks.Enabled(checkTName),
 	}, true
 }
 
@@ -251,16 +257,19 @@ func (t thelper) buildBenchmarkCheckFuncOpts(pass *analysis.Pass, ctxType types.
 		return checkFuncOpts{}, false
 	}
 
+	tbType := types.NewPointer(bObj.Type())
+	bVar := types.NewVar(token.NoPos, nil, "b", tbType)
 	return checkFuncOpts{
-		skipPrefix: "Benchmark",
-		varName:    "b",
-		tbHelper:   bHelper,
-		tbRun:      bRun,
-		tbType:     types.NewPointer(bObj.Type()),
-		ctxType:    ctxType,
-		checkBegin: t.enabledChecks.Enabled(checkBBegin),
-		checkFirst: t.enabledChecks.Enabled(checkBFirst),
-		checkName:  t.enabledChecks.Enabled(checkBName),
+		skipPrefix:     "Benchmark",
+		varName:        "b",
+		tbHelper:       bHelper,
+		tbRun:          bRun,
+		tbType:         types.NewPointer(bObj.Type()),
+		tbTestFuncType: types.NewSignature(nil, types.NewTuple(bVar), nil, false),
+		ctxType:        ctxType,
+		checkBegin:     t.enabledChecks.Enabled(checkBBegin),
+		checkFirst:     t.enabledChecks.Enabled(checkBFirst),
+		checkName:      t.enabledChecks.Enabled(checkBName),
 	}, true
 }
 
@@ -333,20 +342,18 @@ func checkFunc(pass *analysis.Pass, reports *reports, funcDecl funcDecl, opts ch
 	}
 }
 
+// searchFuncParam search a function param with desired type.
+// It returns the param field, its position, and true if something is found.
 func searchFuncParam(pass *analysis.Pass, f funcDecl, p types.Type) (*ast.Field, int, bool) {
 	for i, f := range f.Type.Params.List {
-		typeInfo, ok := pass.TypesInfo.Types[f.Type]
-		if !ok {
-			continue
-		}
-
-		if types.Identical(typeInfo.Type, p) {
+		if isExprHasType(pass, f.Type, p) {
 			return f, i, true
 		}
 	}
 	return nil, 0, false
 }
 
+// isTHelperCall returns true if provided statement 's' is t.Helper() or b.Helper() call.
 func isTHelperCall(pass *analysis.Pass, s ast.Stmt, tHelper types.Object) bool {
 	exprStmt, ok := s.(*ast.ExprStmt)
 	if !ok {
@@ -366,7 +373,11 @@ func isTHelperCall(pass *analysis.Pass, s ast.Stmt, tHelper types.Object) bool {
 	return isSelectorCall(pass, selExpr, tHelper)
 }
 
-func extractSubtestExp(pass *analysis.Pass, e *ast.CallExpr, tbRun types.Object) ast.Expr {
+// extractSubtestExp analyzes that call expresion 'e' is t.Run or b.Run
+// and returns subtest function.
+func extractSubtestExp(
+	pass *analysis.Pass, e *ast.CallExpr, tbRun types.Object, testFuncType types.Type,
+) []ast.Expr {
 	selExpr, ok := e.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return nil
@@ -380,9 +391,70 @@ func extractSubtestExp(pass *analysis.Pass, e *ast.CallExpr, tbRun types.Object)
 		return nil
 	}
 
-	return e.Args[1]
+	if funcs := unwrapTestingFunctionBuilding(pass, e.Args[1], testFuncType); funcs != nil {
+		return funcs
+	}
+
+	return []ast.Expr{e.Args[1]}
 }
 
+// unwrapTestingFunctionConstruction checks that expresion is build testing functions
+// and returns the result of building.
+func unwrapTestingFunctionBuilding(pass *analysis.Pass, expr ast.Expr, testFuncType types.Type) []ast.Expr {
+	callExpr, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return nil
+	}
+
+	var funcDecl funcDecl
+	switch f := callExpr.Fun.(type) {
+	case *ast.FuncLit:
+		funcDecl.Body = f.Body
+		funcDecl.Type = f.Type
+	case *ast.Ident:
+		funObjDecl, ok := f.Obj.Decl.(*ast.FuncDecl)
+		if !ok {
+			return nil
+		}
+
+		funcDecl.Body = funObjDecl.Body
+		funcDecl.Type = funObjDecl.Type
+	case *ast.SelectorExpr:
+		fd := findSelectroDeclaration(pass, f)
+		if fd == nil {
+			return nil
+		}
+
+		funcDecl.Body = fd.Body
+		funcDecl.Type = fd.Type
+	default:
+		return nil
+	}
+
+	results := funcDecl.Type.Results.List
+	if len(results) != 1 || !isExprHasType(pass, results[0].Type, testFuncType) {
+		return nil
+	}
+
+	var funcs []ast.Expr
+	ast.Inspect(funcDecl.Body, func(n ast.Node) bool {
+		if n == nil {
+			return false
+		}
+
+		if retStmt, ok := n.(*ast.ReturnStmt); ok {
+			if len(retStmt.Results) == 1 {
+				funcs = append(funcs, retStmt.Results[0])
+			}
+		}
+		return true
+	})
+
+	return funcs
+}
+
+// funcDefPosition returns a function's position.
+// It works with anonymous functions as well with function names.
 func funcDefPosition(pass *analysis.Pass, e ast.Expr) token.Pos {
 	anonFunLit, ok := e.(*ast.FuncLit)
 	if ok {
@@ -406,6 +478,8 @@ func funcDefPosition(pass *analysis.Pass, e ast.Expr) token.Pos {
 	return funDef.Pos()
 }
 
+// isSelectorCall checks is selExpr is a call expresion on specific callObj.
+// Useful to check Run() call for t.Run or b.Run.
 func isSelectorCall(pass *analysis.Pass, selExpr *ast.SelectorExpr, callObj types.Object) bool {
 	sel, ok := pass.TypesInfo.Selections[selExpr]
 	if !ok {
@@ -413,4 +487,49 @@ func isSelectorCall(pass *analysis.Pass, selExpr *ast.SelectorExpr, callObj type
 	}
 
 	return sel.Obj() == callObj
+}
+
+// isExprHasType returns true if expr has expected type.
+func isExprHasType(pass *analysis.Pass, expr ast.Expr, expType types.Type) bool {
+	typeInfo, ok := pass.TypesInfo.Types[expr]
+	if !ok {
+		return false
+	}
+
+	return types.Identical(typeInfo.Type, expType)
+}
+
+// findSelectroDeclaration returns function declaration called by selectro expression.
+func findSelectroDeclaration(pass *analysis.Pass, expr *ast.SelectorExpr) *ast.FuncDecl {
+	xsel, ok := pass.TypesInfo.Selections[expr]
+	if !ok {
+		return nil
+	}
+
+	for _, file := range pass.Files {
+		for _, decl := range file.Decls {
+			fd, ok := decl.(*ast.FuncDecl)
+			if ok && fd.Recv != nil && len(fd.Recv.List) == 1 {
+				recvType, ok := fd.Recv.List[0].Type.(*ast.Ident)
+				if !ok {
+					continue
+				}
+
+				recvObj, ok := pass.TypesInfo.Uses[recvType]
+				if !ok {
+					continue
+				}
+
+				if !(types.Identical(recvObj.Type(), xsel.Recv())) {
+					continue
+				}
+
+				if fd.Name.Name == expr.Sel.Name {
+					return fd
+				}
+			}
+		}
+	}
+
+	return nil
 }

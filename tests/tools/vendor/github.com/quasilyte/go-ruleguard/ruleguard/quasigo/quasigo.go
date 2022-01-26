@@ -138,8 +138,9 @@ type Func struct {
 // If int was pushed with PushInt(), it should be retrieved by PopInt().
 // It's a bad idea to do a Push() and then PopInt() and vice-versa.
 type ValueStack struct {
-	objects []interface{}
-	ints    []int
+	objects     []interface{}
+	ints        []int
+	variadicLen int
 }
 
 // Pop removes the top stack element and returns it.
@@ -155,6 +156,19 @@ func (s *ValueStack) PopInt() int {
 	x := s.ints[len(s.ints)-1]
 	s.ints = s.ints[:len(s.ints)-1]
 	return x
+}
+
+// PopVariadic removes the `...` argument and returns it as a slice.
+//
+// Slice elements are in the order they were passed to the function,
+// for example, a call Sprintf("%s:%d", filename, line) returns
+// the slice []interface{filename, line}.
+func (s *ValueStack) PopVariadic() []interface{} {
+	to := len(s.objects)
+	from := to - s.variadicLen
+	xs := s.objects[from:to]
+	s.objects = s.objects[:from]
+	return xs
 }
 
 // Push adds x to the stack.

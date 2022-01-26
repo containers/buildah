@@ -25,6 +25,8 @@ const (
 // StringToListType makes it easier to turn a string into a ListType.
 // It assumes that the string representation is lower case.
 var StringToListType = map[string]ListType{
+	"allowlist": LTWhitelist,
+	"denylist":  LTBlacklist,
 	"whitelist": LTWhitelist,
 	"blacklist": LTBlacklist,
 }
@@ -33,6 +35,12 @@ var StringToListType = map[string]ListType{
 type Issue struct {
 	PackageName string
 	Position    token.Position
+}
+
+// Wrapper for glob patterns that allows for custom negation
+type negatableGlob struct {
+	g      glob.Glob
+	negate bool
 }
 
 // Depguard checks imports to make sure they follow the given list and constraints.
@@ -47,6 +55,10 @@ type Depguard struct {
 	TestPackages       []string
 	prefixTestPackages []string
 	globTestPackages   []glob.Glob
+
+	IgnoreFileRules       []string
+	prefixIgnoreFileRules []string
+	globIgnoreFileRules   []negatableGlob
 
 	prefixRoot []string
 }
@@ -69,6 +81,9 @@ func (dg *Depguard) Run(config *loader.Config, prog *loader.Program) ([]*Issue, 
 	var issues []*Issue
 	for pkg, positions := range directImports {
 		for _, pos := range positions {
+			if ignoreFile(pos.Filename, dg.prefixIgnoreFileRules, dg.globIgnoreFileRules) {
+				continue
+			}
 
 			prefixList, globList := dg.prefixPackages, dg.globPackages
 			if len(dg.TestPackages) > 0 && strings.Index(pos.Filename, "_test.go") != -1 {
@@ -119,6 +134,32 @@ func (dg *Depguard) initialize(config *loader.Config, prog *loader.Program) erro
 	// Sort the test packages so we can have a faster search in the array
 	sort.Strings(dg.prefixTestPackages)
 
+	// parse ignore file rules
+	for _, rule := range dg.IgnoreFileRules {
+		if strings.ContainsAny(rule, "!?*[]{}") {
+			ng := negatableGlob{}
+			if strings.HasPrefix(rule, "!") {
+				ng.negate = true
+				rule = rule[1:] // Strip out the leading '!'
+			} else {
+				ng.negate = false
+			}
+
+			g, err := glob.Compile(rule, '/')
+			if err != nil {
+				return err
+			}
+			ng.g = g
+
+			dg.globIgnoreFileRules = append(dg.globIgnoreFileRules, ng)
+		} else {
+			dg.prefixIgnoreFileRules = append(dg.prefixIgnoreFileRules, rule)
+		}
+	}
+
+	// Sort the rules so we can have a faster search in the array
+	sort.Strings(dg.prefixIgnoreFileRules)
+
 	if !dg.IncludeGoRoot {
 		var err error
 		dg.prefixRoot, err = listRootPrefixs(config.Build)
@@ -158,30 +199,49 @@ func (dg *Depguard) createImportMap(prog *loader.Program) (map[string][]token.Po
 	return importMap, nil
 }
 
-func pkgInList(pkg string, prefixList []string, globList []glob.Glob) bool {
-	if pkgInPrefixList(pkg, prefixList) {
+func ignoreFile(filename string, prefixList []string, negatableGlobList []negatableGlob) bool {
+	if strInPrefixList(filename, prefixList) {
 		return true
 	}
-	return pkgInGlobList(pkg, globList)
+	return strInNegatableGlobList(filename, negatableGlobList)
 }
 
-func pkgInPrefixList(pkg string, prefixList []string) bool {
-	// Idx represents where in the package slice the passed in package would go
+func pkgInList(pkg string, prefixList []string, globList []glob.Glob) bool {
+	if strInPrefixList(pkg, prefixList) {
+		return true
+	}
+	return strInGlobList(pkg, globList)
+}
+
+func strInPrefixList(str string, prefixList []string) bool {
+	// Idx represents where in the prefix slice the passed in string would go
 	// when sorted. -1 Just means that it would be at the very front of the slice.
 	idx := sort.Search(len(prefixList), func(i int) bool {
-		return prefixList[i] > pkg
+		return prefixList[i] > str
 	}) - 1
-	// This means that the package passed in has no way to be prefixed by anything
-	// in the package list as it is already smaller then everything
+	// This means that the string passed in has no way to be prefixed by anything
+	// in the prefix list as it is already smaller then everything
 	if idx == -1 {
 		return false
 	}
-	return strings.HasPrefix(pkg, prefixList[idx])
+	return strings.HasPrefix(str, prefixList[idx])
 }
 
-func pkgInGlobList(pkg string, globList []glob.Glob) bool {
+func strInGlobList(str string, globList []glob.Glob) bool {
 	for _, g := range globList {
-		if g.Match(pkg) {
+		if g.Match(str) {
+			return true
+		}
+	}
+	return false
+}
+
+func strInNegatableGlobList(str string, negatableGlobList []negatableGlob) bool {
+	for _, ng := range negatableGlobList {
+		// Return true when:
+		//  - Match is true and negate is off
+		//  - Match is false and negate is on
+		if ng.g.Match(str) != ng.negate {
 			return true
 		}
 	}

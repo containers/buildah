@@ -119,7 +119,7 @@ func (w lintStringFormatRule) parseArgument(argument interface{}, ruleNum int) (
 	}
 
 	// Validate scope and regex length
-	if len(rule[0]) == 0 {
+	if rule[0] == "" {
 		w.configError("empty scope provided", ruleNum, 0)
 	} else if len(rule[1]) < 2 {
 		w.configError("regex is too small (regexes should begin and end with '/')", ruleNum, 1)

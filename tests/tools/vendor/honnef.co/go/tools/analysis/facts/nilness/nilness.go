@@ -132,6 +132,13 @@ func impl(pass *analysis.Pass, fn *ir.Function, seenFns map[*ir.Function]struct{
 			return mightReturnNil(v.X)
 		case *ir.Convert:
 			return mightReturnNil(v.X)
+		case *ir.SliceToArrayPointer:
+			if v.Type().Underlying().(*types.Pointer).Elem().Underlying().(*types.Array).Len() == 0 {
+				return mightReturnNil(v.X)
+			} else {
+				// converting a slice to an array pointer of length > 0 panics if the slice is nil
+				return neverNil
+			}
 		case *ir.Slice:
 			return mightReturnNil(v.X)
 		case *ir.Phi:

@@ -695,7 +695,7 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 		if latestErr == nil {
 			latestErr = e
 		} else {
-			latestErr = errors.Wrapf(latestErr, "tried %v\n", e)
+			latestErr = errors.Wrapf(latestErr, "tried %v", e)
 		}
 	}
 

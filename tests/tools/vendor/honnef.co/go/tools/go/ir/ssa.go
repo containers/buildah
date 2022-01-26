@@ -729,8 +729,9 @@ type ChangeType struct {
 //    - between pointers and unsafe.Pointer.
 //    - between unsafe.Pointer and uintptr.
 //    - from (Unicode) integer to (UTF-8) string.
-//    - from slice to array pointer.
 // A conversion may imply a type name change also.
+//
+// This operation cannot fail dynamically.
 //
 // Conversions of untyped string/number/bool constants to a specific
 // representation are eliminated during IR construction.
@@ -759,6 +760,20 @@ type Convert struct {
 // 	t2 = ChangeInterface <I1> t1
 //
 type ChangeInterface struct {
+	register
+	X Value
+}
+
+// The SliceToArrayPointer instruction yields the conversion of slice X to
+// array pointer.
+//
+// Pos() returns the ast.CallExpr.Lparen, if the instruction arose
+// from an explicit conversion in the source.
+//
+// Example printed form:
+// 	t1 = SliceToArrayPointer <*[4]byte> t1
+//
+type SliceToArrayPointer struct {
 	register
 	X Value
 }
@@ -1728,6 +1743,10 @@ func (v *ChangeType) Operands(rands []*Value) []*Value {
 }
 
 func (v *Convert) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
+func (v *SliceToArrayPointer) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
 

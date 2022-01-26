@@ -3,7 +3,7 @@ package ruleguard
 import (
 	"go/ast"
 
-	"github.com/quasilyte/go-ruleguard/internal/gogrep"
+	"github.com/quasilyte/gogrep"
 )
 
 // matchData is used to handle both regexp and AST match sets in the same way.

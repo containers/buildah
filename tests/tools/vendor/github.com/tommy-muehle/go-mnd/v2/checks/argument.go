@@ -74,6 +74,10 @@ func (a *ArgumentAnalyzer) checkCallExpr(expr *ast.CallExpr) {
 				return
 			}
 		}
+	case *ast.Ident:
+		if a.config.IsIgnoredFunction(f.Name) {
+			return
+		}
 	}
 
 	for i, arg := range expr.Args {

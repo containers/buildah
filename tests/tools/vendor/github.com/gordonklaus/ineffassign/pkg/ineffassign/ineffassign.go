@@ -324,8 +324,15 @@ func (bld *builder) Visit(n ast.Node) ast.Visitor {
 func isZeroInitializer(x ast.Expr) bool {
 	// Assume that a call expression of a single argument is a conversion expression.  We can't do better without type information.
 	if c, ok := x.(*ast.CallExpr); ok {
-		switch c.Fun.(type) {
-		case *ast.Ident, *ast.SelectorExpr:
+		fun := c.Fun
+		if p, ok := fun.(*ast.ParenExpr); ok {
+			fun = p.X
+		}
+		if s, ok := fun.(*ast.StarExpr); ok {
+			fun = s.X
+		}
+		switch fun.(type) {
+		case *ast.Ident, *ast.SelectorExpr, *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.ChanType:
 		default:
 			return false
 		}
@@ -342,7 +349,7 @@ func isZeroInitializer(x ast.Expr) bool {
 			return true
 		}
 	case *ast.Ident:
-		return x.Name == "false" && x.Obj == nil
+		return (x.Name == "false" || x.Name == "nil") && x.Obj == nil
 	}
 
 	return false

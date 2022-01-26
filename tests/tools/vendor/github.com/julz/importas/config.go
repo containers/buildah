@@ -7,9 +7,10 @@ import (
 )
 
 type Config struct {
-	RequiredAlias     map[string]string
-	Rules             []*Rule
-	DisallowUnaliased bool
+	RequiredAlias        map[string]string
+	Rules                []*Rule
+	DisallowUnaliased    bool
+	DisallowExtraAliases bool
 }
 
 func (c *Config) CompileRegexp() error {

@@ -1,7 +1,7 @@
 # Depguard
 
 Go linter that checks package imports are in a list of acceptable packages. It
-supports a white list and black list option and can do prefix or glob matching.
+can also deny a list of packages and can do prefix or glob matching.
 This allows you to allow imports from a whole organization or only
 allow specific packages within a repository. It is recommended to use prefix
 matching as it is faster than glob matching. The fewer glob matches the better.
@@ -24,7 +24,7 @@ The following is an example configuration file.
 
 ```json
 {
-  "type": "whitelist",
+  "type": "allowlist",
   "packages": ["github.com/OpenPeeDeeP/depguard"],
   "packageErrorMessages": {
     "github.com/OpenPeeDeeP/depguards": "Please use \"github.com/OpenPeeDeeP/depguard\","
@@ -34,13 +34,47 @@ The following is an example configuration file.
 }
 ```
 
-- `type` can be either `whitelist` or `blacklist`. This check is case insensitive.
-  If not specified the default is `blacklist`.
+- `type` can be either `allowlist` or `denylist`. This check is case insensitive.
+  If not specified the default is `denylist`. The values `whitelist` and `blacklist`
+  are also accepted for backwards compatibility.
 - `packages` is a list of packages for the list type specified.
 - `packageErrorMessages` is a mapping from packages to the error message to display
 - `inTests` is a list of packages allowed/disallowed only in test files.
-- Set `includeGoStdLib` (`includeGoRoot` for backwards compatability) to true if you want to check the list against standard lib.
+- Set `includeGoStdLib` (`includeGoRoot` for backwards compatibility) to true if you want to check the list against standard lib.
   If not specified the default is false.
+
+### Ignore File Rules
+
+The configuration also allows us to specify rules to ignore certain files considered by the linter. This means that we need not apply package import checks across our entire code base.
+
+For example, consider the following configuration to block a test package:
+```json
+{
+  "type": "denylist",
+  "packages": ["github.com/stretchr/testify"],
+  "inTests": ["github.com/stretchr/testify"]
+}
+```
+
+We can use a `ignoreFileRules` field to write a configuration that only considers test files:
+```json
+{
+  "type": "denylist",
+  "packages": ["github.com/stretchr/testify"],
+  "ignoreFileRules": ["!**/*_test.go"]
+}
+```
+
+Or if we wanted to consider only non-test files:
+```json
+{
+  "type": "denylist",
+  "packages": ["github.com/stretchr/testify"],
+  "ignoreFileRules": ["**/*_test.go"]
+}
+```
+
+Like the `packages` field, the `ignoreFileRules` field can accept both string prefixes and string glob patterns. Note in the first example above, the use of the `!` character in front of the rule. This is a special character which signals that the linter should negate the rule. This allows for more precise control, but it is only available for glob patterns.
 
 ## Gometalinter
 
@@ -73,5 +107,5 @@ gometalinter --linter='depguard:depguard -c path/to/config.json:PATH:LINE:COL:ME
 ## Golangci-lint
 
 This linter was built with
-[Golangci-lint](https://github.com/golangci/golangci-lint) in mind. It is compatable
+[Golangci-lint](https://github.com/golangci/golangci-lint) in mind. It is compatible
 and read their docs to see how to implement all their linters, including this one.

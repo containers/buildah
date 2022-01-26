@@ -1,33 +1,25 @@
-# exhaustive
+## exhaustive [![Godoc][2]][1]
 
-[![Godoc](https://godoc.org/github.com/nishanths/exhaustive?status.svg)](https://godoc.org/github.com/nishanths/exhaustive)
-
-[![Build Status](https://travis-ci.org/nishanths/exhaustive.svg?branch=master)](https://travis-ci.org/nishanths/exhaustive)
-
-The `exhaustive` package and command line program can be used to detect
-enum switch statements that are not exhaustive.
-
-An enum switch statement is exhaustive if it has cases for each of the enum's members. See godoc for the definition of enum used by the program.
-
-The `exhaustive` package provides an `Analyzer` that follows the guidelines
-described in the [go/analysis](https://godoc.org/golang.org/x/tools/go/analysis) package; this makes
-it possible to integrate into existing analysis driver programs.
-
-## Install
+Check exhaustiveness of enum switch statements in Go source code.
 
 ```
-go get github.com/nishanths/exhaustive/...
+go install github.com/nishanths/exhaustive/cmd/exhaustive@latest
 ```
 
-## Docs
+For docs on the flags, the definition of enum, and the definition of
+exhaustiveness, see [godocs.io][4].
 
-https://godoc.org/github.com/nishanths/exhaustive
+For the changelog, see [CHANGELOG][changelog] in the wiki.
+
+The package provides an `Analyzer` that follows the guidelines in the
+[`go/analysis`][3] package; this should make it possible to integrate
+exhaustive with your own analysis driver program.
 
 ## Example
 
-Given the code:
+Given the enum
 
-```diff
+```go
 package token
 
 type Token int
@@ -36,35 +28,41 @@ const (
 	Add Token = iota
 	Subtract
 	Multiply
-+	Quotient
-+	Remainder
+	Quotient
+	Remainder
 )
 ```
-```
+
+and the switch statement
+
+```go
 package calc
 
 import "token"
 
-func processToken(t token.Token) {
+func f(t token.Token) {
 	switch t {
 	case token.Add:
-		...
 	case token.Subtract:
-		...
 	case token.Multiply:
-		...
+	default:
 	}
 }
 ```
 
-Running the `exhaustive` command will print:
+running exhaustive will print
 
 ```
 calc.go:6:2: missing cases in switch of type token.Token: Quotient, Remainder
 ```
 
-Enums can also be defined using explicit constant values instead of `iota`.
+## Contributing
 
-## License
+Issues and pull requests are welcome. Before making a substantial
+change, please discuss it in an issue.
 
-BSD 2-Clause
+[1]: https://godocs.io/github.com/nishanths/exhaustive
+[2]: https://godocs.io/github.com/nishanths/exhaustive?status.svg
+[3]: https://pkg.go.dev/golang.org/x/tools/go/analysis
+[4]: https://godocs.io/github.com/nishanths/exhaustive
+[changelog]: https://github.com/nishanths/exhaustive/wiki/CHANGELOG

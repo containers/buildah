@@ -31,6 +31,18 @@ importas -no-unaliased \
   ./...
 ~~~~
 
+### `-no-extra-aliases` option
+
+By default, importas allows aliases which are not specified by `-alias` flags.
+With `-no-extra-aliases` option, importas does not allow any unspecified aliases.
+
+~~~~
+importas -no-extra-aliases \
+  -alias knative.dev/serving/pkg/apis/autoscaling/v1alpha1:autoscalingv1alpha1 \
+  -alias knative.dev/serving/pkg/apis/serving/v1:servingv1 \
+  ./...
+~~~~
+
 ### Use regular expression
 
 You can specify the package path by regular expression, and alias by regular expression replacement syntax like following snippet.

@@ -1,16 +1,19 @@
 package asciicheck
 
-import "unicode"
+import (
+	"unicode"
+	"unicode/utf8"
+)
 
 func isASCII(s string) (rune, bool) {
 	if len(s) == 1 {
-		return []rune(s)[0], s[0] <= unicode.MaxASCII
+		r, size := utf8.DecodeRuneInString(s)
+		return r, size < 2
 	}
 
-	r := []rune(s)
-	for i := 0; i < len(s); i++ {
-		if r[i] > unicode.MaxASCII {
-			return r[i], false
+	for _, r := range s {
+		if r > unicode.MaxASCII {
+			return r, false
 		}
 	}
 

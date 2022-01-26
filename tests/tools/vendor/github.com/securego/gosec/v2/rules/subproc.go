@@ -55,6 +55,10 @@ func (r *subprocess) Match(n ast.Node, c *gosec.Context) (*gosec.Issue, error) {
 				// .. indeed it is a variable then processing is different than a normal
 				// field assignment
 				if variable {
+					// skip the check when the declaration is not available
+					if ident.Obj == nil {
+						continue
+					}
 					switch ident.Obj.Decl.(type) {
 					case *ast.AssignStmt:
 						_, assignment := ident.Obj.Decl.(*ast.AssignStmt)

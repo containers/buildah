@@ -10,22 +10,26 @@ import (
 )
 
 // CognitiveComplexityRule lints given else constructs.
-type CognitiveComplexityRule struct{}
+type CognitiveComplexityRule struct {
+	maxComplexity int
+}
 
 // Apply applies the rule to given file.
 func (r *CognitiveComplexityRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
-	checkNumberOfArguments(1, arguments, r.Name())
+	if r.maxComplexity == 0 {
+		checkNumberOfArguments(1, arguments, r.Name())
 
-	complexity, ok := arguments[0].(int64)
-	if !ok {
-		panic(fmt.Sprintf("invalid argument type for cognitive-complexity, expected int64, got %T", arguments[0]))
+		complexity, ok := arguments[0].(int64)
+		if !ok {
+			panic(fmt.Sprintf("invalid argument type for cognitive-complexity, expected int64, got %T", arguments[0]))
+		}
+		r.maxComplexity = int(complexity)
 	}
 
 	var failures []lint.Failure
-
 	linter := cognitiveComplexityLinter{
 		file:          file,
-		maxComplexity: int(complexity),
+		maxComplexity: r.maxComplexity,
 		onFailure: func(failure lint.Failure) {
 			failures = append(failures, failure)
 		},

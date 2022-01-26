@@ -34,6 +34,9 @@ import (
 	"honnef.co/go/tools/knowledge"
 	"honnef.co/go/tools/pattern"
 	"honnef.co/go/tools/printf"
+	"honnef.co/go/tools/staticcheck/fakejson"
+	"honnef.co/go/tools/staticcheck/fakereflect"
+	"honnef.co/go/tools/staticcheck/fakexml"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -254,10 +257,10 @@ var (
 	}
 
 	checkUnsupportedMarshal = map[string]CallCheck{
-		"encoding/json.Marshal":           checkUnsupportedMarshalImpl(knowledge.Arg("json.Marshal.v"), "json", "MarshalJSON", "MarshalText"),
-		"encoding/xml.Marshal":            checkUnsupportedMarshalImpl(knowledge.Arg("xml.Marshal.v"), "xml", "MarshalXML", "MarshalText"),
-		"(*encoding/json.Encoder).Encode": checkUnsupportedMarshalImpl(knowledge.Arg("(*encoding/json.Encoder).Encode.v"), "json", "MarshalJSON", "MarshalText"),
-		"(*encoding/xml.Encoder).Encode":  checkUnsupportedMarshalImpl(knowledge.Arg("(*encoding/xml.Encoder).Encode.v"), "xml", "MarshalXML", "MarshalText"),
+		"encoding/json.Marshal":           checkUnsupportedMarshalJSON,
+		"encoding/xml.Marshal":            checkUnsupportedMarshalXML,
+		"(*encoding/json.Encoder).Encode": checkUnsupportedMarshalJSON,
+		"(*encoding/xml.Encoder).Encode":  checkUnsupportedMarshalXML,
 	}
 
 	checkAtomicAlignment = map[string]CallCheck{
@@ -868,57 +871,37 @@ func checkNoopMarshalImpl(argN int, meths ...string) CallCheck {
 	}
 }
 
-func checkUnsupportedMarshalImpl(argN int, tag string, meths ...string) CallCheck {
-	// TODO(dh): flag slices and maps of unsupported types
-	return func(call *Call) {
-		msCache := &call.Instr.Parent().Prog.MethodSets
-
-		arg := call.Args[argN]
-		T := arg.Value.Value.Type()
-		Ts, ok := typeutil.Dereference(T).Underlying().(*types.Struct)
-		if !ok {
-			return
-		}
-		ms := msCache.MethodSet(T)
-		// TODO(dh): we're not checking the signature, which can cause false negatives.
-		// This isn't a huge problem, however, since vet complains about incorrect signatures.
-		for _, meth := range meths {
-			if ms.Lookup(nil, meth) != nil {
-				return
-			}
-		}
-		fields := typeutil.FlattenFields(Ts)
-		for _, field := range fields {
-			if !(field.Var.Exported()) {
-				continue
-			}
-			if reflect.StructTag(field.Tag).Get(tag) == "-" {
-				continue
-			}
-			ms := msCache.MethodSet(field.Var.Type())
-			// TODO(dh): we're not checking the signature, which can cause false negatives.
-			// This isn't a huge problem, however, since vet complains about incorrect signatures.
-			for _, meth := range meths {
-				if ms.Lookup(nil, meth) != nil {
-					return
-				}
-			}
-			switch field.Var.Type().Underlying().(type) {
-			case *types.Chan, *types.Signature:
-				arg.Invalid(fmt.Sprintf("trying to marshal chan or func value, field %s", fieldPath(T, field.Path)))
-			}
+func checkUnsupportedMarshalJSON(call *Call) {
+	arg := call.Args[0]
+	T := arg.Value.Value.Type()
+	if err := fakejson.Marshal(T); err != nil {
+		typ := types.TypeString(err.Type, types.RelativeTo(arg.Value.Value.Parent().Pkg.Pkg))
+		if err.Path == "x" {
+			arg.Invalid(fmt.Sprintf("trying to marshal unsupported type %s", typ))
+		} else {
+			arg.Invalid(fmt.Sprintf("trying to marshal unsupported type %s, via %s", typ, err.Path))
 		}
 	}
 }
 
-func fieldPath(start types.Type, indices []int) string {
-	p := start.String()
-	for _, idx := range indices {
-		field := typeutil.Dereference(start).Underlying().(*types.Struct).Field(idx)
-		start = field.Type()
-		p += "." + field.Name()
+func checkUnsupportedMarshalXML(call *Call) {
+	arg := call.Args[0]
+	T := arg.Value.Value.Type()
+	if err := fakexml.Marshal(T); err != nil {
+		switch err := err.(type) {
+		case *fakexml.UnsupportedTypeError:
+			typ := types.TypeString(err.Type, types.RelativeTo(arg.Value.Value.Parent().Pkg.Pkg))
+			if err.Path == "x" {
+				arg.Invalid(fmt.Sprintf("trying to marshal unsupported type %s", typ))
+			} else {
+				arg.Invalid(fmt.Sprintf("trying to marshal unsupported type %s, via %s", typ, err.Path))
+			}
+		case *fakexml.TagPathError:
+			// Vet does a better job at reporting this error, because it can flag the actual struct tags, not just the call to Marshal
+		default:
+			// These errors get reported by SA5008 instead, which can flag the actual fields, independently of calls to xml.Marshal
+		}
 	}
-	return p
 }
 
 func isInLoop(b *ir.BasicBlock) bool {
@@ -1360,6 +1343,9 @@ func CheckLhsRhsIdentical(pass *analysis.Pass) (interface{}, error) {
 	// happily flags fn() == fn() – so far, we've had nobody complain
 	// about a false positive, and it's caught several bugs in real
 	// code.
+	//
+	// We special case functions from the math/rand package. Someone ran
+	// into the following false positive: "rand.Intn(2) - rand.Intn(2), which I wrote to generate values {-1, 0, 1} with {0.25, 0.5, 0.25} probability."
 	fn := func(node ast.Node) {
 		op := node.(*ast.BinaryExpr)
 		switch op.Op {
@@ -1399,6 +1385,38 @@ func CheckLhsRhsIdentical(pass *analysis.Pass) (interface{}, error) {
 			// 0 == 0 are slim.
 			return
 		}
+
+		if expr, ok := op.X.(*ast.CallExpr); ok {
+			call := code.CallName(pass, expr)
+			switch call {
+			case "math/rand.Int",
+				"math/rand.Int31",
+				"math/rand.Int31n",
+				"math/rand.Int63",
+				"math/rand.Int63n",
+				"math/rand.Intn",
+				"math/rand.Uint32",
+				"math/rand.Uint64",
+				"math/rand.ExpFloat64",
+				"math/rand.Float32",
+				"math/rand.Float64",
+				"math/rand.NormFloat64",
+				"(*math/rand.Rand).Int",
+				"(*math/rand.Rand).Int31",
+				"(*math/rand.Rand).Int31n",
+				"(*math/rand.Rand).Int63",
+				"(*math/rand.Rand).Int63n",
+				"(*math/rand.Rand).Intn",
+				"(*math/rand.Rand).Uint32",
+				"(*math/rand.Rand).Uint64",
+				"(*math/rand.Rand).ExpFloat64",
+				"(*math/rand.Rand).Float32",
+				"(*math/rand.Rand).Float64",
+				"(*math/rand.Rand).NormFloat64":
+				return
+			}
+		}
+
 		report.Report(pass, op, fmt.Sprintf("identical expressions on the left and right side of the '%s' operator", op.Op))
 	}
 	code.Preorder(pass, fn, (*ast.BinaryExpr)(nil))
@@ -3828,7 +3846,12 @@ func CheckStructTags(pass *analysis.Pass) (interface{}, error) {
 	}
 
 	fn := func(node ast.Node) {
-		for _, field := range node.(*ast.StructType).Fields.List {
+		structNode := node.(*ast.StructType)
+		T := pass.TypesInfo.Types[structNode].Type.(*types.Struct)
+		rt := fakereflect.TypeAndCanAddr{
+			Type: T,
+		}
+		for i, field := range structNode.Fields.List {
 			if field.Tag == nil {
 				continue
 			}
@@ -3850,6 +3873,9 @@ func CheckStructTags(pass *analysis.Pass) (interface{}, error) {
 				case "json":
 					checkJSONTag(pass, field, v[0])
 				case "xml":
+					if _, err := fakexml.StructFieldInfo(rt.Field(i)); err != nil {
+						report.Report(pass, field.Tag, fmt.Sprintf("invalid XML tag: %s", err))
+					}
 					checkXMLTag(pass, field, v[0])
 				}
 			}
@@ -3913,28 +3939,21 @@ func checkXMLTag(pass *analysis.Pass, field *ast.Field, tag string) {
 	}
 	fields := strings.Split(tag, ",")
 	counts := map[string]int{}
-	var exclusives []string
 	for _, s := range fields[1:] {
 		switch s {
 		case "attr", "chardata", "cdata", "innerxml", "comment":
 			counts[s]++
-			if counts[s] == 1 {
-				exclusives = append(exclusives, s)
-			}
 		case "omitempty", "any":
 			counts[s]++
 		case "":
 		default:
-			report.Report(pass, field.Tag, fmt.Sprintf("unknown XML option %q", s))
+			report.Report(pass, field.Tag, fmt.Sprintf("invalid XML tag: unknown option %q", s))
 		}
 	}
 	for k, v := range counts {
 		if v > 1 {
-			report.Report(pass, field.Tag, fmt.Sprintf("duplicate XML option %q", k))
+			report.Report(pass, field.Tag, fmt.Sprintf("invalid XML tag: duplicate option %q", k))
 		}
-	}
-	if len(exclusives) > 1 {
-		report.Report(pass, field.Tag, fmt.Sprintf("XML options %s are mutually exclusive", strings.Join(exclusives, " and ")))
 	}
 }
 

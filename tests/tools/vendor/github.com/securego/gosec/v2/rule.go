@@ -26,34 +26,45 @@ type Rule interface {
 // RuleBuilder is used to register a rule definition with the analyzer
 type RuleBuilder func(id string, c Config) (Rule, []ast.Node)
 
-// A RuleSet maps lists of rules to the type of AST node they should be run on.
+// A RuleSet contains a mapping of lists of rules to the type of AST node they
+// should be run on and a mapping of rule ID's to whether the rule are
+// suppressed.
 // The analyzer will only invoke rules contained in the list associated with the
 // type of AST node it is currently visiting.
-type RuleSet map[reflect.Type][]Rule
+type RuleSet struct {
+	Rules             map[reflect.Type][]Rule
+	RuleSuppressedMap map[string]bool
+}
 
 // NewRuleSet constructs a new RuleSet
 func NewRuleSet() RuleSet {
-	return make(RuleSet)
+	return RuleSet{make(map[reflect.Type][]Rule), make(map[string]bool)}
 }
 
 // Register adds a trigger for the supplied rule for the the
 // specified ast nodes.
-func (r RuleSet) Register(rule Rule, nodes ...ast.Node) {
+func (r RuleSet) Register(rule Rule, isSuppressed bool, nodes ...ast.Node) {
 	for _, n := range nodes {
 		t := reflect.TypeOf(n)
-		if rules, ok := r[t]; ok {
-			r[t] = append(rules, rule)
+		if rules, ok := r.Rules[t]; ok {
+			r.Rules[t] = append(rules, rule)
 		} else {
-			r[t] = []Rule{rule}
+			r.Rules[t] = []Rule{rule}
 		}
 	}
+	r.RuleSuppressedMap[rule.ID()] = isSuppressed
 }
 
 // RegisteredFor will return all rules that are registered for a
 // specified ast node.
 func (r RuleSet) RegisteredFor(n ast.Node) []Rule {
-	if rules, found := r[reflect.TypeOf(n)]; found {
+	if rules, found := r.Rules[reflect.TypeOf(n)]; found {
 		return rules
 	}
 	return []Rule{}
+}
+
+// IsRuleSuppressed will return whether the rule is suppressed.
+func (r RuleSet) IsRuleSuppressed(ruleID string) bool {
+	return r.RuleSuppressedMap[ruleID]
 }

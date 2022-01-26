@@ -17,12 +17,11 @@ func init() {
 		Before:  `//nolint`,
 		After:   `//nolint // reason`,
 	}
-	re := regexp.MustCompile(`^// *nolint(?::[^ ]+)? *(.*)$`)
 
 	collection.AddChecker(&info, func(ctx *linter.CheckerContext) (linter.FileWalker, error) {
 		return astwalk.WalkerForComment(&whyNoLintChecker{
 			ctx: ctx,
-			re:  re,
+			re:  regexp.MustCompile(`^// *nolint(?::[^ ]+)? *(.*)$`),
 		}), nil
 	})
 }

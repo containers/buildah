@@ -12,4 +12,4 @@ check:
 	golangci-lint run
 
 build:
-	go build -v -ldflags "-s -w" -trimpath ./cmd/tagliatelle/
+	go build -ldflags "-s -w" -trimpath ./cmd/tagliatelle/

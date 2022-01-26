@@ -47,7 +47,7 @@ func (f *File) ToPosition(pos token.Pos) token.Position {
 	return f.Pkg.fset.Position(pos)
 }
 
-// Render renters a node.
+// Render renders a node.
 func (f *File) Render(x interface{}) string {
 	var buf bytes.Buffer
 	if err := printer.Fprint(&buf, f.Pkg.fset, x); err != nil {
@@ -74,7 +74,7 @@ var basicTypeKinds = map[types.BasicKind]string{
 // and indicates what its default type is.
 // scope may be nil.
 func (f *File) IsUntypedConst(expr ast.Expr) (defType string, ok bool) {
-	// Re-evaluate expr outside of its context to see if it's untyped.
+	// Re-evaluate expr outside its context to see if it's untyped.
 	// (An expr evaluated within, for example, an assignment context will get the type of the LHS.)
 	exprStr := f.Render(expr)
 	tv, err := types.Eval(f.Pkg.fset, f.Pkg.TypesPkg, expr.Pos(), exprStr)
@@ -206,9 +206,9 @@ func (f *File) disabledIntervals(rules []Rule, mustSpecifyDisableReason bool, fa
 			if len(match) == 0 {
 				continue
 			}
-
 			ruleNames := []string{}
 			tempNames := strings.Split(match[rulesPos], ",")
+
 			for _, name := range tempNames {
 				name = strings.Trim(name, "\n")
 				if len(name) > 0 {

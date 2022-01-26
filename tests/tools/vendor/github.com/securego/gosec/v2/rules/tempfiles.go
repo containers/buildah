@@ -23,19 +23,41 @@ import (
 
 type badTempFile struct {
 	gosec.MetaData
-	calls gosec.CallList
-	args  *regexp.Regexp
+	calls       gosec.CallList
+	args        *regexp.Regexp
+	argCalls    gosec.CallList
+	nestedCalls gosec.CallList
 }
 
 func (t *badTempFile) ID() string {
 	return t.MetaData.ID
 }
 
+func (t *badTempFile) findTempDirArgs(n ast.Node, c *gosec.Context, suspect ast.Node) *gosec.Issue {
+	if s, e := gosec.GetString(suspect); e == nil {
+		if t.args.MatchString(s) {
+			return gosec.NewIssue(c, n, t.ID(), t.What, t.Severity, t.Confidence)
+		}
+		return nil
+	}
+	if ce := t.argCalls.ContainsPkgCallExpr(suspect, c, false); ce != nil {
+		return gosec.NewIssue(c, n, t.ID(), t.What, t.Severity, t.Confidence)
+	}
+	if be, ok := suspect.(*ast.BinaryExpr); ok {
+		if ops := gosec.GetBinaryExprOperands(be); len(ops) != 0 {
+			return t.findTempDirArgs(n, c, ops[0])
+		}
+		return nil
+	}
+	if ce := t.nestedCalls.ContainsPkgCallExpr(suspect, c, false); ce != nil {
+		return t.findTempDirArgs(n, c, ce.Args[0])
+	}
+	return nil
+}
+
 func (t *badTempFile) Match(n ast.Node, c *gosec.Context) (gi *gosec.Issue, err error) {
 	if node := t.calls.ContainsPkgCallExpr(n, c, false); node != nil {
-		if arg, e := gosec.GetString(node.Args[0]); t.args.MatchString(arg) && e == nil {
-			return gosec.NewIssue(c, n, t.ID(), t.What, t.Severity, t.Confidence), nil
-		}
+		return t.findTempDirArgs(n, c, node.Args[0]), nil
 	}
 	return nil, nil
 }
@@ -44,10 +66,17 @@ func (t *badTempFile) Match(n ast.Node, c *gosec.Context) (gi *gosec.Issue, err 
 func NewBadTempFile(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 	calls := gosec.NewCallList()
 	calls.Add("io/ioutil", "WriteFile")
-	calls.Add("os", "Create")
+	calls.AddAll("os", "Create", "WriteFile")
+	argCalls := gosec.NewCallList()
+	argCalls.Add("os", "TempDir")
+	nestedCalls := gosec.NewCallList()
+	nestedCalls.Add("path", "Join")
+	nestedCalls.Add("path/filepath", "Join")
 	return &badTempFile{
-		calls: calls,
-		args:  regexp.MustCompile(`^/tmp/.*$|^/var/tmp/.*$`),
+		calls:       calls,
+		args:        regexp.MustCompile(`^(/(usr|var))?/tmp(/.*)?$`),
+		argCalls:    argCalls,
+		nestedCalls: nestedCalls,
 		MetaData: gosec.MetaData{
 			ID:         id,
 			Severity:   gosec.Medium,

@@ -1,6 +1,6 @@
 GIT_TAG?= $(shell git describe --abbrev=0)
 
-GO_VERSION = 1.15
+GO_VERSION = 1.16
 BUILDFLAGS := '-w -s'
 
 IMAGE_REPO = "tommymuehle"

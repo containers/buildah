@@ -54,7 +54,7 @@ func (w *lintStringInt) Visit(node ast.Node) ast.Visitor {
 	w.onFailure(lint.Failure{
 		Confidence: 1,
 		Node:       ce,
-		Failure:    "dubious convertion of an integer into a string, use strconv.Itoa",
+		Failure:    "dubious conversion of an integer into a string, use strconv.Itoa",
 	})
 
 	return w

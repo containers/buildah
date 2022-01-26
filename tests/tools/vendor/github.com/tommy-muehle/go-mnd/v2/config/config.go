@@ -44,11 +44,10 @@ func WithOptions(options ...Option) *Config {
 
 func WithIgnoredFunctions(excludes string) Option {
 	return func(config *Config) {
-		if excludes == "" {
-			return
-		}
-
 		for _, exclude := range strings.Split(excludes, ",") {
+			if exclude == "" {
+				continue
+			}
 			config.IgnoredFunctions = append(config.IgnoredFunctions, regexp.MustCompile(exclude))
 		}
 	}
@@ -56,11 +55,10 @@ func WithIgnoredFunctions(excludes string) Option {
 
 func WithIgnoredFiles(excludes string) Option {
 	return func(config *Config) {
-		if excludes == "" {
-			return
-		}
-
 		for _, exclude := range strings.Split(excludes, ",") {
+			if exclude == "" {
+				continue
+			}
 			config.IgnoredFiles = append(config.IgnoredFiles, regexp.MustCompile(exclude))
 		}
 	}
@@ -68,11 +66,10 @@ func WithIgnoredFiles(excludes string) Option {
 
 func WithIgnoredNumbers(numbers string) Option {
 	return func(config *Config) {
-		if numbers == "" {
-			return
-		}
-
 		for _, number := range strings.Split(numbers, ",") {
+			if number == "" {
+				continue
+			}
 			config.IgnoredNumbers[config.removeDigitSeparator(number)] = struct{}{}
 		}
 	}
@@ -89,6 +86,9 @@ func WithCustomChecks(checks string) Option {
 		}
 
 		for _, name := range strings.Split(checks, ",") {
+			if name == "" {
+				continue
+			}
 			config.Checks[name] = true
 		}
 	}

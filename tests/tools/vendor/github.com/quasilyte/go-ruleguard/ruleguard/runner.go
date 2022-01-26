@@ -2,26 +2,33 @@ package ruleguard
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"go/ast"
 	"go/build"
 	"go/printer"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/quasilyte/go-ruleguard/internal/gogrep"
-	"github.com/quasilyte/go-ruleguard/nodetag"
 	"github.com/quasilyte/go-ruleguard/ruleguard/goutil"
+	"github.com/quasilyte/go-ruleguard/ruleguard/profiling"
+	"github.com/quasilyte/gogrep"
+	"github.com/quasilyte/gogrep/nodetag"
 )
 
 type rulesRunner struct {
 	state *engineState
 
+	bgContext context.Context
+
 	ctx   *RunContext
 	rules *goRuleSet
+
+	reportData ReportData
 
 	gogrepState gogrep.MatcherState
 
@@ -58,6 +65,7 @@ func newRulesRunner(ctx *RunContext, buildContext *build.Context, state *engineS
 	gogrepState := gogrep.NewMatcherState()
 	gogrepState.Types = ctx.Types
 	rr := &rulesRunner{
+		bgContext:   context.Background(),
 		ctx:         ctx,
 		importer:    importer,
 		rules:       rules,
@@ -131,8 +139,8 @@ func (rr *rulesRunner) run(f *ast.File) error {
 		var inspector astWalker
 		inspector.nodePath = &rr.nodePath
 		inspector.filterParams = &rr.filterParams
-		inspector.Walk(f, func(n ast.Node) {
-			rr.runRules(n)
+		inspector.Walk(f, func(n ast.Node, tag nodetag.Value) {
+			rr.runRules(n, tag)
 		})
 	}
 
@@ -206,14 +214,26 @@ func (rr *rulesRunner) runCommentRules(comment *ast.Comment) {
 	}
 }
 
-func (rr *rulesRunner) runRules(n ast.Node) {
-	tag := nodetag.FromNode(n)
+func (rr *rulesRunner) runRules(n ast.Node, tag nodetag.Value) {
+	// profiling.LabelsEnabled is constant, so labels-related
+	// code should be a no-op inside normal build.
+	// To enable labels, use "-tags pproflabels" build tag.
+
 	for _, rule := range rr.rules.universal.rulesByTag[tag] {
+		if profiling.LabelsEnabled {
+			profiling.EnterWithLabels(rr.bgContext, rule.group.Name)
+		}
+
 		matched := false
 		rule.pat.MatchNode(&rr.gogrepState, n, func(m gogrep.MatchData) {
 			matched = rr.handleMatch(rule, m)
 		})
-		if matched {
+
+		if profiling.LabelsEnabled {
+			profiling.Leave(rr.bgContext)
+		}
+
+		if matched && !multiMatchTags[tag] {
 			break
 		}
 	}
@@ -291,7 +311,12 @@ func (rr *rulesRunner) handleCommentMatch(rule goCommentRule, m commentMatchData
 		Group: rule.base.group,
 		Line:  rule.base.line,
 	}
-	rr.ctx.Report(info, node, message, suggestion)
+	rr.reportData.RuleInfo = info
+	rr.reportData.Node = node
+	rr.reportData.Message = message
+	rr.reportData.Suggestion = suggestion
+
+	rr.ctx.Report(&rr.reportData)
 	return true
 }
 
@@ -322,7 +347,14 @@ func (rr *rulesRunner) handleMatch(rule goRule, m gogrep.MatchData) bool {
 		Group: rule.group,
 		Line:  rule.line,
 	}
-	rr.ctx.Report(info, node, message, suggestion)
+	rr.reportData.RuleInfo = info
+	rr.reportData.Node = node
+	rr.reportData.Message = message
+	rr.reportData.Suggestion = suggestion
+
+	rr.reportData.Func = rr.filterParams.currentFunc
+
+	rr.ctx.Report(&rr.reportData)
 	return true
 }
 
@@ -355,20 +387,45 @@ func (rr *rulesRunner) renderMessage(msg string, m matchData, truncate bool) str
 
 	for _, c := range capture {
 		n := c.Node
+		// Some captured nodes are typed, but nil.
+		// We can't really get their text, so skip them here.
+		// For example, pattern `func $_() $results { $*_ }` may
+		// match a nil *ast.FieldList for $results if executed
+		// against a function with no results.
+		if reflect.ValueOf(n).IsNil() && !gogrep.IsEmptyNodeSlice(n) {
+			continue
+		}
 		key := "$" + c.Name
 		if !strings.Contains(msg, key) {
 			continue
 		}
 		buf.Reset()
 		buf.Write(rr.nodeText(n))
-		// Don't interpolate strings that are too long.
-		var replacement string
-		if truncate && buf.Len() > 60 {
-			replacement = key
-		} else {
-			replacement = buf.String()
+		replacement := buf.String()
+		if truncate {
+			replacement = truncateText(replacement, 60)
 		}
 		msg = strings.ReplaceAll(msg, key, replacement)
 	}
 	return msg
+}
+
+func truncateText(s string, maxLen int) string {
+	const placeholder = "<...>"
+	if len(s) <= maxLen-len(placeholder) {
+		return s
+	}
+	maxLen -= len(placeholder)
+	leftLen := maxLen / 2
+	rightLen := (maxLen % 2) + leftLen
+	left := s[:leftLen]
+	right := s[len(s)-rightLen:]
+	return left + placeholder + right
+}
+
+var multiMatchTags = [nodetag.NumBuckets]bool{
+	nodetag.BlockStmt:  true,
+	nodetag.CaseClause: true,
+	nodetag.CommClause: true,
+	nodetag.File:       true,
 }

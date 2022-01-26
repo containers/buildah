@@ -19,6 +19,32 @@ func (b *builder) buildExits(fn *Function) {
 				fn.NoReturn = AlwaysUnwinds
 				return
 			}
+		case "go.uber.org/zap":
+			switch obj.(*types.Func).FullName() {
+			case "(*go.uber.org/zap.Logger).Fatal",
+				"(*go.uber.org/zap.SugaredLogger).Fatal",
+				"(*go.uber.org/zap.SugaredLogger).Fatalw",
+				"(*go.uber.org/zap.SugaredLogger).Fatalf":
+				// Technically, this method does not unconditionally exit
+				// the process. It dynamically calls a function stored in
+				// the logger. If the function is nil, it defaults to
+				// os.Exit.
+				//
+				// The main intent of this method is to terminate the
+				// process, and that's what the vast majority of people
+				// will use it for. We'll happily accept some false
+				// negatives to avoid a lot of false positives.
+				fn.NoReturn = AlwaysExits
+			case "(*go.uber.org/zap.Logger).Panic",
+				"(*go.uber.org/zap.SugaredLogger).Panicw",
+				"(*go.uber.org/zap.SugaredLogger).Panicf":
+				fn.NoReturn = AlwaysUnwinds
+				return
+			case "(*go.uber.org/zap.Logger).DPanic",
+				"(*go.uber.org/zap.SugaredLogger).DPanicf",
+				"(*go.uber.org/zap.SugaredLogger).DPanicw":
+				// These methods will only panic in development.
+			}
 		case "github.com/sirupsen/logrus":
 			switch obj.(*types.Func).FullName() {
 			case "(*github.com/sirupsen/logrus.Logger).Exit":
@@ -68,6 +94,19 @@ func (b *builder) buildExits(fn *Function) {
 				"github.com/golang/glog.FatalDepth",
 				"github.com/golang/glog.Fatalf",
 				"github.com/golang/glog.Fatalln":
+				// all of these call os.Exit after logging
+				fn.NoReturn = AlwaysExits
+			}
+		case "k8s.io/klog":
+			switch obj.(*types.Func).FullName() {
+			case "k8s.io/klog.Exit",
+				"k8s.io/klog.ExitDepth",
+				"k8s.io/klog.Exitf",
+				"k8s.io/klog.Exitln",
+				"k8s.io/klog.Fatal",
+				"k8s.io/klog.FatalDepth",
+				"k8s.io/klog.Fatalf",
+				"k8s.io/klog.Fatalln":
 				// all of these call os.Exit after logging
 				fn.NoReturn = AlwaysExits
 			}

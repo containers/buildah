@@ -5,3 +5,6 @@ tags
 # binary
 cmd/exhaustive/exhaustive
 exhaustive
+
+# testing artifacts
+coverage.out

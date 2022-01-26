@@ -8,21 +8,26 @@ import (
 )
 
 // ArgumentsLimitRule lints given else constructs.
-type ArgumentsLimitRule struct{}
+type ArgumentsLimitRule struct {
+	total int
+}
 
 // Apply applies the rule to given file.
 func (r *ArgumentsLimitRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
-	checkNumberOfArguments(1, arguments, r.Name())
+	if r.total == 0 {
+		checkNumberOfArguments(1, arguments, r.Name())
 
-	total, ok := arguments[0].(int64) // Alt. non panicking version
-	if !ok {
-		panic(`invalid value passed as argument number to the "argument-list" rule`)
+		total, ok := arguments[0].(int64) // Alt. non panicking version
+		if !ok {
+			panic(`invalid value passed as argument number to the "argument-list" rule`)
+		}
+		r.total = int(total)
 	}
 
 	var failures []lint.Failure
 
 	walker := lintArgsNum{
-		total: int(total),
+		total: r.total,
 		onFailure: func(failure lint.Failure) {
 			failures = append(failures, failure)
 		},

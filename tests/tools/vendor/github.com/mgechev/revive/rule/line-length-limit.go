@@ -12,20 +12,26 @@ import (
 )
 
 // LineLengthLimitRule lints given else constructs.
-type LineLengthLimitRule struct{}
+type LineLengthLimitRule struct {
+	max int
+}
 
 // Apply applies the rule to given file.
 func (r *LineLengthLimitRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
-	checkNumberOfArguments(1, arguments, r.Name())
+	if r.max == 0 {
+		checkNumberOfArguments(1, arguments, r.Name())
 
-	max, ok := arguments[0].(int64) // Alt. non panicking version
-	if !ok || max < 0 {
-		panic(`invalid value passed as argument number to the "line-length-limit" rule`)
+		max, ok := arguments[0].(int64) // Alt. non panicking version
+		if !ok || max < 0 {
+			panic(`invalid value passed as argument number to the "line-length-limit" rule`)
+		}
+
+		r.max = int(max)
 	}
 
 	var failures []lint.Failure
 	checker := lintLineLengthNum{
-		max:  int(max),
+		max:  r.max,
 		file: file,
 		onFailure: func(failure lint.Failure) {
 			failures = append(failures, failure)
@@ -55,7 +61,7 @@ func (r lintLineLengthNum) check() {
 	s := bufio.NewScanner(f)
 	for s.Scan() {
 		t := s.Text()
-		t = strings.Replace(t, "\t", spaces, -1)
+		t = strings.ReplaceAll(t, "\t", spaces)
 		c := utf8.RuneCountInString(t)
 		if c > r.max {
 			r.onFailure(lint.Failure{

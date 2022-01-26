@@ -2,9 +2,17 @@
 
 A linter for checking Prometheus metrics name via promlint.
 
-![example](assets/example.png)
+![usage](assets/promlinter.gif)
 
 ## Installation
+
+### Go Get
+
+go get github.com/yeya24/promlinter/cmd/promlinter
+
+### Download from release
+
+Please go to https://github.com/yeya24/promlinter/releases.
 
 ### Build from source
 
@@ -20,16 +28,10 @@ make build
 
 Then you can find the `promlinter` binary file in the `./bin` directory.
 
-### Download from release
-
-TBD
-
 ## Usage
 
 ``` bash
-promlinter -h
-
-usage: promlinter [<flags>] [<files>...]
+usage: promlinter [<flags>] <command> [<args> ...]
 
 Prometheus metrics linter for Go code.
 
@@ -56,14 +58,18 @@ It is also supported to disable the lint functions using repeated flag --disable
   [UnitAbbreviations]: UnitAbbreviations detects abbreviated units in the metric name.
 
 Flags:
-  -h, --help                 Show context-sensitive help (also try --help-long and --help-man).
-      --version              Show application version.
-  -s, --strict               Strict mode. If true, linter will output more issues including parsing failures.
-  -d, --disable=DISABLE ...  Disable lint functions (repeated).Supported options: Help, Counter, MetricUnits, HistogramSummaryReserved, MetricTypeInName,
-                             ReservedChars, CamelCase, UnitAbbreviations
+  -h, --help     Show context-sensitive help (also try --help-long and --help-man).
+      --version  Show application version.
 
-Args:
-  [<files>]  Files to lint.
+Commands:
+  help [<command>...]
+    Show help.
+
+  list [<flags>] [<files>...]
+    List metrics name.
+
+  lint [<flags>] [<files>...]
+    Lint metrics via promlint.
 
 ```
 
