@@ -2823,9 +2823,6 @@ EOF
   run_buildah build --network=container --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
   [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
-
-  run_buildah 125 build --network=bogus --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
-
 }
 
 @test "bud-replace-from-in-containerfile" {
@@ -3903,4 +3900,20 @@ _EOF
   expect_output --substring "hello"
   expect_output --substring "hello2"
   run_buildah rmi -f testbud
+}
+
+@test "bud with network names" {
+  skip_if_no_runtime
+  skip_if_in_container
+
+  _prefetch alpine
+
+  run_buildah 125 bud --signature-policy ${TESTSDIR}/policy.json --network notexists ${TESTSDIR}/bud/network
+  expect_output --substring "network not found"
+
+  if test "$BUILDAH_ISOLATION" = "oci"; then
+    run_buildah bud --signature-policy ${TESTSDIR}/policy.json --network podman ${TESTSDIR}/bud/network
+    # default subnet is 10.88.0.0/16
+    expect_output --substring "10.88."
+  fi
 }
