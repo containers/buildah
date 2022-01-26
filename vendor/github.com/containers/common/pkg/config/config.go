@@ -1188,7 +1188,7 @@ func (c *Config) FindHelperBinary(name string, searchPATH bool) (string, error) 
 	return "", errors.Errorf("could not find %q in one of %v.  %s", name, c.Engine.HelperBinariesDir, configHint)
 }
 
-// ImageCopyTmpDir default directory to store tempory image files during copy
+// ImageCopyTmpDir default directory to store temporary image files during copy
 func (c *Config) ImageCopyTmpDir() (string, error) {
 	if path, found := os.LookupEnv("TMPDIR"); found {
 		return path, nil
