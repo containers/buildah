@@ -159,7 +159,7 @@ Container engines pass secret the secret file into the build using the `--secret
 
 **--mount**=*type=secret,TYPE-SPECIFIC-OPTION[,...]*
 
-- `id` is the identifier to for the secret passed into the `buildah bud --secret` or `podman build --secret`. This identifier is associated with the RUN --mount identifier to use in the Containerfile.
+- `id` is the identifier for the secret passed into the `buildah bud --secret` or `podman build --secret`. This identifier is associated with the RUN --mount identifier to use in the Containerfile.
 
 - `dst`|`target`|`destination` rename the secret file to a specific file in the Containerfile RUN command to use.
 
@@ -190,7 +190,7 @@ The secret needs to be passed to the build using the --secret flag. The final im
   it possible to **RUN** commands using a base image that does not contain `/bin/sh`.
 
   Note that the exec form is parsed as a JSON array, which means that you must
-  use double-quotes (") around words not single-quotes (').
+  use double-quotes (") around words, not single-quotes (').
 
 **CMD**
   -- **CMD** has three forms:
@@ -216,7 +216,7 @@ The secret needs to be passed to the build using the --secret flag. The final im
   If you use the shell form of the **CMD**, the `<command>` executes in `/bin/sh -c`:
 
   Note that the exec form is parsed as a JSON array, which means that you must
-  use double-quotes (") around words not single-quotes (').
+  use double-quotes (") around words, not single-quotes (').
 
   ```
   FROM ubuntu

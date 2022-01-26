@@ -16,7 +16,7 @@ help of the *newuidmap(1)* and *newgidmap(1)* helpers.
 buildah unshare is useful for troubleshooting unprivileged operations and for
 manually clearing storage and other data related to images and containers.
 
-It is also useful if you want to use the `buildah mount` command.  If an unprivileged users wants to mount and work with a container, then they need to execute
+It is also useful if you want to use the `buildah mount` command.  If an unprivileged user wants to mount and work with a container, then they need to execute
 buildah unshare.  Executing `buildah mount` fails for unprivileged users unless the user is running inside a `buildah unshare` session.
 
 ## OPTIONS

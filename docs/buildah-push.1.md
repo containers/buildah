@@ -26,7 +26,7 @@ the list or index itself.
 
 **--authfile** *path*
 
-Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using using `buildah login`.
+Path of the authentication file. Default is ${XDG_\RUNTIME\_DIR}/containers/auth.json. If XDG_RUNTIME_DIR is not set, the default is /run/containers/$UID/auth.json. This file is created using `buildah login`.
 
 If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
@@ -84,7 +84,7 @@ Don't copy signatures when pushing images.
 
 **--rm**
 
-When pushing a the manifest list or image index, delete them from local storage if pushing succeeds.
+When pushing a manifest list or image index, delete them from local storage if pushing succeeds.
 
 **--sign-by** *fingerprint*
 
@@ -124,7 +124,7 @@ This example pushes the image specified by the imageID to a private container re
 
  `# buildah push --authfile /tmp/auths/myauths.json imageID docker://registry.example.com/repository:tag`
 
-This example pushes the image specified by the imageID and puts into the local docker container store.
+This example pushes the image specified by the imageID and puts it into the local docker container store.
 
  `# buildah push imageID docker-daemon:image:tag`
 

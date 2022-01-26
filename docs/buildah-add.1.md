@@ -98,7 +98,7 @@ src
 ```
 
 `*/*.c`
-Excludes files and directories whose names ends with .c in any top level subdirectory. For example, the source file include/rootless.c.
+Excludes files and directories whose names end with .c in any top level subdirectory. For example, the source file include/rootless.c.
 
 `**/output*`
 Excludes files and directories starting with `output` from any directory.

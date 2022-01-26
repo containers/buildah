@@ -32,7 +32,7 @@ Sets the user and group ownership of the destination content.
 **--contextdir** *directory*
 
 Build context directory. Specifying a context directory causes Buildah to
-chroot into a the context directory. This means copying files pointed at
+chroot into the context directory. This means copying files pointed at
 by symbolic links outside of the chroot will fail.
 
 **--from** *containerOrImage*
@@ -96,7 +96,7 @@ src
 ```
 
 `*/*.c`
-Excludes files and directories whose names ends with .c in any top level subdirectory. For example, the source file include/rootless.c.
+Excludes files and directories whose names end with .c in any top level subdirectory. For example, the source file include/rootless.c.
 
 `**/output*`
 Excludes files and directories starting with `output` from any directory.
