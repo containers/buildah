@@ -112,6 +112,29 @@ func MountReadOnly(contentDir, source, dest string, rootUID, rootGID int, graphO
 	return MountWithOptions(contentDir, source, dest, &overlayOpts)
 }
 
+// findMountProgram finds if any mount program is specified in the graph options.
+func findMountProgram(graphOptions []string) string {
+	mountMap := map[string]bool{
+		".mount_program":         true,
+		"overlay.mount_program":  true,
+		"overlay2.mount_program": true,
+	}
+
+	for _, i := range graphOptions {
+		s := strings.SplitN(i, "=", 2)
+		if len(s) != 2 {
+			continue
+		}
+		key := s[0]
+		val := s[1]
+		if mountMap[key] {
+			return val
+		}
+	}
+
+	return ""
+}
+
 // MountWithOptions creates a subdir of the contentDir based on the source directory
 // from the source system.  It then mounts up the source directory on to the
 // generated mount point and returns the mount point to the caller.
@@ -155,26 +178,7 @@ func MountWithOptions(contentDir, source, dest string, opts *Options) (mount spe
 	}
 
 	if unshare.IsRootless() {
-		mountProgram := ""
-
-		mountMap := map[string]bool{
-			".mount_program":         true,
-			"overlay.mount_program":  true,
-			"overlay2.mount_program": true,
-		}
-
-		for _, i := range opts.GraphOpts {
-			s := strings.SplitN(i, "=", 2)
-			if len(s) != 2 {
-				continue
-			}
-			key := s[0]
-			val := s[1]
-			if mountMap[key] {
-				mountProgram = val
-				break
-			}
-		}
+		mountProgram := findMountProgram(opts.GraphOpts)
 		if mountProgram != "" {
 			cmd := exec.Command(mountProgram, "-o", overlayOptions, mergeDir)
 
