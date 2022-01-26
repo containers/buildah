@@ -695,7 +695,7 @@ Only the current container can use a private volume.
   Note:
 
      - The `O` flag is not allowed to be specified with the `Z` or `z` flags. Content mounted into the container is labeled with the private label.
-       On SELinux systems, labels in the source directory need to be readable by the container label. If not, SELinux container separation must be disabled for the container to work.
+       On SELinux systems, labels in the source directory must be readable by the container label. If not, SELinux container separation must be disabled for the container to work.
      - Modification of the directory volume mounted into the container with an overlay mount can cause unexpected failures.  It is recommended that you do not modify the directory until the container finishes running.
 
 By default bind mounted volumes are `private`. That means any mounts done
