@@ -188,20 +188,21 @@ func MountWithOptions(contentDir, source, dest string, opts *Options) (mount spe
 		overlayOptions = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s,private", escapeColon(source), upperDir, workDir)
 	}
 
-	if unshare.IsRootless() {
-		mountProgram := findMountProgram(opts.GraphOpts)
-		if mountProgram != "" {
-			if err := mountWithMountProgram(mountProgram, overlayOptions, mergeDir); err != nil {
-				return mount, err
-			}
-
-			mount.Source = mergeDir
-			mount.Destination = dest
-			mount.Type = "bind"
-			mount.Options = []string{"bind", "slave"}
-			return mount, nil
+	mountProgram := findMountProgram(opts.GraphOpts)
+	if mountProgram != "" {
+		if err := mountWithMountProgram(mountProgram, overlayOptions, mergeDir); err != nil {
+			return mount, err
 		}
-		/* If a mount_program is not specified, fallback to try mount native overlay.  */
+
+		mount.Source = mergeDir
+		mount.Destination = dest
+		mount.Type = "bind"
+		mount.Options = []string{"bind", "slave"}
+		return mount, nil
+	}
+
+	if unshare.IsRootless() {
+		/* If a mount_program is not specified, fallback to try mounting native overlay.  */
 		overlayOptions = fmt.Sprintf("%s,userxattr", overlayOptions)
 	}
 
