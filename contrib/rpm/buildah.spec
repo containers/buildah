@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.24.0
+Version:        1.25.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,8 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Wed Jan 26, 2022 Tom Sweeney <tsweeney@redhat.com> 1.25.0-dev-1
+
 * Wed Jan 26, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.0-1
 - Update vendor of containers/common
 - build(deps): bump github.com/golangci/golangci-lint in /tests/tools
