@@ -1,3 +1,8 @@
+## 1.18.1
+
+## Fixes
+- Add pointer support to HaveField matcher (#495) [79e41a3]
+
 ## 1.18.0
 
 ## Features
