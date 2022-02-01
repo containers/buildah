@@ -77,7 +77,7 @@ load helpers
 
 @test "containers.conf /dev/shm test" {
     if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
+        skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
     fi
 
     export CONTAINERS_CONF=${TESTSDIR}/containers.conf
@@ -88,21 +88,21 @@ load helpers
 
 @test "containers.conf custom runtime" {
     if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
-    skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
+        skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
     fi
 
     test -e /usr/bin/crun || skip "/usr/bin/crun doesn't exist"
 
-    ln -s /usr/bin/crun ${TESTSDIR}/runtime
+    ln -s /usr/bin/crun ${TESTDIR}/runtime
 
-    cat >${TESTSDIR}/containers_non_standard_runtime.conf << EOF
+    cat >${TESTDIR}/containers_non_standard_runtime.conf << EOF
 [engine]
 runtime = "nonstandard_runtime_name"
 [engine.runtimes]
-nonstandard_runtime_name = ["${TESTSDIR}/runtime"]
+nonstandard_runtime_name = ["${TESTDIR}/runtime"]
 EOF
 
-    export CONTAINERS_CONF=${TESTSDIR}/containers_non_standard_runtime.conf
+    export CONTAINERS_CONF=${TESTDIR}/containers_non_standard_runtime.conf
     cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine)
     run_buildah --log-level=error run $cid true
 }
