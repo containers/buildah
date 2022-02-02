@@ -6,13 +6,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -98,6 +99,9 @@ type ClientExecutor struct {
 	// as a base for this build. Otherwise the FROM value from the
 	// Dockerfile is read (will be pulled if not locally present).
 	Image *docker.Image
+	// Committed is optional and is used to track a temporary image, if one
+	// was created, that was based on the container as its stage ended.
+	Committed *docker.Image
 
 	// AuthFn will handle authenticating any docker pulls if Image
 	// is set to nil.
@@ -108,7 +112,7 @@ type ClientExecutor struct {
 	LogFn func(format string, args ...interface{})
 
 	// Deferred is a list of operations that must be cleaned up at
-	// the end of execution. Use Release() to handle these.
+	// the end of execution. Use Release() to invoke all of these.
 	Deferred []func() error
 
 	// Volumes handles saving and restoring volumes after RUN
@@ -116,7 +120,7 @@ type ClientExecutor struct {
 	Volumes *ContainerVolumeTracker
 }
 
-// NotAuthFn can be used for AuthFn when no authentication is required in Docker.
+// NoAuthFn can be used for AuthFn when no authentication is required in Docker.
 func NoAuthFn(string) ([]dockertypes.AuthConfig, bool) {
 	return nil, false
 }
@@ -131,6 +135,9 @@ func NewClientExecutor(client *docker.Client) *ClientExecutor {
 	}
 }
 
+// DefaultExcludes reads the default list of excluded file patterns from the
+// context directory's .containerignore file if it exists, or from the context
+// directory's .dockerignore file, if it exists.
 func (e *ClientExecutor) DefaultExcludes() error {
 	var err error
 	e.Excludes, err = imagebuilder.ParseDockerignore(e.Directory)
@@ -138,21 +145,22 @@ func (e *ClientExecutor) DefaultExcludes() error {
 }
 
 // WithName creates a new child executor that will be used whenever a COPY statement
-// uses --from=NAME.
-func (e *ClientExecutor) WithName(name string) *ClientExecutor {
+// uses --from=NAME or --from=POSITION.
+func (e *ClientExecutor) WithName(name string, position int) *ClientExecutor {
 	if e.Named == nil {
 		e.Named = make(map[string]*ClientExecutor)
-		e.Deferred = append([]func() error{func() error {
-			var errs []error
-			for _, named := range e.Named {
-				errs = append(errs, named.Release()...)
-			}
-			if len(errs) > 0 {
-				return fmt.Errorf("%v", errs)
-			}
-			return nil
-		}}, e.Deferred...)
 	}
+	e.Deferred = append([]func() error{func() error {
+		stage, ok := e.Named[strconv.Itoa(position)]
+		if !ok {
+			return fmt.Errorf("error finding stage %d", position)
+		}
+		errs := stage.Release()
+		if len(errs) > 0 {
+			return fmt.Errorf("%v", errs)
+		}
+		return nil
+	}}, e.Deferred...)
 
 	copied := *e
 	copied.Name = name
@@ -160,9 +168,11 @@ func (e *ClientExecutor) WithName(name string) *ClientExecutor {
 	copied.Deferred = nil
 	copied.Image = nil
 	copied.Volumes = nil
+	copied.Committed = nil
 
 	child := &copied
 	e.Named[name] = child
+	e.Named[strconv.Itoa(position)] = child
 	return child
 }
 
@@ -171,7 +181,7 @@ func (e *ClientExecutor) WithName(name string) *ClientExecutor {
 func (e *ClientExecutor) Stages(b *imagebuilder.Builder, stages imagebuilder.Stages, from string) (*ClientExecutor, error) {
 	var stageExecutor *ClientExecutor
 	for i, stage := range stages {
-		stageExecutor = e.WithName(stage.Name)
+		stageExecutor = e.WithName(stage.Name, stage.Position)
 
 		var stageFrom string
 		if i == 0 {
@@ -186,11 +196,34 @@ func (e *ClientExecutor) Stages(b *imagebuilder.Builder, stages imagebuilder.Sta
 				if !ok {
 					return nil, fmt.Errorf("error: Unable to find stage %s builder", from)
 				}
-				stageExecutor.Image = &docker.Image{
-					Config: b.Builder.Config(),
+				if prereq.Committed == nil {
+					config := b.Builder.Config()
+					if prereq.Container.State.Running {
+						klog.V(4).Infof("Stopping container %s ...", prereq.Container.ID)
+						if err := e.Client.StopContainer(prereq.Container.ID, 0); err != nil {
+							return nil, fmt.Errorf("unable to stop build container: %v", err)
+						}
+						prereq.Container.State.Running = false
+						// Starting the container may perform escaping of args, so to be consistent
+						// we also set that here
+						config.ArgsEscaped = true
+					}
+					image, err := e.Client.CommitContainer(docker.CommitContainerOptions{
+						Container: prereq.Container.ID,
+						Run:       config,
+					})
+					if err != nil {
+						return nil, fmt.Errorf("unable to commit stage %s container: %v", from, err)
+					}
+					klog.V(4).Infof("Committed %s to %s as basis for image %q: %#v", prereq.Container.ID, image.ID, from, config)
+					// deleting this image will fail with an "image has dependent child images" error
+					// if it ends up being an ancestor of the final image, so don't bother returning
+					// errors from this specific removeImage() call
+					prereq.Deferred = append([]func() error{func() error { e.removeImage(image.ID); return nil }}, prereq.Deferred...)
+					prereq.Committed = image
 				}
-				stageExecutor.Container = prereq.Container
-				klog.V(4).Infof("Using previous stage %s as image: %#v", from, stageExecutor.Image.Config)
+				klog.V(4).Infof("Using image %s based on previous stage %s as image", prereq.Committed.ID, from)
+				from = prereq.Committed.ID
 			}
 			stageFrom = from
 		}
@@ -213,7 +246,7 @@ func (e *ClientExecutor) Stages(b *imagebuilder.Builder, stages imagebuilder.Sta
 // provided Docker client. It will load the image if not specified,
 // create a container if one does not already exist, and start a
 // container if the Dockerfile contains RUN commands. It will cleanup
-// any containers it creates directly, and set the e.Image.ID field
+// any containers it creates directly, and set the e.Committed.ID field
 // to the generated image.
 func (e *ClientExecutor) Build(b *imagebuilder.Builder, node *parser.Node, from string) error {
 	defer e.Release()
@@ -247,10 +280,10 @@ func (e *ClientExecutor) Prepare(b *imagebuilder.Builder, node *parser.Node, fro
 			if err != nil {
 				return fmt.Errorf("unable to create a scratch image for this build: %v", err)
 			}
-			e.Deferred = append(e.Deferred, func() error { return e.Client.RemoveImage(from) })
+			e.Deferred = append([]func() error{func() error { return e.removeImage(from) }}, e.Deferred...)
 		}
 		klog.V(4).Infof("Retrieving image %q", from)
-		e.Image, err = e.LoadImage(from)
+		e.Image, err = e.LoadImageWithPlatform(from, b.Platform)
 		if err != nil {
 			return err
 		}
@@ -304,7 +337,7 @@ func (e *ClientExecutor) Prepare(b *imagebuilder.Builder, node *parser.Node, fro
 				if err != nil {
 					return fmt.Errorf("unable to create volume to mount secrets: %v", err)
 				}
-				e.Deferred = append(e.Deferred, func() error { return e.Client.RemoveVolume(volumeName) })
+				e.Deferred = append([]func() error{func() error { return e.Client.RemoveVolume(volumeName) }}, e.Deferred...)
 				sharedMount = v.Mountpoint
 				opts.HostConfig.Binds = append(opts.HostConfig.Binds, volumeName+":"+e.ContainerTransientMount)
 			}
@@ -426,7 +459,7 @@ func (e *ClientExecutor) Commit(b *imagebuilder.Builder) error {
 		return fmt.Errorf("unable to commit build container: %v", err)
 	}
 
-	e.Image = image
+	e.Committed = image
 	klog.V(4).Infof("Committed %s to %s", e.Container.ID, image.ID)
 
 	if len(e.Tag) > 0 {
@@ -437,7 +470,7 @@ func (e *ClientExecutor) Commit(b *imagebuilder.Builder) error {
 				Tag:  tag,
 			})
 			if err != nil {
-				e.Deferred = append(e.Deferred, func() error { return e.Client.RemoveImageExtended(image.ID, docker.RemoveImageOptions{Force: true}) })
+				e.Deferred = append([]func() error{func() error { return e.removeImage(image.ID) }}, e.Deferred...)
 				return fmt.Errorf("unable to tag %q: %v", s, err)
 			}
 			e.LogFn("Tagged as %s", s)
@@ -498,7 +531,17 @@ func (e *ClientExecutor) removeContainer(id string) error {
 		Force:         true,
 	})
 	if _, ok := err.(*docker.NoSuchContainer); err != nil && !ok {
-		return fmt.Errorf("unable to cleanup container: %v", err)
+		return fmt.Errorf("unable to cleanup container %s: %v", id, err)
+	}
+	return nil
+}
+
+// removeImage removes the provided image ID
+func (e *ClientExecutor) removeImage(id string) error {
+	if err := e.Client.RemoveImageExtended(id, docker.RemoveImageOptions{
+		Force: true,
+	}); err != nil {
+		return fmt.Errorf("unable to clean up image %s: %v", id, err)
 	}
 	return nil
 }
@@ -546,6 +589,12 @@ func randSeq(source string, n int) (string, error) {
 // LoadImage checks the client for an image matching from. If not found,
 // attempts to pull the image and then tries to inspect again.
 func (e *ClientExecutor) LoadImage(from string) (*docker.Image, error) {
+	return e.LoadImageWithPlatform(from, "")
+}
+
+// LoadImage checks the client for an image matching from. If not found,
+// attempts to pull the image with specified platform string.
+func (e *ClientExecutor) LoadImageWithPlatform(from string, platform string) (*docker.Image, error) {
 	image, err := e.Client.InspectImage(from)
 	if err == nil {
 		return image, nil
@@ -596,6 +645,7 @@ func (e *ClientExecutor) LoadImage(from string) (*docker.Image, error) {
 				Repository:    repository,
 				Tag:           tag,
 				OutputStream:  pullWriter,
+				Platform:      platform,
 				RawJSONStream: true,
 			}
 			if klog.V(5) {
@@ -632,6 +682,10 @@ func (e *ClientExecutor) Preserve(path string) error {
 }
 
 func (e *ClientExecutor) EnsureContainerPath(path string) error {
+	return e.createOrReplaceContainerPathWithOwner(path, 0, 0)
+}
+
+func (e *ClientExecutor) createOrReplaceContainerPathWithOwner(path string, uid, gid int) error {
 	createPath := func(dest string) error {
 		var writerErr error
 		if !strings.HasSuffix(dest, "/") {
@@ -651,6 +705,8 @@ func (e *ClientExecutor) EnsureContainerPath(path string) error {
 				Name:     dest,
 				Typeflag: tar.TypeDir,
 				Mode:     0755,
+				Uid:      uid,
+				Gid:      gid,
 			})
 		}()
 		klog.V(4).Infof("Uploading empty archive to %q", dest)
@@ -802,6 +858,9 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 		if chownGid != -1 {
 			h.Gid = chownGid
 		}
+		if (h.Uid > 0x1fffff || h.Gid > 0x1fffff) && h.Format == tar.FormatUSTAR {
+			h.Format = tar.FormatPAX
+		}
 		return nil, false, false, nil
 	}
 	readFile := func(path string) ([]byte, error) {
@@ -832,7 +891,7 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 			return nil, fmt.Errorf("size mismatch reading contents of %q: %v", path, err)
 		}
 		hdr, err = tr.Next()
-		if err != nil && !errorIsEOF(err) {
+		if err != nil && !errors.Is(err, io.EOF) {
 			return nil, fmt.Errorf("error reading archive of %q: %v", path, err)
 		}
 		if err == nil {
@@ -862,6 +921,20 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 			return "", os.ErrNotExist
 		}
 		return *value, nil
+	}
+	findMissingParents := func(dest string) (parents []string, err error) {
+		destParent := filepath.Clean(dest)
+		for filepath.Dir(destParent) != destParent {
+			exists, err := isContainerPathDirectory(e.Client, container.ID, destParent)
+			if err != nil {
+				return nil, err
+			}
+			if !exists {
+				parents = append(parents, destParent)
+			}
+			destParent = filepath.Dir(destParent)
+		}
+		return parents, nil
 	}
 	for _, c := range copies {
 		chownUid, chownGid = -1, -1
@@ -953,12 +1026,25 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 			}
 			asOwner := ""
 			if c.Chown != "" {
+				asOwner = fmt.Sprintf(" as %d:%d", chownUid, chownGid)
+				missingParents, err := findMissingParents(c.Dest)
+				if err != nil {
+					return err
+				}
+				if len(missingParents) > 0 {
+					sort.Strings(missingParents)
+					klog.V(5).Infof("Uploading directories %v to %s%s", missingParents, container.ID, asOwner)
+					for _, missingParent := range missingParents {
+						if err := e.createOrReplaceContainerPathWithOwner(missingParent, chownUid, chownGid); err != nil {
+							return err
+						}
+					}
+				}
 				filtered, err := transformArchive(r, false, chown)
 				if err != nil {
 					return err
 				}
 				r = filtered
-				asOwner = fmt.Sprintf(" as %d:%d", chownUid, chownGid)
 			}
 			klog.V(5).Infof("Uploading to %s%s at %s", container.ID, asOwner, c.Dest)
 			if klog.V(6) {
@@ -993,14 +1079,12 @@ func (c closers) Close() error {
 
 func (e *ClientExecutor) archiveFromContainer(from string, src, dst string) (io.Reader, io.Closer, error) {
 	var containerID string
-	var containerConfig *docker.Config
 	if other, ok := e.Named[from]; ok {
 		if other.Container == nil {
 			return nil, nil, fmt.Errorf("the stage %q has not been built yet", from)
 		}
 		klog.V(5).Infof("Using container %s as input for archive request", other.Container.ID)
 		containerID = other.Container.ID
-		containerConfig = other.Container.Config
 	} else {
 		klog.V(5).Infof("Creating a container temporarily for image input from %q in %s", from, src)
 		_, err := e.LoadImage(from)
@@ -1016,17 +1100,21 @@ func (e *ClientExecutor) archiveFromContainer(from string, src, dst string) (io.
 			return nil, nil, err
 		}
 		containerID = c.ID
-		containerConfig = c.Config
 		e.Deferred = append([]func() error{func() error { return e.removeContainer(containerID) }}, e.Deferred...)
-	}
-
-	if !strings.HasPrefix(src, "/") {
-		src = path.Join(containerConfig.WorkingDir, src)
 	}
 
 	check := newDirectoryCheck(e.Client, e.Container.ID)
 	pr, pw := io.Pipe()
-	ar, archiveRoot, err := archiveFromContainer(pr, src, dst, nil, check)
+	var archiveRoot string
+	fetch := func(pw *io.PipeWriter) {
+		klog.V(6).Infof("Download from container %s at path %s", containerID, archiveRoot)
+		err := e.Client.DownloadFromContainer(containerID, docker.DownloadFromContainerOptions{
+			OutputStream: pw,
+			Path:         archiveRoot,
+		})
+		pw.CloseWithError(err)
+	}
+	ar, archiveRoot, err := archiveFromContainer(pr, src, dst, nil, check, fetch)
 	if err != nil {
 		pr.Close()
 		pw.Close()
@@ -1040,14 +1128,7 @@ func (e *ClientExecutor) archiveFromContainer(from string, src, dst string) (io.
 		}
 		return err2
 	})
-	go func() {
-		klog.V(6).Infof("Download from container %s at path %s", containerID, archiveRoot)
-		err := e.Client.DownloadFromContainer(containerID, docker.DownloadFromContainerOptions{
-			OutputStream: pw,
-			Path:         archiveRoot,
-		})
-		pw.CloseWithError(err)
-	}()
+	go fetch(pw)
 	return &readCloser{Reader: ar, Closer: closer}, pr, nil
 }
 
@@ -1072,28 +1153,6 @@ func (e *ClientExecutor) Archive(fromFS bool, src, dst string, allowDownload boo
 	if len(e.ContextArchive) > 0 {
 		klog.V(5).Infof("Archiving %s %s -> %s from context archive", e.ContextArchive, src, dst)
 		return archiveFromFile(e.ContextArchive, src, dst, excludes, check)
-	}
-	// if the source is an archive, extract it under the destination directory
-	srcFullPath := filepath.Join(e.Directory, src)
-	if allowDownload && isArchivePath(srcFullPath) {
-		f, err := os.Open(srcFullPath)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error opening %q: %v", srcFullPath, err)
-		}
-		klog.V(5).Infof("Extracting %s -> %s from local archive", srcFullPath, dst)
-		transform := func(h *tar.Header, r io.Reader) (data []byte, update bool, skip bool, err error) {
-			h.Name = filepath.Join(dst, h.Name)
-			if h.Typeflag == tar.TypeLink {
-				h.Linkname = filepath.Join(dst, h.Linkname)
-			}
-			return nil, false, false, nil
-		}
-		filtered, err := transformArchive(f, true, transform)
-		if err != nil {
-			f.Close()
-			return nil, nil, fmt.Errorf("error transforming archive %q: %v", srcFullPath, err)
-		}
-		return filtered, f, nil
 	}
 	// if the context is a directory, we only allow relative includes
 	klog.V(5).Infof("Archiving %q %q -> %q from disk", e.Directory, src, dst)
@@ -1234,7 +1293,7 @@ func snapshotPath(path, containerID, tempDir string, client *docker.Client) (str
 			}
 			return len(h.Name) > 0
 		})
-		if err == nil || errorIsEOF(err) {
+		if err == nil || errors.Is(err, io.EOF) {
 			tw.Flush()
 			w.Close()
 			klog.V(5).Infof("Snapshot rewritten from %s", path)

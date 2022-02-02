@@ -32,6 +32,9 @@ func CalcCopyInfo(origPath, rootPath string, allowWildcards bool) ([]CopyInfo, e
 
 func calcCopyInfo(origPath, rootPath string, allowWildcards, explicitDir bool) ([]CopyInfo, error) {
 	origPath = trimLeadingPath(origPath)
+	if !filepath.IsAbs(rootPath) {
+		rootPath = trimLeadingPath(rootPath)
+	}
 	// Deal with wildcards
 	if allowWildcards && containsWildcards(origPath) {
 		matchPath := filepath.Join(rootPath, origPath)
