@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.24.1
+Version:        1.25.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,8 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Feb 03, 2022 Tom Sweeney <tsweeney@redhat.com> 1.25.0-dev-1
+
 * Thu Feb 03, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.1-1
 - executor: Add support for inline --platform within Dockerfile
 - caps: fix buildah run --cap-add=all
