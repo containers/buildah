@@ -117,6 +117,60 @@ symlink(subdir)"
   expect_output --substring $(realpath "${TESTSDIR}/bud/dockerignore3/.dockerignore")
 }
 
+# Following test must fail since we are trying to run linux/arm64 on linux/amd64
+# Issue: https://github.com/containers/buildah/issues/3712
+@test "build-with-inline-platform" {
+  # Host arch
+  mkdir -p ${TESTDIR}/bud/platform
+  run_buildah info --format '{{.host.arch}}'
+  myarch="$output"
+  otherarch="arm64"
+
+  # just make sure that other arch is not equivalent to host arch
+  if [[ "$otherarch" == "$myarch" ]]; then
+    otherarch="amd64"
+  fi
+  # ...create a Containerfile with --platform=linux/$otherarch
+  cat > ${TESTDIR}/bud/platform/Dockerfile << _EOF
+FROM --platform=linux/${otherarch} alpine
+RUN uname -m
+_EOF
+
+  run_buildah '?' build --signature-policy ${TESTSDIR}/policy.json -t test ${TESTDIR}/bud/platform
+  if [[ $status -eq 0 ]]; then
+    run_buildah inspect --format '{{ .OCIv1.Architecture }}' test
+    expect_output --substring "$otherarch"
+  else
+    # Build failed: we DO NOT have qemu-user-static installed.
+    expect_output --substring "format error"
+  fi
+}
+
+# Following test must pass since we want to tag image as host arch
+# Test for use-case described here: https://github.com/containers/buildah/issues/3261
+@test "build-with-inline-platform-amd-but-tag-as-arm" {
+  # Host arch
+  mkdir -p ${TESTDIR}/bud/platform
+  run_buildah info --format '{{.host.arch}}'
+  myarch="$output"
+  targetarch="arm64"
+
+  if [[ "$targetArch" == "$myarch" ]]; then
+    targetarch="amd64"
+  fi
+
+  cat > ${TESTDIR}/bud/platform/Dockerfile << _EOF
+FROM --platform=linux/${myarch} alpine
+RUN uname -m
+_EOF
+
+  # Tries building image where baseImage has --platform=linux/HostArch
+  run_buildah build --platform linux/${targetarch} --signature-policy ${TESTSDIR}/policy.json -t test ${TESTDIR}/bud/platform
+  run_buildah inspect --format '{{ .OCIv1.Architecture }}' test
+  # base image is pulled as HostArch but tagged as non host arch
+  expect_output --substring $targetarch
+}
+
 @test "bud-flags-order-verification" {
   run_buildah 125 build /tmp/tmpdockerfile/ -t blabla
   check_options_flag_err "-t"
