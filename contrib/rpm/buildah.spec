@@ -100,7 +100,22 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Wed Jan 26, 2022 Tom Sweeney <tsweeney@redhat.com> 1.25.0-dev-1
+* Thu Feb 03, 2022 Tom Sweeney <tsweeney@redhat.com> 1.25.0-dev-1
+
+* Thu Feb 03, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.1-1
+- executor: Add support for inline --platform within Dockerfile
+- caps: fix buildah run --cap-add=all
+- Update vendor of openshift/imagebuilder
+- Bump version of containers/image and containers/common
+- Update vendor of containers/common
+- System tests: fix accidental vandalism of source dir
+- build(deps): bump github.com/containers/storage from 1.38.1 to 1.38.2
+- imagebuildah.BuildDockerfiles(): create the jobs semaphore
+- build(deps): bump github.com/onsi/gomega from 1.18.0 to 1.18.1
+- overlay: always honor mountProgram
+- overlay: move mount program invocation to separate function
+- overlay: move mount program lookup to separate function
+- Bump to v1.25.0-dev [NO TESTS NEEDED]
 
 * Wed Jan 26, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.0-1
 - Update vendor of containers/common
