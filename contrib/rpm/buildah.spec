@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.23.2
+Version:        1.23.3
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Feb 3, 2022 Nalin Dahyabhai <nalin@redhat.com> 1.23.3-1
+- bump(github.com/modern-go/reflect2) to v1.0.2
+
 * Mon Jan 24, 2022 Nalin Dahyabhai <nalin@redhat.com> 1.23.2-1
 - Bump containerd to v1.5.7
 - copier: RemoveAll possibly-directories
