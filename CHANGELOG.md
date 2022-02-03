@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.23.3 (2022-02-03)
+
+    bump(github.com/modern-go/reflect2) to v1.0.2
+
 ## v1.23.2 (2022-01-24)
 
     Bump containerd to v1.5.7
