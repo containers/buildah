@@ -27,7 +27,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/opencontainers/runtime-tools v0.9.0
 	github.com/opencontainers/selinux v1.10.0
-	github.com/openshift/imagebuilder v1.2.2-0.20210415181909-87f3e48c2656
+	github.com/openshift/imagebuilder v1.2.2
 	github.com/pkg/errors v0.9.1
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20210429002308-3879420cc921
 	github.com/sirupsen/logrus v1.8.1
@@ -40,7 +40,6 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
-	k8s.io/klog v1.0.0 // indirect
 )
 
 replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2

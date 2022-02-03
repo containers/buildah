@@ -262,7 +262,7 @@ github.com/docker/docker/pkg/system
 # github.com/docker/docker-credential-helpers v0.6.4
 github.com/docker/docker-credential-helpers/client
 github.com/docker/docker-credential-helpers/credentials
-# github.com/docker/go-connections v0.4.0
+# github.com/docker/go-connections v0.4.1-0.20210727194412-58542c764a11
 github.com/docker/go-connections/nat
 github.com/docker/go-connections/sockets
 github.com/docker/go-connections/tlsconfig
@@ -418,7 +418,7 @@ github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalk
 github.com/opencontainers/selinux/pkg/pwalkdir
-# github.com/openshift/imagebuilder v1.2.2-0.20210415181909-87f3e48c2656
+# github.com/openshift/imagebuilder v1.2.2
 github.com/openshift/imagebuilder
 github.com/openshift/imagebuilder/dockerclient
 github.com/openshift/imagebuilder/dockerfile/command
@@ -525,7 +525,7 @@ golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/agent
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
+# golang.org/x/net v0.0.0-20220114011407-0dd24b26b47d
 golang.org/x/net/context
 golang.org/x/net/html
 golang.org/x/net/html/atom
@@ -534,9 +534,7 @@ golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
-golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
-golang.org/x/net/proxy
 golang.org/x/net/trace
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
