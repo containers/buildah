@@ -2939,4 +2939,24 @@ var internalTestCases = []testCase{
 		name:       "replace-symlink-with-directory",
 		contextDir: "replace/symlink-with-directory",
 	},
+
+	{
+		name:       "replace-directory-with-symlink",
+		contextDir: "replace/symlink-with-directory",
+		dockerfile: "Dockerfile.2",
+	},
+
+	{
+		name:       "replace-symlink-with-directory-subdir",
+		contextDir: "replace/symlink-with-directory",
+		dockerfile: "Dockerfile.3",
+		fsSkip:     []string{"(dir):tree:mtime"},
+	},
+
+	{
+		name:       "replace-directory-with-symlink-subdir",
+		contextDir: "replace/symlink-with-directory",
+		dockerfile: "Dockerfile.4",
+		fsSkip:     []string{"(dir):tree:mtime"},
+	},
 }
