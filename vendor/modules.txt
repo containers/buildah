@@ -67,7 +67,7 @@ github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.0.1
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.47.3
+# github.com/containers/common v0.47.4
 github.com/containers/common/libimage
 github.com/containers/common/libimage/manifests
 github.com/containers/common/libnetwork/cni
@@ -218,7 +218,7 @@ github.com/cyphar/filepath-securejoin
 github.com/davecgh/go-spew/spew
 # github.com/disiqueira/gotree/v3 v3.0.2
 github.com/disiqueira/gotree/v3
-# github.com/docker/distribution v2.7.1+incompatible
+# github.com/docker/distribution v2.8.0+incompatible
 github.com/docker/distribution
 github.com/docker/distribution/digestset
 github.com/docker/distribution/metrics
