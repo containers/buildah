@@ -771,3 +771,17 @@ _EOF
 	uncolored="$output"
 	[ "$colored" != "$uncolored" ]
 }
+
+@test "rootless on cgroupv2 and systemd runs under user.slice" {
+	skip_if_no_runtime
+	skip_if_cgroupsv1
+	skip_if_in_container
+	if test "$DBUS_SESSION_BUS_ADDRESS" = ""; then
+		skip "${1:-test does not work when \$BUILDAH_ISOLATION = chroot}"
+	fi
+
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run --cgroupns=host $cid cat /proc/self/cgroup
+	expect_output --substring "/user.slice/"
+}

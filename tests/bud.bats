@@ -3187,7 +3187,7 @@ run cat /proc/self/cgroup
 _EOF
 
   # with cgroup-parent
-  run_buildah build --cgroupns=host --cgroup-parent test-cgroup -t with-flag \
+  run_buildah --cgroup-manager cgroupfs build --cgroupns=host --cgroup-parent test-cgroup -t with-flag \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
   if is_cgroupsv2; then
     expect_output --from="${lines[2]}" "0::/test-cgroup"
@@ -3195,7 +3195,7 @@ _EOF
     expect_output --substring "/test-cgroup"
   fi
   # without cgroup-parent
-  run_buildah build -t without-flag \
+  run_buildah --cgroup-manager cgroupfs build -t without-flag \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
   if [ -n "$(grep "test-cgroup" <<< "$output")" ]; then
     die "Unexpected cgroup."

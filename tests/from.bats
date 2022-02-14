@@ -589,13 +589,13 @@ load helpers
   # with cgroup-parent
   run_buildah from -q --cgroupns=host --cgroup-parent test-cgroup --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah run $cid /bin/sh -c 'cat /proc/$$/cgroup'
+  run_buildah --cgroup-manager cgroupfs run $cid /bin/sh -c 'cat /proc/$$/cgroup'
   expect_output --substring "test-cgroup"
 
   # without cgroup-parent
   run_buildah from -q --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
-  run_buildah run $cid /bin/sh -c 'cat /proc/$$/cgroup'
+  run_buildah --cgroup-manager cgroupfs run $cid /bin/sh -c 'cat /proc/$$/cgroup'
   if [ -n "$(grep "test-cgroup" <<< "$output")" ]; then
     die "Unexpected cgroup."
   fi
