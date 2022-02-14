@@ -171,6 +171,7 @@ return 1
          --version -v
          "
      local options_with_args="
+         --cgroup-manager
          --registries-conf
          --registries-conf-dir
          --root
@@ -198,6 +199,10 @@ return 1
              ;;
          --storage-driver)
              COMPREPLY=($(compgen -W 'devicemapper overlay2' -- "$cur"))
+             return
+             ;;
+         --cgroup-manager)
+             COMPREPLY=($(compgen -W 'cgroupfs systemd' -- "$cur"))
              return
              ;;
          $(__buildah_to_extglob "$options_with_args"))
