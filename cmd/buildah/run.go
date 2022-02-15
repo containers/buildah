@@ -160,6 +160,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	options.Mounts = mounts
 	// Run() will automatically clean them up.
 	options.ExternalImageMounts = mountedImages
+	options.CgroupManager = globalFlagResults.CgroupManager
 
 	runerr := builder.Run(args, options)
 

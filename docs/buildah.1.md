@@ -20,6 +20,13 @@ The Buildah package provides a command line tool which can be used to:
 
 ## OPTIONS
 
+**--cgroup-manager**=*manager*
+
+The CGroup manager to use for container cgroups. Supported values are cgroupfs or systemd. Default is systemd unless overridden in the containers.conf file.
+
+Note: Setting this flag can cause certain commands to break when called on containers previously created by the other CGroup manager type.
+Note: CGroup manager is not supported in rootless mode when using CGroups Version V1.
+
 **--log-level** **value**
 
 The log level to be used. Either "trace", "debug", "info", "warn", "error", "fatal", or "panic", defaulting to "warn".

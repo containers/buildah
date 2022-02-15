@@ -39,6 +39,7 @@ type globalFlags struct {
 	cpuProfileFile             *os.File
 	MemoryProfile              string
 	UserShortNameAliasConfPath string
+	CgroupManager              string
 }
 
 var rootCmd = &cobra.Command{
@@ -77,6 +78,13 @@ func init() {
 		defaultStoreDriverOptions = optionSlice
 	}
 
+	containerConfig, err := config.Default()
+	if err != nil {
+		logrus.Errorf(err.Error())
+		os.Exit(1)
+	}
+	containerConfig.CheckCgroupsAndAdjustConfig()
+
 	cobra.OnInitialize(initConfig)
 	// Disable the implicit `completion` command in cobra.
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
@@ -89,6 +97,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.UserShortNameAliasConfPath, "short-name-alias-conf", "", "path to short name alias cache file (not usually used)")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.Root, "root", storageOptions.GraphRoot, "storage root dir")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.RunRoot, "runroot", storageOptions.RunRoot, "storage state dir")
+	rootCmd.PersistentFlags().StringVar(&globalFlagResults.CgroupManager, "cgroup-manager", containerConfig.Engine.CgroupManager, "cgroup manager")
 	rootCmd.PersistentFlags().StringVar(&globalFlagResults.StorageDriver, "storage-driver", storageOptions.GraphDriverName, "storage-driver")
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.StorageOpts, "storage-opt", defaultStoreDriverOptions, "storage driver option")
 	rootCmd.PersistentFlags().StringSliceVar(&globalFlagResults.UserNSUID, "userns-uid-map", []string{}, "default `ctrID:hostID:length` UID mapping to use")
