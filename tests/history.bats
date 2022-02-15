@@ -108,3 +108,37 @@ function testconfighistory() {
   run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' runimg
   expect_output --substring "/bin/sh -c uname -a"
 }
+
+@test "history should not contain vars in allowlist unless set in ARG" {
+  _prefetch busybox
+  ctxdir=${TESTDIR}/bud
+  mkdir -p $ctxdir
+  cat >$ctxdir/Dockerfile <<EOF
+FROM busybox
+RUN echo \$HTTP_PROXY
+EOF
+
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json -t test --build-arg HTTP_PROXY="helloworld" ${ctxdir}
+  expect_output --substring 'helloworld'
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' test
+  # history should not contain value for HTTP_PROXY since it was not in Containerfile
+  assert "$output" !~ 'HTTP_PROXY=helloworld'
+  assert "$output" !~ 'helloworld'
+}
+
+@test "history should contain vars in allowlist when set in ARG" {
+  _prefetch busybox
+  ctxdir=${TESTDIR}/bud
+  mkdir -p $ctxdir
+  cat >$ctxdir/Dockerfile <<EOF
+FROM busybox
+ARG HTTP_PROXY
+RUN echo \$HTTP_PROXY
+EOF
+
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json -t test --build-arg HTTP_PROXY="helloworld" ${ctxdir}
+  expect_output --substring 'helloworld'
+  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' test
+  # history should not contain value for HTTP_PROXY since it was not in Containerfile
+  expect_output --substring 'HTTP_PROXY=helloworld'
+}
