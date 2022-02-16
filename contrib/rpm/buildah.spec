@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.25.0-dev
+Version:        1.24.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,17 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Thu Feb 03, 2022 Tom Sweeney <tsweeney@redhat.com> 1.25.0-dev-1
+* Wed Feb 16, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.2-1
+- Increase subuid/subgid to 65535
+- history: only add proxy vars to history if specified
+- run_linux: use --systemd-cgroup
+- buildah: new global option --cgroup-manager
+- Makefile: build with systemd when available
+- build(deps): bump github.com/fsouza/go-dockerclient from 1.7.7 to 1.7.8
+- Bump c/common to v0.47.4
+- Cirrus: Use updated VM images
+- conformance: add a few "replace-directory-with-symlink" tests
+- Bump back to v1.25.0-dev
 
 * Thu Feb 03, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.1-1
 - executor: Add support for inline --platform within Dockerfile
