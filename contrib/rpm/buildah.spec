@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.24.2
+Version:        1.25.0-dev
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,8 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Wed Feb 16, 2022 Tom Sweeney <tsweeney@redhat.com> 1.25.0-dev-1
+
 * Wed Feb 16, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.2-1
 - Increase subuid/subgid to 65535
 - history: only add proxy vars to history if specified
