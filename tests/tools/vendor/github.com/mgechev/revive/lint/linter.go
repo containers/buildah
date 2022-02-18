@@ -18,12 +18,34 @@ type disabledIntervalsMap = map[string][]DisabledInterval
 
 // Linter is used for linting set of files.
 type Linter struct {
-	reader ReadFile
+	reader         ReadFile
+	fileReadTokens chan struct{}
 }
 
 // New creates a new Linter
-func New(reader ReadFile) Linter {
-	return Linter{reader: reader}
+func New(reader ReadFile, maxOpenFiles int) Linter {
+	var fileReadTokens chan struct{}
+	if maxOpenFiles > 0 {
+		fileReadTokens = make(chan struct{}, maxOpenFiles)
+	}
+	return Linter{
+		reader:         reader,
+		fileReadTokens: fileReadTokens,
+	}
+}
+
+func (l Linter) readFile(path string) (result []byte, err error) {
+	if l.fileReadTokens != nil {
+		// "take" a token by writing to the channel.
+		// It will block if no more space in the channel's buffer
+		l.fileReadTokens <- struct{}{}
+		defer func() {
+			// "free" a token by reading from the channel
+			<-l.fileReadTokens
+		}()
+	}
+
+	return l.reader(path)
 }
 
 var (
@@ -62,7 +84,7 @@ func (l *Linter) lintPackage(filenames []string, ruleSet []Rule, config Config, 
 		mu:    sync.Mutex{},
 	}
 	for _, filename := range filenames {
-		content, err := l.reader(filename)
+		content, err := l.readFile(filename)
 		if err != nil {
 			return err
 		}

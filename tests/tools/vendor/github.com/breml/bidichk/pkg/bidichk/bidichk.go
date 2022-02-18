@@ -136,6 +136,7 @@ func NewAnalyzer() *analysis.Analyzer {
 
 	a.Flags.Init("bidichk", flag.ExitOnError)
 	a.Flags.Var(&bidichk.disallowedRunes, "disallowed-runes", disallowedDoc)
+	a.Flags.Var(versionFlag{}, "V", "print version and exit")
 
 	return a
 }

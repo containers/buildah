@@ -412,15 +412,15 @@ func unwrapTestingFunctionBuilding(pass *analysis.Pass, expr ast.Expr, testFuncT
 		funcDecl.Body = f.Body
 		funcDecl.Type = f.Type
 	case *ast.Ident:
-		funObjDecl, ok := f.Obj.Decl.(*ast.FuncDecl)
-		if !ok {
+		funObjDecl := findFunctionDeclaration(pass, f)
+		if funObjDecl == nil {
 			return nil
 		}
 
 		funcDecl.Body = funObjDecl.Body
 		funcDecl.Type = funObjDecl.Type
 	case *ast.SelectorExpr:
-		fd := findSelectroDeclaration(pass, f)
+		fd := findSelectorDeclaration(pass, f)
 		if fd == nil {
 			return nil
 		}
@@ -499,8 +499,8 @@ func isExprHasType(pass *analysis.Pass, expr ast.Expr, expType types.Type) bool 
 	return types.Identical(typeInfo.Type, expType)
 }
 
-// findSelectroDeclaration returns function declaration called by selectro expression.
-func findSelectroDeclaration(pass *analysis.Pass, expr *ast.SelectorExpr) *ast.FuncDecl {
+// findSelectorDeclaration returns function declaration called by selector expression.
+func findSelectorDeclaration(pass *analysis.Pass, expr *ast.SelectorExpr) *ast.FuncDecl {
 	xsel, ok := pass.TypesInfo.Selections[expr]
 	if !ok {
 		return nil
@@ -527,6 +527,35 @@ func findSelectroDeclaration(pass *analysis.Pass, expr *ast.SelectorExpr) *ast.F
 				if fd.Name.Name == expr.Sel.Name {
 					return fd
 				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// findFunctionDeclaration returns function declaration called by identity.
+func findFunctionDeclaration(pass *analysis.Pass, ident *ast.Ident) *ast.FuncDecl {
+	if ident.Obj != nil {
+		if funObjDecl, ok := ident.Obj.Decl.(*ast.FuncDecl); ok {
+			return funObjDecl
+		}
+	}
+
+	obj := pass.TypesInfo.ObjectOf(ident)
+	if obj == nil {
+		return nil
+	}
+
+	for _, file := range pass.Files {
+		for _, decl := range file.Decls {
+			funcDecl, ok := decl.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+
+			if funcDecl.Name.Pos() == obj.Pos() {
+				return funcDecl
 			}
 		}
 	}

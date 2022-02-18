@@ -1,11 +1,9 @@
 package varnamelen
 
 import (
-	"errors"
-	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
+	"go/types"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -45,16 +43,6 @@ type varNameLen struct {
 	ignoreDeclarations declarationsValue
 }
 
-// stringsValue is the value of a list-of-strings flag.
-type stringsValue struct {
-	Values []string
-}
-
-// declarationsValue is the value of a list-of-declarations flag.
-type declarationsValue struct {
-	Values []declaration
-}
-
 // variable represents a declared variable.
 type variable struct {
 	// name is the name of the variable.
@@ -62,6 +50,9 @@ type variable struct {
 
 	// constant is true if the variable is actually a constant.
 	constant bool
+
+	// typ is the type of the variable.
+	typ string
 
 	// assign is the assign statement that declares the variable.
 	assign *ast.AssignStmt
@@ -75,6 +66,9 @@ type parameter struct {
 	// name is the name of the parameter.
 	name string
 
+	// typ is the type of the parameter.
+	typ string
+
 	// field is the declaration of the parameter.
 	field *ast.Field
 }
@@ -87,11 +81,22 @@ type declaration struct {
 	// constant is true if the variable is actually a constant.
 	constant bool
 
-	// pointer determines whether the variable is a pointer. Not used for constants.
-	pointer bool
-
 	// typ is the type of the variable. Not used for constants.
 	typ string
+}
+
+// importDeclaration is an import declaration.
+type importDeclaration struct {
+	// name is the short name or alias for the imported package. This is either the package's default name,
+	// or the alias specified in the import statement.
+	// Not used if self is true.
+	name string
+
+	// path is the full path to the imported package.
+	path string
+
+	// self is true when this is an implicit import declaration for the current package.
+	self bool
 }
 
 const (
@@ -105,16 +110,13 @@ const (
 
 // conventionalDecls is a list of conventional variable declarations.
 var conventionalDecls = []declaration{
-	mustParseDeclaration("t *testing.T"),
-	mustParseDeclaration("b *testing.B"),
-	mustParseDeclaration("tb testing.TB"),
-	mustParseDeclaration("pb *testing.PB"),
-	mustParseDeclaration("m *testing.M"),
-	mustParseDeclaration("ctx context.Context"),
+	parseDeclaration("t *testing.T"),
+	parseDeclaration("b *testing.B"),
+	parseDeclaration("tb testing.TB"),
+	parseDeclaration("pb *testing.PB"),
+	parseDeclaration("m *testing.M"),
+	parseDeclaration("ctx context.Context"),
 }
-
-// errInvalidDeclaration is returned when trying to parse an invalid variable declaration.
-var errInvalidDeclaration = errors.New("invalid declaration")
 
 // NewAnalyzer returns a new analyzer that checks variable name length.
 func NewAnalyzer() *analysis.Analyzer {
@@ -273,16 +275,18 @@ func (v *varNameLen) checkChannelReceiveOk(vari variable) bool {
 	return v.ignoreChannelReceiveOk && vari.isChannelReceiveOk()
 }
 
-// distances maps of variables or parameters and their longest usage distances.
+// distances returns maps of variables, parameters, and return values mapping to their longest usage distances.
 func (v *varNameLen) distances(pass *analysis.Pass) (map[variable]int, map[parameter]int, map[parameter]int) {
-	assignIdents, valueSpecIdents, paramIdents, returnIdents := v.idents(pass)
+	assignIdents, valueSpecIdents, paramIdents, returnIdents, imports := v.identsAndImports(pass)
 
 	varToDist := map[variable]int{}
 
 	for _, ident := range assignIdents {
-		assign := ident.Obj.Decl.(*ast.AssignStmt) //nolint:forcetypeassert // check is done in idents()
+		assign := ident.Obj.Decl.(*ast.AssignStmt) //nolint:forcetypeassert // check is done in identsAndImports
+
 		variable := variable{
 			name:   ident.Name,
+			typ:    shortTypeName(pass.TypesInfo.TypeOf(identAssignExpr(ident, assign)), imports),
 			assign: assign,
 		}
 
@@ -292,10 +296,12 @@ func (v *varNameLen) distances(pass *analysis.Pass) (map[variable]int, map[param
 	}
 
 	for _, ident := range valueSpecIdents {
-		valueSpec := ident.Obj.Decl.(*ast.ValueSpec) //nolint:forcetypeassert // check is done in idents()
+		valueSpec := ident.Obj.Decl.(*ast.ValueSpec) //nolint:forcetypeassert // check is done in identsAndImports
+
 		variable := variable{
 			name:      ident.Name,
 			constant:  ident.Obj.Kind == ast.Con,
+			typ:       shortTypeName(pass.TypesInfo.TypeOf(valueSpec.Type), imports),
 			valueSpec: valueSpec,
 		}
 
@@ -307,9 +313,11 @@ func (v *varNameLen) distances(pass *analysis.Pass) (map[variable]int, map[param
 	paramToDist := map[parameter]int{}
 
 	for _, ident := range paramIdents {
-		field := ident.Obj.Decl.(*ast.Field) //nolint:forcetypeassert // check is done in idents()
+		field := ident.Obj.Decl.(*ast.Field) //nolint:forcetypeassert // check is done in identsAndImports
+
 		param := parameter{
 			name:  ident.Name,
+			typ:   shortTypeName(pass.TypesInfo.TypeOf(field.Type), imports),
 			field: field,
 		}
 
@@ -321,9 +329,11 @@ func (v *varNameLen) distances(pass *analysis.Pass) (map[variable]int, map[param
 	returnToDist := map[parameter]int{}
 
 	for _, ident := range returnIdents {
-		field := ident.Obj.Decl.(*ast.Field) //nolint:forcetypeassert // check is done in idents()
+		field := ident.Obj.Decl.(*ast.Field) //nolint:forcetypeassert // check is done in identsAndImports
+
 		param := parameter{
 			name:  ident.Name,
+			typ:   shortTypeName(pass.TypesInfo.TypeOf(field.Type), imports),
 			field: field,
 		}
 
@@ -335,11 +345,13 @@ func (v *varNameLen) distances(pass *analysis.Pass) (map[variable]int, map[param
 	return varToDist, paramToDist, returnToDist
 }
 
-// idents returns Idents referencing assign statements, value specifications, parameters, and return values, respectively.
-func (v *varNameLen) idents(pass *analysis.Pass) ([]*ast.Ident, []*ast.Ident, []*ast.Ident, []*ast.Ident) { //nolint:gocognit,cyclop // this is complex stuff
+// identsAndImports returns Idents referencing assign statements, value specifications, parameters, and return values, respectively,
+// as well as import declarations.
+func (v *varNameLen) identsAndImports(pass *analysis.Pass) ([]*ast.Ident, []*ast.Ident, []*ast.Ident, []*ast.Ident, []importDeclaration) { //nolint:gocognit,cyclop // this is complex stuff
 	inspector := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector) //nolint:forcetypeassert // inspect.Analyzer always returns *inspector.Inspector
 
 	filter := []ast.Node{
+		(*ast.ImportSpec)(nil),
 		(*ast.FuncDecl)(nil),
 		(*ast.Ident)(nil),
 	}
@@ -347,50 +359,91 @@ func (v *varNameLen) idents(pass *analysis.Pass) ([]*ast.Ident, []*ast.Ident, []
 	funcs := []*ast.FuncDecl{}
 	methods := []*ast.FuncDecl{}
 
+	imports := []importDeclaration{}
 	assignIdents := []*ast.Ident{}
 	valueSpecIdents := []*ast.Ident{}
 	paramIdents := []*ast.Ident{}
 	returnIdents := []*ast.Ident{}
 
 	inspector.Preorder(filter, func(node ast.Node) {
-		if f, ok := node.(*ast.FuncDecl); ok {
-			funcs = append(funcs, f)
-			if f.Recv != nil {
-				methods = append(methods, f)
-			}
-			return
-		}
-
-		ident := node.(*ast.Ident) //nolint:forcetypeassert // see filter
-		if ident.Obj == nil {
-			return
-		}
-
-		switch objDecl := ident.Obj.Decl.(type) {
-		case *ast.AssignStmt:
-			assignIdents = append(assignIdents, ident)
-
-		case *ast.ValueSpec:
-			valueSpecIdents = append(valueSpecIdents, ident)
-
-		case *ast.Field:
-			if isReceiver(objDecl, methods) && !v.checkReceiver {
+		switch node2 := node.(type) {
+		case *ast.ImportSpec:
+			decl, ok := importSpecToDecl(node2, pass.Pkg.Imports())
+			if !ok {
 				return
 			}
 
-			if isReturn(objDecl, funcs) {
-				if !v.checkReturn {
+			imports = append(imports, decl)
+
+		case *ast.FuncDecl:
+			funcs = append(funcs, node2)
+
+			if node2.Recv == nil {
+				return
+			}
+
+			methods = append(methods, node2)
+
+		case *ast.Ident:
+			if node2.Obj == nil {
+				return
+			}
+
+			switch objDecl := node2.Obj.Decl.(type) {
+			case *ast.AssignStmt:
+				assignIdents = append(assignIdents, node2)
+
+			case *ast.ValueSpec:
+				valueSpecIdents = append(valueSpecIdents, node2)
+
+			case *ast.Field:
+				if isReceiver(objDecl, methods) && !v.checkReceiver {
 					return
 				}
-				returnIdents = append(returnIdents, ident)
-				return
-			}
 
-			paramIdents = append(paramIdents, ident)
+				if isReturn(objDecl, funcs) {
+					if !v.checkReturn {
+						return
+					}
+
+					returnIdents = append(returnIdents, node2)
+
+					return
+				}
+
+				paramIdents = append(paramIdents, node2)
+			}
 		}
 	})
 
-	return assignIdents, valueSpecIdents, paramIdents, returnIdents
+	imports = append(imports, importDeclaration{
+		path: pass.Pkg.Path(),
+		self: true,
+	})
+
+	return assignIdents, valueSpecIdents, paramIdents, returnIdents, imports
+}
+
+func importSpecToDecl(spec *ast.ImportSpec, imports []*types.Package) (importDeclaration, bool) {
+	path := strings.TrimSuffix(strings.TrimPrefix(spec.Path.Value, "\""), "\"")
+
+	if spec.Name != nil {
+		return importDeclaration{
+			name: spec.Name.Name,
+			path: path,
+		}, true
+	}
+
+	for _, imp := range imports {
+		if imp.Path() == path {
+			return importDeclaration{
+				name: imp.Name(),
+				path: path,
+			}, true
+		}
+	}
+
+	return importDeclaration{}, false
 }
 
 // isTypeAssertOk returns true if v is an "ok" variable that holds the bool return value of a type assertion.
@@ -514,11 +567,11 @@ func (v variable) match(decl declaration) bool {
 		return true
 	}
 
-	if v.valueSpec == nil {
+	if v.typ == "" {
 		return false
 	}
 
-	return decl.matchType(v.valueSpec.Type)
+	return decl.matchType(v.typ)
 }
 
 // kindName returns "constant" if v.constant==true, else "variable".
@@ -560,104 +613,6 @@ func isReturn(field *ast.Field, funcs []*ast.FuncDecl) bool {
 	return false
 }
 
-// Set implements Value.
-func (sv *stringsValue) Set(values string) error {
-	if strings.TrimSpace(values) == "" {
-		sv.Values = nil
-		return nil
-	}
-
-	parts := strings.Split(values, ",")
-
-	sv.Values = make([]string, len(parts))
-
-	for i, part := range parts {
-		sv.Values[i] = strings.TrimSpace(part)
-	}
-
-	return nil
-}
-
-// String implements Value.
-func (sv *stringsValue) String() string {
-	return strings.Join(sv.Values, ",")
-}
-
-// contains returns true if sv contains s.
-func (sv *stringsValue) contains(s string) bool {
-	for _, v := range sv.Values {
-		if v == s {
-			return true
-		}
-	}
-
-	return false
-}
-
-// Set implements Value.
-func (dv *declarationsValue) Set(values string) error {
-	if strings.TrimSpace(values) == "" {
-		dv.Values = nil
-		return nil
-	}
-
-	parts := strings.Split(values, ",")
-
-	dv.Values = make([]declaration, len(parts))
-
-	for idx, part := range parts {
-		decl, ok := parseDeclaration(strings.TrimSpace(part))
-		if !ok {
-			return fmt.Errorf("%s: %w", part, errInvalidDeclaration)
-		}
-
-		dv.Values[idx] = decl
-	}
-
-	return nil
-}
-
-// String implements Value.
-func (dv *declarationsValue) String() string {
-	parts := make([]string, len(dv.Values))
-
-	for idx, val := range dv.Values {
-		part := val.name + " "
-
-		if val.pointer {
-			part += "*"
-		}
-
-		part += val.typ
-
-		parts[idx] = part
-	}
-
-	return strings.Join(parts, ",")
-}
-
-// matchVariable returns true if vari matches any of the declarations in dv.
-func (dv *declarationsValue) matchVariable(vari variable) bool {
-	for _, decl := range dv.Values {
-		if vari.match(decl) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// matchParameter returns true if param matches any of the declarations in dv.
-func (dv *declarationsValue) matchParameter(param parameter) bool {
-	for _, decl := range dv.Values {
-		if param.match(decl) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // isConventional returns true if p is a conventional Go parameter, such as "ctx context.Context" or
 // "t *testing.T".
 func (p parameter) isConventional() bool {
@@ -676,116 +631,63 @@ func (p parameter) match(decl declaration) bool {
 		return false
 	}
 
-	return decl.matchType(p.field.Type)
-}
-
-// mustParseDeclaration works like parseDeclaration, but panics if no variable declaration can be parsed.
-func mustParseDeclaration(decl string) declaration {
-	dcl, ok := parseDeclaration(decl)
-	if !ok {
-		panic("parse declaration: " + decl)
-	}
-
-	return dcl
+	return decl.matchType(p.typ)
 }
 
 // parseDeclaration parses and returns a variable declaration parsed from decl.
-func parseDeclaration(decl string) (declaration, bool) { //nolint:cyclop // this is complex stuff
+func parseDeclaration(decl string) declaration {
 	if strings.HasPrefix(decl, "const ") {
 		return declaration{
 			name:     strings.TrimPrefix(decl, "const "),
 			constant: true,
-		}, true
-	}
-
-	funcExpr, err := parser.ParseExpr("func(" + decl + ") {}")
-	if err != nil {
-		return declaration{}, false
-	}
-
-	funcLit, ok := funcExpr.(*ast.FuncLit)
-	if !ok {
-		return declaration{}, false
-	}
-
-	params := funcLit.Type.Params.List
-	if len(params) != 1 {
-		return declaration{}, false
-	}
-
-	if len(params[0].Names) != 1 {
-		return declaration{}, false
-	}
-
-	var typeExpr ast.Expr
-
-	pointer := false
-
-	switch typeEx := params[0].Type.(type) {
-	case *ast.StarExpr:
-		typeExpr = typeEx.X
-		pointer = true
-	case *ast.SelectorExpr:
-		typeExpr = typeEx
-	case *ast.Ident:
-		typeExpr = typeEx
-	default:
-		return declaration{}, false
-	}
-
-	switch typeEx := typeExpr.(type) {
-	case *ast.SelectorExpr:
-		selIdent, ok := typeEx.X.(*ast.Ident)
-		if !ok {
-			return declaration{}, false
 		}
+	}
 
-		return declaration{
-			name:    params[0].Names[0].Name,
-			pointer: pointer,
-			typ:     selIdent.Name + "." + typeEx.Sel.Name,
-		}, true
+	parts := strings.SplitN(decl, " ", 2)
 
-	case *ast.Ident:
-		return declaration{
-			name:    params[0].Names[0].Name,
-			pointer: pointer,
-			typ:     typeEx.Name,
-		}, true
-
-	default:
-		return declaration{}, false
+	return declaration{
+		name: parts[0],
+		typ:  parts[1],
 	}
 }
 
 // matchType returns true if typ matches d.typ.
-func (d declaration) matchType(typ ast.Expr) bool {
-	var typeExpr ast.Expr
+func (d declaration) matchType(typ string) bool {
+	return d.typ == typ
+}
 
-	if d.pointer {
-		star, ok := typ.(*ast.StarExpr)
-		if !ok {
-			return false
-		}
-
-		typeExpr = star.X
-	} else {
-		typeExpr = typ
+// identAssignExpr returns the expression that is assigned to ident.
+//
+// TODO: This currently only works for simple one-to-one assignments without the use of multi-values.
+func identAssignExpr(_ *ast.Ident, assign *ast.AssignStmt) ast.Expr {
+	if len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
+		return nil
 	}
 
-	switch typeEx := typeExpr.(type) {
-	case *ast.Ident:
-		return typeEx.Name == d.typ
+	return assign.Rhs[0]
+}
 
-	case *ast.SelectorExpr:
-		ident, ok := typeEx.X.(*ast.Ident)
-		if !ok {
-			return false
+// shortTypeName returns the short name of typ, with respect to imports.
+// For example, if package github.com/matryer/is is imported with alias "x",
+// and typ represents []*github.com/matryer/is.I, shortTypeName will return "[]*x.I".
+// For imports without aliases, the package's default name will be used.
+func shortTypeName(typ types.Type, imports []importDeclaration) string {
+	if typ == nil {
+		return ""
+	}
+
+	typStr := typ.String()
+
+	for _, imp := range imports {
+		prefix := imp.path + "."
+
+		if imp.self {
+			typStr = strings.ReplaceAll(typStr, prefix, "")
+			continue
 		}
 
-		return ident.Name+"."+typeEx.Sel.Name == d.typ
-
-	default:
-		return false
+		typStr = strings.ReplaceAll(typStr, prefix, imp.name+".")
 	}
+
+	return typStr
 }

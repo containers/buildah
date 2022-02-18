@@ -56,14 +56,14 @@ linters-settings:
       - err
     # Optional list of variable declarations that should be ignored completely. (defaults to empty list)
     # Entries must be in the form of "<variable name> <type>" or "<variable name> *<type>" for
-	# variables, or "const <name>" for constants.
+    # variables, or "const <name>" for constants.
     ignore-decls:
       - c echo.Context
       - t testing.T
       - f *foo.Bar
       - e error
       - i int
-	  - const C
+      - const C
 ```
 
 

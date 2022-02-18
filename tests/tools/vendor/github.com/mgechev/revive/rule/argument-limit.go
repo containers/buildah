@@ -19,7 +19,7 @@ func (r *ArgumentsLimitRule) Apply(file *lint.File, arguments lint.Arguments) []
 
 		total, ok := arguments[0].(int64) // Alt. non panicking version
 		if !ok {
-			panic(`invalid value passed as argument number to the "argument-list" rule`)
+			panic(`invalid value passed as argument number to the "argument-limit" rule`)
 		}
 		r.total = int(total)
 	}

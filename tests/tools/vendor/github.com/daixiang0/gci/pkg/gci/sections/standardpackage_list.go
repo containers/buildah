@@ -1,6 +1,6 @@
-package gci
+package sections
 
-// Code generated based on go1.16beta1. DO NOT EDIT.
+// Code generated based on go1.17.5. DO NOT EDIT.
 
 var standardPackages = map[string]struct{}{
 	"archive/tar":          {},
@@ -63,6 +63,7 @@ var standardPackages = map[string]struct{}{
 	"fmt":                  {},
 	"go/ast":               {},
 	"go/build":             {},
+	"go/build/constraint":  {},
 	"go/constant":          {},
 	"go/doc":               {},
 	"go/format":            {},
@@ -153,9 +154,4 @@ var standardPackages = map[string]struct{}{
 	"unicode/utf16":        {},
 	"unicode/utf8":         {},
 	"unsafe":               {},
-}
-
-func isStandardPackage(pkg string) bool {
-	_, ok := standardPackages[pkg]
-	return ok
 }
