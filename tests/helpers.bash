@@ -433,9 +433,9 @@ function skip_if_rootless() {
 ##################################
 function skip_if_rootless_and_cgroupv1() {
     if test "$BUILDAH_ISOLATION" = "rootless"; then
-	if !is_cgroupsv2; then
-		skip "${1:-test does not work when \$BUILDAH_ISOLATION = rootless} and not cgroupv2"
-	fi
+        if ! is_cgroupsv2; then
+            skip "${1:-test does not work when \$BUILDAH_ISOLATION = rootless} and not cgroupv2"
+        fi
     fi
 }
 
@@ -471,7 +471,7 @@ function skip_if_cgroupsv2() {
 #  skip_if_cgroupsv1  #  Some tests don't work with cgroupsv1
 #######################
 function skip_if_cgroupsv1() {
-    if !is_cgroupsv2; then
+    if ! is_cgroupsv2; then
         skip "${1:-test does not work with cgroups v1}"
     fi
 }
