@@ -403,14 +403,14 @@ _EOF
 
   _prefetch alpine
   # mnt is always per-container, cgroup isn't a thing OCI runtime lets us configure
-  for ipc in host container private ; do
-    for net in host container private; do
-      for pid in host container private; do
-        for userns in host container private; do
-          for uts in host container private; do
-	    for cgroupns in host container private; do
+  for ipc in host private; do
+    for net in host private; do
+      for pid in host private; do
+        for userns in host private; do
+          for uts in host private; do
+            for cgroupns in host private; do
 
-              if test $userns == private -o $userns == container -a $pid == host ; then
+              if test $userns == private -a $pid == host ; then
                 # We can't mount a fresh /proc, and OCI runtime won't let us bind mount the host's.
                 continue
               fi
@@ -425,7 +425,7 @@ _EOF
               [ "$output" != "" ]
               run_buildah run --terminal=false $ctr pwd
               [ "$output" != "" ]
-	    done
+            done
           done
         done
       done
