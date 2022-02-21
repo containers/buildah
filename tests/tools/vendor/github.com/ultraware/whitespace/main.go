@@ -64,6 +64,10 @@ func (v *visitor) Visit(node ast.Node) ast.Visitor {
 		checkMultiLine(v, stmt.Body, stmt.Cond)
 	}
 
+	if stmt, ok := node.(*ast.FuncLit); ok && v.settings.MultiFunc {
+		checkMultiLine(v, stmt.Body, stmt.Type)
+	}
+
 	if stmt, ok := node.(*ast.FuncDecl); ok && v.settings.MultiFunc {
 		checkMultiLine(v, stmt.Body, stmt.Type)
 	}

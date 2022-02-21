@@ -87,15 +87,25 @@ func (w rangeValInClosure) Visit(node ast.Node) ast.Visitor {
 	if !ok {
 		return w
 	}
+
 	if lit.Type == nil {
 		// Not referring to a variable (e.g. struct field name)
 		return w
 	}
-	ast.Inspect(lit.Body, func(n ast.Node) bool {
+
+	var inspector func(n ast.Node) bool
+	inspector = func(n ast.Node) bool {
+		kv, ok := n.(*ast.KeyValueExpr)
+		if ok {
+			// do not check identifiers acting as key in key-value expressions (see issue #637)
+			ast.Inspect(kv.Value, inspector)
+			return false
+		}
 		id, ok := n.(*ast.Ident)
 		if !ok || id.Obj == nil {
 			return true
 		}
+
 		for _, v := range vars {
 			if v.Obj == id.Obj {
 				w.onFailure(lint.Failure{
@@ -106,6 +116,7 @@ func (w rangeValInClosure) Visit(node ast.Node) ast.Visitor {
 			}
 		}
 		return true
-	})
+	}
+	ast.Inspect(lit.Body, inspector)
 	return w
 }

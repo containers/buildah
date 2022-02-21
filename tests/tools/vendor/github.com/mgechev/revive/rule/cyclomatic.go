@@ -62,8 +62,9 @@ func (w lintCyclomatic) Visit(_ ast.Node) ast.Visitor {
 				w.onFailure(lint.Failure{
 					Confidence: 1,
 					Category:   "maintenance",
-					Failure:    fmt.Sprintf("function %s has cyclomatic complexity %d", funcName(fn), c),
-					Node:       fn,
+					Failure: fmt.Sprintf("function %s has cyclomatic complexity %d (> max enabled %d)",
+						funcName(fn), c, w.complexity),
+					Node: fn,
 				})
 			}
 		}

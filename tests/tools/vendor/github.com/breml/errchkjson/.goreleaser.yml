@@ -29,3 +29,5 @@ release:
   github:
     owner: breml
     name: errchkjson
+gomod:
+  proxy: true

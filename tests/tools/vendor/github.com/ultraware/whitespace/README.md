@@ -4,4 +4,4 @@ Whitespace is a linter that checks for unnecessary newlines at the start and end
 
 ## Installation guide
 
-Whitespace is included in [https://github.com/golangci/golangci-lint/](golangci-lint). Install it and enable whitespace.
+Whitespace is included in [golangci-lint](https://github.com/golangci/golangci-lint/). Install it and enable whitespace.

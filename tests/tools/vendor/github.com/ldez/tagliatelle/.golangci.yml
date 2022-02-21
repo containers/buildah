@@ -10,8 +10,6 @@ linters-settings:
       - fieldalignment
   gocyclo:
     min-complexity: 15
-  maligned:
-    suggest-new: true
   goconst:
     min-len: 5
     min-occurrences: 3
@@ -72,6 +70,7 @@ linters:
     - forcetypeassert
     - varnamelen
     - nilnil
+    - errchkjson
 
 issues:
   exclude-use-default: false

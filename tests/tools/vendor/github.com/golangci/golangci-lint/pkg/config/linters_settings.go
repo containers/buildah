@@ -26,6 +26,10 @@ var defaultLintersSettings = LintersSettings{
 	Forbidigo: ForbidigoSettings{
 		ExcludeGodocExamples: true,
 	},
+	Gci: GciSettings{
+		Sections:         []string{"standard", "default"},
+		SectionSeparator: []string{"newline"},
+	},
 	Gocognit: GocognitSettings{
 		MinComplexity: 30,
 	},
@@ -253,7 +257,11 @@ type FunlenSettings struct {
 }
 
 type GciSettings struct {
-	LocalPrefixes string `mapstructure:"local-prefixes"`
+	LocalPrefixes    string   `mapstructure:"local-prefixes"` // Deprecated
+	NoInlineComments bool     `mapstructure:"no-inline-comments"`
+	NoPrefixComments bool     `mapstructure:"no-prefix-comments"`
+	Sections         []string `mapstructure:"sections"`
+	SectionSeparator []string `mapstructure:"section-separators"`
 }
 
 type GocognitSettings struct {
@@ -472,6 +480,7 @@ type PromlinterSettings struct {
 }
 
 type ReviveSettings struct {
+	MaxOpenFiles          int  `mapstructure:"max-open-files"`
 	IgnoreGeneratedHeader bool `mapstructure:"ignore-generated-header"`
 	Confidence            float64
 	Severity              string

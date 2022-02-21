@@ -32,6 +32,7 @@ func NewAnalyzer() *analysis.Analyzer {
 	a.Flags.Init("errchkjson", flag.ExitOnError)
 	a.Flags.BoolVar(&errchkjson.omitSafe, "omit-safe", false, "if omit-safe is true, checking of safe returns is omitted")
 	a.Flags.BoolVar(&errchkjson.reportNoExported, "report-no-exported", false, "if report-no-exported is true, encoding a struct without exported fields is reported as issue")
+	a.Flags.Var(versionFlag{}, "V", "print version and exit")
 
 	return a
 }
@@ -120,7 +121,7 @@ func (e *errchkjson) handleJSONMarshal(pass *analysis.Pass, ce *ast.CallExpr, fn
 		t = t.(*types.Pointer).Elem()
 	}
 
-	err := e.jsonSafe(t, 0)
+	err := e.jsonSafe(t, 0, map[types.Type]struct{}{})
 	if err != nil {
 		if _, ok := err.(unsupported); ok {
 			pass.Reportf(ce.Pos(), "`%s` for %v", fnName, err)
@@ -149,8 +150,12 @@ const (
 	unsupportedBasicTypes   = types.IsComplex
 )
 
-func (e *errchkjson) jsonSafe(t types.Type, level int) error {
-	if types.Implements(t, textMarshalerInterface()) {
+func (e *errchkjson) jsonSafe(t types.Type, level int, seenTypes map[types.Type]struct{}) error {
+	if _, ok := seenTypes[t]; ok {
+		return nil
+	}
+
+	if types.Implements(t, textMarshalerInterface()) || types.Implements(t, jsonMarshalerInterface()) {
 		return fmt.Errorf("unsafe type `%s` found", t.String())
 	}
 
@@ -176,20 +181,21 @@ func (e *errchkjson) jsonSafe(t types.Type, level int) error {
 		}
 
 	case *types.Array:
-		err := e.jsonSafe(ut.Elem(), level+1)
+		err := e.jsonSafe(ut.Elem(), level+1, seenTypes)
 		if err != nil {
 			return err
 		}
 		return nil
 
 	case *types.Slice:
-		err := e.jsonSafe(ut.Elem(), level+1)
+		err := e.jsonSafe(ut.Elem(), level+1, seenTypes)
 		if err != nil {
 			return err
 		}
 		return nil
 
 	case *types.Struct:
+		seenTypes[t] = struct{}{}
 		exported := 0
 		for i := 0; i < ut.NumFields(); i++ {
 			if !ut.Field(i).Exported() {
@@ -202,7 +208,7 @@ func (e *errchkjson) jsonSafe(t types.Type, level int) error {
 					continue
 				}
 			}
-			err := e.jsonSafe(ut.Field(i).Type(), level+1)
+			err := e.jsonSafe(ut.Field(i).Type(), level+1, seenTypes)
 			if err != nil {
 				return err
 			}
@@ -214,7 +220,7 @@ func (e *errchkjson) jsonSafe(t types.Type, level int) error {
 		return nil
 
 	case *types.Pointer:
-		err := e.jsonSafe(ut.Elem(), level+1)
+		err := e.jsonSafe(ut.Elem(), level+1, seenTypes)
 		if err != nil {
 			return err
 		}
@@ -225,7 +231,7 @@ func (e *errchkjson) jsonSafe(t types.Type, level int) error {
 		if err != nil {
 			return err
 		}
-		err = e.jsonSafe(ut.Elem(), level+1)
+		err = e.jsonSafe(ut.Elem(), level+1, seenTypes)
 		if err != nil {
 			return err
 		}
@@ -242,7 +248,7 @@ func (e *errchkjson) jsonSafe(t types.Type, level int) error {
 }
 
 func jsonSafeMapKey(t types.Type) error {
-	if types.Implements(t, textMarshalerInterface()) {
+	if types.Implements(t, textMarshalerInterface()) || types.Implements(t, jsonMarshalerInterface()) {
 		return fmt.Errorf("unsafe type `%s` as map key found", t.String())
 	}
 	switch ut := t.Underlying().(type) {
@@ -263,7 +269,7 @@ func jsonSafeMapKey(t types.Type) error {
 	}
 }
 
-// Construct *types.Interface for interface TextMarshaler
+// Construct *types.Interface for interface encoding.TextMarshaler
 //     type TextMarshaler interface {
 //         MarshalText() (text []byte, err error)
 //     }
@@ -276,6 +282,26 @@ func textMarshalerInterface() *types.Interface {
 					types.NewSlice(
 						types.Universe.Lookup("byte").Type())),
 				types.NewVar(token.NoPos, nil, "err", types.Universe.Lookup("error").Type())),
+			false)),
+	}, nil)
+	textMarshalerInterface.Complete()
+
+	return textMarshalerInterface
+}
+
+// Construct *types.Interface for interface json.Marshaler
+//     type Marshaler interface {
+//         MarshalJSON() ([]byte, error)
+//     }
+//
+func jsonMarshalerInterface() *types.Interface {
+	textMarshalerInterface := types.NewInterfaceType([]*types.Func{
+		types.NewFunc(token.NoPos, nil, "MarshalJSON", types.NewSignature(
+			nil, nil, types.NewTuple(
+				types.NewVar(token.NoPos, nil, "",
+					types.NewSlice(
+						types.Universe.Lookup("byte").Type())),
+				types.NewVar(token.NoPos, nil, "", types.Universe.Lookup("error").Type())),
 			false)),
 	}, nil)
 	textMarshalerInterface.Complete()
