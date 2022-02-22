@@ -744,18 +744,18 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	if dest, err := b.resolveNameToImageRef(b.output); err == nil {
 		switch dest.Transport().Name() {
 		case is.Transport.Name():
-			img, err := is.Transport.GetStoreImage(b.store, dest)
+			_, img, err := util.FindImage(b.store, "", b.systemContext, imageID)
 			if err != nil {
 				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
-			if len(b.additionalTags) > 0 {
-				if err = util.AddImageNames(b.store, "", b.systemContext, img, b.additionalTags); err != nil {
-					return imageID, ref, errors.Wrapf(err, "error setting image names to %v", append(img.Names, b.additionalTags...))
-				}
-				logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
+
+			b.additionalTags = append(b.additionalTags, dest.DockerReference().String())
+			if err = util.AddImageNames(b.store, "", b.systemContext, img, b.additionalTags); err != nil {
+				return imageID, ref, errors.Wrapf(err, "error setting image names to %v", append(img.Names, b.additionalTags...))
 			}
-			// Report back the caller the tags applied, if any.
-			img, err = is.Transport.GetStoreImage(b.store, dest)
+			logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
+
+			_, img, err = util.FindImage(b.store, "", b.systemContext, imageID)
 			if err != nil {
 				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
 			}
