@@ -678,6 +678,7 @@ func (s *StageExecutor) prepare(ctx context.Context, from string, initializeIBCo
 			Volumes:      volumes,
 			WorkingDir:   builder.WorkDir(),
 			Entrypoint:   builder.Entrypoint(),
+			Healthcheck:  (*docker.HealthConfig)(builder.Healthcheck()),
 			Labels:       builder.Labels(),
 			Shell:        builder.Shell(),
 			StopSignal:   builder.StopSignal(),
