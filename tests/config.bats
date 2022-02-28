@@ -297,6 +297,27 @@ function check_matrix() {
   expect_output --substring "foo=bar"
 }
 
+@test "docker formatted builds must inherit healthcheck from base image" {
+  _prefetch busybox
+  ctxdir=${TESTDIR}/bud
+  mkdir -p $ctxdir
+  cat >$ctxdir/Dockerfile <<EOF
+FROM busybox
+HEALTHCHECK CMD curl --fail http://localhost:3000 || exit 1
+EOF
+
+  run_buildah build --format docker --signature-policy ${TESTSDIR}/policy.json -t test ${ctxdir}
+
+  cat >$ctxdir/Dockerfile <<EOF
+FROM test
+RUN echo hello
+EOF
+
+  run_buildah build --format docker --signature-policy ${TESTSDIR}/policy.json -t test2 ${ctxdir}
+  run_buildah inspect --type=image --format '{{.Docker.ContainerConfig.Healthcheck.Test}}' test2
+  expect_output --substring "localhost:3000"
+}
+
 @test "config env using --env expansion" {
   run_buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
