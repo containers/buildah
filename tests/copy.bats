@@ -466,3 +466,20 @@ stuff/mystuff"
   run buildah run $first sh -c "getfattr -d -m . --absolute-names /randomfile | sort"
   expect_output "$expected"
 }
+
+@test "copy-relative-context-dir" {
+  image=busybox
+  _prefetch $image
+  mkdir -p ${TESTDIR}/context
+  createrandom ${TESTDIR}/context/excluded_test_file
+  createrandom ${TESTDIR}/context/test_file
+  echo excluded_test_file | tee ${TESTDIR}/context/.containerignore | tee ${TESTDIR}/context/.dockerignore
+  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  ctr="$output"
+  cd ${TESTDIR}/context
+  run_buildah copy --contextdir . $ctr / /opt/
+  run_buildah run $ctr ls -1 /opt/
+  expect_line_count 1
+  expect_output --substring test_file
+  ! expect_output --substring excluded_test_file
+}
