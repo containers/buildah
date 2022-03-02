@@ -6,7 +6,7 @@ require (
 	github.com/containerd/containerd v1.6.0
 	github.com/containernetworking/cni v1.0.1
 	github.com/containers/common v0.47.4
-	github.com/containers/image/v5 v5.19.1
+	github.com/containers/image/v5 v5.20.0
 	github.com/containers/ocicrypt v1.1.2
 	github.com/containers/storage v1.38.2
 	github.com/docker/distribution v2.8.0+incompatible
@@ -38,8 +38,8 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
-	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 )
 
 replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
