@@ -19,6 +19,8 @@ env:
     CIRRUS_CLONE_DEPTH: 50
     # Unless set by in_podman.sh, default to operating outside of a podman container
     IN_PODMAN: 'false'
+    # root or rootless
+    PRIV_NAME: root
 
     ####
     #### Cache-image names to test with
@@ -220,14 +222,17 @@ integration_task:
             DISTRO_NV: "${FEDORA_NAME}"
             IMAGE_NAME: "${FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
+            PRIV_NAME: rootless
         - env:
             DISTRO_NV: "${PRIOR_FEDORA_NAME}"
             IMAGE_NAME: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
+            PRIV_NAME: rootless
         - env:
             DISTRO_NV: "${UBUNTU_NAME}"
             IMAGE_NAME: "${UBUNTU_CACHE_IMAGE_NAME}"
             STORAGE_DRIVER: 'overlay'
+            PRIV_NAME: rootless
 
     gce_instance:
         image_name: "$IMAGE_NAME"

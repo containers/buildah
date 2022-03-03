@@ -6,6 +6,24 @@ source $(dirname $0)/lib.sh
 
 req_env_vars IN_PODMAN IN_PODMAN_NAME GOSRC 1
 
+# shellcheck disable=SC2154
+if [[ "$PRIV_NAME" == "rootless" ]] && [[ "$UID" -eq 0 ]]; then
+    # Remove /var/lib/cni, it is not required for rootless cni.
+    # We have to test that it works without this directory.
+    # https://github.com/containers/podman/issues/10857
+    rm -rf /var/lib/cni
+
+    req_env_vars ROOTLESS_USER
+    msg "Re-executing test through ssh as user '$ROOTLESS_USER'"
+    msg "************************************************************"
+    set -x
+    exec ssh $ROOTLESS_USER@localhost \
+            -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
+            -o CheckHostIP=no $GOSRC/$SCRIPT_BASE/test.sh $1
+    # Does not return!
+fi
+# else: not running rootless, do nothing special
+
 if [[ "$IN_PODMAN" == "true" ]]
 then
     cd $GOSRC
@@ -51,11 +69,6 @@ else
             showrun make test-conformance
             ;;
         integration)
-            # FIXME: drop the `rm` below once containers.conf has been fixed.
-            # It complains about failing to "to decode the keys ["secret"
-            # "secret.opts"]" which is in process of getting fixed but will
-            # take a while until it hits all distributions.
-            showrun rm /usr/share/containers/containers.conf
             showrun make test-integration
             ;;
         *)
