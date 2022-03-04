@@ -251,6 +251,7 @@ load helpers
 }
 
 @test "pull image into a full storage" {
+  skip_if_rootless_environment
   mkdir /tmp/buildah-test
   mount -t tmpfs -o size=5M tmpfs /tmp/buildah-test
   run dd if=/dev/urandom of=/tmp/buildah-test/full
@@ -356,6 +357,7 @@ load helpers
 }
 
 @test "pull image with TMPDIR set" {
+  skip_if_rootless_environment
   testdir=${TESTDIR}/buildah-test
   mkdir -p $testdir
   mount -t tmpfs -o size=1M tmpfs $testdir

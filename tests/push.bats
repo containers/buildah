@@ -17,6 +17,7 @@ load helpers
 }
 
 @test "push" {
+  skip_if_rootless_environment
   touch ${TESTDIR}/reference-time-file
   for source in scratch scratch-image; do
     run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json ${source}
@@ -157,6 +158,7 @@ load helpers
 }
 
 @test "buildah oci encrypt and push local oci" {
+  skip_if_rootless_environment
   _prefetch busybox
   mkdir ${TESTDIR}/tmp
   openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024

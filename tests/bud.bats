@@ -60,6 +60,7 @@ load helpers
 }
 
 @test "bud with .dockerignore - unmatched" {
+  skip_if_rootless_environment
   # Here .dockerignore contains 'unmatched', which will not match anything.
   # Therefore everything in the subdirectory should be copied into the image.
   #
@@ -260,6 +261,7 @@ _EOF
 }
 
 @test "bud with --layers, multistage, and COPY with --from" {
+  skip_if_rootless_environment
   _prefetch alpine
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
 
@@ -349,6 +351,7 @@ _EOF
 }
 
 @test "bud-multistage-cache" {
+   skip_if_rootless_environment
   _prefetch alpine busybox
   target=foo
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.extended ${TESTSDIR}/bud/multi-stage-builds
@@ -520,6 +523,8 @@ _EOF
 
 @test "build --unsetenv PATH" {
   _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p $mytmpdir
   cat > $mytmpdir/Containerfile << _EOF
 FROM alpine
 ENV date="today"
@@ -631,6 +636,7 @@ _EOF
 }
 
 @test "bud-from-multiple-files-one-from" {
+  skip_if_rootless_environment
   target=scratch-image
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch -f ${TESTSDIR}/bud/from-multiple-files/Dockerfile2.nofrom ${TESTSDIR}/bud/from-multiple-files
   run_buildah from --quiet ${target}
@@ -656,6 +662,7 @@ _EOF
 }
 
 @test "bud-from-multiple-files-two-froms" {
+  skip_if_rootless_environment
   _prefetch alpine
   target=scratch-image
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile1.scratch -f Dockerfile2.withfrom ${TESTSDIR}/bud/from-multiple-files
@@ -682,6 +689,7 @@ _EOF
 }
 
 @test "bud-multi-stage-builds" {
+  skip_if_rootless_environment
   _prefetch alpine
   target=multi-stage-index
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds
@@ -718,6 +726,7 @@ _EOF
 }
 
 @test "bud-multi-stage-builds-small-as" {
+  skip_if_rootless_environment
   _prefetch alpine
   target=multi-stage-index
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/multi-stage-builds-small-as/Dockerfile.index ${TESTSDIR}/bud/multi-stage-builds-small-as
@@ -754,6 +763,7 @@ _EOF
 }
 
 @test "bud-preserve-subvolumes" {
+  skip_if_rootless_environment
   # This Dockerfile needs us to be able to handle a working RUN instruction.
   skip_if_no_runtime
 
@@ -896,6 +906,7 @@ function _test_http() {
 }
 
 @test "bud-volume-perms" {
+  skip_if_rootless_environment
   # This Dockerfile needs us to be able to handle a working RUN instruction.
   skip_if_no_runtime
 
@@ -946,6 +957,7 @@ function _test_http() {
 }
 
 @test "bud-from-glob" {
+  skip_if_rootless_environment
   _prefetch alpine
   target=alpine-image
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile2.glob ${TESTSDIR}/bud/from-multiple-files
@@ -1016,6 +1028,7 @@ function _test_http() {
 }
 
 @test "bud with symlinks" {
+  skip_if_rootless_environment
   _prefetch alpine
   target=alpine-image
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/symlink
@@ -1035,6 +1048,7 @@ function _test_http() {
 }
 
 @test "bud with symlinks to relative path" {
+  skip_if_rootless_environment
   _prefetch alpine
   target=alpine-image
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.relative-symlink ${TESTSDIR}/bud/symlink
@@ -1053,6 +1067,7 @@ function _test_http() {
 }
 
 @test "bud with multiple symlinks in a path" {
+  skip_if_rootless_environment
   _prefetch alpine
   target=alpine-image
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.multiple-symlinks ${TESTSDIR}/bud/symlink
@@ -1085,6 +1100,7 @@ function _test_http() {
 }
 
 @test "bud multi-stage with symlink to absolute path" {
+  skip_if_rootless_environment
   _prefetch ubuntu
   target=ubuntu-image
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.absolute-symlink ${TESTSDIR}/bud/symlink
@@ -1102,6 +1118,7 @@ function _test_http() {
 }
 
 @test "bud multi-stage with dir symlink to absolute path" {
+  skip_if_rootless_environment
   _prefetch ubuntu
   target=ubuntu-image
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.absolute-dir-symlink ${TESTSDIR}/bud/symlink
@@ -1259,6 +1276,7 @@ function _test_http() {
 }
 
 @test "bud-onbuild" {
+  skip_if_rootless_environment
   _prefetch alpine
   target=onbuild
   run_buildah build --format docker --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/onbuild
@@ -1341,6 +1359,7 @@ function _test_http() {
 }
 
 @test "bud-from-stdin" {
+  skip_if_rootless_environment
   target=scratch-image
   cat ${TESTSDIR}/bud/from-multiple-files/Dockerfile1.scratch | run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f - ${TESTSDIR}/bud/from-multiple-files
   run_buildah from --quiet ${target}
@@ -1611,6 +1630,7 @@ function _test_http() {
 }
 
 @test "bud with FROM AS skip FROM construct" {
+  skip_if_rootless_environment
   _prefetch alpine
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t test1 -f ${TESTSDIR}/bud/from-as/Dockerfile.skip ${TESTSDIR}/bud/from-as
   expect_output --substring "LOCAL=/1"
@@ -1699,6 +1719,7 @@ function _test_http() {
 }
 
 @test "bud with copy-from in Dockerfile no prior FROM" {
+  skip_if_rootless_environment
   _prefetch busybox quay.io/libpod/testimage:20210610
   target=no-prior-from
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy-from ${TESTSDIR}/bud/copy-from
@@ -1721,6 +1742,7 @@ function _test_http() {
 }
 
 @test "bud with copy-from referencing the base image" {
+  skip_if_rootless_environment
   _prefetch busybox
   target=busybox-derived
   target_mt=busybox-mt-derived
@@ -1752,6 +1774,7 @@ function _test_http() {
 }
 
 @test "bud-target" {
+  skip_if_rootless_environment
   _prefetch alpine ubuntu
   target=target
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} --target mytarget ${TESTSDIR}/bud/target
@@ -2006,6 +2029,7 @@ _EOF
 }
 
 @test "bud-copy-workdir" {
+  skip_if_rootless_environment
   target=testimage
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/copy-workdir
   run_buildah from ${target}
@@ -2019,6 +2043,7 @@ _EOF
 
 # regression test for https://github.com/containers/podman/issues/10671
 @test "bud-copy-workdir --layers" {
+  skip_if_rootless_environment
   _prefetch alpine
 
   target=testimage
@@ -2100,6 +2125,7 @@ _EOF
 }
 
 @test "bud-copy-dockerignore-hardlinks" {
+  skip_if_rootless_environment
   target=image
   mkdir -p ${TESTDIR}/hardlinks/subdir
   cp ${TESTSDIR}/bud/recurse/Dockerfile ${TESTDIR}/hardlinks
@@ -2218,6 +2244,7 @@ _EOF
 }
 
 @test "bud with additional directory of devices" {
+  skip_if_rootless_environment
   skip_if_chroot
   skip_if_rootless
 
@@ -2276,6 +2303,7 @@ _EOF
 }
 
 @test "bud with Dockerfile from stdin" {
+  skip_if_rootless_environment
   _prefetch alpine
   target=df-stdin
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} - < ${TESTSDIR}/bud/context-from-stdin/Dockerfile
@@ -2293,6 +2321,7 @@ _EOF
 }
 
 @test "bud with Dockerfile from stdin tar" {
+  skip_if_rootless_environment
   _prefetch alpine
   target=df-stdin
   # 'cmd1 < <(cmd2)' == 'cmd2 | cmd1' but runs cmd1 in this shell, not sub.
@@ -3174,6 +3203,7 @@ _EOF
 }
 
 @test "bud with --cgroup-parent" {
+  skip_if_rootless_environment
   skip_if_no_runtime
   skip_if_chroot
 
@@ -3205,6 +3235,7 @@ _EOF
 @test "bud with --cpu-period and --cpu-quota" {
   skip_if_chroot
   skip_if_rootless_and_cgroupv1
+  skip_if_rootless_environment
   skip_if_no_runtime
 
   _prefetch alpine
@@ -3245,6 +3276,7 @@ _EOF
 
 @test "bud with --cpu-shares" {
   skip_if_chroot
+  skip_if_rootless_environment
   skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
 
@@ -3278,6 +3310,7 @@ _EOF
 @test "bud with --cpuset-cpus" {
   skip_if_chroot
   skip_if_rootless_and_cgroupv1
+  skip_if_rootless_environment
   skip_if_no_runtime
 
   _prefetch alpine
@@ -3305,6 +3338,7 @@ _EOF
 @test "bud with --cpuset-mems" {
   skip_if_chroot
   skip_if_rootless_and_cgroupv1
+  skip_if_rootless_environment
   skip_if_no_runtime
 
   _prefetch alpine
@@ -3330,6 +3364,7 @@ _EOF
 }
 
 @test "bud with --isolation" {
+  skip_if_rootless_environment
   skip_if_no_runtime
   test -z "${BUILDAH_ISOLATION}" || skip "BUILDAH_ISOLATION=${BUILDAH_ISOLATION} overrides --isolation"
 
@@ -3362,6 +3397,7 @@ _EOF
   skip_if_chroot
   skip_if_no_runtime
   skip_if_rootless_and_cgroupv1
+  skip_if_rootless_environment
 
   _prefetch alpine
 
@@ -3811,6 +3847,8 @@ _EOF
 
 @test "build proxy" {
   _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p $mytmpdir
   cat > $mytmpdir/Containerfile << _EOF
 FROM alpine
 run printenv
@@ -3959,6 +3997,7 @@ _EOF
 @test "bud with network names" {
   skip_if_no_runtime
   skip_if_in_container
+  skip_if_rootless_environment
 
   _prefetch alpine
 

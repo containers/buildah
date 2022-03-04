@@ -14,6 +14,7 @@ load helpers
 }
 
 @test "copy-local-multiple" {
+  skip_if_rootless_environment
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
   createrandom ${TESTDIR}/third-randomfile
@@ -53,6 +54,7 @@ load helpers
 }
 
 @test "copy-local-plain" {
+  skip_if_rootless_environment
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
   createrandom ${TESTDIR}/third-randomfile
@@ -79,6 +81,7 @@ load helpers
 }
 
 @test "copy-local-subdirectory" {
+  skip_if_rootless_environment
   mkdir -p ${TESTDIR}/subdir
   createrandom ${TESTDIR}/subdir/randomfile
   createrandom ${TESTDIR}/subdir/other-randomfile
@@ -101,6 +104,7 @@ load helpers
 }
 
 @test "copy-local-force-directory" {
+  skip_if_rootless_environment
   createrandom ${TESTDIR}/randomfile
 
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
@@ -124,6 +128,7 @@ load helpers
 }
 
 @test "copy-url-mtime" {
+  skip_if_rootless_environment
   # Create a file with random content and a non-now timestamp (so we can
   # can trust that buildah correctly set mtime on copy)
   createrandom ${TESTDIR}/randomfile
@@ -237,6 +242,7 @@ load helpers
 }
 
 @test "copy-symlink" {
+  skip_if_rootless_environment
   createrandom ${TESTDIR}/randomfile
   ln -s ${TESTDIR}/randomfile ${TESTDIR}/link-randomfile
 
@@ -260,6 +266,7 @@ load helpers
 }
 
 @test "ignore-socket" {
+  skip_if_rootless_environment
   createrandom ${TESTDIR}/randomfile
   # This seems to be the least-worst way to create a socket: run and kill nc
   nc -lkU ${TESTDIR}/test.socket &
@@ -293,6 +300,7 @@ load helpers
 }
 
 @test "copy-symlink-archive-suffix" {
+  skip_if_rootless_environment
   createrandom ${TESTDIR}/randomfile.tar.gz
   ln -s ${TESTDIR}/randomfile.tar.gz ${TESTDIR}/link-randomfile.tar.gz
 
@@ -327,6 +335,7 @@ load helpers
 }
 
 @test "copy --ignorefile" {
+  skip_if_rootless_environment
   mytest=${TESTDIR}/mytest
   mkdir -p ${mytest}
   touch ${mytest}/mystuff
@@ -360,6 +369,7 @@ stuff/mystuff"
 }
 
 @test "copy-quiet" {
+  skip_if_rootless_environment
   createrandom ${TESTDIR}/randomfile
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
@@ -374,6 +384,7 @@ stuff/mystuff"
 }
 
 @test "copy-from-container" {
+  skip_if_rootless_environment
   _prefetch busybox
   createrandom ${TESTDIR}/randomfile
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
@@ -393,6 +404,7 @@ stuff/mystuff"
 }
 
 @test "copy-container-root" {
+  skip_if_rootless_environment
   _prefetch busybox
   createrandom ${TESTDIR}/randomfile
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
@@ -410,6 +422,7 @@ stuff/mystuff"
 }
 
 @test "add-from-image" {
+  skip_if_rootless_environment
   _prefetch busybox
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid=$output

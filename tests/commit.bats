@@ -194,6 +194,7 @@ load helpers
 }
 
 @test "commit encrypted local oci image" {
+  skip_if_rootless_environment
   _prefetch busybox
   mkdir ${TESTDIR}/tmp
   openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
