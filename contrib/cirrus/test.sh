@@ -13,6 +13,11 @@ if [[ "$PRIV_NAME" == "rootless" ]] && [[ "$UID" -eq 0 ]]; then
     # https://github.com/containers/podman/issues/10857
     rm -rf /var/lib/cni
 
+    # change permission of go src and cache directory
+    # so rootless user can access it
+    chown -R $ROOTLESS_USER:root /var/tmp/go
+    chmod -R g+rwx /var/tmp/go
+
     req_env_vars ROOTLESS_USER
     msg "Re-executing test through ssh as user '$ROOTLESS_USER'"
     msg "************************************************************"
