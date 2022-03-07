@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
+	"github.com/containers/common/libnetwork/network"
+	"github.com/containers/common/pkg/config"
 	cp "github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/compression"
@@ -71,6 +73,23 @@ func main() {
 				return err
 			}
 			imageStorage.Transport.SetStore(store)
+
+			var conf *config.Config
+			if containersConf, ok := os.LookupEnv("CONTAINERS_CONF"); ok {
+				conf, err = config.NewConfig(containersConf)
+				if err != nil {
+					return err
+				}
+			} else {
+				conf, err = config.DefaultConfig()
+				if err != nil {
+					return err
+				}
+			}
+			_, _, err = network.NetworkBackend(store, conf, false)
+			if err != nil {
+				return err
+			}
 
 			if len(args) < 1 {
 				return errors.Wrapf(err, "no source name provided")
