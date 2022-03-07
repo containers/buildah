@@ -32,7 +32,7 @@ When a Git repository is set as the URL, the repository is cloned locally and th
 
 Add a custom host-to-IP mapping (host:ip)
 
-Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option can be set multiple times.
+Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option can be set multiple times. Conflicts with the --no-hosts option.
 
 **--all-platforms**
 
@@ -395,6 +395,13 @@ Valid _mode_ values are:
 **--no-cache**
 
 Do not use existing cached images for the container build. Build from the start with a new set of cached layers.
+
+**--no-hosts**
+
+Do not create _/etc/hosts_ for the container.
+
+By default, Buildah manages _/etc/hosts_, adding the container's own IP address.
+**--no-hosts** disables this, and the image's _/etc/hosts_ will be preserved unmodified. Conflicts with the --add-host option.
 
 **--os**="OS"
 

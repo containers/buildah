@@ -3174,6 +3174,15 @@ _EOF
   run_buildah build --add-host=myhostname:$ip -t testbud \
                   --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
   expect_output --from="${lines[2]}" --substring "^$ip\s+myhostname"
+
+  run_buildah 125 build --no-cache --add-host=myhostname:$ip \
+                  --no-hosts \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --substring "\-\-no-hosts and \-\-add-host conflict, can not be used together"
+
+  run_buildah 1 build --no-cache --no-hosts \
+                  --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+  expect_output --substring 'error building at STEP "RUN grep "myhostname" /etc/hosts'
 }
 
 @test "bud with --cgroup-parent" {
