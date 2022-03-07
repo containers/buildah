@@ -43,6 +43,19 @@ EOF
     ROOTDIR_OPTS="--root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER}"
     BUILDAH_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf --registries-conf-dir ${TESTDIR}/registries.d --short-name-alias-conf ${TESTDIR}/cache/shortnames.conf"
     PODMAN_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf"
+
+    # This is not a NOP! It's a horrible kludge needed because of _prefetch().
+    # Basically: _prefetch puts images into our rootdir, buildah/podman see
+    # that there are images in the store, but do not see the magic netavark
+    # signal file, so they assume CNI, which fails catastrophically on
+    # a netavark-only system.
+    #
+    # Workaround: run 'podman info' immediately after creating our empty
+    # rootdir. podman will think it's a new system, and will create the
+    # magic netavark signal file. (Or, if netavark is missing, it will
+    # still create the magic file but stuff "cni" into it instead).
+    # Either way, this guarantees that we'll be able to do 'buildah run'.
+    podman info &>/dev/null
 }
 
 function starthttpd() {
