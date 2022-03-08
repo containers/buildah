@@ -17,6 +17,7 @@ load helpers
 }
 
 @test "user-and-network-namespace" {
+  skip_if_rootless_environment
   skip_if_chroot
   skip_if_rootless
 
@@ -101,6 +102,7 @@ idmapping_check_permission() {
 }
 
 @test "idmapping" {
+  skip_if_rootless_environment
   mkdir -p $TESTDIR/no-cni-configs
   RUNOPTS="--cni-config-dir=${TESTDIR}/no-cni-configs ${RUNC_BINARY:+--runtime $RUNC_BINARY}"
 
@@ -358,6 +360,7 @@ _EOF
 @test "ipc-namespace" {
   skip_if_chroot
   skip_if_rootless
+  skip_if_rootless_environment
 
   general_namespace ipc
 }
@@ -365,6 +368,7 @@ _EOF
 @test "net-namespace" {
   skip_if_chroot
   skip_if_rootless
+  skip_if_rootless_environment
 
   general_namespace net
 }
@@ -372,6 +376,7 @@ _EOF
 @test "network-namespace" {
   skip_if_chroot
   skip_if_rootless
+  skip_if_rootless_environment
 
   general_namespace net network
 }
@@ -379,6 +384,7 @@ _EOF
 @test "pid-namespace" {
   skip_if_chroot
   skip_if_rootless
+  skip_if_rootless_environment
 
   general_namespace pid
 }
@@ -386,6 +392,7 @@ _EOF
 @test "user-namespace" {
   skip_if_chroot
   skip_if_rootless
+  skip_if_rootless_environment
 
   general_namespace user userns
 }
@@ -393,6 +400,7 @@ _EOF
 @test "uts-namespace" {
   skip_if_chroot
   skip_if_rootless
+  skip_if_rootless_environment
 
   general_namespace uts
 }
@@ -400,6 +408,7 @@ _EOF
 @test "combination-namespaces" {
   skip_if_chroot
   skip_if_rootless
+  skip_if_rootless_environment
 
   _prefetch alpine
   # mnt is always per-container, cgroup isn't a thing OCI runtime lets us configure
@@ -434,6 +443,7 @@ _EOF
 }
 
 @test "idmapping-and-squash" {
+        skip_if_rootless_environment
 	createrandom ${TESTDIR}/randomfile
 	run_buildah from --userns-uid-map 0:32:16 --userns-gid-map 0:48:16 scratch
 	cid=$output
@@ -454,6 +464,7 @@ _EOF
 }
 
 @test "invalid userns-uid-map userns-gid-map" {
+	skip_if_rootless_environment
 	run_buildah 125 from --userns-uid-map 16  --userns-gid-map 0:48:16 scratch
 	expect_output 'error initializing ID mappings: userns-uid-map setting is malformed expected ["uint32:uint32:uint32"]: ["16"]'
 

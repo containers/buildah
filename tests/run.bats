@@ -3,6 +3,7 @@
 load helpers
 
 @test "run" {
+        skip_if_rootless_environment
 	skip_if_no_runtime
 
 	_prefetch alpine
@@ -181,6 +182,7 @@ function configure_and_check_user() {
 }
 
 @test "run-user" {
+        skip_if_rootless_environment
 	skip_if_no_runtime
 
 	eval $(go env)
@@ -449,6 +451,7 @@ function configure_and_check_user() {
 }
 
 @test "Check if containers run with correct open files/processes limits" {
+        skip_if_rootless_environment
 	skip_if_no_runtime
 
 	# we need to not use the list of limits that are set in our default
@@ -487,6 +490,7 @@ function configure_and_check_user() {
 }
 
 @test "run-builtin-volume-omitted" {
+        skip_if_rootless_environment
 	# This image is known to include a volume, but not include the mountpoint
 	# in the image.
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/registry:volume_omitted
@@ -524,6 +528,7 @@ function configure_and_check_user() {
 }
 
 @test "Verify /run/.containerenv exist" {
+        skip_if_rootless_environment
 	skip_if_no_runtime
 
 	_prefetch alpine
@@ -570,6 +575,7 @@ function configure_and_check_user() {
 }
 
 @test "run-device-Rename" {
+	skip_if_rootless_environment
 	skip_if_no_runtime
 	skip_if_chroot
 	skip_if_rootless
@@ -581,6 +587,7 @@ function configure_and_check_user() {
 }
 
 @test "run check /etc/hosts" {
+        skip_if_rootless_environment
 	skip_if_no_runtime
 	skip_if_in_container
 
@@ -628,6 +635,7 @@ function configure_and_check_user() {
 }
 
 @test "run check /etc/resolv.conf" {
+        skip_if_rootless_environment
 	skip_if_no_runtime
 
 	${OCI} --version

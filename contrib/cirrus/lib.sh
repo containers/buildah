@@ -87,6 +87,9 @@ ALPINE_FQIN=${ALPINE_FQIN:-docker.io/library/alpine}
 IN_PODMAN_NAME="in_podman_$CIRRUS_TASK_ID"
 IN_PODMAN="${IN_PODMAN:-false}"
 
+# rootless_user
+ROOTLESS_USER="rootlessuser"
+
 # Downloaded, but not installed packages.
 PACKAGE_DOWNLOAD_DIR=/var/cache/download
 
@@ -256,4 +259,78 @@ execute_local_registry() {
         $REGISTRY_FQIN
 
     verify_local_registry
+}
+
+setup_rootless() {
+    req_env_vars GOPATH GOSRC SECRET_ENV_RE
+
+    local rootless_uid
+    local rootless_gid
+    local env_var_val
+    local akfilepath
+    local sshcmd
+
+    # Only do this once; established by setup_environment.sh
+    # shellcheck disable=SC2154
+    if passwd --status $ROOTLESS_USER
+    then
+        if [[ $PRIV_NAME = "rootless" ]]; then
+            msg "Updating $ROOTLESS_USER user permissions on possibly changed libpod code"
+            chown -R $ROOTLESS_USER:$ROOTLESS_USER "$GOPATH" "$GOSRC"
+            return 0
+        fi
+    fi
+    msg "************************************************************"
+    msg "Setting up rootless user '$ROOTLESS_USER'"
+    msg "************************************************************"
+    cd $GOSRC || exit 1
+    # Guarantee independence from specific values
+    rootless_uid=$[RANDOM+1000]
+    rootless_gid=$[RANDOM+1000]
+    msg "creating $rootless_uid:$rootless_gid $ROOTLESS_USER user"
+    groupadd -g $rootless_gid $ROOTLESS_USER
+    useradd -g $rootless_gid -u $rootless_uid --no-user-group --create-home $ROOTLESS_USER
+
+    # We also set up rootless user for image-scp tests (running as root)
+    if [[ $PRIV_NAME = "rootless" ]]; then
+        chown -R $ROOTLESS_USER:$ROOTLESS_USER "$GOPATH" "$GOSRC"
+    fi
+    echo "$ROOTLESS_USER ALL=(root) NOPASSWD: ALL" > /etc/sudoers.d/ci-rootless
+
+    mkdir -p "$HOME/.ssh" "/home/$ROOTLESS_USER/.ssh"
+
+    msg "Creating ssh key pairs"
+    [[ -r "$HOME/.ssh/id_rsa" ]] || \
+        ssh-keygen -t rsa -P "" -f "$HOME/.ssh/id_rsa"
+    ssh-keygen -t ed25519 -P "" -f "/home/$ROOTLESS_USER/.ssh/id_ed25519"
+    ssh-keygen -t rsa -P "" -f "/home/$ROOTLESS_USER/.ssh/id_rsa"
+
+    msg "Setup authorized_keys"
+    cat $HOME/.ssh/*.pub /home/$ROOTLESS_USER/.ssh/*.pub >> $HOME/.ssh/authorized_keys
+    cat $HOME/.ssh/*.pub /home/$ROOTLESS_USER/.ssh/*.pub >> /home/$ROOTLESS_USER/.ssh/authorized_keys
+
+    msg "Ensure the ssh daemon is up and running within 5 minutes"
+    systemctl start sshd
+    lilto systemctl is-active sshd
+
+    msg "Configure ssh file permissions"
+    chmod -R 700 "$HOME/.ssh"
+    chmod -R 700 "/home/$ROOTLESS_USER/.ssh"
+    chown -R $ROOTLESS_USER:$ROOTLESS_USER "/home/$ROOTLESS_USER/.ssh"
+
+    msg "   setup known_hosts for $USER"
+    ssh -q root@localhost \
+        -o UserKnownHostsFile=/root/.ssh/known_hosts \
+        -o UpdateHostKeys=yes \
+        -o StrictHostKeyChecking=no \
+        -o CheckHostIP=no \
+        true
+
+    msg "   setup known_hosts for $ROOTLESS_USER"
+    su $ROOTLESS_USER -c "ssh -q $ROOTLESS_USER@localhost \
+        -o UserKnownHostsFile=/home/$ROOTLESS_USER/.ssh/known_hosts \
+        -o UpdateHostKeys=yes \
+        -o StrictHostKeyChecking=no \
+        -o CheckHostIP=no \
+        true"
 }

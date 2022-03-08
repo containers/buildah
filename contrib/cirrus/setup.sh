@@ -48,6 +48,23 @@ EOF
         ;;
 esac
 
+# Required to be defined by caller: Are we testing as root or a regular user
+case "$PRIV_NAME" in
+    root)
+        if [[ "$TEST_FLAVOR" = "sys" ]]; then
+            # Used in local image-scp testing
+            setup_rootless
+        fi
+        ;;
+    rootless)
+        # load kernel modules since the rootless user has no permission to do so
+        modprobe ip6_tables || :
+        modprobe ip6table_nat || :
+        setup_rootless
+        ;;
+    *) die_unknown PRIV_NAME
+esac
+
 # Previously, golang was not installed
 source $(dirname $0)/lib.sh
 

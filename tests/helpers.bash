@@ -410,6 +410,15 @@ function is_rootless() {
     [ "$(id -u)" -ne 0 ]
 }
 
+#################################
+#  skip_if_rootless_environment # `mount` or its variant needs unshare
+#################################
+function skip_if_rootless_environment() {
+    if is_rootless; then
+        skip "${1:-test is being invoked from rootless environment and might need unshare}"
+    fi
+}
+
 ####################
 #  skip_if_chroot  #
 ####################

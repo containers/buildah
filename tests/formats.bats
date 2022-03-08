@@ -46,6 +46,7 @@ function check_imgtype() {
 
 
 @test "write-formats" {
+  skip_if_rootless_environment
   run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-default
@@ -58,6 +59,7 @@ function check_imgtype() {
 }
 
 @test "bud-formats" {
+  skip_if_rootless_environment
   run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t scratch-image-default -f Containerfile ${TESTSDIR}/bud/from-scratch
   run_buildah build-using-dockerfile --format docker --signature-policy ${TESTSDIR}/policy.json -t scratch-image-docker -f Containerfile ${TESTSDIR}/bud/from-scratch
   run_buildah build-using-dockerfile --format oci --signature-policy ${TESTSDIR}/policy.json -t scratch-image-oci -f Containerfile ${TESTSDIR}/bud/from-scratch

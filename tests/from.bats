@@ -163,6 +163,7 @@ load helpers
 }
 
 @test "from cpu-period test" {
+  skip_if_rootless_environment
   skip_if_chroot
   skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
@@ -179,6 +180,7 @@ load helpers
 }
 
 @test "from cpu-quota test" {
+  skip_if_rootless_environment
   skip_if_chroot
   skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
@@ -195,6 +197,7 @@ load helpers
 }
 
 @test "from cpu-shares test" {
+  skip_if_rootless_environment
   skip_if_chroot
   skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
@@ -213,6 +216,7 @@ load helpers
 }
 
 @test "from cpuset-cpus test" {
+  skip_if_rootless_environment
   skip_if_chroot
   skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
@@ -229,6 +233,7 @@ load helpers
 }
 
 @test "from cpuset-mems test" {
+  skip_if_rootless_environment
   skip_if_chroot
   skip_if_rootless_and_cgroupv1
   skip_if_no_runtime
@@ -245,6 +250,7 @@ load helpers
 }
 
 @test "from memory test" {
+  skip_if_rootless_environment
   skip_if_chroot
   skip_if_rootless_and_cgroupv1
 
@@ -289,6 +295,7 @@ load helpers
 }
 
 @test "from --volume with U flag" {
+  skip_if_rootless_environment
   skip_if_no_runtime
 
   # Check if we're running in an environment that can even test this.
@@ -567,6 +574,7 @@ load helpers
 }
 
 @test "from isolation test" {
+  skip_if_rootless_environment
   _prefetch alpine
   run_buildah from -q --isolation chroot --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
@@ -583,6 +591,7 @@ load helpers
 }
 
 @test "from cgroup-parent test" {
+  skip_if_rootless_environment
   skip_if_chroot
 
   _prefetch alpine

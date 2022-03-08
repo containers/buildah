@@ -39,6 +39,7 @@ load helpers
 }
 
 @test "containers.conf additional devices test" {
+    skip_if_rootless_environment
     if test "$BUILDAH_ISOLATION" = "chroot" -o "$BUILDAH_ISOLATION" = "rootless" ; then
 	skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
     fi
