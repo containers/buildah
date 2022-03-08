@@ -14,7 +14,6 @@ load helpers
 }
 
 @test "umount one image" {
-  skip_if_rootless_environment
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
@@ -27,7 +26,6 @@ load helpers
 }
 
 @test "umount multi images" {
-  skip_if_rootless_environment
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
@@ -42,7 +40,6 @@ load helpers
 }
 
 @test "umount all images" {
-  skip_if_rootless_environment
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
@@ -57,7 +54,6 @@ load helpers
 }
 
 @test "umount multi images one bad" {
-  skip_if_rootless_environment
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output

@@ -3,7 +3,6 @@
 load helpers
 
 @test "run" {
-        skip_if_rootless_environment
 	skip_if_no_runtime
 
 	_prefetch alpine
@@ -182,7 +181,6 @@ function configure_and_check_user() {
 }
 
 @test "run-user" {
-        skip_if_rootless_environment
 	skip_if_no_runtime
 
 	eval $(go env)
@@ -490,7 +488,6 @@ function configure_and_check_user() {
 }
 
 @test "run-builtin-volume-omitted" {
-        skip_if_rootless_environment
 	# This image is known to include a volume, but not include the mountpoint
 	# in the image.
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/registry:volume_omitted

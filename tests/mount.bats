@@ -3,7 +3,6 @@
 load helpers
 
 @test "mount-flags-order-verification" {
-  skip_if_rootless_environment
   run_buildah 125 mount cnt1 --notruncate path1
   check_options_flag_err "--notruncate"
 
@@ -15,7 +14,6 @@ load helpers
 }
 
 @test "mount one container" {
-  skip_if_rootless_environment
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
@@ -23,12 +21,10 @@ load helpers
 }
 
 @test "mount bad container" {
-  skip_if_rootless_environment
   run_buildah 125 mount badcontainer
 }
 
 @test "mount multi images" {
-  skip_if_rootless_environment
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
@@ -40,7 +36,6 @@ load helpers
 }
 
 @test "mount multi images one bad" {
-  skip_if_rootless_environment
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output
@@ -52,7 +47,6 @@ load helpers
 }
 
 @test "list currently mounted containers" {
-  skip_if_rootless_environment
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
   cid1=$output

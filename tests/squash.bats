@@ -17,7 +17,6 @@ function check_lengths() {
 }
 
 @test "squash" {
-        skip_if_rootless_environment
 	createrandom ${TESTDIR}/randomfile
 	run_buildah from scratch
 	cid=$output
@@ -57,7 +56,6 @@ function check_lengths() {
 }
 
 @test "squash-using-dockerfile" {
-        skip_if_rootless_environment
 	createrandom ${TESTDIR}/randomfile
 	image=stage0
 	from=scratch

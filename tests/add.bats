@@ -14,7 +14,6 @@ load helpers
 }
 
 @test "add-local-plain" {
-  skip_if_rootless_environment
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
@@ -60,7 +59,6 @@ load helpers
 }
 
 @test "add-local-archive" {
-  skip_if_rootless_environment
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
@@ -203,7 +201,6 @@ load helpers
 }
 
 @test "add --ignorefile" {
-  skip_if_rootless_environment
   mytest=${TESTDIR}/mytest
   mkdir -p ${mytest}
   touch ${mytest}/mystuff
@@ -237,7 +234,6 @@ stuff/mystuff"
 }
 
 @test "add quietly" {
-  skip_if_rootless_environment
   _prefetch busybox
   createrandom ${TESTDIR}/randomfile
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
@@ -250,7 +246,6 @@ stuff/mystuff"
 }
 
 @test "add from container" {
-  skip_if_rootless_environment
   _prefetch busybox
   createrandom ${TESTDIR}/randomfile
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
@@ -270,7 +265,6 @@ stuff/mystuff"
 }
 
 @test "add from image" {
-  skip_if_rootless_environment
   _prefetch busybox
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
   cid=$output
