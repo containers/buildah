@@ -74,17 +74,9 @@ func main() {
 			}
 			imageStorage.Transport.SetStore(store)
 
-			var conf *config.Config
-			if containersConf, ok := os.LookupEnv("CONTAINERS_CONF"); ok {
-				conf, err = config.NewConfig(containersConf)
-				if err != nil {
-					return err
-				}
-			} else {
-				conf, err = config.DefaultConfig()
-				if err != nil {
-					return err
-				}
+			conf, err := config.Default()
+			if err != nil {
+				return err
 			}
 			_, _, err = network.NetworkBackend(store, conf, false)
 			if err != nil {
