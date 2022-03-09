@@ -74,7 +74,6 @@ load helpers
 }
 
 @test "use prune to remove dangling images" {
-  skip_if_rootless_environment
   _prefetch busybox
 
   createrandom ${TESTDIR}/randomfile
@@ -115,7 +114,6 @@ load helpers
 }
 
 @test "use prune to remove dangling images with parent" {
-  skip_if_rootless_environment
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 

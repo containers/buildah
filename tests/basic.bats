@@ -36,7 +36,6 @@ load helpers
 }
 
 @test "mount" {
-  skip_if_rootless_environment
   run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
   cid=$output
   run_buildah mount $cid
@@ -50,7 +49,6 @@ load helpers
 }
 
 @test "by-name" {
-  skip_if_rootless_environment
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name scratch-working-image-for-test scratch
   cid=$output
   run_buildah mount scratch-working-image-for-test
@@ -60,7 +58,6 @@ load helpers
 }
 
 @test "commit" {
-  skip_if_rootless_environment
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 

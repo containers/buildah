@@ -160,6 +160,35 @@ function podman() {
     command podman ${PODMAN_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
 }
 
+# There are various scenarios where we would like to execute `tests` as rootless user, however certain commands like `buildah mount`
+# do not work in rootless session since a normal user cannot mount a filesystem unless they're in a user namespace along with its
+# own mount namespace. In order to run such specific commands from a rootless session we must perform `buildah unshare`.
+# Following function makes sure that invoked command is triggered inside a `buildah unshare` session if env is rootless.
+function run_unshared() {
+    if is_rootless; then
+        $BUILDAH_BINARY unshare "$@"
+    else
+        command "$@"
+    fi
+}
+
+function mkdir() {
+    run_unshared mkdir "$@"
+}
+
+function touch() {
+    run_unshared touch "$@"
+}
+
+function cp() {
+    run_unshared cp "$@"
+}
+
+function rm() {
+    run_unshared rm "$@"
+}
+
+
 #################
 #  run_buildah  #  Invoke buildah, with timeout, using BATS 'run'
 #################
@@ -194,6 +223,14 @@ function run_buildah() {
 
     # Remember command args, for possible use in later diagnostic messages
     MOST_RECENT_BUILDAH_COMMAND="buildah $*"
+
+    # If session is rootless and `buildah mount` is invoked, perform unshare,
+    # since normal user cannot mount a filesystem unless they're in a user namespace along with its own mount namespace.
+    if is_rootless; then
+        if [[ "$1" =~ mount ]]; then
+            set "unshare" "$BUILDAH_BINARY" ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
+        fi
+    fi
 
     while [ $retry -gt 0 ]; do
         retry=$(( retry - 1 ))
