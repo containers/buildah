@@ -182,6 +182,13 @@ consult the manpages of the selected container runtime.
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah run, the option given would be `--runtime-flag log-format=json`.
 
+**--no-hosts**
+
+Do not create _/etc/hosts_ for the container.
+
+By default, Buildah manages _/etc/hosts_, adding the container's own IP address.
+**--no-hosts** disables this, and the image's _/etc/hosts_ will be preserved unmodified.
+
 **--no-pivot**
 
 Do not use pivot root to jail process inside rootfs. This should be used

@@ -24,6 +24,7 @@ type runInputOptions struct {
 	mounts      []string
 	runtime     string
 	runtimeFlag []string
+	noHosts     bool
 	noPivot     bool
 	terminal    bool
 	volumes     []string
@@ -66,6 +67,7 @@ func init() {
 	// Do not set a default runtime here, we'll do that later in the processing.
 	flags.StringVar(&opts.runtime, "runtime", util.Runtime(), "`path` to an alternate OCI runtime")
 	flags.StringSliceVar(&opts.runtimeFlag, "runtime-flag", []string{}, "add global flags for the container runtime")
+	flags.BoolVar(&opts.noHosts, "no-hosts", false, "do not override the /etc/hosts file within the container")
 	flags.BoolVar(&opts.noPivot, "no-pivot", false, "do not use pivot root to jail process inside rootfs")
 	flags.BoolVarP(&opts.terminal, "terminal", "t", false, "allocate a pseudo-TTY in the container")
 	flags.StringArrayVarP(&opts.volumes, "volume", "v", []string{}, "bind mount a host location into the container while running the command")
@@ -127,6 +129,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		Hostname:         iopts.hostname,
 		Runtime:          iopts.runtime,
 		Args:             runtimeFlags,
+		NoHosts:          iopts.noHosts,
 		NoPivot:          noPivot,
 		User:             c.Flag("user").Value.String(),
 		Isolation:        isolation,

@@ -495,6 +495,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		Hostname:         config.Hostname,
 		Runtime:          s.executor.runtime,
 		Args:             s.executor.runtimeArgs,
+		NoHosts:          s.executor.noHosts,
 		NoPivot:          os.Getenv("BUILDAH_NOPIVOT") != "",
 		Mounts:           append([]Mount{}, s.executor.transientMounts...),
 		Env:              config.Env,
