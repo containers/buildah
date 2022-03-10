@@ -124,10 +124,12 @@ load helpers
   echo 222... > ${TESTDIR}/file2
   run_buildah source add $srcdir ${TESTDIR}/file2
 
-  run_buildah source push --tls-verify=false --creds testuser:testpassword $srcdir localhost:5000/source:test
+  start_registry
+
+  run_buildah source push --tls-verify=false --creds testuser:testpassword $srcdir localhost:${REGISTRY_PORT}/source:test
 
   pulldir=${TESTDIR}/pulledsource
-  run_buildah source pull --tls-verify=false --creds testuser:testpassword localhost:5000/source:test $pulldir
+  run_buildah source pull --tls-verify=false --creds testuser:testpassword localhost:${REGISTRY_PORT}/source:test $pulldir
 
   run diff -r $srcdir $pulldir
   [ "$status" -eq 0 ]

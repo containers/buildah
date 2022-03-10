@@ -199,8 +199,9 @@ load helpers
 @test "commit to docker-distribution" {
   _prefetch busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword busyboxc docker://localhost:5000/commit/busybox
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name fromdocker --tls-verify=false --creds testuser:testpassword docker://localhost:5000/commit/busybox
+  start_registry
+  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword busyboxc docker://localhost:${REGISTRY_PORT}/commit/busybox
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name fromdocker --tls-verify=false --creds testuser:testpassword docker://localhost:${REGISTRY_PORT}/commit/busybox
 }
 
 @test "commit encrypted local oci image" {
@@ -221,9 +222,10 @@ load helpers
   mkdir ${TESTDIR}/tmp
   openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
   openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
+  start_registry
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
   cid=$output
-  run_buildah commit --iidfile /dev/null --tls-verify=false --creds testuser:testpassword --signature-policy ${TESTSDIR}/policy.json --encryption-key jwe:${TESTDIR}/tmp/mykey.pub -q $cid docker://localhost:5000/buildah/busybox_encrypted:latest
+  run_buildah commit --iidfile /dev/null --tls-verify=false --creds testuser:testpassword --signature-policy ${TESTSDIR}/policy.json --encryption-key jwe:${TESTDIR}/tmp/mykey.pub -q $cid docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   # this test, just checks the ability to commit an image to a registry
   # there is no good way to test the details of the image unless with ./buildah pull, test will be in pull.bats
   rm -rf ${TESTDIR}/tmp
@@ -275,7 +277,8 @@ load helpers
   cid=$output
   run_buildah run $cid touch /test
 
-  run_buildah login --authfile ${TESTDIR}/test.auth --username testuser --password testpassword --tls-verify=false localhost:5000
-  run_buildah commit --authfile ${TESTDIR}/test.auth --signature-policy ${TESTSDIR}/policy.json --tls-verify=false $cid docker://localhost:5000/buildah/my-busybox
+  start_registry
+  run_buildah login --authfile ${TESTDIR}/test.auth --username testuser --password testpassword --tls-verify=false localhost:${REGISTRY_PORT}
+  run_buildah commit --authfile ${TESTDIR}/test.auth --signature-policy ${TESTSDIR}/policy.json --tls-verify=false $cid docker://localhost:${REGISTRY_PORT}/buildah/my-busybox
   expect_output --substring "Writing manifest to image destination"
 }
