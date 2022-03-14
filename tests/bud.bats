@@ -3823,6 +3823,17 @@ _EOF
   run_buildah rmi -f testbud2
 }
 
+@test "bud-with-mount-cache-like-buildkit-locked-across-steps" {
+  # Note: this test is just testing syntax for sharing, actual behviour test needs parallel build in order to test locking.
+  skip_if_no_runtime
+  skip_if_in_container
+  cp -R ${TESTSDIR}/bud/buildkit-mount ${TESTDIR}/buildkit-mount
+  # try writing something to persistent cache
+  run_buildah build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/buildkit-mount/Dockerfilecachewritesharing
+  expect_output --substring "world"
+  run_buildah rmi -f testbud
+}
+
 @test "bud with user in groups" {
   target=bud-group
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/group

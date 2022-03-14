@@ -1,0 +1,7 @@
+FROM alpine
+RUN mkdir /test
+# use option z if selinux is enabled
+# This locks cache
+RUN --mount=type=cache,target=/test,sharing=locked,z echo hello > /test/world && cat /test/world
+# Cache must be unlocked so it can be locked again
+RUN --mount=type=cache,target=/test,sharing=locked,z echo world > /test/world && cat /test/world

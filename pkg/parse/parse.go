@@ -307,18 +307,18 @@ func getVolumeMounts(volumes []string) (map[string]specs.Mount, error) {
 }
 
 // GetVolumes gets the volumes from --volume and --mount
-func GetVolumes(ctx *types.SystemContext, store storage.Store, volumes []string, mounts []string, contextDir string) ([]specs.Mount, []string, error) {
-	unifiedMounts, mountedImages, err := getMounts(ctx, store, mounts, contextDir)
+func GetVolumes(ctx *types.SystemContext, store storage.Store, volumes []string, mounts []string, contextDir string) ([]specs.Mount, []string, []string, error) {
+	unifiedMounts, mountedImages, lockedTargets, err := getMounts(ctx, store, mounts, contextDir)
 	if err != nil {
-		return nil, mountedImages, err
+		return nil, mountedImages, lockedTargets, err
 	}
 	volumeMounts, err := getVolumeMounts(volumes)
 	if err != nil {
-		return nil, mountedImages, err
+		return nil, mountedImages, lockedTargets, err
 	}
 	for dest, mount := range volumeMounts {
 		if _, ok := unifiedMounts[dest]; ok {
-			return nil, mountedImages, errors.Wrapf(errDuplicateDest, dest)
+			return nil, mountedImages, lockedTargets, errors.Wrapf(errDuplicateDest, dest)
 		}
 		unifiedMounts[dest] = mount
 	}
@@ -327,16 +327,17 @@ func GetVolumes(ctx *types.SystemContext, store storage.Store, volumes []string,
 	for _, mount := range unifiedMounts {
 		finalMounts = append(finalMounts, mount)
 	}
-	return finalMounts, mountedImages, nil
+	return finalMounts, mountedImages, lockedTargets, nil
 }
 
 // getMounts takes user-provided input from the --mount flag and creates OCI
 // spec mounts.
 // buildah run --mount type=bind,src=/etc/resolv.conf,target=/etc/resolv.conf ...
 // buildah run --mount type=tmpfs,target=/dev/shm ...
-func getMounts(ctx *types.SystemContext, store storage.Store, mounts []string, contextDir string) (map[string]specs.Mount, []string, error) {
+func getMounts(ctx *types.SystemContext, store storage.Store, mounts []string, contextDir string) (map[string]specs.Mount, []string, []string, error) {
 	finalMounts := make(map[string]specs.Mount)
 	mountedImages := make([]string, 0)
+	lockedTargets := make([]string, 0)
 
 	errInvalidSyntax := errors.Errorf("incorrect mount format: should be --mount type=<bind|tmpfs>,[src=<host-dir>,]target=<ctr-dir>[,options]")
 
@@ -346,13 +347,13 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mounts []string, c
 	for _, mount := range mounts {
 		arr := strings.SplitN(mount, ",", 2)
 		if len(arr) < 2 {
-			return nil, mountedImages, errors.Wrapf(errInvalidSyntax, "%q", mount)
+			return nil, mountedImages, lockedTargets, errors.Wrapf(errInvalidSyntax, "%q", mount)
 		}
 		kv := strings.Split(arr[0], "=")
 		// TODO: type is not explicitly required in Docker.
 		// If not specified, it defaults to "volume".
 		if len(kv) != 2 || kv[0] != "type" {
-			return nil, mountedImages, errors.Wrapf(errInvalidSyntax, "%q", mount)
+			return nil, mountedImages, lockedTargets, errors.Wrapf(errInvalidSyntax, "%q", mount)
 		}
 
 		tokens := strings.Split(arr[1], ",")
@@ -360,37 +361,38 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mounts []string, c
 		case TypeBind:
 			mount, image, err := internalParse.GetBindMount(ctx, tokens, contextDir, store, "", nil)
 			if err != nil {
-				return nil, mountedImages, err
+				return nil, mountedImages, lockedTargets, err
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, mountedImages, errors.Wrapf(errDuplicateDest, mount.Destination)
+				return nil, mountedImages, lockedTargets, errors.Wrapf(errDuplicateDest, mount.Destination)
 			}
 			finalMounts[mount.Destination] = mount
 			mountedImages = append(mountedImages, image)
 		case TypeCache:
-			mount, err := internalParse.GetCacheMount(tokens, store, "", nil)
+			mount, lockedPaths, err := internalParse.GetCacheMount(tokens, store, "", nil)
+			lockedTargets = lockedPaths
 			if err != nil {
-				return nil, mountedImages, err
+				return nil, mountedImages, lockedTargets, err
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, mountedImages, errors.Wrapf(errDuplicateDest, mount.Destination)
+				return nil, mountedImages, lockedTargets, errors.Wrapf(errDuplicateDest, mount.Destination)
 			}
 			finalMounts[mount.Destination] = mount
 		case TypeTmpfs:
 			mount, err := internalParse.GetTmpfsMount(tokens)
 			if err != nil {
-				return nil, mountedImages, err
+				return nil, mountedImages, lockedTargets, err
 			}
 			if _, ok := finalMounts[mount.Destination]; ok {
-				return nil, mountedImages, errors.Wrapf(errDuplicateDest, mount.Destination)
+				return nil, mountedImages, lockedTargets, errors.Wrapf(errDuplicateDest, mount.Destination)
 			}
 			finalMounts[mount.Destination] = mount
 		default:
-			return nil, mountedImages, errors.Errorf("invalid filesystem type %q", kv[1])
+			return nil, mountedImages, lockedTargets, errors.Errorf("invalid filesystem type %q", kv[1])
 		}
 	}
 
-	return finalMounts, mountedImages, nil
+	return finalMounts, mountedImages, lockedTargets, nil
 }
 
 // ValidateVolumeHostDir validates a volume mount's source directory
