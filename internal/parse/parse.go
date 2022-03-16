@@ -34,10 +34,11 @@ const (
 )
 
 var (
-	errBadMntOption = errors.New("invalid mount option")
-	errBadOptionArg = errors.New("must provide an argument for option")
-	errBadVolDest   = errors.New("must set volume destination")
-	errBadVolSrc    = errors.New("must set volume source")
+	errBadMntOption  = errors.New("invalid mount option")
+	errBadOptionArg  = errors.New("must provide an argument for option")
+	errBadVolDest    = errors.New("must set volume destination")
+	errBadVolSrc     = errors.New("must set volume source")
+	errDuplicateDest = errors.Errorf("duplicate mount destination")
 )
 
 // GetBindMount parses a single bind mount entry from the --mount flag.
@@ -369,6 +370,179 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 	newMount.Options = opts
 
 	return newMount, lockedTargets, nil
+}
+
+// ValidateVolumeMountHostDir validates the host path of buildah --volume
+func ValidateVolumeMountHostDir(hostDir string) error {
+	if !filepath.IsAbs(hostDir) {
+		return errors.Errorf("invalid host path, must be an absolute path %q", hostDir)
+	}
+	if _, err := os.Stat(hostDir); err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
+}
+
+// RevertEscapedColon converts "\:" to ":"
+func RevertEscapedColon(source string) string {
+	return strings.ReplaceAll(source, "\\:", ":")
+}
+
+// SplitStringWithColonEscape splits string into slice by colon. Backslash-escaped colon (i.e. "\:") will not be regarded as separator
+func SplitStringWithColonEscape(str string) []string {
+	result := make([]string, 0, 3)
+	sb := &strings.Builder{}
+	for idx, r := range str {
+		if r == ':' {
+			// the colon is backslash-escaped
+			if idx-1 > 0 && str[idx-1] == '\\' {
+				sb.WriteRune(r)
+			} else {
+				// os.Stat will fail if path contains escaped colon
+				result = append(result, RevertEscapedColon(sb.String()))
+				sb.Reset()
+			}
+		} else {
+			sb.WriteRune(r)
+		}
+	}
+	if sb.Len() > 0 {
+		result = append(result, RevertEscapedColon(sb.String()))
+	}
+	return result
+}
+
+func getVolumeMounts(volumes []string) (map[string]specs.Mount, error) {
+	finalVolumeMounts := make(map[string]specs.Mount)
+
+	for _, volume := range volumes {
+		volumeMount, err := Volume(volume)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := finalVolumeMounts[volumeMount.Destination]; ok {
+			return nil, errors.Wrapf(errDuplicateDest, volumeMount.Destination)
+		}
+		finalVolumeMounts[volumeMount.Destination] = volumeMount
+	}
+	return finalVolumeMounts, nil
+}
+
+// Volume parses the input of --volume
+func Volume(volume string) (specs.Mount, error) {
+	mount := specs.Mount{}
+	arr := SplitStringWithColonEscape(volume)
+	if len(arr) < 2 {
+		return mount, errors.Errorf("incorrect volume format %q, should be host-dir:ctr-dir[:option]", volume)
+	}
+	if err := ValidateVolumeMountHostDir(arr[0]); err != nil {
+		return mount, err
+	}
+	if err := parse.ValidateVolumeCtrDir(arr[1]); err != nil {
+		return mount, err
+	}
+	mountOptions := ""
+	if len(arr) > 2 {
+		mountOptions = arr[2]
+		if _, err := parse.ValidateVolumeOpts(strings.Split(arr[2], ",")); err != nil {
+			return mount, err
+		}
+	}
+	mountOpts := strings.Split(mountOptions, ",")
+	mount.Source = arr[0]
+	mount.Destination = arr[1]
+	mount.Type = "rbind"
+	mount.Options = mountOpts
+	return mount, nil
+}
+
+// GetVolumes gets the volumes from --volume and --mount
+func GetVolumes(ctx *types.SystemContext, store storage.Store, volumes []string, mounts []string, contextDir string) ([]specs.Mount, []string, []string, error) {
+	unifiedMounts, mountedImages, lockedTargets, err := getMounts(ctx, store, mounts, contextDir)
+	if err != nil {
+		return nil, mountedImages, lockedTargets, err
+	}
+	volumeMounts, err := getVolumeMounts(volumes)
+	if err != nil {
+		return nil, mountedImages, lockedTargets, err
+	}
+	for dest, mount := range volumeMounts {
+		if _, ok := unifiedMounts[dest]; ok {
+			return nil, mountedImages, lockedTargets, errors.Wrapf(errDuplicateDest, dest)
+		}
+		unifiedMounts[dest] = mount
+	}
+
+	finalMounts := make([]specs.Mount, 0, len(unifiedMounts))
+	for _, mount := range unifiedMounts {
+		finalMounts = append(finalMounts, mount)
+	}
+	return finalMounts, mountedImages, lockedTargets, nil
+}
+
+// getMounts takes user-provided input from the --mount flag and creates OCI
+// spec mounts.
+// buildah run --mount type=bind,src=/etc/resolv.conf,target=/etc/resolv.conf ...
+// buildah run --mount type=tmpfs,target=/dev/shm ...
+func getMounts(ctx *types.SystemContext, store storage.Store, mounts []string, contextDir string) (map[string]specs.Mount, []string, []string, error) {
+	finalMounts := make(map[string]specs.Mount)
+	mountedImages := make([]string, 0)
+	lockedTargets := make([]string, 0)
+
+	errInvalidSyntax := errors.Errorf("incorrect mount format: should be --mount type=<bind|tmpfs>,[src=<host-dir>,]target=<ctr-dir>[,options]")
+
+	// TODO(vrothberg): the manual parsing can be replaced with a regular expression
+	//                  to allow a more robust parsing of the mount format and to give
+	//                  precise errors regarding supported format versus supported options.
+	for _, mount := range mounts {
+		arr := strings.SplitN(mount, ",", 2)
+		if len(arr) < 2 {
+			return nil, mountedImages, lockedTargets, errors.Wrapf(errInvalidSyntax, "%q", mount)
+		}
+		kv := strings.Split(arr[0], "=")
+		// TODO: type is not explicitly required in Docker.
+		// If not specified, it defaults to "volume".
+		if len(kv) != 2 || kv[0] != "type" {
+			return nil, mountedImages, lockedTargets, errors.Wrapf(errInvalidSyntax, "%q", mount)
+		}
+
+		tokens := strings.Split(arr[1], ",")
+		switch kv[1] {
+		case TypeBind:
+			mount, image, err := GetBindMount(ctx, tokens, contextDir, store, "", nil)
+			if err != nil {
+				return nil, mountedImages, lockedTargets, err
+			}
+			if _, ok := finalMounts[mount.Destination]; ok {
+				return nil, mountedImages, lockedTargets, errors.Wrapf(errDuplicateDest, mount.Destination)
+			}
+			finalMounts[mount.Destination] = mount
+			mountedImages = append(mountedImages, image)
+		case TypeCache:
+			mount, lockedPaths, err := GetCacheMount(tokens, store, "", nil)
+			lockedTargets = lockedPaths
+			if err != nil {
+				return nil, mountedImages, lockedTargets, err
+			}
+			if _, ok := finalMounts[mount.Destination]; ok {
+				return nil, mountedImages, lockedTargets, errors.Wrapf(errDuplicateDest, mount.Destination)
+			}
+			finalMounts[mount.Destination] = mount
+		case TypeTmpfs:
+			mount, err := GetTmpfsMount(tokens)
+			if err != nil {
+				return nil, mountedImages, lockedTargets, err
+			}
+			if _, ok := finalMounts[mount.Destination]; ok {
+				return nil, mountedImages, lockedTargets, errors.Wrapf(errDuplicateDest, mount.Destination)
+			}
+			finalMounts[mount.Destination] = mount
+		default:
+			return nil, mountedImages, lockedTargets, errors.Errorf("invalid filesystem type %q", kv[1])
+		}
+	}
+
+	return finalMounts, mountedImages, lockedTargets, nil
 }
 
 // GetTmpfsMount parses a single tmpfs mount entry from the --mount flag
