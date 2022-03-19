@@ -19,6 +19,7 @@ ENV GOPATH=/root/buildah
 # that are needed for building but not running Buildah
 RUN useradd build; yum -y update;  rpm --restore shadow-utils 2>/dev/null; yum -y install --enablerepo=updates-testing \
      make \
+     cpp \
      golang \
      bats \
      btrfs-progs-devel \
