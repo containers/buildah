@@ -407,6 +407,19 @@ git push origin v1.0.0
 The GitHub [release workflow](.github/workflows/release.yml) triggers immediately after the tag is pushed upstream. This flow will
 release the binaries using the [goreleaser](https://goreleaser.com/actions/) action and then it will build and publish the docker image into Docker Hub.
 
+The released artifacts are signed using [cosign](https://docs.sigstore.dev/). You can use the public key from [cosign.pub](cosign.pub) 
+file to verify the signature of docker image and binaries files.
+
+The docker image signature can be verified with the following command:
+```
+cosign verify --key cosign.pub securego/gosec:<TAG>
+```
+ 
+The binary files signature can be verified with the following command:
+```
+cosign verify-blob --key cosign.pub --signature gosec_<VERSION>_darwin_amd64.tar.gz.sig  gosec_<VERSION>_darwin_amd64.tar.gz
+```
+
 ### Docker image
 
 You can also build locally the docker image by using the command:
@@ -450,4 +463,4 @@ This is a [list](USERS.md) with some of the gosec's users.
 
 Support this project by becoming a sponsor. Your logo will show up here with a link to your website
 
-<a href="https://github.com/Daimler" target="_blank"><img src="https://avatars.githubusercontent.com/u/34240465?s=80&v=4"></a>
+<a href="https://github.com/mercedes-benz" target="_blank"><img src="https://avatars.githubusercontent.com/u/34240465?s=80&v=4"></a>

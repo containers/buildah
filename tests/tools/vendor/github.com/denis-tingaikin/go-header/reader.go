@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020 Denis Tingajkin
+Copyright (c) 2020-2022 Denis Tingaikin
 
 SPDX-License-Identifier: Apache-2.0
 

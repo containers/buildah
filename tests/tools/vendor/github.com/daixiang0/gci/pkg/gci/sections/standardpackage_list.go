@@ -1,6 +1,6 @@
 package sections
 
-// Code generated based on go1.17.5. DO NOT EDIT.
+// Code generated based on go1.18. DO NOT EDIT.
 
 var standardPackages = map[string]struct{}{
 	"archive/tar":          {},
@@ -38,6 +38,7 @@ var standardPackages = map[string]struct{}{
 	"crypto/x509/pkix":     {},
 	"database/sql":         {},
 	"database/sql/driver":  {},
+	"debug/buildinfo":      {},
 	"debug/dwarf":          {},
 	"debug/elf":            {},
 	"debug/gosym":          {},
@@ -112,6 +113,7 @@ var standardPackages = map[string]struct{}{
 	"net/http/httputil":    {},
 	"net/http/pprof":       {},
 	"net/mail":             {},
+	"net/netip":            {},
 	"net/rpc":              {},
 	"net/rpc/jsonrpc":      {},
 	"net/smtp":             {},

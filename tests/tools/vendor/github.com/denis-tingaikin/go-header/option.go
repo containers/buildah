@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Denis Tingajkin
+// Copyright (c) 2020-2022 Denis Tingaikin
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,20 +16,29 @@
 
 package goheader
 
-import "fmt"
+import "strings"
 
-type Location struct {
-	Line     int
-	Position int
+type Option interface {
+	apply(*Analyzer)
 }
 
-func (l Location) String() string {
-	return fmt.Sprintf("%v:%v", l.Line+1, l.Position)
+type applyAnalyzerOptionFunc func(*Analyzer)
+
+func (f applyAnalyzerOptionFunc) apply(a *Analyzer) {
+	f(a)
 }
 
-func (l Location) Add(other Location) Location {
-	return Location{
-		Line:     l.Line + other.Line,
-		Position: l.Position + other.Position,
-	}
+func WithValues(values map[string]Value) Option {
+	return applyAnalyzerOptionFunc(func(a *Analyzer) {
+		a.values = make(map[string]Value)
+		for k, v := range values {
+			a.values[strings.ToLower(k)] = v
+		}
+	})
+}
+
+func WithTemplate(template string) Option {
+	return applyAnalyzerOptionFunc(func(a *Analyzer) {
+		a.template = template
+	})
 }
