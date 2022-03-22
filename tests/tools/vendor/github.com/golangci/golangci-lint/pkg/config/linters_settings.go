@@ -1,6 +1,10 @@
 package config
 
-import "github.com/pkg/errors"
+import (
+	"runtime"
+
+	"github.com/pkg/errors"
+)
 
 var defaultLintersSettings = LintersSettings{
 	Decorder: DecorderSettings{
@@ -45,7 +49,11 @@ var defaultLintersSettings = LintersSettings{
 	},
 	Gofumpt: GofumptSettings{
 		LangVersion: "",
+		ModulePath:  "",
 		ExtraRules:  false,
+	},
+	Gosec: GoSecSettings{
+		Concurrency: runtime.NumCPU(),
 	},
 	Ifshort: IfshortSettings{
 		MaxDeclLines: 1,
@@ -215,10 +223,11 @@ type DuplSettings struct {
 }
 
 type ErrcheckSettings struct {
-	CheckTypeAssertions bool     `mapstructure:"check-type-assertions"`
-	CheckAssignToBlank  bool     `mapstructure:"check-blank"`
-	Ignore              string   `mapstructure:"ignore"`
-	ExcludeFunctions    []string `mapstructure:"exclude-functions"`
+	DisableDefaultExclusions bool     `mapstructure:"disable-default-exclusions"`
+	CheckTypeAssertions      bool     `mapstructure:"check-type-assertions"`
+	CheckAssignToBlank       bool     `mapstructure:"check-blank"`
+	Ignore                   string   `mapstructure:"ignore"`
+	ExcludeFunctions         []string `mapstructure:"exclude-functions"`
 
 	// Deprecated: use ExcludeFunctions instead
 	Exclude string `mapstructure:"exclude"`
@@ -303,6 +312,7 @@ type GoFmtSettings struct {
 
 type GofumptSettings struct {
 	LangVersion string `mapstructure:"lang-version"`
+	ModulePath  string `mapstructure:"module-path"`
 	ExtraRules  bool   `mapstructure:"extra-rules"`
 }
 
@@ -354,12 +364,13 @@ type GoModGuardSettings struct {
 }
 
 type GoSecSettings struct {
-	Includes         []string
-	Excludes         []string
-	Severity         string
-	Confidence       string
+	Includes         []string               `mapstructure:"includes"`
+	Excludes         []string               `mapstructure:"excludes"`
+	Severity         string                 `mapstructure:"severity"`
+	Confidence       string                 `mapstructure:"confidence"`
 	ExcludeGenerated bool                   `mapstructure:"exclude-generated"`
 	Config           map[string]interface{} `mapstructure:"config"`
+	Concurrency      int                    `mapstructure:"concurrency"`
 }
 
 type GovetSettings struct {

@@ -53,10 +53,15 @@ func (i ImportDef) String() string {
 	return i.QuotedPath
 }
 
+// useful for logging statements
+func (i ImportDef) UnquotedString() string {
+	return strings.Trim(i.QuotedPath, "\"")
+}
+
 func (i ImportDef) Format(cfg configuration.FormatterConfiguration) string {
 	linePrefix := constants.Indent
 	var output string
-	if cfg.NoPrefixComments == false {
+	if cfg.NoPrefixComments == false || i.QuotedPath == `"C"` {
 		for _, prefixComment := range i.PrefixComment {
 			output += linePrefix + prefixComment + constants.Linebreak
 		}

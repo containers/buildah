@@ -2,7 +2,9 @@
 
 [![test_and_lint](https://github.com/sivchari/containedctx/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sivchari/containedctx/actions/workflows/ci.yml)
 
-containedctx is a linter that detects struct contained context.Context field
+containedctx is a linter that detects struct contained context.Context field. 
+This is discouraged technique in favour of passing context as first argument of method or function. 
+For rationale please read [Contexts and structs](https://go.dev/blog/context-and-structs) the Go blog post.
 
 ## Instruction
 

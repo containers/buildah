@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Denis Tingajkin
+// Copyright (c) 2020-2022 Denis Tingaikin
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // Configuration represents go-header linter setup parameters
@@ -40,7 +40,7 @@ func (c *Configuration) builtInValues() map[string]Value {
 	var result = make(map[string]Value)
 	year := fmt.Sprint(time.Now().Year())
 	result["year-range"] = &RegexpValue{
-		RawValue: strings.ReplaceAll(`(20\d\d\-YEAR)|(YEAR)`, "YEAR", year),
+		RawValue: strings.ReplaceAll(`((20\d\d\-YEAR)|(YEAR))`, "YEAR", year),
 	}
 	result["year"] = &ConstValue{
 		RawValue: year,

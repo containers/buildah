@@ -29,6 +29,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -88,6 +89,7 @@ type Analyzer struct {
 	excludeGenerated  bool
 	showIgnored       bool
 	trackSuppressions bool
+	concurrency       int
 }
 
 // SuppressionInfo object is to record the kind and the justification that used
@@ -98,7 +100,7 @@ type SuppressionInfo struct {
 }
 
 // NewAnalyzer builds a new analyzer.
-func NewAnalyzer(conf Config, tests bool, excludeGenerated bool, trackSuppressions bool, logger *log.Logger) *Analyzer {
+func NewAnalyzer(conf Config, tests bool, excludeGenerated bool, trackSuppressions bool, concurrency int, logger *log.Logger) *Analyzer {
 	ignoreNoSec := false
 	if enabled, err := conf.IsGlobalEnabled(Nosec); err == nil {
 		ignoreNoSec = enabled
@@ -121,6 +123,7 @@ func NewAnalyzer(conf Config, tests bool, excludeGenerated bool, trackSuppressio
 		stats:             &Metrics{},
 		errors:            make(map[string][]Error),
 		tests:             tests,
+		concurrency:       concurrency,
 		excludeGenerated:  excludeGenerated,
 		trackSuppressions: trackSuppressions,
 	}
@@ -153,15 +156,64 @@ func (gosec *Analyzer) Process(buildTags []string, packagePaths ...string) error
 		Tests:      gosec.tests,
 	}
 
-	for _, pkgPath := range packagePaths {
-		pkgs, err := gosec.load(pkgPath, config)
-		if err != nil {
-			gosec.AppendError(pkgPath, err)
+	type result struct {
+		pkgPath string
+		pkgs    []*packages.Package
+		err     error
+	}
+
+	results := make(chan result)
+	jobs := make(chan string, len(packagePaths))
+	quit := make(chan struct{})
+
+	var wg sync.WaitGroup
+
+	worker := func(j chan string, r chan result, quit chan struct{}) {
+		for {
+			select {
+			case s := <-j:
+				packages, err := gosec.load(s, config)
+				select {
+				case r <- result{pkgPath: s, pkgs: packages, err: err}:
+				case <-quit:
+					// we've been told to stop, probably an error while
+					// processing a previous result.
+					wg.Done()
+					return
+				}
+			default:
+				// j is empty and there are no jobs left
+				wg.Done()
+				return
+			}
 		}
-		for _, pkg := range pkgs {
+	}
+
+	// fill the buffer
+	for _, pkgPath := range packagePaths {
+		jobs <- pkgPath
+	}
+
+	for i := 0; i < gosec.concurrency; i++ {
+		wg.Add(1)
+		go worker(jobs, results, quit)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	for r := range results {
+		if r.err != nil {
+			gosec.AppendError(r.pkgPath, r.err)
+		}
+		for _, pkg := range r.pkgs {
 			if pkg.Name != "" {
 				err := gosec.ParseErrors(pkg)
 				if err != nil {
+					close(quit)
+					wg.Wait() // wait for the goroutines to stop
 					return fmt.Errorf("parsing errors in pkg %q: %w", pkg.Name, err)
 				}
 				gosec.Check(pkg)

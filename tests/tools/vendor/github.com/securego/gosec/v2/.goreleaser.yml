@@ -9,7 +9,7 @@ release:
     name: gosec
 
 builds:
-  - main : ./cmd/gosec/
+  - main: ./cmd/gosec/
     binary: gosec
     goos:
       - darwin
@@ -21,3 +21,10 @@ builds:
     ldflags: -X main.Version={{.Version}} -X main.GitTag={{.Tag}} -X main.BuildDate={{.Date}}
     env:
       - CGO_ENABLED=0
+
+signs:
+- cmd: cosign
+  stdin: '{{ .Env.COSIGN_PASSWORD}}'
+  args: ["sign-blob", "--key=/tmp/cosign.key", "--output=${signature}", "${artifact}"]
+  artifacts: all
+

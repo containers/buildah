@@ -1,9 +1,11 @@
 package constants
 
 const (
-	CommentFlag     = "//"
-	ImportStartFlag = "\nimport (\n"
-	ImportEndFlag   = "\n)"
+	LineCommentFlag       = "//"
+	BlockCommentStartFlag = "/*"
+	BlockCommentEndFlag   = "*/"
+	ImportStartFlag       = "\nimport (\n"
+	ImportEndFlag         = "\n)"
 
 	Blank     = " "
 	Indent    = "\t"

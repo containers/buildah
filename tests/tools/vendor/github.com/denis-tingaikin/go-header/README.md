@@ -1,5 +1,5 @@
 # go-header
-[![Actions Status](https://github.com/denis-tingajkin/go-header/workflows/ci/badge.svg)](https://github.com/denis-tingajkin/go-header/actions)
+[![ci](https://github.com/denis-tingaikin/go-header/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/denis-tingaikin/go-header/actions/workflows/ci.yml)
 
 Go source code linter providing checks for license headers.
 
@@ -8,7 +8,7 @@ Go source code linter providing checks for license headers.
 For installation you can simply use `go get`.
 
 ```bash
-go get github.com/denis-tingajkin/go-header/cmd/go-header
+go get github.com/denis-tingaikin/go-header/cmd/go-header
 ```
 
 ## Configuration
@@ -17,8 +17,8 @@ To configuring `.go-header.yml` linter you simply need to fill the next fields:
 
 ```yaml
 ---
-temaplte: # expects header template string.
-tempalte-path: # expects path to file with license header string. 
+template: # expects header template string.
+template-path: # expects path to file with license header string. 
 values: # expects `const` or `regexp` node with values where values is a map string to string.
   const:
     key1: value1 # const value just checks equality. Note `key1` should be used in template string as {{ key1 }} or {{ KEY1 }}.

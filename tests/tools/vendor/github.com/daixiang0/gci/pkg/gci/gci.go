@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 
 	sectionsPkg "github.com/daixiang0/gci/pkg/gci/sections"
@@ -13,6 +12,7 @@ import (
 	"github.com/hexops/gotextdiff"
 	"github.com/hexops/gotextdiff/myers"
 	"github.com/hexops/gotextdiff/span"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -52,10 +52,10 @@ func PrintFormattedFiles(paths []string, cfg GciConfiguration) error {
 func WriteFormattedFiles(paths []string, cfg GciConfiguration) error {
 	return processGoFilesInPaths(paths, cfg, func(filePath string, unmodifiedFile, formattedFile []byte) error {
 		if bytes.Equal(unmodifiedFile, formattedFile) {
-			log.Printf("Skipping correctly formatted File: %s", filePath)
+			log.WithField("file", filePath).Debug("Skipping correctly formatted file")
 			return nil
 		}
-		log.Printf("Writing formatted File: %s", filePath)
+		log.WithField("file", filePath).Info("Writing formatted file")
 		return os.WriteFile(filePath, formattedFile, 0644)
 	})
 }
@@ -109,7 +109,7 @@ func processingFunc(file io.FileObj, cfg GciConfiguration, formattingFunc fileFo
 
 func LoadFormatGoFile(file io.FileObj, cfg GciConfiguration) (unmodifiedFile, formattedFile []byte, err error) {
 	unmodifiedFile, err = file.Load()
-	log.Printf("Loaded File: %s", file.Path())
+	log.WithField("file", file.Path()).Debug("Loaded file")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -120,7 +120,7 @@ func LoadFormatGoFile(file io.FileObj, cfg GciConfiguration) (unmodifiedFile, fo
 		if !errors.Is(err, MissingImportStatementError) {
 			return unmodifiedFile, nil, err
 		}
-		log.Printf("File does not contain an import statement: %s", file.Path())
+		log.WithField("file", file.Path()).Debug("File does not contain an import statement")
 		formattedFile = unmodifiedFile
 	}
 	return unmodifiedFile, formattedFile, nil
