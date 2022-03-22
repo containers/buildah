@@ -1181,9 +1181,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 
 func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, options RunOptions, configureNetworks []string, containerName string) (teardown func(), err error) {
 	if isolation == IsolationOCIRootless {
-		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil && !ns.Host && ns.Path == "" {
-			return setupRootlessNetwork(pid)
-		}
+		return setupRootlessNetwork(pid)
 	}
 
 	if len(configureNetworks) == 0 {
@@ -2400,33 +2398,14 @@ func waitForSync(pipeR *os.File) error {
 func checkAndOverrideIsolationOptions(isolation define.Isolation, options *RunOptions) error {
 	switch isolation {
 	case IsolationOCIRootless:
-		if ns := options.NamespaceOptions.Find(string(specs.IPCNamespace)); ns == nil || ns.Host {
-			logrus.Debugf("Forcing use of an IPC namespace.")
-		}
-		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.IPCNamespace)})
-		_, err := exec.LookPath("slirp4netns")
-		hostNetworking := err != nil
-		networkNamespacePath := ""
-		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil {
-			hostNetworking = ns.Host
-			networkNamespacePath = ns.Path
-			if hostNetworking {
-				networkNamespacePath = ""
+		// only change the netns if the caller did not set it
+		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns == nil {
+			if _, err := exec.LookPath("slirp4netns"); err != nil {
+				// if slirp4netns is not installed we have to use the hosts net namespace
+				options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.NetworkNamespace), Host: true})
 			}
 		}
-		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{
-			Name: string(specs.NetworkNamespace),
-			Host: hostNetworking,
-			Path: networkNamespacePath,
-		})
-		if ns := options.NamespaceOptions.Find(string(specs.PIDNamespace)); ns == nil || ns.Host {
-			logrus.Debugf("Forcing use of a PID namespace.")
-		}
-		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.PIDNamespace), Host: false})
-		if ns := options.NamespaceOptions.Find(string(specs.UserNamespace)); ns == nil || ns.Host {
-			logrus.Debugf("Forcing use of a user namespace.")
-		}
-		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.UserNamespace)})
+		fallthrough
 	case IsolationOCI:
 		pidns := options.NamespaceOptions.Find(string(specs.PIDNamespace))
 		userns := options.NamespaceOptions.Find(string(specs.UserNamespace))
@@ -2447,24 +2426,11 @@ func DefaultNamespaceOptions() (define.NamespaceOptions, error) {
 	options := define.NamespaceOptions{
 		{Name: string(specs.CgroupNamespace), Host: cfg.CgroupNS() == "host"},
 		{Name: string(specs.IPCNamespace), Host: cfg.IPCNS() == "host"},
-		{Name: string(specs.MountNamespace), Host: true},
-		{Name: string(specs.NetworkNamespace), Host: cfg.NetNS() == "host" || cfg.NetNS() == "container"},
+		{Name: string(specs.MountNamespace), Host: false},
+		{Name: string(specs.NetworkNamespace), Host: cfg.NetNS() == "host"},
 		{Name: string(specs.PIDNamespace), Host: cfg.PidNS() == "host"},
-		{Name: string(specs.UserNamespace), Host: true},
+		{Name: string(specs.UserNamespace), Host: cfg.Containers.UserNS == "host"},
 		{Name: string(specs.UTSNamespace), Host: cfg.UTSNS() == "host"},
-	}
-	g, err := generate.New("linux")
-	if err != nil {
-		return options, errors.Wrapf(err, "error generating new 'linux' runtime spec")
-	}
-	spec := g.Config
-	if spec.Linux != nil {
-		for _, ns := range spec.Linux.Namespaces {
-			options.AddOrReplace(define.NamespaceOption{
-				Name: string(ns.Type),
-				Path: ns.Path,
-			})
-		}
 	}
 	return options, nil
 }
