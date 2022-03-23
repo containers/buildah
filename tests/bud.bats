@@ -2672,14 +2672,14 @@ EOM
 
 @test "bud with-rusage-logfile" {
   _prefetch alpine
-  run_buildah build --log-rusage --rusage-logfile "foo.log" --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/shell
+  run_buildah build --log-rusage --rusage-logfile ${TESTDIR}/foo.log --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/shell
   # the logfile should exist
-  if [ ! -e "foo.log" ]; then die "foo.log not present!"; fi
+  if [ ! -e ${TESTDIR}/foo.log ]; then die "rusage-logfile foo.log did not get created!"; fi
   # expect that foo.log only contains lines that were formatted using pkg/rusage.FormatDiff()
-  formatted_lines=$(grep ".*\(system\).*\(user\).*\(elapsed\).*input.*output" foo.log | wc -l)
-  line_count=$(cat foo.log | wc -l)
+  formatted_lines=$(grep ".*\(system\).*\(user\).*\(elapsed\).*input.*output" ${TESTDIR}/foo.log | wc -l)
+  line_count=$(wc -l <${TESTDIR}/foo.log)
   if [[ "$formatted_lines" -ne "$line_count" ]]; then
-      die "Got ${formatted_lines} lines formatted with pkg/rusage.FormatDiff() but foo.log has ${line_count} lines"
+      die "Got ${formatted_lines} lines formatted with pkg/rusage.FormatDiff() but rusage-logfile has ${line_count} lines"
   fi
 }
 
@@ -2758,85 +2758,64 @@ EOF
 
 @test "bud cache by format" {
   # Build first in Docker format.  Whether we do OCI or Docker first shouldn't matter, so we picked one.
-  run_buildah build --iidfile first-docker  --format docker --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+  run_buildah build --iidfile ${TESTDIR}/first-docker  --format docker --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
   # Build in OCI format.  Cache should not re-use the same images, so we should get a different image ID.
-  run_buildah build --iidfile first-oci     --format oci    --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+  run_buildah build --iidfile ${TESTDIR}/first-oci     --format oci    --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
   # Build in Docker format again.  Cache traversal should 100% hit the Docker image, so we should get its image ID.
-  run_buildah build --iidfile second-docker --format docker --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+  run_buildah build --iidfile ${TESTDIR}/second-docker --format docker --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
   # Build in OCI format again.  Cache traversal should 100% hit the OCI image, so we should get its image ID.
-  run_buildah build --iidfile second-oci    --format oci    --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+  run_buildah build --iidfile ${TESTDIR}/second-oci    --format oci    --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
   # Compare them.  The two images we built in Docker format should be the same, the two we built in OCI format
   # should be the same, but the OCI and Docker format images should be different.
-  cmp first-docker second-docker
-  cmp first-oci    second-oci
-  run cmp first-docker first-oci
-  [[ "$status" -ne 0 ]]
+  assert "$(< ${TESTDIR}/first-docker)" = "$(< ${TESTDIR}/second-docker)" \
+         "iidfile(first docker) == iidfile(second docker)"
+  assert "$(< ${TESTDIR}/first-oci)" = "$(< ${TESTDIR}/second-oci)" \
+         "iidfile(first oci) == iidfile(second oci)"
+
+  assert "$(< ${TESTDIR}/first-docker)" != "$(< ${TESTDIR}/first-oci)" \
+         "iidfile(first docker) != iidfile(first oci)"
 }
 
 @test "bud cache add-copy-chown" {
   # Build each variation of COPY (from context, from previous stage) and ADD (from context, not overriding an archive, URL) twice.
   # Each second build should produce an image with the same ID as the first build, because the cache matches, but they should
   # otherwise all be different.
-  run_buildah build --iidfile copy1 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.copy1 ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile prev1 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.prev1 ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile add1  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.add1  ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile tar1  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.tar1  ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile url1  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.url1  ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile copy2 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.copy2 ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile prev2 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.prev2 ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile add2  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.add2  ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile tar2  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.tar2  ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile url2  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.url2  ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile copy3 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.copy1 ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile prev3 --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.prev1 ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile add3  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.add1  ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile tar3  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.tar1  ${TESTSDIR}/bud/cache-chown
-  run_buildah build --iidfile url3  --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.url1  ${TESTSDIR}/bud/cache-chown
+  local actions="copy prev add tar url";
+  for i in 1 2 3; do
+    for action in $actions; do
+      # iidfiles are 1 2 3, but dockerfiles are only 1 2 then back to 1
+      iidfile=${TESTDIR}/${action}${i}
+      containerfile=Dockerfile.${action}$(((i-1) % 2 + 1))
 
-  # The third round of builds should match all of the first rounds by way of caching.
-  cmp copy1 copy3
-  cmp prev1 prev3
-  cmp add1  add3
-  cmp tar1  tar3
-  cmp url1  url3
+      run_buildah build --iidfile $iidfile --layers --quiet --signature-policy ${TESTSDIR}/policy.json -f $containerfile ${TESTSDIR}/bud/cache-chown
+    done
+  done
 
-  # The second round of builds should not match the first rounds, since the different ownership
-  # makes the changes look different to the cache, except for cases where we extract an archive,
-  # where --chown is ignored.
-  run cmp copy1 copy2
-  [[ "$status" -ne 0 ]]
-  run cmp prev1 prev2
-  [[ "$status" -ne 0 ]]
-  run cmp add1  add2
-  [[ "$status" -ne 0 ]]
-  cmp tar1 tar2
-  run cmp url1  url2
-  [[ "$status" -ne 0 ]]
+  for action in $actions; do
+    # The third round of builds should match all of the first rounds by way
+    # of caching.
+    assert "$(< ${TESTDIR}/${action}1)" = "$(< ${TESTDIR}/${action}3)" \
+           "iidfile(${action}1) = iidfile(${action}3)"
 
-  # The first rounds of builds should all be different from each other, as a sanity thing.
-  run cmp copy1 prev1
-  [[ "$status" -ne 0 ]]
-  run cmp copy1 add1
-  [[ "$status" -ne 0 ]]
-  run cmp copy1 tar1
-  [[ "$status" -ne 0 ]]
-  run cmp copy1 url1
-  [[ "$status" -ne 0 ]]
+    # The second round of builds should not match the first rounds, since
+    # the different ownership makes the changes look different to the cache,
+    # except for cases where we extract an archive, where --chown is ignored.
+    local op="!="
+    if [[ $action = "tar" ]]; then
+      op="=";
+    fi
+    assert "$(< ${TESTDIR}/${action}1)" $op "$(< ${TESTDIR}/${action}2)" \
+           "iidfile(${action}1) $op iidfile(${action}2)"
 
-  run cmp prev1 add1
-  [[ "$status" -ne 0 ]]
-  run cmp prev1 tar1
-  [[ "$status" -ne 0 ]]
-  run cmp prev1 url1
-  [[ "$status" -ne 0 ]]
-
-  run cmp add1 tar1
-  [[ "$status" -ne 0 ]]
-  run cmp add1 url1
-  [[ "$status" -ne 0 ]]
-
-  run cmp tar1 url1
-  [[ "$status" -ne 0 ]]
+    # The first rounds of builds should all be different from each other,
+    # as a sanity thing.
+    for other in $actions; do
+      if [[ $other != $action ]]; then
+        assert "$(< ${TESTDIR}/${action}1)" != "$(< ${TESTDIR}/${other}1)" \
+               "iidfile(${action}1) != iidfile(${other}1)"
+      fi
+    done
+  done
 }
 
 @test "bud-terminal" {

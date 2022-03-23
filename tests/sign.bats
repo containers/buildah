@@ -18,7 +18,7 @@ function _gpg_setup() {
       GPGOPTS=
   fi
 
-  cat > genkey-answers <<- EOF
+  cat > ${TESTDIR}/genkey-answers <<- EOF
 	%echo Generating a basic OpenPGP key
 	Key-Type: RSA
 	Key-Length: 2048
@@ -28,7 +28,7 @@ function _gpg_setup() {
 	%commit
 	%echo done
 	EOF
-  gpg --batch $GPGOPTS --gen-key --passphrase '' < genkey-answers
+  gpg --batch $GPGOPTS --gen-key --passphrase '' < ${TESTDIR}/genkey-answers
 }
 
 
@@ -79,13 +79,15 @@ function _gpg_setup() {
 @test "build-with-dockerfile-signatures" {
   _gpg_setup
 
-  cat > Dockerfile <<- EOF
+  builddir=${TESTDIR}/builddir
+  mkdir -p $builddir
+  cat > ${builddir}/Dockerfile <<- EOF
 	FROM scratch
 	ADD Dockerfile /
 	EOF
 
   # We should be able to sign at build-time.
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --sign-by amanda@localhost -t signed-scratch-image .
+  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --sign-by amanda@localhost -t signed-scratch-image ${builddir}
 
   mkdir -p ${TESTDIR}/signed-image
   # Pushing should preserve the signature.
