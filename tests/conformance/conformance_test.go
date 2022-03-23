@@ -2959,4 +2959,16 @@ var internalTestCases = []testCase{
 		dockerfile: "Dockerfile.4",
 		fsSkip:     []string{"(dir):tree:mtime"},
 	},
+
+	{
+		name: "workdir-owner", // from issue #3620
+		dockerfileContents: strings.Join([]string{
+			`FROM alpine`,
+			`USER daemon`,
+			`WORKDIR /created/directory`,
+			`RUN ls /created`,
+		}, "\n"),
+		fsSkip:            []string{"(dir):created:mtime", "(dir):created:(dir):directory:mtime"},
+		dockerUseBuildKit: true,
+	},
 }
