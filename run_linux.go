@@ -2333,9 +2333,9 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 	return err
 }
 
-// waitForSync waits for a maximum of 5 seconds to read something from the file
+// waitForSync waits for a maximum of 4 minutes to read something from the file
 func waitForSync(pipeR *os.File) error {
-	if err := pipeR.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	if err := pipeR.SetDeadline(time.Now().Add(4 * time.Minute)); err != nil {
 		return err
 	}
 	b := make([]byte, 16)
