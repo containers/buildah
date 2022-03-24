@@ -361,8 +361,8 @@ load helpers
 
 @test "from cidfile test" {
   _prefetch alpine
-  run_buildah from --cidfile output.cid --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-  cid=$(cat output.cid)
+  run_buildah from --cidfile ${TESTDIR}/output.cid --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$(< ${TESTDIR}/output.cid)
   run_buildah containers -f id=${cid}
 }
 

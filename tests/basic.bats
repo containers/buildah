@@ -67,9 +67,9 @@ load helpers
   root=$output
   cp ${TESTDIR}/randomfile $root/randomfile
   run_buildah unmount $cid
-  run_buildah commit --iidfile output.iid --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
-  iid=$(cat output.iid)
-  [[ "$iid" == "sha256:"* ]]
+  run_buildah commit --iidfile ${TESTDIR}/output.iid --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  iid=$(< ${TESTDIR}/output.iid)
+  assert "$iid" =~ "sha256:[0-9a-f]{64}"
   run_buildah rmi $iid
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
   run_buildah rm $cid

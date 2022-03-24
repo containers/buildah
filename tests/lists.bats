@@ -176,7 +176,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     echo 'much content, wow.' > ${TESTDIR}/build/content.txt
     echo 'FROM scratch' > ${TESTDIR}/build/Dockerfile
     echo 'ADD content.txt /' >> ${TESTDIR}/build/Dockerfile
-    run_buildah bud --layers --iidfile image-id.txt ${TESTDIR}/build
+    run_buildah bud --layers --iidfile ${TESTDIR}/image-id.txt ${TESTDIR}/build
     # Make sure we can add the new image to the list.
-    run_buildah manifest add test-list $(cat image-id.txt)
+    run_buildah manifest add test-list $(< ${TESTDIR}/image-id.txt)
 }
