@@ -37,14 +37,14 @@ Passing an argument _image_ deletes it, along with any of its dangling (untagged
 All local images will be removed from the system that do not have containers using the image as a reference image.
 An image name or id cannot be provided when this option is used. Read/Only images configured by modifying the "additionalimagestores" in the /etc/containers/storage.conf file, can not be removed.
 
+**--force**, **-f**
+
+This option will cause Buildah to remove all containers that are using the image before removing the image from the system.
+
 **--prune**, **-p**
 
 All local images will be removed from the system that do not have a tag and do not have a child image pointing to them.
 An image name or id cannot be provided when this option is used.
-
-**--force**, **-f**
-
-This option will cause Buildah to remove all containers that are using the image before removing the image from the system.
 
 ## EXAMPLE
 

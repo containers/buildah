@@ -52,10 +52,6 @@ value can be entered.  The password is entered without echo.
 
 The [key[:passphrase]] to be used for decryption of images. Key can point to keys and/or certificates. Decryption will be tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and omitted otherwise.
 
-**--quiet**, **-q**
-
-If an image needs to be pulled from the registry, suppress progress output.
-
 **--os**="OS"
 
 Set the OS of the image to be pulled instead of using the current operating system of the host.
@@ -81,6 +77,10 @@ Pull image policy. The default is **missing**.
 - **missing**: attempt to pull the latest image from the registries listed in registries.conf if a local image does not exist. Raise an error if the image is not in any listed registry and is not present locally.
 - **always**: Pull the image from the first registry it is found in as listed in  registries.conf. Raise an error if not found in the registries, even if the image is present locally.
 - **never**: do not pull the image from the registry, use only the local version. Raise an error if the image is not present locally.
+
+**--quiet**, **-q**
+
+If an image needs to be pulled from the registry, suppress progress output.
 
 **--remove-signatures**
 

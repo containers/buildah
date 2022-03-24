@@ -243,13 +243,18 @@ sub tool_man {
     my $section = '';
     my @most_recent_flags;
     my $previous_subcmd = '';
+    my $previous_flag = '';
+    my @line_history;                   # Circular buffer of recent lines
     while (my $line = <$fh>) {
         chomp $line;
+        push @line_history, $line;
+        shift @line_history if @line_history > 2;
         next unless $line;		# skip empty lines
 
         # .md files designate sections with leading double hash
         if ($line =~ /^##\s*(GLOBAL\s+)?OPTIONS/) {
             $section = 'flags';
+            $previous_flag = '';
         }
         elsif ($line =~ /^\#\#\s+(SUB)?COMMANDS/) {
             $section = 'commands';
@@ -289,13 +294,31 @@ sub tool_man {
                 delete $man{$_} for @most_recent_flags;
             }
 
+            # AAAAAAAaaaaargh, workaround for buildah-config --add-history
+            # which enumerates a long list of options. Since buildah man pages
+            # (unlike podman) don't use the '####' convention for options,
+            # it's hard to differentiate 'this is an option' from 'this is
+            # a __mention__ of an option'. Workaround: actual options must
+            # be preceded by an empty line.
+            next if $line_history[-2];
+
             @most_recent_flags = ();
             # Handle any variation of '**--foo**, **-f**'
+            my $is_first = 1;
             while ($line =~ s/^\*\*((--[a-z0-9-]+)|(-.))\*\*(,\s+)?//g) {
-                $man{$1} = 1;
-
+                my $flag = $1;
+                $man{$flag} = 1;
+                if ($flag lt $previous_flag && $is_first) {
+                    warn "$ME: $subpath:$.: $flag should precede $previous_flag\n";
+                    ++$Errs;
+                }
+                $previous_flag = $flag if $is_first;
                 # Keep track of them, in case we see 'Not implemented' below
-                push @most_recent_flags, $1;
+                push @most_recent_flags, $flag;
+
+                # Further iterations of /g are allowed to be out of order,
+                # e.g., it's OK for --namespace,-ns to precede --nohead
+                $is_first = 0;
             }
         }
     }

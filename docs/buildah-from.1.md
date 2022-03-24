@@ -266,8 +266,7 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
 A *name* for the working container
 
-**--net** *how*
-**--network** *how*
+**--network** *how*, **--net** *how*
 
 Sets the configuration for network namespaces when the container is subsequently
 used for `buildah run`.
@@ -394,29 +393,6 @@ the user namespace in which `Buildah` itself is being run should be reused, or
 it can be the path to an user namespace which is already in use by another
 process.
 
-**--userns-uid-map-user** *mapping*
-
-Directly specifies a UID mapping which should be used to set ownership, at the
-filesystem level, on the container's contents.
-Commands run using `buildah run` will default to being run in their own user
-namespaces, configured using the UID and GID maps.
-
-Entries in this map take the form of one or more triples of a starting
-in-container UID, a corresponding starting host-level UID, and the number of
-consecutive IDs which the map entry represents.
-
-This option overrides the *remap-uids* setting in the *options* section of
-/etc/containers/storage.conf.
-
-If this option is not specified, but a global --userns-uid-map setting is
-supplied, settings from the global option will be used.
-
-If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-uid-map
-are specified, but --userns-gid-map is specified, the UID map will be set to
-use the same numeric values as the GID map.
-
-**NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootful.
-
 **--userns-gid-map-group** *mapping*
 
 Directly specifies a GID mapping which should be used to set ownership, at the
@@ -440,17 +416,6 @@ use the same numeric values as the UID map.
 
 **NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootful.
 
-**--userns-uid-map-user** *user*
-
-Specifies that a UID mapping which should be used to set ownership, at the
-filesystem level, on the container's contents, can be found in entries in the
-`/etc/subuid` file which correspond to the specified user.
-Commands run using `buildah run` will default to being run in their own user
-namespaces, configured using the UID and GID maps.
-If --userns-gid-map-group is specified, but --userns-uid-map-user is not
-specified, `Buildah` will assume that the specified group name is also a
-suitable user name to use as the default setting for this option.
-
 **--userns-gid-map-group** *group*
 
 Specifies that a GID mapping which should be used to set ownership, at the
@@ -461,6 +426,40 @@ namespaces, configured using the UID and GID maps.
 If --userns-uid-map-user is specified, but --userns-gid-map-group is not
 specified, `Buildah` will assume that the specified user name is also a
 suitable group name to use as the default setting for this option.
+
+**--userns-uid-map-user** *mapping*
+
+Directly specifies a UID mapping which should be used to set ownership, at the
+filesystem level, on the container's contents.
+Commands run using `buildah run` will default to being run in their own user
+namespaces, configured using the UID and GID maps.
+
+Entries in this map take the form of one or more triples of a starting
+in-container UID, a corresponding starting host-level UID, and the number of
+consecutive IDs which the map entry represents.
+
+This option overrides the *remap-uids* setting in the *options* section of
+/etc/containers/storage.conf.
+
+If this option is not specified, but a global --userns-uid-map setting is
+supplied, settings from the global option will be used.
+
+If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-uid-map
+are specified, but --userns-gid-map is specified, the UID map will be set to
+use the same numeric values as the GID map.
+
+**NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootful.
+
+**--userns-uid-map-user** *user*
+
+Specifies that a UID mapping which should be used to set ownership, at the
+filesystem level, on the container's contents, can be found in entries in the
+`/etc/subuid` file which correspond to the specified user.
+Commands run using `buildah run` will default to being run in their own user
+namespaces, configured using the UID and GID maps.
+If --userns-gid-map-group is specified, but --userns-uid-map-user is not
+specified, `Buildah` will assume that the specified group name is also a
+suitable user name to use as the default setting for this option.
 
 **--uts** *how*
 
