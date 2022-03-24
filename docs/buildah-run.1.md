@@ -14,6 +14,7 @@ the *buildah config* command.  To execute *buildah run* within an
 interactive shell, specify the --tty option.
 
 ## OPTIONS
+
 **--add-history**
 
 Add an entry to the history which will note what command is being invoked.
@@ -46,18 +47,18 @@ If a capability is specified to both the **--cap-add** and **--cap-drop**
 options, it will be dropped, regardless of the order in which the options were
 given.
 
-**--contextdir** *directory*
-
-Allows setting context directory for current RUN invocation. Specifying a context
-directory causes RUN context to consider context directory as root directory for
-specified source in `--mount` of type 'bind'.
-
 **--cgroupns** *how*
 
 Sets the configuration for the cgroup namespaces for the container.
 The configured value can be "" (the empty string) or "private" to indicate
 that a new cgroup namespace should be created, or it can be "host" to indicate
 that the cgroup namespace in which `buildah` itself is being run should be reused.
+
+**--contextdir** *directory*
+
+Allows setting context directory for current RUN invocation. Specifying a context
+directory causes RUN context to consider context directory as root directory for
+specified source in `--mount` of type 'bind'.
 
 **--env**, **-e** *env=value*
 
@@ -159,6 +160,21 @@ Sets the configuration for the network namespace for the container.
 - **ns:**_path_: path to a network namespace to join;
 - `private`: create a new namespace for the container (default)
 
+**--no-hosts**
+
+Do not create _/etc/hosts_ for the container.
+
+By default, Buildah manages _/etc/hosts_, adding the container's own IP address.
+**--no-hosts** disables this, and the image's _/etc/hosts_ will be preserved unmodified.
+
+**--no-pivot**
+
+Do not use pivot root to jail process inside rootfs. This should be used
+whenever the rootfs is on top of a ramdisk.
+
+Note: You can make this option the default by setting the BUILDAH\_NOPIVOT
+environment variable.  `export BUILDAH_NOPIVOT=true`
+
 **--pid** *how*
 
 Sets the configuration for the PID namespace for the container.
@@ -182,22 +198,7 @@ consult the manpages of the selected container runtime.
 Note: Do not pass the leading `--` to the flag. To pass the runc flag `--log-format json`
 to buildah run, the option given would be `--runtime-flag log-format=json`.
 
-**--no-hosts**
-
-Do not create _/etc/hosts_ for the container.
-
-By default, Buildah manages _/etc/hosts_, adding the container's own IP address.
-**--no-hosts** disables this, and the image's _/etc/hosts_ will be preserved unmodified.
-
-**--no-pivot**
-
-Do not use pivot root to jail process inside rootfs. This should be used
-whenever the rootfs is on top of a ramdisk.
-
-Note: You can make this option the default by setting the BUILDAH\_NOPIVOT
-environment variable.  `export BUILDAH_NOPIVOT=true`
-
-**-t**, **--tty**, **--terminal**
+**--tty**, **--terminal**, **-t**
 
 By default a pseudo-TTY is allocated only when buildah's standard input is
 attached to a pseudo-TTY.  Setting the `--tty` option to `true` will cause a

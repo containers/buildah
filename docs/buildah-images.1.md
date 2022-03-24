@@ -76,13 +76,13 @@ Display the image name history.
 
 Display the output in JSON format.
 
-**--noheading**, **-n**
-
-Omit the table headings from the listing of images.
-
 **--no-trunc**
 
 Do not truncate output.
+
+**--noheading**, **-n**
+
+Omit the table headings from the listing of images.
 
 **--quiet**, **-q**
 

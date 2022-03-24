@@ -271,7 +271,7 @@ environment variable.  `export BUILDAH_FORMAT=docker`
 Overrides the first `FROM` instruction within the Containerfile.  If there are multiple
 FROM instructions in a Containerfile, only the first is changed.
 
-**-h**, **--help**
+**--help**, **-h**
 
 Print usage statement
 
@@ -283,14 +283,14 @@ option to `false`.  The environment variables passed in include `http_proxy`,
 `https_proxy`, `ftp_proxy`, `no_proxy`, and also the upper case versions of
 those.
 
+**--ignorefile** *file*
+
+Path to an alternative .containerignore (.dockerignore) file.
+
 **--iidfile** *ImageIDfile*
 
 Write the built image's ID to the file.  When `--platform` is specified more
 than once, attempting to use this option will trigger an error.
-
-**--ignorefile** *file*
-
-Path to an alternative .containerignore (.dockerignore) file.
 
 **--ipc** *how*
 
@@ -602,21 +602,6 @@ the user namespace in which `buildah` itself is being run should be reused, or
 it can be the path to an user namespace which is already in use by another
 process.
 
-**--userns-uid-map-user** *user*
-
-Specifies that a UID mapping which should be used to set ownership, at the
-filesystem level, on the working container's contents, can be found in entries
-in the `/etc/subuid` file which correspond to the specified user.
-Commands run when handling `RUN` instructions will default to being run in
-their own user namespaces, configured using the UID and GID maps.
-If --userns-gid-map-group is specified, but --userns-uid-map-user is not
-specified, `buildah` will assume that the specified group name is also a
-suitable user name to use as the default setting for this option.
-
-Users can specify the maps directly using `--userns-uid-map` described in the buildah(1) man page.
-
-**NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootful.
-
 **--userns-gid-map-group** *group*
 
 Specifies that a GID mapping which should be used to set ownership, at the
@@ -629,6 +614,21 @@ specified, `buildah` will assume that the specified user name is also a
 suitable group name to use as the default setting for this option.
 
 Users can specify the maps directly using `--userns-gid-map` described in the buildah(1) man page.
+
+**NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootful.
+
+**--userns-uid-map-user** *user*
+
+Specifies that a UID mapping which should be used to set ownership, at the
+filesystem level, on the working container's contents, can be found in entries
+in the `/etc/subuid` file which correspond to the specified user.
+Commands run when handling `RUN` instructions will default to being run in
+their own user namespaces, configured using the UID and GID maps.
+If --userns-gid-map-group is specified, but --userns-uid-map-user is not
+specified, `buildah` will assume that the specified group name is also a
+suitable user name to use as the default setting for this option.
+
+Users can specify the maps directly using `--userns-uid-map` described in the buildah(1) man page.
 
 **NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootful.
 

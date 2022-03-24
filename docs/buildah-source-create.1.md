@@ -14,6 +14,7 @@ Note that the buildah-source command and all its subcommands are experimental
 and may be subject to future changes
 
 ## OPTIONS
+
 **--author** *author*
 
 Set the author of the source image mentioned in the config.  By default, no author is set.

@@ -62,13 +62,13 @@ After copying the image, write the digest of the resulting image to the file.
 
 Don't compress copies of filesystem layers which will be pushed.
 
-**--encryption-key** *key*
-
-The [protocol:keyfile] specifies the encryption protocol, which can be JWE (RFC7516), PGP (RFC4880), and PKCS7 (RFC2315) and the key material required for image encryption. For instance, jwe:/path/to/key.pem or pgp:admin@example.com or pkcs7:/path/to/x509-file.
-
 **--encrypt-layer** *layer(s)*
 
 Layer(s) to encrypt: 0-indexed layer indices with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer). If not defined, will encrypt all layers if encryption-key flag is specified.
+
+**--encryption-key** *key*
+
+The [protocol:keyfile] specifies the encryption protocol, which can be JWE (RFC7516), PGP (RFC4880), and PKCS7 (RFC2315) and the key material required for image encryption. For instance, jwe:/path/to/key.pem or pgp:admin@example.com or pkcs7:/path/to/x509-file.
 
 **--format**, **-f**
 
