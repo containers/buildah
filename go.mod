@@ -28,6 +28,7 @@ require (
 	github.com/opencontainers/selinux v1.8.4
 	github.com/openshift/imagebuilder v1.2.2-0.20210415181909-87f3e48c2656
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.11.1 // indirect
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200616122406-847368b35ebf
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.2.1
