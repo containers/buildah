@@ -164,6 +164,10 @@ func (m Manager) GetAllSupportedLinterConfigs() []*linter.Config {
 		unusedCfg = &m.cfg.LintersSettings.Unused
 		varnamelenCfg = &m.cfg.LintersSettings.Varnamelen
 		wrapcheckCfg = &m.cfg.LintersSettings.Wrapcheck
+
+		if govetCfg != nil {
+			govetCfg.Go = m.cfg.Run.Go
+		}
 	}
 
 	const megacheckName = "megacheck"
@@ -219,7 +223,6 @@ func (m Manager) GetAllSupportedLinterConfigs() []*linter.Config {
 
 		linter.NewConfig(golinters.NewDepguard()).
 			WithSince("v1.4.0").
-			WithLoadForGoAnalysis().
 			WithPresets(linter.PresetStyle, linter.PresetImport, linter.PresetModule).
 			WithURL("https://github.com/OpenPeeDeeP/depguard"),
 
@@ -447,7 +450,8 @@ func (m Manager) GetAllSupportedLinterConfigs() []*linter.Config {
 			WithLoadForGoAnalysis().
 			WithPresets(linter.PresetStyle).
 			WithURL("https://github.com/mvdan/interfacer").
-			Deprecated("The repository of the linter has been archived by the owner.", "v1.38.0", ""),
+			Deprecated("The repository of the linter has been archived by the owner.", "v1.38.0", "").
+			WithNoopFallback(m.cfg),
 
 		linter.NewConfig(golinters.NewIreturn(ireturnCfg)).
 			WithSince("v1.43.0").
@@ -576,7 +580,8 @@ func (m Manager) GetAllSupportedLinterConfigs() []*linter.Config {
 			WithSince("v1.0.0").
 			WithLoadForGoAnalysis().
 			WithPresets(linter.PresetUnused).
-			WithURL("https://github.com/opennota/check"),
+			WithURL("https://github.com/opennota/check").
+			WithNoopFallback(m.cfg),
 
 		linter.NewConfig(golinters.NewStylecheck(stylecheckCfg)).
 			WithSince("v1.20.0").
