@@ -36,6 +36,8 @@ github.com/acarl005/stripansi
 github.com/beorn7/perks/quantile
 # github.com/blang/semver v3.5.1+incompatible
 github.com/blang/semver
+# github.com/cespare/xxhash/v2 v2.1.1
+github.com/cespare/xxhash/v2
 # github.com/containerd/cgroups v0.0.0-20190919134610-bf292b21730f
 github.com/containerd/cgroups/stats/v1
 # github.com/containerd/containerd v1.3.2
@@ -54,7 +56,7 @@ github.com/containernetworking/cni/pkg/types/020
 github.com/containernetworking/cni/pkg/types/current
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
-# github.com/containers/common v0.22.0
+# github.com/containers/common v0.22.0 => github.com/containers/common v0.22.0
 github.com/containers/common/pkg/apparmor
 github.com/containers/common/pkg/apparmor/internal/supported
 github.com/containers/common/pkg/auth
@@ -64,7 +66,7 @@ github.com/containers/common/pkg/config
 github.com/containers/common/pkg/retry
 github.com/containers/common/pkg/seccomp
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.6.0
+# github.com/containers/image/v5 v5.6.0 => github.com/containers/image/v5 v5.6.0
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
 github.com/containers/image/v5/directory/explicitfilepath
@@ -108,7 +110,7 @@ github.com/containers/image/v5/types
 github.com/containers/image/v5/version
 # github.com/containers/libtrust v0.0.0-20190913040956-14b96171aa3b
 github.com/containers/libtrust
-# github.com/containers/ocicrypt v1.0.3
+# github.com/containers/ocicrypt v1.0.3 => github.com/containers/ocicrypt v1.0.3
 github.com/containers/ocicrypt
 github.com/containers/ocicrypt/blockcipher
 github.com/containers/ocicrypt/config
@@ -119,7 +121,7 @@ github.com/containers/ocicrypt/keywrap/pgp
 github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
-# github.com/containers/storage v1.23.5
+# github.com/containers/storage v1.23.5 => github.com/containers/storage v1.23.5
 github.com/containers/storage
 github.com/containers/storage/drivers
 github.com/containers/storage/drivers/aufs
@@ -225,17 +227,17 @@ github.com/docker/libnetwork/resolvconf/dns
 github.com/docker/libnetwork/types
 # github.com/fsnotify/fsnotify v1.4.9
 github.com/fsnotify/fsnotify
-# github.com/fsouza/go-dockerclient v1.6.5
+# github.com/fsouza/go-dockerclient v1.6.5 => github.com/fsouza/go-dockerclient v1.6.5
 github.com/fsouza/go-dockerclient
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
 # github.com/godbus/dbus/v5 v5.0.3
 github.com/godbus/dbus/v5
-# github.com/gogo/protobuf v1.3.1
+# github.com/gogo/protobuf v1.3.1 => github.com/gogo/protobuf v1.3.1
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
-# github.com/golang/protobuf v1.4.2
+# github.com/golang/protobuf v1.4.3
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
@@ -366,17 +368,17 @@ github.com/pquerna/ffjson/fflib/v1
 github.com/pquerna/ffjson/fflib/v1/internal
 github.com/pquerna/ffjson/inception
 github.com/pquerna/ffjson/shared
-# github.com/prometheus/client_golang v1.1.0
+# github.com/prometheus/client_golang v1.11.1
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
-# github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
+# github.com/prometheus/client_model v0.2.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.6.0
+# github.com/prometheus/common v0.26.0
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.0.5
+# github.com/prometheus/procfs v0.6.0
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
@@ -427,7 +429,7 @@ go.opencensus.io/internal
 go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/tracestate
-# golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
+# golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 golang.org/x/crypto/cast5
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
@@ -439,7 +441,7 @@ golang.org/x/crypto/openpgp/packet
 golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
+# golang.org/x/net v0.0.0-20200625001655-4c5254603344
 golang.org/x/net/context
 golang.org/x/net/html
 golang.org/x/net/html/atom
@@ -450,10 +452,10 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/socks
 golang.org/x/net/proxy
-# golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
+# golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20200810151505-1b9f1253b3ed
+# golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
@@ -489,7 +491,7 @@ google.golang.org/grpc/connectivity
 google.golang.org/grpc/grpclog
 google.golang.org/grpc/internal
 google.golang.org/grpc/status
-# google.golang.org/protobuf v1.23.0
+# google.golang.org/protobuf v1.26.0-rc.1 => google.golang.org/protobuf v1.23.0
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
