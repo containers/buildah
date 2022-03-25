@@ -305,8 +305,8 @@ github.com/containernetworking/plugins v0.8.6/go.mod h1:qnw5mN19D8fIwkqW7oHHYDHV
 github.com/containernetworking/plugins v0.9.1/go.mod h1:xP/idU2ldlzN6m4p5LmGiwRDjeJr6FLK6vuiUwoH7P8=
 github.com/containernetworking/plugins v1.0.1 h1:wwCfYbTCj5FC0EJgyzyjTXmqysOiJE9r712Z+2KVZAk=
 github.com/containernetworking/plugins v1.0.1/go.mod h1:QHCfGpaTwYTbbH+nZXKVTxNBDZcxSOplJT5ico8/FLE=
-github.com/containers/common v0.47.4 h1:kS202Z/bTQIM/pwyuJ+lF8143Uli6AB9Q9OVR0xa9CM=
-github.com/containers/common v0.47.4/go.mod h1:HgX0mFXyB0Tbe2REEIp9x9CxET6iSzmHfwR6S/t2LZc=
+github.com/containers/common v0.47.5 h1:Qm9o+wVPO9sbggTKubN3xYMtPRaPv7dmcrJQgongHHw=
+github.com/containers/common v0.47.5/go.mod h1:HgX0mFXyB0Tbe2REEIp9x9CxET6iSzmHfwR6S/t2LZc=
 github.com/containers/image/v5 v5.19.1/go.mod h1:ewoo3u+TpJvGmsz64XgzbyTHwHtM94q7mgK/pX+v2SE=
 github.com/containers/image/v5 v5.20.0 h1:BYFMRvYqmEHnHo0sjTbnLbj0fzkGLDx6P57lszm30B4=
 github.com/containers/image/v5 v5.20.0/go.mod h1:5UL1ooih6+USVYXk19r8ScQNsbTprhlJxrHezAu4OVE=
