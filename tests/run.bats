@@ -389,3 +389,16 @@ function configure_and_check_user() {
 	cid=$(buildah from --pull=false --device /dev/fuse:/dev/fuse1 --signature-policy ${TESTSDIR}/policy.json alpine)
 	run_buildah 0 run ${cid} ls /dev/fuse1
 }
+
+@test "run-inheritable-capabilities" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run $cid grep ^CapInh: /proc/self/status
+	expect_output "CapInh:	0000000000000000"
+	run_buildah run --cap-add=ALL $cid grep ^CapInh: /proc/self/status
+	expect_output "CapInh:	0000000000000000"
+}
