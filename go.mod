@@ -26,6 +26,7 @@ require (
 	github.com/opencontainers/selinux v1.6.0
 	github.com/openshift/imagebuilder v1.1.8
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.11.1 // indirect
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200616122406-847368b35ebf
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v0.0.7
@@ -33,11 +34,20 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	go.etcd.io/bbolt v1.3.5
-	golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
-	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
-	golang.org/x/sys v0.0.0-20200810151505-1b9f1253b3ed
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
+	golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40
 	golang.org/x/text v0.3.3 // indirect
 	k8s.io/klog v1.0.0 // indirect
 )
 
-replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
+replace (
+	github.com/containers/common => github.com/containers/common v0.22.0
+	github.com/containers/image/v5 => github.com/containers/image/v5 v5.6.0
+	github.com/containers/ocicrypt => github.com/containers/ocicrypt v1.0.3
+	github.com/containers/storage => github.com/containers/storage v1.23.5
+	github.com/fsouza/go-dockerclient => github.com/fsouza/go-dockerclient v1.6.5
+	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.1
+	github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
+	google.golang.org/protobuf => google.golang.org/protobuf v1.23.0
+)
