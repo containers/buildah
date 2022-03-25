@@ -779,9 +779,23 @@ _EOF
 	if test "$DBUS_SESSION_BUS_ADDRESS" = ""; then
 		skip "${1:-test does not work when \$BUILDAH_ISOLATION = chroot}"
 	fi
+	_prefetch alpine
 
 	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
 	cid=$output
 	run_buildah run --cgroupns=host $cid cat /proc/self/cgroup
 	expect_output --substring "/user.slice/"
+}
+
+@test "run-inheritable-capabilities" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run $cid grep ^CapInh: /proc/self/status
+	expect_output "CapInh:	0000000000000000"
+	run_buildah run --cap-add=ALL $cid grep ^CapInh: /proc/self/status
+	expect_output "CapInh:	0000000000000000"
 }
