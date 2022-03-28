@@ -518,6 +518,26 @@ _EOF
   run_buildah rmi -f ${target}
 }
 
+@test "build with --no-cache and --layer" {
+  _prefetch alpine
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p $mytmpdir
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+RUN echo hello
+RUN echo world
+_EOF
+
+  # This should do a fresh build and just populate build cache
+  run_buildah build --layers --signature-policy ${TESTSDIR}/policy.json -t test -f $mytmpdir/Containerfile .
+  # This should also do a fresh build and just populate build cache
+  run_buildah build --no-cache --layers --signature-policy ${TESTSDIR}/policy.json -t test -f $mytmpdir/Containerfile .
+  # This should use everything from build cache
+  run_buildah build --layers --signature-policy ${TESTSDIR}/policy.json -t test -f $mytmpdir/Containerfile .
+  expect_output --substring "Using cache"
+
+}
+
 @test "build --unsetenv PATH" {
   _prefetch alpine
   mytmpdir=${TESTDIR}/my-dir
