@@ -280,10 +280,6 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		return errors.Errorf("can only set one of 'pull' or 'pull-always' or 'pull-never'")
 	}
 
-	if c.Flag("layers").Changed && c.Flag("no-cache").Changed {
-		return errors.Errorf("can only set one of 'layers' or 'no-cache'")
-	}
-
 	if (c.Flag("rm").Changed || c.Flag("force-rm").Changed) && (!c.Flag("layers").Changed && !c.Flag("no-cache").Changed) {
 		return errors.Errorf("'rm' and 'force-rm' can only be set with either 'layers' or 'no-cache'")
 	}
