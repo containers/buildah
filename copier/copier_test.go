@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path"
@@ -501,8 +502,8 @@ func testPut(t *testing.T) {
 				require.NoErrorf(t, err, "error extracting archive %q to directory %q", testArchives[i].name, tmp)
 
 				var found []string
-				err = filepath.Walk(tmp, func(path string, info os.FileInfo, err error) error {
-					if info == nil || err != nil {
+				err = filepath.WalkDir(tmp, func(path string, d fs.DirEntry, err error) error {
+					if err != nil {
 						return err
 					}
 					rel, err := filepath.Rel(tmp, path)
@@ -1561,8 +1562,8 @@ func testMkdir(t *testing.T) {
 					root := dir
 					options := MkdirOptions{ChownNew: &idtools.IDPair{UID: os.Getuid(), GID: os.Getgid()}}
 					var beforeNames, afterNames []string
-					err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-						if info == nil || err != nil {
+					err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+						if err != nil {
 							return err
 						}
 						rel, err := filepath.Rel(dir, path)
@@ -1575,8 +1576,8 @@ func testMkdir(t *testing.T) {
 					require.NoErrorf(t, err, "error walking directory to catalog pre-Mkdir contents: %v", err)
 					err = Mkdir(root, testCase.create, options)
 					require.NoErrorf(t, err, "error creating directory %q under %q with Mkdir: %v", testCase.create, root, err)
-					err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-						if info == nil || err != nil {
+					err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+						if err != nil {
 							return err
 						}
 						rel, err := filepath.Rel(dir, path)
@@ -1777,8 +1778,8 @@ func testRemove(t *testing.T) {
 					root := dir
 					options := RemoveOptions{All: testCase.all}
 					beforeNames := make(map[string]struct{})
-					err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-						if info == nil || err != nil {
+					err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+						if err != nil {
 							return err
 						}
 						rel, err := filepath.Rel(dir, path)
@@ -1796,8 +1797,8 @@ func testRemove(t *testing.T) {
 					}
 					require.NoErrorf(t, err, "error removing item %q under %q with Remove: %v", testCase.remove, root, err)
 					afterNames := make(map[string]struct{})
-					err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-						if info == nil || err != nil {
+					err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+						if err != nil {
 							return err
 						}
 						rel, err := filepath.Rel(dir, path)
