@@ -1572,3 +1572,12 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 func (s *StageExecutor) EnsureContainerPath(path string) error {
 	return copier.Mkdir(s.mountPoint, filepath.Join(s.mountPoint, path), copier.MkdirOptions{})
 }
+
+// TODO: Stub for v1.25.1 build
+func (s *StageExecutor) EnsureContainerPathAs(path string, user string, mode *os.FileMode) error {
+        coptions := copier.MkdirOptions{
+                ChmodNew: mode,
+        }
+
+	return copier.Mkdir(s.mountPoint, filepath.Join(s.mountPoint, path), coptions)
+}
