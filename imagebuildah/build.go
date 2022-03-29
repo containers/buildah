@@ -243,12 +243,22 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			logPrefix = "[" + platforms.Format(platformSpec) + "] "
 		}
 		builds.Go(func() error {
+			isInstanceLocked := false
+			if options.Jobs != nil {
+				// if --jobs=0 all the stages and builds will be sequiential
+				if *options.Jobs == 0 {
+					instancesLock.Lock()
+					isInstanceLocked = true
+				}
+			}
 			thisID, thisRef, err := buildDockerfilesOnce(ctx, store, logger, logPrefix, platformOptions, paths, files)
 			if err != nil {
 				return err
 			}
 			id, ref = thisID, thisRef
-			instancesLock.Lock()
+			if !isInstanceLocked {
+				instancesLock.Lock()
+			}
 			instances = append(instances, instance{
 				ID:       thisID,
 				Platform: platformSpec,
