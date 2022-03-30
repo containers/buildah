@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -300,9 +301,7 @@ rootless=%d
 	case define.IsolationOCI:
 		var moreCreateArgs []string
 		if options.NoPivot {
-			moreCreateArgs = []string{"--no-pivot"}
-		} else {
-			moreCreateArgs = nil
+			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
 		}
 		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, define.Package+"-"+filepath.Base(path))
 	case IsolationChroot:
@@ -839,7 +838,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	if err = unix.Pipe(finishCopy); err != nil {
 		return 1, errors.Wrapf(err, "error creating pipe for notifying to stop stdio")
 	}
-	finishedCopy := make(chan struct{})
+	finishedCopy := make(chan struct{}, 1)
 	var pargs []string
 	if spec.Process != nil {
 		pargs = spec.Process.Args
@@ -895,22 +894,27 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	pidFile := filepath.Join(bundlePath, "pid")
 	args := append(append(append(runtimeArgs, "create", "--bundle", bundlePath, "--pid-file", pidFile), moreCreateArgs...), containerName)
 	create := exec.Command(runtime, args...)
+	setPdeathsig(create)
 	create.Dir = bundlePath
 	stdin, stdout, stderr := getCreateStdio()
 	create.Stdin, create.Stdout, create.Stderr = stdin, stdout, stderr
-	if create.SysProcAttr == nil {
-		create.SysProcAttr = &syscall.SysProcAttr{}
-	}
 
 	args = append(options.Args, "start", containerName)
 	start := exec.Command(runtime, args...)
+	setPdeathsig(start)
 	start.Dir = bundlePath
 	start.Stderr = os.Stderr
 
-	args = append(options.Args, "kill", containerName)
-	kill := exec.Command(runtime, args...)
-	kill.Dir = bundlePath
-	kill.Stderr = os.Stderr
+	kill := func(signal string) *exec.Cmd {
+		args := append(options.Args, "kill", containerName)
+		if signal != "" {
+			args = append(args, signal)
+		}
+		kill := exec.Command(runtime, args...)
+		kill.Dir = bundlePath
+		kill.Stderr = os.Stderr
+		return kill
+	}
 
 	args = append(options.Args, "delete", containerName)
 	del := exec.Command(runtime, args...)
@@ -991,13 +995,23 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	}
 	defer func() {
 		if atomic.LoadUint32(&stopped) == 0 {
-			if err2 := kill.Run(); err2 != nil {
-				options.Logger.Infof("error from %s stopping container: %v", runtime, err2)
+			if err := kill("").Run(); err != nil {
+				options.Logger.Infof("error from %s stopping container: %v", runtime, err)
 			}
+			atomic.StoreUint32(&stopped, 1)
 		}
 	}()
 
 	// Wait for the container to exit.
+	interrupted := make(chan os.Signal, 100)
+	go func() {
+		for range interrupted {
+			if err := kill("SIGKILL").Run(); err != nil {
+				logrus.Errorf("%v sending SIGKILL", err)
+			}
+		}
+	}()
+	signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 	for {
 		now := time.Now()
 		var state specs.State
@@ -1036,6 +1050,8 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 			break
 		}
 	}
+	signal.Stop(interrupted)
+	close(interrupted)
 
 	// Close the writing end of the stop-handling-stdio notification pipe.
 	unix.Close(finishCopy[1])
@@ -1122,6 +1138,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 	}
 
 	cmd := exec.Command(slirp4netns, "--mtu", "65520", "-r", "3", "-c", strconv.Itoa(pid), "tap0")
+	setPdeathsig(cmd)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
 	cmd.ExtraFiles = []*os.File{rootlessSlirpSyncW}
 
@@ -1239,6 +1256,7 @@ func runCopyStdio(logger *logrus.Logger, stdio *sync.WaitGroup, copyPipes bool, 
 		}
 		stdio.Done()
 		finishedCopy <- struct{}{}
+		close(finishedCopy)
 	}()
 	// Map describing where data on an incoming descriptor should go.
 	relayMap := make(map[int]int)
@@ -2237,6 +2255,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		return errors.Wrapf(conferr, "error encoding configuration for %q", runUsingRuntimeCommand)
 	}
 	cmd := reexec.Command(runUsingRuntimeCommand)
+	setPdeathsig(cmd)
 	cmd.Dir = bundlePath
 	cmd.Stdin = options.Stdin
 	if cmd.Stdin == nil {
@@ -2291,6 +2310,16 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		return errors.Wrapf(err, "error while starting runtime")
 	}
 
+	interrupted := make(chan os.Signal, 100)
+	go func() {
+		for receivedSignal := range interrupted {
+			if err := cmd.Process.Signal(receivedSignal); err != nil {
+				logrus.Infof("%v while attempting to forward %v to child process", err, receivedSignal)
+			}
+		}
+	}()
+	signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+
 	if configureNetwork {
 		if err := waitForSync(containerCreateR); err != nil {
 			// we do not want to return here since we want to capture the exit code from the child via cmd.Wait()
@@ -2324,10 +2353,13 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 			}
 		}
 	}
+
 	if err := cmd.Wait(); err != nil {
 		return errors.Wrapf(err, "error while running runtime")
 	}
 	confwg.Wait()
+	signal.Stop(interrupted)
+	close(interrupted)
 	if err == nil {
 		return conferr
 	}
@@ -2908,4 +2940,12 @@ func getNetworkInterface(store storage.Store, cniConfDir, cniPluginPath string) 
 		return nil, err
 	}
 	return netInt, nil
+}
+
+// setPdeathsig sets a parent-death signal for the process
+func setPdeathsig(cmd *exec.Cmd) {
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.Pdeathsig = syscall.SIGKILL
 }
