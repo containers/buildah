@@ -1466,6 +1466,13 @@ func copierHandlerGetOne(srcfi os.FileInfo, symlinkTarget, name, contentPath str
 			return errors.Wrapf(err, "error opening file for adding its contents to archive")
 		}
 		defer f.Close()
+	} else if hdr.Typeflag == tar.TypeDir {
+		// open the directory file first to make sure we can access it.
+		f, err = os.Open(contentPath)
+		if err != nil {
+			return errors.Wrapf(err, "error opening directory for adding its contents to archive")
+		}
+		defer f.Close()
 	}
 	// output the header
 	if err = tw.WriteHeader(hdr); err != nil {
