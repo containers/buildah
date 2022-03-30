@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.26.0-dev
+Version:        1.25.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,16 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Fri Mar 25, 2022 Tom Sweeney <tsweeney@redhat.com> 1.26.0-dev-1
+* Wed Mar 30, 2022 Tom Sweeney <tsweeney@redhat.com> 1.25.1-1
+- buildah: create WORKDIR with USER permissions
+- vendor: update github.com/openshift/imagebuilder
+- copier: attempt to open the dir before adding it
+- Updated dependabot to get updates for GitHub actions.
+- Switch most calls to filepath.Walk to filepath.WalkDir
+- build: allow --no-cache and --layers so build cache can be overrided
+- build(deps): bump github.com/onsi/gomega from 1.18.1 to 1.19.0
+- Bump to v1.26.0-dev
+- build(deps): bump github.com/golangci/golangci-lint in /tests/tools
 
 * Fri Mar 25, 2022 Tom Sweeney <tsweeney@redhat.com> 1.25.0-1
 - install: drop RHEL/CentOS 7 doc
