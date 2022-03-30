@@ -3,6 +3,7 @@ package dockerclient
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -21,6 +22,7 @@ import (
 )
 
 var isArchivePath = archive.IsArchivePath
+var dstNeedsToBeDirectoryError = errors.New("copying would overwrite content that was already copied; destination needs to be a directory")
 
 // TransformFileFunc is given a chance to transform an arbitrary input file.
 type TransformFileFunc func(h *tar.Header, r io.Reader) (data []byte, update bool, skip bool, err error)
@@ -48,7 +50,7 @@ func FilterArchive(r io.Reader, w io.Writer, fn TransformFileFunc) error {
 		var body io.Reader = tr
 		name := h.Name
 		data, ok, skip, err := fn(h, tr)
-		klog.V(6).Infof("Transform %s -> %s: data=%t ok=%t skip=%t err=%v", name, h.Name, data != nil, ok, skip, err)
+		klog.V(6).Infof("Transform %s(0%o) -> %s: data=%t ok=%t skip=%t err=%v", name, h.Mode, h.Name, data != nil, ok, skip, err)
 		if err != nil {
 			return err
 		}
@@ -183,7 +185,7 @@ func archiveFromDisk(directory string, src, dst string, allowDownload bool, excl
 		directory = filepath.Dir(directory)
 	}
 
-	options, err := archiveOptionsFor(infos, dst, excludes, check)
+	options, err := archiveOptionsFor(directory, infos, dst, excludes, check)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -305,7 +307,7 @@ func archiveFromFile(file string, src, dst string, excludes []string, check Dire
 		pw.CloseWithError(err)
 	}
 
-	mapper, _, err := newArchiveMapper(src, dst, excludes, false, true, check, refetch)
+	mapper, _, err := newArchiveMapper(src, dst, excludes, false, true, check, refetch, true)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -318,7 +320,7 @@ func archiveFromFile(file string, src, dst string, excludes []string, check Dire
 	r, err := transformArchive(f, true, mapper.Filter)
 	cc := newCloser(func() error {
 		err := f.Close()
-		if !mapper.foundItems {
+		if mapper.foundItems == 0 {
 			return fmt.Errorf("%s: %w", src, os.ErrNotExist)
 		}
 		return err
@@ -326,15 +328,15 @@ func archiveFromFile(file string, src, dst string, excludes []string, check Dire
 	return r, cc, err
 }
 
-func archiveFromContainer(in io.Reader, src, dst string, excludes []string, check DirectoryCheck, refetch FetchArchiveFunc) (io.ReadCloser, string, error) {
-	mapper, archiveRoot, err := newArchiveMapper(src, dst, excludes, true, false, check, refetch)
+func archiveFromContainer(in io.Reader, src, dst string, excludes []string, check DirectoryCheck, refetch FetchArchiveFunc, assumeDstIsDirectory bool) (io.ReadCloser, string, error) {
+	mapper, archiveRoot, err := newArchiveMapper(src, dst, excludes, true, false, check, refetch, assumeDstIsDirectory)
 	if err != nil {
 		return nil, "", err
 	}
 
 	r, err := transformArchive(in, false, mapper.Filter)
 	rc := readCloser{Reader: r, Closer: newCloser(func() error {
-		if !mapper.foundItems {
+		if mapper.foundItems == 0 {
 			return fmt.Errorf("%s: %w", src, os.ErrNotExist)
 		}
 		return nil
@@ -365,7 +367,7 @@ func transformArchive(r io.Reader, compressed bool, fn TransformFileFunc) (io.Re
 // a (dir)  -> test/
 // a (file) -> test/
 //
-func archivePathMapper(src, dst string, isDestDir bool) (fn func(name string, isDir bool) (string, bool)) {
+func archivePathMapper(src, dst string, isDestDir bool) (fn func(itemCount *int, name string, isDir bool) (string, bool, error)) {
 	srcPattern := filepath.Clean(src)
 	if srcPattern == "." {
 		srcPattern = "*"
@@ -376,33 +378,38 @@ func archivePathMapper(src, dst string, isDestDir bool) (fn func(name string, is
 
 	// no wildcards
 	if !containsWildcards(pattern) {
-		return func(name string, isDir bool) (string, bool) {
+		return func(itemCount *int, name string, isDir bool) (string, bool, error) {
 			// when extracting from the working directory, Docker prefaces with ./
 			if strings.HasPrefix(name, "."+string(filepath.Separator)) {
 				name = name[2:]
 			}
 			if name == srcPattern {
-				if isDir {
-					return "", false
+				if isDir { // the source is a directory: this directory; skip it
+					return "", false, nil
 				}
-				if isDestDir {
-					return filepath.Join(dst, filepath.Base(name)), true
+				if isDestDir { // the destination is a directory, put this under it
+					return filepath.Join(dst, filepath.Base(name)), true, nil
 				}
-				return dst, true
+				// the source is a non-directory: copy to the destination's name
+				if itemCount != nil && *itemCount != 0 { // but we've already written something there
+					return "", false, dstNeedsToBeDirectoryError // tell the caller to start over
+				}
+				return dst, true, nil
 			}
 
+			// source is a directory, this is under it; put this under the destination directory
 			remainder := strings.TrimPrefix(name, srcPattern+string(filepath.Separator))
 			if remainder == name {
-				return "", false
+				return "", false, nil
 			}
-			return filepath.Join(dst, remainder), true
+			return filepath.Join(dst, remainder), true, nil
 		}
 	}
 
 	// root with pattern
 	prefix := filepath.Dir(srcPattern)
 	if prefix == "." {
-		return func(name string, isDir bool) (string, bool) {
+		return func(itemCount *int, name string, isDir bool) (string, bool, error) {
 			// match only on the first segment under the prefix
 			var firstSegment = name
 			if i := strings.Index(name, string(filepath.Separator)); i != -1 {
@@ -410,18 +417,24 @@ func archivePathMapper(src, dst string, isDestDir bool) (fn func(name string, is
 			}
 			ok, _ := filepath.Match(pattern, firstSegment)
 			if !ok {
-				return "", false
+				return "", false, nil
 			}
-			return filepath.Join(dst, name), true
+			if !isDestDir && !isDir { // the destination is not a directory, put this right there
+				if itemCount != nil && *itemCount != 0 { // but we've already written something there
+					return "", false, dstNeedsToBeDirectoryError // tell the caller to start over
+				}
+				return dst, true, nil
+			}
+			return filepath.Join(dst, name), true, nil
 		}
 	}
 	prefix += string(filepath.Separator)
 
 	// nested with pattern
-	return func(name string, isDir bool) (string, bool) {
+	return func(_ *int, name string, isDir bool) (string, bool, error) {
 		remainder := strings.TrimPrefix(name, prefix)
 		if remainder == name {
-			return "", false
+			return "", false, nil
 		}
 		// match only on the first segment under the prefix
 		var firstSegment = remainder
@@ -430,31 +443,31 @@ func archivePathMapper(src, dst string, isDestDir bool) (fn func(name string, is
 		}
 		ok, _ := filepath.Match(pattern, firstSegment)
 		if !ok {
-			return "", false
+			return "", false, nil
 		}
-		return filepath.Join(dst, remainder), true
+		return filepath.Join(dst, remainder), true, nil
 	}
 }
 
 type archiveMapper struct {
 	exclude      *fileutils.PatternMatcher
-	rename       func(name string, isDir bool) (string, bool)
+	rename       func(itemCount *int, name string, isDir bool) (string, bool, error)
 	prefix       string
 	dst          string
 	resetDstMode bool
 	resetOwners  bool
-	foundItems   bool
+	foundItems   int
 	refetch      FetchArchiveFunc
 	renameLinks  map[string]string
 }
 
-func newArchiveMapper(src, dst string, excludes []string, resetDstMode, resetOwners bool, check DirectoryCheck, refetch FetchArchiveFunc) (*archiveMapper, string, error) {
+func newArchiveMapper(src, dst string, excludes []string, resetDstMode, resetOwners bool, check DirectoryCheck, refetch FetchArchiveFunc, assumeDstIsDirectory bool) (*archiveMapper, string, error) {
 	ex, err := fileutils.NewPatternMatcher(excludes)
 	if err != nil {
 		return nil, "", err
 	}
 
-	isDestDir := strings.HasSuffix(dst, "/") || path.Base(dst) == "."
+	isDestDir := strings.HasSuffix(dst, "/") || path.Base(dst) == "." || strings.HasSuffix(src, "/") || path.Base(src) == "." || assumeDstIsDirectory
 	dst = path.Clean(dst)
 	if !isDestDir && check != nil {
 		isDir, err := check.IsDirectory(dst)
@@ -518,7 +531,10 @@ func (m *archiveMapper) Filter(h *tar.Header, r io.Reader) ([]byte, bool, bool, 
 
 	// skip a file if it doesn't match the src
 	isDir := h.Typeflag == tar.TypeDir
-	newName, ok := m.rename(h.Name, isDir)
+	newName, ok, err := m.rename(&m.foundItems, h.Name, isDir)
+	if err != nil {
+		return nil, false, true, err
+	}
 	if !ok {
 		return nil, false, true, nil
 	}
@@ -530,7 +546,7 @@ func (m *archiveMapper) Filter(h *tar.Header, r io.Reader) ([]byte, bool, bool, 
 		return nil, false, true, nil
 	}
 
-	m.foundItems = true
+	m.foundItems++
 
 	h.Name = newName
 
@@ -556,7 +572,10 @@ func (m *archiveMapper) Filter(h *tar.Header, r io.Reader) ([]byte, bool, bool, 
 			if !needReplacement {
 				linkName = strings.TrimPrefix(strings.TrimPrefix(linkName, m.prefix), "/")
 				var ok bool
-				if newTarget, ok = m.rename(linkName, false); !ok || newTarget == "." {
+				if newTarget, ok, err = m.rename(nil, linkName, false); err != nil {
+					return nil, false, true, err
+				}
+				if !ok || newTarget == "." {
 					// the link target wasn't passed along
 					needReplacement = true
 				}
@@ -616,7 +635,7 @@ func (m *archiveMapper) Filter(h *tar.Header, r io.Reader) ([]byte, bool, bool, 
 	return nil, false, false, nil
 }
 
-func archiveOptionsFor(infos []CopyInfo, dst string, excludes []string, check DirectoryCheck) (*archive.TarOptions, error) {
+func archiveOptionsFor(directory string, infos []CopyInfo, dst string, excludes []string, check DirectoryCheck) (*archive.TarOptions, error) {
 	dst = trimLeadingPath(dst)
 	dstIsDir := strings.HasSuffix(dst, "/") || dst == "." || dst == "/" || strings.HasSuffix(dst, "/.")
 	dst = trimTrailingSlash(dst)
@@ -637,6 +656,22 @@ func archiveOptionsFor(infos []CopyInfo, dst string, excludes []string, check Di
 	pm, err := fileutils.NewPatternMatcher(excludes)
 	if err != nil {
 		return options, nil
+	}
+
+	if !dstIsDir {
+		for _, info := range infos {
+			if ok, _ := pm.Matches(info.Path); ok {
+				continue
+			}
+			infoPath := info.Path
+			if directory != "" {
+				infoPath = filepath.Join(directory, infoPath)
+			}
+			if isArchivePath(infoPath) {
+				dstIsDir = true
+				break
+			}
+		}
 	}
 
 	for _, info := range infos {
