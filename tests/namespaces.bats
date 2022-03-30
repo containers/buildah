@@ -262,9 +262,11 @@ idmapping_check_permission() {
     # Check that if we copy a directory into the container, its contents get the right permissions.
     output_dir_stat="$(grep -A1 'StatSomedirResult' <<< "$output" | tail -n1)"
     output_otherfile_stat="$(grep -A1 'StatSomeotherfileResult' <<< "$output" | tail -n1)"
+    output_workdir_stat="$(grep -A1 'StatNewWorkdir' <<< "$output" | tail -n1)"
     # bud strips suid.
     idmapping_check_permission "$output_file_stat" "$output_dir_stat"
     expect_output --from="${output_otherfile_stat}" "0:0 700" "stat(someotherfile), in bud test"
+    expect_output --from="${output_workdir_stat}" "guest:users" "stat(new-workdir), in bud test"
   done
 }
 

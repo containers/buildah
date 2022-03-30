@@ -191,16 +191,19 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return err
 	}
 
-	// Figure out who owns files that will appear to be owned by UID/GID 0 in the container.
-	rootUID, rootGID, err := util.GetHostRootIDs(spec)
-	if err != nil {
-		return err
+	uid, gid := spec.Process.User.UID, spec.Process.User.GID
+	if spec.Linux != nil {
+		uid, gid, err = util.GetHostIDs(spec.Linux.UIDMappings, spec.Linux.GIDMappings, uid, gid)
+		if err != nil {
+			return err
+		}
 	}
-	rootIDPair := &idtools.IDPair{UID: int(rootUID), GID: int(rootGID)}
+
+	idPair := &idtools.IDPair{UID: int(uid), GID: int(gid)}
 
 	mode := os.FileMode(0755)
 	coptions := copier.MkdirOptions{
-		ChownNew: rootIDPair,
+		ChownNew: idPair,
 		ChmodNew: &mode,
 	}
 	if err := copier.Mkdir(mountPoint, filepath.Join(mountPoint, spec.Process.Cwd), coptions); err != nil {
@@ -210,6 +213,13 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	bindFiles := make(map[string]string)
 	namespaceOptions := append(b.NamespaceOptions, options.NamespaceOptions...)
 	volumes := b.Volumes()
+
+	// Figure out who owns files that will appear to be owned by UID/GID 0 in the container.
+	rootUID, rootGID, err := util.GetHostRootIDs(spec)
+	if err != nil {
+		return err
+	}
+	rootIDPair := &idtools.IDPair{UID: int(rootUID), GID: int(rootGID)}
 
 	if !options.NoHosts && !contains(volumes, "/etc/hosts") {
 		hostFile, err := b.generateHosts(path, spec.Hostname, b.CommonBuildOpts.AddHost, rootIDPair)

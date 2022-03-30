@@ -7,3 +7,6 @@ RUN echo "StatSomefileResult" && stat -c '%u:%g' /somefile
 COPY somedir /somedir
 RUN echo "StatSomedirResult" && stat -c '%u:%g' /somedir
 RUN echo "StatSomeotherfileResult" && stat -c '%u:%g %a' /somedir/someotherfile
+USER guest
+WORKDIR /new-workdir
+RUN echo "StatNewWorkdir" && stat -c '%U:%G' $PWD

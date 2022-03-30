@@ -682,10 +682,26 @@ func (e *ClientExecutor) Preserve(path string) error {
 }
 
 func (e *ClientExecutor) EnsureContainerPath(path string) error {
-	return e.createOrReplaceContainerPathWithOwner(path, 0, 0)
+	return e.createOrReplaceContainerPathWithOwner(path, 0, 0, nil)
 }
 
-func (e *ClientExecutor) createOrReplaceContainerPathWithOwner(path string, uid, gid int) error {
+func (e *ClientExecutor) EnsureContainerPathAs(path, user string, mode *os.FileMode) error {
+	uid, gid := 0, 0
+
+	u, g, err := e.getUser(user)
+	if err == nil {
+		uid = u
+		gid = g
+	}
+
+	return e.createOrReplaceContainerPathWithOwner(path, uid, gid, mode)
+}
+
+func (e *ClientExecutor) createOrReplaceContainerPathWithOwner(path string, uid, gid int, mode *os.FileMode) error {
+	if mode == nil {
+		m := os.FileMode(0755)
+		mode = &m
+	}
 	createPath := func(dest string) error {
 		var writerErr error
 		if !strings.HasSuffix(dest, "/") {
@@ -704,7 +720,7 @@ func (e *ClientExecutor) createOrReplaceContainerPathWithOwner(path string, uid,
 			writerErr = tarball.WriteHeader(&tar.Header{
 				Name:     dest,
 				Typeflag: tar.TypeDir,
-				Mode:     0755,
+				Mode:     int64(*mode),
 				Uid:      uid,
 				Gid:      gid,
 			})
@@ -848,21 +864,22 @@ func (e *ClientExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) er
 	return e.CopyContainer(e.Container, excludes, copies...)
 }
 
-// CopyContainer copies the provided content into a destination container.
-func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []string, copies ...imagebuilder.Copy) error {
-	chownUid, chownGid := -1, -1
-	chown := func(h *tar.Header, r io.Reader) (data []byte, update bool, skip bool, err error) {
-		if chownUid != -1 {
-			h.Uid = chownUid
+func (e *ClientExecutor) findMissingParents(container *docker.Container, dest string) (parents []string, err error) {
+	destParent := filepath.Clean(dest)
+	for filepath.Dir(destParent) != destParent {
+		exists, err := isContainerPathDirectory(e.Client, container.ID, destParent)
+		if err != nil {
+			return nil, err
 		}
-		if chownGid != -1 {
-			h.Gid = chownGid
+		if !exists {
+			parents = append(parents, destParent)
 		}
-		if (h.Uid > 0x1fffff || h.Gid > 0x1fffff) && h.Format == tar.FormatUSTAR {
-			h.Format = tar.FormatPAX
-		}
-		return nil, false, false, nil
+		destParent = filepath.Dir(destParent)
 	}
+	return parents, nil
+}
+
+func (e *ClientExecutor) getUser(userspec string) (int, int, error) {
 	readFile := func(path string) ([]byte, error) {
 		var buffer, contents bytes.Buffer
 		if err := e.Client.DownloadFromContainer(e.Container.ID, docker.DownloadFromContainerOptions{
@@ -922,89 +939,96 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 		}
 		return *value, nil
 	}
-	findMissingParents := func(dest string) (parents []string, err error) {
-		destParent := filepath.Clean(dest)
-		for filepath.Dir(destParent) != destParent {
-			exists, err := isContainerPathDirectory(e.Client, container.ID, destParent)
+
+	spec := strings.SplitN(userspec, ":", 2)
+	if len(spec) == 2 {
+		parsedUid, err := strconv.ParseUint(spec[0], 10, 32)
+		if err != nil {
+			// maybe it's a user name? look up the UID
+			passwdFile, err := readFile("/etc/passwd")
 			if err != nil {
-				return nil, err
+				return -1, -1, err
 			}
-			if !exists {
-				parents = append(parents, destParent)
+			uid, err := parse(passwdFile, 0, spec[0], 7, 2)
+			if err != nil {
+				return -1, -1, fmt.Errorf("error reading UID value from passwd file for --chown=%s: %v", spec[0], err)
 			}
-			destParent = filepath.Dir(destParent)
+			parsedUid, err = strconv.ParseUint(uid, 10, 32)
+			if err != nil {
+				return -1, -1, fmt.Errorf("error parsing UID value %q from passwd file for --chown=%s", uid, userspec)
+			}
 		}
-		return parents, nil
+		parsedGid, err := strconv.ParseUint(spec[1], 10, 32)
+		if err != nil {
+			// maybe it's a group name? look up the GID
+			groupFile, err := readFile("/etc/group")
+			if err != nil {
+				return -1, -1, err
+			}
+			gid, err := parse(groupFile, 0, spec[1], 4, 2)
+			if err != nil {
+				return -1, -1, err
+			}
+			parsedGid, err = strconv.ParseUint(gid, 10, 32)
+			if err != nil {
+				return -1, -1, fmt.Errorf("error parsing GID value %q from group file for --chown=%s", gid, userspec)
+			}
+		}
+		return int(parsedUid), int(parsedGid), nil
+	}
+
+	var parsedUid, parsedGid uint64
+	if id, err := strconv.ParseUint(spec[0], 10, 32); err == nil {
+		// it's an ID. use it as both the UID and the GID
+		parsedUid = id
+		parsedGid = id
+	} else {
+		// it's a user name, we'll need to look up their UID and primary GID
+		passwdFile, err := readFile("/etc/passwd")
+		if err != nil {
+			return -1, -1, err
+		}
+		// read the UID and primary GID
+		uid, err := parse(passwdFile, 0, spec[0], 7, 2)
+		if err != nil {
+			return -1, -1, fmt.Errorf("error reading UID value from /etc/passwd for --chown=%s", userspec)
+		}
+		gid, err := parse(passwdFile, 0, spec[0], 7, 3)
+		if err != nil {
+			return -1, -1, fmt.Errorf("error reading GID value from /etc/passwd for --chown=%s", userspec)
+		}
+		if parsedUid, err = strconv.ParseUint(uid, 10, 32); err != nil {
+			return -1, -1, fmt.Errorf("error parsing UID value %q from /etc/passwd for --chown=%s", uid, userspec)
+		}
+		if parsedGid, err = strconv.ParseUint(gid, 10, 32); err != nil {
+			return -1, -1, fmt.Errorf("error parsing GID value %q from /etc/passwd for --chown=%s", gid, userspec)
+		}
+	}
+	return int(parsedUid), int(parsedGid), nil
+}
+
+// CopyContainer copies the provided content into a destination container.
+func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []string, copies ...imagebuilder.Copy) error {
+	chownUid, chownGid := -1, -1
+	chown := func(h *tar.Header, r io.Reader) (data []byte, update bool, skip bool, err error) {
+		if chownUid != -1 {
+			h.Uid = chownUid
+		}
+		if chownGid != -1 {
+			h.Gid = chownGid
+		}
+		if (h.Uid > 0x1fffff || h.Gid > 0x1fffff) && h.Format == tar.FormatUSTAR {
+			h.Format = tar.FormatPAX
+		}
+		return nil, false, false, nil
 	}
 	for _, c := range copies {
 		chownUid, chownGid = -1, -1
 		if c.Chown != "" {
-			spec := strings.SplitN(c.Chown, ":", 2)
-			if len(spec) == 2 {
-				parsedUid, err := strconv.ParseUint(spec[0], 10, 32)
-				if err != nil {
-					// maybe it's a user name? look up the UID
-					passwdFile, err := readFile("/etc/passwd")
-					if err != nil {
-						return err
-					}
-					uid, err := parse(passwdFile, 0, spec[0], 7, 2)
-					if err != nil {
-						return fmt.Errorf("error reading UID value from passwd file for --chown=%s: %v", spec[0], err)
-					}
-					parsedUid, err = strconv.ParseUint(uid, 10, 32)
-					if err != nil {
-						return fmt.Errorf("error parsing UID value %q from passwd file for --chown=%s", uid, c.Chown)
-					}
-				}
-				parsedGid, err := strconv.ParseUint(spec[1], 10, 32)
-				if err != nil {
-					// maybe it's a group name? look up the GID
-					groupFile, err := readFile("/etc/group")
-					if err != nil {
-						return err
-					}
-					gid, err := parse(groupFile, 0, spec[1], 4, 2)
-					if err != nil {
-						return err
-					}
-					parsedGid, err = strconv.ParseUint(gid, 10, 32)
-					if err != nil {
-						return fmt.Errorf("error parsing GID value %q from group file for --chown=%s", gid, c.Chown)
-					}
-				}
-				chownUid = int(parsedUid)
-				chownGid = int(parsedGid)
-			} else {
-				var parsedUid, parsedGid uint64
-				if id, err := strconv.ParseUint(spec[0], 10, 32); err == nil {
-					// it's an ID. use it as both the UID and the GID
-					parsedUid = id
-					parsedGid = id
-				} else {
-					// it's a user name, we'll need to look up their UID and primary GID
-					passwdFile, err := readFile("/etc/passwd")
-					if err != nil {
-						return err
-					}
-					// read the UID and primary GID
-					uid, err := parse(passwdFile, 0, spec[0], 7, 2)
-					if err != nil {
-						return fmt.Errorf("error reading UID value from /etc/passwd for --chown=%s", c.Chown)
-					}
-					gid, err := parse(passwdFile, 0, spec[0], 7, 3)
-					if err != nil {
-						return fmt.Errorf("error reading GID value from /etc/passwd for --chown=%s", c.Chown)
-					}
-					if parsedUid, err = strconv.ParseUint(uid, 10, 32); err != nil {
-						return fmt.Errorf("error parsing UID value %q from /etc/passwd for --chown=%s", uid, c.Chown)
-					}
-					if parsedGid, err = strconv.ParseUint(gid, 10, 32); err != nil {
-						return fmt.Errorf("error parsing GID value %q from /etc/passwd for --chown=%s", gid, c.Chown)
-					}
-				}
-				chownUid = int(parsedUid)
-				chownGid = int(parsedGid)
+			var err error
+			chownUid, chownGid, err = e.getUser(c.Chown)
+			if err != nil {
+				return err
 			}
 		}
 		// TODO: reuse source
@@ -1012,12 +1036,20 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 			if src == "" {
 				src = "*"
 			}
+			assumeDstIsDirectory := len(c.Src) > 1
+		repeatThisSrc:
 			klog.V(4).Infof("Archiving %s download=%t fromFS=%t from=%s", src, c.Download, c.FromFS, c.From)
 			var r io.Reader
 			var closer io.Closer
 			var err error
 			if len(c.From) > 0 {
-				r, closer, err = e.archiveFromContainer(c.From, src, c.Dest)
+				if !assumeDstIsDirectory {
+					var err error
+					if assumeDstIsDirectory, err = e.isContainerGlobMultiple(e.Client, c.From, src); err != nil {
+						return err
+					}
+				}
+				r, closer, err = e.archiveFromContainer(c.From, src, c.Dest, assumeDstIsDirectory)
 			} else {
 				r, closer, err = e.Archive(c.FromFS, src, c.Dest, c.Download, excludes)
 			}
@@ -1027,7 +1059,11 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 			asOwner := ""
 			if c.Chown != "" {
 				asOwner = fmt.Sprintf(" as %d:%d", chownUid, chownGid)
-				missingParents, err := findMissingParents(c.Dest)
+				// the daemon would implicitly create missing
+				// directories with the wrong ownership, so
+				// check for any that don't exist and create
+				// them ourselves
+				missingParents, err := e.findMissingParents(container, c.Dest)
 				if err != nil {
 					return err
 				}
@@ -1035,7 +1071,7 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 					sort.Strings(missingParents)
 					klog.V(5).Infof("Uploading directories %v to %s%s", missingParents, container.ID, asOwner)
 					for _, missingParent := range missingParents {
-						if err := e.createOrReplaceContainerPathWithOwner(missingParent, chownUid, chownGid); err != nil {
+						if err := e.createOrReplaceContainerPathWithOwner(missingParent, chownUid, chownGid, nil); err != nil {
 							return err
 						}
 					}
@@ -1050,6 +1086,13 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 			if klog.V(6) {
 				logArchiveOutput(r, "Archive file for %s")
 			}
+			// add a workaround allow us to notice if a
+			// dstNeedsToBeDirectoryError was returned while
+			// attempting to read the data we're uploading,
+			// indicating that we thought the content would be just
+			// one item, but it actually isn't
+			reader := &readErrorWrapper{Reader: r}
+			r = reader
 			err = e.Client.UploadToContainer(container.ID, docker.UploadToContainerOptions{
 				InputStream: r,
 				Path:        "/",
@@ -1058,11 +1101,28 @@ func (e *ClientExecutor) CopyContainer(container *docker.Container, excludes []s
 				klog.Errorf("Error while closing stream container copy stream %s: %v", container.ID, err)
 			}
 			if err != nil {
+				if errors.Is(reader.err, dstNeedsToBeDirectoryError) && !assumeDstIsDirectory {
+					assumeDstIsDirectory = true
+					goto repeatThisSrc
+				}
+				if apiErr, ok := err.(*docker.Error); ok && apiErr.Status == 404 {
+					klog.V(4).Infof("path %s did not exist in container %s: %v", src, container.ID, err)
+				}
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+type readErrorWrapper struct {
+	io.Reader
+	err error
+}
+
+func (r *readErrorWrapper) Read(p []byte) (n int, err error) {
+	n, r.err = r.Reader.Read(p)
+	return n, r.err
 }
 
 type closers []func() error
@@ -1077,7 +1137,7 @@ func (c closers) Close() error {
 	return lastErr
 }
 
-func (e *ClientExecutor) archiveFromContainer(from string, src, dst string) (io.Reader, io.Closer, error) {
+func (e *ClientExecutor) archiveFromContainer(from string, src, dst string, multipleSources bool) (io.Reader, io.Closer, error) {
 	var containerID string
 	if other, ok := e.Named[from]; ok {
 		if other.Container == nil {
@@ -1114,7 +1174,7 @@ func (e *ClientExecutor) archiveFromContainer(from string, src, dst string) (io.
 		})
 		pw.CloseWithError(err)
 	}
-	ar, archiveRoot, err := archiveFromContainer(pr, src, dst, nil, check, fetch)
+	ar, archiveRoot, err := archiveFromContainer(pr, src, dst, nil, check, fetch, multipleSources)
 	if err != nil {
 		pr.Close()
 		pw.Close()
@@ -1130,6 +1190,51 @@ func (e *ClientExecutor) archiveFromContainer(from string, src, dst string) (io.
 	})
 	go fetch(pw)
 	return &readCloser{Reader: ar, Closer: closer}, pr, nil
+}
+
+func (e *ClientExecutor) isContainerGlobMultiple(client *docker.Client, from, glob string) (bool, error) {
+	reader, closer, err := e.archiveFromContainer(from, glob, "/ignored", true)
+	if err != nil {
+		return false, nil
+	}
+
+	defer closer.Close()
+	tr := tar.NewReader(reader)
+
+	h, err := tr.Next()
+	if err != nil {
+		if err == io.EOF {
+			err = nil
+		} else {
+			if apiErr, ok := err.(*docker.Error); ok && apiErr.Status == 404 {
+				klog.V(4).Infof("path %s did not exist in container %s: %v", glob, e.Container.ID, err)
+				err = nil
+			}
+		}
+		return false, err
+	}
+
+	klog.V(4).Infof("Retrieved first header from %s using glob %s: %#v", from, glob, h)
+
+	h, err = tr.Next()
+	if err != nil {
+		if err == io.EOF {
+			err = nil
+		}
+		return false, err
+	}
+
+	klog.V(4).Infof("Retrieved second header from %s using glob %s: %#v", from, glob, h)
+
+	// take the remainder of the input and discard it
+	go func() {
+		n, err := io.Copy(ioutil.Discard, reader)
+		if n > 0 || err != nil {
+			klog.V(6).Infof("Discarded %d bytes from end of from glob check, and got error: %v", n, err)
+		}
+	}()
+
+	return true, nil
 }
 
 func (e *ClientExecutor) Archive(fromFS bool, src, dst string, allowDownload bool, excludes []string) (io.Reader, io.Closer, error) {

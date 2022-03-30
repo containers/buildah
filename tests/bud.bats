@@ -4003,3 +4003,11 @@ _EOF
     expect_output --substring "10.88."
   fi
 }
+
+@test "bud WORKDIR owned by USER" {
+  _prefetch alpine
+  target=alpine-image
+  ctr=alpine-ctr
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/workdir-user
+  expect_output --substring "1000:1000 /home/http/public"
+}
