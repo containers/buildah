@@ -3607,6 +3607,7 @@ _EOF
 }
 
 @test "bud-multiple-platform-no-run" {
+  skip "Frequently flakes: https://github.com/containers/buildah/issues/3710"
   outputlist=localhost/testlist
   run_buildah build --signature-policy ${TESTSDIR}/policy.json --jobs=0 --all-platforms --manifest $outputlist -f ${TESTSDIR}/bud/multiarch/Dockerfile.no-run ${TESTSDIR}/bud/multiarch
   run_buildah manifest inspect $outputlist
