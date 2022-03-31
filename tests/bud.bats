@@ -3157,6 +3157,23 @@ _EOF
 
 }
 
+@test "bud - invalid runtime flags test" {
+  skip_if_no_runtime
+  skip_if_chroot
+
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run echo hello
+_EOF
+
+    run_buildah 1 build --signature-policy ${TESTSDIR}/policy.json --runtime-flag invalidflag -t build_test $mytmpdir .
+    assert "$output" =~ ".*invalidflag" "failed when passing undefined flags to the runtime"
+}
+
 @test "bud with --add-host" {
   skip_if_no_runtime
 
