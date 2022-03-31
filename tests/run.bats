@@ -533,3 +533,16 @@ function configure_and_check_user() {
 	expect_output --substring "nameserver 110.110.0.110"
 	run_buildah rm -a
 }
+
+@test "run-inheritable-capabilities" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run $cid grep ^CapInh: /proc/self/status
+	expect_output "CapInh:	0000000000000000"
+	run_buildah run --cap-add=ALL $cid grep ^CapInh: /proc/self/status
+	expect_output "CapInh:	0000000000000000"
+}
