@@ -2,6 +2,15 @@
 
 # Changelog
 
+## v1.24.3 (2022-03-01)
+
+    vendor: bump c/common to 0.47.5
+    Add a test for CVE-2022-27651
+    do not set the inheritable capabilities
+    Bump github.com/prometheus/client_golang to v1.11.1
+    vendor: bump c/image to v5.19.2
+    vendor: bump c/storage to v1.38.3
+
 ## v1.24.2 (2022-02-16)
 
     Increase subuid/subgid to 65535

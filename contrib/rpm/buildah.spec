@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.24.2
+Version:        1.24.3
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,14 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Mar 31, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.3-1
+- vendor: bump c/common to 0.47.5
+- Add a test for CVE-2022-27651
+- do not set the inheritable capabilities
+- Bump github.com/prometheus/client_golang to v1.11.1
+- vendor: bump c/image to v5.19.2
+- vendor: bump c/storage to v1.38.3
+
 * Wed Feb 16, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.2-1
 - Increase subuid/subgid to 65535
 - history: only add proxy vars to history if specified
