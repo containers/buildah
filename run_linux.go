@@ -2284,23 +2284,23 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 	}()
 
 	// create network configuration pipes
-	var containerCreateR, containerCreateW *os.File
-	var containerStartR, containerStartW *os.File
+	var containerCreateR, containerCreateW fileCloser
+	var containerStartR, containerStartW fileCloser
 	if configureNetwork {
-		containerCreateR, containerCreateW, err = os.Pipe()
+		containerCreateR.file, containerCreateW.file, err = os.Pipe()
 		if err != nil {
 			return errors.Wrapf(err, "error creating container create pipe")
 		}
 		defer containerCreateR.Close()
 		defer containerCreateW.Close()
 
-		containerStartR, containerStartW, err = os.Pipe()
+		containerStartR.file, containerStartW.file, err = os.Pipe()
 		if err != nil {
 			return errors.Wrapf(err, "error creating container create pipe")
 		}
 		defer containerStartR.Close()
 		defer containerStartW.Close()
-		cmd.ExtraFiles = []*os.File{containerCreateW, containerStartR}
+		cmd.ExtraFiles = []*os.File{containerCreateW.file, containerStartR.file}
 	}
 
 	cmd.ExtraFiles = append([]*os.File{preader}, cmd.ExtraFiles...)
@@ -2321,7 +2321,9 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 	signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
 	if configureNetwork {
-		if err := waitForSync(containerCreateR); err != nil {
+		// we already passed the fd to the child, now close the writer so we do not hang if the child closes it
+		containerCreateW.Close()
+		if err := waitForSync(containerCreateR.file); err != nil {
 			// we do not want to return here since we want to capture the exit code from the child via cmd.Wait()
 			// close the pipes here so that the child will not hang forever
 			containerCreateR.Close()
@@ -2347,7 +2349,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 			}
 
 			logrus.Debug("network namespace successfully setup, send start message to child")
-			_, err = containerStartW.Write([]byte{1})
+			_, err = containerStartW.file.Write([]byte{1})
 			if err != nil {
 				return err
 			}
@@ -2367,6 +2369,22 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		logrus.Debugf("%v", conferr)
 	}
 	return err
+}
+
+// fileCloser is a helper struct to prevent closing the file twice in the code
+// users must call (fileCloser).Close() and not fileCloser.File.Close()
+type fileCloser struct {
+	file   *os.File
+	closed bool
+}
+
+func (f *fileCloser) Close() {
+	if !f.closed {
+		if err := f.file.Close(); err != nil {
+			logrus.Errorf("failed to close file: %v", err)
+		}
+		f.closed = true
+	}
 }
 
 // waitForSync waits for a maximum of 4 minutes to read something from the file
