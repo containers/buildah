@@ -7,7 +7,6 @@ import (
 
 	"github.com/opencontainers/runtime-tools/generate"
 	selinux "github.com/opencontainers/selinux/go-selinux"
-	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
 
@@ -33,7 +32,7 @@ func runLabelStdioPipes(stdioPipe [][]int, processLabel, mountLabel string) erro
 	}
 	for i := range stdioPipe {
 		pipeFdName := fmt.Sprintf("/proc/self/fd/%d", stdioPipe[i][0])
-		if err := label.Relabel(pipeFdName, pipeContext, false); err != nil {
+		if err := selinux.Chcon(pipeFdName, pipeContext, false); err != nil {
 			return errors.Wrapf(err, "setting file label on %q", pipeFdName)
 		}
 	}
