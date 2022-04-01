@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -191,16 +192,19 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		return err
 	}
 
-	// Figure out who owns files that will appear to be owned by UID/GID 0 in the container.
-	rootUID, rootGID, err := util.GetHostRootIDs(spec)
-	if err != nil {
-		return err
+	uid, gid := spec.Process.User.UID, spec.Process.User.GID
+	if spec.Linux != nil {
+		uid, gid, err = util.GetHostIDs(spec.Linux.UIDMappings, spec.Linux.GIDMappings, uid, gid)
+		if err != nil {
+			return err
+		}
 	}
-	rootIDPair := &idtools.IDPair{UID: int(rootUID), GID: int(rootGID)}
+
+	idPair := &idtools.IDPair{UID: int(uid), GID: int(gid)}
 
 	mode := os.FileMode(0755)
 	coptions := copier.MkdirOptions{
-		ChownNew: rootIDPair,
+		ChownNew: idPair,
 		ChmodNew: &mode,
 	}
 	if err := copier.Mkdir(mountPoint, filepath.Join(mountPoint, spec.Process.Cwd), coptions); err != nil {
@@ -210,6 +214,13 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	bindFiles := make(map[string]string)
 	namespaceOptions := append(b.NamespaceOptions, options.NamespaceOptions...)
 	volumes := b.Volumes()
+
+	// Figure out who owns files that will appear to be owned by UID/GID 0 in the container.
+	rootUID, rootGID, err := util.GetHostRootIDs(spec)
+	if err != nil {
+		return err
+	}
+	rootIDPair := &idtools.IDPair{UID: int(rootUID), GID: int(rootGID)}
 
 	if !options.NoHosts && !contains(volumes, "/etc/hosts") {
 		hostFile, err := b.generateHosts(path, spec.Hostname, b.CommonBuildOpts.AddHost, rootIDPair)
@@ -290,9 +301,7 @@ rootless=%d
 	case define.IsolationOCI:
 		var moreCreateArgs []string
 		if options.NoPivot {
-			moreCreateArgs = []string{"--no-pivot"}
-		} else {
-			moreCreateArgs = nil
+			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
 		}
 		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, define.Package+"-"+filepath.Base(path))
 	case IsolationChroot:
@@ -829,7 +838,7 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	if err = unix.Pipe(finishCopy); err != nil {
 		return 1, errors.Wrapf(err, "error creating pipe for notifying to stop stdio")
 	}
-	finishedCopy := make(chan struct{})
+	finishedCopy := make(chan struct{}, 1)
 	var pargs []string
 	if spec.Process != nil {
 		pargs = spec.Process.Args
@@ -885,22 +894,27 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	pidFile := filepath.Join(bundlePath, "pid")
 	args := append(append(append(runtimeArgs, "create", "--bundle", bundlePath, "--pid-file", pidFile), moreCreateArgs...), containerName)
 	create := exec.Command(runtime, args...)
+	setPdeathsig(create)
 	create.Dir = bundlePath
 	stdin, stdout, stderr := getCreateStdio()
 	create.Stdin, create.Stdout, create.Stderr = stdin, stdout, stderr
-	if create.SysProcAttr == nil {
-		create.SysProcAttr = &syscall.SysProcAttr{}
-	}
 
 	args = append(options.Args, "start", containerName)
 	start := exec.Command(runtime, args...)
+	setPdeathsig(start)
 	start.Dir = bundlePath
 	start.Stderr = os.Stderr
 
-	args = append(options.Args, "kill", containerName)
-	kill := exec.Command(runtime, args...)
-	kill.Dir = bundlePath
-	kill.Stderr = os.Stderr
+	kill := func(signal string) *exec.Cmd {
+		args := append(options.Args, "kill", containerName)
+		if signal != "" {
+			args = append(args, signal)
+		}
+		kill := exec.Command(runtime, args...)
+		kill.Dir = bundlePath
+		kill.Stderr = os.Stderr
+		return kill
+	}
 
 	args = append(options.Args, "delete", containerName)
 	del := exec.Command(runtime, args...)
@@ -981,13 +995,23 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 	}
 	defer func() {
 		if atomic.LoadUint32(&stopped) == 0 {
-			if err2 := kill.Run(); err2 != nil {
-				options.Logger.Infof("error from %s stopping container: %v", runtime, err2)
+			if err := kill("").Run(); err != nil {
+				options.Logger.Infof("error from %s stopping container: %v", runtime, err)
 			}
+			atomic.StoreUint32(&stopped, 1)
 		}
 	}()
 
 	// Wait for the container to exit.
+	interrupted := make(chan os.Signal, 100)
+	go func() {
+		for range interrupted {
+			if err := kill("SIGKILL").Run(); err != nil {
+				logrus.Errorf("%v sending SIGKILL", err)
+			}
+		}
+	}()
+	signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 	for {
 		now := time.Now()
 		var state specs.State
@@ -1026,6 +1050,8 @@ func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs [
 			break
 		}
 	}
+	signal.Stop(interrupted)
+	close(interrupted)
 
 	// Close the writing end of the stop-handling-stdio notification pipe.
 	unix.Close(finishCopy[1])
@@ -1112,6 +1138,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 	}
 
 	cmd := exec.Command(slirp4netns, "--mtu", "65520", "-r", "3", "-c", strconv.Itoa(pid), "tap0")
+	setPdeathsig(cmd)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
 	cmd.ExtraFiles = []*os.File{rootlessSlirpSyncW}
 
@@ -1229,6 +1256,7 @@ func runCopyStdio(logger *logrus.Logger, stdio *sync.WaitGroup, copyPipes bool, 
 		}
 		stdio.Done()
 		finishedCopy <- struct{}{}
+		close(finishedCopy)
 	}()
 	// Map describing where data on an incoming descriptor should go.
 	relayMap := make(map[int]int)
@@ -2227,6 +2255,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		return errors.Wrapf(conferr, "error encoding configuration for %q", runUsingRuntimeCommand)
 	}
 	cmd := reexec.Command(runUsingRuntimeCommand)
+	setPdeathsig(cmd)
 	cmd.Dir = bundlePath
 	cmd.Stdin = options.Stdin
 	if cmd.Stdin == nil {
@@ -2255,23 +2284,23 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 	}()
 
 	// create network configuration pipes
-	var containerCreateR, containerCreateW *os.File
-	var containerStartR, containerStartW *os.File
+	var containerCreateR, containerCreateW fileCloser
+	var containerStartR, containerStartW fileCloser
 	if configureNetwork {
-		containerCreateR, containerCreateW, err = os.Pipe()
+		containerCreateR.file, containerCreateW.file, err = os.Pipe()
 		if err != nil {
 			return errors.Wrapf(err, "error creating container create pipe")
 		}
 		defer containerCreateR.Close()
 		defer containerCreateW.Close()
 
-		containerStartR, containerStartW, err = os.Pipe()
+		containerStartR.file, containerStartW.file, err = os.Pipe()
 		if err != nil {
 			return errors.Wrapf(err, "error creating container create pipe")
 		}
 		defer containerStartR.Close()
 		defer containerStartW.Close()
-		cmd.ExtraFiles = []*os.File{containerCreateW, containerStartR}
+		cmd.ExtraFiles = []*os.File{containerCreateW.file, containerStartR.file}
 	}
 
 	cmd.ExtraFiles = append([]*os.File{preader}, cmd.ExtraFiles...)
@@ -2281,8 +2310,20 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		return errors.Wrapf(err, "error while starting runtime")
 	}
 
+	interrupted := make(chan os.Signal, 100)
+	go func() {
+		for receivedSignal := range interrupted {
+			if err := cmd.Process.Signal(receivedSignal); err != nil {
+				logrus.Infof("%v while attempting to forward %v to child process", err, receivedSignal)
+			}
+		}
+	}()
+	signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+
 	if configureNetwork {
-		if err := waitForSync(containerCreateR); err != nil {
+		// we already passed the fd to the child, now close the writer so we do not hang if the child closes it
+		containerCreateW.Close()
+		if err := waitForSync(containerCreateR.file); err != nil {
 			// we do not want to return here since we want to capture the exit code from the child via cmd.Wait()
 			// close the pipes here so that the child will not hang forever
 			containerCreateR.Close()
@@ -2308,16 +2349,19 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 			}
 
 			logrus.Debug("network namespace successfully setup, send start message to child")
-			_, err = containerStartW.Write([]byte{1})
+			_, err = containerStartW.file.Write([]byte{1})
 			if err != nil {
 				return err
 			}
 		}
 	}
+
 	if err := cmd.Wait(); err != nil {
 		return errors.Wrapf(err, "error while running runtime")
 	}
 	confwg.Wait()
+	signal.Stop(interrupted)
+	close(interrupted)
 	if err == nil {
 		return conferr
 	}
@@ -2325,6 +2369,22 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 		logrus.Debugf("%v", conferr)
 	}
 	return err
+}
+
+// fileCloser is a helper struct to prevent closing the file twice in the code
+// users must call (fileCloser).Close() and not fileCloser.File.Close()
+type fileCloser struct {
+	file   *os.File
+	closed bool
+}
+
+func (f *fileCloser) Close() {
+	if !f.closed {
+		if err := f.file.Close(); err != nil {
+			logrus.Errorf("failed to close file: %v", err)
+		}
+		f.closed = true
+	}
 }
 
 // waitForSync waits for a maximum of 4 minutes to read something from the file
@@ -2898,4 +2958,12 @@ func getNetworkInterface(store storage.Store, cniConfDir, cniPluginPath string) 
 		return nil, err
 	}
 	return netInt, nil
+}
+
+// setPdeathsig sets a parent-death signal for the process
+func setPdeathsig(cmd *exec.Cmd) {
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.Pdeathsig = syscall.SIGKILL
 }

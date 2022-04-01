@@ -3157,6 +3157,23 @@ _EOF
 
 }
 
+@test "bud - invalid runtime flags test" {
+  skip_if_no_runtime
+  skip_if_chroot
+
+  _prefetch alpine
+
+  mytmpdir=${TESTDIR}/my-dir
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/Containerfile << _EOF
+from alpine
+run echo hello
+_EOF
+
+    run_buildah 1 build --signature-policy ${TESTSDIR}/policy.json --runtime-flag invalidflag -t build_test $mytmpdir .
+    assert "$output" =~ ".*invalidflag" "failed when passing undefined flags to the runtime"
+}
+
 @test "bud with --add-host" {
   skip_if_no_runtime
 
@@ -4002,4 +4019,37 @@ _EOF
     # default subnet is 10.88.0.0/16
     expect_output --substring "10.88."
   fi
+}
+
+@test "bud WORKDIR owned by USER" {
+  _prefetch alpine
+  target=alpine-image
+  ctr=alpine-ctr
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/workdir-user
+  expect_output --substring "1000:1000 /home/http/public"
+}
+
+@test "build interruption" {
+  skip_if_no_runtime
+
+  _prefetch alpine
+
+  mkfifo ${TESTDIR}/pipe
+  # start the build running in the background - don't use the function wrapper because that sets '$!' to a value that's not what we want
+  ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} --signature-policy ${TESTSDIR}/policy.json build ${TESTSDIR}/bud/long-sleep > ${TESTDIR}/pipe 2>&1 &
+  buildah_pid="${!}"
+  echo buildah is pid ${buildah_pid}
+  # save what's written to the fifo to a plain file
+  coproc cat ${TESTDIR}/pipe > ${TESTDIR}/log
+  cat_pid="${COPROC_PID}"
+  echo cat is pid ${cat_pid}
+  # kill the buildah process early
+  sleep 30
+  kill -s SIGINT "${buildah_pid}"
+  # wait for output to stop getting written from anywhere
+  wait "${buildah_pid}" "${cat_pid}"
+  echo log:
+  cat ${TESTDIR}/log
+  echo checking:
+  ! grep 'not fully killed' ${TESTDIR}/log
 }

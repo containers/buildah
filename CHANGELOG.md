@@ -2,6 +2,18 @@
 
 # Changelog
 
+## v1.25.1 (2022-03-30)
+
+    buildah: create WORKDIR with USER permissions
+    vendor: update github.com/openshift/imagebuilder
+    copier: attempt to open the dir before adding it
+    Updated dependabot to get updates for GitHub actions.
+    Switch most calls to filepath.Walk to filepath.WalkDir
+    build: allow --no-cache and --layers so build cache can be overrided
+    build(deps): bump github.com/onsi/gomega from 1.18.1 to 1.19.0
+    Bump to v1.26.0-dev
+    build(deps): bump github.com/golangci/golangci-lint in /tests/tools
+
 ## v1.25.0 (2022-03-25)
 
     install: drop RHEL/CentOS 7 doc
