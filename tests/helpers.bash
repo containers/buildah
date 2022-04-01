@@ -456,6 +456,15 @@ function skip_if_rootless_environment() {
     fi
 }
 
+#################################
+#  skip_if_root_environment     #
+#################################
+function skip_if_root_environment() {
+    if ! is_rootless; then
+        skip "${1:-test is being invoked from root environment}"
+    fi
+}
+
 ####################
 #  skip_if_chroot  #
 ####################
