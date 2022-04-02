@@ -648,3 +648,19 @@ load helpers
   expect_output "$tmp"
   BOGUS_PROXY=$tmp run_buildah 1 run $cid printenv BOGUS_PROXY
 }
+
+@test "from-image-by-id" {
+  _prefetch busybox
+  run_buildah from --cidfile ${TESTDIR}/cid busybox
+  cid=$(cat ${TESTDIR}/cid)
+  createrandom ${TESTDIR}/randomfile
+  run_buildah copy ${cid} ${TESTDIR}/randomfile /
+  run_buildah commit --iidfile ${TESTDIR}/iid ${cid}
+  iid=$(cat ${TESTDIR}/iid)
+  run_buildah from --cidfile ${TESTDIR}/cid2 ${iid}
+  cid2=$(cat ${TESTDIR}/cid2)
+  run_buildah run ${cid2} hostname -f
+  truncated=${iid##*:}
+  truncated=$(echo ${truncated} | cut -c-12)
+  expect_output ${truncated}-working-container
+}
