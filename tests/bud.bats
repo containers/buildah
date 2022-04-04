@@ -595,6 +595,7 @@ function _test_http() {
 }
 
 @test "bud-git-context" {
+  skip "2022-04-04 no longer tested on 1.19"
   # We need git and ssh to be around to handle cloning a repository.
   if ! which git ; then
     skip "no git in PATH"
@@ -1993,6 +1994,7 @@ _EOF
 }
 
 @test "bud using gitrepo and branch" {
+  skip "2022-04-04 no longer tested on 1.19"
   run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t gittarget -f tests/bud/shell/Dockerfile git://github.com/containers/buildah#release-1.11-rhel
 }
 
