@@ -420,11 +420,6 @@ _EOF
           for uts in host private; do
             for cgroupns in host private; do
 
-              if test $userns == private -a $pid == host ; then
-                # We can't mount a fresh /proc, and OCI runtime won't let us bind mount the host's.
-                continue
-              fi
-
               echo "buildah from --signature-policy ${TESTSDIR}/policy.json --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine"
               run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine
               [ "$output" != "" ]
