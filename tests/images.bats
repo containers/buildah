@@ -48,7 +48,7 @@ load helpers
   cid2=$output
 
   run_buildah 125 images --noheading --filter since k8s.gcr.io/pause
-  expect_output 'invalid image filter "since": must be in the format "filter=value"'
+  expect_output 'invalid image filter "since": must be in the format "filter=value or filter!=value"'
 
 
   run_buildah images --noheading --filter since=k8s.gcr.io/pause
