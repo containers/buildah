@@ -283,6 +283,10 @@ option to `false`.  The environment variables passed in include `http_proxy`,
 `https_proxy`, `ftp_proxy`, `no_proxy`, and also the upper case versions of
 those.
 
+**--identity-label** *bool-value*
+
+Adds default identity label `io.buildah.version` if set. (default true).
+
 **--ignorefile** *file*
 
 Path to an alternative .containerignore (.dockerignore) file.
