@@ -783,8 +783,9 @@ _EOF
 	skip_if_no_runtime
 	skip_if_cgroupsv1
 	skip_if_in_container
+	skip_if_root_environment
 	if test "$DBUS_SESSION_BUS_ADDRESS" = ""; then
-		skip "${1:-test does not work when \$BUILDAH_ISOLATION = chroot}"
+		skip "$test does not work when DBUS_SESSION_BUS_ADDRESS is not defined"
 	fi
 	_prefetch alpine
 
