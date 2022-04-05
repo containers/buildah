@@ -328,12 +328,15 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 	digest, err := list.Add(getContext(), systemContext, ref, opts.all)
 	if err != nil {
 		var storeErr error
-		// check if the local image exists
-		if ref, _, storeErr = util.FindImage(store, "", systemContext, imageSpec); storeErr != nil {
+		// Retry without a custom system context.  A user may want to add
+		// a custom platform (see #3511).
+		if ref, _, storeErr = util.FindImage(store, "", nil, imageSpec); storeErr != nil {
+			logrus.Errorf("Error while trying to find image on local storage: %v", storeErr)
 			return err
 		}
 		digest, storeErr = list.Add(getContext(), systemContext, ref, opts.all)
 		if storeErr != nil {
+			logrus.Errorf("Error while trying to add on manifest list: %v", storeErr)
 			return err
 		}
 	}

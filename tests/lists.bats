@@ -180,3 +180,20 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     # Make sure we can add the new image to the list.
     run_buildah manifest add test-list $(< ${TESTDIR}/image-id.txt)
 }
+
+@test "manifest-add-to-list-from-storage" {
+    run_buildah pull --arch=amd64 busybox
+    run_buildah tag busybox test:amd64
+    run_buildah pull --arch=arm64 busybox
+    run_buildah tag busybox test:arm64
+    run_buildah manifest create test
+    run_buildah manifest add test test:amd64
+    run_buildah manifest add --variant=variant-something test test:arm64
+    run_buildah manifest inspect test
+    # must contain amd64
+    expect_output --substring "amd64"
+    # must contain arm64
+    expect_output --substring "arm64"
+    # must contain variant v8
+    expect_output --substring "variant-something"
+}
