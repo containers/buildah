@@ -255,7 +255,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 			rootless = 1
 		}
 		// Populate the .containerenv with container information
-		containerenv := fmt.Sprintf(`\
+		containerenv := fmt.Sprintf(`
 engine="buildah-%s"
 name=%q
 id=%q
