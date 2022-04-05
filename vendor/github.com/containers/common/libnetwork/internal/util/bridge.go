@@ -5,11 +5,12 @@ import (
 
 	"github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/libnetwork/util"
+	"github.com/containers/common/pkg/config"
 	pkgutil "github.com/containers/common/pkg/util"
 	"github.com/pkg/errors"
 )
 
-func CreateBridge(n NetUtil, network *types.Network, usedNetworks []*net.IPNet) error {
+func CreateBridge(n NetUtil, network *types.Network, usedNetworks []*net.IPNet, subnetPools []config.SubnetPool) error {
 	if network.NetworkInterface != "" {
 		bridges := GetBridgeInterfaceNames(n)
 		if pkgutil.StringInSlice(network.NetworkInterface, bridges) {
@@ -26,9 +27,11 @@ func CreateBridge(n NetUtil, network *types.Network, usedNetworks []*net.IPNet) 
 		}
 	}
 
-	if network.IPAMOptions["driver"] != types.DHCPIPAMDriver {
+	ipamDriver := network.IPAMOptions[types.Driver]
+	// also do this when the driver is unset
+	if ipamDriver == "" || ipamDriver == types.HostLocalIPAMDriver {
 		if len(network.Subnets) == 0 {
-			freeSubnet, err := GetFreeIPv4NetworkSubnet(usedNetworks)
+			freeSubnet, err := GetFreeIPv4NetworkSubnet(usedNetworks, subnetPools)
 			if err != nil {
 				return err
 			}
@@ -48,7 +51,7 @@ func CreateBridge(n NetUtil, network *types.Network, usedNetworks []*net.IPNet) 
 				}
 			}
 			if !ipv4 {
-				freeSubnet, err := GetFreeIPv4NetworkSubnet(usedNetworks)
+				freeSubnet, err := GetFreeIPv4NetworkSubnet(usedNetworks, subnetPools)
 				if err != nil {
 					return err
 				}
@@ -62,7 +65,7 @@ func CreateBridge(n NetUtil, network *types.Network, usedNetworks []*net.IPNet) 
 				network.Subnets = append(network.Subnets, *freeSubnet)
 			}
 		}
-		network.IPAMOptions["driver"] = types.HostLocalIPAMDriver
+		network.IPAMOptions[types.Driver] = types.HostLocalIPAMDriver
 	}
 	return nil
 }
