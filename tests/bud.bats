@@ -171,20 +171,6 @@ _EOF
   expect_output --substring $targetarch
 }
 
-@test "bud-flags-order-verification" {
-  run_buildah 125 build /tmp/tmpdockerfile/ -t blabla
-  check_options_flag_err "-t"
-
-  run_buildah 125 build /tmp/tmpdockerfile/ -q -t blabla
-  check_options_flag_err "-q"
-
-  run_buildah 125 build /tmp/tmpdockerfile/ --force-rm
-  check_options_flag_err "--force-rm"
-
-  run_buildah 125 build /tmp/tmpdockerfile/ --userns=cnt1
-  check_options_flag_err "--userns=cnt1"
-}
-
 @test "bud with --layers and --no-cache flags" {
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
 
@@ -3170,8 +3156,13 @@ from alpine
 run echo hello
 _EOF
 
-    run_buildah 1 build --signature-policy ${TESTSDIR}/policy.json --runtime-flag invalidflag -t build_test $mytmpdir .
+    run_buildah 1 build --signature-policy ${TESTSDIR}/policy.json --runtime-flag invalidflag -t build_test $mytmpdir
     assert "$output" =~ ".*invalidflag" "failed when passing undefined flags to the runtime"
+}
+
+@test "bud - accept at most one arg" {
+    run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dns extraarg
+    assert "accepts at most 1 arg(s), received 2" "error while parsing arguments"
 }
 
 @test "bud with --add-host" {

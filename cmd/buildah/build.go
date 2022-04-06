@@ -43,7 +43,7 @@ func init() {
 	namespaceResults := buildahcli.NameSpaceResults{}
 
 	buildCommand := &cobra.Command{
-		Use:     "build",
+		Use:     "build [CONTEXT]",
 		Aliases: []string{"build-using-dockerfile", "bud"},
 		Short:   "Build an image using instructions in a Containerfile",
 		Long:    buildDescription,
@@ -57,6 +57,7 @@ func init() {
 			}
 			return buildCmd(cmd, args, br)
 		},
+		Args: cobra.MaximumNArgs(1),
 		Example: `buildah build
   buildah bud -f Containerfile.simple .
   buildah bud --volume /home/test:/myvol:ro,Z -t imageName .
@@ -198,11 +199,6 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 			}
 			contextDir = absDir
 		}
-	}
-	cliArgs = Tail(cliArgs)
-
-	if err := buildahcli.VerifyFlagsArgsOrder(cliArgs); err != nil {
-		return err
 	}
 
 	if len(containerfiles) == 0 {
