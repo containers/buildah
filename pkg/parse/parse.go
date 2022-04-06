@@ -136,6 +136,7 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 	cpuQuota, _ := flags.GetInt64("cpu-quota")
 	cpuShares, _ := flags.GetUint64("cpu-shares")
 	httpProxy, _ := flags.GetBool("http-proxy")
+	identityLabel, _ := flags.GetBool("identity-label")
 
 	ulimit := []string{}
 	if flags.Changed("ulimit") {
@@ -146,25 +147,26 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 	sshsources, _ := flags.GetStringArray("ssh")
 
 	commonOpts := &define.CommonBuildOptions{
-		AddHost:      addHost,
-		CPUPeriod:    cpuPeriod,
-		CPUQuota:     cpuQuota,
-		CPUSetCPUs:   findFlagFunc("cpuset-cpus").Value.String(),
-		CPUSetMems:   findFlagFunc("cpuset-mems").Value.String(),
-		CPUShares:    cpuShares,
-		CgroupParent: findFlagFunc("cgroup-parent").Value.String(),
-		DNSOptions:   dnsOptions,
-		DNSSearch:    dnsSearch,
-		DNSServers:   dnsServers,
-		HTTPProxy:    httpProxy,
-		Memory:       memoryLimit,
-		MemorySwap:   memorySwap,
-		NoHosts:      noHosts,
-		ShmSize:      findFlagFunc("shm-size").Value.String(),
-		Ulimit:       ulimit,
-		Volumes:      volumes,
-		Secrets:      secrets,
-		SSHSources:   sshsources,
+		AddHost:       addHost,
+		CPUPeriod:     cpuPeriod,
+		CPUQuota:      cpuQuota,
+		CPUSetCPUs:    findFlagFunc("cpuset-cpus").Value.String(),
+		CPUSetMems:    findFlagFunc("cpuset-mems").Value.String(),
+		CPUShares:     cpuShares,
+		CgroupParent:  findFlagFunc("cgroup-parent").Value.String(),
+		DNSOptions:    dnsOptions,
+		DNSSearch:     dnsSearch,
+		DNSServers:    dnsServers,
+		HTTPProxy:     httpProxy,
+		IdentityLabel: types.NewOptionalBool(identityLabel),
+		Memory:        memoryLimit,
+		MemorySwap:    memorySwap,
+		NoHosts:       noHosts,
+		ShmSize:       findFlagFunc("shm-size").Value.String(),
+		Ulimit:        ulimit,
+		Volumes:       volumes,
+		Secrets:       secrets,
+		SSHSources:    sshsources,
 	}
 	securityOpts, _ := flags.GetStringArray("security-opt")
 	if err := parseSecurityOpts(securityOpts, commonOpts); err != nil {

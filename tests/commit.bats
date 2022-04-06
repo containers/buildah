@@ -24,6 +24,16 @@ load helpers
   run_buildah images alpine-image
 }
 
+@test "commit-with-remove-identity-label" {
+  _prefetch alpine
+  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  cid=$output
+  run_buildah commit --identity-label=false --signature-policy ${TESTSDIR}/policy.json $cid alpine-image
+  run_buildah images alpine-image
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' alpine-image
+  expect_output "map[]"
+}
+
 @test "commit format test" {
   _prefetch alpine
   run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine

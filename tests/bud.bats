@@ -619,6 +619,13 @@ _EOF
   expect_output "$want_output"
 }
 
+@test "bud-from-scratch-remove-identity-label" {
+  target=scratch-image
+  run_buildah build --identity-label=false --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
+  expect_output "map[]"
+}
+
 @test "bud-from-scratch-annotation" {
   target=scratch-image
   run_buildah build --annotation "test=annotation1,annotation2=z" --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/from-scratch

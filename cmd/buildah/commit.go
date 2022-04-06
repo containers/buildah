@@ -39,6 +39,7 @@ type commitInputOptions struct {
 	signBy             string
 	squash             bool
 	tlsVerify          bool
+	identityLabel      bool
 	encryptionKeys     []string
 	encryptLayers      []int
 	unsetenvs          []string
@@ -107,6 +108,7 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 		panic(fmt.Sprintf("error marking reference-time as hidden: %v", err))
 	}
 
+	flags.BoolVar(&opts.identityLabel, "identity-label", true, "add default builder label (default true)")
 	flags.BoolVar(&opts.rm, "rm", false, "remove the container and its content after committing it to an image. Default leaves the container and its content in place.")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
 	_ = cmd.RegisterFlagCompletionFunc("signature-policy", completion.AutocompleteDefault)
@@ -189,7 +191,9 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	}
 
 	// Add builder identity information.
-	builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
+	if iopts.identityLabel {
+		builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
+	}
 
 	encConfig, encLayers, err := getEncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
 	if err != nil {

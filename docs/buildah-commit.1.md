@@ -65,6 +65,10 @@ formats include *oci* (OCI image-spec v1.0, the default) and *docker* (version
 Note: You can also override the default format by setting the BUILDAH\_FORMAT
 environment variable.  `export BUILDAH\_FORMAT=docker`
 
+**--identity-label** *bool-value*
+
+Adds default identity label `io.buildah.version` if set. (default true).
+
 **--iidfile** *ImageIDfile*
 
 Write the image ID to the file.
