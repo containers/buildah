@@ -3169,7 +3169,7 @@ _EOF
 
 @test "bud - accept at most one arg" {
     run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/dns extraarg
-    assert "accepts at most 1 arg(s), received 2" "error while parsing arguments"
+    assert "$output" =~ ".*accepts at most 1 arg\(s\), received 2" "Should fail when passed extra arg after context directory"
 }
 
 @test "bud with --add-host" {
