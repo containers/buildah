@@ -2,6 +2,12 @@
 
 # Changelog
 
+## v1.23.4 (2022-04-07)
+
+    chroot: run gofmt on run.go
+    vendor: bump c/image to v5.16.0-rhel/8b06d33
+    Use race-free c/storage by bumping it to 1.36.3
+
 ## v1.23.3 (2022-02-03)
 
     bump(github.com/modern-go/reflect2) to v1.0.2
