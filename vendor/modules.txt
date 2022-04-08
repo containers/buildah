@@ -80,7 +80,6 @@ github.com/containers/common/pkg/apparmor
 github.com/containers/common/pkg/apparmor/internal/supported
 github.com/containers/common/pkg/auth
 github.com/containers/common/pkg/capabilities
-github.com/containers/common/pkg/cgroups
 github.com/containers/common/pkg/cgroupv2
 github.com/containers/common/pkg/chown
 github.com/containers/common/pkg/completion
@@ -212,8 +211,6 @@ github.com/containers/storage/pkg/tarlog
 github.com/containers/storage/pkg/truncindex
 github.com/containers/storage/pkg/unshare
 github.com/containers/storage/types
-# github.com/coreos/go-systemd/v22 v22.3.2
-github.com/coreos/go-systemd/v22/dbus
 # github.com/cyphar/filepath-securejoin v0.2.3
 github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1
@@ -282,8 +279,6 @@ github.com/fsnotify/fsnotify
 github.com/fsouza/go-dockerclient
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
-# github.com/godbus/dbus/v5 v5.1.0
-github.com/godbus/dbus/v5
 # github.com/gogo/protobuf v1.3.2
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/proto

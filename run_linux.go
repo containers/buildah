@@ -36,7 +36,6 @@ import (
 	"github.com/containers/common/libnetwork/network"
 	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/capabilities"
-	"github.com/containers/common/pkg/cgroups"
 	"github.com/containers/common/pkg/chown"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/subscriptions"
@@ -273,7 +272,7 @@ rootless=%d
 
 		bindFiles["/run/.containerenv"] = containerenvPath
 	}
-	runArtifacts, err := b.setupMounts(options.SystemContext, mountPoint, spec, path, options.Mounts, bindFiles, volumes, b.CommonBuildOpts.Volumes, b.CommonBuildOpts.ShmSize, namespaceOptions, options.Secrets, options.SSHSources, options.RunMounts, options.ContextDir, options.StageMountPoints)
+	runArtifacts, err := b.setupMounts(options.SystemContext, mountPoint, spec, path, options.Mounts, bindFiles, volumes, b.CommonBuildOpts.Volumes, options.Secrets, options.SSHSources, options.RunMounts, options.ContextDir, options.StageMountPoints)
 	if err != nil {
 		return errors.Wrapf(err, "error resolving mountpoints for container %q", b.ContainerID)
 	}
@@ -310,9 +309,6 @@ rootless=%d
 		moreCreateArgs := []string{"--no-new-keyring"}
 		if options.NoPivot {
 			moreCreateArgs = append(moreCreateArgs, "--no-pivot")
-		}
-		if err := setupRootlessSpecChanges(spec, path, b.CommonBuildOpts.ShmSize); err != nil {
-			return err
 		}
 		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, define.Package+"-"+filepath.Base(path))
 	default:
@@ -431,7 +427,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 	return mounts, nil
 }
 
-func (b *Builder) setupMounts(context *imagetypes.SystemContext, mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, shmSize string, namespaceOptions define.NamespaceOptions, secrets map[string]define.Secret, sshSources map[string]*sshagent.Source, runFileMounts []string, contextDir string, stageMountPoints map[string]internal.StageMountDetails) (*runMountArtifacts, error) {
+func (b *Builder) setupMounts(context *imagetypes.SystemContext, mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, secrets map[string]define.Secret, sshSources map[string]*sshagent.Source, runFileMounts []string, contextDir string, stageMountPoints map[string]internal.StageMountDetails) (*runMountArtifacts, error) {
 	// Start building a new list of mounts.
 	var mounts []specs.Mount
 	haveMount := func(destination string) bool {
@@ -444,79 +440,9 @@ func (b *Builder) setupMounts(context *imagetypes.SystemContext, mountPoint stri
 		return false
 	}
 
-	ipc := namespaceOptions.Find(string(specs.IPCNamespace))
-	hostIPC := ipc == nil || ipc.Host
-	net := namespaceOptions.Find(string(specs.NetworkNamespace))
-	hostNetwork := net == nil || net.Host
-	user := namespaceOptions.Find(string(specs.UserNamespace))
-	hostUser := (user == nil || user.Host) && !unshare.IsRootless()
-
-	// Copy mounts from the generated list.
-	mountCgroups := true
-	specMounts := []specs.Mount{}
-	for _, specMount := range spec.Mounts {
-		// Override some of the mounts from the generated list if we're doing different things with namespaces.
-		if specMount.Destination == "/dev/shm" {
-			specMount.Options = []string{"nosuid", "noexec", "nodev", "mode=1777"}
-			if shmSize != "" {
-				specMount.Options = append(specMount.Options, "size="+shmSize)
-			}
-			if hostIPC && !hostUser {
-				if _, err := os.Stat("/dev/shm"); err != nil && os.IsNotExist(err) {
-					logrus.Debugf("/dev/shm is not present, not binding into container")
-					continue
-				}
-				specMount = specs.Mount{
-					Source:      "/dev/shm",
-					Type:        "bind",
-					Destination: "/dev/shm",
-					Options:     []string{bind.NoBindOption, "rbind", "nosuid", "noexec", "nodev"},
-				}
-			}
-		}
-		if specMount.Destination == "/dev/mqueue" {
-			if hostIPC && !hostUser {
-				if _, err := os.Stat("/dev/mqueue"); err != nil && os.IsNotExist(err) {
-					logrus.Debugf("/dev/mqueue is not present, not binding into container")
-					continue
-				}
-				specMount = specs.Mount{
-					Source:      "/dev/mqueue",
-					Type:        "bind",
-					Destination: "/dev/mqueue",
-					Options:     []string{bind.NoBindOption, "rbind", "nosuid", "noexec", "nodev"},
-				}
-			}
-		}
-		if specMount.Destination == "/sys" {
-			if hostNetwork && !hostUser {
-				mountCgroups = false
-				if _, err := os.Stat("/sys"); err != nil && os.IsNotExist(err) {
-					logrus.Debugf("/sys is not present, not binding into container")
-					continue
-				}
-				specMount = specs.Mount{
-					Source:      "/sys",
-					Type:        "bind",
-					Destination: "/sys",
-					Options:     []string{bind.NoBindOption, "rbind", "nosuid", "noexec", "nodev", "ro"},
-				}
-			}
-		}
-		specMounts = append(specMounts, specMount)
-	}
-
-	// Add a mount for the cgroups filesystem, unless we're already
-	// recursively bind mounting all of /sys, in which case we shouldn't
-	// bother with it.
-	sysfsMount := []specs.Mount{}
-	if mountCgroups {
-		sysfsMount = []specs.Mount{{
-			Destination: "/sys/fs/cgroup",
-			Type:        "cgroup",
-			Source:      "cgroup",
-			Options:     []string{bind.NoBindOption, "nosuid", "noexec", "nodev", "relatime", "ro"},
-		}}
+	specMounts, err := setupSpecialMountSpecChanges(spec, b.CommonBuildOpts.ShmSize)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get the list of files we need to bind into the container.
@@ -568,7 +494,7 @@ func (b *Builder) setupMounts(context *imagetypes.SystemContext, mountPoint stri
 	// everything other than these might have users content
 	mountArtifacts.RunMountTargets = append(append(append(mountArtifacts.RunMountTargets, cleanableDestinationListFromMounts(bindFileMounts)...), cleanableDestinationListFromMounts(subscriptionMounts)...), cleanableDestinationListFromMounts(specMounts)...)
 
-	allMounts := util.SortMounts(append(append(append(append(append(append(volumes, builtins...), runMounts...), subscriptionMounts...), bindFileMounts...), specMounts...), sysfsMount...))
+	allMounts := util.SortMounts(append(append(append(append(append(volumes, builtins...), runMounts...), subscriptionMounts...), bindFileMounts...), specMounts...))
 	// Add them all, in the preferred order, except where they conflict with something that was previously added.
 	for _, mount := range allMounts {
 		if haveMount(mount.Destination) {
@@ -1181,9 +1107,7 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 
 func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, options RunOptions, configureNetworks []string, containerName string) (teardown func(), err error) {
 	if isolation == IsolationOCIRootless {
-		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil && !ns.Host && ns.Path == "" {
-			return setupRootlessNetwork(pid)
-		}
+		return setupRootlessNetwork(pid)
 	}
 
 	if len(configureNetworks) == 0 {
@@ -2146,97 +2070,142 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 	}
 }
 
-func setupRootlessSpecChanges(spec *specs.Spec, bundleDir string, shmSize string) error {
-	emptyDir := filepath.Join(bundleDir, "empty")
-	if err := os.Mkdir(emptyDir, 0); err != nil {
-		return err
+func addOrReplaceMount(moutns []specs.Mount, mount specs.Mount) []spec.Mount {
+	for i := range moutns {
+		if moutns[i].Destination == mount.Destination {
+			moutns[i] = mount
+			return moutns
+		}
 	}
+	return append(moutns, mount)
+}
 
-	// If the container has a network namespace, we can create a fresh /sys mount
-	for _, ns := range spec.Linux.Namespaces {
-		if ns.Type == specs.NetworkNamespace {
-			return nil
+// setupSpecialMountSpecChanges creates special mounts for depending on the namespaces
+// logic taken from podman and adapted for buildah
+// https://github.com/containers/podman/blob/4ba71f955a944790edda6e007e6d074009d437a7/pkg/specgen/generate/oci.go#L178
+func setupSpecialMountSpecChanges(spec *spec.Spec, shmSize string) ([]specs.Mount, error) {
+	mounts := spec.Mounts
+	isRootless := unshare.IsRootless()
+	isNewUserns := false
+	isNetns := false
+	isPidns := false
+	isIpcns := false
+
+	for _, namespace := range spec.Linux.Namespaces {
+		switch namespace.Type {
+		case specs.NetworkNamespace:
+			isNetns = true
+		case specs.UserNamespace:
+			isNewUserns = true
+		case specs.PIDNamespace:
+			isPidns = true
+		case specs.IPCNamespace:
+			isIpcns = true
 		}
 	}
 
-	// Replace /sys with a read-only bind mount.
-	mounts := []specs.Mount{
-		{
-			Source:      "/dev",
-			Destination: "/dev",
-			Type:        "tmpfs",
-			Options:     []string{"private", "strictatime", "noexec", "nosuid", "mode=755", "size=65536k"},
-		},
-		{
-			Source:      "mqueue",
-			Destination: "/dev/mqueue",
-			Type:        "mqueue",
-			Options:     []string{"private", "nodev", "noexec", "nosuid"},
-		},
-		{
-			Source:      "pts",
+	addCgroup := true
+	// mount sys when root and no userns or when both netns and userns are private
+	canMountSys := (!isRootless && !isNewUserns) || (isNetns && isNewUserns)
+	if !canMountSys {
+		addCgroup = false
+		sys := "/sys"
+		sysMnt := specs.Mount{
+			Destination: sys,
+			Type:        "bind",
+			Source:      sys,
+			Options:     []string{bind.NoBindOption, "rprivate", "nosuid", "noexec", "nodev", "ro", "rbind"},
+		}
+		mounts = addOrReplaceMount(mounts, sysMnt)
+	}
+
+	gid5Available := true
+	if isRootless {
+		_, gids, err := unshare.GetHostIDMappings("")
+		if err != nil {
+			return nil, err
+		}
+		gid5Available = checkIdsGreaterThan5(gids)
+	}
+	if gid5Available && len(spec.Linux.GIDMappings) > 0 {
+		gid5Available = checkIdsGreaterThan5(spec.Linux.GIDMappings)
+	}
+	if !gid5Available {
+		// If we have no GID mappings, the gid=5 default option would fail, so drop it.
+		devPts := specs.Mount{
 			Destination: "/dev/pts",
 			Type:        "devpts",
-			Options:     []string{"private", "noexec", "nosuid", "newinstance", "ptmxmode=0666", "mode=0620"},
-		},
-		{
+			Source:      "devpts",
+			Options:     []string{"rprivate", "nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620"},
+		}
+		mounts = addOrReplaceMount(mounts, devPts)
+	}
+
+	isUserns := isNewUserns || isRootless
+
+	if isUserns && !isIpcns {
+		devMqueue := "/dev/mqueue"
+		devMqueueMnt := specs.Mount{
+			Destination: devMqueue,
+			Type:        "bind",
+			Source:      devMqueue,
+			Options:     []string{bind.NoBindOption, "bind", "nosuid", "noexec", "nodev"},
+		}
+		mounts = addOrReplaceMount(mounts, devMqueueMnt)
+	}
+	if isUserns && !isPidns {
+		proc := "/proc"
+		procMount := specs.Mount{
+			Destination: proc,
+			Type:        "bind",
+			Source:      proc,
+			Options:     []string{bind.NoBindOption, "rbind", "nosuid", "noexec", "nodev"},
+		}
+		mounts = addOrReplaceMount(mounts, procMount)
+	}
+
+	if addCgroup {
+		cgroupMnt := specs.Mount{
+			Destination: "/sys/fs/cgroup",
+			Type:        "cgroup",
+			Source:      "cgroup",
+			Options:     []string{"rprivate", "nosuid", "noexec", "nodev", "relatime", "rw"},
+		}
+		mounts = addOrReplaceMount(mounts, cgroupMnt)
+	}
+
+	// if userns and host ipc bind mount shm
+	if isUserns && !isIpcns {
+		// bind mount /dev/shm when it exists
+		if _, err := os.Stat("/dev/shm"); err == nil {
+			shmMount := specs.Mount{
+				Source:      "/dev/shm",
+				Type:        "bind",
+				Destination: "/dev/shm",
+				Options:     []string{bind.NoBindOption, "rbind", "nosuid", "noexec", "nodev"},
+			}
+			mounts = addOrReplaceMount(mounts, shmMount)
+		}
+	} else if shmSize != "" {
+		shmMount := specs.Mount{
 			Source:      "shm",
 			Destination: "/dev/shm",
 			Type:        "tmpfs",
-			Options:     []string{"private", "nodev", "noexec", "nosuid", "mode=1777", fmt.Sprintf("size=%s", shmSize)},
-		},
-		{
-			Source:      "/proc",
-			Destination: "/proc",
-			Type:        "proc",
-			Options:     []string{"private", "nodev", "noexec", "nosuid"},
-		},
-		{
-			Source:      "/sys",
-			Destination: "/sys",
-			Type:        "bind",
-			Options:     []string{bind.NoBindOption, "rbind", "private", "nodev", "noexec", "nosuid", "ro"},
-		},
+			Options:     []string{"private", "nodev", "noexec", "nosuid", "mode=1777", "size=" + shmSize},
+		}
+		mounts = addOrReplaceMount(mounts, shmMount)
 	}
 
-	cgroup2, err := cgroups.IsCgroup2UnifiedMode()
-	if err != nil {
-		return err
-	}
-	if cgroup2 {
-		hasCgroupNs := false
-		for _, ns := range spec.Linux.Namespaces {
-			if ns.Type == specs.CgroupNamespace {
-				hasCgroupNs = true
-				break
-			}
-		}
-		if hasCgroupNs {
-			mounts = append(mounts, specs.Mount{
-				Destination: "/sys/fs/cgroup",
-				Type:        "cgroup",
-				Source:      "cgroup",
-				Options:     []string{"private", "rw"},
-			})
-		}
-	} else {
-		spec.Linux.Resources = nil
-		// Cover up /sys/fs/cgroup, if it exist in our source for /sys.
-		if _, err := os.Stat("/sys/fs/cgroup"); err == nil {
-			spec.Linux.MaskedPaths = append(spec.Linux.MaskedPaths, "/sys/fs/cgroup")
+	return mounts, nil
+}
+
+func checkIdsGreaterThan5(ids []spec.LinuxIDMapping) bool {
+	for _, r := range ids {
+		if r.ContainerID <= 5 && 5 < r.ContainerID+r.Size {
+			return true
 		}
 	}
-	// Keep anything that isn't under /dev, /proc, or /sys.
-	for i := range spec.Mounts {
-		if spec.Mounts[i].Destination == "/dev" || strings.HasPrefix(spec.Mounts[i].Destination, "/dev/") ||
-			spec.Mounts[i].Destination == "/proc" || strings.HasPrefix(spec.Mounts[i].Destination, "/proc/") ||
-			spec.Mounts[i].Destination == "/sys" || strings.HasPrefix(spec.Mounts[i].Destination, "/sys/") {
-			continue
-		}
-		mounts = append(mounts, spec.Mounts[i])
-	}
-	spec.Mounts = mounts
-	return nil
+	return false
 }
 
 func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (err error) {
@@ -2400,33 +2369,14 @@ func waitForSync(pipeR *os.File) error {
 func checkAndOverrideIsolationOptions(isolation define.Isolation, options *RunOptions) error {
 	switch isolation {
 	case IsolationOCIRootless:
-		if ns := options.NamespaceOptions.Find(string(specs.IPCNamespace)); ns == nil || ns.Host {
-			logrus.Debugf("Forcing use of an IPC namespace.")
-		}
-		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.IPCNamespace)})
-		_, err := exec.LookPath("slirp4netns")
-		hostNetworking := err != nil
-		networkNamespacePath := ""
-		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil {
-			hostNetworking = ns.Host
-			networkNamespacePath = ns.Path
-			if hostNetworking {
-				networkNamespacePath = ""
+		// only change the netns if the caller did not set it
+		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns == nil {
+			if _, err := exec.LookPath("slirp4netns"); err != nil {
+				// if slirp4netns is not installed we have to use the hosts net namespace
+				options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.NetworkNamespace), Host: true})
 			}
 		}
-		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{
-			Name: string(specs.NetworkNamespace),
-			Host: hostNetworking,
-			Path: networkNamespacePath,
-		})
-		if ns := options.NamespaceOptions.Find(string(specs.PIDNamespace)); ns == nil || ns.Host {
-			logrus.Debugf("Forcing use of a PID namespace.")
-		}
-		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.PIDNamespace), Host: false})
-		if ns := options.NamespaceOptions.Find(string(specs.UserNamespace)); ns == nil || ns.Host {
-			logrus.Debugf("Forcing use of a user namespace.")
-		}
-		options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.UserNamespace)})
+		fallthrough
 	case IsolationOCI:
 		pidns := options.NamespaceOptions.Find(string(specs.PIDNamespace))
 		userns := options.NamespaceOptions.Find(string(specs.UserNamespace))
@@ -2447,24 +2397,11 @@ func DefaultNamespaceOptions() (define.NamespaceOptions, error) {
 	options := define.NamespaceOptions{
 		{Name: string(specs.CgroupNamespace), Host: cfg.CgroupNS() == "host"},
 		{Name: string(specs.IPCNamespace), Host: cfg.IPCNS() == "host"},
-		{Name: string(specs.MountNamespace), Host: true},
-		{Name: string(specs.NetworkNamespace), Host: cfg.NetNS() == "host" || cfg.NetNS() == "container"},
+		{Name: string(specs.MountNamespace), Host: false},
+		{Name: string(specs.NetworkNamespace), Host: cfg.NetNS() == "host"},
 		{Name: string(specs.PIDNamespace), Host: cfg.PidNS() == "host"},
-		{Name: string(specs.UserNamespace), Host: true},
+		{Name: string(specs.UserNamespace), Host: cfg.Containers.UserNS == "host"},
 		{Name: string(specs.UTSNamespace), Host: cfg.UTSNS() == "host"},
-	}
-	g, err := generate.New("linux")
-	if err != nil {
-		return options, errors.Wrapf(err, "error generating new 'linux' runtime spec")
-	}
-	spec := g.Config
-	if spec.Linux != nil {
-		for _, ns := range spec.Linux.Namespaces {
-			options.AddOrReplace(define.NamespaceOption{
-				Name: string(ns.Type),
-				Path: ns.Path,
-			})
-		}
 	}
 	return options, nil
 }

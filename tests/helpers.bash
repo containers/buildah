@@ -346,6 +346,11 @@ function assert() {
         if [ "$actual_string" = "$expect_string" ]; then
             return
         fi
+    elif [[ $operator == '!=' ]]; then
+        # Same special case as above
+        if [ "$actual_string" != "$expect_string" ]; then
+            return
+        fi
     else
         if eval "[[ $not \$actual_string $actual_op \$expect_string ]]"; then
             return

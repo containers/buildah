@@ -420,11 +420,6 @@ _EOF
           for uts in host private; do
             for cgroupns in host private; do
 
-              if test $userns == private -a $pid == host ; then
-                # We can't mount a fresh /proc, and OCI runtime won't let us bind mount the host's.
-                continue
-              fi
-
               echo "buildah from --signature-policy ${TESTSDIR}/policy.json --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine"
               run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine
               [ "$output" != "" ]
@@ -485,4 +480,41 @@ _EOF
 
   run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-gid-map=0:10000:65536 alpine
   expect_output --substring "userns-gid-map can not be used without --userns-uid-map"
+}
+
+@test "use containers.conf namespace settings" {
+  skip_if_chroot
+
+  _prefetch alpine
+  containers_conf_file="$TESTDIR/containers-namespaces.conf"
+
+  for mode in host private; do
+    cat > "$containers_conf_file" << EOF
+[containers]
+
+cgroupns = "$mode"
+netns = "$mode"
+pidns = "$mode"
+ipcns = "$mode"
+utsns = "$mode"
+EOF
+
+    CONTAINERS_CONF="$containers_conf_file" run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
+    [ "$output" != "" ]
+    ctr="$output"
+
+    local op="=="
+    if [[ "$mode" == "private" ]]; then
+      op="!="
+    fi
+
+    for nstype in cgroup ipc net pid uts; do
+      run readlink /proc/self/ns/"$nstype"
+      ns="$output"
+      run_buildah run $ctr readlink /proc/self/ns/"$nstype"
+      assert "$output" $op "$ns" "namespace matches expected ($mode)"
+    done
+  done
+
+  rm "$containers_conf_file"
 }
