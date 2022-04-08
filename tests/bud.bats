@@ -2574,15 +2574,17 @@ EOM
   openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
   openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 1024
   openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:5000/buildah/busybox_encrypted:latest
+  start_registry
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
   target=busybox-image
+  echo FROM localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest > ${TESTDIR}/tmp/Dockerfile
   # Try to build from encrypted image without key
-  run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword -t ${target} -f ${TESTSDIR}/bud/from-encrypted-image/Dockerfile
+  run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword -t ${target} -f ${TESTDIR}/tmp/Dockerfile
   # Try to build from encrypted image with wrong key
-  run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem -t ${target} -f ${TESTSDIR}/bud/from-encrypted-image/Dockerfile
+  run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem -t ${target} -f ${TESTDIR}/tmp/Dockerfile
   # Try to build with the correct key
-  run_buildah build --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem -t ${target} -f ${TESTSDIR}/bud/from-encrypted-image/Dockerfile
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem -t ${target} -f ${TESTDIR}/tmp/Dockerfile
 
   rm -rf ${TESTDIR}/tmp
 }
@@ -3047,17 +3049,18 @@ _EOF
 
 @test "bud --authfile" {
   _prefetch alpine
-  run_buildah login --tls-verify=false --authfile ${TESTDIR}/test.auth --username testuser --password testpassword localhost:5000
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --authfile ${TESTDIR}/test.auth alpine docker://localhost:5000/buildah/alpine
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TESTDIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --authfile ${TESTDIR}/test.auth alpine docker://localhost:${REGISTRY_PORT}/buildah/alpine
 
   mytmpdir=${TESTDIR}/my-dir
   mkdir -p ${mytmpdir}
   cat > $mytmpdir/Containerfile << _EOF
-FROM localhost:5000/buildah/alpine
+FROM localhost:${REGISTRY_PORT}/buildah/alpine
 RUN touch /test
 _EOF
   run_buildah build -t myalpine --authfile ${TESTDIR}/test.auth --tls-verify=false --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
-  run_buildah rmi localhost:5000/buildah/alpine
+  run_buildah rmi localhost:${REGISTRY_PORT}/buildah/alpine
   run_buildah rmi myalpine
 }
 
@@ -3571,12 +3574,12 @@ _EOF
   # assume that emulation for other architectures is in place.
   os=`go env GOOS`
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name try-386 --platform=$os/386 alpine
-  run buildah run try-386 true
+  run_buildah '?' run try-386 true
   if test $status -ne 0 ; then
     skip "unable to run 386 container, assuming emulation is not available"
   fi
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name try-arm --platform=$os/arm alpine
-  run buildah run try-arm true
+  run_buildah '?' run try-arm true
   if test $status -ne 0 ; then
     skip "unable to run arm container, assuming emulation is not available"
   fi
@@ -3607,12 +3610,12 @@ _EOF
     skip "test Dockerfile is ubi, we can't run it"
   fi
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name try-386 --platform=$os/386 alpine
-  run buildah run try-386 true
+  run_buildah '?' run try-386 true
   if test $status -ne 0 ; then
     skip "unable to run 386 container, assuming emulation is not available"
   fi
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name try-arm --platform=$os/arm alpine
-  run buildah run try-arm true
+  run_buildah '?' run try-arm true
   if test $status -ne 0 ; then
     skip "unable to run arm container, assuming emulation is not available"
   fi
@@ -3714,10 +3717,7 @@ _EOF
 
 @test "bud with run should not leave mounts behind cleanup test" {
   skip_if_in_container
-  run which podman
-  if [[ $status -ne 0 ]]; then
-    skip "podman is not installed"
-  fi
+  skip_if_no_podman
 
   # Create target dir where we will export tar
   target=cleanable
@@ -3725,7 +3725,7 @@ _EOF
 
   # Build and export container to tar
   run_buildah build --no-cache --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/containerfile/Containerfile.in ${TESTSDIR}/bud/containerfile
-  podman export $(podman create --name ${target} ${target}) --output=${TESTDIR}/${target}.tar
+  podman export $(podman create --name ${target} --net=host ${target}) --output=${TESTDIR}/${target}.tar
 
   # We are done exporting so remove images and containers which are not needed
   podman rm -f ${target}
@@ -3740,10 +3740,7 @@ _EOF
 
 @test "bud with custom files in /run/ should persist cleanup test" {
   skip_if_in_container
-  run which podman
-  if [[ $status -ne 0 ]]; then
-    skip "podman is not installed"
-  fi
+  skip_if_no_podman
 
   # Create target dir where we will export tar
   target=cleanable
@@ -3751,7 +3748,7 @@ _EOF
 
   # Build and export container to tar
   run_buildah build --no-cache --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/add-run-dir
-  podman export $(podman create --name ${target} ${target}) --output=${TESTDIR}/${target}.tar
+  podman export $(podman create --name ${target} --net=host ${target}) --output=${TESTDIR}/${target}.tar
 
   # We are done exporting so remove images and containers which are not needed
   podman rm -f ${target}

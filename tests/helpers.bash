@@ -84,6 +84,7 @@ function teardown(){
 function teardown_tests() {
     stophttpd
     stop_git_daemon
+    stop_registry
 
     # Workaround for #1991 - buildah + overlayfs leaks mount points.
     # Many tests leave behind /var/tmp/.../root/overlay and sub-mounts;
@@ -118,13 +119,18 @@ function _prefetch() {
         mkdir -p ${_BUILDAH_IMAGE_CACHEDIR}
     fi
 
+    local storage=
     for img in "$@"; do
+        if [[ "$img" =~ '[vfs@' ]] ; then
+            storage="$img"
+            continue
+        fi
         img=$(normalize_image_name "$img")
         echo "# [checking for: $img]" >&2
         fname=$(tr -c a-zA-Z0-9.- - <<< "$img")
         if [ -d $_BUILDAH_IMAGE_CACHEDIR/$fname ]; then
             echo "# [restoring from cache: $_BUILDAH_IMAGE_CACHEDIR / $img]" >&2
-            copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:"$img"
+            copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:"$storage""$img"
         else
             rm -fr $_BUILDAH_IMAGE_CACHEDIR/$fname
             echo "# [copy docker://$img dir:$_BUILDAH_IMAGE_CACHEDIR/$fname]" >&2
@@ -134,8 +140,8 @@ function _prefetch() {
                 fi
                 sleep 5
             done
-            echo "# [copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:$img]" >&2
-            copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:"$img"
+            echo "# [copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:$storage$img]" >&2
+            copy dir:$_BUILDAH_IMAGE_CACHEDIR/$fname containers-storage:"$storage""$img"
         fi
     done
 }
@@ -157,7 +163,7 @@ function copy() {
 }
 
 function podman() {
-    command podman ${PODMAN_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
+    command ${PODMAN_BINARY:-podman} ${PODMAN_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
 }
 
 # There are various scenarios where we would like to execute `tests` as rootless user, however certain commands like `buildah mount`
@@ -505,6 +511,16 @@ function skip_if_no_runtime() {
     skip "runtime \"$OCI\" not found"
 }
 
+#######################
+#  skip_if_no_podman  #  we need 'podman' to test how we interact with podman
+#######################
+function skip_if_no_podman() {
+    run which ${PODMAN_BINARY:-podman}
+    if [[ $status -ne 0 ]]; then
+        skip "podman is not installed"
+    fi
+}
+
 ##################
 #  is_cgroupsv2  #  Returns true if host system has cgroupsv2 enabled
 ##################
@@ -567,4 +583,111 @@ function stop_git_daemon() {
     kill $(cat ${TESTDIR}/git-daemon/pid)
     rm -f ${TESTDIR}/git-daemon/pid
   fi
+}
+
+# Bring up a registry server using buildah with vfs and chroot as a cheap
+# substitute for podman, accessible only to user $1 using password $2 on the
+# local system at a dynamically-allocated port.
+# Requires openssl.
+# A user name and password can be supplied as the two parameters, or default
+# values of "testuser" and "testpassword" will be used.
+# Sets REGISTRY_PID, REGISTRY_PORT (to append to "localhost:"), and
+# REGISTRY_DIR (where the CA cert can be found) on success.
+function start_registry() {
+  local testuser="${1:-testuser}"
+  local testpassword="${2:-testpassword}"
+  local REGISTRY_IMAGE=quay.io/libpod/registry:2.8
+  local config='
+version: 0.1
+log:
+  fields:
+    service: registry
+storage:
+  cache:
+    blobdescriptor: inmemory
+  filesystem:
+    rootdirectory: /var/lib/registry
+http:
+  addr: :0
+  headers:
+    X-Content-Type-Options: [nosniff]
+  tls:
+    certificate: /etc/docker/registry/localhost.crt
+    key: /etc/docker/registry/localhost.key
+health:
+  storagedriver:
+    enabled: true
+    interval: 10s
+    threshold: 3
+auth:
+  htpasswd:
+    realm: buildah-realm
+    path: /etc/docker/registry/htpasswd
+'
+  # roughly equivalent to "htpasswd -nbB testuser testpassword", the registry uses
+  # the same package this does for verifying passwords against hashes in htpasswd files
+  htpasswd=${testuser}:$(buildah passwd ${testpassword})
+
+  # generate the htpasswd and config.yml files for the registry
+  mkdir -p "${TESTDIR}"/registry/root "${TESTDIR}"/registry/run "${TESTDIR}"/registry/certs "${TESTDIR}"/registry/config
+  cat > "${TESTDIR}"/registry/config/htpasswd <<< "$htpasswd"
+  cat > "${TESTDIR}"/registry/config/config.yml <<< "$config"
+  chmod 644 "${TESTDIR}"/registry/config/htpasswd "${TESTDIR}"/registry/config/config.yml
+
+  # generate a new key and certificate
+  if ! openssl req -newkey rsa:4096 -nodes -sha256 -keyout "${TESTDIR}"/registry/certs/localhost.key -x509 -days 2 -addext "subjectAltName = DNS:localhost" -out "${TESTDIR}"/registry/certs/localhost.crt -subj "/CN=localhost" ; then
+    die error creating new key and certificate
+  fi
+  chmod 644 "${TESTDIR}"/registry/certs/localhost.crt
+  chmod 600 "${TESTDIR}"/registry/certs/localhost.key
+  # use a copy of the server's certificate for validation from a client
+  cp "${TESTDIR}"/registry/certs/localhost.crt "${TESTDIR}"/registry/
+
+  # create a container in its own storage
+  _prefetch "[vfs@${TESTDIR}/registry/root+${TESTDIR}/registry/run]" ${REGISTRY_IMAGE}
+  ctr=$(${BUILDAH_BINARY} --storage-driver vfs --root "${TESTDIR}"/registry/root --runroot "${TESTDIR}"/registry/run from --quiet --pull-never ${REGISTRY_IMAGE})
+  ${BUILDAH_BINARY} --storage-driver vfs --root "${TESTDIR}"/registry/root --runroot "${TESTDIR}"/registry/run copy $ctr "${TESTDIR}"/registry/config/htpasswd "${TESTDIR}"/registry/config/config.yml "${TESTDIR}"/registry/certs/localhost.key "${TESTDIR}"/registry/certs/localhost.crt /etc/docker/registry/
+
+  # fire it up
+  coproc ${BUILDAH_BINARY} --storage-driver vfs --root "${TESTDIR}"/registry/root --runroot "${TESTDIR}"/registry/run run --net host "$ctr" /entrypoint.sh /etc/docker/registry/config.yml 2> "${TESTDIR}"/registry/registry.log
+
+  # record the coprocess's ID and try to parse the listening port from the log
+  # we're separating all of this from the storage for any test that might call
+  # this function and using vfs to minimize the cleanup required
+  REGISTRY_PID="${COPROC_PID}"
+  REGISTRY_DIR="${TESTDIR}"/registry
+  REGISTRY_PORT=
+  local waited=0
+  while [ -z "${REGISTRY_PORT}" ] ; do
+    if [ $waited -ge $BUILDAH_TIMEOUT ] ; then
+      echo Could not determine listening port from log:
+      sed -e 's/^/  >/' ${TESTDIR}/registry/registry.log
+      stop_registry
+      false
+    fi
+    waited=$((waited+1))
+    sleep 1
+    REGISTRY_PORT=$(sed -ne 's^.*listening on.*:\([0-9]\+\),.*^\1^p' ${TESTDIR}/registry/registry.log)
+  done
+
+  # push the registry image we just started... to itself, as a confidence check
+  if ! ${BUILDAH_BINARY} --storage-driver vfs --root "${REGISTRY_DIR}"/root --runroot "${REGISTRY_DIR}"/run push --cert-dir "${REGISTRY_DIR}" --creds "${testuser}":"${testpassword}" "${REGISTRY_IMAGE}" localhost:"${REGISTRY_PORT}"/registry; then
+    echo error pushing to /registry repository at localhost:$REGISTRY_PORT
+    stop_registry
+    false
+  fi
+}
+
+function stop_registry() {
+  if test -n "${REGISTRY_PID}" ; then
+    kill "${REGISTRY_PID}"
+    wait "${REGISTRY_PID}" || true
+  fi
+  unset REGISTRY_PID
+  unset REGISTRY_PORT
+  if test -n "${REGISTRY_DIR}" ; then
+    ${BUILDAH_BINARY} --storage-driver vfs --root "${REGISTRY_DIR}"/root --runroot "${REGISTRY_DIR}"/run rmi -a -f
+    rm -fr "${REGISTRY_DIR}"
+  fi
+  unset REGISTRY_DIR
 }

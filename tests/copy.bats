@@ -446,24 +446,36 @@ stuff/mystuff"
 
 @test "copy-preserving-extended-attributes" {
   createrandom ${TESTDIR}/randomfile
+  # if we need to change which image we use, any image that can provide a working setattr/setcap/getfattr will do
   image="quay.io/libpod/fedora-minimal:34"
+  if ! which setfattr > /dev/null 2> /dev/null; then
+    skip "setfattr not available, unable to check if it'll work in filesystem at ${TESTDIR}"
+  fi
+  run setfattr -n user.yeah -v butno ${TESTDIR}/root
+  if [ "$status" -ne 0 ] ; then
+    if [[ "$output" =~ "not supported" ]] ; then
+      skip "setfattr not supported in filesystem at ${TESTDIR}"
+    fi
+    skip "$output"
+  fi
   _prefetch $image
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image
   first="$output"
-  run_buildah run $first microdnf -y install /usr/bin/getfattr /usr/bin/setfattr /usr/sbin/setcap
+  run_buildah run $first microdnf -y install /usr/bin/setfattr /usr/sbin/setcap
   run_buildah copy $first ${TESTDIR}/randomfile /
   # set security.capability
-  run buildah run $first setcap cap_setuid=ep /randomfile
+  run_buildah run $first setcap cap_setuid=ep /randomfile
   # set user.something
-  run buildah run $first setfattr user.yeah=butno /randomfile
+  run_buildah run $first setfattr -n user.yeah -v butno /randomfile
   # copy the file to a second container
   run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image
   second="$output"
+  run_buildah run $second microdnf -y install /usr/bin/getfattr
   run_buildah copy --from $first $second /randomfile /
   # compare what the extended attributes look like. if we're on a system with SELinux, there's a label in here, too
-  run buildah run $first sh -c "getfattr -d -m . --absolute-names /randomfile | sort"
+  run_buildah run $first sh -c "getfattr -d -m . --absolute-names /randomfile | grep -v ^security.selinux | sort"
   expected="$output"
-  run buildah run $first sh -c "getfattr -d -m . --absolute-names /randomfile | sort"
+  run_buildah run $second sh -c "getfattr -d -m . --absolute-names /randomfile | grep -v ^security.selinux | sort"
   expect_output "$expected"
 }
 

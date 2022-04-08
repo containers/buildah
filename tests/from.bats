@@ -397,7 +397,7 @@ load helpers
   _prefetch docker.io/busybox
   run_buildah inspect --format "{{.FromImageDigest}}" docker.io/busybox
   fromDigest="$output"
-  run buildah pull --signature-policy ${TESTSDIR}/policy.json docker.io/busybox
+  run_buildah pull --signature-policy ${TESTSDIR}/policy.json docker.io/busybox
   run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc --pull-always docker.io/busybox
   expect_output --substring "Getting"
   run_buildah commit --signature-policy ${TESTSDIR}/policy.json busyboxc fakename-img
@@ -446,34 +446,32 @@ load helpers
   openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 2048
   openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 2048
   openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:5000/buildah/busybox_encrypted:latest
+  start_registry
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
   # Try encrypted image without key should fail
-  run_buildah 125 from --tls-verify=false --creds testuser:testpassword docker://localhost:5000/buildah/busybox_encrypted:latest
+  run_buildah 125 from --tls-verify=false --creds testuser:testpassword docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try encrypted image with wrong key should fail
-  run_buildah 125 from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+  run_buildah 125 from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
-  run_buildah from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:5000/buildah/busybox_encrypted:latest
+  run_buildah from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   run_buildah rm -a
-  run_buildah rmi localhost:5000/buildah/busybox_encrypted:latest
+  run_buildah rmi localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
   rm -rf ${TESTDIR}/tmp
 }
 
 @test "from with non buildah container" {
   skip_if_in_container
-  run which podman
-  if [[ $status -ne 0 ]]; then
-    skip "podman is not installed"
-  fi
+  skip_if_no_podman
 
-  _prefetch docker.io/busybox
-  podman run --name busyboxc-podman -d docker.io/busybox top
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc docker.io/busybox
+  _prefetch busybox
+  podman create --net=host --name busyboxc-podman busybox top
+  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
   expect_output --substring "busyboxc"
   podman rm -f busyboxc-podman
   run_buildah rm busyboxc
@@ -525,12 +523,13 @@ load helpers
 
 @test "from --authfile test" {
   _prefetch busybox
-  run_buildah login --tls-verify=false --authfile ${TESTDIR}/test.auth --username testuser --password testpassword localhost:5000
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --authfile ${TESTDIR}/test.auth busybox docker://localhost:5000/buildah/busybox:latest
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TESTDIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --authfile ${TESTDIR}/test.auth busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
   target=busybox-image
-  run_buildah from -q --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --authfile ${TESTDIR}/test.auth docker://localhost:5000/buildah/busybox:latest
+  run_buildah from -q --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --authfile ${TESTDIR}/test.auth docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
   run_buildah rm $output
-  run_buildah rmi localhost:5000/buildah/busybox:latest
+  run_buildah rmi localhost:${REGISTRY_PORT}/buildah/busybox:latest
 }
 
 @test "from --cap-add/--cap-drop test" {

@@ -148,13 +148,14 @@ load helpers
   expect_output --substring "buildah/busybox"
   docker rmi buildah/busybox
 
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword docker.io/busybox:latest docker://localhost:5000/buildah/busybox:latest
-  docker login localhost:5000 --username testuser --password testpassword
-  docker pull localhost:5000/buildah/busybox:latest
+  start_registry
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword docker.io/busybox:latest docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
+  docker login localhost:${REGISTRY_PORT} --username testuser --password testpassword
+  docker pull localhost:${REGISTRY_PORT}/buildah/busybox:latest
   output=$(docker images)
   expect_output --substring "buildah/busybox"
-  docker rmi localhost:5000/buildah/busybox:latest
-  docker logout localhost:5000
+  docker rmi localhost:${REGISTRY_PORT}/buildah/busybox:latest
+  docker logout localhost:${REGISTRY_PORT}
 }
 
 @test "buildah oci encrypt and push local oci" {
@@ -171,9 +172,10 @@ load helpers
 @test "buildah oci encrypt and push registry" {
   _prefetch busybox
   mkdir ${TESTDIR}/tmp
+  start_registry
   openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
   openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:5000/buildah/busybox_encrypted:latest
+  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   # this test, just checks the ability to push an image
   # there is no good way to test the details of the image unless with ./buildah pull, test will be in pull.bats
   rm -rf ${TESTDIR}/tmp
@@ -181,19 +183,21 @@ load helpers
 
 @test "buildah push to registry allowed by BUILD_REGISTRY_SOURCES" {
   _prefetch busybox
-  export BUILD_REGISTRY_SOURCES='{"insecureRegistries": ["localhost:5000"]}'
+  start_registry
+  export BUILD_REGISTRY_SOURCES='{"insecureRegistries": ["localhost:${REGISTRY_PORT}"]}'
 
-  run_buildah 125 push --creds testuser:testpassword  --signature-policy ${TESTSDIR}/policy.json --tls-verify=true busybox docker://localhost:5000/buildah/busybox:latest
-  expect_output --substring "can't require tls verification on an insecured registry"
+  run_buildah 125 push --creds testuser:testpassword --signature-policy ${TESTSDIR}/policy.json --tls-verify=true busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
+  expect_output --substring "certificate signed by unknown authority"
 
-  run_buildah push --creds testuser:testpassword  --signature-policy ${TESTSDIR}/policy.json busybox docker://localhost:5000/buildah/busybox:latest
+  run_buildah push --creds testuser:testpassword  --signature-policy ${TESTSDIR}/policy.json --cert-dir ${TESTDIR}/registry busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
 }
 
 @test "push with authfile" {
   _prefetch busybox
   mkdir ${TESTDIR}/tmp
-  run_buildah login --authfile ${TESTDIR}/tmp/test.auth --username testuser --password testpassword --tls-verify=false localhost:5000
-  run_buildah push --authfile ${TESTDIR}/tmp/test.auth --signature-policy ${TESTSDIR}/policy.json --tls-verify=false busybox docker://localhost:5000/buildah/busybox:latest
+  start_registry
+  run_buildah login --authfile ${TESTDIR}/tmp/test.auth --username testuser --password testpassword --tls-verify=false localhost:${REGISTRY_PORT}
+  run_buildah push --authfile ${TESTDIR}/tmp/test.auth --signature-policy ${TESTSDIR}/policy.json --tls-verify=false busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
   expect_output --substring "Copying"
 }
 
