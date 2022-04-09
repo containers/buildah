@@ -41,6 +41,8 @@ load helpers
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "busybox:glibc"
   expect_output --substring "busybox:latest"
+  # We need to see if this file is created after first pull in at least one test
+  [ -f ${TESTDIR}/root/defaultNetworkBackend ]
 
   run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
