@@ -72,8 +72,9 @@ github.com/Azure/go-autorest/logger v0.2.1/go.mod h1:T9E3cAhj2VqvPOtCYAvby9aBXkZ
 github.com/Azure/go-autorest/tracing v0.6.0/go.mod h1:+vhtPC754Xsa23ID7GlGsrdKBpUA79WCAKPPZVC2DeU=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/toml v0.4.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
-github.com/BurntSushi/toml v1.0.0 h1:dtDWrepsVPfW9H/4y7dDgFc2MBUSeJhlaDtK13CxFlU=
 github.com/BurntSushi/toml v1.0.0/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
+github.com/BurntSushi/toml v1.1.0 h1:ksErzDEI1khOiGPgpwuI7x2ebx/uXQNw7xJpn9Eq1+I=
+github.com/BurntSushi/toml v1.1.0/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/Microsoft/go-winio v0.4.11/go.mod h1:VhR8bwka0BXejwEJY73c50VrPtXAaKcyvVC4A4RozmA=
@@ -306,11 +307,11 @@ github.com/containernetworking/plugins v0.9.1/go.mod h1:xP/idU2ldlzN6m4p5LmGiwRD
 github.com/containernetworking/plugins v1.0.1/go.mod h1:QHCfGpaTwYTbbH+nZXKVTxNBDZcxSOplJT5ico8/FLE=
 github.com/containernetworking/plugins v1.1.1 h1:+AGfFigZ5TiQH00vhR8qPeSatj53eNGz0C1d3wVYlHE=
 github.com/containernetworking/plugins v1.1.1/go.mod h1:Sr5TH/eBsGLXK/h71HeLfX19sZPp3ry5uHSkI4LPxV8=
-github.com/containers/common v0.47.5-0.20220331143923-5f14ec785c18 h1:Hp4ccfzcFpS2SAha0cfYcF6ofkaEFmgsuRSxBDK8W0Y=
-github.com/containers/common v0.47.5-0.20220331143923-5f14ec785c18/go.mod h1:Vr2Fn6EdzD6JNAbz8L8bTv3uWLv2p31Ih2O3EAK6Hyc=
+github.com/containers/common v0.47.5-0.20220406101255-3dd66c046c25 h1:IQeqv8Hf6CqFUlKaz95QFTrLc9V4sbVQyhP9jzGnNBc=
+github.com/containers/common v0.47.5-0.20220406101255-3dd66c046c25/go.mod h1:0mfWn1RRdpBjXmiunOVLaJ1I86pQjXKAc8zuiAuUesk=
 github.com/containers/image/v5 v5.19.2-0.20220224100137-1045fb70b094/go.mod h1:XoYK6kE0dpazFNcuS+a8lra+QfbC6s8tzv+cUuCrZpE=
-github.com/containers/image/v5 v5.20.1-0.20220404163228-d03e80fc66b3 h1:5oH8xNWulK0r7hfga9RsEZfh2JJXSn1UfSc6uPBgcP8=
-github.com/containers/image/v5 v5.20.1-0.20220404163228-d03e80fc66b3/go.mod h1:2nEPM0WuinC/0ssPsMv5Iy8YaRueUUTmTp3C7bn5uro=
+github.com/containers/image/v5 v5.21.1-0.20220405081457-d1b64686e1d0 h1:Md1CckW9KSYkdtMdKG70Fc+YqCCVgT+HAr7NS9Ilf8E=
+github.com/containers/image/v5 v5.21.1-0.20220405081457-d1b64686e1d0/go.mod h1:JhGkIpC7vKBpLc6mTBE4S8cZUAD+8HgicsxYaLv6BsQ=
 github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a h1:spAGlqziZjCJL25C6F1zsQY05tfCKE9F5YwtEWWe6hU=
 github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/ocicrypt v1.0.1/go.mod h1:MeJDzk1RJHv89LjsH0Sp5KTY3ZYkjXO/C+bKAeWFIrc=
@@ -323,8 +324,8 @@ github.com/containers/storage v1.37.0/go.mod h1:kqeJeS0b7DO2ZT1nVWs0XufrmPFbgV3c
 github.com/containers/storage v1.38.2/go.mod h1:INP0RPLHWBxx+pTsO5uiHlDUGHDFvWZPWprAbAlQWPQ=
 github.com/containers/storage v1.38.3-0.20220301151551-d06b0f81c0aa/go.mod h1:LkkL34WRi4dI4jt9Cp+ImdZi/P5i36glSHimT5CP5zM=
 github.com/containers/storage v1.39.0/go.mod h1:UAD0cKLouN4BOQRgZut/nMjrh/EnTCjSNPgp4ZuGWMs=
-github.com/containers/storage v1.39.1-0.20220330193934-f3200eb5a5d9 h1:fA/2FemaDv+POCJgg+QGJm84gMEDBwL5H0lDeubDJoE=
-github.com/containers/storage v1.39.1-0.20220330193934-f3200eb5a5d9/go.mod h1:IMa2AfBI+Fxxk2hQqLTGhpJX6z2pZS1/I785QJeUwUY=
+github.com/containers/storage v1.39.1-0.20220412073713-ea4008e14877 h1:V3aVdbQt9qU6tu4HHAJtro4H8+Hnv6X/hrUNba8dll0=
+github.com/containers/storage v1.39.1-0.20220412073713-ea4008e14877/go.mod h1:UuYvGSKIdmzkjHbT/PENtxLRVGQ974nyhMbYp0KP19w=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/etcd v3.3.13+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
