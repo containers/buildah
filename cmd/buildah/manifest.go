@@ -257,7 +257,13 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 				}
 			}
 		}
-		if _, err = list.Add(getContext(), systemContext, ref, opts.all); err != nil {
+		refLocal, _, err := util.FindImage(store, "", systemContext, imageSpec)
+		if err == nil {
+			// Found local image so use that.
+			ref = refLocal
+		}
+		_, err = list.Add(getContext(), systemContext, ref, opts.all)
+		if err != nil {
 			return err
 		}
 	}
