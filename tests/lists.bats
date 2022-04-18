@@ -197,3 +197,13 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     # must contain variant v8
     expect_output --substring "variant-something"
 }
+
+@test "manifest-create-list-from-storage" {
+    run_buildah from --quiet --arch amd64 busybox
+    cid=$output
+    run_buildah commit $cid "$cid-committed:latest"
+    run_buildah manifest create test:latest "$cid-committed:latest"
+    run_buildah manifest inspect test
+    # must contain amd64
+    expect_output --substring "amd64"
+}
