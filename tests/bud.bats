@@ -2239,10 +2239,9 @@ _EOF
 
   _prefetch alpine
   target=alpine-image
-  rm -rf ${TESTSDIR}/foo
-  mkdir -p ${TESTSDIR}/foo
-  mknod ${TESTSDIR}/foo/null c 1 3
-  run_buildah build --signature-policy ${TESTSDIR}/policy.json --device ${TESTSDIR}/foo:/dev/fuse  -t ${target} -f ${TESTSDIR}/bud/device/Dockerfile ${TESTSDIR}/bud/device
+  mkdir -p ${TESTDIR}/foo
+  mknod ${TESTDIR}/foo/null c 1 3
+  run_buildah build --signature-policy ${TESTSDIR}/policy.json --device ${TESTDIR}/foo:/dev/fuse  -t ${target} -f ${TESTSDIR}/bud/device/Dockerfile ${TESTSDIR}/bud/device
   expect_output --substring "null"
 }
 
