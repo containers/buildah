@@ -348,7 +348,7 @@ load helpers
   run_buildah from --quiet --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine
   cid=$output
   run_buildah run --net=container $cid -- cat /etc/hosts
-  expect_output --substring "127.0.0.1 +localhost"
+  expect_output --substring "127.0.0.1[[:blank:]]*localhost"
 }
 
 @test "from name test" {
@@ -649,6 +649,9 @@ load helpers
 }
 
 @test "from-image-by-id" {
+  skip_if_chroot
+  skip_if_no_runtime
+
   _prefetch busybox
   run_buildah from --cidfile ${TESTDIR}/cid busybox
   cid=$(cat ${TESTDIR}/cid)
@@ -658,8 +661,10 @@ load helpers
   iid=$(cat ${TESTDIR}/iid)
   run_buildah from --cidfile ${TESTDIR}/cid2 ${iid}
   cid2=$(cat ${TESTDIR}/cid2)
-  run_buildah run ${cid2} hostname -f
+  run_buildah run ${cid2} cat /etc/hosts
   truncated=${iid##*:}
-  truncated=$(echo ${truncated} | cut -c-12)
-  expect_output ${truncated}-working-container
+  truncated="${truncated:0:12}"
+  expect_output --substring ${truncated}-working-container
+  run_buildah run ${cid2} hostname -f
+  expect_output "${cid2:0:12}"
 }

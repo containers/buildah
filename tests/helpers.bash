@@ -150,6 +150,18 @@ function createrandom() {
     dd if=/dev/urandom bs=1 count=${2:-256} of=${1:-${BATS_TMPDIR}/randomfile} status=none
 }
 
+###################
+#  random_string  #  Returns a pseudorandom human-readable string
+###################
+#
+# Numeric argument, if present, is desired length of string
+#
+function random_string() {
+    local length=${1:-10}
+
+    head /dev/urandom | tr -dc a-zA-Z0-9 | head -c$length
+}
+
 function buildah() {
     ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
 }
