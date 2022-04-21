@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 
 	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/apparmor"
@@ -108,7 +109,6 @@ func parseSubnetPool(subnet string, size int) SubnetPool {
 		Base: &nettypes.IPNet{IPNet: *n},
 		Size: size,
 	}
-
 }
 
 const (
@@ -127,6 +127,9 @@ const (
 	// DefaultLogSizeMax is the default value for the maximum log size
 	// allowed for a container. Negative values mean that no limit is imposed.
 	DefaultLogSizeMax = -1
+	// DefaultEventsLogSize is the default value for the maximum events log size
+	// before rotation.
+	DefaultEventsLogSizeMax = uint64(1000000)
 	// DefaultPidsLimit is the default value for maximum number of processes
 	// allowed inside a container
 	DefaultPidsLimit = 2048
@@ -155,7 +158,6 @@ const (
 
 // DefaultConfig defines the default values from containers.conf
 func DefaultConfig() (*Config, error) {
-
 	defaultEngineConfig, err := defaultConfigFromMemory()
 	if err != nil {
 		return nil, err
@@ -246,6 +248,7 @@ func defaultMachineConfig() MachineConfig {
 		Image:    getDefaultMachineImage(),
 		Memory:   2048,
 		User:     getDefaultMachineUser(),
+		Volumes:  []string{"$HOME:$HOME"},
 	}
 }
 
@@ -260,6 +263,8 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 	c.TmpDir = tmp
 
 	c.EventsLogFilePath = filepath.Join(c.TmpDir, "events", "events.log")
+
+	c.EventsLogFileMaxSize = eventsLogMaxSize(DefaultEventsLogSizeMax)
 
 	c.CompatAPIEnforceDockerHub = true
 
@@ -397,10 +402,10 @@ func defaultTmpDir() (string, error) {
 	}
 	libpodRuntimeDir := filepath.Join(runtimeDir, "libpod")
 
-	if err := os.Mkdir(libpodRuntimeDir, 0700|os.ModeSticky); err != nil {
+	if err := os.Mkdir(libpodRuntimeDir, 0o700|os.ModeSticky); err != nil {
 		if !os.IsExist(err) {
 			return "", err
-		} else if err := os.Chmod(libpodRuntimeDir, 0700|os.ModeSticky); err != nil {
+		} else if err := os.Chmod(libpodRuntimeDir, 0o700|os.ModeSticky); err != nil {
 			// The directory already exist, just set the sticky bit
 			return "", errors.Wrap(err, "set sticky bit on")
 		}
@@ -462,6 +467,10 @@ func probeConmon(conmonBinary string) error {
 // NetNS returns the default network namespace
 func (c *Config) NetNS() string {
 	return c.Containers.NetNS
+}
+
+func (c EngineConfig) EventsLogMaxSize() uint64 {
+	return uint64(c.EventsLogFileMaxSize)
 }
 
 // SecurityOptions returns the default security options
@@ -592,4 +601,25 @@ func (c *Config) LogDriver() string {
 // MachineEnabled returns if podman is running inside a VM or not
 func (c *Config) MachineEnabled() bool {
 	return c.Engine.MachineEnabled
+}
+
+// MachineVolumes returns volumes to mount into the VM
+func (c *Config) MachineVolumes() ([]string, error) {
+	return machineVolumes(c.Machine.Volumes)
+}
+
+func machineVolumes(volumes []string) ([]string, error) {
+	translatedVolumes := []string{}
+	for _, v := range volumes {
+		vol := os.ExpandEnv(v)
+		split := strings.Split(vol, ":")
+		if len(split) < 2 || len(split) > 3 {
+			return nil, errors.Errorf("invalid machine volume %s, 2 or 3 fields required", v)
+		}
+		if split[0] == "" || split[1] == "" {
+			return nil, errors.Errorf("invalid machine volume %s, fields must container data", v)
+		}
+		translatedVolumes = append(translatedVolumes, vol)
+	}
+	return translatedVolumes, nil
 }
