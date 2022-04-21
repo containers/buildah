@@ -122,6 +122,8 @@ const (
 	CgroupfsCgroupsManager = "cgroupfs"
 	// DefaultApparmorProfile  specifies the default apparmor profile for the container.
 	DefaultApparmorProfile = apparmor.Profile
+	// DefaultHostsFile is the default path to the hosts file
+	DefaultHostsFile = "/etc/hosts"
 	// SystemdCgroupsManager represents systemd native cgroup manager
 	SystemdCgroupsManager = "systemd"
 	// DefaultLogSizeMax is the default value for the maximum log size
@@ -189,6 +191,7 @@ func DefaultConfig() (*Config, error) {
 			Volumes:             []string{},
 			Annotations:         []string{},
 			ApparmorProfile:     DefaultApparmorProfile,
+			BaseHostsFile:       "",
 			CgroupNS:            cgroupNS,
 			Cgroups:             "enabled",
 			DefaultCapabilities: DefaultCapabilities,
