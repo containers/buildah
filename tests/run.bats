@@ -258,6 +258,20 @@ function configure_and_check_user() {
 	expect_output "foobar"
 }
 
+@test "run should also override /etc/hostname" {
+	skip_if_no_runtime
+
+	_prefetch alpine
+	${OCI} --version
+	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	cid=$output
+	run_buildah run --hostname foobar $cid hostname
+	expect_output "foobar"
+	hostname=$output
+	run_buildah run --hostname foobar $cid cat /etc/hostname
+	expect_output $hostname
+}
+
 @test "run --volume" {
 	skip_if_no_runtime
 
