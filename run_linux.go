@@ -232,6 +232,18 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		}
 	}
 
+	// generate /etc/hostname if the user intentionally did not override
+	if !(contains(volumes, "/etc/hostname")) {
+		if _, ok := bindFiles["/etc/hostname"]; !ok {
+			hostFile, err := b.generateHostname(path, spec.Hostname, rootIDPair)
+			if err != nil {
+				return err
+			}
+			// Bind /etc/hostname
+			bindFiles["/etc/hostname"] = hostFile
+		}
+	}
+
 	if !(contains(volumes, "/etc/resolv.conf") || (len(b.CommonBuildOpts.DNSServers) == 1 && strings.ToLower(b.CommonBuildOpts.DNSServers[0]) == "none")) {
 		resolvFile, err := b.addResolvConf(path, rootIDPair, b.CommonBuildOpts.DNSServers, b.CommonBuildOpts.DNSSearch, b.CommonBuildOpts.DNSOptions, namespaceOptions)
 		if err != nil {
@@ -671,6 +683,35 @@ func (b *Builder) generateHosts(rdir, hostname string, addHosts []string, chownO
 	}
 	uid := int(stat.Sys().(*syscall.Stat_t).Uid)
 	gid := int(stat.Sys().(*syscall.Stat_t).Gid)
+	if chownOpts != nil {
+		uid = chownOpts.UID
+		gid = chownOpts.GID
+	}
+	if err = os.Chown(cfile, uid, gid); err != nil {
+		return "", err
+	}
+	if err := label.Relabel(cfile, b.MountLabel, false); err != nil {
+		return "", err
+	}
+
+	return cfile, nil
+}
+
+// generateHostname creates a containers /etc/hostname file
+func (b *Builder) generateHostname(rdir, hostname string, chownOpts *idtools.IDPair) (string, error) {
+	var err error
+	hostnamePath := "/etc/hostname"
+
+	var hostnameBuffer bytes.Buffer
+	hostnameBuffer.Write([]byte(fmt.Sprintf("%s\n", hostname)))
+
+	cfile := filepath.Join(rdir, filepath.Base(hostnamePath))
+	if err = ioutils.AtomicWriteFile(cfile, hostnameBuffer.Bytes(), 0644); err != nil {
+		return "", errors.Wrapf(err, "error writing /etc/hostname into the container")
+	}
+
+	uid := 0
+	gid := 0
 	if chownOpts != nil {
 		uid = chownOpts.UID
 		gid = chownOpts.GID
