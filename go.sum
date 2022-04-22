@@ -309,11 +309,11 @@ github.com/containernetworking/plugins v0.9.1/go.mod h1:xP/idU2ldlzN6m4p5LmGiwRD
 github.com/containernetworking/plugins v1.0.1/go.mod h1:QHCfGpaTwYTbbH+nZXKVTxNBDZcxSOplJT5ico8/FLE=
 github.com/containernetworking/plugins v1.1.1 h1:+AGfFigZ5TiQH00vhR8qPeSatj53eNGz0C1d3wVYlHE=
 github.com/containernetworking/plugins v1.1.1/go.mod h1:Sr5TH/eBsGLXK/h71HeLfX19sZPp3ry5uHSkI4LPxV8=
-github.com/containers/common v0.47.5-0.20220421103500-7309411777c5 h1:kV9caDLhPbjW8aYk/uwtyPaGweE4cr1/OR/eZK9dFWY=
-github.com/containers/common v0.47.5-0.20220421103500-7309411777c5/go.mod h1:BBq6jdyjXvJh69YzQPvIuZjBho0MRdA0XGaqBnsO+1Y=
+github.com/containers/common v0.47.5-0.20220421111103-112a47964ddb h1:TBrx1KcmWcesByqTb4Cq7F6bg7bDOjqCf6+6rbi8x4k=
+github.com/containers/common v0.47.5-0.20220421111103-112a47964ddb/go.mod h1:r80nWTmJrG9EoLkuI6WfbWQDUNQVqkVuB8Oaj1VVjOA=
 github.com/containers/image/v5 v5.19.2-0.20220224100137-1045fb70b094/go.mod h1:XoYK6kE0dpazFNcuS+a8lra+QfbC6s8tzv+cUuCrZpE=
-github.com/containers/image/v5 v5.21.1-0.20220414071450-d2d961d5d324 h1:AJOJpnXm0wfyKr113QMTCfjvnZ17IIDxvqMpKofuvZw=
-github.com/containers/image/v5 v5.21.1-0.20220414071450-d2d961d5d324/go.mod h1:VM69F9d4EU1B9FXvpHH0nrgj0Vc6NMPI39SojiYjw1o=
+github.com/containers/image/v5 v5.21.1-0.20220421124950-8527e238867c h1:hshgYt6RAs4L0KhOEc2/qLF++2MryOfAXvTWmxYu4v4=
+github.com/containers/image/v5 v5.21.1-0.20220421124950-8527e238867c/go.mod h1:qpUuaiE2mON6xMA0PRO9GteyH9+KT+C6WygZzL5RhnE=
 github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a h1:spAGlqziZjCJL25C6F1zsQY05tfCKE9F5YwtEWWe6hU=
 github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/ocicrypt v1.0.1/go.mod h1:MeJDzk1RJHv89LjsH0Sp5KTY3ZYkjXO/C+bKAeWFIrc=
@@ -326,8 +326,8 @@ github.com/containers/storage v1.37.0/go.mod h1:kqeJeS0b7DO2ZT1nVWs0XufrmPFbgV3c
 github.com/containers/storage v1.38.2/go.mod h1:INP0RPLHWBxx+pTsO5uiHlDUGHDFvWZPWprAbAlQWPQ=
 github.com/containers/storage v1.38.3-0.20220301151551-d06b0f81c0aa/go.mod h1:LkkL34WRi4dI4jt9Cp+ImdZi/P5i36glSHimT5CP5zM=
 github.com/containers/storage v1.39.0/go.mod h1:UAD0cKLouN4BOQRgZut/nMjrh/EnTCjSNPgp4ZuGWMs=
-github.com/containers/storage v1.39.1-0.20220419114238-1be409aec551 h1:Rp2vxLkv0nwaK77MGntkH4E/db50mJ0aWCPpwx7g5EE=
-github.com/containers/storage v1.39.1-0.20220419114238-1be409aec551/go.mod h1:hFiHLMgNU0r3MiUpE97hEBaEKCN8fEIuEEBXoFC9eN0=
+github.com/containers/storage v1.39.1-0.20220422100603-8996869ae40b h1:nGXmBAy71/Zjvi0K9fn8bvfZR15+IRxoxqGa0XPs774=
+github.com/containers/storage v1.39.1-0.20220422100603-8996869ae40b/go.mod h1:hFiHLMgNU0r3MiUpE97hEBaEKCN8fEIuEEBXoFC9eN0=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/etcd v3.3.13+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
@@ -1023,8 +1023,8 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
 github.com/sylabs/release-tools v0.1.0/go.mod h1:pqP/z/11/rYMQ0OM/Nn7TxGijw7KfZwW9UolD/J1TUo=
 github.com/sylabs/sif/v2 v2.3.2/go.mod h1:IrLX2pzmQ2O4qgv5iy3HdKJcBNYds9DTMd9Je8A9tX4=
-github.com/sylabs/sif/v2 v2.5.0 h1:VGsJG0eIkYGLjYe7Wic6mYQGUe1oeJUlw0sslaFmmPs=
-github.com/sylabs/sif/v2 v2.5.0/go.mod h1:TiyBWsgWeh5yBeQFNuQnvROwswqK7YJT8JA1L53bsXQ=
+github.com/sylabs/sif/v2 v2.6.0 h1:nrWbtSAavp4T6gETg/QgZXxs67qTpSNEgqs2H1y228w=
+github.com/sylabs/sif/v2 v2.6.0/go.mod h1:TiyBWsgWeh5yBeQFNuQnvROwswqK7YJT8JA1L53bsXQ=
 github.com/syndtr/gocapability v0.0.0-20170704070218-db04d3cc01c8/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635 h1:kdXcSzyDtseVEc4yCz2qF8ZrQvIDBJLl4S1c3GCXmoI=

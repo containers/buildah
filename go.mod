@@ -5,10 +5,10 @@ go 1.16
 require (
 	github.com/containerd/containerd v1.6.2
 	github.com/containernetworking/cni v1.0.1
-	github.com/containers/common v0.47.5-0.20220421103500-7309411777c5
-	github.com/containers/image/v5 v5.21.1-0.20220414071450-d2d961d5d324
+	github.com/containers/common v0.47.5-0.20220421111103-112a47964ddb
+	github.com/containers/image/v5 v5.21.1-0.20220421124950-8527e238867c
 	github.com/containers/ocicrypt v1.1.3
-	github.com/containers/storage v1.39.1-0.20220419114238-1be409aec551
+	github.com/containers/storage v1.39.1-0.20220422100603-8996869ae40b
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.14+incompatible
 	github.com/docker/go-units v0.4.0

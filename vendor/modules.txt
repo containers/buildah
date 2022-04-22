@@ -69,7 +69,7 @@ github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.1.1
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.47.5-0.20220421103500-7309411777c5
+# github.com/containers/common v0.47.5-0.20220421111103-112a47964ddb
 ## explicit
 github.com/containers/common/libimage
 github.com/containers/common/libimage/manifests
@@ -101,7 +101,7 @@ github.com/containers/common/pkg/timetype
 github.com/containers/common/pkg/umask
 github.com/containers/common/pkg/util
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.21.1-0.20220414071450-d2d961d5d324
+# github.com/containers/image/v5 v5.21.1-0.20220421124950-8527e238867c
 ## explicit
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
@@ -172,7 +172,7 @@ github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
 github.com/containers/ocicrypt/utils/keyprovider
-# github.com/containers/storage v1.39.1-0.20220419114238-1be409aec551
+# github.com/containers/storage v1.39.1-0.20220422100603-8996869ae40b
 ## explicit
 github.com/containers/storage
 github.com/containers/storage/drivers
@@ -494,7 +494,7 @@ github.com/stefanberger/go-pkcs11uri
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
-# github.com/sylabs/sif/v2 v2.5.0
+# github.com/sylabs/sif/v2 v2.6.0
 github.com/sylabs/sif/v2/pkg/sif
 # github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 ## explicit
