@@ -492,6 +492,5 @@ stuff/mystuff"
   run_buildah copy --contextdir . $ctr / /opt/
   run_buildah run $ctr ls -1 /opt/
   expect_line_count 1
-  expect_output --substring test_file
-  ! expect_output --substring excluded_test_file
+  assert "$output" = "test_file" "only contents of copied directory"
 }
