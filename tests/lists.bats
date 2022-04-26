@@ -29,7 +29,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 
 @test "manifest-add local image" {
     target=scratch-image
-    run_buildah bud $WITH_POLICY_JSON -t ${target} ${TESTSDIR}/bud/from-scratch
+    run_buildah bud $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
     run_buildah manifest create foo
     run_buildah manifest add foo ${target}
     run_buildah manifest rm foo

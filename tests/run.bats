@@ -397,7 +397,7 @@ function configure_and_check_user() {
 			skip "skip if selinux enabled, since stages have different selinux label"
 		fi
 	fi
-	run_buildah build -t buildkitbase $WITH_POLICY_JSON -f ${TESTSDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbase ${TESTSDIR}/bud/buildkit-mount-from/
+	run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $BUDFILES/buildkit-mount-from/Dockerfilebuildkitbase $BUDFILES/buildkit-mount-from/
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output

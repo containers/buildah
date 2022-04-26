@@ -10,6 +10,9 @@ OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc 
 # Default timeout for a buildah command.
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 
+# Shortcut for directory containing Containerfiles for bud.bats
+BUDFILES=${TESTSDIR}/bud
+
 # Used hundreds of times throughout all the tests
 WITH_POLICY_JSON="--signature-policy ${TESTSDIR}/policy.json"
 

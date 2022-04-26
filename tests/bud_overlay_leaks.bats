@@ -8,7 +8,7 @@ load helpers
   fi
 
   target=pull
-  run_buildah 125 --storage-driver=overlay bud $WITH_POLICY_JSON -t ${target} --pull-never ${TESTSDIR}/bud/pull
+  run_buildah 125 --storage-driver=overlay bud $WITH_POLICY_JSON -t ${target} --pull-never $BUDFILES/pull
   expect_output --substring "image not known"
 
   leftover=$(mount | grep $TESTDIR | cat)

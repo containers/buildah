@@ -61,7 +61,7 @@ function _check_matches() {
 	# Pull an image using a fresh directory for the blob cache.
 	run_buildah from --quiet --blob-cache=${blobcachedir} $WITH_POLICY_JSON k8s.gcr.io/pause
 	ctr="$output"
-	run_buildah add ${ctr} ${TESTSDIR}/bud/add-file/file /
+	run_buildah add ${ctr} $BUDFILES/add-file/file /
 	# Commit the image without using the blob cache, using compression so that uncompressed blobs
 	# in the cache which we inherited from our base image won't be matched.
 	doomeddir=${TESTDIR}/doomed
@@ -90,7 +90,7 @@ function _check_matches() {
 	# Pull an image using a fresh directory for the blob cache.
 	run_buildah from --quiet --blob-cache=${blobcachedir} $WITH_POLICY_JSON k8s.gcr.io/pause
 	ctr="$output"
-	run_buildah add ${ctr} ${TESTSDIR}/bud/add-file/file /
+	run_buildah add ${ctr} $BUDFILES/add-file/file /
 	# Commit the image using the blob cache.
 	ls -l ${blobcachedir}
 	run_buildah commit $WITH_POLICY_JSON --blob-cache=${blobcachedir} --disable-compression=false ${ctr} ${target}
@@ -120,7 +120,7 @@ function _check_matches() {
 	target=new-image
 	# Build an image while pulling the base image.  Compress the layers so that they get added
 	# to the blob cache in their compressed forms.
-	run_buildah build-using-dockerfile -t ${target} --pull-always $WITH_POLICY_JSON --blob-cache=${blobcachedir} --disable-compression=false ${TESTSDIR}/bud/add-file
+	run_buildah build-using-dockerfile -t ${target} --pull-always $WITH_POLICY_JSON --blob-cache=${blobcachedir} --disable-compression=false $BUDFILES/add-file
 	# Now try to push the image using the blob cache.  The blob cache will only suggest the
 	# compressed version of a blob if it's been told that we want to compress things, so
 	# we also request compression here to avoid having the copy logic just compress the
@@ -138,7 +138,7 @@ function _check_matches() {
 	mkdir -p ${blobcachedir}
 	target=new-image
 	# Build an image while pulling the base image.
-	run_buildah build-using-dockerfile -t ${target} -D --pull-always --blob-cache=${blobcachedir} $WITH_POLICY_JSON ${TESTSDIR}/bud/add-file
+	run_buildah build-using-dockerfile -t ${target} -D --pull-always --blob-cache=${blobcachedir} $WITH_POLICY_JSON $BUDFILES/add-file
 	# Now try to push the image using the blob cache.
 	destdir=${TESTDIR}/dest
 	mkdir -p ${destdir}
@@ -155,7 +155,7 @@ function _check_matches() {
 	destdir=${TESTDIR}/dest
 	mkdir -p ${destdir}
 	# Build an image while pulling the base image, implicitly pushing while writing.
-	run_buildah build-using-dockerfile -t dir:${destdir} --pull-always --blob-cache=${blobcachedir} $WITH_POLICY_JSON ${TESTSDIR}/bud/add-file
+	run_buildah build-using-dockerfile -t dir:${destdir} --pull-always --blob-cache=${blobcachedir} $WITH_POLICY_JSON $BUDFILES/add-file
         _check_matches $destdir $blobcachedir \
                        4 "base image, layer, config, and manifest" \
                        1 "version"
@@ -168,7 +168,7 @@ function _check_matches() {
 	destdir=${TESTDIR}/dest
 	mkdir -p ${destdir}
 	# Build an image while pulling the base image, implicitly pushing while writing.
-	run_buildah build-using-dockerfile -t dir:${destdir} -D --pull-always --blob-cache=${blobcachedir} $WITH_POLICY_JSON ${TESTSDIR}/bud/add-file
+	run_buildah build-using-dockerfile -t dir:${destdir} -D --pull-always --blob-cache=${blobcachedir} $WITH_POLICY_JSON $BUDFILES/add-file
         _check_matches $destdir $blobcachedir \
                        4 "base image, our layer, config, and manifest" \
                        1 "version"

@@ -212,10 +212,10 @@ EOF
 
 @test "rmi with cached images" {
   _prefetch alpine
-  run_buildah bud $WITH_POLICY_JSON --layers -t test1 ${TESTSDIR}/bud/use-layers
+  run_buildah bud $WITH_POLICY_JSON --layers -t test1 $BUDFILES/use-layers
   run_buildah images -a -q
   expect_line_count 7
-  run_buildah bud $WITH_POLICY_JSON --layers -t test2 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
+  run_buildah bud $WITH_POLICY_JSON --layers -t test2 -f Dockerfile.2 $BUDFILES/use-layers
   run_buildah images -a -q
   expect_line_count 9
   run_buildah rmi test2
@@ -224,7 +224,7 @@ EOF
   run_buildah rmi test1
   run_buildah images -a -q
   expect_line_count 1
-  run_buildah bud $WITH_POLICY_JSON --layers -t test3 -f Dockerfile.2 ${TESTSDIR}/bud/use-layers
+  run_buildah bud $WITH_POLICY_JSON --layers -t test3 -f Dockerfile.2 $BUDFILES/use-layers
   run_buildah rmi alpine
   run_buildah rmi test3
   run_buildah images -a -q

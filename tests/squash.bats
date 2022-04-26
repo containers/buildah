@@ -131,10 +131,10 @@ function check_lengths() {
 @test "bud-squash-should-use-cache" {
   _prefetch alpine
   # populate cache from simple build
-  run_buildah build --layers -t test $WITH_POLICY_JSON -f ${TESTSDIR}/bud/layers-squash/Dockerfile.multi-stage
+  run_buildah build --layers -t test $WITH_POLICY_JSON -f $BUDFILES/layers-squash/Dockerfile.multi-stage
   # create another squashed build and check if we are using cache for everything.
   # instead of last instruction in last stage
-  run_buildah build --layers --squash -t testsquash $WITH_POLICY_JSON -f ${TESTSDIR}/bud/layers-squash/Dockerfile.multi-stage
+  run_buildah build --layers --squash -t testsquash $WITH_POLICY_JSON -f $BUDFILES/layers-squash/Dockerfile.multi-stage
   expect_output --substring "Using cache"
   run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' testsquash
   expect_output "1" "should only container 1 diff"

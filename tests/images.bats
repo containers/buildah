@@ -27,7 +27,7 @@ load helpers
 
 @test "images all test" {
   _prefetch alpine
-  run_buildah bud $WITH_POLICY_JSON --layers -t test ${TESTSDIR}/bud/use-layers
+  run_buildah bud $WITH_POLICY_JSON --layers -t test $BUDFILES/use-layers
   run_buildah images
   expect_line_count 3
 
@@ -35,7 +35,7 @@ load helpers
   expect_line_count 8
 
   # create a no name image which should show up when doing buildah images without the --all flag
-  run_buildah bud $WITH_POLICY_JSON ${TESTSDIR}/bud/use-layers
+  run_buildah bud $WITH_POLICY_JSON $BUDFILES/use-layers
   run_buildah images
   expect_line_count 4
 }

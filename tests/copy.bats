@@ -431,7 +431,7 @@ stuff/mystuff"
   _prefetch alpine busybox
   run_buildah from --quiet $WITH_POLICY_JSON alpine
   from=$output
-  run_buildah copy --contextdir=${TESTSDIR}/bud/dockerignore $from ${TESTSDIR}/bud/dockerignore ./
+  run_buildah copy --contextdir=$BUDFILES/dockerignore $from $BUDFILES/dockerignore ./
 
   run_buildah 1 run $from ls -l test1.txt
 

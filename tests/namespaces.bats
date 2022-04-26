@@ -247,7 +247,7 @@ idmapping_check_permission() {
     # Build an image using these mappings.
     echo "Building image with ${uidmapargs[$i]} ${gidmapargs[$i]}"
     run_buildah bud ${uidmapargs[$i]} ${gidmapargs[$i]} $RUNOPTS $WITH_POLICY_JSON \
-                    -t localhost/alpine-bud:$i -f ${TESTSDIR}/bud/namespaces/Containerfile $TESTDIR
+                    -t localhost/alpine-bud:$i -f $BUDFILES/namespaces/Containerfile $TESTDIR
     # If we specified mappings, expect to be in a different namespace by default.
     output_namespace="$(grep -A1 'ReadlinkResult' <<< "$output" | tail -n1)"
     idmapping_check_namespace "${output_namespace}" "bud"
