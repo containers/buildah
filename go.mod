@@ -3,7 +3,7 @@ module github.com/containers/buildah
 go 1.16
 
 require (
-	github.com/containerd/containerd v1.6.2
+	github.com/containerd/containerd v1.6.3
 	github.com/containernetworking/cni v1.0.1
 	github.com/containers/common v0.47.5-0.20220421111103-112a47964ddb
 	github.com/containers/image/v5 v5.21.1-0.20220421124950-8527e238867c
@@ -29,7 +29,6 @@ require (
 	github.com/opencontainers/selinux v1.10.1
 	github.com/openshift/imagebuilder v1.2.3
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.11.1 // indirect
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20210429002308-3879420cc921
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0
