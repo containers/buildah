@@ -1097,6 +1097,7 @@ function _test_http() {
   _prefetch alpine
   target=alpine-image
   run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/symlink/Dockerfile.symlink-points-to-itself ${TESTSDIR}/bud/symlink
+  assert "$output" =~ "error building .* open /test-log/test: too many levels of symbolic links"
 }
 
 @test "bud multi-stage with symlink to absolute path" {
@@ -1141,7 +1142,8 @@ function _test_http() {
   _prefetch alpine
   target=alpine-image
   run_buildah 2 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.entrypoint-empty-run ${TESTSDIR}/bud/run-scenarios
-  expect_output --substring "error building at STEP"
+  expect_output --substring " -c requires an argument"
+  expect_output --substring "error building at STEP.*: exit status 2"
 }
 
 @test "bud with CMD and RUN" {
@@ -1156,7 +1158,8 @@ function _test_http() {
   _prefetch alpine
   target=alpine-image
   run_buildah 2 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f Dockerfile.cmd-empty-run ${TESTSDIR}/bud/run-scenarios
-  expect_output --substring "error building at STEP"
+  expect_output --substring " -c requires an argument"
+  expect_output --substring "error building at STEP.*: exit status 2"
 }
 
 @test "bud with ENTRYPOINT, CMD and RUN" {
@@ -1171,7 +1174,8 @@ function _test_http() {
   _prefetch alpine
   target=alpine-image
   run_buildah 2 bud --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/run-scenarios/Dockerfile.entrypoint-cmd-empty-run ${TESTSDIR}/bud/run-scenarios
-  expect_output --substring "error building at STEP"
+  expect_output --substring " -c requires an argument"
+  expect_output --substring "error building at STEP.*: exit status 2"
 }
 
 # Determines if a variable set with ENV is available to following commands in the Dockerfile
@@ -1217,6 +1221,7 @@ function _test_http() {
   target=url-image
   url=https://raw.githubusercontent.com/containers/buildah/main/tests/bud/from-scratch/Dockerfile.bogus
   run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json -t ${target} ${url}
+  expect_output "no FROM statement found"
 }
 
 # When provided with a -f flag and directory, buildah will look for the alternate Dockerfile name in the supplied directory
@@ -1242,6 +1247,7 @@ function _test_http() {
 @test "bud with --cpu-shares flag, no argument" {
   target=bud-flag
   run_buildah 125 build --cpu-shares --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Containerfile ${TESTSDIR}/bud/from-scratch
+  expect_output --substring "invalid argument .* invalid syntax"
 }
 
 @test "bud with --cpu-shares flag, invalid argument" {
@@ -1259,6 +1265,7 @@ function _test_http() {
 @test "bud with --cpu-shares short flag (-c), no argument" {
   target=bud-flag
   run_buildah 125 build -c --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/from-scratch/Containerfile ${TESTSDIR}/bud/from-scratch
+  expect_output --substring "invalid argument .* invalid syntax"
 }
 
 @test "bud with --cpu-shares short flag (-c), invalid argument" {
@@ -2187,6 +2194,7 @@ _EOF
   DIR=$(mktemp -d)
   touch "$DIR"/Dockerfile
   run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json "$DIR"/Dockerfile
+  expect_output --substring "no contents in \"$DIR/Dockerfile\""
 }
 
 @test "bud-no-change" {
@@ -2411,6 +2419,7 @@ _EOF
 @test "bud with Containerfile should fail with nonexistent authfile" {
   target=alpine-image
   run_buildah 125 build --authfile /tmp/nonexistent --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/containerfile
+  expect_output "checking authfile: stat /tmp/nonexistent: no such file or directory"
 }
 
 
@@ -2422,15 +2431,15 @@ _EOF
 }
 
 @test "bud COPY with URL should fail" {
-  mkdir ${TESTSDIR}/bud/copy
-  FILE=${TESTSDIR}/bud/copy/Dockerfile.url
+  mkdir ${TESTDIR}/budcopy
+  FILE=${TESTDIR}/budcopy/Dockerfile.url
   /bin/cat <<EOM >$FILE
 FROM alpine:latest
 COPY https://getfedora.org/index.html .
 EOM
 
-  run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json -t ${target} -f ${TESTSDIR}/bud/copy/Dockerfile.url ${TESTSDIR}/bud/copy
-  rm -r ${TESTSDIR}/bud/copy
+  run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json -t foo -f ${TESTDIR}/budcopy/Dockerfile.url
+  expect_output --substring "error building .* source can.t be a URL for COPY"
 }
 
 @test "bud quiet" {
@@ -2578,12 +2587,19 @@ EOM
 
   target=busybox-image
   echo FROM localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest > ${TESTDIR}/tmp/Dockerfile
+
   # Try to build from encrypted image without key
   run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword -t ${target} -f ${TESTDIR}/tmp/Dockerfile
+  assert "$output" =~ "missing private key needed for decryption"
+
   # Try to build from encrypted image with wrong key
   run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem -t ${target} -f ${TESTDIR}/tmp/Dockerfile
+  assert "$output" =~ "no suitable key found for decrypting layer key"
+  assert "$output" =~ "- JWE: No suitable private key found for decryption"
+
   # Try to build with the correct key
   run_buildah build --signature-policy ${TESTSDIR}/policy.json --tls-verify=false  --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem -t ${target} -f ${TESTDIR}/tmp/Dockerfile
+  assert "$output" =~ "Successfully tagged localhost:$REGISTRY_PORT/"
 
   rm -rf ${TESTDIR}/tmp
 }
@@ -2591,13 +2607,19 @@ EOM
 @test "bud with --build-arg" {
   _prefetch alpine busybox
   target=busybox-image
+
+  # Envariable not present at all
   run_buildah --log-level "warn" bud --signature-policy ${TESTSDIR}/policy.json -t ${target} ${TESTSDIR}/bud/build-arg
-  expect_output --substring 'missing .+ build argument'
+  expect_output --substring 'missing \\"foo\\" build argument. Try adding'
+
+  # Envariable explicitly set on command line
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg foo=bar ${TESTSDIR}/bud/build-arg
-  expect_output --substring "bar"
-  export foo=hello-world
+  assert "${lines[3]}" = "bar"
+
+  # Envariable from environment
+  export foo=$(random_string 20)
   run_buildah build --signature-policy ${TESTSDIR}/policy.json -t ${target} --build-arg foo ${TESTSDIR}/bud/build-arg
-  expect_output --substring "hello-world"
+  assert "${lines[3]}" = "$foo"
 }
 
 @test "bud arg and env var with same name" {
@@ -2702,17 +2724,18 @@ EOM
   # run the build once
   run_buildah build --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-scratch
   iid="$output"
+
   # now run it again - the cache should give us the same final image ID
   run_buildah build --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-scratch
-  iid2="$output"
-  expect_output --substring "$iid"
+  assert "$output" = "$iid"
+
   # now run it *again*, except with more content added at an intermediate step, which should invalidate the cache
   run_buildah build --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different1 ${TESTSDIR}/bud/cache-scratch
-  test "$output" != "$iid"
+  assert "$output" !~ "$iid"
+
   # now run it *again* again, except with more content added at an intermediate step, which should invalidate the cache
   run_buildah build --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different2 ${TESTSDIR}/bud/cache-scratch
-  test "$output" != "$iid"
-  test "$output" != "$iid2"
+  assert "$output" !~ "$iid"
 }
 
 @test "bud-caching-from-scratch-config" {
@@ -2720,17 +2743,18 @@ EOM
   # run the build once
   run_buildah build --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.config ${TESTSDIR}/bud/cache-scratch
   iid="$output"
+
   # now run it again - the cache should give us the same final image ID
   run_buildah build --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.config ${TESTSDIR}/bud/cache-scratch
-  iid2="$output"
-  expect_output --substring "$iid"
+  assert "$output" = "$iid"
+
   # now run it *again*, except with more content added at an intermediate step, which should invalidate the cache
   run_buildah build --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different1 ${TESTSDIR}/bud/cache-scratch
-  test "$output" != "$iid"
+  assert "$output" !~ "$iid"
+
   # now run it *again* again, except with more content added at an intermediate step, which should invalidate the cache
   run_buildah build --quiet --layers --pull=false --format docker --signature-policy ${TESTSDIR}/policy.json -f Dockerfile.different2 ${TESTSDIR}/bud/cache-scratch
-  test "$output" != "$iid"
-  test "$output" != "$iid2"
+  assert "$output" !~ "$iid"
 }
 
 @test "bud capabilities test" {
@@ -2773,12 +2797,16 @@ EOF
 @test "bud cache by format" {
   # Build first in Docker format.  Whether we do OCI or Docker first shouldn't matter, so we picked one.
   run_buildah build --iidfile ${TESTDIR}/first-docker  --format docker --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+
   # Build in OCI format.  Cache should not re-use the same images, so we should get a different image ID.
   run_buildah build --iidfile ${TESTDIR}/first-oci     --format oci    --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+
   # Build in Docker format again.  Cache traversal should 100% hit the Docker image, so we should get its image ID.
   run_buildah build --iidfile ${TESTDIR}/second-docker --format docker --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+
   # Build in OCI format again.  Cache traversal should 100% hit the OCI image, so we should get its image ID.
   run_buildah build --iidfile ${TESTDIR}/second-oci    --format oci    --layers --quiet --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/cache-format
+
   # Compare them.  The two images we built in Docker format should be the same, the two we built in OCI format
   # should be the same, but the OCI and Docker format images should be different.
   assert "$(< ${TESTDIR}/first-docker)" = "$(< ${TESTDIR}/second-docker)" \
@@ -2848,14 +2876,18 @@ EOF
   run_buildah from --name myctr testbud
 
   run_buildah 1 run myctr ls -l test1.txt
+  expect_output --substring "ls: test1.txt: No such file or directory"
 
   run_buildah run myctr ls -l test2.txt
 
   run_buildah 1 run myctr ls -l sub1.txt
+  expect_output --substring "ls: sub1.txt: No such file or directory"
 
   run_buildah 1 run myctr ls -l sub2.txt
+  expect_output --substring "ls: sub2.txt: No such file or directory"
 
   run_buildah 1 run myctr ls -l subdir/
+  expect_output --substring "ls: subdir/: No such file or directory"
 }
 
 @test "bud with network options" {
@@ -2896,6 +2928,7 @@ _EOF
 
   # fail without --stdin
   run_buildah 1 bud -t testbud --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
+  expect_output --substring "error building .*: exit status 1"
 
   run_buildah build --stdin -t testbud --signature-policy ${TESTSDIR}/policy.json ${mytmpdir} <<< input
   expect_output --substring "test got <input>"
@@ -3462,6 +3495,7 @@ _EOF
 @test "bud with .dockerignore #3" {
   run_buildah build -t test --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
   run_buildah build -t test2 -f Containerfile.missing --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
+
   run_buildah 125 build -t test3 -f Containerfile.bad --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/copy-globs
   expect_output --substring 'error building.*"COPY \*foo /testdir".*no such file or directory'
 }
@@ -3582,6 +3616,7 @@ _EOF
   if test $status -ne 0 ; then
     skip "unable to run arm container, assuming emulation is not available"
   fi
+
   # build for those architectures - RUN gets exercised
   run_buildah build --signature-policy ${TESTSDIR}/policy.json --jobs=0 --platform=$os/arm,$os/386 --manifest $outputlist ${TESTSDIR}/bud/multiarch
   run_buildah manifest inspect $outputlist
@@ -3590,15 +3625,17 @@ _EOF
   d1="$output"
   run jq -r '.manifests[1].digest' <<< "$list"
   d2="$output"
-  test -n "$d1"
-  test -n "$d2"
-  test "$d1" != "$d2"
+  assert "$d1" =~ "^sha256:[0-9a-f]{64}\$"
+  assert "$d2" =~ "^sha256:[0-9a-f]{64}\$"
+  assert "$d1" != "$d2" "digest(arm) should != digest(386)"
 }
 
 @test "bud-multiple-platform-no-partial-manifest-list" {
   outputlist=localhost/testlist
   run_buildah 1 bud --signature-policy ${TESTSDIR}/policy.json --platform=linux/arm,linux/amd64 --manifest $outputlist -f ${TESTSDIR}/bud/multiarch/Dockerfile.fail ${TESTSDIR}/bud/multiarch
+  expect_output --substring "error building at STEP \"RUN test .arch. = x86_64"
   run_buildah 125 manifest inspect $outputlist
+  expect_output --substring "reading image .* pinging container registry"
 }
 
 @test "bud-multiple-platform-failure" {
@@ -3945,11 +3982,13 @@ _EOF
   skip_if_in_container
   mkdir ${TESTDIR}/bud
   cp -R ${TESTSDIR}/bud/buildkit-mount-from ${TESTDIR}/bud/buildkit-mount-from
+
   # build base image which we will use as our `from`
   run_buildah build -t buildkitbase --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbase ${TESTDIR}/bud/buildkit-mount-from/
+
   # try reading something from persistent cache in a different build
   run_buildah 125 build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTDIR}/bud/buildkit-mount-from/Dockerfilecachefromimage
-  expect_output --substring "hello"
+  expect_output --substring "no stage found with name buildkitbase"
   run_buildah rmi -f buildkitbase
 }
 
