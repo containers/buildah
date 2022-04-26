@@ -11,6 +11,7 @@ import (
 
 	graphdriver "github.com/containers/storage/drivers"
 	"github.com/containers/storage/pkg/devicemapper"
+	"github.com/containers/storage/pkg/directory"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/locker"
 	"github.com/containers/storage/pkg/mount"
@@ -18,6 +19,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
+
+const defaultPerms = os.FileMode(0555)
 
 func init() {
 	graphdriver.Register("devicemapper", Init)
@@ -214,7 +217,7 @@ func (d *Driver) Get(id string, options graphdriver.MountOpts) (string, error) {
 		return "", err
 	}
 
-	if err := idtools.MkdirAllAs(rootFs, 0755, uid, gid); err != nil {
+	if err := idtools.MkdirAllAs(rootFs, defaultPerms, uid, gid); err != nil {
 		d.ctr.Decrement(mp)
 		d.DeviceSet.UnmountDevice(id, mp)
 		return "", err
@@ -249,6 +252,14 @@ func (d *Driver) Put(id string) error {
 	}
 
 	return err
+}
+
+// ReadWriteDiskUsage returns the disk usage of the writable directory for the ID.
+// For devmapper, it queries the mnt path for this ID.
+func (d *Driver) ReadWriteDiskUsage(id string) (*directory.DiskUsage, error) {
+	d.locker.Lock(id)
+	defer d.locker.Unlock(id)
+	return directory.Usage(path.Join(d.home, "mnt", id))
 }
 
 // Exists checks to see if the device exists.

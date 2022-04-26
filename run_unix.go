@@ -3,12 +3,12 @@
 package buildah
 
 import (
-	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/pkg/errors"
 )
 
-// ContainerDevices is an alias for a slice of github.com/opencontainers/runc/libcontainer/configs.Device structures.
-type ContainerDevices = []configs.Device
+// ContainerDevices is an alias for a slice of github.com/opencontainers/runc/libcontainer/devices.Device structures.
+type ContainerDevices = []devices.Device
 
 func setChildProcess() error {
 	return errors.New("function not supported on non-linux systems")
