@@ -17,7 +17,7 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
   root=$output
@@ -37,10 +37,10 @@ load helpers
   run_buildah config --workingdir=/cwd $cid
   run_buildah add $cid ${TESTDIR}/randomfile
   run_buildah unmount $cid
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
   run_buildah rm $cid
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json new-image
+  run_buildah from $WITH_POLICY_JSON new-image
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
@@ -62,7 +62,7 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   createrandom ${TESTDIR}/other-randomfile
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
 
   dd if=/dev/urandom bs=1024 count=4 of=${TESTDIR}/random1
@@ -86,10 +86,10 @@ load helpers
   run_buildah add $cid ${TESTDIR}/tarball2.tar.gz
   run_buildah add $cid ${TESTDIR}/tarball3.tar.bz2
   run_buildah add $cid ${TESTDIR}/tarball4.tar.bz2
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
   run_buildah rm $cid
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json new-image
+  run_buildah from $WITH_POLICY_JSON new-image
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
@@ -117,15 +117,15 @@ load helpers
   createrandom ${TESTDIR}/distutils.cfg
   permission=$(stat -c "%a" ${TESTDIR}/distutils.cfg)
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ubuntu
+  run_buildah from --quiet $WITH_POLICY_JSON ubuntu
   cid=$output
   run_buildah add $cid ${TESTDIR}/distutils.cfg /usr/lib/python3.7/distutils
   run_buildah run $cid stat -c "%a" /usr/lib/python3.7/distutils
   expect_output $permission
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:${imgName}
+  run_buildah commit $WITH_POLICY_JSON $cid containers-storage:${imgName}
   run_buildah rm $cid
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${imgName}
+  run_buildah from --quiet $WITH_POLICY_JSON ${imgName}
   newcid=$output
   run_buildah run $newcid stat -c "%a" /usr/lib/python3.7/distutils
   expect_output $permission
@@ -137,15 +137,15 @@ load helpers
   createrandom ${TESTDIR}/distutils.cfg
   permission=$(stat -c "%a" ${TESTDIR}/distutils.cfg)
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ubuntu
+  run_buildah from --quiet $WITH_POLICY_JSON ubuntu
   cid=$output
   run_buildah add $cid ${TESTDIR}/distutils.cfg lib/custom
   run_buildah run $cid stat -c "%a" lib/custom
   expect_output $permission
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:${imgName}
+  run_buildah commit $WITH_POLICY_JSON $cid containers-storage:${imgName}
   run_buildah rm $cid
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ${imgName}
+  run_buildah from --quiet $WITH_POLICY_JSON ${imgName}
   newcid=$output
   run_buildah run $newcid stat -c "%a" lib/custom
   expect_output $permission
@@ -154,7 +154,7 @@ load helpers
 @test "add with chown" {
   _prefetch busybox
   createrandom ${TESTDIR}/randomfile
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
   run_buildah add --chown bin:bin $cid ${TESTDIR}/randomfile /tmp/random
   run_buildah run $cid ls -l /tmp/random
@@ -165,7 +165,7 @@ load helpers
 @test "add with chmod" {
   _prefetch busybox
   createrandom ${TESTDIR}/randomfile
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
   run_buildah add --chmod 777 $cid ${TESTDIR}/randomfile /tmp/random
   run_buildah run $cid ls -l /tmp/random
@@ -175,7 +175,7 @@ load helpers
 
 @test "add url" {
   _prefetch busybox
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
   run_buildah add $cid https://github.com/containers/buildah/raw/main/README.md
   run_buildah run $cid ls /README.md
@@ -187,7 +187,7 @@ load helpers
 @test "add relative" {
   # make sure we don't get thrown by relative source locations
   _prefetch busybox
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
 
   run_buildah add $cid deny.json /
@@ -217,7 +217,7 @@ expect="
 stuff
 stuff/mystuff"
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
 
   run_buildah 125 copy --ignorefile ${mytest}/.ignore $cid ${mytest} /stuff
@@ -236,7 +236,7 @@ stuff/mystuff"
 @test "add quietly" {
   _prefetch busybox
   createrandom ${TESTDIR}/randomfile
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
   run_buildah add --quiet $cid ${TESTDIR}/randomfile /tmp/random
   expect_output ""
@@ -248,15 +248,15 @@ stuff/mystuff"
 @test "add from container" {
   _prefetch busybox
   createrandom ${TESTDIR}/randomfile
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   from=$output
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
   run_buildah add --quiet $from ${TESTDIR}/randomfile /tmp/random
   expect_output ""
-  run_buildah add --quiet --signature-policy ${TESTSDIR}/policy.json --from $from $cid /tmp/random /tmp/random # absolute path
+  run_buildah add --quiet $WITH_POLICY_JSON --from $from $cid /tmp/random /tmp/random # absolute path
   expect_output ""
-  run_buildah add --quiet --signature-policy ${TESTSDIR}/policy.json --from $from $cid  tmp/random /tmp/random2 # relative path
+  run_buildah add --quiet $WITH_POLICY_JSON --from $from $cid  tmp/random /tmp/random2 # relative path
   expect_output ""
   run_buildah mount $cid
   croot=$output
@@ -266,13 +266,13 @@ stuff/mystuff"
 
 @test "add from image" {
   _prefetch busybox
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
-  run_buildah add --quiet --signature-policy ${TESTSDIR}/policy.json --from ubuntu $cid /etc/passwd /tmp/passwd # should pull the image, absolute path
+  run_buildah add --quiet $WITH_POLICY_JSON --from ubuntu $cid /etc/passwd /tmp/passwd # should pull the image, absolute path
   expect_output ""
-  run_buildah add --quiet --signature-policy ${TESTSDIR}/policy.json --from ubuntu $cid  etc/passwd /tmp/passwd2 # relative path
+  run_buildah add --quiet $WITH_POLICY_JSON --from ubuntu $cid  etc/passwd /tmp/passwd2 # relative path
   expect_output ""
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ubuntu
+  run_buildah from --quiet $WITH_POLICY_JSON ubuntu
   ubuntu=$output
   run_buildah mount $cid
   croot=$output

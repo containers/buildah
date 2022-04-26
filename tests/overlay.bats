@@ -12,7 +12,7 @@ load helpers
   mkdir ${TESTDIR}/lower
   touch ${TESTDIR}/lower/foo
 
-  run_buildah from --quiet -v ${TESTDIR}/lower:/lower:O --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet -v ${TESTDIR}/lower:/lower:O --quiet $WITH_POLICY_JSON $image
   cid=$output
 
   # This should succeed
@@ -41,7 +41,7 @@ load helpers
   mkdir -m 770 ${TESTDIR}/lower
   chown 1:1 ${TESTDIR}/lower
   permission=$(stat -c "%a %u %g" ${TESTDIR}/lower)
-  run_buildah from --quiet -v ${TESTDIR}/lower:/tmp/test:O --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet -v ${TESTDIR}/lower:/tmp/test:O --quiet $WITH_POLICY_JSON $image
   cid=$output
 
   # This should succeed
@@ -73,7 +73,7 @@ load helpers
 
   # This should succeed.
   # Add double backslash, because shell will escape.
-  run_buildah from --quiet -v ${TESTDIR}/a\\:lower:/a\\:lower:O --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet -v ${TESTDIR}/a\\:lower:/a\\:lower:O --quiet $WITH_POLICY_JSON $image
   cid=$output
 
   # This should succeed

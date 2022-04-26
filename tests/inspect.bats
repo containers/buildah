@@ -15,9 +15,9 @@ load helpers
 
 @test "inspect" {
   _prefetch alpine
-  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
   cid=$output
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" alpine-image
+  run_buildah commit $WITH_POLICY_JSON "$cid" alpine-image
 
   # e.g. { map[] [PATH=/....] [] [/bin/sh] map[]  map[] }
   run_buildah inspect --format '{{.OCIv1.Config}}' alpine
@@ -52,7 +52,7 @@ load helpers
 
 @test "inspect-config-is-json" {
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah inspect alpine
         expect_output --substring 'Config.*\{'
@@ -60,7 +60,7 @@ load helpers
 
 @test "inspect-manifest-is-json" {
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah inspect alpine
         expect_output --substring 'Manifest.*\{'
@@ -68,7 +68,7 @@ load helpers
 
 @test "inspect-ociv1-is-json" {
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah inspect alpine
         expect_output --substring 'OCIv1.*\{'
@@ -76,7 +76,7 @@ load helpers
 
 @test "inspect-docker-is-json" {
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah inspect alpine
         expect_output --substring 'Docker.*\{'
@@ -84,7 +84,7 @@ load helpers
 
 @test "inspect-format-config-is-json" {
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah inspect --format "{{.Config}}" alpine
         expect_output --substring '\{'
@@ -92,7 +92,7 @@ load helpers
 
 @test "inspect-format-manifest-is-json" {
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah inspect --format "{{.Manifest}}" alpine
         expect_output --substring '\{'
@@ -100,7 +100,7 @@ load helpers
 
 @test "inspect-format-ociv1-is-json" {
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah inspect --format "{{.OCIv1}}" alpine
         expect_output --substring '\{'
@@ -108,7 +108,7 @@ load helpers
 
 @test "inspect-format-docker-is-json" {
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah inspect --format "{{.Docker}}" alpine
         expect_output --substring '\{'
@@ -117,7 +117,7 @@ load helpers
 @test "inspect-format-docker-variant" {
 	# github.com/containerd/containerd/platforms.Normalize() converts Arch:"armhf" to Arch:"arm"+Variant:"v7",
 	# so check that platform normalization happens at least for that one
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json --arch=armhf scratch
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON --arch=armhf scratch
 	cid=$output
 	run_buildah inspect --format "{{.Docker.Architecture}}" $cid
 	[[ "$output" == "arm" ]]

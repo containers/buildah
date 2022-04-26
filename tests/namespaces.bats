@@ -8,7 +8,7 @@ load helpers
   fi
 
   _prefetch alpine
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
+  run_buildah from $WITH_POLICY_JSON --quiet alpine
   expect_output "alpine-working-container"
   ctr="$output"
 
@@ -40,7 +40,7 @@ load helpers
 
   # Create a container that uses that mapping.
   _prefetch alpine
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize alpine
+  run_buildah from $WITH_POLICY_JSON --quiet --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize alpine
   ctr="$output"
 
   # Check that with settings that require a user namespace, we also get a new network namespace by default.
@@ -57,7 +57,7 @@ load helpers
   assert "$output" != "$host_sys"
 
   # Create a container that doesn't use that mapping.
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
+  run_buildah from $WITH_POLICY_JSON --quiet alpine
   ctr="$output"
 
   run_buildah run $RUNOPTS --net=host "$ctr" readlink /proc/self/ns/net
@@ -201,9 +201,9 @@ idmapping_check_permission() {
     }
 
     # Create a container using these mappings.
-    echo "Building container with --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine"
+    echo "Building container with $WITH_POLICY_JSON --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine"
     _prefetch alpine
-    run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine
+    run_buildah from $WITH_POLICY_JSON --quiet ${uidmapargs[$i]} ${gidmapargs[$i]} alpine
     ctr="$output"
 
     # If we specified mappings, expect to be in a different namespace by default.
@@ -246,7 +246,7 @@ idmapping_check_permission() {
     # Also test bud command
     # Build an image using these mappings.
     echo "Building image with ${uidmapargs[$i]} ${gidmapargs[$i]}"
-    run_buildah bud ${uidmapargs[$i]} ${gidmapargs[$i]} $RUNOPTS --signature-policy ${TESTSDIR}/policy.json \
+    run_buildah bud ${uidmapargs[$i]} ${gidmapargs[$i]} $RUNOPTS $WITH_POLICY_JSON \
                     -t localhost/alpine-bud:$i -f ${TESTSDIR}/bud/namespaces/Containerfile $TESTDIR
     # If we specified mappings, expect to be in a different namespace by default.
     output_namespace="$(grep -A1 'ReadlinkResult' <<< "$output" | tail -n1)"
@@ -298,7 +298,7 @@ general_namespace() {
   _prefetch alpine
   for namespace in "${types[@]}" ; do
     # Specify the setting for this namespace for this container.
-    run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --"$nsflag"=$namespace alpine
+    run_buildah from $WITH_POLICY_JSON --quiet --"$nsflag"=$namespace alpine
     [ "$output" != "" ]
     ctr="$output"
 
@@ -342,7 +342,7 @@ general_namespace() {
 FROM alpine
 RUN echo "TargetOutput" && readlink /proc/self/ns/$nstype
 _EOF
-    run_buildah bud --"$nsflag"=$namespace $RUNOPTS --signature-policy ${TESTSDIR}/policy.json --file ${mytmpdir} .
+    run_buildah bud --"$nsflag"=$namespace $RUNOPTS $WITH_POLICY_JSON --file ${mytmpdir} .
     result=$(grep -A1 "TargetOutput" <<< "$output" | tail -n1)
     case "$namespace" in
     ""|container|private)
@@ -420,8 +420,8 @@ _EOF
           for uts in host private; do
             for cgroupns in host private; do
 
-              echo "buildah from --signature-policy ${TESTSDIR}/policy.json --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine"
-              run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine
+              echo "buildah from $WITH_POLICY_JSON --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine"
+              run_buildah from $WITH_POLICY_JSON --quiet --ipc=$ipc --net=$net --pid=$pid --userns=$userns --uts=$uts --cgroupns=$cgroupns alpine
               [ "$output" != "" ]
               ctr="$output"
               run_buildah run $ctr pwd
@@ -445,7 +445,7 @@ _EOF
 	cid=$output
 	run_buildah copy "$cid" ${TESTDIR}/randomfile /
 	run_buildah copy --chown 1:1 "$cid" ${TESTDIR}/randomfile /randomfile2
-	run_buildah commit --squash --signature-policy ${TESTSDIR}/policy.json --rm "$cid" squashed
+	run_buildah commit --squash $WITH_POLICY_JSON --rm "$cid" squashed
 	run_buildah from --quiet squashed
 	cid=$output
 	run_buildah mount $cid
@@ -476,9 +476,9 @@ _EOF
 }
 
 @test "idmapping-syntax" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-uid-map=0:10000:65536 alpine
+  run_buildah from $WITH_POLICY_JSON --quiet --userns-uid-map=0:10000:65536 alpine
 
-  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --quiet --userns-gid-map=0:10000:65536 alpine
+  run_buildah 125 from $WITH_POLICY_JSON --quiet --userns-gid-map=0:10000:65536 alpine
   expect_output --substring "userns-gid-map can not be used without --userns-uid-map"
 }
 
@@ -499,7 +499,7 @@ ipcns = "$mode"
 utsns = "$mode"
 EOF
 
-    CONTAINERS_CONF="$containers_conf_file" run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet alpine
+    CONTAINERS_CONF="$containers_conf_file" run_buildah from $WITH_POLICY_JSON --quiet alpine
     [ "$output" != "" ]
     ctr="$output"
 

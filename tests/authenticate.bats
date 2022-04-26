@@ -39,24 +39,24 @@ load helpers
   start_registry "$testuser" "$testpassword"
 
   # Basic test: should pass
-  run_buildah push --cert-dir $REGISTRY_DIR --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds "$testuser":"$testpassword" alpine localhost:$REGISTRY_PORT/my-alpine
+  run_buildah push --cert-dir $REGISTRY_DIR $WITH_POLICY_JSON --tls-verify=false --creds "$testuser":"$testpassword" alpine localhost:$REGISTRY_PORT/my-alpine
   expect_output --substring "Writing manifest to image destination"
 
   # With tls-verify=true, should fail due to self-signed cert
-  run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json --tls-verify=true alpine localhost:$REGISTRY_PORT/my-alpine
+  run_buildah 125 push $WITH_POLICY_JSON --tls-verify=true alpine localhost:$REGISTRY_PORT/my-alpine
   expect_output --substring " x509: certificate signed by unknown authority" \
                 "push with --tls-verify=true"
 
   # wrong credentials: should fail
-  run_buildah 125 from --cert-dir $REGISTRY_DIR --signature-policy ${TESTSDIR}/policy.json --creds baduser:badpassword localhost:$REGISTRY_PORT/my-alpine
+  run_buildah 125 from --cert-dir $REGISTRY_DIR $WITH_POLICY_JSON --creds baduser:badpassword localhost:$REGISTRY_PORT/my-alpine
   expect_output --substring "unauthorized: authentication required"
-  run_buildah 125 from --cert-dir $REGISTRY_DIR --signature-policy ${TESTSDIR}/policy.json --creds "$testuser":badpassword localhost:$REGISTRY_PORT/my-alpine
+  run_buildah 125 from --cert-dir $REGISTRY_DIR $WITH_POLICY_JSON --creds "$testuser":badpassword localhost:$REGISTRY_PORT/my-alpine
   expect_output --substring "unauthorized: authentication required"
-  run_buildah 125 from --cert-dir $REGISTRY_DIR --signature-policy ${TESTSDIR}/policy.json --creds baduser:"$testpassword" localhost:$REGISTRY_PORT/my-alpine
+  run_buildah 125 from --cert-dir $REGISTRY_DIR $WITH_POLICY_JSON --creds baduser:"$testpassword" localhost:$REGISTRY_PORT/my-alpine
   expect_output --substring "unauthorized: authentication required"
 
   # This should work
-  run_buildah from --cert-dir $REGISTRY_DIR --name "my-alpine-work-ctr" --signature-policy ${TESTSDIR}/policy.json --creds "$testuser":"$testpassword" localhost:$REGISTRY_PORT/my-alpine
+  run_buildah from --cert-dir $REGISTRY_DIR --name "my-alpine-work-ctr" $WITH_POLICY_JSON --creds "$testuser":"$testpassword" localhost:$REGISTRY_PORT/my-alpine
   expect_output --from="${lines[-1]}" "my-alpine-work-ctr"
 
   # Create Dockerfile for bud tests
@@ -71,12 +71,12 @@ EOM
   run_buildah rmi -f --all
 
   # bud test bad password should fail
-  run_buildah 125 bud -f $DOCKERFILE --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds="$testuser":badpassword
+  run_buildah 125 bud -f $DOCKERFILE $WITH_POLICY_JSON --tls-verify=false --creds="$testuser":badpassword
   expect_output --substring "unauthorized: authentication required" \
                 "buildah bud with wrong credentials"
 
   # bud test this should work
-  run_buildah bud -f $DOCKERFILE --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds="$testuser":"$testpassword" .
+  run_buildah bud -f $DOCKERFILE $WITH_POLICY_JSON --tls-verify=false --creds="$testuser":"$testpassword" .
   expect_output --from="${lines[0]}" "STEP 1/1: FROM localhost:$REGISTRY_PORT/my-alpine"
   expect_output --substring "Writing manifest to image destination"
 }
@@ -88,11 +88,11 @@ EOM
   start_registry
 
   # Push with correct credentials: should pass
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=true --cert-dir=$REGISTRY_DIR --creds testuser:testpassword alpine localhost:$REGISTRY_PORT/my-alpine
+  run_buildah push $WITH_POLICY_JSON --tls-verify=true --cert-dir=$REGISTRY_DIR --creds testuser:testpassword alpine localhost:$REGISTRY_PORT/my-alpine
   expect_output --substring "Writing manifest to image destination"
 
   # Push with wrong credentials: should fail
-  run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json --tls-verify=true --cert-dir=$REGISTRY_DIR --creds testuser:WRONGPASSWORD alpine localhost:$REGISTRY_PORT/my-alpine
+  run_buildah 125 push $WITH_POLICY_JSON --tls-verify=true --cert-dir=$REGISTRY_DIR --creds testuser:WRONGPASSWORD alpine localhost:$REGISTRY_PORT/my-alpine
   expect_output --substring "unauthorized: authentication required"
 
   # Make sure we can fetch it
@@ -102,7 +102,7 @@ EOM
 
   # Commit with correct credentials
   run_buildah run $cid touch testfile
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json --cert-dir=$REGISTRY_DIR --tls-verify=true --creds=testuser:testpassword $cid docker://localhost:$REGISTRY_PORT/my-alpine
+  run_buildah commit $WITH_POLICY_JSON --cert-dir=$REGISTRY_DIR --tls-verify=true --creds=testuser:testpassword $cid docker://localhost:$REGISTRY_PORT/my-alpine
 
   # Create Dockerfile for bud tests
   mkdir -p ${TESTDIR}/dockerdir
@@ -117,7 +117,7 @@ EOM
   run_buildah rmi -f --all
 
   # bud with correct credentials
-  run_buildah bud -f $DOCKERFILE --signature-policy ${TESTSDIR}/policy.json --cert-dir=$REGISTRY_DIR --tls-verify=true --creds=testuser:testpassword .
+  run_buildah bud -f $DOCKERFILE $WITH_POLICY_JSON --cert-dir=$REGISTRY_DIR --tls-verify=true --creds=testuser:testpassword .
   expect_output --from="${lines[0]}" "STEP 1/2: FROM localhost:$REGISTRY_PORT/my-alpine"
   expect_output --substring "Writing manifest to image destination"
 }
@@ -132,7 +132,7 @@ EOM
   expect_output "Login Succeeded!"
 
   # After login, push should pass
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false alpine localhost:$REGISTRY_PORT/my-alpine
+  run_buildah push $WITH_POLICY_JSON --tls-verify=false alpine localhost:$REGISTRY_PORT/my-alpine
   expect_output --substring "Storing signatures"
 
   run_buildah 125 login --tls-verify=false --username testuser --password WRONGPASSWORD localhost:$REGISTRY_PORT
@@ -142,7 +142,7 @@ EOM
   run_buildah 0 logout localhost:$REGISTRY_PORT
   expect_output "Removed login credentials for localhost:$REGISTRY_PORT"
 
-  run_buildah 125 push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false alpine localhost:$REGISTRY_PORT/my-alpine
+  run_buildah 125 push $WITH_POLICY_JSON --tls-verify=false alpine localhost:$REGISTRY_PORT/my-alpine
   expect_output --substring "unauthorized: authentication required" \
                 "buildah push after buildah logout"
 }

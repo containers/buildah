@@ -5,7 +5,7 @@ load helpers
 @test "rename" {
   _prefetch alpine
   new_name=test-container
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah containers --format "{{.ContainerName}}"
   old_name=$output
@@ -20,7 +20,7 @@ load helpers
 
 @test "rename same name as current name" {
   _prefetch alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah 125 rename ${cid} ${cid}
   expect_output 'renaming a container with the same name as its current name'
@@ -28,9 +28,9 @@ load helpers
 
 @test "rename same name as other container name" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid2=$output
   run_buildah 125 rename ${cid1} ${cid2}
   expect_output --substring " already in use by "

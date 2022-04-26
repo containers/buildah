@@ -17,9 +17,9 @@ load helpers
 
 @test "images" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid2=$output
   run_buildah images
   expect_line_count 3
@@ -27,7 +27,7 @@ load helpers
 
 @test "images all test" {
   _prefetch alpine
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json --layers -t test ${TESTSDIR}/bud/use-layers
+  run_buildah bud $WITH_POLICY_JSON --layers -t test ${TESTSDIR}/bud/use-layers
   run_buildah images
   expect_line_count 3
 
@@ -35,16 +35,16 @@ load helpers
   expect_line_count 8
 
   # create a no name image which should show up when doing buildah images without the --all flag
-  run_buildah bud --signature-policy ${TESTSDIR}/policy.json ${TESTSDIR}/bud/use-layers
+  run_buildah bud $WITH_POLICY_JSON ${TESTSDIR}/bud/use-layers
   run_buildah images
   expect_line_count 4
 }
 
 @test "images filter test" {
   _prefetch k8s.gcr.io/pause busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json k8s.gcr.io/pause
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON k8s.gcr.io/pause
   cid1=$output
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid2=$output
 
   run_buildah 125 images --noheading --filter since k8s.gcr.io/pause
@@ -62,9 +62,9 @@ load helpers
 
 @test "images format test" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid2=$output
   run_buildah images --format "{{.Name}}"
   expect_line_count 2
@@ -72,9 +72,9 @@ load helpers
 
 @test "images noheading test" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid2=$output
   run_buildah images --noheading
   expect_line_count 2
@@ -82,9 +82,9 @@ load helpers
 
 @test "images quiet test" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid2=$output
   run_buildah images --quiet
   expect_line_count 2
@@ -92,9 +92,9 @@ load helpers
 
 @test "images no-trunc test" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid2=$output
   run_buildah images -q --no-trunc
   expect_line_count 2
@@ -103,8 +103,8 @@ load helpers
 
 @test "images json test" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
 
   for img in '' alpine busybox; do
       # e.g. [ { "id": "xx", ... },{ "id": "yy", ... } ]
@@ -119,9 +119,9 @@ load helpers
 }
 
 @test "images json dup test" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
+  run_buildah commit $WITH_POLICY_JSON $cid test
   run_buildah tag test new-name
 
   run_buildah images --json
@@ -129,12 +129,12 @@ load helpers
 }
 
 @test "images json valid" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid1=$output
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid2=$output
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid1 test
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid2 test2
+  run_buildah commit $WITH_POLICY_JSON $cid1 test
+  run_buildah commit $WITH_POLICY_JSON $cid2 test2
 
   run_buildah images --json
   run python3 -m json.tool <<< "$output"
@@ -143,9 +143,9 @@ load helpers
 
 @test "specify an existing image" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid2=$output
   run_buildah images alpine
   expect_line_count 2
@@ -158,10 +158,10 @@ load helpers
 }
 
 @test "Test dangling images" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid test
+  run_buildah commit $WITH_POLICY_JSON $cid test
+  run_buildah commit $WITH_POLICY_JSON $cid test
   run_buildah images
   expect_line_count 3
 
@@ -176,7 +176,7 @@ load helpers
 
 @test "image digest test" {
   _prefetch busybox
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah pull $WITH_POLICY_JSON busybox
   run_buildah images --digests
   expect_output --substring "sha256:"
 }

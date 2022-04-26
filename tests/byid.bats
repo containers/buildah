@@ -7,7 +7,7 @@ load helpers
   _prefetch $image
 
   # Pull down the image, if we have to.
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON $image
   expect_output "$image-working-container"
   cid=$output
   run_buildah rm $cid
@@ -18,13 +18,13 @@ load helpers
   iid="$output"
 
   # Use the image's ID to create a container.
-  run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json ${iid}
+  run_buildah from --pull=false $WITH_POLICY_JSON ${iid}
   expect_line_count 1
   cid="$output"
   run_buildah rm $cid
 
   # Use a truncated form of the image's ID to create a container.
-  run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json ${iid:0:6}
+  run_buildah from --pull=false $WITH_POLICY_JSON ${iid:0:6}
   expect_line_count 1
   cid="$output"
   run_buildah rm $cid
@@ -37,7 +37,7 @@ load helpers
   _prefetch $image
 
   # Pull down the image, if we have to.
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON $image
   expect_output "$image-working-container"
   cid=$output
   run_buildah rm $cid
@@ -65,7 +65,7 @@ load helpers
     mkdir -p $TARGET $TARGET-truncated
 
     # Pull down the image, if we have to.
-    run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
+    run_buildah from --quiet --pull=false $WITH_POLICY_JSON $image
     expect_output "${image##*/}-working-container"  # image, w/o registry prefix
     run_buildah rm $output
 
@@ -75,10 +75,10 @@ load helpers
     iid="$output"
 
     # Use the image's ID to push it.
-    run_buildah push --signature-policy ${TESTSDIR}/policy.json $iid dir:$TARGET
+    run_buildah push $WITH_POLICY_JSON $iid dir:$TARGET
 
     # Use a truncated form of the image's ID to push it.
-    run_buildah push --signature-policy ${TESTSDIR}/policy.json ${iid:0:6} dir:$TARGET-truncated
+    run_buildah push $WITH_POLICY_JSON ${iid:0:6} dir:$TARGET-truncated
 
     # Use the image's complete ID to remove it.
     run_buildah rmi $iid
@@ -90,7 +90,7 @@ load helpers
   _prefetch $image
 
   # Pull down the image, if we have to.
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON $image
   expect_output "$image-working-container"
   run_buildah rm $output
 

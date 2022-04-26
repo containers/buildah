@@ -41,7 +41,7 @@ load helpers
     # setup the test container
     _prefetch alpine
     run_buildah --default-mounts-file "$MOUNTS_PATH" \
-		from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+		from --quiet --pull $WITH_POLICY_JSON alpine
     cid=$output
 
     # test a standard mount to /run/secrets

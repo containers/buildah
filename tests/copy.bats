@@ -18,7 +18,7 @@ load helpers
   createrandom ${TESTDIR}/other-randomfile
   createrandom ${TESTDIR}/third-randomfile
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
   root=$output
@@ -34,7 +34,7 @@ load helpers
   run_buildah rm $cid
 
   _prefetch alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah mount $cid
   root=$output
@@ -43,7 +43,7 @@ load helpers
   run_buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile /etc
   run_buildah rm $cid
 
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah mount $cid
   root=$output
@@ -57,7 +57,7 @@ load helpers
   createrandom ${TESTDIR}/other-randomfile
   createrandom ${TESTDIR}/third-randomfile
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
   root=$output
@@ -65,10 +65,10 @@ load helpers
   run_buildah copy $cid ${TESTDIR}/randomfile
   run_buildah copy $cid ${TESTDIR}/other-randomfile
   run_buildah unmount $cid
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
   run_buildah rm $cid
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  run_buildah from --quiet $WITH_POLICY_JSON new-image
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
@@ -83,7 +83,7 @@ load helpers
   createrandom ${TESTDIR}/subdir/randomfile
   createrandom ${TESTDIR}/subdir/other-randomfile
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --workingdir /container-subdir $cid
   run_buildah copy $cid ${TESTDIR}/subdir
@@ -103,7 +103,7 @@ load helpers
 @test "copy-local-force-directory" {
   createrandom ${TESTDIR}/randomfile
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TESTDIR}/randomfile /randomfile
@@ -113,7 +113,7 @@ load helpers
   cmp ${TESTDIR}/randomfile $root/randomfile
   run_buildah rm $cid
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TESTDIR}/randomfile /randomsubdir/
@@ -129,7 +129,7 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   touch -t 201910310123.45 ${TESTDIR}/randomfile
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --workingdir / $cid
   starthttpd ${TESTDIR}
@@ -158,7 +158,7 @@ load helpers
   createrandom ${TESTDIR}/other-subdir/other-randomfile
 
   _prefetch alpine
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah config --workingdir / $cid
   run_buildah copy --chown 1:1 $cid ${TESTDIR}/randomfile
@@ -204,7 +204,7 @@ load helpers
   createrandom ${TESTDIR}/other-subdir/other-randomfile
 
   _prefetch alpine
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah config --workingdir / $cid
   run_buildah copy --chmod 777 $cid ${TESTDIR}/randomfile
@@ -240,17 +240,17 @@ load helpers
   createrandom ${TESTDIR}/randomfile
   ln -s ${TESTDIR}/randomfile ${TESTDIR}/link-randomfile
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TESTDIR}/link-randomfile
   run_buildah unmount $cid
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
   run_buildah rm $cid
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  run_buildah from --quiet $WITH_POLICY_JSON new-image
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
@@ -276,16 +276,16 @@ load helpers
   done
   kill $nc_pid
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
   run_buildah unmount $cid
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
   run_buildah rm $cid
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  run_buildah from --quiet $WITH_POLICY_JSON new-image
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
@@ -296,17 +296,17 @@ load helpers
   createrandom ${TESTDIR}/randomfile.tar.gz
   ln -s ${TESTDIR}/randomfile.tar.gz ${TESTDIR}/link-randomfile.tar.gz
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
   run_buildah copy $cid ${TESTDIR}/link-randomfile.tar.gz
   run_buildah unmount $cid
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid containers-storage:new-image
+  run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
   run_buildah rm $cid
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json new-image
+  run_buildah from --quiet $WITH_POLICY_JSON new-image
   newcid=$output
   run_buildah mount $newcid
   newroot=$output
@@ -322,7 +322,7 @@ load helpers
   echo FROM busybox AS builder                                >> ${TESTDIR}/Dockerfile
   echo FROM scratch                                           >> ${TESTDIR}/Dockerfile
   echo COPY --from=builder /bin/-no-such-file-error- /usr/bin >> ${TESTDIR}/Dockerfile
-  run_buildah 125 build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json ${TESTDIR}
+  run_buildah 125 build-using-dockerfile $WITH_POLICY_JSON ${TESTDIR}
   expect_output --substring "no such file or directory"
 }
 
@@ -343,7 +343,7 @@ expect="
 stuff
 stuff/mystuff"
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
 
   run_buildah 125 copy --ignorefile ${mytest}/.ignore $cid ${mytest} /stuff
@@ -362,7 +362,7 @@ stuff/mystuff"
 @test "copy-quiet" {
   createrandom ${TESTDIR}/randomfile
   _prefetch alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah mount $cid
   root=$output
@@ -376,15 +376,15 @@ stuff/mystuff"
 @test "copy-from-container" {
   _prefetch busybox
   createrandom ${TESTDIR}/randomfile
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   from=$output
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
   run_buildah copy --quiet $from ${TESTDIR}/randomfile /tmp/random
   expect_output ""
-  run_buildah copy --quiet --signature-policy ${TESTSDIR}/policy.json --from $from $cid /tmp/random /tmp/random # absolute path
+  run_buildah copy --quiet $WITH_POLICY_JSON --from $from $cid /tmp/random /tmp/random # absolute path
   expect_output ""
-  run_buildah copy --quiet --signature-policy ${TESTSDIR}/policy.json --from $from $cid  tmp/random /tmp/random2 # relative path
+  run_buildah copy --quiet $WITH_POLICY_JSON --from $from $cid  tmp/random /tmp/random2 # relative path
   expect_output ""
   run_buildah mount $cid
   croot=$output
@@ -395,13 +395,13 @@ stuff/mystuff"
 @test "copy-container-root" {
   _prefetch busybox
   createrandom ${TESTDIR}/randomfile
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   from=$output
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
   run_buildah copy --quiet $from ${TESTDIR}/randomfile /tmp/random
   expect_output ""
-  run_buildah copy --quiet --signature-policy ${TESTSDIR}/policy.json --from $from $cid / /tmp/
+  run_buildah copy --quiet $WITH_POLICY_JSON --from $from $cid / /tmp/
   expect_output "" || \
     expect_output --substring "copier: file disappeared while reading"
   run_buildah mount $cid
@@ -411,13 +411,13 @@ stuff/mystuff"
 
 @test "add-from-image" {
   _prefetch busybox
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
-  run_buildah add --signature-policy ${TESTSDIR}/policy.json --quiet --from ubuntu $cid /etc/passwd /tmp/passwd # should pull the image, absolute path
+  run_buildah add $WITH_POLICY_JSON --quiet --from ubuntu $cid /etc/passwd /tmp/passwd # should pull the image, absolute path
   expect_output ""
-  run_buildah add --quiet --signature-policy ${TESTSDIR}/policy.json --from ubuntu $cid  etc/passwd /tmp/passwd2 # relative path
+  run_buildah add --quiet $WITH_POLICY_JSON --from ubuntu $cid  etc/passwd /tmp/passwd2 # relative path
   expect_output ""
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json ubuntu
+  run_buildah from --quiet $WITH_POLICY_JSON ubuntu
   ubuntu=$output
   run_buildah mount $cid
   croot=$output
@@ -429,7 +429,7 @@ stuff/mystuff"
 
 @test "copy with .dockerignore" {
   _prefetch alpine busybox
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet $WITH_POLICY_JSON alpine
   from=$output
   run_buildah copy --contextdir=${TESTSDIR}/bud/dockerignore $from ${TESTSDIR}/bud/dockerignore ./
 
@@ -459,7 +459,7 @@ stuff/mystuff"
     skip "$output"
   fi
   _prefetch $image
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet $WITH_POLICY_JSON $image
   first="$output"
   run_buildah run $first microdnf -y install /usr/bin/setfattr /usr/sbin/setcap
   run_buildah copy $first ${TESTDIR}/randomfile /
@@ -468,7 +468,7 @@ stuff/mystuff"
   # set user.something
   run_buildah run $first setfattr -n user.yeah -v butno /randomfile
   # copy the file to a second container
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet $WITH_POLICY_JSON $image
   second="$output"
   run_buildah run $second microdnf -y install /usr/bin/getfattr
   run_buildah copy --from $first $second /randomfile /
@@ -486,7 +486,7 @@ stuff/mystuff"
   createrandom ${TESTDIR}/context/excluded_test_file
   createrandom ${TESTDIR}/context/test_file
   echo excluded_test_file | tee ${TESTDIR}/context/.containerignore | tee ${TESTDIR}/context/.dockerignore
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet $WITH_POLICY_JSON $image
   ctr="$output"
   cd ${TESTDIR}/context
   run_buildah copy --contextdir . $ctr / /opt/

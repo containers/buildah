@@ -3,9 +3,9 @@
 load helpers
 
 @test "tag by name" {
-  run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from --pull=false $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" scratch-image
+  run_buildah commit $WITH_POLICY_JSON "$cid" scratch-image
   run_buildah 125 inspect --type image tagged-image
   run_buildah tag scratch-image tagged-image tagged-also-image named-image
   run_buildah inspect --type image tagged-image
@@ -15,7 +15,7 @@ load helpers
 
 @test "tag by id" {
   _prefetch busybox
-  run_buildah pull --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah pull --quiet $WITH_POLICY_JSON busybox
   id=$output
 
   # Tag by ID, then make a container from that tag

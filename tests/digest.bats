@@ -5,7 +5,7 @@ load helpers
 fromreftest() {
   local img=$1
 
-  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json $img
+  run_buildah from --quiet --pull $WITH_POLICY_JSON $img
   cid=$output
 
   # If image includes '_v2sN', verify that image is schema version N
@@ -19,11 +19,11 @@ fromreftest() {
   # This is all we test: basically, that buildah doesn't crash when pushing
   pushdir=${TESTDIR}/fromreftest
   mkdir -p ${pushdir}/{1,2,3}
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json $img dir:${pushdir}/1
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid new-image
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json new-image dir:${pushdir}/2
+  run_buildah push $WITH_POLICY_JSON $img dir:${pushdir}/1
+  run_buildah commit $WITH_POLICY_JSON $cid new-image
+  run_buildah push $WITH_POLICY_JSON new-image dir:${pushdir}/2
   run_buildah rmi new-image
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${pushdir}/3
+  run_buildah commit $WITH_POLICY_JSON $cid dir:${pushdir}/3
 
   run_buildah rm $cid
   rm -fr ${pushdir}

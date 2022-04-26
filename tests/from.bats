@@ -35,42 +35,42 @@ load helpers
   elsewhere=${TESTDIR}/elsewhere-img
   mkdir -p ${elsewhere}
 
-  run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from --pull $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid dir:${elsewhere}
+  run_buildah commit $WITH_POLICY_JSON $cid dir:${elsewhere}
   run_buildah rm $cid
 
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON dir:${elsewhere}
   expect_output "dir-working-container"
   run_buildah rm $output
 
-  run_buildah from --quiet --pull-always --signature-policy ${TESTSDIR}/policy.json dir:${elsewhere}
+  run_buildah from --quiet --pull-always $WITH_POLICY_JSON dir:${elsewhere}
   expect_output "dir-working-container"
 
-  run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from --pull $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid oci-archive:${elsewhere}.oci
+  run_buildah commit $WITH_POLICY_JSON $cid oci-archive:${elsewhere}.oci
   run_buildah rm $cid
 
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json oci-archive:${elsewhere}.oci
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON oci-archive:${elsewhere}.oci
   expect_output "oci-archive-working-container"
   run_buildah rm $output
 
-  run_buildah from --pull --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from --pull $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid docker-archive:${elsewhere}.docker
+  run_buildah commit $WITH_POLICY_JSON $cid docker-archive:${elsewhere}.docker
   run_buildah rm $cid
 
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json docker-archive:${elsewhere}.docker
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON docker-archive:${elsewhere}.docker
   expect_output "docker-archive-working-container"
   run_buildah rm $output
 }
 
 @test "from-tagged-image" {
   # GitHub #396: Make sure the container name starts with the correct image even when it's tagged.
-  run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from --pull=false $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json "$cid" scratch2
+  run_buildah commit $WITH_POLICY_JSON "$cid" scratch2
   # Also check for base-image annotations.
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' scratch2
   expect_output "" "no base digest for scratch"
@@ -79,84 +79,84 @@ load helpers
   run_buildah rm $cid
   run_buildah tag scratch2 scratch3
   # Set --pull=false to prevent looking for a newer scratch3 image.
-  run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch3
+  run_buildah from --pull=false $WITH_POLICY_JSON scratch3
   expect_output --substring "scratch3-working-container"
   run_buildah rm $output
   run_buildah rmi scratch2 scratch3
 
   # GitHub https://github.com/containers/buildah/issues/396#issuecomment-360949396
-  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah rm $cid
   run_buildah tag alpine alpine2
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json localhost/alpine2
+  run_buildah from --quiet $WITH_POLICY_JSON localhost/alpine2
   expect_output "alpine2-working-container"
   run_buildah rm $output
   tmp=$RANDOM
-  run_buildah from --suffix $tmp --quiet --signature-policy ${TESTSDIR}/policy.json localhost/alpine2
+  run_buildah from --suffix $tmp --quiet $WITH_POLICY_JSON localhost/alpine2
   expect_output "alpine2-$tmp"
   run_buildah rm $output
   run_buildah rmi alpine alpine2
 
-  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/alpine
   run_buildah rm $output
   run_buildah rmi docker.io/alpine
 
-  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/alpine:latest
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/alpine:latest
   run_buildah rm $output
   run_buildah rmi docker.io/alpine:latest
 
-  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:7
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/centos:7
   run_buildah rm $output
   run_buildah rmi docker.io/centos:7
 
-  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker.io/centos:latest
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker.io/centos:latest
   run_buildah rm $output
   run_buildah rmi docker.io/centos:latest
 }
 
 @test "from the following transports: docker-archive, oci-archive, and dir" {
   _prefetch alpine
-  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON alpine
   run_buildah rm $output
 
-  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json docker:latest
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker:latest
   run_buildah rm $output
 
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:${TESTDIR}/docker-alp.tar:alpine
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine    oci-archive:${TESTDIR}/oci-alp.tar:alpine
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine            dir:${TESTDIR}/alp-dir
+  run_buildah push $WITH_POLICY_JSON alpine docker-archive:${TESTDIR}/docker-alp.tar:alpine
+  run_buildah push $WITH_POLICY_JSON alpine    oci-archive:${TESTDIR}/oci-alp.tar:alpine
+  run_buildah push $WITH_POLICY_JSON alpine            dir:${TESTDIR}/alp-dir
   run_buildah rmi alpine
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/docker-alp.tar
+  run_buildah from --quiet $WITH_POLICY_JSON docker-archive:${TESTDIR}/docker-alp.tar
   expect_output "alpine-working-container"
   run_buildah rm ${output}
   run_buildah rmi alpine
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/oci-alp.tar
+  run_buildah from --quiet $WITH_POLICY_JSON oci-archive:${TESTDIR}/oci-alp.tar
   expect_output "alpine-working-container"
   run_buildah rm ${output}
   run_buildah rmi alpine
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/alp-dir
+  run_buildah from --quiet $WITH_POLICY_JSON dir:${TESTDIR}/alp-dir
   expect_output "dir-working-container"
 }
 
 @test "from the following transports: docker-archive and oci-archive with no image reference" {
   _prefetch alpine
-  run_buildah from --quiet --pull=true --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=true $WITH_POLICY_JSON alpine
   run_buildah rm $output
 
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine docker-archive:${TESTDIR}/docker-alp.tar
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json alpine    oci-archive:${TESTDIR}/oci-alp.tar
+  run_buildah push $WITH_POLICY_JSON alpine docker-archive:${TESTDIR}/docker-alp.tar
+  run_buildah push $WITH_POLICY_JSON alpine    oci-archive:${TESTDIR}/oci-alp.tar
   run_buildah rmi alpine
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/docker-alp.tar
+  run_buildah from --quiet $WITH_POLICY_JSON docker-archive:${TESTDIR}/docker-alp.tar
   expect_output "alpine-working-container"
   run_buildah rm $output
   run_buildah rmi -a
 
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/oci-alp.tar
+  run_buildah from --quiet $WITH_POLICY_JSON oci-archive:${TESTDIR}/oci-alp.tar
   expect_output "oci-archive-working-container"
   run_buildah rm $output
   run_buildah rmi -a
@@ -169,7 +169,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --cpu-period=5000 --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --cpu-period=5000 --pull $WITH_POLICY_JSON alpine
   cid=$output
   if is_cgroupsv2; then
     run_buildah run $cid /bin/sh -c "cut -d ' ' -f 2 /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max"
@@ -186,7 +186,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --cpu-quota=5000 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --cpu-quota=5000 --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   if is_cgroupsv2; then
     run_buildah run $cid /bin/sh -c "cut -d ' ' -f 1 /sys/fs/cgroup/\$(awk -F: '{print \$NF}' /proc/self/cgroup)/cpu.max"
@@ -204,7 +204,7 @@ load helpers
 
   _prefetch alpine
   shares=2
-  run_buildah from --quiet --cpu-shares=${shares} --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --cpu-shares=${shares} --pull $WITH_POLICY_JSON alpine
   cid=$output
   if is_cgroupsv2; then
     run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpu.weight"
@@ -222,7 +222,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --cpuset-cpus=0 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --cpuset-cpus=0 --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   if is_cgroupsv2; then
     run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.cpus"
@@ -239,7 +239,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --cpuset-mems=0 --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --cpuset-mems=0 --pull $WITH_POLICY_JSON alpine
   cid=$output
   if is_cgroupsv2; then
    run_buildah run $cid /bin/sh -c "cat /sys/fs/cgroup/\$(awk -F : '{print \$NF}' /proc/self/cgroup)/cpuset.mems"
@@ -255,7 +255,7 @@ load helpers
   skip_if_rootless_and_cgroupv1
 
   _prefetch alpine
-  run_buildah from --quiet --memory=40m --memory-swap=70m --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --memory=40m --memory-swap=70m --pull=false $WITH_POLICY_JSON alpine
   cid=$output
 
   # Life is much more complicated under cgroups v2
@@ -277,7 +277,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --volume=${TESTDIR}:/myvol --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --volume=${TESTDIR}:/myvol --pull $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
@@ -288,7 +288,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --volume=${TESTDIR}:/myvol:ro --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --volume=${TESTDIR}:/myvol:ro --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
@@ -315,7 +315,7 @@ load helpers
 
   # Create a container that uses that mapping and U volume flag.
   _prefetch alpine
-  run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize --volume ${TESTDIR}/testdata:/mnt:z,U alpine
+  run_buildah from --pull=false $WITH_POLICY_JSON --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize --volume ${TESTDIR}/testdata:/mnt:z,U alpine
   ctr="$output"
 
   # Test mounted volume has correct UID and GID ownership.
@@ -335,7 +335,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --shm-size=80m --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --shm-size=80m --pull $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid -- df -h /dev/shm
   expect_output --substring " 80.0M "
@@ -345,7 +345,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --add-host=localhost:127.0.0.1 --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --add-host=localhost:127.0.0.1 --pull $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run --net=container $cid -- cat /etc/hosts
   expect_output --substring "127.0.0.1[[:blank:]]*localhost"
@@ -354,28 +354,28 @@ load helpers
 @test "from name test" {
   _prefetch alpine
   container_name=mycontainer
-  run_buildah from --quiet --name=${container_name} --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --name=${container_name} --pull $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah inspect --format '{{.Container}}' ${container_name}
 }
 
 @test "from cidfile test" {
   _prefetch alpine
-  run_buildah from --cidfile ${TESTDIR}/output.cid --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --cidfile ${TESTDIR}/output.cid --pull=false $WITH_POLICY_JSON alpine
   cid=$(< ${TESTDIR}/output.cid)
   run_buildah containers -f id=${cid}
 }
 
 @test "from pull never" {
-  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --pull-never busybox
+  run_buildah 125 from $WITH_POLICY_JSON --pull-never busybox
   echo "$output"
   expect_output --substring "busybox: image not known"
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull=false busybox
+  run_buildah from $WITH_POLICY_JSON --pull=false busybox
   echo "$output"
   expect_output --substring "busybox-working-container"
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull=never busybox
+  run_buildah from $WITH_POLICY_JSON --pull=never busybox
   echo "$output"
   expect_output --substring "busybox-working-container"
 }
@@ -383,13 +383,13 @@ load helpers
 @test "from pull false no local image" {
   _prefetch busybox
   target=my-busybox
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --pull=false busybox
+  run_buildah from $WITH_POLICY_JSON --pull=false busybox
   echo "$output"
   expect_output --substring "busybox-working-container"
 }
 
 @test "from with nonexistent authfile: fails" {
-  run_buildah 125 from --authfile /no/such/file --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah 125 from --authfile /no/such/file --pull $WITH_POLICY_JSON alpine
   expect_output "checking authfile: stat /no/such/file: no such file or directory"
 }
 
@@ -397,11 +397,11 @@ load helpers
   _prefetch docker.io/busybox
   run_buildah inspect --format "{{.FromImageDigest}}" docker.io/busybox
   fromDigest="$output"
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json docker.io/busybox
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc --pull-always docker.io/busybox
+  run_buildah pull $WITH_POLICY_JSON docker.io/busybox
+  run_buildah from $WITH_POLICY_JSON --name busyboxc --pull-always docker.io/busybox
   expect_output --substring "Getting"
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json busyboxc fakename-img
-  run_buildah 125 from --signature-policy ${TESTSDIR}/policy.json --pull=always fakename-img
+  run_buildah commit $WITH_POLICY_JSON busyboxc fakename-img
+  run_buildah 125 from $WITH_POLICY_JSON --pull=always fakename-img
 
   # Also check for base-image annotations.
   run_buildah inspect --format '{{index .ImageAnnotations "org.opencontainers.image.base.digest" }}' fakename-img
@@ -414,7 +414,7 @@ load helpers
   # Force a pull. Normally this would say 'Getting image ...' and other
   # progress messages. With --quiet, we should see only the container name.
   run_buildah '?' rmi busybox
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --quiet docker.io/busybox
+  run_buildah from $WITH_POLICY_JSON --quiet docker.io/busybox
   expect_output "busybox-working-container"
 }
 
@@ -424,7 +424,7 @@ load helpers
   openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
   openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 1024
   openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox oci:${TESTDIR}/tmp/busybox_enc
+  run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox oci:${TESTDIR}/tmp/busybox_enc
 
   # Try encrypted image without key should fail
   run_buildah 125 from oci:${TESTDIR}/tmp/busybox_enc
@@ -447,7 +447,7 @@ load helpers
   openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 2048
   openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
   start_registry
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
   # Try encrypted image without key should fail
   run_buildah 125 from --tls-verify=false --creds testuser:testpassword docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
@@ -471,7 +471,7 @@ load helpers
 
   _prefetch busybox
   podman create --net=host --name busyboxc-podman busybox top
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json --name busyboxc busybox
+  run_buildah from $WITH_POLICY_JSON --name busyboxc busybox
   expect_output --substring "busyboxc"
   podman rm -f busyboxc-podman
   run_buildah rm busyboxc
@@ -481,15 +481,15 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --arch=arm64 alpine
+  run_buildah from --quiet --pull $WITH_POLICY_JSON --arch=arm64 alpine
   other=$output
-  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --arch=$(go env GOARCH) alpine
+  run_buildah from --quiet --pull $WITH_POLICY_JSON --arch=$(go env GOARCH) alpine
   cid=$output
   run_buildah copy --from $other $cid /etc/apk/arch /root/other-arch
   run_buildah run $cid cat /root/other-arch
   expect_output "aarch64"
 
-  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --arch=s390x alpine
+  run_buildah from --quiet --pull $WITH_POLICY_JSON --arch=s390x alpine
   other=$output
   run_buildah copy --from $other $cid /etc/apk/arch /root/other-arch
   run_buildah run $cid cat /root/other-arch
@@ -506,15 +506,15 @@ load helpers
   echo "$platform"
 
   _prefetch alpine
-  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --platform=linux/arm64 alpine
+  run_buildah from --quiet --pull $WITH_POLICY_JSON --platform=linux/arm64 alpine
   other=$output
-  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --platform=${platform} alpine
+  run_buildah from --quiet --pull $WITH_POLICY_JSON --platform=${platform} alpine
   cid=$output
   run_buildah copy --from $other $cid /etc/apk/arch /root/other-arch
   run_buildah run $cid cat /root/other-arch
   expect_output "aarch64"
 
-  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json --platform=linux/s390x alpine
+  run_buildah from --quiet --pull $WITH_POLICY_JSON --platform=linux/s390x alpine
   other=$output
   run_buildah copy --from $other $cid /etc/apk/arch /root/other-arch
   run_buildah run $cid cat /root/other-arch
@@ -525,9 +525,9 @@ load helpers
   _prefetch busybox
   start_registry
   run_buildah login --tls-verify=false --authfile ${TESTDIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --authfile ${TESTDIR}/test.auth busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
+  run_buildah push $WITH_POLICY_JSON --tls-verify=false --authfile ${TESTDIR}/test.auth busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
   target=busybox-image
-  run_buildah from -q --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --authfile ${TESTDIR}/test.auth docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
+  run_buildah from -q $WITH_POLICY_JSON --tls-verify=false --authfile ${TESTDIR}/test.auth docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
   run_buildah rm $output
   run_buildah rmi localhost:${REGISTRY_PORT}/buildah/busybox:latest
 }
@@ -537,14 +537,14 @@ load helpers
   CAP_DAC_OVERRIDE=2  # unlikely to change
 
   # Try with default caps.
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid awk '/^CapEff/{print $2;}' /proc/self/status
   defaultcaps="$output"
   run_buildah rm $cid
 
   if ((0x$defaultcaps & 0x$CAP_DAC_OVERRIDE)); then
-    run_buildah from --quiet --cap-drop CAP_DAC_OVERRIDE --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+    run_buildah from --quiet --cap-drop CAP_DAC_OVERRIDE --pull=false $WITH_POLICY_JSON alpine
     cid=$output
     run_buildah run $cid awk '/^CapEff/{print $2;}' /proc/self/status
     droppedcaps="$output"
@@ -553,7 +553,7 @@ load helpers
       die "--cap-drop did not drop DAC_OVERRIDE: $droppedcaps"
     fi
   else
-    run_buildah from --quiet --cap-add CAP_DAC_OVERRIDE --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+    run_buildah from --quiet --cap-add CAP_DAC_OVERRIDE --pull=false $WITH_POLICY_JSON alpine
     cid=$output
     run_buildah run $cid awk '/^CapEff/{print $2;}' /proc/self/status
     addedcaps="$output"
@@ -566,7 +566,7 @@ load helpers
 
 @test "from ulimit test" {
   _prefetch alpine
-  run_buildah from -q --ulimit cpu=300 --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from -q --ulimit cpu=300 $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid /bin/sh -c "ulimit -t"
   expect_output "300" "ulimit -t"
@@ -575,7 +575,7 @@ load helpers
 @test "from isolation test" {
   skip_if_rootless_environment
   _prefetch alpine
-  run_buildah from -q --isolation chroot --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from -q --isolation chroot $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah inspect $cid
   expect_output --substring '"Isolation": "chroot"'
@@ -595,13 +595,13 @@ load helpers
 
   _prefetch alpine
   # with cgroup-parent
-  run_buildah from -q --cgroupns=host --cgroup-parent test-cgroup --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from -q --cgroupns=host --cgroup-parent test-cgroup $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah --cgroup-manager cgroupfs run $cid /bin/sh -c 'cat /proc/$$/cgroup'
   expect_output --substring "test-cgroup"
 
   # without cgroup-parent
-  run_buildah from -q --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from -q $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah --cgroup-manager cgroupfs run $cid /bin/sh -c 'cat /proc/$$/cgroup'
   if [ -n "$(grep "test-cgroup" <<< "$output")" ]; then
@@ -616,7 +616,7 @@ load helpers
   cni_plugin_path=${TESTDIR}/no-cni-plugin
   mkdir -p ${cni_config_dir}
   mkdir -p ${cni_plugin_path}
-  run_buildah from -q --cni-config-dir=${cni_config_dir} --cni-plugin-path=${cni_plugin_path} --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from -q --cni-config-dir=${cni_config_dir} --cni-plugin-path=${cni_plugin_path} $WITH_POLICY_JSON alpine
   cid=$output
 
   run_buildah inspect --format '{{.CNIConfigDir}}' $cid
@@ -635,7 +635,7 @@ load helpers
 
   _prefetch alpine
   tmp=$RANDOM
-  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
   cid=$output
   FTP_PROXY=$tmp run_buildah run $cid printenv FTP_PROXY
   expect_output "$tmp"

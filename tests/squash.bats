@@ -30,12 +30,12 @@ function check_lengths() {
 			mountpoint=$output
 			rm -f ${mountpoint}/layer${remove[1]}
 		fi
-		run_buildah commit --signature-policy ${TESTSDIR}/policy.json --rm "$cid" ${image}
+		run_buildah commit $WITH_POLICY_JSON --rm "$cid" ${image}
                 check_lengths $image $stage
 		run_buildah from --quiet ${image}
 		cid=$output
 	done
-	run_buildah commit --signature-policy ${TESTSDIR}/policy.json --rm --squash "$cid" squashed
+	run_buildah commit $WITH_POLICY_JSON --rm --squash "$cid" squashed
 
         check_lengths squashed 1
 
@@ -66,7 +66,7 @@ function check_lengths() {
 		echo COPY randomfile /layer${stage} >> ${TESTDIR}/stage${stage}/Dockerfile
 		image=stage${stage}
 		from=${image}
-		run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t ${image} ${TESTDIR}/stage${stage}
+		run_buildah build-using-dockerfile $WITH_POLICY_JSON -t ${image} ${TESTDIR}/stage${stage}
                 check_lengths $image $stage
 	done
 
@@ -74,7 +74,7 @@ function check_lengths() {
 	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
 	cp ${TESTDIR}/randomfile ${TESTDIR}/squashed/
 	echo COPY randomfile /layer-squashed >> ${TESTDIR}/stage${stage}/Dockerfile
-	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile $WITH_POLICY_JSON --squash -t squashed ${TESTDIR}/squashed
 
         check_lengths squashed 1
 
@@ -86,43 +86,43 @@ function check_lengths() {
 		cmp $mountpoint/layer${stage} ${TESTDIR}/randomfile
 	done
 
-	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile $WITH_POLICY_JSON --squash --layers -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
         expect_output "1" "len(DiffIDs) - simple image"
 
 	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
-	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile $WITH_POLICY_JSON --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
         expect_output "1" "len(DiffIDs) - image with FROM"
 
 	echo USER root >> ${TESTDIR}/squashed/Dockerfile
-	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile $WITH_POLICY_JSON --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
         expect_output "1" "len(DiffIDs) - image with FROM and USER"
 
 	echo COPY file / >> ${TESTDIR}/squashed/Dockerfile
 	echo COPY file / > ${TESTDIR}/squashed/file
-	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile $WITH_POLICY_JSON --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
         expect_output "1" "len(DiffIDs) - image with FROM, USER, and 2xCOPY"
 
 	echo FROM ${from} > ${TESTDIR}/squashed/Dockerfile
-	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --layers -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile $WITH_POLICY_JSON --squash --layers -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
         expect_output "1" "len(DiffIDs) - image with FROM (--layers)"
 
 	echo USER root >> ${TESTDIR}/squashed/Dockerfile
-	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile $WITH_POLICY_JSON --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
         expect_output "1" "len(DiffIDs) - image with FROM and USER (--layers)"
 
 	echo COPY file / >> ${TESTDIR}/squashed/Dockerfile
 	echo COPY file / > ${TESTDIR}/squashed/file
-	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile $WITH_POLICY_JSON --squash -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' squashed
         expect_output "1" "len(DiffIDs) - image with FROM, USER, and 2xCOPY (--layers)"
 
-	run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json --squash --format docker -t squashed ${TESTDIR}/squashed
+	run_buildah build-using-dockerfile $WITH_POLICY_JSON --squash --format docker -t squashed ${TESTDIR}/squashed
 	run_buildah inspect -t image -f '{{.Docker.Parent}}' squashed
         expect_output "" "should have no parent image set"
 }
@@ -131,10 +131,10 @@ function check_lengths() {
 @test "bud-squash-should-use-cache" {
   _prefetch alpine
   # populate cache from simple build
-  run_buildah build --layers -t test --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/layers-squash/Dockerfile.multi-stage
+  run_buildah build --layers -t test $WITH_POLICY_JSON -f ${TESTSDIR}/bud/layers-squash/Dockerfile.multi-stage
   # create another squashed build and check if we are using cache for everything.
   # instead of last instruction in last stage
-  run_buildah build --layers --squash -t testsquash --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/layers-squash/Dockerfile.multi-stage
+  run_buildah build --layers --squash -t testsquash $WITH_POLICY_JSON -f ${TESTSDIR}/bud/layers-squash/Dockerfile.multi-stage
   expect_output --substring "Using cache"
   run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' testsquash
   expect_output "1" "should only container 1 diff"

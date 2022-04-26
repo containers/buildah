@@ -8,7 +8,7 @@ load helpers
 	_prefetch alpine
 	${OCI} --version
 	createrandom ${TESTDIR}/randomfile
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah mount $cid
 	root=$output
@@ -30,7 +30,7 @@ load helpers
 	skip_if_no_runtime
 
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 
 	# This should fail, because buildah run doesn't have a -n flag.
@@ -57,7 +57,7 @@ load helpers
 	skip_if_no_runtime
 
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah config --workingdir /tmp $cid
 
@@ -189,7 +189,7 @@ function configure_and_check_user() {
 		skip "CGO_ENABLED = '$CGO_ENABLED'"
 	fi
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah mount $cid
 	root=$output
@@ -231,7 +231,7 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah config --env foo=foo $cid
 	# Ensure foo=foo from `buildah config`
@@ -250,7 +250,7 @@ function configure_and_check_user() {
 
 	_prefetch alpine
 	${OCI} --version
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run $cid hostname
 	[ "$output" != "foobar" ]
@@ -263,7 +263,7 @@ function configure_and_check_user() {
 
 	_prefetch alpine
 	${OCI} --version
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run --hostname foobar $cid hostname
 	expect_output "foobar"
@@ -283,7 +283,7 @@ function configure_and_check_user() {
 	fi
 	${OCI} --version
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	mkdir -p ${TESTDIR}/was-empty
 	# As a baseline, this should succeed.
@@ -312,7 +312,7 @@ function configure_and_check_user() {
 	fi
 	${OCI} --version
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	mkdir -p ${TESTDIR}/upperdir
 	mkdir -p ${TESTDIR}/workdir
@@ -338,7 +338,7 @@ function configure_and_check_user() {
 
   # Create the container.
   _prefetch alpine
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from $WITH_POLICY_JSON alpine
   ctr="$output"
 
   # Test user can create file in the mounted volume.
@@ -353,7 +353,7 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run $cid pwd
 	expect_output "/"
@@ -375,7 +375,7 @@ function configure_and_check_user() {
 	fi
 	${OCI} --version
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	mkdir -p ${TESTDIR}/was:empty
 	# As a baseline, this should succeed.
@@ -397,9 +397,9 @@ function configure_and_check_user() {
 			skip "skip if selinux enabled, since stages have different selinux label"
 		fi
 	fi
-	run_buildah build -t buildkitbase --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbase ${TESTSDIR}/bud/buildkit-mount-from/
+	run_buildah build -t buildkitbase $WITH_POLICY_JSON -f ${TESTSDIR}/bud/buildkit-mount-from/Dockerfilebuildkitbase ${TESTSDIR}/bud/buildkit-mount-from/
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run --mount type=bind,source=.,from=buildkitbase,target=/test,z  $cid cat /test/hello
 	expect_output --substring "hello"
@@ -415,7 +415,7 @@ function configure_and_check_user() {
 		fi
 	fi
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run --mount type=cache,target=/test,z  $cid sh -c 'echo "hello" > /test/hello && cat /test/hello'
 	run_buildah run --mount type=cache,target=/test,z  $cid cat /test/hello
@@ -427,7 +427,7 @@ function configure_and_check_user() {
 
 	${OCI} --version
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	mkdir -p ${TESTDIR}/tmp
 	ln -s tmp ${TESTDIR}/tmp2
@@ -440,7 +440,7 @@ function configure_and_check_user() {
 
 	${OCI} --version
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	# Try with default caps.
 	run_buildah run $cid grep ^CapEff /proc/self/status
@@ -475,7 +475,7 @@ function configure_and_check_user() {
 
 	_prefetch alpine
 	maxpids=$(cat /proc/sys/kernel/pid_max)
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
 	expect_output 1024 "limits: open files (unlimited)"
@@ -483,7 +483,7 @@ function configure_and_check_user() {
 	expect_output ${maxpids} "limits: processes (unlimited)"
 	run_buildah rm $cid
 
-	run_buildah from --quiet --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --ulimit nofile=300:400 --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
 	expect_output "300" "limits: open files (w/file limit)"
@@ -491,7 +491,7 @@ function configure_and_check_user() {
 	expect_output ${maxpids} "limits: processes (w/file limit)"
 	run_buildah rm $cid
 
-	run_buildah from --quiet --ulimit nproc=100:200 --ulimit nofile=300:400 --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --ulimit nproc=100:200 --ulimit nofile=300:400 --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run $cid awk '/open files/{print $4}' /proc/self/limits
 	expect_output "300" "limits: open files (w/file & proc limits)"
@@ -504,7 +504,7 @@ function configure_and_check_user() {
 @test "run-builtin-volume-omitted" {
 	# This image is known to include a volume, but not include the mountpoint
 	# in the image.
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/registry:volume_omitted
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON quay.io/libpod/registry:volume_omitted
 	cid=$output
 	run_buildah mount $cid
 	mnt=$output
@@ -524,7 +524,7 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah 42 run ${cid} sh -c 'exit 42'
 }
@@ -533,7 +533,7 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah 1 run ${cid} /etc
 }
@@ -543,7 +543,7 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	# test a standard mount to /run/.containerenv
 	run_buildah run $cid ls -1 /run/.containerenv
@@ -571,15 +571,15 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --device /dev/fuse --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false --device /dev/fuse $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah 0 run ${cid} ls /dev/fuse
 
-	run_buildah from --quiet --pull=false --device /dev/fuse:/dev/fuse:rm --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false --device /dev/fuse:/dev/fuse:rm $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah 0 run ${cid} ls /dev/fuse
 
-	run_buildah from --quiet --pull=false --device /dev/fuse:/dev/fuse:rwm --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false --device /dev/fuse:/dev/fuse:rwm $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah 0 run ${cid} ls /dev/fuse
 
@@ -592,7 +592,7 @@ function configure_and_check_user() {
 	skip_if_rootless
 
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --device /dev/fuse:/dev/fuse1 --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false --device /dev/fuse:/dev/fuse1 $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah 0 run ${cid} ls /dev/fuse1
 }
@@ -607,7 +607,7 @@ function configure_and_check_user() {
 
 	local hostname=h-$(random_string)
 
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json debian
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON debian
 	cid=$output
 	run_buildah 125 run --network=bogus $cid cat /etc/hosts
 	expect_output --substring "unable to find network with name or ID bogus: network not found"
@@ -641,7 +641,7 @@ function configure_and_check_user() {
 	expect_output --substring ""
 	run_buildah rm -a
 
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json debian
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON debian
 	cid=$output
 	run_buildah run --network=host $cid cat /etc/hosts
 	hostOutput=$output
@@ -653,7 +653,7 @@ function configure_and_check_user() {
 	[ "$output" != "$hostOutput" ]
 	run_buildah rm -a
 
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json debian
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON debian
 	cid=$output
 	run_buildah run --network=none $cid sh -c 'echo "110.110.110.0 fake_host" >> /etc/hosts; cat /etc/hosts'
 	expect_output "110.110.110.0 fake_host"
@@ -686,7 +686,7 @@ function configure_and_check_user() {
 		nameservers="nameserver 10.0.2.3
 $output"
 	fi
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run --network=private $cid grep nameserver /etc/resolv.conf
 	# check that no 127... nameserver is in resolv.conf
@@ -701,7 +701,7 @@ $output"
 
 	run grep nameserver /etc/resolv.conf
 	nameservers="$output"
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run --isolation=chroot --network=host $cid grep nameserver /etc/resolv.conf
 	assert "$nameservers" "Container nameservers match the host nameservers"
@@ -712,7 +712,7 @@ $output"
 	fi
 	run_buildah rm -a
 
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run --isolation=chroot --network=none $cid sh -c 'echo "nameserver 110.110.0.110" >> /etc/resolv.conf; cat /etc/resolv.conf'
 	expect_output "nameserver 110.110.0.110"
@@ -727,7 +727,7 @@ $output"
 @test "run --network should override build --network" {
 	skip_if_no_runtime
 
-	run_buildah from --network=none --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --network=none --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	# should fail by default
 	run_buildah 1 run $cid wget google.com
@@ -742,7 +742,7 @@ $output"
 	skip_if_no_runtime
 
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run --user sync $cid whoami
 	expect_output "sync"
@@ -768,7 +768,7 @@ $output"
     ]
 }
 _EOF
-	run_buildah from --security-opt seccomp=${TESTDIR}/seccomp.json --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --security-opt seccomp=${TESTDIR}/seccomp.json --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 
 	local found_runtime=
@@ -801,7 +801,7 @@ _EOF
 	skip_if_no_runtime
 
 	_prefetch alpine
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run --terminal=true $cid ls --color=auto
 	colored="$output"
@@ -820,7 +820,7 @@ _EOF
 	fi
 	_prefetch alpine
 
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run --cgroupns=host $cid cat /proc/self/cgroup
 	expect_output --substring "/user.slice/"
@@ -831,7 +831,7 @@ _EOF
 
 	_prefetch alpine
 
-	run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah run $cid grep ^CapInh: /proc/self/status
 	expect_output "CapInh:	0000000000000000"

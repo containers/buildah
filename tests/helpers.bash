@@ -10,6 +10,9 @@ OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc 
 # Default timeout for a buildah command.
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 
+# Used hundreds of times throughout all the tests
+WITH_POLICY_JSON="--signature-policy ${TESTSDIR}/policy.json"
+
 # We don't invoke gnupg directly in many places, but this avoids ENOTTY errors
 # when we invoke it directly in batch mode, and CI runs us without a terminal
 # attached.
