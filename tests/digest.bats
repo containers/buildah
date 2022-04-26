@@ -17,7 +17,7 @@ fromreftest() {
   fi
 
   # This is all we test: basically, that buildah doesn't crash when pushing
-  pushdir=${TESTDIR}/fromreftest
+  pushdir=${TEST_SCRATCH_DIR}/fromreftest
   mkdir -p ${pushdir}/{1,2,3}
   run_buildah push $WITH_POLICY_JSON $img dir:${pushdir}/1
   run_buildah commit $WITH_POLICY_JSON $cid new-image

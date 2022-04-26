@@ -18,28 +18,28 @@ load helpers
 
 @test "push" {
   skip_if_rootless_environment
-  touch ${TESTDIR}/reference-time-file
+  touch ${TEST_SCRATCH_DIR}/reference-time-file
   for source in scratch scratch-image; do
     run_buildah from --quiet --pull=false $WITH_POLICY_JSON ${source}
     cid=$output
     for format in "" docker oci ; do
-      mkdir -p ${TESTDIR}/committed${format:+.${format}}
+      mkdir -p ${TEST_SCRATCH_DIR}/committed${format:+.${format}}
       # Force no compression to generate what we push.
-      run_buildah commit -D ${format:+--format ${format}} --reference-time ${TESTDIR}/reference-time-file $WITH_POLICY_JSON "$cid" scratch-image${format:+-${format}}
-      run_buildah commit -D ${format:+--format ${format}} --reference-time ${TESTDIR}/reference-time-file $WITH_POLICY_JSON "$cid" dir:${TESTDIR}/committed${format:+.${format}}
-      mkdir -p ${TESTDIR}/pushed${format:+.${format}}
-      run_buildah push -D $WITH_POLICY_JSON scratch-image${format:+-${format}} dir:${TESTDIR}/pushed${format:+.${format}}
+      run_buildah commit -D ${format:+--format ${format}} --reference-time ${TEST_SCRATCH_DIR}/reference-time-file $WITH_POLICY_JSON "$cid" scratch-image${format:+-${format}}
+      run_buildah commit -D ${format:+--format ${format}} --reference-time ${TEST_SCRATCH_DIR}/reference-time-file $WITH_POLICY_JSON "$cid" dir:${TEST_SCRATCH_DIR}/committed${format:+.${format}}
+      mkdir -p ${TEST_SCRATCH_DIR}/pushed${format:+.${format}}
+      run_buildah push -D $WITH_POLICY_JSON scratch-image${format:+-${format}} dir:${TEST_SCRATCH_DIR}/pushed${format:+.${format}}
       # Re-encode the manifest to lose variations due to different encoders or definitions of structures.
-      imgtype -expected-manifest-type "*" -rebuild-manifest -show-manifest dir:${TESTDIR}/committed${format:+.${format}} > ${TESTDIR}/manifest.committed${format:+.${format}}
-      imgtype -expected-manifest-type "*" -rebuild-manifest -show-manifest dir:${TESTDIR}/pushed${format:+.${format}} > ${TESTDIR}/manifest.pushed${format:+.${format}}
-      diff -u ${TESTDIR}/manifest.committed${format:+.${format}} ${TESTDIR}/manifest.pushed${format:+.${format}}
+      imgtype -expected-manifest-type "*" -rebuild-manifest -show-manifest dir:${TEST_SCRATCH_DIR}/committed${format:+.${format}} > ${TEST_SCRATCH_DIR}/manifest.committed${format:+.${format}}
+      imgtype -expected-manifest-type "*" -rebuild-manifest -show-manifest dir:${TEST_SCRATCH_DIR}/pushed${format:+.${format}} > ${TEST_SCRATCH_DIR}/manifest.pushed${format:+.${format}}
+      diff -u ${TEST_SCRATCH_DIR}/manifest.committed${format:+.${format}} ${TEST_SCRATCH_DIR}/manifest.pushed${format:+.${format}}
     done
     run_buildah rm "$cid"
   done
 }
 
 @test "push with manifest type conversion" {
-  mytmpdir=${TESTDIR}/my-dir
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p $mytmpdir
 
   _prefetch alpine
@@ -55,7 +55,7 @@ load helpers
 }
 
 @test "push with imageid" {
-  mytmpdir=${TESTDIR}/my-dir
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p $mytmpdir
 
   _prefetch alpine
@@ -67,7 +67,7 @@ load helpers
 }
 
 @test "push with imageid and digest file" {
-  mytmpdir=${TESTDIR}/my-dir
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p $mytmpdir
 
   _prefetch alpine
@@ -75,9 +75,9 @@ load helpers
   cid=$output
   run_buildah images -q
   imageid=$output
-  run_buildah push --digestfile=${TESTDIR}/digest.txt $WITH_POLICY_JSON $imageid dir:$mytmpdir
-  cat ${TESTDIR}/digest.txt
-  test -s ${TESTDIR}/digest.txt
+  run_buildah push --digestfile=${TEST_SCRATCH_DIR}/digest.txt $WITH_POLICY_JSON $imageid dir:$mytmpdir
+  cat ${TEST_SCRATCH_DIR}/digest.txt
+  test -s ${TEST_SCRATCH_DIR}/digest.txt
 }
 
 @test "push without destination" {
@@ -93,7 +93,7 @@ load helpers
   cid=$output
   run_buildah images -q
   imageid=$output
-  run_buildah 125 push $WITH_POLICY_JSON --authfile /tmp/nonexistent $imageid dir:${TESTDIR}/my-tmp-dir
+  run_buildah 125 push $WITH_POLICY_JSON --authfile /tmp/nonexistent $imageid dir:${TEST_SCRATCH_DIR}/my-tmp-dir
 }
 
 @test "push-denied-by-registry-sources" {
@@ -132,10 +132,10 @@ load helpers
 @test "buildah push image to docker-archive and oci-archive" {
   _prefetch busybox
   for dest in docker-archive oci-archive; do
-    mkdir ${TESTDIR}/tmp
-    run_buildah push $WITH_POLICY_JSON busybox $dest:${TESTDIR}/tmp/busybox.tar:latest
-    ls ${TESTDIR}/tmp/busybox.tar
-    rm -rf ${TESTDIR}/tmp
+    mkdir ${TEST_SCRATCH_DIR}/tmp
+    run_buildah push $WITH_POLICY_JSON busybox $dest:${TEST_SCRATCH_DIR}/tmp/busybox.tar:latest
+    ls ${TEST_SCRATCH_DIR}/tmp/busybox.tar
+    rm -rf ${TEST_SCRATCH_DIR}/tmp
   done
 }
 
@@ -161,24 +161,24 @@ load helpers
 @test "buildah oci encrypt and push local oci" {
   skip_if_rootless_environment
   _prefetch busybox
-  mkdir ${TESTDIR}/tmp
-  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
-  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
-  run_buildah push $WITH_POLICY_JSON --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox oci:${TESTDIR}/tmp/busybox_enc
-  imgtype  -show-manifest oci:${TESTDIR}/tmp/busybox_enc | grep "+encrypted"
-  rm -rf ${TESTDIR}/tmp
+  mkdir ${TEST_SCRATCH_DIR}/tmp
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey.pem 1024
+  openssl rsa -in ${TEST_SCRATCH_DIR}/tmp/mykey.pem -pubout > ${TEST_SCRATCH_DIR}/tmp/mykey.pub
+  run_buildah push $WITH_POLICY_JSON --encryption-key jwe:${TEST_SCRATCH_DIR}/tmp/mykey.pub busybox oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
+  imgtype  -show-manifest oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc | grep "+encrypted"
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "buildah oci encrypt and push registry" {
   _prefetch busybox
-  mkdir ${TESTDIR}/tmp
+  mkdir ${TEST_SCRATCH_DIR}/tmp
   start_registry
-  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
-  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
-  run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey.pem 1024
+  openssl rsa -in ${TEST_SCRATCH_DIR}/tmp/mykey.pem -pubout > ${TEST_SCRATCH_DIR}/tmp/mykey.pub
+  run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TEST_SCRATCH_DIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   # this test, just checks the ability to push an image
   # there is no good way to test the details of the image unless with ./buildah pull, test will be in pull.bats
-  rm -rf ${TESTDIR}/tmp
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "buildah push to registry allowed by BUILD_REGISTRY_SOURCES" {
@@ -189,20 +189,20 @@ load helpers
   run_buildah 125 push --creds testuser:testpassword $WITH_POLICY_JSON --tls-verify=true busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
   expect_output --substring "certificate signed by unknown authority"
 
-  run_buildah push --creds testuser:testpassword  $WITH_POLICY_JSON --cert-dir ${TESTDIR}/registry busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
+  run_buildah push --creds testuser:testpassword  $WITH_POLICY_JSON --cert-dir ${TEST_SCRATCH_DIR}/registry busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
 }
 
 @test "push with authfile" {
   _prefetch busybox
-  mkdir ${TESTDIR}/tmp
+  mkdir ${TEST_SCRATCH_DIR}/tmp
   start_registry
-  run_buildah login --authfile ${TESTDIR}/tmp/test.auth --username testuser --password testpassword --tls-verify=false localhost:${REGISTRY_PORT}
-  run_buildah push --authfile ${TESTDIR}/tmp/test.auth $WITH_POLICY_JSON --tls-verify=false busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
+  run_buildah login --authfile ${TEST_SCRATCH_DIR}/tmp/test.auth --username testuser --password testpassword --tls-verify=false localhost:${REGISTRY_PORT}
+  run_buildah push --authfile ${TEST_SCRATCH_DIR}/tmp/test.auth $WITH_POLICY_JSON --tls-verify=false busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
   expect_output --substring "Copying"
 }
 
 @test "push with --quiet" {
-  mytmpdir=${TESTDIR}/my-dir
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p $mytmpdir
 
   _prefetch alpine
@@ -216,7 +216,7 @@ load helpers
   cid=$output
   run_buildah images -q
   imageid=$output
-  run_buildah push --format oci --compression-format zstd:chunked $imageid dir:${TESTDIR}/zstd
+  run_buildah push --format oci --compression-format zstd:chunked $imageid dir:${TEST_SCRATCH_DIR}/zstd
   # Verify there is some zstd compressed layer.
-  grep application/vnd.oci.image.layer.v1.tar+zstd ${TESTDIR}/zstd/manifest.json
+  grep application/vnd.oci.image.layer.v1.tar+zstd ${TEST_SCRATCH_DIR}/zstd/manifest.json
 }

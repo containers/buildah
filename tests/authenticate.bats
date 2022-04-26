@@ -60,8 +60,8 @@ load helpers
   expect_output --from="${lines[-1]}" "my-alpine-work-ctr"
 
   # Create Dockerfile for bud tests
-  mkdir -p ${TESTDIR}/dockerdir
-  DOCKERFILE=${TESTDIR}/dockerdir/Dockerfile
+  mkdir -p ${TEST_SCRATCH_DIR}/dockerdir
+  DOCKERFILE=${TEST_SCRATCH_DIR}/dockerdir/Dockerfile
   /bin/cat <<EOM >$DOCKERFILE
 FROM localhost:$REGISTRY_PORT/my-alpine
 EOM
@@ -105,8 +105,8 @@ EOM
   run_buildah commit $WITH_POLICY_JSON --cert-dir=$REGISTRY_DIR --tls-verify=true --creds=testuser:testpassword $cid docker://localhost:$REGISTRY_PORT/my-alpine
 
   # Create Dockerfile for bud tests
-  mkdir -p ${TESTDIR}/dockerdir
-  DOCKERFILE=${TESTDIR}/dockerdir/Dockerfile
+  mkdir -p ${TEST_SCRATCH_DIR}/dockerdir
+  DOCKERFILE=${TEST_SCRATCH_DIR}/dockerdir/Dockerfile
   /bin/cat <<EOM >$DOCKERFILE
 FROM localhost:$REGISTRY_PORT/my-alpine
 RUN rm testfile

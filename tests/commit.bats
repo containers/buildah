@@ -85,9 +85,9 @@ load helpers
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   echo COMMIT
-  run_buildah commit $WITH_POLICY_JSON $cid "containers-storage:[vfs@${TESTDIR}/root2+${TESTDIR}/runroot2]newimage"
+  run_buildah commit $WITH_POLICY_JSON $cid "containers-storage:[vfs@${TEST_SCRATCH_DIR}/root2+${TEST_SCRATCH_DIR}/runroot2]newimage"
   echo FROM
-  run_buildah --storage-driver vfs --root ${TESTDIR}/root2 --runroot ${TESTDIR}/runroot2 from $WITH_POLICY_JSON newimage
+  run_buildah --storage-driver vfs --root ${TEST_SCRATCH_DIR}/root2 --runroot ${TEST_SCRATCH_DIR}/runroot2 from $WITH_POLICY_JSON newimage
 }
 
 @test "commit-rejected-name" {
@@ -207,28 +207,28 @@ load helpers
 @test "commit encrypted local oci image" {
   skip_if_rootless_environment
   _prefetch busybox
-  mkdir ${TESTDIR}/tmp
-  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
-  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
+  mkdir ${TEST_SCRATCH_DIR}/tmp
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey.pem 1024
+  openssl rsa -in ${TEST_SCRATCH_DIR}/tmp/mykey.pem -pubout > ${TEST_SCRATCH_DIR}/tmp/mykey.pub
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid=$output
-  run_buildah commit --iidfile /dev/null $WITH_POLICY_JSON --encryption-key jwe:${TESTDIR}/tmp/mykey.pub -q $cid oci:${TESTDIR}/tmp/busybox_enc
-  imgtype  -show-manifest oci:${TESTDIR}/tmp/busybox_enc | grep "+encrypted"
-  rm -rf ${TESTDIR}/tmp
+  run_buildah commit --iidfile /dev/null $WITH_POLICY_JSON --encryption-key jwe:${TEST_SCRATCH_DIR}/tmp/mykey.pub -q $cid oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
+  imgtype  -show-manifest oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc | grep "+encrypted"
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "commit oci encrypt to registry" {
   _prefetch busybox
-  mkdir ${TESTDIR}/tmp
-  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
-  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
+  mkdir ${TEST_SCRATCH_DIR}/tmp
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey.pem 1024
+  openssl rsa -in ${TEST_SCRATCH_DIR}/tmp/mykey.pem -pubout > ${TEST_SCRATCH_DIR}/tmp/mykey.pub
   start_registry
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid=$output
-  run_buildah commit --iidfile /dev/null --tls-verify=false --creds testuser:testpassword $WITH_POLICY_JSON --encryption-key jwe:${TESTDIR}/tmp/mykey.pub -q $cid docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah commit --iidfile /dev/null --tls-verify=false --creds testuser:testpassword $WITH_POLICY_JSON --encryption-key jwe:${TEST_SCRATCH_DIR}/tmp/mykey.pub -q $cid docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   # this test, just checks the ability to commit an image to a registry
   # there is no good way to test the details of the image unless with ./buildah pull, test will be in pull.bats
-  rm -rf ${TESTDIR}/tmp
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "commit omit-timestamp" {
@@ -248,7 +248,7 @@ load helpers
   run_buildah run $cid ls -l /test
   expect_output --substring "1970"
 
-  rm -rf ${TESTDIR}/tmp
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "commit timestamp" {
@@ -268,7 +268,7 @@ load helpers
   run_buildah run $cid ls -l /test
   expect_output --substring "1970"
 
-  rm -rf ${TESTDIR}/tmp
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "commit with authfile" {
@@ -278,7 +278,7 @@ load helpers
   run_buildah run $cid touch /test
 
   start_registry
-  run_buildah login --authfile ${TESTDIR}/test.auth --username testuser --password testpassword --tls-verify=false localhost:${REGISTRY_PORT}
-  run_buildah commit --authfile ${TESTDIR}/test.auth $WITH_POLICY_JSON --tls-verify=false $cid docker://localhost:${REGISTRY_PORT}/buildah/my-busybox
+  run_buildah login --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword --tls-verify=false localhost:${REGISTRY_PORT}
+  run_buildah commit --authfile ${TEST_SCRATCH_DIR}/test.auth $WITH_POLICY_JSON --tls-verify=false $cid docker://localhost:${REGISTRY_PORT}/buildah/my-busybox
   expect_output --substring "Writing manifest to image destination"
 }

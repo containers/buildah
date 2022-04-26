@@ -4,7 +4,7 @@ load helpers
 
 @test "source create" {
   # Create an empty source image and make sure it's properly initialized
-  srcdir=${TESTDIR}/newsource
+  srcdir=${TEST_SCRATCH_DIR}/newsource
   run_buildah source create --author="Buildah authors" $srcdir
 
   # Inspect the index.json
@@ -52,7 +52,7 @@ load helpers
 
 @test "source add" {
   # Create an empty source image and make sure it's properly initialized.
-  srcdir=${TESTDIR}/newsource
+  srcdir=${TEST_SCRATCH_DIR}/newsource
   run_buildah source create $srcdir
 
   # Digest of initial manifest
@@ -62,8 +62,8 @@ load helpers
   [ "$status" -eq 0 ]
 
   # Add layer 1
-  echo 111 > ${TESTDIR}/file1
-  run_buildah source add $srcdir ${TESTDIR}/file1
+  echo 111 > ${TEST_SCRATCH_DIR}/file1
+  run_buildah source add $srcdir ${TEST_SCRATCH_DIR}/file1
   # Make sure the digest of the manifest changed
   run jq -r .manifests[0].digest $srcdir/index.json
   manifestDigestFile1=${output//sha256:/} # strip off the sha256 prefix
@@ -82,8 +82,8 @@ load helpers
   expect_output --substring "$layer1Size"
 
   # Add layer 2
-  echo 222222aBitLongerForAdifferentSize > ${TESTDIR}/file2
-  run_buildah source add $srcdir ${TESTDIR}/file2
+  echo 222222aBitLongerForAdifferentSize > ${TEST_SCRATCH_DIR}/file2
+  run_buildah source add $srcdir ${TEST_SCRATCH_DIR}/file2
   # Make sure the digest of the manifest changed
   run jq -r .manifests[0].digest $srcdir/index.json
   manifestDigestFile2=${output//sha256:/} # strip off the sha256 prefix
@@ -115,20 +115,20 @@ load helpers
 
 @test "source push/pull" {
   # Create an empty source image and make sure it's properly initialized.
-  srcdir=${TESTDIR}/newsource
+  srcdir=${TEST_SCRATCH_DIR}/newsource
   run_buildah source create $srcdir
 
   # Add two layers
-  echo 111 > ${TESTDIR}/file1
-  run_buildah source add $srcdir ${TESTDIR}/file1
-  echo 222... > ${TESTDIR}/file2
-  run_buildah source add $srcdir ${TESTDIR}/file2
+  echo 111 > ${TEST_SCRATCH_DIR}/file1
+  run_buildah source add $srcdir ${TEST_SCRATCH_DIR}/file1
+  echo 222... > ${TEST_SCRATCH_DIR}/file2
+  run_buildah source add $srcdir ${TEST_SCRATCH_DIR}/file2
 
   start_registry
 
   run_buildah source push --tls-verify=false --creds testuser:testpassword $srcdir localhost:${REGISTRY_PORT}/source:test
 
-  pulldir=${TESTDIR}/pulledsource
+  pulldir=${TEST_SCRATCH_DIR}/pulledsource
   run_buildah source pull --tls-verify=false --creds testuser:testpassword localhost:${REGISTRY_PORT}/source:test $pulldir
 
   run diff -r $srcdir $pulldir

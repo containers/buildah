@@ -86,7 +86,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 @test "manifest-push" {
     run_buildah manifest create foo
     run_buildah manifest add --all foo ${IMAGE_LIST}
-    run_buildah manifest push $WITH_POLICY_JSON foo dir:${TESTDIR}/pushed
+    run_buildah manifest push $WITH_POLICY_JSON foo dir:${TEST_SCRATCH_DIR}/pushed
     case "$(go env GOARCH 2> /dev/null)" in
 	    amd64) IMAGE_LIST_EXPECTED_INSTANCE_DIGEST=${IMAGE_LIST_AMD64_INSTANCE_DIGEST} ;;
 	    arm64) IMAGE_LIST_EXPECTED_INSTANCE_DIGEST=${IMAGE_LIST_ARM64_INSTANCE_DIGEST} ;;
@@ -95,15 +95,15 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 	    s390x) IMAGE_LIST_EXPECTED_INSTANCE_DIGEST=${IMAGE_LIST_S390X_INSTANCE_DIGEST} ;;
 	    *) skip "current arch \"$(go env GOARCH 2> /dev/null)\" not present in manifest list" ;;
     esac
-    run grep ${IMAGE_LIST_EXPECTED_INSTANCE_DIGEST##sha256} ${TESTDIR}/pushed/manifest.json
+    run grep ${IMAGE_LIST_EXPECTED_INSTANCE_DIGEST##sha256} ${TEST_SCRATCH_DIR}/pushed/manifest.json
     [ $status -eq 0 ]
 }
 
 @test "manifest-push-all" {
     run_buildah manifest create foo
     run_buildah manifest add --all foo ${IMAGE_LIST}
-    run_buildah manifest push $WITH_POLICY_JSON --all foo dir:${TESTDIR}/pushed
-    run sha256sum ${TESTDIR}/pushed/*
+    run_buildah manifest push $WITH_POLICY_JSON --all foo dir:${TEST_SCRATCH_DIR}/pushed
+    run sha256sum ${TEST_SCRATCH_DIR}/pushed/*
     expect_output --substring ${IMAGE_LIST_AMD64_INSTANCE_DIGEST##sha256:}
     expect_output --substring ${IMAGE_LIST_ARM_INSTANCE_DIGEST##sha256:}
     expect_output --substring ${IMAGE_LIST_ARM64_INSTANCE_DIGEST##sha256:}
@@ -115,7 +115,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah manifest create foo
     run_buildah manifest add --arch=arm64 foo ${IMAGE_LIST}
     run_buildah manifest inspect foo
-    run_buildah manifest push $WITH_POLICY_JSON --purge foo dir:${TESTDIR}/pushed
+    run_buildah manifest push $WITH_POLICY_JSON --purge foo dir:${TEST_SCRATCH_DIR}/pushed
     run_buildah 125 manifest inspect foo
 }
 
@@ -123,7 +123,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah manifest create foo
     run_buildah manifest add --arch=arm64 foo ${IMAGE_LIST}
     run_buildah manifest inspect foo
-    run_buildah manifest push $WITH_POLICY_JSON --rm foo dir:${TESTDIR}/pushed
+    run_buildah manifest push $WITH_POLICY_JSON --rm foo dir:${TEST_SCRATCH_DIR}/pushed
     run_buildah 125 manifest inspect foo
 }
 
@@ -131,7 +131,7 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah manifest create foo
     run_buildah manifest add --arch=arm64 foo ${IMAGE_LIST}
     run_buildah manifest inspect foo
-    run_buildah 125 manifest push --authfile /tmp/nonexistent $WITH_POLICY_JSON --purge foo dir:${TESTDIR}/pushed
+    run_buildah 125 manifest push --authfile /tmp/nonexistent $WITH_POLICY_JSON --purge foo dir:${TEST_SCRATCH_DIR}/pushed
 
 }
 
@@ -172,13 +172,13 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     archinstance=$(jq -r '.manifests|map(select(.platform.architecture=="'$arch'"))[].digest' <<< "$output")
     run_buildah manifest remove test-list $archinstance
     # Try to build using the build cache.
-    mkdir ${TESTDIR}/build
-    echo 'much content, wow.' > ${TESTDIR}/build/content.txt
-    echo 'FROM scratch' > ${TESTDIR}/build/Dockerfile
-    echo 'ADD content.txt /' >> ${TESTDIR}/build/Dockerfile
-    run_buildah bud --layers --iidfile ${TESTDIR}/image-id.txt ${TESTDIR}/build
+    mkdir ${TEST_SCRATCH_DIR}/build
+    echo 'much content, wow.' > ${TEST_SCRATCH_DIR}/build/content.txt
+    echo 'FROM scratch' > ${TEST_SCRATCH_DIR}/build/Dockerfile
+    echo 'ADD content.txt /' >> ${TEST_SCRATCH_DIR}/build/Dockerfile
+    run_buildah bud --layers --iidfile ${TEST_SCRATCH_DIR}/image-id.txt ${TEST_SCRATCH_DIR}/build
     # Make sure we can add the new image to the list.
-    run_buildah manifest add test-list $(< ${TESTDIR}/image-id.txt)
+    run_buildah manifest add test-list $(< ${TEST_SCRATCH_DIR}/image-id.txt)
 }
 
 @test "manifest-add-to-list-from-storage" {

@@ -299,7 +299,7 @@ function check_matrix() {
 
 @test "docker formatted builds must inherit healthcheck from base image" {
   _prefetch busybox
-  ctxdir=${TESTDIR}/bud
+  ctxdir=${TEST_SCRATCH_DIR}/bud
   mkdir -p $ctxdir
   cat >$ctxdir/Dockerfile <<EOF
 FROM busybox

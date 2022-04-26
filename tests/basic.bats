@@ -58,17 +58,17 @@ load helpers
 }
 
 @test "commit" {
-  createrandom ${TESTDIR}/randomfile
-  createrandom ${TESTDIR}/other-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-randomfile
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
   root=$output
-  cp ${TESTDIR}/randomfile $root/randomfile
+  cp ${TEST_SCRATCH_DIR}/randomfile $root/randomfile
   run_buildah unmount $cid
-  run_buildah commit --iidfile ${TESTDIR}/output.iid $WITH_POLICY_JSON $cid containers-storage:new-image
-  iid=$(< ${TESTDIR}/output.iid)
+  run_buildah commit --iidfile ${TEST_SCRATCH_DIR}/output.iid $WITH_POLICY_JSON $cid containers-storage:new-image
+  iid=$(< ${TEST_SCRATCH_DIR}/output.iid)
   assert "$iid" =~ "sha256:[0-9a-f]{64}"
   run_buildah rmi $iid
   run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
@@ -78,8 +78,8 @@ load helpers
   run_buildah mount $newcid
   newroot=$output
   test -s $newroot/randomfile
-  cmp ${TESTDIR}/randomfile $newroot/randomfile
-  cp ${TESTDIR}/other-randomfile $newroot/other-randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/randomfile
+  cp ${TEST_SCRATCH_DIR}/other-randomfile $newroot/other-randomfile
   run_buildah commit $WITH_POLICY_JSON $newcid containers-storage:other-new-image
   # Not an allowed ordering of arguments and flags.  Check that it's rejected.
   run_buildah 125 commit $newcid $WITH_POLICY_JSON containers-storage:rejected-new-image
@@ -94,9 +94,9 @@ load helpers
   run_buildah mount $othernewcid
   othernewroot=$output
   test -s $othernewroot/randomfile
-  cmp ${TESTDIR}/randomfile $othernewroot/randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $othernewroot/randomfile
   test -s $othernewroot/other-randomfile
-  cmp ${TESTDIR}/other-randomfile $othernewroot/other-randomfile
+  cmp ${TEST_SCRATCH_DIR}/other-randomfile $othernewroot/other-randomfile
   run_buildah rm $othernewcid
 
   run_buildah from --quiet $WITH_POLICY_JSON another-new-image
@@ -104,9 +104,9 @@ load helpers
   run_buildah mount $anothernewcid
   anothernewroot=$output
   test -s $anothernewroot/randomfile
-  cmp ${TESTDIR}/randomfile $anothernewroot/randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $anothernewroot/randomfile
   test -s $anothernewroot/other-randomfile
-  cmp ${TESTDIR}/other-randomfile $anothernewroot/other-randomfile
+  cmp ${TEST_SCRATCH_DIR}/other-randomfile $anothernewroot/other-randomfile
   run_buildah rm $anothernewcid
 
   run_buildah from --quiet $WITH_POLICY_JSON yet-another-new-image
@@ -114,9 +114,9 @@ load helpers
   run_buildah mount $yetanothernewcid
   yetanothernewroot=$output
   test -s $yetanothernewroot/randomfile
-  cmp ${TESTDIR}/randomfile $yetanothernewroot/randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $yetanothernewroot/randomfile
   test -s $yetanothernewroot/other-randomfile
-  cmp ${TESTDIR}/other-randomfile $yetanothernewroot/other-randomfile
+  cmp ${TEST_SCRATCH_DIR}/other-randomfile $yetanothernewroot/other-randomfile
   run_buildah delete $yetanothernewcid
 
   run_buildah from --quiet $WITH_POLICY_JSON new-image

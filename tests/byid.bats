@@ -61,7 +61,7 @@ load helpers
     echo pulling/pushing image $image
     _prefetch $image
 
-    TARGET=${TESTDIR}/subdir-$(basename $image)
+    TARGET=${TEST_SCRATCH_DIR}/subdir-$(basename $image)
     mkdir -p $TARGET $TARGET-truncated
 
     # Pull down the image, if we have to.

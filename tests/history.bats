@@ -78,9 +78,9 @@ function testconfighistory() {
 }
 
 @test "history-add" {
-  createrandom ${TESTDIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
   run_buildah from --name addctr --format docker scratch
-  run_buildah add --add-history addctr ${TESTDIR}/randomfile
+  run_buildah add --add-history addctr ${TEST_SCRATCH_DIR}/randomfile
   digest="$output"
   run_buildah commit $WITH_POLICY_JSON addctr addimg
   run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' addimg
@@ -89,9 +89,9 @@ function testconfighistory() {
 }
 
 @test "history-copy" {
-  createrandom ${TESTDIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
   run_buildah from --name copyctr --format docker scratch
-  run_buildah copy --add-history copyctr ${TESTDIR}/randomfile
+  run_buildah copy --add-history copyctr ${TEST_SCRATCH_DIR}/randomfile
   digest="$output"
   run_buildah commit $WITH_POLICY_JSON copyctr copyimg
   run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' copyimg
@@ -111,7 +111,7 @@ function testconfighistory() {
 
 @test "history should not contain vars in allowlist unless set in ARG" {
   _prefetch busybox
-  ctxdir=${TESTDIR}/bud
+  ctxdir=${TEST_SCRATCH_DIR}/bud
   mkdir -p $ctxdir
   cat >$ctxdir/Dockerfile <<EOF
 FROM busybox
@@ -128,7 +128,7 @@ EOF
 
 @test "history should contain vars in allowlist when set in ARG" {
   _prefetch busybox
-  ctxdir=${TESTDIR}/bud
+  ctxdir=${TEST_SCRATCH_DIR}/bud
   mkdir -p $ctxdir
   cat >$ctxdir/Dockerfile <<EOF
 FROM busybox

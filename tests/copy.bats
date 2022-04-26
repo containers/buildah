@@ -14,23 +14,23 @@ load helpers
 }
 
 @test "copy-local-multiple" {
-  createrandom ${TESTDIR}/randomfile
-  createrandom ${TESTDIR}/other-randomfile
-  createrandom ${TESTDIR}/third-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/third-randomfile
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
-  # copy ${TESTDIR}/randomfile to a file of the same name in the container's working directory
-  run_buildah copy $cid ${TESTDIR}/randomfile
-  # copy ${TESTDIR}/other-randomfile and ${TESTDIR}/third-randomfile to a new directory named ${TESTDIR}/randomfile in the container
-  run_buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
-  # try to copy ${TESTDIR}/other-randomfile and ${TESTDIR}/third-randomfile to a /randomfile, which already exists and is a file
-  run_buildah 125 copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile /randomfile
-  # copy ${TESTDIR}/other-randomfile and ${TESTDIR}/third-randomfile to previously-created directory named ${TESTDIR}/randomfile in the container
-  run_buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile
+  # copy ${TEST_SCRATCH_DIR}/randomfile to a file of the same name in the container's working directory
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/randomfile
+  # copy ${TEST_SCRATCH_DIR}/other-randomfile and ${TEST_SCRATCH_DIR}/third-randomfile to a new directory named ${TEST_SCRATCH_DIR}/randomfile in the container
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile ${TEST_SCRATCH_DIR}/randomfile
+  # try to copy ${TEST_SCRATCH_DIR}/other-randomfile and ${TEST_SCRATCH_DIR}/third-randomfile to a /randomfile, which already exists and is a file
+  run_buildah 125 copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile /randomfile
+  # copy ${TEST_SCRATCH_DIR}/other-randomfile and ${TEST_SCRATCH_DIR}/third-randomfile to previously-created directory named ${TEST_SCRATCH_DIR}/randomfile in the container
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile ${TEST_SCRATCH_DIR}/randomfile
   run_buildah rm $cid
 
   _prefetch alpine
@@ -39,8 +39,8 @@ load helpers
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
-  run_buildah copy $cid ${TESTDIR}/randomfile
-  run_buildah copy $cid ${TESTDIR}/other-randomfile ${TESTDIR}/third-randomfile ${TESTDIR}/randomfile /etc
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/randomfile
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile ${TEST_SCRATCH_DIR}/randomfile /etc
   run_buildah rm $cid
 
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
@@ -48,22 +48,22 @@ load helpers
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
-  run_buildah copy $cid "${TESTDIR}/*randomfile" /etc
-  (cd ${TESTDIR}; for i in *randomfile; do cmp $i ${root}/etc/$i; done)
+  run_buildah copy $cid "${TEST_SCRATCH_DIR}/*randomfile" /etc
+  (cd ${TEST_SCRATCH_DIR}; for i in *randomfile; do cmp $i ${root}/etc/$i; done)
 }
 
 @test "copy-local-plain" {
-  createrandom ${TESTDIR}/randomfile
-  createrandom ${TESTDIR}/other-randomfile
-  createrandom ${TESTDIR}/third-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/third-randomfile
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
-  run_buildah copy $cid ${TESTDIR}/randomfile
-  run_buildah copy $cid ${TESTDIR}/other-randomfile
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/randomfile
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile
   run_buildah unmount $cid
   run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
   run_buildah rm $cid
@@ -73,98 +73,98 @@ load helpers
   run_buildah mount $newcid
   newroot=$output
   test -s $newroot/randomfile
-  cmp ${TESTDIR}/randomfile $newroot/randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/randomfile
   test -s $newroot/other-randomfile
-  cmp ${TESTDIR}/other-randomfile $newroot/other-randomfile
+  cmp ${TEST_SCRATCH_DIR}/other-randomfile $newroot/other-randomfile
 }
 
 @test "copy-local-subdirectory" {
-  mkdir -p ${TESTDIR}/subdir
-  createrandom ${TESTDIR}/subdir/randomfile
-  createrandom ${TESTDIR}/subdir/other-randomfile
+  mkdir -p ${TEST_SCRATCH_DIR}/subdir
+  createrandom ${TEST_SCRATCH_DIR}/subdir/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/subdir/other-randomfile
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --workingdir /container-subdir $cid
-  run_buildah copy $cid ${TESTDIR}/subdir
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/subdir
   run_buildah mount $cid
   root=$output
   test -s $root/container-subdir/randomfile
-  cmp ${TESTDIR}/subdir/randomfile $root/container-subdir/randomfile
+  cmp ${TEST_SCRATCH_DIR}/subdir/randomfile $root/container-subdir/randomfile
   test -s $root/container-subdir/other-randomfile
-  cmp ${TESTDIR}/subdir/other-randomfile $root/container-subdir/other-randomfile
-  run_buildah copy $cid ${TESTDIR}/subdir /other-subdir
+  cmp ${TEST_SCRATCH_DIR}/subdir/other-randomfile $root/container-subdir/other-randomfile
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/subdir /other-subdir
   test -s $root/other-subdir/randomfile
-  cmp ${TESTDIR}/subdir/randomfile $root/other-subdir/randomfile
+  cmp ${TEST_SCRATCH_DIR}/subdir/randomfile $root/other-subdir/randomfile
   test -s $root/other-subdir/other-randomfile
-  cmp ${TESTDIR}/subdir/other-randomfile $root/other-subdir/other-randomfile
+  cmp ${TEST_SCRATCH_DIR}/subdir/other-randomfile $root/other-subdir/other-randomfile
 }
 
 @test "copy-local-force-directory" {
-  createrandom ${TESTDIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --workingdir / $cid
-  run_buildah copy $cid ${TESTDIR}/randomfile /randomfile
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/randomfile /randomfile
   run_buildah mount $cid
   root=$output
   test -s $root/randomfile
-  cmp ${TESTDIR}/randomfile $root/randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $root/randomfile
   run_buildah rm $cid
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --workingdir / $cid
-  run_buildah copy $cid ${TESTDIR}/randomfile /randomsubdir/
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/randomfile /randomsubdir/
   run_buildah mount $cid
   root=$output
   test -s $root/randomsubdir/randomfile
-  cmp ${TESTDIR}/randomfile $root/randomsubdir/randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $root/randomsubdir/randomfile
 }
 
 @test "copy-url-mtime" {
   # Create a file with random content and a non-now timestamp (so we can
   # can trust that buildah correctly set mtime on copy)
-  createrandom ${TESTDIR}/randomfile
-  touch -t 201910310123.45 ${TESTDIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  touch -t 201910310123.45 ${TEST_SCRATCH_DIR}/randomfile
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --workingdir / $cid
-  starthttpd ${TESTDIR}
+  starthttpd ${TEST_SCRATCH_DIR}
   run_buildah copy $cid http://0.0.0.0:${HTTP_SERVER_PORT}/randomfile /urlfile
   stophttpd
   run_buildah mount $cid
   root=$output
   test -s $root/urlfile
-  cmp ${TESTDIR}/randomfile $root/urlfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $root/urlfile
 
   # Compare timestamps. Display them in human-readable form, so if there's
   # a mismatch it will be shown in the test log.
-  mtime_randomfile=$(stat --format %y ${TESTDIR}/randomfile)
+  mtime_randomfile=$(stat --format %y ${TEST_SCRATCH_DIR}/randomfile)
   mtime_urlfile=$(stat --format %y $root/urlfile)
 
   expect_output --from="$mtime_randomfile" "$mtime_urlfile" "mtime[randomfile] == mtime[urlfile]"
 }
 
 @test "copy --chown" {
-  mkdir -p ${TESTDIR}/subdir
-  mkdir -p ${TESTDIR}/other-subdir
-  createrandom ${TESTDIR}/subdir/randomfile
-  createrandom ${TESTDIR}/subdir/other-randomfile
-  createrandom ${TESTDIR}/randomfile
-  createrandom ${TESTDIR}/other-subdir/randomfile
-  createrandom ${TESTDIR}/other-subdir/other-randomfile
+  mkdir -p ${TEST_SCRATCH_DIR}/subdir
+  mkdir -p ${TEST_SCRATCH_DIR}/other-subdir
+  createrandom ${TEST_SCRATCH_DIR}/subdir/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/subdir/other-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-subdir/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-subdir/other-randomfile
 
   _prefetch alpine
   run_buildah from --quiet $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah config --workingdir / $cid
-  run_buildah copy --chown 1:1 $cid ${TESTDIR}/randomfile
-  run_buildah copy --chown root:1 $cid ${TESTDIR}/randomfile /randomfile2
-  run_buildah copy --chown nobody $cid ${TESTDIR}/randomfile /randomfile3
-  run_buildah copy --chown nobody:root $cid ${TESTDIR}/subdir /subdir
+  run_buildah copy --chown 1:1 $cid ${TEST_SCRATCH_DIR}/randomfile
+  run_buildah copy --chown root:1 $cid ${TEST_SCRATCH_DIR}/randomfile /randomfile2
+  run_buildah copy --chown nobody $cid ${TEST_SCRATCH_DIR}/randomfile /randomfile3
+  run_buildah copy --chown nobody:root $cid ${TEST_SCRATCH_DIR}/subdir /subdir
   run_buildah run $cid stat -c "%u:%g" /randomfile
   expect_output "1:1" "stat ug /randomfile"
 
@@ -183,7 +183,7 @@ load helpers
   run_buildah run $cid stat -c "%U:%G" /subdir
   expect_output "nobody:root" "stat UG /subdir"
 
-  run_buildah copy --chown root:root $cid ${TESTDIR}/other-subdir /subdir
+  run_buildah copy --chown root:root $cid ${TEST_SCRATCH_DIR}/other-subdir /subdir
   for i in randomfile other-randomfile ; do
       run_buildah run $cid stat -c "%U:%G" /subdir/$i
       expect_output "root:root" "stat UG /subdir/$i (after chown)"
@@ -195,22 +195,22 @@ load helpers
 }
 
 @test "copy --chmod" {
-  mkdir -p ${TESTDIR}/subdir
-  mkdir -p ${TESTDIR}/other-subdir
-  createrandom ${TESTDIR}/subdir/randomfile
-  createrandom ${TESTDIR}/subdir/other-randomfile
-  createrandom ${TESTDIR}/randomfile
-  createrandom ${TESTDIR}/other-subdir/randomfile
-  createrandom ${TESTDIR}/other-subdir/other-randomfile
+  mkdir -p ${TEST_SCRATCH_DIR}/subdir
+  mkdir -p ${TEST_SCRATCH_DIR}/other-subdir
+  createrandom ${TEST_SCRATCH_DIR}/subdir/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/subdir/other-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-subdir/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-subdir/other-randomfile
 
   _prefetch alpine
   run_buildah from --quiet $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah config --workingdir / $cid
-  run_buildah copy --chmod 777 $cid ${TESTDIR}/randomfile
-  run_buildah copy --chmod 700 $cid ${TESTDIR}/randomfile /randomfile2
-  run_buildah copy --chmod 755 $cid ${TESTDIR}/randomfile /randomfile3
-  run_buildah copy --chmod 660 $cid ${TESTDIR}/subdir /subdir
+  run_buildah copy --chmod 777 $cid ${TEST_SCRATCH_DIR}/randomfile
+  run_buildah copy --chmod 700 $cid ${TEST_SCRATCH_DIR}/randomfile /randomfile2
+  run_buildah copy --chmod 755 $cid ${TEST_SCRATCH_DIR}/randomfile /randomfile3
+  run_buildah copy --chmod 660 $cid ${TEST_SCRATCH_DIR}/subdir /subdir
 
   run_buildah run $cid ls -l /randomfile
   expect_output --substring rwxrwxrwx
@@ -229,7 +229,7 @@ load helpers
   run_buildah run $cid ls -l /subdir
   expect_output --substring rw-rw----
 
-  run_buildah copy --chmod 600 $cid ${TESTDIR}/other-subdir /subdir
+  run_buildah copy --chmod 600 $cid ${TEST_SCRATCH_DIR}/other-subdir /subdir
   for i in randomfile other-randomfile ; do
       run_buildah run $cid ls -l /subdir/$i
       expect_output --substring rw-------
@@ -237,15 +237,15 @@ load helpers
 }
 
 @test "copy-symlink" {
-  createrandom ${TESTDIR}/randomfile
-  ln -s ${TESTDIR}/randomfile ${TESTDIR}/link-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  ln -s ${TEST_SCRATCH_DIR}/randomfile ${TEST_SCRATCH_DIR}/link-randomfile
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
-  run_buildah copy $cid ${TESTDIR}/link-randomfile
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/link-randomfile
   run_buildah unmount $cid
   run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
   run_buildah rm $cid
@@ -256,22 +256,22 @@ load helpers
   newroot=$output
   test -s $newroot/link-randomfile
   test -f $newroot/link-randomfile
-  cmp ${TESTDIR}/randomfile $newroot/link-randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $newroot/link-randomfile
 }
 
 @test "ignore-socket" {
-  createrandom ${TESTDIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
   # This seems to be the least-worst way to create a socket: run and kill nc
-  nc -lkU ${TESTDIR}/test.socket &
+  nc -lkU ${TEST_SCRATCH_DIR}/test.socket &
   nc_pid=$!
   # This should succeed fairly quickly. We test with a timeout in case of
   # failure (likely reason: 'nc' not installed.)
   retries=50
-  while ! test -e ${TESTDIR}/test.socket; do
+  while ! test -e ${TEST_SCRATCH_DIR}/test.socket; do
       sleep 0.1
       retries=$((retries - 1))
       if [[ $retries -eq 0 ]]; then
-          die "Timed out waiting for ${TESTDIR}/test.socket (is nc installed?)"
+          die "Timed out waiting for ${TEST_SCRATCH_DIR}/test.socket (is nc installed?)"
       fi
   done
   kill $nc_pid
@@ -293,15 +293,15 @@ load helpers
 }
 
 @test "copy-symlink-archive-suffix" {
-  createrandom ${TESTDIR}/randomfile.tar.gz
-  ln -s ${TESTDIR}/randomfile.tar.gz ${TESTDIR}/link-randomfile.tar.gz
+  createrandom ${TEST_SCRATCH_DIR}/randomfile.tar.gz
+  ln -s ${TEST_SCRATCH_DIR}/randomfile.tar.gz ${TEST_SCRATCH_DIR}/link-randomfile.tar.gz
 
   run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah mount $cid
   root=$output
   run_buildah config --workingdir / $cid
-  run_buildah copy $cid ${TESTDIR}/link-randomfile.tar.gz
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/link-randomfile.tar.gz
   run_buildah unmount $cid
   run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
   run_buildah rm $cid
@@ -312,22 +312,22 @@ load helpers
   newroot=$output
   test -s $newroot/link-randomfile.tar.gz
   test -f $newroot/link-randomfile.tar.gz
-  cmp ${TESTDIR}/randomfile.tar.gz $newroot/link-randomfile.tar.gz
+  cmp ${TEST_SCRATCH_DIR}/randomfile.tar.gz $newroot/link-randomfile.tar.gz
 }
 
 @test "copy-detect-missing-data" {
   _prefetch busybox
 
-  : > ${TESTDIR}/Dockerfile
-  echo FROM busybox AS builder                                >> ${TESTDIR}/Dockerfile
-  echo FROM scratch                                           >> ${TESTDIR}/Dockerfile
-  echo COPY --from=builder /bin/-no-such-file-error- /usr/bin >> ${TESTDIR}/Dockerfile
-  run_buildah 125 build-using-dockerfile $WITH_POLICY_JSON ${TESTDIR}
+  : > ${TEST_SCRATCH_DIR}/Dockerfile
+  echo FROM busybox AS builder                                >> ${TEST_SCRATCH_DIR}/Dockerfile
+  echo FROM scratch                                           >> ${TEST_SCRATCH_DIR}/Dockerfile
+  echo COPY --from=builder /bin/-no-such-file-error- /usr/bin >> ${TEST_SCRATCH_DIR}/Dockerfile
+  run_buildah 125 build-using-dockerfile $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
   expect_output --substring "no such file or directory"
 }
 
 @test "copy --ignorefile" {
-  mytest=${TESTDIR}/mytest
+  mytest=${TEST_SCRATCH_DIR}/mytest
   mkdir -p ${mytest}
   touch ${mytest}/mystuff
   touch ${mytest}/source.go
@@ -360,27 +360,27 @@ stuff/mystuff"
 }
 
 @test "copy-quiet" {
-  createrandom ${TESTDIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
   _prefetch alpine
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah mount $cid
   root=$output
-  run_buildah copy --quiet $cid ${TESTDIR}/randomfile /
+  run_buildah copy --quiet $cid ${TEST_SCRATCH_DIR}/randomfile /
   expect_output ""
-  cmp ${TESTDIR}/randomfile $root/randomfile
+  cmp ${TEST_SCRATCH_DIR}/randomfile $root/randomfile
   run_buildah umount $cid
   run_buildah rm $cid
 }
 
 @test "copy-from-container" {
   _prefetch busybox
-  createrandom ${TESTDIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   from=$output
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
-  run_buildah copy --quiet $from ${TESTDIR}/randomfile /tmp/random
+  run_buildah copy --quiet $from ${TEST_SCRATCH_DIR}/randomfile /tmp/random
   expect_output ""
   run_buildah copy --quiet $WITH_POLICY_JSON --from $from $cid /tmp/random /tmp/random # absolute path
   expect_output ""
@@ -388,25 +388,25 @@ stuff/mystuff"
   expect_output ""
   run_buildah mount $cid
   croot=$output
-  cmp ${TESTDIR}/randomfile ${croot}/tmp/random
-  cmp ${TESTDIR}/randomfile ${croot}/tmp/random2
+  cmp ${TEST_SCRATCH_DIR}/randomfile ${croot}/tmp/random
+  cmp ${TEST_SCRATCH_DIR}/randomfile ${croot}/tmp/random2
 }
 
 @test "copy-container-root" {
   _prefetch busybox
-  createrandom ${TESTDIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   from=$output
   run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid=$output
-  run_buildah copy --quiet $from ${TESTDIR}/randomfile /tmp/random
+  run_buildah copy --quiet $from ${TEST_SCRATCH_DIR}/randomfile /tmp/random
   expect_output ""
   run_buildah copy --quiet $WITH_POLICY_JSON --from $from $cid / /tmp/
   expect_output "" || \
     expect_output --substring "copier: file disappeared while reading"
   run_buildah mount $cid
   croot=$output
-  cmp ${TESTDIR}/randomfile ${croot}/tmp/tmp/random
+  cmp ${TEST_SCRATCH_DIR}/randomfile ${croot}/tmp/tmp/random
 }
 
 @test "add-from-image" {
@@ -445,16 +445,16 @@ stuff/mystuff"
 }
 
 @test "copy-preserving-extended-attributes" {
-  createrandom ${TESTDIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
   # if we need to change which image we use, any image that can provide a working setattr/setcap/getfattr will do
   image="quay.io/libpod/fedora-minimal:34"
   if ! which setfattr > /dev/null 2> /dev/null; then
-    skip "setfattr not available, unable to check if it'll work in filesystem at ${TESTDIR}"
+    skip "setfattr not available, unable to check if it'll work in filesystem at ${TEST_SCRATCH_DIR}"
   fi
-  run setfattr -n user.yeah -v butno ${TESTDIR}/root
+  run setfattr -n user.yeah -v butno ${TEST_SCRATCH_DIR}/root
   if [ "$status" -ne 0 ] ; then
     if [[ "$output" =~ "not supported" ]] ; then
-      skip "setfattr not supported in filesystem at ${TESTDIR}"
+      skip "setfattr not supported in filesystem at ${TEST_SCRATCH_DIR}"
     fi
     skip "$output"
   fi
@@ -462,7 +462,7 @@ stuff/mystuff"
   run_buildah from --quiet $WITH_POLICY_JSON $image
   first="$output"
   run_buildah run $first microdnf -y install /usr/bin/setfattr /usr/sbin/setcap
-  run_buildah copy $first ${TESTDIR}/randomfile /
+  run_buildah copy $first ${TEST_SCRATCH_DIR}/randomfile /
   # set security.capability
   run_buildah run $first setcap cap_setuid=ep /randomfile
   # set user.something
@@ -482,13 +482,13 @@ stuff/mystuff"
 @test "copy-relative-context-dir" {
   image=busybox
   _prefetch $image
-  mkdir -p ${TESTDIR}/context
-  createrandom ${TESTDIR}/context/excluded_test_file
-  createrandom ${TESTDIR}/context/test_file
-  echo excluded_test_file | tee ${TESTDIR}/context/.containerignore | tee ${TESTDIR}/context/.dockerignore
+  mkdir -p ${TEST_SCRATCH_DIR}/context
+  createrandom ${TEST_SCRATCH_DIR}/context/excluded_test_file
+  createrandom ${TEST_SCRATCH_DIR}/context/test_file
+  echo excluded_test_file | tee ${TEST_SCRATCH_DIR}/context/.containerignore | tee ${TEST_SCRATCH_DIR}/context/.dockerignore
   run_buildah from --quiet $WITH_POLICY_JSON $image
   ctr="$output"
-  cd ${TESTDIR}/context
+  cd ${TEST_SCRATCH_DIR}/context
   run_buildah copy --contextdir . $ctr / /opt/
   run_buildah run $ctr ls -1 /opt/
   expect_line_count 1

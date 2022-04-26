@@ -16,7 +16,7 @@ function teardown(){
 @test "bud with ssh key" {
   _prefetch alpine
 
-  mytmpdir=${TESTDIR}/my-dir1
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
   mkdir -p ${mytmpdir}
   ssh-keygen -b 2048 -t rsa -f $mytmpdir/sshkey -q -N ""
   fingerprint=$(ssh-keygen -l -f $mytmpdir/sshkey -E md5 | awk '{ print $2; }')
@@ -33,7 +33,7 @@ function teardown(){
 @test "bud with ssh key secret accessed on second RUN" {
  _prefetch alpine
 
-  mytmpdir=${TESTDIR}/my-dir1
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
   mkdir -p ${mytmpdir}
   ssh-keygen -b 2048 -t rsa -f $mytmpdir/sshkey -q -N ""
   fingerprint=$(ssh-keygen -l -f $mytmpdir/sshkey -E md5 | awk '{ print $2; }')
@@ -45,7 +45,7 @@ function teardown(){
 @test "bud with containerfile ssh options" {
   _prefetch alpine
 
-  mytmpdir=${TESTDIR}/my-dir1
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
   mkdir -p ${mytmpdir}
   ssh-keygen -b 2048 -t rsa -f $mytmpdir/sshkey -q -N ""
   fingerprint=$(ssh-keygen -l -f $mytmpdir/sshkey -E md5 | awk '{ print $2; }')
@@ -59,7 +59,7 @@ function teardown(){
 @test "bud with ssh sock" {
   _prefetch alpine
 
-  mytmpdir=${TESTDIR}/my-dir1
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
   mkdir -p ${mytmpdir}
   ssh-keygen -b 2048 -t rsa -f $mytmpdir/sshkey -q -N ""
   fingerprint=$(ssh-keygen -l -f $mytmpdir/sshkey -E md5 | awk '{ print $2; }')

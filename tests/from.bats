@@ -32,7 +32,7 @@ load helpers
 }
 
 @test "commit-to-from-elsewhere" {
-  elsewhere=${TESTDIR}/elsewhere-img
+  elsewhere=${TEST_SCRATCH_DIR}/elsewhere-img
   mkdir -p ${elsewhere}
 
   run_buildah from --pull $WITH_POLICY_JSON scratch
@@ -123,22 +123,22 @@ load helpers
   run_buildah from --quiet --pull=true $WITH_POLICY_JSON docker:latest
   run_buildah rm $output
 
-  run_buildah push $WITH_POLICY_JSON alpine docker-archive:${TESTDIR}/docker-alp.tar:alpine
-  run_buildah push $WITH_POLICY_JSON alpine    oci-archive:${TESTDIR}/oci-alp.tar:alpine
-  run_buildah push $WITH_POLICY_JSON alpine            dir:${TESTDIR}/alp-dir
+  run_buildah push $WITH_POLICY_JSON alpine docker-archive:${TEST_SCRATCH_DIR}/docker-alp.tar:alpine
+  run_buildah push $WITH_POLICY_JSON alpine    oci-archive:${TEST_SCRATCH_DIR}/oci-alp.tar:alpine
+  run_buildah push $WITH_POLICY_JSON alpine            dir:${TEST_SCRATCH_DIR}/alp-dir
   run_buildah rmi alpine
 
-  run_buildah from --quiet $WITH_POLICY_JSON docker-archive:${TESTDIR}/docker-alp.tar
+  run_buildah from --quiet $WITH_POLICY_JSON docker-archive:${TEST_SCRATCH_DIR}/docker-alp.tar
   expect_output "alpine-working-container"
   run_buildah rm ${output}
   run_buildah rmi alpine
 
-  run_buildah from --quiet $WITH_POLICY_JSON oci-archive:${TESTDIR}/oci-alp.tar
+  run_buildah from --quiet $WITH_POLICY_JSON oci-archive:${TEST_SCRATCH_DIR}/oci-alp.tar
   expect_output "alpine-working-container"
   run_buildah rm ${output}
   run_buildah rmi alpine
 
-  run_buildah from --quiet $WITH_POLICY_JSON dir:${TESTDIR}/alp-dir
+  run_buildah from --quiet $WITH_POLICY_JSON dir:${TEST_SCRATCH_DIR}/alp-dir
   expect_output "dir-working-container"
 }
 
@@ -147,16 +147,16 @@ load helpers
   run_buildah from --quiet --pull=true $WITH_POLICY_JSON alpine
   run_buildah rm $output
 
-  run_buildah push $WITH_POLICY_JSON alpine docker-archive:${TESTDIR}/docker-alp.tar
-  run_buildah push $WITH_POLICY_JSON alpine    oci-archive:${TESTDIR}/oci-alp.tar
+  run_buildah push $WITH_POLICY_JSON alpine docker-archive:${TEST_SCRATCH_DIR}/docker-alp.tar
+  run_buildah push $WITH_POLICY_JSON alpine    oci-archive:${TEST_SCRATCH_DIR}/oci-alp.tar
   run_buildah rmi alpine
 
-  run_buildah from --quiet $WITH_POLICY_JSON docker-archive:${TESTDIR}/docker-alp.tar
+  run_buildah from --quiet $WITH_POLICY_JSON docker-archive:${TEST_SCRATCH_DIR}/docker-alp.tar
   expect_output "alpine-working-container"
   run_buildah rm $output
   run_buildah rmi -a
 
-  run_buildah from --quiet $WITH_POLICY_JSON oci-archive:${TESTDIR}/oci-alp.tar
+  run_buildah from --quiet $WITH_POLICY_JSON oci-archive:${TEST_SCRATCH_DIR}/oci-alp.tar
   expect_output "oci-archive-working-container"
   run_buildah rm $output
   run_buildah rmi -a
@@ -277,7 +277,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --volume=${TESTDIR}:/myvol --pull $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --volume=${TEST_SCRATCH_DIR}:/myvol --pull $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
@@ -288,7 +288,7 @@ load helpers
   skip_if_no_runtime
 
   _prefetch alpine
-  run_buildah from --quiet --volume=${TESTDIR}:/myvol:ro --pull=false $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --volume=${TEST_SCRATCH_DIR}:/myvol:ro --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid -- cat /proc/mounts
   expect_output --substring " /myvol "
@@ -310,12 +310,12 @@ load helpers
   gidsize=$((${RANDOM}+1024))
 
   # Create source volume.
-  mkdir ${TESTDIR}/testdata
-  touch ${TESTDIR}/testdata/testfile1.txt
+  mkdir ${TEST_SCRATCH_DIR}/testdata
+  touch ${TEST_SCRATCH_DIR}/testdata/testfile1.txt
 
   # Create a container that uses that mapping and U volume flag.
   _prefetch alpine
-  run_buildah from --pull=false $WITH_POLICY_JSON --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize --volume ${TESTDIR}/testdata:/mnt:z,U alpine
+  run_buildah from --pull=false $WITH_POLICY_JSON --userns-uid-map 0:$uidbase:$uidsize --userns-gid-map 0:$gidbase:$gidsize --volume ${TEST_SCRATCH_DIR}/testdata:/mnt:z,U alpine
   ctr="$output"
 
   # Test mounted volume has correct UID and GID ownership.
@@ -361,8 +361,8 @@ load helpers
 
 @test "from cidfile test" {
   _prefetch alpine
-  run_buildah from --cidfile ${TESTDIR}/output.cid --pull=false $WITH_POLICY_JSON alpine
-  cid=$(< ${TESTDIR}/output.cid)
+  run_buildah from --cidfile ${TEST_SCRATCH_DIR}/output.cid --pull=false $WITH_POLICY_JSON alpine
+  cid=$(< ${TEST_SCRATCH_DIR}/output.cid)
   run_buildah containers -f id=${cid}
 }
 
@@ -420,49 +420,49 @@ load helpers
 
 @test "from encrypted local image" {
   _prefetch busybox
-  mkdir ${TESTDIR}/tmp
-  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
-  openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 1024
-  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
-  run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox oci:${TESTDIR}/tmp/busybox_enc
+  mkdir ${TEST_SCRATCH_DIR}/tmp
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey.pem 1024
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey2.pem 1024
+  openssl rsa -in ${TEST_SCRATCH_DIR}/tmp/mykey.pem -pubout > ${TEST_SCRATCH_DIR}/tmp/mykey.pub
+  run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TEST_SCRATCH_DIR}/tmp/mykey.pub busybox oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
 
   # Try encrypted image without key should fail
-  run_buildah 125 from oci:${TESTDIR}/tmp/busybox_enc
+  run_buildah 125 from oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
   expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try encrypted image with wrong key should fail
-  run_buildah 125 from --decryption-key ${TESTDIR}/tmp/mykey2.pem oci:${TESTDIR}/tmp/busybox_enc
+  run_buildah 125 from --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey2.pem oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
   expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
-  run_buildah from  --decryption-key ${TESTDIR}/tmp/mykey.pem oci:${TESTDIR}/tmp/busybox_enc
+  run_buildah from  --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey.pem oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
 
-  rm -rf ${TESTDIR}/tmp
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "from encrypted registry image" {
   _prefetch busybox
-  mkdir ${TESTDIR}/tmp
-  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 2048
-  openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 2048
-  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
+  mkdir ${TEST_SCRATCH_DIR}/tmp
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey.pem 2048
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey2.pem 2048
+  openssl rsa -in ${TEST_SCRATCH_DIR}/tmp/mykey.pem -pubout > ${TEST_SCRATCH_DIR}/tmp/mykey.pub
   start_registry
-  run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TEST_SCRATCH_DIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
   # Try encrypted image without key should fail
   run_buildah 125 from --tls-verify=false --creds testuser:testpassword docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try encrypted image with wrong key should fail
-  run_buildah 125 from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah 125 from --tls-verify=false --creds testuser:testpassword --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey2.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
-  run_buildah from --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah from --tls-verify=false --creds testuser:testpassword --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   run_buildah rm -a
   run_buildah rmi localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
-  rm -rf ${TESTDIR}/tmp
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "from with non buildah container" {
@@ -524,10 +524,10 @@ load helpers
 @test "from --authfile test" {
   _prefetch busybox
   start_registry
-  run_buildah login --tls-verify=false --authfile ${TESTDIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
-  run_buildah push $WITH_POLICY_JSON --tls-verify=false --authfile ${TESTDIR}/test.auth busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
+  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+  run_buildah push $WITH_POLICY_JSON --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
   target=busybox-image
-  run_buildah from -q $WITH_POLICY_JSON --tls-verify=false --authfile ${TESTDIR}/test.auth docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
+  run_buildah from -q $WITH_POLICY_JSON --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
   run_buildah rm $output
   run_buildah rmi localhost:${REGISTRY_PORT}/buildah/busybox:latest
 }
@@ -612,8 +612,8 @@ load helpers
 @test "from cni config test" {
   _prefetch alpine
 
-  cni_config_dir=${TESTDIR}/no-cni-configs
-  cni_plugin_path=${TESTDIR}/no-cni-plugin
+  cni_config_dir=${TEST_SCRATCH_DIR}/no-cni-configs
+  cni_plugin_path=${TEST_SCRATCH_DIR}/no-cni-plugin
   mkdir -p ${cni_config_dir}
   mkdir -p ${cni_plugin_path}
   run_buildah from -q --cni-config-dir=${cni_config_dir} --cni-plugin-path=${cni_plugin_path} $WITH_POLICY_JSON alpine
@@ -626,8 +626,8 @@ load helpers
 }
 
 @test "from-image-with-zstd-compression" {
-  copy --format oci --dest-compress --dest-compress-format zstd docker://quay.io/libpod/alpine_nginx:latest dir:${TESTDIR}/base-image
-  run_buildah from dir:${TESTDIR}/base-image
+  copy --format oci --dest-compress --dest-compress-format zstd docker://quay.io/libpod/alpine_nginx:latest dir:${TEST_SCRATCH_DIR}/base-image
+  run_buildah from dir:${TEST_SCRATCH_DIR}/base-image
 }
 
 @test "from proxy test" {
@@ -653,14 +653,14 @@ load helpers
   skip_if_no_runtime
 
   _prefetch busybox
-  run_buildah from --cidfile ${TESTDIR}/cid busybox
-  cid=$(cat ${TESTDIR}/cid)
-  createrandom ${TESTDIR}/randomfile
-  run_buildah copy ${cid} ${TESTDIR}/randomfile /
-  run_buildah commit --iidfile ${TESTDIR}/iid ${cid}
-  iid=$(cat ${TESTDIR}/iid)
-  run_buildah from --cidfile ${TESTDIR}/cid2 ${iid}
-  cid2=$(cat ${TESTDIR}/cid2)
+  run_buildah from --cidfile ${TEST_SCRATCH_DIR}/cid busybox
+  cid=$(cat ${TEST_SCRATCH_DIR}/cid)
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  run_buildah copy ${cid} ${TEST_SCRATCH_DIR}/randomfile /
+  run_buildah commit --iidfile ${TEST_SCRATCH_DIR}/iid ${cid}
+  iid=$(cat ${TEST_SCRATCH_DIR}/iid)
+  run_buildah from --cidfile ${TEST_SCRATCH_DIR}/cid2 ${iid}
+  cid2=$(cat ${TEST_SCRATCH_DIR}/cid2)
   run_buildah run ${cid2} cat /etc/hosts
   truncated=${iid##*:}
   truncated="${truncated:0:12}"

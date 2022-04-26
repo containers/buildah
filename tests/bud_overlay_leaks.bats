@@ -11,7 +11,7 @@ load helpers
   run_buildah 125 --storage-driver=overlay bud $WITH_POLICY_JSON -t ${target} --pull-never $BUDFILES/pull
   expect_output --substring "image not known"
 
-  leftover=$(mount | grep $TESTDIR | cat)
+  leftover=$(mount | grep $TEST_SCRATCH_DIR | cat)
   if [ -n "$leftover" ]; then
     die "buildah leaked a mount on error: $leftover"
   fi

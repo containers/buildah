@@ -33,13 +33,13 @@ function setup_tests() {
     # buildah/podman: "repository name must be lowercase".
     # me: "but it's a local file path, not a repository name!"
     # buildah/podman: "i dont care. no caps anywhere!"
-    TESTDIR=$(mktemp -d --dry-run --tmpdir=${BATS_TMPDIR:-${TMPDIR:-/tmp}} buildah_tests.XXXXXX | tr A-Z a-z)
-    mkdir --mode=0700 $TESTDIR
+    TEST_SCRATCH_DIR=$(mktemp -d --dry-run --tmpdir=${BATS_TMPDIR:-${TMPDIR:-/tmp}} buildah_tests.XXXXXX | tr A-Z a-z)
+    mkdir --mode=0700 $TEST_SCRATCH_DIR
 
-    mkdir -p ${TESTDIR}/{root,runroot,sigstore,registries.d}
-    cat >${TESTDIR}/registries.d/default.yaml <<EOF
+    mkdir -p ${TEST_SCRATCH_DIR}/{root,runroot,sigstore,registries.d}
+    cat >${TEST_SCRATCH_DIR}/registries.d/default.yaml <<EOF
 default-docker:
-  sigstore-staging: file://${TESTDIR}/sigstore
+  sigstore-staging: file://${TEST_SCRATCH_DIR}/sigstore
 docker:
   registry.access.redhat.com:
     sigstore: https://access.redhat.com/webassets/docker/content/sigstore
@@ -48,13 +48,13 @@ docker:
 EOF
 
     # Common options for all buildah and podman invocations
-    ROOTDIR_OPTS="--root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER}"
-    BUILDAH_REGISTRY_OPTS="--registries-conf ${TEST_SOURCES}/registries.conf --registries-conf-dir ${TESTDIR}/registries.d --short-name-alias-conf ${TESTDIR}/cache/shortnames.conf"
+    ROOTDIR_OPTS="--root ${TEST_SCRATCH_DIR}/root --runroot ${TEST_SCRATCH_DIR}/runroot --storage-driver ${STORAGE_DRIVER}"
+    BUILDAH_REGISTRY_OPTS="--registries-conf ${TEST_SOURCES}/registries.conf --registries-conf-dir ${TEST_SCRATCH_DIR}/registries.d --short-name-alias-conf ${TEST_SCRATCH_DIR}/cache/shortnames.conf"
     PODMAN_REGISTRY_OPTS="--registries-conf ${TEST_SOURCES}/registries.conf"
 }
 
 function starthttpd() {
-    pushd ${2:-${TESTDIR}} > /dev/null
+    pushd ${2:-${TEST_SCRATCH_DIR}} > /dev/null
     go build -o serve ${TEST_SOURCES}/serve/serve.go
     portfile=$(mktemp)
     if test -z "${portfile}"; then
@@ -99,11 +99,11 @@ function teardown_tests() {
     # let's find those and clean them up, otherwise 'rm -rf' fails.
     # 'sort -r' guarantees that we umount deepest subpaths first.
     mount |\
-        awk '$3 ~ testdir { print $3 }' testdir="^${TESTDIR}/" |\
+        awk '$3 ~ testdir { print $3 }' testdir="^${TEST_SCRATCH_DIR}/" |\
         sort -r |\
         xargs --no-run-if-empty --max-lines=1 umount
 
-    rm -fr ${TESTDIR}
+    rm -fr ${TEST_SCRATCH_DIR}
 
     popd
 }
@@ -596,17 +596,17 @@ function skip_if_no_docker() {
 }
 
 function start_git_daemon() {
-  daemondir=${TESTDIR}/git-daemon
+  daemondir=${TEST_SCRATCH_DIR}/git-daemon
   mkdir -p ${daemondir}/repo
   gzip -dc < ${1:-${TEST_SOURCES}/git-daemon/repo.tar.gz} | tar x -C ${daemondir}/repo
   GITPORT=$(($RANDOM + 32768))
-  git daemon --detach --pid-file=${TESTDIR}/git-daemon/pid --reuseaddr --port=${GITPORT} --base-path=${daemondir} ${daemondir}
+  git daemon --detach --pid-file=${TEST_SCRATCH_DIR}/git-daemon/pid --reuseaddr --port=${GITPORT} --base-path=${daemondir} ${daemondir}
 }
 
 function stop_git_daemon() {
-  if test -s ${TESTDIR}/git-daemon/pid ; then
-    kill $(cat ${TESTDIR}/git-daemon/pid)
-    rm -f ${TESTDIR}/git-daemon/pid
+  if test -s ${TEST_SCRATCH_DIR}/git-daemon/pid ; then
+    kill $(cat ${TEST_SCRATCH_DIR}/git-daemon/pid)
+    rm -f ${TEST_SCRATCH_DIR}/git-daemon/pid
   fi
 }
 
@@ -654,45 +654,45 @@ auth:
   htpasswd=${testuser}:$(buildah passwd ${testpassword})
 
   # generate the htpasswd and config.yml files for the registry
-  mkdir -p "${TESTDIR}"/registry/root "${TESTDIR}"/registry/run "${TESTDIR}"/registry/certs "${TESTDIR}"/registry/config
-  cat > "${TESTDIR}"/registry/config/htpasswd <<< "$htpasswd"
-  cat > "${TESTDIR}"/registry/config/config.yml <<< "$config"
-  chmod 644 "${TESTDIR}"/registry/config/htpasswd "${TESTDIR}"/registry/config/config.yml
+  mkdir -p "${TEST_SCRATCH_DIR}"/registry/root "${TEST_SCRATCH_DIR}"/registry/run "${TEST_SCRATCH_DIR}"/registry/certs "${TEST_SCRATCH_DIR}"/registry/config
+  cat > "${TEST_SCRATCH_DIR}"/registry/config/htpasswd <<< "$htpasswd"
+  cat > "${TEST_SCRATCH_DIR}"/registry/config/config.yml <<< "$config"
+  chmod 644 "${TEST_SCRATCH_DIR}"/registry/config/htpasswd "${TEST_SCRATCH_DIR}"/registry/config/config.yml
 
   # generate a new key and certificate
-  if ! openssl req -newkey rsa:4096 -nodes -sha256 -keyout "${TESTDIR}"/registry/certs/localhost.key -x509 -days 2 -addext "subjectAltName = DNS:localhost" -out "${TESTDIR}"/registry/certs/localhost.crt -subj "/CN=localhost" ; then
+  if ! openssl req -newkey rsa:4096 -nodes -sha256 -keyout "${TEST_SCRATCH_DIR}"/registry/certs/localhost.key -x509 -days 2 -addext "subjectAltName = DNS:localhost" -out "${TEST_SCRATCH_DIR}"/registry/certs/localhost.crt -subj "/CN=localhost" ; then
     die error creating new key and certificate
   fi
-  chmod 644 "${TESTDIR}"/registry/certs/localhost.crt
-  chmod 600 "${TESTDIR}"/registry/certs/localhost.key
+  chmod 644 "${TEST_SCRATCH_DIR}"/registry/certs/localhost.crt
+  chmod 600 "${TEST_SCRATCH_DIR}"/registry/certs/localhost.key
   # use a copy of the server's certificate for validation from a client
-  cp "${TESTDIR}"/registry/certs/localhost.crt "${TESTDIR}"/registry/
+  cp "${TEST_SCRATCH_DIR}"/registry/certs/localhost.crt "${TEST_SCRATCH_DIR}"/registry/
 
   # create a container in its own storage
-  _prefetch "[vfs@${TESTDIR}/registry/root+${TESTDIR}/registry/run]" ${REGISTRY_IMAGE}
-  ctr=$(${BUILDAH_BINARY} --storage-driver vfs --root "${TESTDIR}"/registry/root --runroot "${TESTDIR}"/registry/run from --quiet --pull-never ${REGISTRY_IMAGE})
-  ${BUILDAH_BINARY} --storage-driver vfs --root "${TESTDIR}"/registry/root --runroot "${TESTDIR}"/registry/run copy $ctr "${TESTDIR}"/registry/config/htpasswd "${TESTDIR}"/registry/config/config.yml "${TESTDIR}"/registry/certs/localhost.key "${TESTDIR}"/registry/certs/localhost.crt /etc/docker/registry/
+  _prefetch "[vfs@${TEST_SCRATCH_DIR}/registry/root+${TEST_SCRATCH_DIR}/registry/run]" ${REGISTRY_IMAGE}
+  ctr=$(${BUILDAH_BINARY} --storage-driver vfs --root "${TEST_SCRATCH_DIR}"/registry/root --runroot "${TEST_SCRATCH_DIR}"/registry/run from --quiet --pull-never ${REGISTRY_IMAGE})
+  ${BUILDAH_BINARY} --storage-driver vfs --root "${TEST_SCRATCH_DIR}"/registry/root --runroot "${TEST_SCRATCH_DIR}"/registry/run copy $ctr "${TEST_SCRATCH_DIR}"/registry/config/htpasswd "${TEST_SCRATCH_DIR}"/registry/config/config.yml "${TEST_SCRATCH_DIR}"/registry/certs/localhost.key "${TEST_SCRATCH_DIR}"/registry/certs/localhost.crt /etc/docker/registry/
 
   # fire it up
-  coproc ${BUILDAH_BINARY} --storage-driver vfs --root "${TESTDIR}"/registry/root --runroot "${TESTDIR}"/registry/run run --net host "$ctr" /entrypoint.sh /etc/docker/registry/config.yml 2> "${TESTDIR}"/registry/registry.log
+  coproc ${BUILDAH_BINARY} --storage-driver vfs --root "${TEST_SCRATCH_DIR}"/registry/root --runroot "${TEST_SCRATCH_DIR}"/registry/run run --net host "$ctr" /entrypoint.sh /etc/docker/registry/config.yml 2> "${TEST_SCRATCH_DIR}"/registry/registry.log
 
   # record the coprocess's ID and try to parse the listening port from the log
   # we're separating all of this from the storage for any test that might call
   # this function and using vfs to minimize the cleanup required
   REGISTRY_PID="${COPROC_PID}"
-  REGISTRY_DIR="${TESTDIR}"/registry
+  REGISTRY_DIR="${TEST_SCRATCH_DIR}"/registry
   REGISTRY_PORT=
   local waited=0
   while [ -z "${REGISTRY_PORT}" ] ; do
     if [ $waited -ge $BUILDAH_TIMEOUT ] ; then
       echo Could not determine listening port from log:
-      sed -e 's/^/  >/' ${TESTDIR}/registry/registry.log
+      sed -e 's/^/  >/' ${TEST_SCRATCH_DIR}/registry/registry.log
       stop_registry
       false
     fi
     waited=$((waited+1))
     sleep 1
-    REGISTRY_PORT=$(sed -ne 's^.*listening on.*:\([0-9]\+\),.*^\1^p' ${TESTDIR}/registry/registry.log)
+    REGISTRY_PORT=$(sed -ne 's^.*listening on.*:\([0-9]\+\),.*^\1^p' ${TEST_SCRATCH_DIR}/registry/registry.log)
   done
 
   # push the registry image we just started... to itself, as a confidence check

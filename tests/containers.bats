@@ -74,7 +74,7 @@ load helpers
 
   _prefetch alpine busybox
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
-  podman create --root ${TESTDIR}/root --storage-driver ${STORAGE_DRIVER} --net=host busybox ls
+  podman create --root ${TEST_SCRATCH_DIR}/root --storage-driver ${STORAGE_DRIVER} --net=host busybox ls
   run_buildah containers
   expect_line_count 2
   run_buildah containers -a

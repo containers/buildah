@@ -76,8 +76,8 @@ load helpers
 @test "use prune to remove dangling images" {
   _prefetch busybox
 
-  createrandom ${TESTDIR}/randomfile
-  createrandom ${TESTDIR}/other-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-randomfile
 
   run_buildah from --pull=false --quiet $WITH_POLICY_JSON busybox
   cid=$output
@@ -87,7 +87,7 @@ load helpers
 
   run_buildah mount $cid
   root=$output
-  cp ${TESTDIR}/randomfile $root/randomfile
+  cp ${TEST_SCRATCH_DIR}/randomfile $root/randomfile
   run_buildah unmount $cid
   run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
 
@@ -96,7 +96,7 @@ load helpers
 
   run_buildah mount $cid
   root=$output
-  cp ${TESTDIR}/other-randomfile $root/other-randomfile
+  cp ${TEST_SCRATCH_DIR}/other-randomfile $root/other-randomfile
   run_buildah unmount $cid
   run_buildah commit $WITH_POLICY_JSON $cid containers-storage:new-image
 
@@ -114,8 +114,8 @@ load helpers
 }
 
 @test "use prune to remove dangling images with parent" {
-  createrandom ${TESTDIR}/randomfile
-  createrandom ${TESTDIR}/other-randomfile
+  createrandom ${TEST_SCRATCH_DIR}/randomfile
+  createrandom ${TEST_SCRATCH_DIR}/other-randomfile
 
   run_buildah from --quiet $WITH_POLICY_JSON scratch
   cid=$output
@@ -125,7 +125,7 @@ load helpers
 
   run_buildah mount $cid
   root=$output
-  cp ${TESTDIR}/randomfile $root/randomfile
+  cp ${TEST_SCRATCH_DIR}/randomfile $root/randomfile
   run_buildah unmount $cid
   run_buildah commit --quiet $WITH_POLICY_JSON $cid
   image=$output
@@ -138,7 +138,7 @@ load helpers
   cid=$output
   run_buildah mount $cid
   root=$output
-  cp ${TESTDIR}/other-randomfile $root/other-randomfile
+  cp ${TEST_SCRATCH_DIR}/other-randomfile $root/other-randomfile
   run_buildah unmount $cid
   run_buildah commit $WITH_POLICY_JSON $cid
   run_buildah rm $cid
@@ -157,7 +157,7 @@ load helpers
 
 @test "attempt to prune non-dangling empty images" {
   # Regression test for containers/podman/issues/10832
-  ctxdir=${TESTDIR}/bud
+  ctxdir=${TEST_SCRATCH_DIR}/bud
   mkdir -p $ctxdir
   cat >$ctxdir/Dockerfile <<EOF
 FROM scratch

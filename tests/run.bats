@@ -7,7 +7,7 @@ load helpers
 
 	_prefetch alpine
 	${OCI} --version
-	createrandom ${TESTDIR}/randomfile
+	createrandom ${TEST_SCRATCH_DIR}/randomfile
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 	run_buildah mount $cid
@@ -18,10 +18,10 @@ load helpers
 	run_buildah config --workingdir /root $cid
 	run_buildah run        $cid pwd
 	expect_output "/root"
-	cp ${TESTDIR}/randomfile $root/tmp/
+	cp ${TEST_SCRATCH_DIR}/randomfile $root/tmp/
 	run_buildah run        $cid cp /tmp/randomfile /tmp/other-randomfile
 	test -s $root/tmp/other-randomfile
-	cmp ${TESTDIR}/randomfile $root/tmp/other-randomfile
+	cmp ${TEST_SCRATCH_DIR}/randomfile $root/tmp/other-randomfile
 
 	seq 100000 | buildah run $cid -- sh -c 'while read i; do echo $i; done'
 }
@@ -285,20 +285,20 @@ function configure_and_check_user() {
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	mkdir -p ${TESTDIR}/was-empty
+	mkdir -p ${TEST_SCRATCH_DIR}/was-empty
 	# As a baseline, this should succeed.
-	run_buildah run -v ${TESTDIR}/was-empty:/var/not-empty${zflag:+:${zflag}}     $cid touch /var/not-empty/testfile
+	run_buildah run -v ${TEST_SCRATCH_DIR}/was-empty:/var/not-empty${zflag:+:${zflag}}     $cid touch /var/not-empty/testfile
 	# Parsing options that with comma, this should succeed.
-	run_buildah run -v ${TESTDIR}/was-empty:/var/not-empty:rw,rshared${zflag:+,${zflag}}     $cid touch /var/not-empty/testfile
+	run_buildah run -v ${TEST_SCRATCH_DIR}/was-empty:/var/not-empty:rw,rshared${zflag:+,${zflag}}     $cid touch /var/not-empty/testfile
 	# If we're parsing the options at all, this should be read-only, so it should fail.
-	run_buildah 1 run -v ${TESTDIR}/was-empty:/var/not-empty:ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
+	run_buildah 1 run -v ${TEST_SCRATCH_DIR}/was-empty:/var/not-empty:ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
 	# Even if the parent directory doesn't exist yet, this should succeed.
-	run_buildah run -v ${TESTDIR}/was-empty:/var/multi-level/subdirectory        $cid touch /var/multi-level/subdirectory/testfile
+	run_buildah run -v ${TEST_SCRATCH_DIR}/was-empty:/var/multi-level/subdirectory        $cid touch /var/multi-level/subdirectory/testfile
 	# And check the same for file volumes.
-	run_buildah run -v ${TESTDIR}/was-empty/testfile:/var/different-multi-level/subdirectory/testfile        $cid touch /var/different-multi-level/subdirectory/testfile
+	run_buildah run -v ${TEST_SCRATCH_DIR}/was-empty/testfile:/var/different-multi-level/subdirectory/testfile        $cid touch /var/different-multi-level/subdirectory/testfile
 	# And check the same for file volumes.
 	# Make sure directories show up inside of container on builtin mounts
-	run_buildah run -v ${TESTDIR}/was-empty:/run/secrets/testdir $cid ls -ld /run/secrets/testdir
+	run_buildah run -v ${TEST_SCRATCH_DIR}/was-empty:/run/secrets/testdir $cid ls -ld /run/secrets/testdir
 }
 
 @test "run overlay --volume with custom upper and workdir" {
@@ -314,19 +314,19 @@ function configure_and_check_user() {
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	mkdir -p ${TESTDIR}/upperdir
-	mkdir -p ${TESTDIR}/workdir
-	mkdir -p ${TESTDIR}/lower
+	mkdir -p ${TEST_SCRATCH_DIR}/upperdir
+	mkdir -p ${TEST_SCRATCH_DIR}/workdir
+	mkdir -p ${TEST_SCRATCH_DIR}/lower
 
-	echo 'hello' >> ${TESTDIR}/lower/hello
+	echo 'hello' >> ${TEST_SCRATCH_DIR}/lower/hello
 
 	# As a baseline, this should succeed.
-	run_buildah run -v ${TESTDIR}/lower:/test:O,upperdir=${TESTDIR}/upperdir,workdir=${TESTDIR}/workdir${zflag:+:${zflag}}  $cid cat /test/hello
+	run_buildah run -v ${TEST_SCRATCH_DIR}/lower:/test:O,upperdir=${TEST_SCRATCH_DIR}/upperdir,workdir=${TEST_SCRATCH_DIR}/workdir${zflag:+:${zflag}}  $cid cat /test/hello
 	expect_output "hello"
-	run_buildah run -v ${TESTDIR}/lower:/test:O,upperdir=${TESTDIR}/upperdir,workdir=${TESTDIR}/workdir${zflag:+:${zflag}}  $cid sh -c 'echo "world" > /test/world'
+	run_buildah run -v ${TEST_SCRATCH_DIR}/lower:/test:O,upperdir=${TEST_SCRATCH_DIR}/upperdir,workdir=${TEST_SCRATCH_DIR}/workdir${zflag:+:${zflag}}  $cid sh -c 'echo "world" > /test/world'
 
 	#upper dir should persist content
-	result="$(cat ${TESTDIR}/upperdir/world)"
+	result="$(cat ${TEST_SCRATCH_DIR}/upperdir/world)"
 	test "$result" == "world"
 }
 
@@ -334,7 +334,7 @@ function configure_and_check_user() {
   skip_if_no_runtime
 
   # Create source volume.
-  mkdir ${TESTDIR}/testdata
+  mkdir ${TEST_SCRATCH_DIR}/testdata
 
   # Create the container.
   _prefetch alpine
@@ -342,10 +342,10 @@ function configure_and_check_user() {
   ctr="$output"
 
   # Test user can create file in the mounted volume.
-  run_buildah run --user 888:888 --volume ${TESTDIR}/testdata:/mnt:z,U "$ctr" touch /mnt/testfile1.txt
+  run_buildah run --user 888:888 --volume ${TEST_SCRATCH_DIR}/testdata:/mnt:z,U "$ctr" touch /mnt/testfile1.txt
 
   # Test created file has correct UID and GID ownership.
-  run_buildah run --user 888:888 --volume ${TESTDIR}/testdata:/mnt:z,U "$ctr" stat -c "%u:%g" /mnt/testfile1.txt
+  run_buildah run --user 888:888 --volume ${TEST_SCRATCH_DIR}/testdata:/mnt:z,U "$ctr" stat -c "%u:%g" /mnt/testfile1.txt
   expect_output "888:888"
 }
 
@@ -377,16 +377,16 @@ function configure_and_check_user() {
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	mkdir -p ${TESTDIR}/was:empty
+	mkdir -p ${TEST_SCRATCH_DIR}/was:empty
 	# As a baseline, this should succeed.
 	run_buildah run --mount type=tmpfs,dst=/var/tmpfs-not-empty                                           $cid touch /var/tmpfs-not-empty/testfile
-	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/not-empty,rw${zflag:+,${zflag}}      $cid touch /var/not-empty/testfile
+	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/not-empty,rw${zflag:+,${zflag}}      $cid touch /var/not-empty/testfile
 	# If we're parsing the options at all, this should be read-only, so it should fail.
-	run_buildah 1 run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/not-empty,ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
+	run_buildah 1 run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/not-empty,ro${zflag:+,${zflag}} $cid touch /var/not-empty/testfile
 	# Even if the parent directory doesn't exist yet, this should succeed.
-	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty,dst=/var/multi-level/subdirectory,rw          $cid touch /var/multi-level/subdirectory/testfile
+	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty,dst=/var/multi-level/subdirectory,rw          $cid touch /var/multi-level/subdirectory/testfile
 	# And check the same for file volumes.
-	run_buildah run --mount type=bind,src=${TESTDIR}/was:empty/testfile,dst=/var/different-multi-level/subdirectory/testfile,rw        $cid touch /var/different-multi-level/subdirectory/testfile
+	run_buildah run --mount type=bind,src=${TEST_SCRATCH_DIR}/was:empty/testfile,dst=/var/different-multi-level/subdirectory/testfile,rw        $cid touch /var/different-multi-level/subdirectory/testfile
 }
 
 @test "run --mount=type=bind with from like buildkit" {
@@ -429,9 +429,9 @@ function configure_and_check_user() {
 	_prefetch alpine
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	mkdir -p ${TESTDIR}/tmp
-	ln -s tmp ${TESTDIR}/tmp2
-	export TMPDIR=${TESTDIR}/tmp2
+	mkdir -p ${TEST_SCRATCH_DIR}/tmp
+	ln -s tmp ${TEST_SCRATCH_DIR}/tmp2
+	export TMPDIR=${TEST_SCRATCH_DIR}/tmp2
 	run_buildah run $cid id
 }
 
@@ -469,9 +469,9 @@ function configure_and_check_user() {
 	# we need to not use the list of limits that are set in our default
 	# ${TEST_SOURCES}/containers.conf for the sake of other tests, and override
 	# any that might be picked up from system-wide configuration
-	echo '[containers]' > ${TESTDIR}/containers.conf
-	echo 'default_ulimits = []' >> ${TESTDIR}/containers.conf
-	export CONTAINERS_CONF=${TESTDIR}/containers.conf
+	echo '[containers]' > ${TEST_SCRATCH_DIR}/containers.conf
+	echo 'default_ulimits = []' >> ${TEST_SCRATCH_DIR}/containers.conf
+	export CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf
 
 	_prefetch alpine
 	maxpids=$(cat /proc/sys/kernel/pid_max)
@@ -618,9 +618,9 @@ function configure_and_check_user() {
 
 	hosts="127.0.0.5 host1
 127.0.0.6 host2"
-	base_hosts_file="$TESTDIR/base_hosts"
+	base_hosts_file="$TEST_SCRATCH_DIR/base_hosts"
 	echo "$hosts" > "$base_hosts_file"
-	containers_conf_file="$TESTDIR/containers.conf"
+	containers_conf_file="$TEST_SCRATCH_DIR/containers.conf"
 	echo -e "[containers]\nbase_hosts_file = \"$base_hosts_file\"" > "$containers_conf_file"
 	CONTAINERS_CONF="$containers_conf_file" run_buildah run --hostname $hostname $cid cat /etc/hosts
 	expect_output --substring "127.0.0.5[[:blank:]]host1"
@@ -757,7 +757,7 @@ $output"
 	_prefetch alpine
 
 	# Use seccomp to make crun output a warning message because crun writes few logs.
-	cat > ${TESTDIR}/seccomp.json << _EOF
+	cat > ${TEST_SCRATCH_DIR}/seccomp.json << _EOF
 {
     "defaultAction": "SCMP_ACT_ALLOW",
     "syscalls": [
@@ -768,7 +768,7 @@ $output"
     ]
 }
 _EOF
-	run_buildah from --security-opt seccomp=${TESTDIR}/seccomp.json --quiet --pull=false $WITH_POLICY_JSON alpine
+	run_buildah from --security-opt seccomp=${TEST_SCRATCH_DIR}/seccomp.json --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
 
 	local found_runtime=

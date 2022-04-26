@@ -182,18 +182,18 @@ load helpers
 }
 
 @test "images in OCI format with no creation dates" {
-  mkdir -p $TESTDIR/blobs/sha256
+  mkdir -p $TEST_SCRATCH_DIR/blobs/sha256
 
   # Create a layer.
-  dd if=/dev/zero bs=512 count=2 of=$TESTDIR/blob
-  layerdigest=$(sha256sum $TESTDIR/blob | awk '{print $1}')
-  layersize=$(stat -c %s $TESTDIR/blob)
-  mv $TESTDIR/blob $TESTDIR/blobs/sha256/${layerdigest}
+  dd if=/dev/zero bs=512 count=2 of=$TEST_SCRATCH_DIR/blob
+  layerdigest=$(sha256sum $TEST_SCRATCH_DIR/blob | awk '{print $1}')
+  layersize=$(stat -c %s $TEST_SCRATCH_DIR/blob)
+  mv $TEST_SCRATCH_DIR/blob $TEST_SCRATCH_DIR/blobs/sha256/${layerdigest}
 
   # Create a configuration blob that doesn't include a "created" date.
   now=$(TZ=UTC date +%Y-%m-%dT%H:%M:%S.%NZ)
   arch=$(go env GOARCH)
-  cat > $TESTDIR/blob << EOF
+  cat > $TEST_SCRATCH_DIR/blob << EOF
   {
     "architecture": "$arch",
     "os": "linux",
@@ -219,12 +219,12 @@ load helpers
     ]
   }
 EOF
-  configdigest=$(sha256sum $TESTDIR/blob | awk '{print $1}')
-  configsize=$(stat -c %s $TESTDIR/blob)
-  mv $TESTDIR/blob $TESTDIR/blobs/sha256/${configdigest}
+  configdigest=$(sha256sum $TEST_SCRATCH_DIR/blob | awk '{print $1}')
+  configsize=$(stat -c %s $TEST_SCRATCH_DIR/blob)
+  mv $TEST_SCRATCH_DIR/blob $TEST_SCRATCH_DIR/blobs/sha256/${configdigest}
 
   # Create a manifest for that configuration blob and layer.
-  cat > $TESTDIR/blob << EOF
+  cat > $TEST_SCRATCH_DIR/blob << EOF
   {
     "schemaVersion": 2,
     "config": {
@@ -241,12 +241,12 @@ EOF
     ]
   }
 EOF
-  manifestdigest=$(sha256sum $TESTDIR/blob | awk '{print $1}')
-  manifestsize=$(stat -c %s $TESTDIR/blob)
-  mv $TESTDIR/blob $TESTDIR/blobs/sha256/${manifestdigest}
+  manifestdigest=$(sha256sum $TEST_SCRATCH_DIR/blob | awk '{print $1}')
+  manifestsize=$(stat -c %s $TEST_SCRATCH_DIR/blob)
+  mv $TEST_SCRATCH_DIR/blob $TEST_SCRATCH_DIR/blobs/sha256/${manifestdigest}
 
   # Add the manifest to the image index.
-  cat > $TESTDIR/index.json << EOF
+  cat > $TEST_SCRATCH_DIR/index.json << EOF
   {
     "schemaVersion": 2,
     "manifests": [
@@ -260,10 +260,10 @@ EOF
 EOF
 
   # Mark the directory as a layout directory.
-  echo -n '{"imageLayoutVersion": "1.0.0"}' > $TESTDIR/oci-layout
+  echo -n '{"imageLayoutVersion": "1.0.0"}' > $TEST_SCRATCH_DIR/oci-layout
 
   # Import the image.
-  run_buildah pull oci:$TESTDIR
+  run_buildah pull oci:$TEST_SCRATCH_DIR
 
   # Inspect the image.  We shouldn't crash.
   run_buildah inspect ${configdigest}
