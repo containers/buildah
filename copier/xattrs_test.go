@@ -10,6 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func init() {
+	// exercise the ERANGE-handling logic
+	initialXattrListSize = 1
+	initialXattrValueSize = 1
+}
+
 func TestXattrs(t *testing.T) {
 	if !xattrsSupported {
 		t.Skipf("xattrs are not supported on this platform, skipping")
