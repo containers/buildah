@@ -1532,6 +1532,7 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 			fileUID, fileGID = &hostFilePair.UID, &hostFilePair.GID
 		}
 	}
+	directoryModes := make(map[string]os.FileMode)
 	ensureDirectoryUnderRoot := func(directory string) error {
 		rel, err := convertToRelSubdirectory(req.Root, directory)
 		if err != nil {
@@ -1545,14 +1546,30 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				if err = lchown(path, defaultDirUID, defaultDirGID); err != nil {
 					return errors.Wrapf(err, "copier: put: error setting owner of %q to %d:%d", path, defaultDirUID, defaultDirGID)
 				}
-				if err = os.Chmod(path, defaultDirMode); err != nil {
-					return errors.Wrapf(err, "copier: put: error setting permissions on %q to 0%o", path, defaultDirMode)
+				// make a conditional note to set this directory's permissions
+				// later, but not if we already had an explictly-provided mode
+				if _, ok := directoryModes[path]; !ok {
+					directoryModes[path] = defaultDirMode
 				}
 			} else {
 				if !os.IsExist(err) {
 					return errors.Wrapf(err, "copier: put: error checking directory %q", path)
 				}
 			}
+		}
+		return nil
+	}
+	makeDirectoryWriteable := func(directory string) error {
+		st, err := os.Lstat(directory)
+		if err != nil {
+			return errors.Wrapf(err, "copier: put: error reading permissions of directory %q", directory)
+		}
+		mode := st.Mode() & os.ModePerm
+		if _, ok := directoryModes[directory]; !ok {
+			directoryModes[directory] = mode
+		}
+		if err = os.Chmod(directory, 0o700); err != nil {
+			return errors.Wrapf(err, "copier: put: error making directory %q writable", directory)
 		}
 		return nil
 	}
@@ -1565,7 +1582,21 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				}
 			}
 			if err = os.RemoveAll(path); err != nil {
-				return 0, errors.Wrapf(err, "copier: put: error removing item to be overwritten %q", path)
+				if os.IsPermission(err) {
+					if err := makeDirectoryWriteable(filepath.Dir(path)); err != nil {
+						return 0, err
+					}
+					err = os.RemoveAll(path)
+				}
+				if err != nil {
+					return 0, errors.Wrapf(err, "copier: put: error removing item to be overwritten %q", path)
+				}
+			}
+			f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_EXCL, 0600)
+		}
+		if err != nil && os.IsPermission(err) {
+			if err = makeDirectoryWriteable(filepath.Dir(path)); err != nil {
+				return 0, err
 			}
 			f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_EXCL, 0600)
 		}
@@ -1607,6 +1638,11 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				directoryAndTimes := directoriesAndTimes[len(directoriesAndTimes)-i-1]
 				if err := lutimes(false, directoryAndTimes.directory, directoryAndTimes.atime, directoryAndTimes.mtime); err != nil {
 					logrus.Debugf("error setting access and modify timestamps on %q to %s and %s: %v", directoryAndTimes.directory, directoryAndTimes.atime, directoryAndTimes.mtime, err)
+				}
+			}
+			for directory, mode := range directoryModes {
+				if err := os.Chmod(directory, mode); err != nil {
+					logrus.Debugf("error setting permissions of %q to 0%o: %v", directory, uint32(mode), err)
 				}
 			}
 		}()
@@ -1763,6 +1799,9 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 					atime:     hdr.AccessTime,
 					mtime:     hdr.ModTime,
 				})
+				// set the mode here unconditionally, in case the directory is in
+				// the archive more than once for whatever reason
+				directoryModes[path] = mode
 			case tar.TypeFifo:
 				if err = mkfifo(path, 0600); err != nil && os.IsExist(err) {
 					if req.PutOptions.NoOverwriteDirNonDir {
@@ -1790,8 +1829,12 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 			if err = lchown(path, hdr.Uid, hdr.Gid); err != nil {
 				return errors.Wrapf(err, "copier: put: error setting ownership of %q to %d:%d", path, hdr.Uid, hdr.Gid)
 			}
-			// set permissions, except for symlinks, since we don't have lchmod
-			if hdr.Typeflag != tar.TypeSymlink {
+			// set permissions, except for symlinks, since we don't
+			// have an lchmod, and directories, which we'll fix up
+			// on our way out so that we don't get tripped up by
+			// directories which we're not supposed to be able to
+			// write to, but which we'll need to create content in
+			if hdr.Typeflag != tar.TypeSymlink && hdr.Typeflag != tar.TypeDir {
 				if err = os.Chmod(path, mode); err != nil {
 					return errors.Wrapf(err, "copier: put: error setting permissions on %q to 0%o", path, mode)
 				}
