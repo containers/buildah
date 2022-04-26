@@ -376,7 +376,7 @@ _EOF
   _prefetch alpine
   cp -a $BUDFILES/use-layers ${TESTDIR}/use-layers
   mkdir ${TESTDIR}/use-layers/blah
-  ln -s ${TESTSDIR}/policy.json ${TESTDIR}/use-layers/blah/policy.json
+  ln -s ${TEST_SOURCES}/policy.json ${TESTDIR}/use-layers/blah/policy.json
 
   run_buildah build $WITH_POLICY_JSON --layers -t test -f Dockerfile.dangling-symlink ${TESTDIR}/use-layers
   run_buildah images -a
@@ -1670,7 +1670,7 @@ function _test_http() {
 
 @test "bud with bad dir Dockerfile" {
   target=alpine-image
-  run_buildah 125 build $WITH_POLICY_JSON -t ${target} -f ${TESTSDIR}/baddirname ${TESTSDIR}/baddirname
+  run_buildah 125 build $WITH_POLICY_JSON -t ${target} -f ${TEST_SOURCES}/baddirname ${TEST_SOURCES}/baddirname
   expect_output --substring "no such file or directory"
 }
 
@@ -1946,25 +1946,25 @@ function _test_http() {
   target=foo
 
   # A deny-all policy should prevent us from pulling the base image.
-  run_buildah 125 build --signature-policy ${TESTSDIR}/deny.json -t ${target} -v ${TESTSDIR}:/testdir $BUDFILES/mount
+  run_buildah 125 build --signature-policy ${TEST_SOURCES}/deny.json -t ${target} -v ${TEST_SOURCES}:/testdir $BUDFILES/mount
   expect_output --substring 'Source image rejected: Running image .* rejected by policy.'
 
   # A docker-only policy should allow us to pull the base image and commit.
-  run_buildah build --signature-policy ${TESTSDIR}/docker.json -t ${target} -v ${TESTSDIR}:/testdir $BUDFILES/mount
+  run_buildah build --signature-policy ${TEST_SOURCES}/docker.json -t ${target} -v ${TEST_SOURCES}:/testdir $BUDFILES/mount
   # A deny-all policy shouldn't break pushing, since policy is only evaluated
   # on the source image, and we force it to allow local storage.
-  run_buildah push --signature-policy ${TESTSDIR}/deny.json ${target} dir:${TESTDIR}/mount
+  run_buildah push --signature-policy ${TEST_SOURCES}/deny.json ${target} dir:${TESTDIR}/mount
   run_buildah rmi ${target}
 
   # A docker-only policy should allow us to pull the base image first...
-  run_buildah pull --signature-policy ${TESTSDIR}/docker.json alpine
+  run_buildah pull --signature-policy ${TEST_SOURCES}/docker.json alpine
   # ... and since we don't need to pull the base image, a deny-all policy shouldn't break a build.
-  run_buildah build --signature-policy ${TESTSDIR}/deny.json -t ${target} -v ${TESTSDIR}:/testdir $BUDFILES/mount
+  run_buildah build --signature-policy ${TEST_SOURCES}/deny.json -t ${target} -v ${TEST_SOURCES}:/testdir $BUDFILES/mount
   # A deny-all policy shouldn't break pushing, since policy is only evaluated
   # on the source image, and we force it to allow local storage.
-  run_buildah push --signature-policy ${TESTSDIR}/deny.json ${target} dir:${TESTDIR}/mount
+  run_buildah push --signature-policy ${TEST_SOURCES}/deny.json ${target} dir:${TESTDIR}/mount
   # Similarly, a deny-all policy shouldn't break committing directly to other locations.
-  run_buildah build --signature-policy ${TESTSDIR}/deny.json -t dir:${TESTDIR}/mount -v ${TESTSDIR}:/testdir $BUDFILES/mount
+  run_buildah build --signature-policy ${TEST_SOURCES}/deny.json -t dir:${TESTDIR}/mount -v ${TEST_SOURCES}:/testdir $BUDFILES/mount
 }
 
 @test "bud-copy-replace-symlink" {
@@ -2156,12 +2156,12 @@ _EOF
 
 @test "bud without any arguments should succeed" {
   cd $BUDFILES/from-scratch
-  run_buildah build --signature-policy ${TESTSDIR}/policy.json
+  run_buildah build --signature-policy ${TEST_SOURCES}/policy.json
 }
 
 @test "bud without any arguments should fail when no Dockerfile exist" {
   cd $(mktemp -d)
-  run_buildah 125 build --signature-policy ${TESTSDIR}/policy.json
+  run_buildah 125 build --signature-policy ${TEST_SOURCES}/policy.json
   expect_output --substring "no such file or directory"
 }
 
@@ -2362,7 +2362,7 @@ _EOF
 }
 
 @test "bud using gitrepo and branch" {
-  if ! start_git_daemon ${TESTSDIR}/git-daemon/release-1.11-rhel.tar.gz ; then
+  if ! start_git_daemon ${TEST_SOURCES}/git-daemon/release-1.11-rhel.tar.gz ; then
     skip "error running git daemon"
   fi
   run_buildah build $WITH_POLICY_JSON --layers -t gittarget -f $BUDFILES/shell/Dockerfile git://localhost:${GITPORT}/repo#release-1.11-rhel
@@ -2378,7 +2378,7 @@ _EOF
   # First check to verify cache is used if the tar file does not change
   target=copy-archive
   date > $BUDFILES/${target}/test
-  tar -C $TESTSDIR -cJf $BUDFILES/${target}/test.tar.xz bud/${target}/test
+  tar -C $TEST_SOURCES -cJf $BUDFILES/${target}/test.tar.xz bud/${target}/test
   run_buildah build $WITH_POLICY_JSON --layers -t ${target} $BUDFILES/${target}
   expect_output --substring "COMMIT copy-archive"
 
@@ -2388,7 +2388,7 @@ _EOF
 
   # Now test that we do NOT use cache if the tar file changes
   echo This is a change >> $BUDFILES/${target}/test
-  tar -C $TESTSDIR -cJf $BUDFILES/${target}/test.tar.xz bud/${target}/test
+  tar -C $TEST_SOURCES -cJf $BUDFILES/${target}/test.tar.xz bud/${target}/test
   run_buildah build $WITH_POLICY_JSON --layers -t ${target} $BUDFILES/${target}
   if [[ "$output" =~ " Using cache" ]]; then
       expect_output "[no instance of 'Using cache']" "no cache used"

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
-BUILDAH_BINARY=${BUILDAH_BINARY:-$(dirname ${BASH_SOURCE})/../bin/buildah}
-IMGTYPE_BINARY=${IMGTYPE_BINARY:-$(dirname ${BASH_SOURCE})/../bin/imgtype}
-COPY_BINARY=${COPY_BINARY:-$(dirname ${BASH_SOURCE})/../bin/copy}
-TESTSDIR=${TESTSDIR:-$(dirname ${BASH_SOURCE})}
+# Directory in which tests live
+TEST_SOURCES=${TEST_SOURCES:-$(dirname ${BASH_SOURCE})}
+
+BUILDAH_BINARY=${BUILDAH_BINARY:-$TEST_SOURCES/../bin/buildah}
+IMGTYPE_BINARY=${IMGTYPE_BINARY:-$TEST_SOURCES/../bin/imgtype}
+COPY_BINARY=${COPY_BINARY:-$TEST_SOURCES/../bin/copy}
 STORAGE_DRIVER=${STORAGE_DRIVER:-vfs}
 PATH=$(dirname ${BASH_SOURCE})/../bin:${PATH}
 OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc || command -v crun)
@@ -11,10 +13,10 @@ OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc 
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 
 # Shortcut for directory containing Containerfiles for bud.bats
-BUDFILES=${TESTSDIR}/bud
+BUDFILES=${TEST_SOURCES}/bud
 
 # Used hundreds of times throughout all the tests
-WITH_POLICY_JSON="--signature-policy ${TESTSDIR}/policy.json"
+WITH_POLICY_JSON="--signature-policy ${TEST_SOURCES}/policy.json"
 
 # We don't invoke gnupg directly in many places, but this avoids ENOTTY errors
 # when we invoke it directly in batch mode, and CI runs us without a terminal
@@ -47,13 +49,13 @@ EOF
 
     # Common options for all buildah and podman invocations
     ROOTDIR_OPTS="--root ${TESTDIR}/root --runroot ${TESTDIR}/runroot --storage-driver ${STORAGE_DRIVER}"
-    BUILDAH_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf --registries-conf-dir ${TESTDIR}/registries.d --short-name-alias-conf ${TESTDIR}/cache/shortnames.conf"
-    PODMAN_REGISTRY_OPTS="--registries-conf ${TESTSDIR}/registries.conf"
+    BUILDAH_REGISTRY_OPTS="--registries-conf ${TEST_SOURCES}/registries.conf --registries-conf-dir ${TESTDIR}/registries.d --short-name-alias-conf ${TESTDIR}/cache/shortnames.conf"
+    PODMAN_REGISTRY_OPTS="--registries-conf ${TEST_SOURCES}/registries.conf"
 }
 
 function starthttpd() {
     pushd ${2:-${TESTDIR}} > /dev/null
-    go build -o serve ${TESTSDIR}/serve/serve.go
+    go build -o serve ${TEST_SOURCES}/serve/serve.go
     portfile=$(mktemp)
     if test -z "${portfile}"; then
         echo error creating temporaty file
@@ -596,7 +598,7 @@ function skip_if_no_docker() {
 function start_git_daemon() {
   daemondir=${TESTDIR}/git-daemon
   mkdir -p ${daemondir}/repo
-  gzip -dc < ${1:-${TESTSDIR}/git-daemon/repo.tar.gz} | tar x -C ${daemondir}/repo
+  gzip -dc < ${1:-${TEST_SOURCES}/git-daemon/repo.tar.gz} | tar x -C ${daemondir}/repo
   GITPORT=$(($RANDOM + 32768))
   git daemon --detach --pid-file=${TESTDIR}/git-daemon/pid --reuseaddr --port=${GITPORT} --base-path=${daemondir} ${daemondir}
 }

@@ -29,32 +29,32 @@ load helpers
 }
 
 @test "pull-blocked" {
-  run_buildah 125 --registries-conf ${TESTSDIR}/registries.conf.block pull $WITH_POLICY_JSON docker.io/alpine
+  run_buildah 125 --registries-conf ${TEST_SOURCES}/registries.conf.block pull $WITH_POLICY_JSON docker.io/alpine
   expect_output --substring "registry docker.io is blocked in"
 
-  run_buildah --retry --registries-conf ${TESTSDIR}/registries.conf       pull $WITH_POLICY_JSON docker.io/alpine
+  run_buildah --retry --registries-conf ${TEST_SOURCES}/registries.conf       pull $WITH_POLICY_JSON docker.io/alpine
 }
 
 @test "pull-from-registry" {
-  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf $WITH_POLICY_JSON busybox:glibc
-  run_buildah pull --registries-conf ${TESTSDIR}/registries.conf $WITH_POLICY_JSON busybox:latest
+  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON busybox:glibc
+  run_buildah pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON busybox:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "busybox:glibc"
   expect_output --substring "busybox:latest"
   # We need to see if this file is created after first pull in at least one test
   [ -f ${TESTDIR}/root/defaultNetworkBackend ]
 
-  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
+  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine_nginx:latest"
 
   run_buildah rmi quay.io/libpod/alpine_nginx:latest
-  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf $WITH_POLICY_JSON quay.io/libpod/alpine_nginx
+  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON quay.io/libpod/alpine_nginx
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine_nginx:latest"
 
-  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf $WITH_POLICY_JSON alpine@sha256:e9a2035f9d0d7cee1cdd445f5bfa0c5c646455ee26f14565dce23cf2d2de7570
-  run_buildah 125 pull --registries-conf ${TESTSDIR}/registries.conf $WITH_POLICY_JSON fakeimage/fortest
+  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON alpine@sha256:e9a2035f9d0d7cee1cdd445f5bfa0c5c646455ee26f14565dce23cf2d2de7570
+  run_buildah 125 pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON fakeimage/fortest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   [[ ! "$output" =~ "fakeimage/fortest" ]]
 }
@@ -114,7 +114,7 @@ load helpers
   declare -a tags=(0.9 0.9.1 1.1 alpha beta gamma2.0 latest)
 
   # setup: pull alpine, and push it repeatedly to localhost using those tags
-  opts="--signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword"
+  opts="--signature-policy ${TEST_SOURCES}/policy.json --tls-verify=false --creds testuser:testpassword"
   run_buildah --retry pull --quiet $WITH_POLICY_JSON alpine
   for tag in "${tags[@]}"; do
       run_buildah push $opts alpine localhost:${REGISTRY_PORT}/myalpine:$tag
@@ -162,18 +162,18 @@ load helpers
 @test "pull-denied-by-registry-sources" {
   export BUILD_REGISTRY_SOURCES='{"blockedRegistries": ["docker.io"]}'
 
-  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
   expect_output --substring 'registry "docker.io" denied by policy: it is in the blocked registries list'
 
-  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
   expect_output --substring 'registry "docker.io" denied by policy: it is in the blocked registries list'
 
   export BUILD_REGISTRY_SOURCES='{"allowedRegistries": ["some-other-registry.example.com"]}'
 
-  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
   expect_output --substring 'registry "docker.io" denied by policy: not in allowed registries list'
 
-  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
   expect_output --substring 'registry "docker.io" denied by policy: not in allowed registries list'
 }
 

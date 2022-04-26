@@ -15,7 +15,7 @@ load helpers
 
     run_buildah rm $cid
 
-    sed "s/^label = true/label = false/g" ${TESTSDIR}/containers.conf > ${TESTDIR}/containers.conf
+    sed "s/^label = true/label = false/g" ${TEST_SOURCES}/containers.conf > ${TESTDIR}/containers.conf
     cid=$(buildah from $WITH_POLICY_JSON alpine)
     CONTAINERS_CONF=${TESTDIR}/containers.conf run_buildah 1 --log-level=error run $cid sh -c "cat /proc/self/attr/current | grep container_t"
 }
@@ -46,7 +46,7 @@ load helpers
     CONTAINERS_CONF=$CONTAINERS_CONF run_buildah 1 --log-level=error run $cid ls /dev/foo1
     run_buildah rm $cid
 
-    sed '/^devices.*/a "\/dev\/foo:\/dev\/foo1:rmw",' ${TESTSDIR}/containers.conf > ${TESTDIR}/containers.conf
+    sed '/^devices.*/a "\/dev\/foo:\/dev\/foo1:rmw",' ${TEST_SOURCES}/containers.conf > ${TESTDIR}/containers.conf
     rm -f /dev/foo; mknod /dev/foo c 1 1
     CONTAINERS_CONF=${TESTDIR}/containers.conf run_buildah from --quiet $WITH_POLICY_JSON alpine
     cid="$output"
@@ -64,7 +64,7 @@ load helpers
     expect_output "00000000a80425fb"
     run_buildah rm $cid
 
-    sed "/AUDIT_WRITE/d" ${TESTSDIR}/containers.conf > ${TESTDIR}/containers.conf
+    sed "/AUDIT_WRITE/d" ${TEST_SOURCES}/containers.conf > ${TESTDIR}/containers.conf
     CONTAINERS_CONF=${TESTDIR}/containers.conf run_buildah from --quiet $WITH_POLICY_JSON alpine
     cid="$output"
 

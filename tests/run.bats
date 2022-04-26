@@ -467,7 +467,7 @@ function configure_and_check_user() {
 	skip_if_no_runtime
 
 	# we need to not use the list of limits that are set in our default
-	# ${TESTSDIR}/containers.conf for the sake of other tests, and override
+	# ${TEST_SOURCES}/containers.conf for the sake of other tests, and override
 	# any that might be picked up from system-wide configuration
 	echo '[containers]' > ${TESTDIR}/containers.conf
 	echo 'default_ulimits = []' >> ${TESTDIR}/containers.conf
