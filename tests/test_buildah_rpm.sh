@@ -4,7 +4,7 @@ load helpers
 
 # Ensure that any updated/pushed rpm .spec files don't clobber the commit placeholder
 @test "rpm REPLACEWITHCOMMITID placeholder exists in .spec file" {
-	run grep -q "^%global[ ]\+commit[ ]\+REPLACEWITHCOMMITID$" ${TESTSDIR}/../contrib/rpm/buildah.spec
+	run grep -q "^%global[ ]\+commit[ ]\+REPLACEWITHCOMMITID$" ${TEST_SOURCES}/../contrib/rpm/buildah.spec
 	[ "$status" -eq 0 ]
 }
 
@@ -13,7 +13,7 @@ load helpers
 
         # Build a container to use for building the binaries.
         image=registry.centos.org/centos/centos:centos7
-        cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        cid=$(buildah from --pull --signature-policy ${TEST_SOURCES}/policy.json $image)
         root=$(buildah mount $cid)
         commit=$(git log --format=%H -n 1)
         shortcommit=$(echo ${commit} | cut -c-7)
@@ -23,7 +23,7 @@ load helpers
         (cd ..; git archive --format tar.gz --prefix=buildah-${commit}/ ${commit}) > ${root}/rpmbuild/SOURCES/buildah-${shortcommit}.tar.gz
 
         # Update the .spec file with the commit ID.
-        sed s:REPLACEWITHCOMMITID:${commit}:g ${TESTSDIR}/../contrib/rpm/buildah.spec > ${root}/rpmbuild/SPECS/buildah.spec
+        sed s:REPLACEWITHCOMMITID:${commit}:g ${TEST_SOURCES}/../contrib/rpm/buildah.spec > ${root}/rpmbuild/SPECS/buildah.spec
 
         # Install build dependencies and build binary packages.
         buildah run $cid -- yum -y install rpm-build yum-utils
@@ -31,7 +31,7 @@ load helpers
         buildah run $cid -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
 
         # Build a second new container.
-        cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        cid2=$(buildah from --pull --signature-policy ${TEST_SOURCES}/policy.json $image)
         root2=$(buildah mount $cid2)
 
         # Copy the binary packages from the first container to the second one, and build a list of
@@ -66,7 +66,7 @@ load helpers
 
         # Build a container to use for building the binaries.
         image=registry.fedoraproject.org/fedora:latest
-        cid=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        cid=$(buildah from --pull --signature-policy ${TEST_SOURCES}/policy.json $image)
         root=$(buildah mount $cid)
         commit=$(git log --format=%H -n 1)
         shortcommit=$(echo ${commit} | cut -c-7)
@@ -76,7 +76,7 @@ load helpers
         (cd ..; git archive --format tar.gz --prefix=buildah-${commit}/ ${commit}) > ${root}/rpmbuild/SOURCES/buildah-${shortcommit}.tar.gz
 
         # Update the .spec file with the commit ID.
-        sed s:REPLACEWITHCOMMITID:${commit}:g ${TESTSDIR}/../contrib/rpm/buildah.spec > ${root}/rpmbuild/SPECS/buildah.spec
+        sed s:REPLACEWITHCOMMITID:${commit}:g ${TEST_SOURCES}/../contrib/rpm/buildah.spec > ${root}/rpmbuild/SPECS/buildah.spec
 
         # Install build dependencies and build binary packages.
         buildah run $cid -- dnf -y install 'dnf-command(builddep)' rpm-build
@@ -84,7 +84,7 @@ load helpers
         buildah run $cid -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/buildah.spec
 
         # Build a second new container.
-        cid2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $image)
+        cid2=$(buildah from --pull --signature-policy ${TEST_SOURCES}/policy.json $image)
         root2=$(buildah mount $cid2)
 
         # Copy the binary packages from the first container to the second one, and build a list of

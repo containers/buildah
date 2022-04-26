@@ -18,7 +18,7 @@ SBOX=/tmp/sandbox
 PACKAGES=/tmp/packages
 mkdir -p ${SBOX}/buildah
 GITROOT=${SBOX}/buildah
-TESTSDIR=${GITROOT}/tests
+TEST_SOURCES=${GITROOT}/tests
 
 # Change packager as appropriate for the platform
 PACKAGER=dnf
@@ -36,7 +36,7 @@ cd $GITROOT
 ########
 # Build a container to use for building the binaries.
 ########
-CTRID=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $IMAGE)
+CTRID=$(buildah from --pull --signature-policy ${TEST_SOURCES}/policy.json $IMAGE)
 ROOTMNT=$(buildah mount $CTRID)
 COMMIT=$(git log --format=%H -n 1)
 SHORTCOMMIT=$(echo ${COMMIT} | cut -c-7)
@@ -62,7 +62,7 @@ buildah run $CTRID -- rpmbuild --define "_topdir /rpmbuild" -ba /rpmbuild/SPECS/
 ########
 # Build a second new container.
 ########
-CTRID2=$(buildah from --pull --signature-policy ${TESTSDIR}/policy.json $IMAGE)
+CTRID2=$(buildah from --pull --signature-policy ${TEST_SOURCES}/policy.json $IMAGE)
 ROOTMNT2=$(buildah mount $CTRID2)
 
 ########
@@ -105,14 +105,14 @@ buildah rmi -f $(buildah images -q)
 ########
 # Kick off baseline testing against the installed Buildah 
 ########
-/bin/bash -v ${TESTSDIR}/test_buildah_baseline.sh
+/bin/bash -v ${TEST_SOURCES}/test_buildah_baseline.sh
 
 ########
 # Install the Buildah we just built locally and run 
 # the baseline tests again.
 ########
 ${PACKAGER} -y install ${PACKAGES}/*.rpm
-/bin/bash -v ${TESTSDIR}/test_buildah_baseline.sh
+/bin/bash -v ${TEST_SOURCES}/test_buildah_baseline.sh
 
 ########
 # Clean up 

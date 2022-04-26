@@ -15,7 +15,7 @@ load helpers
 
 @test "mount one container" {
   _prefetch alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah mount "$cid"
 }
@@ -26,35 +26,35 @@ load helpers
 
 @test "mount multi images" {
   _prefetch alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
-  run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull-never $WITH_POLICY_JSON alpine
   cid2=$output
-  run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull-never $WITH_POLICY_JSON alpine
   cid3=$output
   run_buildah mount "$cid1" "$cid2" "$cid3"
 }
 
 @test "mount multi images one bad" {
   _prefetch alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
-  run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull-never $WITH_POLICY_JSON alpine
   cid2=$output
-  run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull-never $WITH_POLICY_JSON alpine
   cid3=$output
   run_buildah 125 mount "$cid1" badcontainer "$cid2" "$cid3"
 }
 
 @test "list currently mounted containers" {
   _prefetch alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
   run_buildah mount "$cid1"
-  run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull-never $WITH_POLICY_JSON alpine
   cid2=$output
   run_buildah mount "$cid2"
-  run_buildah from --quiet --pull-never --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull-never $WITH_POLICY_JSON alpine
   cid3=$output
   run_buildah mount "$cid3"
   run_buildah mount

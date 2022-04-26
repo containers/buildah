@@ -9,10 +9,10 @@ load helpers
     skip "skipping overlay test because \$STORAGE_DRIVER = $STORAGE_DRIVER"
   fi
   image=alpine
-  mkdir ${TESTDIR}/lower
-  touch ${TESTDIR}/lower/foo
+  mkdir ${TEST_SCRATCH_DIR}/lower
+  touch ${TEST_SCRATCH_DIR}/lower/foo
 
-  run_buildah from --quiet -v ${TESTDIR}/lower:/lower:O --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet -v ${TEST_SCRATCH_DIR}/lower:/lower:O --quiet $WITH_POLICY_JSON $image
   cid=$output
 
   # This should succeed
@@ -27,7 +27,7 @@ load helpers
   run_buildah 1 run $cid ls /lower/bar
 
   # This should fail
-  run ls ${TESTDIR}/lower/bar
+  run ls ${TEST_SCRATCH_DIR}/lower/bar
   [ "$status" -ne 0 ]
 }
 
@@ -38,10 +38,10 @@ load helpers
     skip "skipping overlay test because \$STORAGE_DRIVER = $STORAGE_DRIVER"
   fi
   image=alpine
-  mkdir -m 770 ${TESTDIR}/lower
-  chown 1:1 ${TESTDIR}/lower
-  permission=$(stat -c "%a %u %g" ${TESTDIR}/lower)
-  run_buildah from --quiet -v ${TESTDIR}/lower:/tmp/test:O --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  mkdir -m 770 ${TEST_SCRATCH_DIR}/lower
+  chown 1:1 ${TEST_SCRATCH_DIR}/lower
+  permission=$(stat -c "%a %u %g" ${TEST_SCRATCH_DIR}/lower)
+  run_buildah from --quiet -v ${TEST_SCRATCH_DIR}/lower:/tmp/test:O --quiet $WITH_POLICY_JSON $image
   cid=$output
 
   # This should succeed
@@ -49,7 +49,7 @@ load helpers
   expect_output "$permission"
 
   # Create and remove content in the overlay directory, should succeed
-  touch ${TESTDIR}/lower/foo
+  touch ${TEST_SCRATCH_DIR}/lower/foo
   run_buildah run $cid touch /tmp/test/bar
   run_buildah run $cid rm /tmp/test/foo
 
@@ -57,7 +57,7 @@ load helpers
   run_buildah 1 run $cid ls /tmp/test/bar
 
   # This should fail since /tmp/test was an overlay, not a bind mount
-  run ls ${TESTDIR}/lower/bar
+  run ls ${TEST_SCRATCH_DIR}/lower/bar
   [ "$status" -ne 0 ]
 }
 
@@ -68,19 +68,19 @@ load helpers
     skip "skipping overlay test because \$STORAGE_DRIVER = $STORAGE_DRIVER"
   fi
   image=alpine
-  mkdir ${TESTDIR}/a:lower
-  touch ${TESTDIR}/a:lower/foo
+  mkdir ${TEST_SCRATCH_DIR}/a:lower
+  touch ${TEST_SCRATCH_DIR}/a:lower/foo
 
   # This should succeed.
   # Add double backslash, because shell will escape.
-  run_buildah from --quiet -v ${TESTDIR}/a\\:lower:/a\\:lower:O --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet -v ${TEST_SCRATCH_DIR}/a\\:lower:/a\\:lower:O --quiet $WITH_POLICY_JSON $image
   cid=$output
 
   # This should succeed
   run_buildah run $cid ls /a:lower/foo
 
   # Mount volume when run
-  run_buildah run -v ${TESTDIR}/a\\:lower:/b\\:lower:O $cid ls /b:lower/foo
+  run_buildah run -v ${TEST_SCRATCH_DIR}/a\\:lower:/b\\:lower:O $cid ls /b:lower/foo
 
   # Create and remove content in the overlay directory, should succeed,
   # resetting the contents between each run.
@@ -91,6 +91,6 @@ load helpers
   run_buildah 1 run $cid ls /a:lower/bar
 
   # This should fail
-  run ls ${TESTDIR}/a:lower/bar
+  run ls ${TEST_SCRATCH_DIR}/a:lower/bar
   [ "$status" -ne 0 ]
 }

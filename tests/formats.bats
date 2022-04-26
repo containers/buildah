@@ -47,11 +47,11 @@ function check_imgtype() {
 
 @test "write-formats" {
   skip_if_rootless_environment
-  run_buildah from --pull=false --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from --pull=false $WITH_POLICY_JSON scratch
   cid=$output
-  run_buildah commit --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-default
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit $WITH_POLICY_JSON $cid scratch-image-default
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   check_imgtype scratch-image-default oci
   check_imgtype scratch-image-oci     oci
@@ -60,9 +60,9 @@ function check_imgtype() {
 
 @test "bud-formats" {
   skip_if_rootless_environment
-  run_buildah build-using-dockerfile --signature-policy ${TESTSDIR}/policy.json -t scratch-image-default -f Containerfile ${TESTSDIR}/bud/from-scratch
-  run_buildah build-using-dockerfile --format docker --signature-policy ${TESTSDIR}/policy.json -t scratch-image-docker -f Containerfile ${TESTSDIR}/bud/from-scratch
-  run_buildah build-using-dockerfile --format oci --signature-policy ${TESTSDIR}/policy.json -t scratch-image-oci -f Containerfile ${TESTSDIR}/bud/from-scratch
+  run_buildah build-using-dockerfile $WITH_POLICY_JSON -t scratch-image-default -f Containerfile $BUDFILES/from-scratch
+  run_buildah build-using-dockerfile --format docker $WITH_POLICY_JSON -t scratch-image-docker -f Containerfile $BUDFILES/from-scratch
+  run_buildah build-using-dockerfile --format oci $WITH_POLICY_JSON -t scratch-image-oci -f Containerfile $BUDFILES/from-scratch
 
   check_imgtype scratch-image-default oci
   check_imgtype scratch-image-oci     oci

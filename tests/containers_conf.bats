@@ -10,14 +10,14 @@ load helpers
     fi
 
     _prefetch alpine
-    cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
+    cid=$(buildah from $WITH_POLICY_JSON alpine)
     run_buildah --log-level=error run $cid sh -c "cat /proc/self/attr/current | grep container_t"
 
     run_buildah rm $cid
 
-    sed "s/^label = true/label = false/g" ${TESTSDIR}/containers.conf > ${TESTDIR}/containers.conf
-    cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
-    CONTAINERS_CONF=${TESTDIR}/containers.conf run_buildah 1 --log-level=error run $cid sh -c "cat /proc/self/attr/current | grep container_t"
+    sed "s/^label = true/label = false/g" ${TEST_SOURCES}/containers.conf > ${TEST_SCRATCH_DIR}/containers.conf
+    cid=$(buildah from $WITH_POLICY_JSON alpine)
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah 1 --log-level=error run $cid sh -c "cat /proc/self/attr/current | grep container_t"
 }
 
 @test "containers.conf ulimit test" {
@@ -26,11 +26,11 @@ load helpers
     fi
 
     _prefetch alpine
-    cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
+    cid=$(buildah from $WITH_POLICY_JSON alpine)
     run_buildah --log-level=error run $cid  awk '/open files/{print $4}' /proc/self/limits
     expect_output "500" "limits: open files (w/file limit)"
 
-    cid=$(buildah from --ulimit nofile=300:400 --signature-policy ${TESTSDIR}/policy.json alpine)
+    cid=$(buildah from --ulimit nofile=300:400 $WITH_POLICY_JSON alpine)
     run_buildah --log-level=error run $cid awk '/open files/{print $4}' /proc/self/limits
     expect_output "300" "limits: open files (w/file limit)"
 }
@@ -42,33 +42,33 @@ load helpers
     fi
 
     _prefetch alpine
-    cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
+    cid=$(buildah from $WITH_POLICY_JSON alpine)
     CONTAINERS_CONF=$CONTAINERS_CONF run_buildah 1 --log-level=error run $cid ls /dev/foo1
     run_buildah rm $cid
 
-    sed '/^devices.*/a "\/dev\/foo:\/dev\/foo1:rmw",' ${TESTSDIR}/containers.conf > ${TESTDIR}/containers.conf
+    sed '/^devices.*/a "\/dev\/foo:\/dev\/foo1:rmw",' ${TEST_SOURCES}/containers.conf > ${TEST_SCRATCH_DIR}/containers.conf
     rm -f /dev/foo; mknod /dev/foo c 1 1
-    CONTAINERS_CONF=${TESTDIR}/containers.conf run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah from --quiet $WITH_POLICY_JSON alpine
     cid="$output"
-    CONTAINERS_CONF=${TESTDIR}/containers.conf run_buildah  --log-level=error run $cid ls /dev/foo1
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah  --log-level=error run $cid ls /dev/foo1
     rm -f /dev/foo
 }
 
 @test "containers.conf capabilities test" {
     _prefetch alpine
 
-    run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+    run_buildah from --quiet $WITH_POLICY_JSON alpine
     cid="$output"
     run_buildah --log-level=error run $cid sh -c 'grep  CapEff /proc/self/status | cut -f2'
     CapEff="$output"
     expect_output "00000000a80425fb"
     run_buildah rm $cid
 
-    sed "/AUDIT_WRITE/d" ${TESTSDIR}/containers.conf > ${TESTDIR}/containers.conf
-    CONTAINERS_CONF=${TESTDIR}/containers.conf run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+    sed "/AUDIT_WRITE/d" ${TEST_SOURCES}/containers.conf > ${TEST_SCRATCH_DIR}/containers.conf
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah from --quiet $WITH_POLICY_JSON alpine
     cid="$output"
 
-    CONTAINERS_CONF=${TESTDIR}/containers.conf run_buildah --log-level=error run $cid sh -c 'grep  CapEff /proc/self/status | cut -f2'
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah --log-level=error run $cid sh -c 'grep  CapEff /proc/self/status | cut -f2'
     run_buildah rm $cid
 
     test "$output" != "$CapEff"
@@ -80,7 +80,7 @@ load helpers
     fi
 
     _prefetch alpine
-    run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+    run_buildah from --quiet $WITH_POLICY_JSON alpine
     cid="$output"
     run_buildah --log-level=error run $cid sh -c 'df /dev/shm | awk '\''/shm/{print $4}'\'''
     expect_output "200"
@@ -93,16 +93,16 @@ load helpers
 
     test -x /usr/bin/crun || skip "/usr/bin/crun doesn't exist"
 
-    ln -s /usr/bin/crun ${TESTDIR}/runtime
+    ln -s /usr/bin/crun ${TEST_SCRATCH_DIR}/runtime
 
-    cat >${TESTDIR}/containers.conf << EOF
+    cat >${TEST_SCRATCH_DIR}/containers.conf << EOF
 [engine]
 runtime = "nonstandard_runtime_name"
 [engine.runtimes]
-nonstandard_runtime_name = ["${TESTDIR}/runtime"]
+nonstandard_runtime_name = ["${TEST_SCRATCH_DIR}/runtime"]
 EOF
 
     _prefetch alpine
-    cid=$(buildah from --signature-policy ${TESTSDIR}/policy.json alpine)
-    CONTAINERS_CONF=${TESTDIR}/containers.conf run_buildah --log-level=error run $cid true
+    cid=$(buildah from $WITH_POLICY_JSON alpine)
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah --log-level=error run $cid true
 }

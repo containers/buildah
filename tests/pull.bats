@@ -29,69 +29,69 @@ load helpers
 }
 
 @test "pull-blocked" {
-  run_buildah 125 --registries-conf ${TESTSDIR}/registries.conf.block pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
+  run_buildah 125 --registries-conf ${TEST_SOURCES}/registries.conf.block pull $WITH_POLICY_JSON docker.io/alpine
   expect_output --substring "registry docker.io is blocked in"
 
-  run_buildah --retry --registries-conf ${TESTSDIR}/registries.conf       pull --signature-policy ${TESTSDIR}/policy.json docker.io/alpine
+  run_buildah --retry --registries-conf ${TEST_SOURCES}/registries.conf       pull $WITH_POLICY_JSON docker.io/alpine
 }
 
 @test "pull-from-registry" {
-  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json busybox:glibc
-  run_buildah pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json busybox:latest
+  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON busybox:glibc
+  run_buildah pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON busybox:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "busybox:glibc"
   expect_output --substring "busybox:latest"
   # We need to see if this file is created after first pull in at least one test
-  [ -f ${TESTDIR}/root/defaultNetworkBackend ]
+  [ -f ${TEST_SCRATCH_DIR}/root/defaultNetworkBackend ]
 
-  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx:latest
+  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine_nginx:latest"
 
   run_buildah rmi quay.io/libpod/alpine_nginx:latest
-  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx
+  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON quay.io/libpod/alpine_nginx
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine_nginx:latest"
 
-  run_buildah --retry pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json alpine@sha256:e9a2035f9d0d7cee1cdd445f5bfa0c5c646455ee26f14565dce23cf2d2de7570
-  run_buildah 125 pull --registries-conf ${TESTSDIR}/registries.conf --signature-policy ${TESTSDIR}/policy.json fakeimage/fortest
+  run_buildah --retry pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON alpine@sha256:e9a2035f9d0d7cee1cdd445f5bfa0c5c646455ee26f14565dce23cf2d2de7570
+  run_buildah 125 pull --registries-conf ${TEST_SOURCES}/registries.conf $WITH_POLICY_JSON fakeimage/fortest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   [[ ! "$output" =~ "fakeimage/fortest" ]]
 }
 
 @test "pull-from-docker-archive" {
-  run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json alpine
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest docker-archive:${TESTDIR}/alp.tar:alpine:latest
+  run_buildah --retry pull $WITH_POLICY_JSON alpine
+  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest docker-archive:${TEST_SCRATCH_DIR}/alp.tar:alpine:latest
   run_buildah rmi alpine
-  run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
+  run_buildah --retry pull $WITH_POLICY_JSON docker-archive:${TEST_SCRATCH_DIR}/alp.tar
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine"
-  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-archive:${TESTDIR}/alp.tar
+  run_buildah 125 pull --all-tags $WITH_POLICY_JSON docker-archive:${TEST_SCRATCH_DIR}/alp.tar
   expect_output --substring "pulling all tags is not supported for docker-archive transport"
 }
 
 @test "pull-from-oci-archive" {
-  run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json alpine
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest oci-archive:${TESTDIR}/alp.tar:alpine
+  run_buildah --retry pull $WITH_POLICY_JSON alpine
+  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest oci-archive:${TEST_SCRATCH_DIR}/alp.tar:alpine
   run_buildah rmi alpine
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/alp.tar
+  run_buildah pull $WITH_POLICY_JSON oci-archive:${TEST_SCRATCH_DIR}/alp.tar
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine"
-  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci-archive:${TESTDIR}/alp.tar
+  run_buildah 125 pull --all-tags $WITH_POLICY_JSON oci-archive:${TEST_SCRATCH_DIR}/alp.tar
   expect_output --substring "pulling all tags is not supported for oci-archive transport"
 }
 
 @test "pull-from-local-directory" {
-  mkdir ${TESTDIR}/buildahtest
-  run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json alpine
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest dir:${TESTDIR}/buildahtest
+  mkdir ${TEST_SCRATCH_DIR}/buildahtest
+  run_buildah --retry pull $WITH_POLICY_JSON alpine
+  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest dir:${TEST_SCRATCH_DIR}/buildahtest
   run_buildah rmi alpine
-  run_buildah pull --quiet --signature-policy ${TESTSDIR}/policy.json dir:${TESTDIR}/buildahtest
+  run_buildah pull --quiet $WITH_POLICY_JSON dir:${TEST_SCRATCH_DIR}/buildahtest
   imageID="$output"
   # Images pulled via the dir transport are untagged.
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "<none>:<none>"
-  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json dir:$imageID
+  run_buildah 125 pull --all-tags $WITH_POLICY_JSON dir:$imageID
   expect_output --substring "pulling all tags is not supported for dir transport"
 }
 
@@ -101,11 +101,11 @@ load helpers
   run docker pull alpine
   echo "$output"
   [ "$status" -eq 0 ]
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json docker-daemon:docker.io/library/alpine:latest
+  run_buildah pull $WITH_POLICY_JSON docker-daemon:docker.io/library/alpine:latest
   run_buildah images --format "{{.Name}}:{{.Tag}}"
   expect_output --substring "alpine:latest"
   run_buildah rmi alpine
-  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json docker-daemon:docker.io/library/alpine:latest
+  run_buildah 125 pull --all-tags $WITH_POLICY_JSON docker-daemon:docker.io/library/alpine:latest
   expect_output --substring "pulling all tags is not supported for docker-daemon transport"
 }
 
@@ -114,8 +114,8 @@ load helpers
   declare -a tags=(0.9 0.9.1 1.1 alpha beta gamma2.0 latest)
 
   # setup: pull alpine, and push it repeatedly to localhost using those tags
-  opts="--signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword"
-  run_buildah --retry pull --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  opts="--signature-policy ${TEST_SOURCES}/policy.json --tls-verify=false --creds testuser:testpassword"
+  run_buildah --retry pull --quiet $WITH_POLICY_JSON alpine
   for tag in "${tags[@]}"; do
       run_buildah push $opts alpine localhost:${REGISTRY_PORT}/myalpine:$tag
   done
@@ -149,110 +149,110 @@ load helpers
 }
 
 @test "pull-from-oci-directory" {
-  run_buildah --retry pull --signature-policy ${TESTSDIR}/policy.json alpine
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json docker.io/library/alpine:latest oci:${TESTDIR}/alpine
+  run_buildah --retry pull $WITH_POLICY_JSON alpine
+  run_buildah push $WITH_POLICY_JSON docker.io/library/alpine:latest oci:${TEST_SCRATCH_DIR}/alpine
   run_buildah rmi alpine
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
+  run_buildah pull $WITH_POLICY_JSON oci:${TEST_SCRATCH_DIR}/alpine
   run_buildah images --format "{{.Name}}:{{.Tag}}"
-  expect_output --substring "localhost${TESTDIR}/alpine:latest"
-  run_buildah 125 pull --all-tags --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/alpine
+  expect_output --substring "localhost${TEST_SCRATCH_DIR}/alpine:latest"
+  run_buildah 125 pull --all-tags $WITH_POLICY_JSON oci:${TEST_SCRATCH_DIR}/alpine
   expect_output --substring "pulling all tags is not supported for oci transport"
 }
 
 @test "pull-denied-by-registry-sources" {
   export BUILD_REGISTRY_SOURCES='{"blockedRegistries": ["docker.io"]}'
 
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
   expect_output --substring 'registry "docker.io" denied by policy: it is in the blocked registries list'
 
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
   expect_output --substring 'registry "docker.io" denied by policy: it is in the blocked registries list'
 
   export BUILD_REGISTRY_SOURCES='{"allowedRegistries": ["some-other-registry.example.com"]}'
 
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
   expect_output --substring 'registry "docker.io" denied by policy: not in allowed registries list'
 
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --registries-conf ${TESTSDIR}/registries.conf.hub --quiet busybox
+  run_buildah 125 pull $WITH_POLICY_JSON --registries-conf ${TEST_SOURCES}/registries.conf.hub --quiet busybox
   expect_output --substring 'registry "docker.io" denied by policy: not in allowed registries list'
 }
 
 @test "pull should fail with nonexistent authfile" {
-  run_buildah 125 pull --authfile /tmp/nonexistent --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah 125 pull --authfile /tmp/nonexistent $WITH_POLICY_JSON alpine
 }
 
 @test "pull encrypted local image" {
   _prefetch busybox
-  mkdir ${TESTDIR}/tmp
-  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
-  openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 1024
-  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox  oci:${TESTDIR}/tmp/busybox_enc
+  mkdir ${TEST_SCRATCH_DIR}/tmp
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey.pem 1024
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey2.pem 1024
+  openssl rsa -in ${TEST_SCRATCH_DIR}/tmp/mykey.pem -pubout > ${TEST_SCRATCH_DIR}/tmp/mykey.pub
+  run_buildah push $WITH_POLICY_JSON --encryption-key jwe:${TEST_SCRATCH_DIR}/tmp/mykey.pub busybox  oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
 
   # Try to pull encrypted image without key should fail
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json oci:${TESTDIR}/tmp/busybox_enc
+  run_buildah 125 pull $WITH_POLICY_JSON oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
   expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try to pull encrypted image with wrong key should fail
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --decryption-key ${TESTDIR}/tmp/mykey2.pem oci:${TESTDIR}/tmp/busybox_enc
+  run_buildah 125 pull $WITH_POLICY_JSON --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey2.pem oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
   expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json --decryption-key ${TESTDIR}/tmp/mykey.pem oci:${TESTDIR}/tmp/busybox_enc
+  run_buildah pull $WITH_POLICY_JSON --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey.pem oci:${TEST_SCRATCH_DIR}/tmp/busybox_enc
 
-  rm -rf ${TESTDIR}/tmp
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "pull encrypted registry image" {
   _prefetch busybox
   start_registry
-  mkdir ${TESTDIR}/tmp
-  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
-  openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 1024
-  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
-  run_buildah push --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TESTDIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  mkdir ${TEST_SCRATCH_DIR}/tmp
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey.pem 1024
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey2.pem 1024
+  openssl rsa -in ${TEST_SCRATCH_DIR}/tmp/mykey.pem -pubout > ${TEST_SCRATCH_DIR}/tmp/mykey.pub
+  run_buildah push $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --encryption-key jwe:${TEST_SCRATCH_DIR}/tmp/mykey.pub busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
   # Try to pull encrypted image without key should fail
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah 125 pull $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try to pull encrypted image with wrong key should fail, with diff. msg
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah 125 pull $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey2.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah pull $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
   run_buildah rmi localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
-  rm -rf ${TESTDIR}/tmp
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "pull encrypted registry image from commit" {
   _prefetch busybox
   start_registry
-  mkdir ${TESTDIR}/tmp
-  openssl genrsa -out ${TESTDIR}/tmp/mykey.pem 1024
-  openssl genrsa -out ${TESTDIR}/tmp/mykey2.pem 1024
-  openssl rsa -in ${TESTDIR}/tmp/mykey.pem -pubout > ${TESTDIR}/tmp/mykey.pub
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  mkdir ${TEST_SCRATCH_DIR}/tmp
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey.pem 1024
+  openssl genrsa -out ${TEST_SCRATCH_DIR}/tmp/mykey2.pem 1024
+  openssl rsa -in ${TEST_SCRATCH_DIR}/tmp/mykey.pem -pubout > ${TEST_SCRATCH_DIR}/tmp/mykey.pub
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid=$output
-  run_buildah commit --iidfile /dev/null --tls-verify=false --creds testuser:testpassword --signature-policy ${TESTSDIR}/policy.json --encryption-key jwe:${TESTDIR}/tmp/mykey.pub -q $cid docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah commit --iidfile /dev/null --tls-verify=false --creds testuser:testpassword $WITH_POLICY_JSON --encryption-key jwe:${TEST_SCRATCH_DIR}/tmp/mykey.pub -q $cid docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
   # Try to pull encrypted image without key should fail
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah 125 pull $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   expect_output --substring "decrypting layer .* missing private key needed for decryption"
 
   # Try to pull encrypted image with wrong key should fail
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey2.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah 125 pull $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey2.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
   expect_output --substring "decrypting layer .* no suitable key unwrapper found or none of the private keys could be used for decryption"
 
   # Providing the right key should succeed
-  run_buildah pull --signature-policy ${TESTSDIR}/policy.json --tls-verify=false --creds testuser:testpassword --decryption-key ${TESTDIR}/tmp/mykey.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
+  run_buildah pull $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword --decryption-key ${TEST_SCRATCH_DIR}/tmp/mykey.pem docker://localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
   run_buildah rmi localhost:${REGISTRY_PORT}/buildah/busybox_encrypted:latest
 
-  rm -rf ${TESTDIR}/tmp
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "pull image into a full storage" {
@@ -260,7 +260,7 @@ load helpers
   mkdir /tmp/buildah-test
   mount -t tmpfs -o size=5M tmpfs /tmp/buildah-test
   run dd if=/dev/urandom of=/tmp/buildah-test/full
-  run_buildah 125 --root=/tmp/buildah-test pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah 125 --root=/tmp/buildah-test pull $WITH_POLICY_JSON alpine
   expect_output --substring "no space left on device"
   umount /tmp/buildah-test
   rm -rf /tmp/buildah-test
@@ -269,13 +269,13 @@ load helpers
 @test "pull with authfile" {
   _prefetch busybox
   start_registry
-  mkdir ${TESTDIR}/tmp
+  mkdir ${TEST_SCRATCH_DIR}/tmp
   run_buildah push --creds testuser:testpassword --tls-verify=false busybox docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
-  run_buildah login --authfile ${TESTDIR}/tmp/test.auth --username testuser --password testpassword --tls-verify=false localhost:${REGISTRY_PORT}
-  run_buildah pull --authfile ${TESTDIR}/tmp/test.auth --tls-verify=false docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
+  run_buildah login --authfile ${TEST_SCRATCH_DIR}/tmp/test.auth --username testuser --password testpassword --tls-verify=false localhost:${REGISTRY_PORT}
+  run_buildah pull --authfile ${TEST_SCRATCH_DIR}/tmp/test.auth --tls-verify=false docker://localhost:${REGISTRY_PORT}/buildah/busybox:latest
   run_buildah rmi localhost:${REGISTRY_PORT}/buildah/busybox:latest
 
-  rm -rf ${TESTDIR}/tmp
+  rm -rf ${TEST_SCRATCH_DIR}/tmp
 }
 
 @test "pull quietly" {
@@ -285,28 +285,28 @@ load helpers
 }
 
 @test "pull-policy" {
-  mkdir ${TESTDIR}/buildahtest
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --policy bogus alpine
+  mkdir ${TEST_SCRATCH_DIR}/buildahtest
+  run_buildah 125 pull $WITH_POLICY_JSON --policy bogus alpine
   expect_output --substring "unsupported pull policy \"bogus\""
 
   #  If image does not exist the never will fail
-  run_buildah 125 pull -q --signature-policy ${TESTSDIR}/policy.json --policy never alpine
+  run_buildah 125 pull -q $WITH_POLICY_JSON --policy never alpine
   expect_output --substring "image not known"
   run_buildah 125 inspect --type image alpine
   expect_output --substring "image not known"
 
   # create bogus alpine image
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah commit -q $cid docker.io/library/alpine
   iid=$output
 
   #  If image does not exist the never will succeed, but iid should not change
-  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --policy never alpine
+  run_buildah pull -q $WITH_POLICY_JSON --policy never alpine
   expect_output $iid
 
   # Pull image by default should change the image id
-  run_buildah pull -q --policy always --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah pull -q --policy always $WITH_POLICY_JSON alpine
   assert "$output" != "$iid" "pulled image should have a new IID"
 
   # Recreate image
@@ -314,27 +314,27 @@ load helpers
   iid=$output
 
   # Make sure missing image works
-  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --policy missing alpine
+  run_buildah pull -q $WITH_POLICY_JSON --policy missing alpine
   expect_output $iid
 
   run_buildah rmi alpine
-  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah pull -q $WITH_POLICY_JSON alpine
   run_buildah inspect alpine
 
   run_buildah rmi alpine
-  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --policy missing alpine
+  run_buildah pull -q $WITH_POLICY_JSON --policy missing alpine
   run_buildah inspect alpine
 
   run_buildah rmi alpine
 }
 
 @test "pull --arch" {
-  mkdir ${TESTDIR}/buildahtest
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --arch bogus alpine
+  mkdir ${TEST_SCRATCH_DIR}/buildahtest
+  run_buildah 125 pull $WITH_POLICY_JSON --arch bogus alpine
   expect_output --substring "no image found in manifest list"
 
   # Make sure missing image works
-  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --arch arm64 alpine
+  run_buildah pull -q $WITH_POLICY_JSON --arch arm64 alpine
 
   run_buildah inspect --format "{{ .Docker.Architecture }}" alpine
   expect_output arm64
@@ -346,12 +346,12 @@ load helpers
 }
 
 @test "pull --platform" {
-  mkdir ${TESTDIR}/buildahtest
-  run_buildah 125 pull --signature-policy ${TESTSDIR}/policy.json --platform linux/bogus alpine
+  mkdir ${TEST_SCRATCH_DIR}/buildahtest
+  run_buildah 125 pull $WITH_POLICY_JSON --platform linux/bogus alpine
   expect_output --substring "no image found in manifest list"
 
   # Make sure missing image works
-  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --platform linux/arm64 alpine
+  run_buildah pull -q $WITH_POLICY_JSON --platform linux/arm64 alpine
 
   run_buildah inspect --format "{{ .Docker.Architecture }}" alpine
   expect_output arm64
@@ -364,24 +364,24 @@ load helpers
 
 @test "pull image with TMPDIR set" {
   skip_if_rootless_environment
-  testdir=${TESTDIR}/buildah-test
+  testdir=${TEST_SCRATCH_DIR}/buildah-test
   mkdir -p $testdir
   mount -t tmpfs -o size=1M tmpfs $testdir
 
-  TMPDIR=$testdir run_buildah 125 pull --policy always --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx:latest
+  TMPDIR=$testdir run_buildah 125 pull --policy always $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
   expect_output --substring "no space left on device"
 
-  run_buildah pull --policy always --signature-policy ${TESTSDIR}/policy.json quay.io/libpod/alpine_nginx:latest
+  run_buildah pull --policy always $WITH_POLICY_JSON quay.io/libpod/alpine_nginx:latest
   umount $testdir
   rm -rf $testdir
 }
 
 @test "pull-policy --missing --arch" {
   # Make sure missing image works
-  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --policy missing --arch amd64 alpine
+  run_buildah pull -q $WITH_POLICY_JSON --policy missing --arch amd64 alpine
   amdiid=$output
 
-  run_buildah pull -q --signature-policy ${TESTSDIR}/policy.json --policy missing --arch arm64 alpine
+  run_buildah pull -q $WITH_POLICY_JSON --policy missing --arch arm64 alpine
   armiid=$output
 
   assert "$amdiid" != "$armiid" "AMD and ARM ids should differ"

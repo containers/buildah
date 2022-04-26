@@ -13,7 +13,7 @@ load helpers
   _prefetch $image
 
   # Create a container and read its context as a baseline.
-  run_buildah from --quiet --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet --quiet $WITH_POLICY_JSON $image
   cid=$output
   run_buildah run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
   [ "$output" != "" ]
@@ -24,7 +24,7 @@ load helpers
   expect_output "$firstlabel" "label of second container == first"
 
   # Ensure that different containers get different labels.
-  run_buildah from --quiet --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet --quiet $WITH_POLICY_JSON $image
   cid1=$output
   run_buildah run $cid1 sh -c 'tr \\0 \\n < /proc/self/attr/current'
   assert "$output" != "$firstlabel" \
@@ -42,7 +42,7 @@ load helpers
   _prefetch $image
 
   # Create a container and read its context as a baseline.
-  run_buildah from --quiet --security-opt label=disable --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet --security-opt label=disable --quiet $WITH_POLICY_JSON $image
   cid=$output
   run_buildah run $cid sh -c 'tr \\0 \\n < /proc/self/attr/current'
   context=$output
@@ -72,7 +72,7 @@ load helpers
 
   firstlabel="system_u:system_r:container_t:s0:c1,c2"
   # Create a container and read its context as a baseline.
-  run_buildah from --quiet --security-opt label="level:s0:c1,c2" --quiet --signature-policy ${TESTSDIR}/policy.json $image
+  run_buildah from --quiet --security-opt label="level:s0:c1,c2" --quiet $WITH_POLICY_JSON $image
   cid=$output
 
   # Inspect image

@@ -4,17 +4,17 @@ load helpers
 
 @test "containers" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   run_buildah containers
   expect_line_count 3
 }
 
 @test "containers filter test" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid1=$output
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   cid2=$output
   run_buildah containers --filter name=$cid1
   expect_line_count 2
@@ -22,8 +22,8 @@ load helpers
 
 @test "containers format test" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   run_buildah containers --format "{{.ContainerName}}"
   expect_line_count 2
   expect_output --from="${lines[0]}" "alpine-working-container"
@@ -32,15 +32,15 @@ load helpers
 
 @test "containers json test" {
   _prefetch alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   run_buildah containers --json
   expect_output --substring '\{'
 }
 
 @test "containers noheading test" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   run_buildah containers --noheading
   expect_line_count 2
   if [[ $output =~ "NAME" ]]; then
@@ -50,8 +50,8 @@ load helpers
 
 @test "containers quiet test" {
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
   run_buildah containers --quiet
   expect_line_count 2
 
@@ -62,7 +62,7 @@ load helpers
 
 @test "containers notruncate test" {
   _prefetch alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   run_buildah containers --notruncate
   expect_line_count 2
   expect_output --substring --from="${lines[1]}" '^[0-9a-f]{64}'
@@ -73,8 +73,8 @@ load helpers
   skip_if_no_podman
 
   _prefetch alpine busybox
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
-  podman create --root ${TESTDIR}/root --storage-driver ${STORAGE_DRIVER} --net=host busybox ls
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+  podman create --root ${TEST_SCRATCH_DIR}/root --storage-driver ${STORAGE_DRIVER} --net=host busybox ls
   run_buildah containers
   expect_line_count 2
   run_buildah containers -a

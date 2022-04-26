@@ -7,24 +7,24 @@ load helpers
 }
 
 @test "buildah version current in .spec file Version" {
-	if [ ! -d "${TESTSDIR}/../contrib/rpm" ]; then
+	if [ ! -d "${TEST_SOURCES}/../contrib/rpm" ]; then
 		skip "No source dir available"
 	fi
 	run_buildah version
 	bversion=$(awk '/^Version:/ { print $NF }' <<< "$output")
-	rversion=$(awk '/^Version:/ { print $NF }' < ${TESTSDIR}/../contrib/rpm/buildah.spec)
+	rversion=$(awk '/^Version:/ { print $NF }' < ${TEST_SOURCES}/../contrib/rpm/buildah.spec)
 	echo "bversion=${bversion}"
 	echo "rversion=${rversion}"
 	test "${bversion}" = "${rversion}" -o "${bversion}" = "${rversion}-dev"
 }
 
 @test "buildah version current in .spec file changelog" {
-	if [ ! -d "${TESTSDIR}/../contrib/rpm" ]; then
+	if [ ! -d "${TEST_SOURCES}/../contrib/rpm" ]; then
 		skip "No source dir available"
 	fi
 	run_buildah version
 	bversion=$(awk '/^Version:/ { print $NF }' <<< "$output")
-	grep -A1 ^%changelog ${TESTSDIR}/../contrib/rpm/buildah.spec | grep -q " ${bversion}-"
+	grep -A1 ^%changelog ${TEST_SOURCES}/../contrib/rpm/buildah.spec | grep -q " ${bversion}-"
 }
 
 @test "buildah version current in package" {

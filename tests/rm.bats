@@ -20,34 +20,34 @@ load helpers
 
 @test "remove one container" {
   _prefetch alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah rm "$cid"
 }
 
 @test "remove multiple containers" {
   _prefetch alpine busybox
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet $WITH_POLICY_JSON alpine
   cid2=$output
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid3=$output
   run_buildah rm "$cid2" "$cid3"
 }
 
 @test "remove all containers" {
   _prefetch alpine busybox
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid1=$output
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet $WITH_POLICY_JSON alpine
   cid2=$output
-  run_buildah from --quiet --signature-policy ${TESTSDIR}/policy.json busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
   cid3=$output
   run_buildah rm -a
 }
 
 @test "use conflicting commands to remove containers" {
   _prefetch alpine
-  run_buildah from --quiet --pull=false --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah 125 rm -a "$cid"
   expect_output --substring "when using the --all switch, you may not pass any containers names or IDs"

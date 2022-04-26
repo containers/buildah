@@ -17,7 +17,7 @@ load helpers
 }
 
 @test "config-flags-verification" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --label LABEL $cid
   run_buildah config --annotation ANNOTATION $cid
@@ -52,79 +52,79 @@ function check_matrix() {
 }
 
 @test "config entrypoint using single element in JSON array (exec form)" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --entrypoint '[ "/ENTRYPOINT" ]' $cid
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   check_matrix "Config.Entrypoint" '[/ENTRYPOINT]'
 }
 
 @test "config entrypoint using multiple elements in JSON array (exec form)" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --entrypoint '[ "/ENTRYPOINT", "ELEMENT2" ]' $cid
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   check_matrix 'Config.Entrypoint' '[/ENTRYPOINT ELEMENT2]'
 }
 
 @test "config entrypoint using string (shell form)" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --entrypoint /ENTRYPOINT $cid
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   check_matrix 'Config.Entrypoint' '[/bin/sh -c /ENTRYPOINT]'
 }
 
 @test "config set empty entrypoint doesn't wipe cmd" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --cmd "command" $cid
   run_buildah config --entrypoint "" $cid
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   check_matrix 'Config.Cmd' '[command]'
 }
 
 @test "config cmd without entrypoint" {
-  run_buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from --pull-never $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config \
    --cmd COMMAND-OR-ARGS \
   $cid
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   check_matrix 'Config.Cmd' '[COMMAND-OR-ARGS]'
   check_matrix 'Config.Entrypoint' '[]'
 }
 
 @test "config entrypoint with cmd" {
-  run_buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from --pull-never $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config \
    --entrypoint /ENTRYPOINT \
    --cmd COMMAND-OR-ARGS \
   $cid
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   check_matrix 'Config.Cmd' '[COMMAND-OR-ARGS]'
 
-  run_buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from --pull-never $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config \
    --entrypoint /ENTRYPOINT \
   $cid
 
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   check_matrix 'Config.Cmd' '[]'
 
@@ -133,8 +133,8 @@ function check_matrix() {
    --cmd COMMAND-OR-ARGS \
   $cid
 
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
   check_matrix 'Config.Cmd' '[COMMAND-OR-ARGS]'
 
   run_buildah config \
@@ -142,13 +142,13 @@ function check_matrix() {
    --cmd '[ "/COMMAND", "ARG1", "ARG2"]' \
   $cid
 
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
   check_matrix 'Config.Cmd' '[/COMMAND ARG1 ARG2]'
 }
 
 @test "config remove all" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config \
    --port 12345 \
@@ -157,8 +157,8 @@ function check_matrix() {
    --volume /VOLUME \
    --label LABEL=VALUE \
   $cid
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   run_buildah inspect --type=image --format '{{index .ImageAnnotations "ANNOTATION"}}' scratch-image-oci
   expect_output "VALUE1,VALUE2"
@@ -168,7 +168,7 @@ function check_matrix() {
   check_matrix 'Config.Env'          '[VARIABLE=VALUE1,VALUE2]'
   check_matrix 'Config.Labels.LABEL' 'VALUE'
 
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config \
    --port - \
@@ -178,8 +178,8 @@ function check_matrix() {
    --label - \
   $cid
 
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   run_buildah inspect --type=image --format '{{.ImageAnnotations}}'                      scratch-image-oci
   expect_output "map[]"
@@ -191,7 +191,7 @@ function check_matrix() {
 }
 
 @test "config" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config \
    --author TESTAUTHOR \
@@ -223,8 +223,8 @@ function check_matrix() {
    --onbuild "RUN touch /foo" \
   $cid
 
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
 
   check_matrix 'Author'       'TESTAUTHOR'
   check_matrix 'Architecture' 'amd64'
@@ -284,11 +284,11 @@ function check_matrix() {
 
 @test "config env using local environment" {
   export foo=bar
-  run_buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from --pull-never $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --env 'foo' $cid
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid env-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid env-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid env-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid env-image-oci
 
   run_buildah inspect --type=image --format '{{.Docker.Config.Env}}' env-image-docker
   expect_output --substring "foo=bar"
@@ -299,32 +299,32 @@ function check_matrix() {
 
 @test "docker formatted builds must inherit healthcheck from base image" {
   _prefetch busybox
-  ctxdir=${TESTDIR}/bud
+  ctxdir=${TEST_SCRATCH_DIR}/bud
   mkdir -p $ctxdir
   cat >$ctxdir/Dockerfile <<EOF
 FROM busybox
 HEALTHCHECK CMD curl --fail http://localhost:3000 || exit 1
 EOF
 
-  run_buildah build --format docker --signature-policy ${TESTSDIR}/policy.json -t test ${ctxdir}
+  run_buildah build --format docker $WITH_POLICY_JSON -t test ${ctxdir}
 
   cat >$ctxdir/Dockerfile <<EOF
 FROM test
 RUN echo hello
 EOF
 
-  run_buildah build --format docker --signature-policy ${TESTSDIR}/policy.json -t test2 ${ctxdir}
+  run_buildah build --format docker $WITH_POLICY_JSON -t test2 ${ctxdir}
   run_buildah inspect --type=image --format '{{.Docker.ContainerConfig.Healthcheck.Test}}' test2
   expect_output --substring "localhost:3000"
 }
 
 @test "config env using --env expansion" {
-  run_buildah from --pull-never --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from --pull-never $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config --env 'foo=bar' --env 'foo1=bar1' $cid
   run_buildah config --env 'combined=$foo/${foo1}' $cid
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid env-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid env-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid env-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid env-image-oci
 
   run_buildah inspect --type=image --format '{{.Docker.Config.Env}}' env-image-docker
   expect_output --substring "combined=bar/bar1"
@@ -335,7 +335,7 @@ EOF
 
 @test "user" {
   _prefetch alpine
-  run_buildah from --quiet --pull --signature-policy ${TESTSDIR}/policy.json alpine
+  run_buildah from --quiet --pull $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah run $cid grep CapBnd /proc/self/status
   bndoutput=$output
@@ -351,7 +351,7 @@ EOF
 }
 
 @test "remove configs using '-' syntax" {
-  run_buildah from --signature-policy ${TESTSDIR}/policy.json scratch
+  run_buildah from $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah config \
    --created-by COINCIDENCE \
@@ -362,8 +362,8 @@ EOF
    --annotation ANNOTATION=VALUE1,VALUE2 \
   $cid
 
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
   run_buildah inspect --format '{{.ImageCreatedBy}}' $cid
   expect_output "COINCIDENCE"
 
@@ -385,8 +385,8 @@ EOF
    --annotation ANNOTATION- \
   $cid
 
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
   run_buildah inspect --format '{{.ImageCreatedBy}}' $cid
   expect_output "COINCIDENCE"
   check_matrix 'Config.Volumes'      'map[]'
@@ -406,8 +406,8 @@ EOF
    --annotation ANNOTATION=VALUE1,VALUE2 \
   $cid
 
-  run_buildah commit --format docker --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-docker
-  run_buildah commit --format oci --signature-policy ${TESTSDIR}/policy.json $cid scratch-image-oci
+  run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
+  run_buildah commit --format oci $WITH_POLICY_JSON $cid scratch-image-oci
   run_buildah inspect --format '{{.ImageCreatedBy}}' $cid
   expect_output "COINCIDENCE"
 
