@@ -344,6 +344,9 @@ type PutOptions struct {
 	ChmodDirs            *os.FileMode      // set permissions on newly-created directories
 	ChownFiles           *idtools.IDPair   // set ownership of newly-created files
 	ChmodFiles           *os.FileMode      // set permissions on newly-created files
+	StripSetuidBit       bool              // strip the setuid bit off of items being written
+	StripSetgidBit       bool              // strip the setgid bit off of items being written
+	StripStickyBit       bool              // strip the sticky bit off of items being written
 	StripXattrs          bool              // don't bother trying to set extended attributes of items being copied
 	IgnoreXattrErrors    bool              // ignore any errors encountered when attempting to set extended attributes
 	IgnoreDevices        bool              // ignore items which are character or block devices
@@ -1649,6 +1652,15 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 				return err
 			}
 			// figure out what the permissions should be
+			if req.PutOptions.StripSetuidBit && hdr.Mode&cISUID == cISUID {
+				hdr.Mode &^= cISUID
+			}
+			if req.PutOptions.StripSetgidBit && hdr.Mode&cISGID == cISGID {
+				hdr.Mode &^= cISGID
+			}
+			if req.PutOptions.StripStickyBit && hdr.Mode&cISVTX == cISVTX {
+				hdr.Mode &^= cISVTX
+			}
 			if hdr.Typeflag == tar.TypeDir {
 				if req.PutOptions.ChmodDirs != nil {
 					hdr.Mode = int64(*req.PutOptions.ChmodDirs)
