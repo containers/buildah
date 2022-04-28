@@ -229,6 +229,10 @@ load helpers
   # this test, just checks the ability to commit an image to a registry
   # there is no good way to test the details of the image unless with ./buildah pull, test will be in pull.bats
   rm -rf ${TEST_SCRATCH_DIR}/tmp
+
+  # verify that encrypted layers are not cached or reused for an non-encrypted image (See containers/image#1533)
+  run_buildah commit --iidfile /dev/null --tls-verify=false --creds testuser:testpassword $WITH_POLICY_JSON -q $cid docker://localhost:${REGISTRY_PORT}/buildah/busybox_not_encrypted:latest
+  run_buildah from $WITH_POLICY_JSON --tls-verify=false --creds testuser:testpassword docker://localhost:${REGISTRY_PORT}/buildah/busybox_not_encrypted:latest
 }
 
 @test "commit omit-timestamp" {
