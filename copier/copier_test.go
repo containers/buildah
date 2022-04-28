@@ -589,6 +589,36 @@ func testPut(t *testing.T) {
 			})
 		}
 	}
+
+	for _, stripSetuidBit := range []bool{false, true} {
+		for _, stripSetgidBit := range []bool{false, true} {
+			for _, stripStickyBit := range []bool{false, true} {
+				t.Run(fmt.Sprintf("stripSetuidBit=%v,stripSetgidBit=%v,stripStickyBit=%v", stripSetuidBit, stripSetgidBit, stripStickyBit), func(t *testing.T) {
+					mode := int64(0o700) | cISUID | cISGID | cISVTX
+					archive := makeArchiveSlice([]tar.Header{
+						{Name: "test", Typeflag: tar.TypeReg, Size: 0, Mode: mode, ModTime: testDate},
+					})
+					tmp, err := ioutil.TempDir("", "copier-test-")
+					require.NoErrorf(t, err, "error creating temporary directory")
+					defer os.RemoveAll(tmp)
+					putOptions := PutOptions{
+						UIDMap:         uidMap,
+						GIDMap:         gidMap,
+						StripSetuidBit: stripSetuidBit,
+						StripSetgidBit: stripSetgidBit,
+						StripStickyBit: stripStickyBit,
+					}
+					err = Put(tmp, tmp, putOptions, bytes.NewReader(archive))
+					require.Nilf(t, err, "unexpected error writing sample file", err)
+					st, err := os.Stat(filepath.Join(tmp, "test"))
+					require.Nilf(t, err, "unexpected error checking permissions of file", err)
+					assert.Equalf(t, stripSetuidBit, st.Mode()&os.ModeSetuid == 0, "setuid bit was not set/stripped correctly")
+					assert.Equalf(t, stripSetgidBit, st.Mode()&os.ModeSetgid == 0, "setgid bit was not set/stripped correctly")
+					assert.Equalf(t, stripStickyBit, st.Mode()&os.ModeSticky == 0, "sticky bit was not set/stripped correctly")
+				})
+			}
+		}
+	}
 }
 
 func isExpectedError(err error, inSubdir bool, name string, expectedErrors []expectedError) bool {
