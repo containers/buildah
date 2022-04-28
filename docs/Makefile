@@ -3,6 +3,11 @@ DATADIR := ${PREFIX}/share
 MANDIR := $(DATADIR)/man
 # Following go-md2man is guaranteed on host
 GOMD2MAN ?= ../tests/tools/build/go-md2man
+ifeq ($(shell uname -s),FreeBSD)
+SED=gsed
+else
+SED=sed
+endif
 
 docs: $(patsubst %.md,%,$(wildcard *.md))
 
@@ -10,7 +15,7 @@ docs: $(patsubst %.md,%,$(wildcard *.md))
 ### sed is used to filter http/s links as well as relative links
 ### replaces "\" at the end of a line with two spaces
 ### this ensures that manpages are rendered correctly
-	sed -e 's/\((buildah[^)]*\.md\(#.*\)\?)\)//g' \
+	$(SED) -e 's/\((buildah[^)]*\.md\(#.*\)\?)\)//g' \
 	 -e 's/\[\(buildah[^]]*\)\]/\1/g' \
 	 -e 's/\[\([^]]*\)](http[^)]\+)/\1/g' \
 	 -e 's;<\(/\)\?\(a\|a\s\+[^>]*\|sup\)>;;g' \
