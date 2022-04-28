@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -1949,4 +1950,16 @@ func copierHandlerRemove(req request) *response {
 		return errorResponse("copier: remove %q: %v", req.Directory, err)
 	}
 	return &response{Error: "", Remove: removeResponse{}}
+}
+
+func unwrapError(err error) error {
+	e := errors.Cause(err)
+	for e != nil {
+		err = e
+		e = stderrors.Unwrap(err)
+		if e == err {
+			break
+		}
+	}
+	return err
 }
