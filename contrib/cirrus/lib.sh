@@ -180,7 +180,6 @@ in_podman() {
         echo "$envarg" | tee -a $envfile | indent
     done
     showrun podman run -i --name="$IN_PODMAN_NAME" \
-                   --net=host \
                    --net="container:registry" \
                    --security-opt=label=disable \
                    --security-opt=seccomp=unconfined \

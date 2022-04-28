@@ -39,6 +39,9 @@ case $1 in
         )
         case $OS_RELEASE_ID in
             fedora*)
+                if [[ "$OS_RELEASE_VER" -ge 36 ]]; then
+                    PKG_NAMES+=(aardvark-dns netavark)
+                fi
                 PKG_LST_CMD='rpm -q --qf=%{N}-%{V}-%{R}-%{ARCH}\n'
                 ;;
             ubuntu*)

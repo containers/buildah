@@ -10,7 +10,13 @@ source $(dirname $0)/lib.sh
 
 req_env_vars OS_RELEASE_ID OS_RELEASE_VER GOSRC IN_PODMAN_IMAGE
 
-echo "Setting up $OS_RELEASE_ID $OS_RELEASE_VER"
+msg "Disabling git repository owner-check system-wide."
+# Newer versions of git bark if repo. files are unexpectedly owned.
+# This mainly affects rootless and containerized testing.  But
+# the testing environment is disposable, so we don't care.=
+git config --system --add safe.directory $GOSRC
+
+msg "Setting up $OS_RELEASE_ID $OS_RELEASE_VER"
 cd $GOSRC
 case "$OS_RELEASE_ID" in
     fedora)
