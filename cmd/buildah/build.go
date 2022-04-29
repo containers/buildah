@@ -328,6 +328,15 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		t := time.Unix(iopts.Timestamp, 0).UTC()
 		timestamp = &t
 	}
+	if c.Flag("output").Changed {
+		buildOption, err := parse.GetBuildOutput(iopts.BuildOutput)
+		if err != nil {
+			return err
+		}
+		if buildOption.IsStdout {
+			iopts.Quiet = true
+		}
+	}
 	options := define.BuildOptions{
 		AddCapabilities:         iopts.CapAdd,
 		AdditionalTags:          tags,
@@ -363,6 +372,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		OS:                      systemContext.OSChoice,
 		Out:                     stdout,
 		Output:                  output,
+		BuildOutput:             iopts.BuildOutput,
 		OutputFormat:            format,
 		PullPolicy:              pullPolicy,
 		PullPushRetryDelay:      pullPushRetryDelay,
