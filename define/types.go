@@ -96,6 +96,13 @@ type Secret struct {
 	SourceType string
 }
 
+// BuildOutputOptions contains the the outcome of parsing the value of a build --output flag
+type BuildOutputOption struct {
+	Path     string // Only valid if !IsStdout
+	IsDir    bool
+	IsStdout bool
+}
+
 // TempDirForURL checks if the passed-in string looks like a URL or -.  If it is,
 // TempDirForURL creates a temporary directory, arranges for its contents to be
 // the contents of that URL, and returns the temporary directory's path, along

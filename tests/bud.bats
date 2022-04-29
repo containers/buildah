@@ -551,6 +551,67 @@ _EOF
   expect_output "[container=buildah date=tomorrow]" "No Path should be defined"
 }
 
+@test "build with custom build output and output rootfs to directory" {
+  _prefetch alpine
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p $mytmpdir
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+RUN echo 'hello'> hello
+_EOF
+  run_buildah build --output type=local,dest=$mytmpdir/rootfs $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
+  ls $mytmpdir/rootfs
+  # exported rootfs must contain `hello` file which we created inside the image
+  expect_output --substring 'hello'
+}
+
+@test "build with custom build output and output rootfs to tar" {
+  _prefetch alpine
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p $mytmpdir
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+RUN echo 'hello'> hello
+_EOF
+  run_buildah build --output type=tar,dest=$mytmpdir/rootfs.tar $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
+  # explode tar
+  mkdir $mytmpdir/rootfs
+  tar -C $mytmpdir/rootfs -xvf $mytmpdir/rootfs.tar
+  ls $mytmpdir/rootfs
+  # exported rootfs must contain `hello` file which we created inside the image
+  expect_output --substring 'hello'
+}
+
+@test "build with custom build output and output rootfs to tar by pipe" {
+  _prefetch alpine
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p $mytmpdir
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+RUN echo 'hello'> hello
+_EOF
+  # Using BUILDAH_BINARY since run_buildah adds unwanted chars to tar created by pipe.
+  ${BUILDAH_BINARY} build $WITH_POLICY_JSON -o - -t test-bud -f $mytmpdir/Containerfile . > $mytmpdir/rootfs.tar
+  # explode tar
+  mkdir $mytmpdir/rootfs
+  tar -C $mytmpdir/rootfs -xvf $mytmpdir/rootfs.tar
+  ls $mytmpdir/rootfs/hello
+}
+
+@test "build with custom build output must fail for bad input" {
+  _prefetch alpine
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p $mytmpdir
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+RUN echo 'hello'> hello
+_EOF
+  run_buildah 125 build --output type=tar, $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
+  expect_output --substring 'invalid'
+  run_buildah 125 build --output type=wrong,dest=hello --signature-policy ${TESTSDIR}/policy.json -t test-bud -f $mytmpdir/Containerfile .
+  expect_output --substring 'invalid'
+}
+
 @test "bud-from-scratch-untagged" {
   run_buildah build --iidfile ${TEST_SCRATCH_DIR}/output.iid $WITH_POLICY_JSON $BUDFILES/from-scratch
   iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)

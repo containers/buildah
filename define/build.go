@@ -123,6 +123,10 @@ type BuildOptions struct {
 	Args map[string]string
 	// Name of the image to write to.
 	Output string
+	// BuildOutput specifies if any custom build output is selected for following build.
+	// It allows end user to export recently built rootfs into a directory or tar.
+	// See the documentation of 'buildah build --output' for the details of the format.
+	BuildOutput string
 	// Additional tags to add to the image that we write, if we know of a
 	// way to add them.
 	AdditionalTags []string

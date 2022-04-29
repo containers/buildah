@@ -411,6 +411,25 @@ By default, Buildah manages _/etc/hosts_, adding the container's own IP address.
 
 Set the OS of the image to be built, and that of the base image to be pulled, if the build uses one, instead of using the current operating system of the host.
 
+**--output**, **-o**=""
+
+Output destination (format: type=local,dest=path)
+
+The --output (or -o) option extends the default behavior of building a container image by allowing users to export the contents of the image as files on the local filesystem, which can be useful for generating local binaries, code generation, etc.
+
+The value for --output is a comma-separated sequence of key=value pairs, defining the output type and options.
+
+Supported _keys_ are:
+- **dest**: Destination path for exported output. Valid value is absolute or relative path, `-` means the standard output.
+- **type**: Defines the type of output to be used. Valid values is documented below.
+
+Valid _type_ values are:
+- **local**: write the resulting build files to a directory on the client-side.
+- **tar**: write the resulting files as a single tarball (.tar).
+
+If no type is specified, the value defaults to **local**.
+Alternatively, instead of a comma-separated sequence, the value of **--output** can be just a destination (in the `**dest** format) (e.g. `--output some-path`, `--output -`) where `--output some-path` is treated as if **type=local** and `--output -` is treated as if **type=tar**.
+
 **--pid** *how*
 
 Sets the configuration for PID namespaces when handling `RUN` instructions.
@@ -823,6 +842,16 @@ buildah bud --platform linux/s390x,linux/ppc64le,linux/amd64 --manifest myimage 
 buildah bud --platform linux/arm64 --platform linux/amd64 --manifest myimage /tmp/mysrc
 
 buildah bud --all-platforms --manifest myimage /tmp/mysrc
+
+### Building an image using (--output) custom build output
+
+buildah build -o out .
+
+buildah build --output type=local,dest=out .
+
+buildah build --output type=tar,dest=out.tar .
+
+buildah build -o - . > out.tar
 
 ### Building an image using a URL
 

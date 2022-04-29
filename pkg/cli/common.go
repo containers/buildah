@@ -85,6 +85,7 @@ type BudResults struct {
 	Squash              bool
 	Stdin               bool
 	Tag                 []string
+	BuildOutput         string
 	Target              string
 	TLSVerify           bool
 	Jobs                int
@@ -242,6 +243,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringArrayVar(&flags.SSH, "ssh", []string{}, "SSH agent socket or keys to expose to the build. (format: default|<id>[=<socket>|<key>[,<key>]])")
 	fs.BoolVar(&flags.Stdin, "stdin", false, "pass stdin into containers")
 	fs.StringArrayVarP(&flags.Tag, "tag", "t", []string{}, "tagged `name` to apply to the built image")
+	fs.StringVarP(&flags.BuildOutput, "output", "o", "", "output destination (format: type=local,dest=path)")
 	fs.StringVar(&flags.Target, "target", "", "set the target build stage to build")
 	fs.Int64Var(&flags.Timestamp, "timestamp", 0, "set created timestamp to the specified epoch seconds to allow for deterministic builds, defaults to current time")
 	fs.BoolVar(&flags.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
@@ -281,6 +283,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["timestamp"] = commonComp.AutocompleteNone
 	flagCompletion["variant"] = commonComp.AutocompleteNone
 	flagCompletion["unsetenv"] = commonComp.AutocompleteNone
+	flagCompletion["output"] = commonComp.AutocompleteNone
 	return flagCompletion
 }
 
