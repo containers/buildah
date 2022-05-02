@@ -902,6 +902,7 @@ buildah build -o - . > out.tar
   Note: You can set an arbitrary Git repository via the git:// scheme.
 
 ### Building an image using a URL to a tarball'ed context
+
   Buildah will fetch the tarball archive, decompress it and use its contents as the build context.  The Containerfile or Dockerfile at the root of the archive and the rest of the archive will get used as the context of the build. If you pass an -f PATH/Containerfile option as well, the system will look for that file inside the contents of the tarball.
 
   buildah build -f dev/Containerfile https://10.10.10.1/buildah/context.tar.gz
@@ -909,6 +910,7 @@ buildah build -o - . > out.tar
   Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
 
 ### Using Build Time Variables
+
 #### Replace the value set for the HTTP_PROXY environment variable within the Containerfile.
 
 buildah build --build-arg=HTTP_PROXY="http://127.0.0.1:8321"
