@@ -716,14 +716,20 @@ _EOF
   run_buildah build --label "test=label" $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
   expect_output "$want_output"
+
+  want_output='map["io.buildah.version":"'$buildah_version'"]'
+  run_buildah build --label "test=label" --label test $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
+  expect_output "$want_output"
+
+  want_output='map[]'
+  run_buildah build --label io.buildah.version $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
+  expect_output "$want_output"
 }
 
 @test "bud-from-scratch-override-version-label" {
-  run_buildah --version
-  local -a output_fields=($output)
-  buildah_version=${output_fields[2]}
-  want_output='map["io.buildah.version":"'$buildah_version'"]'
-
+  want_output='map["io.buildah.version":"oldversion"]'
   target=scratch-image
   run_buildah build --label "io.buildah.version=oldversion" $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
@@ -742,6 +748,9 @@ _EOF
   run_buildah build --annotation "test=annotation1,annotation2=z" $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   run_buildah inspect --format '{{index .ImageAnnotations "test"}}' ${target}
   expect_output "annotation1,annotation2=z"
+  run_buildah build --annotation "test=annotation1,annotation2=z" --annotation test $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  run_buildah inspect --format '{{index .ImageAnnotations "test"}}' ${target}
+  expect_output ""
 }
 
 @test "bud-from-scratch-layers" {

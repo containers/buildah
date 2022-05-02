@@ -38,9 +38,10 @@ Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option c
 
 Instead of building for a set of platforms specified using the **--platform** option, inspect the build's base images, and build for all of the platforms for which they are all available.  Stages that use *scratch* as a starting point can not be inspected, so at least one non-*scratch* stage must be present for detection to work usefully.
 
-**--annotation** *annotation*
+**--annotation** *annotation[=value]*
 
 Add an image *annotation* (e.g. annotation=*value*) to the image metadata. Can be used multiple times.
+If *annotation* is named, but neither `=` nor a `value` is provided, then the *annotation* is removed from the image.
 
 Note: this information is not present in Docker image formats, so it is discarded when writing images in Docker formats.
 
@@ -335,9 +336,10 @@ Run up to N concurrent stages in parallel.  If the number of jobs is greater tha
 stdin will be read from /dev/null.  If 0 is specified, then there is
 no limit on the number of jobs that run in parallel.
 
-**--label** *label*
+**--label** *label[=value]*
 
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
+If *label* is named, but neither `=` nor a `value` is provided, then the *label* is removed from the image.
 
 Users can set a special LABEL **io.containers.capabilities=CAP1,CAP2,CAP3** in
 a Containerfile that specifies the list of Linux capabilities required for the
