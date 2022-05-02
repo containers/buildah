@@ -603,11 +603,12 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 						}
 						base := child.Next.Value
 						if base != "scratch" {
-							// TODO: this didn't undergo variable and arg
-							// expansion, so if the AS clause in another
-							// FROM instruction uses argument values,
-							// we might not record the right value here.
-							b.baseMap[base] = true
+							userArgs := argsMapToSlice(stage.Builder.Args)
+							baseWithArg, err := imagebuilder.ProcessWord(base, userArgs)
+							if err != nil {
+								return "", nil, errors.Wrapf(err, "while replacing arg variables with values for format %q", base)
+							}
+							b.baseMap[baseWithArg] = true
 							logrus.Debugf("base for stage %d: %q", stageIndex, base)
 						}
 					}

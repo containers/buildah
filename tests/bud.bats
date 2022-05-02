@@ -3180,6 +3180,12 @@ _EOF
   assert "$output" !~ '--build-arg NEWSECRET=<VALUE>'
 }
 
+@test "bud with arg in from statement" {
+  _prefetch alpine
+  run_buildah build -t testbud $WITH_POLICY_JSON --build-arg app_type=x --build-arg another_app_type=m --file $BUDFILES/with-arg/Dockerfilefromarg .
+  expect_output --substring 'world'
+}
+
 @test "bud with --runtime and --runtime-flag" {
   # This Containerfile needs us to be able to handle a working RUN instruction.
   skip_if_no_runtime
