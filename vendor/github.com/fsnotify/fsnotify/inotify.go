@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build linux
 // +build linux
 
 package fsnotify
@@ -273,7 +272,7 @@ func (w *Watcher) readEvents() {
 
 			if nameLen > 0 {
 				// Point "bytes" at the first byte of the filename
-				bytes := (*[unix.PathMax]byte)(unsafe.Pointer(&buf[offset+unix.SizeofInotifyEvent]))[:nameLen:nameLen]
+				bytes := (*[unix.PathMax]byte)(unsafe.Pointer(&buf[offset+unix.SizeofInotifyEvent]))
 				// The filename is padded with NULL bytes. TrimRight() gets rid of those.
 				name += "/" + strings.TrimRight(string(bytes[0:nameLen]), "\000")
 			}
