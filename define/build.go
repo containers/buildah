@@ -260,4 +260,6 @@ type BuildOptions struct {
 	AllPlatforms bool
 	// UnsetEnvs is a list of environments to not add to final image.
 	UnsetEnvs []string
+	// Envs is a list of environment variables to set in the final image.
+	Envs []string
 }

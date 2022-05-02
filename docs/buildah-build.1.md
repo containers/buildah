@@ -241,6 +241,14 @@ Set custom DNS options
 
 Set custom DNS search domains
 
+**--env** *env[=value]*
+
+Add a value (e.g. env=*value*) to the built image.  Can be used multiple times.
+If neither `=` nor a `*value*` are specified, but *env* is set in the current
+environment, the value from the current environment will be added to the image.
+To remove an environment variable from the built image, use the `--unsetenv`
+option.
+
 **--file**, **-f** *Containerfile*
 
 Specifies a Containerfile which contains instructions for building the image,
@@ -828,6 +836,12 @@ buildah build --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
 buildah build -f Containerfile.in -t imageName .
 
 buildah build --network mynet .
+
+buildah build --env LANG=en_US.UTF-8 -t imageName .
+
+buildah build --env EDITOR -t imageName .
+
+buildah build --unsetenv LANG -t imageName .
 
 ### Building an multi-architecture image using the --manifest option (requires emulation software)
 

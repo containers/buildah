@@ -77,10 +77,12 @@ ignore the `cmd` value of the container image.  However if you use the array
 form, then the cmd will be appended onto the end of the entrypoint cmd and be
 executed together.
 
-**--env**, **-e** *env=value*
+**--env**, **-e** *env[=value]*
 
 Add a value (e.g. env=*value*) to the environment for containers based on any
 images which will be built using the specified container. Can be used multiple times.
+If *env* is named but neither `=` nor a `value` is specified, then the value
+will be taken from the current process environment.
 If *env* has a trailing `-`, then the *env* is removed from the config.
 If the *env* is set to "-" then all environment variables are removed from the config.
 
@@ -228,6 +230,8 @@ buildah config --volume /usr/myvol containerID
 buildah config --volume /usr/myvol- containerID
 
 buildah config --port 1234 --port 8080 containerID
+
+buildah config --env 1234=5678 containerID
 
 buildah config --env 1234- containerID
 

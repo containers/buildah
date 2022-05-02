@@ -1494,6 +1494,28 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		spec := strings.SplitN(envSpec, "=", 2)
 		s.builder.SetEnv(spec[0], spec[1])
 	}
+	for _, envSpec := range s.executor.envs {
+		env := strings.SplitN(envSpec, "=", 2)
+		if len(env) > 1 {
+			getenv := func(name string) string {
+				for _, envvar := range s.builder.Env() {
+					val := strings.SplitN(envvar, "=", 2)
+					if len(val) == 2 && val[0] == name {
+						return val[1]
+					}
+				}
+				logrus.Errorf("error expanding variable %q: no value set in image", name)
+				return name
+			}
+			env[1] = os.Expand(env[1], getenv)
+			s.builder.SetEnv(env[0], env[1])
+		} else {
+			s.builder.SetEnv(env[0], os.Getenv(env[0]))
+		}
+	}
+	for _, envSpec := range s.executor.unsetEnvs {
+		s.builder.UnsetEnv(envSpec)
+	}
 	s.builder.SetCmd(config.Cmd)
 	s.builder.ClearVolumes()
 	for v := range config.Volumes {
@@ -1566,7 +1588,6 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		RetryDelay:            s.executor.retryPullPushDelay,
 		HistoryTimestamp:      s.executor.timestamp,
 		Manifest:              s.executor.manifest,
-		UnsetEnvs:             s.executor.unsetEnvs,
 	}
 	// generate build output
 	if s.executor.buildOutput != "" {

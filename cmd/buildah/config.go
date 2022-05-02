@@ -226,7 +226,6 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 			}
 			env[1] = os.Expand(env[1], getenv)
 			builder.SetEnv(env[0], env[1])
-
 		case env[0] == "-":
 			builder.ClearEnv()
 		case strings.HasSuffix(env[0], "-"):

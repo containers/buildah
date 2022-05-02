@@ -92,6 +92,7 @@ type BudResults struct {
 	LogRusage           bool
 	RusageLogFile       string
 	UnsetEnvs           []string
+	Envs                []string
 }
 
 // FromAndBugResults represents the results for common flags
@@ -194,6 +195,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringVar(&flags.Creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	fs.BoolVarP(&flags.DisableCompression, "disable-compression", "D", true, "don't compress layers by default")
 	fs.BoolVar(&flags.DisableContentTrust, "disable-content-trust", false, "This is a Docker specific option and is a NOOP")
+	fs.StringArrayVar(&flags.Envs, "env", []string{}, "set environment variable for the image")
 	fs.StringVar(&flags.From, "from", "", "image name used to replace the value in the first FROM instruction in the Containerfile")
 	fs.StringVar(&flags.IgnoreFile, "ignorefile", "", "path to an alternate .dockerignore file")
 	fs.StringSliceVarP(&flags.File, "file", "f", []string{}, "`pathname or URL` of a Dockerfile")
@@ -262,6 +264,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["cache-from"] = commonComp.AutocompleteNone
 	flagCompletion["cert-dir"] = commonComp.AutocompleteDefault
 	flagCompletion["creds"] = commonComp.AutocompleteNone
+	flagCompletion["env"] = commonComp.AutocompleteNone
 	flagCompletion["file"] = commonComp.AutocompleteDefault
 	flagCompletion["from"] = commonComp.AutocompleteDefault
 	flagCompletion["format"] = commonComp.AutocompleteNone

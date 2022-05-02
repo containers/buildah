@@ -582,6 +582,25 @@ _EOF
   expect_output "[container=buildah date=tomorrow]" "No Path should be defined"
 }
 
+@test "bud with --env" {
+  target=scratch-image
+  run_buildah build --quiet=false --iidfile ${TEST_SCRATCH_DIR}/output.iid --env PATH $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
+  expect_output "[PATH=$PATH]"
+
+  run_buildah build --quiet=false --iidfile ${TEST_SCRATCH_DIR}/output.iid --env PATH=foo $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
+  expect_output "[PATH=foo]"
+
+  # --unsetenv takes precedence over --env, since we don't know the relative order of the two
+  run_buildah build --quiet=false --iidfile ${TEST_SCRATCH_DIR}/output.iid --unsetenv PATH --env PATH=foo --env PATH= $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
+  expect_output "[]"
+}
+
 @test "build with custom build output and output rootfs to directory" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
@@ -659,7 +678,7 @@ _EOF
   expect_output "" "no base name for untagged base image"
 }
 
-@test "bud with --tag " {
+@test "bud with --tag" {
   target=scratch-image
   run_buildah build --quiet=false --tag test1 $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   expect_output --substring "Successfully tagged localhost/test1:latest"
@@ -669,7 +688,7 @@ _EOF
   expect_output --substring "Successfully tagged localhost/test2:latest"
 }
 
-@test "bud with bad --tag " {
+@test "bud with bad --tag" {
   target=scratch-image
   run_buildah 125 build --quiet=false --tag TEST1 $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   expect_output --substring "tag TEST1: invalid reference format: repository name must be lowercase"

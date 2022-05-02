@@ -102,6 +102,7 @@ type CommitOptions struct {
 	// indexing. i.e. 0 is the first layer, -1 is the last (top-most) layer.
 	OciEncryptLayers *[]int
 	// UnsetEnvs is a list of environments to not add to final image.
+	// Deprecated: use UnsetEnv() before committing instead.
 	UnsetEnvs []string
 }
 
