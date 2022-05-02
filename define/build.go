@@ -262,4 +262,12 @@ type BuildOptions struct {
 	UnsetEnvs []string
 	// Envs is a list of environment variables to set in the final image.
 	Envs []string
+	// OSFeatures specifies operating system features the image requires.
+	// It is typically only set when the OS is "windows".
+	OSFeatures []string
+	// OSVersion specifies the exact operating system version the image
+	// requires.  It is typically only set when the OS is "windows".  Any
+	// value set in a base image will be preserved, so this does not
+	// frequently need to be set.
+	OSVersion string
 }

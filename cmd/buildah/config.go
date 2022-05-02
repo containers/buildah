@@ -39,6 +39,8 @@ type configResults struct {
 	label                  []string
 	onbuild                []string
 	os                     string
+	osfeature              []string
+	osversion              string
 	ports                  []string
 	shell                  string
 	stopSignal             string
@@ -88,6 +90,8 @@ func init() {
 	flags.StringArrayVarP(&opts.label, "label", "l", []string{}, "add image configuration `label` e.g. label=value")
 	flags.StringSliceVar(&opts.onbuild, "onbuild", []string{}, "add onbuild command to be run on images based on this image. Only supported on 'docker' formatted images")
 	flags.StringVar(&opts.os, "os", "", "set `operating system` of the target image")
+	flags.StringArrayVar(&opts.osfeature, "os-feature", []string{}, "set required OS `feature` for the target image")
+	flags.StringVar(&opts.osversion, "os-version", "", "set required OS `version` for the target image")
 	flags.StringSliceVarP(&opts.ports, "port", "p", []string{}, "add `port` to expose when running containers based on image (default [])")
 	flags.StringVar(&opts.shell, "shell", "", "add `shell` to run in containers")
 	flags.StringVar(&opts.stopSignal, "stop-signal", "", "set `stop signal` for containers based on image")
@@ -176,6 +180,21 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 	}
 	if c.Flag("os").Changed {
 		builder.SetOS(iopts.os)
+	}
+	if c.Flag("os-feature").Changed {
+		for _, osFeatureSpec := range iopts.osfeature {
+			switch {
+			case osFeatureSpec == "-":
+				builder.ClearOSFeatures()
+			case strings.HasSuffix(osFeatureSpec, "-"):
+				builder.UnsetOSFeature(strings.TrimSuffix(osFeatureSpec, "-"))
+			default:
+				builder.SetOSFeature(osFeatureSpec)
+			}
+		}
+	}
+	if c.Flag("os-version").Changed {
+		builder.SetOSVersion(iopts.osversion)
 	}
 	if c.Flag("user").Changed {
 		builder.SetUser(iopts.user)

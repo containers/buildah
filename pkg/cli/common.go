@@ -93,6 +93,8 @@ type BudResults struct {
 	RusageLogFile       string
 	UnsetEnvs           []string
 	Envs                []string
+	OSFeatures          []string
+	OSVersion           string
 }
 
 // FromAndBugResults represents the results for common flags
@@ -220,6 +222,8 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.BoolVar(&flags.NoHosts, "no-hosts", false, "Do not create the new containers /etc/hosts file, use the one from the current image.")
 	fs.BoolVar(&flags.NoCache, "no-cache", false, "Do not use existing cached images for the container build. Build from the start with a new set of cached layers.")
 	fs.String("os", runtime.GOOS, "set the OS to the provided value instead of the current operating system of the host")
+	fs.StringArrayVar(&flags.OSFeatures, "os-feature", []string{}, "set required OS `feature` for the target image in addition to values from the base image")
+	fs.StringVar(&flags.OSVersion, "os-version", "", "set required OS `version` for the target image instead of the value from the base image")
 	fs.StringVar(&flags.Pull, "pull", "true", "pull the image from the registry if newer or not present in store, if false, only pull the image if not present, if always, pull the image even if the named image is present in store, if never, only use the image present in store if available")
 	fs.Lookup("pull").NoOptDefVal = "true" //allow `--pull ` to be set to `true` as expected.
 	fs.BoolVar(&flags.PullAlways, "pull-always", false, "pull the image even if the named image is present in store")
@@ -275,6 +279,8 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["logfile"] = commonComp.AutocompleteDefault
 	flagCompletion["manifest"] = commonComp.AutocompleteDefault
 	flagCompletion["os"] = commonComp.AutocompleteNone
+	flagCompletion["os-feature"] = commonComp.AutocompleteNone
+	flagCompletion["os-version"] = commonComp.AutocompleteNone
 	flagCompletion["pull"] = commonComp.AutocompleteDefault
 	flagCompletion["runtime-flag"] = commonComp.AutocompleteNone
 	flagCompletion["secret"] = commonComp.AutocompleteNone

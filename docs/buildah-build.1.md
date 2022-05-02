@@ -421,6 +421,24 @@ By default, Buildah manages _/etc/hosts_, adding the container's own IP address.
 
 Set the OS of the image to be built, and that of the base image to be pulled, if the build uses one, instead of using the current operating system of the host.
 
+**--os-feature** *feature*
+
+Set the name of a required operating system *feature* for the image which will
+be built.  By default, if the image is not based on *scratch*, the base image's
+required OS feature list is kept, if the base image specified any.  This option
+is typically only meaningful when the image's OS is Windows.
+
+If *feature* has a trailing `-`, then the *feature* is removed from the set of
+required features which will be listed in the image.
+
+**--os-version** *version*
+
+Set the exact required operating system *version* for the image which will be
+built.  By default, if the image is not based on *scratch*, the base image's
+required OS version is kept, if the base image specified one.  This option is
+typically only meaningful when the image's OS is Windows, and is typically set in
+Windows base images, so using this option is usually unnecessary.
+
 **--output**, **-o**=""
 
 Output destination (format: type=local,dest=path)
@@ -844,6 +862,12 @@ buildah build --env LANG=en_US.UTF-8 -t imageName .
 buildah build --env EDITOR -t imageName .
 
 buildah build --unsetenv LANG -t imageName .
+
+buildah build --os-version 10.0.19042.1645 -t imageName .
+
+buildah build --os-feature win32k -t imageName .
+
+buildah build --os-feature win32k- -t imageName .
 
 ### Building an multi-architecture image using the --manifest option (requires emulation software)
 

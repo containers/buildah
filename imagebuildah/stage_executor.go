@@ -1485,6 +1485,17 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	if s.executor.os != "" {
 		s.builder.SetOS(s.executor.os)
 	}
+	if s.executor.osVersion != "" {
+		s.builder.SetOSVersion(s.executor.osVersion)
+	}
+	for _, osFeatureSpec := range s.executor.osFeatures {
+		switch {
+		case strings.HasSuffix(osFeatureSpec, "-"):
+			s.builder.UnsetOSFeature(strings.TrimSuffix(osFeatureSpec, "-"))
+		default:
+			s.builder.SetOSFeature(osFeatureSpec)
+		}
+	}
 	s.builder.SetUser(config.User)
 	s.builder.ClearPorts()
 	for p := range config.ExposedPorts {

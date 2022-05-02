@@ -2608,6 +2608,32 @@ EOM
   expect_output windows
 }
 
+@test "bud with custom os-version" {
+  run_buildah build $WITH_POLICY_JSON \
+    -f $BUDFILES/from-scratch/Containerfile \
+    -t os-version-test \
+    --os-version=1.0
+
+  run_buildah inspect --format "{{ .Docker.OSVersion }}" os-version-test
+  expect_output 1.0
+
+  run_buildah inspect --format "{{ .OCIv1.OSVersion }}" os-version-test
+  expect_output 1.0
+}
+
+@test "bud with custom os-features" {
+  run_buildah build $WITH_POLICY_JSON \
+    -f $BUDFILES/from-scratch/Containerfile \
+    -t os-features-test \
+    --os-feature removed --os-feature removed- --os-feature win32k
+
+  run_buildah inspect --format "{{ .Docker.OSFeatures }}" os-features-test
+  expect_output '[win32k]'
+
+  run_buildah inspect --format "{{ .OCIv1.OSFeatures }}" os-features-test
+  expect_output '[win32k]'
+}
+
 @test "bud with custom platform" {
   run_buildah build $WITH_POLICY_JSON \
     -f $BUDFILES/from-scratch/Containerfile \

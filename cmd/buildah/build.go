@@ -395,6 +395,8 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		Platforms:               platforms,
 		UnsetEnvs:               iopts.UnsetEnvs,
 		Envs:                    iopts.Envs,
+		OSFeatures:              iopts.OSFeatures,
+		OSVersion:               iopts.OSVersion,
 	}
 	if iopts.Quiet {
 		options.ReportWriter = ioutil.Discard
