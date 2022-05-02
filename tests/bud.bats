@@ -146,6 +146,37 @@ _EOF
   fi
 }
 
+@test "build-with-inline-platform-and-rely-on-defaultbuiltinargs" {
+  # Get host arch
+  run_buildah info --format '{{.host.arch}}'
+  myarch="$output"
+  otherarch="arm64"
+  # just make sure that other arch is not equivalent to host arch
+  if [[ "$otherarch" == "$myarch" ]]; then
+    otherarch="amd64"
+  fi
+
+  run_buildah build --platform linux/$otherarch $WITH_POLICY_JSON -t test -f $BUDFILES/multiarch/Dockerfile.built-in-args
+  expect_output --substring "I'm compiling for linux/$otherarch"
+  expect_output --substring "and tagging for linux/$otherarch"
+  expect_output --substring "and OS linux"
+  expect_output --substring "and ARCH $otherarch"
+  run_buildah inspect --format '{{ .OCIv1.Architecture }}' test
+  expect_output --substring "$otherarch"
+}
+
+# Buildkit parity: this verifies if we honor custom overrides of TARGETOS, TARGETVARIANT, TARGETARCH and TARGETPLATFORM if user wants
+@test "build-with-inline-platform-and-rely-on-defaultbuiltinargs-check-custom-override" {
+  run_buildah build --platform linux/arm64 $WITH_POLICY_JSON --build-arg TARGETOS=android -t test -f $BUDFILES/multiarch/Dockerfile.built-in-args
+  expect_output --substring "I'm compiling for linux/arm64"
+  expect_output --substring "and tagging for linux/arm64"
+  ## Note since we used --build-arg and overrided hence OS must be anroid
+  expect_output --substring "and OS android"
+  expect_output --substring "and ARCH $otherarch"
+  run_buildah inspect --format '{{ .OCIv1.Architecture }}' test
+  expect_output --substring "$otherarch"
+}
+
 # Following test must pass since we want to tag image as host arch
 # Test for use-case described here: https://github.com/containers/buildah/issues/3261
 @test "build-with-inline-platform-amd-but-tag-as-arm" {
