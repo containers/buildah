@@ -319,7 +319,6 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		Format:                format,
 		BlobDirectory:         iopts.BlobCache,
 		Devices:               devices,
-		DefaultEnv:            defaultContainerConfig.GetDefaultEnv(),
 		MaxPullRetries:        maxPullPushRetries,
 		PullRetryDelay:        pullPushRetryDelay,
 		OciDecryptConfig:      decConfig,
