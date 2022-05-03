@@ -312,6 +312,8 @@ type EngineConfig struct {
 	LockType string `toml:"lock_type,omitempty"`
 
 	// MachineEnabled indicates if Podman is running in a podman-machine VM
+	//
+	// This method is soft deprecated, use machine.IsPodmanMachine instead
 	MachineEnabled bool `toml:"machine_enabled,omitempty"`
 
 	// MultiImageArchive - if true, the container engine allows for storing
@@ -346,6 +348,9 @@ type EngineConfig struct {
 
 	// OCIRuntimes are the set of configured OCI runtimes (default is runc).
 	OCIRuntimes map[string][]string `toml:"runtimes,omitempty"`
+
+	// PodExitPolicy determines the behaviour when the last container of a pod exits.
+	PodExitPolicy PodExitPolicy `toml:"pod_exit_policy,omitempty"`
 
 	// PullPolicy determines whether to pull image before creating or running a container
 	// default is "missing"

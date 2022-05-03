@@ -5,10 +5,10 @@ go 1.16
 require (
 	github.com/containerd/containerd v1.6.3
 	github.com/containernetworking/cni v1.1.0
-	github.com/containers/common v0.47.5-0.20220421111103-112a47964ddb
-	github.com/containers/image/v5 v5.21.1-0.20220421124950-8527e238867c
-	github.com/containers/ocicrypt v1.1.3
-	github.com/containers/storage v1.39.1-0.20220422100603-8996869ae40b
+	github.com/containers/common v0.48.0
+	github.com/containers/image/v5 v5.21.1
+	github.com/containers/ocicrypt v1.1.4-0.20220428134531-566b808bdf6f
+	github.com/containers/storage v1.40.0
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.14+incompatible
 	github.com/docker/go-units v0.4.0
@@ -38,7 +38,7 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9
+	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 )
 

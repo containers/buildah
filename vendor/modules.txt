@@ -69,7 +69,7 @@ github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.1.1
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.47.5-0.20220421111103-112a47964ddb
+# github.com/containers/common v0.48.0
 ## explicit
 github.com/containers/common/libimage
 github.com/containers/common/libimage/manifests
@@ -90,6 +90,7 @@ github.com/containers/common/pkg/completion
 github.com/containers/common/pkg/config
 github.com/containers/common/pkg/download
 github.com/containers/common/pkg/filters
+github.com/containers/common/pkg/machine
 github.com/containers/common/pkg/manifests
 github.com/containers/common/pkg/parse
 github.com/containers/common/pkg/retry
@@ -101,7 +102,7 @@ github.com/containers/common/pkg/timetype
 github.com/containers/common/pkg/umask
 github.com/containers/common/pkg/util
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.21.1-0.20220421124950-8527e238867c
+# github.com/containers/image/v5 v5.21.1
 ## explicit
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
@@ -154,7 +155,7 @@ github.com/containers/image/v5/types
 github.com/containers/image/v5/version
 # github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a
 github.com/containers/libtrust
-# github.com/containers/ocicrypt v1.1.3
+# github.com/containers/ocicrypt v1.1.4-0.20220428134531-566b808bdf6f
 ## explicit
 github.com/containers/ocicrypt
 github.com/containers/ocicrypt/blockcipher
@@ -172,7 +173,7 @@ github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
 github.com/containers/ocicrypt/utils/keyprovider
-# github.com/containers/storage v1.39.1-0.20220422100603-8996869ae40b
+# github.com/containers/storage v1.40.0
 ## explicit
 github.com/containers/storage
 github.com/containers/storage/drivers
@@ -284,7 +285,7 @@ github.com/docker/go-units
 github.com/docker/libnetwork/resolvconf
 github.com/docker/libnetwork/resolvconf/dns
 github.com/docker/libnetwork/types
-# github.com/fsnotify/fsnotify v1.5.1
+# github.com/fsnotify/fsnotify v1.4.9
 github.com/fsnotify/fsnotify
 # github.com/fsouza/go-dockerclient v1.7.10
 ## explicit
@@ -326,11 +327,12 @@ github.com/ishidawataru/sctp
 github.com/jinzhu/copier
 # github.com/json-iterator/go v1.1.12
 github.com/json-iterator/go
-# github.com/klauspost/compress v1.15.1
+# github.com/klauspost/compress v1.15.2
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
+github.com/klauspost/compress/internal/cpuinfo
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
@@ -493,7 +495,7 @@ github.com/stefanberger/go-pkcs11uri
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
-# github.com/sylabs/sif/v2 v2.6.0
+# github.com/sylabs/sif/v2 v2.7.0
 github.com/sylabs/sif/v2/pkg/sif
 # github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 ## explicit
@@ -509,7 +511,7 @@ github.com/ulikunitz/xz/lzma
 github.com/vbatts/tar-split/archive/tar
 github.com/vbatts/tar-split/tar/asm
 github.com/vbatts/tar-split/tar/storage
-# github.com/vbauerster/mpb/v7 v7.3.2
+# github.com/vbauerster/mpb/v7 v7.4.1
 github.com/vbauerster/mpb/v7
 github.com/vbauerster/mpb/v7/cwriter
 github.com/vbauerster/mpb/v7/decor
@@ -572,7 +574,7 @@ golang.org/x/net/trace
 ## explicit
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9
+# golang.org/x/sys v0.0.0-20220422013727-9388b58f7150
 ## explicit
 golang.org/x/sys/cpu
 golang.org/x/sys/execabs
