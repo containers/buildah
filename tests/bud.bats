@@ -582,6 +582,25 @@ _EOF
   expect_output "[container=buildah date=tomorrow]" "No Path should be defined"
 }
 
+@test "bud with --env" {
+  target=scratch-image
+  run_buildah build --quiet=false --iidfile ${TEST_SCRATCH_DIR}/output.iid --env PATH $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
+  expect_output "[PATH=$PATH]"
+
+  run_buildah build --quiet=false --iidfile ${TEST_SCRATCH_DIR}/output.iid --env PATH=foo $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
+  expect_output "[PATH=foo]"
+
+  # --unsetenv takes precedence over --env, since we don't know the relative order of the two
+  run_buildah build --quiet=false --iidfile ${TEST_SCRATCH_DIR}/output.iid --unsetenv PATH --env PATH=foo --env PATH= $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  iid=$(cat ${TEST_SCRATCH_DIR}/output.iid)
+  run_buildah inspect --format '{{.Docker.Config.Env}}' $iid
+  expect_output "[]"
+}
+
 @test "build with custom build output and output rootfs to directory" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
@@ -659,7 +678,7 @@ _EOF
   expect_output "" "no base name for untagged base image"
 }
 
-@test "bud with --tag " {
+@test "bud with --tag" {
   target=scratch-image
   run_buildah build --quiet=false --tag test1 $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   expect_output --substring "Successfully tagged localhost/test1:latest"
@@ -669,7 +688,7 @@ _EOF
   expect_output --substring "Successfully tagged localhost/test2:latest"
 }
 
-@test "bud with bad --tag " {
+@test "bud with bad --tag" {
   target=scratch-image
   run_buildah 125 build --quiet=false --tag TEST1 $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   expect_output --substring "tag TEST1: invalid reference format: repository name must be lowercase"
@@ -697,14 +716,20 @@ _EOF
   run_buildah build --label "test=label" $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
   expect_output "$want_output"
+
+  want_output='map["io.buildah.version":"'$buildah_version'"]'
+  run_buildah build --label "test=label" --label test $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
+  expect_output "$want_output"
+
+  want_output='map[]'
+  run_buildah build --label io.buildah.version $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
+  expect_output "$want_output"
 }
 
 @test "bud-from-scratch-override-version-label" {
-  run_buildah --version
-  local -a output_fields=($output)
-  buildah_version=${output_fields[2]}
-  want_output='map["io.buildah.version":"'$buildah_version'"]'
-
+  want_output='map["io.buildah.version":"oldversion"]'
   target=scratch-image
   run_buildah build --label "io.buildah.version=oldversion" $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
@@ -723,6 +748,9 @@ _EOF
   run_buildah build --annotation "test=annotation1,annotation2=z" $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   run_buildah inspect --format '{{index .ImageAnnotations "test"}}' ${target}
   expect_output "annotation1,annotation2=z"
+  run_buildah build --annotation "test=annotation1,annotation2=z" --annotation test $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  run_buildah inspect --format '{{index .ImageAnnotations "test"}}' ${target}
+  expect_output ""
 }
 
 @test "bud-from-scratch-layers" {
@@ -2578,6 +2606,32 @@ EOM
 
   run_buildah inspect --format "{{ .OCIv1.OS }}" os-test
   expect_output windows
+}
+
+@test "bud with custom os-version" {
+  run_buildah build $WITH_POLICY_JSON \
+    -f $BUDFILES/from-scratch/Containerfile \
+    -t os-version-test \
+    --os-version=1.0
+
+  run_buildah inspect --format "{{ .Docker.OSVersion }}" os-version-test
+  expect_output 1.0
+
+  run_buildah inspect --format "{{ .OCIv1.OSVersion }}" os-version-test
+  expect_output 1.0
+}
+
+@test "bud with custom os-features" {
+  run_buildah build $WITH_POLICY_JSON \
+    -f $BUDFILES/from-scratch/Containerfile \
+    -t os-features-test \
+    --os-feature removed --os-feature removed- --os-feature win32k
+
+  run_buildah inspect --format "{{ .Docker.OSFeatures }}" os-features-test
+  expect_output '[win32k]'
+
+  run_buildah inspect --format "{{ .OCIv1.OSFeatures }}" os-features-test
+  expect_output '[win32k]'
 }
 
 @test "bud with custom platform" {

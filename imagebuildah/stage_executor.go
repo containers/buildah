@@ -1485,6 +1485,17 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	if s.executor.os != "" {
 		s.builder.SetOS(s.executor.os)
 	}
+	if s.executor.osVersion != "" {
+		s.builder.SetOSVersion(s.executor.osVersion)
+	}
+	for _, osFeatureSpec := range s.executor.osFeatures {
+		switch {
+		case strings.HasSuffix(osFeatureSpec, "-"):
+			s.builder.UnsetOSFeature(strings.TrimSuffix(osFeatureSpec, "-"))
+		default:
+			s.builder.SetOSFeature(osFeatureSpec)
+		}
+	}
 	s.builder.SetUser(config.User)
 	s.builder.ClearPorts()
 	for p := range config.ExposedPorts {
@@ -1493,6 +1504,28 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	for _, envSpec := range config.Env {
 		spec := strings.SplitN(envSpec, "=", 2)
 		s.builder.SetEnv(spec[0], spec[1])
+	}
+	for _, envSpec := range s.executor.envs {
+		env := strings.SplitN(envSpec, "=", 2)
+		if len(env) > 1 {
+			getenv := func(name string) string {
+				for _, envvar := range s.builder.Env() {
+					val := strings.SplitN(envvar, "=", 2)
+					if len(val) == 2 && val[0] == name {
+						return val[1]
+					}
+				}
+				logrus.Errorf("error expanding variable %q: no value set in image", name)
+				return name
+			}
+			env[1] = os.Expand(env[1], getenv)
+			s.builder.SetEnv(env[0], env[1])
+		} else {
+			s.builder.SetEnv(env[0], os.Getenv(env[0]))
+		}
+	}
+	for _, envSpec := range s.executor.unsetEnvs {
+		s.builder.UnsetEnv(envSpec)
 	}
 	s.builder.SetCmd(config.Cmd)
 	s.builder.ClearVolumes()
@@ -1523,23 +1556,23 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	for k, v := range config.Labels {
 		s.builder.SetLabel(k, v)
 	}
+	if s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolUndefined || s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolTrue {
+		s.builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
+	}
 	for _, labelSpec := range s.executor.labels {
 		label := strings.SplitN(labelSpec, "=", 2)
 		if len(label) > 1 {
 			s.builder.SetLabel(label[0], label[1])
 		} else {
-			s.builder.SetLabel(label[0], "")
+			s.builder.UnsetLabel(label[0])
 		}
-	}
-	if s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolUndefined || s.executor.commonBuildOptions.IdentityLabel == types.OptionalBoolTrue {
-		s.builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
 	}
 	for _, annotationSpec := range s.executor.annotations {
 		annotation := strings.SplitN(annotationSpec, "=", 2)
 		if len(annotation) > 1 {
 			s.builder.SetAnnotation(annotation[0], annotation[1])
 		} else {
-			s.builder.SetAnnotation(annotation[0], "")
+			s.builder.UnsetAnnotation(annotation[0])
 		}
 	}
 	if imageRef != nil {
@@ -1566,7 +1599,6 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		RetryDelay:            s.executor.retryPullPushDelay,
 		HistoryTimestamp:      s.executor.timestamp,
 		Manifest:              s.executor.manifest,
-		UnsetEnvs:             s.executor.unsetEnvs,
 	}
 	// generate build output
 	if s.executor.buildOutput != "" {

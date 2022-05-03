@@ -134,6 +134,9 @@ type Executor struct {
 	processLabel            string // Shares processLabel of first stage container with containers of other stages in same build
 	mountLabel              string // Shares mountLabel of first stage container with containers of other stages in same build
 	buildOutput             string // Specifies instructions for any custom build output
+	osVersion               string
+	osFeatures              []string
+	envs                    []string
 }
 
 type imageTypeAndHistoryAndDiffIDs struct {
@@ -276,8 +279,11 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 		secrets:                        secrets,
 		sshsources:                     sshsources,
 		logPrefix:                      logPrefix,
-		unsetEnvs:                      options.UnsetEnvs,
+		unsetEnvs:                      append([]string{}, options.UnsetEnvs...),
 		buildOutput:                    options.BuildOutput,
+		osVersion:                      options.OSVersion,
+		osFeatures:                     append([]string{}, options.OSFeatures...),
+		envs:                           append([]string{}, options.Envs...),
 	}
 	if exec.err == nil {
 		exec.err = os.Stderr

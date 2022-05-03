@@ -221,6 +221,8 @@ function check_matrix() {
    --healthcheck-timeout 7s \
    --healthcheck-retries 8 \
    --onbuild "RUN touch /foo" \
+   --os-version "1.0" \
+   --os-feature dynamic --os-feature - --os-feature removed --os-feature removed- --os-feature win32k \
   $cid
 
   run_buildah commit --format docker $WITH_POLICY_JSON $cid scratch-image-docker
@@ -230,6 +232,8 @@ function check_matrix() {
   check_matrix 'Architecture' 'amd64'
   check_matrix 'OS'           'linux'
   check_matrix 'Variant'      'abc'
+  check_matrix 'OSVersion'    '1.0'
+  check_matrix 'OSFeatures'   '[win32k]'
 
   run_buildah inspect --format '{{.ImageCreatedBy}}' $cid
   expect_output "COINCIDENCE"

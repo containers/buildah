@@ -118,7 +118,7 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 	}
 
 	flags.BoolVar(&opts.squash, "squash", false, "produce an image with only one layer")
-	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "Require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
+	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 
 	flags.StringSliceVar(&opts.unsetenvs, "unsetenv", nil, "unset env from final image")
 	_ = cmd.RegisterFlagCompletionFunc("unsetenv", completion.AutocompleteNone)

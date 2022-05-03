@@ -77,10 +77,12 @@ ignore the `cmd` value of the container image.  However if you use the array
 form, then the cmd will be appended onto the end of the entrypoint cmd and be
 executed together.
 
-**--env**, **-e** *env=value*
+**--env**, **-e** *env[=value]*
 
 Add a value (e.g. env=*value*) to the environment for containers based on any
 images which will be built using the specified container. Can be used multiple times.
+If *env* is named but neither `=` nor a `value` is specified, then the value
+will be taken from the current process environment.
 If *env* has a trailing `-`, then the *env* is removed from the config.
 If the *env* is set to "-" then all environment variables are removed from the config.
 
@@ -160,6 +162,26 @@ Set the target *operating system* for any images which will be built using
 the specified container.  By default, if the container was based on an image,
 its OS is kept, otherwise the host's OS's name is recorded.
 
+**--os-feature** *feature*
+
+Set the name of a required operating system *feature* for any images which will
+be built using the specified container.  By default, if the container was based
+on an image, the base image's required OS feature list is kept, if it specified
+one.  This option is typically only meaningful when the image's OS is Windows.
+
+If *feature* has a trailing `-`, then the *feature* is removed from the set of
+required features which will be listed in the image.  If the *feature* is set
+to "-" then the entire features list is removed from the config.
+
+**--os-version** *version*
+
+Set the exact required operating system *version* for any images which will be
+built using the specified container.  By default, if the container was based on
+an image, the base image's required OS version is kept, if it specified one.
+This option is typically only meaningful when the image's OS is Windows, and is
+typically set in Windows base images, so using this option is usually
+unnecessary.
+
 **--port**, **-p** *port*
 
 Add a *port* to expose when running containers based on any images which
@@ -229,7 +251,15 @@ buildah config --volume /usr/myvol- containerID
 
 buildah config --port 1234 --port 8080 containerID
 
+buildah config --env 1234=5678 containerID
+
 buildah config --env 1234- containerID
+
+buildah config --os-version 10.0.19042.1645 containerID
+
+buildah config --os-feature win32k containerID
+
+buildah config --os-feature win32k- containerID
 
 ## SEE ALSO
 buildah(1)

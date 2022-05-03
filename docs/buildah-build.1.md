@@ -38,9 +38,10 @@ Add a line to /etc/hosts. The format is hostname:ip. The **--add-host** option c
 
 Instead of building for a set of platforms specified using the **--platform** option, inspect the build's base images, and build for all of the platforms for which they are all available.  Stages that use *scratch* as a starting point can not be inspected, so at least one non-*scratch* stage must be present for detection to work usefully.
 
-**--annotation** *annotation*
+**--annotation** *annotation[=value]*
 
 Add an image *annotation* (e.g. annotation=*value*) to the image metadata. Can be used multiple times.
+If *annotation* is named, but neither `=` nor a `value` is provided, then the *annotation* is removed from the image.
 
 Note: this information is not present in Docker image formats, so it is discarded when writing images in Docker formats.
 
@@ -241,6 +242,14 @@ Set custom DNS options
 
 Set custom DNS search domains
 
+**--env** *env[=value]*
+
+Add a value (e.g. env=*value*) to the built image.  Can be used multiple times.
+If neither `=` nor a `*value*` are specified, but *env* is set in the current
+environment, the value from the current environment will be added to the image.
+To remove an environment variable from the built image, use the `--unsetenv`
+option.
+
 **--file**, **-f** *Containerfile*
 
 Specifies a Containerfile which contains instructions for building the image,
@@ -327,9 +336,10 @@ Run up to N concurrent stages in parallel.  If the number of jobs is greater tha
 stdin will be read from /dev/null.  If 0 is specified, then there is
 no limit on the number of jobs that run in parallel.
 
-**--label** *label*
+**--label** *label[=value]*
 
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
+If *label* is named, but neither `=` nor a `value` is provided, then the *label* is removed from the image.
 
 Users can set a special LABEL **io.containers.capabilities=CAP1,CAP2,CAP3** in
 a Containerfile that specifies the list of Linux capabilities required for the
@@ -410,6 +420,24 @@ By default, Buildah manages _/etc/hosts_, adding the container's own IP address.
 **--os**="OS"
 
 Set the OS of the image to be built, and that of the base image to be pulled, if the build uses one, instead of using the current operating system of the host.
+
+**--os-feature** *feature*
+
+Set the name of a required operating system *feature* for the image which will
+be built.  By default, if the image is not based on *scratch*, the base image's
+required OS feature list is kept, if the base image specified any.  This option
+is typically only meaningful when the image's OS is Windows.
+
+If *feature* has a trailing `-`, then the *feature* is removed from the set of
+required features which will be listed in the image.
+
+**--os-version** *version*
+
+Set the exact required operating system *version* for the image which will be
+built.  By default, if the image is not based on *scratch*, the base image's
+required OS version is kept, if the base image specified one.  This option is
+typically only meaningful when the image's OS is Windows, and is typically set in
+Windows base images, so using this option is usually unnecessary.
 
 **--output**, **-o**=""
 
@@ -829,6 +857,18 @@ buildah build -f Containerfile.in -t imageName .
 
 buildah build --network mynet .
 
+buildah build --env LANG=en_US.UTF-8 -t imageName .
+
+buildah build --env EDITOR -t imageName .
+
+buildah build --unsetenv LANG -t imageName .
+
+buildah build --os-version 10.0.19042.1645 -t imageName .
+
+buildah build --os-feature win32k -t imageName .
+
+buildah build --os-feature win32k- -t imageName .
+
 ### Building an multi-architecture image using the --manifest option (requires emulation software)
 
 buildah build --arch arm --manifest myimage /tmp/mysrc
@@ -862,6 +902,7 @@ buildah build -o - . > out.tar
   Note: You can set an arbitrary Git repository via the git:// scheme.
 
 ### Building an image using a URL to a tarball'ed context
+
   Buildah will fetch the tarball archive, decompress it and use its contents as the build context.  The Containerfile or Dockerfile at the root of the archive and the rest of the archive will get used as the context of the build. If you pass an -f PATH/Containerfile option as well, the system will look for that file inside the contents of the tarball.
 
   buildah build -f dev/Containerfile https://10.10.10.1/buildah/context.tar.gz
@@ -869,6 +910,7 @@ buildah build -o - . > out.tar
   Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
 
 ### Using Build Time Variables
+
 #### Replace the value set for the HTTP_PROXY environment variable within the Containerfile.
 
 buildah build --build-arg=HTTP_PROXY="http://127.0.0.1:8321"
