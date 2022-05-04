@@ -1564,7 +1564,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		if len(label) > 1 {
 			s.builder.SetLabel(label[0], label[1])
 		} else {
-			s.builder.UnsetLabel(label[0])
+			s.builder.SetLabel(label[0], "")
 		}
 	}
 	for _, annotationSpec := range s.executor.annotations {
@@ -1572,7 +1572,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		if len(annotation) > 1 {
 			s.builder.SetAnnotation(annotation[0], annotation[1])
 		} else {
-			s.builder.UnsetAnnotation(annotation[0])
+			s.builder.SetAnnotation(annotation[0], "")
 		}
 	}
 	if imageRef != nil {
