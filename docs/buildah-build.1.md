@@ -41,7 +41,7 @@ Instead of building for a set of platforms specified using the **--platform** op
 **--annotation** *annotation[=value]*
 
 Add an image *annotation* (e.g. annotation=*value*) to the image metadata. Can be used multiple times.
-If *annotation* is named, but neither `=` nor a `value` is provided, then the *annotation* is removed from the image.
+If *annotation* is named, but neither `=` nor a `value` is provided, then the *annotation* is set to an empty value.
 
 Note: this information is not present in Docker image formats, so it is discarded when writing images in Docker formats.
 
@@ -339,7 +339,7 @@ no limit on the number of jobs that run in parallel.
 **--label** *label[=value]*
 
 Add an image *label* (e.g. label=*value*) to the image metadata. Can be used multiple times.
-If *label* is named, but neither `=` nor a `value` is provided, then the *label* is removed from the image.
+If *label* is named, but neither `=` nor a `value` is provided, then the *label* is set to an empty value.
 
 Users can set a special LABEL **io.containers.capabilities=CAP1,CAP2,CAP3** in
 a Containerfile that specifies the list of Linux capabilities required for the

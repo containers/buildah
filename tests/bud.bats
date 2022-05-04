@@ -717,13 +717,8 @@ _EOF
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
   expect_output "$want_output"
 
-  want_output='map["io.buildah.version":"'$buildah_version'"]'
-  run_buildah build --label "test=label" --label test $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
-  run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
-  expect_output "$want_output"
-
-  want_output='map[]'
-  run_buildah build --label io.buildah.version $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
+  want_output='map["io.buildah.version":"'$buildah_version'" "test":""]'
+  run_buildah build --label test $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   run_buildah inspect --format '{{printf "%q" .Docker.Config.Labels}}' ${target}
   expect_output "$want_output"
 }
@@ -748,9 +743,6 @@ _EOF
   run_buildah build --annotation "test=annotation1,annotation2=z" $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
   run_buildah inspect --format '{{index .ImageAnnotations "test"}}' ${target}
   expect_output "annotation1,annotation2=z"
-  run_buildah build --annotation "test=annotation1,annotation2=z" --annotation test $WITH_POLICY_JSON -t ${target} $BUDFILES/from-scratch
-  run_buildah inspect --format '{{index .ImageAnnotations "test"}}' ${target}
-  expect_output ""
 }
 
 @test "bud-from-scratch-layers" {
