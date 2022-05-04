@@ -242,6 +242,12 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		if len(options.Platforms) > 1 {
 			logPrefix = "[" + platforms.Format(platformSpec) + "] "
 		}
+		// Deep copy args to prevent concurrent read/writes over Args.
+		argsCopy := make(map[string]string)
+		for key, value := range options.Args {
+			argsCopy[key] = value
+		}
+		platformOptions.Args = argsCopy
 		builds.Go(func() error {
 			thisID, thisRef, err := buildDockerfilesOnce(ctx, store, logger, logPrefix, platformOptions, paths, files)
 			if err != nil {
@@ -332,15 +338,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	return id, ref, nil
 }
 
-func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logrus.Logger, logPrefix string, buildOpts define.BuildOptions, dockerfiles []string, dockerfilecontents [][]byte) (string, reference.Canonical, error) {
-	options := buildOpts
-	// Deep copy args to prevent concurrent read/writes over Args.
-	argsCopy := make(map[string]string)
-	for key, value := range options.Args {
-		argsCopy[key] = value
-	}
-	options.Args = argsCopy
-
+func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logrus.Logger, logPrefix string, options define.BuildOptions, dockerfiles []string, dockerfilecontents [][]byte) (string, reference.Canonical, error) {
 	mainNode, err := imagebuilder.ParseDockerfile(bytes.NewReader(dockerfilecontents[0]))
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "error parsing main Dockerfile: %s", dockerfiles[0])
