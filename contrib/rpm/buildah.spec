@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.27.0-dev
+Version:        1.26.1
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,7 +100,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
-* Wed May 04, 2022 Tom Sweeney <tsweeney@redhat.com> 1.27.0-dev-1
+* Wed May 04, 2022 Daniel Walsh <dwalsh@redhat.com> 1.26.1-1
+- Make `buildah build --label foo` create an empty "foo" label again
+- Bump to v1.27.0-dev
 
 * Wed May 04, 2022 Tom Sweeney <tsweeney@redhat.com> 1.26.0-1
 - imagebuildah,build: move deepcopy of args before we spawn goroutine
