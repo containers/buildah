@@ -1732,9 +1732,13 @@ func (s *stageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 	if err != nil {
 		return "", nil, fmt.Errorf("computing digest of manifest for image %q: %w", cacheID, err)
 	}
-	img, err := is.Transport.GetStoreImage(s.executor.store, dest)
-	if err != nil {
-		return "", nil, fmt.Errorf("locating new copy of image %q (i.e., %q): %w", cacheID, transports.ImageName(dest), err)
+	imgID := ""
+	if dest.Transport().Name() == is.Transport.Name() {
+		img, err := is.Transport.GetStoreImage(s.executor.store, dest)
+		if err != nil {
+			return "", nil, fmt.Errorf("error locating new copy of image %q (i.e., %q): %w", cacheID, transports.ImageName(dest), err)
+		}
+		imgID = img.ID
 	}
 	var ref reference.Canonical
 	if dref := dest.DockerReference(); dref != nil {
@@ -1742,7 +1746,7 @@ func (s *stageExecutor) tagExistingImage(ctx context.Context, cacheID, output st
 			return "", nil, fmt.Errorf("computing canonical reference for new image %q (i.e., %q): %w", cacheID, transports.ImageName(dest), err)
 		}
 	}
-	return img.ID, ref, nil
+	return imgID, ref, nil
 }
 
 // generateCacheKey returns a computed digest for the current STEP
