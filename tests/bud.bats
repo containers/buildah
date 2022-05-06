@@ -4054,6 +4054,20 @@ _EOF
   fi
 }
 
+@test "rootless networking: test build with ipv6 resolution" {
+  skip_if_root_environment
+  _prefetch alpine
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p $mytmpdir
+  cat > $mytmpdir/Containerfile << _EOF
+FROM fedora
+RUN curl --verbose --ipv6 https://google.com
+run printenv
+_EOF
+  run_buildah build $WITH_POLICY_JSON -t test -f $mytmpdir/Containerfile .
+  expect_output --substring "Connected to google.com"
+}
+
 @test "bud-with-mount-bind-from-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container

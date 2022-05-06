@@ -68,6 +68,7 @@ github.com/containernetworking/cni/pkg/types/internal
 github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.1.1
+## explicit
 github.com/containernetworking/plugins/pkg/ns
 # github.com/containers/common v0.48.0
 ## explicit

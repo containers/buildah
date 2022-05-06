@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/chroot"
 	"github.com/containers/buildah/copier"
@@ -1061,6 +1062,8 @@ func runCollectOutput(logger *logrus.Logger, fds, closeBeforeReadingFds []int) s
 }
 
 func setupRootlessNetwork(pid int) (teardown func(), err error) {
+	// TODO: allow users to configure rootless networking options
+	enableIPV6 := true
 	slirp4netns, err := exec.LookPath("slirp4netns")
 	if err != nil {
 		return nil, err
@@ -1088,12 +1091,71 @@ func setupRootlessNetwork(pid int) (teardown func(), err error) {
 		unix.CloseOnExec(fd)
 	}
 
-	cmd := exec.Command(slirp4netns, "--mtu", "65520", "-r", "3", "-c", strconv.Itoa(pid), "tap0")
+	slirpArgs := []string{}
+	if enableIPV6 {
+		slirpArgs = append(slirpArgs, "--enable-ipv6")
+	}
+	slirpArgs = append(slirpArgs, "--mtu", "65520", "-r", "3", "-c", strconv.Itoa(pid), "tap0")
+	cmd := exec.Command(slirp4netns, slirpArgs...)
 	setPdeathsig(cmd)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
 	cmd.ExtraFiles = []*os.File{rootlessSlirpSyncW}
 
+	ipv6ConfDefaultAcceptDadSysctl := "/proc/sys/net/ipv6/conf/default/accept_dad"
+	netnsPath := fmt.Sprintf("/proc/%d/ns/net", pid)
+	var slirpReadyWg, netnsReadyWg *sync.WaitGroup
+	if enableIPV6 {
+		// use two wait groups to make sure we set the sysctl before
+		// starting slirp and reset it only after slirp is ready
+		slirpReadyWg = &sync.WaitGroup{}
+		netnsReadyWg = &sync.WaitGroup{}
+		slirpReadyWg.Add(1)
+		netnsReadyWg.Add(1)
+
+		go func() {
+			err := ns.WithNetNSPath(netnsPath, func(_ ns.NetNS) error {
+				// Duplicate Address Detection slows the ipv6 setup down for 1-2 seconds.
+				// Since slirp4netns is run it is own namespace and not directly routed
+				// we can skip this to make the ipv6 address immediately available.
+				// We change the default to make sure the slirp tap interface gets the
+				// correct value assigned so DAD is disabled for it
+				// Also make sure to change this value back to the original after slirp4netns
+				// is ready in case users rely on this sysctl.
+				orgValue, err := ioutil.ReadFile(ipv6ConfDefaultAcceptDadSysctl)
+				if err != nil {
+					netnsReadyWg.Done()
+					// on ipv6 disabled systems the sysctl does not exists
+					// so we should not error
+					if errors.Is(err, os.ErrNotExist) {
+						return nil
+					}
+					return err
+				}
+				err = ioutil.WriteFile(ipv6ConfDefaultAcceptDadSysctl, []byte("0"), 0644)
+				netnsReadyWg.Done()
+				if err != nil {
+					return err
+				}
+
+				// wait until slirp4nets is ready before resetting this value
+				slirpReadyWg.Wait()
+				return ioutil.WriteFile(ipv6ConfDefaultAcceptDadSysctl, orgValue, 0644)
+			})
+			if err != nil {
+				logrus.Warnf("failed to set net.ipv6.conf.default.accept_dad sysctl: %v", err)
+			}
+		}()
+
+		// wait until we set the sysctl
+		netnsReadyWg.Wait()
+	}
+
 	err = cmd.Start()
+	if err != nil {
+		if enableIPV6 {
+			slirpReadyWg.Done()
+		}
+	}
 	rootlessSlirpSyncW.Close()
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot start slirp4netns")
