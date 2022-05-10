@@ -212,7 +212,10 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	}
 
 	if options.AllPlatforms {
-		options.Platforms, err = platformsForBaseImages(ctx, logger, paths, files, options.From, options.Args, options.SystemContext)
+		if options.AdditionalBuildContexts == nil {
+			options.AdditionalBuildContexts = make(map[string]*define.AdditionalBuildContext)
+		}
+		options.Platforms, err = platformsForBaseImages(ctx, logger, paths, files, options.From, options.Args, options.AdditionalBuildContexts, options.SystemContext)
 		if err != nil {
 			return "", nil, err
 		}
@@ -512,8 +515,8 @@ func preprocessContainerfileContents(logger *logrus.Logger, containerfile string
 // platformsForBaseImages resolves the names of base images from the
 // dockerfiles, and if they are all valid references to manifest lists, returns
 // the list of platforms that are supported by all of the base images.
-func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfilepaths []string, dockerfiles [][]byte, from string, args map[string]string, systemContext *types.SystemContext) ([]struct{ OS, Arch, Variant string }, error) {
-	baseImages, err := baseImages(dockerfilepaths, dockerfiles, from, args)
+func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfilepaths []string, dockerfiles [][]byte, from string, args map[string]string, additionalBuildContext map[string]*define.AdditionalBuildContext, systemContext *types.SystemContext) ([]struct{ OS, Arch, Variant string }, error) {
+	baseImages, err := baseImages(dockerfilepaths, dockerfiles, from, args, additionalBuildContext)
 	if err != nil {
 		return nil, errors.Wrapf(err, "determining list of base images")
 	}
@@ -641,7 +644,7 @@ func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfi
 // stage's base image with FROM, and returns the list of base images as
 // provided.  Each entry in the dockerfilenames slice corresponds to a slice in
 // dockerfilecontents.
-func baseImages(dockerfilenames []string, dockerfilecontents [][]byte, from string, args map[string]string) ([]string, error) {
+func baseImages(dockerfilenames []string, dockerfilecontents [][]byte, from string, args map[string]string, additionalBuildContext map[string]*define.AdditionalBuildContext) ([]string, error) {
 	mainNode, err := imagebuilder.ParseDockerfile(bytes.NewReader(dockerfilecontents[0]))
 	if err != nil {
 		return nil, errors.Wrapf(err, "error parsing main Dockerfile: %s", dockerfilenames[0])
@@ -679,6 +682,13 @@ func baseImages(dockerfilenames []string, dockerfilecontents [][]byte, from stri
 						if from != "" {
 							child.Next.Value = from
 							from = ""
+						}
+						if replaceBuildContext, ok := additionalBuildContext[child.Next.Value]; ok {
+							if replaceBuildContext.IsImage {
+								child.Next.Value = replaceBuildContext.Value
+							} else {
+								return nil, fmt.Errorf("build context %q is not an image, can not be used for FROM %q", child.Next.Value, child.Next.Value)
+							}
 						}
 						base := child.Next.Value
 						if base != "scratch" && !nicknames[base] {

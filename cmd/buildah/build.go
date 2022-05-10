@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -153,6 +154,22 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 				} else {
 					delete(args, av[0])
 				}
+			}
+		}
+	}
+
+	additionalBuildContext := make(map[string]*define.AdditionalBuildContext)
+	if c.Flag("build-context").Changed {
+		for _, contextString := range iopts.BuildContext {
+			av := strings.SplitN(contextString, "=", 2)
+			if len(av) > 1 {
+				parseAdditionalBuildContext, err := parse.GetAdditionalBuildContext(av[1])
+				if err != nil {
+					return errors.Wrapf(err, "while parsing additional build context")
+				}
+				additionalBuildContext[av[0]] = &parseAdditionalBuildContext
+			} else {
+				return fmt.Errorf("while parsing additional build context: %q, accepts value in the form of key=value", av)
 			}
 		}
 	}
@@ -344,6 +361,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		Annotations:             iopts.Annotation,
 		Architecture:            systemContext.ArchitectureChoice,
 		Args:                    args,
+		AdditionalBuildContexts: additionalBuildContext,
 		BlobDirectory:           iopts.BlobCache,
 		CNIConfigDir:            iopts.CNIConfigDir,
 		CNIPluginPath:           iopts.CNIPlugInPath,

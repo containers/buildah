@@ -53,6 +53,7 @@ type BudResults struct {
 	Annotation          []string
 	Authfile            string
 	BuildArg            []string
+	BuildContext        []string
 	CacheFrom           string
 	CertDir             string
 	Compress            bool
@@ -192,6 +193,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringArrayVar(&flags.Annotation, "annotation", []string{}, "set metadata for an image (default [])")
 	fs.StringVar(&flags.Authfile, "authfile", "", "path of the authentication file.")
 	fs.StringArrayVar(&flags.BuildArg, "build-arg", []string{}, "`argument=value` to supply to the builder")
+	fs.StringArrayVar(&flags.BuildContext, "build-context", []string{}, "`argument=value` to supply additional build context to the builder")
 	fs.StringVar(&flags.CacheFrom, "cache-from", "", "images to utilise as potential cache sources. The build process does not currently support caching so this is a NOOP.")
 	fs.StringVar(&flags.CertDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	fs.BoolVar(&flags.Compress, "compress", false, "this is a legacy option, which has no effect on the image")
@@ -267,6 +269,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["arch"] = commonComp.AutocompleteNone
 	flagCompletion["authfile"] = commonComp.AutocompleteDefault
 	flagCompletion["build-arg"] = commonComp.AutocompleteNone
+	flagCompletion["build-context"] = commonComp.AutocompleteNone
 	flagCompletion["cache-from"] = commonComp.AutocompleteNone
 	flagCompletion["cert-dir"] = commonComp.AutocompleteDefault
 	flagCompletion["cpp-flag"] = commonComp.AutocompleteNone
