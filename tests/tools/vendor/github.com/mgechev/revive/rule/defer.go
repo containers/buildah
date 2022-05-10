@@ -122,11 +122,12 @@ func (w lintDeferRule) visitSubtree(n ast.Node, inADefer, inALoop, inAFuncLit bo
 		inADefer:   inADefer,
 		inALoop:    inALoop,
 		inAFuncLit: inAFuncLit,
-		allow:      w.allow}
+		allow:      w.allow,
+	}
 	ast.Walk(nw, n)
 }
 
-func (w lintDeferRule) newFailure(msg string, node ast.Node, confidence float64, cat string, subcase string) {
+func (w lintDeferRule) newFailure(msg string, node ast.Node, confidence float64, cat, subcase string) {
 	if !w.allow[subcase] {
 		return
 	}

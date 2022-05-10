@@ -39,7 +39,7 @@ func TestXattrs(t *testing.T) {
 
 			err = Lsetxattrs(f.Name(), map[string]string{attribute: value})
 			if unwrapError(err) == syscall.ENOTSUP {
-				t.Skip(fmt.Sprintf("extended attributes not supported on %q, skipping", tmp))
+				t.Skipf("extended attributes not supported on %q, skipping", tmp)
 			}
 			if !assert.Nil(t, err, "error setting attribute on file: %v", err) {
 				t.FailNow()

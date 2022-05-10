@@ -34,8 +34,8 @@ func formatFailure(failure lint.Failure, severity lint.Severity) []string {
 // Format formats the failures gotten from the lint.
 func (f *Stylish) Format(failures <-chan lint.Failure, config lint.Config) (string, error) {
 	var result [][]string
-	var totalErrors = 0
-	var total = 0
+	totalErrors := 0
+	total := 0
 
 	for f := range failures {
 		total++

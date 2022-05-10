@@ -2,7 +2,6 @@ package rule
 
 import (
 	"go/ast"
-
 	"strings"
 
 	"github.com/mgechev/revive/lint"

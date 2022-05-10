@@ -99,7 +99,7 @@ func (n *nilNil) run(pass *analysis.Pass) (interface{}, error) {
 		return true
 	})
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (n *nilNil) isDangerNilField(f *ast.Field, typeSpecs typeSpecByName) bool {

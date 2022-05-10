@@ -182,7 +182,7 @@ func checkStarExprTarget(typ *ast.StarExpr) bool {
 	}
 	targetName := x.Name + "." + selector.Sel.Name
 	switch targetName {
-	case "testing.T", "testing.B":
+	case "testing.T", "testing.B", "testing.F":
 		return true
 	default:
 		return false

@@ -249,8 +249,14 @@ func StructFieldInfo(f fakereflect.StructField) (*fieldInfo, error) {
 // in case it exists and has a valid xml field tag, otherwise
 // it returns nil.
 func lookupXMLName(typ fakereflect.TypeAndCanAddr) (xmlname *fieldInfo) {
+	seen := map[fakereflect.TypeAndCanAddr]struct{}{}
 	for typ.IsPtr() {
 		typ = typ.Elem()
+		if _, ok := seen[typ]; ok {
+			// Loop in type graph, e.g. 'type P *P'
+			return nil
+		}
+		seen[typ] = struct{}{}
 	}
 	if !typ.IsStruct() {
 		return nil

@@ -23,7 +23,7 @@ type ExportedRule struct {
 func (r *ExportedRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
-	if isTest(file) {
+	if file.IsTest() {
 		return failures
 	}
 
@@ -61,7 +61,7 @@ func (r *ExportedRule) Name() string {
 	return "exported"
 }
 
-func (r *ExportedRule) getConf(args lint.Arguments) (checkPrivateReceivers bool, disableStutteringCheck bool, sayRepetitiveInsteadOfStutters bool) {
+func (r *ExportedRule) getConf(args lint.Arguments) (checkPrivateReceivers, disableStutteringCheck, sayRepetitiveInsteadOfStutters bool) {
 	// if any, we expect a slice of strings as configuration
 	if len(args) < 1 {
 		return

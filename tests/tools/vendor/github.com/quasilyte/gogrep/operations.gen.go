@@ -451,102 +451,124 @@ const (
 	// Value: token.Token | ':=' or '='
 	opRangeKeyValueStmt operation = 97
 
+	// Tag: RangeStmt
+	// Args: x
+	// Example: range x
+	opRangeClause operation = 98
+
+	// Tag: RangeStmt
+	// Args: x
+	// Example: for range x
+	opRangeHeader operation = 99
+
+	// Tag: RangeStmt
+	// Args: key x
+	// Example: for key := range x
+	// Value: token.Token | ':=' or '='
+	opRangeKeyHeader operation = 100
+
+	// Tag: RangeStmt
+	// Args: key value x
+	// Example: for key, value := range x
+	// Value: token.Token | ':=' or '='
+	opRangeKeyValueHeader operation = 101
+
 	// Tag: Unknown
 	// Args: fields...
-	opFieldList operation = 98
+	opFieldList operation = 102
 
 	// Tag: Unknown
 	// Args: typ
 	// Example: type
-	opUnnamedField operation = 99
+	opUnnamedField operation = 103
 
 	// Tag: Unknown
 	// Args: typ
 	// Example: name type
 	// ValueIndex: strings | field name
-	opSimpleField operation = 100
+	opSimpleField operation = 104
 
 	// Tag: Unknown
 	// Args: name typ
 	// Example: $name type
-	opField operation = 101
+	opField operation = 105
 
 	// Tag: Unknown
 	// Args: names... typ
 	// Example: name1, name2 type
-	opMultiField operation = 102
+	opMultiField operation = 106
 
 	// Tag: ValueSpec
 	// Args: value
-	opValueSpec operation = 103
+	opValueSpec operation = 107
 
 	// Tag: ValueSpec
 	// Args: lhs... rhs...
 	// Example: lhs = rhs
-	opValueInitSpec operation = 104
+	opValueInitSpec operation = 108
 
 	// Tag: ValueSpec
 	// Args: lhs... type rhs...
 	// Example: lhs typ = rhs
-	opTypedValueInitSpec operation = 105
+	opTypedValueInitSpec operation = 109
 
 	// Tag: ValueSpec
 	// Args: lhs... type
 	// Example: lhs typ
-	opTypedValueSpec operation = 106
+	opTypedValueSpec operation = 110
 
 	// Tag: TypeSpec
 	// Args: name type
 	// Example: name type
-	opTypeSpec operation = 107
+	opTypeSpec operation = 111
 
 	// Tag: TypeSpec
 	// Args: name type
 	// Example: name = type
-	opTypeAliasSpec operation = 108
+	opTypeAliasSpec operation = 112
 
 	// Tag: FuncDecl
 	// Args: name type block
-	opFuncDecl operation = 109
+	opFuncDecl operation = 113
 
 	// Tag: FuncDecl
 	// Args: recv name type block
-	opMethodDecl operation = 110
+	opMethodDecl operation = 114
 
 	// Tag: FuncDecl
 	// Args: name type
-	opFuncProtoDecl operation = 111
+	opFuncProtoDecl operation = 115
 
 	// Tag: FuncDecl
 	// Args: recv name type
-	opMethodProtoDecl operation = 112
+	opMethodProtoDecl operation = 116
 
 	// Tag: DeclStmt
 	// Args: decl
-	opDeclStmt operation = 113
+	opDeclStmt operation = 117
 
 	// Tag: GenDecl
 	// Args: valuespecs...
-	opConstDecl operation = 114
+	opConstDecl operation = 118
 
 	// Tag: GenDecl
 	// Args: valuespecs...
-	opVarDecl operation = 115
+	opVarDecl operation = 119
 
 	// Tag: GenDecl
 	// Args: typespecs...
-	opTypeDecl operation = 116
+	opTypeDecl operation = 120
 
 	// Tag: GenDecl
-	opAnyImportDecl operation = 117
+	opAnyImportDecl operation = 121
 
 	// Tag: GenDecl
 	// Args: importspecs...
-	opImportDecl operation = 118
+	opImportDecl operation = 122
 
 	// Tag: File
 	// Args: name
-	opEmptyPackage operation = 119
+	opEmptyPackage operation = 123
 )
 
 type operationInfo struct {
@@ -1332,6 +1354,38 @@ var operationInfoTable = [256]operationInfo{
 	opRangeKeyValueStmt: {
 		Tag:            nodetag.RangeStmt,
 		NumArgs:        4,
+		ValueKind:      tokenValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opRangeClause: {
+		Tag:            nodetag.RangeStmt,
+		NumArgs:        1,
+		ValueKind:      emptyValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opRangeHeader: {
+		Tag:            nodetag.RangeStmt,
+		NumArgs:        1,
+		ValueKind:      emptyValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opRangeKeyHeader: {
+		Tag:            nodetag.RangeStmt,
+		NumArgs:        2,
+		ValueKind:      tokenValue,
+		ExtraValueKind: emptyValue,
+		VariadicMap:    0, // 0
+		SliceIndex:     -1,
+	},
+	opRangeKeyValueHeader: {
+		Tag:            nodetag.RangeStmt,
+		NumArgs:        3,
 		ValueKind:      tokenValue,
 		ExtraValueKind: emptyValue,
 		VariadicMap:    0, // 0

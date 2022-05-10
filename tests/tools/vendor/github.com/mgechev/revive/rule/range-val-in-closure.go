@@ -35,7 +35,6 @@ type rangeValInClosure struct {
 }
 
 func (w rangeValInClosure) Visit(node ast.Node) ast.Visitor {
-
 	// Find the variables updated by the loop statement.
 	var vars []*ast.Ident
 	addVar := func(expr ast.Expr) {

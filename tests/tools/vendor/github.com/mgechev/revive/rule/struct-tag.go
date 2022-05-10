@@ -53,7 +53,6 @@ func (w lintStructTagRule) Visit(node ast.Node) ast.Visitor {
 	}
 
 	return w
-
 }
 
 // checkTaggedField checks the tag of the given field.

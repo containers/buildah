@@ -15,7 +15,6 @@ type ContextAsArgumentRule struct {
 
 // Apply applies the rule to given file.
 func (r *ContextAsArgumentRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
-
 	if r.allowTypesLUT == nil {
 		r.allowTypesLUT = getAllowTypesFromArguments(args)
 	}

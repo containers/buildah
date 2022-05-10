@@ -6,6 +6,8 @@ import (
 	"go/token"
 	"reflect"
 	"strings"
+
+	"golang.org/x/exp/typeparams"
 )
 
 func IsIdent(expr ast.Expr, ident string) bool {
@@ -20,6 +22,7 @@ func IsBlank(id ast.Expr) bool {
 	return ident != nil && ident.Name == "_"
 }
 
+// Deprecated: use code.IsIntegerLiteral instead.
 func IsIntLiteral(expr ast.Expr, literal string) bool {
 	lit, ok := expr.(*ast.BasicLit)
 	return ok && lit.Kind == token.INT && lit.Value == literal
@@ -77,103 +80,154 @@ func Unparen(e ast.Expr) ast.Expr {
 	}
 }
 
-func CopyExpr(node ast.Expr) ast.Expr {
+// CopyExpr creates a deep copy of an expression.
+// It doesn't support copying FuncLits and returns ok == false when encountering one.
+func CopyExpr(node ast.Expr) (ast.Expr, bool) {
 	switch node := node.(type) {
 	case *ast.BasicLit:
 		cp := *node
-		return &cp
+		return &cp, true
 	case *ast.BinaryExpr:
 		cp := *node
-		cp.X = CopyExpr(cp.X)
-		cp.Y = CopyExpr(cp.Y)
-		return &cp
+		var ok1, ok2 bool
+		cp.X, ok1 = CopyExpr(cp.X)
+		cp.Y, ok2 = CopyExpr(cp.Y)
+		return &cp, ok1 && ok2
 	case *ast.CallExpr:
+		var ok bool
 		cp := *node
-		cp.Fun = CopyExpr(cp.Fun)
+		cp.Fun, ok = CopyExpr(cp.Fun)
+		if !ok {
+			return nil, false
+		}
 		cp.Args = make([]ast.Expr, len(node.Args))
 		for i, v := range node.Args {
-			cp.Args[i] = CopyExpr(v)
+			cp.Args[i], ok = CopyExpr(v)
+			if !ok {
+				return nil, false
+			}
 		}
-		return &cp
+		return &cp, true
 	case *ast.CompositeLit:
+		var ok bool
 		cp := *node
-		cp.Type = CopyExpr(cp.Type)
+		cp.Type, ok = CopyExpr(cp.Type)
+		if !ok {
+			return nil, false
+		}
 		cp.Elts = make([]ast.Expr, len(node.Elts))
 		for i, v := range node.Elts {
-			cp.Elts[i] = CopyExpr(v)
+			cp.Elts[i], ok = CopyExpr(v)
+			if !ok {
+				return nil, false
+			}
 		}
-		return &cp
+		return &cp, true
 	case *ast.Ident:
 		cp := *node
-		return &cp
+		return &cp, true
 	case *ast.IndexExpr:
+		var ok1, ok2 bool
 		cp := *node
-		cp.X = CopyExpr(cp.X)
-		cp.Index = CopyExpr(cp.Index)
-		return &cp
+		cp.X, ok1 = CopyExpr(cp.X)
+		cp.Index, ok2 = CopyExpr(cp.Index)
+		return &cp, ok1 && ok2
+	case *typeparams.IndexListExpr:
+		var ok bool
+		cp := *node
+		cp.X, ok = CopyExpr(cp.X)
+		if !ok {
+			return nil, false
+		}
+		for i, v := range node.Indices {
+			cp.Indices[i], ok = CopyExpr(v)
+			if !ok {
+				return nil, false
+			}
+		}
+		return &cp, true
 	case *ast.KeyValueExpr:
+		var ok1, ok2 bool
 		cp := *node
-		cp.Key = CopyExpr(cp.Key)
-		cp.Value = CopyExpr(cp.Value)
-		return &cp
+		cp.Key, ok1 = CopyExpr(cp.Key)
+		cp.Value, ok2 = CopyExpr(cp.Value)
+		return &cp, ok1 && ok2
 	case *ast.ParenExpr:
+		var ok bool
 		cp := *node
-		cp.X = CopyExpr(cp.X)
-		return &cp
+		cp.X, ok = CopyExpr(cp.X)
+		return &cp, ok
 	case *ast.SelectorExpr:
+		var ok bool
 		cp := *node
-		cp.X = CopyExpr(cp.X)
-		cp.Sel = CopyExpr(cp.Sel).(*ast.Ident)
-		return &cp
+		cp.X, ok = CopyExpr(cp.X)
+		if !ok {
+			return nil, false
+		}
+		sel, ok := CopyExpr(cp.Sel)
+		if !ok {
+			// this is impossible
+			return nil, false
+		}
+		cp.Sel = sel.(*ast.Ident)
+		return &cp, true
 	case *ast.SliceExpr:
+		var ok1, ok2, ok3, ok4 bool
 		cp := *node
-		cp.X = CopyExpr(cp.X)
-		cp.Low = CopyExpr(cp.Low)
-		cp.High = CopyExpr(cp.High)
-		cp.Max = CopyExpr(cp.Max)
-		return &cp
+		cp.X, ok1 = CopyExpr(cp.X)
+		cp.Low, ok2 = CopyExpr(cp.Low)
+		cp.High, ok3 = CopyExpr(cp.High)
+		cp.Max, ok4 = CopyExpr(cp.Max)
+		return &cp, ok1 && ok2 && ok3 && ok4
 	case *ast.StarExpr:
+		var ok bool
 		cp := *node
-		cp.X = CopyExpr(cp.X)
-		return &cp
+		cp.X, ok = CopyExpr(cp.X)
+		return &cp, ok
 	case *ast.TypeAssertExpr:
+		var ok1, ok2 bool
 		cp := *node
-		cp.X = CopyExpr(cp.X)
-		cp.Type = CopyExpr(cp.Type)
-		return &cp
+		cp.X, ok1 = CopyExpr(cp.X)
+		cp.Type, ok2 = CopyExpr(cp.Type)
+		return &cp, ok1 && ok2
 	case *ast.UnaryExpr:
+		var ok bool
 		cp := *node
-		cp.X = CopyExpr(cp.X)
-		return &cp
+		cp.X, ok = CopyExpr(cp.X)
+		return &cp, ok
 	case *ast.MapType:
+		var ok1, ok2 bool
 		cp := *node
-		cp.Key = CopyExpr(cp.Key)
-		cp.Value = CopyExpr(cp.Value)
-		return &cp
+		cp.Key, ok1 = CopyExpr(cp.Key)
+		cp.Value, ok2 = CopyExpr(cp.Value)
+		return &cp, ok1 && ok2
 	case *ast.ArrayType:
+		var ok1, ok2 bool
 		cp := *node
-		cp.Len = CopyExpr(cp.Len)
-		cp.Elt = CopyExpr(cp.Elt)
-		return &cp
+		cp.Len, ok1 = CopyExpr(cp.Len)
+		cp.Elt, ok2 = CopyExpr(cp.Elt)
+		return &cp, ok1 && ok2
 	case *ast.Ellipsis:
+		var ok bool
 		cp := *node
-		cp.Elt = CopyExpr(cp.Elt)
-		return &cp
+		cp.Elt, ok = CopyExpr(cp.Elt)
+		return &cp, ok
 	case *ast.InterfaceType:
 		cp := *node
-		return &cp
+		return &cp, true
 	case *ast.StructType:
 		cp := *node
-		return &cp
-	case *ast.FuncLit:
-		// TODO(dh): implement copying of function literals.
-		return nil
+		return &cp, true
+	case *ast.FuncLit, *ast.FuncType:
+		// TODO(dh): implement copying of function literals and types.
+		return nil, false
 	case *ast.ChanType:
+		var ok bool
 		cp := *node
-		cp.Value = CopyExpr(cp.Value)
-		return &cp
+		cp.Value, ok = CopyExpr(cp.Value)
+		return &cp, ok
 	case nil:
-		return nil
+		return nil, true
 	default:
 		panic(fmt.Sprintf("unreachable: %T", node))
 	}
@@ -226,6 +280,17 @@ func Equal(a, b ast.Node) bool {
 	case *ast.IndexExpr:
 		b := b.(*ast.IndexExpr)
 		return Equal(a.X, b.X) && Equal(a.Index, b.Index)
+	case *typeparams.IndexListExpr:
+		b := b.(*typeparams.IndexListExpr)
+		if len(a.Indices) != len(b.Indices) {
+			return false
+		}
+		for i, v := range a.Indices {
+			if !Equal(v, b.Indices[i]) {
+				return false
+			}
+		}
+		return Equal(a.X, b.X)
 	case *ast.KeyValueExpr:
 		b := b.(*ast.KeyValueExpr)
 		return Equal(a.Key, b.Key) && Equal(a.Value, b.Value)

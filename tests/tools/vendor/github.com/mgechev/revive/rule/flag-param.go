@@ -2,8 +2,9 @@ package rule
 
 import (
 	"fmt"
-	"github.com/mgechev/revive/lint"
 	"go/ast"
+
+	"github.com/mgechev/revive/lint"
 )
 
 // FlagParamRule lints given else constructs.

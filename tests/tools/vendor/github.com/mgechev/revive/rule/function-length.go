@@ -43,7 +43,7 @@ func (r *FunctionLength) Name() string {
 	return "function-length"
 }
 
-func (r *FunctionLength) parseArguments(arguments lint.Arguments) (maxStmt int64, maxLines int64) {
+func (r *FunctionLength) parseArguments(arguments lint.Arguments) (maxStmt, maxLines int64) {
 	if len(arguments) != 2 {
 		panic(fmt.Sprintf(`invalid configuration for "function-length" rule, expected 2 arguments but got %d`, len(arguments)))
 	}

@@ -9,6 +9,10 @@ package ir
 import (
 	"fmt"
 	"go/types"
+
+	"honnef.co/go/tools/analysis/lint"
+
+	"golang.org/x/exp/typeparams"
 )
 
 // MethodValue returns the Function implementing method sel, building
@@ -116,10 +120,15 @@ func (prog *Program) RuntimeTypes() []types.Type {
 
 // declaredFunc returns the concrete function/method denoted by obj.
 // Panic ensues if there is none.
-//
 func (prog *Program) declaredFunc(obj *types.Func) *Function {
-	if v := prog.packageLevelValue(obj); v != nil {
-		return v.(*Function)
+	if origin := typeparams.OriginMethod(obj); origin != obj {
+		// Calling method on instantiated type, create a wrapper that calls the generic type's method
+		base := prog.packageLevelValue(origin)
+		return makeInstance(prog, base.(*Function), obj.Type().(*types.Signature), nil)
+	} else {
+		if v := prog.packageLevelValue(obj); v != nil {
+			return v.(*Function)
+		}
 	}
 	panic("no concrete method: " + obj.String())
 }
@@ -186,7 +195,7 @@ func (prog *Program) needMethods(T types.Type, skip bool) {
 	case *types.Basic:
 		// nop
 
-	case *types.Interface:
+	case *types.Interface, *typeparams.TypeParam:
 		// nop---handled by recursion over method set.
 
 	case *types.Pointer:
@@ -212,7 +221,7 @@ func (prog *Program) needMethods(T types.Type, skip bool) {
 	case *types.Named:
 		// A pointer-to-named type can be derived from a named
 		// type via reflection.  It may have methods too.
-		prog.needMethods(types.NewPointer(T), false)
+		prog.needMethods(types.NewPointer(t), false)
 
 		// Consider 'type T struct{S}' where S has methods.
 		// Reflection provides no way to get from T to struct{S},
@@ -234,6 +243,6 @@ func (prog *Program) needMethods(T types.Type, skip bool) {
 		}
 
 	default:
-		panic(T)
+		lint.ExhaustiveTypeSwitch(T)
 	}
 }

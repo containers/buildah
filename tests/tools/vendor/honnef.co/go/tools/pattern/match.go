@@ -6,6 +6,8 @@ import (
 	"go/token"
 	"go/types"
 	"reflect"
+
+	"golang.org/x/exp/typeparams"
 )
 
 var tokensByString = map[string]Token{
@@ -428,6 +430,8 @@ func (s String) Match(m *Matcher, node interface{}) (interface{}, bool) {
 		return nil, false
 	case string:
 		return o, string(s) == o
+	case types.TypeAndValue:
+		return o, o.Value != nil && o.Value.String() == string(s)
 	default:
 		return nil, false
 	}
@@ -474,31 +478,53 @@ func (fn Function) Match(m *Matcher, node interface{}) (interface{}, bool) {
 	var name string
 	var obj types.Object
 
-	r, ok := match(m, Or{Nodes: []Node{Ident{Any{}}, SelectorExpr{Any{}, Any{}}}}, node)
+	base := []Node{
+		Ident{Any{}},
+		SelectorExpr{Any{}, Any{}},
+	}
+	p := Or{
+		Nodes: append(base,
+			IndexExpr{Or{Nodes: base}, Any{}},
+			IndexListExpr{Or{Nodes: base}, Any{}})}
+
+	r, ok := match(m, p, node)
 	if !ok {
 		return nil, false
 	}
 
-	switch r := r.(type) {
+	fun := r
+	switch idx := fun.(type) {
+	case *ast.IndexExpr:
+		fun = idx.X
+	case *typeparams.IndexListExpr:
+		fun = idx.X
+	}
+
+	switch fun := fun.(type) {
 	case *ast.Ident:
-		obj = m.TypesInfo.ObjectOf(r)
+		obj = m.TypesInfo.ObjectOf(fun)
 		switch obj := obj.(type) {
 		case *types.Func:
 			// OPT(dh): optimize this similar to code.FuncName
 			name = obj.FullName()
 		case *types.Builtin:
 			name = obj.Name()
+		case *types.TypeName:
+			name = types.TypeString(obj.Type(), nil)
 		default:
 			return nil, false
 		}
 	case *ast.SelectorExpr:
-		var ok bool
-		obj, ok = m.TypesInfo.ObjectOf(r.Sel).(*types.Func)
-		if !ok {
+		obj = m.TypesInfo.ObjectOf(fun.Sel)
+		switch obj := obj.(type) {
+		case *types.Func:
+			// OPT(dh): optimize this similar to code.FuncName
+			name = obj.FullName()
+		case *types.TypeName:
+			name = types.TypeString(obj.Type(), nil)
+		default:
 			return nil, false
 		}
-		// OPT(dh): optimize this similar to code.FuncName
-		name = obj.(*types.Func).FullName()
 	default:
 		panic("unreachable")
 	}
@@ -525,6 +551,51 @@ func (not Not) Match(m *Matcher, node interface{}) (interface{}, bool) {
 	return node, true
 }
 
+var integerLiteralQ = MustParse(`(Or (BasicLit "INT" _) (UnaryExpr (Or "+" "-") (IntegerLiteral _)))`)
+
+func (lit IntegerLiteral) Match(m *Matcher, node interface{}) (interface{}, bool) {
+	matched, ok := match(m, integerLiteralQ.Root, node)
+	if !ok {
+		return nil, false
+	}
+	tv, ok := m.TypesInfo.Types[matched.(ast.Expr)]
+	if !ok {
+		return nil, false
+	}
+	if tv.Value == nil {
+		return nil, false
+	}
+	_, ok = match(m, lit.Value, tv)
+	return matched, ok
+}
+
+func (texpr TrulyConstantExpression) Match(m *Matcher, node interface{}) (interface{}, bool) {
+	expr, ok := node.(ast.Expr)
+	if !ok {
+		return nil, false
+	}
+	tv, ok := m.TypesInfo.Types[expr]
+	if !ok {
+		return nil, false
+	}
+	if tv.Value == nil {
+		return nil, false
+	}
+	truly := true
+	ast.Inspect(expr, func(node ast.Node) bool {
+		if _, ok := node.(*ast.Ident); ok {
+			truly = false
+			return false
+		}
+		return true
+	})
+	if !truly {
+		return nil, false
+	}
+	_, ok = match(m, texpr.Value, tv)
+	return expr, ok
+}
+
 var (
 	// Types of fields in go/ast structs that we want to skip
 	rtTokPos       = reflect.TypeOf(token.Pos(0))
@@ -544,4 +615,6 @@ var (
 	_ matcher = Function{}
 	_ matcher = Or{}
 	_ matcher = Not{}
+	_ matcher = IntegerLiteral{}
+	_ matcher = TrulyConstantExpression{}
 )

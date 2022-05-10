@@ -92,7 +92,10 @@ func (ctx *Context) Process() []types.Object {
 }
 
 func isTestFuncByName(name string) bool {
-	return strings.HasPrefix(name, "Test") || strings.HasPrefix(name, "Benchmark") || strings.HasPrefix(name, "Example")
+	return strings.HasPrefix(name, "Test") ||
+		strings.HasPrefix(name, "Benchmark") ||
+		strings.HasPrefix(name, "Fuzz") ||
+		strings.HasPrefix(name, "Example")
 }
 
 func (ctx *Context) doPackage(prog *loader.Program, pkg *loader.PackageInfo) []types.Object {

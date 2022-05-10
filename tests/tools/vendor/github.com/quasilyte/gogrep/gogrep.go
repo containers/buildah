@@ -1,6 +1,7 @@
 package gogrep
 
 import (
+	"errors"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -34,14 +35,36 @@ func (data MatchData) CapturedByName(name string) (ast.Node, bool) {
 	return findNamed(data.Capture, name)
 }
 
+type PartialNode struct {
+	X ast.Node
+
+	from token.Pos
+	to   token.Pos
+}
+
+func (p *PartialNode) Pos() token.Pos { return p.from }
+func (p *PartialNode) End() token.Pos { return p.to }
+
 type MatcherState struct {
 	Types *types.Info
+
+	// CapturePreset is a key-value pairs to use in the next match calls
+	// as predefined variables.
+	// For example, if the pattern is `$x = f()` and CapturePreset contains
+	// a pair with Name=x and value of `obj.x`, then the above mentioned
+	// pattern will only match `obj.x = f()` statements.
+	//
+	// If nil, the default behavior will be used. A first syntax element
+	// matching the matcher var will be captured.
+	CapturePreset []CapturedNode
 
 	// node values recorded by name, excluding "_" (used only by the
 	// actual matching phase)
 	capture []CapturedNode
 
 	pc int
+
+	partial PartialNode
 }
 
 func NewMatcherState() MatcherState {
@@ -106,6 +129,9 @@ func Compile(config CompileConfig) (*Pattern, PatternInfo, error) {
 	if err != nil {
 		return nil, info, err
 	}
+	if n == nil {
+		return nil, info, errors.New("invalid pattern syntax")
+	}
 	var c compiler
 	c.config = config
 	prog, err := c.Compile(n, &info)
@@ -114,6 +140,37 @@ func Compile(config CompileConfig) (*Pattern, PatternInfo, error) {
 	}
 	m := newMatcher(prog)
 	return &Pattern{m: m}, info, nil
+}
+
+func Walk(root ast.Node, fn func(n ast.Node) bool) {
+	switch root := root.(type) {
+	case ExprSlice:
+		for _, e := range root {
+			ast.Inspect(e, fn)
+		}
+	case stmtSlice:
+		for _, e := range root {
+			ast.Inspect(e, fn)
+		}
+	case fieldSlice:
+		for _, e := range root {
+			ast.Inspect(e, fn)
+		}
+	case identSlice:
+		for _, e := range root {
+			ast.Inspect(e, fn)
+		}
+	case specSlice:
+		for _, e := range root {
+			ast.Inspect(e, fn)
+		}
+	case declSlice:
+		for _, e := range root {
+			ast.Inspect(e, fn)
+		}
+	default:
+		ast.Inspect(root, fn)
+	}
 }
 
 func newPatternInfo() PatternInfo {

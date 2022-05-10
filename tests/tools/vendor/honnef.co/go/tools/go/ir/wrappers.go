@@ -21,8 +21,9 @@ package ir
 
 import (
 	"fmt"
-
 	"go/types"
+
+	"golang.org/x/exp/typeparams"
 )
 
 // -- wrappers -----------------------------------------------------------
@@ -287,4 +288,100 @@ type selectionKey struct {
 	obj      types.Object
 	index    string
 	indirect bool
+}
+
+// makeInstance creates a wrapper function with signature sig that calls the generic function fn.
+// If targs is not nil, fn is a function and targs describes the concrete type arguments.
+// If targs is nil, fn is a method and the type arguments are derived from the receiver.
+func makeInstance(prog *Program, fn *Function, sig *types.Signature, targs *typeparams.TypeList) *Function {
+	if sig.Recv() != nil {
+		assert(targs == nil)
+		// Methods don't have their own type parameters, but the receiver does
+		targs = typeparams.NamedTypeArgs(deref(sig.Recv().Type()).(*types.Named))
+	} else {
+		assert(targs != nil)
+	}
+
+	wrapper := fn.generics.At(targs)
+	if wrapper != nil {
+		return wrapper
+	}
+
+	var name string
+	if sig.Recv() != nil {
+		name = fn.name
+	} else {
+		name = fmt.Sprintf("%s$generic#%d", fn.name, fn.generics.Len())
+	}
+	w := &Function{
+		name:         name,
+		object:       fn.object,
+		Signature:    sig,
+		Synthetic:    SyntheticGeneric,
+		Prog:         prog,
+		functionBody: new(functionBody),
+	}
+	w.initHTML(prog.PrintFunc)
+	w.startBody()
+	if sig.Recv() != nil {
+		w.addParamObj(sig.Recv(), nil)
+	}
+	createParams(w, 0)
+	var c Call
+	c.Call.Value = fn
+	tresults := fn.Signature.Results()
+	if tresults.Len() == 1 {
+		c.typ = tresults.At(0).Type()
+	} else {
+		c.typ = tresults
+	}
+
+	changeType := func(v Value, typ types.Type) Value {
+		if types.Identical(v.Type(), typ) {
+			return v
+		}
+		var c ChangeType
+		c.X = v
+		c.typ = typ
+		return w.emit(&c, nil)
+	}
+
+	for i, arg := range w.Params {
+		if sig.Recv() != nil {
+			if i == 0 {
+				c.Call.Args = append(c.Call.Args, changeType(w.Params[0], fn.Signature.Recv().Type()))
+			} else {
+				c.Call.Args = append(c.Call.Args, changeType(arg, fn.Signature.Params().At(i-1).Type()))
+			}
+		} else {
+			c.Call.Args = append(c.Call.Args, changeType(arg, fn.Signature.Params().At(i).Type()))
+		}
+	}
+	for i := 0; i < targs.Len(); i++ {
+		arg := targs.At(i)
+		c.Call.TypeArgs = append(c.Call.TypeArgs, arg)
+	}
+	results := w.emit(&c, nil)
+	var ret Return
+	switch tresults.Len() {
+	case 0:
+	case 1:
+		ret.Results = []Value{changeType(results, sig.Results().At(0).Type())}
+	default:
+		for i := 0; i < tresults.Len(); i++ {
+			v := emitExtract(w, results, i, nil)
+			ret.Results = append(ret.Results, changeType(v, sig.Results().At(i).Type()))
+		}
+	}
+
+	w.Exit = w.newBasicBlock("exit")
+	emitJump(w, w.Exit, nil)
+	w.currentBlock = w.Exit
+	w.emit(&ret, nil)
+	w.currentBlock = nil
+
+	w.finishBody()
+
+	fn.generics.Set(targs, w)
+	return w
 }

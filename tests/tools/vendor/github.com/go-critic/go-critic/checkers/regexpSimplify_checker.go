@@ -8,9 +8,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/quasilyte/regex/syntax"
+
 	"github.com/go-critic/go-critic/checkers/internal/astwalk"
 	"github.com/go-critic/go-critic/framework/linter"
-	"github.com/quasilyte/regex/syntax"
 )
 
 func init() {
@@ -497,9 +498,9 @@ func (c *regexpSimplifyChecker) simplifyCharRange(rng syntax.Expr) string {
 		case 0:
 			return lo
 		case 1:
-			return fmt.Sprintf("%s%s", lo, hi)
+			return lo + hi
 		case 2:
-			return fmt.Sprintf("%s%s%s", lo, string(lo[0]+1), hi)
+			return lo + string(lo[0]+1) + hi
 		}
 	}
 

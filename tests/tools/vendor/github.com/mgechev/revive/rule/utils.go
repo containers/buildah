@@ -19,10 +19,6 @@ const styleGuideBase = "https://golang.org/wiki/CodeReviewComments"
 // If id == nil, the answer is false.
 func isBlank(id *ast.Ident) bool { return id != nil && id.Name == "_" }
 
-func isTest(f *lint.File) bool {
-	return strings.HasSuffix(f.Name, "_test.go")
-}
-
 var commonMethods = map[string]bool{
 	"Error":     true,
 	"Read":      true,

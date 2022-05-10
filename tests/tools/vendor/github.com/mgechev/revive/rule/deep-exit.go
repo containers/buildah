@@ -17,7 +17,7 @@ func (r *DeepExitRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 		failures = append(failures, failure)
 	}
 
-	var exitFunctions = map[string]map[string]bool{
+	exitFunctions := map[string]map[string]bool{
 		"os":      {"Exit": true},
 		"syscall": {"Exit": true},
 		"log": {

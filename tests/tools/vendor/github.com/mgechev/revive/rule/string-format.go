@@ -276,7 +276,8 @@ func (rule stringFormatSubrule) lintMessage(s string, node ast.Node) {
 	rule.parent.onFailure(lint.Failure{
 		Confidence: 1,
 		Failure:    failure,
-		Node:       node})
+		Node:       node,
+	})
 }
 
 // #endregion

@@ -6,6 +6,8 @@ import (
 	"go/token"
 	"go/types"
 	"reflect"
+
+	"golang.org/x/exp/typeparams"
 )
 
 var astTypes = map[string]reflect.Type{
@@ -13,6 +15,7 @@ var astTypes = map[string]reflect.Type{
 	"RangeStmt":      reflect.TypeOf(ast.RangeStmt{}),
 	"AssignStmt":     reflect.TypeOf(ast.AssignStmt{}),
 	"IndexExpr":      reflect.TypeOf(ast.IndexExpr{}),
+	"IndexListExpr":  reflect.TypeOf(typeparams.IndexListExpr{}),
 	"Ident":          reflect.TypeOf(ast.Ident{}),
 	"ValueSpec":      reflect.TypeOf(ast.ValueSpec{}),
 	"GenDecl":        reflect.TypeOf(ast.GenDecl{}),

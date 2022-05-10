@@ -1,3 +1,4 @@
+//go:build generate
 // +build generate
 
 package main
@@ -52,14 +53,19 @@ func main() {
 		{name: "VarFilter", comment: "m[$Value].Filter($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarNodeIs", comment: "m[$Value].Node.Is($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarObjectIs", comment: "m[$Value].Object.Is($Args[0])", valueType: "string", flags: flagHasVar},
+		{name: "VarObjectIsGlobal", comment: "m[$Value].Object.IsGlobal()", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeIs", comment: "m[$Value].Type.Is($Args[0])", valueType: "string", flags: flagHasVar},
+		{name: "VarTypeIdenticalTo", comment: "m[$Value].Type.IdenticalTo($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeUnderlyingIs", comment: "m[$Value].Type.Underlying().Is($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeOfKind", comment: "m[$Value].Type.OfKind($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeUnderlyingOfKind", comment: "m[$Value].Type.Underlying().OfKind($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeConvertibleTo", comment: "m[$Value].Type.ConvertibleTo($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeAssignableTo", comment: "m[$Value].Type.AssignableTo($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTypeImplements", comment: "m[$Value].Type.Implements($Args[0])", valueType: "string", flags: flagHasVar},
+		{name: "VarTypeHasMethod", comment: "m[$Value].Type.HasMethod($Args[0])", valueType: "string", flags: flagHasVar},
 		{name: "VarTextMatches", comment: "m[$Value].Text.Matches($Args[0])", valueType: "string", flags: flagHasVar},
+
+		{name: "VarContains", comment: "m[$Value].Contains($Args[0])", valueType: "string", flags: flagHasVar},
 
 		{name: "Deadcode", comment: "m.Deadcode()"},
 

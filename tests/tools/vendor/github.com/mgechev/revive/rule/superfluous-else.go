@@ -18,7 +18,7 @@ func (r *SuperfluousElseRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 		failures = append(failures, failure)
 	}
 
-	var branchingFunctions = map[string]map[string]bool{
+	branchingFunctions := map[string]map[string]bool{
 		"os": {"Exit": true},
 		"log": {
 			"Fatal":   true,

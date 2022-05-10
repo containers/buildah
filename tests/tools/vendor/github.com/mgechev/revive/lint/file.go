@@ -126,11 +126,13 @@ type enableDisableConfig struct {
 	position int
 }
 
-const directiveRE = `^//[\s]*revive:(enable|disable)(?:-(line|next-line))?(?::([^\s]+))?[\s]*(?: (.+))?$`
-const directivePos = 1
-const modifierPos = 2
-const rulesPos = 3
-const reasonPos = 4
+const (
+	directiveRE  = `^//[\s]*revive:(enable|disable)(?:-(line|next-line))?(?::([^\s]+))?[\s]*(?: (.+))?$`
+	directivePos = 1
+	modifierPos  = 2
+	rulesPos     = 3
+	reasonPos    = 4
+)
 
 var re = regexp.MustCompile(directiveRE)
 

@@ -13,7 +13,9 @@ import (
 	"honnef.co/go/tools/analysis/facts"
 	"honnef.co/go/tools/go/ast/astutil"
 	"honnef.co/go/tools/go/types/typeutil"
+	"honnef.co/go/tools/pattern"
 
+	"golang.org/x/exp/typeparams"
 	"golang.org/x/tools/go/analysis"
 )
 
@@ -73,7 +75,11 @@ func SelectorName(pass *analysis.Pass, expr *ast.SelectorExpr) string {
 		}
 		panic(fmt.Sprintf("unsupported selector: %v", expr))
 	}
-	return fmt.Sprintf("(%s).%s", sel.Recv(), sel.Obj().Name())
+	if v, ok := sel.Obj().(*types.Var); ok && v.IsField() {
+		return fmt.Sprintf("(%s).%s", typeutil.DereferenceR(sel.Recv()), sel.Obj().Name())
+	} else {
+		return fmt.Sprintf("(%s).%s", sel.Recv(), sel.Obj().Name())
+	}
 }
 
 func IsNil(pass *analysis.Pass, expr ast.Expr) bool {
@@ -132,7 +138,19 @@ func ExprToString(pass *analysis.Pass, expr ast.Expr) (string, bool) {
 }
 
 func CallName(pass *analysis.Pass, call *ast.CallExpr) string {
-	switch fun := astutil.Unparen(call.Fun).(type) {
+	fun := astutil.Unparen(call.Fun)
+
+	// Instantiating a function cannot return another generic function, so doing this once is enough
+	switch idx := fun.(type) {
+	case *ast.IndexExpr:
+		fun = idx.X
+	case *typeparams.IndexListExpr:
+		fun = idx.X
+	}
+
+	// (foo)[T] is not a valid instantiationg, so no need to unparen again.
+
+	switch fun := fun.(type) {
 	case *ast.SelectorExpr:
 		fn, ok := pass.TypesInfo.ObjectOf(fun.Sel).(*types.Func)
 		if !ok {
@@ -257,6 +275,18 @@ func MayHaveSideEffects(pass *analysis.Pass, expr ast.Expr, purity facts.PurityR
 		return false
 	case *ast.IndexExpr:
 		return MayHaveSideEffects(pass, expr.X, purity) || MayHaveSideEffects(pass, expr.Index, purity)
+	case *typeparams.IndexListExpr:
+		// In theory, none of the checks are necessary, as IndexListExpr only involves types. But there is no harm in
+		// being safe.
+		if MayHaveSideEffects(pass, expr.X, purity) {
+			return true
+		}
+		for _, idx := range expr.Indices {
+			if MayHaveSideEffects(pass, idx, purity) {
+				return true
+			}
+		}
+		return false
 	case *ast.KeyValueExpr:
 		return MayHaveSideEffects(pass, expr.Key, purity) || MayHaveSideEffects(pass, expr.Value, purity)
 	case *ast.SelectorExpr:
@@ -274,7 +304,7 @@ func MayHaveSideEffects(pass *analysis.Pass, expr ast.Expr, purity facts.PurityR
 		if MayHaveSideEffects(pass, expr.X, purity) {
 			return true
 		}
-		return expr.Op == token.ARROW
+		return expr.Op == token.ARROW || expr.Op == token.AND
 	case *ast.ParenExpr:
 		return MayHaveSideEffects(pass, expr.X, purity)
 	case nil:
@@ -291,4 +321,22 @@ func IsGoVersion(pass *analysis.Pass, minor int) bool {
 	}
 	version := f.Get().(int)
 	return version >= minor
+}
+
+var integerLiteralQ = pattern.MustParse(`(IntegerLiteral tv)`)
+
+func IntegerLiteral(pass *analysis.Pass, node ast.Node) (types.TypeAndValue, bool) {
+	m, ok := Match(pass, integerLiteralQ, node)
+	if !ok {
+		return types.TypeAndValue{}, false
+	}
+	return m.State["tv"].(types.TypeAndValue), true
+}
+
+func IsIntegerLiteral(pass *analysis.Pass, node ast.Node, value constant.Value) bool {
+	tv, ok := IntegerLiteral(pass, node)
+	if !ok {
+		return false
+	}
+	return constant.Compare(tv.Value, token.EQL, value)
 }

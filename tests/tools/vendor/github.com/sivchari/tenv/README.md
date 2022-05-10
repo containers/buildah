@@ -1,7 +1,11 @@
 # tenv
-tenv is analyzer that detects using os.Setenv instead of t.Setenv since Go1.17
+
+![tenv Gopher](./tenv.png "Gopher")
+
 
 [![test_and_lint](https://github.com/sivchari/tenv/actions/workflows/workflows.yml/badge.svg?branch=main)](https://github.com/sivchari/tenv/actions/workflows/workflows.yml)
+
+tenv is analyzer that detects using os.Setenv instead of t.Setenv since Go1.17
 
 ## Instruction
 
@@ -12,79 +16,70 @@ go install github.com/sivchari/tenv/cmd/tenv
 ## Usage
 
 ```go
-package sandbox_test
+package main
 
 import (
-        "os"
-        "testing"
+	"fmt"
+	"os"
+	"testing"
 )
 
-var (
-        e = os.Setenv("a", "b")
-        _ = e
-)
-
-func setup() {
-        os.Setenv("a", "b")
-        err := os.Setenv("a", "b")
-        if err != nil {
-                _ = err
-        }
+func TestMain(t *testing.T) {
+	fmt.Println(os.Getenv("GO"))
+	os.Setenv("GO", "HACKING GOPHER")
 }
 
-func TestF(t *testing.T) {
-        setup()
-        os.Setenv("a", "b")
-        if err := os.Setenv("a", "b"); err != nil {
-                _ = err
-        }
+func TestMain2(t *testing.T) {
+	fmt.Println(os.Getenv("GO"))
+}
+
+func helper() {
+	os.Setenv("GO", "HACKING GOPHER")
 }
 ```
 
-### fish
-
 ```console
-go vet -vettool=(which tenv) sandbox_test.go
+go vet -vettool=(which tenv) ./...
 
-# command-line-arguments
-./sandbox_test.go:9:2: variable e is not using t.Setenv
-./sandbox_test.go:14:2: func setup is not using t.Setenv
-./sandbox_test.go:15:2: func setup is not using t.Setenv
-./sandbox_test.go:23:2: func TestF is not using t.Setenv
-./sandbox_test.go:24:2: func TestF is not using t.Setenv
-```
-
-### bash
-
-```console
-$ go vet -vettool=`which tenv` main.go
-
-# command-line-arguments
-./sandbox_test.go:9:2: variable e is not using t.Setenv
-./sandbox_test.go:14:2: func setup is not using t.Setenv
-./sandbox_test.go:15:2: func setup is not using t.Setenv
-./sandbox_test.go:23:2: func TestF is not using t.Setenv
-./sandbox_test.go:24:2: func TestF is not using t.Setenv
+# a
+./main_test.go:11:2: os.Setenv() can be replaced by `t.Setenv()` in TestMain
 ```
 
 ### option
 
-t.Setenv can use since Go1.17.
-This linter diagnostics, if Go version is since 1.17.
-But, if you wanna exec this linter in prior Go1.17, you can use it that you set `-tenv.f` flag.
+The option `all` will run against whole test files (`_test.go`) regardless of method/function signatures.  
 
-e.g.
+By default, only methods that take `*testing.T`, `*testing.B`, and `testing.TB` as arguments are checked.
 
-### fish
+```go
+package main
 
-```console
-go vet -vettool=(which tenv) -tenv.f sandbox_test.go
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+func TestMain(t *testing.T) {
+	fmt.Println(os.Getenv("GO"))
+	os.Setenv("GO", "HACKING GOPHER")
+}
+
+func TestMain2(t *testing.T) {
+	fmt.Println(os.Getenv("GO"))
+}
+
+func helper() {
+	os.Setenv("GO", "HACKING GOPHER")
+}
 ```
 
-### bash
-
 ```console
-go vet -vettool=`which tenv` -tenv.f main.go
+go vet -vettool=(which tenv) -tenv.all ./...
+
+# a
+./main_test.go:11:2: os.Setenv() can be replaced by `t.Setenv()` in TestMain
+./main_test.go:19:2: os.Setenv() can be replaced by `testing.Setenv()` in helper
 ```
 
 ## CI
@@ -93,20 +88,20 @@ go vet -vettool=`which tenv` -tenv.f main.go
 
 ```yaml
 - run:
-    name: Install tenv
+    name: install tenv
     command: go install github.com/sivchari/tenv
 
 - run:
-    name: Run tenv
+    name: run tenv
     command: go vet -vettool=`which tenv` ./...
 ```
 
 ### GitHub Actions
 
 ```yaml
-- name: Install tenv
+- name: install tenv
   run: go install github.com/sivchari/tenv
 
-- name: Run tenv
+- name: run tenv
   run: go vet -vettool=`which tenv` ./...
 ```

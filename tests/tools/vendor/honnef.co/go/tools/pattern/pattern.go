@@ -13,6 +13,7 @@ var (
 	_ Node = RangeStmt{}
 	_ Node = AssignStmt{}
 	_ Node = IndexExpr{}
+	_ Node = IndexListExpr{}
 	_ Node = Ident{}
 	_ Node = Builtin{}
 	_ Node = String("")
@@ -61,6 +62,8 @@ var (
 	_ Node = Function{}
 	_ Node = Not{}
 	_ Node = Or{}
+	_ Node = IntegerLiteral{}
+	_ Node = TrulyConstantExpression{}
 )
 
 type Function struct {
@@ -263,6 +266,11 @@ type IndexExpr struct {
 	Index Node
 }
 
+type IndexListExpr struct {
+	X       Node
+	Indices Node
+}
+
 type Node interface {
 	String() string
 	isNode()
@@ -305,6 +313,12 @@ type BasicLit struct {
 	Value Node
 }
 
+// An IntegerLiteral is a constant expression made up of only integer basic literals and the "+" and "-" unary operators.
+// That is, 0, -4, -+42 are all integer literals, but 1 + 2 is not.
+type IntegerLiteral struct {
+	Value Node
+}
+
 type BinaryExpr struct {
 	X  Node
 	Op Node
@@ -326,6 +340,12 @@ type Not struct {
 	Node Node
 }
 
+// A TrulyConstantExpression is a constant expression that does not make use of any identifiers.
+// It is constant even under varying build tags.
+type TrulyConstantExpression struct {
+	Value Node
+}
+
 func stringify(n Node) string {
 	v := reflect.ValueOf(n)
 	var parts []string
@@ -336,53 +356,56 @@ func stringify(n Node) string {
 	return "(" + strings.Join(parts, " ") + ")"
 }
 
-func (stmt AssignStmt) String() string     { return stringify(stmt) }
-func (expr IndexExpr) String() string      { return stringify(expr) }
-func (id Ident) String() string            { return stringify(id) }
-func (spec ValueSpec) String() string      { return stringify(spec) }
-func (decl GenDecl) String() string        { return stringify(decl) }
-func (lit BasicLit) String() string        { return stringify(lit) }
-func (expr BinaryExpr) String() string     { return stringify(expr) }
-func (stmt ForStmt) String() string        { return stringify(stmt) }
-func (stmt RangeStmt) String() string      { return stringify(stmt) }
-func (typ ArrayType) String() string       { return stringify(typ) }
-func (stmt DeferStmt) String() string      { return stringify(stmt) }
-func (typ MapType) String() string         { return stringify(typ) }
-func (stmt ReturnStmt) String() string     { return stringify(stmt) }
-func (expr SliceExpr) String() string      { return stringify(expr) }
-func (expr StarExpr) String() string       { return stringify(expr) }
-func (expr UnaryExpr) String() string      { return stringify(expr) }
-func (stmt SendStmt) String() string       { return stringify(stmt) }
-func (spec ImportSpec) String() string     { return stringify(spec) }
-func (stmt SelectStmt) String() string     { return stringify(stmt) }
-func (stmt IfStmt) String() string         { return stringify(stmt) }
-func (stmt IncDecStmt) String() string     { return stringify(stmt) }
-func (stmt GoStmt) String() string         { return stringify(stmt) }
-func (field Field) String() string         { return stringify(field) }
-func (expr SelectorExpr) String() string   { return stringify(expr) }
-func (typ StructType) String() string      { return stringify(typ) }
-func (expr KeyValueExpr) String() string   { return stringify(expr) }
-func (typ FuncType) String() string        { return stringify(typ) }
-func (lit FuncLit) String() string         { return stringify(lit) }
-func (decl FuncDecl) String() string       { return stringify(decl) }
-func (stmt BranchStmt) String() string     { return stringify(stmt) }
-func (expr CallExpr) String() string       { return stringify(expr) }
-func (clause CaseClause) String() string   { return stringify(clause) }
-func (typ ChanType) String() string        { return stringify(typ) }
-func (clause CommClause) String() string   { return stringify(clause) }
-func (lit CompositeLit) String() string    { return stringify(lit) }
-func (stmt EmptyStmt) String() string      { return stringify(stmt) }
-func (typ InterfaceType) String() string   { return stringify(typ) }
-func (stmt SwitchStmt) String() string     { return stringify(stmt) }
-func (expr TypeAssertExpr) String() string { return stringify(expr) }
-func (spec TypeSpec) String() string       { return stringify(spec) }
-func (stmt TypeSwitchStmt) String() string { return stringify(stmt) }
-func (nil Nil) String() string             { return "nil" }
-func (builtin Builtin) String() string     { return stringify(builtin) }
-func (obj Object) String() string          { return stringify(obj) }
-func (fn Function) String() string         { return stringify(fn) }
-func (el Ellipsis) String() string         { return stringify(el) }
-func (not Not) String() string             { return stringify(not) }
+func (stmt AssignStmt) String() string              { return stringify(stmt) }
+func (expr IndexExpr) String() string               { return stringify(expr) }
+func (expr IndexListExpr) String() string           { return stringify(expr) }
+func (id Ident) String() string                     { return stringify(id) }
+func (spec ValueSpec) String() string               { return stringify(spec) }
+func (decl GenDecl) String() string                 { return stringify(decl) }
+func (lit BasicLit) String() string                 { return stringify(lit) }
+func (expr BinaryExpr) String() string              { return stringify(expr) }
+func (stmt ForStmt) String() string                 { return stringify(stmt) }
+func (stmt RangeStmt) String() string               { return stringify(stmt) }
+func (typ ArrayType) String() string                { return stringify(typ) }
+func (stmt DeferStmt) String() string               { return stringify(stmt) }
+func (typ MapType) String() string                  { return stringify(typ) }
+func (stmt ReturnStmt) String() string              { return stringify(stmt) }
+func (expr SliceExpr) String() string               { return stringify(expr) }
+func (expr StarExpr) String() string                { return stringify(expr) }
+func (expr UnaryExpr) String() string               { return stringify(expr) }
+func (stmt SendStmt) String() string                { return stringify(stmt) }
+func (spec ImportSpec) String() string              { return stringify(spec) }
+func (stmt SelectStmt) String() string              { return stringify(stmt) }
+func (stmt IfStmt) String() string                  { return stringify(stmt) }
+func (stmt IncDecStmt) String() string              { return stringify(stmt) }
+func (stmt GoStmt) String() string                  { return stringify(stmt) }
+func (field Field) String() string                  { return stringify(field) }
+func (expr SelectorExpr) String() string            { return stringify(expr) }
+func (typ StructType) String() string               { return stringify(typ) }
+func (expr KeyValueExpr) String() string            { return stringify(expr) }
+func (typ FuncType) String() string                 { return stringify(typ) }
+func (lit FuncLit) String() string                  { return stringify(lit) }
+func (decl FuncDecl) String() string                { return stringify(decl) }
+func (stmt BranchStmt) String() string              { return stringify(stmt) }
+func (expr CallExpr) String() string                { return stringify(expr) }
+func (clause CaseClause) String() string            { return stringify(clause) }
+func (typ ChanType) String() string                 { return stringify(typ) }
+func (clause CommClause) String() string            { return stringify(clause) }
+func (lit CompositeLit) String() string             { return stringify(lit) }
+func (stmt EmptyStmt) String() string               { return stringify(stmt) }
+func (typ InterfaceType) String() string            { return stringify(typ) }
+func (stmt SwitchStmt) String() string              { return stringify(stmt) }
+func (expr TypeAssertExpr) String() string          { return stringify(expr) }
+func (spec TypeSpec) String() string                { return stringify(spec) }
+func (stmt TypeSwitchStmt) String() string          { return stringify(stmt) }
+func (nil Nil) String() string                      { return "nil" }
+func (builtin Builtin) String() string              { return stringify(builtin) }
+func (obj Object) String() string                   { return stringify(obj) }
+func (fn Function) String() string                  { return stringify(fn) }
+func (el Ellipsis) String() string                  { return stringify(el) }
+func (not Not) String() string                      { return stringify(not) }
+func (lit IntegerLiteral) String() string           { return stringify(lit) }
+func (expr TrulyConstantExpression) String() string { return stringify(expr) }
 
 func (or Or) String() string {
 	s := "(Or"
@@ -441,56 +464,59 @@ func (tok Token) String() string {
 
 func (Any) String() string { return "_" }
 
-func (AssignStmt) isNode()     {}
-func (IndexExpr) isNode()      {}
-func (Ident) isNode()          {}
-func (ValueSpec) isNode()      {}
-func (GenDecl) isNode()        {}
-func (BasicLit) isNode()       {}
-func (BinaryExpr) isNode()     {}
-func (ForStmt) isNode()        {}
-func (RangeStmt) isNode()      {}
-func (ArrayType) isNode()      {}
-func (DeferStmt) isNode()      {}
-func (MapType) isNode()        {}
-func (ReturnStmt) isNode()     {}
-func (SliceExpr) isNode()      {}
-func (StarExpr) isNode()       {}
-func (UnaryExpr) isNode()      {}
-func (SendStmt) isNode()       {}
-func (ImportSpec) isNode()     {}
-func (SelectStmt) isNode()     {}
-func (IfStmt) isNode()         {}
-func (IncDecStmt) isNode()     {}
-func (GoStmt) isNode()         {}
-func (Field) isNode()          {}
-func (SelectorExpr) isNode()   {}
-func (StructType) isNode()     {}
-func (KeyValueExpr) isNode()   {}
-func (FuncType) isNode()       {}
-func (FuncLit) isNode()        {}
-func (FuncDecl) isNode()       {}
-func (BranchStmt) isNode()     {}
-func (CallExpr) isNode()       {}
-func (CaseClause) isNode()     {}
-func (ChanType) isNode()       {}
-func (CommClause) isNode()     {}
-func (CompositeLit) isNode()   {}
-func (EmptyStmt) isNode()      {}
-func (InterfaceType) isNode()  {}
-func (SwitchStmt) isNode()     {}
-func (TypeAssertExpr) isNode() {}
-func (TypeSpec) isNode()       {}
-func (TypeSwitchStmt) isNode() {}
-func (Nil) isNode()            {}
-func (Builtin) isNode()        {}
-func (Object) isNode()         {}
-func (Function) isNode()       {}
-func (Ellipsis) isNode()       {}
-func (Or) isNode()             {}
-func (List) isNode()           {}
-func (String) isNode()         {}
-func (Token) isNode()          {}
-func (Any) isNode()            {}
-func (Binding) isNode()        {}
-func (Not) isNode()            {}
+func (AssignStmt) isNode()              {}
+func (IndexExpr) isNode()               {}
+func (IndexListExpr) isNode()           {}
+func (Ident) isNode()                   {}
+func (ValueSpec) isNode()               {}
+func (GenDecl) isNode()                 {}
+func (BasicLit) isNode()                {}
+func (BinaryExpr) isNode()              {}
+func (ForStmt) isNode()                 {}
+func (RangeStmt) isNode()               {}
+func (ArrayType) isNode()               {}
+func (DeferStmt) isNode()               {}
+func (MapType) isNode()                 {}
+func (ReturnStmt) isNode()              {}
+func (SliceExpr) isNode()               {}
+func (StarExpr) isNode()                {}
+func (UnaryExpr) isNode()               {}
+func (SendStmt) isNode()                {}
+func (ImportSpec) isNode()              {}
+func (SelectStmt) isNode()              {}
+func (IfStmt) isNode()                  {}
+func (IncDecStmt) isNode()              {}
+func (GoStmt) isNode()                  {}
+func (Field) isNode()                   {}
+func (SelectorExpr) isNode()            {}
+func (StructType) isNode()              {}
+func (KeyValueExpr) isNode()            {}
+func (FuncType) isNode()                {}
+func (FuncLit) isNode()                 {}
+func (FuncDecl) isNode()                {}
+func (BranchStmt) isNode()              {}
+func (CallExpr) isNode()                {}
+func (CaseClause) isNode()              {}
+func (ChanType) isNode()                {}
+func (CommClause) isNode()              {}
+func (CompositeLit) isNode()            {}
+func (EmptyStmt) isNode()               {}
+func (InterfaceType) isNode()           {}
+func (SwitchStmt) isNode()              {}
+func (TypeAssertExpr) isNode()          {}
+func (TypeSpec) isNode()                {}
+func (TypeSwitchStmt) isNode()          {}
+func (Nil) isNode()                     {}
+func (Builtin) isNode()                 {}
+func (Object) isNode()                  {}
+func (Function) isNode()                {}
+func (Ellipsis) isNode()                {}
+func (Or) isNode()                      {}
+func (List) isNode()                    {}
+func (String) isNode()                  {}
+func (Token) isNode()                   {}
+func (Any) isNode()                     {}
+func (Binding) isNode()                 {}
+func (Not) isNode()                     {}
+func (IntegerLiteral) isNode()          {}
+func (TrulyConstantExpression) isNode() {}

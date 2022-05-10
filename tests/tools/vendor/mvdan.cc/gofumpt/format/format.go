@@ -46,8 +46,6 @@ type Options struct {
 
 	// ModulePath corresponds to the Go module path which contains the source
 	// code being formatted. When inside a Go module, ModulePath should be:
-	// rules which require new language features. When inside a Go module,
-	// LangVersion should generally be specified as the result of:
 	//
 	//     go mod edit -json | jq -r '.Module.Path'
 	//
@@ -914,7 +912,6 @@ func (f *fumpter) joinStdImports(d *ast.GenDecl) {
 		periodIndex := strings.IndexByte(path, '.')
 		slashIndex := strings.IndexByte(path, '/')
 		switch {
-
 		// Imports with a period in the first path element are third party.
 		// Note that this includes "foo.com" and excludes "foo/bar.com/baz".
 		case periodIndex > 0 && (slashIndex == -1 || periodIndex < slashIndex),

@@ -11,9 +11,10 @@ import (
 	"strings"
 
 	"github.com/go-toolsmith/astcopy"
+	"golang.org/x/tools/go/ast/astutil"
+
 	"github.com/quasilyte/go-ruleguard/ruleguard/goutil"
 	"github.com/quasilyte/go-ruleguard/ruleguard/ir"
-	"golang.org/x/tools/go/ast/astutil"
 )
 
 type Context struct {
@@ -661,6 +662,28 @@ func (conv *converter) convertFilterExprImpl(e ast.Expr) ir.FilterExpr {
 		case "File.Name.Matches":
 			return ir.FilterExpr{Op: ir.FilterFileNameMatchesOp, Value: conv.parseStringArg(e.Args[0])}
 
+		case "Contains":
+			pat := conv.parseStringArg(e.Args[0])
+			return ir.FilterExpr{
+				Op:    ir.FilterVarContainsOp,
+				Value: op.varName,
+				Args: []ir.FilterExpr{
+					{Op: ir.FilterStringOp, Value: pat},
+				},
+			}
+
+		case "Type.IdenticalTo":
+			// TODO: reuse the code with parsing At() args?
+			index, ok := e.Args[0].(*ast.IndexExpr)
+			if !ok {
+				panic(conv.errorf(e.Args[0], "expected %s[`varname`] expression", conv.group.MatcherName))
+			}
+			rhsVarname := conv.parseStringArg(index.Index)
+			args := []ir.FilterExpr{
+				{Op: ir.FilterStringOp, Value: rhsVarname},
+			}
+			return ir.FilterExpr{Op: ir.FilterVarTypeIdenticalToOp, Value: op.varName, Args: args}
+
 		case "Filter":
 			funcName, ok := e.Args[0].(*ast.Ident)
 			if !ok {
@@ -692,6 +715,8 @@ func (conv *converter) convertFilterExprImpl(e ast.Expr) ir.FilterExpr {
 			return ir.FilterExpr{Op: ir.FilterRootNodeParentIsOp, Args: args}
 		case "Object.Is":
 			return ir.FilterExpr{Op: ir.FilterVarObjectIsOp, Value: op.varName, Args: args}
+		case "Object.IsGlobal":
+			return ir.FilterExpr{Op: ir.FilterVarObjectIsGlobalOp, Value: op.varName}
 		case "Type.HasPointers":
 			return ir.FilterExpr{Op: ir.FilterVarTypeHasPointersOp, Value: op.varName}
 		case "Type.Is":
@@ -708,6 +733,8 @@ func (conv *converter) convertFilterExprImpl(e ast.Expr) ir.FilterExpr {
 			return ir.FilterExpr{Op: ir.FilterVarTypeAssignableToOp, Value: op.varName, Args: args}
 		case "Type.Implements":
 			return ir.FilterExpr{Op: ir.FilterVarTypeImplementsOp, Value: op.varName, Args: args}
+		case "Type.HasMethod":
+			return ir.FilterExpr{Op: ir.FilterVarTypeHasMethodOp, Value: op.varName, Args: args}
 		}
 	}
 
