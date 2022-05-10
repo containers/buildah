@@ -1,4 +1,7 @@
+// Package unused contains code for finding unused code.
 package unused
+
+// TODO(dh): don't add instantiated types/methods to the graph. add the origin types/methods.
 
 import (
 	"fmt"
@@ -17,8 +20,8 @@ import (
 	"honnef.co/go/tools/go/ir"
 	"honnef.co/go/tools/go/types/typeutil"
 	"honnef.co/go/tools/internal/passes/buildir"
-	"honnef.co/go/tools/unused/typemap"
 
+	"golang.org/x/exp/typeparams"
 	"golang.org/x/tools/go/analysis"
 )
 
@@ -61,6 +64,9 @@ var Debug io.Writer
     interfaces. if a method that implements an interface is defined on
     a pointer receiver, and the pointer type is never used, but the
     named type is, then we still want to mark the method as used.
+  - (2.5) all their type parameters. Unused type parameters are probably useless, but they're a brand new feature and we
+    don't want to introduce false positives because we couldn't anticipate some novel use-case.
+  - (2.6) all their type arguments
 
 - variables and constants use:
   - their types
@@ -77,6 +83,7 @@ var Debug io.Writer
   - (4.7) fields they access
   - (4.8) types of all instructions
   - (4.9) package-level variables they assign to iff in tests (sinks for benchmarks)
+  - (4.10) all their type parameters. See 2.5 for reasoning.
 
 - conversions use:
   - (5.1) when converting between two equivalent structs, the fields in
@@ -127,7 +134,6 @@ var Debug io.Writer
   - (9.7) variable _reads_ use variables, writes do not, except in tests
   - (9.8) runtime functions that may be called from user code via the compiler
 
-
 - const groups:
   (10.1) if one constant out of a block of constants is used, mark all
   of them used. a lot of the time, unused constants exist for the sake
@@ -142,6 +148,9 @@ var Debug io.Writer
   the data flow chain will get its own fields, causing false
   positives. Thus, we only accurately track fields of named struct
   types, and assume that unnamed struct types use all their fields.
+
+- type parameters use:
+  - (12.1) their constraint type
 
 */
 
@@ -448,7 +457,11 @@ func typString(obj types.Object) string {
 	case *types.Const:
 		return "const"
 	case *types.TypeName:
-		return "type"
+		if _, ok := obj.Type().(*typeparams.TypeParam); ok {
+			return "type param"
+		} else {
+			return "type"
+		}
 	default:
 		return "identifier"
 	}
@@ -548,9 +561,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		for _, v := range g.Nodes {
 			debugNode(v)
 		}
-		g.TypeNodes.Iterate(func(key types.Type, value interface{}) {
-			debugNode(value.(*node))
-		})
+		for _, node := range g.TypeNodes {
+			debugNode(node)
+		}
 
 		debugf("}\n")
 	}
@@ -560,10 +573,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 func results(g *graph) (used, unused []types.Object) {
 	g.color(g.Root)
-	g.TypeNodes.Iterate(func(_ types.Type, value interface{}) {
-		node := value.(*node)
+	for _, node := range g.TypeNodes {
 		if node.seen {
-			return
+			continue
 		}
 		switch obj := node.obj.(type) {
 		case *types.Struct:
@@ -580,7 +592,7 @@ func results(g *graph) (used, unused []types.Object) {
 				}
 			}
 		}
-	})
+	}
 
 	// OPT(dh): can we find meaningful initial capacities for the used and unused slices?
 
@@ -615,10 +627,14 @@ func results(g *graph) (used, unused []types.Object) {
 }
 
 type graph struct {
-	Root      *node
-	seenTypes typemap.Map
+	Root *node
 
-	TypeNodes typemap.Map
+	// Mapping of types T to canonical *T
+	pointers map[types.Type]*types.Pointer
+
+	seenTypes map[types.Type]struct{}
+
+	TypeNodes map[types.Type]*node
 	Nodes     map[interface{}]*node
 
 	// context
@@ -629,11 +645,25 @@ type graph struct {
 
 func newGraph() *graph {
 	g := &graph{
-		Nodes:   map[interface{}]*node{},
-		seenFns: map[*ir.Function]struct{}{},
+		Nodes:     map[interface{}]*node{},
+		seenFns:   map[*ir.Function]struct{}{},
+		seenTypes: map[types.Type]struct{}{},
+		TypeNodes: map[types.Type]*node{},
+		pointers:  map[types.Type]*types.Pointer{},
 	}
 	g.Root = g.newNode(nil)
 	return g
+}
+
+func (g *graph) newPointer(typ types.Type) *types.Pointer {
+	if p, ok := g.pointers[typ]; ok {
+		return p
+	} else {
+		p := types.NewPointer(typ)
+		g.pointers[typ] = p
+		g.see(p)
+		return p
+	}
 }
 
 func (g *graph) color(root *node) {
@@ -681,11 +711,11 @@ func (g *graph) nodeMaybe(obj types.Object) (*node, bool) {
 func (g *graph) node(obj interface{}) (n *node, new bool) {
 	switch obj := obj.(type) {
 	case types.Type:
-		if v := g.TypeNodes.At(obj); v != nil {
-			return v.(*node), false
+		if v := g.TypeNodes[obj]; v != nil {
+			return v, false
 		}
 		n = g.newNode(obj)
-		g.TypeNodes.Set(obj, n)
+		g.TypeNodes[obj] = n
 		return n, true
 	case types.Object:
 		// OPT(dh): the types.Object and default cases are identical
@@ -798,8 +828,30 @@ func (g *graph) see(obj interface{}) *node {
 	}
 
 	assert(obj != nil)
+
+	if fn, ok := obj.(*types.Func); ok {
+		obj = typeparams.OriginMethod(fn)
+	}
+	if t, ok := obj.(*types.Named); ok {
+		obj = typeparams.NamedTypeOrigin(t)
+	}
+
 	// add new node to graph
 	node, _ := g.node(obj)
+
+	if p, ok := obj.(*types.Pointer); ok {
+		if pt, ok := g.pointers[p.Elem()]; ok {
+			// We've used graph.newPointer before we saw this pointer; add an edge that marks the two pointers as being
+			// identical
+			if p != pt {
+				g.use(p, pt, edgeSamePointer)
+				g.use(pt, p, edgeSamePointer)
+			}
+		} else {
+			g.pointers[p.Elem()] = p
+		}
+	}
+
 	return node
 }
 
@@ -814,6 +866,21 @@ func (g *graph) use(used, by interface{}, kind edgeKind) {
 			return
 		}
 	}
+
+	if fn, ok := used.(*types.Func); ok {
+		used = typeparams.OriginMethod(fn)
+	}
+	if fn, ok := by.(*types.Func); ok {
+		by = typeparams.OriginMethod(fn)
+	}
+
+	if t, ok := used.(*types.Named); ok {
+		used = typeparams.NamedTypeOrigin(t)
+	}
+	if t, ok := by.(*types.Named); ok {
+		by = typeparams.NamedTypeOrigin(t)
+	}
+
 	usedNode, new := g.node(used)
 	assert(!new)
 	if by == nil {
@@ -1125,7 +1192,7 @@ func (g *graph) entry(pkg *pkg) {
 	var ifaces []*types.Interface
 	var notIfaces []types.Type
 
-	g.seenTypes.Iterate(func(t types.Type, _ interface{}) {
+	for t := range g.seenTypes {
 		switch t := t.(type) {
 		case *types.Interface:
 			// OPT(dh): (8.1) we only need interfaces that have unexported methods
@@ -1135,7 +1202,7 @@ func (g *graph) entry(pkg *pkg) {
 				notIfaces = append(notIfaces, t)
 			}
 		}
-	})
+	}
 
 	// (8.0) handle interfaces
 	for _, t := range notIfaces {
@@ -1235,7 +1302,7 @@ func (g *graph) entry(pkg *pkg) {
 }
 
 func (g *graph) useMethod(t types.Type, sel *types.Selection, by interface{}, kind edgeKind) {
-	obj := sel.Obj()
+	obj := sel.Obj().(*types.Func)
 	path := sel.Index()
 	assert(obj != nil)
 	if len(path) > 1 {
@@ -1262,6 +1329,7 @@ func owningObject(fn *ir.Function) types.Object {
 }
 
 func (g *graph) function(fn *ir.Function) {
+	assert(fn != nil)
 	if fn.Package() != nil && fn.Package() != g.pkg.IR {
 		return
 	}
@@ -1285,7 +1353,7 @@ func (g *graph) function(fn *ir.Function) {
 }
 
 func (g *graph) typ(t types.Type, parent types.Type) {
-	if g.seenTypes.At(t) != nil {
+	if _, ok := g.seenTypes[t]; ok {
 		return
 	}
 
@@ -1295,7 +1363,7 @@ func (g *graph) typ(t types.Type, parent types.Type) {
 		}
 	}
 
-	g.seenTypes.Set(t, struct{}{})
+	g.seenTypes[t] = struct{}{}
 	if isIrrelevant(t) {
 		return
 	}
@@ -1323,7 +1391,7 @@ func (g *graph) typ(t types.Type, parent types.Type) {
 				if _, ok := T.Underlying().(*types.Pointer); !ok {
 					// An embedded field is addressable, so check
 					// the pointer type to get the full method set
-					T = types.NewPointer(T)
+					T = g.newPointer(T)
 				}
 				ms := g.pkg.IR.Prog.MethodSets.MethodSet(T)
 				for j := 0; j < ms.Len(); j++ {
@@ -1369,13 +1437,29 @@ func (g *graph) typ(t types.Type, parent types.Type) {
 		// Nothing to do
 	case *types.Named:
 		// (9.3) types use their underlying and element types
-		g.seeAndUse(t.Underlying(), t, edgeUnderlyingType)
+		origin := typeparams.NamedTypeOrigin(t)
+		g.seeAndUse(origin.Underlying(), t, edgeUnderlyingType)
 		g.seeAndUse(t.Obj(), t, edgeTypeName)
 		g.seeAndUse(t, t.Obj(), edgeNamedType)
 
 		// (2.4) named types use the pointer type
 		if _, ok := t.Underlying().(*types.Interface); !ok && t.NumMethods() > 0 {
-			g.seeAndUse(types.NewPointer(t), t, edgePointerType)
+			g.seeAndUse(g.newPointer(origin), t, edgePointerType)
+		}
+
+		// (2.5) named types use their type parameters
+
+		for i := 0; i < typeparams.ForNamed(t).Len(); i++ {
+			tparam := typeparams.ForNamed(t).At(i)
+			g.seeAndUse(tparam, t, edgeTypeParam)
+			g.typ(tparam, nil)
+		}
+
+		// (2.6) named types use their type arguments
+		for i := 0; i < typeparams.NamedTypeArgs(t).Len(); i++ {
+			targ := typeparams.NamedTypeArgs(t).At(i)
+			g.seeAndUse(targ, t, edgeTypeArg)
+			g.typ(t, nil)
 		}
 
 		for i := 0; i < t.NumMethods(); i++ {
@@ -1389,7 +1473,7 @@ func (g *graph) typ(t types.Type, parent types.Type) {
 			g.function(g.pkg.IR.Prog.FuncValue(t.Method(i)))
 		}
 
-		g.typ(t.Underlying(), t)
+		g.typ(origin.Underlying(), t)
 	case *types.Slice:
 		// (9.3) types use their underlying and element types
 		g.seeAndUse(t.Elem(), t, edgeElementType)
@@ -1414,6 +1498,7 @@ func (g *graph) typ(t types.Type, parent types.Type) {
 		for i := 0; i < t.NumEmbeddeds(); i++ {
 			tt := t.EmbeddedType(i)
 			// (8.4) All embedded interfaces are marked as used
+			g.typ(tt, nil)
 			g.seeAndUse(tt, t, edgeEmbeddedInterface)
 		}
 	case *types.Array:
@@ -1433,6 +1518,22 @@ func (g *graph) typ(t types.Type, parent types.Type) {
 			// (9.3) types use their underlying and element types
 			g.seeAndUse(t.At(i).Type(), t, edgeTupleElement|edgeType)
 			g.typ(t.At(i).Type(), nil)
+		}
+	case *typeutil.Iterator:
+		// (9.3) types use their underlying and element types
+		g.seeAndUse(t.Elem(), t, edgeElementType)
+		g.typ(t.Elem(), nil)
+	case *typeparams.TypeParam:
+		// (9.3) types use their underlying and element types
+
+		g.seeAndUse(t.Obj(), t, edgeTypeName)
+		g.seeAndUse(t, t.Obj(), edgeNamedType)
+		g.seeAndUse(t.Constraint(), t, edgeElementType)
+		g.typ(t.Constraint(), t)
+	case *typeparams.Union:
+		for i := 0; i < t.Len(); i++ {
+			g.seeAndUse(t.Term(i).Type(), t, edgeUnionTerm)
+			g.typ(t.Term(i).Type(), nil)
 		}
 	default:
 		panic(fmt.Sprintf("unreachable: %T", t))
@@ -1464,6 +1565,20 @@ func (g *graph) signature(sig *types.Signature, fn types.Object) {
 		param := sig.Results().At(i)
 		g.seeAndUse(param.Type(), user, edgeFunctionResult|edgeType)
 		g.typ(param.Type(), nil)
+	}
+	for i := 0; i < typeparams.RecvTypeParams(sig).Len(); i++ {
+		// We track the type parameter's constraint, not the type parameter itself.
+		// We never want to flag an unused type parameter.
+		param := typeparams.RecvTypeParams(sig).At(i).Constraint()
+		g.seeAndUse(param, user, edgeFunctionArgument|edgeType)
+		g.typ(param, nil)
+	}
+	for i := 0; i < typeparams.ForSignature(sig).Len(); i++ {
+		// We track the type parameter's constraint, not the type parameter itself.
+		// We never want to flag an unused type parameter.
+		param := typeparams.ForSignature(sig).At(i).Constraint()
+		g.seeAndUse(param, user, edgeFunctionArgument|edgeType)
+		g.typ(param, nil)
 	}
 }
 
@@ -1515,19 +1630,27 @@ func (g *graph) instructions(fn *ir.Function) {
 			}
 			switch instr := instr.(type) {
 			case *ir.Field:
+				// Can't access fields via generics, for now.
+
 				st := instr.X.Type().Underlying().(*types.Struct)
 				field := st.Field(instr.Field)
 				// (4.7) functions use fields they access
 				g.seeAndUse(field, fnObj, edgeFieldAccess)
 			case *ir.FieldAddr:
-				st := typeutil.Dereference(instr.X.Type()).Underlying().(*types.Struct)
+				// User code can't access fields on type parameters, but composite literals are still possible, which
+				// compile to FieldAddr + Store.
+
+				st := typeutil.CoreType(typeutil.Dereference(instr.X.Type())).(*types.Struct)
 				field := st.Field(instr.Field)
 				// (4.7) functions use fields they access
 				g.seeAndUse(field, fnObj, edgeFieldAccess)
 			case *ir.Store:
 				// nothing to do, handled generically by operands
-			case *ir.Call:
+			case ir.CallInstruction:
 				c := instr.Common()
+				for _, targ := range c.TypeArgs {
+					g.seeAndUse(targ, fnObj, edgeTypeArg)
+				}
 				if !c.IsInvoke() {
 					// handled generically as an instruction operand
 				} else {
@@ -1539,8 +1662,8 @@ func (g *graph) instructions(fn *ir.Function) {
 			case *ir.ChangeType:
 				// conversion type handled generically
 
-				s1, ok1 := typeutil.Dereference(instr.Type()).Underlying().(*types.Struct)
-				s2, ok2 := typeutil.Dereference(instr.X.Type()).Underlying().(*types.Struct)
+				s1, ok1 := typeutil.CoreType(typeutil.Dereference(instr.Type())).(*types.Struct)
+				s2, ok2 := typeutil.CoreType(typeutil.Dereference(instr.X.Type())).(*types.Struct)
 				if ok1 && ok2 {
 					// Converting between two structs. The fields are
 					// relevant for the conversion, but only if the
@@ -1647,13 +1770,15 @@ func (g *graph) instructions(fn *ir.Function) {
 				// nothing to do
 			case *ir.Load:
 				// nothing to do
-			case *ir.Go:
-				// nothing to do
-			case *ir.Defer:
-				// nothing to do
 			case *ir.Parameter:
 				// nothing to do
 			case *ir.Const:
+				// nothing to do
+			case *ir.ArrayConst:
+				// nothing to do
+			case *ir.AggregateConst:
+				// nothing to do
+			case *ir.GenericConst:
 				// nothing to do
 			case *ir.Recv:
 				// nothing to do

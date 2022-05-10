@@ -159,5 +159,6 @@ func getPositionInvalidFile(filename, s string) FailurePosition {
 			Filename: filename,
 			Line:     line,
 			Column:   column,
-		}}
+		},
+	}
 }

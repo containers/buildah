@@ -1,4 +1,5 @@
 // Package lint provides abstractions on top of go/analysis.
+// These abstractions add extra information to analyzes, such as structured documentation and severities.
 package lint
 
 import (
@@ -13,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
+// Analyzer wraps a go/analysis.Analyzer and provides structured documentation.
 type Analyzer struct {
 	// The analyzer's documentation. Unlike go/analysis.Analyzer.Doc,
 	// this field is structured, providing access to severity, options
@@ -30,6 +32,8 @@ func (a *Analyzer) initialize() {
 	}
 }
 
+// InitializeAnalyzers takes a map of documentation and a map of go/analysis.Analyzers and returns a slice of Analyzers.
+// The map keys are the analyzer names.
 func InitializeAnalyzers(docs map[string]*Documentation, analyzers map[string]*analysis.Analyzer) []*Analyzer {
 	out := make([]*Analyzer, 0, len(analyzers))
 	for k, v := range analyzers {
@@ -44,6 +48,7 @@ func InitializeAnalyzers(docs map[string]*Documentation, analyzers map[string]*a
 	return out
 }
 
+// Severity describes the severity of diagnostics reported by an analyzer.
 type Severity int
 
 const (
@@ -55,55 +60,134 @@ const (
 	SeverityHint
 )
 
-type Documentation struct {
+// MergeStrategy sets how merge mode should behave for diagnostics of an analyzer.
+type MergeStrategy int
+
+const (
+	MergeIfAny MergeStrategy = iota
+	MergeIfAll
+)
+
+type RawDocumentation struct {
 	Title      string
 	Text       string
+	Before     string
+	After      string
 	Since      string
 	NonDefault bool
 	Options    []string
 	Severity   Severity
+	MergeIf    MergeStrategy
 }
 
-func Markdownify(m map[string]*Documentation) map[string]*Documentation {
-	for _, v := range m {
-		v.Title = toMarkdown(v.Title)
-		v.Text = toMarkdown(v.Text)
+type Documentation struct {
+	Title string
+	Text  string
+
+	TitleMarkdown string
+	TextMarkdown  string
+
+	Before     string
+	After      string
+	Since      string
+	NonDefault bool
+	Options    []string
+	Severity   Severity
+	MergeIf    MergeStrategy
+}
+
+func Markdownify(m map[string]*RawDocumentation) map[string]*Documentation {
+	out := make(map[string]*Documentation, len(m))
+	for k, v := range m {
+		out[k] = &Documentation{
+			Title: strings.TrimSpace(stripMarkdown(v.Title)),
+			Text:  strings.TrimSpace(stripMarkdown(v.Text)),
+
+			TitleMarkdown: strings.TrimSpace(toMarkdown(v.Title)),
+			TextMarkdown:  strings.TrimSpace(toMarkdown(v.Text)),
+
+			Before:     strings.TrimSpace(v.Before),
+			After:      strings.TrimSpace(v.After),
+			Since:      v.Since,
+			NonDefault: v.NonDefault,
+			Options:    v.Options,
+			Severity:   v.Severity,
+			MergeIf:    v.MergeIf,
+		}
 	}
-	return m
+	return out
 }
 
 func toMarkdown(s string) string {
-	return strings.ReplaceAll(s, `\'`, "`")
+	return strings.NewReplacer(`\'`, "`", `\"`, "`").Replace(s)
+}
+
+func stripMarkdown(s string) string {
+	return strings.NewReplacer(`\'`, "", `\"`, "'").Replace(s)
+}
+
+func (doc *Documentation) Format(metadata bool) string {
+	return doc.format(false, metadata)
+}
+
+func (doc *Documentation) FormatMarkdown(metadata bool) string {
+	return doc.format(true, metadata)
+}
+
+func (doc *Documentation) format(markdown bool, metadata bool) string {
+	b := &strings.Builder{}
+	if markdown {
+		fmt.Fprintf(b, "%s\n\n", doc.TitleMarkdown)
+		if doc.Text != "" {
+			fmt.Fprintf(b, "%s\n\n", doc.TextMarkdown)
+		}
+	} else {
+		fmt.Fprintf(b, "%s\n\n", doc.Title)
+		if doc.Text != "" {
+			fmt.Fprintf(b, "%s\n\n", doc.Text)
+		}
+	}
+
+	if doc.Before != "" {
+		fmt.Fprintln(b, "Before:")
+		fmt.Fprintln(b, "")
+		for _, line := range strings.Split(doc.Before, "\n") {
+			fmt.Fprint(b, "    ", line, "\n")
+		}
+		fmt.Fprintln(b, "")
+		fmt.Fprintln(b, "After:")
+		fmt.Fprintln(b, "")
+		for _, line := range strings.Split(doc.After, "\n") {
+			fmt.Fprint(b, "    ", line, "\n")
+		}
+		fmt.Fprintln(b, "")
+	}
+
+	if metadata {
+		fmt.Fprint(b, "Available since\n    ")
+		if doc.Since == "" {
+			fmt.Fprint(b, "unreleased")
+		} else {
+			fmt.Fprintf(b, "%s", doc.Since)
+		}
+		if doc.NonDefault {
+			fmt.Fprint(b, ", non-default")
+		}
+		fmt.Fprint(b, "\n")
+		if len(doc.Options) > 0 {
+			fmt.Fprintf(b, "\nOptions\n")
+			for _, opt := range doc.Options {
+				fmt.Fprintf(b, "    %s", opt)
+			}
+			fmt.Fprint(b, "\n")
+		}
+	}
+
+	return b.String()
 }
 
 func (doc *Documentation) String() string {
-	if doc == nil {
-		return "Error: No documentation."
-	}
-
-	b := &strings.Builder{}
-	fmt.Fprintf(b, "%s\n\n", doc.Title)
-	if doc.Text != "" {
-		fmt.Fprintf(b, "%s\n\n", doc.Text)
-	}
-	fmt.Fprint(b, "Available since\n    ")
-	if doc.Since == "" {
-		fmt.Fprint(b, "unreleased")
-	} else {
-		fmt.Fprintf(b, "%s", doc.Since)
-	}
-	if doc.NonDefault {
-		fmt.Fprint(b, ", non-default")
-	}
-	fmt.Fprint(b, "\n")
-	if len(doc.Options) > 0 {
-		fmt.Fprintf(b, "\nOptions\n")
-		for _, opt := range doc.Options {
-			fmt.Fprintf(b, "    %s", opt)
-		}
-		fmt.Fprint(b, "\n")
-	}
-	return b.String()
+	return doc.Format(true)
 }
 
 func newVersionFlag() flag.Getter {
@@ -169,6 +253,7 @@ func parseDirective(s string) (cmd string, args []string) {
 	return fields[0], fields[1:]
 }
 
+// ParseDirectives extracts all directives from a list of Go files.
 func ParseDirectives(files []*ast.File, fset *token.FileSet) []Directive {
 	var dirs []Directive
 	for _, f := range files {

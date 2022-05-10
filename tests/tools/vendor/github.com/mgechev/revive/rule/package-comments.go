@@ -20,7 +20,7 @@ type PackageCommentsRule struct{}
 func (r *PackageCommentsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
-	if isTest(file) {
+	if file.IsTest() {
 		return failures
 	}
 

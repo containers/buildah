@@ -73,6 +73,7 @@ func Generate(trackSuppressions bool, filters ...RuleFilter) RuleList {
 		{"G108", "Profiling endpoint is automatically exposed", NewPprofCheck},
 		{"G109", "Converting strconv.Atoi result to int32/int16", NewIntegerOverflowCheck},
 		{"G110", "Detect io.Copy instead of io.CopyN when decompression", NewDecompressionBombCheck},
+		{"G111", "Detect http.Dir('/') as a potential risk", NewDirectoryTraversal},
 
 		// injection
 		{"G201", "SQL query construction using format string", NewSQLStrFormat},

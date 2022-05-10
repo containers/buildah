@@ -95,14 +95,32 @@ func (bw rangeBodyVisitor) Visit(node ast.Node) ast.Visitor {
 		case *ast.CallExpr:
 			if fun, ok := e.Fun.(*ast.Ident); ok && fun.Name == "append" { // e.g. ...append(arr, &value)
 				for _, v := range e.Args {
-					if bw.isAccessingRangeValueAddress(v) {
-						bw.onFailure(bw.newFailure(e))
+					if lit, ok := v.(*ast.CompositeLit); ok { // e.g. ...append(arr, v{id:&value})
+						bw.checkCompositeLit(lit)
+						continue
+					}
+					if bw.isAccessingRangeValueAddress(v) { // e.g. ...append(arr, &value)
+						bw.onFailure(bw.newFailure(v))
 					}
 				}
 			}
+		case *ast.CompositeLit: // e.g. ...v{id:&value}
+			bw.checkCompositeLit(e)
 		}
 	}
 	return bw
+}
+
+func (bw rangeBodyVisitor) checkCompositeLit(comp *ast.CompositeLit) {
+	for _, exp := range comp.Elts {
+		e, ok := exp.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		if bw.isAccessingRangeValueAddress(e.Value) {
+			bw.onFailure(bw.newFailure(e.Value))
+		}
+	}
 }
 
 func (bw rangeBodyVisitor) isAccessingRangeValueAddress(exp ast.Expr) bool {

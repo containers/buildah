@@ -11,13 +11,14 @@ import (
 	"io/ioutil"
 	"regexp"
 
+	"github.com/quasilyte/gogrep"
+	"github.com/quasilyte/gogrep/nodetag"
+
 	"github.com/quasilyte/go-ruleguard/ruleguard/goutil"
 	"github.com/quasilyte/go-ruleguard/ruleguard/ir"
 	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo"
 	"github.com/quasilyte/go-ruleguard/ruleguard/textmatch"
 	"github.com/quasilyte/go-ruleguard/ruleguard/typematch"
-	"github.com/quasilyte/gogrep"
-	"github.com/quasilyte/gogrep/nodetag"
 )
 
 type irLoaderConfig struct {
@@ -237,7 +238,7 @@ func (l *irLoader) loadRuleGroup(group *ir.RuleGroup) error {
 		l.group.Name = l.prefix + "/" + l.group.Name
 	}
 
-	if l.ctx.GroupFilter != nil && !l.ctx.GroupFilter(l.group.Name) {
+	if l.ctx.GroupFilter != nil && !l.ctx.GroupFilter(l.group) {
 		return nil // Skip this group
 	}
 	if _, ok := l.res.groups[l.group.Name]; ok {
@@ -252,7 +253,8 @@ func (l *irLoader) loadRuleGroup(group *ir.RuleGroup) error {
 		l.itab.Load(imported.Name, imported.Path)
 	}
 
-	for _, rule := range group.Rules {
+	for i := range group.Rules {
+		rule := &group.Rules[i]
 		if err := l.loadRule(group, rule); err != nil {
 			return err
 		}
@@ -261,7 +263,7 @@ func (l *irLoader) loadRuleGroup(group *ir.RuleGroup) error {
 	return nil
 }
 
-func (l *irLoader) loadRule(group *ir.RuleGroup, rule ir.Rule) error {
+func (l *irLoader) loadRule(group *ir.RuleGroup, rule *ir.Rule) error {
 	proto := goRule{
 		line:       rule.Line,
 		group:      l.group,
@@ -271,7 +273,8 @@ func (l *irLoader) loadRule(group *ir.RuleGroup, rule ir.Rule) error {
 	}
 
 	info := filterInfo{
-		Vars: make(map[string]struct{}),
+		Vars:  make(map[string]struct{}),
+		group: group,
 	}
 	if rule.WhereExpr.IsValid() {
 		filter, err := l.newFilter(rule.WhereExpr, &info)
@@ -294,7 +297,7 @@ func (l *irLoader) loadRule(group *ir.RuleGroup, rule ir.Rule) error {
 	return nil
 }
 
-func (l *irLoader) loadCommentRule(resultProto goRule, rule ir.Rule, src string, line int) error {
+func (l *irLoader) loadCommentRule(resultProto goRule, rule *ir.Rule, src string, line int) error {
 	dst := l.res.universal
 	pat, err := regexp.Compile(src)
 	if err != nil {
@@ -312,10 +315,7 @@ func (l *irLoader) loadCommentRule(resultProto goRule, rule ir.Rule, src string,
 	return nil
 }
 
-func (l *irLoader) loadSyntaxRule(group *ir.RuleGroup, resultProto goRule, filterInfo filterInfo, rule ir.Rule, src string, line int) error {
-	result := resultProto
-	result.line = line
-
+func (l *irLoader) gogrepCompile(group *ir.RuleGroup, src string) (*gogrep.Pattern, gogrep.PatternInfo, error) {
 	var imports map[string]string
 	if len(group.Imports) != 0 {
 		imports = make(map[string]string)
@@ -331,7 +331,14 @@ func (l *irLoader) loadSyntaxRule(group *ir.RuleGroup, resultProto goRule, filte
 		WithTypes: true,
 		Imports:   imports,
 	}
-	pat, info, err := gogrep.Compile(gogrepConfig)
+	return gogrep.Compile(gogrepConfig)
+}
+
+func (l *irLoader) loadSyntaxRule(group *ir.RuleGroup, resultProto goRule, filterInfo filterInfo, rule *ir.Rule, src string, line int) error {
+	result := resultProto
+	result.line = line
+
+	pat, info, err := l.gogrepCompile(group, src)
 	if err != nil {
 		return l.errorf(rule.Line, err, "parse match pattern")
 	}
@@ -390,6 +397,57 @@ func (l *irLoader) unwrapTypeExpr(filter ir.FilterExpr) (types.Type, error) {
 		return nil, l.errorf(filter.Line, nil, "can't convert %s into a type constraint yet", typeString)
 	}
 	return typ, nil
+}
+
+func (l *irLoader) unwrapFuncRefExpr(filter ir.FilterExpr) (*types.Func, error) {
+	s := l.unwrapStringExpr(filter)
+	if s == "" {
+		return nil, l.errorf(filter.Line, nil, "expected a non-empty func ref string")
+	}
+
+	n, err := parser.ParseExpr(s)
+	if err != nil {
+		return nil, err
+	}
+
+	switch n := n.(type) {
+	case *ast.CallExpr:
+		// TODO: implement this.
+		return nil, l.errorf(filter.Line, nil, "inline func signatures are not supported yet")
+	case *ast.SelectorExpr:
+		funcName := n.Sel.Name
+		pkgAndType, ok := n.X.(*ast.SelectorExpr)
+		if !ok {
+			return nil, l.errorf(filter.Line, nil, "invalid selector expression")
+		}
+		pkgID, ok := pkgAndType.X.(*ast.Ident)
+		if !ok {
+			return nil, l.errorf(filter.Line, nil, "invalid package name selector part")
+		}
+		pkgName := pkgID.Name
+		typeName := pkgAndType.Sel.Name
+		fqn := pkgName + "." + typeName
+		typ, err := l.state.FindType(l.importer, l.pkg, fqn)
+		if err != nil {
+			return nil, l.errorf(filter.Line, nil, "can't find %s type", fqn)
+		}
+		switch typ := typ.Underlying().(type) {
+		case *types.Interface:
+			for i := 0; i < typ.NumMethods(); i++ {
+				fn := typ.Method(i)
+				if fn.Name() == funcName {
+					return fn, nil
+				}
+			}
+		default:
+			return nil, l.errorf(filter.Line, nil, "only interfaces are supported, but %s is %T", fqn, typ)
+		}
+
+	default:
+		return nil, l.errorf(filter.Line, nil, "unexpected %T node", n)
+	}
+
+	return nil, nil
 }
 
 func (l *irLoader) unwrapInterfaceExpr(filter ir.FilterExpr) (*types.Interface, error) {
@@ -565,6 +623,11 @@ func (l *irLoader) newFilter(filter ir.FilterExpr, info *filterInfo) (matchFilte
 			result.fn = makeTypeOfKindFilter(result.src, filter.Value.(string), underlying, kind)
 		}
 
+	case ir.FilterVarTypeIdenticalToOp:
+		lhsVarname := filter.Value.(string)
+		rhsVarname := filter.Args[0].Value.(string)
+		result.fn = makeTypesIdenticalFilter(result.src, lhsVarname, rhsVarname)
+
 	case ir.FilterVarTypeIsOp, ir.FilterVarTypeUnderlyingIsOp:
 		typeString := l.unwrapStringExpr(filter.Args[0])
 		if typeString == "" {
@@ -599,10 +662,22 @@ func (l *irLoader) newFilter(filter ir.FilterExpr, info *filterInfo) (matchFilte
 		}
 		result.fn = makeTypeImplementsFilter(result.src, filter.Value.(string), iface)
 
+	case ir.FilterVarTypeHasMethodOp:
+		fn, err := l.unwrapFuncRefExpr(filter.Args[0])
+		if err != nil {
+			return result, err
+		}
+		if fn == nil {
+			return result, l.errorf(filter.Line, nil, "can't resolve HasMethod() argument")
+		}
+		result.fn = makeTypeHasMethodFilter(result.src, filter.Value.(string), fn)
+
 	case ir.FilterVarPureOp:
 		result.fn = makePureFilter(result.src, filter.Value.(string))
 	case ir.FilterVarConstOp:
 		result.fn = makeConstFilter(result.src, filter.Value.(string))
+	case ir.FilterVarObjectIsGlobalOp:
+		result.fn = makeObjectIsGlobalFilter(result.src, filter.Value.(string))
 	case ir.FilterVarConstSliceOp:
 		result.fn = makeConstSliceFilter(result.src, filter.Value.(string))
 	case ir.FilterVarAddressableOp:
@@ -658,6 +733,14 @@ func (l *irLoader) newFilter(filter ir.FilterExpr, info *filterInfo) (matchFilte
 			return result, l.errorf(filter.Line, err, "compile regexp")
 		}
 		result.fn = makeFileNameMatchesFilter(result.src, re)
+
+	case ir.FilterVarContainsOp:
+		src := filter.Args[0].Value.(string)
+		pat, _, err := l.gogrepCompile(info.group, src)
+		if err != nil {
+			return result, l.errorf(filter.Line, err, "parse contains pattern")
+		}
+		result.fn = makeVarContainsFilter(result.src, filter.Value.(string), pat)
 
 	case ir.FilterVarFilterOp:
 		funcName := filter.Args[0].Value.(string)
@@ -751,6 +834,8 @@ func (l *irLoader) newBinaryExprFilter(filter ir.FilterExpr, info *filterInfo) (
 	case ir.FilterVarTypeSizeOp:
 		if rhsValue != nil {
 			result.fn = makeTypeSizeConstFilter(result.src, lhs.Value.(string), tok, rhsValue)
+		} else {
+			result.fn = makeTypeSizeFilter(result.src, lhs.Value.(string), tok, rhs.Value.(string))
 		}
 	case ir.FilterVarValueIntOp:
 		if rhsValue != nil {
@@ -775,4 +860,6 @@ func (l *irLoader) newBinaryExprFilter(filter ir.FilterExpr, info *filterInfo) (
 
 type filterInfo struct {
 	Vars map[string]struct{}
+
+	group *ir.RuleGroup
 }

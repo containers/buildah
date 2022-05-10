@@ -7,12 +7,13 @@ import (
 	"go/types"
 	"path/filepath"
 
+	"github.com/quasilyte/gogrep"
+	"github.com/quasilyte/gogrep/nodetag"
+
 	"github.com/quasilyte/go-ruleguard/internal/xtypes"
 	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo"
 	"github.com/quasilyte/go-ruleguard/ruleguard/textmatch"
 	"github.com/quasilyte/go-ruleguard/ruleguard/typematch"
-	"github.com/quasilyte/gogrep"
-	"github.com/quasilyte/gogrep/nodetag"
 )
 
 const filterSuccess = matchFilterResult("")
@@ -159,6 +160,26 @@ func makeAddressableFilter(src, varname string) filterFunc {
 	}
 }
 
+func makeVarContainsFilter(src, varname string, pat *gogrep.Pattern) filterFunc {
+	return func(params *filterParams) matchFilterResult {
+		params.gogrepSubState.CapturePreset = params.match.CaptureList()
+		matched := false
+		gogrep.Walk(params.subNode(varname), func(n ast.Node) bool {
+			if matched {
+				return false
+			}
+			pat.MatchNode(params.gogrepSubState, n, func(m gogrep.MatchData) {
+				matched = true
+			})
+			return true
+		})
+		if matched {
+			return filterSuccess
+		}
+		return filterFailure(src)
+	}
+}
+
 func makeCustomVarFilter(src, varname string, fn *quasigo.Func) filterFunc {
 	return func(params *filterParams) matchFilterResult {
 		// TODO(quasilyte): what if bytecode function panics due to the programming error?
@@ -183,6 +204,16 @@ func makeTypeImplementsFilter(src, varname string, iface *types.Interface) filte
 
 		typ := params.typeofNode(params.subExpr(varname))
 		if xtypes.Implements(typ, iface) {
+			return filterSuccess
+		}
+		return filterFailure(src)
+	}
+}
+
+func makeTypeHasMethodFilter(src, varname string, fn *types.Func) filterFunc {
+	return func(params *filterParams) matchFilterResult {
+		typ := params.typeofNode(params.subNode(varname))
+		if typeHasMethod(typ, fn) {
 			return filterSuccess
 		}
 		return filterFailure(src)
@@ -246,16 +277,27 @@ func makeTypeOfKindFilter(src, varname string, underlying bool, kind types.Basic
 	}
 }
 
+func makeTypesIdenticalFilter(src, lhsVarname, rhsVarname string) filterFunc {
+	return func(params *filterParams) matchFilterResult {
+		lhsType := params.typeofNode(params.subNode(lhsVarname))
+		rhsType := params.typeofNode(params.subNode(rhsVarname))
+		if xtypes.Identical(lhsType, rhsType) {
+			return filterSuccess
+		}
+		return filterFailure(src)
+	}
+}
+
 func makeTypeIsFilter(src, varname string, underlying bool, pat *typematch.Pattern) filterFunc {
 	if underlying {
 		return func(params *filterParams) matchFilterResult {
 			if list, ok := params.subNode(varname).(gogrep.ExprSlice); ok {
 				return exprListFilterApply(src, list, func(x ast.Expr) bool {
-					return pat.MatchIdentical(params.typeofNode(x).Underlying())
+					return pat.MatchIdentical(params.typematchState, params.typeofNode(x).Underlying())
 				})
 			}
 			typ := params.typeofNode(params.subNode(varname)).Underlying()
-			if pat.MatchIdentical(typ) {
+			if pat.MatchIdentical(params.typematchState, typ) {
 				return filterSuccess
 			}
 			return filterFailure(src)
@@ -265,11 +307,11 @@ func makeTypeIsFilter(src, varname string, underlying bool, pat *typematch.Patte
 	return func(params *filterParams) matchFilterResult {
 		if list, ok := params.subNode(varname).(gogrep.ExprSlice); ok {
 			return exprListFilterApply(src, list, func(x ast.Expr) bool {
-				return pat.MatchIdentical(params.typeofNode(x))
+				return pat.MatchIdentical(params.typematchState, params.typeofNode(x))
 			})
 		}
 		typ := params.typeofNode(params.subNode(varname))
-		if pat.MatchIdentical(typ) {
+		if pat.MatchIdentical(params.typematchState, typ) {
 			return filterSuccess
 		}
 		return filterFailure(src)
@@ -322,6 +364,18 @@ func makeLineFilter(src, varname string, op token.Token, rhsVarname string) filt
 	}
 }
 
+func makeObjectIsGlobalFilter(src, varname string) filterFunc {
+	return func(params *filterParams) matchFilterResult {
+		obj := params.ctx.Types.ObjectOf(identOf(params.subExpr(varname)))
+		globalScope := params.ctx.Pkg.Scope()
+		if obj.Parent() == globalScope {
+			return filterSuccess
+		}
+
+		return filterFailure(src)
+	}
+}
+
 func makeGoVersionFilter(src string, op token.Token, version GoVersion) filterFunc {
 	return func(params *filterParams) matchFilterResult {
 		if params.ctx.GoVersion.IsAny() {
@@ -358,6 +412,19 @@ func makeTypeSizeConstFilter(src, varname string, op token.Token, rhsValue const
 
 		typ := params.typeofNode(params.subExpr(varname))
 		lhsValue := constant.MakeInt64(params.ctx.Sizes.Sizeof(typ))
+		if constant.Compare(lhsValue, op, rhsValue) {
+			return filterSuccess
+		}
+		return filterFailure(src)
+	}
+}
+
+func makeTypeSizeFilter(src, varname string, op token.Token, rhsVarname string) filterFunc {
+	return func(params *filterParams) matchFilterResult {
+		lhsTyp := params.typeofNode(params.subExpr(varname))
+		lhsValue := constant.MakeInt64(params.ctx.Sizes.Sizeof(lhsTyp))
+		rhsTyp := params.typeofNode(params.subExpr(rhsVarname))
+		rhsValue := constant.MakeInt64(params.ctx.Sizes.Sizeof(rhsTyp))
 		if constant.Compare(lhsValue, op, rhsValue) {
 			return filterSuccess
 		}
@@ -540,6 +607,15 @@ func nodeIs(n ast.Node, tag nodetag.Value) bool {
 		matched = (tag == nodetag.FromNode(n))
 	}
 	return matched
+}
+
+func typeHasMethod(typ types.Type, fn *types.Func) bool {
+	obj, _, _ := types.LookupFieldOrMethod(typ, true, fn.Pkg(), fn.Name())
+	fn2, ok := obj.(*types.Func)
+	if !ok {
+		return false
+	}
+	return xtypes.Identical(fn.Type(), fn2.Type())
 }
 
 func typeHasPointers(typ types.Type) bool {

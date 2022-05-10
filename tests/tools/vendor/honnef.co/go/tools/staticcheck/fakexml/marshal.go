@@ -43,11 +43,7 @@ func (enc *Encoder) Encode(v types.Type) error {
 
 func implementsMarshaler(v fakereflect.TypeAndCanAddr) bool {
 	t := v.Type
-	named, ok := t.(*types.Named)
-	if !ok {
-		return false
-	}
-	obj, _, _ := types.LookupFieldOrMethod(named, false, nil, "MarshalXML")
+	obj, _, _ := types.LookupFieldOrMethod(t, false, nil, "MarshalXML")
 	if obj == nil {
 		return false
 	}
@@ -77,11 +73,7 @@ func implementsMarshaler(v fakereflect.TypeAndCanAddr) bool {
 
 func implementsMarshalerAttr(v fakereflect.TypeAndCanAddr) bool {
 	t := v.Type
-	named, ok := t.(*types.Named)
-	if !ok {
-		return false
-	}
-	obj, _, _ := types.LookupFieldOrMethod(named, false, nil, "MarshalXMLAttr")
+	obj, _, _ := types.LookupFieldOrMethod(t, false, nil, "MarshalXMLAttr")
 	if obj == nil {
 		return false
 	}
@@ -121,6 +113,15 @@ var textMarshalerType = types.NewInterfaceType([]*types.Func{
 
 var N = 0
 
+type CyclicTypeError struct {
+	Type types.Type
+	Path string
+}
+
+func (err *CyclicTypeError) Error() string {
+	return "cyclic type"
+}
+
 // marshalValue writes one or more XML elements representing val.
 // If val was obtained from a struct field, finfo must have its details.
 func (e *Encoder) marshalValue(val fakereflect.TypeAndCanAddr, finfo *fieldInfo, startTemplate *StartElement, stack string) error {
@@ -130,11 +131,17 @@ func (e *Encoder) marshalValue(val fakereflect.TypeAndCanAddr, finfo *fieldInfo,
 	e.seen[val] = struct{}{}
 
 	// Drill into interfaces and pointers.
+	seen := map[fakereflect.TypeAndCanAddr]struct{}{}
 	for val.IsInterface() || val.IsPtr() {
 		if val.IsInterface() {
 			return nil
 		}
 		val = val.Elem()
+		if _, ok := seen[val]; ok {
+			// Loop in type graph, e.g. 'type P *P'
+			return &CyclicTypeError{val.Type, stack}
+		}
+		seen[val] = struct{}{}
 	}
 
 	// Check for marshaler.
@@ -337,8 +344,6 @@ func (e *Encoder) marshalStruct(tinfo *typeInfo, val fakereflect.TypeAndCanAddr,
 					continue
 				}
 			}
-
-			vf = indirect(vf)
 			continue
 
 		case fComment:

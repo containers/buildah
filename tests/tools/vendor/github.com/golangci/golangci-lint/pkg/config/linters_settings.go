@@ -123,6 +123,7 @@ type LintersSettings struct {
 	ErrorLint        ErrorLintSettings
 	Exhaustive       ExhaustiveSettings
 	ExhaustiveStruct ExhaustiveStructSettings
+	Exhaustruct      ExhaustructSettings
 	Forbidigo        ForbidigoSettings
 	Funlen           FunlenSettings
 	Gci              GciSettings
@@ -253,6 +254,11 @@ type ExhaustiveSettings struct {
 
 type ExhaustiveStructSettings struct {
 	StructPatterns []string `mapstructure:"struct-patterns"`
+}
+
+type ExhaustructSettings struct {
+	Include []string `mapstructure:"include"`
+	Exclude []string `mapstructure:"exclude"`
 }
 
 type ForbidigoSettings struct {
@@ -549,6 +555,11 @@ type ThelperSettings struct {
 		Name  bool `mapstructure:"name"`
 		Begin bool `mapstructure:"begin"`
 	} `mapstructure:"test"`
+	Fuzz struct {
+		First bool `mapstructure:"first"`
+		Name  bool `mapstructure:"name"`
+		Begin bool `mapstructure:"begin"`
+	} `mapstructure:"fuzz"`
 	Benchmark struct {
 		First bool `mapstructure:"first"`
 		Name  bool `mapstructure:"name"`
@@ -579,6 +590,7 @@ type VarnamelenSettings struct {
 	MinNameLength      int      `mapstructure:"min-name-length"`
 	CheckReceiver      bool     `mapstructure:"check-receiver"`
 	CheckReturn        bool     `mapstructure:"check-return"`
+	CheckTypeParam     bool     `mapstructure:"check-type-param"`
 	IgnoreNames        []string `mapstructure:"ignore-names"`
 	IgnoreTypeAssertOk bool     `mapstructure:"ignore-type-assert-ok"`
 	IgnoreMapIndexOk   bool     `mapstructure:"ignore-map-index-ok"`
@@ -592,9 +604,11 @@ type WhitespaceSettings struct {
 }
 
 type WrapcheckSettings struct {
-	IgnoreSigs         []string `mapstructure:"ignoreSigs"`
-	IgnoreSigRegexps   []string `mapstructure:"ignoreSigRegexps"`
-	IgnorePackageGlobs []string `mapstructure:"ignorePackageGlobs"`
+	// TODO(ldez): v2 the options must be renamed to use hyphen.
+	IgnoreSigs             []string `mapstructure:"ignoreSigs"`
+	IgnoreSigRegexps       []string `mapstructure:"ignoreSigRegexps"`
+	IgnorePackageGlobs     []string `mapstructure:"ignorePackageGlobs"`
+	IgnoreInterfaceRegexps []string `mapstructure:"ignoreInterfaceRegexps"`
 }
 
 type WSLSettings struct {

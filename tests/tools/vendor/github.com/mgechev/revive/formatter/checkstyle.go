@@ -3,8 +3,9 @@ package formatter
 import (
 	"bytes"
 	"encoding/xml"
-	"github.com/mgechev/revive/lint"
 	plainTemplate "text/template"
+
+	"github.com/mgechev/revive/lint"
 )
 
 // Checkstyle is an implementation of the Formatter interface
@@ -29,7 +30,7 @@ type issue struct {
 
 // Format formats the failures gotten from the lint.
 func (f *Checkstyle) Format(failures <-chan lint.Failure, config lint.Config) (string, error) {
-	var issues = map[string][]issue{}
+	issues := map[string][]issue{}
 	for failure := range failures {
 		buf := new(bytes.Buffer)
 		xml.Escape(buf, []byte(failure.Failure))

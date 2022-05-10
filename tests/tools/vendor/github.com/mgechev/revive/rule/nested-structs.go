@@ -47,15 +47,25 @@ func (l *lintNestedStructs) Visit(n ast.Node) ast.Visitor {
 		}
 		return nil
 	case *ast.Field:
-		if _, ok := v.Type.(*ast.StructType); ok {
+		filter := func(n ast.Node) bool {
+			switch n.(type) {
+			case *ast.StructType:
+				return true
+			default:
+				return false
+			}
+		}
+		structs := pick(v, filter, nil)
+		for _, s := range structs {
 			l.onFailure(lint.Failure{
 				Failure:    "no nested structs are allowed",
 				Category:   "style",
-				Node:       v,
+				Node:       s,
 				Confidence: 1,
 			})
-			break
 		}
+		return nil // no need to visit (again) the field
 	}
+
 	return l
 }

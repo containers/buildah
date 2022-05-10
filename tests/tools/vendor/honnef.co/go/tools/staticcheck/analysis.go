@@ -214,6 +214,22 @@ var Analyzers = lint.InitializeAnalyzers(Docs, map[string]*analysis.Analyzer{
 		Run:      CheckIneffectiveURLQueryModification,
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
 	},
+	"SA4028": {
+		Run:      CheckModuloOne,
+		Requires: []*analysis.Analyzer{inspect.Analyzer},
+	},
+	"SA4029": {
+		Run:      CheckIneffectiveSort,
+		Requires: []*analysis.Analyzer{inspect.Analyzer},
+	},
+	"SA4030": {
+		Run:      CheckIneffectiveRandInt,
+		Requires: []*analysis.Analyzer{inspect.Analyzer},
+	},
+	"SA4031": {
+		Run:      CheckAllocationNilCheck,
+		Requires: []*analysis.Analyzer{buildir.Analyzer, inspect.Analyzer, facts.TokenFile},
+	},
 
 	"SA5000": {
 		Run:      CheckNilMaps,
@@ -298,5 +314,14 @@ var Analyzers = lint.InitializeAnalyzers(Docs, map[string]*analysis.Analyzer{
 	"SA9006": {
 		Run:      CheckStaticBitShift,
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
+	},
+	"SA9007": {
+		Run:      CheckBadRemoveAll,
+		Requires: []*analysis.Analyzer{buildir.Analyzer},
+	},
+
+	"SA9008": {
+		Run:      CheckTypeAssertionShadowingElse,
+		Requires: []*analysis.Analyzer{inspect.Analyzer, buildir.Analyzer, facts.TokenFile},
 	},
 })

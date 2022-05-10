@@ -13,6 +13,7 @@ import (
 	"honnef.co/go/tools/go/ast/astutil"
 	"honnef.co/go/tools/go/ir"
 	"honnef.co/go/tools/go/ir/irutil"
+	"honnef.co/go/tools/go/types/typeutil"
 	"honnef.co/go/tools/internal/passes/buildir"
 
 	"golang.org/x/tools/go/analysis"
@@ -34,11 +35,11 @@ func CheckRangeStringRunes(pass *analysis.Pass) (interface{}, error) {
 			if val == nil {
 				return true
 			}
-			Tsrc, ok := val.X.Type().Underlying().(*types.Basic)
+			Tsrc, ok := typeutil.CoreType(val.X.Type()).(*types.Basic)
 			if !ok || Tsrc.Kind() != types.String {
 				return true
 			}
-			Tdst, ok := val.Type().(*types.Slice)
+			Tdst, ok := typeutil.CoreType(val.Type()).(*types.Slice)
 			if !ok {
 				return true
 			}
@@ -90,7 +91,7 @@ func CheckRangeStringRunes(pass *analysis.Pass) (interface{}, error) {
 // It does not flag variables under the following conditions, unless flagHelpfulTypes is true, to reduce the number of noisy positives:
 // - packages that import syscall or unsafe – these sometimes use this form of assignment to make sure types are as expected
 // - variables named the blank identifier – a pattern used to confirm the types of variables
-// - named untyped constants on the rhs – the explicitness might aid readability
+// - untyped expressions on the rhs – the explicitness might aid readability
 func RedundantTypeInDeclarationChecker(verb string, flagHelpfulTypes bool) *analysis.Analyzer {
 	fn := func(pass *analysis.Pass) (interface{}, error) {
 		eval := func(expr ast.Expr) (types.TypeAndValue, error) {
@@ -153,6 +154,10 @@ func RedundantTypeInDeclarationChecker(verb string, flagHelpfulTypes bool) *anal
 						panic(err)
 					}
 					if b, ok := tv.Type.(*types.Basic); ok && (b.Info()&types.IsUntyped) != 0 {
+						if Tlhs != types.Default(b) {
+							// The rhs is untyped and its default type differs from the explicit type on the lhs
+							continue specLoop
+						}
 						switch v := v.(type) {
 						case *ast.Ident:
 							// Only flag named constant rhs if it's a predeclared identifier.
@@ -160,14 +165,11 @@ func RedundantTypeInDeclarationChecker(verb string, flagHelpfulTypes bool) *anal
 							if pass.TypesInfo.ObjectOf(v).Pkg() != nil && !flagHelpfulTypes {
 								continue specLoop
 							}
-						case *ast.SelectorExpr:
-							// Constant selector expressions can only refer to named constants that arent predeclared.
-							if !flagHelpfulTypes {
-								continue specLoop
-							}
+						case *ast.BasicLit:
+							// Do flag basic literals
 						default:
-							// don't skip if the type on the lhs matches the default type of the constant
-							if Tlhs != types.Default(b) {
+							// Don't flag untyped rhs expressions unless flagHelpfulTypes is set
+							if !flagHelpfulTypes {
 								continue specLoop
 							}
 						}

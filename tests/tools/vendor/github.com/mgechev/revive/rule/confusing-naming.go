@@ -3,7 +3,6 @@ package rule
 import (
 	"fmt"
 	"go/ast"
-
 	"strings"
 	"sync"
 
@@ -71,7 +70,7 @@ func (r *ConfusingNamingRule) Name() string {
 	return "confusing-naming"
 }
 
-//checkMethodName checks if a given method/function name is similar (just case differences) to other method/function of the same struct/file.
+// checkMethodName checks if a given method/function name is similar (just case differences) to other method/function of the same struct/file.
 func checkMethodName(holder string, id *ast.Ident, w *lintConfusingNames) {
 	if id.Name == "init" && holder == defaultStructName {
 		// ignore init functions
@@ -128,7 +127,7 @@ type lintConfusingNames struct {
 
 const defaultStructName = "_" // used to map functions
 
-//getStructName of a function receiver. Defaults to defaultStructName
+// getStructName of a function receiver. Defaults to defaultStructName
 func getStructName(r *ast.FieldList) string {
 	result := defaultStructName
 

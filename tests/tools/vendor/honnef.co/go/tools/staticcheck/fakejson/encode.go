@@ -17,6 +17,7 @@ import (
 	"strings"
 	"unicode"
 
+	"golang.org/x/exp/typeparams"
 	"honnef.co/go/tools/staticcheck/fakereflect"
 )
 
@@ -106,6 +107,14 @@ func (enc *encoder) newTypeEncoder(t fakereflect.TypeAndCanAddr, stack string) *
 }
 
 func (enc *encoder) newMapEncoder(t fakereflect.TypeAndCanAddr, stack string) *UnsupportedTypeError {
+	if typeparams.IsTypeParam(t.Key().Type) {
+		// We don't know enough about the concrete instantiation to say much about the key. The only time we could make
+		// a definite "this key is bad" statement is if the type parameter is constrained by type terms, none of which
+		// are tilde terms, none of which are a basic type. In all other cases, the key might implement TextMarshaler.
+		// It doesn't seem worth checking for that one single case.
+		return enc.newTypeEncoder(t.Elem(), stack+"[k]")
+	}
+
 	switch t.Key().Type.Underlying().(type) {
 	case *types.Basic:
 	default:

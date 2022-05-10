@@ -22,7 +22,7 @@ func newWhiteList() whiteList {
 	return map[string]map[string]bool{kindINT: {}, kindFLOAT: {}, kindSTRING: {}}
 }
 
-func (wl whiteList) add(kind string, list string) {
+func (wl whiteList) add(kind, list string) {
 	elems := strings.Split(list, ",")
 	for _, e := range elems {
 		wl[kind][e] = true
@@ -120,7 +120,6 @@ func (w lintAddConstantRule) Visit(node ast.Node) ast.Visitor {
 	}
 
 	return w
-
 }
 
 func (w lintAddConstantRule) checkStrLit(n *ast.BasicLit) {

@@ -156,8 +156,14 @@ func (c Config) String() string {
 	return buf.String()
 }
 
+// DefaultConfig is the default configuration.
+// Its initial value describes the majority of the default configuration,
+// but the Checks field can be updated at runtime based on the analyzers being used, to disable non-default checks.
+// For cmd/staticcheck, this is handled by (*lintcmd.Command).Run.
+//
+// Note that DefaultConfig shouldn't be modified while analyzers are executing.
 var DefaultConfig = Config{
-	Checks: []string{"all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022", "-ST1023"},
+	Checks: []string{"all"},
 	Initialisms: []string{
 		"ACL", "API", "ASCII", "CPU", "CSS", "DNS",
 		"EOF", "GUID", "HTML", "HTTP", "HTTPS", "ID",
@@ -167,11 +173,20 @@ var DefaultConfig = Config{
 		"URL", "UTF8", "VM", "XML", "XMPP", "XSRF",
 		"XSS", "SIP", "RTP", "AMQP", "DB", "TS",
 	},
-	DotImportWhitelist:      []string{},
+	DotImportWhitelist: []string{
+		"github.com/mmcloughlin/avo/build",
+		"github.com/mmcloughlin/avo/operand",
+		"github.com/mmcloughlin/avo/reg",
+	},
 	HTTPStatusCodeWhitelist: []string{"200", "400", "404", "500"},
 }
 
 const ConfigName = "staticcheck.conf"
+
+type ParseError struct {
+	Filename string
+	toml.ParseError
+}
 
 func parseConfigs(dir string) ([]Config, error) {
 	var out []Config
@@ -194,6 +209,12 @@ func parseConfigs(dir string) ([]Config, error) {
 		_, err = toml.DecodeReader(f, &cfg)
 		f.Close()
 		if err != nil {
+			if err, ok := err.(toml.ParseError); ok {
+				return nil, ParseError{
+					Filename:   filepath.Join(dir, ConfigName),
+					ParseError: err,
+				}
+			}
 			return nil, err
 		}
 		out = append(out, cfg)

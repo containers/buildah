@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/quasilyte/go-ruleguard/ruleguard/quasigo"
+	"github.com/quasilyte/go-ruleguard/ruleguard/typematch"
 	"github.com/quasilyte/gogrep"
 	"github.com/quasilyte/gogrep/nodetag"
 )
@@ -58,7 +59,9 @@ type filterParams struct {
 	imports  map[string]struct{}
 	env      *quasigo.EvalEnv
 
-	importer *goImporter
+	importer       *goImporter
+	gogrepSubState *gogrep.MatcherState
+	typematchState *typematch.MatcherState
 
 	match    matchData
 	nodePath *nodePath

@@ -15,6 +15,7 @@ import (
 	"go/types"
 	"sync"
 
+	"golang.org/x/exp/typeparams"
 	"honnef.co/go/tools/go/types/typeutil"
 )
 
@@ -287,6 +288,7 @@ const (
 	SyntheticThunk
 	SyntheticWrapper
 	SyntheticBound
+	SyntheticGeneric
 )
 
 func (syn Synthetic) String() string {
@@ -301,6 +303,8 @@ func (syn Synthetic) String() string {
 		return "wrapper"
 	case SyntheticBound:
 		return "bound"
+	case SyntheticGeneric:
+		return "generic"
 	default:
 		return fmt.Sprintf("Synthetic(%d)", syn)
 	}
@@ -348,6 +352,7 @@ type Function struct {
 	object    types.Object     // a declared *types.Func or one of its wrappers
 	method    *types.Selection // info about provenance of synthetic methods
 	Signature *types.Signature
+	generics  instanceWrapperMap
 
 	Synthetic Synthetic
 	parent    *Function     // enclosing function if anon; nil if global
@@ -365,6 +370,83 @@ type Function struct {
 	*functionBody
 }
 
+type instanceWrapperMap struct {
+	h       typeutil.Hasher
+	entries map[uint32][]struct {
+		key *typeparams.TypeList
+		val *Function
+	}
+	len int
+}
+
+func typeListIdentical(l1, l2 *typeparams.TypeList) bool {
+	if l1.Len() != l2.Len() {
+		return false
+	}
+	for i := 0; i < l1.Len(); i++ {
+		t1 := l1.At(i)
+		t2 := l2.At(i)
+		if !types.Identical(t1, t2) {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *instanceWrapperMap) At(key *typeparams.TypeList) *Function {
+	if m.entries == nil {
+		m.entries = make(map[uint32][]struct {
+			key *typeparams.TypeList
+			val *Function
+		})
+		m.h = typeutil.MakeHasher()
+	}
+
+	var hash uint32
+	for i := 0; i < key.Len(); i++ {
+		t := key.At(i)
+		hash += m.h.Hash(t)
+	}
+
+	for _, e := range m.entries[hash] {
+		if typeListIdentical(e.key, key) {
+			return e.val
+		}
+	}
+	return nil
+}
+
+func (m *instanceWrapperMap) Set(key *typeparams.TypeList, val *Function) {
+	if m.entries == nil {
+		m.entries = make(map[uint32][]struct {
+			key *typeparams.TypeList
+			val *Function
+		})
+		m.h = typeutil.MakeHasher()
+	}
+
+	var hash uint32
+	for i := 0; i < key.Len(); i++ {
+		t := key.At(i)
+		hash += m.h.Hash(t)
+	}
+	for i, e := range m.entries[hash] {
+		if typeListIdentical(e.key, key) {
+			m.entries[hash][i].val = val
+			return
+		}
+	}
+	m.entries[hash] = append(m.entries[hash], struct {
+		key *typeparams.TypeList
+		val *Function
+	}{key, val})
+	m.len++
+}
+
+func (m *instanceWrapperMap) Len() int {
+	return m.len
+}
+
 type NoReturn uint8
 
 const (
@@ -377,13 +459,13 @@ const (
 type functionBody struct {
 	// The following fields are set transiently during building,
 	// then cleared.
-	currentBlock    *BasicBlock             // where to emit code
-	objects         map[types.Object]Value  // addresses of local variables
-	namedResults    []*Alloc                // tuple of named results
-	implicitResults []*Alloc                // tuple of results
-	targets         *targets                // linked stack of branch targets
-	lblocks         map[*ast.Object]*lblock // labelled blocks
-	consts          []*Const
+	currentBlock    *BasicBlock              // where to emit code
+	objects         map[types.Object]Value   // addresses of local variables
+	namedResults    []*Alloc                 // tuple of named results
+	implicitResults []*Alloc                 // tuple of results
+	targets         *targets                 // linked stack of branch targets
+	lblocks         map[types.Object]*lblock // labelled blocks
+	consts          []Constant
 	wr              *HTMLWriter
 	fakeExits       BlockSet
 	blocksets       [5]BlockSet
@@ -501,6 +583,35 @@ type Const struct {
 	Value constant.Value
 }
 
+type AggregateConst struct {
+	register
+
+	Values []Constant
+}
+
+// TODO add the element's zero constant to ArrayConst
+type ArrayConst struct {
+	register
+}
+
+type GenericConst struct {
+	register
+}
+
+type Constant interface {
+	Instruction
+	Value
+	aConstant()
+	RelString(*types.Package) string
+	equal(Constant) bool
+	setType(types.Type)
+}
+
+func (*Const) aConstant()          {}
+func (*AggregateConst) aConstant() {}
+func (*ArrayConst) aConstant()     {}
+func (*GenericConst) aConstant()   {}
+
 // A Global is a named Value holding the address of a package-level
 // variable.
 //
@@ -608,6 +719,24 @@ type Sigma struct {
 	X    Value
 
 	live bool // used during lifting
+}
+
+type CopyInfo uint64
+
+const (
+	CopyInfoUnspecified CopyInfo = 0
+	CopyInfoNotNil      CopyInfo = 1 << iota
+	CopyInfoNotZeroLength
+	CopyInfoNotNegative
+	CopyInfoSingleConcreteType
+	CopyInfoClosed
+)
+
+type Copy struct {
+	register
+	X    Value
+	Why  Instruction
+	Info CopyInfo
 }
 
 // The Phi instruction represents an SSA φ-node, which combines values
@@ -1525,10 +1654,11 @@ type anInstruction struct {
 // the last element of Args is a slice.
 //
 type CallCommon struct {
-	Value   Value       // receiver (invoke mode) or func value (call mode)
-	Method  *types.Func // abstract method (invoke mode)
-	Args    []Value     // actual parameters (in static method call, includes receiver)
-	Results Value
+	Value    Value       // receiver (invoke mode) or func value (call mode)
+	Method   *types.Func // abstract method (invoke mode)
+	Args     []Value     // actual parameters (in static method call, includes receiver)
+	TypeArgs []types.Type
+	Results  Value
 }
 
 // IsInvoke returns true if this call has "invoke" (not "call") mode.
@@ -1548,7 +1678,7 @@ func (c *CallCommon) Signature() *types.Signature {
 	if c.Method != nil {
 		return c.Method.Type().(*types.Signature)
 	}
-	return c.Value.Type().Underlying().(*types.Signature)
+	return typeutil.CoreType(c.Value.Type()).(*types.Signature)
 }
 
 // StaticCallee returns the callee if this is a trivially static
@@ -1754,6 +1884,10 @@ func (s *DebugRef) Operands(rands []*Value) []*Value {
 	return append(rands, &s.X)
 }
 
+func (s *Copy) Operands(rands []*Value) []*Value {
+	return append(rands, &s.X)
+}
+
 func (v *Extract) Operands(rands []*Value) []*Value {
 	return append(rands, &v.Tuple)
 }
@@ -1909,9 +2043,12 @@ func (v *Load) Operands(rands []*Value) []*Value {
 }
 
 // Non-Instruction Values:
-func (v *Builtin) Operands(rands []*Value) []*Value   { return rands }
-func (v *FreeVar) Operands(rands []*Value) []*Value   { return rands }
-func (v *Const) Operands(rands []*Value) []*Value     { return rands }
-func (v *Function) Operands(rands []*Value) []*Value  { return rands }
-func (v *Global) Operands(rands []*Value) []*Value    { return rands }
-func (v *Parameter) Operands(rands []*Value) []*Value { return rands }
+func (v *Builtin) Operands(rands []*Value) []*Value        { return rands }
+func (v *FreeVar) Operands(rands []*Value) []*Value        { return rands }
+func (v *Const) Operands(rands []*Value) []*Value          { return rands }
+func (v *ArrayConst) Operands(rands []*Value) []*Value     { return rands }
+func (v *AggregateConst) Operands(rands []*Value) []*Value { return rands }
+func (v *GenericConst) Operands(rands []*Value) []*Value   { return rands }
+func (v *Function) Operands(rands []*Value) []*Value       { return rands }
+func (v *Global) Operands(rands []*Value) []*Value         { return rands }
+func (v *Parameter) Operands(rands []*Value) []*Value      { return rands }

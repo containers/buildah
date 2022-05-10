@@ -127,6 +127,10 @@ func (c *compiler) compileNode(n ast.Node) {
 		c.compileDeclSlice(n)
 	case ExprSlice:
 		c.compileExprSlice(n)
+	case *rangeClause:
+		c.compileRangeClause(n)
+	case *rangeHeader:
+		c.compileRangeHeader(n)
 	default:
 		panic(c.errorf(n, "compileNode: unexpected %T", n))
 	}
@@ -1125,6 +1129,37 @@ func (c *compiler) compileExprSlice(exprs ExprSlice) {
 		c.compileExpr(n)
 	}
 	c.emitInstOp(opEnd)
+}
+
+func (c *compiler) compileRangeClause(clause *rangeClause) {
+	c.emitInstOp(opRangeClause)
+	c.compileExpr(clause.X)
+}
+
+func (c *compiler) compileRangeHeader(h *rangeHeader) {
+	n := h.Node
+	switch {
+	case n.Key == nil && n.Value == nil:
+		c.emitInstOp(opRangeHeader)
+		c.compileExpr(n.X)
+	case n.Key != nil && n.Value == nil:
+		c.emitInst(instruction{
+			op:    opRangeKeyHeader,
+			value: c.toUint8(n, int(n.Tok)),
+		})
+		c.compileExpr(n.Key)
+		c.compileExpr(n.X)
+	case n.Key != nil && n.Value != nil:
+		c.emitInst(instruction{
+			op:    opRangeKeyValueHeader,
+			value: c.toUint8(n, int(n.Tok)),
+		})
+		c.compileExpr(n.Key)
+		c.compileExpr(n.Value)
+		c.compileExpr(n.X)
+	default:
+		panic(c.errorf(n, "unexpected range header"))
+	}
 }
 
 func pickOp(cond bool, ifTrue, ifFalse operation) operation {

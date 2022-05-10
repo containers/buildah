@@ -1,18 +1,26 @@
 package knowledge
 
 const (
-	DeprecatedNeverUse    = -1
+	// DeprecatedNeverUse indicates that an API should never be used, regardless of Go version.
+	DeprecatedNeverUse = -1
+	// DeprecatedUseNoLonger indicates that an API has no use anymore.
 	DeprecatedUseNoLonger = -2
 )
 
+// Deprecation describes when a Go API has been deprecated.
 type Deprecation struct {
-	DeprecatedSince           int
+	// The minor Go version since which this API has been deprecated.
+	DeprecatedSince int
+	// The minor Go version since which an alternative API has been available.
+	// May also be one of DeprecatedNeverUse or DeprecatedUseNoLonger.
 	AlternativeAvailableSince int
 }
 
 // go/importer.ForCompiler contains "Deprecated:", but it refers to a single argument, not the whole function.
 // Luckily, the notice starts in the middle of a paragraph, and as such isn't detected by us.
 
+// StdlibDeprecations contains a mapping of Go API (such as variables, methods, or fields, among others)
+// to information about when it has been deprecated.
 var StdlibDeprecations = map[string]Deprecation{
 	// FIXME(dh): AllowBinary isn't being detected as deprecated
 	// because the comment has a newline right after "Deprecated:"
@@ -144,74 +152,102 @@ var StdlibDeprecations = map[string]Deprecation{
 
 	// Not marked as deprecated with a recognizable header, but deprecated nonetheless.
 	"io/ioutil": {16, 16},
+
+	"bytes.Title":   {18, 0},
+	"strings.Title": {18, 0},
+	"(crypto/tls.Config).PreferServerCipherSuites": {18, DeprecatedUseNoLonger},
+	// It's not clear if Subjects was okay to use in the past, so we err on the less noisy side of assuming that it was.
+	"(*crypto/x509.CertPool).Subjects": {18, DeprecatedUseNoLonger},
+	"go/types.NewSignature":            {18, 18},
+	"(net.Error).Temporary":            {18, DeprecatedNeverUse},
+	// InterfaceData is another tricky case. It was deprecated in Go 1.18, but has been useless since Go 1.4, and an
+	// "alternative" (using your own unsafe hacks) has existed forever. We don't want to get into hairsplitting with
+	// users who somehow successfully used this between 1.4 and 1.18, so we'll just tag it as deprecated since 1.18.
+	"(reflect.Value).InterfaceData": {18, 18},
+
+	// The following objects are only deprecated on Windows.
+	"syscall.Syscall":   {18, 18},
+	"syscall.Syscall12": {18, 18},
+	"syscall.Syscall15": {18, 18},
+	"syscall.Syscall18": {18, 18},
+	"syscall.Syscall6":  {18, 18},
+	"syscall.Syscall9":  {18, 18},
 }
 
-// Last imported from Go at 32b73ae18026e8a9dc4c5aa49999b1ea445bc68c with the following numbers of deprecations:
+// Last imported from Go at 4aa1efed4853ea067d665a952eee77c52faac774 with the following numbers of deprecations:
 //
-// chulak go@master ./src $ rg -c "Deprecated: "
-// vendor/golang.org/x/crypto/curve25519/curve25519.go:1
-// vendor/golang.org/x/text/transform/transform.go:1
+// archive/tar/common.go:2
+// archive/zip/struct.go:6
+// bytes/bytes.go:1
+// cmd/compile/internal/ir/expr.go:1
+// cmd/compile/internal/ir/type.go:1
+// cmd/compile/internal/syntax/walk.go:1
 // cmd/compile/internal/types/sym.go:2
-// syscall/route_netbsd.go:1
-// syscall/route_bsd.go:7
-// syscall/lsf_linux.go:6
-// syscall/exec_unix.go:1
-// syscall/route_darwin.go:1
-// syscall/route_freebsd.go:2
-// syscall/route_dragonfly.go:2
-// syscall/bpf_darwin.go:18
-// syscall/route_openbsd.go:1
-// syscall/syscall_windows.go:6
-// syscall/syscall.go:3
-// syscall/bpf_bsd.go:18
-// cmd/compile/internal/types2/type.go:2
-// syscall/exec_plan9.go:1
-// cmd/internal/obj/textflag.go:1
-// cmd/internal/obj/link.go:5
-// cmd/vendor/golang.org/x/sys/unix/zsysnum_darwin_arm64.go:1
-// cmd/vendor/golang.org/x/mod/semver/semver.go:1
-// cmd/vendor/golang.org/x/sys/windows/syscall_windows.go:2
-// cmd/vendor/golang.org/x/sys/unix/zsysnum_darwin_amd64.go:1
-// cmd/vendor/golang.org/x/mod/modfile/rule.go:2
-// cmd/vendor/golang.org/x/sys/windows/security_windows.go:1
 // cmd/go/internal/modcmd/edit.go:1
 // cmd/go/testdata/mod/example.com_deprecated_a_v1.9.0.txt:2
-// cmd/go/testdata/mod/example.com_undeprecated_v1.0.0.txt:2
 // cmd/go/testdata/mod/example.com_deprecated_b_v1.9.0.txt:2
+// cmd/go/testdata/mod/example.com_undeprecated_v1.0.0.txt:2
+// cmd/go/testdata/script/mod_deprecate_message.txt:4
+// cmd/go/testdata/script/mod_edit.txt:1
+// cmd/go/testdata/script/mod_list_deprecated.txt:2
+// cmd/go/testdata/script/mod_list_deprecated_replace.txt:1
+// cmd/internal/obj/link.go:5
+// cmd/internal/obj/textflag.go:1
+// cmd/vendor/golang.org/x/mod/modfile/rule.go:2
+// cmd/vendor/golang.org/x/mod/semver/semver.go:1
+// cmd/vendor/golang.org/x/sys/unix/zsysnum_darwin_amd64.go:1
+// cmd/vendor/golang.org/x/sys/unix/zsysnum_darwin_arm64.go:1
+// cmd/vendor/golang.org/x/sys/windows/security_windows.go:1
+// cmd/vendor/golang.org/x/sys/windows/syscall_windows.go:2
+// compress/flate/inflate.go:2
+// crypto/dsa/dsa.go:1
+// crypto/rc4/rc4.go:1
+// crypto/tls/common.go:7
+// crypto/x509/cert_pool.go:1
+// crypto/x509/pem_decrypt.go:3
+// crypto/x509/x509.go:1
+// database/sql/driver/driver.go:6
+// debug/gosym/pclntab.go:2
 // encoding/csv/reader.go:2
 // encoding/json/decode.go:1
 // encoding/json/encode.go:1
-// cmd/go/testdata/script/mod_list_deprecated.txt:2
-// cmd/go/testdata/script/mod_deprecate_message.txt:4
-// cmd/go/testdata/script/mod_list_deprecated_replace.txt:1
-// runtime/cpuprof.go:1
-// cmd/go/testdata/script/mod_edit.txt:1
-// crypto/tls/common.go:6
-// crypto/rc4/rc4.go:1
-// crypto/dsa/dsa.go:1
-// path/filepath/path_unix.go:1
-// path/filepath/path_windows.go:1
-// path/filepath/path_plan9.go:1
-// regexp/regexp.go:1
-// crypto/x509/pem_decrypt.go:3
-// crypto/x509/x509.go:1
-// archive/zip/struct.go:6
-// archive/tar/common.go:2
-// debug/gosym/pclntab.go:2
-// compress/flate/inflate.go:2
+// go/doc/doc.go:1
+// go/importer/importer.go:2
+// go/types/errorcodes.go:1
+// go/types/interface.go:2
+// go/types/signature.go:1
 // image/geom.go:2
 // image/jpeg/reader.go:1
-// os/file.go:1
 // net/dial.go:2
-// net/http/server.go:2
-// net/http/socks_bundle.go:1
+// net/http/httptest/recorder.go:1
 // net/http/httputil/persist.go:8
 // net/http/request.go:6
+// net/http/server.go:2
+// net/http/socks_bundle.go:1
 // net/http/transport.go:3
-// net/http/httptest/recorder.go:1
-// go/doc/doc.go:1
-// go/types/errorcodes.go:1
-// go/types/type.go:2
-// database/sql/driver/driver.go:6
+// net/net.go:1
+// os/file.go:1
+// path/filepath/path_plan9.go:1
+// path/filepath/path_unix.go:1
+// path/filepath/path_windows.go:1
+// reflect/value.go:1
+// regexp/regexp.go:1
+// runtime/cpuprof.go:1
+// strings/strings.go:1
+// syscall/bpf_bsd.go:18
+// syscall/bpf_darwin.go:18
+// syscall/dll_windows.go:6
+// syscall/exec_plan9.go:1
+// syscall/exec_unix.go:1
+// syscall/lsf_linux.go:6
+// syscall/route_bsd.go:7
+// syscall/route_darwin.go:1
+// syscall/route_dragonfly.go:2
+// syscall/route_freebsd.go:2
+// syscall/route_netbsd.go:1
+// syscall/route_openbsd.go:1
+// syscall/syscall.go:3
+// syscall/syscall_windows.go:6
 // text/template/parse/node.go:5
-// go/importer/importer.go:2
+// vendor/golang.org/x/crypto/curve25519/curve25519.go:1
+// vendor/golang.org/x/text/transform/transform.go:1

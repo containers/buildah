@@ -17,7 +17,7 @@ type ErrorStringsRule struct{}
 func (r *ErrorStringsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
-	var errorFunctions = map[string]map[string]struct{}{
+	errorFunctions := map[string]map[string]struct{}{
 		"fmt": {
 			"Errorf": {},
 		},

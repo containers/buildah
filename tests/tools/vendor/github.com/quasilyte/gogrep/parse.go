@@ -46,7 +46,7 @@ func parseExpr(fset *token.FileSet, expr string) (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	node, _, err := parseDetectingNode(fset, exprStr)
+	node, err := parseDetectingNode(fset, exprStr)
 	if err != nil {
 		err = subPosOffsets(err, offs...)
 		return nil, fmt.Errorf("cannot parse expr: %v", err)
@@ -128,14 +128,32 @@ func parseType(fset *token.FileSet, src string) (ast.Expr, *ast.File, error) {
 // one of: *ast.File, ast.Decl, ast.Expr, ast.Stmt, *ast.ValueSpec.
 // It also returns the *ast.File used for the parsing, so that the returned node
 // can be easily type-checked.
-func parseDetectingNode(fset *token.FileSet, src string) (ast.Node, *ast.File, error) {
+func parseDetectingNode(fset *token.FileSet, src string) (ast.Node, error) {
 	file := fset.AddFile("", fset.Base(), len(src))
 	scan := scanner.Scanner{}
 	scan.Init(file, []byte(src), nil, 0)
 	if _, tok, _ := scan.Scan(); tok == token.EOF {
-		return nil, nil, fmt.Errorf("empty source code")
+		return nil, fmt.Errorf("empty source code")
 	}
 	var mainErr error
+
+	// Some adhoc patterns first.
+	if strings.HasPrefix(src, "range ") {
+		e, err := parser.ParseExpr(src[len("range "):])
+		if err == nil && noBadNodes(e) {
+			return &rangeClause{X: e}, nil
+		}
+	}
+	if strings.HasPrefix(src, "for ") && !strings.HasSuffix(src, "}") {
+		asStmts := execTmpl(tmplStmts, src+"{}")
+		f, err := parser.ParseFile(fset, "", asStmts, 0)
+		if err == nil && noBadNodes(f) {
+			bl := f.Decls[0].(*ast.FuncDecl).Body
+			if len(bl.List) == 1 {
+				return &rangeHeader{Node: bl.List[0].(*ast.RangeStmt)}, nil
+			}
+		}
+	}
 
 	// try as a block; otherwise blocks might be mistaken for composite
 	// literals further below
@@ -144,7 +162,7 @@ func parseDetectingNode(fset *token.FileSet, src string) (ast.Node, *ast.File, e
 		bl := f.Decls[0].(*ast.FuncDecl).Body
 		if len(bl.List) == 1 {
 			ifs := bl.List[0].(*ast.IfStmt)
-			return ifs.Body, f, nil
+			return ifs.Body, nil
 		}
 	}
 
@@ -154,9 +172,9 @@ func parseDetectingNode(fset *token.FileSet, src string) (ast.Node, *ast.File, e
 		vs := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
 		cl := vs.Values[0].(*ast.CompositeLit)
 		if len(cl.Elts) == 1 {
-			return cl.Elts[0], f, nil
+			return cl.Elts[0], nil
 		}
-		return ExprSlice(cl.Elts), f, nil
+		return ExprSlice(cl.Elts), nil
 	}
 
 	// then try as statements
@@ -165,9 +183,9 @@ func parseDetectingNode(fset *token.FileSet, src string) (ast.Node, *ast.File, e
 	if err == nil && noBadNodes(f) {
 		bl := f.Decls[0].(*ast.FuncDecl).Body
 		if len(bl.List) == 1 {
-			return bl.List[0], f, nil
+			return bl.List[0], nil
 		}
-		return stmtSlice(bl.List), f, nil
+		return stmtSlice(bl.List), nil
 	}
 	// Statements is what covers most cases, so it will give
 	// the best overall error message. Show positions
@@ -179,29 +197,32 @@ func parseDetectingNode(fset *token.FileSet, src string) (ast.Node, *ast.File, e
 	asDecl := execTmpl(tmplDecl, src)
 	if f, err := parser.ParseFile(fset, "", asDecl, 0); err == nil && noBadNodes(f) {
 		if len(f.Decls) == 1 {
-			return f.Decls[0], f, nil
+			return f.Decls[0], nil
 		}
-		return declSlice(f.Decls), f, nil
+		return declSlice(f.Decls), nil
 	}
 
 	// try as a whole file
 	if f, err := parser.ParseFile(fset, "", src, 0); err == nil && noBadNodes(f) {
-		return f, f, nil
+		return f, nil
 	}
 
 	// type expressions not yet picked up, for e.g. chans and interfaces
 	if typ, f, err := parseType(fset, src); err == nil && noBadNodes(f) {
-		return typ, f, nil
+		return typ, nil
 	}
 
 	// value specs
 	asValSpec := execTmpl(tmplValSpec, src)
 	if f, err := parser.ParseFile(fset, "", asValSpec, 0); err == nil && noBadNodes(f) {
-		vs := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
-		return vs, f, nil
+		decl := f.Decls[0].(*ast.GenDecl)
+		if len(decl.Specs) != 0 {
+			vs := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
+			return vs, nil
+		}
 	}
 
-	return nil, nil, mainErr
+	return nil, mainErr
 }
 
 type posOffset struct {
@@ -360,3 +381,17 @@ func decodeWildNode(n ast.Node) varInfo {
 	}
 	return varInfo{}
 }
+
+type rangeClause struct {
+	X ast.Expr
+}
+
+type rangeHeader struct {
+	Node *ast.RangeStmt
+}
+
+func (*rangeClause) Pos() token.Pos { return 0 }
+func (*rangeClause) End() token.Pos { return 0 }
+
+func (*rangeHeader) Pos() token.Pos { return 0 }
+func (*rangeHeader) End() token.Pos { return 0 }

@@ -255,6 +255,9 @@ func validatePort(s string) bool {
 func ValidHostPort(v Value) bool {
 	if k := extractConstExpectKind(v.Value, constant.String); k != nil {
 		s := constant.StringVal(k.Value)
+		if s == "" {
+			return true
+		}
 		_, port, err := net.SplitHostPort(s)
 		if err != nil {
 			return false

@@ -12,7 +12,7 @@ GOBIN ?= $(GOPATH)/bin
 GOLINT ?= $(GOBIN)/golint
 GOSEC ?= $(GOBIN)/gosec
 GINKGO ?= $(GOBIN)/ginkgo
-GO_VERSION = 1.17
+GO_VERSION = 1.18
 
 default:
 	$(MAKE) build
@@ -31,11 +31,15 @@ fmt:
 	@([ ! -z "$(FORMATTED)" ] && printf "Fixed unformatted files:\n$(FORMATTED)") || true
 
 lint:
-	@echo "LINTING"
+	@echo "LINTING: golint"
 	$(GO_NOMOD) get -u golang.org/x/lint/golint
 	$(GOLINT) -set_exit_status ./...
 	@echo "VETTING"
 	$(GO) vet ./...
+
+golangci:
+	@echo "LINTING: golangci-lint"
+	golangci-lint run
 
 sec:
 	@echo "SECURITY SCANNING"

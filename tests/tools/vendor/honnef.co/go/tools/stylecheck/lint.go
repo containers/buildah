@@ -24,6 +24,7 @@ import (
 	"honnef.co/go/tools/internal/passes/buildir"
 	"honnef.co/go/tools/pattern"
 
+	"golang.org/x/exp/typeparams"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
@@ -185,6 +186,8 @@ func CheckBlankImports(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
+var checkIncDecQ = pattern.MustParse(`(AssignStmt x tok@(Or "+=" "-=") (BasicLit "INT" "1"))`)
+
 func CheckIncDec(pass *analysis.Pass) (interface{}, error) {
 	// TODO(dh): this can be noisy for function bodies that look like this:
 	// 	x += 3
@@ -193,24 +196,19 @@ func CheckIncDec(pass *analysis.Pass) (interface{}, error) {
 	// 	...
 	// 	x += 1
 	fn := func(node ast.Node) {
-		assign := node.(*ast.AssignStmt)
-		if assign.Tok != token.ADD_ASSIGN && assign.Tok != token.SUB_ASSIGN {
+		m, ok := code.Match(pass, checkIncDecQ, node)
+		if !ok {
 			return
 		}
-		if (len(assign.Lhs) != 1 || len(assign.Rhs) != 1) ||
-			!astutil.IsIntLiteral(assign.Rhs[0], "1") {
-			return
-		}
-
 		suffix := ""
-		switch assign.Tok {
+		switch m.State["tok"].(token.Token) {
 		case token.ADD_ASSIGN:
 			suffix = "++"
 		case token.SUB_ASSIGN:
 			suffix = "--"
 		}
 
-		report.Report(pass, assign, fmt.Sprintf("should replace %s with %s%s", report.Render(pass, assign), report.Render(pass, assign.Lhs[0]), suffix))
+		report.Report(pass, node, fmt.Sprintf("should replace %s with %s%s", report.Render(pass, node), report.Render(pass, m.State["x"].(ast.Node)), suffix))
 	}
 	code.Preorder(pass, fn, (*ast.AssignStmt)(nil))
 	return nil, nil
@@ -228,6 +226,11 @@ fnLoop:
 		if rets.At(rets.Len()-1).Type() == types.Universe.Lookup("error").Type() {
 			// Last return type is error. If the function also returns
 			// errors in other positions, that's fine.
+			continue
+		}
+
+		if rets.Len() >= 2 && rets.At(rets.Len()-1).Type() == types.Universe.Lookup("bool").Type() && rets.At(rets.Len()-2).Type() == types.Universe.Lookup("error").Type() {
+			// Accept (..., error, bool) and assume it's a comma-ok function. It's not clear whether the bool should come last or not for these kinds of functions.
 			continue
 		}
 		for i := rets.Len() - 2; i >= 0; i-- {
@@ -399,7 +402,7 @@ func CheckErrorStrings(pass *analysis.Pass) (interface{}, error) {
 				}
 				switch s[len(s)-1] {
 				case '.', ':', '!', '\n':
-					report.Report(pass, call, "error strings should not end with punctuation or a newline")
+					report.Report(pass, call, "error strings should not end with punctuation or newlines")
 				}
 				idx := strings.IndexByte(s, ' ')
 				if idx == -1 {
@@ -534,7 +537,7 @@ func CheckErrorVarNames(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-var httpStatusCodes = map[int]string{
+var httpStatusCodes = map[int64]string{
 	100: "StatusContinue",
 	101: "StatusSwitchingProtocols",
 	102: "StatusProcessing",
@@ -620,25 +623,26 @@ func CheckHTTPStatusCodes(pass *analysis.Pass) (interface{}, error) {
 		if arg >= len(call.Args) {
 			return
 		}
-		lit, ok := call.Args[arg].(*ast.BasicLit)
+		tv, ok := code.IntegerLiteral(pass, call.Args[arg])
 		if !ok {
 			return
 		}
-		if whitelist[lit.Value] {
+		n, ok := constant.Int64Val(tv.Value)
+		if !ok {
+			return
+		}
+		if whitelist[strconv.FormatInt(n, 10)] {
 			return
 		}
 
-		n, err := strconv.Atoi(lit.Value)
-		if err != nil {
-			return
-		}
 		s, ok := httpStatusCodes[n]
 		if !ok {
 			return
 		}
+		lit := call.Args[arg]
 		report.Report(pass, lit, fmt.Sprintf("should use constant http.%s instead of numeric literal %d", s, n),
 			report.FilterGenerated(),
-			report.Fixes(edit.Fix(fmt.Sprintf("use http.%s instead of %d", s, n), edit.ReplaceWithString(pass.Fset, lit, "http."+s))))
+			report.Fixes(edit.Fix(fmt.Sprintf("use http.%s instead of %d", s, n), edit.ReplaceWithString(lit, "http."+s))))
 	}
 	code.Preorder(pass, fn, (*ast.CallExpr)(nil))
 	return nil, nil
@@ -660,7 +664,7 @@ func CheckDefaultCaseOrder(pass *analysis.Pass) (interface{}, error) {
 }
 
 var (
-	checkYodaConditionsQ = pattern.MustParse(`(BinaryExpr left@(BasicLit _ _) tok@(Or "==" "!=") right@(Not (BasicLit _ _)))`)
+	checkYodaConditionsQ = pattern.MustParse(`(BinaryExpr left@(TrulyConstantExpression _) tok@(Or "==" "!=") right@(Not (TrulyConstantExpression _)))`)
 	checkYodaConditionsR = pattern.MustParse(`(BinaryExpr right tok left)`)
 )
 
@@ -690,14 +694,21 @@ func CheckInvisibleCharacters(pass *analysis.Pass) (interface{}, error) {
 		var invalids []invalid
 		hasFormat := false
 		hasControl := false
+		prev := rune(-1)
+		const zwj = '\u200d'
 		for off, r := range lit.Value {
 			if unicode.Is(unicode.Cf, r) {
-				invalids = append(invalids, invalid{r, off})
-				hasFormat = true
+				// Don't flag joined emojis. These are multiple emojis joined with ZWJ, which some platform render as single composite emojis.
+				// For the purpose of this check, we consider all symbols, including all symbol modifiers, emoji.
+				if r != zwj || (r == zwj && !unicode.Is(unicode.S, prev)) {
+					invalids = append(invalids, invalid{r, off})
+					hasFormat = true
+				}
 			} else if unicode.Is(unicode.Cc, r) && r != '\n' && r != '\t' && r != '\r' {
 				invalids = append(invalids, invalid{r, off})
 				hasControl = true
 			}
+			prev = r
 		}
 
 		switch len(invalids) {
@@ -727,7 +738,7 @@ func CheckInvisibleCharacters(pass *analysis.Pass) (interface{}, error) {
 				}},
 			}
 			delete := analysis.SuggestedFix{
-				Message: fmt.Sprintf("delete %s character %U", kind, r),
+				Message: fmt.Sprintf("delete %s character %U", kind, r.r),
 				TextEdits: []analysis.TextEdit{{
 					Pos: lit.Pos() + token.Pos(r.off),
 					End: lit.Pos() + token.Pos(r.off) + token.Pos(utf8.RuneLen(r.r)),
@@ -794,17 +805,23 @@ func CheckExportedFunctionDocs(pass *analysis.Pass) (interface{}, error) {
 		kind := "function"
 		if decl.Recv != nil {
 			kind = "method"
-			switch T := decl.Recv.List[0].Type.(type) {
-			case *ast.StarExpr:
-				if !ast.IsExported(T.X.(*ast.Ident).Name) {
-					return
-				}
+			var ident *ast.Ident
+			T := decl.Recv.List[0].Type
+			if T_, ok := T.(*ast.StarExpr); ok {
+				T = T_.X
+			}
+			switch T := T.(type) {
+			case *ast.IndexExpr:
+				ident = T.X.(*ast.Ident)
+			case *typeparams.IndexListExpr:
+				ident = T.X.(*ast.Ident)
 			case *ast.Ident:
-				if !ast.IsExported(T.Name) {
-					return
-				}
+				ident = T
 			default:
 				lint.ExhaustiveTypeSwitch(T)
+			}
+			if !ast.IsExported(ident.Name) {
+				return
 			}
 		}
 		prefix := decl.Name.Name + " "
@@ -857,6 +874,11 @@ func CheckExportedTypeDocs(pass *analysis.Pass) (interface{}, error) {
 				if !ok {
 					return false
 				}
+			}
+
+			// Check comment before we strip articles in case the type's name is an article.
+			if strings.HasPrefix(text, node.Name.Name+" ") {
+				return false
 			}
 
 			s := text

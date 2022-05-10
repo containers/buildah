@@ -1,8 +1,15 @@
+// Package stylecheck contains analyzes that enforce style rules.
+// Most of the recommendations made are universally agreed upon by the wider Go community.
+// Some analyzes, however, implement stricter rules that not everyone will agree with.
+// In the context of Staticcheck, these analyzes are not enabled by default.
+//
+// For the most part it is recommended to follow the advice given by the analyzers that are enabled by default,
+// but you may want to disable additional analyzes on a case by case basis.
 package stylecheck
 
 import "honnef.co/go/tools/analysis/lint"
 
-var Docs = lint.Markdownify(map[string]*lint.Documentation{
+var Docs = lint.Markdownify(map[string]*lint.RawDocumentation{
 	"ST1000": {
 		Title: `Incorrect or missing package comment`,
 		Text: `Packages must have a package comment that is formatted according to
@@ -10,6 +17,7 @@ the guidelines laid out in
 https://github.com/golang/go/wiki/CodeReviewComments#package-comments.`,
 		Since:      "2019.1",
 		NonDefault: true,
+		MergeIf:    lint.MergeIfAny,
 	},
 
 	"ST1001": {
@@ -21,7 +29,7 @@ imports.
 
 Quoting Go Code Review Comments:
 
-> The import . form can be useful in tests that, due to circular
+> The \'import .\' form can be useful in tests that, due to circular
 > dependencies, cannot be made part of the package being tested:
 > 
 >     package foo_test
@@ -32,14 +40,15 @@ Quoting Go Code Review Comments:
 >     )
 > 
 > In this case, the test file cannot be in package foo because it
-> uses bar/testutil, which imports foo. So we use the 'import .'
+> uses \'bar/testutil\', which imports \'foo\'. So we use the \'import .\'
 > form to let the file pretend to be part of package foo even though
-> it is not. Except for this one case, do not use import . in your
+> it is not. Except for this one case, do not use \'import .\' in your
 > programs. It makes the programs much harder to read because it is
-> unclear whether a name like Quux is a top-level identifier in the
+> unclear whether a name like \'Quux\' is a top-level identifier in the
 > current package or in an imported package.`,
 		Since:   "2019.1",
 		Options: []string{"dot_import_whitelist"},
+		MergeIf: lint.MergeIfAny,
 	},
 
 	"ST1003": {
@@ -55,6 +64,7 @@ See the following links for details:
 		Since:      "2019.1",
 		NonDefault: true,
 		Options:    []string{"initialisms"},
+		MergeIf:    lint.MergeIfAny,
 	},
 
 	"ST1005": {
@@ -67,10 +77,11 @@ Quoting Go Code Review Comments:
 > Error strings should not be capitalized (unless beginning with
 > proper nouns or acronyms) or end with punctuation, since they are
 > usually printed following other context. That is, use
-> fmt.Errorf("something bad") not fmt.Errorf("Something bad"), so
-> that log.Printf("Reading %s: %v", filename, err) formats without a
+> \'fmt.Errorf("something bad")\' not \'fmt.Errorf("Something bad")\', so
+> that \'log.Printf("Reading %s: %v", filename, err)\' formats without a
 > spurious capital letter mid-message.`,
-		Since: "2019.1",
+		Since:   "2019.1",
+		MergeIf: lint.MergeIfAny,
 	},
 
 	"ST1006": {
@@ -88,30 +99,34 @@ Quoting Go Code Review Comments:
 > almost every line of every method of the type; familiarity admits
 > brevity. Be consistent, too: if you call the receiver "c" in one
 > method, don't call it "cl" in another.`,
-		Since: "2019.1",
+		Since:   "2019.1",
+		MergeIf: lint.MergeIfAny,
 	},
 
 	"ST1008": {
-		Title: `A function's error value should be its last return value`,
-		Text:  `A function's error value should be its last return value.`,
-		Since: `2019.1`,
+		Title:   `A function's error value should be its last return value`,
+		Text:    `A function's error value should be its last return value.`,
+		Since:   `2019.1`,
+		MergeIf: lint.MergeIfAny,
 	},
 
 	"ST1011": {
-		Title: "Poorly chosen name for variable of type `time.Duration`",
+		Title: `Poorly chosen name for variable of type \'time.Duration\'`,
 		Text: `\'time.Duration\' values represent an amount of time, which is represented
 as a count of nanoseconds. An expression like \'5 * time.Microsecond\'
 yields the value \'5000\'. It is therefore not appropriate to suffix a
-variable of type \'time.Duration\' with any time unit, such as \'Msec or
-Milli\'.`,
-		Since: `2019.1`,
+variable of type \'time.Duration\' with any time unit, such as \'Msec\' or
+\'Milli\'.`,
+		Since:   `2019.1`,
+		MergeIf: lint.MergeIfAny,
 	},
 
 	"ST1012": {
 		Title: `Poorly chosen name for error variable`,
 		Text: `Error variables that are part of an API should be called \'errFoo\' or
 \'ErrFoo\'.`,
-		Since: "2019.1",
+		Since:   "2019.1",
+		MergeIf: lint.MergeIfAny,
 	},
 
 	"ST1013": {
@@ -124,32 +139,37 @@ instead of hard-coding magic numbers, to vastly improve the
 readability of your code.`,
 		Since:   "2019.1",
 		Options: []string{"http_status_code_whitelist"},
+		MergeIf: lint.MergeIfAny,
 	},
 
 	"ST1015": {
-		Title: `A switch's default case should be the first or last case`,
-		Since: "2019.1",
+		Title:   `A switch's default case should be the first or last case`,
+		Since:   "2019.1",
+		MergeIf: lint.MergeIfAny,
 	},
 
 	"ST1016": {
 		Title:      `Use consistent method receiver names`,
 		Since:      "2019.1",
 		NonDefault: true,
+		MergeIf:    lint.MergeIfAny,
 	},
 
 	"ST1017": {
 		Title: `Don't use Yoda conditions`,
-		Text: `Yoda conditions are conditions of the kind \'if 42 == x\', where the
+		Text: `Yoda conditions are conditions of the kind \"if 42 == x\", where the
 literal is on the left side of the comparison. These are a common
 idiom in languages in which assignment is an expression, to avoid bugs
-of the kind \'if (x = 42)\'. In Go, which doesn't allow for this kind of
-bug, we prefer the more idiomatic \'if x == 42\'.`,
-		Since: "2019.2",
+of the kind \"if (x = 42)\". In Go, which doesn't allow for this kind of
+bug, we prefer the more idiomatic \"if x == 42\".`,
+		Since:   "2019.2",
+		MergeIf: lint.MergeIfAny,
 	},
 
 	"ST1018": {
-		Title: `Avoid zero-width and control characters in string literals`,
-		Since: "2019.2",
+		Title:   `Avoid zero-width and control characters in string literals`,
+		Since:   "2019.2",
+		MergeIf: lint.MergeIfAny,
 	},
 
 	"ST1019": {
@@ -158,12 +178,12 @@ bug, we prefer the more idiomatic \'if x == 42\'.`,
 different import aliases are being used. That is, the following
 bit of code is valid:
 
-	import (
-	    "fmt"
-	    fumpt "fmt"
-	    format "fmt"
-	    _ "fmt"
-	)
+    import (
+        "fmt"
+        fumpt "fmt"
+        format "fmt"
+        _ "fmt"
+    )
 
 However, this is very rarely done on purpose. Usually, it is a
 sign of code that got refactored, accidentally adding duplicate
@@ -175,7 +195,8 @@ intentionally (see for example
 https://github.com/golang/go/commit/3409ce39bfd7584523b7a8c150a310cea92d879d)
 – if you want to allow this pattern in your code base, you're
 advised to disable this check.`,
-		Since: "2020.1",
+		Since:   "2020.1",
+		MergeIf: lint.MergeIfAny,
 	},
 
 	"ST1020": {
@@ -186,13 +207,14 @@ should be a one-sentence summary that starts with the name being
 declared.
 
 If every doc comment begins with the name of the item it describes,
-you can use the doc subcommand of the go tool and run the output
+you can use the \'doc\' subcommand of the \'go\' tool and run the output
 through grep.
 
 See https://golang.org/doc/effective_go.html#commentary for more
 information on how to write good documentation.`,
 		Since:      "2020.1",
 		NonDefault: true,
+		MergeIf:    lint.MergeIfAny,
 	},
 
 	"ST1021": {
@@ -210,6 +232,7 @@ See https://golang.org/doc/effective_go.html#commentary for more
 information on how to write good documentation.`,
 		Since:      "2020.1",
 		NonDefault: true,
+		MergeIf:    lint.MergeIfAny,
 	},
 
 	"ST1022": {
@@ -220,18 +243,20 @@ should be a one-sentence summary that starts with the name being
 declared.
 
 If every doc comment begins with the name of the item it describes,
-you can use the doc subcommand of the go tool and run the output
+you can use the \'doc\' subcommand of the \'go\' tool and run the output
 through grep.
 
 See https://golang.org/doc/effective_go.html#commentary for more
 information on how to write good documentation.`,
 		Since:      "2020.1",
 		NonDefault: true,
+		MergeIf:    lint.MergeIfAny,
 	},
 
 	"ST1023": {
 		Title:      "Redundant type in variable declaration",
 		Since:      "2021.1",
 		NonDefault: true,
+		MergeIf:    lint.MergeIfAll,
 	},
 })

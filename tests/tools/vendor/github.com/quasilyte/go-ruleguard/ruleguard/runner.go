@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/build"
 	"go/printer"
+	"go/token"
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/quasilyte/go-ruleguard/ruleguard/goutil"
 	"github.com/quasilyte/go-ruleguard/ruleguard/profiling"
+	"github.com/quasilyte/go-ruleguard/ruleguard/typematch"
 	"github.com/quasilyte/gogrep"
 	"github.com/quasilyte/gogrep/nodetag"
 )
@@ -28,9 +30,12 @@ type rulesRunner struct {
 	ctx   *RunContext
 	rules *goRuleSet
 
+	truncateLen int
+
 	reportData ReportData
 
-	gogrepState gogrep.MatcherState
+	gogrepState    gogrep.MatcherState
+	gogrepSubState gogrep.MatcherState
 
 	importer *goImporter
 
@@ -64,21 +69,30 @@ func newRulesRunner(ctx *RunContext, buildContext *build.Context, state *engineS
 	})
 	gogrepState := gogrep.NewMatcherState()
 	gogrepState.Types = ctx.Types
+	gogrepSubState := gogrep.NewMatcherState()
+	gogrepSubState.Types = ctx.Types
 	rr := &rulesRunner{
-		bgContext:   context.Background(),
-		ctx:         ctx,
-		importer:    importer,
-		rules:       rules,
-		gogrepState: gogrepState,
-		nodePath:    newNodePath(),
+		bgContext:      context.Background(),
+		ctx:            ctx,
+		importer:       importer,
+		rules:          rules,
+		gogrepState:    gogrepState,
+		gogrepSubState: gogrepSubState,
+		nodePath:       newNodePath(),
+		truncateLen:    ctx.TruncateLen,
 		filterParams: filterParams{
-			env:      state.env.GetEvalEnv(),
-			importer: importer,
-			ctx:      ctx,
+			typematchState: typematch.NewMatcherState(),
+			env:            state.env.GetEvalEnv(),
+			importer:       importer,
+			ctx:            ctx,
 		},
+	}
+	if ctx.TruncateLen == 0 {
+		rr.truncateLen = 60
 	}
 	rr.filterParams.nodeText = rr.nodeText
 	rr.filterParams.nodePath = &rr.nodePath
+	rr.filterParams.gogrepSubState = &rr.gogrepSubState
 	return rr
 }
 
@@ -370,57 +384,107 @@ func (rr *rulesRunner) collectImports(f *ast.File) {
 }
 
 func (rr *rulesRunner) renderMessage(msg string, m matchData, truncate bool) string {
-	var buf strings.Builder
-	if strings.Contains(msg, "$$") {
-		buf.Write(rr.nodeText(m.Node()))
-		msg = strings.ReplaceAll(msg, "$$", buf.String())
-	}
-	if len(m.CaptureList()) == 0 {
+	if !strings.Contains(msg, "$") {
 		return msg
 	}
 
-	capture := make([]gogrep.CapturedNode, len(m.CaptureList()))
-	copy(capture, m.CaptureList())
-	sort.Slice(capture, func(i, j int) bool {
-		return len(capture[i].Name) > len(capture[j].Name)
-	})
-
-	for _, c := range capture {
-		n := c.Node
-		// Some captured nodes are typed, but nil.
-		// We can't really get their text, so skip them here.
-		// For example, pattern `func $_() $results { $*_ }` may
-		// match a nil *ast.FieldList for $results if executed
-		// against a function with no results.
-		if reflect.ValueOf(n).IsNil() && !gogrep.IsEmptyNodeSlice(n) {
-			continue
+	var capture []gogrep.CapturedNode
+	if len(m.CaptureList()) != 0 {
+		capture = make([]gogrep.CapturedNode, 0, len(m.CaptureList()))
+		for _, c := range m.CaptureList() {
+			n := c.Node
+			// Some captured nodes are typed, but nil.
+			// We can't really get their text, so skip them here.
+			// For example, pattern `func $_() $results { $*_ }` may
+			// match a nil *ast.FieldList for $results if executed
+			// against a function with no results.
+			if reflect.ValueOf(n).IsNil() && !gogrep.IsEmptyNodeSlice(n) {
+				continue
+			}
+			capture = append(capture, c)
 		}
-		key := "$" + c.Name
-		if !strings.Contains(msg, key) {
-			continue
+		if len(capture) > 1 {
+			sort.Slice(capture, func(i, j int) bool {
+				return len(capture[i].Name) > len(capture[j].Name)
+			})
 		}
-		buf.Reset()
-		buf.Write(rr.nodeText(n))
-		replacement := buf.String()
-		if truncate {
-			replacement = truncateText(replacement, 60)
-		}
-		msg = strings.ReplaceAll(msg, key, replacement)
 	}
-	return msg
+
+	result := make([]byte, 0, len(msg)*2)
+	i := 0
+	for {
+		j := strings.IndexByte(msg[i:], '$')
+		if j == -1 {
+			result = append(result, msg[i:]...)
+			break
+		}
+		dollarPos := i + j
+		result = append(result, msg[i:dollarPos]...)
+		var n ast.Node
+		var nameLen int
+		if strings.HasPrefix(msg[dollarPos+1:], "$") {
+			n = m.Node()
+			nameLen = 1
+		} else {
+			for _, c := range capture {
+				if strings.HasPrefix(msg[dollarPos+1:], c.Name) {
+					n = c.Node
+					nameLen = len(c.Name)
+					break
+				}
+			}
+		}
+		if n != nil {
+			text := rr.nodeText(n)
+			text = rr.fixedText(text, n, msg[dollarPos+1+nameLen:])
+			if truncate {
+				text = truncateText(text, rr.truncateLen)
+			}
+			result = append(result, text...)
+		} else {
+			result = append(result, '$')
+		}
+		i = dollarPos + len("$") + nameLen
+	}
+
+	return string(result)
 }
 
-func truncateText(s string, maxLen int) string {
-	const placeholder = "<...>"
-	if len(s) <= maxLen-len(placeholder) {
+func (rr *rulesRunner) fixedText(text []byte, n ast.Node, following string) []byte {
+	// pattern=`$x.y` $x=`&buf` following=`.y`
+	// Insert $x as `buf`, so we get `buf.y` instead of incorrect `&buf.y`.
+	if n, ok := n.(*ast.UnaryExpr); ok && n.Op == token.AND {
+		shouldFix := false
+		switch n.X.(type) {
+		case *ast.Ident, *ast.IndexExpr, *ast.SelectorExpr:
+			shouldFix = true
+		}
+		if shouldFix && strings.HasPrefix(following, ".") {
+			return bytes.TrimPrefix(text, []byte("&"))
+		}
+	}
+
+	return text
+}
+
+var longTextPlaceholder = []byte("<...>")
+
+func truncateText(s []byte, maxLen int) []byte {
+	if len(s) <= maxLen-len(longTextPlaceholder) {
 		return s
 	}
-	maxLen -= len(placeholder)
+	maxLen -= len(longTextPlaceholder)
 	leftLen := maxLen / 2
 	rightLen := (maxLen % 2) + leftLen
 	left := s[:leftLen]
 	right := s[len(s)-rightLen:]
-	return left + placeholder + right
+
+	result := make([]byte, 0, len(left)+len(longTextPlaceholder)+len(right))
+	result = append(result, left...)
+	result = append(result, longTextPlaceholder...)
+	result = append(result, right...)
+
+	return result
 }
 
 var multiMatchTags = [nodetag.NumBuckets]bool{
