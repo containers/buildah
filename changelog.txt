@@ -1,3 +1,9 @@
+- Changelog for v1.24.4 (2022-05-11)
+  * vendor: bump c/image to v5.19.3
+  * vendor: bump c/ocicrypt to v1.1.4
+  * vendor: bump golang.org/x/crypto to 7b82a4e
+  * Resolves GHSA-8c26-wmh5-6g9v - CVE-2022-27191
+
 - Changelog for v1.24.3 (2022-03-01)
   * vendor: bump c/common to 0.47.5
   * Add a test for CVE-2022-27651
