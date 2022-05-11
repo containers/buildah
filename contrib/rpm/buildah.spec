@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.24.3
+Version:        1.24.4
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,10 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Wed May 11 2022 Lokesh Mandvekar <lsm5@fedoraproject.org> 1.24.4-1
+- Bump golang.org/x/crypto to 7b82a4e (GHSA-8c26-wmh5-6g9v - CVE-2022-27191)
+- Bump c/image to v5.19.3 and c/ocicrypt to v1.1.4
+
 * Thu Mar 31, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.3-1
 - vendor: bump c/common to 0.47.5
 - Add a test for CVE-2022-27651
