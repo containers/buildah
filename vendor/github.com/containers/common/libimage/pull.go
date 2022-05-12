@@ -161,11 +161,30 @@ func (r *Runtime) Pull(ctx context.Context, name string, pullPolicy config.PullP
 
 	localImages := []*Image{}
 	for _, name := range pulledImages {
-		local, _, err := r.LookupImage(name, nil)
+		image, _, err := r.LookupImage(name, nil)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error locating pulled image %q name in containers storage", name)
 		}
-		localImages = append(localImages, local)
+
+		// Note that we can ignore the 2nd return value here. Some
+		// images may ship with "wrong" platform, but we already warn
+		// about it. Throwing an error is not (yet) the plan.
+		matchError, _, err := image.matchesPlatform(ctx, options.Architecture, options.OS, options.Variant)
+		if err != nil {
+			return nil, fmt.Errorf("checking platform of image %s: %w", name, err)
+		}
+
+		// If the image does not match the expected/requested platform,
+		// make sure to leave some breadcrumbs for the user.
+		if matchError != nil {
+			if options.Writer == nil {
+				logrus.Warnf("%v", matchError)
+			} else {
+				fmt.Fprintf(options.Writer, "WARNING: %v\n", matchError)
+			}
+		}
+
+		localImages = append(localImages, image)
 	}
 
 	return localImages, pullError
@@ -533,9 +552,6 @@ func (r *Runtime) copySingleImageFromRegistry(ctx context.Context, imageName str
 	sys := r.systemContextCopy()
 	resolved, err := shortnames.Resolve(sys, imageName)
 	if err != nil {
-		// TODO: that is a too big of a hammer since we should only
-		// ignore errors that indicate that there's no alias and no
-		// USRs.  Must be addressed in c/image first.
 		if localImage != nil && pullPolicy == config.PullPolicyNewer {
 			return []string{resolvedImageName}, nil
 		}

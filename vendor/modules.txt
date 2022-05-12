@@ -71,9 +71,10 @@ github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.1.1
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.48.1-0.20220519181648-280c6f69fa82
+# github.com/containers/common v0.48.1-0.20220608111710-dbecabbe82c9
 ## explicit
 github.com/containers/common/libimage
+github.com/containers/common/libimage/define
 github.com/containers/common/libimage/manifests
 github.com/containers/common/libnetwork/cni
 github.com/containers/common/libnetwork/etchosts
