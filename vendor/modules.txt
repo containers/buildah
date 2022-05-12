@@ -173,7 +173,7 @@ github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
 github.com/containers/ocicrypt/utils/keyprovider
-# github.com/containers/storage v1.40.2
+# github.com/containers/storage v1.41.0
 ## explicit
 github.com/containers/storage
 github.com/containers/storage/drivers
@@ -327,7 +327,7 @@ github.com/ishidawataru/sctp
 github.com/jinzhu/copier
 # github.com/json-iterator/go v1.1.12
 github.com/json-iterator/go
-# github.com/klauspost/compress v1.15.2
+# github.com/klauspost/compress v1.15.4
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
