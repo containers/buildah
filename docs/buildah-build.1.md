@@ -24,7 +24,7 @@ When the URL is an archive, the contents of the URL is downloaded to a temporary
 
 When the URL is a Containerfile, the file is downloaded to a temporary location.
 
-When a Git repository is set as the URL, the repository is cloned locally and then set as the context.
+When a Git repository is set as the URL, the repository is cloned locally and then used as the build context.  A non-default branch and subdirectory of the cloned git repository can be used by including their names at the end of the URL in the form `myrepo.git#mybranch:subdir`, or `myrepo.git#:subdir` if the subdirectory should be used from the default branch.
 
 ## OPTIONS
 

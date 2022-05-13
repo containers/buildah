@@ -978,6 +978,15 @@ function _test_http() {
   run_buildah from ${target}
 }
 
+@test "bud-github-context-with-branch-and-subdir" {
+  target=github-image
+  gitrepo=https://github.com/containers/podman.git#main:contrib/hello
+  run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
+  # check syntax only for subdirectory
+  gitrepo=https://github.com/containers/podman.git#:contrib/hello
+  run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
+}
+
 @test "bud-additional-tags" {
   target=scratch-image
   target2=another-scratch-image
