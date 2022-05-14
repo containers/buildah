@@ -28,6 +28,7 @@ import (
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/archive"
 	"github.com/hashicorp/go-multierror"
+	"github.com/mattn/go-shellwords"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/openshift/imagebuilder"
@@ -157,7 +158,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 
 		// pre-process Dockerfiles with ".in" suffix
 		if strings.HasSuffix(dfile, ".in") {
-			pData, err := preprocessContainerfileContents(logger, dfile, data, options.ContextDirectory)
+			pData, err := preprocessContainerfileContents(logger, dfile, data, options.ContextDirectory, options.CPPFlags)
 			if err != nil {
 				return "", nil, err
 			}
@@ -467,7 +468,7 @@ func warnOnUnsetBuildArgs(logger *logrus.Logger, node *parser.Node, args map[str
 
 // preprocessContainerfileContents runs CPP(1) in preprocess-only mode on the input
 // dockerfile content and will use ctxDir as the base include path.
-func preprocessContainerfileContents(logger *logrus.Logger, containerfile string, r io.Reader, ctxDir string) (stdout io.Reader, err error) {
+func preprocessContainerfileContents(logger *logrus.Logger, containerfile string, r io.Reader, ctxDir string, cppFlags []string) (stdout io.Reader, err error) {
 	cppCommand := "cpp"
 	cppPath, err := exec.LookPath(cppCommand)
 	if err != nil {
@@ -480,7 +481,16 @@ func preprocessContainerfileContents(logger *logrus.Logger, containerfile string
 	stdoutBuffer := bytes.Buffer{}
 	stderrBuffer := bytes.Buffer{}
 
-	cmd := exec.Command(cppPath, "-E", "-iquote", ctxDir, "-traditional", "-undef", "-")
+	cppArgs := []string{"-E", "-iquote", ctxDir, "-traditional", "-undef", "-"}
+	if flags, ok := os.LookupEnv("BUILDAH_CPPFLAGS"); ok {
+		args, err := shellwords.Parse(flags)
+		if err != nil {
+			return nil, errors.Errorf("error parsing BUILDAH_CPPFLAGS %q: %v", flags, err)
+		}
+		cppArgs = append(cppArgs, args...)
+	}
+	cppArgs = append(cppArgs, cppFlags...)
+	cmd := exec.Command(cppPath, cppArgs...)
 	cmd.Stdin = r
 	cmd.Stdout = &stdoutBuffer
 	cmd.Stderr = &stderrBuffer

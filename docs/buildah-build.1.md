@@ -114,6 +114,13 @@ This option is added to be aligned with other containers CLIs.
 Buildah doesn't send a copy of the context directory to a daemon or a remote server.
 Thus, compressing the data before sending it is irrelevant to Buildah.
 
+**--cpp-flag**=""
+
+Set additional flags to pass to the C Preprocessor cpp(1).
+Containerfiles ending with a ".in" suffix will be preprocessed via cpp(1). This option can be used to pass additional flags to cpp.
+Note: You can also set default CPPFLAGS by setting the BUILDAH\_CPPFLAGS
+environment variable (e.g., `export BUILDAH_CPPFLAGS="-DDEBUG"`).
+
 **--cpu-period**=*0*
 
 Set the CPU period for the Completely Fair Scheduler (CFS), which is a
@@ -853,7 +860,7 @@ buildah build --no-cache --rm=false -t imageName .
 
 buildah build --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
 
-buildah build -f Containerfile.in -t imageName .
+buildah build -f Containerfile.in --cpp-flag="-DDEBUG" -t imageName .
 
 buildah build --network mynet .
 

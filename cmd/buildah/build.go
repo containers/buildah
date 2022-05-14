@@ -351,6 +351,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		Compression:             compression,
 		ConfigureNetwork:        networkPolicy,
 		ContextDirectory:        contextDir,
+		CPPFlags:                iopts.CPPFlags,
 		DefaultMountsFilePath:   globalFlagResults.DefaultMountsFile,
 		Devices:                 iopts.Devices,
 		DropCapabilities:        iopts.CapDrop,

@@ -1,2 +1,7 @@
 # include "Containerfile"
 RUN echo "success"
+#if DEBUG
+RUN echo "debug=yes"
+# else
+RUN echo "debug=no"
+#endif
