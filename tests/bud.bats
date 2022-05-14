@@ -2388,6 +2388,18 @@ _EOF
   [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
   expect_output --substring "success"
+  expect_output --substring "debug=no"
+  run_buildah build $WITH_POLICY_JSON -t ${target} --cpp-flag "-DDEBUG" -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM alpine"
+  expect_output --substring "success"
+  expect_output --substring "debug=yes"
+
+  BUILDAH_CPPFLAGS="-DDEBUG" run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM alpine"
+  expect_output --substring "success"
+  expect_output --substring "debug=yes"
 }
 
 @test "bud with Dockerfile" {
