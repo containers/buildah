@@ -2,6 +2,7 @@ package execinquery
 
 import (
 	"go/ast"
+	"regexp"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -15,58 +16,113 @@ const doc = "execinquery is a linter about query string checker in Query functio
 var Analyzer = &analysis.Analyzer{
 	Name: "execinquery",
 	Doc:  doc,
-	Run:  run,
+	Run:  newLinter().run,
 	Requires: []*analysis.Analyzer{
 		inspect.Analyzer,
 	},
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+type linter struct {
+	commentExp          *regexp.Regexp
+	multilineCommentExp *regexp.Regexp
+}
 
-	inspect.Preorder(nil, func(n ast.Node) {
+func newLinter() *linter {
+	return &linter{
+		commentExp:          regexp.MustCompile(`--[^\n]*\n`),
+		multilineCommentExp: regexp.MustCompile(`(?s)/\*.*?\*/`),
+	}
+}
+
+func (l linter) run(pass *analysis.Pass) (interface{}, error) {
+	result := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	nodeFilter := []ast.Node{
+		(*ast.CallExpr)(nil),
+	}
+
+	result.Preorder(nodeFilter, func(n ast.Node) {
 		switch n := n.(type) {
 		case *ast.CallExpr:
 			selector, ok := n.Fun.(*ast.SelectorExpr)
 			if !ok {
-				break
+				return
+			}
+
+			if "database/sql" != pass.TypesInfo.Uses[selector.Sel].Pkg().Path() {
+				return
 			}
 
 			if !strings.Contains(selector.Sel.Name, "Query") {
-				break
+				return
 			}
 
-			var i int
+			replacement := "Exec"
+			var i int // the index of the query argument
 			if strings.Contains(selector.Sel.Name, "Context") {
+				replacement = "ExecContext"
 				i = 1
 			}
 
-			var s string
-			switch arg := n.Args[i].(type) {
-			case *ast.BasicLit:
-				s = strings.Replace(arg.Value, "\"", "", -1)
-			case *ast.Ident:
-				stmt, ok := arg.Obj.Decl.(*ast.AssignStmt)
-				if !ok {
-					break
-				}
-				for _, stmt := range stmt.Rhs {
-					basicLit, ok := stmt.(*ast.BasicLit)
-					if !ok {
-						continue
-					}
-					s = strings.Replace(basicLit.Value, "\"", "", -1)
-				}
-			default:
-				break
+			if len(n.Args) <= i {
+				return
 			}
 
-			if strings.HasPrefix(strings.ToLower(s), "select") {
-				break
+			query := l.getQueryString(n.Args[i])
+			if query == "" {
+				return
 			}
-			s = strings.ToTitle(strings.Split(s, " ")[0])
-			pass.Reportf(n.Fun.Pos(), "It's better to use Execute method instead of %s method to execute `%s` query", selector.Sel.Name, s)
+
+			query = strings.TrimSpace(l.cleanValue(query))
+			parts := strings.SplitN(query, " ", 2)
+			cmd := strings.ToUpper(parts[0])
+
+			if strings.HasPrefix(cmd, "SELECT") {
+				return
+			}
+
+			pass.Reportf(n.Fun.Pos(), "Use %s instead of %s to execute `%s` query", replacement, selector.Sel.Name, cmd)
 		}
 	})
+
 	return nil, nil
+}
+
+func (l linter) cleanValue(s string) string {
+	v := strings.NewReplacer(`"`, "", "`", "").Replace(s)
+
+	v = l.multilineCommentExp.ReplaceAllString(v, "")
+
+	return l.commentExp.ReplaceAllString(v, "")
+}
+
+func (l linter) getQueryString(exp interface{}) string {
+	switch e := exp.(type) {
+	case *ast.AssignStmt:
+		var v string
+		for _, stmt := range e.Rhs {
+			v += l.cleanValue(l.getQueryString(stmt))
+		}
+		return v
+
+	case *ast.BasicLit:
+		return e.Value
+
+	case *ast.ValueSpec:
+		var v string
+		for _, value := range e.Values {
+			v += l.cleanValue(l.getQueryString(value))
+		}
+		return v
+
+	case *ast.Ident:
+		return l.getQueryString(e.Obj.Decl)
+
+	case *ast.BinaryExpr:
+		v := l.cleanValue(l.getQueryString(e.X))
+		v += l.cleanValue(l.getQueryString(e.Y))
+		return v
+	}
+
+	return ""
 }

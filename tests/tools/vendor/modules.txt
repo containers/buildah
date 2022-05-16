@@ -130,7 +130,7 @@ github.com/golangci/go-misc/deadcode
 # github.com/golangci/gofmt v0.0.0-20190930125516-244bba706f1a
 github.com/golangci/gofmt/gofmt
 github.com/golangci/gofmt/goimports
-# github.com/golangci/golangci-lint v1.46.0
+# github.com/golangci/golangci-lint v1.46.1
 ## explicit
 github.com/golangci/golangci-lint/cmd/golangci-lint
 github.com/golangci/golangci-lint/internal/cache
@@ -238,7 +238,7 @@ github.com/leonklingele/grouper/pkg/analyzer/globals
 github.com/leonklingele/grouper/pkg/analyzer/imports
 github.com/leonklingele/grouper/pkg/analyzer/types
 github.com/leonklingele/grouper/pkg/analyzer/vars
-# github.com/lufeee/execinquery v1.0.0
+# github.com/lufeee/execinquery v1.2.0
 github.com/lufeee/execinquery
 # github.com/magiconair/properties v1.8.6
 github.com/magiconair/properties
