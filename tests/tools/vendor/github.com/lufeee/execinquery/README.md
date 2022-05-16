@@ -38,10 +38,10 @@ func main() {
 ```
 
 ```console
-go vet -vettool=(which execinquery) ./...
+go vet -vettool=$(which execinquery) ./...
 
 # command-line-arguments
-./a.go:16:11: It's better to use Execute method instead of Query method to execute `UPDATE` query
+./a.go:16:11: Use Exec instead of Query to execute `UPDATE` query
 ```
 
 ## CI
@@ -68,7 +68,7 @@ go vet -vettool=(which execinquery) ./...
   run: go vet -vettool=`which execinquery` ./...
 ```
 
-### License 
+### License
 
 MIT license.
 
