@@ -187,6 +187,8 @@ type BuildOptions struct {
 	DropCapabilities []string
 	// CommonBuildOpts is *required*.
 	CommonBuildOpts *CommonBuildOptions
+	// CPPFlags are additional arguments to pass to the C Preprocessor (cpp).
+	CPPFlags []string
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
 	DefaultMountsFilePath string
 	// IIDFile tells the builder to write the image ID to the specified file
