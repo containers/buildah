@@ -21,6 +21,7 @@ type addCopyResults struct {
 	addHistory       bool
 	chmod            string
 	chown            string
+	keepOwnership    bool
 	quiet            bool
 	ignoreFile       string
 	contextdir       string
@@ -66,6 +67,7 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	}
 	flags.StringVar(&opts.chown, "chown", "", "set the user and group ownership of the destination content")
 	flags.StringVar(&opts.chmod, "chmod", "", "set the access permissions of the destination content")
+	flags.BoolVar(&opts.keepOwnership, "keep-ownership", false, "preserve user and group ownership of source content (only for local files)")
 	flags.StringVar(&opts.creds, "creds", "", "use `[username[:password]]` for accessing registries when pulling images")
 	if err := flags.MarkHidden("creds"); err != nil {
 		panic(fmt.Sprintf("error marking creds as hidden: %v", err))
@@ -222,10 +224,11 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	builder.ContentDigester.Restart()
 
 	options := buildah.AddAndCopyOptions{
-		Chmod:            iopts.chmod,
-		Chown:            iopts.chown,
-		ContextDir:       contextdir,
-		IDMappingOptions: idMappingOptions,
+		Chmod:             iopts.chmod,
+		Chown:             iopts.chown,
+		ContextDir:        contextdir,
+		IDMappingOptions:  idMappingOptions,
+		PreserveOwnership: iopts.keepOwnership,
 	}
 	if iopts.contextdir != "" {
 		var excludes []string
