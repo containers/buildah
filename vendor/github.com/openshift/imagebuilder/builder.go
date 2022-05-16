@@ -31,6 +31,9 @@ type Copy struct {
 	// to the executor for handling.
 	Chown string
 	Chmod string
+	// If used `--keep-ownership` on ADD/COPY (only for local files) but without 
+	// Chown option. This value is passed to the executor for handling.
+	PreserveOwnership bool
 }
 
 // Run defines a run operation required in the container.

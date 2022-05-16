@@ -1772,7 +1772,7 @@ function _test_http() {
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${imgName} -f $BUDFILES/copy-chown/Dockerfile.bad $BUDFILES/copy-chown
-  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image\|stage> flags"
+  expect_output --substring "COPY only supports the --chmod, --chown, --from, and --keep-ownership flags"
 }
 
 @test "bud with chown copy with unknown substitutions in Dockerfile" {
@@ -1800,7 +1800,7 @@ function _test_http() {
   imgName=alpine-image
   ctrName=alpine-chmod
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${imgName} -f $BUDFILES/copy-chmod/Dockerfile.bad $BUDFILES/copy-chmod
-  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image\|stage> flags"
+  expect_output --substring "COPY only supports the --chmod, --chown, --from, and --keep-ownership flags"
 }
 
 @test "bud with chmod add" {
@@ -1836,7 +1836,7 @@ function _test_http() {
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${imgName} -f $BUDFILES/add-chown/Dockerfile.bad $BUDFILES/add-chown
-  expect_output --substring "ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flags"
+  expect_output --substring "ADD only supports the --chmod, --chown, and --keep-ownership flags"
 }
 
 @test "bud with chmod add with bad chmod flag in Dockerfile with --layers" {
@@ -1844,7 +1844,21 @@ function _test_http() {
   imgName=alpine-image
   ctrName=alpine-chmod
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${imgName} -f $BUDFILES/add-chmod/Dockerfile.bad $BUDFILES/add-chmod
-  expect_output --substring "ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flags"
+  expect_output --substring "ADD only supports the --chmod, --chown, and --keep-ownership flags"
+}
+
+@test "bud with ADD from workdir and with --keep-ownership" {
+  skip_if_rootless_environment
+  skip_if_rootless
+
+  _prefetch busybox
+  target=busybox-derived
+  mytmpdir=${TEST_SCRATCH_DIR}/keep-ownership
+  mkdir -p "${mytmpdir}"
+  touch "${mytmpdir}/file3.txt"
+  chown 321:998 "${mytmpdir}/file3.txt"
+  run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/copy-from-keep-ownership/Dockerfile3 "${mytmpdir}"
+  expect_output --substring "321:998"
 }
 
 @test "bud with ADD file construct" {
@@ -1939,7 +1953,7 @@ function _test_http() {
   imgName=ubuntu-image
   ctrName=ubuntu-copy
   run_buildah 125 build $WITH_POLICY_JSON -f $BUDFILES/copy-multistage-paths/Dockerfile.invalid_from -t ${imgName} $BUDFILES/copy-multistage-paths
-  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image\|stage> flags"
+  expect_output --substring "COPY only supports the --chmod, --chown, --from, and --keep-ownership flags"
 }
 
 @test "bud COPY to root succeeds" {
@@ -2084,7 +2098,7 @@ function _test_http() {
   _prefetch busybox
   target=bad-from-flag
   run_buildah 125 build $WITH_POLICY_JSON --layers -t ${target} -f $BUDFILES/copy-from/Dockerfile.bad $BUDFILES/copy-from
-  expect_output --substring "COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image\|stage> flags"
+  expect_output --substring "COPY only supports the --chmod, --chown, --from, and --keep-ownership flags"
 }
 
 @test "bud with copy-from referencing the base image" {
@@ -2116,6 +2130,27 @@ function _test_http() {
   target=busybox-derived
   run_buildah 125 build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/copy-from/Dockerfile2.bad $BUDFILES/copy-from
   expect_output --substring "COPY --from=build: no stage or image found with that name"
+}
+
+@test "bud with copy-from referencing the current stage and with --keep-ownership" {
+  _prefetch busybox
+  target=busybox-derived
+  run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/copy-from-keep-ownership/Dockerfile $BUDFILES/copy-from-keep-ownership
+  expect_output --substring "123:456"
+}
+
+@test "bud with copy-workdir and with --keep-ownership" {
+  skip_if_rootless_environment
+  skip_if_rootless
+
+  _prefetch busybox
+  target=busybox-derived
+  mytmpdir=${TEST_SCRATCH_DIR}/keep-ownership
+  mkdir -p "${mytmpdir}"
+  touch "${mytmpdir}/file2.txt"
+  chown 321:999 "${mytmpdir}/file2.txt"
+  run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/copy-from-keep-ownership/Dockerfile2 "${mytmpdir}"
+  expect_output --substring "321:999"
 }
 
 @test "bud-target" {

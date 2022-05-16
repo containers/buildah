@@ -442,7 +442,7 @@ github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalk
 github.com/opencontainers/selinux/pkg/pwalkdir
-# github.com/openshift/imagebuilder v1.2.4-0.20220502172744-009dbc6cb805
+# github.com/openshift/imagebuilder v1.2.4-0.20220502172744-009dbc6cb805 => github.com/Dexus-Forks/imagebuilder v1.2.4-0.20220518131701-b5c6586df000
 ## explicit
 github.com/openshift/imagebuilder
 github.com/openshift/imagebuilder/dockerclient
@@ -699,3 +699,4 @@ gopkg.in/yaml.v3
 k8s.io/klog
 # github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
 # github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20211123152302-43a7dee1ec31
+# github.com/openshift/imagebuilder => github.com/Dexus-Forks/imagebuilder v1.2.4-0.20220518131701-b5c6586df000

@@ -494,3 +494,19 @@ stuff/mystuff"
   expect_line_count 1
   assert "$output" = "test_file" "only contents of copied directory"
 }
+
+@test "copy with --keep-ownership" {
+  skip_if_rootless_environment
+  skip_if_rootless
+
+  _prefetch busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
+  cid=$output
+  mytmpdir=${TEST_SCRATCH_DIR}/keep-ownership
+  mkdir -p "${mytmpdir}"
+  touch "${mytmpdir}/file5.txt"
+  chown 321:777 "${mytmpdir}/file5.txt"
+  run_buildah copy --keep-ownership $cid "${mytmpdir}/file5.txt" /newfile_321_777
+  run_buildah run $cid stat -c "%u:%g" /newfile_321_777
+  expect_output "321:777" "stat ug /newfile_321_777"
+}

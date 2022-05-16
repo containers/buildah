@@ -45,3 +45,5 @@ require (
 replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
 
 replace github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20211123152302-43a7dee1ec31
+
+replace github.com/openshift/imagebuilder => github.com/Dexus-Forks/imagebuilder v1.2.4-0.20220518131701-b5c6586df000

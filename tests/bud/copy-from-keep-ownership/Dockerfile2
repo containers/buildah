@@ -1,0 +1,3 @@
+FROM busybox
+COPY --keep-ownership file2.txt /newfile_321_999
+RUN stat -c "%u:%g" /newfile_321_999

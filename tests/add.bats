@@ -281,3 +281,19 @@ stuff/mystuff"
   cmp $ubuntu/etc/passwd ${croot}/tmp/passwd
   cmp $ubuntu/etc/passwd ${croot}/tmp/passwd2
 }
+
+@test "add with --keep-ownership" {
+  skip_if_rootless_environment
+  skip_if_rootless
+
+  _prefetch busybox
+  run_buildah from --quiet $WITH_POLICY_JSON busybox
+  cid=$output
+  mytmpdir=${TEST_SCRATCH_DIR}/keep-ownership
+  mkdir -p "${mytmpdir}"
+  touch "${mytmpdir}/file4.txt"
+  chown 321:888 "${mytmpdir}/file4.txt"
+  run_buildah add --keep-ownership $cid "${mytmpdir}/file4.txt" /newfile_321_888
+  run_buildah run $cid stat -c "%u:%g" /newfile_321_888
+  expect_output "321:888" "stat ug /newfile_321_888"
+}

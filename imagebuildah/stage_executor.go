@@ -360,7 +360,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 		var copyExcludes []string
 		stripSetuid := false
 		stripSetgid := false
-		preserveOwnership := false
+		preserveOwnership := copy.PreserveOwnership
 		contextDir := s.executor.contextDir
 		if len(copy.From) > 0 {
 			// If from has an argument within it, resolve it to its
@@ -1011,10 +1011,10 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			command := strings.ToUpper(step.Command)
 			// chmod, chown and from flags should have an '=' sign, '--chmod=', '--chown=' or '--from='
 			if command == "COPY" && (flag == "--chmod" || flag == "--chown" || flag == "--from") {
-				return "", nil, errors.Errorf("COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image|stage> flags")
+				return "", nil, errors.Errorf("COPY only supports the --chmod, --chown, --from, and --keep-ownership flags")
 			}
 			if command == "ADD" && (flag == "--chmod" || flag == "--chown") {
-				return "", nil, errors.Errorf("ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flags")
+				return "", nil, errors.Errorf("ADD only supports the --chmod, --chown, and --keep-ownership flags")
 			}
 			if strings.Contains(flag, "--from") && command == "COPY" {
 				arr := strings.Split(flag, "=")

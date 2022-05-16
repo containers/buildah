@@ -1,0 +1,3 @@
+FROM busybox
+ADD --keep-ownership file3.txt /newfile_321_998
+RUN stat -c "%u:%g" /newfile_321_998

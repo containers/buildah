@@ -48,6 +48,10 @@ can be used.
 
 Path to an alternative .containerignore (.dockerignore) file. Requires \-\-contextdir be specified.
 
+**--keep-ownership**
+
+Preserve user and group ownership of source content (only for local files).
+
 **--quiet**, **-q**
 
 Refrain from printing a digest of the added content.

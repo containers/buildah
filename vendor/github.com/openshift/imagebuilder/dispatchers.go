@@ -140,6 +140,7 @@ func add(b *Builder, args []string, attributes map[string]bool, flagArgs []strin
 	}
 	var chown string
 	var chmod string
+	var preserveOwnership bool
 	last := len(args) - 1
 	dest := makeAbsolute(args[last], b.RunConfig.WorkingDir)
 	userArgs := mergeEnv(envMapAsSlice(b.Args), b.Env)
@@ -149,6 +150,8 @@ func add(b *Builder, args []string, attributes map[string]bool, flagArgs []strin
 			return err
 		}
 		switch {
+		case arg == "--keep-ownership":
+			preserveOwnership = true
 		case strings.HasPrefix(arg, "--chown="):
 			chown = strings.TrimPrefix(arg, "--chown=")
 		case strings.HasPrefix(arg, "--chmod="):
@@ -158,10 +161,15 @@ func add(b *Builder, args []string, attributes map[string]bool, flagArgs []strin
 				return err
 			}
 		default:
-			return fmt.Errorf("ADD only supports the --chmod=<permissions> and the --chown=<uid:gid> flag")
+			return fmt.Errorf("ADD only supports the --chmod=<permissions>, --chown=<uid:gid>, and the --keep-ownership flag")
 		}
 	}
-	b.PendingCopies = append(b.PendingCopies, Copy{Src: args[0:last], Dest: dest, Download: true, Chown: chown, Chmod: chmod})
+
+	if chown != "" && preserveOwnership {
+		preserveOwnership = false
+	}
+
+	b.PendingCopies = append(b.PendingCopies, Copy{Src: args[0:last], Dest: dest, Download: true, Chown: chown, Chmod: chmod, PreserveOwnership: preserveOwnership})
 	return nil
 }
 
@@ -177,6 +185,7 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, flagArg
 	dest := makeAbsolute(args[last], b.RunConfig.WorkingDir)
 	var chown string
 	var chmod string
+	var preserveOwnership bool
 	var from string
 	userArgs := mergeEnv(envMapAsSlice(b.Args), b.Env)
 	for _, a := range flagArgs {
@@ -185,6 +194,8 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, flagArg
 			return err
 		}
 		switch {
+		case arg == "--keep-ownership":
+			preserveOwnership = true
 		case strings.HasPrefix(arg, "--chown="):
 			chown = strings.TrimPrefix(arg, "--chown=")
 		case strings.HasPrefix(arg, "--chmod="):
@@ -196,10 +207,15 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, flagArg
 		case strings.HasPrefix(arg, "--from="):
 			from = strings.TrimPrefix(arg, "--from=")
 		default:
-			return fmt.Errorf("COPY only supports the --chmod=<permissions> --chown=<uid:gid> and the --from=<image|stage> flags")
+			return fmt.Errorf("COPY only supports the --chmod=<permissions>, --chown=<uid:gid>, --from=<image|stage>, and the --keep-ownership flags")
 		}
 	}
-	b.PendingCopies = append(b.PendingCopies, Copy{From: from, Src: args[0:last], Dest: dest, Download: false, Chown: chown, Chmod: chmod})
+
+	if chown != "" && preserveOwnership {
+		preserveOwnership = false
+	}
+
+	b.PendingCopies = append(b.PendingCopies, Copy{From: from, Src: args[0:last], Dest: dest, Download: false, Chown: chown, Chmod: chmod, PreserveOwnership: preserveOwnership})
 	return nil
 }
 
