@@ -17,6 +17,7 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
+	"github.com/containers/storage/pkg/unshare"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
@@ -25,11 +26,16 @@ func main() {
 	if buildah.InitReexec() {
 		return
 	}
+	unshare.MaybeReexecUsingUserNamespace(false)
+
+	storeOptions, err := storage.DefaultStoreOptionsAutoDetectUID()
+	if err != nil {
+		storeOptions = storage.StoreOptions{}
+	}
 
 	expectedManifestType := ""
 	expectedConfigType := ""
 
-	storeOptions, _ := storage.DefaultStoreOptions(false, 0)
 	debug := flag.Bool("debug", false, "turn on debug logging")
 	root := flag.String("root", storeOptions.GraphRoot, "storage root directory")
 	runroot := flag.String("runroot", storeOptions.RunRoot, "storage runtime directory")
