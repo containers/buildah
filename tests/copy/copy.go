@@ -38,6 +38,11 @@ func main() {
 
 	unshare.MaybeReexecUsingUserNamespace(false)
 
+	storeOptions, err := storage.DefaultStoreOptionsAutoDetectUID()
+	if err != nil {
+		storeOptions = storage.StoreOptions{}
+	}
+
 	rootCmd := &cobra.Command{
 		Use:  "copy [flags] source destination",
 		Long: "copies an image",
