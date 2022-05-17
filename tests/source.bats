@@ -126,11 +126,26 @@ load helpers
 
   start_registry
 
+  # --quiet=true
+  run_buildah source push --quiet --tls-verify=false --creds testuser:testpassword $srcdir localhost:${REGISTRY_PORT}/source:test
+  expect_output ""
+  # --quiet=false (implicit)
   run_buildah source push --tls-verify=false --creds testuser:testpassword $srcdir localhost:${REGISTRY_PORT}/source:test
+  expect_output --substring "Copying blob"
+  expect_output --substring "Copying config"
 
   pulldir=${TEST_SCRATCH_DIR}/pulledsource
+  # --quiet=true
+  run_buildah source pull --quiet --tls-verify=false --creds testuser:testpassword localhost:${REGISTRY_PORT}/source:test $pulldir
+  expect_output ""
+  # --quiet=false (implicit)
+  rm -rf $pulldir
   run_buildah source pull --tls-verify=false --creds testuser:testpassword localhost:${REGISTRY_PORT}/source:test $pulldir
+  expect_output --substring "Copying blob"
+  expect_output --substring "Copying config"
 
   run diff -r $srcdir $pulldir
   [ "$status" -eq 0 ]
+
+  stop_registry
 }
