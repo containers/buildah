@@ -3674,6 +3674,27 @@ _EOF
   run_buildah rm -a
 }
 
+@test "bud with containerfile secret and secret is accessed twice and build should be successful" {
+  _prefetch alpine
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/mysecret << _EOF
+SOMESECRETDATA
+_EOF
+
+  cat > $mytmpdir/Dockerfile << _EOF
+FROM alpine
+
+RUN --mount=type=secret,id=mysecret,dst=/home/root/mysecret cat /home/root/mysecret
+
+RUN --mount=type=secret,id=mysecret,dst=/home/root/mysecret2 echo hello && cat /home/root/mysecret2
+_EOF
+
+  run_buildah build --secret=id=mysecret,src=${mytmpdir}/mysecret $WITH_POLICY_JSON  -t secretimg -f ${mytmpdir}
+  expect_output --substring "hello"
+  expect_output --substring "SOMESECRETDATA"
+}
+
 @test "bud with containerfile secret accessed on second RUN" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
