@@ -2378,7 +2378,6 @@ _EOF
   _prefetch alpine
   target=alpine-image
   run_buildah build $WITH_POLICY_JSON --device /dev/fuse -t ${target} -f $BUDFILES/device/Dockerfile $BUDFILES/device
-  [ "${status}" -eq 0 ]
   expect_output --substring "/dev/fuse"
 }
 
@@ -2386,36 +2385,40 @@ _EOF
   _prefetch alpine
   target=alpine-image
   run_buildah build $WITH_POLICY_JSON -t ${target} $BUDFILES/containerfile
-  [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
 }
 
-@test "bud with Containerfile.in" {
+@test "bud with Containerfile.in, --cpp-flag" {
   _prefetch alpine
   target=alpine-image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
-  [ "${status}" -eq 0 ]
+  expect_output --substring "Ignoring In file included .* invalid preprocessing directive #This"
   expect_output --substring "FROM alpine"
   expect_output --substring "success"
-  expect_output --substring "debug=no"
+  expect_output --substring "debug=no" "with no cpp-flag or BUILDAH_CPPFLAGS"
+
   run_buildah build $WITH_POLICY_JSON -t ${target} --cpp-flag "-DDEBUG" -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
-  [ "${status}" -eq 0 ]
+  expect_output --substring "Ignoring In file included .* invalid preprocessing directive #This"
   expect_output --substring "FROM alpine"
   expect_output --substring "success"
-  expect_output --substring "debug=yes"
+  expect_output --substring "debug=yes" "with --cpp-flag -DDEBUG"
+}
+
+@test "bud with Containerfile.in, via envariable" {
+  _prefetch alpine
+  target=alpine-image
 
   BUILDAH_CPPFLAGS="-DDEBUG" run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
-  [ "${status}" -eq 0 ]
+  expect_output --substring "Ignoring In file included .* invalid preprocessing directive #This"
   expect_output --substring "FROM alpine"
   expect_output --substring "success"
-  expect_output --substring "debug=yes"
+  expect_output --substring "debug=yes" "with BUILDAH_CPPFLAGS=-DDEBUG"
 }
 
 @test "bud with Dockerfile" {
   _prefetch alpine
   target=alpine-image
   run_buildah build $WITH_POLICY_JSON -t ${target} $BUDFILES/dockerfile
-  [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
 }
 
@@ -2423,7 +2426,6 @@ _EOF
   _prefetch alpine
   target=alpine-image
   run_buildah build $WITH_POLICY_JSON -t ${target} $BUDFILES/containeranddockerfile
-  [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
 }
 
@@ -3054,15 +3056,12 @@ EOF
   target=alpine-image
 
   run_buildah build --network=none $WITH_POLICY_JSON -t ${target} $BUDFILES/containerfile
-  [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
 
   run_buildah build --network=private $WITH_POLICY_JSON -t ${target} $BUDFILES/containerfile
-  [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
 
   run_buildah build --network=container $WITH_POLICY_JSON -t ${target} $BUDFILES/containerfile
-  [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
 }
 
@@ -4034,7 +4033,6 @@ _EOF
   cp -R $BUDFILES/buildkit-mount ${TEST_SCRATCH_DIR}/buildkit-mount
   # tmpfs mount: target should be available on container without creating any special directory on container
   run_buildah build -t testbud $WITH_POLICY_JSON -f ${TEST_SCRATCH_DIR}/buildkit-mount/Dockerfiletmpfs
-  [ "$status" -eq 0 ]
   run_buildah rmi -f testbud
 }
 
