@@ -20,6 +20,8 @@ type PullOptions struct {
 	TLSVerify bool
 	// [username[:password] to use when connecting to the registry.
 	Credentials string
+	// Quiet the progess bars when pushing.
+	Quiet bool
 }
 
 // Pull `imageInput` from a container registry to `sourcePath`.
@@ -64,6 +66,9 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 
 	copyOpts := copy.Options{
 		SourceCtx: sysCtx,
+	}
+	if !options.Quiet {
+		copyOpts.ReportWriter = os.Stderr
 	}
 	if _, err := copy.Image(ctx, policyContext, ociDest.Reference(), srcRef, &copyOpts); err != nil {
 		return errors.Wrap(err, "error pulling source image")

@@ -21,6 +21,10 @@ The [username[:password]] to use to authenticate with the registry if required.
 If one or both values are not supplied, a command line prompt will appear and the
 value can be entered.  The password is entered without echo.
 
+**--quiet**, **-q**
+
+Suppress the progress output when pushing a source image.
+
 **--tls-verify** *bool-value*
 
 Require HTTPS and verification of certificates when talking to container

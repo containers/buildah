@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"os"
 
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/image/v5/copy"
@@ -17,6 +18,8 @@ type PushOptions struct {
 	TLSVerify bool
 	// [username[:password] to use when connecting to the registry.
 	Credentials string
+	// Quiet the progess bars when pushing.
+	Quiet bool
 }
 
 // Push the source image at `sourcePath` to `imageInput` at a container
@@ -54,6 +57,9 @@ func Push(ctx context.Context, sourcePath string, imageInput string, options Pus
 
 	copyOpts := &copy.Options{
 		DestinationCtx: sysCtx,
+	}
+	if !options.Quiet {
+		copyOpts.ReportWriter = os.Stderr
 	}
 	if _, err := copy.Image(ctx, policyContext, destRef, ociSource.Reference(), copyOpts); err != nil {
 		return errors.Wrap(err, "error pushing source image")

@@ -113,13 +113,15 @@ func init() {
 	sourcePullCommand.SetUsageTemplate(UsageTemplate())
 	sourceCommand.AddCommand(sourcePullCommand)
 	sourcePullFlags := sourcePullCommand.Flags()
-	sourcePullFlags.BoolVar(&sourcePullOptions.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 	sourcePullFlags.StringVar(&sourcePullOptions.Credentials, "creds", "", "use `[username[:password]]` for accessing the registry")
+	sourcePullFlags.BoolVar(&sourcePullOptions.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
+	sourcePullFlags.BoolVarP(&sourcePullOptions.Quiet, "quiet", "q", false, "don't output pull progress information")
 
 	// buildah source push
 	sourcePushCommand.SetUsageTemplate(UsageTemplate())
 	sourceCommand.AddCommand(sourcePushCommand)
 	sourcePushFlags := sourcePushCommand.Flags()
-	sourcePushFlags.BoolVar(&sourcePushOptions.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
 	sourcePushFlags.StringVar(&sourcePushOptions.Credentials, "creds", "", "use `[username[:password]]` for accessing the registry")
+	sourcePushFlags.BoolVar(&sourcePushOptions.TLSVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry")
+	sourcePushFlags.BoolVarP(&sourcePushOptions.Quiet, "quiet", "q", false, "don't output push progress information")
 }
