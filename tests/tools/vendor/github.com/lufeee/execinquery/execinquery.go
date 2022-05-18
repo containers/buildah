@@ -49,6 +49,10 @@ func (l linter) run(pass *analysis.Pass) (interface{}, error) {
 				return
 			}
 
+			if pass.TypesInfo == nil || pass.TypesInfo.Uses[selector.Sel] == nil || pass.TypesInfo.Uses[selector.Sel].Pkg() == nil {
+				return
+			}
+
 			if "database/sql" != pass.TypesInfo.Uses[selector.Sel].Pkg().Path() {
 				return
 			}
@@ -60,7 +64,7 @@ func (l linter) run(pass *analysis.Pass) (interface{}, error) {
 			replacement := "Exec"
 			var i int // the index of the query argument
 			if strings.Contains(selector.Sel.Name, "Context") {
-				replacement = "ExecContext"
+				replacement += "Context"
 				i = 1
 			}
 
@@ -116,6 +120,9 @@ func (l linter) getQueryString(exp interface{}) string {
 		return v
 
 	case *ast.Ident:
+		if e.Obj == nil {
+			return ""
+		}
 		return l.getQueryString(e.Obj.Decl)
 
 	case *ast.BinaryExpr:

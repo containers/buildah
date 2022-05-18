@@ -1,5 +1,6 @@
 # execinquery - a simple query string checker in Query function
-[![test-and-lint](https://github.com/lufeee/execinquery/actions/workflows/test-and-lint.yml/badge.svg?branch=main)](https://github.com/lufeee/execinquery/actions/workflows/test-and-lint.yml)
+[![Go Matrix](https://github.com/lufeee/execinquery/actions/workflows/go-cross.yml/badge.svg?branch=main)](https://github.com/lufeee/execinquery/actions/workflows/go-cross.yml)
+[![Go lint](https://github.com/lufeee/execinquery/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/lufeee/execinquery/actions/workflows/lint.yml)
 [![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
 ## About
 

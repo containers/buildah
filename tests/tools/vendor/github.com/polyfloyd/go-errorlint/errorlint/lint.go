@@ -6,7 +6,6 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
-	"regexp"
 )
 
 type Lint struct {
@@ -52,7 +51,7 @@ func LintFmtErrorfCalls(fset *token.FileSet, info types.Info) []Lint {
 				continue
 			}
 
-			if formatVerbs[i] == "%w" {
+			if formatVerbs[i] == "w" {
 				lintArg = nil
 				break
 			}
@@ -85,6 +84,9 @@ func isErrorStringCall(info types.Info, expr ast.Expr) bool {
 	return false
 }
 
+// printfFormatStringVerbs returns a normalized list of all the verbs that are used per argument to
+// the printf function. The index of each returned element corresponds to index of the respective
+// argument.
 func printfFormatStringVerbs(info types.Info, call *ast.CallExpr) ([]string, bool) {
 	if len(call.Args) <= 1 {
 		return nil, false
@@ -96,10 +98,23 @@ func printfFormatStringVerbs(info types.Info, call *ast.CallExpr) ([]string, boo
 	}
 	formatString := constant.StringVal(info.Types[strLit].Value)
 
-	// Naive format string argument verb. This does not take modifiers such as
-	// padding into account...
-	re := regexp.MustCompile(`%[^%]`)
-	return re.FindAllString(formatString, -1), true
+	pp := printfParser{str: formatString}
+	verbs, err := pp.ParseAllVerbs()
+	if err != nil {
+		return nil, false
+	}
+	orderedVerbs := verbOrder(verbs, len(call.Args)-1)
+
+	resolvedVerbs := make([]string, len(orderedVerbs))
+	for i, vv := range orderedVerbs {
+		for _, v := range vv {
+			resolvedVerbs[i] = v.format
+			if v.format == "w" {
+				break
+			}
+		}
+	}
+	return resolvedVerbs, true
 }
 
 func isFmtErrorfCallExpr(info types.Info, expr ast.Expr) (*ast.CallExpr, bool) {
