@@ -2297,8 +2297,8 @@ _EOF
   _prefetch alpine ubuntu
   target=target
   run_buildah build $WITH_POLICY_JSON -t ${target} --target mytarget $BUDFILES/target
-  expect_output --substring "\[1/2] STEP 1/2: FROM ubuntu:latest"
-  expect_output --substring "\[2/2] STEP 1/2: FROM alpine:latest AS mytarget"
+  expect_output --substring "\[1/2] STEP 1/3: FROM ubuntu:latest"
+  expect_output --substring "\[2/2] STEP 1/3: FROM alpine:latest AS mytarget"
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
