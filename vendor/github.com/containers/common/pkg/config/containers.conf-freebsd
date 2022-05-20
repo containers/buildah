@@ -8,8 +8,8 @@
 # the built in defaults. Users can then override these options via the command
 # line. Container engines will read containers.conf files in up to three
 # locations in the following order:
-#  1. /usr/share/containers/containers.conf
-#  2. /etc/containers/containers.conf
+#  1. /usr/local/share/containers/containers.conf
+#  2. /usr/local/etc/containers/containers.conf
 #  3. $HOME/.config/containers/containers.conf (Rootless containers ONLY)
 #  Items specified in the latter containers.conf, if they exist, override the
 # previous containers.conf settings, or the default settings.
@@ -22,32 +22,12 @@
 #
 #annotations = []
 
-# Used to change the name of the default AppArmor profile of container engine.
-#
-#apparmor_profile = "container-default"
-
 # The hosts entries from the base hosts file are added to the containers hosts
 # file. This must be either an absolute path or as special values "image" which
 # uses the hosts file from the container image or "none" which means
 # no base hosts file is used. The default is "" which will use /etc/hosts.
 #
 #base_hosts_file = ""
-
-# Default way to to create a cgroup namespace for the container
-# Options are:
-# `private` Create private Cgroup Namespace for the container.
-# `host`    Share host Cgroup Namespace with the container.
-#
-#cgroupns = "private"
-
-# Control container cgroup configuration
-# Determines  whether  the  container will create CGroups.
-# Options are:
-# `enabled`   Enable cgroup support within container
-# `disabled`  Disable cgroup support, will inherit cgroups from parent
-# `no-conmon` Do not create a cgroup dedicated to conmon.
-#
-#cgroups = "enabled"
 
 # List of default capabilities for containers. If it is empty or commented out,
 # the default capabilities defined in the container engine will be added.
@@ -146,7 +126,7 @@ default_sysctls = [
 
 # Container init binary, if init=true, this is the init binary to be used for containers.
 #
-#init_path = "/usr/libexec/podman/catatonit"
+#init_path = "/usr/local/libexec/podman/catatonit"
 
 # Default way to to create an IPC namespace (POSIX SysV IPC) for the container
 # Options are:
@@ -215,18 +195,6 @@ default_sysctls = [
 # Setting it to true may have negative performance implications.
 #
 #prepare_volume_on_create = false
-
-# Path to the seccomp.json profile which is used as the default seccomp profile
-# for the runtime.
-#
-#seccomp_profile = "/usr/share/containers/seccomp.json"
-
-# Size of /dev/shm. Specified as <number><unit>.
-# Unit is optional, values:
-# b (bytes), k (kilobytes), m (megabytes), or g (gigabytes).
-# If the unit is omitted, the system uses bytes.
-#
-#shm_size = "65536k"
 
 # Set timezone in container. Takes IANA timezones as well as "local",
 # which sets the timezone in the container to match the host machine.
@@ -323,7 +291,7 @@ default_sysctls = [
 # For the netavark backend "/etc/containers/networks" is used as root
 # and "$graphroot/networks" as rootless.
 #
-#network_config_dir = "/etc/cni/net.d/"
+#network_config_dir = "/usr/local/etc/cni/net.d/"
 
 [engine]
 # Index to the active service
@@ -334,12 +302,6 @@ default_sysctls = [
 # Valid options are: `gzip`, `zstd` and `zstd:chunked`.
 #
 #compression_format = "gzip"
-
-
-# Cgroup management implementation used for the runtime.
-# Valid options "systemd" or "cgroupfs"
-#
-#cgroup_manager = "systemd"
 
 # Environment variables to pass into conmon
 #
@@ -402,7 +364,7 @@ default_sysctls = [
 # Selects which logging mechanism to use for container engine events.
 # Valid values are `journald`, `file` and `none`.
 #
-#events_logger = "journald"
+#events_logger = "file"
 
 # A is a list of directories which are used to search for helper binaries.
 #
@@ -416,7 +378,7 @@ default_sysctls = [
 # Path to OCI hooks directories for automatically executed hooks.
 #
 #hooks_dir = [
-#  "/usr/share/containers/oci/hooks.d",
+#  "/usr/local/share/containers/oci/hooks.d",
 #]
 
 # Manifest Type (oci, v2s2, or v2s1) to use when pulling, pushing, building
@@ -433,16 +395,6 @@ default_sysctls = [
 # Not setting this field, or setting it to zero, will fall back to containers/image defaults.
 #
 #image_parallel_copies = 0
-
-# Tells container engines how to handle the builtin image volumes.
-#   * bind: An anonymous named volume will be created and mounted
-#     into the container.
-#   * tmpfs: The volume is mounted onto the container as a tmpfs,
-#     which allows users to create content that disappears when
-#     the container is stopped.
-#   * ignore: All volumes are just ignored and no action is taken.
-#
-#image_volume_mode = ""
 
 # Default command to run the infra container
 #
@@ -515,9 +467,6 @@ default_sysctls = [
 # 'podman system renumber' command).
 #
 #num_locks = 2048
-
-# Set the exit policy of the pod when the last container exits.
-#pod_exit_policy = "continue"
 
 # Whether to pull new image before running a container
 #
@@ -647,7 +596,7 @@ default_sysctls = [
 #]
 
 [engine.volume_plugins]
-#testplugin = "/run/podman/plugins/test.sock"
+#testplugin = "/var/run/podman/plugins/test.sock"
 
 [machine]
 # Number of CPU's a machine is created with.
