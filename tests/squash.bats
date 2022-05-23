@@ -137,7 +137,34 @@ function check_lengths() {
   run_buildah build --layers --squash -t testsquash $WITH_POLICY_JSON -f $BUDFILES/layers-squash/Dockerfile.multi-stage
   expect_output --substring "Using cache"
   run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' testsquash
-  expect_output "1" "should only container 1 diff"
+  expect_output "1" "image built with --squash should only include 1 layer"
   run_buildah rmi -f testsquash
   run_buildah rmi -f test
+}
+
+# Test build with --squash and --layers and verify number of layers and content inside image
+@test "bud-squash-should-use-cache and verify content inside image" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM busybox
+RUN touch hello
+ADD . /data
+RUN echo hey && mkdir water
+_EOF
+
+  # Build a first image with --layers and --squash and populate build cache
+  run_buildah build $WITH_POLICY_JSON --squash --layers -t one -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' one
+  expect_output "1" "image built with --squash should only include 1 layer"
+  # Build again and verify if cache is being used
+  run_buildah build $WITH_POLICY_JSON --squash --layers -t two -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "Using cache"
+  run_buildah inspect -t image -f '{{len .Docker.RootFS.DiffIDs}}' two
+  expect_output "1" "image built with --squash should only include 1 layer"
+  run_buildah from two
+  run_buildah run two-working-container ls
+  expect_output --substring "water"
+  expect_output --substring "data"
+  expect_output --substring "hello"
 }
