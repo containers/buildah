@@ -2352,6 +2352,19 @@ _EOF
   run_buildah build $WITH_POLICY_JSON --squash $BUDFILES/layers-squash/Dockerfile.hardlinks
 }
 
+# Following test must pass for both rootless and rootfull
+@test "rootless: support --device and renaming device using bind-mount" {
+  skip_if_in_container # unable to perform mount of /dev/null for test in CI container setup
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN ls /test/dev
+_EOF
+  run_buildah build $WITH_POLICY_JSON --device /dev/null:/test/dev/null  -t test -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "null"
+}
+
 @test "bud with additional directory of devices" {
   skip_if_rootless_environment
   skip_if_chroot
