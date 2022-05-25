@@ -170,7 +170,7 @@ _EOF
   run_buildah build --platform linux/arm64 $WITH_POLICY_JSON --build-arg TARGETOS=android -t test -f $BUDFILES/multiarch/Dockerfile.built-in-args
   expect_output --substring "I'm compiling for linux/arm64"
   expect_output --substring "and tagging for linux/arm64"
-  ## Note since we used --build-arg and overrided hence OS must be anroid
+  ## Note since we used --build-arg and overrided hence OS must be android
   expect_output --substring "and OS android"
   expect_output --substring "and ARCH $otherarch"
   run_buildah inspect --format '{{ .OCIv1.Architecture }}' test
@@ -202,7 +202,7 @@ _EOF
   expect_output --substring $targetarch
 }
 
-# Test pinning image using addtional build context
+# Test pinning image using additional build context
 @test "build-with-additional-build-context and COPY, test pinning image" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
 
@@ -268,7 +268,7 @@ FROM alpine as some-stage
 RUN echo world > hello
 
 # hello should get copied since we are accessing stage from its numeric value and not
-# addtional build context where some-stage is docker://alpine
+# additional build context where some-stage is docker://alpine
 FROM alpine
 COPY --from=0 hello .
 RUN cat hello
@@ -403,7 +403,7 @@ FROM alpine
 RUN --mount=type=bind,from=some-stage,target=/test,z cat /test/hello
 _EOF
 
-  # Addtional context for RUN --mount is file on host
+  # Additional context for RUN --mount is file on host
   run_buildah build $WITH_POLICY_JSON --build-context some-stage=${TEST_SCRATCH_DIR}/bud/platform -t test -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2
   expect_output --substring "world"
 }
@@ -421,7 +421,7 @@ FROM alpine
 RUN --mount=type=bind,src=crun-1.4.5/src,from=some-stage,target=/test,z ls /test
 _EOF
 
-  # Addtional context for RUN --mount is file on host
+  # Additional context for RUN --mount is file on host
   run_buildah build $WITH_POLICY_JSON --build-context some-stage=https://github.com/containers/crun/releases/download/1.4.5/crun-1.4.5.tar.xz -t test -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2
   expect_output --substring "crun.c"
 }
@@ -4302,7 +4302,7 @@ _EOF
 }
 
 @test "bud-with-mount-cache-like-buildkit-locked-across-steps" {
-  # Note: this test is just testing syntax for sharing, actual behviour test needs parallel build in order to test locking.
+  # Note: this test is just testing syntax for sharing, actual behaviour test needs parallel build in order to test locking.
   skip_if_no_runtime
   skip_if_in_container
   cp -R $BUDFILES/buildkit-mount ${TEST_SCRATCH_DIR}/buildkit-mount

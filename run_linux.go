@@ -2096,14 +2096,14 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 	}
 }
 
-func addOrReplaceMount(moutns []specs.Mount, mount specs.Mount) []spec.Mount {
-	for i := range moutns {
-		if moutns[i].Destination == mount.Destination {
-			moutns[i] = mount
-			return moutns
+func addOrReplaceMount(mounts []specs.Mount, mount specs.Mount) []spec.Mount {
+	for i := range mounts {
+		if mounts[i].Destination == mount.Destination {
+			mounts[i] = mount
+			return mounts
 		}
 	}
-	return append(moutns, mount)
+	return append(mounts, mount)
 }
 
 // setupSpecialMountSpecChanges creates special mounts for depending on the namespaces

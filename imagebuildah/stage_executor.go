@@ -376,7 +376,7 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 				// Maybe index is given in COPY --from=index
 				// if that's the case check if provided index
 				// exists and if stage short_name matches any
-				// additionalContext replace stage with addtional
+				// additionalContext replace stage with additional
 				// build context.
 				if _, err := strconv.Atoi(from); err == nil {
 					if stage, ok := s.executor.stages[from]; ok {
@@ -1216,7 +1216,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// Create a new image, maybe with a new layer, with the
 			// name for this stage if it's the last instruction.
 			logCommit(s.output, i)
-			// While commiting we always set squash to false here
+			// While committing we always set squash to false here
 			// because at this point we want to save history for
 			// layers even if its a squashed build so that they
 			// can be part of build-cache.

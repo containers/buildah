@@ -18,7 +18,7 @@ type PushOptions struct {
 	TLSVerify bool
 	// [username[:password] to use when connecting to the registry.
 	Credentials string
-	// Quiet the progess bars when pushing.
+	// Quiet the progress bars when pushing.
 	Quiet bool
 }
 
