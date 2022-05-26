@@ -17,10 +17,11 @@ default to `/`.
 The container images are:
 
   * `quay.io/containers/buildah:<version>` and `quay.io/buildah/stable:<version>` -
-    These images are built when a new Buildah version becomes available in
-    Fedora.  These images are intended to be unchanging and stable, they will
-    never be updated by automation once they've been pushed.  For build details,
-    please [see the configuration file](stable/Dockerfile).
+    These images are built daily. They are intended to contain an unchanging
+    and stable version of buildah.  For the most recent `<version>` tags (`vX`,
+    `vX.Y`, and `vX.Y.Z`) the image contents will be updated daily to incorporate
+    (especially) security upgrades.  For build details, please [see the
+    configuration file](stable/Dockerfile).
   * `quay.io/containers/buildah:latest` and `quay.io/buildah/stable:latest` -
     Built daily using the same Dockerfile as above.  The buildah version
     will remain the "latest" available in Fedora, however the other image
@@ -68,13 +69,3 @@ exit
 the fuse kernel module has not been loaded on your host system.  Use the command `modprobe fuse` to load the
 module and then run the container image.  To enable this automatically at boot time, you can add a configuration
 file to `/etc/modules.load.d`.  See `man modules-load.d` for more details.
-
-## Compatible with old versions
-For compatibility reasons, some Linux distributions with a kernel version of 3.10.0 and less will not work when using the stable image that is based on fedora:32. This centos7 image can be used to work on those distributions.
-
-Changes between it and stable:
-- change base image from `fedora:latest` to `centos:7`
-- remove `--exclude container-selinux` when installing `buildah` and `fuse-overlayfs`, for details pls check [here](https://bugzilla.redhat.com/show_bug.cgi?id=1806044)
-- update the sed logic of storage.conf (the final result is the same, this change just changes the methodology)
-
-> for more details of the compatible discussion pls check the [issue: 2393](https://github.com/containers/buildah/issues/2393)

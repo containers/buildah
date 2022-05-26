@@ -93,9 +93,8 @@ smoke_task:
     gce_instance:
         memory: "12Gb"
 
-    # N/B: Skip running this on branches due to multiple bugs in
-    # the git-validate tool which are difficult to debug and fix.
-    skip: $CIRRUS_PR == ''
+    # Don't bother running on branches (including cron), or for tags.
+    only_if: $CIRRUS_PR != ''
 
     timeout_in: 30m
 
