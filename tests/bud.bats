@@ -2634,22 +2634,22 @@ _EOF
   expect_output --substring "success"
   expect_output --substring "debug=no" "with no cpp-flag or BUILDAH_CPPFLAGS"
 
-  run_buildah build $WITH_POLICY_JSON -t ${target} --cpp-flag "-DDEBUG" -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
+  run_buildah build $WITH_POLICY_JSON -t ${target} --cpp-flag "-DTESTCPPDEBUG" -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
   expect_output --substring "Ignoring In file included .* invalid preprocessing directive #This"
   expect_output --substring "FROM alpine"
   expect_output --substring "success"
-  expect_output --substring "debug=yes" "with --cpp-flag -DDEBUG"
+  expect_output --substring "debug=yes" "with --cpp-flag -DTESTCPPDEBUG"
 }
 
 @test "bud with Containerfile.in, via envariable" {
   _prefetch alpine
   target=alpine-image
 
-  BUILDAH_CPPFLAGS="-DDEBUG" run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
+  BUILDAH_CPPFLAGS="-DTESTCPPDEBUG" run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
   expect_output --substring "Ignoring In file included .* invalid preprocessing directive #This"
   expect_output --substring "FROM alpine"
   expect_output --substring "success"
-  expect_output --substring "debug=yes" "with BUILDAH_CPPFLAGS=-DDEBUG"
+  expect_output --substring "debug=yes" "with BUILDAH_CPPFLAGS=-DTESTCPPDEBUG"
 }
 
 @test "bud with Dockerfile" {
