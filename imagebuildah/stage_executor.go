@@ -1708,6 +1708,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		PreferredManifestType: s.executor.outputFormat,
 		SystemContext:         s.executor.systemContext,
 		Squash:                squash,
+		OmitHistory:           s.executor.commonBuildOptions.OmitHistory,
 		EmptyLayer:            emptyLayer,
 		BlobDirectory:         s.executor.blobDirectory,
 		SignBy:                s.executor.signBy,

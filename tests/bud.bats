@@ -202,7 +202,28 @@ _EOF
   expect_output --substring $targetarch
 }
 
-# Test pinning image using addtional build context
+# Test build with --add-history=false
+@test "build-with-omit-history-to-true should not add history" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1 << _EOF
+FROM alpine
+RUN echo hello
+RUN echo world
+_EOF
+
+  # Built image must not contain history for the layers which we have just built.
+  run_buildah build $WITH_POLICY_JSON --omit-history -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  run_buildah inspect --format "{{index .Docker.History}}" source
+  expect_output "[]"
+  run_buildah inspect --format "{{index .OCIv1.History}}" source
+  expect_output "[]"
+  run_buildah inspect --format "{{index .History}}" source
+  expect_output "[]"
+}
+
+
+# Test pinning image using additional build context
 @test "build-with-additional-build-context and COPY, test pinning image" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
 

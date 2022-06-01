@@ -30,6 +30,10 @@ type AdditionalBuildContext struct {
 type CommonBuildOptions struct {
 	// AddHost is the list of hostnames to add to the build container's /etc/hosts.
 	AddHost []string
+	// OmitHistory tells the builder to ignore the history of build layers and
+	// base while preparing image-spec, setting this to true will ensure no history
+	// is added to the image-spec. (default false)
+	OmitHistory bool
 	// CgroupParent is the path to cgroups under which the cgroup for the container will be created.
 	CgroupParent string
 	// CPUPeriod limits the CPU CFS (Completely Fair Scheduler) period

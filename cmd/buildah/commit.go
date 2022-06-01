@@ -23,6 +23,7 @@ import (
 
 type commitInputOptions struct {
 	authfile           string
+	omitHistory        bool
 	blobCache          string
 	certDir            string
 	creds              string
@@ -108,6 +109,7 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 		panic(fmt.Sprintf("error marking reference-time as hidden: %v", err))
 	}
 
+	flags.BoolVar(&opts.omitHistory, "omit-history", false, "omit build history information from the built image (default false)")
 	flags.BoolVar(&opts.identityLabel, "identity-label", true, "add default builder label (default true)")
 	flags.BoolVar(&opts.rm, "rm", false, "remove the container and its content after committing it to an image. Default leaves the container and its content in place.")
 	flags.StringVar(&opts.signaturePolicy, "signature-policy", "", "`pathname` of signature policy file (not usually used)")
@@ -209,6 +211,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		IIDFile:               iopts.iidfile,
 		Squash:                iopts.squash,
 		BlobDirectory:         iopts.blobCache,
+		OmitHistory:           iopts.omitHistory,
 		SignBy:                iopts.signBy,
 		OciEncryptConfig:      encConfig,
 		OciEncryptLayers:      encLayers,
