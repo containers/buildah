@@ -531,6 +531,12 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			dimage.History = append(dimage.History, dnews)
 		}
 	}
+
+	// Calculate base image history for special scenarios
+	// when base layers does not contains any history.
+	// We will ignore sanity checks if baseImage history is null
+	// but still add new history for docker parity.
+	baseImageHistoryLen := len(oimage.History)
 	// Only attempt to append history if history was not disabled explicitly.
 	if !i.omitHistory {
 		appendHistory(i.preEmptyLayers)
@@ -564,13 +570,16 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		// Sanity check that we didn't just create a mismatch between non-empty layers in the
 		// history and the number of diffIDs. Following sanity check is ignored if build history
 		// is disabled explicitly by the user.
-		expectedDiffIDs := expectedOCIDiffIDs(oimage)
-		if len(oimage.RootFS.DiffIDs) != expectedDiffIDs {
-			return nil, errors.Errorf("internal error: history lists %d non-empty layers, but we have %d layers on disk", expectedDiffIDs, len(oimage.RootFS.DiffIDs))
-		}
-		expectedDiffIDs = expectedDockerDiffIDs(dimage)
-		if len(dimage.RootFS.DiffIDs) != expectedDiffIDs {
-			return nil, errors.Errorf("internal error: history lists %d non-empty layers, but we have %d layers on disk", expectedDiffIDs, len(dimage.RootFS.DiffIDs))
+		// Disable sanity check when baseImageHistory is null for docker parity
+		if baseImageHistoryLen != 0 {
+			expectedDiffIDs := expectedOCIDiffIDs(oimage)
+			if len(oimage.RootFS.DiffIDs) != expectedDiffIDs {
+				return nil, errors.Errorf("internal error: history lists %d non-empty layers, but we have %d layers on disk", expectedDiffIDs, len(oimage.RootFS.DiffIDs))
+			}
+			expectedDiffIDs = expectedDockerDiffIDs(dimage)
+			if len(dimage.RootFS.DiffIDs) != expectedDiffIDs {
+				return nil, errors.Errorf("internal error: history lists %d non-empty layers, but we have %d layers on disk", expectedDiffIDs, len(dimage.RootFS.DiffIDs))
+			}
 		}
 	}
 
