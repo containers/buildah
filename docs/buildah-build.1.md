@@ -450,6 +450,15 @@ Do not create _/etc/hosts_ for the container.
 By default, Buildah manages _/etc/hosts_, adding the container's own IP address.
 **--no-hosts** disables this, and the image's _/etc/hosts_ will be preserved unmodified. Conflicts with the --add-host option.
 
+**--omit-history** *bool-value*
+
+Omit build history information in the built image. (default false).
+
+This option is useful for the cases where end users explicitly
+want to set `--omit-history` to omit the optional `History` from
+built images or when working with images built using build tools that
+do not include `History` information in their images.
+
 **--os**="OS"
 
 Set the OS of the image to be built, and that of the base image to be pulled, if the build uses one, instead of using the current operating system of the host.
