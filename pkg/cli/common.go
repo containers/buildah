@@ -240,8 +240,8 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 		panic(fmt.Sprintf("error marking the pull-never flag as hidden: %v", err))
 	}
 	fs.BoolVarP(&flags.Quiet, "quiet", "q", false, "refrain from announcing build instructions and image read/write progress")
-	fs.BoolVar(&flags.OmitHistory, "omit-history", false, "omit build history information from built image (default true)")
-	fs.BoolVar(&flags.IdentityLabel, "identity-label", true, "add default identity label (default true)")
+	fs.BoolVar(&flags.OmitHistory, "omit-history", false, "omit build history information from built image")
+	fs.BoolVar(&flags.IdentityLabel, "identity-label", true, "add default identity label")
 	fs.BoolVar(&flags.Rm, "rm", true, "remove intermediate containers after a successful build")
 	// "runtime" definition moved to avoid name collision in podman build.  Defined in cmd/buildah/build.go.
 	fs.StringSliceVar(&flags.RuntimeFlags, "runtime-flag", []string{}, "add global flags for the container runtime")
