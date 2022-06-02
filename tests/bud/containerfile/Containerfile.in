@@ -1,6 +1,6 @@
 # include "Containerfile"
 RUN echo "success"
-#if DEBUG
+#if TESTCPPDEBUG
 RUN echo "debug=yes"
 # else
 RUN echo "debug=no"
