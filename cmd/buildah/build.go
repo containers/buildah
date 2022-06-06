@@ -253,6 +253,12 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		reporter = f
 	}
 
+	if c.Flag("logsplit").Changed {
+		if !c.Flag("logfile").Changed {
+			return errors.Errorf("cannot use --logsplit without --logfile")
+		}
+	}
+
 	store, err := getStore(c)
 	if err != nil {
 		return err
@@ -383,6 +389,8 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		IgnoreFile:              iopts.IgnoreFile,
 		Labels:                  iopts.Label,
 		Layers:                  layers,
+		LogFile:                 iopts.Logfile,
+		LogSplitByPlatform:      iopts.LogSplitByPlatform,
 		LogRusage:               iopts.LogRusage,
 		Manifest:                iopts.Manifest,
 		MaxPullPushRetries:      maxPullPushRetries,
