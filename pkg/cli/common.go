@@ -68,6 +68,7 @@ type BudResults struct {
 	Iidfile             string
 	Label               []string
 	Logfile             string
+	LogSplitByPlatform  bool
 	Manifest            string
 	NoHosts             bool
 	NoCache             bool
@@ -211,6 +212,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.IntVar(&flags.Jobs, "jobs", 1, "how many stages to run in parallel")
 	fs.StringArrayVar(&flags.Label, "label", []string{}, "set metadata for an image (default [])")
 	fs.StringVar(&flags.Logfile, "logfile", "", "log to `file` instead of stdout/stderr")
+	fs.BoolVar(&flags.LogSplitByPlatform, "logsplit", false, "split logfile to different files for each platform")
 	fs.Int("loglevel", 0, "NO LONGER USED, flag ignored, and hidden")
 	if err := fs.MarkHidden("loglevel"); err != nil {
 		panic(fmt.Sprintf("error marking the loglevel flag as hidden: %v", err))

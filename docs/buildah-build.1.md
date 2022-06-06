@@ -398,6 +398,11 @@ environment variable. `export BUILDAH_LAYERS=true`
 Log output which would be sent to standard output and standard error to the
 specified file instead of to standard output and standard error.
 
+**--logsplit** *bool-value*
+
+If --logfile and --platform is specified following flag allows end-users to split log file for each
+platform into different files with naming convention as `${logfile}_${platform-os}_${platform-arch}`.
+
 **--manifest** *listName*
 
 Name of the manifest list to which the built image will be added.  Creates the
