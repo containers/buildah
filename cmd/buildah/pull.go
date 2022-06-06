@@ -109,7 +109,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		return err
 	}
 
-	decConfig, err := getDecryptConfig(iopts.decryptionKeys)
+	decConfig, err := buildahcli.DecryptConfig(iopts.decryptionKeys)
 	if err != nil {
 		return errors.Wrapf(err, "unable to obtain decrypt config")
 	}
@@ -126,8 +126,8 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		AllTags:             iopts.allTags,
 		ReportWriter:        os.Stderr,
 		RemoveSignatures:    iopts.removeSignatures,
-		MaxRetries:          maxPullPushRetries,
-		RetryDelay:          pullPushRetryDelay,
+		MaxRetries:          buildahcli.MaxPullPushRetries,
+		RetryDelay:          buildahcli.PullPushRetryDelay,
 		OciDecryptConfig:    decConfig,
 		PullPolicy:          policy,
 	}
