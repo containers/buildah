@@ -151,6 +151,12 @@ type BuildOptions struct {
 	// Additional tags to add to the image that we write, if we know of a
 	// way to add them.
 	AdditionalTags []string
+	// Logfile specifies if log output is redirected to an external file
+	// instead of stdout, stderr.
+	LogFile string
+	// LogByPlatform tells imagebuildah to split log to different log files
+	// for each platform if logging to external file was selected.
+	LogSplitByPlatform bool
 	// Log is a callback that will print a progress message.  If no value
 	// is supplied, the message will be sent to Err (or os.Stderr, if Err
 	// is nil) by default.

@@ -1700,6 +1700,25 @@ function _test_http() {
   test -s ${TEST_SCRATCH_DIR}/logfile
 }
 
+@test "bud-logfile-with-split-logfile-by-platform" {
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p $mytmpdir
+
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+COPY . .
+_EOF
+
+  rm -f ${TEST_SCRATCH_DIR}/logfile
+  run_buildah build --logfile ${TEST_SCRATCH_DIR}/logfile --logsplit --platform linux/arm64,linux/amd64 $WITH_POLICY_JSON ${mytmpdir}
+  run cat ${TEST_SCRATCH_DIR}/logfile_linux_arm64
+  expect_output --substring "FROM alpine"
+  expect_output --substring "[linux/arm64]"
+  run cat ${TEST_SCRATCH_DIR}/logfile_linux_amd64
+  expect_output --substring "FROM alpine"
+  expect_output --substring "[linux/amd64]"
+}
+
 @test "bud with ARGS" {
   _prefetch alpine
   target=alpine-image
