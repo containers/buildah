@@ -34,6 +34,12 @@ OpenSUSE it would be
 zypper in libbtrfs-devel libgpgme-devel device-mapper-devel
 ```
 
+On Debian and Ubuntu, it would be
+
+```shell
+apt install libbtrfs-dev libgpgme-dev libdevmapper-dev
+```
+
 Now import Buildah as a dependency:
 
 ```shell
