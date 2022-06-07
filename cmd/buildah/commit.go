@@ -7,6 +7,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
+	iutil "github.com/containers/buildah/internal/util"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
@@ -152,7 +153,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		compress = define.Uncompressed
 	}
 
-	format, err := buildahcli.GetFormat(iopts.format)
+	format, err := iutil.GetFormat(iopts.format)
 	if err != nil {
 		return err
 	}
@@ -197,7 +198,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		builder.SetLabel(buildah.BuilderIdentityAnnotation, define.Version)
 	}
 
-	encConfig, encLayers, err := buildahcli.EncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
+	encConfig, encLayers, err := iutil.EncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
 	if err != nil {
 		return errors.Wrapf(err, "unable to obtain encryption config")
 	}
