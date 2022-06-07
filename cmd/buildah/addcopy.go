@@ -159,7 +159,8 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 			if err2 != nil {
 				return errors.Wrap(err2, "error building system context")
 			}
-			decConfig, err2 := getDecryptConfig(iopts.decryptionKeys)
+
+			decryptConfig, err2 := buildahcli.DecryptConfig(iopts.decryptionKeys)
 			if err2 != nil {
 				return errors.Wrapf(err2, "unable to obtain decrypt config")
 			}
@@ -168,9 +169,9 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 				BlobDirectory:       iopts.blobCache,
 				SignaturePolicyPath: iopts.signaturePolicy,
 				SystemContext:       systemContext,
-				MaxPullRetries:      maxPullPushRetries,
-				PullRetryDelay:      pullPushRetryDelay,
-				OciDecryptConfig:    decConfig,
+				MaxPullRetries:      buildahcli.MaxPullPushRetries,
+				PullRetryDelay:      buildahcli.PullPushRetryDelay,
+				OciDecryptConfig:    decryptConfig,
 			}
 			if !iopts.quiet {
 				options.ReportWriter = os.Stderr

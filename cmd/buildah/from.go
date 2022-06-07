@@ -275,7 +275,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 
-	format, err := getFormat(iopts.format)
+	format, err := buildahcli.GetFormat(iopts.format)
 	if err != nil {
 		return err
 	}
@@ -295,7 +295,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 
 	commonOpts.Ulimit = append(defaultContainerConfig.Containers.DefaultUlimits, commonOpts.Ulimit...)
 
-	decConfig, err := getDecryptConfig(iopts.DecryptionKeys)
+	decConfig, err := buildahcli.DecryptConfig(iopts.DecryptionKeys)
 	if err != nil {
 		return errors.Wrapf(err, "unable to obtain decrypt config")
 	}
@@ -319,8 +319,8 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 		Format:                format,
 		BlobDirectory:         iopts.BlobCache,
 		Devices:               devices,
-		MaxPullRetries:        maxPullPushRetries,
-		PullRetryDelay:        pullPushRetryDelay,
+		MaxPullRetries:        buildahcli.MaxPullPushRetries,
+		PullRetryDelay:        buildahcli.PullPushRetryDelay,
 		OciDecryptConfig:      decConfig,
 	}
 

@@ -180,7 +180,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		}
 	}
 
-	encConfig, encLayers, err := getEncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
+	encConfig, encLayers, err := buildahcli.EncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
 	if err != nil {
 		return errors.Wrapf(err, "unable to obtain encryption config")
 	}
@@ -194,8 +194,8 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		BlobDirectory:       iopts.blobCache,
 		RemoveSignatures:    iopts.removeSignatures,
 		SignBy:              iopts.signBy,
-		MaxRetries:          maxPullPushRetries,
-		RetryDelay:          pullPushRetryDelay,
+		MaxRetries:          buildahcli.MaxPullPushRetries,
+		RetryDelay:          buildahcli.PullPushRetryDelay,
 		OciEncryptConfig:    encConfig,
 		OciEncryptLayers:    encLayers,
 	}
