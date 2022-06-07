@@ -10,7 +10,7 @@ require (
 	github.com/containers/ocicrypt v1.1.4-0.20220428134531-566b808bdf6f
 	github.com/containers/storage v1.41.1-0.20220517121726-5019cd55275c
 	github.com/docker/distribution v2.8.1+incompatible
-	github.com/docker/docker v20.10.16+incompatible
+	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316
 	github.com/fsouza/go-dockerclient v1.8.0
