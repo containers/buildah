@@ -536,9 +536,10 @@ func testPut(t *testing.T) {
 		}
 	}
 
+	// Overwrite directory
 	for _, overwrite := range []bool{false, true} {
 		for _, typeFlag := range []byte{tar.TypeReg, tar.TypeLink, tar.TypeSymlink, tar.TypeChar, tar.TypeBlock, tar.TypeFifo} {
-			t.Run(fmt.Sprintf("overwrite=%v,type=%c", overwrite, typeFlag), func(t *testing.T) {
+			t.Run(fmt.Sprintf("overwrite (dir)=%v,type=%c", overwrite, typeFlag), func(t *testing.T) {
 				archive := makeArchiveSlice([]tar.Header{
 					{Name: "target", Typeflag: tar.TypeSymlink, Mode: 0755, Linkname: "target", ModTime: testDate},
 					{Name: "target", Typeflag: tar.TypeDir, Mode: 0755, ModTime: testDate},
@@ -563,6 +564,33 @@ func testPut(t *testing.T) {
 		}
 	}
 
+	// Overwrite non-directory
+	for _, overwrite := range []bool{false, true} {
+		for _, typeFlag := range []byte{tar.TypeReg, tar.TypeLink, tar.TypeSymlink, tar.TypeChar, tar.TypeBlock, tar.TypeFifo} {
+			t.Run(fmt.Sprintf("overwrite (non-dir)=%v,type=%c", overwrite, typeFlag), func(t *testing.T) {
+				archive := makeArchiveSlice([]tar.Header{
+					{Name: "target", Typeflag: tar.TypeSymlink, Mode: 0755, Linkname: "target", ModTime: testDate},
+					{Name: "target", Typeflag: tar.TypeReg, Mode: 0755, ModTime: testDate},
+					{Name: "target", Typeflag: tar.TypeSymlink, Mode: 0755, Linkname: "target", ModTime: testDate},
+					{Name: "target", Typeflag: tar.TypeReg, Size: 123, Mode: 0755, ModTime: testDate},
+					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0755, Linkname: "target", ModTime: testDate},
+					{Name: "test", Typeflag: tar.TypeDir, Size: 0, Mode: 0755, ModTime: testDate},
+					{Name: "test/content", Typeflag: tar.TypeReg, Size: 0, Mode: 0755, ModTime: testDate},
+				})
+				tmp, err := ioutil.TempDir("", "copier-test-")
+				require.NoErrorf(t, err, "error creating temporary directory")
+				defer os.RemoveAll(tmp)
+				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteNonDirDir: !overwrite}, bytes.NewReader(archive))
+				if overwrite {
+					if unwrapError(err) != syscall.EPERM {
+						assert.Nilf(t, err, "expected to overwrite file with type %c: %v", typeFlag, err)
+					}
+				} else {
+					assert.Errorf(t, err, "expected an error trying to overwrite file of type %c", typeFlag)
+				}
+			})
+		}
+	}
 	for _, ignoreDevices := range []bool{false, true} {
 		for _, typeFlag := range []byte{tar.TypeChar, tar.TypeBlock} {
 			t.Run(fmt.Sprintf("ignoreDevices=%v,type=%c", ignoreDevices, typeFlag), func(t *testing.T) {
