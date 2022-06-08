@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/containers/buildah"
+	"github.com/containers/buildah/internal/util"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
@@ -160,7 +161,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 				return errors.Wrap(err2, "error building system context")
 			}
 
-			decryptConfig, err2 := buildahcli.DecryptConfig(iopts.decryptionKeys)
+			decryptConfig, err2 := util.DecryptConfig(iopts.decryptionKeys)
 			if err2 != nil {
 				return errors.Wrapf(err2, "unable to obtain decrypt config")
 			}

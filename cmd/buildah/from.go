@@ -9,6 +9,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal/util"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
@@ -275,7 +276,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 
-	format, err := buildahcli.GetFormat(iopts.format)
+	format, err := util.GetFormat(iopts.format)
 	if err != nil {
 		return err
 	}
@@ -295,7 +296,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 
 	commonOpts.Ulimit = append(defaultContainerConfig.Containers.DefaultUlimits, commonOpts.Ulimit...)
 
-	decConfig, err := buildahcli.DecryptConfig(iopts.DecryptionKeys)
+	decConfig, err := util.DecryptConfig(iopts.DecryptionKeys)
 	if err != nil {
 		return errors.Wrapf(err, "unable to obtain decrypt config")
 	}

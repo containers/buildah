@@ -7,6 +7,7 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal/util"
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
@@ -109,7 +110,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		return err
 	}
 
-	decConfig, err := buildahcli.DecryptConfig(iopts.decryptionKeys)
+	decConfig, err := util.DecryptConfig(iopts.decryptionKeys)
 	if err != nil {
 		return errors.Wrapf(err, "unable to obtain decrypt config")
 	}
