@@ -177,7 +177,7 @@ github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
 github.com/containers/ocicrypt/utils/keyprovider
-# github.com/containers/storage v1.41.1-0.20220517121726-5019cd55275c
+# github.com/containers/storage v1.41.1-0.20220607143333-8951d0153bf6
 ## explicit
 github.com/containers/storage
 github.com/containers/storage/drivers
@@ -323,7 +323,7 @@ github.com/inconshreveable/mousetrap
 github.com/jinzhu/copier
 # github.com/json-iterator/go v1.1.12
 github.com/json-iterator/go
-# github.com/klauspost/compress v1.15.4
+# github.com/klauspost/compress v1.15.6
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
@@ -650,7 +650,7 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.27.1
+# google.golang.org/protobuf v1.28.0
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire
 google.golang.org/protobuf/internal/descfmt
