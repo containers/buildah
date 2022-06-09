@@ -8,7 +8,7 @@ require (
 	github.com/containers/common v0.48.1-0.20220608111710-dbecabbe82c9
 	github.com/containers/image/v5 v5.21.2-0.20220520105616-e594853d6471
 	github.com/containers/ocicrypt v1.1.4-0.20220428134531-566b808bdf6f
-	github.com/containers/storage v1.41.1-0.20220517121726-5019cd55275c
+	github.com/containers/storage v1.41.1-0.20220607143333-8951d0153bf6
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-units v0.4.0
@@ -27,7 +27,7 @@ require (
 	github.com/opencontainers/selinux v1.10.1
 	github.com/openshift/imagebuilder v1.2.4-0.20220502172744-009dbc6cb805
 	github.com/pkg/errors v0.9.1
-	github.com/seccomp/libseccomp-golang v0.9.2-0.20210429002308-3879420cc921
+	github.com/seccomp/libseccomp-golang v0.9.2-0.20220502022130-f33da4d89646
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
