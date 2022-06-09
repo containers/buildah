@@ -71,15 +71,17 @@ github.com/containernetworking/cni/pkg/utils
 github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.1.1
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.48.1-0.20220519181648-280c6f69fa82
+# github.com/containers/common v0.48.1-0.20220608111710-dbecabbe82c9
 ## explicit
 github.com/containers/common/libimage
+github.com/containers/common/libimage/define
 github.com/containers/common/libimage/manifests
 github.com/containers/common/libnetwork/cni
 github.com/containers/common/libnetwork/etchosts
 github.com/containers/common/libnetwork/internal/util
 github.com/containers/common/libnetwork/netavark
 github.com/containers/common/libnetwork/network
+github.com/containers/common/libnetwork/resolvconf
 github.com/containers/common/libnetwork/types
 github.com/containers/common/libnetwork/util
 github.com/containers/common/pkg/apparmor
@@ -282,11 +284,6 @@ github.com/docker/go-metrics
 # github.com/docker/go-units v0.4.0
 ## explicit
 github.com/docker/go-units
-# github.com/docker/libnetwork v0.8.0-dev.2.0.20190625141545-5a177b73e316
-## explicit
-github.com/docker/libnetwork/resolvconf
-github.com/docker/libnetwork/resolvconf/dns
-github.com/docker/libnetwork/types
 # github.com/fsnotify/fsnotify v1.4.9
 github.com/fsnotify/fsnotify
 # github.com/fsouza/go-dockerclient v1.8.1
@@ -322,9 +319,6 @@ github.com/hashicorp/go-multierror
 github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
-# github.com/ishidawataru/sctp v0.0.0-20210226210310-f2269e66cdee
-## explicit
-github.com/ishidawataru/sctp
 # github.com/jinzhu/copier v0.3.5
 github.com/jinzhu/copier
 # github.com/json-iterator/go v1.1.12

@@ -128,7 +128,7 @@ func (i *Image) Inspect(ctx context.Context, options *InspectOptions) (*ImageDat
 		Config:       &ociImage.Config,
 		Version:      info.DockerVersion,
 		Size:         size,
-		VirtualSize:  size, // TODO: they should be different (inherited from Podman)
+		VirtualSize:  size, // NOTE: same as size. Inherited from Docker where it's scheduled for deprecation.
 		Digest:       i.Digest(),
 		Labels:       info.Labels,
 		RootFS: &RootFS{
@@ -216,7 +216,7 @@ func (i *Image) inspectInfo(ctx context.Context) (*types.ImageInspectInfo, error
 		return nil, err
 	}
 
-	img, err := ref.NewImage(ctx, i.runtime.systemContextCopy())
+	img, err := ref.NewImage(ctx, &i.runtime.systemContext)
 	if err != nil {
 		return nil, err
 	}
