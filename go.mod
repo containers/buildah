@@ -37,9 +37,9 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	go.etcd.io/bbolt v1.3.5
-	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
+	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
-	golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40
+	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1
 	gotest.tools/v3 v3.0.3 // indirect
 	k8s.io/klog v1.0.0 // indirect
 )
