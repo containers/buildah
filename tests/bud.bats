@@ -885,8 +885,8 @@ _EOF
 FROM alpine
 RUN echo 'hello'> hello
 _EOF
-  # Using BUILDAH_BINARY since run_buildah adds unwanted chars to tar created by pipe.
-  ${BUILDAH_BINARY} build $WITH_POLICY_JSON -o - -t test-bud -f $mytmpdir/Containerfile . > $mytmpdir/rootfs.tar
+  # Using buildah() defined in helpers.bash since run_buildah adds unwanted chars to tar created by pipe.
+  buildah build $WITH_POLICY_JSON -o - -t test-bud -f $mytmpdir/Containerfile . > $mytmpdir/rootfs.tar
   # explode tar
   mkdir $mytmpdir/rootfs
   tar -C $mytmpdir/rootfs -xvf $mytmpdir/rootfs.tar
