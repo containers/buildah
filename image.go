@@ -429,7 +429,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			rc.Close()
 			return nil, errors.Wrapf(err, "error compressing %s", what)
 		}
-		writer := io.MultiWriter(writeCloser, srcHasher.Hash())
+		writer, discard, done := makeWindowsLayer(io.MultiWriter(writeCloser, srcHasher.Hash()))
 		// Use specified timestamps in the layer, if we're doing that for
 		// history entries.
 		if i.created != nil {
@@ -456,6 +456,10 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 			writer = io.Writer(writeCloser)
 		}
 		size, err := io.Copy(writer, rc)
+		if err != nil {
+			discard(err)
+		}
+		<-done
 		writeCloser.Close()
 		layerFile.Close()
 		rc.Close()
@@ -472,7 +476,7 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		}
 		if i.compression == archive.Uncompressed {
 			if size != counter.Count {
-				return nil, errors.Errorf("error storing %s to file: inconsistent layer size (copied %d, wrote %d)", what, size, counter.Count)
+				size = counter.Count
 			}
 		} else {
 			size = counter.Count
@@ -651,6 +655,113 @@ func (i *containerImageRef) NewImageSource(ctx context.Context, sc *types.System
 		blobLayers:    blobLayers,
 	}
 	return src, nil
+}
+
+const (
+	keyFileAttr     = "MSWINDOWS.fileattr"
+	keySDRaw        = "MSWINDOWS.rawsd"
+	keyCreationTime = "LIBARCHIVE.creationtime"
+)
+
+func prepareWinHeader(h *tar.Header) {
+	if h.PAXRecords == nil {
+		h.PAXRecords = map[string]string{}
+	}
+	if h.Typeflag == tar.TypeDir {
+		h.Mode |= 1 << 14
+		h.PAXRecords[keyFileAttr] = "16"
+	}
+
+	if h.Typeflag == tar.TypeReg {
+		h.Mode |= 1 << 15
+		h.PAXRecords[keyFileAttr] = "32"
+	}
+
+	if !h.ModTime.IsZero() {
+		h.PAXRecords[keyCreationTime] = fmt.Sprintf("%d.%d", h.ModTime.Unix(), h.ModTime.Nanosecond())
+	}
+
+	h.Format = tar.FormatPAX
+}
+
+func addSecurityDescriptor(h *tar.Header) {
+	if h.Typeflag == tar.TypeDir {
+		// O:BAG:SYD:(A;OICI;FA;;;BA)(A;OICI;FA;;;SY)(A;;FA;;;BA)(A;OICIIO;GA;;;CO)(A;OICI;0x1200a9;;;BU)(A;CI;LC;;;BU)(A;CI;DC;;;BU)
+		h.PAXRecords[keySDRaw] = "AQAEgBQAAAAkAAAAAAAAADAAAAABAgAAAAAABSAAAAAgAgAAAQEAAAAAAAUSAAAAAgCoAAcAAAAAAxgA/wEfAAECAAAAAAAFIAAAACACAAAAAxQA/wEfAAEBAAAAAAAFEgAAAAAAGAD/AR8AAQIAAAAAAAUgAAAAIAIAAAALFAAAAAAQAQEAAAAAAAMAAAAAAAMYAKkAEgABAgAAAAAABSAAAAAhAgAAAAIYAAQAAAABAgAAAAAABSAAAAAhAgAAAAIYAAIAAAABAgAAAAAABSAAAAAhAgAA"
+	}
+
+	if h.Typeflag == tar.TypeReg {
+		// O:BAG:SYD:(A;;FA;;;BA)(A;;FA;;;SY)(A;;0x1200a9;;;BU)
+		h.PAXRecords[keySDRaw] = "AQAEgBQAAAAkAAAAAAAAADAAAAABAgAAAAAABSAAAAAgAgAAAQEAAAAAAAUSAAAAAgBMAAMAAAAAABgA/wEfAAECAAAAAAAFIAAAACACAAAAABQA/wEfAAEBAAAAAAAFEgAAAAAAGACpABIAAQIAAAAAAAUgAAAAIQIAAA=="
+	}
+}
+
+func makeWindowsLayer(w io.Writer) (io.Writer, func(error), chan error) {
+	pr, pw := io.Pipe()
+	done := make(chan error)
+
+	go func() {
+		tarReader := tar.NewReader(pr)
+		tarWriter := tar.NewWriter(w)
+
+		err := func() error {
+			h := &tar.Header{
+				Name:     "Hives",
+				Typeflag: tar.TypeDir,
+				ModTime:  time.Now(),
+			}
+			prepareWinHeader(h)
+			if err := tarWriter.WriteHeader(h); err != nil {
+				return err
+			}
+
+			h = &tar.Header{
+				Name:     "Files",
+				Typeflag: tar.TypeDir,
+				ModTime:  time.Now(),
+			}
+			prepareWinHeader(h)
+			if err := tarWriter.WriteHeader(h); err != nil {
+				return err
+			}
+
+			for {
+				h, err := tarReader.Next()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					return err
+				}
+				h.Name = "Files/" + h.Name
+				if h.Linkname != "" {
+					h.Linkname = "Files/" + h.Linkname
+				}
+				prepareWinHeader(h)
+				addSecurityDescriptor(h)
+				if err := tarWriter.WriteHeader(h); err != nil {
+					return err
+				}
+				if h.Size > 0 {
+					if _, err := io.Copy(tarWriter, tarReader); err != nil {
+						return err
+					}
+				}
+			}
+			return tarWriter.Close()
+		}()
+		if err != nil {
+			logrus.Errorf("makeWindowsLayer %+v", err)
+		}
+		pw.CloseWithError(err)
+		done <- err
+	}()
+
+	discard := func(err error) {
+		pw.CloseWithError(err)
+	}
+
+	return pw, discard, done
 }
 
 func (i *containerImageRef) NewImageDestination(ctx context.Context, sc *types.SystemContext) (types.ImageDestination, error) {
