@@ -214,10 +214,6 @@ _EOF
 
   # Built image must not contain history for the layers which we have just built.
   run_buildah build $WITH_POLICY_JSON --omit-history -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
-  run_buildah inspect --format "{{index .Docker.History}}" source
-  expect_output "[]"
-  run_buildah inspect --format "{{index .OCIv1.History}}" source
-  expect_output "[]"
   run_buildah inspect --format "{{index .History}}" source
   expect_output "[]"
 }
@@ -467,7 +463,7 @@ _EOF
   expect_output "map[8080/tcp:{}]"
   run_buildah inspect --format "{{.Docker.ContainerConfig.ExposedPorts}}" test2
   expect_output "map[8080/tcp:{}]"
-  run_buildah inspect --format "{{index .Docker.History 2}}" test1
+  run_buildah inspect --format "{{index .History 2}}" test1
   expect_output --substring "FROM docker.io/library/alpine:latest"
 
   run_buildah build $WITH_POLICY_JSON --layers -t test3 -f Dockerfile.2 ${TEST_SCRATCH_DIR}/use-layers
@@ -3002,14 +2998,6 @@ EOM
   _prefetch alpine
   run_buildah build $WITH_POLICY_JSON --layers -t multi-stage-args --build-arg SECRET=secretthings -f Dockerfile.arg $BUDFILES/multi-stage-builds
   run_buildah inspect --format '{{range .History}}{{println .CreatedBy}}{{end}}' multi-stage-args
-  run grep "secretthings" <<< "$output"
-  expect_output ""
-
-  run_buildah inspect --format '{{range .OCIv1.History}}{{println .CreatedBy}}{{end}}' multi-stage-args
-  run grep "secretthings" <<< "$output"
-  expect_output ""
-
-  run_buildah inspect --format '{{range .Docker.History}}{{println .CreatedBy}}{{end}}' multi-stage-args
   run grep "secretthings" <<< "$output"
   expect_output ""
 }

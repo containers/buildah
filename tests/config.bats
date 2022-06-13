@@ -249,13 +249,9 @@ function check_matrix() {
   check_matrix 'Config.Volumes'      "map[/VOLUME:{}]"
   check_matrix 'Config.WorkingDir'   '/tmp'
 
-  run_buildah inspect --type=image --format '{{(index .Docker.History 0).Comment}}' scratch-image-docker
+  run_buildah inspect --type=image --format '{{(index .History 0).Comment}}' scratch-image-docker
   expect_output "PROBABLY-EMPTY"
-  run_buildah inspect --type=image --format '{{(index .OCIv1.History 0).Comment}}' scratch-image-docker
-  expect_output "PROBABLY-EMPTY"
-  run_buildah inspect --type=image --format '{{(index .Docker.History 0).Comment}}' scratch-image-oci
-  expect_output "PROBABLY-EMPTY"
-  run_buildah inspect --type=image --format '{{(index .OCIv1.History 0).Comment}}' scratch-image-oci
+  run_buildah inspect --type=image --format '{{(index .History 0).Comment}}' scratch-image-oci
   expect_output "PROBABLY-EMPTY"
 
   # The following aren't part of the Docker v2 spec, so they're discarded when we save to Docker format.
