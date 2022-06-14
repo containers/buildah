@@ -1267,7 +1267,7 @@ function _test_http() {
   busyboxid="$output"
   run_buildah inspect -f '{{.FromImageID}}' ${target}
   targetid="$output"
-  [ "$targetid" != "$busyboxid" ]
+  assert "$targetid" != "$busyboxid" "FromImageID(target) != busybox"
   run_buildah inspect -f '{{.FromImageID}}' ${target2}
   expect_output "$targetid" "target2 -> .FromImageID"
   run_buildah inspect -f '{{.FromImageID}}' ${target3}
@@ -1731,7 +1731,7 @@ _EOF
   target=alpine-image
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=USED_VALUE $BUDFILES/run-scenarios
   expect_output --substring "USED_VALUE"
-  [[ ! "$output" =~ "one or more build args were not consumed: [UNUSED_ARG]" ]]
+  assert "$output" !~ "one or more build args were not consumed: [UNUSED_ARG]"
   run_buildah build $WITH_POLICY_JSON -t ${target} -f Dockerfile.multi-args --build-arg USED_ARG=USED_VALUE --build-arg UNUSED_ARG=whaaaat $BUDFILES/run-scenarios
   expect_output --substring "USED_VALUE"
   expect_output --substring "one or more build args were not consumed: \[UNUSED_ARG\]"
@@ -1765,7 +1765,7 @@ _EOF
 
 @test "bud with preprocessor error" {
   target=alpine-image
-  run_buildah 0 bud -q $WITH_POLICY_JSON -t ${target} -f Error.in $BUDFILES/preprocess
+  run_buildah bud -q $WITH_POLICY_JSON -t ${target} -f Error.in $BUDFILES/preprocess
   expect_output --substring "Ignoring <stdin>:5:2: error: #error"
 }
 
@@ -2544,42 +2544,37 @@ _EOF
   run_buildah build --signature-policy ${TEST_SOURCES}/policy.json
 }
 
-@test "bud without any arguments should fail when no Dockerfile exist" {
-  cd $(mktemp -d)
+@test "bud without any arguments should fail when no Dockerfile exists" {
+  cd $TEST_SCRATCH_DIR
   run_buildah 125 build --signature-policy ${TEST_SOURCES}/policy.json
   expect_output --substring "no such file or directory"
 }
 
 @test "bud with specified context should fail if directory contains no Dockerfile" {
-  DIR=$(mktemp -d)
-  run_buildah 125 build $WITH_POLICY_JSON "$DIR"
+  run_buildah 125 build $WITH_POLICY_JSON "$TEST_SCRATCH_DIR"
   expect_output --substring "no such file or directory"
 }
 
 @test "bud with specified context should fail if assumed Dockerfile is a directory" {
-  DIR=$(mktemp -d)
-  mkdir -p "$DIR"/Dockerfile
-  run_buildah 125 build $WITH_POLICY_JSON "$DIR"
+  mkdir -p "$TEST_SCRATCH_DIR"/Dockerfile
+  run_buildah 125 build $WITH_POLICY_JSON "$TEST_SCRATCH_DIR"
   expect_output --substring "is not a file"
 }
 
 @test "bud with specified context should fail if context contains not-existing Dockerfile" {
-  DIR=$(mktemp -d)
-  run_buildah 125 build $WITH_POLICY_JSON "$DIR"/Dockerfile
+  run_buildah 125 build $WITH_POLICY_JSON "$TEST_SCRATCH_DIR"/Dockerfile
   expect_output --substring "no such file or directory"
 }
 
 @test "bud with specified context should succeed if context contains existing Dockerfile" {
-  DIR=$(mktemp -d)
-  echo "FROM alpine" > "$DIR"/Dockerfile
-  run_buildah 0 bud $WITH_POLICY_JSON "$DIR"/Dockerfile
+  echo "FROM alpine" > $TEST_SCRATCH_DIR/Dockerfile
+  run_buildah bud $WITH_POLICY_JSON $TEST_SCRATCH_DIR/Dockerfile
 }
 
 @test "bud with specified context should fail if context contains empty Dockerfile" {
-  DIR=$(mktemp -d)
-  touch "$DIR"/Dockerfile
-  run_buildah 125 build $WITH_POLICY_JSON "$DIR"/Dockerfile
-  expect_output --substring "no contents in \"$DIR/Dockerfile\""
+  touch $TEST_SCRATCH_DIR/Dockerfile
+  run_buildah 125 build $WITH_POLICY_JSON $TEST_SCRATCH_DIR/Dockerfile
+  expect_output --substring "no contents in \"$TEST_SCRATCH_DIR/Dockerfile\""
 }
 
 @test "bud-no-change" {
@@ -4133,7 +4128,7 @@ _EOF
   echo "$output"
   run jq '.manifests | length' <<< "$output"
   echo "$output"
-  [[ "$output" -gt 1 ]] # should at least be more than one entry in there, right?
+  assert "$output" -gt 1 "length(.manifests)"
 }
 
 @test "bud-multiple-platform for --all-platform with additional-build-context" {
@@ -4151,8 +4146,8 @@ _EOF
   run_buildah manifest inspect $outputlist
   echo "$output"
   run jq '.manifests | length' <<< "$output"
-  echo "$output"
-  [[ "$output" -eq 4 ]] # should be equal to 4 which is equivalent to images in registry.access.redhat.com/ubi8-micro
+  # should be equal to 4 which is equivalent to images in registry.access.redhat.com/ubi8-micro
+  assert "$output" -eq 4 "length(manifests)"
 }
 
 # * Performs multi-stage build with label1=value1 and verifies
