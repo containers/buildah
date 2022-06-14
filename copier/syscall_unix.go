@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package copier
@@ -43,10 +44,6 @@ func mkdev(major, minor uint32) uint64 {
 
 func mkfifo(path string, mode uint32) error {
 	return unix.Mkfifo(path, mode)
-}
-
-func mknod(path string, mode uint32, dev int) error {
-	return unix.Mknod(path, mode, dev)
 }
 
 func chmod(path string, mode os.FileMode) error {
