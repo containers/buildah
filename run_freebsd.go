@@ -1967,27 +1967,6 @@ func waitForSync(pipeR *os.File) error {
 	return err
 }
 
-func checkAndOverrideIsolationOptions(isolation define.Isolation, options *RunOptions) error {
-	switch isolation {
-	case IsolationOCIRootless:
-		// only change the netns if the caller did not set it
-		if ns := options.NamespaceOptions.Find(string(specs.NetworkNamespace)); ns == nil {
-			if _, err := exec.LookPath("slirp4netns"); err != nil {
-				// if slirp4netns is not installed we have to use the hosts net namespace
-				options.NamespaceOptions.AddOrReplace(define.NamespaceOption{Name: string(specs.NetworkNamespace), Host: true})
-			}
-		}
-		fallthrough
-	case IsolationOCI:
-		pidns := options.NamespaceOptions.Find(string(specs.PIDNamespace))
-		userns := options.NamespaceOptions.Find(string(specs.UserNamespace))
-		if (pidns != nil && pidns.Host) && (userns != nil && !userns.Host) {
-			return errors.Errorf("not allowed to mix host PID namespace with container user namespace")
-		}
-	}
-	return nil
-}
-
 func contains(volumes []string, v string) bool {
 	for _, i := range volumes {
 		if i == v {
