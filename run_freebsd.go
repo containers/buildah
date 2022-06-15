@@ -34,7 +34,6 @@ import (
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
-	"github.com/containers/common/libnetwork/etchosts"
 	"github.com/containers/common/libnetwork/network"
 	"github.com/containers/common/libnetwork/resolvconf"
 	nettypes "github.com/containers/common/libnetwork/types"
@@ -1082,122 +1081,6 @@ func setPdeathsig(cmd *exec.Cmd) {
 // Everything after this point should be identical to the versions in
 // run_linux.go - the intention is to move these to a file shared
 // between freebsd and linux.
-
-// addResolvConf copies files from host and sets them up to bind mount into container
-func (b *Builder) addResolvConf(rdir string, chownOpts *idtools.IDPair, dnsServers, dnsSearch, dnsOptions []string, namespaces []specs.LinuxNamespace) (string, error) {
-	defaultConfig, err := config.Default()
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to get config")
-	}
-
-	nameservers := make([]string, 0, len(defaultConfig.Containers.DNSServers)+len(dnsServers))
-	nameservers = append(nameservers, defaultConfig.Containers.DNSServers...)
-	nameservers = append(nameservers, dnsServers...)
-
-	keepHostServers := false
-
-	searches := make([]string, 0, len(defaultConfig.Containers.DNSSearches)+len(dnsSearch))
-	searches = append(searches, defaultConfig.Containers.DNSSearches...)
-	searches = append(searches, dnsSearch...)
-
-	options := make([]string, 0, len(defaultConfig.Containers.DNSOptions)+len(dnsOptions))
-	options = append(options, defaultConfig.Containers.DNSOptions...)
-	options = append(options, dnsOptions...)
-
-	cfile := filepath.Join(rdir, "resolv.conf")
-	if err := resolvconf.New(&resolvconf.Params{
-		Path:            cfile,
-		IPv6Enabled:     true, // TODO we should check if we have ipv6
-		KeepHostServers: keepHostServers,
-		Nameservers:     nameservers,
-		Searches:        searches,
-		Options:         options,
-	}); err != nil {
-		return "", errors.Wrapf(err, "error building resolv.conf for container %s", b.ContainerID)
-	}
-
-	uid := 0
-	gid := 0
-	if chownOpts != nil {
-		uid = chownOpts.UID
-		gid = chownOpts.GID
-	}
-	if err = os.Chown(cfile, uid, gid); err != nil {
-		return "", err
-	}
-
-	if err := label.Relabel(cfile, b.MountLabel, false); err != nil {
-		return "", err
-	}
-	return cfile, nil
-}
-
-// generateHosts creates a containers hosts file
-func (b *Builder) generateHosts(rdir string, chownOpts *idtools.IDPair, imageRoot string) (string, error) {
-	conf, err := config.Default()
-	if err != nil {
-		return "", err
-	}
-
-	path, err := etchosts.GetBaseHostFile(conf.Containers.BaseHostsFile, imageRoot)
-	if err != nil {
-		return "", err
-	}
-
-	targetfile := filepath.Join(rdir, "hosts")
-	if err := etchosts.New(&etchosts.Params{
-		BaseFile:                 path,
-		ExtraHosts:               b.CommonBuildOpts.AddHost,
-		HostContainersInternalIP: etchosts.GetHostContainersInternalIP(conf, nil, nil),
-		TargetFile:               targetfile,
-	}); err != nil {
-		return "", err
-	}
-
-	uid := 0
-	gid := 0
-	if chownOpts != nil {
-		uid = chownOpts.UID
-		gid = chownOpts.GID
-	}
-	if err = os.Chown(targetfile, uid, gid); err != nil {
-		return "", err
-	}
-	if err := label.Relabel(targetfile, b.MountLabel, false); err != nil {
-		return "", err
-	}
-
-	return targetfile, nil
-}
-
-// generateHostname creates a containers /etc/hostname file
-func (b *Builder) generateHostname(rdir, hostname string, chownOpts *idtools.IDPair) (string, error) {
-	var err error
-	hostnamePath := "/etc/hostname"
-
-	var hostnameBuffer bytes.Buffer
-	hostnameBuffer.Write([]byte(fmt.Sprintf("%s\n", hostname)))
-
-	cfile := filepath.Join(rdir, filepath.Base(hostnamePath))
-	if err = ioutils.AtomicWriteFile(cfile, hostnameBuffer.Bytes(), 0644); err != nil {
-		return "", errors.Wrapf(err, "error writing /etc/hostname into the container")
-	}
-
-	uid := 0
-	gid := 0
-	if chownOpts != nil {
-		uid = chownOpts.UID
-		gid = chownOpts.GID
-	}
-	if err = os.Chown(cfile, uid, gid); err != nil {
-		return "", err
-	}
-	if err := label.Relabel(cfile, b.MountLabel, false); err != nil {
-		return "", err
-	}
-
-	return cfile, nil
-}
 
 func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, terminalSize *specs.Box) {
 	switch terminalPolicy {
