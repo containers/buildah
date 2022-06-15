@@ -1558,7 +1558,9 @@ func copierHandlerPut(bulkReader io.Reader, req request, idMappings *idtools.IDM
 					directoryModes[path] = defaultDirMode
 				}
 			} else {
-				if !os.IsExist(err) {
+				// FreeBSD can return EISDIR for "mkdir /":
+				// https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=59739.
+				if !os.IsExist(err) && !errors.Is(err, syscall.EISDIR) {
 					return errors.Wrapf(err, "copier: put: error checking directory %q", path)
 				}
 			}
@@ -1941,7 +1943,9 @@ func copierHandlerMkdir(req request, idMappings *idtools.IDMappings) (*response,
 				return errorResponse("copier: mkdir: error setting permissions on %q to 0%o: %v", path, dirMode)
 			}
 		} else {
-			if !os.IsExist(err) {
+			// FreeBSD can return EISDIR for "mkdir /":
+			// https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=59739.
+			if !os.IsExist(err) && !errors.Is(err, syscall.EISDIR) {
 				return errorResponse("copier: mkdir: error checking directory %q: %v", path, err)
 			}
 		}
