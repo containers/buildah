@@ -1988,25 +1988,6 @@ func checkAndOverrideIsolationOptions(isolation define.Isolation, options *RunOp
 	return nil
 }
 
-// DefaultNamespaceOptions returns the default namespace settings from the
-// runtime-tools generator library.
-func DefaultNamespaceOptions() (define.NamespaceOptions, error) {
-	cfg, err := config.Default()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get container config")
-	}
-	options := define.NamespaceOptions{
-		{Name: string(specs.CgroupNamespace), Host: cfg.CgroupNS() == "host"},
-		{Name: string(specs.IPCNamespace), Host: cfg.IPCNS() == "host"},
-		{Name: string(specs.MountNamespace), Host: false},
-		{Name: string(specs.NetworkNamespace), Host: cfg.NetNS() == "host"},
-		{Name: string(specs.PIDNamespace), Host: cfg.PidNS() == "host"},
-		{Name: string(specs.UserNamespace), Host: cfg.Containers.UserNS == "host"},
-		{Name: string(specs.UTSNamespace), Host: cfg.UTSNS() == "host"},
-	}
-	return options, nil
-}
-
 func contains(volumes []string, v string) bool {
 	for _, i := range volumes {
 		if i == v {
