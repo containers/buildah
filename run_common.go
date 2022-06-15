@@ -234,7 +234,7 @@ func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, opti
 	}
 
 	// Remove capabilities if not running as root except Bounding set
-	if user.UID != 0 {
+	if user.UID != 0 && g.Config.Process.Capabilities != nil {
 		bounding := g.Config.Process.Capabilities.Bounding
 		g.ClearProcessCapabilities()
 		g.Config.Process.Capabilities.Bounding = bounding
