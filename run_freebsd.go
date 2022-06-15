@@ -4,19 +4,13 @@
 package buildah
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"unsafe"
 
@@ -37,7 +31,6 @@ import (
 	imagetypes "github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/lockfile"
-	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/stringid"
 	storagetypes "github.com/containers/storage/types"
 	"github.com/docker/go-units"
@@ -48,7 +41,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
-	"golang.org/x/term"
 )
 
 const (
@@ -284,7 +276,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 		} else {
 			moreCreateArgs = nil
 		}
-		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, containerName)
+		err = b.runUsingRuntimeSubproc(isolation, options, configureNetwork, configureNetworks, moreCreateArgs, spec, mountPoint, path, containerName, b.Container, hostFile)
 	case IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr)
 	default:
@@ -909,7 +901,7 @@ func setupCapabilities(g *generate.Generator, defaultCapabilities, adds, drops [
 	return nil
 }
 
-func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, options RunOptions, configureNetworks []string, containerName string) (teardown func(), err error) {
+func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, options RunOptions, configureNetworks []string, containerName string) (teardown func(), netStatus map[string]nettypes.StatusBlock, err error) {
 	//if isolation == IsolationOCIRootless {
 	//return setupRootlessNetwork(pid)
 	//}
@@ -935,7 +927,7 @@ func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, optio
 	}
 	_, err = b.NetworkInterface.Setup(mynetns, nettypes.SetupOptions{NetworkOptions: opts})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	teardown = func() {
@@ -945,7 +937,7 @@ func (b *Builder) runConfigureNetwork(pid int, isolation define.Isolation, optio
 		}
 	}
 
-	return teardown, nil
+	return teardown, nil, nil
 }
 
 func setupNamespaces(logger *logrus.Logger, g *generate.Generator, namespaceOptions define.NamespaceOptions, idmapOptions define.IDMappingOptions, policy define.NetworkConfigurationPolicy) (configureNetwork bool, configureNetworks []string, configureUTS bool, err error) {
@@ -1076,76 +1068,6 @@ func setPdeathsig(cmd *exec.Cmd) {
 // run_linux.go - the intention is to move these to a file shared
 // between freebsd and linux.
 
-func runAcceptTerminal(logger *logrus.Logger, consoleListener *net.UnixListener, terminalSize *specs.Box) (int, error) {
-	defer consoleListener.Close()
-	c, err := consoleListener.AcceptUnix()
-	if err != nil {
-		return -1, errors.Wrapf(err, "error accepting socket descriptor connection")
-	}
-	defer c.Close()
-	// Expect a control message over our new connection.
-	b := make([]byte, 8192)
-	oob := make([]byte, 8192)
-	n, oobn, _, _, err := c.ReadMsgUnix(b, oob)
-	if err != nil {
-		return -1, errors.Wrapf(err, "error reading socket descriptor")
-	}
-	if n > 0 {
-		logrus.Debugf("socket descriptor is for %q", string(b[:n]))
-	}
-	if oobn > len(oob) {
-		return -1, errors.Errorf("too much out-of-bounds data (%d bytes)", oobn)
-	}
-	// Parse the control message.
-	scm, err := unix.ParseSocketControlMessage(oob[:oobn])
-	if err != nil {
-		return -1, errors.Wrapf(err, "error parsing out-of-bound data as a socket control message")
-	}
-	logrus.Debugf("control messages: %v", scm)
-	// Expect to get a descriptor.
-	terminalFD := -1
-	for i := range scm {
-		fds, err := unix.ParseUnixRights(&scm[i])
-		if err != nil {
-			return -1, errors.Wrapf(err, "error parsing unix rights control message: %v", &scm[i])
-		}
-		logrus.Debugf("fds: %v", fds)
-		if len(fds) == 0 {
-			continue
-		}
-		terminalFD = fds[0]
-		break
-	}
-	if terminalFD == -1 {
-		return -1, errors.Errorf("unable to read terminal descriptor")
-	}
-	// Set the pseudoterminal's size to the configured size, or our own.
-	winsize := &unix.Winsize{}
-	if terminalSize != nil {
-		// Use configured sizes.
-		winsize.Row = uint16(terminalSize.Height)
-		winsize.Col = uint16(terminalSize.Width)
-	} else {
-		if term.IsTerminal(unix.Stdin) {
-			// Use the size of our terminal.
-			if winsize, err = unix.IoctlGetWinsize(unix.Stdin, unix.TIOCGWINSZ); err != nil {
-				logger.Warnf("error reading size of controlling terminal: %v", err)
-				winsize.Row = 0
-				winsize.Col = 0
-			}
-		}
-	}
-	if winsize.Row != 0 && winsize.Col != 0 {
-		if err = unix.IoctlSetWinsize(terminalFD, unix.TIOCSWINSZ, winsize); err != nil {
-			logger.Warnf("error setting size of container pseudoterminal: %v", err)
-		}
-		// FIXME - if we're connected to a terminal, we should
-		// be passing the updated terminal size down when we
-		// receive a SIGWINCH.
-	}
-	return terminalFD, nil
-}
-
 // Create pipes to use for relaying stdio.
 func runMakeStdioPipe(uid, gid int) ([][]int, error) {
 	stdioPipe := make([][]int, 3)
@@ -1165,214 +1087,4 @@ func runMakeStdioPipe(uid, gid int) ([][]int, error) {
 		//return nil, errors.Wrapf(err, "error setting owner of stderr pipe descriptor")
 	}
 	return stdioPipe, nil
-}
-
-func runUsingRuntimeMain() {
-	var options runUsingRuntimeSubprocOptions
-	// Set logging.
-	if level := os.Getenv("LOGLEVEL"); level != "" {
-		if ll, err := strconv.Atoi(level); err == nil {
-			logrus.SetLevel(logrus.Level(ll))
-		}
-	}
-	// Unpack our configuration.
-	confPipe := os.NewFile(3, "confpipe")
-	if confPipe == nil {
-		fmt.Fprintf(os.Stderr, "error reading options pipe\n")
-		os.Exit(1)
-	}
-	defer confPipe.Close()
-	if err := json.NewDecoder(confPipe).Decode(&options); err != nil {
-		fmt.Fprintf(os.Stderr, "error decoding options: %v\n", err)
-		os.Exit(1)
-	}
-	// Set ourselves up to read the container's exit status.  We're doing this in a child process
-	// so that we won't mess with the setting in a caller of the library.
-	if err := setChildProcess(); err != nil {
-		os.Exit(1)
-	}
-	ospec := options.Spec
-	if ospec == nil {
-		fmt.Fprintf(os.Stderr, "options spec not specified\n")
-		os.Exit(1)
-	}
-
-	// open the pipes used to communicate with the parent process
-	var containerCreateW *os.File
-	var containerStartR *os.File
-	if options.ConfigureNetwork {
-		containerCreateW = os.NewFile(4, "containercreatepipe")
-		if containerCreateW == nil {
-			fmt.Fprintf(os.Stderr, "could not open fd 4\n")
-			os.Exit(1)
-		}
-		containerStartR = os.NewFile(5, "containerstartpipe")
-		if containerStartR == nil {
-			fmt.Fprintf(os.Stderr, "could not open fd 5\n")
-			os.Exit(1)
-		}
-	}
-
-	// Run the container, start to finish.
-	status, err := runUsingRuntime(options.Options, options.ConfigureNetwork, options.MoreCreateArgs, ospec, options.BundlePath, options.ContainerName, containerCreateW, containerStartR)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error running container: %v\n", err)
-		os.Exit(1)
-	}
-	// Pass the container's exit status back to the caller by exiting with the same status.
-	if status.Exited() {
-		os.Exit(status.ExitStatus())
-	} else if status.Signaled() {
-		fmt.Fprintf(os.Stderr, "container exited on %s\n", status.Signal())
-		os.Exit(1)
-	}
-	os.Exit(1)
-}
-
-func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (err error) {
-	var confwg sync.WaitGroup
-	config, conferr := json.Marshal(runUsingRuntimeSubprocOptions{
-		Options:          options,
-		Spec:             spec,
-		RootPath:         rootPath,
-		BundlePath:       bundlePath,
-		ConfigureNetwork: configureNetwork,
-		MoreCreateArgs:   moreCreateArgs,
-		ContainerName:    containerName,
-		Isolation:        isolation,
-	})
-	if conferr != nil {
-		return errors.Wrapf(conferr, "error encoding configuration for %q", runUsingRuntimeCommand)
-	}
-	cmd := reexec.Command(runUsingRuntimeCommand)
-	setPdeathsig(cmd)
-	cmd.Dir = bundlePath
-	cmd.Stdin = options.Stdin
-	if cmd.Stdin == nil {
-		cmd.Stdin = os.Stdin
-	}
-	cmd.Stdout = options.Stdout
-	if cmd.Stdout == nil {
-		cmd.Stdout = os.Stdout
-	}
-	cmd.Stderr = options.Stderr
-	if cmd.Stderr == nil {
-		cmd.Stderr = os.Stderr
-	}
-	cmd.Env = util.MergeEnv(os.Environ(), []string{fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel())})
-	preader, pwriter, err := os.Pipe()
-	if err != nil {
-		return errors.Wrapf(err, "error creating configuration pipe")
-	}
-	confwg.Add(1)
-	go func() {
-		_, conferr = io.Copy(pwriter, bytes.NewReader(config))
-		if conferr != nil {
-			conferr = errors.Wrapf(conferr, "error while copying configuration down pipe to child process")
-		}
-		confwg.Done()
-	}()
-
-	// create network configuration pipes
-	var containerCreateR, containerCreateW fileCloser
-	var containerStartR, containerStartW fileCloser
-	if configureNetwork {
-		containerCreateR.file, containerCreateW.file, err = os.Pipe()
-		if err != nil {
-			return errors.Wrapf(err, "error creating container create pipe")
-		}
-		defer containerCreateR.Close()
-		defer containerCreateW.Close()
-
-		containerStartR.file, containerStartW.file, err = os.Pipe()
-		if err != nil {
-			return errors.Wrapf(err, "error creating container create pipe")
-		}
-		defer containerStartR.Close()
-		defer containerStartW.Close()
-		cmd.ExtraFiles = []*os.File{containerCreateW.file, containerStartR.file}
-	}
-
-	cmd.ExtraFiles = append([]*os.File{preader}, cmd.ExtraFiles...)
-	defer preader.Close()
-	defer pwriter.Close()
-	if err := cmd.Start(); err != nil {
-		return errors.Wrapf(err, "error while starting runtime")
-	}
-
-	interrupted := make(chan os.Signal, 100)
-	go func() {
-		for receivedSignal := range interrupted {
-			if err := cmd.Process.Signal(receivedSignal); err != nil {
-				logrus.Infof("%v while attempting to forward %v to child process", err, receivedSignal)
-			}
-		}
-	}()
-	signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
-
-	if configureNetwork {
-		// we already passed the fd to the child, now close the writer so we do not hang if the child closes it
-		containerCreateW.Close()
-		if err := waitForSync(containerCreateR.file); err != nil {
-			// we do not want to return here since we want to capture the exit code from the child via cmd.Wait()
-			// close the pipes here so that the child will not hang forever
-			containerCreateR.Close()
-			containerStartW.Close()
-			logrus.Errorf("did not get container create message from subprocess: %v", err)
-		} else {
-			pidFile := filepath.Join(bundlePath, "pid")
-			pidValue, err := ioutil.ReadFile(pidFile)
-			if err != nil {
-				return err
-			}
-			pid, err := strconv.Atoi(strings.TrimSpace(string(pidValue)))
-			if err != nil {
-				return errors.Wrapf(err, "error parsing pid %s as a number", string(pidValue))
-			}
-
-			teardown, err := b.runConfigureNetwork(pid, isolation, options, configureNetworks, containerName)
-			if teardown != nil {
-				defer teardown()
-			}
-			if err != nil {
-				logrus.Debugf("runConfigureNetwork failed: %v", err)
-				return err
-			}
-
-			logrus.Debug("network namespace successfully setup, send start message to child")
-			_, err = containerStartW.file.Write([]byte{1})
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return errors.Wrapf(err, "error while running runtime")
-	}
-	confwg.Wait()
-	signal.Stop(interrupted)
-	close(interrupted)
-	if err == nil {
-		return conferr
-	}
-	if conferr != nil {
-		logrus.Debugf("%v", conferr)
-	}
-	return err
-}
-
-type runUsingRuntimeSubprocOptions struct {
-	Options          RunOptions
-	Spec             *specs.Spec
-	RootPath         string
-	BundlePath       string
-	ConfigureNetwork bool
-	MoreCreateArgs   []string
-	ContainerName    string
-	Isolation        define.Isolation
-}
-
-func init() {
-	reexec.Register(runUsingRuntimeCommand, runUsingRuntimeMain)
 }
