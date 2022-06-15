@@ -1765,7 +1765,7 @@ _EOF
 
 @test "bud with preprocessor error" {
   target=alpine-image
-  run_buildah bud -q $WITH_POLICY_JSON -t ${target} -f Error.in $BUDFILES/preprocess
+  run_buildah bud $WITH_POLICY_JSON -t ${target} -f Error.in $BUDFILES/preprocess
   expect_output --substring "Ignoring <stdin>:5:2: error: #error"
 }
 

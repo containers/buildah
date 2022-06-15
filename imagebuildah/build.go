@@ -158,7 +158,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 
 		// pre-process Dockerfiles with ".in" suffix
 		if strings.HasSuffix(dfile, ".in") {
-			pData, err := preprocessContainerfileContents(logger, dfile, data, options.ContextDirectory, options.CPPFlags)
+			pData, err := preprocessContainerfileContents(logger, dfile, data, options)
 			if err != nil {
 				return "", nil, err
 			}
@@ -489,7 +489,7 @@ func warnOnUnsetBuildArgs(logger *logrus.Logger, node *parser.Node, args map[str
 
 // preprocessContainerfileContents runs CPP(1) in preprocess-only mode on the input
 // dockerfile content and will use ctxDir as the base include path.
-func preprocessContainerfileContents(logger *logrus.Logger, containerfile string, r io.Reader, ctxDir string, cppFlags []string) (stdout io.Reader, err error) {
+func preprocessContainerfileContents(logger *logrus.Logger, containerfile string, r io.Reader, options define.BuildOptions) (stdout io.Reader, err error) {
 	cppCommand := "cpp"
 	cppPath, err := exec.LookPath(cppCommand)
 	if err != nil {
@@ -502,7 +502,7 @@ func preprocessContainerfileContents(logger *logrus.Logger, containerfile string
 	stdoutBuffer := bytes.Buffer{}
 	stderrBuffer := bytes.Buffer{}
 
-	cppArgs := []string{"-E", "-iquote", ctxDir, "-traditional", "-undef", "-"}
+	cppArgs := []string{"-E", "-iquote", options.ContextDirectory, "-traditional", "-undef", "-"}
 	if flags, ok := os.LookupEnv("BUILDAH_CPPFLAGS"); ok {
 		args, err := shellwords.Parse(flags)
 		if err != nil {
@@ -510,7 +510,7 @@ func preprocessContainerfileContents(logger *logrus.Logger, containerfile string
 		}
 		cppArgs = append(cppArgs, args...)
 	}
-	cppArgs = append(cppArgs, cppFlags...)
+	cppArgs = append(cppArgs, options.CPPFlags...)
 	cmd := exec.Command(cppPath, cppArgs...)
 	cmd.Stdin = r
 	cmd.Stdout = &stdoutBuffer
@@ -521,7 +521,9 @@ func preprocessContainerfileContents(logger *logrus.Logger, containerfile string
 	}
 	if err = cmd.Wait(); err != nil {
 		if stderrBuffer.Len() != 0 {
-			logger.Warnf("Ignoring %s\n", stderrBuffer.String())
+			if !options.Quiet {
+				logger.Warnf("Ignoring %s\n", stderrBuffer.String())
+			}
 		}
 		if stdoutBuffer.Len() == 0 {
 			return nil, errors.Wrapf(err, "error preprocessing %s: preprocessor produced no output", containerfile)
