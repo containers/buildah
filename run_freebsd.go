@@ -1810,31 +1810,6 @@ func runUsingRuntimeMain() {
 	os.Exit(1)
 }
 
-func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, options RunOptions) (string, error) {
-	// Set the user UID/GID/supplemental group list/capabilities lists.
-	user, homeDir, err := b.userForRun(mountPoint, options.User)
-	if err != nil {
-		return "", err
-	}
-	if err := setupCapabilities(g, b.Capabilities, options.AddCapabilities, options.DropCapabilities); err != nil {
-		return "", err
-	}
-	g.SetProcessUID(user.UID)
-	g.SetProcessGID(user.GID)
-	for _, gid := range user.AdditionalGids {
-		g.AddProcessAdditionalGid(gid)
-	}
-
-	// Remove capabilities if not running as root except Bounding set
-	/*if user.UID != 0 {
-		bounding := g.Config.Process.Capabilities.Bounding
-		g.ClearProcessCapabilities()
-		g.Config.Process.Capabilities.Bounding = bounding
-	}*/
-
-	return homeDir, nil
-}
-
 func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions, defaultEnv []string) {
 	g.ClearProcessEnv()
 
