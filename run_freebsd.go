@@ -1810,25 +1810,6 @@ func runUsingRuntimeMain() {
 	os.Exit(1)
 }
 
-func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions, defaultEnv []string) {
-	g.ClearProcessEnv()
-
-	if b.CommonBuildOpts.HTTPProxy {
-		for _, envSpec := range config.ProxyEnv {
-			if envVal, ok := os.LookupEnv(envSpec); ok {
-				g.AddProcessEnv(envSpec, envVal)
-			}
-		}
-	}
-
-	for _, envSpec := range util.MergeEnv(util.MergeEnv(defaultEnv, b.Env()), options.Env) {
-		env := strings.SplitN(envSpec, "=", 2)
-		if len(env) > 1 {
-			g.AddProcessEnv(env[0], env[1])
-		}
-	}
-}
-
 func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options RunOptions, configureNetwork bool, configureNetworks, moreCreateArgs []string, spec *specs.Spec, rootPath, bundlePath, containerName string) (err error) {
 	var confwg sync.WaitGroup
 	config, conferr := json.Marshal(runUsingRuntimeSubprocOptions{

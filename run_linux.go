@@ -1911,25 +1911,6 @@ func setupCapabilities(g *generate.Generator, defaultCapabilities, adds, drops [
 	return setupCapDrop(g, drops...)
 }
 
-func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions, defaultEnv []string) {
-	g.ClearProcessEnv()
-
-	if b.CommonBuildOpts.HTTPProxy {
-		for _, envSpec := range config.ProxyEnv {
-			if envVal, ok := os.LookupEnv(envSpec); ok {
-				g.AddProcessEnv(envSpec, envVal)
-			}
-		}
-	}
-
-	for _, envSpec := range util.MergeEnv(util.MergeEnv(defaultEnv, b.Env()), options.Env) {
-		env := strings.SplitN(envSpec, "=", 2)
-		if len(env) > 1 {
-			g.AddProcessEnv(env[0], env[1])
-		}
-	}
-}
-
 func addOrReplaceMount(mounts []specs.Mount, mount specs.Mount) []spec.Mount {
 	for i := range mounts {
 		if mounts[i].Destination == mount.Destination {

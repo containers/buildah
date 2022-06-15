@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containers/buildah/util"
 	"github.com/containers/common/libnetwork/etchosts"
 	"github.com/containers/common/libnetwork/resolvconf"
 	"github.com/containers/common/pkg/config"
@@ -241,4 +242,23 @@ func (b *Builder) configureUIDGID(g *generate.Generator, mountPoint string, opti
 	}
 
 	return homeDir, nil
+}
+
+func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions, defaultEnv []string) {
+	g.ClearProcessEnv()
+
+	if b.CommonBuildOpts.HTTPProxy {
+		for _, envSpec := range config.ProxyEnv {
+			if envVal, ok := os.LookupEnv(envSpec); ok {
+				g.AddProcessEnv(envSpec, envVal)
+			}
+		}
+	}
+
+	for _, envSpec := range util.MergeEnv(util.MergeEnv(defaultEnv, b.Env()), options.Env) {
+		env := strings.SplitN(envSpec, "=", 2)
+		if len(env) > 1 {
+			g.AddProcessEnv(env[0], env[1])
+		}
+	}
 }
