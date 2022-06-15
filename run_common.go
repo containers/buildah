@@ -12,8 +12,11 @@ import (
 
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libnetwork/etchosts"
+	"github.com/containers/common/libnetwork/network"
 	"github.com/containers/common/libnetwork/resolvconf"
+	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/config"
+	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -261,4 +264,27 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 			g.AddProcessEnv(env[0], env[1])
 		}
 	}
+}
+
+// getNetworkInterface creates the network interface
+func getNetworkInterface(store storage.Store, cniConfDir, cniPluginPath string) (nettypes.ContainerNetwork, error) {
+	conf, err := config.Default()
+	if err != nil {
+		return nil, err
+	}
+	// copy the config to not modify the default by accident
+	newconf := *conf
+	if len(cniConfDir) > 0 {
+		newconf.Network.NetworkConfigDir = cniConfDir
+	}
+	if len(cniPluginPath) > 0 {
+		plugins := strings.Split(cniPluginPath, string(os.PathListSeparator))
+		newconf.Network.CNIPluginDirs = plugins
+	}
+
+	_, netInt, err := network.NetworkBackend(store, &newconf, false)
+	if err != nil {
+		return nil, err
+	}
+	return netInt, nil
 }

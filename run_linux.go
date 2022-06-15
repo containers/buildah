@@ -36,7 +36,6 @@ import (
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libnetwork/etchosts"
-	"github.com/containers/common/libnetwork/network"
 	"github.com/containers/common/libnetwork/resolvconf"
 	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/capabilities"
@@ -46,7 +45,6 @@ import (
 	hooksExec "github.com/containers/common/pkg/hooks/exec"
 	"github.com/containers/common/pkg/subscriptions"
 	imagetypes "github.com/containers/image/v5/types"
-	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/lockfile"
@@ -2729,29 +2727,6 @@ func (b *Builder) cleanupRunMounts(context *imagetypes.SystemContext, mountpoint
 		}
 	}
 	return prevErr
-}
-
-// getNetworkInterface creates the network interface
-func getNetworkInterface(store storage.Store, cniConfDir, cniPluginPath string) (nettypes.ContainerNetwork, error) {
-	conf, err := config.Default()
-	if err != nil {
-		return nil, err
-	}
-	// copy the config to not modify the default by accident
-	newconf := *conf
-	if len(cniConfDir) > 0 {
-		newconf.Network.NetworkConfigDir = cniConfDir
-	}
-	if len(cniPluginPath) > 0 {
-		plugins := strings.Split(cniPluginPath, string(os.PathListSeparator))
-		newconf.Network.CNIPluginDirs = plugins
-	}
-
-	_, netInt, err := network.NetworkBackend(store, &newconf, false)
-	if err != nil {
-		return nil, err
-	}
-	return netInt, nil
 }
 
 // setPdeathsig sets a parent-death signal for the process
