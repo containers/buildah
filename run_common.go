@@ -5,13 +5,24 @@ package buildah
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
 	"time"
 
+	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libnetwork/etchosts"
@@ -365,4 +376,334 @@ func contains(volumes []string, v string) bool {
 		}
 	}
 	return false
+}
+
+func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs []string, spec *specs.Spec, bundlePath, containerName string,
+	containerCreateW io.WriteCloser, containerStartR io.ReadCloser) (wstatus unix.WaitStatus, err error) {
+	if options.Logger == nil {
+		options.Logger = logrus.StandardLogger()
+	}
+
+	// Lock the caller to a single OS-level thread.
+	runtime.LockOSThread()
+
+	// Set up bind mounts for things that a namespaced user might not be able to get to directly.
+	unmountAll, err := bind.SetupIntermediateMountNamespace(spec, bundlePath)
+	if unmountAll != nil {
+		defer func() {
+			if err := unmountAll(); err != nil {
+				options.Logger.Error(err)
+			}
+		}()
+	}
+	if err != nil {
+		return 1, err
+	}
+
+	// Write the runtime configuration.
+	specbytes, err := json.Marshal(spec)
+	if err != nil {
+		return 1, fmt.Errorf("error encoding configuration %#v as json: %w", spec, err)
+	}
+	if err = ioutils.AtomicWriteFile(filepath.Join(bundlePath, "config.json"), specbytes, 0600); err != nil {
+		return 1, fmt.Errorf("error storing runtime configuration: %w", err)
+	}
+
+	logrus.Debugf("config = %v", string(specbytes))
+
+	// Decide which runtime to use.
+	runtime := options.Runtime
+	if runtime == "" {
+		runtime = util.Runtime()
+	}
+	localRuntime := util.FindLocalRuntime(runtime)
+	if localRuntime != "" {
+		runtime = localRuntime
+	}
+
+	// Default to just passing down our stdio.
+	getCreateStdio := func() (io.ReadCloser, io.WriteCloser, io.WriteCloser) {
+		return os.Stdin, os.Stdout, os.Stderr
+	}
+
+	// Figure out how we're doing stdio handling, and create pipes and sockets.
+	var stdio sync.WaitGroup
+	var consoleListener *net.UnixListener
+	var errorFds, closeBeforeReadingErrorFds []int
+	stdioPipe := make([][]int, 3)
+	copyConsole := false
+	copyPipes := false
+	finishCopy := make([]int, 2)
+	if err = unix.Pipe(finishCopy); err != nil {
+		return 1, fmt.Errorf("error creating pipe for notifying to stop stdio: %w", err)
+	}
+	finishedCopy := make(chan struct{}, 1)
+	var pargs []string
+	if spec.Process != nil {
+		pargs = spec.Process.Args
+		if spec.Process.Terminal {
+			copyConsole = true
+			// Create a listening socket for accepting the container's terminal's PTY master.
+			socketPath := filepath.Join(bundlePath, "console.sock")
+			consoleListener, err = net.ListenUnix("unix", &net.UnixAddr{Name: socketPath, Net: "unix"})
+			if err != nil {
+				return 1, fmt.Errorf("error creating socket %q to receive terminal descriptor: %w", consoleListener.Addr(), err)
+			}
+			// Add console socket arguments.
+			moreCreateArgs = append(moreCreateArgs, "--console-socket", socketPath)
+		} else {
+			copyPipes = true
+			// Figure out who should own the pipes.
+			uid, gid, err := util.GetHostRootIDs(spec)
+			if err != nil {
+				return 1, err
+			}
+			// Create stdio pipes.
+			if stdioPipe, err = runMakeStdioPipe(int(uid), int(gid)); err != nil {
+				return 1, err
+			}
+			if err = runLabelStdioPipes(stdioPipe, spec.Process.SelinuxLabel, spec.Linux.MountLabel); err != nil {
+				return 1, err
+			}
+			errorFds = []int{stdioPipe[unix.Stdout][0], stdioPipe[unix.Stderr][0]}
+			closeBeforeReadingErrorFds = []int{stdioPipe[unix.Stdout][1], stdioPipe[unix.Stderr][1]}
+			// Set stdio to our pipes.
+			getCreateStdio = func() (io.ReadCloser, io.WriteCloser, io.WriteCloser) {
+				stdin := os.NewFile(uintptr(stdioPipe[unix.Stdin][0]), "/dev/stdin")
+				stdout := os.NewFile(uintptr(stdioPipe[unix.Stdout][1]), "/dev/stdout")
+				stderr := os.NewFile(uintptr(stdioPipe[unix.Stderr][1]), "/dev/stderr")
+				return stdin, stdout, stderr
+			}
+		}
+	} else {
+		if options.Quiet {
+			// Discard stdout.
+			getCreateStdio = func() (io.ReadCloser, io.WriteCloser, io.WriteCloser) {
+				return os.Stdin, nil, os.Stderr
+			}
+		}
+	}
+
+	runtimeArgs := options.Args[:]
+	if options.CgroupManager == config.SystemdCgroupsManager {
+		runtimeArgs = append(runtimeArgs, "--systemd-cgroup")
+	}
+
+	// Build the commands that we'll execute.
+	pidFile := filepath.Join(bundlePath, "pid")
+	args := append(append(append(runtimeArgs, "create", "--bundle", bundlePath, "--pid-file", pidFile), moreCreateArgs...), containerName)
+	create := exec.Command(runtime, args...)
+	setPdeathsig(create)
+	create.Dir = bundlePath
+	stdin, stdout, stderr := getCreateStdio()
+	create.Stdin, create.Stdout, create.Stderr = stdin, stdout, stderr
+
+	args = append(options.Args, "start", containerName)
+	start := exec.Command(runtime, args...)
+	setPdeathsig(start)
+	start.Dir = bundlePath
+	start.Stderr = os.Stderr
+
+	kill := func(signal string) *exec.Cmd {
+		args := append(options.Args, "kill", containerName)
+		if signal != "" {
+			args = append(args, signal)
+		}
+		kill := exec.Command(runtime, args...)
+		kill.Dir = bundlePath
+		kill.Stderr = os.Stderr
+		return kill
+	}
+
+	args = append(options.Args, "delete", containerName)
+	del := exec.Command(runtime, args...)
+	del.Dir = bundlePath
+	del.Stderr = os.Stderr
+
+	// Actually create the container.
+	logrus.Debugf("Running %q", create.Args)
+	err = create.Run()
+	if err != nil {
+		return 1, fmt.Errorf("error from %s creating container for %v: %s: %w", runtime, pargs, runCollectOutput(options.Logger, errorFds, closeBeforeReadingErrorFds), err)
+	}
+	defer func() {
+		err2 := del.Run()
+		if err2 != nil {
+			if err == nil {
+				err = fmt.Errorf("error deleting container: %w", err2)
+			} else {
+				options.Logger.Infof("error from %s deleting container: %v", runtime, err2)
+			}
+		}
+	}()
+
+	// Make sure we read the container's exit status when it exits.
+	pidValue, err := ioutil.ReadFile(pidFile)
+	if err != nil {
+		return 1, err
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(pidValue)))
+	if err != nil {
+		return 1, fmt.Errorf("error parsing pid %s as a number: %w", string(pidValue), err)
+	}
+	var stopped uint32
+	var reaping sync.WaitGroup
+	reaping.Add(1)
+	go func() {
+		defer reaping.Done()
+		var err error
+		_, err = unix.Wait4(pid, &wstatus, 0, nil)
+		if err != nil {
+			wstatus = 0
+			options.Logger.Errorf("error waiting for container child process %d: %v\n", pid, err)
+		}
+		atomic.StoreUint32(&stopped, 1)
+	}()
+
+	if configureNetwork {
+		if _, err := containerCreateW.Write([]byte{1}); err != nil {
+			return 1, err
+		}
+		containerCreateW.Close()
+		logrus.Debug("waiting for parent start message")
+		b := make([]byte, 1)
+		if _, err := containerStartR.Read(b); err != nil {
+			return 1, fmt.Errorf("did not get container start message from parent: %w", err)
+		}
+		containerStartR.Close()
+	}
+
+	if copyPipes {
+		// We don't need the ends of the pipes that belong to the container.
+		stdin.Close()
+		if stdout != nil {
+			stdout.Close()
+		}
+		stderr.Close()
+	}
+
+	// Handle stdio for the container in the background.
+	stdio.Add(1)
+	go runCopyStdio(options.Logger, &stdio, copyPipes, stdioPipe, copyConsole, consoleListener, finishCopy, finishedCopy, spec)
+
+	// Start the container.
+	logrus.Debugf("Running %q", start.Args)
+	err = start.Run()
+	if err != nil {
+		return 1, fmt.Errorf("error from %s starting container: %w", runtime, err)
+	}
+	defer func() {
+		if atomic.LoadUint32(&stopped) == 0 {
+			if err := kill("").Run(); err != nil {
+				options.Logger.Infof("error from %s stopping container: %v", runtime, err)
+			}
+			atomic.StoreUint32(&stopped, 1)
+		}
+	}()
+
+	// Wait for the container to exit.
+	interrupted := make(chan os.Signal, 100)
+	go func() {
+		for range interrupted {
+			if err := kill("SIGKILL").Run(); err != nil {
+				logrus.Errorf("%v sending SIGKILL", err)
+			}
+		}
+	}()
+	signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+	for {
+		now := time.Now()
+		var state specs.State
+		args = append(options.Args, "state", containerName)
+		stat := exec.Command(runtime, args...)
+		stat.Dir = bundlePath
+		stat.Stderr = os.Stderr
+		stateOutput, err := stat.Output()
+		if err != nil {
+			if atomic.LoadUint32(&stopped) != 0 {
+				// container exited
+				break
+			}
+			return 1, fmt.Errorf("error reading container state from %s (got output: %q): %w", runtime, string(stateOutput), err)
+		}
+		if err = json.Unmarshal(stateOutput, &state); err != nil {
+			return 1, fmt.Errorf("error parsing container state %q from %s: %w", string(stateOutput), runtime, err)
+		}
+		switch state.Status {
+		case "running":
+		case "stopped":
+			atomic.StoreUint32(&stopped, 1)
+		default:
+			return 1, fmt.Errorf("container status unexpectedly changed to %q", state.Status)
+		}
+		if atomic.LoadUint32(&stopped) != 0 {
+			break
+		}
+		select {
+		case <-finishedCopy:
+			atomic.StoreUint32(&stopped, 1)
+		case <-time.After(time.Until(now.Add(100 * time.Millisecond))):
+			continue
+		}
+		if atomic.LoadUint32(&stopped) != 0 {
+			break
+		}
+	}
+	signal.Stop(interrupted)
+	close(interrupted)
+
+	// Close the writing end of the stop-handling-stdio notification pipe.
+	unix.Close(finishCopy[1])
+	// Wait for the stdio copy goroutine to flush.
+	stdio.Wait()
+	// Wait until we finish reading the exit status.
+	reaping.Wait()
+
+	return wstatus, nil
+}
+
+func runCollectOutput(logger *logrus.Logger, fds, closeBeforeReadingFds []int) string { //nolint:interfacer
+	for _, fd := range closeBeforeReadingFds {
+		unix.Close(fd)
+	}
+	var b bytes.Buffer
+	buf := make([]byte, 8192)
+	for _, fd := range fds {
+		nread, err := unix.Read(fd, buf)
+		if err != nil {
+			if errno, isErrno := err.(syscall.Errno); isErrno {
+				switch errno {
+				default:
+					logger.Errorf("error reading from pipe %d: %v", fd, err)
+				case syscall.EINTR, syscall.EAGAIN:
+				}
+			} else {
+				logger.Errorf("unable to wait for data from pipe %d: %v", fd, err)
+			}
+			continue
+		}
+		for nread > 0 {
+			r := buf[:nread]
+			if nwritten, err := b.Write(r); err != nil || nwritten != len(r) {
+				if nwritten != len(r) {
+					logger.Errorf("error buffering data from pipe %d: %v", fd, err)
+					break
+				}
+			}
+			nread, err = unix.Read(fd, buf)
+			if err != nil {
+				if errno, isErrno := err.(syscall.Errno); isErrno {
+					switch errno {
+					default:
+						logger.Errorf("error reading from pipe %d: %v", fd, err)
+					case syscall.EINTR, syscall.EAGAIN:
+					}
+				} else {
+					logger.Errorf("unable to wait for data from pipe %d: %v", fd, err)
+				}
+				break
+			}
+		}
+	}
+	return b.String()
 }
