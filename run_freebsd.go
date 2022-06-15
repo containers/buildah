@@ -1064,10 +1064,6 @@ func setPdeathsig(cmd *exec.Cmd) {
 	cmd.SysProcAttr.Pdeathsig = syscall.SIGKILL
 }
 
-// Everything after this point should be identical to the versions in
-// run_linux.go - the intention is to move these to a file shared
-// between freebsd and linux.
-
 // Create pipes to use for relaying stdio.
 func runMakeStdioPipe(uid, gid int) ([][]int, error) {
 	stdioPipe := make([][]int, 3)
@@ -1076,15 +1072,6 @@ func runMakeStdioPipe(uid, gid int) ([][]int, error) {
 		if err := unix.Pipe(stdioPipe[i]); err != nil {
 			return nil, errors.Wrapf(err, "error creating pipe for container FD %d", i)
 		}
-	}
-	if err := unix.Fchown(stdioPipe[unix.Stdin][0], uid, gid); err != nil {
-		//return nil, errors.Wrapf(err, "error setting owner of stdin pipe descriptor")
-	}
-	if err := unix.Fchown(stdioPipe[unix.Stdout][1], uid, gid); err != nil {
-		//return nil, errors.Wrapf(err, "error setting owner of stdout pipe descriptor")
-	}
-	if err := unix.Fchown(stdioPipe[unix.Stderr][1], uid, gid); err != nil {
-		//return nil, errors.Wrapf(err, "error setting owner of stderr pipe descriptor")
 	}
 	return stdioPipe, nil
 }
