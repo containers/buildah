@@ -15,8 +15,11 @@ import (
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
+	"golang.org/x/term"
 )
 
 // addResolvConf copies files from host and sets them up to bind mount into container
@@ -145,4 +148,24 @@ func (b *Builder) generateHostname(rdir, hostname string, chownOpts *idtools.IDP
 	}
 
 	return cfile, nil
+}
+
+func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, terminalSize *specs.Box) {
+	switch terminalPolicy {
+	case DefaultTerminal:
+		onTerminal := term.IsTerminal(unix.Stdin) && term.IsTerminal(unix.Stdout) && term.IsTerminal(unix.Stderr)
+		if onTerminal {
+			logrus.Debugf("stdio is a terminal, defaulting to using a terminal")
+		} else {
+			logrus.Debugf("stdio is not a terminal, defaulting to not using a terminal")
+		}
+		g.SetProcessTerminal(onTerminal)
+	case WithTerminal:
+		g.SetProcessTerminal(true)
+	case WithoutTerminal:
+		g.SetProcessTerminal(false)
+	}
+	if terminalSize != nil {
+		g.SetProcessConsoleSize(terminalSize.Width, terminalSize.Height)
+	}
 }

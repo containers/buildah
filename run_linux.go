@@ -646,26 +646,6 @@ func cleanableDestinationListFromMounts(mounts []spec.Mount) []string {
 	return mountDest
 }
 
-func setupTerminal(g *generate.Generator, terminalPolicy TerminalPolicy, terminalSize *specs.Box) {
-	switch terminalPolicy {
-	case DefaultTerminal:
-		onTerminal := term.IsTerminal(unix.Stdin) && term.IsTerminal(unix.Stdout) && term.IsTerminal(unix.Stderr)
-		if onTerminal {
-			logrus.Debugf("stdio is a terminal, defaulting to using a terminal")
-		} else {
-			logrus.Debugf("stdio is not a terminal, defaulting to not using a terminal")
-		}
-		g.SetProcessTerminal(onTerminal)
-	case WithTerminal:
-		g.SetProcessTerminal(true)
-	case WithoutTerminal:
-		g.SetProcessTerminal(false)
-	}
-	if terminalSize != nil {
-		g.SetProcessConsoleSize(terminalSize.Width, terminalSize.Height)
-	}
-}
-
 func runUsingRuntime(options RunOptions, configureNetwork bool, moreCreateArgs []string, spec *specs.Spec, bundlePath, containerName string,
 	containerCreateW io.WriteCloser, containerStartR io.ReadCloser) (wstatus unix.WaitStatus, err error) {
 	if options.Logger == nil {
