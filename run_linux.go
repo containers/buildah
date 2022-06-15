@@ -2196,41 +2196,6 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 	return err
 }
 
-// fileCloser is a helper struct to prevent closing the file twice in the code
-// users must call (fileCloser).Close() and not fileCloser.File.Close()
-type fileCloser struct {
-	file   *os.File
-	closed bool
-}
-
-func (f *fileCloser) Close() {
-	if !f.closed {
-		if err := f.file.Close(); err != nil {
-			logrus.Errorf("failed to close file: %v", err)
-		}
-		f.closed = true
-	}
-}
-
-// waitForSync waits for a maximum of 4 minutes to read something from the file
-func waitForSync(pipeR *os.File) error {
-	if err := pipeR.SetDeadline(time.Now().Add(4 * time.Minute)); err != nil {
-		return err
-	}
-	b := make([]byte, 16)
-	_, err := pipeR.Read(b)
-	return err
-}
-
-func contains(volumes []string, v string) bool {
-	for _, i := range volumes {
-		if i == v {
-			return true
-		}
-	}
-	return false
-}
-
 type runUsingRuntimeSubprocOptions struct {
 	Options          RunOptions
 	Spec             *specs.Spec
