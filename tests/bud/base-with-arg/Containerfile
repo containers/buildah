@@ -1,0 +1,20 @@
+FROM --platform=$TARGETPLATFORM alpine AS build
+LABEL architecture=$TARGETARCH
+
+FROM build AS platform-amd64
+ENV BUILT_FOR=amd64
+
+FROM build AS platform-arm64
+ENV BUILT_FOR=arm64
+
+FROM build AS platform-386
+ENV BUILT_FOR=386
+
+FROM build AS platform-arm/v7
+ENV BUILT_FOR=arm/v7
+
+FROM build AS platform-arm/v6
+ENV BUILT_FOR=arm/v6
+
+FROM platform-${TARGETARCH} AS final
+RUN echo "This is built for ${BUILT_FOR}"
