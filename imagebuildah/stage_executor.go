@@ -378,12 +378,11 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 				// exists and if stage short_name matches any
 				// additionalContext replace stage with additional
 				// build context.
-				if _, err := strconv.Atoi(from); err == nil {
-					if stage, ok := s.executor.stages[from]; ok {
-						if foundContext, ok := s.executor.additionalBuildContexts[stage.name]; ok {
-							additionalBuildContext = foundContext
-						}
-					}
+				if index, err := strconv.Atoi(from); err == nil {
+					from = s.stages[index].Name
+				}
+				if foundContext, ok := s.executor.additionalBuildContexts[from]; ok {
+					additionalBuildContext = foundContext
 				}
 			}
 			if additionalBuildContext != nil {
@@ -1026,6 +1025,14 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				from, fromErr := imagebuilder.ProcessWord(arr[1], s.stage.Builder.Arguments())
 				if fromErr != nil {
 					return "", nil, errors.Wrapf(fromErr, "unable to resolve argument %q", arr[1])
+				}
+
+				// Before looking into additional context
+				// also account if the index is given instead
+				// of name so convert index in --from=<index>
+				// to name.
+				if index, err := strconv.Atoi(from); err == nil {
+					from = s.stages[index].Name
 				}
 				// If additional buildContext contains this
 				// give priority to that and break if additional

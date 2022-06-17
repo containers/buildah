@@ -510,6 +510,25 @@ func (b *Executor) buildStage(ctx context.Context, cleanupStages map[int]*StageE
 	return imageID, ref, nil
 }
 
+type stageDependencyInfo struct {
+	Name           string
+	Position       int
+	Needs          []string
+	NeededByTarget bool
+}
+
+// Marks `NeededByTarget` as true for the given stage and all its dependency stages as true recursively.
+func markDependencyStagesForTarget(dependencyMap map[string]*stageDependencyInfo, stage string) {
+	if stageDependencyInfo, ok := dependencyMap[stage]; ok {
+		if !stageDependencyInfo.NeededByTarget {
+			stageDependencyInfo.NeededByTarget = true
+			for _, need := range stageDependencyInfo.Needs {
+				markDependencyStagesForTarget(dependencyMap, need)
+			}
+		}
+	}
+}
+
 // Build takes care of the details of running Prepare/Execute/Commit/Delete
 // over each of the one or more parsed Dockerfiles and stages.
 func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (imageID string, ref reference.Canonical, err error) {
@@ -593,10 +612,15 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		}
 	}()
 
+	// dependencyMap contains dependencyInfo for each stage,
+	// dependencyInfo is used later to mark if a particular
+	// stage is needed by target or not.
+	dependencyMap := make(map[string]*stageDependencyInfo)
 	// Build maps of every named base image and every referenced stage root
 	// filesystem.  Individual stages can use them to determine whether or
 	// not they can skip certain steps near the end of their stages.
 	for stageIndex, stage := range stages {
+		dependencyMap[stage.Name] = &stageDependencyInfo{Name: stage.Name, Position: stage.Position}
 		node := stage.Node // first line
 		for node != nil {  // each line
 			for _, child := range node.Children { // tokens on this line, though we only care about the first
@@ -624,6 +648,16 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							}
 							b.baseMap[baseWithArg] = true
 							logrus.Debugf("base for stage %d: %q", stageIndex, base)
+							// Check if selected base is not an additional
+							// build context and if base is a valid stage
+							// add it to current stage's dependency tree.
+							if _, ok := b.additionalBuildContexts[baseWithArg]; !ok {
+								if _, ok := dependencyMap[baseWithArg]; ok {
+									// update current stage's dependency info
+									currentStageInfo := dependencyMap[stage.Name]
+									currentStageInfo.Needs = append(currentStageInfo.Needs, baseWithArg)
+								}
+							}
 						}
 					}
 				case "ADD", "COPY":
@@ -636,11 +670,67 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							rootfs := strings.TrimPrefix(flag, "--from=")
 							b.rootfsMap[rootfs] = true
 							logrus.Debugf("rootfs needed for COPY in stage %d: %q", stageIndex, rootfs)
+							// Populate dependency tree and check
+							// if following ADD or COPY needs any other
+							// stage.
+							stageName := rootfs
+							// If --from=<index> convert index to name
+							if index, err := strconv.Atoi(stageName); err == nil {
+								stageName = stages[index].Name
+							}
+							// Check if selected base is not an additional
+							// build context and if base is a valid stage
+							// add it to current stage's dependency tree.
+							if _, ok := b.additionalBuildContexts[stageName]; !ok {
+								if _, ok := dependencyMap[stageName]; ok {
+									// update current stage's dependency info
+									currentStageInfo := dependencyMap[stage.Name]
+									currentStageInfo.Needs = append(currentStageInfo.Needs, stageName)
+								}
+							}
+						}
+					}
+				case "RUN":
+					for _, flag := range child.Flags { // flags for this instruction
+						// We need to populate dependency tree of stages
+						// if it is using `--mount` and `from=` field is set
+						// and `from=` points to a stage consider it in
+						// dependency calculation.
+						if strings.HasPrefix(flag, "--mount=") && strings.Contains(flag, "from") {
+							mountFlags := strings.TrimPrefix(flag, "--mount=")
+							fields := strings.Split(mountFlags, ",")
+							for _, field := range fields {
+								if strings.HasPrefix(field, "from=") {
+									fromField := strings.SplitN(field, "=", 2)
+									if len(fromField) > 1 {
+										mountFrom := fromField[1]
+										// Check if this base is a stage if yes
+										// add base to current stage's dependency tree
+										// but also confirm if this is not in additional context.
+										if _, ok := b.additionalBuildContexts[mountFrom]; !ok {
+											if _, ok := dependencyMap[mountFrom]; ok {
+												// update current stage's dependency info
+												currentStageInfo := dependencyMap[stage.Name]
+												currentStageInfo.Needs = append(currentStageInfo.Needs, mountFrom)
+											}
+										}
+									} else {
+										return "", nil, fmt.Errorf("invalid value for field `from=`: %q", fromField[1])
+									}
+								}
+							}
 						}
 					}
 				}
 			}
 			node = node.Next // next line
+		}
+		// Last stage is always target stage.
+		// Since last/target stage is processed
+		// let's calculate dependency map of stages
+		// so we can mark stages which can be skipped.
+		if stage.Position == (len(stages) - 1) {
+			markDependencyStagesForTarget(dependencyMap, stage.Name)
 		}
 	}
 
@@ -694,6 +784,18 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 						Error: err,
 					}
 					return
+				}
+				// Skip stage if it is not needed by TargetStage
+				// or any of its dependency stages.
+				if stageDependencyInfo, ok := dependencyMap[stages[index].Name]; ok {
+					if !stageDependencyInfo.NeededByTarget {
+						logrus.Debugf("Skipping stage with Name %q and index %d since its not needed by the target stage", stages[index].Name, index)
+						ch <- Result{
+							Index: index,
+							Error: nil,
+						}
+						return
+					}
 				}
 				stageID, stageRef, stageErr := b.buildStage(ctx, cleanupStages, stages, index)
 				if stageErr != nil {

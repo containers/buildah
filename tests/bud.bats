@@ -222,6 +222,141 @@ _EOF
   expect_output "[]"
 }
 
+# Test skipping images with FROM
+@test "build-test skipping unwanted stages with FROM" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN echo "unwanted stage"
+
+FROM alpine as one
+RUN echo "needed stage"
+
+FROM alpine
+RUN echo "another unwanted stage"
+
+FROM one
+RUN echo "target stage"
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "needed stage"
+  expect_output --substring "target stage"
+  assert "$output" !~ "unwanted stage"
+}
+
+# Test skipping images with FROM but stage name also conflicts with additional build context
+# so selected stage should be still skipped since it is not being actually used by additional build
+# context is being used.
+@test "build-test skipping unwanted stages with FROM and conflict with additional build context" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+  # add file on original context
+  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN echo "unwanted stage"
+
+FROM alpine as one
+RUN echo "unwanted stage"
+RUN echo "from stage unwanted stage"
+
+FROM alpine
+RUN echo "another unwanted stage"
+
+FROM alpine
+COPY --from=one somefile .
+RUN cat somefile
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON --build-context one=${TEST_SCRATCH_DIR}/bud/platform -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "something"
+  assert "$output" !~ "unwanted stage"
+}
+
+# Test skipping unwanted stage with COPY from stage name
+@test "build-test skipping unwanted stages with COPY from stage name" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN echo "unwanted stage"
+
+FROM alpine as one
+RUN echo "needed stage"
+COPY somefile file
+
+FROM alpine
+COPY --from=one file .
+RUN cat file
+RUN echo "target stage"
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "needed stage"
+  expect_output --substring "something"
+  expect_output --substring "target stage"
+  assert "$output" !~ "unwanted stage"
+}
+
+# Test skipping unwanted stage with COPY from stage index
+@test "build-test skipping unwanted stages with COPY from stage index" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN echo "unwanted stage"
+
+FROM alpine
+RUN echo "needed stage"
+COPY somefile file
+
+FROM alpine
+RUN echo "another unwanted stage"
+
+FROM alpine
+COPY --from=1 file .
+RUN cat file
+RUN echo "target stage"
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "needed stage"
+  expect_output --substring "something"
+  expect_output --substring "target stage"
+  assert "$output" !~ "unwanted stage"
+}
+
+# Test skipping unwanted stage with --mount from another stage
+@test "build-test skipping unwanted stages with --mount from stagename" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN echo "unwanted stage"
+
+FROM alpine as one
+RUN echo "needed stage"
+COPY somefile file
+
+FROM alpine
+RUN echo "another unwanted stage"
+
+FROM alpine
+RUN --mount=type=bind,from=one,target=/test cat /test/file
+RUN echo "target stage"
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "needed stage"
+  expect_output --substring "something"
+  expect_output --substring "target stage"
+  assert "$output" !~ "unwanted stage"
+}
 
 # Test pinning image using additional build context
 @test "build-with-additional-build-context and COPY, test pinning image" {
@@ -2162,8 +2297,8 @@ _EOF
   _prefetch alpine ubuntu
   target=target
   run_buildah build $WITH_POLICY_JSON -t ${target} --target mytarget $BUDFILES/target
-  expect_output --substring "\[1/2] STEP 1/2: FROM ubuntu:latest"
-  expect_output --substring "\[2/2] STEP 1/2: FROM alpine:latest AS mytarget"
+  expect_output --substring "\[1/2] STEP 1/3: FROM ubuntu:latest"
+  expect_output --substring "\[2/2] STEP 1/3: FROM alpine:latest AS mytarget"
   run_buildah from --quiet ${target}
   cid=$output
   run_buildah mount ${cid}
