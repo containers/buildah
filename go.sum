@@ -796,8 +796,8 @@ github.com/opencontainers/selinux v1.8.5/go.mod h1:HTvjPFoGMbpQsG886e3lQwnsRWtE4
 github.com/opencontainers/selinux v1.10.0/go.mod h1:2i0OySw99QjzBBQByd1Gr9gSjvuho1lHsJxIJ3gGbJI=
 github.com/opencontainers/selinux v1.10.1 h1:09LIPVRP3uuZGQvgR+SgMSNBd1Eb3vlRbGqQpoHsF8w=
 github.com/opencontainers/selinux v1.10.1/go.mod h1:2i0OySw99QjzBBQByd1Gr9gSjvuho1lHsJxIJ3gGbJI=
-github.com/openshift/imagebuilder v1.2.4-0.20220502172744-009dbc6cb805 h1:bfLqBGqF04GAoqbMkSrd5VPk/t66OnP0bTTisMaF4ro=
-github.com/openshift/imagebuilder v1.2.4-0.20220502172744-009dbc6cb805/go.mod h1:TRYHe4CH9U6nkDjxjBNM5klrLbJBrRbpJE5SaRwUBsQ=
+github.com/openshift/imagebuilder v1.2.4-0.20220711175835-4151e43600df h1:vf6pdI10F2Tim5a9JKiVVl4/dpNz1OEhz4EnfLdLtiA=
+github.com/openshift/imagebuilder v1.2.4-0.20220711175835-4151e43600df/go.mod h1:TRYHe4CH9U6nkDjxjBNM5klrLbJBrRbpJE5SaRwUBsQ=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/ostreedev/ostree-go v0.0.0-20210805093236-719684c64e4f h1:/UDgs8FGMqwnHagNDPGOlts35QkhAZ8by3DR7nMih7M=
 github.com/ostreedev/ostree-go v0.0.0-20210805093236-719684c64e4f/go.mod h1:J6OG6YJVEWopen4avK3VNQSnALmmjvniMmni/YFYAwc=

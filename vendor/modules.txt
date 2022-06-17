@@ -486,7 +486,7 @@ github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalk
 github.com/opencontainers/selinux/pkg/pwalkdir
-# github.com/openshift/imagebuilder v1.2.4-0.20220502172744-009dbc6cb805
+# github.com/openshift/imagebuilder v1.2.4-0.20220711175835-4151e43600df
 ## explicit; go 1.16
 github.com/openshift/imagebuilder
 github.com/openshift/imagebuilder/dockerclient
