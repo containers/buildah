@@ -26,6 +26,7 @@ import (
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libnetwork/etchosts"
 	"github.com/containers/common/libnetwork/network"
@@ -1430,4 +1431,95 @@ func cleanableDestinationListFromMounts(mounts []spec.Mount) []string {
 		}
 	}
 	return mountDest
+}
+
+// runSetupRunMounts sets up mounts that exist only in this RUN, not in subsequent runs
+func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMaps IDMaps) ([]spec.Mount, *runMountArtifacts, error) {
+	mountTargets := make([]string, 0, 10)
+	tmpFiles := make([]string, 0, len(mounts))
+	mountImages := make([]string, 0, 10)
+	finalMounts := make([]specs.Mount, 0, len(mounts))
+	agents := make([]*sshagent.AgentServer, 0, len(mounts))
+	sshCount := 0
+	defaultSSHSock := ""
+	tokens := []string{}
+	lockedTargets := []string{}
+	for _, mount := range mounts {
+		arr := strings.SplitN(mount, ",", 2)
+
+		kv := strings.Split(arr[0], "=")
+		if len(kv) != 2 || kv[0] != "type" {
+			return nil, nil, errors.New("invalid mount type")
+		}
+		if len(arr) == 2 {
+			tokens = strings.Split(arr[1], ",")
+		}
+
+		switch kv[1] {
+		case "secret":
+			mount, envFile, err := b.getSecretMount(tokens, sources.Secrets, idMaps)
+			if err != nil {
+				return nil, nil, err
+			}
+			if mount != nil {
+				finalMounts = append(finalMounts, *mount)
+				mountTargets = append(mountTargets, mount.Destination)
+				if envFile != "" {
+					tmpFiles = append(tmpFiles, envFile)
+				}
+			}
+		case "ssh":
+			mount, agent, err := b.getSSHMount(tokens, sshCount, sources.SSHSources, idMaps)
+			if err != nil {
+				return nil, nil, err
+			}
+			if mount != nil {
+				finalMounts = append(finalMounts, *mount)
+				mountTargets = append(mountTargets, mount.Destination)
+				agents = append(agents, agent)
+				if sshCount == 0 {
+					defaultSSHSock = mount.Destination
+				}
+				// Count is needed as the default destination of the ssh sock inside the container is  /run/buildkit/ssh_agent.{i}
+				sshCount++
+			}
+		case "bind":
+			mount, image, err := b.getBindMount(tokens, sources.SystemContext, sources.ContextDir, sources.StageMountPoints, idMaps)
+			if err != nil {
+				return nil, nil, err
+			}
+			finalMounts = append(finalMounts, *mount)
+			mountTargets = append(mountTargets, mount.Destination)
+			// only perform cleanup if image was mounted ignore everything else
+			if image != "" {
+				mountImages = append(mountImages, image)
+			}
+		case "tmpfs":
+			mount, err := b.getTmpfsMount(tokens, idMaps)
+			if err != nil {
+				return nil, nil, err
+			}
+			finalMounts = append(finalMounts, *mount)
+			mountTargets = append(mountTargets, mount.Destination)
+		case "cache":
+			mount, lockedPaths, err := b.getCacheMount(tokens, sources.StageMountPoints, idMaps)
+			if err != nil {
+				return nil, nil, err
+			}
+			finalMounts = append(finalMounts, *mount)
+			mountTargets = append(mountTargets, mount.Destination)
+			lockedTargets = lockedPaths
+		default:
+			return nil, nil, fmt.Errorf("invalid mount type %q", kv[1])
+		}
+	}
+	artifacts := &runMountArtifacts{
+		RunMountTargets: mountTargets,
+		TmpFiles:        tmpFiles,
+		Agents:          agents,
+		MountedImages:   mountImages,
+		SSHAuthSock:     defaultSSHSock,
+		LockedTargets:   lockedTargets,
+	}
+	return finalMounts, artifacts, nil
 }
