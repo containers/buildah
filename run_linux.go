@@ -53,6 +53,17 @@ import (
 // ContainerDevices is an alias for a slice of github.com/opencontainers/runc/libcontainer/configs.Device structures.
 type ContainerDevices define.ContainerDevices
 
+var (
+	// We dont want to remove destinations with /etc, /dev, /sys,
+	// /proc as rootfs already contains these files and unionfs
+	// will create a `whiteout` i.e `.wh` files on removal of
+	// overlapping files from these directories.  everything other
+	// than these will be cleaned up
+	nonCleanablePrefixes = []string{
+		"/etc", "/dev", "/sys", "/proc",
+	}
+)
+
 func setChildProcess() error {
 	if err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, uintptr(1), 0, 0, 0); err != nil {
 		fmt.Fprintf(os.Stderr, "prctl(PR_SET_CHILD_SUBREAPER, 1): %v\n", err)
@@ -456,23 +467,6 @@ func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Gene
 
 	logrus.Debugf("Resources: %#v", commonOpts)
 	return nil
-}
-
-// Destinations which can be cleaned up after every RUN
-func cleanableDestinationListFromMounts(mounts []spec.Mount) []string {
-	mountDest := []string{}
-	for _, mount := range mounts {
-		// Add all destination to mountArtifacts so that they can be cleaned up later
-		if mount.Destination != "" {
-			// we dont want to remove destinations with  /etc, /dev, /sys, /proc as rootfs already contains these files
-			// and unionfs will create a `whiteout` i.e `.wh` files on removal of overlapping files from these directories.
-			// everything other than these will be cleanedup
-			if !strings.HasPrefix(mount.Destination, "/etc") && !strings.HasPrefix(mount.Destination, "/dev") && !strings.HasPrefix(mount.Destination, "/sys") && !strings.HasPrefix(mount.Destination, "/proc") {
-				mountDest = append(mountDest, mount.Destination)
-			}
-		}
-	}
-	return mountDest
 }
 
 func setupRootlessNetwork(pid int) (teardown func(), err error) {

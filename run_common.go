@@ -40,6 +40,7 @@ import (
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
@@ -1408,4 +1409,25 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 		})
 	}
 	return mounts, nil
+}
+
+// Destinations which can be cleaned up after every RUN
+func cleanableDestinationListFromMounts(mounts []spec.Mount) []string {
+	mountDest := []string{}
+	for _, mount := range mounts {
+		// Add all destination to mountArtifacts so that they can be cleaned up later
+		if mount.Destination != "" {
+			cleanPath := true
+			for _, prefix := range nonCleanablePrefixes {
+				if strings.HasPrefix(mount.Destination, prefix) {
+					cleanPath = false
+					break
+				}
+			}
+			if cleanPath {
+				mountDest = append(mountDest, mount.Destination)
+			}
+		}
+	}
+	return mountDest
 }

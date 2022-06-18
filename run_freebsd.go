@@ -50,6 +50,17 @@ const (
 	PROC_REAP_RELEASE = 3
 )
 
+var (
+	// We dont want to remove destinations with /etc, /dev as
+	// rootfs already contains these files and unionfs will create
+	// a `whiteout` i.e `.wh` files on removal of overlapping
+	// files from these directories.  everything other than these
+	// will be cleaned up
+	nonCleanablePrefixes = []string{
+		"/etc", "/dev",
+	}
+)
+
 func procctl(idtype int, id int, cmd int, arg *byte) error {
 	_, _, e1 := unix.Syscall6(
 		unix.SYS_PROCCTL, uintptr(idtype), uintptr(id),
@@ -297,23 +308,6 @@ func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Gene
 
 	logrus.Debugf("Resources: %#v", commonOpts)
 	return nil
-}
-
-// Destinations which can be cleaned up after every RUN
-func cleanableDestinationListFromMounts(mounts []spec.Mount) []string {
-	mountDest := []string{}
-	for _, mount := range mounts {
-		// Add all destination to mountArtifacts so that they can be cleaned up later
-		if mount.Destination != "" {
-			// we dont want to remove destinations with  /etc, /dev as rootfs already contains these files
-			// and unionfs will create a `whiteout` i.e `.wh` files on removal of overlapping files from these directories.
-			// everything other than these will be cleanedup
-			if !strings.HasPrefix(mount.Destination, "/etc") && !strings.HasPrefix(mount.Destination, "/dev") {
-				mountDest = append(mountDest, mount.Destination)
-			}
-		}
-	}
-	return mountDest
 }
 
 // setupSpecialMountSpecChanges creates special mounts for depending
