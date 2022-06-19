@@ -1,11 +1,7 @@
-//go:build freebsd && cgo
-// +build freebsd,cgo
+//go:build freebsd
+// +build freebsd
 
 package jail
-
-// #include <sys/param.h>
-// #include <sys/jail.h>
-import "C"
 
 import (
 	"strings"
@@ -22,6 +18,10 @@ const (
 	DISABLED NS = 0
 	NEW      NS = 1
 	INHERIT  NS = 2
+
+	JAIL_CREATE = 0x01
+	JAIL_UPDATE = 0x02
+	JAIL_ATTACH = 0x04
 )
 
 type config struct {
@@ -171,11 +171,11 @@ func jailGet(jconf *config, flags int) (*jail, error) {
 }
 
 func Create(jconf *config) (*jail, error) {
-	return jailSet(jconf, C.JAIL_CREATE)
+	return jailSet(jconf, JAIL_CREATE)
 }
 
 func CreateAndAttach(jconf *config) (*jail, error) {
-	return jailSet(jconf, C.JAIL_CREATE|C.JAIL_ATTACH)
+	return jailSet(jconf, JAIL_CREATE|JAIL_ATTACH)
 }
 
 func FindByName(name string) (*jail, error) {
@@ -186,6 +186,6 @@ func FindByName(name string) (*jail, error) {
 
 func (j *jail) Set(jconf *config) error {
 	jconf.Set("jid", j.jid)
-	_, err := jailSet(jconf, C.JAIL_UPDATE)
+	_, err := jailSet(jconf, JAIL_UPDATE)
 	return err
 }
