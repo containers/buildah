@@ -222,6 +222,78 @@ _EOF
   expect_output "[]"
 }
 
+# Test building with --userns=auto
+@test "build with --userns=auto also with size" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+  user=$USER
+
+  if [[ "$user" == "root" ]]; then
+    user="containers"
+  fi
+
+  if ! grep -q $user "/etc/subuid"; then
+    skip "cannot find mappings for the current user"
+  fi
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN cat /proc/self/uid_map
+_EOF
+
+  run_buildah build --userns=auto $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "1024"
+  run_buildah build --userns=auto:size=500 $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "500"
+}
+
+# Test building with --userns=auto with uidmapping
+@test "build with --userns=auto with uidmapping" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+  user=$USER
+
+  if [[ "$user" == "root" ]]; then
+    user="containers"
+  fi
+
+  if ! grep -q $user "/etc/subuid"; then
+    skip "cannot find mappings for the current user"
+  fi
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN cat /proc/self/uid_map
+_EOF
+
+  run_buildah build --userns=auto:size=8192,uidmapping=0:0:1 $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "8191"
+  run_buildah build --userns=auto:uidmapping=0:0:1 $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "         0          0          1"
+}
+
+# Test building with --userns=auto with gidmapping
+@test "build with --userns=auto with gidmapping" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+  user=$USER
+
+  if [[ "$user" == "root" ]]; then
+    user="containers"
+  fi
+
+  if ! grep -q $user "/etc/subuid"; then
+    skip "cannot find mappings for the current user"
+  fi
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN cat /proc/self/gid_map
+_EOF
+
+  run_buildah build --userns=auto:size=8192,gidmapping=0:0:1 $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "8191"
+  run_buildah build --userns=auto:gidmapping=0:0:1 $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "         0          0          1"
+}
+
 # Test skipping images with FROM
 @test "build-test skipping unwanted stages with FROM" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform

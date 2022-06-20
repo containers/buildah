@@ -694,11 +694,25 @@ Unset environment variables from the final image.
 **--userns** *how*
 
 Sets the configuration for user namespaces when handling `RUN` instructions.
-The configured value can be "" (the empty string) or "private" to indicate
+The configured value can be "" (the empty string) , "private" or "auto" to indicate
 that a new user namespace should be created, it can be "host" to indicate that
 the user namespace in which `buildah` itself is being run should be reused, or
 it can be the path to an user namespace which is already in use by another
 process.
+
+auto: automatically create a unique user namespace.
+
+The --userns=auto flag, requires that the user name containers and a range of subordinate user ids that the build container is allowed to use be specified in the /etc/subuid and /etc/subgid files.
+
+Example: `containers:2147483647:2147483648`.
+
+Buildah allocates unique ranges of UIDs and GIDs from the containers subordinate user ids. The size of the ranges is based on the number of UIDs required in the image. The number of UIDs and GIDs can be overridden with the size option.
+
+Valid `auto` options:
+
+* gidmapping=CONTAINER_GID:HOST_GID:SIZE: to force a GID mapping to be present in the user namespace.
+* size=SIZE: to specify an explicit size for the automatic user namespace. e.g. --userns=auto:size=8192. If size is not specified, auto will estimate a size for the user namespace.
+* uidmapping=CONTAINER_UID:HOST_UID:SIZE: to force a UID mapping to be present in the user namespace.
 
 **--userns-gid-map-group** *group*
 
