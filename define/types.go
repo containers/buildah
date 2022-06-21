@@ -17,6 +17,7 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/chrootarchive"
 	"github.com/containers/storage/pkg/ioutils"
+	"github.com/containers/storage/types"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -87,6 +88,8 @@ type IDMappingOptions struct {
 	HostGIDMapping bool
 	UIDMap         []specs.LinuxIDMapping
 	GIDMap         []specs.LinuxIDMapping
+	AutoUserNs     bool
+	AutoUserNsOpts types.AutoUserNsOptions
 }
 
 // Secret is a secret source that can be used in a RUN

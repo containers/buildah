@@ -76,15 +76,20 @@ func imageNamePrefix(imageName string) string {
 func newContainerIDMappingOptions(idmapOptions *define.IDMappingOptions) storage.IDMappingOptions {
 	var options storage.IDMappingOptions
 	if idmapOptions != nil {
-		options.HostUIDMapping = idmapOptions.HostUIDMapping
-		options.HostGIDMapping = idmapOptions.HostGIDMapping
-		uidmap, gidmap := convertRuntimeIDMaps(idmapOptions.UIDMap, idmapOptions.GIDMap)
-		if len(uidmap) > 0 && len(gidmap) > 0 {
-			options.UIDMap = uidmap
-			options.GIDMap = gidmap
+		if idmapOptions.AutoUserNs {
+			options.AutoUserNs = true
+			options.AutoUserNsOpts = idmapOptions.AutoUserNsOpts
 		} else {
-			options.HostUIDMapping = true
-			options.HostGIDMapping = true
+			options.HostUIDMapping = idmapOptions.HostUIDMapping
+			options.HostGIDMapping = idmapOptions.HostGIDMapping
+			uidmap, gidmap := convertRuntimeIDMaps(idmapOptions.UIDMap, idmapOptions.GIDMap)
+			if len(uidmap) > 0 && len(gidmap) > 0 {
+				options.UIDMap = uidmap
+				options.GIDMap = gidmap
+			} else {
+				options.HostUIDMapping = true
+				options.HostGIDMapping = true
+			}
 		}
 	}
 	return options

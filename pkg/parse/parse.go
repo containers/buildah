@@ -21,6 +21,7 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/unshare"
+	storageTypes "github.com/containers/storage/types"
 	units "github.com/docker/go-units"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/openshift/imagebuilder"
@@ -609,8 +610,52 @@ func IDMappingOptions(c *cobra.Command, isolation define.Isolation) (usernsOptio
 	return IDMappingOptionsFromFlagSet(c.Flags(), c.PersistentFlags(), c.Flag)
 }
 
+// GetAutoOptions returns a AutoUserNsOptions with the settings to setup automatically
+// a user namespace.
+func GetAutoOptions(base string) (*storageTypes.AutoUserNsOptions, error) {
+	parts := strings.SplitN(base, ":", 2)
+	if parts[0] != "auto" {
+		return nil, fmt.Errorf("wrong user namespace mode")
+	}
+	options := storageTypes.AutoUserNsOptions{}
+	if len(parts) == 1 {
+		return &options, nil
+	}
+	for _, o := range strings.Split(parts[1], ",") {
+		v := strings.SplitN(o, "=", 2)
+		if len(v) != 2 {
+			return nil, fmt.Errorf("invalid option specified: %q", o)
+		}
+		switch v[0] {
+		case "size":
+			s, err := strconv.ParseUint(v[1], 10, 32)
+			if err != nil {
+				return nil, err
+			}
+			options.Size = uint32(s)
+		case "uidmapping":
+			mapping, err := storageTypes.ParseIDMapping([]string{v[1]}, nil, "", "")
+			if err != nil {
+				return nil, err
+			}
+			options.AdditionalUIDMappings = append(options.AdditionalUIDMappings, mapping.UIDMap...)
+		case "gidmapping":
+			mapping, err := storageTypes.ParseIDMapping(nil, []string{v[1]}, "", "")
+			if err != nil {
+				return nil, err
+			}
+			options.AdditionalGIDMappings = append(options.AdditionalGIDMappings, mapping.GIDMap...)
+		default:
+			return nil, fmt.Errorf("unknown option specified: %q", v[0])
+		}
+	}
+	return &options, nil
+}
+
 // IDMappingOptionsFromFlagSet parses the build options related to user namespaces and ID mapping.
 func IDMappingOptionsFromFlagSet(flags *pflag.FlagSet, persistentFlags *pflag.FlagSet, findFlagFunc func(name string) *pflag.Flag) (usernsOptions define.NamespaceOptions, idmapOptions *define.IDMappingOptions, err error) {
+	isAuto := false
+	autoOpts := &storageTypes.AutoUserNsOptions{}
 	user := findFlagFunc("userns-uid-map-user").Value.String()
 	group := findFlagFunc("userns-gid-map-group").Value.String()
 	// If only the user or group was specified, use the same value for the
@@ -693,18 +738,27 @@ func IDMappingOptionsFromFlagSet(flags *pflag.FlagSet, persistentFlags *pflag.Fl
 	// user namespaces, override that default.
 	if findFlagFunc("userns").Changed {
 		how := findFlagFunc("userns").Value.String()
-		switch how {
-		case "", "container", "private":
-			usernsOption.Host = false
-		case "host":
-			usernsOption.Host = true
-		default:
-			how = strings.TrimPrefix(how, "ns:")
-			if _, err := os.Stat(how); err != nil {
-				return nil, nil, errors.Wrapf(err, "checking %s namespace", string(specs.UserNamespace))
+		if strings.HasPrefix(how, "auto") {
+			autoOpts, err = GetAutoOptions(how)
+			if err != nil {
+				return nil, nil, err
 			}
-			logrus.Debugf("setting %q namespace to %q", string(specs.UserNamespace), how)
-			usernsOption.Path = how
+			isAuto = true
+			usernsOption.Host = false
+		} else {
+			switch how {
+			case "", "container", "private":
+				usernsOption.Host = false
+			case "host":
+				usernsOption.Host = true
+			default:
+				how = strings.TrimPrefix(how, "ns:")
+				if _, err := os.Stat(how); err != nil {
+					return nil, nil, errors.Wrapf(err, "checking %s namespace", string(specs.UserNamespace))
+				}
+				logrus.Debugf("setting %q namespace to %q", string(specs.UserNamespace), how)
+				usernsOption.Path = how
+			}
 		}
 	}
 	usernsOptions = define.NamespaceOptions{usernsOption}
@@ -719,6 +773,8 @@ func IDMappingOptionsFromFlagSet(flags *pflag.FlagSet, persistentFlags *pflag.Fl
 		HostGIDMapping: usernsOption.Host,
 		UIDMap:         uidmap,
 		GIDMap:         gidmap,
+		AutoUserNs:     isAuto,
+		AutoUserNsOpts: *autoOpts,
 	}, nil
 }
 
