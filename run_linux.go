@@ -5,6 +5,7 @@ package buildah
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -29,6 +30,8 @@ import (
 	"github.com/containers/buildah/internal"
 	internalParse "github.com/containers/buildah/internal/parse"
 	internalUtil "github.com/containers/buildah/internal/util"
+	"github.com/containers/common/pkg/hooks"
+	hooksExec "github.com/containers/common/pkg/hooks/exec"
 	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/pkg/sshagent"
@@ -317,6 +320,12 @@ rootless=%d
 		bindFiles["/run/.containerenv"] = containerenvPath
 	}
 
+	// Setup OCI hooks
+	_, err = b.setupOCIHooks(spec, (len(options.Mounts) > 0 || len(volumes) > 0))
+	if err != nil {
+		return errors.Wrap(err, "unable to setup OCI hooks")
+	}
+
 	runMountInfo := runMountInfo{
 		ContextDir:       options.ContextDir,
 		Secrets:          options.Secrets,
@@ -370,6 +379,54 @@ rootless=%d
 		err = errors.Errorf("don't know how to run this command")
 	}
 	return err
+}
+
+func (b *Builder) setupOCIHooks(config *spec.Spec, hasVolumes bool) (map[string][]spec.Hook, error) {
+	allHooks := make(map[string][]spec.Hook)
+	if len(b.CommonBuildOpts.OCIHooksDir) == 0 {
+		if unshare.IsRootless() {
+			return nil, nil
+		}
+		for _, hDir := range []string{hooks.DefaultDir, hooks.OverrideDir} {
+			manager, err := hooks.New(context.Background(), []string{hDir}, []string{})
+			if err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				return nil, err
+			}
+			ociHooks, err := manager.Hooks(config, b.ImageAnnotations, hasVolumes)
+			if err != nil {
+				return nil, err
+			}
+			if len(ociHooks) > 0 || config.Hooks != nil {
+				logrus.Warnf("Implicit hook directories are deprecated; set --hooks-dir=%q explicitly to continue to load ociHooks from this directory", hDir)
+			}
+			for i, hook := range ociHooks {
+				allHooks[i] = hook
+			}
+		}
+	} else {
+		manager, err := hooks.New(context.Background(), b.CommonBuildOpts.OCIHooksDir, []string{})
+		if err != nil {
+			return nil, err
+		}
+
+		allHooks, err = manager.Hooks(config, b.ImageAnnotations, hasVolumes)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	hookErr, err := hooksExec.RuntimeConfigFilter(context.Background(), allHooks["precreate"], config, hooksExec.DefaultPostKillTimeout)
+	if err != nil {
+		logrus.Warnf("Container: precreate hook: %v", err)
+		if hookErr != nil && hookErr != err {
+			logrus.Debugf("container: precreate hook (hook error): %v", hookErr)
+		}
+		return nil, err
+	}
+	return allHooks, nil
 }
 
 func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Generator) error {

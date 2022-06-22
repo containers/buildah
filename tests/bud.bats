@@ -294,6 +294,42 @@ _EOF
   expect_output --substring "         0          0          1"
 }
 
+# Test bud with prestart hook
+@test "build-test with OCI prestart hook" {
+  skip_if_in_container # This works in priviledged container setup but does not works in CI setup
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform/hooks
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN echo hello
+_EOF
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/hooks/test.json << _EOF
+{
+  "version": "1.0.0",
+  "hook": {
+    "path": "${TEST_SCRATCH_DIR}/bud/platform/hooks/test"
+  },
+  "when": {
+    "always": true
+  },
+  "stages": ["prestart"]
+}
+_EOF
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/hooks/test << _EOF
+#!/bin/sh
+echo from-hook > ${TEST_SCRATCH_DIR}/bud/platform/hooks/hook-output
+_EOF
+
+  # make actual hook executable
+  chmod +x ${TEST_SCRATCH_DIR}/bud/platform/hooks/test
+  run_buildah build $WITH_POLICY_JSON -t source --hooks-dir=${TEST_SCRATCH_DIR}/bud/platform/hooks -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  run cat ${TEST_SCRATCH_DIR}/bud/platform/hooks/hook-output
+  expect_output --substring "from-hook"
+}
+
 # Test skipping images with FROM
 @test "build-test skipping unwanted stages with FROM" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform

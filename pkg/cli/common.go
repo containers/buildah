@@ -74,6 +74,7 @@ type BudResults struct {
 	NoCache             bool
 	Timestamp           int64
 	OmitHistory         bool
+	OCIHooksDir         []string
 	Pull                string
 	PullAlways          bool
 	PullNever           bool
@@ -194,6 +195,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.String("arch", runtime.GOARCH, "set the ARCH of the image to the provided value instead of the architecture of the host")
 	fs.StringArrayVar(&flags.Annotation, "annotation", []string{}, "set metadata for an image (default [])")
 	fs.StringVar(&flags.Authfile, "authfile", "", "path of the authentication file.")
+	fs.StringArrayVar(&flags.OCIHooksDir, "hooks-dir", []string{}, "set the OCI hooks directory path (may be set multiple times)")
 	fs.StringArrayVar(&flags.BuildArg, "build-arg", []string{}, "`argument=value` to supply to the builder")
 	fs.StringArrayVar(&flags.BuildContext, "build-context", []string{}, "`argument=value` to supply additional build context to the builder")
 	fs.StringVar(&flags.CacheFrom, "cache-from", "", "images to utilise as potential cache sources. The build process does not currently support caching so this is a NOOP.")
@@ -282,6 +284,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["file"] = commonComp.AutocompleteDefault
 	flagCompletion["format"] = commonComp.AutocompleteNone
 	flagCompletion["from"] = commonComp.AutocompleteDefault
+	flagCompletion["hooks-dir"] = commonComp.AutocompleteNone
 	flagCompletion["ignorefile"] = commonComp.AutocompleteDefault
 	flagCompletion["iidfile"] = commonComp.AutocompleteDefault
 	flagCompletion["jobs"] = commonComp.AutocompleteNone
