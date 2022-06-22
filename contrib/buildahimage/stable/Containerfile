@@ -14,7 +14,7 @@ FROM registry.fedoraproject.org/fedora:latest
 RUN useradd build && \
     dnf -y update && \
     rpm --setcaps shadow-utils 2>/dev/null && \
-    dnf -y install buildah fuse-overlayfs --exclude container-selinux && \
+    dnf -y install buildah fuse-overlayfs cpp --exclude container-selinux && \
     dnf -y clean all && \
     rm -rf /var/cache /var/log/dnf* /var/log/yum.*
 
