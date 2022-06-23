@@ -182,7 +182,7 @@ func getDateAndDigestAndSize(ctx context.Context, sys *types.SystemContext, stor
 		}
 	}
 	inspectable, inspectableErr := image.FromUnparsedImage(ctx, sys, image.UnparsedInstance(img, nil))
-	if inspectableErr == nil && inspectable != nil {
+	if inspectableErr == nil {
 		inspectInfo, inspectErr := inspectable.Inspect(ctx)
 		if inspectErr == nil && inspectInfo != nil && inspectInfo.Created != nil {
 			created = *inspectInfo.Created
