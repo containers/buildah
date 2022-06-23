@@ -26,6 +26,8 @@ import (
 	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/internal"
+	internalParse "github.com/containers/buildah/internal/parse"
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libnetwork/etchosts"
@@ -34,6 +36,7 @@ import (
 	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/subscriptions"
+	imagetypes "github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
@@ -1522,4 +1525,266 @@ func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMap
 		LockedTargets:   lockedTargets,
 	}
 	return finalMounts, artifacts, nil
+}
+
+func (b *Builder) getBindMount(tokens []string, context *imagetypes.SystemContext, contextDir string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps) (*spec.Mount, string, error) {
+	if contextDir == "" {
+		return nil, "", errors.New("Context Directory for current run invocation is not configured")
+	}
+	var optionMounts []specs.Mount
+	mount, image, err := internalParse.GetBindMount(context, tokens, contextDir, b.store, b.MountLabel, stageMountPoints)
+	if err != nil {
+		return nil, image, err
+	}
+	optionMounts = append(optionMounts, mount)
+	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
+	if err != nil {
+		return nil, image, err
+	}
+	return &volumes[0], image, nil
+}
+
+func (b *Builder) getTmpfsMount(tokens []string, idMaps IDMaps) (*spec.Mount, error) {
+	var optionMounts []specs.Mount
+	mount, err := internalParse.GetTmpfsMount(tokens)
+	if err != nil {
+		return nil, err
+	}
+	optionMounts = append(optionMounts, mount)
+	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
+	if err != nil {
+		return nil, err
+	}
+	return &volumes[0], nil
+}
+
+func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secret, idMaps IDMaps) (*spec.Mount, string, error) {
+	errInvalidSyntax := errors.New("secret should have syntax id=id[,target=path,required=bool,mode=uint,uid=uint,gid=uint")
+	if len(tokens) == 0 {
+		return nil, "", errInvalidSyntax
+	}
+	var err error
+	var id, target string
+	var required bool
+	var uid, gid uint32
+	var mode uint32 = 0400
+	for _, val := range tokens {
+		kv := strings.SplitN(val, "=", 2)
+		switch kv[0] {
+		case "id":
+			id = kv[1]
+		case "target", "dst", "destination":
+			target = kv[1]
+		case "required":
+			required, err = strconv.ParseBool(kv[1])
+			if err != nil {
+				return nil, "", errInvalidSyntax
+			}
+		case "mode":
+			mode64, err := strconv.ParseUint(kv[1], 8, 32)
+			if err != nil {
+				return nil, "", errInvalidSyntax
+			}
+			mode = uint32(mode64)
+		case "uid":
+			uid64, err := strconv.ParseUint(kv[1], 10, 32)
+			if err != nil {
+				return nil, "", errInvalidSyntax
+			}
+			uid = uint32(uid64)
+		case "gid":
+			gid64, err := strconv.ParseUint(kv[1], 10, 32)
+			if err != nil {
+				return nil, "", errInvalidSyntax
+			}
+			gid = uint32(gid64)
+		default:
+			return nil, "", errInvalidSyntax
+		}
+	}
+
+	if id == "" {
+		return nil, "", errInvalidSyntax
+	}
+	// Default location for secretis is /run/secrets/id
+	if target == "" {
+		target = "/run/secrets/" + id
+	}
+
+	secr, ok := secrets[id]
+	if !ok {
+		if required {
+			return nil, "", fmt.Errorf("secret required but no secret with id %s found", id)
+		}
+		return nil, "", nil
+	}
+	var data []byte
+	var envFile string
+	var ctrFileOnHost string
+
+	switch secr.SourceType {
+	case "env":
+		data = []byte(os.Getenv(secr.Source))
+		tmpFile, err := ioutil.TempFile("/dev/shm", "buildah*")
+		if err != nil {
+			return nil, "", err
+		}
+		envFile = tmpFile.Name()
+		ctrFileOnHost = tmpFile.Name()
+	case "file":
+		containerWorkingDir, err := b.store.ContainerDirectory(b.ContainerID)
+		if err != nil {
+			return nil, "", err
+		}
+		data, err = ioutil.ReadFile(secr.Source)
+		if err != nil {
+			return nil, "", err
+		}
+		ctrFileOnHost = filepath.Join(containerWorkingDir, "secrets", id)
+	default:
+		return nil, "", errors.New("invalid source secret type")
+	}
+
+	// Copy secrets to container working dir (or tmp dir if it's an env), since we need to chmod,
+	// chown and relabel it for the container user and we don't want to mess with the original file
+	if err := os.MkdirAll(filepath.Dir(ctrFileOnHost), 0755); err != nil {
+		return nil, "", err
+	}
+	if err := ioutil.WriteFile(ctrFileOnHost, data, 0644); err != nil {
+		return nil, "", err
+	}
+
+	if err := label.Relabel(ctrFileOnHost, b.MountLabel, false); err != nil {
+		return nil, "", err
+	}
+	hostUID, hostGID, err := util.GetHostIDs(idMaps.uidmap, idMaps.gidmap, uid, gid)
+	if err != nil {
+		return nil, "", err
+	}
+	if err := os.Lchown(ctrFileOnHost, int(hostUID), int(hostGID)); err != nil {
+		return nil, "", err
+	}
+	if err := os.Chmod(ctrFileOnHost, os.FileMode(mode)); err != nil {
+		return nil, "", err
+	}
+	newMount := specs.Mount{
+		Destination: target,
+		Type:        "bind",
+		Source:      ctrFileOnHost,
+		Options:     []string{"bind", "rprivate", "ro"},
+	}
+	return &newMount, envFile, nil
+}
+
+// getSSHMount parses the --mount type=ssh flag in the Containerfile, checks if there's an ssh source provided, and creates and starts an ssh-agent to be forwarded into the container
+func (b *Builder) getSSHMount(tokens []string, count int, sshsources map[string]*sshagent.Source, idMaps IDMaps) (*spec.Mount, *sshagent.AgentServer, error) {
+	errInvalidSyntax := errors.New("ssh should have syntax id=id[,target=path,required=bool,mode=uint,uid=uint,gid=uint")
+
+	var err error
+	var id, target string
+	var required bool
+	var uid, gid uint32
+	var mode uint32 = 400
+	for _, val := range tokens {
+		kv := strings.SplitN(val, "=", 2)
+		if len(kv) < 2 {
+			return nil, nil, errInvalidSyntax
+		}
+		switch kv[0] {
+		case "id":
+			id = kv[1]
+		case "target", "dst", "destination":
+			target = kv[1]
+		case "required":
+			required, err = strconv.ParseBool(kv[1])
+			if err != nil {
+				return nil, nil, errInvalidSyntax
+			}
+		case "mode":
+			mode64, err := strconv.ParseUint(kv[1], 8, 32)
+			if err != nil {
+				return nil, nil, errInvalidSyntax
+			}
+			mode = uint32(mode64)
+		case "uid":
+			uid64, err := strconv.ParseUint(kv[1], 10, 32)
+			if err != nil {
+				return nil, nil, errInvalidSyntax
+			}
+			uid = uint32(uid64)
+		case "gid":
+			gid64, err := strconv.ParseUint(kv[1], 10, 32)
+			if err != nil {
+				return nil, nil, errInvalidSyntax
+			}
+			gid = uint32(gid64)
+		default:
+			return nil, nil, errInvalidSyntax
+		}
+	}
+
+	if id == "" {
+		id = "default"
+	}
+	// Default location for secretis is /run/buildkit/ssh_agent.{i}
+	if target == "" {
+		target = fmt.Sprintf("/run/buildkit/ssh_agent.%d", count)
+	}
+
+	sshsource, ok := sshsources[id]
+	if !ok {
+		if required {
+			return nil, nil, fmt.Errorf("ssh required but no ssh with id %s found", id)
+		}
+		return nil, nil, nil
+	}
+	// Create new agent from keys or socket
+	fwdAgent, err := sshagent.NewAgentServer(sshsource)
+	if err != nil {
+		return nil, nil, err
+	}
+	// Start ssh server, and get the host sock we're mounting in the container
+	hostSock, err := fwdAgent.Serve(b.ProcessLabel)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := label.Relabel(filepath.Dir(hostSock), b.MountLabel, false); err != nil {
+		if shutdownErr := fwdAgent.Shutdown(); shutdownErr != nil {
+			b.Logger.Errorf("error shutting down agent: %v", shutdownErr)
+		}
+		return nil, nil, err
+	}
+	if err := label.Relabel(hostSock, b.MountLabel, false); err != nil {
+		if shutdownErr := fwdAgent.Shutdown(); shutdownErr != nil {
+			b.Logger.Errorf("error shutting down agent: %v", shutdownErr)
+		}
+		return nil, nil, err
+	}
+	hostUID, hostGID, err := util.GetHostIDs(idMaps.uidmap, idMaps.gidmap, uid, gid)
+	if err != nil {
+		if shutdownErr := fwdAgent.Shutdown(); shutdownErr != nil {
+			b.Logger.Errorf("error shutting down agent: %v", shutdownErr)
+		}
+		return nil, nil, err
+	}
+	if err := os.Lchown(hostSock, int(hostUID), int(hostGID)); err != nil {
+		if shutdownErr := fwdAgent.Shutdown(); shutdownErr != nil {
+			b.Logger.Errorf("error shutting down agent: %v", shutdownErr)
+		}
+		return nil, nil, err
+	}
+	if err := os.Chmod(hostSock, os.FileMode(mode)); err != nil {
+		if shutdownErr := fwdAgent.Shutdown(); shutdownErr != nil {
+			b.Logger.Errorf("error shutting down agent: %v", shutdownErr)
+		}
+		return nil, nil, err
+	}
+	newMount := specs.Mount{
+		Destination: target,
+		Type:        "bind",
+		Source:      hostSock,
+		Options:     []string{"bind", "rprivate", "ro"},
+	}
+	return &newMount, fwdAgent, nil
 }
