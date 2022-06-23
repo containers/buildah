@@ -28,6 +28,8 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/internal"
 	internalParse "github.com/containers/buildah/internal/parse"
+	internalUtil "github.com/containers/buildah/internal/util"
+	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/pkg/sshagent"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libnetwork/etchosts"
@@ -40,8 +42,10 @@ import (
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
+	"github.com/containers/storage/pkg/lockfile"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/unshare"
+	storagetypes "github.com/containers/storage/types"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
@@ -1787,4 +1791,91 @@ func (b *Builder) getSSHMount(tokens []string, count int, sshsources map[string]
 		Options:     append(define.BindOptions, "rprivate", "ro"),
 	}
 	return &newMount, fwdAgent, nil
+}
+
+func (b *Builder) cleanupTempVolumes() {
+	for tempVolume, val := range b.TempVolumes {
+		if val {
+			if err := overlay.RemoveTemp(tempVolume); err != nil {
+				b.Logger.Errorf(err.Error())
+			}
+			b.TempVolumes[tempVolume] = false
+		}
+	}
+}
+
+// cleanupRunMounts cleans up run mounts so they only appear in this run.
+func (b *Builder) cleanupRunMounts(context *imagetypes.SystemContext, mountpoint string, artifacts *runMountArtifacts) error {
+	for _, agent := range artifacts.Agents {
+		err := agent.Shutdown()
+		if err != nil {
+			return err
+		}
+	}
+
+	//cleanup any mounted images for this run
+	for _, image := range artifacts.MountedImages {
+		if image != "" {
+			// if flow hits here some image was mounted for this run
+			i, err := internalUtil.LookupImage(context, b.store, image)
+			if err == nil {
+				// silently try to unmount and do nothing
+				// if image is being used by something else
+				_ = i.Unmount(false)
+			}
+			if errors.Is(err, storagetypes.ErrImageUnknown) {
+				// Ignore only if ErrImageUnknown
+				// Reason: Image is already unmounted do nothing
+				continue
+			}
+			return err
+		}
+	}
+
+	opts := copier.RemoveOptions{
+		All: true,
+	}
+	for _, path := range artifacts.RunMountTargets {
+		err := copier.Remove(mountpoint, path, opts)
+		if err != nil {
+			return err
+		}
+	}
+	var prevErr error
+	for _, path := range artifacts.TmpFiles {
+		err := os.Remove(path)
+		if !os.IsNotExist(err) {
+			if prevErr != nil {
+				logrus.Error(prevErr)
+			}
+			prevErr = err
+		}
+	}
+	// unlock if any locked files from this RUN statement
+	for _, path := range artifacts.LockedTargets {
+		_, err := os.Stat(path)
+		if err != nil {
+			// Lockfile not found this might be a problem,
+			// since LockedTargets must contain list of all locked files
+			// don't break here since we need to unlock other files but
+			// log so user can take a look
+			logrus.Warnf("Lockfile %q was expected here, stat failed with %v", path, err)
+			continue
+		}
+		lockfile, err := lockfile.GetLockfile(path)
+		if err != nil {
+			// unable to get lockfile
+			// lets log error and continue
+			// unlocking other files
+			logrus.Warn(err)
+			continue
+		}
+		if lockfile.Locked() {
+			lockfile.Unlock()
+		} else {
+			logrus.Warnf("Lockfile %q was expected to be locked, this is unexpected", path)
+			continue
+		}
+	}
+	return prevErr
 }

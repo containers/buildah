@@ -18,18 +18,13 @@ import (
 	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/internal"
-	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/pkg/jail"
-	"github.com/containers/buildah/pkg/overlay"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libnetwork/resolvconf"
 	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/config"
-	imagetypes "github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/idtools"
-	"github.com/containers/storage/pkg/lockfile"
 	"github.com/containers/storage/pkg/stringid"
-	storagetypes "github.com/containers/storage/types"
 	"github.com/docker/go-units"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
@@ -316,17 +311,6 @@ func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]int
 	return nil, nil, errors.New("cache mounts not supported on freebsd")
 }
 
-func (b *Builder) cleanupTempVolumes() {
-	for tempVolume, val := range b.TempVolumes {
-		if val {
-			if err := overlay.RemoveTemp(tempVolume); err != nil {
-				b.Logger.Errorf(err.Error())
-			}
-			b.TempVolumes[tempVolume] = false
-		}
-	}
-}
-
 func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string, optionMounts []specs.Mount, idMaps IDMaps) (mounts []specs.Mount, Err error) {
 	// Make sure the overlay directory is clean before running
 	_, err := b.store.ContainerDirectory(b.ContainerID)
@@ -382,82 +366,6 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 		mounts = append(mounts, mount)
 	}
 	return mounts, nil
-}
-
-// cleanupRunMounts cleans up run mounts so they only appear in this run.
-func (b *Builder) cleanupRunMounts(context *imagetypes.SystemContext, mountpoint string, artifacts *runMountArtifacts) error {
-	for _, agent := range artifacts.Agents {
-		err := agent.Shutdown()
-		if err != nil {
-			return err
-		}
-	}
-
-	//cleanup any mounted images for this run
-	for _, image := range artifacts.MountedImages {
-		if image != "" {
-			// if flow hits here some image was mounted for this run
-			i, err := internalUtil.LookupImage(context, b.store, image)
-			if err == nil {
-				// silently try to unmount and do nothing
-				// if image is being used by something else
-				_ = i.Unmount(false)
-			}
-			if errors.Cause(err) == storagetypes.ErrImageUnknown {
-				// Ignore only if ErrImageUnknown
-				// Reason: Image is already unmounted do nothing
-				continue
-			}
-			return err
-		}
-	}
-
-	opts := copier.RemoveOptions{
-		All: true,
-	}
-	for _, path := range artifacts.RunMountTargets {
-		err := copier.Remove(mountpoint, path, opts)
-		if err != nil {
-			return err
-		}
-	}
-	var prevErr error
-	for _, path := range artifacts.TmpFiles {
-		err := os.Remove(path)
-		if !os.IsNotExist(err) {
-			if prevErr != nil {
-				logrus.Error(prevErr)
-			}
-			prevErr = err
-		}
-	}
-	// unlock if any locked files from this RUN statement
-	for _, path := range artifacts.LockedTargets {
-		_, err := os.Stat(path)
-		if err != nil {
-			// Lockfile not found this might be a problem,
-			// since LockedTargets must contain list of all locked files
-			// don't break here since we need to unlock other files but
-			// log so user can take a look
-			logrus.Warnf("Lockfile %q was expected here, stat failed with %v", path, err)
-			continue
-		}
-		lockfile, err := lockfile.GetLockfile(path)
-		if err != nil {
-			// unable to get lockfile
-			// lets log error and continue
-			// unlocking other files
-			logrus.Warn(err)
-			continue
-		}
-		if lockfile.Locked() {
-			lockfile.Unlock()
-		} else {
-			logrus.Warnf("Lockfile %q was expected to be locked, this is unexpected", path)
-			continue
-		}
-	}
-	return prevErr
 }
 
 func setupCapabilities(g *generate.Generator, defaultCapabilities, adds, drops []string) error {
