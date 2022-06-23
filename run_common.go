@@ -1279,7 +1279,13 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	}
 
 	// Get host UID and GID of the container process.
-	processUID, processGID, err := util.GetHostIDs(spec.Linux.UIDMappings, spec.Linux.GIDMappings, spec.Process.User.UID, spec.Process.User.GID)
+	var uidMap = []specs.LinuxIDMapping{}
+	var gidMap = []specs.LinuxIDMapping{}
+	if spec.Linux != nil {
+		uidMap = spec.Linux.UIDMappings
+		gidMap = spec.Linux.GIDMappings
+	}
+	processUID, processGID, err := util.GetHostIDs(uidMap, gidMap, spec.Process.User.UID, spec.Process.User.GID)
 	if err != nil {
 		return nil, err
 	}
@@ -1288,8 +1294,8 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	subscriptionMounts := subscriptions.MountsWithUIDGID(b.MountLabel, cdir, b.DefaultMountsFilePath, mountPoint, int(rootUID), int(rootGID), unshare.IsRootless(), false)
 
 	idMaps := IDMaps{
-		uidmap:     spec.Linux.UIDMappings,
-		gidmap:     spec.Linux.GIDMappings,
+		uidmap:     uidMap,
+		gidmap:     gidMap,
 		rootUID:    int(rootUID),
 		rootGID:    int(rootGID),
 		processUID: int(processUID),
@@ -1308,7 +1314,11 @@ func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath st
 	}
 
 	// Get the list of explicitly-specified volume mounts.
-	volumes, err := b.runSetupVolumeMounts(spec.Linux.MountLabel, volumeMounts, optionMounts, idMaps)
+	var mountLabel = ""
+	if spec.Linux != nil {
+		mountLabel = spec.Linux.MountLabel
+	}
+	volumes, err := b.runSetupVolumeMounts(mountLabel, volumeMounts, optionMounts, idMaps)
 	if err != nil {
 		return nil, err
 	}
@@ -1393,8 +1403,8 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 		mounts = append(mounts, specs.Mount{
 			Source:      volumePath,
 			Destination: volume,
-			Type:        "bind",
-			Options:     []string{"bind"},
+			Type:        define.TypeBind,
+			Options:     define.BindOptions,
 		})
 	}
 	return mounts, nil
