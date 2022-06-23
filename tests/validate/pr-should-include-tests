@@ -19,7 +19,7 @@ fi
 # HEAD should be good enough, but the CIRRUS envariable allows us to test
 head=${CIRRUS_CHANGE_IN_REPO:-HEAD}
 # Base of this PR. Here we absolutely rely on cirrus.
-base=$(git merge-base ${GITVALIDATE_EPOCH:-master} $head)
+base=$(git merge-base ${GITVALIDATE_EPOCH:-main} $head)
 
 # Sanity check:
 if [[ -z "$base" ]]; then

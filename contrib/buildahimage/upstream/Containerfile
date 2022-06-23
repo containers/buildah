@@ -18,36 +18,31 @@ ENV GOPATH=/root/buildah
 # Finally remove the buildah directory and a few other packages
 # that are needed for building but not running Buildah
 RUN useradd build && \
+    dnf -y copr enable rhcontainerbot/podman-next && \
     dnf -y update  && \
     rpm --setcaps shadow-utils 2>/dev/null && \
-    dnf -y install --enablerepo=updates-testing --exclude container-selinux \
-        make \
-        cpp \
-        crun \
-        golang \
-        bats \
-        btrfs-progs-devel \
-        device-mapper-devel \
-        glib2-devel \
-        gpgme-devel \
-        libassuan-devel \
-        libseccomp-devel \
-        git \
-        bzip2 \
-        xz \
-        go-md2man \
-        fuse-overlayfs \
-        fuse3 \
-        containers-common \
-        && \
-    mkdir /root/buildah && \
-    git clone https://github.com/containers/buildah /root/buildah/src/github.com/containers/buildah && \
-    cd /root/buildah/src/github.com/containers/buildah && \
-    make && \
-    make install && \
-    rm -rf /root/buildah/* && \
-    dnf -y remove bats git golang go-md2man make && \
-    dnf -y clean all
+    dnf -y install --enablerepo=updates-testing \
+     make \
+     cpp \
+     golang \
+     bats \
+     btrfs-progs-devel \
+     buildah \
+     device-mapper-devel \
+     glib2-devel \
+     gpgme-devel \
+     libassuan-devel \
+     libseccomp-devel \
+     git \
+     bzip2 \
+     xz \
+     go-md2man \
+     runc \
+     fuse-overlayfs \
+     fuse3 \
+     containers-common --exclude container-selinux; \
+     dnf -y remove bats git golang go-md2man make; \
+     dnf -y clean all;
 
 ADD https://raw.githubusercontent.com/containers/buildah/main/contrib/buildahimage/stable/containers.conf /etc/containers/
 
