@@ -35,17 +35,17 @@ import (
 	"github.com/containers/common/libnetwork/etchosts"
 	"github.com/containers/common/libnetwork/network"
 	"github.com/containers/common/libnetwork/resolvconf"
-	nettypes "github.com/containers/common/libnetwork/types"
+	netTypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/subscriptions"
-	imagetypes "github.com/containers/image/v5/types"
+	imageTypes "github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/lockfile"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/containers/storage/pkg/unshare"
-	storagetypes "github.com/containers/storage/types"
+	storageTypes "github.com/containers/storage/types"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
@@ -296,7 +296,7 @@ func (b *Builder) configureEnvironment(g *generate.Generator, options RunOptions
 }
 
 // getNetworkInterface creates the network interface
-func getNetworkInterface(store storage.Store, cniConfDir, cniPluginPath string) (nettypes.ContainerNetwork, error) {
+func getNetworkInterface(store storage.Store, cniConfDir, cniPluginPath string) (netTypes.ContainerNetwork, error) {
 	conf, err := config.Default()
 	if err != nil {
 		return nil, err
@@ -1531,7 +1531,7 @@ func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMap
 	return finalMounts, artifacts, nil
 }
 
-func (b *Builder) getBindMount(tokens []string, context *imagetypes.SystemContext, contextDir string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps) (*spec.Mount, string, error) {
+func (b *Builder) getBindMount(tokens []string, context *imageTypes.SystemContext, contextDir string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps) (*spec.Mount, string, error) {
 	if contextDir == "" {
 		return nil, "", errors.New("Context Directory for current run invocation is not configured")
 	}
@@ -1805,7 +1805,7 @@ func (b *Builder) cleanupTempVolumes() {
 }
 
 // cleanupRunMounts cleans up run mounts so they only appear in this run.
-func (b *Builder) cleanupRunMounts(context *imagetypes.SystemContext, mountpoint string, artifacts *runMountArtifacts) error {
+func (b *Builder) cleanupRunMounts(context *imageTypes.SystemContext, mountpoint string, artifacts *runMountArtifacts) error {
 	for _, agent := range artifacts.Agents {
 		err := agent.Shutdown()
 		if err != nil {
@@ -1823,7 +1823,7 @@ func (b *Builder) cleanupRunMounts(context *imagetypes.SystemContext, mountpoint
 				// if image is being used by something else
 				_ = i.Unmount(false)
 			}
-			if errors.Is(err, storagetypes.ErrImageUnknown) {
+			if errors.Is(err, storageTypes.ErrImageUnknown) {
 				// Ignore only if ErrImageUnknown
 				// Reason: Image is already unmounted do nothing
 				continue
