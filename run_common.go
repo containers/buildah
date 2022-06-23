@@ -1625,7 +1625,7 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 	switch secr.SourceType {
 	case "env":
 		data = []byte(os.Getenv(secr.Source))
-		tmpFile, err := ioutil.TempFile("/dev/shm", "buildah*")
+		tmpFile, err := ioutil.TempFile(define.TempDir, "buildah*")
 		if err != nil {
 			return nil, "", err
 		}
@@ -1669,9 +1669,9 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 	}
 	newMount := specs.Mount{
 		Destination: target,
-		Type:        "bind",
+		Type:        define.TypeBind,
 		Source:      ctrFileOnHost,
-		Options:     []string{"bind", "rprivate", "ro"},
+		Options:     append(define.BindOptions, "rprivate", "ro"),
 	}
 	return &newMount, envFile, nil
 }
@@ -1782,9 +1782,9 @@ func (b *Builder) getSSHMount(tokens []string, count int, sshsources map[string]
 	}
 	newMount := specs.Mount{
 		Destination: target,
-		Type:        "bind",
+		Type:        define.TypeBind,
 		Source:      hostSock,
-		Options:     []string{"bind", "rprivate", "ro"},
+		Options:     append(define.BindOptions, "rprivate", "ro"),
 	}
 	return &newMount, fwdAgent, nil
 }
