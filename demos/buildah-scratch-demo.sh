@@ -7,6 +7,22 @@
 #   buildah login quay.io
 # Set some of the variables below
 
+#################
+#  is_rootless  #  Check if we run as normal user
+#################
+function is_rootless() {
+    [ "$(id -u)" -ne 0 ]
+}
+
+## Steps in this demo use pkg-managers like dnf and yum which
+## must be invoked as root. Similarly `buildah mount` only work
+## as root. The `buildah unshare` command switches your user
+## session to root within the user namespace.
+if is_rootless; then
+  buildah unshare $0
+  exit
+fi
+
 demoimg=myshdemo
 quayuser=ipbabble
 myname=WilliamHenry
