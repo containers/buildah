@@ -56,6 +56,7 @@ function stophttpd() {
 
 function teardown() {
     stophttpd
+    stop_git_daemon
 
     # Workaround for #1991 - buildah + overlayfs leaks mount points.
     # Many tests leave behind /var/tmp/.../root/overlay and sub-mounts;
@@ -394,5 +395,20 @@ function skip_if_no_docker() {
   docker_version=$(docker --version)
   if [[ $docker_version =~ podman ]]; then
     skip "this test needs actual docker, not podman-docker"
+  fi
+}
+
+function start_git_daemon() {
+  daemondir=${TESTDIR}/git-daemon
+  mkdir -p ${daemondir}/repo
+  gzip -dc < ${1:-${TESTSDIR}/git-daemon/repo.tar.gz} | tar x -C ${daemondir}/repo
+  GITPORT=$(($RANDOM + 32768))
+  git daemon --detach --pid-file=${TESTDIR}/git-daemon/pid --reuseaddr --port=${GITPORT} --base-path=${daemondir} ${daemondir}
+}
+
+function stop_git_daemon() {
+  if test -s ${TESTDIR}/git-daemon/pid ; then
+    kill $(cat ${TESTDIR}/git-daemon/pid)
+    rm -f ${TESTDIR}/git-daemon/pid
   fi
 }
