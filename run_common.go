@@ -6,6 +6,7 @@ package buildah
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -23,6 +24,7 @@ import (
 	"time"
 
 	"github.com/containers/buildah/bind"
+	"github.com/containers/buildah/copier"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libnetwork/etchosts"
@@ -30,10 +32,13 @@ import (
 	"github.com/containers/common/libnetwork/resolvconf"
 	nettypes "github.com/containers/common/libnetwork/types"
 	"github.com/containers/common/pkg/config"
+	"github.com/containers/common/pkg/subscriptions"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/ioutils"
 	"github.com/containers/storage/pkg/reexec"
+	"github.com/containers/storage/pkg/unshare"
+	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -1237,4 +1242,160 @@ type runUsingRuntimeSubprocOptions struct {
 
 func init() {
 	reexec.Register(runUsingRuntimeCommand, runUsingRuntimeMain)
+}
+
+func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, runFileMounts []string, runMountInfo runMountInfo) (*runMountArtifacts, error) {
+	// Start building a new list of mounts.
+	var mounts []specs.Mount
+	haveMount := func(destination string) bool {
+		for _, mount := range mounts {
+			if mount.Destination == destination {
+				// Already have something to mount there.
+				return true
+			}
+		}
+		return false
+	}
+
+	specMounts, err := setupSpecialMountSpecChanges(spec, b.CommonBuildOpts.ShmSize)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the list of files we need to bind into the container.
+	bindFileMounts := runSetupBoundFiles(bundlePath, bindFiles)
+
+	// After this point we need to know the per-container persistent storage directory.
+	cdir, err := b.store.ContainerDirectory(b.ContainerID)
+	if err != nil {
+		return nil, fmt.Errorf("error determining work directory for container %q: %w", b.ContainerID, err)
+	}
+
+	// Figure out which UID and GID to tell the subscriptions package to use
+	// for files that it creates.
+	rootUID, rootGID, err := util.GetHostRootIDs(spec)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get host UID and GID of the container process.
+	processUID, processGID, err := util.GetHostIDs(spec.Linux.UIDMappings, spec.Linux.GIDMappings, spec.Process.User.UID, spec.Process.User.GID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the list of subscriptions mounts.
+	subscriptionMounts := subscriptions.MountsWithUIDGID(b.MountLabel, cdir, b.DefaultMountsFilePath, mountPoint, int(rootUID), int(rootGID), unshare.IsRootless(), false)
+
+	idMaps := IDMaps{
+		uidmap:     spec.Linux.UIDMappings,
+		gidmap:     spec.Linux.GIDMappings,
+		rootUID:    int(rootUID),
+		rootGID:    int(rootGID),
+		processUID: int(processUID),
+		processGID: int(processGID),
+	}
+	// Get the list of mounts that are just for this Run() call.
+	runMounts, mountArtifacts, err := b.runSetupRunMounts(runFileMounts, runMountInfo, idMaps)
+	if err != nil {
+		return nil, err
+	}
+	// Add temporary copies of the contents of volume locations at the
+	// volume locations, unless we already have something there.
+	builtins, err := runSetupBuiltinVolumes(b.MountLabel, mountPoint, cdir, builtinVolumes, int(rootUID), int(rootGID))
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the list of explicitly-specified volume mounts.
+	volumes, err := b.runSetupVolumeMounts(spec.Linux.MountLabel, volumeMounts, optionMounts, idMaps)
+	if err != nil {
+		return nil, err
+	}
+
+	// prepare list of mount destinations which can be cleaned up safely.
+	// we can clean bindFiles, subscriptionMounts and specMounts
+	// everything other than these might have users content
+	mountArtifacts.RunMountTargets = append(append(append(mountArtifacts.RunMountTargets, cleanableDestinationListFromMounts(bindFileMounts)...), cleanableDestinationListFromMounts(subscriptionMounts)...), cleanableDestinationListFromMounts(specMounts)...)
+
+	allMounts := util.SortMounts(append(append(append(append(append(volumes, builtins...), runMounts...), subscriptionMounts...), bindFileMounts...), specMounts...))
+	// Add them all, in the preferred order, except where they conflict with something that was previously added.
+	for _, mount := range allMounts {
+		if haveMount(mount.Destination) {
+			// Already mounting something there, no need to bother with this one.
+			continue
+		}
+		// Add the mount.
+		mounts = append(mounts, mount)
+	}
+
+	// Set the list in the spec.
+	spec.Mounts = mounts
+	return mountArtifacts, nil
+}
+
+func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtinVolumes []string, rootUID, rootGID int) ([]specs.Mount, error) {
+	var mounts []specs.Mount
+	hostOwner := idtools.IDPair{UID: rootUID, GID: rootGID}
+	// Add temporary copies of the contents of volume locations at the
+	// volume locations, unless we already have something there.
+	for _, volume := range builtinVolumes {
+		volumePath := filepath.Join(containerDir, "buildah-volumes", digest.Canonical.FromString(volume).Hex())
+		initializeVolume := false
+		// If we need to, create the directory that we'll use to hold
+		// the volume contents.  If we do need to create it, then we'll
+		// need to populate it, too, so make a note of that.
+		if _, err := os.Stat(volumePath); err != nil {
+			if !os.IsNotExist(err) {
+				return nil, err
+			}
+			logrus.Debugf("setting up built-in volume path at %q for %q", volumePath, volume)
+			if err = os.MkdirAll(volumePath, 0755); err != nil {
+				return nil, err
+			}
+			if err = label.Relabel(volumePath, mountLabel, false); err != nil {
+				return nil, err
+			}
+			initializeVolume = true
+		}
+		// Make sure the volume exists in the rootfs and read its attributes.
+		createDirPerms := os.FileMode(0755)
+		err := copier.Mkdir(mountPoint, filepath.Join(mountPoint, volume), copier.MkdirOptions{
+			ChownNew: &hostOwner,
+			ChmodNew: &createDirPerms,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("ensuring volume path %q: %w", filepath.Join(mountPoint, volume), err)
+		}
+		srcPath, err := copier.Eval(mountPoint, filepath.Join(mountPoint, volume), copier.EvalOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("evaluating path %q: %w", srcPath, err)
+		}
+		stat, err := os.Stat(srcPath)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+		// If we need to populate the mounted volume's contents with
+		// content from the rootfs, set it up now.
+		if initializeVolume {
+			if err = os.Chmod(volumePath, stat.Mode().Perm()); err != nil {
+				return nil, err
+			}
+			if err = os.Chown(volumePath, int(stat.Sys().(*syscall.Stat_t).Uid), int(stat.Sys().(*syscall.Stat_t).Gid)); err != nil {
+				return nil, err
+			}
+			logrus.Debugf("populating directory %q for volume %q using contents of %q", volumePath, volume, srcPath)
+			if err = extractWithTar(mountPoint, srcPath, volumePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return nil, fmt.Errorf("error populating directory %q for volume %q using contents of %q: %w", volumePath, volume, srcPath, err)
+			}
+		}
+		// Add the bind mount.
+		mounts = append(mounts, specs.Mount{
+			Source:      volumePath,
+			Destination: volume,
+			Type:        "bind",
+			Options:     []string{"bind"},
+		})
+	}
+	return mounts, nil
 }

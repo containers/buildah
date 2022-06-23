@@ -299,86 +299,6 @@ func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Gene
 	return nil
 }
 
-func (b *Builder) setupMounts(mountPoint string, spec *specs.Spec, bundlePath string, optionMounts []specs.Mount, bindFiles map[string]string, builtinVolumes, volumeMounts []string, runFileMounts []string, runMountInfo runMountInfo) (*runMountArtifacts, error) {
-	// Start building a new list of mounts.
-	var mounts []specs.Mount
-	haveMount := func(destination string) bool {
-		for _, mount := range mounts {
-			if mount.Destination == destination {
-				// Already have something to mount there.
-				return true
-			}
-		}
-		return false
-	}
-
-	specMounts := spec.Mounts
-
-	// Get the list of files we need to bind into the container.
-	bindFileMounts := runSetupBoundFiles(bundlePath, bindFiles)
-
-	// After this point we need to know the per-container persistent storage directory.
-	_, err := b.store.ContainerDirectory(b.ContainerID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error determining work directory for container %q", b.ContainerID)
-	}
-
-	// Figure out which UID and GID to tell the subscriptions package to use
-	// for files that it creates.
-	rootUID, rootGID, err := util.GetHostRootIDs(spec)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get host UID and GID of the container process.
-	processUID, processGID, err := util.GetHostIDs(nil, nil, spec.Process.User.UID, spec.Process.User.GID)
-	if err != nil {
-		return nil, err
-	}
-
-	idMaps := IDMaps{
-		rootUID:    int(rootUID),
-		rootGID:    int(rootGID),
-		processUID: int(processUID),
-		processGID: int(processGID),
-	}
-	// Get the list of mounts that are just for this Run() call.
-	runMounts, mountArtifacts, err := b.runSetupRunMounts(runFileMounts, runMountInfo, idMaps)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the list of explicitly-specified volume mounts.
-	volumes, err := b.runSetupVolumeMounts(volumeMounts, optionMounts)
-	if err != nil {
-		return nil, err
-	}
-
-	// prepare list of mount destinations which can be cleaned up safely.
-	// we can clean bindFiles, subscriptionMounts and specMounts
-	// everything other than these might have users content
-	mountArtifacts.RunMountTargets = append(mountArtifacts.RunMountTargets, cleanableDestinationListFromMounts(bindFileMounts)...)
-
-	allMounts := append(volumes, specMounts...)
-	allMounts = append(allMounts, runMounts...)
-	allMounts = append(allMounts, bindFileMounts...)
-	allMounts = util.SortMounts(allMounts)
-
-	// Add them all, in the preferred order, except where they conflict with something that was previously added.
-	for _, mount := range allMounts {
-		if haveMount(mount.Destination) {
-			// Already mounting something there, no need to bother with this one.
-			continue
-		}
-		// Add the mount.
-		mounts = append(mounts, mount)
-	}
-
-	// Set the list in the spec.
-	spec.Mounts = mounts
-	return mountArtifacts, nil
-}
-
 // Destinations which can be cleaned up after every RUN
 func cleanableDestinationListFromMounts(mounts []spec.Mount) []string {
 	mountDest := []string{}
@@ -394,6 +314,12 @@ func cleanableDestinationListFromMounts(mounts []spec.Mount) []string {
 		}
 	}
 	return mountDest
+}
+
+// setupSpecialMountSpecChanges creates special mounts for depending
+// on the namespaces - nothing yet for freebsd
+func setupSpecialMountSpecChanges(spec *spec.Spec, shmSize string) ([]specs.Mount, error) {
+	return spec.Mounts, nil
 }
 
 // runSetupRunMounts sets up mounts that exist only in this RUN, not in subsequent runs
@@ -731,7 +657,7 @@ func (b *Builder) getBindMount(tokens []string, context *imagetypes.SystemContex
 		return nil, image, err
 	}
 	optionMounts = append(optionMounts, mount)
-	volumes, err := b.runSetupVolumeMounts(nil, optionMounts)
+	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
 	if err != nil {
 		return nil, image, err
 	}
@@ -745,7 +671,7 @@ func (b *Builder) getTmpfsMount(tokens []string, idMaps IDMaps) (*spec.Mount, er
 		return nil, err
 	}
 	optionMounts = append(optionMounts, mount)
-	volumes, err := b.runSetupVolumeMounts(nil, optionMounts)
+	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
 	if err != nil {
 		return nil, err
 	}
@@ -763,8 +689,7 @@ func (b *Builder) cleanupTempVolumes() {
 	}
 }
 
-func (b *Builder) runSetupVolumeMounts(volumeMounts []string, optionMounts []specs.Mount) (mounts []specs.Mount, Err error) {
-
+func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string, optionMounts []specs.Mount, idMaps IDMaps) (mounts []specs.Mount, Err error) {
 	// Make sure the overlay directory is clean before running
 	_, err := b.store.ContainerDirectory(b.ContainerID)
 	if err != nil {
