@@ -52,6 +52,7 @@ BuildRequires: gpgme-devel
 BuildRequires: libassuan-devel
 BuildRequires: make
 BuildRequires: ostree-devel
+BuildRequires: shadow-utils-subid-devel
 %if 0%{?fedora} && ! 0%{?rhel}
 BuildRequires: btrfs-progs-devel
 %endif
@@ -123,7 +124,7 @@ mv vendor src
 export CNI_VERSION=`grep '^# github.com/containernetworking/cni ' src/modules.txt | sed 's,.* ,,'`
 export LDFLAGS="-X main.buildInfo=`date +%s` -X main.cniVersion=${CNI_VERSION}"
 
-export BUILDTAGS='seccomp selinux'
+export BUILDTAGS='seccomp libsubid selinux'
 %if 0%{?rhel}
 export BUILDTAGS='$BUILDTAGS exclude_graphdriver_btrfs btrfs_noversion'
 %endif
