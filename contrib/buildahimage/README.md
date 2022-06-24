@@ -32,7 +32,9 @@ The container images are:
   * `quay.io/buildah/upstream:latest` - This image is built daily using the latest
     code found in this GitHub repository.  Due to the image changing frequently,
     it's not guaranteed to be stable or even executable.  The image is built with
-    [the upstream Dockerfile](upstream/Dockerfile).
+    [the upstream Dockerfile](upstream/Dockerfile).  Note: The actual compilation
+    of upstream buildah [occurs continuously in
+    COPR](https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/).
 
 
 ## Sample Usage
