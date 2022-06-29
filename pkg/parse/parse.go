@@ -147,6 +147,7 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 
 	secrets, _ := flags.GetStringArray("secret")
 	sshsources, _ := flags.GetStringArray("ssh")
+	ociHooks, _ := flags.GetStringArray("hooks-dir")
 
 	commonOpts := &define.CommonBuildOptions{
 		AddHost:       addHost,
@@ -170,6 +171,7 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 		Volumes:       volumes,
 		Secrets:       secrets,
 		SSHSources:    sshsources,
+		OCIHooksDir:   ociHooks,
 	}
 	securityOpts, _ := flags.GetStringArray("security-opt")
 	if err := parseSecurityOpts(securityOpts, commonOpts); err != nil {

@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/containers/image/v5/docker/reference"
-	"github.com/containers/image/v5/image"
 	internalblobinfocache "github.com/containers/image/v5/internal/blobinfocache"
+	"github.com/containers/image/v5/internal/image"
 	"github.com/containers/image/v5/internal/imagedestination"
 	"github.com/containers/image/v5/internal/imagesource"
 	"github.com/containers/image/v5/internal/pkg/platform"
@@ -82,7 +82,7 @@ type copier struct {
 type imageCopier struct {
 	c                          *copier
 	manifestUpdates            *types.ManifestUpdateOptions
-	src                        types.Image
+	src                        *image.SourcedImage
 	diffIDsAreNeeded           bool
 	cannotModifyManifestReason string // The reason the manifest cannot be modified, or an empty string if it can
 	canSubstituteBlobs         bool
@@ -349,13 +349,8 @@ func supportsMultipleImages(dest types.ImageDestination) bool {
 
 // compareImageDestinationManifestEqual compares the `src` and `dest` image manifests (reading the manifest from the
 // (possibly remote) destination). Returning true and the destination's manifest, type and digest if they compare equal.
-func compareImageDestinationManifestEqual(ctx context.Context, options *Options, src types.Image, targetInstance *digest.Digest, dest types.ImageDestination) (bool, []byte, string, digest.Digest, error) {
-	srcManifest, _, err := src.Manifest(ctx)
-	if err != nil {
-		return false, nil, "", "", errors.Wrapf(err, "reading manifest from image")
-	}
-
-	srcManifestDigest, err := manifest.Digest(srcManifest)
+func compareImageDestinationManifestEqual(ctx context.Context, options *Options, src *image.SourcedImage, targetInstance *digest.Digest, dest types.ImageDestination) (bool, []byte, string, digest.Digest, error) {
+	srcManifestDigest, err := manifest.Digest(src.ManifestBlob)
 	if err != nil {
 		return false, nil, "", "", errors.Wrapf(err, "calculating manifest digest")
 	}
@@ -620,11 +615,7 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 	if named := c.dest.Reference().DockerReference(); named != nil {
 		if digested, ok := named.(reference.Digested); ok {
 			destIsDigestedReference = true
-			sourceManifest, _, err := src.Manifest(ctx)
-			if err != nil {
-				return nil, "", "", errors.Wrapf(err, "reading manifest from source image")
-			}
-			matches, err := manifest.MatchesDigest(sourceManifest, digested.Digest())
+			matches, err := manifest.MatchesDigest(src.ManifestBlob, digested.Digest())
 			if err != nil {
 				return nil, "", "", errors.Wrapf(err, "computing digest of source image's manifest")
 			}
@@ -702,11 +693,22 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 
 	destRequiresOciEncryption := (isEncrypted(src) && ic.c.ociDecryptConfig != nil) || options.OciEncryptLayers != nil
 
-	// We compute preferredManifestMIMEType only to show it in error messages.
-	// Without having to add this context in an error message, we would be happy enough to know only that no conversion is needed.
-	preferredManifestMIMEType, otherManifestMIMETypeCandidates, err := ic.determineManifestConversion(ctx, c.dest.SupportedManifestMIMETypes(), options.ForceManifestMIMEType, destRequiresOciEncryption)
+	manifestConversionPlan, err := determineManifestConversion(determineManifestConversionInputs{
+		srcMIMEType:                    ic.src.ManifestMIMEType,
+		destSupportedManifestMIMETypes: ic.c.dest.SupportedManifestMIMETypes(),
+		forceManifestMIMEType:          options.ForceManifestMIMEType,
+		requiresOCIEncryption:          destRequiresOciEncryption,
+		cannotModifyManifestReason:     ic.cannotModifyManifestReason,
+	})
 	if err != nil {
 		return nil, "", "", err
+	}
+	// We set up this part of ic.manifestUpdates quite early, not just around the
+	// code that calls copyUpdatedConfigAndManifest, so that other parts of the copy code
+	// (e.g. the UpdatedImageNeedsLayerDiffIDs check just below) can make decisions based
+	// on the expected destination format.
+	if manifestConversionPlan.preferredMIMETypeNeedsConversion {
+		ic.manifestUpdates.ManifestMIMEType = manifestConversionPlan.preferredMIMEType
 	}
 
 	// If src.UpdatedImageNeedsLayerDiffIDs(ic.manifestUpdates) will be true, it needs to be true by the time we get here.
@@ -742,22 +744,22 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 	// So, try the preferred manifest MIME type with possibly-updated blob digests, media types, and sizes if
 	// we're altering how they're compressed.  If the process succeeds, fine…
 	manifestBytes, retManifestDigest, err := ic.copyUpdatedConfigAndManifest(ctx, targetInstance)
-	retManifestType = preferredManifestMIMEType
+	retManifestType = manifestConversionPlan.preferredMIMEType
 	if err != nil {
-		logrus.Debugf("Writing manifest using preferred type %s failed: %v", preferredManifestMIMEType, err)
+		logrus.Debugf("Writing manifest using preferred type %s failed: %v", manifestConversionPlan.preferredMIMEType, err)
 		// … if it fails, and the failure is either because the manifest is rejected by the registry, or
 		// because we failed to create a manifest of the specified type because the specific manifest type
 		// doesn't support the type of compression we're trying to use (e.g. docker v2s2 and zstd), we may
 		// have other options available that could still succeed.
 		_, isManifestRejected := errors.Cause(err).(types.ManifestTypeRejectedError)
 		_, isCompressionIncompatible := errors.Cause(err).(manifest.ManifestLayerCompressionIncompatibilityError)
-		if (!isManifestRejected && !isCompressionIncompatible) || len(otherManifestMIMETypeCandidates) == 0 {
+		if (!isManifestRejected && !isCompressionIncompatible) || len(manifestConversionPlan.otherMIMETypeCandidates) == 0 {
 			// We don’t have other options.
 			// In principle the code below would handle this as well, but the resulting  error message is fairly ugly.
 			// Don’t bother the user with MIME types if we have no choice.
 			return nil, "", "", err
 		}
-		// If the original MIME type is acceptable, determineManifestConversion always uses it as preferredManifestMIMEType.
+		// If the original MIME type is acceptable, determineManifestConversion always uses it as manifestConversionPlan.preferredMIMEType.
 		// So if we are here, we will definitely be trying to convert the manifest.
 		// With ic.cannotModifyManifestReason != "", that would just be a string of repeated failures for the same reason,
 		// so let’s bail out early and with a better error message.
@@ -766,8 +768,8 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 		}
 
 		// errs is a list of errors when trying various manifest types. Also serves as an "upload succeeded" flag when set to nil.
-		errs := []string{fmt.Sprintf("%s(%v)", preferredManifestMIMEType, err)}
-		for _, manifestMIMEType := range otherManifestMIMETypeCandidates {
+		errs := []string{fmt.Sprintf("%s(%v)", manifestConversionPlan.preferredMIMEType, err)}
+		for _, manifestMIMEType := range manifestConversionPlan.otherMIMETypeCandidates {
 			logrus.Debugf("Trying to use manifest type %s…", manifestMIMEType)
 			ic.manifestUpdates.ManifestMIMEType = manifestMIMEType
 			attemptedManifest, attemptedManifestDigest, err := ic.copyUpdatedConfigAndManifest(ctx, targetInstance)
@@ -908,11 +910,7 @@ func (ic *imageCopier) copyLayers(ctx context.Context) error {
 
 	// The manifest is used to extract the information whether a given
 	// layer is empty.
-	manifestBlob, manifestType, err := ic.src.Manifest(ctx)
-	if err != nil {
-		return err
-	}
-	man, err := manifest.FromBlob(manifestBlob, manifestType)
+	man, err := manifest.FromBlob(ic.src.ManifestBlob, ic.src.ManifestMIMEType)
 	if err != nil {
 		return err
 	}
@@ -1022,7 +1020,7 @@ func layerDigestsDiffer(a, b []types.BlobInfo) bool {
 // stores the resulting config and manifest to the destination, and returns the stored manifest
 // and its digest.
 func (ic *imageCopier) copyUpdatedConfigAndManifest(ctx context.Context, instanceDigest *digest.Digest) ([]byte, digest.Digest, error) {
-	pendingImage := ic.src
+	var pendingImage types.Image = ic.src
 	if !ic.noPendingManifestUpdates() {
 		if ic.cannotModifyManifestReason != "" {
 			return nil, "", errors.Errorf("Internal error: copy needs an updated manifest but that was known to be forbidden: %q", ic.cannotModifyManifestReason)
