@@ -330,6 +330,18 @@ _EOF
   expect_output --substring "from-hook"
 }
 
+@test "build with add resolving to invalid HTTP status code" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+ADD https://google.com/test /
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "invalid response status"
+}
+
 # Test skipping images with FROM
 @test "build-test skipping unwanted stages with FROM" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
