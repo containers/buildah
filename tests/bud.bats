@@ -330,6 +330,18 @@ _EOF
   expect_output --substring "from-hook"
 }
 
+@test "build with add resolving to invalid HTTP status code" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+ADD https://google.com/test /
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "invalid response status"
+}
+
 # Test skipping images with FROM
 @test "build-test skipping unwanted stages with FROM" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
@@ -1830,7 +1842,7 @@ function _test_http() {
   target=url-image
   url=https://raw.githubusercontent.com/containers/buildah/main/tests/bud/from-scratch/Dockerfile.bogus
   run_buildah 125 build $WITH_POLICY_JSON -t ${target} ${url}
-  expect_output "no FROM statement found"
+  expect_output --substring "invalid response status 404"
 }
 
 # When provided with a -f flag and directory, buildah will look for the alternate Dockerfile name in the supplied directory
