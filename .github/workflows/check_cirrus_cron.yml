@@ -17,6 +17,22 @@ on:
         - cron:  '59 23 * * 1-5'
     # Debug: Allow triggering job manually in github-actions WebUI
     workflow_dispatch: {}
+    # Allow re-use of this workflow by other repositories
+    # Ref: https://docs.github.com/en/actions/using-workflows/reusing-workflows
+    workflow_call:
+      secrets:
+        # Debug-mode can reveal secrets, force it to be secrets-managed.
+        ACTIONS_STEP_DEBUG:
+          required: true
+        ACTION_MAIL_SERVER:
+          required: true
+        ACTION_MAIL_USERNAME:
+          required: true
+        ACTION_MAIL_PASSWORD:
+          required: true
+        ACTION_MAIL_SENDER:
+          required: true
+
 
 env:
     # Debug-mode can reveal secrets, only enable by a secret value.
