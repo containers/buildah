@@ -19,6 +19,18 @@ load helpers
   expect_output --substring "options use-vc"
 }
 
+@test "build with add resolving to invalid HTTP status code" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+ADD https://google.com/test /
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "invalid response status"
+}
+
 @test "bud with .dockerignore #1" {
   _prefetch alpine busybox
   run_buildah 125 build -t testbud --signature-policy ${TESTSDIR}/policy.json -f ${TESTSDIR}/bud/dockerignore/Dockerfile ${TESTSDIR}/bud/dockerignore
