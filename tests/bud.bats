@@ -1842,7 +1842,7 @@ function _test_http() {
   target=url-image
   url=https://raw.githubusercontent.com/containers/buildah/main/tests/bud/from-scratch/Dockerfile.bogus
   run_buildah 125 build $WITH_POLICY_JSON -t ${target} ${url}
-  expect_output "no FROM statement found"
+  expect_output --substring "invalid response status 404"
 }
 
 # When provided with a -f flag and directory, buildah will look for the alternate Dockerfile name in the supplied directory
