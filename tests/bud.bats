@@ -202,6 +202,18 @@ _EOF
   expect_output --substring $targetarch
 }
 
+@test "build with add resolving to invalid HTTP status code" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+ADD https://google.com/test /
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "invalid response status"
+}
+
 @test "bud with --layers and --no-cache flags" {
   cp -a $BUDFILES/use-layers ${TEST_SCRATCH_DIR}/use-layers
 
