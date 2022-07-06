@@ -114,6 +114,7 @@ validate: install.tools
 	./hack/xref-helpmsgs-manpages
 	./tests/validate/pr-should-include-tests
 	./tests/validate/buildahimages-are-sane
+	./tests/validate/rpmspec-parses.sh
 
 .PHONY: install.tools
 install.tools:
