@@ -1,11 +1,12 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -47,10 +48,10 @@ func init() {
 
 func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 	if len(args) > 1 {
-		return errors.Errorf("too many arguments, login takes only 1 argument")
+		return errors.New("too many arguments, login takes only 1 argument")
 	}
 	if len(args) == 0 {
-		return errors.Errorf("please specify a registry to login to")
+		return errors.New("please specify a registry to login to")
 	}
 
 	if err := setXDGRuntimeDir(); err != nil {
@@ -59,7 +60,7 @@ func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 	ctx := getContext()
 	iopts.loginOpts.GetLoginSet = c.Flag("get-login").Changed

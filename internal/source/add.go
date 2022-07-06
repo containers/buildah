@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,7 +12,6 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/archive"
 	specV1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // AddOptions include data to alter certain knobs when adding a source artifact
@@ -29,10 +29,10 @@ func (o *AddOptions) annotations() (map[string]string, error) {
 	for _, unparsed := range o.Annotations {
 		parsed := strings.SplitN(unparsed, "=", 2)
 		if len(parsed) != 2 {
-			return nil, errors.Errorf("invalid annotation %q (expected format is \"key=value\")", unparsed)
+			return nil, fmt.Errorf("invalid annotation %q (expected format is \"key=value\")", unparsed)
 		}
 		if _, exists := annotations[parsed[0]]; exists {
-			return nil, errors.Errorf("annotation %q specified more than once", parsed[0])
+			return nil, fmt.Errorf("annotation %q specified more than once", parsed[0])
 		}
 		annotations[parsed[0]] = parsed[1]
 	}
@@ -62,7 +62,7 @@ func Add(ctx context.Context, sourcePath string, artifactPath string, options Ad
 
 	tarStream, err := archive.TarWithOptions(artifactPath, &archive.TarOptions{Compression: archive.Gzip})
 	if err != nil {
-		return errors.Wrap(err, "error creating compressed tar stream")
+		return fmt.Errorf("error creating compressed tar stream: %w", err)
 	}
 
 	info := types.BlobInfo{
@@ -70,7 +70,7 @@ func Add(ctx context.Context, sourcePath string, artifactPath string, options Ad
 	}
 	addedBlob, err := ociDest.PutBlob(ctx, tarStream, info, nil, false)
 	if err != nil {
-		return errors.Wrap(err, "error adding source artifact")
+		return fmt.Errorf("error adding source artifact: %w", err)
 	}
 
 	// Add the new layers to the source image's manifest.
@@ -97,7 +97,7 @@ func Add(ctx context.Context, sourcePath string, artifactPath string, options Ad
 	// manually.  Not an issue, since paths are predictable for an OCI
 	// layout.
 	if err := removeBlob(oldManifestDigest, sourcePath); err != nil {
-		return errors.Wrap(err, "error removing old manifest")
+		return fmt.Errorf("error removing old manifest: %w", err)
 	}
 
 	manifestDescriptor := specV1.Descriptor{

@@ -6,7 +6,6 @@ import (
 	"os"
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -77,7 +76,7 @@ func mountCmd(c *cobra.Command, args []string, opts mountOptions) error {
 		// Differently, allow the mount if we are already in a userns, as the mount point will still
 		// be accessible once "buildah mount" exits.
 		if os.Geteuid() != 0 && store.GraphDriverName() != "vfs" {
-			return errors.Errorf("cannot mount using driver %s in rootless mode. You need to run it in a `buildah unshare` session", store.GraphDriverName())
+			return fmt.Errorf("cannot mount using driver %s in rootless mode. You need to run it in a `buildah unshare` session", store.GraphDriverName())
 		}
 
 		for _, name := range args {
@@ -86,7 +85,7 @@ func mountCmd(c *cobra.Command, args []string, opts mountOptions) error {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
 				}
-				lastError = errors.Wrapf(err, "error reading build container %q", name)
+				lastError = fmt.Errorf("error reading build container %q: %w", name, err)
 				continue
 			}
 			mountPoint, err := builder.Mount(builder.MountLabel)
@@ -94,7 +93,7 @@ func mountCmd(c *cobra.Command, args []string, opts mountOptions) error {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
 				}
-				lastError = errors.Wrapf(err, "error mounting %q container %q", name, builder.Container)
+				lastError = fmt.Errorf("error mounting %q container %q: %w", name, builder.Container, err)
 				continue
 			}
 			if len(args) > 1 {
@@ -114,7 +113,7 @@ func mountCmd(c *cobra.Command, args []string, opts mountOptions) error {
 	} else {
 		builders, err := openBuilders(store)
 		if err != nil {
-			return errors.Wrapf(err, "error reading build containers")
+			return fmt.Errorf("error reading build containers: %w", err)
 		}
 
 		for _, builder := range builders {

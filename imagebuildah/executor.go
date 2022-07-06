@@ -2,6 +2,7 @@ package imagebuildah
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,7 +35,6 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/openshift/imagebuilder"
 	"github.com/openshift/imagebuilder/dockerfile/parser"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 )
@@ -151,7 +151,7 @@ type imageTypeAndHistoryAndDiffIDs struct {
 func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, options define.BuildOptions, mainNode *parser.Node) (*Executor, error) {
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get container config")
+		return nil, fmt.Errorf("failed to get container config: %w", err)
 	}
 
 	excludes := options.Excludes
@@ -396,7 +396,7 @@ func (b *Executor) waitForStage(ctx context.Context, name string, stages imagebu
 		b.stagesSemaphore.Release(1)
 		time.Sleep(time.Millisecond * 10)
 		if err := b.stagesSemaphore.Acquire(ctx, 1); err != nil {
-			return true, errors.Wrapf(err, "error reacquiring job semaphore")
+			return true, fmt.Errorf("error reacquiring job semaphore: %w", err)
 		}
 	}
 }
@@ -411,20 +411,20 @@ func (b *Executor) getImageTypeAndHistoryAndDiffIDs(ctx context.Context, imageID
 	}
 	imageRef, err := is.Transport.ParseStoreReference(b.store, "@"+imageID)
 	if err != nil {
-		return "", nil, nil, errors.Wrapf(err, "error getting image reference %q", imageID)
+		return "", nil, nil, fmt.Errorf("error getting image reference %q: %w", imageID, err)
 	}
 	ref, err := imageRef.NewImage(ctx, nil)
 	if err != nil {
-		return "", nil, nil, errors.Wrapf(err, "error creating new image from reference to image %q", imageID)
+		return "", nil, nil, fmt.Errorf("error creating new image from reference to image %q: %w", imageID, err)
 	}
 	defer ref.Close()
 	oci, err := ref.OCIConfig(ctx)
 	if err != nil {
-		return "", nil, nil, errors.Wrapf(err, "error getting possibly-converted OCI config of image %q", imageID)
+		return "", nil, nil, fmt.Errorf("error getting possibly-converted OCI config of image %q: %w", imageID, err)
 	}
 	manifestBytes, manifestFormat, err := ref.Manifest(ctx)
 	if err != nil {
-		return "", nil, nil, errors.Wrapf(err, "error getting manifest of image %q", imageID)
+		return "", nil, nil, fmt.Errorf("error getting manifest of image %q: %w", imageID, err)
 	}
 	if manifestFormat == "" && len(manifestBytes) > 0 {
 		manifestFormat = manifest.GuessMIMEType(manifestBytes)
@@ -585,7 +585,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			}
 			if _, err := b.store.DeleteImage(removeID, true); err != nil {
 				logrus.Debugf("failed to remove intermediate image %q: %v", removeID, err)
-				if b.forceRmIntermediateCtrs || errors.Cause(err) != storage.ErrImageUsedByContainer {
+				if b.forceRmIntermediateCtrs || !errors.Is(err, storage.ErrImageUsedByContainer) {
 					lastErr = err
 				}
 			}
@@ -607,7 +607,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			if err == nil {
 				err = cleanupErr
 			} else {
-				err = errors.Wrap(err, cleanupErr.Error())
+				err = fmt.Errorf("%v: %w", cleanupErr.Error(), err)
 			}
 		}
 	}()
@@ -644,7 +644,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 							userArgs := argsMapToSlice(stage.Builder.Args)
 							baseWithArg, err := imagebuilder.ProcessWord(base, userArgs)
 							if err != nil {
-								return "", nil, errors.Wrapf(err, "while replacing arg variables with values for format %q", base)
+								return "", nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", base, err)
 							}
 							b.baseMap[baseWithArg] = true
 							logrus.Debugf("base for stage %d: %q", stageIndex, base)
@@ -775,9 +775,9 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 				if cancel || cleanupStages == nil {
 					var err error
 					if stages[index].Name != strconv.Itoa(index) {
-						err = errors.Errorf("not building stage %d: build canceled", index)
+						err = fmt.Errorf("not building stage %d: build canceled", index)
 					} else {
-						err = errors.Errorf("not building stage %d (%s): build canceled", index, stages[index].Name)
+						err = fmt.Errorf("not building stage %d (%s): build canceled", index, stages[index].Name)
 					}
 					ch <- Result{
 						Index: index,
@@ -867,18 +867,18 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 		case is.Transport.Name():
 			img, err := is.Transport.GetStoreImage(b.store, dest)
 			if err != nil {
-				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
+				return imageID, ref, fmt.Errorf("error locating just-written image %q: %w", transports.ImageName(dest), err)
 			}
 			if len(b.additionalTags) > 0 {
 				if err = util.AddImageNames(b.store, "", b.systemContext, img, b.additionalTags); err != nil {
-					return imageID, ref, errors.Wrapf(err, "error setting image names to %v", append(img.Names, b.additionalTags...))
+					return imageID, ref, fmt.Errorf("error setting image names to %v: %w", append(img.Names, b.additionalTags...), err)
 				}
 				logrus.Debugf("assigned names %v to image %q", img.Names, img.ID)
 			}
 			// Report back the caller the tags applied, if any.
 			img, err = is.Transport.GetStoreImage(b.store, dest)
 			if err != nil {
-				return imageID, ref, errors.Wrapf(err, "error locating just-written image %q", transports.ImageName(dest))
+				return imageID, ref, fmt.Errorf("error locating just-written image %q: %w", transports.ImageName(dest), err)
 			}
 			for _, name := range img.Names {
 				fmt.Fprintf(b.out, "Successfully tagged %s\n", name)
@@ -897,11 +897,11 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 	logrus.Debugf("printing final image id %q", imageID)
 	if b.iidfile != "" {
 		if err = ioutil.WriteFile(b.iidfile, []byte("sha256:"+imageID), 0644); err != nil {
-			return imageID, ref, errors.Wrapf(err, "failed to write image ID to file %q", b.iidfile)
+			return imageID, ref, fmt.Errorf("failed to write image ID to file %q: %w", b.iidfile, err)
 		}
 	} else {
 		if _, err := stdout.Write([]byte(imageID + "\n")); err != nil {
-			return imageID, ref, errors.Wrapf(err, "failed to write image ID to stdout")
+			return imageID, ref, fmt.Errorf("failed to write image ID to stdout: %w", err)
 		}
 	}
 	return imageID, ref, nil

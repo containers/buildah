@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/libimage"
 	"github.com/docker/go-units"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -108,7 +108,7 @@ func init() {
 func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 	if len(args) > 0 {
 		if iopts.all {
-			return errors.Errorf("when using the --all switch, you may not pass any images names or IDs")
+			return errors.New("when using the --all switch, you may not pass any images names or IDs")
 		}
 
 		if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
@@ -125,7 +125,7 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 	}
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
@@ -148,7 +148,7 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 	}
 
 	if iopts.quiet && iopts.format != "" {
-		return errors.Errorf("quiet and format are mutually exclusive")
+		return errors.New("quiet and format are mutually exclusive")
 	}
 
 	opts := imageOptions{

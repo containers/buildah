@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -11,7 +12,6 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -81,13 +81,13 @@ func init() {
 
 func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 	if len(args) == 0 {
-		return errors.Errorf("an image name must be specified")
+		return errors.New("an image name must be specified")
 	}
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
 	if len(args) > 1 {
-		return errors.Errorf("too many arguments specified")
+		return errors.New("too many arguments specified")
 	}
 	if err := auth.CheckAuthFile(iopts.authfile); err != nil {
 		return err
@@ -95,7 +95,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 	platforms, err := parse.PlatformsFromOptions(c)
 	if err != nil {
@@ -112,7 +112,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 
 	decConfig, err := util.DecryptConfig(iopts.decryptionKeys)
 	if err != nil {
-		return errors.Wrapf(err, "unable to obtain decrypt config")
+		return fmt.Errorf("unable to obtain decrypt config: %w", err)
 	}
 
 	policy, ok := define.PolicyMap[iopts.pullPolicy]

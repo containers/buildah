@@ -1,8 +1,9 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/containers/buildah"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -37,21 +38,21 @@ func renameCmd(c *cobra.Command, args []string) error {
 
 	builder, err = openBuilder(getContext(), store, name)
 	if err != nil {
-		return errors.Wrapf(err, "error reading build container %q", name)
+		return fmt.Errorf("error reading build container %q: %w", name, err)
 	}
 
 	oldName := builder.Container
 	if oldName == newName {
-		return errors.Errorf("renaming a container with the same name as its current name")
+		return fmt.Errorf("renaming a container with the same name as its current name")
 	}
 
 	if build, err := openBuilder(getContext(), store, newName); err == nil {
-		return errors.Errorf("The container name %q is already in use by container %q", newName, build.ContainerID)
+		return fmt.Errorf("The container name %q is already in use by container %q", newName, build.ContainerID)
 	}
 
 	err = store.SetNames(builder.ContainerID, []string{newName})
 	if err != nil {
-		return errors.Wrapf(err, "error renaming container %q to the name %q", oldName, newName)
+		return fmt.Errorf("error renaming container %q to the name %q: %w", oldName, newName, err)
 	}
 	builder.Container = newName
 	return builder.Save()

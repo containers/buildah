@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/reexec"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/syndtr/gocapability/capability"
@@ -41,7 +41,7 @@ func getWrapped(root string, directory string, getOptions GetOptions, globs []st
 	}
 	encoded, err := json.Marshal(&options)
 	if err != nil {
-		return errors.Wrapf(err, "error marshalling options")
+		return fmt.Errorf("error marshalling options: %w", err)
 	}
 	cmd := reexec.Command("get")
 	cmd.Env = append(cmd.Env, "OPTIONS="+string(encoded))

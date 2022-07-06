@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -10,7 +12,6 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/storage/pkg/lockfile"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -88,7 +89,7 @@ func init() {
 
 func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	if len(args) == 0 {
-		return errors.Errorf("container ID must be specified")
+		return errors.New("container ID must be specified")
 	}
 	name := args[0]
 	args = Tail(args)
@@ -97,7 +98,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	}
 
 	if len(args) == 0 {
-		return errors.Errorf("command must be specified")
+		return errors.New("command must be specified")
 	}
 
 	store, err := getStore(c)
@@ -107,7 +108,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 
 	builder, err := openBuilder(getContext(), store, name)
 	if err != nil {
-		return errors.Wrapf(err, "error reading build container %q", name)
+		return fmt.Errorf("error reading build container %q: %w", name, err)
 	}
 
 	isolation, err := parse.IsolationOption(c.Flag("isolation").Value.String())
@@ -156,7 +157,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 	mounts, mountedImages, lockedTargets, err := internalParse.GetVolumes(systemContext, store, iopts.volumes, iopts.mounts, iopts.contextDir)
 	if err != nil {

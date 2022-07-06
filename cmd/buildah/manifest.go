@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -24,7 +25,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -237,14 +237,14 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 
 	list := manifests.Create()
 
 	names, err := util.ExpandNames([]string{listImageSpec}, systemContext, store)
 	if err != nil {
-		return errors.Wrapf(err, "error encountered while expanding image name %q", listImageSpec)
+		return fmt.Errorf("error encountered while expanding image name %q: %w", listImageSpec, err)
 	}
 
 	for _, imageSpec := range imageSpecs {
@@ -288,11 +288,11 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 	case 2:
 		listImageSpec = args[0]
 		if listImageSpec == "" {
-			return errors.Errorf(`Invalid image name "%s"`, args[0])
+			return fmt.Errorf(`Invalid image name "%s"`, args[0])
 		}
 		imageSpec = args[1]
 		if imageSpec == "" {
-			return errors.Errorf(`Invalid image name "%s"`, args[1])
+			return fmt.Errorf(`Invalid image name "%s"`, args[1])
 		}
 	default:
 		return errors.New("At least two arguments are necessary: list and image to add to list")
@@ -305,7 +305,7 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
@@ -382,7 +382,7 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 		for _, annotationSpec := range opts.annotations {
 			spec := strings.SplitN(annotationSpec, "=", 2)
 			if len(spec) != 2 {
-				return errors.Errorf("no value given for annotation %q", spec[0])
+				return fmt.Errorf("no value given for annotation %q", spec[0])
 			}
 			annotations[spec[0]] = spec[1]
 		}
@@ -408,15 +408,15 @@ func manifestRemoveCmd(c *cobra.Command, args []string, opts manifestRemoveOpts)
 	case 2:
 		listImageSpec = args[0]
 		if listImageSpec == "" {
-			return errors.Errorf(`Invalid image name "%s"`, args[0])
+			return fmt.Errorf(`Invalid image name "%s"`, args[0])
 		}
 		instanceSpec := args[1]
 		if instanceSpec == "" {
-			return errors.Errorf(`Invalid instance "%s"`, args[1])
+			return fmt.Errorf(`Invalid instance "%s"`, args[1])
 		}
 		d, err := digest.Parse(instanceSpec)
 		if err != nil {
-			return errors.Errorf(`Invalid instance "%s": %v`, args[1], err)
+			return fmt.Errorf(`Invalid instance "%s": %v`, args[1], err)
 		}
 		instanceDigest = d
 	default:
@@ -430,7 +430,7 @@ func manifestRemoveCmd(c *cobra.Command, args []string, opts manifestRemoveOpts)
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
@@ -459,7 +459,7 @@ func manifestRmCmd(c *cobra.Command, args []string) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
@@ -497,16 +497,16 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 	case 1:
 		listImageSpec = args[0]
 		if listImageSpec == "" {
-			return errors.Errorf(`Invalid image name "%s"`, args[0])
+			return fmt.Errorf(`Invalid image name "%s"`, args[0])
 		}
 	case 2:
 		listImageSpec = args[0]
 		if listImageSpec == "" {
-			return errors.Errorf(`Invalid image name "%s"`, args[0])
+			return fmt.Errorf(`Invalid image name "%s"`, args[0])
 		}
 		imageSpec = args[1]
 		if imageSpec == "" {
-			return errors.Errorf(`Invalid image name "%s"`, args[1])
+			return fmt.Errorf(`Invalid image name "%s"`, args[1])
 		}
 	default:
 		return errors.New("At least two arguments are necessary: list and image to add to list")
@@ -519,7 +519,7 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
@@ -593,7 +593,7 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 		for _, annotationSpec := range opts.annotations {
 			spec := strings.SplitN(annotationSpec, "=", 2)
 			if len(spec) != 2 {
-				return errors.Errorf("no value given for annotation %q", spec[0])
+				return fmt.Errorf("no value given for annotation %q", spec[0])
 			}
 			annotations[spec[0]] = spec[1]
 		}
@@ -618,7 +618,7 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 	case 1:
 		imageSpec = args[0]
 		if imageSpec == "" {
-			return errors.Errorf(`Invalid image name "%s"`, imageSpec)
+			return fmt.Errorf(`Invalid image name "%s"`, imageSpec)
 		}
 	default:
 		return errors.New("Only one argument is necessary for inspect: an image name")
@@ -631,7 +631,7 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 
 	return manifestInspect(getContext(), store, systemContext, imageSpec)
@@ -647,7 +647,7 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 		var b bytes.Buffer
 		err = json.Indent(&b, manifest, "", "    ")
 		if err != nil {
-			return errors.Wrapf(err, "error rendering manifest for display")
+			return fmt.Errorf("error rendering manifest for display: %w", err)
 		}
 
 		fmt.Printf("%s\n", b.String())
@@ -657,10 +657,7 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 	// Before doing a remote lookup, attempt to resolve the manifest list
 	// locally.
 	manifestList, err := runtime.LookupManifestList(imageSpec)
-	switch errors.Cause(err) {
-	case storage.ErrImageUnknown, libimage.ErrNotAManifestList:
-		// We need to do the remote inspection below.
-	case nil:
+	if err == nil {
 		schema2List, err := manifestList.Inspect()
 		if err != nil {
 			return err
@@ -672,9 +669,8 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 		}
 
 		return printManifest(rawSchema2List)
-
-	default:
-		// Fatal error.
+	}
+	if !errors.Is(err, storage.ErrImageUnknown) && !errors.Is(err, libimage.ErrNotAManifestList) {
 		return err
 	}
 
@@ -692,7 +688,7 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 		refs = append(refs, ref)
 	}
 	if len(refs) == 0 {
-		return errors.Errorf("error locating images with names %v", imageSpec)
+		return fmt.Errorf("error locating images with names %v", imageSpec)
 	}
 
 	var (
@@ -704,7 +700,7 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 		if latestErr == nil {
 			latestErr = e
 		} else {
-			latestErr = errors.Wrapf(latestErr, "tried %v", e)
+			latestErr = fmt.Errorf("tried %v: %w", e, latestErr)
 		}
 	}
 
@@ -713,19 +709,19 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 
 		src, err := ref.NewImageSource(ctx, systemContext)
 		if err != nil {
-			appendErr(errors.Wrapf(err, "reading image %q", transports.ImageName(ref)))
+			appendErr(fmt.Errorf("reading image %q: %w", transports.ImageName(ref), err))
 			continue
 		}
 		defer src.Close()
 
 		manifestBytes, manifestType, err := src.GetManifest(ctx, nil)
 		if err != nil {
-			appendErr(errors.Wrapf(err, "loading manifest %q", transports.ImageName(ref)))
+			appendErr(fmt.Errorf("loading manifest %q: %w", transports.ImageName(ref), err))
 			continue
 		}
 
 		if !manifest.MIMETypeIsMultiImage(manifestType) {
-			appendErr(errors.Errorf("manifest is of type %s (not a list type)", manifestType))
+			appendErr(fmt.Errorf("manifest is of type %s (not a list type)", manifestType))
 			continue
 		}
 		result = manifestBytes
@@ -754,10 +750,10 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 		listImageSpec = args[0]
 		destSpec = args[1]
 		if listImageSpec == "" {
-			return errors.Errorf(`Invalid image name "%s"`, listImageSpec)
+			return fmt.Errorf(`invalid image name "%s"`, listImageSpec)
 		}
 		if destSpec == "" {
-			return errors.Errorf(`Invalid image name "%s"`, destSpec)
+			return fmt.Errorf(`invalid image name "%s"`, destSpec)
 		}
 	default:
 		return errors.New("Only two arguments are necessary to push: source and destination")
@@ -769,7 +765,7 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 	}
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 
 	return manifestPush(systemContext, store, listImageSpec, destSpec, opts)
@@ -804,7 +800,7 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 		case "v2s2", "docker":
 			manifestType = manifest.DockerV2Schema2MediaType
 		default:
-			return errors.Errorf("unknown format %q. Choose on of the supported formats: 'oci' or 'v2s2'", opts.format)
+			return fmt.Errorf("unknown format %q. Choose on of the supported formats: 'oci' or 'v2s2'", opts.format)
 		}
 	}
 
@@ -832,7 +828,7 @@ func manifestPush(systemContext *types.SystemContext, store storage.Store, listI
 
 	if opts.digestfile != "" {
 		if err = ioutil.WriteFile(opts.digestfile, []byte(digest.String()), 0644); err != nil {
-			return util.GetFailureCause(err, errors.Wrapf(err, "failed to write digest to file %q", opts.digestfile))
+			return util.GetFailureCause(err, fmt.Errorf("failed to write digest to file %q: %w", opts.digestfile, err))
 		}
 	}
 

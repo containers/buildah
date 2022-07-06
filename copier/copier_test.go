@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containers/buildah/util"
 	"github.com/containers/storage/pkg/idtools"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/sirupsen/logrus"
@@ -554,7 +555,7 @@ func testPut(t *testing.T) {
 				defer os.RemoveAll(tmp)
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
 				if overwrite {
-					if unwrapError(err) != syscall.EPERM {
+					if util.Cause(err) != syscall.EPERM {
 						assert.Nilf(t, err, "expected to overwrite directory with type %c: %v", typeFlag, err)
 					}
 				} else {
@@ -582,7 +583,7 @@ func testPut(t *testing.T) {
 				defer os.RemoveAll(tmp)
 				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteNonDirDir: !overwrite}, bytes.NewReader(archive))
 				if overwrite {
-					if unwrapError(err) != syscall.EPERM {
+					if util.Cause(err) != syscall.EPERM {
 						assert.Nilf(t, err, "expected to overwrite file with type %c: %v", typeFlag, err)
 					}
 				} else {
@@ -658,7 +659,7 @@ func isExpectedError(err error, inSubdir bool, name string, expectedErrors []exp
 		if expectedError.name != name {
 			continue
 		}
-		if !strings.Contains(unwrapError(err).Error(), unwrapError(expectedError.err).Error()) {
+		if !strings.Contains(util.Cause(err).Error(), util.Cause(expectedError.err).Error()) {
 			// not expecting this specific error
 			continue
 		}

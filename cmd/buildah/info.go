@@ -10,7 +10,6 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -53,7 +52,7 @@ func infoCmd(c *cobra.Command, iopts infoResults) error {
 
 	infoArr, err := buildah.Info(store)
 	if err != nil {
-		return errors.Wrapf(err, "error getting info")
+		return fmt.Errorf("error getting info: %w", err)
 	}
 
 	if iopts.debug {
@@ -68,13 +67,13 @@ func infoCmd(c *cobra.Command, iopts infoResults) error {
 	if iopts.format != "" {
 		format := iopts.format
 		if matched, err := regexp.MatchString("{{.*}}", format); err != nil {
-			return errors.Wrapf(err, "error validating format provided: %s", format)
+			return fmt.Errorf("error validating format provided: %s: %w", format, err)
 		} else if !matched {
-			return errors.Errorf("error invalid format provided: %s", format)
+			return fmt.Errorf("error invalid format provided: %s", format)
 		}
 		t, err := template.New("format").Parse(format)
 		if err != nil {
-			return errors.Wrapf(err, "Template parsing error")
+			return fmt.Errorf("Template parsing error: %w", err)
 		}
 		if err = t.Execute(os.Stdout, info); err != nil {
 			return err

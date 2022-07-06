@@ -1,9 +1,10 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/libimage"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +29,7 @@ func tagCmd(c *cobra.Command, args []string) error {
 	}
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {

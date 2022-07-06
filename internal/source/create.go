@@ -2,12 +2,12 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
 	spec "github.com/opencontainers/image-spec/specs-go"
 	specV1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // CreateOptions includes data to alter certain knobs when creating a source
@@ -33,7 +33,7 @@ func (o *CreateOptions) createdTime() *time.Time {
 // that `sourcePath` must not exist.
 func Create(ctx context.Context, sourcePath string, options CreateOptions) error {
 	if _, err := os.Stat(sourcePath); err == nil {
-		return errors.Errorf("error creating source image: %q already exists", sourcePath)
+		return fmt.Errorf("error creating source image: %q already exists", sourcePath)
 	}
 
 	ociDest, err := openOrCreateSourceImage(ctx, sourcePath)
