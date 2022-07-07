@@ -70,13 +70,14 @@ and can also be found by running `go tool dist list`.
 
 **NOTE:** The `--platform` option may not be used in combination with the `--arch`, `--os`, or `--variant` options.
 
-**--policy**=**always**|**missing**|**never**
+**--policy**=**always**|**missing**|**never**|**newer**
 
 Pull image policy. The default is **missing**.
 
-- **missing**: attempt to pull the latest image from the registries listed in registries.conf if a local image does not exist. Raise an error if the image is not in any listed registry and is not present locally.
-- **always**: Pull the image from the first registry it is found in as listed in  registries.conf. Raise an error if not found in the registries, even if the image is present locally.
-- **never**: do not pull the image from the registry, use only the local version. Raise an error if the image is not present locally.
+- **always**: Always pull the image and throw an error if the pull fails.
+- **missing**: Pull the image only if it could not be found in the local containers storage.  Throw an error if no image could be found and the pull fails.
+- **never**: Never pull the image but use the one from the local containers storage.  Throw an error if no image could be found.
+- **newer**: Pull if the image on the registry is newer than the one in the local containers storage.  An image is considered to be newer when the digests are different.  Comparing the time stamps is prone to errors.  Pull errors are suppressed if a local image was found.
 
 **--quiet**, **-q**
 
