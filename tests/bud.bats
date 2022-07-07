@@ -1148,6 +1148,26 @@ _EOF
   ls $mytmpdir/rootfs/hello
 }
 
+@test "build with custom build output and output rootfs to tar with no additional step" {
+  _prefetch alpine
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p $mytmpdir
+  # We only want content of alpine nothing else
+  # so just `FROM alpine` should work.
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+_EOF
+  run_buildah build --output type=tar,dest=$mytmpdir/rootfs.tar $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
+  # explode tar
+  mkdir $mytmpdir/rootfs
+  tar -C $mytmpdir/rootfs -xvf $mytmpdir/rootfs.tar
+  run ls $mytmpdir/rootfs
+  # exported rootfs must contain `var`,`bin` directory which exists in alpine
+  # so output of `ls $mytmpdir/rootfs` must contain following strings
+  expect_output --substring 'var'
+  expect_output --substring 'bin'
+}
+
 @test "build with custom build output must fail for bad input" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir

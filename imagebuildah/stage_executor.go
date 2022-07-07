@@ -985,6 +985,22 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			if imgID, ref, err = s.tagExistingImage(ctx, s.builder.FromImageID, s.output); err != nil {
 				return "", nil, err
 			}
+			if s.executor.buildOutput != "" && lastStage {
+				// If we have reached this point then our build is just performing a tag
+				// and it contains no steps or instructions (i.e Containerfile only contains
+				// `FROM <imagename> and nothing else so we will never end up commiting this
+				// but instead just re-tag image. For such use-cases if `-o` or `--output` was
+				// specified honor that and export the contents of the current build anyways.
+				logrus.Debugf("Generating custom build output with options %q", s.executor.buildOutput)
+				buildOutputOption, err := parse.GetBuildOutput(s.executor.buildOutput)
+				if err != nil {
+					return "", nil, fmt.Errorf("failed to parse build output: %w", err)
+				}
+				if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+					return "", nil, err
+				}
+			}
+
 		}
 		logImageID(imgID)
 	}
@@ -1725,36 +1741,9 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	}
 	// generate build output
 	if s.executor.buildOutput != "" {
-		extractRootfsOpts := buildah.ExtractRootfsOptions{}
-		if unshare.IsRootless() {
-			// In order to maintain as much parity as possible
-			// with buildkit's version of --output and to avoid
-			// unsafe invocation of exported executables it was
-			// decided to strip setuid,setgid and extended attributes.
-			// Since modes like setuid,setgid leaves room for executable
-			// to get invoked with different file-system permission its safer
-			// to strip them off for unpriviledged invocation.
-			// See: https://github.com/containers/buildah/pull/3823#discussion_r829376633
-			extractRootfsOpts.StripSetuidBit = true
-			extractRootfsOpts.StripSetgidBit = true
-			extractRootfsOpts.StripXattrs = true
+		if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+			return "", nil, err
 		}
-		rc, errChan, err := s.builder.ExtractRootfs(options, extractRootfsOpts)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to extract rootfs from given container image: %w", err)
-		}
-		defer rc.Close()
-		err = internalUtil.ExportFromReader(rc, buildOutputOption)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to export build output: %w", err)
-		}
-		if errChan != nil {
-			err = <-errChan
-			if err != nil {
-				return "", nil, err
-			}
-		}
-
 	}
 	imgID, _, manifestDigest, err := s.builder.Commit(ctx, imageRef, options)
 	if err != nil {
@@ -1769,6 +1758,39 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		}
 	}
 	return imgID, ref, nil
+}
+
+func (s *StageExecutor) generateBuildOutput(commitOpts buildah.CommitOptions, buildOutputOpts define.BuildOutputOption) error {
+	extractRootfsOpts := buildah.ExtractRootfsOptions{}
+	if unshare.IsRootless() {
+		// In order to maintain as much parity as possible
+		// with buildkit's version of --output and to avoid
+		// unsafe invocation of exported executables it was
+		// decided to strip setuid,setgid and extended attributes.
+		// Since modes like setuid,setgid leaves room for executable
+		// to get invoked with different file-system permission its safer
+		// to strip them off for unpriviledged invocation.
+		// See: https://github.com/containers/buildah/pull/3823#discussion_r829376633
+		extractRootfsOpts.StripSetuidBit = true
+		extractRootfsOpts.StripSetgidBit = true
+		extractRootfsOpts.StripXattrs = true
+	}
+	rc, errChan, err := s.builder.ExtractRootfs(commitOpts, extractRootfsOpts)
+	if err != nil {
+		return fmt.Errorf("failed to extract rootfs from given container image: %w", err)
+	}
+	defer rc.Close()
+	err = internalUtil.ExportFromReader(rc, buildOutputOpts)
+	if err != nil {
+		return fmt.Errorf("failed to export build output: %w", err)
+	}
+	if errChan != nil {
+		err = <-errChan
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *StageExecutor) EnsureContainerPath(path string) error {
