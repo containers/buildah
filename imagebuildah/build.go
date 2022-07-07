@@ -127,20 +127,11 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			}
 
 			var contents *os.File
-			// If given a directory, add '/Dockerfile' to it.
+			// If given a directory error out since `-f` does not supports path to directory
 			if dinfo.Mode().IsDir() {
-				for _, file := range []string{"Containerfile", "Dockerfile"} {
-					f := filepath.Join(dfile, file)
-					logger.Debugf("reading local %q", f)
-					contents, err = os.Open(f)
-					if err == nil {
-						break
-					}
-				}
-			} else {
-				contents, err = os.Open(dfile)
+				return "", nil, fmt.Errorf("containerfile: %q cannot be path to a directory", dfile)
 			}
-
+			contents, err = os.Open(dfile)
 			if err != nil {
 				return "", nil, err
 			}
