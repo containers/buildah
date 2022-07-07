@@ -2054,7 +2054,7 @@ _EOF
 @test "bud with symlink Dockerfile not specified in file" {
   _prefetch alpine
   target=alpine-image
-  run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/symlink $BUDFILES/symlink
+  run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/symlink/Dockerfile $BUDFILES/symlink
   expect_output --substring "FROM alpine"
 }
 
@@ -2097,7 +2097,7 @@ _EOF
 @test "bud with unused build arg" {
   _prefetch alpine busybox
   target=busybox-image
-  run_buildah build $WITH_POLICY_JSON -t ${target} --build-arg foo=bar --build-arg foo2=bar2 -f $BUDFILES/build-arg $BUDFILES/build-arg
+  run_buildah build $WITH_POLICY_JSON -t ${target} --build-arg foo=bar --build-arg foo2=bar2 -f $BUDFILES/build-arg/Dockerfile $BUDFILES/build-arg
   expect_output --substring "one or more build args were not consumed: \[foo2\]"
   run_buildah build $WITH_POLICY_JSON -t ${target} --build-arg IMAGE=alpine -f $BUDFILES/build-arg/Dockerfile2 $BUDFILES/build-arg
   assert "$output" !~ "one or more build args were not consumed: \[IMAGE\]"
@@ -2119,7 +2119,7 @@ _EOF
 @test "bud with copy-from in Dockerfile no prior FROM" {
   _prefetch busybox quay.io/libpod/testimage:20210610
   target=no-prior-from
-  run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/copy-from $BUDFILES/copy-from
+  run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/copy-from/Dockerfile $BUDFILES/copy-from
 
   run_buildah from --quiet $WITH_POLICY_JSON ${target}
   ctr=$output
@@ -3523,7 +3523,7 @@ _EOF
 FROM alpine
 _EOF
 
-  run_buildah build -t testbud $WITH_POLICY_JSON --file ${mytmpdir} .
+  run_buildah 125 build -t testbud $WITH_POLICY_JSON --file ${mytmpdir} .
 }
 
 @test "bud --authfile" {
@@ -3538,7 +3538,7 @@ _EOF
 FROM localhost:${REGISTRY_PORT}/buildah/alpine
 RUN touch /test
 _EOF
-  run_buildah build -t myalpine --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false $WITH_POLICY_JSON --file ${mytmpdir} .
+  run_buildah build -t myalpine --authfile ${TEST_SCRATCH_DIR}/test.auth --tls-verify=false $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   run_buildah rmi localhost:${REGISTRY_PORT}/buildah/alpine
   run_buildah rmi myalpine
 }
@@ -3557,11 +3557,11 @@ FROM alpine
 RUN echo "$SECRET"
 _EOF
 
-  run_buildah build -t testbud $WITH_POLICY_JSON --file ${mytmpdir} .
+  run_buildah build -t testbud $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   assert "$output" !~ '--build-arg SECRET=<VALUE>'
   expect_output --substring '\-\-build-arg NEWSECRET=<VALUE>'
 
-  run_buildah build -t testbud $WITH_POLICY_JSON --build-arg NEWSECRET="VerySecret" --file ${mytmpdir} .
+  run_buildah build -t testbud $WITH_POLICY_JSON --build-arg NEWSECRET="VerySecret" --file ${mytmpdir}/Containerfile .
   assert "$output" !~ '--build-arg SECRET=<VALUE>'
   assert "$output" !~ '--build-arg NEWSECRET=<VALUE>'
 }
@@ -3596,7 +3596,7 @@ _EOF
     if is_cgroupsv2; then
       # The result with cgroup v2 depends on the version of runc.
       run_buildah '?' bud --runtime=runc --runtime-flag=debug \
-                        -q -t alpine-bud-runc $WITH_POLICY_JSON --file ${mytmpdir} .
+                        -q -t alpine-bud-runc $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
       if [ "$status" -eq 0 ]; then
         expect_output --substring "$flag_accepted_rx"
       else
@@ -3605,7 +3605,7 @@ _EOF
       fi
     else
       run_buildah build --runtime=runc --runtime-flag=debug \
-                      -q -t alpine-bud-runc $WITH_POLICY_JSON --file ${mytmpdir} .
+                      -q -t alpine-bud-runc $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
       expect_output --substring "$flag_accepted_rx"
     fi
 
@@ -3628,7 +3628,7 @@ _EOF
 _EOF
 
     run_buildah build --runtime=crun --runtime-flag=debug --security-opt seccomp=${TEST_SCRATCH_DIR}/seccomp.json \
-                    -q -t alpine-bud-crun $WITH_POLICY_JSON --file ${mytmpdir} .
+                    -q -t alpine-bud-crun $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
     expect_output --substring "unknown seccomp syscall"
   fi
 
@@ -3674,16 +3674,16 @@ _EOF
 
   ip=123.45.67.$(( $RANDOM % 256 ))
   run_buildah build --add-host=myhostname:$ip -t testbud \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   expect_output --from="${lines[2]}" --substring "^$ip\s+myhostname"
 
   run_buildah 125 build --no-cache --add-host=myhostname:$ip \
                   --no-hosts \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   expect_output --substring "\-\-no-hosts and \-\-add-host conflict, can not be used together"
 
   run_buildah 1 build --no-cache --no-hosts \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   expect_output --substring 'error building at STEP "RUN grep "myhostname" /etc/hosts'
 }
 
@@ -3703,7 +3703,7 @@ _EOF
 
   # with cgroup-parent
   run_buildah --cgroup-manager cgroupfs build --cgroupns=host --cgroup-parent test-cgroup -t with-flag \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   if is_cgroupsv2; then
     expect_output --from="${lines[2]}" "0::/test-cgroup"
   else
@@ -3711,7 +3711,7 @@ _EOF
   fi
   # without cgroup-parent
   run_buildah --cgroup-manager cgroupfs build -t without-flag \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   if [ -n "$(grep "test-cgroup" <<< "$output")" ]; then
     die "Unexpected cgroup."
   fi
@@ -3741,7 +3741,7 @@ _EOF
   fi
 
   run_buildah build --cpu-period=1234 --cpu-quota=5678 -t testcpu \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   expect_output --from="${lines[2]}" "5678 1234"
 }
 
@@ -3788,7 +3788,7 @@ _EOF
   fi
 
   run_buildah build --cpu-shares=${shares} -t testcpu \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   expect_output --from="${lines[2]}" "${expect}"
 }
 
@@ -3816,7 +3816,7 @@ _EOF
   fi
 
   run_buildah build --cpuset-cpus=0 -t testcpuset \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   expect_output --from="${lines[2]}" "cpuset-cpus 0"
 }
 
@@ -3844,7 +3844,7 @@ _EOF
   fi
 
   run_buildah build --cpuset-mems=0 -t testcpuset \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   expect_output --from="${lines[2]}" "cpuset-mems 0"
 }
 
@@ -3865,7 +3865,7 @@ _EOF
   run readlink /proc/self/ns/pid
   host_pidns=$output
   run_buildah build --isolation chroot -t testisolation --pid private \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   # chroot isolation doesn't make a new PID namespace.
   expect_output --from="${lines[2]}" "${host_pidns}"
 }
@@ -3907,7 +3907,7 @@ _EOF
   fi
 
   run_buildah build --memory=40m --memory-swap=70m -t testmemory \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   expect_output --from="${lines[2]}" "memory-max=41943040"
   expect_output --from="${lines[4]}" "memory-swap-result=${expect_swap}"
 }
@@ -3926,7 +3926,7 @@ run df -h /dev/shm
 _EOF
 
   run_buildah build --shm-size=80m -t testshm \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   expect_output --from="${lines[3]}" --substring "shm\s+80.0M"
 }
 
@@ -3941,7 +3941,7 @@ run printf "ulimit=" && ulimit -t
 _EOF
 
   run_buildah build --ulimit cpu=300 -t testulimit \
-                  $WITH_POLICY_JSON --file ${mytmpdir} .
+                  $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
   expect_output --from="${lines[2]}" "ulimit=300"
 }
 
@@ -3986,7 +3986,7 @@ RUN --mount=type=secret,id=mysecret,dst=/home/root/mysecret cat /home/root/mysec
 RUN --mount=type=secret,id=mysecret,dst=/home/root/mysecret2 echo hello && cat /home/root/mysecret2
 _EOF
 
-  run_buildah build --secret=id=mysecret,src=${mytmpdir}/mysecret $WITH_POLICY_JSON  -t secretimg -f ${mytmpdir}
+  run_buildah build --secret=id=mysecret,src=${mytmpdir}/mysecret $WITH_POLICY_JSON  -t secretimg -f ${mytmpdir}/Dockerfile
   expect_output --substring "hello"
   expect_output --substring "SOMESECRETDATA"
 }
@@ -4276,7 +4276,7 @@ _EOF
   mkdir ${TEST_SCRATCH_DIR}/${target}
 
   # Build and export container to tar
-  run_buildah build --no-cache $WITH_POLICY_JSON -t ${target} -f $BUDFILES/add-run-dir
+  run_buildah build --no-cache $WITH_POLICY_JSON -t ${target} -f $BUDFILES/add-run-dir/Dockerfile
   podman export $(podman create --name ${target} --net=host ${target}) --output=${TEST_SCRATCH_DIR}/${target}.tar
 
   # We are done exporting so remove images and containers which are not needed

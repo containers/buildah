@@ -342,7 +342,7 @@ general_namespace() {
 FROM alpine
 RUN echo "TargetOutput" && readlink /proc/self/ns/$nstype
 _EOF
-    run_buildah bud --"$nsflag"=$namespace $RUNOPTS $WITH_POLICY_JSON --file ${mytmpdir} .
+    run_buildah bud --"$nsflag"=$namespace $RUNOPTS $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
     result=$(grep -A1 "TargetOutput" <<< "$output" | tail -n1)
     case "$namespace" in
     ""|container|private)
