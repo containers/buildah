@@ -368,7 +368,7 @@ func (s *ostreeImageSource) GetSignatures(ctx context.Context, instanceDigest *d
 		}
 		defer sigReader.Close()
 
-		sig, err := os.ReadAll(sigReader)
+		sig, err := io.ReadAll(sigReader)
 		if err != nil {
 			return nil, err
 		}
