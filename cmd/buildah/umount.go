@@ -1,11 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -36,10 +36,10 @@ func umountCmd(c *cobra.Command, args []string) error {
 	}
 	umountContainerErrStr := "error unmounting container"
 	if len(args) == 0 && !umountAll {
-		return errors.Errorf("at least one container ID must be specified")
+		return errors.New("at least one container ID must be specified")
 	}
 	if len(args) > 0 && umountAll {
-		return errors.Errorf("when using the --all switch, you may not pass any container IDs")
+		return errors.New("when using the --all switch, you may not pass any container IDs")
 	}
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
@@ -58,7 +58,7 @@ func umountCmd(c *cobra.Command, args []string) error {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
 				}
-				lastError = errors.Wrapf(err, "%s %s", umountContainerErrStr, name)
+				lastError = fmt.Errorf("%s %s: %w", umountContainerErrStr, name, err)
 				continue
 			}
 			if builder.MountPoint == "" {
@@ -69,7 +69,7 @@ func umountCmd(c *cobra.Command, args []string) error {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
 				}
-				lastError = errors.Wrapf(err, "%s %q", umountContainerErrStr, builder.Container)
+				lastError = fmt.Errorf("%s %q: %w", umountContainerErrStr, builder.Container, err)
 				continue
 			}
 			fmt.Printf("%s\n", builder.ContainerID)
@@ -77,7 +77,7 @@ func umountCmd(c *cobra.Command, args []string) error {
 	} else {
 		builders, err := openBuilders(store)
 		if err != nil {
-			return errors.Wrapf(err, "error reading build Containers")
+			return fmt.Errorf("error reading build Containers: %w", err)
 		}
 		for _, builder := range builders {
 			if builder.MountPoint == "" {
@@ -88,7 +88,7 @@ func umountCmd(c *cobra.Command, args []string) error {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
 				}
-				lastError = errors.Wrapf(err, "%s %q", umountContainerErrStr, builder.Container)
+				lastError = fmt.Errorf("%s %q: %w", umountContainerErrStr, builder.Container, err)
 				continue
 			}
 			fmt.Printf("%s\n", builder.ContainerID)

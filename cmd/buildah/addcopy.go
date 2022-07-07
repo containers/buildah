@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,7 +13,6 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/storage"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -120,12 +120,12 @@ func init() {
 
 func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyResults) error {
 	if len(args) == 0 {
-		return errors.Errorf("container ID must be specified")
+		return errors.New("container ID must be specified")
 	}
 	name := args[0]
 	args = Tail(args)
 	if len(args) == 0 {
-		return errors.Errorf("src must be specified")
+		return errors.New("src must be specified")
 	}
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
@@ -151,19 +151,19 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	var idMappingOptions *buildah.IDMappingOptions
 	contextdir := iopts.contextdir
 	if iopts.ignoreFile != "" && contextdir == "" {
-		return errors.Errorf("--ignorefile option requires that you specify a context dir using --contextdir")
+		return errors.New("--ignorefile option requires that you specify a context dir using --contextdir")
 	}
 
 	if iopts.from != "" {
-		if from, err = openBuilder(getContext(), store, iopts.from); err != nil && errors.Cause(err) == storage.ErrContainerUnknown {
+		if from, err = openBuilder(getContext(), store, iopts.from); err != nil && errors.Is(err, storage.ErrContainerUnknown) {
 			systemContext, err2 := parse.SystemContextFromOptions(c)
 			if err2 != nil {
-				return errors.Wrap(err2, "error building system context")
+				return fmt.Errorf("error building system context: %w", err2)
 			}
 
 			decryptConfig, err2 := util.DecryptConfig(iopts.decryptionKeys)
 			if err2 != nil {
-				return errors.Wrapf(err2, "unable to obtain decrypt config")
+				return fmt.Errorf("unable to obtain decrypt config: %w", err2)
 			}
 			options := buildah.BuilderOptions{
 				FromImage:           iopts.from,
@@ -178,7 +178,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 				options.ReportWriter = os.Stderr
 			}
 			if from, err = buildah.NewBuilder(getContext(), store, options); err != nil {
-				return errors.Wrapf(err, "no container named %q, error copying content from image %q", iopts.from, iopts.from)
+				return fmt.Errorf("no container named %q, error copying content from image %q: %w", iopts.from, iopts.from, err)
 			}
 			removeFrom = true
 			defer func() {
@@ -191,11 +191,11 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 			}()
 		}
 		if err != nil {
-			return errors.Wrapf(err, "error reading build container %q", iopts.from)
+			return fmt.Errorf("error reading build container %q: %w", iopts.from, err)
 		}
 		fromMountPoint, err := from.Mount(from.MountLabel)
 		if err != nil {
-			return errors.Wrapf(err, "error mounting %q container %q", iopts.from, from.Container)
+			return fmt.Errorf("error mounting %q container %q: %w", iopts.from, from.Container, err)
 		}
 		unmountFrom = true
 		defer func() {
@@ -218,7 +218,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 
 	builder, err := openBuilder(getContext(), store, name)
 	if err != nil {
-		return errors.Wrapf(err, "error reading build container %q", name)
+		return fmt.Errorf("error reading build container %q: %w", name, err)
 	}
 
 	builder.ContentDigester.Restart()
@@ -242,20 +242,20 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	extractLocalArchives := verb == "ADD"
 	err = builder.Add(dest, extractLocalArchives, options, args...)
 	if err != nil {
-		return errors.Wrapf(err, "error adding content to container %q", builder.Container)
+		return fmt.Errorf("error adding content to container %q: %w", builder.Container, err)
 	}
 	if unmountFrom {
 		if err := from.Unmount(); err != nil {
-			return errors.Wrapf(err, "error unmounting %q container %q", iopts.from, from.Container)
+			return fmt.Errorf("error unmounting %q container %q: %w", iopts.from, from.Container, err)
 		}
 		if err := from.Save(); err != nil {
-			return errors.Wrapf(err, "error saving information about %q container %q", iopts.from, from.Container)
+			return fmt.Errorf("error saving information about %q container %q: %w", iopts.from, from.Container, err)
 		}
 		unmountFrom = false
 	}
 	if removeFrom {
 		if err := from.Delete(); err != nil {
-			return errors.Wrapf(err, "error deleting %q temporary working container %q", iopts.from, from.Container)
+			return fmt.Errorf("error deleting %q temporary working container %q: %w", iopts.from, from.Container, err)
 		}
 		removeFrom = false
 	}

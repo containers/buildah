@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,12 +14,12 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
+	"github.com/containers/buildah/util"
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/unshare"
 	ispecs "github.com/opencontainers/image-spec/specs-go"
 	rspecs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -135,7 +136,7 @@ func before(cmd *cobra.Command) error {
 	}
 	logrusLvl, err := logrus.ParseLevel(strLvl)
 	if err != nil {
-		return errors.Wrapf(err, "unable to parse log level")
+		return fmt.Errorf("unable to parse log level: %w", err)
 	}
 	logrus.SetLevel(logrusLvl)
 	if globalFlagResults.Debug {
@@ -189,7 +190,7 @@ func shutdownStore(cmd *cobra.Command) error {
 		logrus.Debugf("shutting down the store")
 		needToShutdownStore = false
 		if _, err = store.Shutdown(false); err != nil {
-			if errors.Cause(err) == storage.ErrLayerUsedByContainer {
+			if errors.Is(err, storage.ErrLayerUsedByContainer) {
 				logrus.Infof("failed to shutdown storage: %q", err)
 			} else {
 				logrus.Warnf("failed to shutdown storage: %q", err)
@@ -237,7 +238,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 		exitCode := cli.ExecErrorCodeGeneric
-		if ee, ok := (errors.Cause(err)).(*exec.ExitError); ok {
+		if ee, ok := (util.Cause(err)).(*exec.ExitError); ok {
 			if w, ok := ee.Sys().(syscall.WaitStatus); ok {
 				exitCode = w.ExitStatus()
 			}

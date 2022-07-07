@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,7 +15,6 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/common/pkg/config"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -191,17 +191,17 @@ func onBuild(builder *buildah.Builder, quiet bool) error {
 func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
-		return errors.Wrapf(err, "failed to get container config")
+		return fmt.Errorf("failed to get container config: %w", err)
 	}
 
 	if len(args) == 0 {
-		return errors.Errorf("an image name (or \"scratch\") must be specified")
+		return errors.New("an image name (or \"scratch\") must be specified")
 	}
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
 	}
 	if len(args) > 1 {
-		return errors.Errorf("too many arguments specified")
+		return errors.New("too many arguments specified")
 	}
 
 	if err := auth.CheckAuthFile(iopts.authfile); err != nil {
@@ -209,7 +209,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	}
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 	platforms, err := parse.PlatformsFromOptions(c)
 	if err != nil {
@@ -231,7 +231,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	}
 
 	if pullFlagsCount > 1 {
-		return errors.Errorf("can only set one of 'pull' or 'pull-always' or 'pull-never'")
+		return errors.New("can only set one of 'pull' or 'pull-always' or 'pull-never'")
 	}
 
 	// Allow for --pull, --pull=true, --pull=false, --pull=never, --pull=always
@@ -268,11 +268,11 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 
 	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error parsing namespace-related options")
+		return fmt.Errorf("error parsing namespace-related options: %w", err)
 	}
 	usernsOption, idmappingOptions, err := parse.IDMappingOptions(c, isolation)
 	if err != nil {
-		return errors.Wrapf(err, "error parsing ID mapping options")
+		return fmt.Errorf("error parsing ID mapping options: %w", err)
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 
@@ -298,7 +298,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 
 	decConfig, err := util.DecryptConfig(iopts.DecryptionKeys)
 	if err != nil {
-		return errors.Wrapf(err, "unable to obtain decrypt config")
+		return fmt.Errorf("unable to obtain decrypt config: %w", err)
 	}
 
 	options := buildah.BuilderOptions{
@@ -341,7 +341,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if iopts.cidfile != "" {
 		filePath := iopts.cidfile
 		if err := ioutil.WriteFile(filePath, []byte(builder.ContainerID), 0644); err != nil {
-			return errors.Wrapf(err, "filed to write Container ID File %q", filePath)
+			return fmt.Errorf("filed to write Container ID File %q: %w", filePath, err)
 		}
 	}
 	fmt.Printf("%s\n", builder.Container)

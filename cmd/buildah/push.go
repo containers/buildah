@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"errors"
+
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
 	iutil "github.com/containers/buildah/internal/util"
@@ -19,7 +21,6 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/storage"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -116,7 +117,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 
 	switch len(args) {
 	case 0:
-		return errors.New("At least a source image ID must be specified")
+		return errors.New("at least a source image ID must be specified")
 	case 1:
 		src = args[0]
 		destSpec = src
@@ -125,7 +126,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		src = args[0]
 		destSpec = args[1]
 		if src == "" {
-			return errors.Errorf(`Invalid image name "%s"`, args[0])
+			return fmt.Errorf(`invalid image name "%s"`, args[0])
 		}
 	default:
 		return errors.New("Only two arguments are necessary to push: source and destination")
@@ -164,7 +165,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 
 	var manifestType string
@@ -177,13 +178,13 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 		case "v2s2", "docker":
 			manifestType = manifest.DockerV2Schema2MediaType
 		default:
-			return errors.Errorf("unknown format %q. Choose on of the supported formats: 'oci', 'v2s1', or 'v2s2'", iopts.format)
+			return fmt.Errorf("unknown format %q. Choose on of the supported formats: 'oci', 'v2s1', or 'v2s2'", iopts.format)
 		}
 	}
 
 	encConfig, encLayers, err := iutil.EncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
 	if err != nil {
-		return errors.Wrapf(err, "unable to obtain encryption config")
+		return fmt.Errorf("unable to obtain encryption config: %w", err)
 	}
 
 	options := buildah.PushOptions{
@@ -216,13 +217,13 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 
 	ref, digest, err := buildah.Push(getContext(), src, dest, options)
 	if err != nil {
-		if errors.Cause(err) != storage.ErrImageUnknown {
+		if !errors.Is(err, storage.ErrImageUnknown) {
 			// Image might be a manifest so attempt a manifest push
 			if manifestsErr := manifestPush(systemContext, store, src, destSpec, iopts); manifestsErr == nil {
 				return nil
 			}
 		}
-		return util.GetFailureCause(err, errors.Wrapf(err, "error pushing image %q to %q", src, destSpec))
+		return util.GetFailureCause(err, fmt.Errorf("error pushing image %q to %q: %w", src, destSpec, err))
 	}
 	if ref != nil {
 		logrus.Debugf("pushed image %q with digest %s", ref, digest.String())
@@ -234,7 +235,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 
 	if iopts.digestfile != "" {
 		if err = ioutil.WriteFile(iopts.digestfile, []byte(digest.String()), 0644); err != nil {
-			return util.GetFailureCause(err, errors.Wrapf(err, "failed to write digest to file %q", iopts.digestfile))
+			return util.GetFailureCause(err, fmt.Errorf("failed to write digest to file %q: %w", iopts.digestfile, err))
 		}
 	}
 

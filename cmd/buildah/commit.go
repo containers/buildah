@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -17,7 +18,6 @@ import (
 	storageTransport "github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -130,7 +130,7 @@ func commitListFlagSet(cmd *cobra.Command, opts *commitInputOptions) {
 func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error {
 	var dest types.ImageReference
 	if len(args) == 0 {
-		return errors.Errorf("container ID must be specified")
+		return errors.New("container ID must be specified")
 	}
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
 		return err
@@ -142,7 +142,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	name := args[0]
 	args = Tail(args)
 	if len(args) > 1 {
-		return errors.Errorf("too many arguments specified")
+		return errors.New("too many arguments specified")
 	}
 	image := ""
 	if len(args) > 0 {
@@ -166,12 +166,12 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 
 	builder, err := openBuilder(ctx, store, name)
 	if err != nil {
-		return errors.Wrapf(err, "error reading build container %q", name)
+		return fmt.Errorf("error reading build container %q: %w", name, err)
 	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return errors.Wrapf(err, "error building system context")
+		return fmt.Errorf("error building system context: %w", err)
 	}
 
 	// If the user specified an image, we may need to massage it a bit if
@@ -183,11 +183,11 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 				return err
 			}
 			if len(candidates) == 0 {
-				return errors.Errorf("error parsing target image name %q", image)
+				return fmt.Errorf("error parsing target image name %q", image)
 			}
 			dest2, err2 := storageTransport.Transport.ParseStoreReference(store, candidates[0].String())
 			if err2 != nil {
-				return errors.Wrapf(err, "error parsing target image name %q", image)
+				return fmt.Errorf("error parsing target image name %q: %w", image, err)
 			}
 			dest = dest2
 		}
@@ -200,7 +200,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 
 	encConfig, encLayers, err := iutil.EncryptConfig(iopts.encryptionKeys, iopts.encryptLayers)
 	if err != nil {
-		return errors.Wrapf(err, "unable to obtain encryption config")
+		return fmt.Errorf("unable to obtain encryption config: %w", err)
 	}
 
 	options := buildah.CommitOptions{
@@ -224,7 +224,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		referenceFile := iopts.referenceTime
 		finfo, err := os.Stat(referenceFile)
 		if err != nil {
-			return errors.Wrapf(err, "error reading timestamp of file %q", referenceFile)
+			return fmt.Errorf("error reading timestamp of file %q: %w", referenceFile, err)
 		}
 		timestamp := finfo.ModTime().UTC()
 		options.HistoryTimestamp = &timestamp
@@ -241,7 +241,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	}
 
 	if exclusiveFlags > 1 {
-		return errors.Errorf("can not use more then one timestamp option at at time")
+		return errors.New("can not use more then one timestamp option at at time")
 	}
 
 	if !iopts.quiet {
@@ -249,7 +249,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	}
 	id, ref, _, err := builder.Commit(ctx, dest, options)
 	if err != nil {
-		return util.GetFailureCause(err, errors.Wrapf(err, "error committing container %q to %q", builder.Container, image))
+		return util.GetFailureCause(err, fmt.Errorf("error committing container %q to %q: %w", builder.Container, image, err))
 	}
 	if ref != nil && id != "" {
 		logrus.Debugf("wrote image %s with ID %s", ref, id)

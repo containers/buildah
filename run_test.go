@@ -1,11 +1,12 @@
 package buildah
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/opencontainers/runtime-tools/generate"
-	"github.com/pkg/errors"
 )
 
 func TestAddRlimits(t *testing.T) {
@@ -26,11 +27,11 @@ func TestAddRlimits(t *testing.T) {
 			ulimit: []string{"bla"},
 			test: func(e error, g *generate.Generator) error {
 				if e == nil {
-					return errors.Errorf("expected to receive an error but got nil")
+					return errors.New("expected to receive an error but got nil")
 				}
 				errMsg := "invalid ulimit argument"
 				if !strings.Contains(e.Error(), errMsg) {
-					return errors.Errorf("expected error message to include %#v in %#v", errMsg, e.Error())
+					return fmt.Errorf("expected error message to include %#v in %#v", errMsg, e.Error())
 				}
 				return nil
 			},
@@ -40,11 +41,11 @@ func TestAddRlimits(t *testing.T) {
 			ulimit: []string{"bla=hard"},
 			test: func(e error, g *generate.Generator) error {
 				if e == nil {
-					return errors.Errorf("expected to receive an error but got nil")
+					return errors.New("expected to receive an error but got nil")
 				}
 				errMsg := "invalid ulimit type"
 				if !strings.Contains(e.Error(), errMsg) {
-					return errors.Errorf("expected error message to include %#v in %#v", errMsg, e.Error())
+					return fmt.Errorf("expected error message to include %#v in %#v", errMsg, e.Error())
 				}
 				return nil
 			},
@@ -60,15 +61,15 @@ func TestAddRlimits(t *testing.T) {
 				for _, rlimit := range rlimits {
 					if rlimit.Type == "RLIMIT_FSIZE" {
 						if rlimit.Hard != 4096 {
-							return errors.Errorf("expected spec to have %#v hard limit set to %v but got %v", rlimit.Type, 4096, rlimit.Hard)
+							return fmt.Errorf("expected spec to have %#v hard limit set to %v but got %v", rlimit.Type, 4096, rlimit.Hard)
 						}
 						if rlimit.Soft != 1024 {
-							return errors.Errorf("expected spec to have %#v hard limit set to %v but got %v", rlimit.Type, 1024, rlimit.Soft)
+							return fmt.Errorf("expected spec to have %#v hard limit set to %v but got %v", rlimit.Type, 1024, rlimit.Soft)
 						}
 						return nil
 					}
 				}
-				return errors.Errorf("expected spec to have RLIMIT_FSIZE")
+				return errors.New("expected spec to have RLIMIT_FSIZE")
 			},
 		},
 	}

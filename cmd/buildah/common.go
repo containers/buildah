@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -13,7 +15,6 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/unshare"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -53,7 +54,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 	// Differently, allow the mount if we are already in a userns, as the mount point will still
 	// be accessible once "buildah mount" exits.
 	if os.Geteuid() != 0 && options.GraphDriverName != "vfs" {
-		return nil, errors.Errorf("cannot mount using driver %s in rootless mode. You need to run it in a `buildah unshare` session", options.GraphDriverName)
+		return nil, fmt.Errorf("cannot mount using driver %s in rootless mode. You need to run it in a `buildah unshare` session", options.GraphDriverName)
 	}
 
 	if len(globalFlagResults.UserNSUID) > 0 {
@@ -121,7 +122,7 @@ func setXDGRuntimeDir() error {
 func openBuilder(ctx context.Context, store storage.Store, name string) (builder *buildah.Builder, err error) {
 	if name != "" {
 		builder, err = buildah.OpenBuilder(store, name)
-		if os.IsNotExist(errors.Cause(err)) {
+		if errors.Is(err, os.ErrNotExist) {
 			options := buildah.ImportOptions{
 				Container: name,
 			}
@@ -132,7 +133,7 @@ func openBuilder(ctx context.Context, store storage.Store, name string) (builder
 		return nil, err
 	}
 	if builder == nil {
-		return nil, errors.Errorf("error finding build container")
+		return nil, errors.New("error finding build container")
 	}
 	return builder, nil
 }
@@ -151,7 +152,7 @@ func openImage(ctx context.Context, sc *types.SystemContext, store storage.Store
 		return nil, err
 	}
 	if builder == nil {
-		return nil, errors.Errorf("error mocking up build configuration")
+		return nil, errors.New("error mocking up build configuration")
 	}
 	return builder, nil
 }

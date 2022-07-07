@@ -2,13 +2,13 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/types"
-	"github.com/pkg/errors"
 )
 
 // PushOptions includes data to alter certain knobs when pushing a source
@@ -48,11 +48,11 @@ func Push(ctx context.Context, sourcePath string, imageInput string, options Pus
 
 	policy, err := signature.DefaultPolicy(sysCtx)
 	if err != nil {
-		return errors.Wrapf(err, "error obtaining default signature policy")
+		return fmt.Errorf("error obtaining default signature policy: %w", err)
 	}
 	policyContext, err := signature.NewPolicyContext(policy)
 	if err != nil {
-		return errors.Wrapf(err, "error creating new signature policy context")
+		return fmt.Errorf("error creating new signature policy context: %w", err)
 	}
 
 	copyOpts := &copy.Options{
@@ -62,7 +62,7 @@ func Push(ctx context.Context, sourcePath string, imageInput string, options Pus
 		copyOpts.ReportWriter = os.Stderr
 	}
 	if _, err := copy.Image(ctx, policyContext, destRef, ociSource.Reference(), copyOpts); err != nil {
-		return errors.Wrap(err, "error pushing source image")
+		return fmt.Errorf("error pushing source image: %w", err)
 	}
 
 	return nil

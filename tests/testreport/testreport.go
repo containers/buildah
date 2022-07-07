@@ -14,7 +14,6 @@ import (
 	"github.com/containers/buildah/tests/testreport/types"
 	"github.com/containers/storage/pkg/mount"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
@@ -28,7 +27,7 @@ func getVersion(r *types.TestReport) {
 func getHostname(r *types.TestReport) error {
 	hostname, err := os.Hostname()
 	if err != nil {
-		return errors.Wrapf(err, "error reading hostname")
+		return fmt.Errorf("error reading hostname: %w", err)
 	}
 	r.Spec.Hostname = hostname
 	return nil
@@ -43,7 +42,7 @@ func getProcessConsoleSize(r *types.TestReport) error {
 	if term.IsTerminal(unix.Stdin) {
 		winsize, err := unix.IoctlGetWinsize(unix.Stdin, unix.TIOCGWINSZ)
 		if err != nil {
-			return errors.Wrapf(err, "error reading size of terminal on stdin")
+			return fmt.Errorf("error reading size of terminal on stdin: %w", err)
 		}
 		if r.Spec.Process.ConsoleSize == nil {
 			r.Spec.Process.ConsoleSize = new(specs.Box)
@@ -59,7 +58,7 @@ func getProcessUser(r *types.TestReport) error {
 	r.Spec.Process.User.GID = uint32(unix.Getgid())
 	groups, err := unix.Getgroups()
 	if err != nil {
-		return errors.Wrapf(err, "error reading supplemental groups list")
+		return fmt.Errorf("error reading supplemental groups list: %w", err)
 	}
 	for _, gid := range groups {
 		r.Spec.Process.User.AdditionalGids = append(r.Spec.Process.User.AdditionalGids, uint32(gid))
@@ -81,7 +80,7 @@ func getProcessCwd(r *types.TestReport) error {
 	cwd := make([]byte, 8192)
 	n, err := unix.Getcwd(cwd)
 	if err != nil {
-		return errors.Wrapf(err, "error determining current working directory")
+		return fmt.Errorf("error determining current working directory: %w", err)
 	}
 	for n > 0 && cwd[n-1] == 0 {
 		n--
@@ -93,10 +92,10 @@ func getProcessCwd(r *types.TestReport) error {
 func getProcessCapabilities(r *types.TestReport) error {
 	capabilities, err := capability.NewPid2(0)
 	if err != nil {
-		return errors.Wrapf(err, "error reading current capabilities")
+		return fmt.Errorf("error reading current capabilities: %w", err)
 	}
 	if err := capabilities.Load(); err != nil {
-		return errors.Wrapf(err, "error loading capabilities")
+		return fmt.Errorf("error loading capabilities: %w", err)
 	}
 	if r.Spec.Process.Capabilities == nil {
 		r.Spec.Process.Capabilities = new(specs.LinuxCapabilities)
@@ -140,7 +139,7 @@ func getProcessRLimits(r *types.TestReport) error {
 	for resourceName, resource := range limitsMap {
 		var rlim unix.Rlimit
 		if err := unix.Getrlimit(resource, &rlim); err != nil {
-			return errors.Wrapf(err, "error reading %s limit", resourceName)
+			return fmt.Errorf("error reading %s limit: %w", resourceName, err)
 		}
 		if rlim.Cur == unix.RLIM_INFINITY && rlim.Max == unix.RLIM_INFINITY {
 			continue
@@ -169,7 +168,7 @@ func getProcessNoNewPrivileges(r *types.TestReport) error {
 	// and we want to succeed on older kernels.
 	r1, err := unix.PrctlRetInt(unix.PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0)
 	if err != nil {
-		return errors.Wrapf(err, "error reading no-new-privs bit")
+		return fmt.Errorf("error reading no-new-privs bit: %w", err)
 	}
 	r.Spec.Process.NoNewPrivileges = (r1 != 0)
 	return nil
@@ -184,15 +183,15 @@ func getProcessOOMScoreAdjust(r *types.TestReport) error {
 	node := "/proc/self/oom_score_adj"
 	score, err := ioutil.ReadFile(node)
 	if err != nil {
-		return errors.Wrapf(err, "error reading %q", node)
+		return fmt.Errorf("error reading %q: %w", node, err)
 	}
 	fields := strings.Fields(string(score))
 	if len(fields) != 1 {
-		return errors.Wrapf(err, "badly formatted line %q in %q", string(score), node)
+		return fmt.Errorf("badly formatted line %q in %q: %w", string(score), node, err)
 	}
 	oom, err := strconv.Atoi(fields[0])
 	if err != nil {
-		return errors.Wrapf(err, "error parsing %q in line %q in %q", fields[0], string(score), node)
+		return fmt.Errorf("error parsing %q in line %q in %q: %w", fields[0], string(score), node, err)
 	}
 	if oom != 0 {
 		r.Spec.Process.OOMScoreAdj = &oom
@@ -248,7 +247,7 @@ func getProcess(r *types.TestReport) error {
 func getMounts(r *types.TestReport) error {
 	infos, err := mount.GetMounts()
 	if err != nil {
-		return errors.Wrapf(err, "reading current list of mounts")
+		return fmt.Errorf("reading current list of mounts: %w", err)
 	}
 	for _, info := range infos {
 		mount := specs.Mount{
@@ -267,7 +266,7 @@ func getLinuxIDMappings(r *types.TestReport) error {
 		var mappings []specs.LinuxIDMapping
 		mapfile, err := os.Open(node)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error opening %q", node)
+			return nil, fmt.Errorf("error opening %q: %w", node, err)
 		}
 		defer mapfile.Close()
 		scanner := bufio.NewScanner(mapfile)
@@ -275,19 +274,19 @@ func getLinuxIDMappings(r *types.TestReport) error {
 			line := scanner.Text()
 			fields := strings.Fields(line)
 			if len(fields) != 3 {
-				return nil, errors.Wrapf(err, "badly formatted line %q in %q", line, node)
+				return nil, fmt.Errorf("badly formatted line %q in %q: %w", line, node, err)
 			}
 			cid, err := strconv.ParseUint(fields[0], 10, 32)
 			if err != nil {
-				return nil, errors.Wrapf(err, "error parsing %q in line %q in %q", fields[0], line, node)
+				return nil, fmt.Errorf("error parsing %q in line %q in %q: %w", fields[0], line, node, err)
 			}
 			hid, err := strconv.ParseUint(fields[1], 10, 32)
 			if err != nil {
-				return nil, errors.Wrapf(err, "error parsing %q in line %q in %q", fields[1], line, node)
+				return nil, fmt.Errorf("error parsing %q in line %q in %q: %w", fields[1], line, node, err)
 			}
 			size, err := strconv.ParseUint(fields[2], 10, 32)
 			if err != nil {
-				return nil, errors.Wrapf(err, "error parsing %q in line %q in %q", fields[2], line, node)
+				return nil, fmt.Errorf("error parsing %q in line %q in %q: %w", fields[2], line, node, err)
 			}
 			mappings = append(mappings, specs.LinuxIDMapping{ContainerID: uint32(cid), HostID: uint32(hid), Size: uint32(size)})
 		}
@@ -324,7 +323,7 @@ func getLinuxSysctl(r *types.TestReport) error {
 					}
 				}
 			}
-			return errors.Wrapf(err, "error reading sysctl %q", path)
+			return fmt.Errorf("error reading sysctl %q: %w", path, err)
 		}
 		path = strings.TrimPrefix(path, "/proc/sys/")
 		sysctl := strings.Replace(path, "/", ".", -1)

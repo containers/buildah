@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package chroot
@@ -107,7 +108,7 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 	}
 
 	var report types.TestReport
-	if json.Unmarshal(output.Bytes(), &report) != nil {
+	if err := json.Unmarshal(output.Bytes(), &report); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 

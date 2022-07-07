@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
@@ -18,7 +19,6 @@ import (
 	"github.com/containers/storage"
 	"github.com/containers/storage/pkg/unshare"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -89,31 +89,31 @@ func main() {
 			}
 
 			if len(args) < 1 {
-				return errors.Wrapf(err, "no source name provided")
+				return fmt.Errorf("no source name provided: %w", err)
 			}
 			src, err := alltransports.ParseImageName(args[0])
 			if err != nil {
-				return errors.Wrapf(err, "error parsing source name")
+				return fmt.Errorf("error parsing source name: %w", err)
 			}
 			if len(args) < 1 {
-				return errors.Wrapf(err, "no destination name provided")
+				return fmt.Errorf("no destination name provided: %w", err)
 			}
 			dest, err := alltransports.ParseImageName(args[1])
 			if err != nil {
-				return errors.Wrapf(err, "error parsing destination name")
+				return fmt.Errorf("error parsing destination name: %w", err)
 			}
 
 			policy, err := signature.DefaultPolicy(&systemContext)
 			if err != nil {
-				return errors.Wrapf(err, "error reading signature policy")
+				return fmt.Errorf("error reading signature policy: %w", err)
 			}
 			policyContext, err := signature.NewPolicyContext(policy)
 			if err != nil {
-				return errors.Wrapf(err, "error creating new signature policy context")
+				return fmt.Errorf("error creating new signature policy context: %w", err)
 			}
 			defer func() {
 				if err := policyContext.Destroy(); err != nil {
-					logrus.Error(errors.Wrapf(err, "error destroying signature policy context"))
+					logrus.Error(fmt.Errorf("error destroying signature policy context: %w", err))
 				}
 			}()
 

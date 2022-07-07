@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	bolt "go.etcd.io/bbolt"
 )
@@ -25,7 +24,7 @@ var (
 func dumpBoltCmd(c *cobra.Command, args []string) error {
 	db, err := bolt.Open(args[0], 0600, &bolt.Options{ReadOnly: true})
 	if err != nil {
-		return errors.Wrapf(err, "error opening database %q", args[0])
+		return fmt.Errorf("error opening database %q: %w", args[0], err)
 	}
 	defer db.Close()
 

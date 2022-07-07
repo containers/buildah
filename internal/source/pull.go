@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/containers/buildah/pkg/parse"
@@ -10,7 +11,6 @@ import (
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
-	"github.com/pkg/errors"
 )
 
 // PullOptions includes data to alter certain knobs when pulling a source
@@ -27,7 +27,7 @@ type PullOptions struct {
 // Pull `imageInput` from a container registry to `sourcePath`.
 func Pull(ctx context.Context, imageInput string, sourcePath string, options PullOptions) error {
 	if _, err := os.Stat(sourcePath); err == nil {
-		return errors.Errorf("%q already exists", sourcePath)
+		return fmt.Errorf("%q already exists", sourcePath)
 	}
 
 	srcRef, err := stringToImageReference(imageInput)
@@ -57,11 +57,11 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 
 	policy, err := signature.DefaultPolicy(sysCtx)
 	if err != nil {
-		return errors.Wrapf(err, "error obtaining default signature policy")
+		return fmt.Errorf("error obtaining default signature policy: %w", err)
 	}
 	policyContext, err := signature.NewPolicyContext(policy)
 	if err != nil {
-		return errors.Wrapf(err, "error creating new signature policy context")
+		return fmt.Errorf("error creating new signature policy context: %w", err)
 	}
 
 	copyOpts := copy.Options{
@@ -71,7 +71,7 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 		copyOpts.ReportWriter = os.Stderr
 	}
 	if _, err := copy.Image(ctx, policyContext, ociDest.Reference(), srcRef, &copyOpts); err != nil {
-		return errors.Wrap(err, "error pulling source image")
+		return fmt.Errorf("error pulling source image: %w", err)
 	}
 
 	return nil
@@ -79,12 +79,12 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 
 func stringToImageReference(imageInput string) (types.ImageReference, error) {
 	if shortnames.IsShortName(imageInput) {
-		return nil, errors.Errorf("pulling source images by short name (%q) is not supported, please use a fully-qualified name", imageInput)
+		return nil, fmt.Errorf("pulling source images by short name (%q) is not supported, please use a fully-qualified name", imageInput)
 	}
 
 	ref, err := alltransports.ParseImageName("docker://" + imageInput)
 	if err != nil {
-		return nil, errors.Wrap(err, "error parsing image name")
+		return nil, fmt.Errorf("error parsing image name: %w", err)
 	}
 
 	return ref, nil
@@ -93,7 +93,7 @@ func stringToImageReference(imageInput string) (types.ImageReference, error) {
 func validateSourceImageReference(ctx context.Context, ref types.ImageReference, sysCtx *types.SystemContext) error {
 	src, err := ref.NewImageSource(ctx, sysCtx)
 	if err != nil {
-		return errors.Wrap(err, "error creating image source from reference")
+		return fmt.Errorf("error creating image source from reference: %w", err)
 	}
 	defer src.Close()
 
@@ -103,7 +103,7 @@ func validateSourceImageReference(ctx context.Context, ref types.ImageReference,
 	}
 
 	if ociManifest.Config.MediaType != MediaTypeSourceImageConfig {
-		return errors.Errorf("invalid media type of image config %q (expected: %q)", ociManifest.Config.MediaType, MediaTypeSourceImageConfig)
+		return fmt.Errorf("invalid media type of image config %q (expected: %q)", ociManifest.Config.MediaType, MediaTypeSourceImageConfig)
 	}
 
 	return nil

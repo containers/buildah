@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/common/libimage"
 	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -48,16 +48,16 @@ func init() {
 
 func rmiCmd(c *cobra.Command, args []string, iopts rmiOptions) error {
 	if len(args) == 0 && !iopts.all && !iopts.prune {
-		return errors.Errorf("image name or ID must be specified")
+		return errors.New("image name or ID must be specified")
 	}
 	if len(args) > 0 && iopts.all {
-		return errors.Errorf("when using the --all switch, you may not pass any images names or IDs")
+		return errors.New("when using the --all switch, you may not pass any images names or IDs")
 	}
 	if iopts.all && iopts.prune {
-		return errors.Errorf("when using the --all switch, you may not use --prune switch")
+		return errors.New("when using the --all switch, you may not use --prune switch")
 	}
 	if len(args) > 0 && iopts.prune {
-		return errors.Errorf("when using the --prune switch, you may not pass any images names or IDs")
+		return errors.New("when using the --prune switch, you may not pass any images names or IDs")
 	}
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {

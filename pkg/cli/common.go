@@ -17,7 +17,6 @@ import (
 	"github.com/containers/common/pkg/config"
 	"github.com/containers/storage/pkg/unshare"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
 
@@ -314,7 +313,7 @@ func GetFromAndBudFlags(flags *FromAndBudResults, usernsResults *UserNSResults, 
 	fs := pflag.FlagSet{}
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
-		return fs, errors.Wrapf(err, "failed to get container config")
+		return fs, fmt.Errorf("failed to get container config: %w", err)
 	}
 
 	fs.StringSliceVar(&flags.AddHost, "add-host", []string{}, "add a custom host-to-IP mapping (`host:ip`) (default [])")
@@ -443,7 +442,7 @@ func DefaultHistory() bool {
 func VerifyFlagsArgsOrder(args []string) error {
 	for _, arg := range args {
 		if strings.HasPrefix(arg, "-") {
-			return errors.Errorf("No options (%s) can be specified after the image or container name", arg)
+			return fmt.Errorf("no options (%s) can be specified after the image or container name", arg)
 		}
 	}
 	return nil

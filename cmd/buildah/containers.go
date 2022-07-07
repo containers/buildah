@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -13,7 +14,6 @@ import (
 	"github.com/containers/buildah/pkg/formats"
 	"github.com/containers/buildah/util"
 	"github.com/containers/storage"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -108,7 +108,7 @@ func containersCmd(c *cobra.Command, args []string, iopts containersResults) err
 	}
 
 	if c.Flag("quiet").Changed && c.Flag("format").Changed {
-		return errors.Errorf("quiet and format are mutually exclusive")
+		return errors.New("quiet and format are mutually exclusive")
 	}
 
 	opts := containerOptions{
@@ -124,7 +124,7 @@ func containersCmd(c *cobra.Command, args []string, iopts containersResults) err
 	if c.Flag("filter").Changed {
 		params, err = parseCtrFilter(iopts.filter)
 		if err != nil {
-			return errors.Wrapf(err, "error parsing filter")
+			return fmt.Errorf("error parsing filter: %w", err)
 		}
 	}
 
@@ -154,7 +154,7 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 
 	builders, err := openBuilders(store)
 	if err != nil {
-		return errors.Wrapf(err, "error reading build containers")
+		return fmt.Errorf("error reading build containers: %w", err)
 	}
 	var (
 		containerOutput []containerOutputParams
@@ -192,7 +192,7 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 		}
 		containers, err2 := store.Containers()
 		if err2 != nil {
-			return errors.Wrapf(err2, "error reading list of all containers")
+			return fmt.Errorf("error reading list of all containers: %w", err2)
 		}
 		for _, container := range containers {
 			name := ""
@@ -260,14 +260,14 @@ func containersToGeneric(templParams []containerOutputParams) (genericParams []i
 
 func containerOutputUsingTemplate(format string, params containerOutputParams) error {
 	if matched, err := regexp.MatchString("{{.*}}", format); err != nil {
-		return errors.Wrapf(err, "error validating format provided: %s", format)
+		return fmt.Errorf("error validating format provided: %s: %w", format, err)
 	} else if !matched {
-		return errors.Errorf("error invalid format provided: %s", format)
+		return fmt.Errorf("error invalid format provided: %s", format)
 	}
 
 	tmpl, err := template.New("container").Parse(format)
 	if err != nil {
-		return errors.Wrapf(err, "Template parsing error")
+		return fmt.Errorf("Template parsing error: %w", err)
 	}
 
 	err = tmpl.Execute(os.Stdout, params)
@@ -300,7 +300,7 @@ func parseCtrFilter(filter string) (*containerFilterParams, error) {
 	for _, param := range filters {
 		pair := strings.SplitN(param, "=", 2)
 		if len(pair) != 2 {
-			return nil, errors.Errorf("incorrect filter value %q, should be of form filter=value", param)
+			return nil, fmt.Errorf("incorrect filter value %q, should be of form filter=value", param)
 		}
 		switch strings.TrimSpace(pair[0]) {
 		case "id":
@@ -310,7 +310,7 @@ func parseCtrFilter(filter string) (*containerFilterParams, error) {
 		case "ancestor":
 			params.ancestor = pair[1]
 		default:
-			return nil, errors.Errorf("invalid filter %q", pair[0])
+			return nil, fmt.Errorf("invalid filter %q", pair[0])
 		}
 	}
 	return params, nil

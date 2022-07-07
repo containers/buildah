@@ -1,12 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/util"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -42,10 +42,10 @@ func init() {
 func rmCmd(c *cobra.Command, args []string, iopts rmResults) error {
 	delContainerErrStr := "error removing container"
 	if len(args) == 0 && !iopts.all {
-		return errors.Errorf("container ID must be specified")
+		return errors.New("container ID must be specified")
 	}
 	if len(args) > 0 && iopts.all {
-		return errors.Errorf("when using the --all switch, you may not pass any containers names or IDs")
+		return errors.New("when using the --all switch, you may not pass any containers names or IDs")
 	}
 
 	if err := buildahcli.VerifyFlagsArgsOrder(args); err != nil {
@@ -61,13 +61,13 @@ func rmCmd(c *cobra.Command, args []string, iopts rmResults) error {
 	if iopts.all {
 		builders, err := openBuilders(store)
 		if err != nil {
-			return errors.Wrapf(err, "error reading build containers")
+			return fmt.Errorf("error reading build containers: %w", err)
 		}
 
 		for _, builder := range builders {
 			id := builder.ContainerID
 			if err = builder.Delete(); err != nil {
-				lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "%s %q", delContainerErrStr, builder.Container), lastError)
+				lastError = util.WriteError(os.Stderr, fmt.Errorf("%s %q: %w", delContainerErrStr, builder.Container, err), lastError)
 				continue
 			}
 			fmt.Printf("%s\n", id)
@@ -76,12 +76,12 @@ func rmCmd(c *cobra.Command, args []string, iopts rmResults) error {
 		for _, name := range args {
 			builder, err := openBuilder(getContext(), store, name)
 			if err != nil {
-				lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "%s %q", delContainerErrStr, name), lastError)
+				lastError = util.WriteError(os.Stderr, fmt.Errorf("%s %q: %w", delContainerErrStr, name, err), lastError)
 				continue
 			}
 			id := builder.ContainerID
 			if err = builder.Delete(); err != nil {
-				lastError = util.WriteError(os.Stderr, errors.Wrapf(err, "%s %q", delContainerErrStr, name), lastError)
+				lastError = util.WriteError(os.Stderr, fmt.Errorf("%s %q: %w", delContainerErrStr, name, err), lastError)
 				continue
 			}
 			fmt.Printf("%s\n", id)
