@@ -2295,6 +2295,13 @@ _EOF
   expect_output "[PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin LOCAL=/1]"
 }
 
+@test "build with -f pointing to not a file should fail" {
+  _prefetch alpine
+  target=alpine-image
+  run_buildah 125 build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/dockerfile/
+  expect_output --substring "cannot be path to a directory"
+}
+
 @test "bud with symlink Dockerfile not specified in file" {
   _prefetch alpine
   target=alpine-image
