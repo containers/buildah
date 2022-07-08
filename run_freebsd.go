@@ -4,6 +4,7 @@
 package buildah
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -29,7 +30,6 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -73,13 +73,13 @@ func setChildProcess() error {
 func (b *Builder) Run(command []string, options RunOptions) error {
 	p, err := ioutil.TempDir("", Package)
 	if err != nil {
-		return errors.Wrapf(err, "run: error creating temporary directory under %q", os.TempDir())
+		return err
 	}
 	// On some hosts like AH, /tmp is a symlink and we need an
 	// absolute path.
 	path, err := filepath.EvalSymlinks(p)
 	if err != nil {
-		return errors.Wrapf(err, "run: error evaluating %q for symbolic links", p)
+		return err
 	}
 	logrus.Debugf("using %q to hold bundle data", path)
 	defer func() {
@@ -90,7 +90,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	gp, err := generate.New("freebsd")
 	if err != nil {
-		return errors.Wrapf(err, "error generating new 'freebsd' runtime spec")
+		return fmt.Errorf("error generating new 'freebsd' runtime spec: %w", err)
 	}
 	g := &gp
 
@@ -109,7 +109,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	b.configureEnvironment(g, options, []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"})
 
 	if b.CommonBuildOpts == nil {
-		return errors.Errorf("Invalid format on container you must recreate the container")
+		return fmt.Errorf("invalid format on container you must recreate the container")
 	}
 
 	if err := addCommonOptsToSpec(b.CommonBuildOpts, g); err != nil {
@@ -123,7 +123,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	}
 	mountPoint, err := b.Mount(b.MountLabel)
 	if err != nil {
-		return errors.Wrapf(err, "error mounting container %q", b.ContainerID)
+		return fmt.Errorf("error mounting container %q: %w", b.ContainerID, err)
 	}
 	defer func() {
 		if err := b.Unmount(); err != nil {
@@ -216,7 +216,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 
 	runArtifacts, err := b.setupMounts(mountPoint, spec, path, options.Mounts, bindFiles, volumes, b.CommonBuildOpts.Volumes, options.RunMounts, runMountInfo)
 	if err != nil {
-		return errors.Wrapf(err, "error resolving mountpoints for container %q", b.ContainerID)
+		return fmt.Errorf("error resolving mountpoints for container %q: %w", b.ContainerID, err)
 	}
 	if runArtifacts.SSHAuthSock != "" {
 		sshenv := "SSH_AUTH_SOCK=" + runArtifacts.SSHAuthSock
@@ -282,7 +282,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 	case IsolationChroot:
 		err = chroot.RunUsingChroot(spec, path, homeDir, options.Stdin, options.Stdout, options.Stderr)
 	default:
-		err = errors.Errorf("don't know how to run this command")
+		err = errors.New("don't know how to run this command")
 	}
 	return err
 }
@@ -290,7 +290,7 @@ func (b *Builder) Run(command []string, options RunOptions) error {
 func addCommonOptsToSpec(commonOpts *define.CommonBuildOptions, g *generate.Generator) error {
 	defaultContainerConfig, err := config.Default()
 	if err != nil {
-		return errors.Wrapf(err, "failed to get container config")
+		return fmt.Errorf("failed to get container config: %w", err)
 	}
 	// Other process resource limits
 	if err := addRlimits(commonOpts.Ulimit, g, defaultContainerConfig.Containers.DefaultUlimits); err != nil {
@@ -315,7 +315,7 @@ func (b *Builder) runSetupVolumeMounts(mountLabel string, volumeMounts []string,
 	// Make sure the overlay directory is clean before running
 	_, err := b.store.ContainerDirectory(b.ContainerID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error looking up container directory for %s", b.ContainerID)
+		return nil, fmt.Errorf("error looking up container directory for %s: %w", b.ContainerID, err)
 	}
 
 	parseMount := func(mountType, host, container string, options []string) (specs.Mount, error) {
@@ -519,7 +519,7 @@ func addRlimits(ulimit []string, g *generate.Generator, defaultUlimits []string)
 	ulimit = append(defaultUlimits, ulimit...)
 	for _, u := range ulimit {
 		if ul, err = units.ParseUlimit(u); err != nil {
-			return errors.Wrapf(err, "ulimit option %q requires name=SOFT:HARD, failed to be parsed", u)
+			return fmt.Errorf("ulimit option %q requires name=SOFT:HARD, failed to be parsed: %w", u, err)
 		}
 
 		g.AddProcessRlimits("RLIMIT_"+strings.ToUpper(ul.Name), uint64(ul.Hard), uint64(ul.Soft))
@@ -541,7 +541,7 @@ func runMakeStdioPipe(uid, gid int) ([][]int, error) {
 	for i := range stdioPipe {
 		stdioPipe[i] = make([]int, 2)
 		if err := unix.Pipe(stdioPipe[i]); err != nil {
-			return nil, errors.Wrapf(err, "error creating pipe for container FD %d", i)
+			return nil, fmt.Errorf("error creating pipe for container FD %d: %w", i, err)
 		}
 	}
 	return stdioPipe, nil
