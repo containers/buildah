@@ -25,6 +25,9 @@ var (
 )
 
 func getStore(c *cobra.Command) (storage.Store, error) {
+	if err := setXDGRuntimeDir(); err != nil {
+		return nil, err
+	}
 	options, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
 	if err != nil {
 		return nil, err
@@ -33,11 +36,6 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 		options.GraphRoot = globalFlagResults.Root
 		options.RunRoot = globalFlagResults.RunRoot
 	}
-
-	if err := setXDGRuntimeDir(); err != nil {
-		return nil, err
-	}
-
 	if c.Flag("storage-driver").Changed {
 		options.GraphDriverName = globalFlagResults.StorageDriver
 		// If any options setup in config, these should be dropped if user overrode the driver
