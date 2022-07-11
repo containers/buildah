@@ -320,7 +320,7 @@ _EOF
 
 # Test bud with prestart hook
 @test "build-test with OCI prestart hook" {
-  skip_if_in_container # This works in priviledged container setup but does not works in CI setup
+  skip_if_in_container # This works in privileged container setup but does not works in CI setup
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform/hooks
 

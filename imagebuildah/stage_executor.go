@@ -988,7 +988,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			if s.executor.buildOutput != "" && lastStage {
 				// If we have reached this point then our build is just performing a tag
 				// and it contains no steps or instructions (i.e Containerfile only contains
-				// `FROM <imagename> and nothing else so we will never end up commiting this
+				// `FROM <imagename> and nothing else so we will never end up committing this
 				// but instead just re-tag image. For such use-cases if `-o` or `--output` was
 				// specified honor that and export the contents of the current build anyways.
 				logrus.Debugf("Generating custom build output with options %q", s.executor.buildOutput)
