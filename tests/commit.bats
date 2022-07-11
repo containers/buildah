@@ -24,6 +24,25 @@ load helpers
   run_buildah images alpine-image
 }
 
+# Mainly this test is added for rootless setups where XDG_RUNTIME_DIR
+# is not set and we end up setting incorrect runroot at various steps
+# Use case is typically seen on environments where current session
+# is invalid login session.
+@test "commit image on rootless setup with mount" {
+  unset XDG_RUNTIME_DIR
+  run dd if=/dev/zero of=${TEST_SCRATCH_DIR}/file count=1 bs=10M
+  run_buildah from scratch
+  CONT=$output
+  unset XDG_RUNTIME_DIR
+  run_buildah mount $CONT
+  MNT=$output
+  run cp ${TEST_SCRATCH_DIR}/file $MNT/file
+  run_buildah umount $CONT
+  run_buildah commit $CONT foo
+  run_buildah images foo
+  expect_output --substring "10.5 MB"
+}
+
 @test "commit-with-remove-identity-label" {
   _prefetch alpine
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
