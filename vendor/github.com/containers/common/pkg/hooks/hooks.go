@@ -3,6 +3,7 @@ package hooks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -11,7 +12,6 @@ import (
 
 	current "github.com/containers/common/pkg/hooks/1.0.0"
 	rspec "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -57,7 +57,7 @@ func New(ctx context.Context, directories []string, extensionStages []string) (m
 
 	for _, dir := range directories {
 		err = ReadDir(dir, manager.extensionStages, manager.hooks)
-		if err != nil && !os.IsNotExist(err) {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
 	}
@@ -105,7 +105,7 @@ func (m *Manager) Hooks(config *rspec.Spec, annotations map[string]string, hasBi
 	for _, namedHook := range hooks {
 		match, err := namedHook.hook.When.Match(config, annotations, hasBindMounts)
 		if err != nil {
-			return extensionStageHooks, errors.Wrapf(err, "matching hook %q", namedHook.name)
+			return extensionStageHooks, fmt.Errorf("matching hook %q: %w", namedHook.name, err)
 		}
 		if match {
 			logrus.Debugf("hook %s matched; adding to stages %v", namedHook.name, namedHook.hook.Stages)

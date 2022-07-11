@@ -15,7 +15,7 @@ import (
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/homedir"
-	"github.com/pkg/errors"
+	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -103,7 +103,7 @@ func (e *Endpoint) rewriteReference(ref reference.Named, prefix string) (referen
 	newNamedRef = e.Location + refString[prefixLen:]
 	newParsedRef, err := reference.ParseNamed(newNamedRef)
 	if err != nil {
-		return nil, errors.Wrapf(err, "rewriting reference")
+		return nil, perrors.Wrapf(err, "rewriting reference")
 	}
 
 	return newParsedRef, nil
@@ -666,7 +666,7 @@ func dropInConfigs(wrapper configWrapper) ([]string, error) {
 		if err != nil && !os.IsNotExist(err) {
 			// Ignore IsNotExist errors: most systems won't have a registries.conf.d
 			// directory.
-			return nil, errors.Wrapf(err, "reading registries.conf.d")
+			return nil, perrors.Wrapf(err, "reading registries.conf.d")
 		}
 	}
 
@@ -708,7 +708,7 @@ func tryUpdatingCache(ctx *types.SystemContext, wrapper configWrapper) (*parsedC
 				return nil, err // Should never happen
 			}
 		} else {
-			return nil, errors.Wrapf(err, "loading registries configuration %q", wrapper.configPath)
+			return nil, perrors.Wrapf(err, "loading registries configuration %q", wrapper.configPath)
 		}
 	}
 
@@ -721,7 +721,7 @@ func tryUpdatingCache(ctx *types.SystemContext, wrapper configWrapper) (*parsedC
 		// Enforce v2 format for drop-in-configs.
 		dropIn, err := loadConfigFile(path, true)
 		if err != nil {
-			return nil, errors.Wrapf(err, "loading drop-in registries configuration %q", path)
+			return nil, perrors.Wrapf(err, "loading drop-in registries configuration %q", path)
 		}
 		config.updateWithConfigurationFrom(dropIn)
 	}
@@ -782,7 +782,7 @@ func parseShortNameMode(mode string) (types.ShortNameMode, error) {
 	case "permissive":
 		return types.ShortNameModePermissive, nil
 	default:
-		return types.ShortNameModeInvalid, errors.Errorf("invalid short-name mode: %q", mode)
+		return types.ShortNameModeInvalid, fmt.Errorf("invalid short-name mode: %q", mode)
 	}
 }
 
@@ -975,7 +975,7 @@ func loadConfigFile(path string, forceV2 bool) (*parsedConfig, error) {
 	// Parse and validate short-name aliases.
 	cache, err := newShortNameAliasCache(path, &res.partialV2.shortNameAliasConf)
 	if err != nil {
-		return nil, errors.Wrap(err, "validating short-name aliases")
+		return nil, perrors.Wrap(err, "validating short-name aliases")
 	}
 	res.aliasCache = cache
 	// Clear conf.partialV2.shortNameAliasConf to make it available for garbage collection and

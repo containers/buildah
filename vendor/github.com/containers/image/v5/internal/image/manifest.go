@@ -8,13 +8,11 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 // genericManifest is an interface for parsing, modifying image manifests and related data.
-// Note that the public methods are intended to be a subset of types.Image
-// so that embedding a genericManifest into structs works.
-// will support v1 one day...
+// The public methods are related to types.Image so that embedding a genericManifest implements most of it,
+// but there are also public methods that are only visible by packages that can import c/image/internal/image.
 type genericManifest interface {
 	serialize() ([]byte, error)
 	manifestMIMEType() string
@@ -51,6 +49,16 @@ type genericManifest interface {
 	// the process of updating a manifest between different manifest types was to update then convert.
 	// This resulted in some fields in the update being lost. This has been fixed by: https://github.com/containers/image/pull/836
 	SupportsEncryption(ctx context.Context) bool
+
+	// The following methods are not a part of types.Image:
+	// ===
+
+	// CanChangeLayerCompression returns true if we can compress/decompress layers with mimeType in the current image
+	// (and the code can handle that).
+	// NOTE: Even if this returns true, the relevant format might not accept all compression algorithms; the set of accepted
+	// algorithms depends not on the current format, but possibly on the target of a conversion (if UpdatedImage converts
+	// to a different manifest format).
+	CanChangeLayerCompression(mimeType string) bool
 }
 
 // manifestInstanceFromBlob returns a genericManifest implementation for (manblob, mt) in src.
@@ -98,7 +106,7 @@ func convertManifestIfRequiredWithUpdate(ctx context.Context, options types.Mani
 
 	converter, ok := converters[options.ManifestMIMEType]
 	if !ok {
-		return nil, errors.Errorf("Unsupported conversion type: %v", options.ManifestMIMEType)
+		return nil, fmt.Errorf("Unsupported conversion type: %v", options.ManifestMIMEType)
 	}
 
 	optionsCopy := options

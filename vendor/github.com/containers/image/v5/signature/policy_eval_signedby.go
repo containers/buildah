@@ -4,25 +4,25 @@ package signature
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/containers/image/v5/internal/private"
 	"github.com/containers/image/v5/manifest"
-	"github.com/containers/image/v5/types"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
-func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image types.UnparsedImage, sig []byte) (signatureAcceptanceResult, *Signature, error) {
+func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image private.UnparsedImage, sig []byte) (signatureAcceptanceResult, *Signature, error) {
 	switch pr.KeyType {
 	case SBKeyTypeGPGKeys:
 	case SBKeyTypeSignedByGPGKeys, SBKeyTypeX509Certificates, SBKeyTypeSignedByX509CAs:
 		// FIXME? Reject this at policy parsing time already?
-		return sarRejected, nil, errors.Errorf(`"Unimplemented "keyType" value "%s"`, string(pr.KeyType))
+		return sarRejected, nil, fmt.Errorf(`Unimplemented "keyType" value "%s"`, string(pr.KeyType))
 	default:
 		// This should never happen, newPRSignedBy ensures KeyType.IsValid()
-		return sarRejected, nil, errors.Errorf(`"Unknown "keyType" value "%s"`, string(pr.KeyType))
+		return sarRejected, nil, fmt.Errorf(`Unknown "keyType" value "%s"`, string(pr.KeyType))
 	}
 
 	if pr.KeyPath != "" && pr.KeyData != nil {
@@ -89,8 +89,9 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image types
 	return sarAccepted, signature, nil
 }
 
-func (pr *prSignedBy) isRunningImageAllowed(ctx context.Context, image types.UnparsedImage) (bool, error) {
-	// FIXME: pass context.Context
+func (pr *prSignedBy) isRunningImageAllowed(ctx context.Context, image private.UnparsedImage) (bool, error) {
+	// FIXME: Use image.UntrustedSignatures, use that to improve error messages
+	// (needs tests!)
 	sigs, err := image.Signatures(ctx)
 	if err != nil {
 		return false, err
@@ -108,7 +109,7 @@ func (pr *prSignedBy) isRunningImageAllowed(ctx context.Context, image types.Unp
 			// Huh?! This should not happen at all; treat it as any other invalid value.
 			fallthrough
 		default:
-			reason = errors.Errorf(`Internal error: Unexpected signature verification result "%s"`, string(res))
+			reason = fmt.Errorf(`Internal error: Unexpected signature verification result "%s"`, string(res))
 		}
 		rejections = append(rejections, reason)
 	}

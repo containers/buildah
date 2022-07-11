@@ -2,13 +2,13 @@ package image
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 type manifestSchema1 struct {
@@ -165,22 +165,22 @@ func (m *manifestSchema1) convertToManifestSchema2(_ context.Context, options *t
 
 	if len(m.m.ExtractedV1Compatibility) == 0 {
 		// What would this even mean?! Anyhow, the rest of the code depends on FSLayers[0] and ExtractedV1Compatibility[0] existing.
-		return nil, errors.Errorf("Cannot convert an image with 0 history entries to %s", manifest.DockerV2Schema2MediaType)
+		return nil, fmt.Errorf("Cannot convert an image with 0 history entries to %s", manifest.DockerV2Schema2MediaType)
 	}
 	if len(m.m.ExtractedV1Compatibility) != len(m.m.FSLayers) {
-		return nil, errors.Errorf("Inconsistent schema 1 manifest: %d history entries, %d fsLayers entries", len(m.m.ExtractedV1Compatibility), len(m.m.FSLayers))
+		return nil, fmt.Errorf("Inconsistent schema 1 manifest: %d history entries, %d fsLayers entries", len(m.m.ExtractedV1Compatibility), len(m.m.FSLayers))
 	}
 	if uploadedLayerInfos != nil && len(uploadedLayerInfos) != len(m.m.FSLayers) {
-		return nil, errors.Errorf("Internal error: uploaded %d blobs, but schema1 manifest has %d fsLayers", len(uploadedLayerInfos), len(m.m.FSLayers))
+		return nil, fmt.Errorf("Internal error: uploaded %d blobs, but schema1 manifest has %d fsLayers", len(uploadedLayerInfos), len(m.m.FSLayers))
 	}
 	if layerDiffIDs != nil && len(layerDiffIDs) != len(m.m.FSLayers) {
-		return nil, errors.Errorf("Internal error: collected %d DiffID values, but schema1 manifest has %d fsLayers", len(layerDiffIDs), len(m.m.FSLayers))
+		return nil, fmt.Errorf("Internal error: collected %d DiffID values, but schema1 manifest has %d fsLayers", len(layerDiffIDs), len(m.m.FSLayers))
 	}
 
 	var convertedLayerUpdates []types.BlobInfo // Only used if options.LayerInfos != nil
 	if options.LayerInfos != nil {
 		if len(options.LayerInfos) != len(m.m.FSLayers) {
-			return nil, errors.Errorf("Error converting image: layer edits for %d layers vs %d existing layers",
+			return nil, fmt.Errorf("Error converting image: layer edits for %d layers vs %d existing layers",
 				len(options.LayerInfos), len(m.m.FSLayers))
 		}
 		convertedLayerUpdates = []types.BlobInfo{}
@@ -245,4 +245,13 @@ func (m *manifestSchema1) convertToManifestOCI1(ctx context.Context, options *ty
 // SupportsEncryption returns if encryption is supported for the manifest type
 func (m *manifestSchema1) SupportsEncryption(context.Context) bool {
 	return false
+}
+
+// CanChangeLayerCompression returns true if we can compress/decompress layers with mimeType in the current image
+// (and the code can handle that).
+// NOTE: Even if this returns true, the relevant format might not accept all compression algorithms; the set of accepted
+// algorithms depends not on the current format, but possibly on the target of a conversion (if UpdatedImage converts
+// to a different manifest format).
+func (m *manifestSchema1) CanChangeLayerCompression(mimeType string) bool {
+	return true // There are no MIME types in the manifest, so we must assume a valid image.
 }

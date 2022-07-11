@@ -2,6 +2,7 @@ package archive
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -15,7 +16,7 @@ import (
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/archive"
-	"github.com/pkg/errors"
+	perrors "github.com/pkg/errors"
 )
 
 func init() {
@@ -139,7 +140,7 @@ func (ref ociArchiveReference) NewImageDestination(ctx context.Context, sys *typ
 
 // DeleteImage deletes the named image from the registry, if supported.
 func (ref ociArchiveReference) DeleteImage(ctx context.Context, sys *types.SystemContext) error {
-	return errors.Errorf("Deleting images not implemented for oci: images")
+	return errors.New("Deleting images not implemented for oci: images")
 }
 
 // struct to store the ociReference and temporary directory returned by createOCIRef
@@ -158,7 +159,7 @@ func (t *tempDirOCIRef) deleteTempDir() error {
 func createOCIRef(sys *types.SystemContext, image string) (tempDirOCIRef, error) {
 	dir, err := os.MkdirTemp(tmpdir.TemporaryDirectoryForBigFiles(sys), "oci")
 	if err != nil {
-		return tempDirOCIRef{}, errors.Wrapf(err, "creating temp directory")
+		return tempDirOCIRef{}, perrors.Wrapf(err, "creating temp directory")
 	}
 	ociRef, err := ocilayout.NewReference(dir, image)
 	if err != nil {
@@ -173,7 +174,7 @@ func createOCIRef(sys *types.SystemContext, image string) (tempDirOCIRef, error)
 func createUntarTempDir(sys *types.SystemContext, ref ociArchiveReference) (tempDirOCIRef, error) {
 	tempDirRef, err := createOCIRef(sys, ref.image)
 	if err != nil {
-		return tempDirOCIRef{}, errors.Wrap(err, "creating oci reference")
+		return tempDirOCIRef{}, perrors.Wrap(err, "creating oci reference")
 	}
 	src := ref.resolvedFile
 	dst := tempDirRef.tempDirectory
@@ -185,9 +186,9 @@ func createUntarTempDir(sys *types.SystemContext, ref ociArchiveReference) (temp
 	defer arch.Close()
 	if err := archive.NewDefaultArchiver().Untar(arch, dst, &archive.TarOptions{NoLchown: true}); err != nil {
 		if err := tempDirRef.deleteTempDir(); err != nil {
-			return tempDirOCIRef{}, errors.Wrapf(err, "deleting temp directory %q", tempDirRef.tempDirectory)
+			return tempDirOCIRef{}, perrors.Wrapf(err, "deleting temp directory %q", tempDirRef.tempDirectory)
 		}
-		return tempDirOCIRef{}, errors.Wrapf(err, "untarring file %q", tempDirRef.tempDirectory)
+		return tempDirOCIRef{}, perrors.Wrapf(err, "untarring file %q", tempDirRef.tempDirectory)
 	}
 	return tempDirRef, nil
 }

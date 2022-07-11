@@ -12,7 +12,7 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
+	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -31,11 +31,11 @@ func newReference(transport storageTransport, named reference.Named, id string) 
 		return nil, ErrInvalidReference
 	}
 	if named != nil && reference.IsNameOnly(named) {
-		return nil, errors.Wrapf(ErrInvalidReference, "reference %s has neither a tag nor a digest", named.String())
+		return nil, perrors.Wrapf(ErrInvalidReference, "reference %s has neither a tag nor a digest", named.String())
 	}
 	if id != "" {
 		if err := validateImageID(id); err != nil {
-			return nil, errors.Wrapf(ErrInvalidReference, "invalid ID value %q: %v", id, err)
+			return nil, perrors.Wrapf(ErrInvalidReference, "invalid ID value %q: %v", id, err)
 		}
 	}
 	// We take a copy of the transport, which contains a pointer to the
@@ -145,12 +145,12 @@ func (s *storageReference) resolveImage(sys *types.SystemContext) (*storage.Imag
 	}
 	if s.id == "" {
 		logrus.Debugf("reference %q does not resolve to an image ID", s.StringWithinTransport())
-		return nil, errors.Wrapf(ErrNoSuchImage, "reference %q does not resolve to an image ID", s.StringWithinTransport())
+		return nil, perrors.Wrapf(ErrNoSuchImage, "reference %q does not resolve to an image ID", s.StringWithinTransport())
 	}
 	if loadedImage == nil {
 		img, err := s.transport.store.Image(s.id)
 		if err != nil {
-			return nil, errors.Wrapf(err, "reading image %q", s.id)
+			return nil, perrors.Wrapf(err, "reading image %q", s.id)
 		}
 		loadedImage = img
 	}

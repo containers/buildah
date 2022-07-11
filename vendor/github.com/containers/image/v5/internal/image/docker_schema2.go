@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
+	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -99,7 +100,7 @@ func (m *manifestSchema2) OCIConfig(ctx context.Context) (*imgspecv1.Image, erro
 func (m *manifestSchema2) ConfigBlob(ctx context.Context) ([]byte, error) {
 	if m.configBlob == nil {
 		if m.src == nil {
-			return nil, errors.Errorf("Internal error: neither src nor configBlob set in manifestSchema2")
+			return nil, fmt.Errorf("Internal error: neither src nor configBlob set in manifestSchema2")
 		}
 		stream, _, err := m.src.GetBlob(ctx, manifest.BlobInfoFromSchema2Descriptor(m.m.ConfigDescriptor), none.NoCache)
 		if err != nil {
@@ -112,7 +113,7 @@ func (m *manifestSchema2) ConfigBlob(ctx context.Context) ([]byte, error) {
 		}
 		computedDigest := digest.FromBytes(blob)
 		if computedDigest != m.m.ConfigDescriptor.Digest {
-			return nil, errors.Errorf("Download config.json digest %s does not match expected %s", computedDigest, m.m.ConfigDescriptor.Digest)
+			return nil, fmt.Errorf("Download config.json digest %s does not match expected %s", computedDigest, m.m.ConfigDescriptor.Digest)
 		}
 		m.configBlob = blob
 	}
@@ -277,7 +278,7 @@ func (m *manifestSchema2) convertToManifestSchema1(ctx context.Context, options 
 	haveGzippedEmptyLayer := false
 	if len(imageConfig.History) == 0 {
 		// What would this even mean?! Anyhow, the rest of the code depends on fsLayers[0] and history[0] existing.
-		return nil, errors.Errorf("Cannot convert an image with 0 history entries to %s", manifest.DockerV2Schema1SignedMediaType)
+		return nil, fmt.Errorf("Cannot convert an image with 0 history entries to %s", manifest.DockerV2Schema1SignedMediaType)
 	}
 	for v2Index, historyEntry := range imageConfig.History {
 		parentV1ID = v1ID
@@ -293,10 +294,10 @@ func (m *manifestSchema2) convertToManifestSchema1(ctx context.Context, options 
 				// and anyway this blob is so small that it’s easier to just copy it than to worry about figuring out another location where to get it.
 				info, err := dest.PutBlob(ctx, bytes.NewReader(GzippedEmptyLayer), emptyLayerBlobInfo, none.NoCache, false)
 				if err != nil {
-					return nil, errors.Wrap(err, "uploading empty layer")
+					return nil, perrors.Wrap(err, "uploading empty layer")
 				}
 				if info.Digest != emptyLayerBlobInfo.Digest {
-					return nil, errors.Errorf("Internal error: Uploaded empty layer has digest %#v instead of %s", info.Digest, emptyLayerBlobInfo.Digest)
+					return nil, fmt.Errorf("Internal error: Uploaded empty layer has digest %#v instead of %s", info.Digest, emptyLayerBlobInfo.Digest)
 				}
 				haveGzippedEmptyLayer = true
 			}
@@ -306,7 +307,7 @@ func (m *manifestSchema2) convertToManifestSchema1(ctx context.Context, options 
 			blobDigest = emptyLayerBlobInfo.Digest
 		} else {
 			if nonemptyLayerIndex >= len(m.m.LayersDescriptors) {
-				return nil, errors.Errorf("Invalid image configuration, needs more than the %d distributed layers", len(m.m.LayersDescriptors))
+				return nil, fmt.Errorf("Invalid image configuration, needs more than the %d distributed layers", len(m.m.LayersDescriptors))
 			}
 			if options.LayerInfos != nil {
 				convertedLayerUpdates = append(convertedLayerUpdates, options.LayerInfos[nonemptyLayerIndex])
@@ -333,7 +334,7 @@ func (m *manifestSchema2) convertToManifestSchema1(ctx context.Context, options 
 		fakeImage.ContainerConfig.Cmd = []string{historyEntry.CreatedBy}
 		v1CompatibilityBytes, err := json.Marshal(&fakeImage)
 		if err != nil {
-			return nil, errors.Errorf("Internal error: Error creating v1compatibility for %#v", fakeImage)
+			return nil, fmt.Errorf("Internal error: Error creating v1compatibility for %#v", fakeImage)
 		}
 
 		fsLayers[v1Index] = manifest.Schema1FSLayers{BlobSum: blobDigest}
@@ -401,4 +402,13 @@ func v1ConfigFromConfigJSON(configJSON []byte, v1ID, parentV1ID string, throwawa
 // SupportsEncryption returns if encryption is supported for the manifest type
 func (m *manifestSchema2) SupportsEncryption(context.Context) bool {
 	return false
+}
+
+// CanChangeLayerCompression returns true if we can compress/decompress layers with mimeType in the current image
+// (and the code can handle that).
+// NOTE: Even if this returns true, the relevant format might not accept all compression algorithms; the set of accepted
+// algorithms depends not on the current format, but possibly on the target of a conversion (if UpdatedImage converts
+// to a different manifest format).
+func (m *manifestSchema2) CanChangeLayerCompression(mimeType string) bool {
+	return m.m.CanChangeLayerCompression(mimeType)
 }
