@@ -1,0 +1,11 @@
+FROM alpine as build
+
+FROM build AS platform-first
+ENV BUILT_FOR=first
+
+FROM build AS platform-second
+ENV BUILT_FOR=second
+
+# Should fail since we never declared CUSTOM_TARGET
+FROM platform-${CUSTOM_TARGET} AS final
+RUN echo "This is built for ${BUILT_FOR}"

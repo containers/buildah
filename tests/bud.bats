@@ -117,6 +117,30 @@ symlink(subdir)"
   expect_output --substring $(realpath "$BUDFILES/dockerignore3/.dockerignore")
 }
 
+@test "build with basename resolving default arg" {
+  run_buildah info --format '{{.host.arch}}'
+  myarch="$output"
+  run_buildah info --format '{{.host.variant}}'
+  myvariant="$output"
+
+  run_buildah build --platform linux/$myarch/$myvariant $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile
+  expect_output --substring "This is built for $myarch"
+}
+
+@test "build with basename resolving user arg" {
+  run_buildah build --build-arg CUSTOM_TARGET=first $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile2
+  expect_output --substring "This is built for first"
+  run_buildah build --build-arg CUSTOM_TARGET=second $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfile2
+  expect_output --substring "This is built for second"
+}
+
+# Following test should fail since we are trying to use build-arg which
+# was not declared. Honors discussion here: https://github.com/containers/buildah/pull/4061/commits/1237c04d6ae0ee1f027a1f02bf3ab5c57ac7d9b6#r906188374
+@test "build with basename resolving user arg - should fail" {
+  run_buildah 125 build --build-arg CUSTOM_TARGET=first $WITH_POLICY_JSON -t test -f $BUDFILES/base-with-arg/Containerfilebad
+  expect_output --substring "invalid reference format"
+}
+
 # Following test must fail since we are trying to run linux/arm64 on linux/amd64
 # Issue: https://github.com/containers/buildah/issues/3712
 @test "build-with-inline-platform" {
