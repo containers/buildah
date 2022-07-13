@@ -76,6 +76,7 @@ meta_task:
             ${FEDORA_CACHE_IMAGE_NAME}
             ${PRIOR_FEDORA_CACHE_IMAGE_NAME}
             ${UBUNTU_CACHE_IMAGE_NAME}
+            build-push-${IMAGE_SUFFIX}
         BUILDID: "${CIRRUS_BUILD_ID}"
         REPOREF: "${CIRRUS_CHANGE_IN_REPO}"
         GCPJSON: ENCRYPTED[d3614d6f5cc0e66be89d4252b3365fd84f14eee0259d4eb47e25fc0bc2842c7937f5ee8c882b7e547b4c5ec4b6733b14]
