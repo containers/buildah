@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/containers/image/v5/signature/internal"
 	"github.com/proglottis/gpgme"
 )
 
@@ -181,13 +182,13 @@ func (m *gpgmeSigningMechanism) Verify(unverifiedSignature []byte) (contents []b
 		return nil, "", err
 	}
 	if len(sigs) != 1 {
-		return nil, "", InvalidSignatureError{msg: fmt.Sprintf("Unexpected GPG signature count %d", len(sigs))}
+		return nil, "", internal.NewInvalidSignatureError(fmt.Sprintf("Unexpected GPG signature count %d", len(sigs)))
 	}
 	sig := sigs[0]
 	// This is sig.Summary == gpgme.SigSumValid except for key trust, which we handle ourselves
 	if sig.Status != nil || sig.Validity == gpgme.ValidityNever || sig.ValidityReason != nil || sig.WrongKeyUsage {
 		// FIXME: Better error reporting eventually
-		return nil, "", InvalidSignatureError{msg: fmt.Sprintf("Invalid GPG signature: %#v", sig)}
+		return nil, "", internal.NewInvalidSignatureError(fmt.Sprintf("Invalid GPG signature: %#v", sig))
 	}
 	return signedBuffer.Bytes(), sig.Fingerprint, nil
 }
