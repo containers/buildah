@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.24.4
+Version:        1.24.5
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,11 +100,15 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Thu Jul 14 2022 Nalin Dahyabhai <nalin@redhat.com> 1.24.5-1
+- bump github.com/containers/storage to v1.38.5
+- drop commas from changelog dates because `rpmspec -q` doesn't like them
+
 * Wed May 11 2022 Lokesh Mandvekar <lsm5@fedoraproject.org> 1.24.4-1
 - Bump golang.org/x/crypto to 7b82a4e (GHSA-8c26-wmh5-6g9v - CVE-2022-27191)
 - Bump c/image to v5.19.3 and c/ocicrypt to v1.1.4
 
-* Thu Mar 31, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.3-1
+* Thu Mar 31 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.3-1
 - vendor: bump c/common to 0.47.5
 - Add a test for CVE-2022-27651
 - do not set the inheritable capabilities
@@ -112,7 +116,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - vendor: bump c/image to v5.19.2
 - vendor: bump c/storage to v1.38.3
 
-* Wed Feb 16, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.2-1
+* Wed Feb 16 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.2-1
 - Increase subuid/subgid to 65535
 - history: only add proxy vars to history if specified
 - run_linux: use --systemd-cgroup
@@ -124,7 +128,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - conformance: add a few "replace-directory-with-symlink" tests
 - Bump back to v1.25.0-dev
 
-* Thu Feb 03, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.1-1
+* Thu Feb 03 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.1-1
 - executor: Add support for inline --platform within Dockerfile
 - caps: fix buildah run --cap-add=all
 - Update vendor of openshift/imagebuilder
@@ -139,7 +143,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - overlay: move mount program lookup to separate function
 - Bump to v1.25.0-dev [NO TESTS NEEDED]
 
-* Wed Jan 26, 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.0-1
+* Wed Jan 26 2022 Tom Sweeney <tsweeney@redhat.com> 1.24.0-1
 - Update vendor of containers/common
 - build(deps): bump github.com/golangci/golangci-lint in /tests/tools
 - Github-workflow: Report both failures and errors.
@@ -294,7 +298,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Update VM Images + Drop prior-ubuntu testing
 - Bump to v1.24.0-dev
 
-* Mon Sep 13, 2021 Daniel J Walsh <dwalsh@redhat.com> 1.23.0-1
+* Mon Sep 13 2021 Daniel J Walsh <dwalsh@redhat.com> 1.23.0-1
 - Vendor in containers/common v0.44.0
 - build(deps): bump github.com/containers/storage from 1.35.0 to 1.36.0
 - Update 05-openshift-rootless-build.md
@@ -351,7 +355,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump to v1.23.0-dev [NO TESTS NEEDED]
 - Accept repositories on login/logout
 
-* Mon Aug 2, 2021 Tom Sweeney <tsweeney@redhat.com> 1.22.0-1
+* Mon Aug 2 2021 Tom Sweeney <tsweeney@redhat.com> 1.22.0-1
 - c/image, c/storage, c/common vendor before Podman 3.3 release
 - WIP: tests: new assert()
 - Proposed patch for 3399 (shadowutils)
@@ -441,7 +445,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump github.com/opencontainers/runc from 1.0.0-rc94 to 1.0.0-rc95
 - Bump to v1.21.1-dev [NO TESTS NEEDED]
 
-* Wed May 19, 2021 Tom Sweeney <tsweeney@redhat.com> 1.21.0-1
+* Wed May 19 2021 Tom Sweeney <tsweeney@redhat.com> 1.21.0-1
 - Don't blow up if cpp detects errors
 - Vendor in containers/common v0.38.4
 - Remove 'buildah run --security-opt' from completion
@@ -523,7 +527,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Update nix pin with `make nixpkgs`
 - Bump to v1.20.2-dev
 
-* Tue Apr 13, 2021 Tom Sweeney <tsweeney@redhat.com> 1.20.1-1
+* Tue Apr 13 2021 Tom Sweeney <tsweeney@redhat.com> 1.20.1-1
 - Run container with isolation type set at 'from'
 - bats helpers.bash - minor refactoring
 - Bump containers/storage vendor to v1.29.0
@@ -554,7 +558,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - [NO TESTS NEEDED] Use --recurse-modules when building git context
 - Bump to v1.20.1-dev
 
-* Thu Mar 25, 2021 Daniel J Walsh <dwalsh@redhat.com> 1.20.0-1
+* Thu Mar 25 2021 Daniel J Walsh <dwalsh@redhat.com> 1.20.0-1
 - vendor in containers/storage v1.28.1
 - build(deps): bump github.com/containers/common from 0.35.2 to 0.35.3
 - tests: prefetch: use buildah, not podman, for pulls
@@ -661,7 +665,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Reset upstream branch to dev version
 - If destination does not exists, do not throw error
 
-* Fri Jan 8, 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.0-1
+* Fri Jan 8 2021 Tom Sweeney <tsweeney@redhat.com> 1.19.0-1
 - Update vendor of containers/storage and containers/common
 - Buildah inspect should be able to inspect manifests
 - Make buildah push support pushing manifests lists and digests
@@ -720,7 +724,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump to v1.19.0-dev
 - build(deps): bump github.com/containers/common from 0.26.3 to 0.27.0
 
-* Mon Nov 16, 2020 Tom Sweeney <tsweeney@redhat.com> 1.18.0-1
+* Mon Nov 16 2020 Tom Sweeney <tsweeney@redhat.com> 1.18.0-1
 - Fix testing error caused by simultanious merge
 - Vendor in containers/storage v1.24.0
 - short-names aliasing
@@ -752,7 +756,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - imagebuildah: cache should take image format into account
 - Bump to v1.18.0-dev
 
-* Thu Oct 29, 2020 Tom Sweeney <tsweeney@redhat.com> 1.17.0-1
+* Thu Oct 29 2020 Tom Sweeney <tsweeney@redhat.com> 1.17.0-1
 - Handle cases where other tools mount/unmount containers
 - overlay.MountReadOnly: support RO overlay mounts
 - overlay: use fusermount for rootless umounts
@@ -842,7 +846,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump to v1.17.0-dev
 - CI: expand cross-compile checks
 
-* Thu Sep 3, 2020 Tom Sweeney <tsweeney@redhat.com> 1.16.0-1
+* Thu Sep 3 2020 Tom Sweeney <tsweeney@redhat.com> 1.16.0-1
 - fix build on 32bit arches
 - containerImageRef.NewImageSource(): don't always force timestamps
 - Add fuse module warning to image readme
@@ -951,7 +955,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump to v1.16.0-dev
 - add version centos7 for compatible
 
-* Wed Jun 17, 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-1
+* Wed Jun 17 2020 Tom Sweeney <tsweeney@redhat.com> 1.15.0-1
 - Bump github.com/containers/common from 0.12.0 to 0.13.1
 - Bump github.com/containers/storage from 1.20.1 to 1.20.2
 - Bump github.com/seccomp/containers-golang from 0.4.1 to 0.5.0
@@ -1013,7 +1017,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump back to v1.15.0-dev
 - Remove warning for systemd inside of container
 
-* Thu Apr 9, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.8-1
+* Thu Apr 9 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.8-1
 - Run (make vendor)
 - Run (make -C tests/tools vendor)
 - Run (go mod tidy) before (go mod vendor) again
@@ -1021,7 +1025,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump validation
 - Bump back to v1.15.0-dev
 
-* Tue Apr 7, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.7-1
+* Tue Apr 7 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.7-1
 - Bump github.com/containers/image/v5 from 5.3.1 to 5.4.3
 - make vendor: run `tidy` after `vendor`
 - Do not skip the directory when the ignore pattern matches
@@ -1031,7 +1035,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - dockerignore tests : remove symlinks, rework
 - Bump back to v1.15.0-dev
 
-* Thu Apr 2, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.6-1
+* Thu Apr 2 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.6-1
 - bud.bats - cleanup, refactoring
 - vendor in latest containers/storage 1.18.0 and containers/common v0.7.0
 - Bump github.com/spf13/cobra from 0.0.6 to 0.0.7
@@ -1045,13 +1049,13 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Update github.com/openshift/imagebuilder to v1.1.4
 - Add .swp files to .gitignore
 
-* Thu Mar 26, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.5-1
+* Thu Mar 26 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.5-1
 - revert #2246 FIPS mode change
 - Bump back to v1.15.0-dev
 - image with dup layers: we now have one on quay
 - digest test : make more robust
 
-* Wed Mar 25, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.4-1
+* Wed Mar 25 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.4-1
 - Fix fips-mode check for RHEL8 boxes
 - Fix potential CVE in tarfile w/ symlink
 - Fix .dockerignore with globs and ! commands
@@ -1063,7 +1067,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Cleanup go.sum
 - Bump back to v1.15.0-dev
 
-* Tue Mar 17, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.3-1
+* Tue Mar 17 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.3-1
 - Update containers/storage to v1.16.5
 - Bump github.com/containers/storage from 1.16.2 to 1.16.4
 - Bump github.com/openshift/imagebuilder from 1.1.1 to 1.1.2
@@ -1079,7 +1083,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump back to v1.15.0-dev
 - Add Pull Request Template
 
-* Tue Mar 3, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.2-1
+* Tue Mar 3 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.2-1
 - Add Buildah pull request template
 - Bump to containers/storage v1.16.1
 - run_linux: fix tight loop if file is not pollable
@@ -1088,7 +1092,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump back to v1.15.0-dev
 - Add Containerfile to build a versioned stable image on quay.io
 
-* Thu Feb 27, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.1-1
+* Thu Feb 27 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.1-1
 - Search for local runtime per values in containers.conf
 - Set correct ownership on working directory
 - BATS : in teardown, umount stale mounts
@@ -1143,7 +1147,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Flake handling: cache and prefetch images
 - Bump to v1.15.0-dev
 
-* Wed Feb 5, 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.0-1
+* Wed Feb 5 2020 Tom Sweeney <tsweeney@redhat.com> 1.14.0-1
 - bump github.com/mtrmac/gpgme
 - Update containers/common to v0.1.4
 - manifest push: add --format option
@@ -1152,7 +1156,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - info test: deal with random key order
 - Bump back to v1.14.0-dev
 
-* Wed Jan 29, 2020 Tom Sweeney <tsweeney@redhat.com> 1.13.2-1
+* Wed Jan 29 2020 Tom Sweeney <tsweeney@redhat.com> 1.13.2-1
 - sign.bats: set GPG_TTY=/dev/null
 - Fix parse_unsupported.go
 - getDateAndDigestAndSize(): use manifest.Digest
@@ -1177,7 +1181,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Add support for containers.conf
 - Bump back to v1.14.0-dev
 
-* Tue Jan 14, 2020 Tom Sweeney <tsweeney@redhat.com> 1.13.1-1
+* Tue Jan 14 2020 Tom Sweeney <tsweeney@redhat.com> 1.13.1-1
 - Bump github.com/containers/common from 0.0.5 to 0.0.7
 - Bump github.com/onsi/ginkgo from 1.10.3 to 1.11.0
 - Bump github.com/pkg/errors from 0.8.1 to 0.9.0
@@ -1200,7 +1204,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - make --format columnizing consistent with buildah images
 - Bump to v1.14.0-dev
 
-* Fri Dec 27, 2019 Tom Sweeney <tsweeney@redhat.com> 1.13.0-1
+* Fri Dec 27 2019 Tom Sweeney <tsweeney@redhat.com> 1.13.0-1
 - Bump to c/storage v1.15.5
 - Update container/storage to v1.15.4
 - Fix option handling for volumes in build
@@ -1218,7 +1222,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump github.com/containers/common from 0.0.3 to 0.0.5
 - Bump to v1.13.0-dev
 
-* Fri Dec 13, 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-1
+* Fri Dec 13 2019 Tom Sweeney <tsweeney@redhat.com> 1.12.0-1
 - Allow ADD to use http src
 - Bump to c/storage v.1.15.3
 - install.md: update golang dependency
@@ -1244,7 +1248,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Tests: Add two test for buildah add
 - Bump back to v1.12.0-dev
 
-* Tue Dec 3, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.6-1
+* Tue Dec 3 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.6-1
 - Handle missing equal sign in --from and --chown flags for COPY/ADD
 - bud COPY does not download URL
 - Bump github.com/onsi/gomega from 1.7.0 to 1.7.1
@@ -1257,7 +1261,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump github.com/onsi/ginkgo from 1.10.2 to 1.10.3
 - Bump back to v1.12.0-dev
 
-* Mon Nov 11, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.5-1
+* Mon Nov 11 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.5-1
 - Enhance error on unsafe symbolic link targets
 - Add OCIRuntime to info
 - Check nonexsit authfile
@@ -1284,7 +1288,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - fix troubleshooting redirect instructions
 - Bump back to v1.12.0-dev
 
-* Mon Oct 28, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.4-1
+* Mon Oct 28 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.4-1
 - buildah: add a "manifest" command
 - manifests: add the module
 - pkg/supplemented: add a package for grouping images together
@@ -1306,7 +1310,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Fix crash when invalid COPY --from flag is specified.
 - Bump back to v1.12.0-dev
 
-* Fri Oct 4, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.3-1
+* Fri Oct 4 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.3-1
 - Update c/image to v4.0.1
 - Bump github.com/spf13/pflag from 1.0.3 to 1.0.5
 - Fix --build-args handling
@@ -1332,12 +1336,12 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - util/util: Fix "configuraitno" -> "configuration" log typo
 - Bump back to v1.12.0-dev
 
-* Fri Sep 13, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.2-1
+* Fri Sep 13 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.2-1
 - Add some cleanup code
 - Move devices code to unit specific directory.
 - Bump back to v1.12.0-dev
 
-* Wed Sep 11, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.1-1
+* Wed Sep 11 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.1-1
 - Add --devices flag to bud and from
 - Downgrade .papr to highest atomic verion
 - Add support for /run/.containerenv
@@ -1354,7 +1358,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Makefile: use go proxy
 - Bump to v1.12.0-dev
 
-* Thu Aug 29, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.0-1
+* Thu Aug 29 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.0-1
 - tests/bud.bats: add --signature-policy to some tests
 - Vendor github.com/openshift/api
 - pull/commit/push: pay attention to $BUILD_REGISTRY_SOURCES
@@ -1389,7 +1393,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Update `bud`/`from` help to contain indicator for `--dns=none`
 - Bump back to v1.11.0-dev
 
-* Thu Aug 8, 2019 Tom Sweeney <tsweeney@redhat.com> 1.10.1-1
+* Thu Aug 8 2019 Tom Sweeney <tsweeney@redhat.com> 1.10.1-1
 - Bump containers/image to v3.0.2 to fix keyring issue
 - Bug fix for volume minus syntax
 - Bump container/storage v1.13.1 and containers/image v3.0.1
@@ -1399,7 +1403,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Fix bug whereby --get-login has no effect
 - Bump to v1.11.0-dev
 
-* Fri Aug 2, 2019 Tom Sweeney <tsweeney@redhat.com> 1.10.0-1
+* Fri Aug 2 2019 Tom Sweeney <tsweeney@redhat.com> 1.10.0-1
 - vendor github.com/containers/image@v3.0.0
 - Remove GO111MODULE in favor of `-mod=vendor`
 - Vendor in containers/storage v1.12.16
@@ -1415,7 +1419,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Handle ReadOnly images when deleting images
 - Add support for listing read/only images
 
-* Fri Jul 19, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.2-1
+* Fri Jul 19 2019 Dan Walsh <dwalsh@redhat.com> 1.9.2-1
 - from/import: record the base image's digest, if it has one
 - Fix CNI version retrieval to not require network connection
 - Add misspell linter and apply fixes
@@ -1433,7 +1437,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - unshare: add a --mount flag
 - fix push check image name is not empty
 
-* Fri Jul 12, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.1-1
+* Fri Jul 12 2019 Dan Walsh <dwalsh@redhat.com> 1.9.1-1
 - add: fix slow copy with no excludes
 - Add errcheck linter and fix missing error check
 - Improve tests/tools/Makefile parallelism and abstraction
@@ -1496,10 +1500,10 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - util: use strings.ContainsRune instead of index check
 - Cirrus: Initial implementation
 
-* Sat Jun 15, 2019 Dan Walsh <dwalsh@redhat.com> 1.9.0-1
+* Sat Jun 15 2019 Dan Walsh <dwalsh@redhat.com> 1.9.0-1
 - Fix crash and bump major version
 
-* Thu Jun 13, 2019 Dan Walsh <dwalsh@redhat.com> 1.8.4-1
+* Thu Jun 13 2019 Dan Walsh <dwalsh@redhat.com> 1.8.4-1
 - Update containers/image to v2.0.0
 - run: fix hang with run and --isolation=chroot
 - run: fix hang when using run
@@ -1528,7 +1532,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - bud.bats: add a test for WORKDIR and COPY with absolute destinations
 - Cleanup Overlay Mounts content
 
-* Tue Jun 04, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.3-1
+* Tue Jun 04 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.3-1
 - Add support for file secret mounts
 - Add ability to skip secrets in mounts file
 - allow 32bit builds
@@ -1573,13 +1577,13 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Change image names to stable, testing and upstream
 - Bump back to v1.9.0-dev
 
-* Thu May 02, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.2-1
+* Thu May 02 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.2-1
 - Vendor Storage 1.12.6
 - Create scratch file in TESTDIR
 - Test bud-copy-dot with --layers picks up changed file
 - Bump back to 1.9.0-dev
 
-* Wed May 01, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.1-1
+* Wed May 01 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.1-1
 - Don't create directory on container
 - Replace kubernetes/pause in tests with k8s.gcr.io/pause
 - imagebuildah: don't remove intermediate images if we need them
@@ -1590,7 +1594,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Touch up 1.9-dev to 1.9.0-dev
 - Bump to 1.9-dev
 
-* Fri Apr 26, 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.0-1
+* Fri Apr 26 2019 Tom Sweeney <tsweeney@redhat.com> 1.8.0-1
 - Resolve symlink when checking container path
 - commit: commit on every instruction, but not always with layers
 - CommitOptions: drop the unused OnBuild field
@@ -1613,7 +1617,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - auto pass http_proxy to container
 - Bump back to 1.8-dev
 
-* Tue Apr 16, 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.3-1
+* Tue Apr 16 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.3-1
 - imagebuildah: don't leak image structs
 - Add Dockerfiles for buildahimages
 - Bump to Replace golang 1.10 with 1.12
@@ -1649,7 +1653,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - docs/buildah.md: add "containers-" prefixes under "SEE ALSO"
 - Bump back to 1.8-dev
 
-* Tue Mar 28, 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.2-1
+* Tue Mar 28 2019 Tom Sweeney <tsweeney@redhat.com> 1.7.2-1
 - mount: do not create automatically a namespace
 - buildah: correctly create the userns if euid!=0
 - imagebuildah.Build: consolidate cleanup logic

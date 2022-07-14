@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v1.24.5 (2022-07-14)
+
+    Bump github.com/containers/storage to v1.38.5
+    drop commas from changelog dates because `rpmspec -q` doesn't like them
+
 ## v1.24.4 (2022-05-11)
 
     Bump golang.org/x/crypto to 7b82a4e (GHSA-8c26-wmh5-6g9v - CVE-2022-27191)
