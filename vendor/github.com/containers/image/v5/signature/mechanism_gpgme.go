@@ -33,10 +33,10 @@ func newGPGSigningMechanismInDirectory(optionalDir string) (signingMechanismWith
 }
 
 // newEphemeralGPGSigningMechanism returns a new GPG/OpenPGP signing mechanism which
-// recognizes _only_ public keys from the supplied blob, and returns the identities
+// recognizes _only_ public keys from the supplied blobs, and returns the identities
 // of these keys.
 // The caller must call .Close() on the returned SigningMechanism.
-func newEphemeralGPGSigningMechanism(blob []byte) (signingMechanismWithPassphrase, []string, error) {
+func newEphemeralGPGSigningMechanism(blobs [][]byte) (signingMechanismWithPassphrase, []string, error) {
 	dir, err := os.MkdirTemp("", "containers-ephemeral-gpg-")
 	if err != nil {
 		return nil, nil, err
@@ -55,9 +55,13 @@ func newEphemeralGPGSigningMechanism(blob []byte) (signingMechanismWithPassphras
 		ctx:          ctx,
 		ephemeralDir: dir,
 	}
-	keyIdentities, err := mech.importKeysFromBytes(blob)
-	if err != nil {
-		return nil, nil, err
+	keyIdentities := []string{}
+	for _, blob := range blobs {
+		ki, err := mech.importKeysFromBytes(blob)
+		if err != nil {
+			return nil, nil, err
+		}
+		keyIdentities = append(keyIdentities, ki...)
 	}
 
 	removeDir = false

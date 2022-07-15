@@ -16,7 +16,6 @@ import (
 	"github.com/containers/image/v5/internal/signature"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,7 +55,7 @@ func newImageDestination(sys *types.SystemContext, ref dirReference) (private.Im
 	// if the contents don't match throw an error
 	dirExists, err := pathExists(ref.resolvedPath)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "checking for path %q", ref.resolvedPath)
+		return nil, fmt.Errorf("checking for path %q: %w", ref.resolvedPath, err)
 	}
 	if dirExists {
 		isEmpty, err := isDirEmpty(ref.resolvedPath)
@@ -67,7 +66,7 @@ func newImageDestination(sys *types.SystemContext, ref dirReference) (private.Im
 		if !isEmpty {
 			versionExists, err := pathExists(ref.versionPath())
 			if err != nil {
-				return nil, perrors.Wrapf(err, "checking if path exists %q", ref.versionPath())
+				return nil, fmt.Errorf("checking if path exists %q: %w", ref.versionPath(), err)
 			}
 			if versionExists {
 				contents, err := os.ReadFile(ref.versionPath())
@@ -83,20 +82,20 @@ func newImageDestination(sys *types.SystemContext, ref dirReference) (private.Im
 			}
 			// delete directory contents so that only one image is in the directory at a time
 			if err = removeDirContents(ref.resolvedPath); err != nil {
-				return nil, perrors.Wrapf(err, "erasing contents in %q", ref.resolvedPath)
+				return nil, fmt.Errorf("erasing contents in %q: %w", ref.resolvedPath, err)
 			}
 			logrus.Debugf("overwriting existing container image directory %q", ref.resolvedPath)
 		}
 	} else {
 		// create directory if it doesn't exist
 		if err := os.MkdirAll(ref.resolvedPath, 0755); err != nil {
-			return nil, perrors.Wrapf(err, "unable to create directory %q", ref.resolvedPath)
+			return nil, fmt.Errorf("unable to create directory %q: %w", ref.resolvedPath, err)
 		}
 	}
 	// create version file
 	err = os.WriteFile(ref.versionPath(), []byte(version), 0644)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "creating version file %q", ref.versionPath())
+		return nil, fmt.Errorf("creating version file %q: %w", ref.versionPath(), err)
 	}
 
 	d := &dirImageDestination{

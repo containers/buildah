@@ -169,6 +169,21 @@ func (m *ManifestList) saveAndReload() error {
 	return nil
 }
 
+// Reload the image and list instances from storage
+func (m *ManifestList) reload() error {
+	listID := m.ID()
+	if err := m.image.reload(); err != nil {
+		return err
+	}
+	image, list, err := m.image.runtime.lookupManifestList(listID)
+	if err != nil {
+		return err
+	}
+	m.image = image
+	m.list = list
+	return nil
+}
+
 // getManifestList is a helper to obtain a manifest list
 func (i *Image) getManifestList() (manifests.List, error) {
 	_, list, err := manifests.LoadFromImage(i.runtime.store, i.ID())
@@ -253,7 +268,17 @@ func (m *ManifestList) Add(ctx context.Context, name string, options *ManifestLi
 			Password: options.Password,
 		}
 	}
-
+	locker, err := manifests.LockerForImage(m.image.runtime.store, m.ID())
+	if err != nil {
+		return "", err
+	}
+	locker.Lock()
+	defer locker.Unlock()
+	// Make sure to reload the image from the containers storage to fetch
+	// the latest data (e.g., new or delete digests).
+	if err := m.reload(); err != nil {
+		return "", err
+	}
 	newDigest, err := m.list.Add(ctx, systemContext, ref, options.All)
 	if err != nil {
 		return "", err

@@ -25,7 +25,6 @@ import (
 	"github.com/containers/image/v5/pkg/sysregistriesv2"
 	"github.com/containers/image/v5/types"
 	digest "github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -52,7 +51,7 @@ func newImageSource(ctx context.Context, sys *types.SystemContext, ref dockerRef
 	}
 	registry, err := sysregistriesv2.FindRegistry(sys, ref.ref.Name())
 	if err != nil {
-		return nil, perrors.Wrapf(err, "loading registries configuration")
+		return nil, fmt.Errorf("loading registries configuration: %w", err)
 	}
 	if registry == nil {
 		// No configuration was found for the provided reference, so use the
@@ -109,7 +108,7 @@ func newImageSource(ctx context.Context, sys *types.SystemContext, ref dockerRef
 			// The paired [] at least have some chance of being unambiguous.
 			extras = append(extras, fmt.Sprintf("[%s: %v]", attempts[i].ref.String(), attempts[i].err))
 		}
-		return nil, perrors.Wrapf(primary.err, "(Mirrors also failed: %s): %s", strings.Join(extras, "\n"), primary.ref.String())
+		return nil, fmt.Errorf("(Mirrors also failed: %s): %s: %w", strings.Join(extras, "\n"), primary.ref.String(), primary.err)
 	}
 }
 

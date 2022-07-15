@@ -16,7 +16,6 @@ import (
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/archive"
-	perrors "github.com/pkg/errors"
 )
 
 func init() {
@@ -159,7 +158,7 @@ func (t *tempDirOCIRef) deleteTempDir() error {
 func createOCIRef(sys *types.SystemContext, image string) (tempDirOCIRef, error) {
 	dir, err := os.MkdirTemp(tmpdir.TemporaryDirectoryForBigFiles(sys), "oci")
 	if err != nil {
-		return tempDirOCIRef{}, perrors.Wrapf(err, "creating temp directory")
+		return tempDirOCIRef{}, fmt.Errorf("creating temp directory: %w", err)
 	}
 	ociRef, err := ocilayout.NewReference(dir, image)
 	if err != nil {
@@ -174,7 +173,7 @@ func createOCIRef(sys *types.SystemContext, image string) (tempDirOCIRef, error)
 func createUntarTempDir(sys *types.SystemContext, ref ociArchiveReference) (tempDirOCIRef, error) {
 	tempDirRef, err := createOCIRef(sys, ref.image)
 	if err != nil {
-		return tempDirOCIRef{}, perrors.Wrap(err, "creating oci reference")
+		return tempDirOCIRef{}, fmt.Errorf("creating oci reference: %w", err)
 	}
 	src := ref.resolvedFile
 	dst := tempDirRef.tempDirectory
@@ -186,9 +185,9 @@ func createUntarTempDir(sys *types.SystemContext, ref ociArchiveReference) (temp
 	defer arch.Close()
 	if err := archive.NewDefaultArchiver().Untar(arch, dst, &archive.TarOptions{NoLchown: true}); err != nil {
 		if err := tempDirRef.deleteTempDir(); err != nil {
-			return tempDirOCIRef{}, perrors.Wrapf(err, "deleting temp directory %q", tempDirRef.tempDirectory)
+			return tempDirOCIRef{}, fmt.Errorf("deleting temp directory %q: %w", tempDirRef.tempDirectory, err)
 		}
-		return tempDirOCIRef{}, perrors.Wrapf(err, "untarring file %q", tempDirRef.tempDirectory)
+		return tempDirOCIRef{}, fmt.Errorf("untarring file %q: %w", tempDirRef.tempDirectory, err)
 	}
 	return tempDirRef, nil
 }

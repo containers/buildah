@@ -19,7 +19,6 @@ import (
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/http2"
 )
@@ -579,7 +578,7 @@ func (rules *clientConfigLoadingRules) Load() (*clientcmdConfig, error) {
 			continue
 		}
 		if err != nil {
-			errlist = append(errlist, perrors.Wrapf(err, "loading config file \"%s\"", filename))
+			errlist = append(errlist, fmt.Errorf("loading config file \"%s\": %w", filename, err))
 			continue
 		}
 
@@ -692,7 +691,7 @@ func resolveLocalPaths(config *clientcmdConfig) error {
 		}
 		base, err := filepath.Abs(filepath.Dir(cluster.LocationOfOrigin))
 		if err != nil {
-			return perrors.Wrapf(err, "Could not determine the absolute path of config file %s", cluster.LocationOfOrigin)
+			return fmt.Errorf("Could not determine the absolute path of config file %s: %w", cluster.LocationOfOrigin, err)
 		}
 
 		if err := resolvePaths(getClusterFileReferences(cluster), base); err != nil {
@@ -705,7 +704,7 @@ func resolveLocalPaths(config *clientcmdConfig) error {
 		}
 		base, err := filepath.Abs(filepath.Dir(authInfo.LocationOfOrigin))
 		if err != nil {
-			return perrors.Wrapf(err, "Could not determine the absolute path of config file %s", authInfo.LocationOfOrigin)
+			return fmt.Errorf("Could not determine the absolute path of config file %s: %w", authInfo.LocationOfOrigin, err)
 		}
 
 		if err := resolvePaths(getAuthInfoFileReferences(authInfo), base); err != nil {

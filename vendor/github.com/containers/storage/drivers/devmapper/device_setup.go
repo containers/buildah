@@ -245,5 +245,8 @@ func setupDirectLVM(cfg directLVMConfig) error {
 	}
 
 	out, err = exec.Command("lvchange", "--metadataprofile", "storage-thinpool", "storage/thinpool").CombinedOutput()
-	return fmt.Errorf("%v: %w", string(out), err)
+	if err != nil {
+		return fmt.Errorf("%s: %w", string(out), err)
+	}
+	return nil
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	digest "github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 )
 
 const (
@@ -102,7 +101,7 @@ func (b *BlobCache) findBlob(info types.BlobInfo) (string, int64, bool, error) {
 			return path, fileInfo.Size(), isConfig, nil
 		}
 		if !os.IsNotExist(err) {
-			return "", -1, false, perrors.Wrap(err, "checking size")
+			return "", -1, false, fmt.Errorf("checking size: %w", err)
 		}
 	}
 
@@ -133,12 +132,12 @@ func (b *BlobCache) ClearCache() error {
 	defer f.Close()
 	names, err := f.Readdirnames(-1)
 	if err != nil {
-		return perrors.Wrapf(err, "error reading directory %q", b.directory)
+		return fmt.Errorf("error reading directory %q: %w", b.directory, err)
 	}
 	for _, name := range names {
 		pathname := filepath.Join(b.directory, name)
 		if err = os.RemoveAll(pathname); err != nil {
-			return perrors.Wrapf(err, "clearing cache for %q", transports.ImageName(b))
+			return fmt.Errorf("clearing cache for %q: %w", transports.ImageName(b), err)
 		}
 	}
 	return nil

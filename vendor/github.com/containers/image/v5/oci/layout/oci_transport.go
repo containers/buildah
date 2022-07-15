@@ -17,7 +17,6 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	perrors "github.com/pkg/errors"
 )
 
 func init() {
@@ -251,7 +250,7 @@ func (ref ociReference) indexPath() string {
 // blobPath returns a path for a blob within a directory using OCI image-layout conventions.
 func (ref ociReference) blobPath(digest digest.Digest, sharedBlobDir string) (string, error) {
 	if err := digest.Validate(); err != nil {
-		return "", perrors.Wrapf(err, "unexpected digest reference %s", digest)
+		return "", fmt.Errorf("unexpected digest reference %s: %w", digest, err)
 	}
 	blobDir := filepath.Join(ref.dir, "blobs")
 	if sharedBlobDir != "" {

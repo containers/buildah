@@ -67,14 +67,16 @@ type prReject struct {
 type prSignedBy struct {
 	prCommon
 
-	// KeyType specifies what kind of key reference KeyPath/KeyData is.
+	// KeyType specifies what kind of key reference KeyPath/KeyPaths/KeyData is.
 	// Acceptable values are “GPGKeys” | “signedByGPGKeys” “X.509Certificates” | “signedByX.509CAs”
 	// FIXME: eventually also support GPGTOFU, X.509TOFU, with KeyPath only
 	KeyType sbKeyType `json:"keyType"`
 
-	// KeyPath is a pathname to a local file containing the trusted key(s). Exactly one of KeyPath and KeyData must be specified.
+	// KeyPath is a pathname to a local file containing the trusted key(s). Exactly one of KeyPath, KeyPaths and KeyData must be specified.
 	KeyPath string `json:"keyPath,omitempty"`
-	// KeyData contains the trusted key(s), base64-encoded. Exactly one of KeyPath and KeyData must be specified.
+	// KeyPaths if a set of pathnames to local files containing the trusted key(s). Exactly one of KeyPath, KeyPaths and KeyData must be specified.
+	KeyPaths []string `json:"keyPaths,omitempty"`
+	// KeyData contains the trusted key(s), base64-encoded. Exactly one of KeyPath, KeyPaths and KeyData must be specified.
 	KeyData []byte `json:"keyData,omitempty"`
 
 	// SignedIdentity specifies what image identity the signature must be claiming about the image.

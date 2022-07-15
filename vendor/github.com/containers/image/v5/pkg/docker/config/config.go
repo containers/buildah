@@ -19,7 +19,6 @@ import (
 	helperclient "github.com/docker/docker-credential-helpers/client"
 	"github.com/docker/docker-credential-helpers/credentials"
 	"github.com/hashicorp/go-multierror"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -150,7 +149,7 @@ func GetAllCredentials(sys *types.SystemContext) (map[string]types.DockerAuthCon
 				// readJSONFile returns an empty map in case the path doesn't exist.
 				auths, err := readJSONFile(path.path, path.legacyFormat)
 				if err != nil {
-					return nil, perrors.Wrapf(err, "reading JSON file %q", path.path)
+					return nil, fmt.Errorf("reading JSON file %q: %w", path.path, err)
 				}
 				// Credential helpers in the auth file have a
 				// direct mapping to a registry, so we can just
@@ -357,7 +356,7 @@ func getAuthenticationWithHomeDir(sys *types.SystemContext, key, homeDir string)
 		return "", "", err
 	}
 	if auth.IdentityToken != "" {
-		return "", "", perrors.Wrap(ErrNotSupported, "non-empty identity token found and this API doesn't support it")
+		return "", "", fmt.Errorf("non-empty identity token found and this API doesn't support it: %w", ErrNotSupported)
 	}
 	return auth.Username, auth.Password, nil
 }
@@ -396,7 +395,7 @@ func RemoveAuthentication(sys *types.SystemContext, key string) error {
 				return
 			}
 		}
-		multiErr = multierror.Append(multiErr, perrors.Wrapf(err, "removing credentials for %s from credential helper %s", key, helper))
+		multiErr = multierror.Append(multiErr, fmt.Errorf("removing credentials for %s from credential helper %s: %w", key, helper, err))
 	}
 
 	for _, helper := range helpers {
@@ -529,7 +528,7 @@ func getPathToAuthWithOS(sys *types.SystemContext, goOS string) (string, bool, e
 			// This means the user set the XDG_RUNTIME_DIR variable and either forgot to create the directory
 			// or made a typo while setting the environment variable,
 			// so return an error referring to $XDG_RUNTIME_DIR instead of xdgRuntimeDirPath inside.
-			return "", false, perrors.Wrapf(err, "%q directory set by $XDG_RUNTIME_DIR does not exist. Either create the directory or unset $XDG_RUNTIME_DIR.", runtimeDir)
+			return "", false, fmt.Errorf("%q directory set by $XDG_RUNTIME_DIR does not exist. Either create the directory or unset $XDG_RUNTIME_DIR.: %w", runtimeDir, err)
 		} // else ignore err and let the caller fail accessing xdgRuntimeDirPath.
 		return filepath.Join(runtimeDir, xdgRuntimeDirPath), false, nil
 	}
@@ -553,13 +552,13 @@ func readJSONFile(path string, legacyFormat bool) (dockerConfigFile, error) {
 
 	if legacyFormat {
 		if err = json.Unmarshal(raw, &auths.AuthConfigs); err != nil {
-			return dockerConfigFile{}, perrors.Wrapf(err, "unmarshaling JSON at %q", path)
+			return dockerConfigFile{}, fmt.Errorf("unmarshaling JSON at %q: %w", path, err)
 		}
 		return auths, nil
 	}
 
 	if err = json.Unmarshal(raw, &auths); err != nil {
-		return dockerConfigFile{}, perrors.Wrapf(err, "unmarshaling JSON at %q", path)
+		return dockerConfigFile{}, fmt.Errorf("unmarshaling JSON at %q: %w", path, err)
 	}
 
 	if auths.AuthConfigs == nil {
@@ -591,21 +590,21 @@ func modifyJSON(sys *types.SystemContext, editor func(auths *dockerConfigFile) (
 
 	auths, err := readJSONFile(path, false)
 	if err != nil {
-		return "", perrors.Wrapf(err, "reading JSON file %q", path)
+		return "", fmt.Errorf("reading JSON file %q: %w", path, err)
 	}
 
 	updated, err := editor(&auths)
 	if err != nil {
-		return "", perrors.Wrapf(err, "updating %q", path)
+		return "", fmt.Errorf("updating %q: %w", path, err)
 	}
 	if updated {
 		newData, err := json.MarshalIndent(auths, "", "\t")
 		if err != nil {
-			return "", perrors.Wrapf(err, "marshaling JSON %q", path)
+			return "", fmt.Errorf("marshaling JSON %q: %w", path, err)
 		}
 
 		if err = ioutils.AtomicWriteFile(path, newData, 0600); err != nil {
-			return "", perrors.Wrapf(err, "writing to file %q", path)
+			return "", fmt.Errorf("writing to file %q: %w", path, err)
 		}
 	}
 
@@ -659,7 +658,7 @@ func deleteAuthFromCredHelper(credHelper, registry string) error {
 func findCredentialsInFile(key, registry, path string, legacyFormat bool) (types.DockerAuthConfig, error) {
 	auths, err := readJSONFile(path, legacyFormat)
 	if err != nil {
-		return types.DockerAuthConfig{}, perrors.Wrapf(err, "reading JSON file %q", path)
+		return types.DockerAuthConfig{}, fmt.Errorf("reading JSON file %q: %w", path, err)
 	}
 
 	// First try cred helpers. They should always be normalized.

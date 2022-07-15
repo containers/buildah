@@ -12,7 +12,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	perrors "github.com/pkg/errors"
 )
 
 // BlobInfoFromOCI1Descriptor returns a types.BlobInfo based on the input OCI1 descriptor.
@@ -139,7 +138,7 @@ func (m *OCI1) UpdateLayerInfos(layerInfos []types.BlobInfo) error {
 		}
 		mimeType, err := updatedMIMEType(oci1CompressionMIMETypeSets, mimeType, info)
 		if err != nil {
-			return perrors.Wrapf(err, "preparing updated manifest, layer %q", info.Digest)
+			return fmt.Errorf("preparing updated manifest, layer %q: %w", info.Digest, err)
 		}
 		if info.CryptoOperation == types.Encrypt {
 			encMediaType, err := getEncryptedMediaType(mimeType)

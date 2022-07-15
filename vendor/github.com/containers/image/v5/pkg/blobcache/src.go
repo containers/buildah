@@ -18,7 +18,6 @@ import (
 	"github.com/containers/image/v5/types"
 	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,7 +37,7 @@ type blobCacheSource struct {
 func (b *BlobCache) NewImageSource(ctx context.Context, sys *types.SystemContext) (types.ImageSource, error) {
 	src, err := b.reference.NewImageSource(ctx, sys)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "error creating new image source %q", transports.ImageName(b.reference))
+		return nil, fmt.Errorf("error creating new image source %q: %w", transports.ImageName(b.reference), err)
 	}
 	logrus.Debugf("starting to read from image %q using blob cache in %q (compression=%v)", transports.ImageName(b.reference), b.directory, b.compress)
 	s := &blobCacheSource{reference: b, source: imagesource.FromPublic(src), sys: *sys}
@@ -65,7 +64,7 @@ func (s *blobCacheSource) GetManifest(ctx context.Context, instanceDigest *diges
 		}
 		if !os.IsNotExist(err) {
 			s.cacheErrors++
-			return nil, "", perrors.Wrap(err, "checking for manifest file")
+			return nil, "", fmt.Errorf("checking for manifest file: %w", err)
 		}
 	}
 	s.cacheMisses++
@@ -93,7 +92,7 @@ func (s *blobCacheSource) GetBlob(ctx context.Context, blobinfo types.BlobInfo, 
 			s.mu.Lock()
 			s.cacheErrors++
 			s.mu.Unlock()
-			return nil, -1, perrors.Wrap(err, "checking for cache")
+			return nil, -1, fmt.Errorf("checking for cache: %w", err)
 		}
 	}
 	s.mu.Lock()
@@ -101,7 +100,7 @@ func (s *blobCacheSource) GetBlob(ctx context.Context, blobinfo types.BlobInfo, 
 	s.mu.Unlock()
 	rc, size, err := s.source.GetBlob(ctx, blobinfo, cache)
 	if err != nil {
-		return rc, size, perrors.Wrapf(err, "error reading blob from source image %q", transports.ImageName(s.reference))
+		return rc, size, fmt.Errorf("error reading blob from source image %q: %w", transports.ImageName(s.reference), err)
 	}
 	return rc, size, nil
 }
@@ -117,18 +116,18 @@ func (s *blobCacheSource) GetSignaturesWithFormat(ctx context.Context, instanceD
 func (s *blobCacheSource) LayerInfosForCopy(ctx context.Context, instanceDigest *digest.Digest) ([]types.BlobInfo, error) {
 	signatures, err := s.source.GetSignaturesWithFormat(ctx, instanceDigest)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "error checking if image %q has signatures", transports.ImageName(s.reference))
+		return nil, fmt.Errorf("error checking if image %q has signatures: %w", transports.ImageName(s.reference), err)
 	}
 	canReplaceBlobs := len(signatures) == 0
 
 	infos, err := s.source.LayerInfosForCopy(ctx, instanceDigest)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "error getting layer infos for copying image %q through cache", transports.ImageName(s.reference))
+		return nil, fmt.Errorf("error getting layer infos for copying image %q through cache: %w", transports.ImageName(s.reference), err)
 	}
 	if infos == nil {
 		img, err := image.FromUnparsedImage(ctx, &s.sys, image.UnparsedInstance(s.source, instanceDigest))
 		if err != nil {
-			return nil, perrors.Wrapf(err, "error opening image to get layer infos for copying image %q through cache", transports.ImageName(s.reference))
+			return nil, fmt.Errorf("error opening image to get layer infos for copying image %q through cache: %w", transports.ImageName(s.reference), err)
 		}
 		infos = img.LayerInfos()
 	}

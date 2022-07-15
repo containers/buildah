@@ -2,11 +2,11 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/containers/image/v5/docker/internal/tarfile"
 	"github.com/containers/image/v5/internal/private"
 	"github.com/containers/image/v5/types"
-	perrors "github.com/pkg/errors"
 )
 
 type daemonImageSource struct {
@@ -26,13 +26,13 @@ type daemonImageSource struct {
 func newImageSource(ctx context.Context, sys *types.SystemContext, ref daemonReference) (private.ImageSource, error) {
 	c, err := newDockerClient(sys)
 	if err != nil {
-		return nil, perrors.Wrap(err, "initializing docker engine client")
+		return nil, fmt.Errorf("initializing docker engine client: %w", err)
 	}
 	// Per NewReference(), ref.StringWithinTransport() is either an image ID (config digest), or a !reference.NameOnly() reference.
 	// Either way ImageSave should create a tarball with exactly one image.
 	inputStream, err := c.ImageSave(ctx, []string{ref.StringWithinTransport()})
 	if err != nil {
-		return nil, perrors.Wrap(err, "loading image from docker engine")
+		return nil, fmt.Errorf("loading image from docker engine: %w", err)
 	}
 	defer inputStream.Close()
 

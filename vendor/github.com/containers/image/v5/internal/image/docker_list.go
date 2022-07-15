@@ -6,26 +6,25 @@ import (
 
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
-	perrors "github.com/pkg/errors"
 )
 
 func manifestSchema2FromManifestList(ctx context.Context, sys *types.SystemContext, src types.ImageSource, manblob []byte) (genericManifest, error) {
 	list, err := manifest.Schema2ListFromManifest(manblob)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "parsing schema2 manifest list")
+		return nil, fmt.Errorf("parsing schema2 manifest list: %w", err)
 	}
 	targetManifestDigest, err := list.ChooseInstance(sys)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "choosing image instance")
+		return nil, fmt.Errorf("choosing image instance: %w", err)
 	}
 	manblob, mt, err := src.GetManifest(ctx, &targetManifestDigest)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "fetching target platform image selected from manifest list")
+		return nil, fmt.Errorf("fetching target platform image selected from manifest list: %w", err)
 	}
 
 	matches, err := manifest.MatchesDigest(manblob, targetManifestDigest)
 	if err != nil {
-		return nil, perrors.Wrap(err, "computing manifest digest")
+		return nil, fmt.Errorf("computing manifest digest: %w", err)
 	}
 	if !matches {
 		return nil, fmt.Errorf("Image manifest does not match selected manifest digest %s", targetManifestDigest)

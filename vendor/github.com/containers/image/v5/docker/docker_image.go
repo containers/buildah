@@ -14,7 +14,6 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 )
 
 // Image is a Docker-specific implementation of types.ImageCloser with a few extra methods
@@ -67,7 +66,7 @@ func GetRepositoryTags(ctx context.Context, sys *types.SystemContext, ref types.
 	path := fmt.Sprintf(tagsPath, reference.Path(dr.ref))
 	client, err := newDockerClientFromRef(sys, dr, registryConfig, false, "pull")
 	if err != nil {
-		return nil, perrors.Wrap(err, "failed to create client")
+		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
 	tags := make([]string, 0)
@@ -135,7 +134,7 @@ func GetDigest(ctx context.Context, sys *types.SystemContext, ref types.ImageRef
 	}
 	client, err := newDockerClientFromRef(sys, dr, registryConfig, false, "pull")
 	if err != nil {
-		return "", perrors.Wrap(err, "failed to create client")
+		return "", fmt.Errorf("failed to create client: %w", err)
 	}
 
 	path := fmt.Sprintf(manifestPath, reference.Path(dr.ref), tagOrDigest)
@@ -150,7 +149,7 @@ func GetDigest(ctx context.Context, sys *types.SystemContext, ref types.ImageRef
 
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return "", perrors.Wrapf(registryHTTPResponseToError(res), "reading digest %s in %s", tagOrDigest, dr.ref.Name())
+		return "", fmt.Errorf("reading digest %s in %s: %w", tagOrDigest, dr.ref.Name(), registryHTTPResponseToError(res))
 	}
 
 	dig, err := digest.Parse(res.Header.Get("Docker-Content-Digest"))

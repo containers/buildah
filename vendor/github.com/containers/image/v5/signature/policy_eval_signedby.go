@@ -25,23 +25,38 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image priva
 		return sarRejected, nil, fmt.Errorf(`Unknown "keyType" value "%s"`, string(pr.KeyType))
 	}
 
-	if pr.KeyPath != "" && pr.KeyData != nil {
-		return sarRejected, nil, errors.New(`Internal inconsistency: both "keyPath" and "keyData" specified`)
-	}
 	// FIXME: move this to per-context initialization
-	var data []byte
-	if pr.KeyData != nil {
-		data = pr.KeyData
-	} else {
+	var data [][]byte
+	keySources := 0
+	if pr.KeyPath != "" {
+		keySources++
 		d, err := os.ReadFile(pr.KeyPath)
 		if err != nil {
 			return sarRejected, nil, err
 		}
-		data = d
+		data = [][]byte{d}
+	}
+	if pr.KeyPaths != nil {
+		keySources++
+		data = [][]byte{}
+		for _, path := range pr.KeyPaths {
+			d, err := os.ReadFile(path)
+			if err != nil {
+				return sarRejected, nil, err
+			}
+			data = append(data, d)
+		}
+	}
+	if pr.KeyData != nil {
+		keySources++
+		data = [][]byte{pr.KeyData}
+	}
+	if keySources != 1 {
+		return sarRejected, nil, errors.New(`Internal inconsistency: not exactly one of "keyPath", "keyPaths" and "keyData" specified`)
 	}
 
 	// FIXME: move this to per-context initialization
-	mech, trustedIdentities, err := NewEphemeralGPGSigningMechanism(data)
+	mech, trustedIdentities, err := newEphemeralGPGSigningMechanism(data)
 	if err != nil {
 		return sarRejected, nil, err
 	}

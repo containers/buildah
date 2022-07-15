@@ -8,18 +8,17 @@ import (
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/signature/sigstore"
 	"github.com/containers/image/v5/transports"
-	perrors "github.com/pkg/errors"
 )
 
 // createSignature creates a new signature of manifest using keyIdentity.
 func (c *copier) createSignature(manifest []byte, keyIdentity string, passphrase string, identity reference.Named) (internalsig.Signature, error) {
 	mech, err := signature.NewGPGSigningMechanism()
 	if err != nil {
-		return nil, perrors.Wrap(err, "initializing GPG")
+		return nil, fmt.Errorf("initializing GPG: %w", err)
 	}
 	defer mech.Close()
 	if err := mech.SupportsSigning(); err != nil {
-		return nil, perrors.Wrap(err, "Signing not supported")
+		return nil, fmt.Errorf("Signing not supported: %w", err)
 	}
 
 	if identity != nil {
@@ -36,7 +35,7 @@ func (c *copier) createSignature(manifest []byte, keyIdentity string, passphrase
 	c.Printf("Signing manifest using simple signing\n")
 	newSig, err := signature.SignDockerManifestWithOptions(manifest, identity.String(), mech, keyIdentity, &signature.SignOptions{Passphrase: passphrase})
 	if err != nil {
-		return nil, perrors.Wrap(err, "creating signature")
+		return nil, fmt.Errorf("creating signature: %w", err)
 	}
 	return internalsig.SimpleSigningFromBlob(newSig), nil
 }

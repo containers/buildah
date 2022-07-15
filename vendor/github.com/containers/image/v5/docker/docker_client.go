@@ -31,7 +31,6 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -218,7 +217,7 @@ func dockerCertDir(sys *types.SystemContext, hostPort string) (string, error) {
 func newDockerClientFromRef(sys *types.SystemContext, ref dockerReference, registryConfig *registryConfiguration, write bool, actions string) (*dockerClient, error) {
 	auth, err := config.GetCredentialsForRef(sys, ref.ref)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "getting username and password")
+		return nil, fmt.Errorf("getting username and password: %w", err)
 	}
 
 	sigBase, err := registryConfig.lookasideStorageBaseURL(ref, write)
@@ -273,7 +272,7 @@ func newDockerClient(sys *types.SystemContext, registry, reference string) (*doc
 	skipVerify := false
 	reg, err := sysregistriesv2.FindRegistry(sys, reference)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "loading registries")
+		return nil, fmt.Errorf("loading registries: %w", err)
 	}
 	if reg != nil {
 		if reg.Blocked {
@@ -301,7 +300,7 @@ func newDockerClient(sys *types.SystemContext, registry, reference string) (*doc
 func CheckAuth(ctx context.Context, sys *types.SystemContext, username, password, registry string) error {
 	client, err := newDockerClient(sys, registry, registry)
 	if err != nil {
-		return perrors.Wrapf(err, "creating new docker client")
+		return fmt.Errorf("creating new docker client: %w", err)
 	}
 	client.auth = types.DockerAuthConfig{
 		Username: username,
@@ -350,7 +349,7 @@ func SearchRegistry(ctx context.Context, sys *types.SystemContext, registry, ima
 	// We can't use GetCredentialsForRef here because we want to search the whole registry.
 	auth, err := config.GetCredentials(sys, registry)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "getting username and password")
+		return nil, fmt.Errorf("getting username and password: %w", err)
 	}
 
 	// The /v2/_catalog endpoint has been disabled for docker.io therefore
@@ -364,7 +363,7 @@ func SearchRegistry(ctx context.Context, sys *types.SystemContext, registry, ima
 
 	client, err := newDockerClient(sys, hostname, registry)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "creating new docker client")
+		return nil, fmt.Errorf("creating new docker client: %w", err)
 	}
 	client.auth = auth
 	if sys != nil {
@@ -407,13 +406,13 @@ func SearchRegistry(ctx context.Context, sys *types.SystemContext, registry, ima
 		resp, err := client.makeRequest(ctx, http.MethodGet, path, nil, nil, v2Auth, nil)
 		if err != nil {
 			logrus.Debugf("error getting search results from v2 endpoint %q: %v", registry, err)
-			return nil, perrors.Wrapf(err, "couldn't search registry %q", registry)
+			return nil, fmt.Errorf("couldn't search registry %q: %w", registry, err)
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			err := httpResponseToError(resp, "")
 			logrus.Errorf("error getting search results from v2 endpoint %q: %v", registry, err)
-			return nil, perrors.Wrapf(err, "couldn't search registry %q", registry)
+			return nil, fmt.Errorf("couldn't search registry %q: %w", registry, err)
 		}
 		v2Res := &V2Results{}
 		if err := json.NewDecoder(resp.Body).Decode(v2Res); err != nil {
@@ -767,7 +766,7 @@ func (c *dockerClient) detectPropertiesHelper(ctx context.Context) error {
 		err = ping("http")
 	}
 	if err != nil {
-		err = perrors.Wrapf(err, "pinging container registry %s", c.registry)
+		err = fmt.Errorf("pinging container registry %s: %w", c.registry, err)
 		if c.sys != nil && c.sys.DockerDisableV1Ping {
 			return err
 		}
@@ -819,7 +818,7 @@ func (c *dockerClient) fetchManifest(ctx context.Context, ref dockerReference, t
 	logrus.Debugf("Content-Type from manifest GET is %q", res.Header.Get("Content-Type"))
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, "", perrors.Wrapf(registryHTTPResponseToError(res), "reading manifest %s in %s", tagOrDigest, ref.ref.Name())
+		return nil, "", fmt.Errorf("reading manifest %s in %s: %w", tagOrDigest, ref.ref.Name(), registryHTTPResponseToError(res))
 	}
 
 	manblob, err := iolimits.ReadAtMost(res.Body, iolimits.MaxManifestBodySize)
@@ -978,7 +977,7 @@ func (c *dockerClient) getExtensionsSignatures(ctx context.Context, ref dockerRe
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, perrors.Wrapf(clientLib.HandleErrorResponse(res), "downloading signatures for %s in %s", manifestDigest, ref.ref.Name())
+		return nil, fmt.Errorf("downloading signatures for %s in %s: %w", manifestDigest, ref.ref.Name(), clientLib.HandleErrorResponse(res))
 	}
 
 	body, err := iolimits.ReadAtMost(res.Body, iolimits.MaxSignatureListBodySize)
@@ -988,7 +987,7 @@ func (c *dockerClient) getExtensionsSignatures(ctx context.Context, ref dockerRe
 
 	var parsedBody extensionSignatureList
 	if err := json.Unmarshal(body, &parsedBody); err != nil {
-		return nil, perrors.Wrapf(err, "decoding signature list")
+		return nil, fmt.Errorf("decoding signature list: %w", err)
 	}
 	return &parsedBody, nil
 }
