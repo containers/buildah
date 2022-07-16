@@ -10,7 +10,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	imgspec "github.com/opencontainers/image-spec/specs-go"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	perrors "github.com/pkg/errors"
 )
 
 // OCI1Index is just an alias for the OCI index type, but one which we can
@@ -55,7 +54,7 @@ func (index *OCI1Index) UpdateInstances(updates []ListUpdate) error {
 	}
 	for i := range updates {
 		if err := updates[i].Digest.Validate(); err != nil {
-			return perrors.Wrapf(err, "update %d of %d passed to OCI1Index.UpdateInstances contained an invalid digest", i+1, len(updates))
+			return fmt.Errorf("update %d of %d passed to OCI1Index.UpdateInstances contained an invalid digest: %w", i+1, len(updates), err)
 		}
 		index.Manifests[i].Digest = updates[i].Digest
 		if updates[i].Size < 0 {
@@ -75,7 +74,7 @@ func (index *OCI1Index) UpdateInstances(updates []ListUpdate) error {
 func (index *OCI1Index) ChooseInstance(ctx *types.SystemContext) (digest.Digest, error) {
 	wantedPlatforms, err := platform.WantedPlatforms(ctx)
 	if err != nil {
-		return "", perrors.Wrapf(err, "getting platform information %#v", ctx)
+		return "", fmt.Errorf("getting platform information %#v: %w", ctx, err)
 	}
 	for _, wantedPlatform := range wantedPlatforms {
 		for _, d := range index.Manifests {
@@ -108,7 +107,7 @@ func (index *OCI1Index) ChooseInstance(ctx *types.SystemContext) (digest.Digest,
 func (index *OCI1Index) Serialize() ([]byte, error) {
 	buf, err := json.Marshal(index)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "marshaling OCI1Index %#v", index)
+		return nil, fmt.Errorf("marshaling OCI1Index %#v: %w", index, err)
 	}
 	return buf, nil
 }
@@ -202,7 +201,7 @@ func OCI1IndexFromManifest(manifest []byte) (*OCI1Index, error) {
 		},
 	}
 	if err := json.Unmarshal(manifest, &index); err != nil {
-		return nil, perrors.Wrapf(err, "unmarshaling OCI1Index %q", string(manifest))
+		return nil, fmt.Errorf("unmarshaling OCI1Index %q: %w", string(manifest), err)
 	}
 	if err := validateUnambiguousManifestFormat(manifest, imgspecv1.MediaTypeImageIndex,
 		allowedFieldManifests); err != nil {

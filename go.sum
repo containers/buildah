@@ -345,11 +345,11 @@ github.com/containernetworking/plugins v0.9.1/go.mod h1:xP/idU2ldlzN6m4p5LmGiwRD
 github.com/containernetworking/plugins v1.0.1/go.mod h1:QHCfGpaTwYTbbH+nZXKVTxNBDZcxSOplJT5ico8/FLE=
 github.com/containernetworking/plugins v1.1.1 h1:+AGfFigZ5TiQH00vhR8qPeSatj53eNGz0C1d3wVYlHE=
 github.com/containernetworking/plugins v1.1.1/go.mod h1:Sr5TH/eBsGLXK/h71HeLfX19sZPp3ry5uHSkI4LPxV8=
-github.com/containers/common v0.48.1-0.20220712112137-79796831707b h1:a2HO986sueGkPSUQyU9UhpkdmgzoRk3qMpz/RvWE+PE=
-github.com/containers/common v0.48.1-0.20220712112137-79796831707b/go.mod h1:Vd+Y982r2Y/7M6tXT0drQn7ho3mrQRgmsoQlNB74TKU=
-github.com/containers/image/v5 v5.21.2-0.20220615100411-a78a00792916/go.mod h1:hEf8L08Hrh/3fK4vLf5l7988MJmij2swfCBUzqgnhF4=
-github.com/containers/image/v5 v5.21.2-0.20220712113758-29aec5f7bbbf h1:EAVt3Tr8n2Iv3L2L4J66vcFB+jHGCSHQlD15+Z2U1Io=
+github.com/containers/common v0.48.1-0.20220715075726-2ac10faca05a h1:kdcruVl641VTIm8C3O58WRYcBTbnWCsh6AJymk28ScM=
+github.com/containers/common v0.48.1-0.20220715075726-2ac10faca05a/go.mod h1:1dA7JPGoSi83kjf5H4NIrGANyLOULyvFqV1bwvYFEek=
 github.com/containers/image/v5 v5.21.2-0.20220712113758-29aec5f7bbbf/go.mod h1:0+N0ZM9mgMmoZZc6uNcgnEsbX85Ne7b29cIW5lqWwVU=
+github.com/containers/image/v5 v5.21.2-0.20220714132403-2bb3f3e44c5c h1:ms1Vyzs9Eb17J38aFKrL0+ig2pVwQq3OleaO7VmQuV0=
+github.com/containers/image/v5 v5.21.2-0.20220714132403-2bb3f3e44c5c/go.mod h1:ykVAVRj4DhQNMHZDVU+KCtXjWBKpqiUe669eF0WBEEc=
 github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a h1:spAGlqziZjCJL25C6F1zsQY05tfCKE9F5YwtEWWe6hU=
 github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a/go.mod h1:9rfv8iPl1ZP7aqh9YA68wnZv2NUDbXdcdPHVz0pFbPY=
 github.com/containers/ocicrypt v1.0.1/go.mod h1:MeJDzk1RJHv89LjsH0Sp5KTY3ZYkjXO/C+bKAeWFIrc=
@@ -361,9 +361,9 @@ github.com/containers/ocicrypt v1.1.5 h1:UO+gBnBXvMvC7HTXLh0bPgLslfW8HlY+oxYcoSH
 github.com/containers/ocicrypt v1.1.5/go.mod h1:WgjxPWdTJMqYMjf3M6cuIFFA1/MpyyhIM99YInA+Rvc=
 github.com/containers/storage v1.37.0/go.mod h1:kqeJeS0b7DO2ZT1nVWs0XufrmPFbgV3c+Q/45RlH6r4=
 github.com/containers/storage v1.41.0/go.mod h1:Pb0l5Sm/89kolX3o2KolKQ5cCHk5vPNpJrhNaLcdS5s=
-github.com/containers/storage v1.41.1-0.20220614214904-388efef4bf7e/go.mod h1:6XQ68cEG8ojfP/m3HIupFV1rZsnqeFmaE8N1ctBP94Y=
-github.com/containers/storage v1.41.1-0.20220713072742-0b04426cbc89 h1:ZzXsiXp8zIOgrAQfpMEFYfaSjd7X50i6fER6v3QOG3Q=
-github.com/containers/storage v1.41.1-0.20220713072742-0b04426cbc89/go.mod h1:uu6HCcijN30xRxW1ZuZRngwFGOlH5NpBWYiNBnDQNRw=
+github.com/containers/storage v1.41.1-0.20220712184034-d26be7b27860/go.mod h1:uu6HCcijN30xRxW1ZuZRngwFGOlH5NpBWYiNBnDQNRw=
+github.com/containers/storage v1.41.1-0.20220714115232-fc9b0ff5272a h1:+arJAP0v8kEy5fKRPIELjarjpwUHhB7SyRE0uFXlyKY=
+github.com/containers/storage v1.41.1-0.20220714115232-fc9b0ff5272a/go.mod h1:4DfR+cPpkXKhJnnyydD3z82DXrnTBT63y1k0QWtM2i4=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/etcd v3.3.13+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
@@ -695,7 +695,6 @@ github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1/go.mod h1:wJfORR
 github.com/gorilla/handlers v0.0.0-20150720190736-60c7bfde3e33/go.mod h1:Qkdc/uu4tH4g6mTK6auzZ766c4CA0Ng8+o/OAirnOIQ=
 github.com/gorilla/mux v1.7.2/go.mod h1:1lud6UwP+6orDFRuTfBEV8e9/aOM/c4fVVCaMa2zaAs=
 github.com/gorilla/mux v1.7.3/go.mod h1:1lud6UwP+6orDFRuTfBEV8e9/aOM/c4fVVCaMa2zaAs=
-github.com/gorilla/mux v1.7.4/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB71So=
 github.com/gorilla/mux v1.8.0 h1:i40aqfkR1h2SlN9hojwV5ZA91wcXFOvkdNIeFDP5koI=
 github.com/gorilla/mux v1.8.0/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB71So=
 github.com/gorilla/websocket v0.0.0-20170926233335-4201258b820c/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
@@ -859,9 +858,9 @@ github.com/klauspost/compress v1.11.13/go.mod h1:aoV0uJVorq1K+umq18yTdKaF57EivdY
 github.com/klauspost/compress v1.13.6/go.mod h1:/3/Vjq9QcHkK5uEr5lBEmyoZ1iFhe47etQ6QUkpK6sk=
 github.com/klauspost/compress v1.15.1/go.mod h1:/3/Vjq9QcHkK5uEr5lBEmyoZ1iFhe47etQ6QUkpK6sk=
 github.com/klauspost/compress v1.15.4/go.mod h1:PhcZ0MbTNciWF3rruxRgKxI5NkcHHrHUDtV4Yw2GlzU=
-github.com/klauspost/compress v1.15.6/go.mod h1:PhcZ0MbTNciWF3rruxRgKxI5NkcHHrHUDtV4Yw2GlzU=
-github.com/klauspost/compress v1.15.7 h1:7cgTQxJCU/vy+oP/E3B9RGbQTgbiVzIJWIKOLoAsPok=
 github.com/klauspost/compress v1.15.7/go.mod h1:PhcZ0MbTNciWF3rruxRgKxI5NkcHHrHUDtV4Yw2GlzU=
+github.com/klauspost/compress v1.15.8 h1:JahtItbkWjf2jzm/T+qgMxkP9EMHsqEUA6vCMGmXvhA=
+github.com/klauspost/compress v1.15.8/go.mod h1:PhcZ0MbTNciWF3rruxRgKxI5NkcHHrHUDtV4Yw2GlzU=
 github.com/klauspost/pgzip v1.2.5 h1:qnWYvvKqedOF2ulHpMG72XQol4ILEJ8k2wwRl/Km8oE=
 github.com/klauspost/pgzip v1.2.5/go.mod h1:Ch1tH69qFZu15pkjo5kYi6mth2Zzwzt50oCQKQE9RUs=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
@@ -1107,7 +1106,6 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
 github.com/poy/onpar v0.0.0-20190519213022-ee068f8ea4d1/go.mod h1:nSbFQvMj97ZyhFRSJYtut+msi4sOY6zJDGCdSc+/rZU=
 github.com/pquerna/cachecontrol v0.0.0-20171018203845-0dec1b30a021/go.mod h1:prYjPmNq4d1NPVmpShWobRqXY3q7Vp+80DqgxxUrUIA=
-github.com/proglottis/gpgme v0.1.2/go.mod h1:fPbW/EZ0LvwQtH8Hy7eixhp1eF3G39dtx7GUN+0Gmy0=
 github.com/proglottis/gpgme v0.1.3 h1:Crxx0oz4LKB3QXc5Ea0J19K/3ICfy3ftr5exgUK1AU0=
 github.com/proglottis/gpgme v0.1.3/go.mod h1:fPbW/EZ0LvwQtH8Hy7eixhp1eF3G39dtx7GUN+0Gmy0=
 github.com/prometheus/client_golang v0.0.0-20180209125602-c332b6f63c06/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
@@ -1248,7 +1246,6 @@ github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5
 github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-github.com/stretchr/testify v1.7.2/go.mod h1:R6va5+xMeoiuVRoj+gSkQ7d3FALtqAAGI1FQKckRals=
 github.com/stretchr/testify v1.7.5/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PKk=
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=

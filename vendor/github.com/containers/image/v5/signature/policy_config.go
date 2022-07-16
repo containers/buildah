@@ -26,7 +26,6 @@ import (
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/homedir"
-	perrors "github.com/pkg/errors"
 )
 
 // systemDefaultPolicyPath is the policy path used for DefaultPolicy().
@@ -83,7 +82,7 @@ func NewPolicyFromFile(fileName string) (*Policy, error) {
 	}
 	policy, err := NewPolicyFromBytes(contents)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "invalid policy in %q", fileName)
+		return nil, fmt.Errorf("invalid policy in %q: %w", fileName, err)
 	}
 	return policy, nil
 }
@@ -316,12 +315,22 @@ func (pr *prReject) UnmarshalJSON(data []byte) error {
 }
 
 // newPRSignedBy returns a new prSignedBy if parameters are valid.
-func newPRSignedBy(keyType sbKeyType, keyPath string, keyData []byte, signedIdentity PolicyReferenceMatch) (*prSignedBy, error) {
+func newPRSignedBy(keyType sbKeyType, keyPath string, keyPaths []string, keyData []byte, signedIdentity PolicyReferenceMatch) (*prSignedBy, error) {
 	if !keyType.IsValid() {
 		return nil, InvalidPolicyFormatError(fmt.Sprintf("invalid keyType \"%s\"", keyType))
 	}
-	if len(keyPath) > 0 && len(keyData) > 0 {
-		return nil, InvalidPolicyFormatError("keyType and keyData cannot be used simultaneously")
+	keySources := 0
+	if keyPath != "" {
+		keySources++
+	}
+	if keyPaths != nil {
+		keySources++
+	}
+	if keyData != nil {
+		keySources++
+	}
+	if keySources != 1 {
+		return nil, InvalidPolicyFormatError("exactly one of keyPath, keyPaths and keyData must be specified")
 	}
 	if signedIdentity == nil {
 		return nil, InvalidPolicyFormatError("signedIdentity not specified")
@@ -330,6 +339,7 @@ func newPRSignedBy(keyType sbKeyType, keyPath string, keyData []byte, signedIden
 		prCommon:       prCommon{Type: prTypeSignedBy},
 		KeyType:        keyType,
 		KeyPath:        keyPath,
+		KeyPaths:       keyPaths,
 		KeyData:        keyData,
 		SignedIdentity: signedIdentity,
 	}, nil
@@ -337,7 +347,7 @@ func newPRSignedBy(keyType sbKeyType, keyPath string, keyData []byte, signedIden
 
 // newPRSignedByKeyPath is NewPRSignedByKeyPath, except it returns the private type.
 func newPRSignedByKeyPath(keyType sbKeyType, keyPath string, signedIdentity PolicyReferenceMatch) (*prSignedBy, error) {
-	return newPRSignedBy(keyType, keyPath, nil, signedIdentity)
+	return newPRSignedBy(keyType, keyPath, nil, nil, signedIdentity)
 }
 
 // NewPRSignedByKeyPath returns a new "signedBy" PolicyRequirement using a KeyPath
@@ -345,9 +355,19 @@ func NewPRSignedByKeyPath(keyType sbKeyType, keyPath string, signedIdentity Poli
 	return newPRSignedByKeyPath(keyType, keyPath, signedIdentity)
 }
 
+// newPRSignedByKeyPaths is NewPRSignedByKeyPaths, except it returns the private type.
+func newPRSignedByKeyPaths(keyType sbKeyType, keyPaths []string, signedIdentity PolicyReferenceMatch) (*prSignedBy, error) {
+	return newPRSignedBy(keyType, "", keyPaths, nil, signedIdentity)
+}
+
+// NewPRSignedByKeyPaths returns a new "signedBy" PolicyRequirement using KeyPaths
+func NewPRSignedByKeyPaths(keyType sbKeyType, keyPaths []string, signedIdentity PolicyReferenceMatch) (PolicyRequirement, error) {
+	return newPRSignedByKeyPaths(keyType, keyPaths, signedIdentity)
+}
+
 // newPRSignedByKeyData is NewPRSignedByKeyData, except it returns the private type.
 func newPRSignedByKeyData(keyType sbKeyType, keyData []byte, signedIdentity PolicyReferenceMatch) (*prSignedBy, error) {
-	return newPRSignedBy(keyType, "", keyData, signedIdentity)
+	return newPRSignedBy(keyType, "", nil, keyData, signedIdentity)
 }
 
 // NewPRSignedByKeyData returns a new "signedBy" PolicyRequirement using a KeyData
@@ -362,7 +382,7 @@ var _ json.Unmarshaler = (*prSignedBy)(nil)
 func (pr *prSignedBy) UnmarshalJSON(data []byte) error {
 	*pr = prSignedBy{}
 	var tmp prSignedBy
-	var gotKeyPath, gotKeyData = false, false
+	var gotKeyPath, gotKeyPaths, gotKeyData = false, false, false
 	var signedIdentity json.RawMessage
 	if err := internal.ParanoidUnmarshalJSONObject(data, func(key string) interface{} {
 		switch key {
@@ -373,6 +393,9 @@ func (pr *prSignedBy) UnmarshalJSON(data []byte) error {
 		case "keyPath":
 			gotKeyPath = true
 			return &tmp.KeyPath
+		case "keyPaths":
+			gotKeyPaths = true
+			return &tmp.KeyPaths
 		case "keyData":
 			gotKeyData = true
 			return &tmp.KeyData
@@ -401,16 +424,16 @@ func (pr *prSignedBy) UnmarshalJSON(data []byte) error {
 	var res *prSignedBy
 	var err error
 	switch {
-	case gotKeyPath && gotKeyData:
-		return InvalidPolicyFormatError("keyPath and keyData cannot be used simultaneously")
-	case gotKeyPath && !gotKeyData:
+	case gotKeyPath && !gotKeyPaths && !gotKeyData:
 		res, err = newPRSignedByKeyPath(tmp.KeyType, tmp.KeyPath, tmp.SignedIdentity)
-	case !gotKeyPath && gotKeyData:
+	case !gotKeyPath && gotKeyPaths && !gotKeyData:
+		res, err = newPRSignedByKeyPaths(tmp.KeyType, tmp.KeyPaths, tmp.SignedIdentity)
+	case !gotKeyPath && !gotKeyPaths && gotKeyData:
 		res, err = newPRSignedByKeyData(tmp.KeyType, tmp.KeyData, tmp.SignedIdentity)
-	case !gotKeyPath && !gotKeyData:
-		return InvalidPolicyFormatError("At least one of keyPath and keyData mus be specified")
-	default: // Coverage: This should never happen
-		return fmt.Errorf("Impossible keyPath/keyData presence combination!?")
+	case !gotKeyPath && !gotKeyPaths && !gotKeyData:
+		return InvalidPolicyFormatError("Exactly one of keyPath, keyPaths and keyData must be specified, none of them present")
+	default:
+		return fmt.Errorf("Exactly one of keyPath, keyPaths and keyData must be specified, more than one present")
 	}
 	if err != nil {
 		return err
@@ -582,7 +605,7 @@ func (pr *prSigstoreSigned) UnmarshalJSON(data []byte) error {
 	case !gotKeyPath && gotKeyData:
 		res, err = newPRSigstoreSignedKeyData(tmp.KeyData, tmp.SignedIdentity)
 	case !gotKeyPath && !gotKeyData:
-		return InvalidPolicyFormatError("At least one of keyPath and keyData mus be specified")
+		return InvalidPolicyFormatError("At least one of keyPath and keyData must be specified")
 	default: // Coverage: This should never happen
 		return fmt.Errorf("Impossible keyPath/keyData presence combination!?")
 	}

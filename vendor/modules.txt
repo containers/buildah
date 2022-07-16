@@ -84,7 +84,7 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.1.1
 ## explicit; go 1.17
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.48.1-0.20220712112137-79796831707b
+# github.com/containers/common v0.48.1-0.20220715075726-2ac10faca05a
 ## explicit; go 1.17
 github.com/containers/common/libimage
 github.com/containers/common/libimage/define
@@ -123,7 +123,7 @@ github.com/containers/common/pkg/timetype
 github.com/containers/common/pkg/umask
 github.com/containers/common/pkg/util
 github.com/containers/common/version
-# github.com/containers/image/v5 v5.21.2-0.20220712113758-29aec5f7bbbf
+# github.com/containers/image/v5 v5.21.2-0.20220714132403-2bb3f3e44c5c
 ## explicit; go 1.17
 github.com/containers/image/v5/copy
 github.com/containers/image/v5/directory
@@ -205,7 +205,7 @@ github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
 github.com/containers/ocicrypt/utils/keyprovider
-# github.com/containers/storage v1.41.1-0.20220713072742-0b04426cbc89
+# github.com/containers/storage v1.41.1-0.20220714115232-fc9b0ff5272a
 ## explicit; go 1.16
 github.com/containers/storage
 github.com/containers/storage/drivers
@@ -373,7 +373,7 @@ github.com/jinzhu/copier
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
-# github.com/klauspost/compress v1.15.7
+# github.com/klauspost/compress v1.15.8
 ## explicit; go 1.16
 github.com/klauspost/compress
 github.com/klauspost/compress/flate

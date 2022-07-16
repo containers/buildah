@@ -16,7 +16,6 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -95,16 +94,16 @@ func (w *Writer) ensureSingleLegacyLayerLocked(layerID string, layerDigest diges
 		// See also the comment in physicalLayerPath.
 		physicalLayerPath := w.physicalLayerPath(layerDigest)
 		if err := w.sendSymlinkLocked(filepath.Join(layerID, legacyLayerFileName), filepath.Join("..", physicalLayerPath)); err != nil {
-			return perrors.Wrap(err, "creating layer symbolic link")
+			return fmt.Errorf("creating layer symbolic link: %w", err)
 		}
 
 		b := []byte("1.0")
 		if err := w.sendBytesLocked(filepath.Join(layerID, legacyVersionFileName), b); err != nil {
-			return perrors.Wrap(err, "writing VERSION file")
+			return fmt.Errorf("writing VERSION file: %w", err)
 		}
 
 		if err := w.sendBytesLocked(filepath.Join(layerID, legacyConfigFileName), configBytes); err != nil {
-			return perrors.Wrap(err, "writing config json file")
+			return fmt.Errorf("writing config json file: %w", err)
 		}
 
 		w.legacyLayers[layerID] = struct{}{}
@@ -129,7 +128,7 @@ func (w *Writer) writeLegacyMetadataLocked(layerDescriptors []manifest.Schema2De
 			var config map[string]*json.RawMessage
 			err := json.Unmarshal(configBytes, &config)
 			if err != nil {
-				return perrors.Wrap(err, "unmarshaling config")
+				return fmt.Errorf("unmarshaling config: %w", err)
 			}
 			for _, attr := range [7]string{"architecture", "config", "container", "container_config", "created", "docker_version", "os"} {
 				layerConfig[attr] = config[attr]
@@ -153,7 +152,7 @@ func (w *Writer) writeLegacyMetadataLocked(layerDescriptors []manifest.Schema2De
 		layerConfig["layer_id"] = chainID
 		b, err := json.Marshal(layerConfig) // Note that layerConfig["id"] is not set yet at this point.
 		if err != nil {
-			return perrors.Wrap(err, "marshaling layer config")
+			return fmt.Errorf("marshaling layer config: %w", err)
 		}
 		delete(layerConfig, "layer_id")
 		layerID := digest.Canonical.FromBytes(b).Hex()
@@ -161,7 +160,7 @@ func (w *Writer) writeLegacyMetadataLocked(layerDescriptors []manifest.Schema2De
 
 		configBytes, err := json.Marshal(layerConfig)
 		if err != nil {
-			return perrors.Wrap(err, "marshaling layer config")
+			return fmt.Errorf("marshaling layer config: %w", err)
 		}
 
 		if err := w.ensureSingleLegacyLayerLocked(layerID, l.Digest, configBytes); err != nil {
@@ -281,10 +280,10 @@ func (w *Writer) Close() error {
 
 	b, err = json.Marshal(w.repositories)
 	if err != nil {
-		return perrors.Wrap(err, "marshaling repositories")
+		return fmt.Errorf("marshaling repositories: %w", err)
 	}
 	if err := w.sendBytesLocked(legacyRepositoriesFileName, b); err != nil {
-		return perrors.Wrap(err, "writing config json file")
+		return fmt.Errorf("writing config json file: %w", err)
 	}
 
 	if err := w.tar.Close(); err != nil {

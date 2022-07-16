@@ -5,10 +5,10 @@ go 1.17
 require (
 	github.com/containerd/containerd v1.6.6
 	github.com/containernetworking/cni v1.1.1
-	github.com/containers/common v0.48.1-0.20220712112137-79796831707b
-	github.com/containers/image/v5 v5.21.2-0.20220712113758-29aec5f7bbbf
+	github.com/containers/common v0.48.1-0.20220715075726-2ac10faca05a
+	github.com/containers/image/v5 v5.21.2-0.20220714132403-2bb3f3e44c5c
 	github.com/containers/ocicrypt v1.1.5
-	github.com/containers/storage v1.41.1-0.20220713072742-0b04426cbc89
+	github.com/containers/storage v1.41.1-0.20220714115232-fc9b0ff5272a
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-units v0.4.0
@@ -72,7 +72,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jinzhu/copier v0.3.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.15.7 // indirect
+	github.com/klauspost/compress v1.15.8 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/letsencrypt/boulder v0.0.0-20220331220046-b23ab962616e // indirect
 	github.com/manifoldco/promptui v0.9.0 // indirect

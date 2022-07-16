@@ -12,7 +12,6 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 )
 
 // Schema1FSLayers is an entry of the "fsLayers" array in docker/distribution schema 1.
@@ -115,7 +114,7 @@ func (m *Schema1) initialize() error {
 	m.ExtractedV1Compatibility = make([]Schema1V1Compatibility, len(m.History))
 	for i, h := range m.History {
 		if err := json.Unmarshal([]byte(h.V1Compatibility), &m.ExtractedV1Compatibility[i]); err != nil {
-			return perrors.Wrapf(err, "parsing v2s1 history entry %d", i)
+			return fmt.Errorf("parsing v2s1 history entry %d: %w", i, err)
 		}
 	}
 	return nil
@@ -248,14 +247,14 @@ func (m *Schema1) ToSchema2Config(diffIDs []digest.Digest) ([]byte, error) {
 	config := []byte(m.History[0].V1Compatibility)
 	err := json.Unmarshal(config, &s1)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "decoding configuration")
+		return nil, fmt.Errorf("decoding configuration: %w", err)
 	}
 	// Images created with versions prior to 1.8.3 require us to re-encode the encoded object,
 	// adding some fields that aren't "omitempty".
 	if s1.DockerVersion != "" && versions.LessThan(s1.DockerVersion, "1.8.3") {
 		config, err = json.Marshal(&s1)
 		if err != nil {
-			return nil, perrors.Wrapf(err, "re-encoding compat image config %#v", s1)
+			return nil, fmt.Errorf("re-encoding compat image config %#v: %w", s1, err)
 		}
 	}
 	// Build the history.
@@ -282,7 +281,7 @@ func (m *Schema1) ToSchema2Config(diffIDs []digest.Digest) ([]byte, error) {
 	raw := make(map[string]*json.RawMessage)
 	err = json.Unmarshal(config, &raw)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "re-decoding compat image config %#v", s1)
+		return nil, fmt.Errorf("re-decoding compat image config %#v: %w", s1, err)
 	}
 	// Drop some fields.
 	delete(raw, "id")

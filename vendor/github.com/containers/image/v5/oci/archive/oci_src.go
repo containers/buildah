@@ -3,6 +3,7 @@ package archive
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/containers/image/v5/internal/imagesource"
@@ -13,7 +14,6 @@ import (
 	"github.com/containers/image/v5/types"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -30,13 +30,13 @@ type ociArchiveImageSource struct {
 func newImageSource(ctx context.Context, sys *types.SystemContext, ref ociArchiveReference) (private.ImageSource, error) {
 	tempDirRef, err := createUntarTempDir(sys, ref)
 	if err != nil {
-		return nil, perrors.Wrap(err, "creating temp directory")
+		return nil, fmt.Errorf("creating temp directory: %w", err)
 	}
 
 	unpackedSrc, err := tempDirRef.ociRefExtracted.NewImageSource(ctx, sys)
 	if err != nil {
 		if err := tempDirRef.deleteTempDir(); err != nil {
-			return nil, perrors.Wrapf(err, "deleting temp directory %q", tempDirRef.tempDirectory)
+			return nil, fmt.Errorf("deleting temp directory %q: %w", tempDirRef.tempDirectory, err)
 		}
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func LoadManifestDescriptorWithContext(sys *types.SystemContext, imgRef types.Im
 	}
 	tempDirRef, err := createUntarTempDir(sys, ociArchRef)
 	if err != nil {
-		return imgspecv1.Descriptor{}, perrors.Wrap(err, "creating temp directory")
+		return imgspecv1.Descriptor{}, fmt.Errorf("creating temp directory: %w", err)
 	}
 	defer func() {
 		err := tempDirRef.deleteTempDir()
@@ -72,7 +72,7 @@ func LoadManifestDescriptorWithContext(sys *types.SystemContext, imgRef types.Im
 
 	descriptor, err := ocilayout.LoadManifestDescriptor(tempDirRef.ociRefExtracted)
 	if err != nil {
-		return imgspecv1.Descriptor{}, perrors.Wrap(err, "loading index")
+		return imgspecv1.Descriptor{}, fmt.Errorf("loading index: %w", err)
 	}
 	return descriptor, nil
 }

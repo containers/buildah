@@ -30,7 +30,6 @@ import (
 	encconfig "github.com/containers/ocicrypt/config"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/vbauerster/mpb/v7"
 	"golang.org/x/sync/semaphore"
@@ -208,23 +207,31 @@ func Image(ctx context.Context, policyContext *signature.PolicyContext, destRef,
 
 	publicDest, err := destRef.NewImageDestination(ctx, options.DestinationCtx)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "initializing destination %s", transports.ImageName(destRef))
+		return nil, fmt.Errorf("initializing destination %s: %w", transports.ImageName(destRef), err)
 	}
 	dest := imagedestination.FromPublic(publicDest)
 	defer func() {
 		if err := dest.Close(); err != nil {
-			retErr = perrors.Wrapf(retErr, " (dest: %v)", err)
+			if retErr != nil {
+				retErr = fmt.Errorf(" (dest: %v): %w", err, retErr)
+			} else {
+				retErr = fmt.Errorf(" (dest: %v)", err)
+			}
 		}
 	}()
 
 	publicRawSource, err := srcRef.NewImageSource(ctx, options.SourceCtx)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "initializing source %s", transports.ImageName(srcRef))
+		return nil, fmt.Errorf("initializing source %s: %w", transports.ImageName(srcRef), err)
 	}
 	rawSource := imagesource.FromPublic(publicRawSource)
 	defer func() {
 		if err := rawSource.Close(); err != nil {
-			retErr = perrors.Wrapf(retErr, " (src: %v)", err)
+			if retErr != nil {
+				retErr = fmt.Errorf(" (src: %v): %w", err, retErr)
+			} else {
+				retErr = fmt.Errorf(" (src: %v)", err)
+			}
 		}
 	}()
 
@@ -281,7 +288,7 @@ func Image(ctx context.Context, policyContext *signature.PolicyContext, destRef,
 	unparsedToplevel := image.UnparsedInstance(rawSource, nil)
 	multiImage, err := isMultiImage(ctx, unparsedToplevel)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "determining manifest MIME type for %s", transports.ImageName(srcRef))
+		return nil, fmt.Errorf("determining manifest MIME type for %s: %w", transports.ImageName(srcRef), err)
 	}
 
 	if !multiImage {
@@ -294,21 +301,21 @@ func Image(ctx context.Context, policyContext *signature.PolicyContext, destRef,
 		// matches the current system to copy, and copy it.
 		mfest, manifestType, err := unparsedToplevel.Manifest(ctx)
 		if err != nil {
-			return nil, perrors.Wrapf(err, "reading manifest for %s", transports.ImageName(srcRef))
+			return nil, fmt.Errorf("reading manifest for %s: %w", transports.ImageName(srcRef), err)
 		}
 		manifestList, err := manifest.ListFromBlob(mfest, manifestType)
 		if err != nil {
-			return nil, perrors.Wrapf(err, "parsing primary manifest as list for %s", transports.ImageName(srcRef))
+			return nil, fmt.Errorf("parsing primary manifest as list for %s: %w", transports.ImageName(srcRef), err)
 		}
 		instanceDigest, err := manifestList.ChooseInstance(options.SourceCtx) // try to pick one that matches options.SourceCtx
 		if err != nil {
-			return nil, perrors.Wrapf(err, "choosing an image from manifest list %s", transports.ImageName(srcRef))
+			return nil, fmt.Errorf("choosing an image from manifest list %s: %w", transports.ImageName(srcRef), err)
 		}
 		logrus.Debugf("Source is a manifest list; copying (only) instance %s for current system", instanceDigest)
 		unparsedInstance := image.UnparsedInstance(rawSource, &instanceDigest)
 
 		if copiedManifest, _, _, err = c.copyOneImage(ctx, policyContext, options, unparsedToplevel, unparsedInstance, nil); err != nil {
-			return nil, perrors.Wrap(err, "copying system image from manifest list")
+			return nil, fmt.Errorf("copying system image from manifest list: %w", err)
 		}
 	} else { /* options.ImageListSelection == CopyAllImages or options.ImageListSelection == CopySpecificImages, */
 		// If we were asked to copy multiple images and can't, that's an error.
@@ -328,7 +335,7 @@ func Image(ctx context.Context, policyContext *signature.PolicyContext, destRef,
 	}
 
 	if err := c.dest.Commit(ctx, unparsedToplevel); err != nil {
-		return nil, perrors.Wrap(err, "committing the finished image")
+		return nil, fmt.Errorf("committing the finished image: %w", err)
 	}
 
 	return copiedManifest, nil
@@ -355,7 +362,7 @@ func supportsMultipleImages(dest types.ImageDestination) bool {
 func compareImageDestinationManifestEqual(ctx context.Context, options *Options, src *image.SourcedImage, targetInstance *digest.Digest, dest types.ImageDestination) (bool, []byte, string, digest.Digest, error) {
 	srcManifestDigest, err := manifest.Digest(src.ManifestBlob)
 	if err != nil {
-		return false, nil, "", "", perrors.Wrapf(err, "calculating manifest digest")
+		return false, nil, "", "", fmt.Errorf("calculating manifest digest: %w", err)
 	}
 
 	destImageSource, err := dest.Reference().NewImageSource(ctx, options.DestinationCtx)
@@ -372,7 +379,7 @@ func compareImageDestinationManifestEqual(ctx context.Context, options *Options,
 
 	destManifestDigest, err := manifest.Digest(destManifest)
 	if err != nil {
-		return false, nil, "", "", perrors.Wrapf(err, "calculating manifest digest")
+		return false, nil, "", "", fmt.Errorf("calculating manifest digest: %w", err)
 	}
 
 	logrus.Debugf("Comparing source and destination manifest digests: %v vs. %v", srcManifestDigest, destManifestDigest)
@@ -390,11 +397,11 @@ func (c *copier) copyMultipleImages(ctx context.Context, policyContext *signatur
 	// Parse the list and get a copy of the original value after it's re-encoded.
 	manifestList, manifestType, err := unparsedToplevel.Manifest(ctx)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "reading manifest list")
+		return nil, fmt.Errorf("reading manifest list: %w", err)
 	}
 	originalList, err := manifest.ListFromBlob(manifestList, manifestType)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "parsing manifest list %q", string(manifestList))
+		return nil, fmt.Errorf("parsing manifest list %q: %w", string(manifestList), err)
 	}
 	updatedList := originalList.Clone()
 
@@ -406,14 +413,14 @@ func (c *copier) copyMultipleImages(ctx context.Context, policyContext *signatur
 		c.Printf("Getting image list signatures\n")
 		s, err := c.rawSource.GetSignaturesWithFormat(ctx, nil)
 		if err != nil {
-			return nil, perrors.Wrap(err, "reading signatures")
+			return nil, fmt.Errorf("reading signatures: %w", err)
 		}
 		sigs = s
 	}
 	if len(sigs) != 0 {
 		c.Printf("Checking if image list destination supports signatures\n")
 		if err := c.dest.SupportsSignatures(ctx); err != nil {
-			return nil, perrors.Wrapf(err, "Can not copy signatures to %s", transports.ImageName(c.dest.Reference()))
+			return nil, fmt.Errorf("Can not copy signatures to %s: %w", transports.ImageName(c.dest.Reference()), err)
 		}
 	}
 
@@ -425,7 +432,7 @@ func (c *copier) copyMultipleImages(ctx context.Context, policyContext *signatur
 			destIsDigestedReference = true
 			matches, err := manifest.MatchesDigest(manifestList, digested.Digest())
 			if err != nil {
-				return nil, perrors.Wrapf(err, "computing digest of source image's manifest")
+				return nil, fmt.Errorf("computing digest of source image's manifest: %w", err)
 			}
 			if !matches {
 				return nil, errors.New("Digest of source image's manifest would not match destination reference")
@@ -457,7 +464,7 @@ func (c *copier) copyMultipleImages(ctx context.Context, policyContext *signatur
 	}
 	selectedListType, otherManifestMIMETypeCandidates, err := c.determineListConversion(manifestType, c.dest.SupportedManifestMIMETypes(), forceListMIMEType)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "determining manifest list type to write to destination")
+		return nil, fmt.Errorf("determining manifest list type to write to destination: %w", err)
 	}
 	if selectedListType != originalList.MIMEType() {
 		if cannotModifyManifestListReason != "" {
@@ -499,7 +506,7 @@ func (c *copier) copyMultipleImages(ctx context.Context, policyContext *signatur
 		unparsedInstance := image.UnparsedInstance(c.rawSource, &instanceDigest)
 		updatedManifest, updatedManifestType, updatedManifestDigest, err := c.copyOneImage(ctx, policyContext, options, unparsedToplevel, unparsedInstance, &instanceDigest)
 		if err != nil {
-			return nil, perrors.Wrapf(err, "copying image %d/%d from manifest list", instancesCopied+1, imagesToCopy)
+			return nil, fmt.Errorf("copying image %d/%d from manifest list: %w", instancesCopied+1, imagesToCopy, err)
 		}
 		instancesCopied++
 		// Record the result of a possible conversion here.
@@ -513,7 +520,7 @@ func (c *copier) copyMultipleImages(ctx context.Context, policyContext *signatur
 
 	// Now reset the digest/size/types of the manifests in the list to account for any conversions that we made.
 	if err = updatedList.UpdateInstances(updates); err != nil {
-		return nil, perrors.Wrapf(err, "updating manifest list")
+		return nil, fmt.Errorf("updating manifest list: %w", err)
 	}
 
 	// Iterate through supported list types, preferred format first.
@@ -528,7 +535,7 @@ func (c *copier) copyMultipleImages(ctx context.Context, policyContext *signatur
 		if thisListType != updatedList.MIMEType() {
 			attemptedList, err = updatedList.ConvertToMIMEType(thisListType)
 			if err != nil {
-				return nil, perrors.Wrapf(err, "converting manifest list to list with MIME type %q", thisListType)
+				return nil, fmt.Errorf("converting manifest list to list with MIME type %q: %w", thisListType, err)
 			}
 		}
 
@@ -536,11 +543,11 @@ func (c *copier) copyMultipleImages(ctx context.Context, policyContext *signatur
 		// by serializing them both so that we can compare them.
 		attemptedManifestList, err := attemptedList.Serialize()
 		if err != nil {
-			return nil, perrors.Wrapf(err, "encoding updated manifest list (%q: %#v)", updatedList.MIMEType(), updatedList.Instances())
+			return nil, fmt.Errorf("encoding updated manifest list (%q: %#v): %w", updatedList.MIMEType(), updatedList.Instances(), err)
 		}
 		originalManifestList, err := originalList.Serialize()
 		if err != nil {
-			return nil, perrors.Wrapf(err, "encoding original manifest list for comparison (%q: %#v)", originalList.MIMEType(), originalList.Instances())
+			return nil, fmt.Errorf("encoding original manifest list for comparison (%q: %#v): %w", originalList.MIMEType(), originalList.Instances(), err)
 		}
 
 		// If we can't just use the original value, but we have to change it, flag an error.
@@ -587,7 +594,7 @@ func (c *copier) copyMultipleImages(ctx context.Context, policyContext *signatur
 
 	c.Printf("Storing list signatures\n")
 	if err := c.dest.PutSignaturesWithFormat(ctx, sigs, nil); err != nil {
-		return nil, perrors.Wrap(err, "writing signatures")
+		return nil, fmt.Errorf("writing signatures: %w", err)
 	}
 
 	return manifestList, nil
@@ -601,7 +608,7 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 	multiImage, err := isMultiImage(ctx, unparsedImage)
 	if err != nil {
 		// FIXME FIXME: How to name a reference for the sub-image?
-		return nil, "", "", perrors.Wrapf(err, "determining manifest MIME type for %s", transports.ImageName(unparsedImage.Reference()))
+		return nil, "", "", fmt.Errorf("determining manifest MIME type for %s: %w", transports.ImageName(unparsedImage.Reference()), err)
 	}
 	if multiImage {
 		return nil, "", "", fmt.Errorf("Unexpectedly received a manifest list instead of a manifest for a single image")
@@ -611,11 +618,11 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 	// (The multiImage check above only matches the MIME type, which we have received anyway.
 	// Actual parsing of anything should be deferred.)
 	if allowed, err := policyContext.IsRunningImageAllowed(ctx, unparsedImage); !allowed || err != nil { // Be paranoid and fail if either return value indicates so.
-		return nil, "", "", perrors.Wrap(err, "Source image rejected")
+		return nil, "", "", fmt.Errorf("Source image rejected: %w", err)
 	}
 	src, err := image.FromUnparsedImage(ctx, options.SourceCtx, unparsedImage)
 	if err != nil {
-		return nil, "", "", perrors.Wrapf(err, "initializing image from source %s", transports.ImageName(c.rawSource.Reference()))
+		return nil, "", "", fmt.Errorf("initializing image from source %s: %w", transports.ImageName(c.rawSource.Reference()), err)
 	}
 
 	// If the destination is a digested reference, make a note of that, determine what digest value we're
@@ -627,16 +634,16 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 			destIsDigestedReference = true
 			matches, err := manifest.MatchesDigest(src.ManifestBlob, digested.Digest())
 			if err != nil {
-				return nil, "", "", perrors.Wrapf(err, "computing digest of source image's manifest")
+				return nil, "", "", fmt.Errorf("computing digest of source image's manifest: %w", err)
 			}
 			if !matches {
 				manifestList, _, err := unparsedToplevel.Manifest(ctx)
 				if err != nil {
-					return nil, "", "", perrors.Wrapf(err, "reading manifest from source image")
+					return nil, "", "", fmt.Errorf("reading manifest from source image: %w", err)
 				}
 				matches, err = manifest.MatchesDigest(manifestList, digested.Digest())
 				if err != nil {
-					return nil, "", "", perrors.Wrapf(err, "computing digest of source image's manifest")
+					return nil, "", "", fmt.Errorf("computing digest of source image's manifest: %w", err)
 				}
 				if !matches {
 					return nil, "", "", errors.New("Digest of source image's manifest would not match destination reference")
@@ -656,14 +663,14 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 		c.Printf("Getting image source signatures\n")
 		s, err := src.UntrustedSignatures(ctx)
 		if err != nil {
-			return nil, "", "", perrors.Wrap(err, "reading signatures")
+			return nil, "", "", fmt.Errorf("reading signatures: %w", err)
 		}
 		sigs = s
 	}
 	if len(sigs) != 0 {
 		c.Printf("Checking if image destination supports signatures\n")
 		if err := c.dest.SupportsSignatures(ctx); err != nil {
-			return nil, "", "", perrors.Wrapf(err, "Can not copy signatures to %s", transports.ImageName(c.dest.Reference()))
+			return nil, "", "", fmt.Errorf("Can not copy signatures to %s: %w", transports.ImageName(c.dest.Reference()), err)
 		}
 	}
 
@@ -778,7 +785,7 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 		// With ic.cannotModifyManifestReason != "", that would just be a string of repeated failures for the same reason,
 		// so let’s bail out early and with a better error message.
 		if ic.cannotModifyManifestReason != "" {
-			return nil, "", "", perrors.Wrapf(err, "Writing manifest failed and we cannot try conversions: %q", cannotModifyManifestReason)
+			return nil, "", "", fmt.Errorf("writing manifest failed and we cannot try conversions: %q: %w", cannotModifyManifestReason, err)
 		}
 
 		// errs is a list of errors when trying various manifest types. Also serves as an "upload succeeded" flag when set to nil.
@@ -825,7 +832,7 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 
 	c.Printf("Storing signatures\n")
 	if err := c.dest.PutSignaturesWithFormat(ctx, sigs, targetInstance); err != nil {
-		return nil, "", "", perrors.Wrap(err, "writing signatures")
+		return nil, "", "", fmt.Errorf("writing signatures: %w", err)
 	}
 
 	return manifestBytes, retManifestType, retManifestDigest, nil
@@ -845,11 +852,11 @@ func checkImageDestinationForCurrentRuntime(ctx context.Context, sys *types.Syst
 	if dest.MustMatchRuntimeOS() {
 		c, err := src.OCIConfig(ctx)
 		if err != nil {
-			return perrors.Wrapf(err, "parsing image configuration")
+			return fmt.Errorf("parsing image configuration: %w", err)
 		}
 		wantedPlatforms, err := platform.WantedPlatforms(sys)
 		if err != nil {
-			return perrors.Wrapf(err, "getting current platform information %#v", sys)
+			return fmt.Errorf("getting current platform information %#v: %w", sys, err)
 		}
 
 		options := newOrderedSet()
@@ -1057,13 +1064,13 @@ func (ic *imageCopier) copyUpdatedConfigAndManifest(ctx context.Context, instanc
 		}
 		pi, err := ic.src.UpdatedImage(ctx, *ic.manifestUpdates)
 		if err != nil {
-			return nil, "", perrors.Wrap(err, "creating an updated image manifest")
+			return nil, "", fmt.Errorf("creating an updated image manifest: %w", err)
 		}
 		pendingImage = pi
 	}
 	man, _, err := pendingImage.Manifest(ctx)
 	if err != nil {
-		return nil, "", perrors.Wrap(err, "reading manifest")
+		return nil, "", fmt.Errorf("reading manifest: %w", err)
 	}
 
 	if err := ic.copyConfig(ctx, pendingImage); err != nil {
@@ -1080,7 +1087,7 @@ func (ic *imageCopier) copyUpdatedConfigAndManifest(ctx context.Context, instanc
 	}
 	if err := ic.c.dest.PutManifest(ctx, man, instanceDigest); err != nil {
 		logrus.Debugf("Error %v while writing manifest %q", err, string(man))
-		return nil, "", perrors.Wrapf(err, "writing manifest")
+		return nil, "", fmt.Errorf("writing manifest: %w", err)
 	}
 	return man, manifestDigest, nil
 }
@@ -1103,7 +1110,7 @@ func (ic *imageCopier) copyConfig(ctx context.Context, src types.Image) error {
 
 			configBlob, err := src.ConfigBlob(ctx)
 			if err != nil {
-				return types.BlobInfo{}, perrors.Wrapf(err, "reading config blob %s", srcInfo.Digest)
+				return types.BlobInfo{}, fmt.Errorf("reading config blob %s: %w", srcInfo.Digest, err)
 			}
 
 			destInfo, err := ic.copyBlobFromStream(ctx, bytes.NewReader(configBlob), srcInfo, nil, true, false, bar, -1, false)
@@ -1183,7 +1190,7 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 			SrcRef:        srcRef,
 		})
 		if err != nil {
-			return types.BlobInfo{}, "", perrors.Wrapf(err, "trying to reuse blob %s at destination", srcInfo.Digest)
+			return types.BlobInfo{}, "", fmt.Errorf("trying to reuse blob %s at destination: %w", srcInfo.Digest, err)
 		}
 		if reused {
 			logrus.Debugf("Skipping blob %s (already present):", srcInfo.Digest)
@@ -1257,7 +1264,7 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 
 		srcStream, srcBlobSize, err := ic.c.rawSource.GetBlob(ctx, srcInfo, ic.c.blobInfoCache)
 		if err != nil {
-			return types.BlobInfo{}, "", perrors.Wrapf(err, "reading blob %s", srcInfo.Digest)
+			return types.BlobInfo{}, "", fmt.Errorf("reading blob %s: %w", srcInfo.Digest, err)
 		}
 		defer srcStream.Close()
 
@@ -1273,7 +1280,7 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 				return types.BlobInfo{}, "", ctx.Err()
 			case diffIDResult := <-diffIDChan:
 				if diffIDResult.err != nil {
-					return types.BlobInfo{}, "", perrors.Wrap(diffIDResult.err, "computing layer DiffID")
+					return types.BlobInfo{}, "", fmt.Errorf("computing layer DiffID: %w", diffIDResult.err)
 				}
 				logrus.Debugf("Computed DiffID %s for layer %s", diffIDResult.digest, srcInfo.Digest)
 				// Don’t record any associations that involve encrypted data. This is a bit crude,

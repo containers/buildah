@@ -2,6 +2,7 @@ package archive
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/archive"
 	digest "github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,12 +29,12 @@ type ociArchiveImageDestination struct {
 func newImageDestination(ctx context.Context, sys *types.SystemContext, ref ociArchiveReference) (private.ImageDestination, error) {
 	tempDirRef, err := createOCIRef(sys, ref.image)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "creating oci reference")
+		return nil, fmt.Errorf("creating oci reference: %w", err)
 	}
 	unpackedDest, err := tempDirRef.ociRefExtracted.NewImageDestination(ctx, sys)
 	if err != nil {
 		if err := tempDirRef.deleteTempDir(); err != nil {
-			return nil, perrors.Wrapf(err, "deleting temp directory %q", tempDirRef.tempDirectory)
+			return nil, fmt.Errorf("deleting temp directory %q: %w", tempDirRef.tempDirectory, err)
 		}
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (d *ociArchiveImageDestination) PutSignaturesWithFormat(ctx context.Context
 // after the directory is made, it is tarred up into a file and the directory is deleted
 func (d *ociArchiveImageDestination) Commit(ctx context.Context, unparsedToplevel types.UnparsedImage) error {
 	if err := d.unpackedDest.Commit(ctx, unparsedToplevel); err != nil {
-		return perrors.Wrapf(err, "storing image %q", d.ref.image)
+		return fmt.Errorf("storing image %q: %w", d.ref.image, err)
 	}
 
 	// path of directory to tar up
@@ -173,13 +173,13 @@ func tarDirectory(src, dst string) error {
 	// input is a stream of bytes from the archive of the directory at path
 	input, err := archive.Tar(src, archive.Uncompressed)
 	if err != nil {
-		return perrors.Wrapf(err, "retrieving stream of bytes from %q", src)
+		return fmt.Errorf("retrieving stream of bytes from %q: %w", src, err)
 	}
 
 	// creates the tar file
 	outFile, err := os.Create(dst)
 	if err != nil {
-		return perrors.Wrapf(err, "creating tar file %q", dst)
+		return fmt.Errorf("creating tar file %q: %w", dst, err)
 	}
 	defer outFile.Close()
 

@@ -33,7 +33,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	selinux "github.com/opencontainers/selinux/go-selinux"
 	"github.com/ostreedev/ostree-go/pkg/otbuiltin"
-	perrors "github.com/pkg/errors"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -203,7 +202,7 @@ func fixFiles(selinuxHnd *C.struct_selabel_handle, root string, dir string, user
 
 			res, err := C.selabel_lookup_raw(selinuxHnd, &context, relPathC, C.int(info.Mode()&os.ModePerm))
 			if int(res) < 0 && err != syscall.ENOENT {
-				return perrors.Wrapf(err, "cannot selabel_lookup_raw %s", relPath)
+				return fmt.Errorf("cannot selabel_lookup_raw %s: %w", relPath, err)
 			}
 			if int(res) == 0 {
 				defer C.freecon(context)
@@ -211,7 +210,7 @@ func fixFiles(selinuxHnd *C.struct_selabel_handle, root string, dir string, user
 				defer C.free(unsafe.Pointer(fullpathC))
 				res, err = C.lsetfilecon_raw(fullpathC, context)
 				if int(res) < 0 {
-					return perrors.Wrapf(err, "cannot setfilecon_raw %s to %s", fullpath, C.GoString(context))
+					return fmt.Errorf("cannot setfilecon_raw %s to %s: %w", fullpath, C.GoString(context), err)
 				}
 			}
 		}
@@ -446,7 +445,7 @@ func (d *ostreeImageDestination) Commit(context.Context, types.UnparsedImage) er
 	if os.Getuid() == 0 && selinux.GetEnabled() {
 		selinuxHnd, err = C.selabel_open(C.SELABEL_CTX_FILE, nil, 0)
 		if selinuxHnd == nil {
-			return perrors.Wrapf(err, "cannot open the SELinux DB")
+			return fmt.Errorf("cannot open the SELinux DB: %w", err)
 		}
 
 		defer C.selabel_close(selinuxHnd)

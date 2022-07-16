@@ -11,7 +11,6 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/manifoldco/promptui"
 	"github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 	"golang.org/x/term"
 )
 
@@ -34,7 +33,7 @@ func IsShortName(input string) bool {
 func parseUnnormalizedShortName(input string) (bool, reference.Named, error) {
 	ref, err := reference.Parse(input)
 	if err != nil {
-		return false, nil, perrors.Wrapf(err, "cannot parse input: %q", input)
+		return false, nil, fmt.Errorf("cannot parse input: %q: %w", input, err)
 	}
 
 	named, ok := ref.(reference.Named)
@@ -48,7 +47,7 @@ func parseUnnormalizedShortName(input string) (bool, reference.Named, error) {
 		// normalized (e.g., docker.io/alpine to docker.io/library/alpine.
 		named, err = reference.ParseNormalizedNamed(input)
 		if err != nil {
-			return false, nil, perrors.Wrapf(err, "cannot normalize input: %q", input)
+			return false, nil, fmt.Errorf("cannot normalize input: %q: %w", input, err)
 		}
 		return false, named, nil
 	}
@@ -217,7 +216,7 @@ func (c *PullCandidate) Record() error {
 	value := reference.TrimNamed(c.Value)
 
 	if err := Add(c.resolved.systemContext, name.String(), value); err != nil {
-		return perrors.Wrapf(err, "recording short-name alias (%q=%q)", c.resolved.userInput, c.Value)
+		return fmt.Errorf("recording short-name alias (%q=%q): %w", c.resolved.userInput, c.Value, err)
 	}
 	return nil
 }
@@ -280,7 +279,7 @@ func Resolve(ctx *types.SystemContext, name string) (*Resolved, error) {
 	if ctx != nil && ctx.PodmanOnlyShortNamesIgnoreRegistriesConfAndForceDockerHub {
 		named, err := reference.ParseNormalizedNamed(name)
 		if err != nil {
-			return nil, perrors.Wrapf(err, "cannot normalize input: %q", name)
+			return nil, fmt.Errorf("cannot normalize input: %q: %w", name, err)
 		}
 		resolved.addCandidate(named)
 		resolved.rationale = rationaleEnforcedDockerHub
@@ -338,7 +337,7 @@ func Resolve(ctx *types.SystemContext, name string) (*Resolved, error) {
 	for _, reg := range unqualifiedSearchRegistries {
 		named, err := reference.ParseNormalizedNamed(fmt.Sprintf("%s/%s", reg, name))
 		if err != nil {
-			return nil, perrors.Wrapf(err, "creating reference with unqualified-search registry %q", reg)
+			return nil, fmt.Errorf("creating reference with unqualified-search registry %q: %w", reg, err)
 		}
 		resolved.addCandidate(named)
 	}
@@ -388,7 +387,7 @@ func Resolve(ctx *types.SystemContext, name string) (*Resolved, error) {
 
 	named, err := reference.ParseNormalizedNamed(selection)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "selection %q is not a valid reference", selection)
+		return nil, fmt.Errorf("selection %q is not a valid reference: %w", selection, err)
 	}
 
 	resolved.PullCandidates = nil
@@ -429,7 +428,7 @@ func ResolveLocally(ctx *types.SystemContext, name string) ([]reference.Named, e
 		for _, reg := range registries {
 			named, err := reference.ParseNormalizedNamed(fmt.Sprintf("%s/%s", reg, name))
 			if err != nil {
-				return nil, perrors.Wrapf(err, "creating reference with unqualified-search registry %q", reg)
+				return nil, fmt.Errorf("creating reference with unqualified-search registry %q: %w", reg, err)
 			}
 			named = reference.TagNameOnly(named) // Make sure to add ":latest" if needed
 			candidates = append(candidates, named)

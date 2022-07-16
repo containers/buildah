@@ -11,7 +11,6 @@ import (
 	"github.com/containers/image/v5/internal/private"
 	"github.com/containers/image/v5/types"
 	"github.com/docker/docker/client"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -45,7 +44,7 @@ func newImageDestination(ctx context.Context, sys *types.SystemContext, ref daem
 
 	c, err := newDockerClient(sys)
 	if err != nil {
-		return nil, perrors.Wrap(err, "initializing docker engine client")
+		return nil, fmt.Errorf("initializing docker engine client: %w", err)
 	}
 
 	reader, writer := io.Pipe()
@@ -87,7 +86,7 @@ func imageLoadGoroutine(ctx context.Context, c *client.Client, reader *io.PipeRe
 
 	resp, err := c.ImageLoad(ctx, reader, true)
 	if err != nil {
-		err = perrors.Wrap(err, "saving image to docker engine")
+		err = fmt.Errorf("saving image to docker engine: %w", err)
 		return
 	}
 	defer resp.Body.Close()

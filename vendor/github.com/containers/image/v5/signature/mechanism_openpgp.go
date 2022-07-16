@@ -63,14 +63,19 @@ func newGPGSigningMechanismInDirectory(optionalDir string) (signingMechanismWith
 // recognizes _only_ public keys from the supplied blob, and returns the identities
 // of these keys.
 // The caller must call .Close() on the returned SigningMechanism.
-func newEphemeralGPGSigningMechanism(blob []byte) (signingMechanismWithPassphrase, []string, error) {
+func newEphemeralGPGSigningMechanism(blobs [][]byte) (signingMechanismWithPassphrase, []string, error) {
 	m := &openpgpSigningMechanism{
 		keyring: openpgp.EntityList{},
 	}
-	keyIdentities, err := m.importKeysFromBytes(blob)
-	if err != nil {
-		return nil, nil, err
+	keyIdentities := []string{}
+	for _, blob := range blobs {
+		ki, err := m.importKeysFromBytes(blob)
+		if err != nil {
+			return nil, nil, err
+		}
+		keyIdentities = append(keyIdentities, ki...)
 	}
+
 	return m, keyIdentities, nil
 }
 

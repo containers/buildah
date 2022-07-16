@@ -12,7 +12,6 @@ import (
 	ctrImage "github.com/containers/image/v5/internal/image"
 	"github.com/containers/image/v5/transports"
 	"github.com/containers/image/v5/types"
-	perrors "github.com/pkg/errors"
 )
 
 func init() {
@@ -73,7 +72,7 @@ func ParseReference(refString string) (types.ImageReference, error) {
 		if len(parts[1]) > 0 && parts[1][0] == '@' {
 			i, err := strconv.Atoi(parts[1][1:])
 			if err != nil {
-				return nil, perrors.Wrapf(err, "Invalid source index %s", parts[1])
+				return nil, fmt.Errorf("Invalid source index %s: %w", parts[1], err)
 			}
 			if i < 0 {
 				return nil, fmt.Errorf("Invalid source index @%d: must not be negative", i)
@@ -82,7 +81,7 @@ func ParseReference(refString string) (types.ImageReference, error) {
 		} else {
 			ref, err := reference.ParseNormalizedNamed(parts[1])
 			if err != nil {
-				return nil, perrors.Wrapf(err, "docker-archive parsing reference")
+				return nil, fmt.Errorf("docker-archive parsing reference: %w", err)
 			}
 			ref = reference.TagNameOnly(ref)
 			refTagged, isTagged := ref.(reference.NamedTagged)

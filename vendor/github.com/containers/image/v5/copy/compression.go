@@ -9,7 +9,6 @@ import (
 	"github.com/containers/image/v5/pkg/compression"
 	compressiontypes "github.com/containers/image/v5/pkg/compression/types"
 	"github.com/containers/image/v5/types"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -28,7 +27,7 @@ func blobPipelineDetectCompressionStep(stream *sourceStream, srcInfo types.BlobI
 	// This requires us to “peek ahead” into the stream to read the initial part, which requires us to chain through another io.Reader returned by DetectCompression.
 	format, decompressor, reader, err := compression.DetectCompressionFormat(stream.reader) // We could skip this in some cases, but let's keep the code path uniform
 	if err != nil {
-		return bpDetectCompressionStepData{}, perrors.Wrapf(err, "reading blob %s", srcInfo.Digest)
+		return bpDetectCompressionStepData{}, fmt.Errorf("reading blob %s: %w", srcInfo.Digest, err)
 	}
 	stream.reader = reader
 

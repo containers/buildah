@@ -15,7 +15,6 @@ import (
 	"github.com/containers/storage/pkg/homedir"
 	"github.com/ghodss/yaml"
 	"github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -135,7 +134,7 @@ func loadAndMergeConfig(dirPath string) (*registryConfiguration, error) {
 		var config registryConfiguration
 		err = yaml.Unmarshal(configBytes, &config)
 		if err != nil {
-			return nil, perrors.Wrapf(err, "parsing %s", configPath)
+			return nil, fmt.Errorf("parsing %s: %w", configPath, err)
 		}
 
 		if config.DefaultDocker != nil {
@@ -168,7 +167,7 @@ func (config *registryConfiguration) lookasideStorageBaseURL(dr dockerReference,
 	if topLevel != "" {
 		u, err := url.Parse(topLevel)
 		if err != nil {
-			return nil, perrors.Wrapf(err, "Invalid signature storage URL %s", topLevel)
+			return nil, fmt.Errorf("Invalid signature storage URL %s: %w", topLevel, err)
 		}
 		url = u
 	} else {

@@ -26,7 +26,6 @@ import (
 	"github.com/containers/storage/pkg/ioutils"
 	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -70,7 +69,7 @@ func newImageSource(ctx context.Context, sys *types.SystemContext, imageRef stor
 	image.Compat = impl.AddCompat(image)
 	if img.Metadata != "" {
 		if err := json.Unmarshal([]byte(img.Metadata), image); err != nil {
-			return nil, perrors.Wrap(err, "decoding metadata for source image")
+			return nil, fmt.Errorf("decoding metadata for source image: %w", err)
 		}
 	}
 	return image, nil
@@ -183,7 +182,7 @@ func (s *storageImageSource) GetManifest(ctx context.Context, instanceDigest *di
 		key := manifestBigDataKey(*instanceDigest)
 		blob, err := s.imageRef.transport.store.ImageBigData(s.image.ID, key)
 		if err != nil {
-			return nil, "", perrors.Wrapf(err, "reading manifest for image instance %q", *instanceDigest)
+			return nil, "", fmt.Errorf("reading manifest for image instance %q: %w", *instanceDigest, err)
 		}
 		return blob, manifest.GuessMIMEType(blob), err
 	}
@@ -220,14 +219,14 @@ func (s *storageImageSource) GetManifest(ctx context.Context, instanceDigest *di
 func (s *storageImageSource) LayerInfosForCopy(ctx context.Context, instanceDigest *digest.Digest) ([]types.BlobInfo, error) {
 	manifestBlob, manifestType, err := s.GetManifest(ctx, instanceDigest)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "reading image manifest for %q", s.image.ID)
+		return nil, fmt.Errorf("reading image manifest for %q: %w", s.image.ID, err)
 	}
 	if manifest.MIMETypeIsMultiImage(manifestType) {
 		return nil, errors.New("can't copy layers for a manifest list (shouldn't be attempted)")
 	}
 	man, err := manifest.FromBlob(manifestBlob, manifestType)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "parsing image manifest for %q", s.image.ID)
+		return nil, fmt.Errorf("parsing image manifest for %q: %w", s.image.ID, err)
 	}
 
 	uncompressedLayerType := ""
@@ -243,7 +242,7 @@ func (s *storageImageSource) LayerInfosForCopy(ctx context.Context, instanceDige
 	for layerID != "" {
 		layer, err := s.imageRef.transport.store.Layer(layerID)
 		if err != nil {
-			return nil, perrors.Wrapf(err, "reading layer %q in image %q", layerID, s.image.ID)
+			return nil, fmt.Errorf("reading layer %q in image %q: %w", layerID, s.image.ID, err)
 		}
 		if layer.UncompressedDigest == "" {
 			return nil, fmt.Errorf("uncompressed digest for layer %q is unknown", layerID)
@@ -262,7 +261,7 @@ func (s *storageImageSource) LayerInfosForCopy(ctx context.Context, instanceDige
 
 	res, err := buildLayerInfosForCopy(man.LayerInfos(), physicalBlobInfos)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "creating LayerInfosForCopy of image %q", s.image.ID)
+		return nil, fmt.Errorf("creating LayerInfosForCopy of image %q: %w", s.image.ID, err)
 	}
 	return res, nil
 }
@@ -313,7 +312,7 @@ func (s *storageImageSource) GetSignaturesWithFormat(ctx context.Context, instan
 	if len(signatureSizes) > 0 {
 		data, err := s.imageRef.transport.store.ImageBigData(s.image.ID, key)
 		if err != nil {
-			return nil, perrors.Wrapf(err, "looking up signatures data for image %q (%s)", s.image.ID, instance)
+			return nil, fmt.Errorf("looking up signatures data for image %q (%s): %w", s.image.ID, instance, err)
 		}
 		signatureBlobs = data
 	}
@@ -342,12 +341,12 @@ func (s *storageImageSource) getSize() (int64, error) {
 	// Size up the data blobs.
 	dataNames, err := s.imageRef.transport.store.ListImageBigData(s.image.ID)
 	if err != nil {
-		return -1, perrors.Wrapf(err, "reading image %q", s.image.ID)
+		return -1, fmt.Errorf("reading image %q: %w", s.image.ID, err)
 	}
 	for _, dataName := range dataNames {
 		bigSize, err := s.imageRef.transport.store.ImageBigDataSize(s.image.ID, dataName)
 		if err != nil {
-			return -1, perrors.Wrapf(err, "reading data blob size %q for %q", dataName, s.image.ID)
+			return -1, fmt.Errorf("reading data blob size %q for %q: %w", dataName, s.image.ID, err)
 		}
 		sum += bigSize
 	}

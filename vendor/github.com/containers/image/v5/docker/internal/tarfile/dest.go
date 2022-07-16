@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/containers/image/v5/docker/reference"
@@ -16,7 +17,6 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -108,11 +108,11 @@ func (d *Destination) PutBlobWithOptions(ctx context.Context, stream io.Reader, 
 	if options.IsConfig {
 		buf, err := iolimits.ReadAtMost(stream, iolimits.MaxConfigBodySize)
 		if err != nil {
-			return types.BlobInfo{}, perrors.Wrap(err, "reading Config file stream")
+			return types.BlobInfo{}, fmt.Errorf("reading Config file stream: %w", err)
 		}
 		d.config = buf
 		if err := d.archive.sendFileLocked(d.archive.configPath(inputInfo.Digest), inputInfo.Size, bytes.NewReader(buf)); err != nil {
-			return types.BlobInfo{}, perrors.Wrap(err, "writing Config file")
+			return types.BlobInfo{}, fmt.Errorf("writing Config file: %w", err)
 		}
 	} else {
 		if err := d.archive.sendFileLocked(d.archive.physicalLayerPath(inputInfo.Digest), inputInfo.Size, stream); err != nil {
@@ -153,7 +153,7 @@ func (d *Destination) PutManifest(ctx context.Context, m []byte, instanceDigest 
 	// so the caller trying a different manifest kind would be pointless.
 	var man manifest.Schema2
 	if err := json.Unmarshal(m, &man); err != nil {
-		return perrors.Wrap(err, "parsing manifest")
+		return fmt.Errorf("parsing manifest: %w", err)
 	}
 	if man.SchemaVersion != 2 || man.MediaType != manifest.DockerV2Schema2MediaType {
 		return errors.New("Unsupported manifest type, need a Docker schema 2 manifest")

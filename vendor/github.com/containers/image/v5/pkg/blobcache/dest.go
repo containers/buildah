@@ -3,6 +3,7 @@ package blobcache
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -19,7 +20,6 @@ import (
 	"github.com/containers/storage/pkg/archive"
 	"github.com/containers/storage/pkg/ioutils"
 	digest "github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -33,7 +33,7 @@ type blobCacheDestination struct {
 func (b *BlobCache) NewImageDestination(ctx context.Context, sys *types.SystemContext) (types.ImageDestination, error) {
 	dest, err := b.reference.NewImageDestination(ctx, sys)
 	if err != nil {
-		return nil, perrors.Wrapf(err, "error creating new image destination %q", transports.ImageName(b.reference))
+		return nil, fmt.Errorf("error creating new image destination %q: %w", transports.ImageName(b.reference), err)
 	}
 	logrus.Debugf("starting to write to image %q using blob cache in %q", transports.ImageName(b.reference), b.directory)
 	d := &blobCacheDestination{reference: b, destination: imagedestination.FromPublic(dest)}
@@ -155,7 +155,7 @@ func (d *blobCacheDestination) PutBlobWithOptions(ctx context.Context, stream io
 						if err2 := os.Remove(tempfile.Name()); err2 != nil {
 							logrus.Debugf("error cleaning up temporary file %q for blob %q: %v", tempfile.Name(), inputInfo.Digest.String(), err2)
 						}
-						err = perrors.Wrapf(err, "error renaming new layer for blob %q into place at %q", inputInfo.Digest.String(), filename)
+						err = fmt.Errorf("error renaming new layer for blob %q into place at %q: %w", inputInfo.Digest.String(), filename, err)
 					}
 				} else {
 					if err2 := os.Remove(tempfile.Name()); err2 != nil {
@@ -207,7 +207,7 @@ func (d *blobCacheDestination) PutBlobWithOptions(ctx context.Context, stream io
 		wg.Wait()
 	}
 	if err != nil {
-		return newBlobInfo, perrors.Wrapf(err, "error storing blob to image destination for cache %q", transports.ImageName(d.reference))
+		return newBlobInfo, fmt.Errorf("error storing blob to image destination for cache %q: %w", transports.ImageName(d.reference), err)
 	}
 	if alternateDigest.Validate() == nil {
 		logrus.Debugf("added blob %q (also %q) to the cache at %q", inputInfo.Digest.String(), alternateDigest.String(), d.reference.directory)

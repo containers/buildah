@@ -3,6 +3,7 @@ package layout
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	perrors "github.com/pkg/errors"
 )
 
 type ociImageSource struct {
@@ -170,19 +170,19 @@ func (s *ociImageSource) getExternalBlob(ctx context.Context, urls []string) (io
 		hasSupportedURL = true
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 		if err != nil {
-			errWrap = perrors.Wrapf(errWrap, "fetching %s failed %s", u, err.Error())
+			errWrap = fmt.Errorf("fetching %s failed %s: %w", u, err.Error(), errWrap)
 			continue
 		}
 
 		resp, err := s.client.Do(req)
 		if err != nil {
-			errWrap = perrors.Wrapf(errWrap, "fetching %s failed %s", u, err.Error())
+			errWrap = fmt.Errorf("fetching %s failed %s: %w", u, err.Error(), errWrap)
 			continue
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			errWrap = perrors.Wrapf(errWrap, "fetching %s failed, response code not 200", u)
+			errWrap = fmt.Errorf("fetching %s failed, response code not 200: %w", u, errWrap)
 			continue
 		}
 

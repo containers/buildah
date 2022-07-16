@@ -17,7 +17,6 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -294,7 +293,7 @@ func (m *manifestSchema2) convertToManifestSchema1(ctx context.Context, options 
 				// and anyway this blob is so small that it’s easier to just copy it than to worry about figuring out another location where to get it.
 				info, err := dest.PutBlob(ctx, bytes.NewReader(GzippedEmptyLayer), emptyLayerBlobInfo, none.NoCache, false)
 				if err != nil {
-					return nil, perrors.Wrap(err, "uploading empty layer")
+					return nil, fmt.Errorf("uploading empty layer: %w", err)
 				}
 				if info.Digest != emptyLayerBlobInfo.Digest {
 					return nil, fmt.Errorf("Internal error: Uploaded empty layer has digest %#v instead of %s", info.Digest, emptyLayerBlobInfo.Digest)

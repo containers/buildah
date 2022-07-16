@@ -20,7 +20,6 @@ import (
 	"github.com/containers/image/v5/pkg/compression"
 	"github.com/containers/image/v5/types"
 	digest "github.com/opencontainers/go-digest"
-	perrors "github.com/pkg/errors"
 )
 
 // Source is a partial implementation of types.ImageSource for reading from tarPath.
@@ -96,7 +95,7 @@ func (s *Source) ensureCachedDataIsPresentPrivate() error {
 	}
 	var parsedConfig manifest.Schema2Image // There's a lot of info there, but we only really care about layer DiffIDs.
 	if err := json.Unmarshal(configBytes, &parsedConfig); err != nil {
-		return perrors.Wrapf(err, "decoding tar config %s", tarManifest.Config)
+		return fmt.Errorf("decoding tar config %s: %w", tarManifest.Config, err)
 	}
 	if parsedConfig.RootFS == nil {
 		return fmt.Errorf("Invalid image config (rootFS is not set): %s", tarManifest.Config)
@@ -180,7 +179,7 @@ func (s *Source) prepareLayerData(tarManifest *ManifestItem, parsedConfig *manif
 			// the slower method of checking if it's compressed.
 			uncompressedStream, isCompressed, err := compression.AutoDecompress(t)
 			if err != nil {
-				return nil, perrors.Wrapf(err, "auto-decompressing %s to determine its size", layerPath)
+				return nil, fmt.Errorf("auto-decompressing %s to determine its size: %w", layerPath, err)
 			}
 			defer uncompressedStream.Close()
 
@@ -188,7 +187,7 @@ func (s *Source) prepareLayerData(tarManifest *ManifestItem, parsedConfig *manif
 			if isCompressed {
 				uncompressedSize, err = io.Copy(io.Discard, uncompressedStream)
 				if err != nil {
-					return nil, perrors.Wrapf(err, "reading %s to find its size", layerPath)
+					return nil, fmt.Errorf("reading %s to find its size: %w", layerPath, err)
 				}
 			}
 			li.size = uncompressedSize
@@ -303,7 +302,7 @@ func (s *Source) GetBlob(ctx context.Context, info types.BlobInfo, cache types.B
 
 		uncompressedStream, _, err := compression.AutoDecompress(underlyingStream)
 		if err != nil {
-			return nil, 0, perrors.Wrapf(err, "auto-decompressing blob %s", info.Digest)
+			return nil, 0, fmt.Errorf("auto-decompressing blob %s: %w", info.Digest, err)
 		}
 
 		newStream := uncompressedReadCloser{

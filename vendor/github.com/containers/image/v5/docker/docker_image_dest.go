@@ -31,7 +31,6 @@ import (
 	v2 "github.com/docker/distribution/registry/api/v2"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	perrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -167,11 +166,11 @@ func (d *dockerImageDestination) PutBlobWithOptions(ctx context.Context, stream 
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusAccepted {
 		logrus.Debugf("Error initiating layer upload, response %#v", *res)
-		return types.BlobInfo{}, perrors.Wrapf(registryHTTPResponseToError(res), "initiating layer upload to %s in %s", uploadPath, d.c.registry)
+		return types.BlobInfo{}, fmt.Errorf("initiating layer upload to %s in %s: %w", uploadPath, d.c.registry, registryHTTPResponseToError(res))
 	}
 	uploadLocation, err := res.Location()
 	if err != nil {
-		return types.BlobInfo{}, perrors.Wrap(err, "determining upload URL")
+		return types.BlobInfo{}, fmt.Errorf("determining upload URL: %w", err)
 	}
 
 	digester, stream := putblobdigest.DigestIfCanonicalUnknown(stream, inputInfo)
@@ -190,11 +189,11 @@ func (d *dockerImageDestination) PutBlobWithOptions(ctx context.Context, stream 
 		}
 		defer res.Body.Close()
 		if !successStatus(res.StatusCode) {
-			return nil, perrors.Wrapf(registryHTTPResponseToError(res), "uploading layer chunked")
+			return nil, fmt.Errorf("uploading layer chunked: %w", registryHTTPResponseToError(res))
 		}
 		uploadLocation, err := res.Location()
 		if err != nil {
-			return nil, perrors.Wrap(err, "determining upload URL")
+			return nil, fmt.Errorf("determining upload URL: %w", err)
 		}
 		return uploadLocation, nil
 	}()
@@ -215,7 +214,7 @@ func (d *dockerImageDestination) PutBlobWithOptions(ctx context.Context, stream 
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusCreated {
 		logrus.Debugf("Error uploading layer, response %#v", *res)
-		return types.BlobInfo{}, perrors.Wrapf(registryHTTPResponseToError(res), "uploading layer to %s", uploadLocation)
+		return types.BlobInfo{}, fmt.Errorf("uploading layer to %s: %w", uploadLocation, registryHTTPResponseToError(res))
 	}
 
 	logrus.Debugf("Upload of layer %s complete", blobDigest)
@@ -240,7 +239,7 @@ func (d *dockerImageDestination) blobExists(ctx context.Context, repo reference.
 		return true, getBlobSize(res), nil
 	case http.StatusUnauthorized:
 		logrus.Debugf("... not authorized")
-		return false, -1, perrors.Wrapf(registryHTTPResponseToError(res), "checking whether a blob %s exists in %s", digest, repo.Name())
+		return false, -1, fmt.Errorf("checking whether a blob %s exists in %s: %w", digest, repo.Name(), registryHTTPResponseToError(res))
 	case http.StatusNotFound:
 		logrus.Debugf("... not present")
 		return false, -1, nil
@@ -274,7 +273,7 @@ func (d *dockerImageDestination) mountBlob(ctx context.Context, srcRepo referenc
 		// NOTE: This does not really work in docker/distribution servers, which incorrectly require the "delete" action in the token's scope, and is thus entirely untested.
 		uploadLocation, err := res.Location()
 		if err != nil {
-			return perrors.Wrap(err, "determining upload URL after a mount attempt")
+			return fmt.Errorf("determining upload URL after a mount attempt: %w", err)
 		}
 		logrus.Debugf("... started an upload instead of mounting, trying to cancel at %s", uploadLocation.Redacted())
 		res2, err := d.c.makeRequestToResolvedURL(ctx, http.MethodDelete, uploadLocation, nil, nil, -1, v2Auth, extraScope)
@@ -290,7 +289,7 @@ func (d *dockerImageDestination) mountBlob(ctx context.Context, srcRepo referenc
 		return fmt.Errorf("Mounting %s from %s to %s started an upload instead", srcDigest, srcRepo.Name(), d.ref.ref.Name())
 	default:
 		logrus.Debugf("Error mounting, response %#v", *res)
-		return perrors.Wrapf(registryHTTPResponseToError(res), "mounting %s from %s to %s", srcDigest, srcRepo.Name(), d.ref.ref.Name())
+		return fmt.Errorf("mounting %s from %s to %s: %w", srcDigest, srcRepo.Name(), d.ref.ref.Name(), registryHTTPResponseToError(res))
 	}
 }
 
@@ -416,12 +415,12 @@ func (d *dockerImageDestination) PutManifest(ctx context.Context, m []byte, inst
 		// Double-check that the manifest we've been given matches the digest we've been given.
 		matches, err := manifest.MatchesDigest(m, *instanceDigest)
 		if err != nil {
-			return perrors.Wrapf(err, "digesting manifest in PutManifest")
+			return fmt.Errorf("digesting manifest in PutManifest: %w", err)
 		}
 		if !matches {
 			manifestDigest, merr := manifest.Digest(m)
 			if merr != nil {
-				return perrors.Wrapf(err, "Attempted to PutManifest using an explicitly specified digest (%q) that didn't match the manifest's digest (%v attempting to compute it)", instanceDigest.String(), merr)
+				return fmt.Errorf("Attempted to PutManifest using an explicitly specified digest (%q) that didn't match the manifest's digest: %w", instanceDigest.String(), merr)
 			}
 			return fmt.Errorf("Attempted to PutManifest using an explicitly specified digest (%q) that didn't match the manifest's digest (%q)", instanceDigest.String(), manifestDigest.String())
 		}
@@ -460,7 +459,7 @@ func (d *dockerImageDestination) uploadManifest(ctx context.Context, m []byte, t
 	defer res.Body.Close()
 	if !successStatus(res.StatusCode) {
 		rawErr := registryHTTPResponseToError(res)
-		err := perrors.Wrapf(rawErr, "uploading manifest %s to %s", tagOrDigest, d.ref.ref.Name())
+		err := fmt.Errorf("uploading manifest %s to %s: %w", tagOrDigest, d.ref.ref.Name(), rawErr)
 		if isManifestInvalidError(rawErr) {
 			err = types.ManifestTypeRejectedError{Err: err}
 		}
@@ -832,7 +831,7 @@ sigExists:
 			randBytes := make([]byte, 16)
 			n, err := rand.Read(randBytes)
 			if err != nil || n != 16 {
-				return perrors.Wrapf(err, "generating random signature len %d", n)
+				return fmt.Errorf("generating random signature len %d: %w", n, err)
 			}
 			signatureName = fmt.Sprintf("%s@%032x", manifestDigest.String(), randBytes)
 			if _, ok := existingSigNames[signatureName]; !ok {
@@ -858,7 +857,7 @@ sigExists:
 		defer res.Body.Close()
 		if res.StatusCode != http.StatusCreated {
 			logrus.Debugf("Error uploading signature, status %d, %#v", res.StatusCode, res)
-			return perrors.Wrapf(registryHTTPResponseToError(res), "uploading signature to %s in %s", path, d.c.registry)
+			return fmt.Errorf("uploading signature to %s in %s: %w", path, d.c.registry, registryHTTPResponseToError(res))
 		}
 	}
 
