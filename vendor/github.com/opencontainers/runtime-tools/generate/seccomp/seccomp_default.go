@@ -303,6 +303,7 @@ func DefaultProfile(rs *specs.Spec) *rspec.LinuxSeccomp {
 				"stat64",
 				"statfs",
 				"statfs64",
+				"statx",
 				"symlink",
 				"symlinkat",
 				"sync",
@@ -566,6 +567,20 @@ func DefaultProfile(rs *specs.Spec) *rspec.LinuxSeccomp {
 			},
 		}...)
 		/* Flags parameter of the clone syscall is the 2nd on s390 */
+		syscalls = append(syscalls, []rspec.LinuxSyscall{
+			{
+				Names:  []string{"clone"},
+				Action: rspec.ActAllow,
+				Args: []rspec.LinuxSeccompArg{
+					{
+						Index:    1,
+						Value:    2080505856,
+						ValueTwo: 0,
+						Op:       rspec.OpMaskedEqual,
+					},
+				},
+			},
+		}...)
 	}
 
 	return &rspec.LinuxSeccomp{
