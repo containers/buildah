@@ -29,6 +29,9 @@ var (
 type Generator struct {
 	Config       *rspec.Spec
 	HostSpecific bool
+	// This is used to keep a cache of the ENVs added to improve
+	// performance when adding a huge number of ENV variables
+	envMap map[string]int
 }
 
 // ExportOptions have toggles for exporting only certain parts of the specification
@@ -39,7 +42,7 @@ type ExportOptions struct {
 // New creates a configuration Generator with the default
 // configuration for the target operating system.
 func New(os string) (generator Generator, err error) {
-	if os != "linux" && os != "solaris" && os != "windows" {
+	if os != "linux" && os != "solaris" && os != "windows" && os != "freebsd" {
 		return generator, fmt.Errorf("no defaults configured for %s", os)
 	}
 
@@ -69,7 +72,7 @@ func New(os string) (generator Generator, err error) {
 		}
 	}
 
-	if os == "linux" || os == "solaris" {
+	if os == "linux" || os == "solaris" || os == "freebsd" {
 		config.Process.User = rspec.User{}
 		config.Process.Env = []string{
 			"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -179,7 +182,7 @@ func New(os string) (generator Generator, err error) {
 				Destination: "/dev",
 				Type:        "tmpfs",
 				Source:      "tmpfs",
-				Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
+				Options:     []string{"nosuid", "noexec", "strictatime", "mode=755", "size=65536k"},
 			},
 			{
 				Destination: "/dev/pts",
@@ -234,9 +237,29 @@ func New(os string) (generator Generator, err error) {
 			},
 			Seccomp: seccomp.DefaultProfile(&config),
 		}
+	} else if os == "freebsd" {
+		config.Mounts = []rspec.Mount{
+			{
+				Destination: "/dev",
+				Type:        "devfs",
+				Source:      "devfs",
+				Options:     []string{"ruleset=4"},
+			},
+			{
+				Destination: "/dev/fd",
+				Type:        "fdescfs",
+				Source:      "fdesc",
+				Options:     []string{},
+			},
+		}
 	}
 
-	return Generator{Config: &config}, nil
+	envCache := map[string]int{}
+	if config.Process != nil {
+		envCache = createEnvCacheMap(config.Process.Env)
+	}
+
+	return Generator{Config: &config, envMap: envCache}, nil
 }
 
 // NewFromSpec creates a configuration Generator from a given
@@ -246,8 +269,14 @@ func New(os string) (generator Generator, err error) {
 //
 //   generator := Generator{Config: config}
 func NewFromSpec(config *rspec.Spec) Generator {
+	envCache := map[string]int{}
+	if config != nil && config.Process != nil {
+		envCache = createEnvCacheMap(config.Process.Env)
+	}
+
 	return Generator{
 		Config: config,
+		envMap: envCache,
 	}
 }
 
@@ -273,9 +302,25 @@ func NewFromTemplate(r io.Reader) (Generator, error) {
 	if err := json.NewDecoder(r).Decode(&config); err != nil {
 		return Generator{}, err
 	}
+
+	envCache := map[string]int{}
+	if config.Process != nil {
+		envCache = createEnvCacheMap(config.Process.Env)
+	}
+
 	return Generator{
 		Config: &config,
+		envMap: envCache,
 	}, nil
+}
+
+// createEnvCacheMap creates a hash map with the ENV variables given by the config
+func createEnvCacheMap(env []string) map[string]int {
+	envMap := make(map[string]int, len(env))
+	for i, val := range env {
+		envMap[val] = i
+	}
+	return envMap
 }
 
 // SetSpec sets the configuration in the Generator g.
@@ -414,6 +459,13 @@ func (g *Generator) SetProcessUsername(username string) {
 	g.Config.Process.User.Username = username
 }
 
+// SetProcessUmask sets g.Config.Process.User.Umask.
+func (g *Generator) SetProcessUmask(umask uint32) {
+	g.initConfigProcess()
+	u := umask
+	g.Config.Process.User.Umask = &u
+}
+
 // SetProcessGID sets g.Config.Process.User.GID.
 func (g *Generator) SetProcessGID(gid uint32) {
 	g.initConfigProcess()
@@ -456,21 +508,44 @@ func (g *Generator) ClearProcessEnv() {
 		return
 	}
 	g.Config.Process.Env = []string{}
+	// Clear out the env cache map as well
+	g.envMap = map[string]int{}
 }
 
 // AddProcessEnv adds name=value into g.Config.Process.Env, or replaces an
 // existing entry with the given name.
 func (g *Generator) AddProcessEnv(name, value string) {
+	if name == "" {
+		return
+	}
+
+	g.initConfigProcess()
+	g.addEnv(fmt.Sprintf("%s=%s", name, value), name)
+}
+
+// AddMultipleProcessEnv adds multiple name=value into g.Config.Process.Env, or replaces
+// existing entries with the given name.
+func (g *Generator) AddMultipleProcessEnv(envs []string) {
 	g.initConfigProcess()
 
-	env := fmt.Sprintf("%s=%s", name, value)
-	for idx := range g.Config.Process.Env {
-		if strings.HasPrefix(g.Config.Process.Env[idx], name+"=") {
-			g.Config.Process.Env[idx] = env
-			return
-		}
+	for _, val := range envs {
+		split := strings.SplitN(val, "=", 2)
+		g.addEnv(val, split[0])
 	}
-	g.Config.Process.Env = append(g.Config.Process.Env, env)
+}
+
+// addEnv looks through adds ENV to the Process and checks envMap for
+// any duplicates
+// This is called by both AddMultipleProcessEnv and AddProcessEnv
+func (g *Generator) addEnv(env, key string) {
+	if idx, ok := g.envMap[key]; ok {
+		// The ENV exists in the cache, so change its value in g.Config.Process.Env
+		g.Config.Process.Env[idx] = env
+	} else {
+		// else the env doesn't exist, so add it and add it's index to g.envMap
+		g.Config.Process.Env = append(g.Config.Process.Env, env)
+		g.envMap[key] = len(g.Config.Process.Env) - 1
+	}
 }
 
 // AddProcessRlimits adds rlimit into g.Config.Process.Rlimits.
@@ -542,6 +617,12 @@ func (g *Generator) SetProcessSelinuxLabel(label string) {
 func (g *Generator) SetLinuxCgroupsPath(path string) {
 	g.initConfigLinux()
 	g.Config.Linux.CgroupsPath = path
+}
+
+// SetLinuxIntelRdtClosID sets g.Config.Linux.IntelRdt.ClosID
+func (g *Generator) SetLinuxIntelRdtClosID(clos string) {
+	g.initConfigLinuxIntelRdt()
+	g.Config.Linux.IntelRdt.ClosID = clos
 }
 
 // SetLinuxIntelRdtL3CacheSchema sets g.Config.Linux.IntelRdt.L3CacheSchema
@@ -791,6 +872,28 @@ func (g *Generator) DropLinuxResourcesHugepageLimit(pageSize string) {
 	}
 }
 
+// AddLinuxResourcesUnified sets the g.Config.Linux.Resources.Unified
+func (g *Generator) SetLinuxResourcesUnified(unified map[string]string) {
+	g.initConfigLinuxResourcesUnified()
+	for k, v := range unified {
+		g.Config.Linux.Resources.Unified[k] = v
+	}
+}
+
+// AddLinuxResourcesUnified adds or updates the key-value pair from g.Config.Linux.Resources.Unified
+func (g *Generator) AddLinuxResourcesUnified(key, val string) {
+	g.initConfigLinuxResourcesUnified()
+	g.Config.Linux.Resources.Unified[key] = val
+}
+
+// DropLinuxResourcesUnified drops a key-value pair from g.Config.Linux.Resources.Unified
+func (g *Generator) DropLinuxResourcesUnified(key string) {
+	if g.Config == nil || g.Config.Linux == nil || g.Config.Linux.Resources == nil || g.Config.Linux.Resources.Unified == nil {
+		return
+	}
+	delete(g.Config.Linux.Resources.Unified, key)
+}
+
 // SetLinuxResourcesMemoryLimit sets g.Config.Linux.Resources.Memory.Limit.
 func (g *Generator) SetLinuxResourcesMemoryLimit(limit int64) {
 	g.initConfigLinuxResourcesMemory()
@@ -965,10 +1068,9 @@ func (g *Generator) ClearPreStartHooks() {
 }
 
 // AddPreStartHook add a prestart hook into g.Config.Hooks.Prestart.
-func (g *Generator) AddPreStartHook(preStartHook rspec.Hook) error {
+func (g *Generator) AddPreStartHook(preStartHook rspec.Hook) {
 	g.initConfigHooks()
 	g.Config.Hooks.Prestart = append(g.Config.Hooks.Prestart, preStartHook)
-	return nil
 }
 
 // ClearPostStopHooks clear g.Config.Hooks.Poststop.
@@ -980,10 +1082,9 @@ func (g *Generator) ClearPostStopHooks() {
 }
 
 // AddPostStopHook adds a poststop hook into g.Config.Hooks.Poststop.
-func (g *Generator) AddPostStopHook(postStopHook rspec.Hook) error {
+func (g *Generator) AddPostStopHook(postStopHook rspec.Hook) {
 	g.initConfigHooks()
 	g.Config.Hooks.Poststop = append(g.Config.Hooks.Poststop, postStopHook)
-	return nil
 }
 
 // ClearPostStartHooks clear g.Config.Hooks.Poststart.
@@ -995,10 +1096,9 @@ func (g *Generator) ClearPostStartHooks() {
 }
 
 // AddPostStartHook adds a poststart hook into g.Config.Hooks.Poststart.
-func (g *Generator) AddPostStartHook(postStartHook rspec.Hook) error {
+func (g *Generator) AddPostStartHook(postStartHook rspec.Hook) {
 	g.initConfigHooks()
 	g.Config.Hooks.Poststart = append(g.Config.Hooks.Poststart, postStartHook)
-	return nil
 }
 
 // AddMount adds a mount into g.Config.Mounts.
@@ -1442,9 +1542,6 @@ func (g *Generator) AddDevice(device rspec.LinuxDevice) {
 			g.Config.Linux.Devices[i] = device
 			return
 		}
-		if dev.Type == device.Type && dev.Major == device.Major && dev.Minor == device.Minor {
-			fmt.Fprintln(os.Stderr, "WARNING: The same type, major and minor should not be used for multiple devices.")
-		}
 	}
 
 	g.Config.Linux.Devices = append(g.Config.Linux.Devices, device)
@@ -1503,11 +1600,7 @@ func (g *Generator) RemoveLinuxResourcesDevice(allow bool, devType string, major
 			return
 		}
 	}
-	return
 }
-
-// strPtr returns the pointer pointing to the string s.
-func strPtr(s string) *string { return &s }
 
 // SetSyscallAction adds rules for syscalls with the specified action
 func (g *Generator) SetSyscallAction(arguments seccomp.SyscallOpts) error {
@@ -1634,14 +1727,14 @@ func (g *Generator) SetVMHypervisorPath(path string) error {
 	if !strings.HasPrefix(path, "/") {
 		return fmt.Errorf("hypervisorPath %v is not an absolute path", path)
 	}
-	g.initConfigVMHypervisor()
+	g.initConfigVM()
 	g.Config.VM.Hypervisor.Path = path
 	return nil
 }
 
 // SetVMHypervisorParameters sets g.Config.VM.Hypervisor.Parameters
 func (g *Generator) SetVMHypervisorParameters(parameters []string) {
-	g.initConfigVMHypervisor()
+	g.initConfigVM()
 	g.Config.VM.Hypervisor.Parameters = parameters
 }
 
@@ -1650,14 +1743,14 @@ func (g *Generator) SetVMKernelPath(path string) error {
 	if !strings.HasPrefix(path, "/") {
 		return fmt.Errorf("kernelPath %v is not an absolute path", path)
 	}
-	g.initConfigVMKernel()
+	g.initConfigVM()
 	g.Config.VM.Kernel.Path = path
 	return nil
 }
 
 // SetVMKernelParameters sets g.Config.VM.Kernel.Parameters
 func (g *Generator) SetVMKernelParameters(parameters []string) {
-	g.initConfigVMKernel()
+	g.initConfigVM()
 	g.Config.VM.Kernel.Parameters = parameters
 }
 
@@ -1666,7 +1759,7 @@ func (g *Generator) SetVMKernelInitRD(initrd string) error {
 	if !strings.HasPrefix(initrd, "/") {
 		return fmt.Errorf("kernelInitrd %v is not an absolute path", initrd)
 	}
-	g.initConfigVMKernel()
+	g.initConfigVM()
 	g.Config.VM.Kernel.InitRD = initrd
 	return nil
 }
@@ -1676,7 +1769,7 @@ func (g *Generator) SetVMImagePath(path string) error {
 	if !strings.HasPrefix(path, "/") {
 		return fmt.Errorf("imagePath %v is not an absolute path", path)
 	}
-	g.initConfigVMImage()
+	g.initConfigVM()
 	g.Config.VM.Image.Path = path
 	return nil
 }
@@ -1692,7 +1785,7 @@ func (g *Generator) SetVMImageFormat(format string) error {
 	default:
 		return fmt.Errorf("Commonly supported formats are: raw, qcow2, vdi, vmdk, vhd")
 	}
-	g.initConfigVMImage()
+	g.initConfigVM()
 	g.Config.VM.Image.Format = format
 	return nil
 }
