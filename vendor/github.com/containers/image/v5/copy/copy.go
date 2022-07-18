@@ -19,7 +19,6 @@ import (
 	"github.com/containers/image/v5/internal/imagesource"
 	"github.com/containers/image/v5/internal/pkg/platform"
 	"github.com/containers/image/v5/internal/private"
-	internalsig "github.com/containers/image/v5/internal/signature"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/blobinfocache"
 	"github.com/containers/image/v5/pkg/compression"
@@ -237,7 +236,7 @@ func Image(ctx context.Context, policyContext *signature.PolicyContext, destRef,
 
 	// If reportWriter is not a TTY (e.g., when piping to a file), do not
 	// print the progress bars to avoid long and hard to parse output.
-	// createProgressBar() will print a single line instead.
+	// Instead use printCopyInfo() to print single line "Copying ..." messages.
 	progressOutput := reportWriter
 	if !isTTY(reportWriter) {
 		progressOutput = io.Discard
@@ -405,23 +404,11 @@ func (c *copier) copyMultipleImages(ctx context.Context, policyContext *signatur
 	}
 	updatedList := originalList.Clone()
 
-	// Read and/or clear the set of signatures for this list.
-	var sigs []internalsig.Signature
-	if options.RemoveSignatures {
-		sigs = []internalsig.Signature{}
-	} else {
-		c.Printf("Getting image list signatures\n")
-		s, err := c.rawSource.GetSignaturesWithFormat(ctx, nil)
-		if err != nil {
-			return nil, fmt.Errorf("reading signatures: %w", err)
-		}
-		sigs = s
-	}
-	if len(sigs) != 0 {
-		c.Printf("Checking if image list destination supports signatures\n")
-		if err := c.dest.SupportsSignatures(ctx); err != nil {
-			return nil, fmt.Errorf("Can not copy signatures to %s: %w", transports.ImageName(c.dest.Reference()), err)
-		}
+	sigs, err := c.sourceSignatures(ctx, unparsedToplevel, options,
+		"Getting image list signatures",
+		"Checking if image list destination supports signatures")
+	if err != nil {
+		return nil, err
 	}
 
 	// If the destination is a digested reference, make a note of that, determine what digest value we're
@@ -656,22 +643,11 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 		return nil, "", "", err
 	}
 
-	var sigs []internalsig.Signature
-	if options.RemoveSignatures {
-		sigs = []internalsig.Signature{}
-	} else {
-		c.Printf("Getting image source signatures\n")
-		s, err := src.UntrustedSignatures(ctx)
-		if err != nil {
-			return nil, "", "", fmt.Errorf("reading signatures: %w", err)
-		}
-		sigs = s
-	}
-	if len(sigs) != 0 {
-		c.Printf("Checking if image destination supports signatures\n")
-		if err := c.dest.SupportsSignatures(ctx); err != nil {
-			return nil, "", "", fmt.Errorf("Can not copy signatures to %s: %w", transports.ImageName(c.dest.Reference()), err)
-		}
+	sigs, err := c.sourceSignatures(ctx, src, options,
+		"Getting image source signatures",
+		"Checking if image destination supports signatures")
+	if err != nil {
+		return nil, "", "", err
 	}
 
 	// Determine if we're allowed to modify the manifest.
@@ -1107,6 +1083,7 @@ func (ic *imageCopier) copyConfig(ctx context.Context, src types.Image) error {
 			defer progressPool.Wait()
 			bar := ic.c.createProgressBar(progressPool, false, srcInfo, "config", "done")
 			defer bar.Abort(false)
+			ic.c.printCopyInfo("config", srcInfo)
 
 			configBlob, err := src.ConfigBlob(ctx)
 			if err != nil {
@@ -1161,6 +1138,8 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 			srcInfo.CompressionAlgorithm = &compression.Zstd
 		}
 	}
+
+	ic.c.printCopyInfo("blob", srcInfo)
 
 	cachedDiffID := ic.c.blobInfoCache.UncompressedDigest(srcInfo.Digest) // May be ""
 	diffIDIsNeeded := ic.diffIDsAreNeeded && cachedDiffID == ""
