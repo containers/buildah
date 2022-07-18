@@ -96,7 +96,37 @@ The value of `[name]` is matched with the following priority order:
 
 **--cache-from**
 
-Images to utilise as potential cache sources. Buildah does not currently support --cache-from so this is a NOOP.
+Repository to utilize as a potential cache source. When specified, Buildah will try to look for
+cache images in the specified repository and will attempt to pull cache images instead of actually
+executing the build steps locally. Buildah will only attempt to pull previously cached images if they
+are considered as valid cache hits.
+
+Use the `--cache-to` option to populate a remote repository with cache content.
+
+Example
+
+```bash
+# populate a cache and also consult it
+buildah build -t test --layers --cache-to registry/myrepo/cache --cache-from registry/myrepo/cache .
+```
+
+Note: `--cache-from` option is ignored unless `--layers` is specified.
+
+**--cache-to**
+
+Set this flag to specify a remote repository that will be used to store cache images. Buildah will attempt to
+push newly built cache image to the remote repository.
+
+Note: Use the `--cache-from` option in order to use cache content in a remote repository.
+
+Example
+
+```bash
+# populate a cache and also consult it
+buildah build -t test --layers --cache-to registry/myrepo/cache --cache-from registry/myrepo/cache .
+```
+
+Note: `--cache-to` option is ignored unless `--layers` is specified.
 
 **--cap-add**=*CAP\_xxx*
 

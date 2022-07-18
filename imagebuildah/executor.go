@@ -58,6 +58,8 @@ var builtinAllowedBuildArgs = map[string]bool{
 // interface.  It coordinates the entire build by using one or more
 // StageExecutors to handle each stage of the build.
 type Executor struct {
+	cacheFrom                      reference.Named
+	cacheTo                        reference.Named
 	containerSuffix                string
 	logger                         *logrus.Logger
 	stages                         map[string]*StageExecutor
@@ -212,6 +214,8 @@ func newExecutor(logger *logrus.Logger, logPrefix string, store storage.Store, o
 	}
 
 	exec := Executor{
+		cacheFrom:                      options.CacheFrom,
+		cacheTo:                        options.CacheTo,
 		containerSuffix:                options.ContainerSuffix,
 		logger:                         logger,
 		stages:                         make(map[string]*StageExecutor),
