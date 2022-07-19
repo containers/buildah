@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"honnef.co/go/tools/analysis/facts"
+	"honnef.co/go/tools/analysis/facts/generated"
 	"honnef.co/go/tools/go/ast/astutil"
 
 	"golang.org/x/tools/go/analysis"
@@ -172,7 +172,7 @@ func Report(pass *analysis.Pass, node Positioner, message string, opts ...Option
 
 	file := DisplayPosition(pass.Fset, node.Pos()).Filename
 	if cfg.FilterGenerated {
-		m := pass.ResultOf[facts.Generated].(map[string]facts.Generator)
+		m := pass.ResultOf[generated.Analyzer].(map[string]generated.Generator)
 		if _, ok := m[file]; ok {
 			return
 		}

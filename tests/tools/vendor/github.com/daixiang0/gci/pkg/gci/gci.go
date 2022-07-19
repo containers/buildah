@@ -5,62 +5,52 @@ import (
 	"errors"
 	"fmt"
 	"os"
-
-	sectionsPkg "github.com/daixiang0/gci/pkg/gci/sections"
-	"github.com/daixiang0/gci/pkg/io"
+	"sort"
+	"strings"
+	"sync"
 
 	"github.com/hexops/gotextdiff"
 	"github.com/hexops/gotextdiff/myers"
 	"github.com/hexops/gotextdiff/span"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/daixiang0/gci/pkg/config"
+	"github.com/daixiang0/gci/pkg/format"
+	"github.com/daixiang0/gci/pkg/io"
+	"github.com/daixiang0/gci/pkg/log"
+	"github.com/daixiang0/gci/pkg/parse"
+	"github.com/daixiang0/gci/pkg/section"
+	"github.com/daixiang0/gci/pkg/utils"
 )
 
-type SectionList []sectionsPkg.Section
-
-func (list SectionList) String() []string {
-	var output []string
-	for _, section := range list {
-		output = append(output, section.String())
-	}
-	return output
-}
-
-func DefaultSections() SectionList {
-	return SectionList{sectionsPkg.StandardPackage{}, sectionsPkg.DefaultSection{nil, nil}}
-}
-
-func DefaultSectionSeparators() SectionList {
-	return SectionList{sectionsPkg.NewLine{}}
-}
-func LocalFlagsToSections(localFlags []string) SectionList {
-	sections := DefaultSections()
+func LocalFlagsToSections(localFlags []string) section.SectionList {
+	sections := section.DefaultSections()
 	// Add all local arguments as ImportPrefix sections
-	for _, prefix := range localFlags {
-		sections = append(sections, sectionsPkg.Prefix{prefix, nil, nil})
-	}
+	// for _, l := range localFlags {
+	// 	sections = append(sections, section.Section{l, nil, nil})
+	// }
 	return sections
 }
 
-func PrintFormattedFiles(paths []string, cfg GciConfiguration) error {
+func PrintFormattedFiles(paths []string, cfg config.Config) error {
 	return processStdInAndGoFilesInPaths(paths, cfg, func(filePath string, unmodifiedFile, formattedFile []byte) error {
 		fmt.Print(string(formattedFile))
 		return nil
 	})
 }
 
-func WriteFormattedFiles(paths []string, cfg GciConfiguration) error {
+func WriteFormattedFiles(paths []string, cfg config.Config) error {
 	return processGoFilesInPaths(paths, cfg, func(filePath string, unmodifiedFile, formattedFile []byte) error {
 		if bytes.Equal(unmodifiedFile, formattedFile) {
-			log.WithField("file", filePath).Debug("Skipping correctly formatted file")
+			log.L().Debug(fmt.Sprintf("Skipping correctly formatted File: %s", filePath))
 			return nil
 		}
-		log.WithField("file", filePath).Info("Writing formatted file")
-		return os.WriteFile(filePath, formattedFile, 0644)
+		log.L().Info(fmt.Sprintf("Writing formatted File: %s", filePath))
+		return os.WriteFile(filePath, formattedFile, 0o644)
 	})
 }
 
-func DiffFormattedFiles(paths []string, cfg GciConfiguration) error {
+func DiffFormattedFiles(paths []string, cfg config.Config) error {
 	return processStdInAndGoFilesInPaths(paths, cfg, func(filePath string, unmodifiedFile, formattedFile []byte) error {
 		fileURI := span.URIFromPath(filePath)
 		edits := myers.ComputeEdits(fileURI, string(unmodifiedFile), string(formattedFile))
@@ -70,17 +60,31 @@ func DiffFormattedFiles(paths []string, cfg GciConfiguration) error {
 	})
 }
 
+func DiffFormattedFilesToArray(paths []string, cfg config.Config, diffs *[]string, lock *sync.Mutex) error {
+	log.InitLogger()
+	defer log.L().Sync()
+	return processStdInAndGoFilesInPaths(paths, cfg, func(filePath string, unmodifiedFile, formattedFile []byte) error {
+		fileURI := span.URIFromPath(filePath)
+		edits := myers.ComputeEdits(fileURI, string(unmodifiedFile), string(formattedFile))
+		unifiedEdits := gotextdiff.ToUnified(filePath, filePath, string(unmodifiedFile), edits)
+		lock.Lock()
+		*diffs = append(*diffs, fmt.Sprint(unifiedEdits))
+		lock.Unlock()
+		return nil
+	})
+}
+
 type fileFormattingFunc func(filePath string, unmodifiedFile, formattedFile []byte) error
 
-func processStdInAndGoFilesInPaths(paths []string, cfg GciConfiguration, fileFunc fileFormattingFunc) error {
-	return processFiles(io.StdInGenerator.Combine(io.GoFilesInPathsGenerator(paths)), cfg, fileFunc)
+func processStdInAndGoFilesInPaths(paths []string, cfg config.Config, fileFunc fileFormattingFunc) error {
+	return ProcessFiles(io.StdInGenerator.Combine(io.GoFilesInPathsGenerator(paths)), cfg, fileFunc)
 }
 
-func processGoFilesInPaths(paths []string, cfg GciConfiguration, fileFunc fileFormattingFunc) error {
-	return processFiles(io.GoFilesInPathsGenerator(paths), cfg, fileFunc)
+func processGoFilesInPaths(paths []string, cfg config.Config, fileFunc fileFormattingFunc) error {
+	return ProcessFiles(io.GoFilesInPathsGenerator(paths), cfg, fileFunc)
 }
 
-func processFiles(fileGenerator io.FileGeneratorFunc, cfg GciConfiguration, fileFunc fileFormattingFunc) error {
+func ProcessFiles(fileGenerator io.FileGeneratorFunc, cfg config.Config, fileFunc fileFormattingFunc) error {
 	var taskGroup errgroup.Group
 	files, err := fileGenerator()
 	if err != nil {
@@ -93,35 +97,123 @@ func processFiles(fileGenerator io.FileGeneratorFunc, cfg GciConfiguration, file
 	return taskGroup.Wait()
 }
 
-func processingFunc(file io.FileObj, cfg GciConfiguration, formattingFunc fileFormattingFunc) func() error {
+func processingFunc(file io.FileObj, cfg config.Config, formattingFunc fileFormattingFunc) func() error {
 	return func() error {
 		unmodifiedFile, formattedFile, err := LoadFormatGoFile(file, cfg)
 		if err != nil {
-			if errors.Is(err, FileParsingError{}) {
-				// do not process files that are improperly formatted
-				return nil
-			}
+			// if errors.Is(err, FileParsingError{}) {
+			// 	// do not process files that are improperly formatted
+			// 	return nil
+			// }
 			return err
 		}
 		return formattingFunc(file.Path(), unmodifiedFile, formattedFile)
 	}
 }
 
-func LoadFormatGoFile(file io.FileObj, cfg GciConfiguration) (unmodifiedFile, formattedFile []byte, err error) {
-	unmodifiedFile, err = file.Load()
-	log.WithField("file", file.Path()).Debug("Loaded file")
+func LoadFormatGoFile(file io.FileObj, cfg config.Config) (src, dist []byte, err error) {
+	src, err = file.Load()
+	log.L().Debug(fmt.Sprintf("Loaded File: %s", file.Path()))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	formattedFile, err = formatGoFile(unmodifiedFile, cfg)
-	if err != nil {
-		// ignore missing import statements
-		if !errors.Is(err, MissingImportStatementError) {
-			return unmodifiedFile, nil, err
-		}
-		log.WithField("file", file.Path()).Debug("File does not contain an import statement")
-		formattedFile = unmodifiedFile
+	if cfg.SkipGenerated && parse.IsGeneratedFileByComment(string(src)) {
+		return src, src, nil
 	}
-	return unmodifiedFile, formattedFile, nil
+
+	imports, headEnd, tailStart, tailEnd, err := parse.ParseFile(src)
+	if err != nil {
+		if errors.Is(err, parse.NoImportError{}) {
+			return src, src, nil
+		}
+		return nil, nil, err
+	}
+
+	// do not do format if only one import
+	if len(imports) == 1 {
+		return src, src, nil
+	}
+
+	result, err := format.Format(imports, &cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	head := src[:headEnd]
+	tail := src[tailStart:tailEnd]
+
+	// sort for custom sections
+	allKeys := make([]string, 0, len(result))
+	customKeys := make([]string, 0, len(result))
+	for k := range result {
+		allKeys = append(allKeys, k)
+		if strings.HasPrefix(k, "prefix(") {
+			customKeys = append(customKeys, k)
+		}
+	}
+
+	firstWithIndex := true
+
+	var body []byte
+	// order: standard > default > custom
+	if len(result["standard"]) > 0 {
+		for _, d := range result["standard"] {
+			AddIndent(&body, &firstWithIndex)
+			body = append(body, src[d.Start:d.End]...)
+		}
+		if len(allKeys) > 1 {
+			body = append(body, utils.Linebreak)
+		}
+	}
+
+	if len(result["default"]) > 0 {
+		for _, d := range result["default"] {
+			AddIndent(&body, &firstWithIndex)
+			body = append(body, src[d.Start:d.End]...)
+		}
+
+		if len(customKeys) > 0 {
+			body = append(body, utils.Linebreak)
+		}
+	}
+
+	if len(customKeys) > 0 {
+		sort.Sort(sort.StringSlice(customKeys))
+		for i, k := range customKeys {
+			for _, d := range result[k] {
+				AddIndent(&body, &firstWithIndex)
+				body = append(body, src[d.Start:d.End]...)
+			}
+			if i+1 < len(customKeys) {
+				body = append(body, utils.Linebreak)
+			}
+		}
+	}
+
+	// remove breakline in the end
+	if body[len(body)-1] == utils.Linebreak && tail[0] == utils.Linebreak {
+		body = body[:len(body)-1]
+	}
+
+	var totalLen int
+	slices := [][]byte{head, body, tail}
+	for _, s := range slices {
+		totalLen += len(s)
+	}
+	dist = make([]byte, totalLen)
+	var i int
+	for _, s := range slices {
+		i += copy(dist[i:], s)
+	}
+
+	return src, dist, nil
+}
+
+func AddIndent(in *[]byte, first *bool) {
+	if *first {
+		*first = false
+		return
+	}
+	*in = append(*in, utils.Indent)
 }

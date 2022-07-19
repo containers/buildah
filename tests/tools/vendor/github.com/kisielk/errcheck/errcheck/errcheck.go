@@ -25,45 +25,6 @@ func init() {
 var (
 	// ErrNoGoFiles is returned when CheckPackage is run on a package with no Go source files
 	ErrNoGoFiles = errors.New("package contains no go source files")
-
-	// DefaultExcludedSymbols is a list of symbol names that are usually excluded from checks by default.
-	//
-	// Note, that they still need to be explicitly copied to Checker.Exclusions.Symbols
-	DefaultExcludedSymbols = []string{
-		// bytes
-		"(*bytes.Buffer).Write",
-		"(*bytes.Buffer).WriteByte",
-		"(*bytes.Buffer).WriteRune",
-		"(*bytes.Buffer).WriteString",
-
-		// fmt
-		"fmt.Errorf",
-		"fmt.Print",
-		"fmt.Printf",
-		"fmt.Println",
-		"fmt.Fprint(*bytes.Buffer)",
-		"fmt.Fprintf(*bytes.Buffer)",
-		"fmt.Fprintln(*bytes.Buffer)",
-		"fmt.Fprint(*strings.Builder)",
-		"fmt.Fprintf(*strings.Builder)",
-		"fmt.Fprintln(*strings.Builder)",
-		"fmt.Fprint(os.Stderr)",
-		"fmt.Fprintf(os.Stderr)",
-		"fmt.Fprintln(os.Stderr)",
-
-		// math/rand
-		"math/rand.Read",
-		"(*math/rand.Rand).Read",
-
-		// strings
-		"(*strings.Builder).Write",
-		"(*strings.Builder).WriteByte",
-		"(*strings.Builder).WriteRune",
-		"(*strings.Builder).WriteString",
-
-		// hash
-		"(hash.Hash).Write",
-	}
 )
 
 // UncheckedError indicates the position of an unchecked error return.
@@ -257,16 +218,17 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 	}
 
 	v := &visitor{
-		pkg:     pkg,
-		ignore:  ignore,
-		blank:   !c.Exclusions.BlankAssignments,
-		asserts: !c.Exclusions.TypeAssertions,
-		lines:   make(map[string][]string),
-		exclude: excludedSymbols,
-		errors:  []UncheckedError{},
+		typesInfo: pkg.TypesInfo,
+		fset:      pkg.Fset,
+		ignore:    ignore,
+		blank:     !c.Exclusions.BlankAssignments,
+		asserts:   !c.Exclusions.TypeAssertions,
+		lines:     make(map[string][]string),
+		exclude:   excludedSymbols,
+		errors:    []UncheckedError{},
 	}
 
-	for _, astFile := range v.pkg.Syntax {
+	for _, astFile := range pkg.Syntax {
 		if c.shouldSkipFile(astFile) {
 			continue
 		}
@@ -277,12 +239,13 @@ func (c *Checker) CheckPackage(pkg *packages.Package) Result {
 
 // visitor implements the errcheck algorithm
 type visitor struct {
-	pkg     *packages.Package
-	ignore  map[string]*regexp.Regexp
-	blank   bool
-	asserts bool
-	lines   map[string][]string
-	exclude map[string]bool
+	typesInfo *types.Info
+	fset      *token.FileSet
+	ignore    map[string]*regexp.Regexp
+	blank     bool
+	asserts   bool
+	lines     map[string][]string
+	exclude   map[string]bool
 
 	errors []UncheckedError
 }
@@ -302,7 +265,7 @@ func (v *visitor) selectorAndFunc(call *ast.CallExpr) (*ast.SelectorExpr, *types
 		return nil, nil, false
 	}
 
-	fn, ok := v.pkg.TypesInfo.ObjectOf(sel.Sel).(*types.Func)
+	fn, ok := v.typesInfo.ObjectOf(sel.Sel).(*types.Func)
 	if !ok {
 		// Shouldn't happen, but be paranoid
 		return nil, nil, false
@@ -389,7 +352,7 @@ func (v *visitor) namesForExcludeCheck(call *ast.CallExpr) []string {
 
 	// This will be missing for functions without a receiver (like fmt.Printf),
 	// so just fall back to the the function's fullName in that case.
-	selection, ok := v.pkg.TypesInfo.Selections[sel]
+	selection, ok := v.typesInfo.Selections[sel]
 	if !ok {
 		return []string{name}
 	}
@@ -416,14 +379,14 @@ func (v *visitor) namesForExcludeCheck(call *ast.CallExpr) []string {
 func (v *visitor) argName(expr ast.Expr) string {
 	// Special-case literal "os.Stdout" and "os.Stderr"
 	if sel, ok := expr.(*ast.SelectorExpr); ok {
-		if obj := v.pkg.TypesInfo.ObjectOf(sel.Sel); obj != nil {
+		if obj := v.typesInfo.ObjectOf(sel.Sel); obj != nil {
 			vr, ok := obj.(*types.Var)
 			if ok && vr.Pkg() != nil && vr.Pkg().Name() == "os" && (vr.Name() == "Stderr" || vr.Name() == "Stdout") {
 				return "os." + vr.Name()
 			}
 		}
 	}
-	t := v.pkg.TypesInfo.TypeOf(expr)
+	t := v.typesInfo.TypeOf(expr)
 	if t == nil {
 		return ""
 	}
@@ -474,7 +437,7 @@ func (v *visitor) ignoreCall(call *ast.CallExpr) bool {
 		return true
 	}
 
-	if obj := v.pkg.TypesInfo.Uses[id]; obj != nil {
+	if obj := v.typesInfo.Uses[id]; obj != nil {
 		if pkg := obj.Pkg(); pkg != nil {
 			if re, ok := v.ignore[nonVendoredPkgPath(pkg.Path())]; ok {
 				return re.MatchString(id.Name)
@@ -500,7 +463,7 @@ func nonVendoredPkgPath(pkgPath string) string {
 // len(s) == number of return types of call
 // s[i] == true iff return type at position i from left is an error type
 func (v *visitor) errorsByArg(call *ast.CallExpr) []bool {
-	switch t := v.pkg.TypesInfo.Types[call].Type.(type) {
+	switch t := v.typesInfo.Types[call].Type.(type) {
 	case *types.Named:
 		// Single return
 		return []bool{isErrorType(t)}
@@ -542,15 +505,18 @@ func (v *visitor) callReturnsError(call *ast.CallExpr) bool {
 // isRecover returns true if the given CallExpr is a call to the built-in recover() function.
 func (v *visitor) isRecover(call *ast.CallExpr) bool {
 	if fun, ok := call.Fun.(*ast.Ident); ok {
-		if _, ok := v.pkg.TypesInfo.Uses[fun].(*types.Builtin); ok {
+		if _, ok := v.typesInfo.Uses[fun].(*types.Builtin); ok {
 			return fun.Name == "recover"
 		}
 	}
 	return false
 }
 
+// TODO (dtcaciuc) collect token.Pos and then convert them to UncheckedErrors
+// after visitor is done running. This will allow to integrate more cleanly
+// with analyzer so that we don't have to convert Position back to Pos.
 func (v *visitor) addErrorAtPosition(position token.Pos, call *ast.CallExpr) {
-	pos := v.pkg.Fset.Position(position)
+	pos := v.fset.Position(position)
 	lines, ok := v.lines[pos.Filename]
 	if !ok {
 		lines = readfile(pos.Filename)
@@ -577,6 +543,7 @@ func readfile(filename string) []string {
 	if err != nil {
 		return nil
 	}
+	defer f.Close()
 
 	var lines []string
 	var scanner = bufio.NewScanner(f)

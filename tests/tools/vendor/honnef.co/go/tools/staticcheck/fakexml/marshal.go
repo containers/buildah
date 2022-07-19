@@ -14,10 +14,10 @@ package fakexml
 
 import (
 	"fmt"
-	"go/token"
 	"go/types"
 
 	"honnef.co/go/tools/go/types/typeutil"
+	"honnef.co/go/tools/knowledge"
 	"honnef.co/go/tools/staticcheck/fakereflect"
 )
 
@@ -26,13 +26,14 @@ func Marshal(v types.Type) error {
 }
 
 type Encoder struct {
-	seen map[fakereflect.TypeAndCanAddr]struct{}
+	// TODO we track addressable and non-addressable instances separately out of an abundance of caution. We don't know
+	// if this is actually required for correctness.
+	seenCanAddr  typeutil.Map
+	seenCantAddr typeutil.Map
 }
 
 func NewEncoder() *Encoder {
-	e := &Encoder{
-		seen: map[fakereflect.TypeAndCanAddr]struct{}{},
-	}
+	e := &Encoder{}
 	return e
 }
 
@@ -101,18 +102,6 @@ func implementsMarshalerAttr(v fakereflect.TypeAndCanAddr) bool {
 	return true
 }
 
-var textMarshalerType = types.NewInterfaceType([]*types.Func{
-	types.NewFunc(token.NoPos, nil, "MarshalText", types.NewSignature(nil,
-		types.NewTuple(),
-		types.NewTuple(
-			types.NewVar(token.NoPos, nil, "", types.NewSlice(types.Typ[types.Byte])),
-			types.NewVar(0, nil, "", types.Universe.Lookup("error").Type())),
-		false,
-	)),
-}, nil).Complete()
-
-var N = 0
-
 type CyclicTypeError struct {
 	Type types.Type
 	Path string
@@ -125,10 +114,16 @@ func (err *CyclicTypeError) Error() string {
 // marshalValue writes one or more XML elements representing val.
 // If val was obtained from a struct field, finfo must have its details.
 func (e *Encoder) marshalValue(val fakereflect.TypeAndCanAddr, finfo *fieldInfo, startTemplate *StartElement, stack string) error {
-	if _, ok := e.seen[val]; ok {
+	var m *typeutil.Map
+	if val.CanAddr() {
+		m = &e.seenCanAddr
+	} else {
+		m = &e.seenCantAddr
+	}
+	if ok := m.At(val.Type); ok != nil {
 		return nil
 	}
-	e.seen[val] = struct{}{}
+	m.Set(val.Type, struct{}{})
 
 	// Drill into interfaces and pointers.
 	seen := map[fakereflect.TypeAndCanAddr]struct{}{}
@@ -156,12 +151,12 @@ func (e *Encoder) marshalValue(val fakereflect.TypeAndCanAddr, finfo *fieldInfo,
 	}
 
 	// Check for text marshaler.
-	if val.Implements(textMarshalerType) {
+	if val.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 		return nil
 	}
 	if val.CanAddr() {
 		pv := fakereflect.PtrTo(val)
-		if pv.Implements(textMarshalerType) {
+		if pv.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 			return nil
 		}
 	}
@@ -260,13 +255,13 @@ func (e *Encoder) marshalAttr(start *StartElement, name Name, val fakereflect.Ty
 		}
 	}
 
-	if val.Implements(textMarshalerType) {
+	if val.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 		return nil
 	}
 
 	if val.CanAddr() {
 		pv := fakereflect.PtrTo(val)
-		if pv.Implements(textMarshalerType) {
+		if pv.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 			return nil
 		}
 	}
@@ -335,12 +330,12 @@ func (e *Encoder) marshalStruct(tinfo *typeInfo, val fakereflect.TypeAndCanAddr,
 
 		switch finfo.flags & fMode {
 		case fCDATA, fCharData:
-			if vf.Implements(textMarshalerType) {
+			if vf.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 				continue
 			}
 			if vf.CanAddr() {
 				pv := fakereflect.PtrTo(vf)
-				if pv.Implements(textMarshalerType) {
+				if pv.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 					continue
 				}
 			}

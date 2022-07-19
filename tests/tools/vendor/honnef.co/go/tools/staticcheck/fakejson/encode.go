@@ -11,13 +11,14 @@
 package fakejson
 
 import (
-	"go/token"
 	"go/types"
 	"sort"
 	"strings"
 	"unicode"
 
 	"golang.org/x/exp/typeparams"
+	"honnef.co/go/tools/go/types/typeutil"
+	"honnef.co/go/tools/knowledge"
 	"honnef.co/go/tools/staticcheck/fakereflect"
 )
 
@@ -31,9 +32,7 @@ func parseTag(tag string) string {
 }
 
 func Marshal(v types.Type) *UnsupportedTypeError {
-	enc := encoder{
-		seen: map[fakereflect.TypeAndCanAddr]struct{}{},
-	}
+	enc := encoder{}
 	return enc.newTypeEncoder(fakereflect.TypeAndCanAddr{Type: v}, "x")
 }
 
@@ -44,46 +43,35 @@ type UnsupportedTypeError struct {
 	Path string
 }
 
-var marshalerType = types.NewInterfaceType([]*types.Func{
-	types.NewFunc(token.NoPos, nil, "MarshalJSON", types.NewSignature(nil,
-		types.NewTuple(),
-		types.NewTuple(
-			types.NewVar(token.NoPos, nil, "", types.NewSlice(types.Typ[types.Byte])),
-			types.NewVar(0, nil, "", types.Universe.Lookup("error").Type())),
-		false,
-	)),
-}, nil).Complete()
-
-var textMarshalerType = types.NewInterfaceType([]*types.Func{
-	types.NewFunc(token.NoPos, nil, "MarshalText", types.NewSignature(nil,
-		types.NewTuple(),
-		types.NewTuple(
-			types.NewVar(token.NoPos, nil, "", types.NewSlice(types.Typ[types.Byte])),
-			types.NewVar(0, nil, "", types.Universe.Lookup("error").Type())),
-		false,
-	)),
-}, nil).Complete()
-
 type encoder struct {
-	seen map[fakereflect.TypeAndCanAddr]struct{}
+	// TODO we track addressable and non-addressable instances separately out of an abundance of caution. We don't know
+	// if this is actually required for correctness.
+	seenCanAddr  typeutil.Map
+	seenCantAddr typeutil.Map
 }
 
 func (enc *encoder) newTypeEncoder(t fakereflect.TypeAndCanAddr, stack string) *UnsupportedTypeError {
-	if _, ok := enc.seen[t]; ok {
+	var m *typeutil.Map
+	if t.CanAddr() {
+		m = &enc.seenCanAddr
+	} else {
+		m = &enc.seenCantAddr
+	}
+	if ok := m.At(t.Type); ok != nil {
 		return nil
 	}
-	enc.seen[t] = struct{}{}
+	m.Set(t.Type, struct{}{})
 
-	if t.Implements(marshalerType) {
+	if t.Implements(knowledge.Interfaces["encoding/json.Marshaler"]) {
 		return nil
 	}
-	if !t.IsPtr() && t.CanAddr() && fakereflect.PtrTo(t).Implements(marshalerType) {
+	if !t.IsPtr() && t.CanAddr() && fakereflect.PtrTo(t).Implements(knowledge.Interfaces["encoding/json.Marshaler"]) {
 		return nil
 	}
-	if t.Implements(textMarshalerType) {
+	if t.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 		return nil
 	}
-	if !t.IsPtr() && t.CanAddr() && fakereflect.PtrTo(t).Implements(textMarshalerType) {
+	if !t.IsPtr() && t.CanAddr() && fakereflect.PtrTo(t).Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 		return nil
 	}
 
@@ -118,7 +106,7 @@ func (enc *encoder) newMapEncoder(t fakereflect.TypeAndCanAddr, stack string) *U
 	switch t.Key().Type.Underlying().(type) {
 	case *types.Basic:
 	default:
-		if !t.Key().Implements(textMarshalerType) {
+		if !t.Key().Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 			return &UnsupportedTypeError{
 				Type: t.Type,
 				Path: stack,
@@ -133,7 +121,7 @@ func (enc *encoder) newSliceEncoder(t fakereflect.TypeAndCanAddr, stack string) 
 	basic, ok := t.Elem().Type.Underlying().(*types.Basic)
 	if ok && basic.Kind() == types.Uint8 {
 		p := fakereflect.PtrTo(t.Elem())
-		if !p.Implements(marshalerType) && !p.Implements(textMarshalerType) {
+		if !p.Implements(knowledge.Interfaces["encoding/json.Marshaler"]) && !p.Implements(knowledge.Interfaces["encoding.TextMarshaler"]) {
 			return nil
 		}
 	}

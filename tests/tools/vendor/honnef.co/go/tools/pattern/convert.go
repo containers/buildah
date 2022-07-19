@@ -148,7 +148,7 @@ func NodeToAST(node Node, state State) interface{} {
 		default:
 			return v
 		}
-	case Builtin, Any, Object, Function, Not, Or:
+	case Builtin, Any, Object, Symbol, Not, Or:
 		panic("XXX")
 	case List:
 		if (node == List{}) {
