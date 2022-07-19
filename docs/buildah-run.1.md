@@ -125,6 +125,10 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Foo
 
               · from: stage or image name for the root of the source. Defaults to the build context.
 
+              · z: Set shared SELinux label on mounted destination. Use if SELinux is enabled on host machine.
+
+              · Z: Set private SELinux label on mounted destination. Use if SELinux is enabled on host machine.
+
        Options specific to tmpfs:
 
               · tmpfs-size: Size of the tmpfs mount in bytes. Unlimited by default in Linux.
@@ -150,6 +154,10 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Foo
               · gid: gid for cache directory.
 
               · from: stage name for the root of the source. Defaults to host cache directory.
+
+              · z: Set shared SELinux label on mounted destination. Use if SELinux is enabled on host machine.
+
+              · Z: Set private SELinux label on mounted destination. Use if SELinux is enabled on host machine.
 
 **--network**, **--net**=*mode*
 
