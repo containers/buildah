@@ -107,6 +107,13 @@ func (enc *Encoder) SetIndentTables(indent bool) *Encoder {
 // a newline character or a single quote. In that case they are emitted as
 // quoted strings.
 //
+// Unsigned integers larger than math.MaxInt64 cannot be encoded. Doing so
+// results in an error. This rule exists because the TOML specification only
+// requires parsers to support at least the 64 bits integer range. Allowing
+// larger numbers would create non-standard TOML documents, which may not be
+// readable (at best) by other implementations. To encode such numbers, a
+// solution is a custom type that implements encoding.TextMarshaler.
+//
 // When encoding structs, fields are encoded in order of definition, with their
 // exact name.
 //
@@ -128,7 +135,8 @@ func (enc *Encoder) SetIndentTables(indent bool) *Encoder {
 //
 // In addition to the "toml" tag struct tag, a "comment" tag can be used to emit
 // a TOML comment before the value being annotated. Comments are ignored inside
-// inline tables.
+// inline tables. For array tables, the comment is only present before the first
+// element of the array.
 func (enc *Encoder) Encode(v interface{}) error {
 	var (
 		b   []byte
@@ -302,7 +310,11 @@ func (enc *Encoder) encode(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, e
 			b = append(b, "false"...)
 		}
 	case reflect.Uint64, reflect.Uint32, reflect.Uint16, reflect.Uint8, reflect.Uint:
-		b = strconv.AppendUint(b, v.Uint(), 10)
+		x := v.Uint()
+		if x > uint64(math.MaxInt64) {
+			return nil, fmt.Errorf("toml: not encoding uint (%d) greater than max int64 (%d)", x, int64(math.MaxInt64))
+		}
+		b = strconv.AppendUint(b, x, 10)
 	case reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8, reflect.Int:
 		b = strconv.AppendInt(b, v.Int(), 10)
 	default:
@@ -652,10 +664,19 @@ func (enc *Encoder) encodeStruct(b []byte, ctx encoderCtx, v reflect.Value) ([]b
 }
 
 func (enc *Encoder) encodeComment(indent int, comment string, b []byte) []byte {
-	if comment != "" {
+	for len(comment) > 0 {
+		var line string
+		idx := strings.IndexByte(comment, '\n')
+		if idx >= 0 {
+			line = comment[:idx]
+			comment = comment[idx+1:]
+		} else {
+			line = comment
+			comment = ""
+		}
 		b = enc.indent(indent, b)
 		b = append(b, "# "...)
-		b = append(b, comment...)
+		b = append(b, line...)
 		b = append(b, '\n')
 	}
 	return b
@@ -880,6 +901,8 @@ func (enc *Encoder) encodeSliceAsArrayTable(b []byte, ctx encoderCtx, v reflect.
 
 	scratch = append(scratch, "]]\n"...)
 	ctx.skipTableHeader = true
+
+	b = enc.encodeComment(ctx.indent, ctx.options.comment, b)
 
 	for i := 0; i < v.Len(); i++ {
 		b = append(b, scratch...)

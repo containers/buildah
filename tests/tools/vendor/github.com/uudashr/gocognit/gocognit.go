@@ -49,18 +49,6 @@ func funcName(fn *ast.FuncDecl) string {
 	return fn.Name.Name
 }
 
-// recvString returns a string representation of recv of the
-// form "T", "*T", or "BADRECV" (if not a proper receiver type).
-func recvString(recv ast.Expr) string {
-	switch t := recv.(type) {
-	case *ast.Ident:
-		return t.Name
-	case *ast.StarExpr:
-		return "*" + recvString(t.X)
-	}
-	return "BADRECV"
-}
-
 // Complexity calculates the cognitive complexity of a function.
 func Complexity(fn *ast.FuncDecl) int {
 	v := complexityVisitor{
@@ -344,7 +332,7 @@ func mergeBinaryOps(x []token.Token, op token.Token, y []token.Token) []token.To
 
 const Doc = `Find complex function using cognitive complexity calculation.
 
-The gocognit analysis repots functions or methods which the complexity is over 
+The gocognit analysis reports functions or methods which the complexity is over 
 than the specified limit.`
 
 // Analyzer reports a diagnostic for every function or method which is

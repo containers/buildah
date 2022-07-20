@@ -23,22 +23,24 @@ type nodeVisitor func(n ast.Node, push bool, stack []ast.Node) (proceed bool, re
 
 // Result values returned by a node visitor constructed via switchStmtChecker.
 const (
-	resultNotPush              = "not push"
-	resultGeneratedFile        = "generated file"
-	resultNoSwitchTag          = "no switch tag"
-	resultTagNotValue          = "switch tag not value type"
-	resultTagNotNamed          = "switch tag not named type"
-	resultTagNoPkg             = "switch tag does not belong to regular package"
-	resultTagNotEnum           = "switch tag not known enum type"
-	resultSwitchIgnoreComment  = "switch statement has ignore comment"
-	resultEnumMembersAccounted = "requisite enum members accounted for"
-	resultDefaultCaseSuffices  = "default case presence satisfies exhaustiveness"
-	resultReportedDiagnostic   = "reported diagnostic"
+	resultNotPush                = "not push"
+	resultGeneratedFile          = "generated file"
+	resultNoSwitchTag            = "no switch tag"
+	resultTagNotValue            = "switch tag not value type"
+	resultTagNotNamed            = "switch tag not named type"
+	resultTagNoPkg               = "switch tag does not belong to regular package"
+	resultTagNotEnum             = "switch tag not known enum type"
+	resultSwitchIgnoreComment    = "switch statement has ignore comment"
+	resultSwitchNoEnforceComment = "switch statement has no enforce comment"
+	resultEnumMembersAccounted   = "requisite enum members accounted for"
+	resultDefaultCaseSuffices    = "default case presence satisfies exhaustiveness"
+	resultReportedDiagnostic     = "reported diagnostic"
 )
 
 // switchStmtChecker returns a node visitor that checks exhaustiveness
 // of enum switch statements for the supplied pass, and reports diagnostics for
 // switch statements that are non-exhaustive.
+// It expects to only see *ast.SwitchStmt nodes.
 func switchStmtChecker(pass *analysis.Pass, cfg config) nodeVisitor {
 	generated := make(map[*ast.File]bool)          // cached results
 	comments := make(map[*ast.File]ast.CommentMap) // cached results
@@ -69,11 +71,16 @@ func switchStmtChecker(pass *analysis.Pass, cfg config) nodeVisitor {
 		if _, ok := comments[file]; !ok {
 			comments[file] = ast.NewCommentMap(pass.Fset, file, file.Comments)
 		}
-		if containsIgnoreDirective(comments[file].Filter(sw).Comments()) {
+		switchComments := comments[file][sw]
+		if !cfg.explicitExhaustiveSwitch && containsIgnoreDirective(switchComments) {
 			// Skip checking of this switch statement due to ignore directive comment.
 			// Still return true because there may be nested switch statements
 			// that are not to be ignored.
 			return true, resultSwitchIgnoreComment
+		}
+		if cfg.explicitExhaustiveSwitch && !containsEnforceDirective(switchComments) {
+			// Skip checking of this switch statement due to missing enforce directive comment.
+			return true, resultSwitchNoEnforceComment
 		}
 
 		if sw.Tag == nil {
@@ -108,7 +115,7 @@ func switchStmtChecker(pass *analysis.Pass, cfg config) nodeVisitor {
 		checkUnexported := samePkg    // we want to include unexported members in the exhaustiveness check only if we're in the same package
 		checklist := makeChecklist(members, tagPkg, checkUnexported, cfg.ignoreEnumMembers)
 
-		hasDefaultCase := analyzeSwitchClauses(sw, tagPkg, members.NameToValue, pass.TypesInfo, func(val constantValue) {
+		hasDefaultCase := analyzeSwitchClauses(sw, pass.TypesInfo, func(val constantValue) {
 			checklist.found(val)
 		})
 
@@ -130,6 +137,7 @@ func switchStmtChecker(pass *analysis.Pass, cfg config) nodeVisitor {
 
 // config is configuration for checkSwitchStatements.
 type config struct {
+	explicitExhaustiveSwitch   bool
 	defaultSignifiesExhaustive bool
 	checkGeneratedFiles        bool
 	ignoreEnumMembers          *regexp.Regexp // can be nil
@@ -163,14 +171,11 @@ func denotesPackage(ident *ast.Ident, info *types.Info) (*types.Package, bool) {
 }
 
 // analyzeSwitchClauses analyzes the clauses in the supplied switch statement.
-//
-// tagPkg is the package of the switch statement's tag value's type.
 // The info param should typically be pass.TypesInfo. The found function is
 // called for each enum member name found in the switch statement.
-//
 // The hasDefaultCase return value indicates whether the switch statement has a
 // default clause.
-func analyzeSwitchClauses(sw *ast.SwitchStmt, tagPkg *types.Package, members map[string]constantValue, info *types.Info, found func(val constantValue)) (hasDefaultCase bool) {
+func analyzeSwitchClauses(sw *ast.SwitchStmt, info *types.Info, found func(val constantValue)) (hasDefaultCase bool) {
 	for _, stmt := range sw.Body.List {
 		caseCl := stmt.(*ast.CaseClause)
 		if isDefaultCase(caseCl) {
@@ -178,13 +183,13 @@ func analyzeSwitchClauses(sw *ast.SwitchStmt, tagPkg *types.Package, members map
 			continue // nothing more to do if it's the default case
 		}
 		for _, expr := range caseCl.List {
-			analyzeCaseClauseExpr(expr, tagPkg, members, info, found)
+			analyzeCaseClauseExpr(expr, info, found)
 		}
 	}
 	return hasDefaultCase
 }
 
-func analyzeCaseClauseExpr(e ast.Expr, tagPkg *types.Package, members map[string]constantValue, info *types.Info, found func(val constantValue)) {
+func analyzeCaseClauseExpr(e ast.Expr, info *types.Info, found func(val constantValue)) {
 	handleIdent := func(ident *ast.Ident) {
 		obj := info.Uses[ident]
 		if obj == nil {
@@ -282,6 +287,9 @@ func diagnosticEnumTypeName(enumType *types.TypeName, samePkg bool) string {
 	return enumType.Pkg().Name() + "." + enumType.Name()
 }
 
+// Makes a "missing cases in switch" diagnostic.
+// samePkg should be true if the enum type and the switch statement are defined
+// in the same package.
 func makeDiagnostic(sw *ast.SwitchStmt, samePkg bool, enumTyp enumType, allMembers enumMembers, missingMembers map[string]struct{}) analysis.Diagnostic {
 	message := fmt.Sprintf("missing cases in switch of type %s: %s",
 		diagnosticEnumTypeName(enumTyp.TypeName, samePkg),
@@ -304,12 +312,12 @@ func makeDiagnostic(sw *ast.SwitchStmt, samePkg bool, enumTyp enumType, allMembe
 // The remaining method returns the member names not accounted for.
 //
 type checklist struct {
-	em    enumMembers
-	names map[string]struct{}
+	em     enumMembers
+	checkl map[string]struct{}
 }
 
 func makeChecklist(em enumMembers, enumPkg *types.Package, includeUnexported bool, ignore *regexp.Regexp) *checklist {
-	names := make(map[string]struct{})
+	checkl := make(map[string]struct{})
 
 	add := func(memberName string) {
 		if memberName == "_" {
@@ -325,7 +333,7 @@ func makeChecklist(em enumMembers, enumPkg *types.Package, includeUnexported boo
 		if ignore != nil && ignore.MatchString(enumPkg.Path()+"."+memberName) {
 			return
 		}
-		names[memberName] = struct{}{}
+		checkl[memberName] = struct{}{}
 	}
 
 	for _, name := range em.Names {
@@ -333,18 +341,18 @@ func makeChecklist(em enumMembers, enumPkg *types.Package, includeUnexported boo
 	}
 
 	return &checklist{
-		em:    em,
-		names: names,
+		em:     em,
+		checkl: checkl,
 	}
 }
 
 func (c *checklist) found(val constantValue) {
 	// Delete all of the same-valued names.
 	for _, name := range c.em.ValueToNames[val] {
-		delete(c.names, name)
+		delete(c.checkl, name)
 	}
 }
 
 func (c *checklist) remaining() map[string]struct{} {
-	return c.names
+	return c.checkl
 }

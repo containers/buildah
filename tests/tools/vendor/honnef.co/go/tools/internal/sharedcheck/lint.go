@@ -8,7 +8,8 @@ import (
 
 	"honnef.co/go/tools/analysis/code"
 	"honnef.co/go/tools/analysis/edit"
-	"honnef.co/go/tools/analysis/facts"
+	"honnef.co/go/tools/analysis/facts/generated"
+	"honnef.co/go/tools/analysis/facts/tokenfile"
 	"honnef.co/go/tools/analysis/report"
 	"honnef.co/go/tools/go/ast/astutil"
 	"honnef.co/go/tools/go/ir"
@@ -118,7 +119,7 @@ func RedundantTypeInDeclarationChecker(verb string, flagHelpfulTypes bool) *anal
 			}
 
 			gen, _ := code.Generator(pass, decl.Pos())
-			if gen == facts.Cgo {
+			if gen == generated.Cgo {
 				// TODO(dh): remove this exception once we can use UsesCgo
 				return
 			}
@@ -203,6 +204,6 @@ func RedundantTypeInDeclarationChecker(verb string, flagHelpfulTypes bool) *anal
 
 	return &analysis.Analyzer{
 		Run:      fn,
-		Requires: []*analysis.Analyzer{facts.Generated, inspect.Analyzer, facts.TokenFile, facts.Generated},
+		Requires: []*analysis.Analyzer{generated.Analyzer, inspect.Analyzer, tokenfile.Analyzer},
 	}
 }

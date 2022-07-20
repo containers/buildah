@@ -43,7 +43,7 @@ func (r *traversal) matchCallExpr(assign *ast.CallExpr, ctx *gosec.Context) (*go
 // NewDirectoryTraversal attempts to find the use of http.Dir("/")
 func NewDirectoryTraversal(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 	pattern := `http\.Dir\("\/"\)|http\.Dir\('\/'\)`
-	if val, ok := conf["G101"]; ok {
+	if val, ok := conf[id]; ok {
 		conf := val.(map[string]interface{})
 		if configPattern, ok := conf["pattern"]; ok {
 			if cfgPattern, ok := configPattern.(string); ok {
