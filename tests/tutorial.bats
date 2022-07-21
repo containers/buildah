@@ -12,7 +12,7 @@ load helpers
 	_prefetch quay.io/libpod/alpine
 	run ${TUTORIAL_BINARY}
 	buildoutput="$output"
-	# should'nt have the "root" scope in our cgroups
+	# shouldn't have the "root" scope in our cgroups
 	echo "build output:"
 	echo "${output}"
 	! grep -q init.scope <<< "$buildoutput"
