@@ -474,6 +474,38 @@ _EOF
   assert "$output" !~ "unwanted stage"
 }
 
+# Test if our cache is working in optimal way for COPY use case
+@test "build test optimal cache working for COPY instruction" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+COPY somefile .
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  # Run again and verify if we hit cache in first pass
+  run_buildah --log-level debug build $WITH_POLICY_JSON --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "Found a cache hit in the first iteration"
+}
+
+# Test if our cache is working in optimal way for ADD use case
+@test "build test optimal cache working for ADD instruction" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+ADD somefile .
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  # Run again and verify if we hit cache in first pass
+  run_buildah --log-level debug build $WITH_POLICY_JSON --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "Found a cache hit in the first iteration"
+}
+
 # Test skipping unwanted stage with --mount from another stage
 @test "build-test skipping unwanted stages with --mount from stagename" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform

@@ -35,6 +35,7 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/openshift/imagebuilder"
+	"github.com/openshift/imagebuilder/dockerfile/command"
 	"github.com/openshift/imagebuilder/dockerfile/parser"
 	"github.com/sirupsen/logrus"
 )
@@ -867,6 +868,21 @@ func (s *StageExecutor) getImageRootfs(ctx context.Context, image string) (mount
 	return builder.MountPoint, nil
 }
 
+// getContentSummary generates content summary for cases where we added content and need
+// to get summary with updated digests.
+func (s *StageExecutor) getContentSummaryAfterAddingContent() string {
+	contentType, digest := s.builder.ContentDigester.Digest()
+	summary := contentType
+	if digest != "" {
+		if summary != "" {
+			summary = summary + ":"
+		}
+		summary = summary + digest.Encoded()
+		logrus.Debugf("added content %s", summary)
+	}
+	return summary
+}
+
 // Execute runs each of the steps in the stage's parsed tree, in turn.
 func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string, ref reference.Canonical, err error) {
 	var resourceUsage rusage.Rusage
@@ -1101,15 +1117,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				return "", nil, fmt.Errorf("error building at STEP \"%s\": %w", step.Message, err)
 			}
 			// In case we added content, retrieve its digest.
-			addedContentType, addedContentDigest := s.builder.ContentDigester.Digest()
-			addedContentSummary := addedContentType
-			if addedContentDigest != "" {
-				if addedContentSummary != "" {
-					addedContentSummary = addedContentSummary + ":"
-				}
-				addedContentSummary = addedContentSummary + addedContentDigest.Encoded()
-				logrus.Debugf("added content %s", addedContentSummary)
-			}
+			addedContentSummary := s.getContentSummaryAfterAddingContent()
 			if moreInstructions {
 				// There are still more instructions to process
 				// for this stage.  Make a note of the
@@ -1143,11 +1151,12 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 
 		// We're in a multi-layered build.
 		var (
-			commitName          string
-			cacheID             string
-			err                 error
-			rebase              bool
-			addedContentSummary string
+			commitName                string
+			cacheID                   string
+			err                       error
+			rebase                    bool
+			addedContentSummary       string
+			canMatchCacheOnlyAfterRun bool
 		)
 
 		// If we have to commit for this instruction, only assign the
@@ -1164,6 +1173,20 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		// determining if a cached layer with the same build args already exists
 		// and that is done in the if block below.
 		if checkForLayers && step.Command != "arg" && !(s.executor.squash && lastInstruction && lastStage) {
+			// For `COPY` and `ADD`, history entries include digests computed from
+			// the content that's copied in.  We need to compute that information so that
+			// it can be used to evaluate the cache, which means we need to go ahead
+			// and copy the content.
+			canMatchCacheOnlyAfterRun = (step.Command == command.Add || step.Command == command.Copy)
+			if canMatchCacheOnlyAfterRun {
+				if err = ib.Run(step, s, noRunsRemaining); err != nil {
+					logrus.Debugf("Error building at step %+v: %v", *step, err)
+					return "", nil, fmt.Errorf("error building at STEP \"%s\": %w", step.Message, err)
+				}
+				// Retrieve the digest info for the content that we just copied
+				// into the rootfs.
+				addedContentSummary = s.getContentSummaryAfterAddingContent()
+			}
 			cacheID, err = s.intermediateImageExists(ctx, node, addedContentSummary, s.stepRequiresLayer(step))
 			if err != nil {
 				return "", nil, fmt.Errorf("error checking if cached image exists from a previous build: %w", err)
@@ -1174,7 +1197,9 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		// to find the digest of the content to check for a cached
 		// image, run the step so that we can check if the result
 		// matches a cache.
-		if cacheID == "" {
+		// We already called ib.Run() for the `canMatchCacheOnlyAfterRun`
+		// cases above, so we shouldn't do it again.
+		if cacheID == "" && !canMatchCacheOnlyAfterRun {
 			// Process the instruction directly.
 			if err = ib.Run(step, s, noRunsRemaining); err != nil {
 				logrus.Debugf("Error building at step %+v: %v", *step, err)
@@ -1182,15 +1207,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			}
 
 			// In case we added content, retrieve its digest.
-			addedContentType, addedContentDigest := s.builder.ContentDigester.Digest()
-			addedContentSummary = addedContentType
-			if addedContentDigest != "" {
-				if addedContentSummary != "" {
-					addedContentSummary = addedContentSummary + ":"
-				}
-				addedContentSummary = addedContentSummary + addedContentDigest.Encoded()
-				logrus.Debugf("added content %s", addedContentSummary)
-			}
+			addedContentSummary = s.getContentSummaryAfterAddingContent()
 
 			// Check if there's already an image based on our parent that
 			// has the same change that we just made.
@@ -1201,6 +1218,10 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				}
 			}
 		} else {
+			// This log line is majorly here so we can verify in tests
+			// that our cache is performing in the most optimal way for
+			// various cases.
+			logrus.Debugf("Found a cache hit in the first iteration with id %s", cacheID)
 			// If the instruction would affect our configuration,
 			// process the configuration change so that, if we fall
 			// off the cache path, the filesystem changes from the
