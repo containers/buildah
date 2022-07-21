@@ -50,7 +50,7 @@ endif
 #     Note: Uses the -N -l go compiler options to disable compiler optimizations
 #           and inlining. Using these build options allows you to subsequently
 #           use source debugging tools like delve.
-all: bin/buildah bin/imgtype bin/copy docs
+all: bin/buildah bin/imgtype bin/copy bin/tutorial docs
 
 # Update nix/nixpkgs.json its latest stable commit
 .PHONY: nixpkgs
@@ -91,6 +91,9 @@ bin/imgtype: $(SOURCES) tests/imgtype/imgtype.go
 
 bin/copy: $(SOURCES) tests/copy/copy.go
 	$(GO_BUILD) $(BUILDAH_LDFLAGS) -o $@ $(BUILDFLAGS) ./tests/copy/copy.go
+
+bin/tutorial: $(SOURCES) tests/tutorial/tutorial.go
+	$(GO_BUILD) $(BUILDAH_LDFLAGS) -o $@ $(BUILDFLAGS) ./tests/tutorial/tutorial.go
 
 .PHONY: clean
 clean:
