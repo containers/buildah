@@ -1147,7 +1147,7 @@ func (b *Builder) runUsingRuntimeSubproc(isolation define.Isolation, options Run
 
 		containerStartR.file, containerStartW.file, err = os.Pipe()
 		if err != nil {
-			return fmt.Errorf("error creating container create pipe: %w", err)
+			return fmt.Errorf("error creating container start pipe: %w", err)
 		}
 		defer containerStartR.Close()
 		defer containerStartW.Close()
