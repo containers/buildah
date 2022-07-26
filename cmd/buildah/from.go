@@ -341,7 +341,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	if iopts.cidfile != "" {
 		filePath := iopts.cidfile
 		if err := ioutil.WriteFile(filePath, []byte(builder.ContainerID), 0644); err != nil {
-			return fmt.Errorf("filed to write Container ID File %q: %w", filePath, err)
+			return fmt.Errorf("failed to write container ID file %q: %w", filePath, err)
 		}
 	}
 	fmt.Printf("%s\n", builder.Container)

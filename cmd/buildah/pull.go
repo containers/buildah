@@ -112,7 +112,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 
 	decConfig, err := util.DecryptConfig(iopts.decryptionKeys)
 	if err != nil {
-		return fmt.Errorf("unable to obtain decrypt config: %w", err)
+		return fmt.Errorf("unable to obtain decryption config: %w", err)
 	}
 
 	policy, ok := define.PolicyMap[iopts.pullPolicy]

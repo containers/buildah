@@ -416,6 +416,7 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 	for i, d := range dockerfilecontents[1:] {
 		additionalNode, err := imagebuilder.ParseDockerfile(bytes.NewReader(d))
 		if err != nil {
+			dockerfiles := dockerfiles[1:]
 			return "", nil, fmt.Errorf("error parsing additional Dockerfile %s: %w", dockerfiles[i], err)
 		}
 		mainNode.Children = append(mainNode.Children, additionalNode.Children...)
@@ -682,6 +683,7 @@ func baseImages(dockerfilenames []string, dockerfilecontents [][]byte, from stri
 	for i, d := range dockerfilecontents[1:] {
 		additionalNode, err := imagebuilder.ParseDockerfile(bytes.NewReader(d))
 		if err != nil {
+			dockerfilenames := dockerfilenames[1:]
 			return nil, fmt.Errorf("error parsing additional Dockerfile %s: %w", dockerfilenames[i], err)
 		}
 		mainNode.Children = append(mainNode.Children, additionalNode.Children...)

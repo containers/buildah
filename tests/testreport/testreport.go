@@ -187,7 +187,7 @@ func getProcessOOMScoreAdjust(r *types.TestReport) error {
 	}
 	fields := strings.Fields(string(score))
 	if len(fields) != 1 {
-		return fmt.Errorf("badly formatted line %q in %q: %w", string(score), node, err)
+		return fmt.Errorf("badly formatted line %q in %q: expected to find only one field", string(score), node)
 	}
 	oom, err := strconv.Atoi(fields[0])
 	if err != nil {
@@ -274,7 +274,7 @@ func getLinuxIDMappings(r *types.TestReport) error {
 			line := scanner.Text()
 			fields := strings.Fields(line)
 			if len(fields) != 3 {
-				return nil, fmt.Errorf("badly formatted line %q in %q: %w", line, node, err)
+				return nil, fmt.Errorf("badly formatted line %q in %q: expected to find exactly three fields", line, node)
 			}
 			cid, err := strconv.ParseUint(fields[0], 10, 32)
 			if err != nil {

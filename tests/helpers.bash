@@ -322,8 +322,8 @@ function die() {
 # By default we do an exact-match comparison against $output, but there
 # are two different ways to invoke us, each with an optional description:
 #
-#      xpect               "EXPECT" [DESCRIPTION]
-#      xpect "RESULT" "OP" "EXPECT" [DESCRIPTION]
+#      assert               "EXPECT" [DESCRIPTION]
+#      assert "RESULT" "OP" "EXPECT" [DESCRIPTION]
 #
 # The first form (one or two arguments) does an exact-match comparison
 # of "$output" against "EXPECT". The second (three or four args) compares
@@ -332,8 +332,8 @@ function die() {
 #
 # Examples:
 #
-#   xpect "this is exactly what we expect"
-#   xpect "${lines[0]}" =~ "^abc"  "first line begins with abc"
+#   assert "this is exactly what we expect"
+#   assert "${lines[0]}" =~ "^abc"  "first line begins with abc"
 #
 function assert() {
     local actual_string="$output"
