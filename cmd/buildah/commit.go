@@ -178,9 +178,9 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	// no transport is specified.
 	if image != "" {
 		if dest, err = alltransports.ParseImageName(image); err != nil {
-			candidates, err := shortnames.ResolveLocally(systemContext, image)
-			if err != nil {
-				return err
+			candidates, err2 := shortnames.ResolveLocally(systemContext, image)
+			if err2 != nil {
+				return err2
 			}
 			if len(candidates) == 0 {
 				return fmt.Errorf("error parsing target image name %q", image)
