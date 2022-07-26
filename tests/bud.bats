@@ -3864,6 +3864,112 @@ _EOF
   run_buildah rmi myalpine
 }
 
+@test "build test pushing and pulling from remote cache sources" {
+  _prefetch alpine
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p ${mytmpdir}
+  echo something > ${mytmpdir}/somefile
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+RUN echo hello
+RUN echo world
+RUN touch hello
+ADD somefile somefile
+
+FROM alpine
+RUN echo hello
+COPY --from=0 hello hello
+_EOF
+
+  start_registry
+  run_buildah login --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --username testuser --password testpassword localhost:${REGISTRY_PORT}
+
+  # ------ Test case ------ #
+  # prepare expected output beforehand
+  # must push cache twice i.e for first step and second step
+  run printf "STEP 2/5: RUN echo hello\nhello\n--> Pushing cache"
+  step1=$output
+  run printf "STEP 3/5: RUN echo world\nworld\n--> Pushing cache"
+  step2=$output
+  run printf "STEP 4/5: RUN touch hello\n--> Pushing cache"
+  step3=$output
+  run printf "STEP 5/5: ADD somefile somefile\n--> Pushing cache"
+  step4=$output
+  # First run step in second stage should not be pushed since its already pushed
+  run printf "STEP 2/3: RUN echo hello\n--> Using cache"
+  step5=$output
+  # Last step is `COPY --from=0 hello hello' so it must be commited and pushed
+  # actual output is `[2/2] STEP 3/3: COPY --from=0 hello hello\n[2/2] COMMIT test\n-->Pushing cache`
+  # but lets match smaller suffix
+  run printf "COMMIT test\n--> Pushing cache"
+  step6=$output
+
+  # actually run build
+  run_buildah build $WITH_POLICY_JSON --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --layers --cache-to localhost:${REGISTRY_PORT}/temp -t test -f ${mytmpdir}/Containerfile ${mytmpdir}
+  expect_output --substring "$step1"
+  expect_output --substring "$step2"
+  expect_output --substring "$step3"
+  expect_output --substring "$step4"
+  expect_output --substring "$step5"
+  expect_output --substring "$step6"
+
+  # clean all cache and intermediate images
+  # to make sure that we are only using cache
+  # from remote repo and not the local storage.
+  run_buildah rmi --all -f
+
+  # ------ Test case ------ #
+  # expect cache to be pushed on remote stream
+  # now a build on clean slate must pull cache
+  # from remote instead of actually computing the
+  # run steps
+  run printf "STEP 2/5: RUN echo hello\n--> Cache pulled from remote"
+  step1=$output
+  run printf "STEP 3/5: RUN echo world\n--> Cache pulled from remote"
+  step2=$output
+  run printf "STEP 4/5: RUN touch hello\n--> Cache pulled from remote"
+  step3=$output
+  run printf "STEP 5/5: ADD somefile somefile\n--> Cache pulled from remote"
+  step4=$output
+  # First run step in second stage should not be pulled since its already pulled
+  run printf "STEP 2/3: RUN echo hello\n--> Using cache"
+  step5=$output
+  run printf "COPY --from=0 hello hello\n--> Cache pulled from remote"
+  step6=$output
+  run_buildah build $WITH_POLICY_JSON --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --layers --cache-from localhost:${REGISTRY_PORT}/temp --cache-to localhost:${REGISTRY_PORT}/temp -t test -f ${mytmpdir}/Containerfile ${mytmpdir}
+  expect_output --substring "$step1"
+  expect_output --substring "$step2"
+  expect_output --substring "$step3"
+  expect_output --substring "$step4"
+  expect_output --substring "$step5"
+  expect_output --substring "$step6"
+
+  # ------ Test case ------ #
+  # Try building again with --cache-from to make sure
+  # we don't pull image if we already have it in our
+  # local storage
+  run_buildah build $WITH_POLICY_JSON --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --layers --cache-from localhost:${REGISTRY_PORT}/temp -t test -f ${mytmpdir}/Containerfile ${mytmpdir}
+  # must use cache since we have cache in local storage
+  expect_output --substring "Using cache"
+  # should not pull cache if its already in local storage
+  assert "$output" !~ "Cache pulled"
+
+  # ------ Test case ------ #
+  # Build again with --cache-to and --cache-from
+  # Since intermediate images are already present
+  # on local storage so nothing must be pulled but
+  # intermediate must be pushed since buildah is not
+  # aware if they on remote repo or not.
+  run_buildah build $WITH_POLICY_JSON --tls-verify=false --authfile ${TEST_SCRATCH_DIR}/test.auth --layers --cache-from localhost:${REGISTRY_PORT}/temp --cache-to localhost:${REGISTRY_PORT}/temp -t test -f ${mytmpdir}/Containerfile ${mytmpdir}
+  # must use cache since we have cache in local storage
+  expect_output --substring "Using cache"
+  # must also push cache since nothing was pulled from remote repo
+  expect_output --substring "Pushing cache"
+  # should not pull cache if its already in local storage
+  assert "$output" !~ "Cache pulled"
+
+}
+
 @test "bud with undefined build arg directory" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
