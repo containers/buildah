@@ -1017,7 +1017,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			}
 			// Generate build output if needed.
 			if canGenerateBuildOutput {
-				if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+				if err := s.generateBuildOutput(buildOutputOption); err != nil {
 					return "", nil, err
 				}
 			}
@@ -1030,7 +1030,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			}
 			// Generate build output if needed.
 			if canGenerateBuildOutput {
-				if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+				if err := s.generateBuildOutput(buildOutputOption); err != nil {
 					return "", nil, err
 				}
 			}
@@ -1048,7 +1048,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			// but instead just re-tag image. For such use-cases if `-o` or `--output` was
 			// specified honor that and export the contents of the current build anyways.
 			if canGenerateBuildOutput {
-				if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+				if err := s.generateBuildOutput(buildOutputOption); err != nil {
 					return "", nil, err
 				}
 			}
@@ -1179,7 +1179,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 					logImageID(imgID)
 					// Generate build output if needed.
 					if canGenerateBuildOutput {
-						if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+						if err := s.generateBuildOutput(buildOutputOption); err != nil {
 							return "", nil, err
 						}
 					}
@@ -1354,7 +1354,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			}
 			// Generate build output if needed.
 			if canGenerateBuildOutput {
-				if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+				if err := s.generateBuildOutput(buildOutputOption); err != nil {
 					return "", nil, err
 				}
 			}
@@ -1388,7 +1388,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				}
 				// Generate build output if needed.
 				if canGenerateBuildOutput {
-					if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+					if err := s.generateBuildOutput(buildOutputOption); err != nil {
 						return "", nil, err
 					}
 				}
@@ -1403,7 +1403,7 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				// for us to perform `commit` anywhere in the code.
 				// Generate build output if needed.
 				if canGenerateBuildOutput {
-					if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+					if err := s.generateBuildOutput(buildOutputOption); err != nil {
 						return "", nil, err
 					}
 				}
@@ -2005,7 +2005,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	return imgID, ref, nil
 }
 
-func (s *StageExecutor) generateBuildOutput(commitOpts buildah.CommitOptions, buildOutputOpts define.BuildOutputOption) error {
+func (s *StageExecutor) generateBuildOutput(buildOutputOpts define.BuildOutputOption) error {
 	extractRootfsOpts := buildah.ExtractRootfsOptions{}
 	if unshare.IsRootless() {
 		// In order to maintain as much parity as possible
@@ -2020,7 +2020,7 @@ func (s *StageExecutor) generateBuildOutput(commitOpts buildah.CommitOptions, bu
 		extractRootfsOpts.StripSetgidBit = true
 		extractRootfsOpts.StripXattrs = true
 	}
-	rc, errChan, err := s.builder.ExtractRootfs(commitOpts, extractRootfsOpts)
+	rc, errChan, err := s.builder.ExtractRootfs(buildah.CommitOptions{}, extractRootfsOpts)
 	if err != nil {
 		return fmt.Errorf("failed to extract rootfs from given container image: %w", err)
 	}
