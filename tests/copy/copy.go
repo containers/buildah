@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -89,14 +90,14 @@ func main() {
 			}
 
 			if len(args) < 1 {
-				return fmt.Errorf("no source name provided: %w", err)
+				return errors.New("no source name provided")
 			}
 			src, err := alltransports.ParseImageName(args[0])
 			if err != nil {
 				return fmt.Errorf("error parsing source name: %w", err)
 			}
 			if len(args) < 1 {
-				return fmt.Errorf("no destination name provided: %w", err)
+				return errors.New("no destination name provided")
 			}
 			dest, err := alltransports.ParseImageName(args[1])
 			if err != nil {
