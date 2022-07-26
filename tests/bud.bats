@@ -5009,3 +5009,11 @@ _EOF
   echo checking:
   ! grep 'not fully killed' ${TEST_SCRATCH_DIR}/log
 }
+
+@test "build-multiple-parse" {
+  _prefetch alpine
+  echo 'FROM alpine' | tee ${TEST_SCRATCH_DIR}/Dockerfile1
+  echo '# escape=|\nFROM alpine' | tee ${TEST_SCRATCH_DIR}/Dockerfile2
+  run_buildah 125 build -f ${TEST_SCRATCH_DIR}/Dockerfile1 -f ${TEST_SCRATCH_DIR}/Dockerfile2 ${TEST_SCRATCH_DIR}
+  assert "$output" =~ "error parsing additional Dockerfile ${TEST_SCRATCH_DIR}/Dockerfile2"
+}
