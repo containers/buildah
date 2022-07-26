@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bufio"
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -1508,7 +1509,7 @@ func testEval(t *testing.T) {
 	for _, vector := range vectors {
 		t.Run(fmt.Sprintf("id=%s", vector.id), func(t *testing.T) {
 			err = os.Symlink(vector.linkTarget, linkname)
-			if err != nil && os.IsExist(err) {
+			if err != nil && errors.Is(err, os.ErrExist) {
 				os.Remove(linkname)
 				err = os.Symlink(vector.linkTarget, linkname)
 			}

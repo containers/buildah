@@ -3,6 +3,7 @@ package imagebuildah
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -126,7 +127,7 @@ func (s *StageExecutor) Preserve(path string) error {
 	}
 
 	st, err := os.Stat(archivedPath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		createdDirPerms := os.FileMode(0755)
 		if err = copier.Mkdir(s.mountPoint, archivedPath, copier.MkdirOptions{ChmodNew: &createdDirPerms}); err != nil {
 			return fmt.Errorf("error ensuring volume path exists: %w", err)
@@ -168,7 +169,7 @@ func (s *StageExecutor) Preserve(path string) error {
 		archivedPath := filepath.Join(s.mountPoint, cachedPath)
 		logrus.Debugf("no longer need cache of %q in %q", archivedPath, s.volumeCache[cachedPath])
 		if err := os.Remove(s.volumeCache[cachedPath]); err != nil {
-			if os.IsNotExist(err) {
+			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
 			return err
@@ -189,7 +190,7 @@ func (s *StageExecutor) volumeCacheInvalidate(path string) error {
 	}
 	for _, cachedPath := range invalidated {
 		if err := os.Remove(s.volumeCache[cachedPath]); err != nil {
-			if os.IsNotExist(err) {
+			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
 			return err
@@ -220,7 +221,7 @@ func (s *StageExecutor) volumeCacheSaveVFS() (mounts []specs.Mount, err error) {
 			logrus.Debugf("contents of volume %q are already cached in %q", archivedPath, cacheFile)
 			continue
 		}
-		if !os.IsNotExist(err) {
+		if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
 		createdDirPerms := os.FileMode(0755)

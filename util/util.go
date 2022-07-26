@@ -387,7 +387,7 @@ var (
 func fileExistsAndNotADir(path string) bool {
 	file, err := os.Stat(path)
 
-	if file == nil || err != nil || os.IsNotExist(err) {
+	if file == nil || err != nil || errors.Is(err, os.ErrNotExist) {
 		return false
 	}
 	return !file.IsDir()
