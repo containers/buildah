@@ -1377,18 +1377,35 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			}
 		}
 
-		// Create a squashed version of this image
-		// if we're supposed to create one and this
-		// is the last instruction of the last stage.
-		if s.executor.squash && lastInstruction && lastStage {
-			imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), !s.stepRequiresLayer(step), commitName, true)
-			if err != nil {
-				return "", nil, fmt.Errorf("error committing final squash step %+v: %w", *step, err)
-			}
-			// Generate build output if needed.
-			if canGenerateBuildOutput {
-				if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
-					return "", nil, err
+		if lastInstruction && lastStage {
+			if s.executor.squash {
+				// Create a squashed version of this image
+				// if we're supposed to create one and this
+				// is the last instruction of the last stage.
+				imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), !s.stepRequiresLayer(step), commitName, true)
+				if err != nil {
+					return "", nil, fmt.Errorf("error committing final squash step %+v: %w", *step, err)
+				}
+				// Generate build output if needed.
+				if canGenerateBuildOutput {
+					if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+						return "", nil, err
+					}
+				}
+			} else if cacheID != "" {
+				// If we found a valid cache hit and this is lastStage
+				// and not a squashed build then there is no opportunity
+				// for us to perform a `commit` later in the code since
+				// everything will be used from cache.
+				//
+				// If above statement is true and --output was provided
+				// then generate output manually since there is no opportunity
+				// for us to perform `commit` anywhere in the code.
+				// Generate build output if needed.
+				if canGenerateBuildOutput {
+					if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+						return "", nil, err
+					}
 				}
 			}
 		}

@@ -1195,6 +1195,50 @@ _EOF
   assert "$output" =~ "artifact"
 }
 
+@test "build with custom build output for multi-stage-cached and output rootfs to directory" {
+  _prefetch alpine
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p $mytmpdir
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine as builder
+RUN touch rogue
+
+FROM builder as intermediate
+RUN touch artifact
+
+FROM scratch as outputs
+COPY --from=intermediate artifact target
+_EOF
+  # Populate layers but don't generate --output
+  run_buildah build --layers $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
+  # Reuse cached layers and check if --output still works as expected
+  run_buildah build --output type=local,dest=$mytmpdir/rootfs $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
+  ls $mytmpdir/rootfs
+  # exported rootfs must contain only 'target' from last/final stage and not contain file `rouge` from first stage
+  expect_output --substring 'target'
+  # must not contain rouge from first stage
+  assert "$output" =~ "rogue"
+  # must not contain artifact from second stage
+  assert "$output" =~ "artifact"
+}
+
+@test "build with custom build output for single-stage-cached and output rootfs to directory" {
+  _prefetch alpine
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p $mytmpdir
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine as builder
+RUN touch rogue
+_EOF
+  # Populate layers but don't generate --output
+  run_buildah build --layers $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
+  # Reuse cached layers and check if --output still works as expected
+  run_buildah build --output type=local,dest=$mytmpdir/rootfs $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
+  ls $mytmpdir/rootfs
+  # exported rootfs must contain only 'rouge' even if build from cache.
+  expect_output --substring 'rogue'
+}
+
 @test "build with custom build output and output rootfs to tar" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
