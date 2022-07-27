@@ -66,7 +66,7 @@ meta_task:
     alias: meta
 
     container:
-        image: "quay.io/libpod/imgts:${IMAGE_SUFFIX}"  # see contrib/imgts
+        image: "quay.io/libpod/imgts:latest"
         cpu: 1
         memory: 1
 
