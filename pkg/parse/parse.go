@@ -245,11 +245,11 @@ func parseSecurityOpts(securityOpts []string, commonOpts *define.CommonBuildOpti
 		if _, err := os.Stat(SeccompOverridePath); err == nil {
 			commonOpts.SeccompProfilePath = SeccompOverridePath
 		} else {
-			if !os.IsNotExist(err) {
+			if !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
 			if _, err := os.Stat(SeccompDefaultPath); err != nil {
-				if !os.IsNotExist(err) {
+				if !errors.Is(err, os.ErrNotExist) {
 					return err
 				}
 			} else {
@@ -1072,11 +1072,11 @@ func ContainerIgnoreFile(contextDir, path string) ([]string, string, error) {
 	}
 	path = filepath.Join(contextDir, ".containerignore")
 	excludes, err := imagebuilder.ParseIgnore(path)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		path = filepath.Join(contextDir, ".dockerignore")
 		excludes, err = imagebuilder.ParseIgnore(path)
 	}
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return excludes, "", nil
 	}
 	return excludes, path, err

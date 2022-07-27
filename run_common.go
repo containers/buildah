@@ -1365,7 +1365,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 		// the volume contents.  If we do need to create it, then we'll
 		// need to populate it, too, so make a note of that.
 		if _, err := os.Stat(volumePath); err != nil {
-			if !os.IsNotExist(err) {
+			if !errors.Is(err, os.ErrNotExist) {
 				return nil, err
 			}
 			logrus.Debugf("setting up built-in volume path at %q for %q", volumePath, volume)
@@ -1391,7 +1391,7 @@ func runSetupBuiltinVolumes(mountLabel, mountPoint, containerDir string, builtin
 			return nil, fmt.Errorf("evaluating path %q: %w", srcPath, err)
 		}
 		stat, err := os.Stat(srcPath)
-		if err != nil && !os.IsNotExist(err) {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
 		// If we need to populate the mounted volume's contents with
@@ -1844,7 +1844,7 @@ func (b *Builder) cleanupRunMounts(context *imageTypes.SystemContext, mountpoint
 	var prevErr error
 	for _, path := range artifacts.TmpFiles {
 		err := os.Remove(path)
-		if !os.IsNotExist(err) {
+		if !errors.Is(err, os.ErrNotExist) {
 			if prevErr != nil {
 				logrus.Error(prevErr)
 			}

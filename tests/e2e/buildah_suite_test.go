@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -69,7 +70,7 @@ var _ = BeforeSuite(func() {
 	integrationRoot = filepath.Join(cwd, "../../")
 	buildah := BuildahCreate("/tmp")
 	buildah.ArtifactPath = artifactDir
-	if _, err := os.Stat(artifactDir); os.IsNotExist(err) {
+	if _, err := os.Stat(artifactDir); errors.Is(err, os.ErrNotExist) {
 		if err = os.Mkdir(artifactDir, 0777); err != nil {
 			fmt.Printf("%q\n", err)
 			os.Exit(1)

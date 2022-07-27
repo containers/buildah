@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net"
@@ -16,7 +17,7 @@ func sendThatFile(basepath string) func(w http.ResponseWriter, r *http.Request) 
 		filename := filepath.Join(basepath, filepath.Clean(string([]rune{filepath.Separator})+r.URL.Path))
 		f, err := os.Open(filename)
 		if err != nil {
-			if os.IsNotExist(err) {
+			if errors.Is(err, os.ErrNotExist) {
 				http.NotFound(w, r)
 				return
 			}
