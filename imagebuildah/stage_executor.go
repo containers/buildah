@@ -994,6 +994,17 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 		}
 	}
 
+	// Parse and populate buildOutputOption if needed
+	var buildOutputOption define.BuildOutputOption
+	canGenerateBuildOutput := (s.executor.buildOutput != "" && lastStage)
+	if canGenerateBuildOutput {
+		logrus.Debugf("Generating custom build output with options %q", s.executor.buildOutput)
+		buildOutputOption, err = parse.GetBuildOutput(s.executor.buildOutput)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to parse build output: %w", err)
+		}
+	}
+
 	if len(children) == 0 {
 		// There are no steps.
 		if s.builder.FromImageID == "" || s.executor.squash {
@@ -1004,12 +1015,24 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			if imgID, ref, err = s.commit(ctx, s.getCreatedBy(nil, ""), false, s.output, s.executor.squash); err != nil {
 				return "", nil, fmt.Errorf("error committing base container: %w", err)
 			}
+			// Generate build output if needed.
+			if canGenerateBuildOutput {
+				if err := s.generateBuildOutput(buildOutputOption); err != nil {
+					return "", nil, err
+				}
+			}
 		} else if len(s.executor.labels) > 0 || len(s.executor.annotations) > 0 {
 			// The image would be modified by the labels passed
 			// via the command line, so we need to commit.
 			logCommit(s.output, -1)
 			if imgID, ref, err = s.commit(ctx, s.getCreatedBy(stage.Node, ""), true, s.output, s.executor.squash); err != nil {
 				return "", nil, err
+			}
+			// Generate build output if needed.
+			if canGenerateBuildOutput {
+				if err := s.generateBuildOutput(buildOutputOption); err != nil {
+					return "", nil, err
+				}
 			}
 		} else {
 			// We don't need to squash the base image, and the
@@ -1019,22 +1042,16 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			if imgID, ref, err = s.tagExistingImage(ctx, s.builder.FromImageID, s.output); err != nil {
 				return "", nil, err
 			}
-			if s.executor.buildOutput != "" && lastStage {
-				// If we have reached this point then our build is just performing a tag
-				// and it contains no steps or instructions (i.e Containerfile only contains
-				// `FROM <imagename> and nothing else so we will never end up committing this
-				// but instead just re-tag image. For such use-cases if `-o` or `--output` was
-				// specified honor that and export the contents of the current build anyways.
-				logrus.Debugf("Generating custom build output with options %q", s.executor.buildOutput)
-				buildOutputOption, err := parse.GetBuildOutput(s.executor.buildOutput)
-				if err != nil {
-					return "", nil, fmt.Errorf("failed to parse build output: %w", err)
-				}
-				if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
+			// If we have reached this point then our build is just performing a tag
+			// and it contains no steps or instructions (i.e Containerfile only contains
+			// `FROM <imagename> and nothing else so we will never end up committing this
+			// but instead just re-tag image. For such use-cases if `-o` or `--output` was
+			// specified honor that and export the contents of the current build anyways.
+			if canGenerateBuildOutput {
+				if err := s.generateBuildOutput(buildOutputOption); err != nil {
 					return "", nil, err
 				}
 			}
-
 		}
 		logImageID(imgID)
 	}
@@ -1160,6 +1177,12 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 						return "", nil, fmt.Errorf("error committing container for step %+v: %w", *step, err)
 					}
 					logImageID(imgID)
+					// Generate build output if needed.
+					if canGenerateBuildOutput {
+						if err := s.generateBuildOutput(buildOutputOption); err != nil {
+							return "", nil, err
+						}
+					}
 				} else {
 					imgID = ""
 				}
@@ -1329,6 +1352,12 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			if err != nil {
 				return "", nil, fmt.Errorf("error committing container for step %+v: %w", *step, err)
 			}
+			// Generate build output if needed.
+			if canGenerateBuildOutput {
+				if err := s.generateBuildOutput(buildOutputOption); err != nil {
+					return "", nil, err
+				}
+			}
 		}
 
 		// Following step is just built and was not used from
@@ -1348,13 +1377,36 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 			}
 		}
 
-		// Create a squashed version of this image
-		// if we're supposed to create one and this
-		// is the last instruction of the last stage.
-		if s.executor.squash && lastInstruction && lastStage {
-			imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), !s.stepRequiresLayer(step), commitName, true)
-			if err != nil {
-				return "", nil, fmt.Errorf("error committing final squash step %+v: %w", *step, err)
+		if lastInstruction && lastStage {
+			if s.executor.squash {
+				// Create a squashed version of this image
+				// if we're supposed to create one and this
+				// is the last instruction of the last stage.
+				imgID, ref, err = s.commit(ctx, s.getCreatedBy(node, addedContentSummary), !s.stepRequiresLayer(step), commitName, true)
+				if err != nil {
+					return "", nil, fmt.Errorf("error committing final squash step %+v: %w", *step, err)
+				}
+				// Generate build output if needed.
+				if canGenerateBuildOutput {
+					if err := s.generateBuildOutput(buildOutputOption); err != nil {
+						return "", nil, err
+					}
+				}
+			} else if cacheID != "" {
+				// If we found a valid cache hit and this is lastStage
+				// and not a squashed build then there is no opportunity
+				// for us to perform a `commit` later in the code since
+				// everything will be used from cache.
+				//
+				// If above statement is true and --output was provided
+				// then generate output manually since there is no opportunity
+				// for us to perform `commit` anywhere in the code.
+				// Generate build output if needed.
+				if canGenerateBuildOutput {
+					if err := s.generateBuildOutput(buildOutputOption); err != nil {
+						return "", nil, err
+					}
+				}
 			}
 		}
 
@@ -1798,15 +1850,6 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 // or commit via any custom exporter if specified.
 func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer bool, output string, squash bool) (string, reference.Canonical, error) {
 	ib := s.stage.Builder
-	var buildOutputOption define.BuildOutputOption
-	if s.executor.buildOutput != "" {
-		var err error
-		logrus.Debugf("Generating custom build output with options %q", s.executor.buildOutput)
-		buildOutputOption, err = parse.GetBuildOutput(s.executor.buildOutput)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to parse build output: %w", err)
-		}
-	}
 	var imageRef types.ImageReference
 	if output != "" {
 		imageRef2, err := s.executor.resolveNameToImageRef(output)
@@ -1947,12 +1990,6 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		HistoryTimestamp:      s.executor.timestamp,
 		Manifest:              s.executor.manifest,
 	}
-	// generate build output
-	if s.executor.buildOutput != "" {
-		if err := s.generateBuildOutput(buildah.CommitOptions{}, buildOutputOption); err != nil {
-			return "", nil, err
-		}
-	}
 	imgID, _, manifestDigest, err := s.builder.Commit(ctx, imageRef, options)
 	if err != nil {
 		return "", nil, err
@@ -1968,7 +2005,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 	return imgID, ref, nil
 }
 
-func (s *StageExecutor) generateBuildOutput(commitOpts buildah.CommitOptions, buildOutputOpts define.BuildOutputOption) error {
+func (s *StageExecutor) generateBuildOutput(buildOutputOpts define.BuildOutputOption) error {
 	extractRootfsOpts := buildah.ExtractRootfsOptions{}
 	if unshare.IsRootless() {
 		// In order to maintain as much parity as possible
@@ -1983,7 +2020,7 @@ func (s *StageExecutor) generateBuildOutput(commitOpts buildah.CommitOptions, bu
 		extractRootfsOpts.StripSetgidBit = true
 		extractRootfsOpts.StripXattrs = true
 	}
-	rc, errChan, err := s.builder.ExtractRootfs(commitOpts, extractRootfsOpts)
+	rc, errChan, err := s.builder.ExtractRootfs(buildah.CommitOptions{}, extractRootfsOpts)
 	if err != nil {
 		return fmt.Errorf("failed to extract rootfs from given container image: %w", err)
 	}
