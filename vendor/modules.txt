@@ -84,7 +84,7 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.1.1
 ## explicit; go 1.17
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.49.1-0.20220729170140-87fab4b7019a
+# github.com/containers/common v0.49.1
 ## explicit; go 1.17
 github.com/containers/common/libimage
 github.com/containers/common/libimage/define

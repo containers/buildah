@@ -447,14 +447,17 @@ func (m *ManifestList) Push(ctx context.Context, destination string, options *Ma
 	defer copier.close()
 
 	pushOptions := manifests.PushOptions{
-		Store:              m.image.runtime.store,
-		SystemContext:      copier.systemContext,
-		ImageListSelection: options.ImageListSelection,
-		Instances:          options.Instances,
-		ReportWriter:       options.Writer,
-		SignBy:             options.SignBy,
-		RemoveSignatures:   options.RemoveSignatures,
-		ManifestType:       options.ManifestMIMEType,
+		Store:                            m.image.runtime.store,
+		SystemContext:                    copier.systemContext,
+		ImageListSelection:               options.ImageListSelection,
+		Instances:                        options.Instances,
+		ReportWriter:                     options.Writer,
+		SignBy:                           options.SignBy,
+		SignPassphrase:                   options.SignPassphrase,
+		SignBySigstorePrivateKeyFile:     options.SignBySigstorePrivateKeyFile,
+		SignSigstorePrivateKeyPassphrase: options.SignSigstorePrivateKeyPassphrase,
+		RemoveSignatures:                 options.RemoveSignatures,
+		ManifestType:                     options.ManifestMIMEType,
 	}
 
 	_, d, err := m.list.Push(ctx, dest, pushOptions)
