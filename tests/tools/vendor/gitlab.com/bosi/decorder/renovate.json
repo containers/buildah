@@ -21,6 +21,9 @@
     "updateLockFiles": true,
     "docker": {
         "pinDigests": true
-    }
+    },
+    "postUpdateOptions": [
+        "gomodTidy"
+    ]
 }
 

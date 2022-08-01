@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/Masterminds/semver"
@@ -30,6 +31,11 @@ var (
 		"blocked modules list."
 	blockReasonHasLocalReplaceDirective = "import of package `%s` is blocked because the module has a " +
 		"local replace directive."
+
+	// startsWithVersion is used to test when a string begins with the version identifier of a module,
+	// after having stripped the prefix base module name. IE "github.com/foo/bar/v2/baz" => "/v2/baz"
+	// probably indicates that the module is actually github.com/foo/bar/v2, not github.com/foo/bar.
+	startsWithVersion = regexp.MustCompile(`^\/v[0-9]+`)
 )
 
 // BlockedVersion has a version constraint a reason why the the module version is blocked.
@@ -438,6 +444,13 @@ func (p *Processor) SetBlockedModules() { //nolint:gocognit,funlen
 func (p *Processor) isBlockedPackageFromModFile(packageName string) []string {
 	for blockedModuleName, blockReasons := range p.blockedModulesFromModFile {
 		if strings.HasPrefix(strings.TrimSpace(packageName), strings.TrimSpace(blockedModuleName)) {
+			// Test if a versioned module matched its base version
+			// ie github.com/foo/bar/v2 matched github.com/foo/bar, even though the former may be allowed.
+			suffix := strings.TrimPrefix(strings.TrimSpace(packageName), strings.TrimSpace(blockedModuleName))
+			if startsWithVersion.MatchString(suffix) {
+				continue
+			}
+
 			formattedReasons := make([]string, 0, len(blockReasons))
 
 			for _, blockReason := range blockReasons {

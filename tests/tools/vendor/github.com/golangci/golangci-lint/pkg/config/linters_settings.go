@@ -7,6 +7,9 @@ import (
 )
 
 var defaultLintersSettings = LintersSettings{
+	Asasalint: AsasalintSettings{
+		UseBuiltinExclusions: true,
+	},
 	Decorder: DecorderSettings{
 		DecOrder:                  []string{"type", "const", "var", "func"},
 		DisableDecNumCheck:        true,
@@ -31,8 +34,8 @@ var defaultLintersSettings = LintersSettings{
 		ExcludeGodocExamples: true,
 	},
 	Gci: GciSettings{
-		Sections:         []string{"standard", "default"},
-		SectionSeparator: []string{"newline"},
+		Sections:      []string{"standard", "default"},
+		SkipGenerated: true,
 	},
 	Gocognit: GocognitSettings{
 		MinComplexity: 30,
@@ -88,7 +91,8 @@ var defaultLintersSettings = LintersSettings{
 		Qualified: false,
 	},
 	Testpackage: TestpackageSettings{
-		SkipRegexp: `(export|internal)_test\.go`,
+		SkipRegexp:    `(export|internal)_test\.go`,
+		AllowPackages: []string{"main"},
 	},
 	Unparam: UnparamSettings{
 		Algo: "cha",
@@ -112,6 +116,7 @@ var defaultLintersSettings = LintersSettings{
 }
 
 type LintersSettings struct {
+	Asasalint        AsasalintSettings
 	BiDiChk          BiDiChkSettings
 	Cyclop           Cyclop
 	Decorder         DecorderSettings
@@ -158,6 +163,8 @@ type LintersSettings struct {
 	NilNil           NilNilSettings
 	Nlreturn         NlreturnSettings
 	NoLintLint       NoLintLintSettings
+	NoNamedReturns   NoNamedReturnsSettings
+	ParallelTest     ParallelTestSettings
 	Prealloc         PreallocSettings
 	Predeclared      PredeclaredSettings
 	Promlinter       PromlinterSettings
@@ -179,6 +186,12 @@ type LintersSettings struct {
 	WSL              WSLSettings
 
 	Custom map[string]CustomLinterSettings
+}
+
+type AsasalintSettings struct {
+	Exclude              []string `mapstructure:"exclude"`
+	UseBuiltinExclusions bool     `mapstructure:"use-builtin-exclusions"`
+	IgnoreTest           bool     `mapstructure:"ignore-test"`
 }
 
 type BiDiChkSettings struct {
@@ -272,11 +285,9 @@ type FunlenSettings struct {
 }
 
 type GciSettings struct {
-	LocalPrefixes    string   `mapstructure:"local-prefixes"` // Deprecated
-	NoInlineComments bool     `mapstructure:"no-inline-comments"`
-	NoPrefixComments bool     `mapstructure:"no-prefix-comments"`
-	Sections         []string `mapstructure:"sections"`
-	SectionSeparator []string `mapstructure:"section-separators"`
+	LocalPrefixes string   `mapstructure:"local-prefixes"` // Deprecated
+	Sections      []string `mapstructure:"sections"`
+	SkipGenerated bool     `mapstructure:"skip-generated"`
 }
 
 type GocognitSettings struct {
@@ -317,9 +328,11 @@ type GoFmtSettings struct {
 }
 
 type GofumptSettings struct {
+	ModulePath string `mapstructure:"module-path"`
+	ExtraRules bool   `mapstructure:"extra-rules"`
+
+	// Deprecated: use the global `run.go` instead.
 	LangVersion string `mapstructure:"lang-version"`
-	ModulePath  string `mapstructure:"module-path"`
-	ExtraRules  bool   `mapstructure:"extra-rules"`
 }
 
 type GoHeaderSettings struct {
@@ -481,6 +494,13 @@ type NoLintLintSettings struct {
 	AllowUnused        bool     `mapstructure:"allow-unused"`
 }
 
+type NoNamedReturnsSettings struct {
+	ReportErrorInDefer bool `mapstructure:"report-error-in-defer"`
+}
+type ParallelTestSettings struct {
+	IgnoreMissing bool `mapstructure:"ignore-missing"`
+}
+
 type PreallocSettings struct {
 	Simple     bool
 	RangeLoops bool `mapstructure:"range-loops"`
@@ -522,6 +542,7 @@ type RowsErrCheckSettings struct {
 }
 
 type StaticCheckSettings struct {
+	// Deprecated: use the global `run.go` instead.
 	GoVersion string `mapstructure:"go"`
 
 	Checks                  []string `mapstructure:"checks"`
@@ -546,7 +567,8 @@ type TagliatelleSettings struct {
 }
 
 type TestpackageSettings struct {
-	SkipRegexp string `mapstructure:"skip-regexp"`
+	SkipRegexp    string   `mapstructure:"skip-regexp"`
+	AllowPackages []string `mapstructure:"allow-packages"`
 }
 
 type ThelperSettings struct {
@@ -617,12 +639,12 @@ type WSLSettings struct {
 // CustomLinterSettings encapsulates the meta-data of a private linter.
 // For example, a private linter may be added to the golangci config file as shown below.
 //
-// linters-settings:
-//  custom:
-//    example:
-//      path: /example.so
-//      description: The description of the linter
-//      original-url: github.com/golangci/example-linter
+//	linters-settings:
+//	 custom:
+//	   example:
+//	     path: /example.so
+//	     description: The description of the linter
+//	     original-url: github.com/golangci/example-linter
 type CustomLinterSettings struct {
 	// Path to a plugin *.so file that implements the private linter.
 	Path string

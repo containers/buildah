@@ -8,10 +8,10 @@ import (
 )
 
 func isMethodError(f *ast.FuncDecl) (typeName string, ok bool) {
-	if f.Recv == nil {
+	if f.Recv == nil || len(f.Recv.List) != 1 {
 		return "", false
 	}
-	if f.Name.Name != "Error" {
+	if f.Name == nil || f.Name.Name != "Error" {
 		return "", false
 	}
 
@@ -26,13 +26,24 @@ func isMethodError(f *ast.FuncDecl) (typeName string, ok bool) {
 
 	var receiverType string
 
-	switch rt := f.Recv.List[0].Type.(type) {
-	case *ast.Ident:
-		receiverType = rt.Name
-	case *ast.StarExpr:
-		if i, ok := rt.X.(*ast.Ident); ok {
-			receiverType = i.Name
+	unwrapIdentName := func(e ast.Expr) string {
+		switch v := e.(type) {
+		case *ast.Ident:
+			return v.Name
+		case *ast.IndexExpr:
+			if i, ok := v.X.(*ast.Ident); ok {
+				return i.Name
+			}
 		}
+		return ""
+	}
+
+	switch rt := f.Recv.List[0].Type; v := rt.(type) {
+	case *ast.Ident, *ast.IndexExpr: // SomeError, SomeError[T]
+		receiverType = unwrapIdentName(rt)
+
+	case *ast.StarExpr: // *SomeError, *SomeError[T]
+		receiverType = unwrapIdentName(v.X)
 	}
 
 	return receiverType, returnType.Name == "string"
@@ -100,7 +111,7 @@ var knownErrConstructors = stringSet{
 	"errors.NewAssertionErrorWithWrappedErrf": {},
 }
 
-func isSentinelError( //nolint:gocognit
+func isSentinelError( //nolint:gocognit,gocyclo
 	v *ast.ValueSpec,
 	pkgAliases map[string]string,
 	allTypes, errorTypes, errorFuncs stringSet,
@@ -151,6 +162,7 @@ func isSentinelError( //nolint:gocognit
 		// var ErrEndOfFile = newErrEndOfFile()
 		// var ErrEndOfFile = new(EndOfFileError)
 		// const ErrEndOfFile = constError("end of file")
+		// var statusCodeError = new(SomePtrError[string])
 		case *ast.Ident:
 			if isErrorType(fun.Name, allTypes, errorTypes) {
 				return varName, true
@@ -161,8 +173,13 @@ func isSentinelError( //nolint:gocognit
 			}
 
 			if fun.Name == "new" && len(vv.Args) == 1 {
-				if i, ok := vv.Args[0].(*ast.Ident); ok {
+				switch i := vv.Args[0].(type) {
+				case *ast.Ident:
 					return varName, isErrorType(i.Name, allTypes, errorTypes)
+				case *ast.IndexExpr:
+					if ii, ok := i.X.(*ast.Ident); ok {
+						return varName, isErrorType(ii.Name, allTypes, errorTypes)
+					}
 				}
 			}
 
@@ -172,19 +189,31 @@ func isSentinelError( //nolint:gocognit
 		}
 
 	// var ErrEndOfFile = &EndOfFileError{}
+	// var ErrOK = &SomePtrError[string]{Code: "200 OK"}
 	case *ast.UnaryExpr:
 		if vv.Op == token.AND { // &
 			if lit, ok := vv.X.(*ast.CompositeLit); ok {
-				if i, ok := lit.Type.(*ast.Ident); ok {
+				switch i := lit.Type.(type) {
+				case *ast.Ident:
 					return varName, isErrorType(i.Name, allTypes, errorTypes)
+				case *ast.IndexExpr:
+					if ii, ok := i.X.(*ast.Ident); ok {
+						return varName, isErrorType(ii.Name, allTypes, errorTypes)
+					}
 				}
 			}
 		}
 
 	// var ErrEndOfFile = EndOfFileError{}
+	// var ErrNotFound = SomeError[string]{Code: "Not Found"}
 	case *ast.CompositeLit:
-		if i, ok := vv.Type.(*ast.Ident); ok {
+		switch i := vv.Type.(type) {
+		case *ast.Ident:
 			return varName, isErrorType(i.Name, allTypes, errorTypes)
+		case *ast.IndexExpr:
+			if ii, ok := i.X.(*ast.Ident); ok {
+				return varName, isErrorType(ii.Name, allTypes, errorTypes)
+			}
 		}
 	}
 

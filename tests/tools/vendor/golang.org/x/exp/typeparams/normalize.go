@@ -21,28 +21,28 @@ var ErrEmptyTypeSet = errors.New("empty type set")
 // NormalTerms returns a slice of terms representing the normalized structural
 // type restrictions of a type, if any.
 //
-// For all types other than *types.TypeParam, *types.Interface, and
-// *types.Union, this is just a single term with Tilde() == false and
-// Type() == typ. For *types.TypeParam, *types.Interface, and *types.Union, see
-// below.
+// For all types whose underlying type is not *types.TypeParam,
+// *types.Interface, or *types.Union, this is just a single term with Tilde()
+// == false and Type() == typ. For types whose underlying type is
+// *types.TypeParam, *types.Interface, and *types.Union, see below.
 //
 // Structural type restrictions of a type parameter are created via
 // non-interface types embedded in its constraint interface (directly, or via a
-// chain of interface embeddings). For example, in the declaration type
-// T[P interface{~int; m()}] int the structural restriction of the type
+// chain of interface embeddings). For example, in the declaration type T[P
+// interface{~int; m()}] int is the structural restriction of the type
 // parameter P is ~int.
 //
 // With interface embedding and unions, the specification of structural type
 // restrictions may be arbitrarily complex. For example, consider the
 // following:
 //
-//  type A interface{ ~string|~[]byte }
+//	type A interface{ ~string|~[]byte }
 //
-//  type B interface{ int|string }
+//	type B interface{ int|string }
 //
-//  type C interface { ~string|~int }
+//	type C interface { ~string|~int }
 //
-//  type T[P interface{ A|B; C }] int
+//	type T[P interface{ A|B; C }] int
 //
 // In this example, the structural type restriction of P is ~string|int: A|B
 // expands to ~string|~[]byte|int|string, which reduces to ~string|~[]byte|int,

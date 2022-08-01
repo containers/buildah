@@ -33,7 +33,7 @@ clean:
 	rm -rf dist/
 	rm -f gomodguard coverage.xml coverage.out
 
-.PHONY: install-tools-mac
+.PHONY: install-mac-tools
 install-tools-mac:
 	brew install goreleaser/tap/goreleaser
 

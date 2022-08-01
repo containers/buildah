@@ -75,7 +75,7 @@ func runInitFuncFirstCheck(pass *analysis.Pass) func(ast.Node) bool {
 			return true
 		}
 
-		if dec.Name.Name == "init" {
+		if dec.Name.Name == "init" && dec.Recv == nil {
 			if nonInitFound {
 				pass.Reportf(dec.Pos(), "init func must be the first function in file")
 			}
@@ -89,6 +89,12 @@ func runInitFuncFirstCheck(pass *analysis.Pass) func(ast.Node) bool {
 
 func runDeclNumAndDecOrderCheck(pass *analysis.Pass) func(ast.Node) bool {
 	dnc := newDecNumChecker()
+
+	if disableDecNumCheck && disableDecOrderCheck {
+		return func(n ast.Node) bool {
+			return true
+		}
+	}
 
 	return func(n ast.Node) bool {
 		fd, ok := n.(*ast.FuncDecl)
@@ -105,9 +111,7 @@ func runDeclNumAndDecOrderCheck(pass *analysis.Pass) func(ast.Node) bool {
 			return true
 		}
 
-		if !disableDecNumCheck {
-			dnc.handleDecNumCheck(gd, pass)
-		}
+		dnc.handleGenDecl(gd, pass)
 
 		if !disableDecOrderCheck {
 			dnc.handleDecOrderCheck(gd, pass)
@@ -152,12 +156,12 @@ func (dnc decNumChecker) isToLate(t token.Token) (string, bool) {
 	return "", true
 }
 
-func (dnc *decNumChecker) handleDecNumCheck(gd *ast.GenDecl, pass *analysis.Pass) {
+func (dnc *decNumChecker) handleGenDecl(gd *ast.GenDecl, pass *analysis.Pass) {
 	for _, t := range tokens {
 		if gd.Tok == t {
 			dnc.tokenCounts[t]++
 
-			if dnc.tokenCounts[t] > 1 {
+			if !disableDecNumCheck && dnc.tokenCounts[t] > 1 {
 				pass.Reportf(gd.Pos(), "multiple \"%s\" declarations are not allowed; use parentheses instead", t.String())
 			}
 		}

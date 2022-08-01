@@ -13,7 +13,8 @@ import (
 	"strings"
 
 	"honnef.co/go/tools/analysis/code"
-	"honnef.co/go/tools/analysis/facts"
+	"honnef.co/go/tools/analysis/facts/directives"
+	"honnef.co/go/tools/analysis/facts/generated"
 	"honnef.co/go/tools/analysis/lint"
 	"honnef.co/go/tools/analysis/report"
 	"honnef.co/go/tools/go/ast/astutil"
@@ -432,7 +433,7 @@ var Analyzer = &lint.Analyzer{
 		Name:       "U1000",
 		Doc:        "Unused code",
 		Run:        run,
-		Requires:   []*analysis.Analyzer{buildir.Analyzer, facts.Generated, facts.Directives},
+		Requires:   []*analysis.Analyzer{buildir.Analyzer, generated.Analyzer, directives.Analyzer},
 		ResultType: reflect.TypeOf(Result{}),
 	},
 }
@@ -520,7 +521,7 @@ func debugf(f string, v ...interface{}) {
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	irpkg := pass.ResultOf[buildir.Analyzer].(*buildir.IR)
-	dirs := pass.ResultOf[facts.Directives].([]lint.Directive)
+	dirs := pass.ResultOf[directives.Analyzer].([]lint.Directive)
 	pkg := &pkg{
 		Fset:       pass.Fset,
 		Files:      pass.Files,

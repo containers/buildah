@@ -122,7 +122,7 @@ func NewHardcodedCredentials(id string, conf gosec.Config) (gosec.Rule, []ast.No
 	perCharThreshold := 3.0
 	ignoreEntropy := false
 	truncateString := 16
-	if val, ok := conf["G101"]; ok {
+	if val, ok := conf[id]; ok {
 		conf := val.(map[string]interface{})
 		if configPattern, ok := conf["pattern"]; ok {
 			if cfgPattern, ok := configPattern.(string); ok {

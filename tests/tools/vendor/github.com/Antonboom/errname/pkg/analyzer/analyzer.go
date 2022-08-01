@@ -98,7 +98,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		ast.Inspect(f, inspectPkgLevelVarsOnly)
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func reportAboutErrorType(pass *analysis.Pass, typePos token.Pos, typeName string, isArrayType bool) {
