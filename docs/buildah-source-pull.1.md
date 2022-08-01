@@ -23,7 +23,7 @@ value can be entered.  The password is entered without echo.
 
 **--quiet**, **-q**
 
-Suppress the progress output when pushing a source image.
+Suppress the progress output when pulling a source image.
 
 **--tls-verify** *bool-value*
 
