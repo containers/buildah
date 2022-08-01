@@ -7,7 +7,6 @@ linters-settings:
     severity: warning
     rules:
       - name: atomic
-      # - name: bare-return
       - name: blank-imports
       - name: bool-literal-in-expr
       - name: call-to-gc
@@ -28,7 +27,6 @@ linters-settings:
       - name: error-strings
       - name: errorf
       - name: exported
-      # - name: flag-parameter
       - name: get-return
       - name: identical-branches
       - name: if-return
@@ -50,11 +48,9 @@ linters-settings:
       - name: unconditional-recursion
       - name: unexported-naming
       - name: unexported-return
-      # - name: unhandled-error
       - name: unnecessary-stmt
       - name: unreachable-code
       - name: unused-parameter
-      # - name: unused-receiver
       - name: var-declaration
       - name: var-naming
       - name: waitgroup-by-value
@@ -64,7 +60,6 @@ linters:
   enable:
     - asciicheck
     - bodyclose
-    # - cyclop
     - deadcode
     - dogsled
     - dupl
@@ -72,13 +67,9 @@ linters:
     - errcheck
     - errorlint
     - exhaustive
-    # - exhaustivestruct
     - exportloopref
-    # - forbidigo
     - forcetypeassert
     - funlen
-    # - gci
-    # - gochecknoglobals
     - gochecknoinits
     - gocognit
     - goconst
@@ -86,16 +77,13 @@ linters:
     - gocyclo
     - godot
     - godox
-    - goerr113
     - goimports
-    - gomnd
     - gomoddirectives
     - gomodguard
     - goprintffuncname
     - gosec
     - gosimple
     - govet
-    # - ifshort
     - importas
     - ineffassign
     - lll
@@ -104,20 +92,16 @@ linters:
     - nakedret
     - nestif
     - nilerr
-    # - nlreturn
     - noctx
     - nolintlint
-    # - paralleltest
     - prealloc
     - predeclared
-    # - promlinter
     - revive
     - rowserrcheck
     - sqlclosecheck
     - staticcheck
     - structcheck
     - stylecheck
-    # - tagliatelle
     - testpackage
     - thelper
     - tparallel
@@ -126,7 +110,5 @@ linters:
     - unparam
     - unused
     - varcheck
-    # - wastedassign
     - whitespace
-    # - wrapcheck
     - wsl

@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/exp/typeparams"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
@@ -44,7 +45,7 @@ func UnusedParams(tests, exported, debug bool, args ...string) ([]string, error)
 	return c.lines(args...)
 }
 
-// Checker finds unused parameterss in a program. You probably want to use
+// Checker finds unused parameters in a program. You probably want to use
 // UnusedParams instead, unless you want to use a *loader.Program and
 // *ssa.Program directly.
 type Checker struct {
@@ -877,8 +878,23 @@ func recvPrefix(recv *ast.FieldList) string {
 		}
 		expr = star.X
 	}
-	id := expr.(*ast.Ident)
-	return id.Name + "."
+	switch expr := expr.(type) {
+	case *ast.Ident:
+		return expr.Name + "."
+	default:
+		x, _, _, _ := typeparams.UnpackIndexExpr(expr)
+		if x == nil {
+			panic(fmt.Sprintf("unexepected receiver AST node: %T", expr))
+		}
+		return x.(*ast.Ident).Name + "."
+		// TODO: remove the use of x/exp/typeparams once we drop Go 1.17
+		// case *ast.IndexExpr:
+		// 	return expr.X.(*ast.Ident).Name + "."
+		// case *ast.IndexListExpr:
+		// 	return expr.X.(*ast.Ident).Name + "."
+		// default:
+		// 	panic(fmt.Sprintf("unexepected receiver AST node: %T", expr))
+	}
 }
 
 // multipleImpls reports whether a function has multiple implementations in the

@@ -47,7 +47,7 @@ func (c CallList) Add(selector, ident string) {
 }
 
 // Contains returns true if the package and function are
-/// members of this call list.
+// members of this call list.
 func (c CallList) Contains(selector, ident string) bool {
 	if idents, ok := c[selector]; ok {
 		_, found := idents[ident]
@@ -77,17 +77,26 @@ func (c CallList) ContainsPkgCallExpr(n ast.Node, ctx *Context, stripVendor bool
 		return nil
 	}
 
-	// Use only explicit path (optionally strip vendor path prefix) to reduce conflicts
-	path, ok := GetImportPath(selector, ctx)
-	if !ok {
-		return nil
+	// Selector can have two forms:
+	// 1. A short name if a module function is called (expr.Name).
+	// E.g., "big" if called function from math/big.
+	// 2. A full name if a structure function is called (TypeOf(expr)).
+	// E.g., "math/big.Rat" if called function of Rat structure from math/big.
+	if !strings.ContainsRune(selector, '.') {
+		// Use only explicit path (optionally strip vendor path prefix) to reduce conflicts
+		path, ok := GetImportPath(selector, ctx)
+		if !ok {
+			return nil
+		}
+		selector = path
 	}
+
 	if stripVendor {
-		if vendorIdx := strings.Index(path, vendorPath); vendorIdx >= 0 {
-			path = path[vendorIdx+len(vendorPath):]
+		if vendorIdx := strings.Index(selector, vendorPath); vendorIdx >= 0 {
+			selector = selector[vendorIdx+len(vendorPath):]
 		}
 	}
-	if !c.Contains(path, ident) {
+	if !c.Contains(selector, ident) {
 		return nil
 	}
 

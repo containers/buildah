@@ -449,3 +449,12 @@ func RootPath(root string) (string, error) {
 	root = strings.TrimSuffix(root, "...")
 	return filepath.Abs(root)
 }
+
+// GoVersion returns parsed version of Go from runtime
+func GoVersion() (int, int, int) {
+	versionParts := strings.Split(runtime.Version(), ".")
+	major, _ := strconv.Atoi(versionParts[0][2:])
+	minor, _ := strconv.Atoi(versionParts[1])
+	build, _ := strconv.Atoi(versionParts[2])
+	return major, minor, build
+}

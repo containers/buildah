@@ -5,10 +5,6 @@
 // Package typeparams contains common utilities for writing tools that interact
 // with generic Go code, as introduced with Go 1.18.
 //
-// THIS PACKAGE IS CURRENTLY EXPERIMENTAL AND MAY CHANGE. While the API is
-// being tested, we may find the need for improvement. This caveat will be
-// removed shortly.
-//
 // Many of the types and functions in this package are proxies for the new APIs
 // introduced in the standard library with Go 1.18. For example, the
 // typeparams.Union type is an alias for go/types.Union, and the ForTypeSpec
@@ -127,15 +123,15 @@ func OriginMethod(fn *types.Func) *types.Func {
 //
 // For example, consider the following type declarations:
 //
-//  type Interface[T any] interface {
-//  	Accept(T)
-//  }
+//	type Interface[T any] interface {
+//		Accept(T)
+//	}
 //
-//  type Container[T any] struct {
-//  	Element T
-//  }
+//	type Container[T any] struct {
+//		Element T
+//	}
 //
-//  func (c Container[T]) Accept(t T) { c.Element = t }
+//	func (c Container[T]) Accept(t T) { c.Element = t }
 //
 // In this case, GenericAssignableTo reports that instantiations of Container
 // are assignable to the corresponding instantiation of Interface.

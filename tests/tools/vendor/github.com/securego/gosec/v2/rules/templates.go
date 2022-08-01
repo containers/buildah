@@ -54,7 +54,7 @@ func NewTemplateCheck(id string, conf gosec.Config) (gosec.Rule, []ast.Node) {
 			ID:         id,
 			Severity:   gosec.Medium,
 			Confidence: gosec.Low,
-			What:       "this method will not auto-escape HTML. Verify data is well formed.",
+			What:       "The used method does not auto-escape HTML. This can potentially lead to 'Cross-site Scripting' vulnerabilities, in case the attacker controls the input.",
 		},
 	}, []ast.Node{(*ast.CallExpr)(nil)}
 }

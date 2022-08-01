@@ -73,9 +73,8 @@ func walkThroughEmbeddedInterfaces(sel *types.Selection) ([]types.Type, bool) {
 		// define the method, add it to our list, and loop.
 		namedInterfaceT, ok := getEmbeddedInterfaceDefiningMethod(interfaceT, fn)
 		if !ok {
-			// This should be impossible as long as we type-checked: either the
-			// interface or one of its embedded ones must implement the method...
-			panic(fmt.Sprintf("either %v or one of its embedded interfaces must implement %v", currentT, fn))
+			// Returned a nil interface, we are done.
+			break
 		}
 		result = append(result, namedInterfaceT)
 		interfaceT = namedInterfaceT.Underlying().(*types.Interface)
@@ -102,7 +101,7 @@ func getTypeAtFieldIndex(startingAt types.Type, fieldIndex int) types.Type {
 func getEmbeddedInterfaceDefiningMethod(interfaceT *types.Interface, fn *types.Func) (*types.Named, bool) {
 	for i := 0; i < interfaceT.NumEmbeddeds(); i++ {
 		embedded := interfaceT.Embedded(i)
-		if definesMethod(embedded.Underlying().(*types.Interface), fn) {
+		if embedded != nil && definesMethod(embedded.Underlying().(*types.Interface), fn) {
 			return embedded, true
 		}
 	}

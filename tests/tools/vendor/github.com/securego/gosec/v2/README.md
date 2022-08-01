@@ -144,6 +144,8 @@ directory you can supply `./...` as the input argument.
 - G109: Potential Integer overflow made by strconv.Atoi result conversion to int16/32
 - G110: Potential DoS vulnerability via decompression bomb
 - G111: Potential directory traversal
+- G112: Potential slowloris attack
+- G113: Usage of Rat.SetString in math/big with an overflow (CVE-2022-23772)
 - G201: SQL query construction using format string
 - G202: SQL query construction using string concatenation
 - G203: Use of unescaped data in HTML templates
@@ -219,7 +221,7 @@ of functions which will be skipped when auditing the not checked errors:
 }
 ```
 
-You can also configure the hard-coded credentials rule `G101` with additional patters, or adjust the entropy threshold:
+You can also configure the hard-coded credentials rule `G101` with additional patterns, or adjust the entropy threshold:
 
 ```JSON
 {

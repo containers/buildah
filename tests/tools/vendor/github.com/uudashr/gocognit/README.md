@@ -144,6 +144,13 @@ The following structures receive a nesting increment commensurate with their nes
 3. `for`
 
 ## Installation
+
+```
+$ go install github.com/uudashr/gocognit/cmd/gocognit@latest
+```
+
+or 
+
 ```
 $ go get github.com/uudashr/gocognit/cmd/gocognit
 ```

@@ -185,15 +185,15 @@ Subsequent occurrences of 'true' no longer refer to the pre-declared identifier.
 (Object name) matches an identifier by name, but yields the
 types.Object it refers to.
 
-(Function name) matches ast.Idents and ast.SelectorExprs that refer to a function with a given fully qualified name.
+(Symbol name) matches ast.Idents and ast.SelectorExprs that refer to a symbol with a given fully qualified name.
 For example, "net/url.PathEscape" matches the PathEscape function in the net/url package,
 and "(net/url.EscapeError).Error" refers to the Error method on the net/url.EscapeError type,
 either on an instance of the type, or on the type itself.
 
 For example, the following patterns match the following lines of code:
 
-	(CallExpr (Function "fmt.Println") _) // pattern 1
-	(CallExpr (Function "(net/url.EscapeError).Error") _) // pattern 2
+	(CallExpr (Symbol "fmt.Println") _) // pattern 1
+	(CallExpr (Symbol "(net/url.EscapeError).Error") _) // pattern 2
 
 	fmt.Println("hello, world") // matches pattern 1
 	var x url.EscapeError

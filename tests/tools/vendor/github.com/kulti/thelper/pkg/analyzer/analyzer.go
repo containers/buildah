@@ -262,6 +262,35 @@ func (t thelper) buildTestCheckFuncOpts(pass *analysis.Pass, ctxType types.Type)
 	}, true
 }
 
+func (t thelper) buildFuzzCheckFuncOpts(pass *analysis.Pass, ctxType types.Type) (checkFuncOpts, bool) {
+	fObj := analysisutil.ObjectOf(pass, "testing", "F")
+	if fObj == nil {
+		return checkFuncOpts{}, true // fuzzing supports since go1.18, it's ok, that testig.F is missed.
+	}
+
+	fHelper, _, _ := types.LookupFieldOrMethod(fObj.Type(), true, fObj.Pkg(), "Helper")
+	if fHelper == nil {
+		return checkFuncOpts{}, false
+	}
+
+	tFuzz, _, _ := types.LookupFieldOrMethod(fObj.Type(), true, fObj.Pkg(), "Fuzz")
+	if tFuzz == nil {
+		return checkFuncOpts{}, false
+	}
+
+	return checkFuncOpts{
+		skipPrefix: "Fuzz",
+		varName:    "f",
+		fnHelper:   fHelper,
+		subRun:     tFuzz,
+		hpType:     types.NewPointer(fObj.Type()),
+		ctxType:    ctxType,
+		checkBegin: t.enabledChecks.Enabled(checkFBegin),
+		checkFirst: t.enabledChecks.Enabled(checkFFirst),
+		checkName:  t.enabledChecks.Enabled(checkFName),
+	}, true
+}
+
 func (t thelper) buildBenchmarkCheckFuncOpts(pass *analysis.Pass, ctxType types.Type) (checkFuncOpts, bool) {
 	bObj := analysisutil.ObjectOf(pass, "testing", "B")
 	if bObj == nil {
