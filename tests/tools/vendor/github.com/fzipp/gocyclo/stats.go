@@ -52,7 +52,7 @@ func (s Stats) TotalComplexity() uint64 {
 func (s Stats) SortAndFilter(top, over int) Stats {
 	result := make(Stats, len(s))
 	copy(result, s)
-	sort.Sort(byComplexityDesc(result))
+	sort.Stable(byComplexityDesc(result))
 	for i, stat := range result {
 		if i == top {
 			return result[:i]

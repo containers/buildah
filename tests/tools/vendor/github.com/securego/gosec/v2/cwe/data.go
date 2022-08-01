@@ -90,6 +90,11 @@ var (
 			Name:        "Insecure Temporary File",
 		},
 		{
+			ID:          "400",
+			Description: "The software does not properly control the allocation and maintenance of a limited resource, thereby enabling an actor to influence the amount of resources consumed, eventually leading to the exhaustion of available resources.",
+			Name:        "Uncontrolled Resource Consumption",
+		},
+		{
 			ID:          "409",
 			Description: "The software does not handle or incorrectly handles a compressed input with a very high compression ratio that produces a large output.",
 			Name:        "Improper Handling of Highly Compressed Data (Data Amplification)",

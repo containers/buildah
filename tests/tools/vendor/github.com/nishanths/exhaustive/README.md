@@ -15,6 +15,12 @@ The package provides an `Analyzer` that follows the guidelines in the
 [`go/analysis`][3] package; this should make it possible to integrate
 exhaustive with your own analysis driver program.
 
+## Bugs
+
+`exhaustive` does not report missing cases if the switch statement
+switches on a type parameterized type. See [this
+issue](https://github.com/nishanths/exhaustive/issues/31) for details.
+
 ## Example
 
 Given the enum

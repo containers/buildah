@@ -59,14 +59,14 @@ var (
 	_ Node = BasicLit{}
 	_ Node = Nil{}
 	_ Node = Object{}
-	_ Node = Function{}
+	_ Node = Symbol{}
 	_ Node = Not{}
 	_ Node = Or{}
 	_ Node = IntegerLiteral{}
 	_ Node = TrulyConstantExpression{}
 )
 
-type Function struct {
+type Symbol struct {
 	Name Node
 }
 
@@ -401,7 +401,7 @@ func (stmt TypeSwitchStmt) String() string          { return stringify(stmt) }
 func (nil Nil) String() string                      { return "nil" }
 func (builtin Builtin) String() string              { return stringify(builtin) }
 func (obj Object) String() string                   { return stringify(obj) }
-func (fn Function) String() string                  { return stringify(fn) }
+func (fn Symbol) String() string                    { return stringify(fn) }
 func (el Ellipsis) String() string                  { return stringify(el) }
 func (not Not) String() string                      { return stringify(not) }
 func (lit IntegerLiteral) String() string           { return stringify(lit) }
@@ -509,7 +509,7 @@ func (TypeSwitchStmt) isNode()          {}
 func (Nil) isNode()                     {}
 func (Builtin) isNode()                 {}
 func (Object) isNode()                  {}
-func (Function) isNode()                {}
+func (Symbol) isNode()                  {}
 func (Ellipsis) isNode()                {}
 func (Or) isNode()                      {}
 func (List) isNode()                    {}

@@ -75,7 +75,7 @@ func runInitFuncFirstCheck(pass *analysis.Pass) func(ast.Node) bool {
 			return true
 		}
 
-		if dec.Name.Name == "init" {
+		if dec.Name.Name == "init" && dec.Recv == nil {
 			if nonInitFound {
 				pass.Reportf(dec.Pos(), "init func must be the first function in file")
 			}
