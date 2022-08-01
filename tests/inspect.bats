@@ -124,3 +124,15 @@ load helpers
 	run_buildah inspect --format "{{.Docker.Variant}}" $cid
 	[[ "$output" == "v7" ]]
 }
+
+@test "inspect manifest and verify OCI annotation" {
+    run_buildah manifest create foobar
+    run_buildah manifest add foobar busybox
+    # get digest of added instance
+    sha=$(echo $output | awk '{print $2}')
+    run_buildah manifest annotate --annotation hello=world foobar "$sha"
+    run_buildah manifest inspect foobar
+    # Must contain annotation key and value
+    expect_output --substring "hello"
+    expect_output --substring "world"
+}

@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/containerd/containerd v1.6.6
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.49.0
+	github.com/containers/common v0.49.1-0.20220729170140-87fab4b7019a
 	github.com/containers/image/v5 v5.22.0
 	github.com/containers/ocicrypt v1.1.5
 	github.com/containers/storage v1.42.0
