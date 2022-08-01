@@ -775,7 +775,7 @@ _EOF
 
 	if [ -n "$(command -v runc)" ]; then
 		found_runtime=y
-		run_buildah ? run --runtime=runc --runtime-flag=debug $cid true
+		run_buildah '?' run --runtime=runc --runtime-flag=debug $cid true
 		if [ "$status" -eq 0 ]; then
 			[ -n "$output" ]
 		else
