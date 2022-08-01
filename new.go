@@ -257,7 +257,7 @@ func newBuilder(ctx context.Context, store storage.Store, options BuilderOptions
 			name = tmpName
 			break
 		}
-		if errors.Cause(err) != storage.ErrDuplicateName || options.Container != "" {
+		if !errors.Is(err, storage.ErrDuplicateName) || options.Container != "" {
 			return nil, errors.Wrapf(err, "error creating container")
 		}
 		tmpName = fmt.Sprintf("%s-%d", name, rand.Int()%conflict)

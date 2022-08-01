@@ -564,7 +564,7 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 			}
 			if _, err := b.store.DeleteImage(removeID, true); err != nil {
 				logrus.Debugf("failed to remove intermediate image %q: %v", removeID, err)
-				if b.forceRmIntermediateCtrs || errors.Cause(err) != storage.ErrImageUsedByContainer {
+				if b.forceRmIntermediateCtrs || !errors.Is(err, storage.ErrImageUsedByContainer) {
 					lastErr = err
 				}
 			}

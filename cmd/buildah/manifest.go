@@ -657,10 +657,11 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 	// Before doing a remote lookup, attempt to resolve the manifest list
 	// locally.
 	manifestList, err := runtime.LookupManifestList(imageSpec)
-	switch errors.Cause(err) {
-	case storage.ErrImageUnknown, libimage.ErrNotAManifestList:
+	switch {
+	case errors.Is(errors.Cause(err), storage.ErrImageUnknown), errors.Is(errors.Cause(err), libimage.ErrNotAManifestList):
 		// We need to do the remote inspection below.
-	case nil:
+
+	case err == nil, errors.Cause(err) == nil:
 		schema2List, err := manifestList.Inspect()
 		if err != nil {
 			return err

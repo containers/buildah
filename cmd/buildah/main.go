@@ -189,7 +189,7 @@ func shutdownStore(cmd *cobra.Command) error {
 		logrus.Debugf("shutting down the store")
 		needToShutdownStore = false
 		if _, err = store.Shutdown(false); err != nil {
-			if errors.Cause(err) == storage.ErrLayerUsedByContainer {
+			if errors.Is(err, storage.ErrLayerUsedByContainer) {
 				logrus.Infof("failed to shutdown storage: %q", err)
 			} else {
 				logrus.Warnf("failed to shutdown storage: %q", err)

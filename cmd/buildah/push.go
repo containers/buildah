@@ -215,7 +215,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 
 	ref, digest, err := buildah.Push(getContext(), src, dest, options)
 	if err != nil {
-		if errors.Cause(err) != storage.ErrImageUnknown {
+		if !errors.Is(errors.Cause(err), storage.ErrImageUnknown) {
 			// Image might be a manifest so attempt a manifest push
 			if manifestsErr := manifestPush(systemContext, store, src, destSpec, iopts); manifestsErr == nil {
 				return nil

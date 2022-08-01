@@ -280,7 +280,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		// partially-populated state at any point if we're creating it
 		// fresh.
 		list, err := rt.LookupManifestList(manifestList)
-		if err != nil && errors.Cause(err) == storage.ErrImageUnknown {
+		if err != nil && errors.Is(errors.Cause(err), storage.ErrImageUnknown) {
 			list, err = rt.CreateManifestList(manifestList)
 		}
 		if err != nil {

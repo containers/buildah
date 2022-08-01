@@ -159,7 +159,7 @@ func ReserveSELinuxLabels(store storage.Store, id string) error {
 			} else {
 				b, err := OpenBuilder(store, c.ID)
 				if err != nil {
-					if os.IsNotExist(errors.Cause(err)) {
+					if errors.Is(errors.Cause(err), os.ErrNotExist) {
 						// Ignore not exist errors since containers probably created by other tool
 						// TODO, we need to read other containers json data to reserve their SELinux labels
 						continue
