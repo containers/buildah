@@ -1629,7 +1629,8 @@ function _test_http() {
   gitrepo=git:///tmp/no-such-repository
   run_buildah 128 build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
   # Expect part of what git would have told us... before things went horribly wrong
-  expect_output --substring "Cloning into '"
+  expect_output --substring "failed while performing"
+  expect_output --substring "git fetch"
 }
 
 @test "bud-github-context" {
@@ -1640,12 +1641,42 @@ function _test_http() {
   run_buildah from ${target}
 }
 
-@test "bud-github-context-with-branch-and-subdir" {
+# Containerfile in this repo should only exist on older commit and
+# not on HEAD or the default branch.
+@test "bud-github-context-from-commit" {
+  if ! which git ; then
+    skip "no git in PATH"
+  fi
+  target=giturl-image
+  # Any repo would do, but this one is small, is FROM: scratch, local, and has
+  # its entire build context in a subdirectory of the repository.
+  if ! start_git_daemon ${TEST_SOURCES}/git-daemon/repo-with-containerfile-on-old-commit.tar.gz ; then
+    skip "error running git daemon"
+  fi
+  # Containerfile in this repo should only exist on older commit and
+  # not on HEAD or the default branch.
+  gitrepo=git://localhost:${GITPORT}/repo#f94193d34548eb58650a10a5183936d32c2d3280
+  run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
+  expect_output --substring "FROM scratch"
+  expect_output --substring "COMMIT giturl-image"
+  # Verify that build must fail on default `main` branch since we
+  # don't have a `Containerfile` on main branch.
+  gitrepo=git://localhost:${GITPORT}/repo#main
+  run_buildah 125 build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
+  expect_output --substring "cannot find Containerfile or Dockerfile"
+}
+
+@test "bud-github-context-with-branch-subdir-commit" {
   target=github-image
   gitrepo=https://github.com/containers/podman.git#main:contrib/hello
   run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
   # check syntax only for subdirectory
   gitrepo=https://github.com/containers/podman.git#:contrib/hello
+  run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
+  # Try pulling repo with specific commit
+  # `contrib/helloimage` is only present on or before `40ba9f10e5fbdd3c9d36389107b8bf1caec6cef0`
+  # hence following test verifies if we are fetching the right commit.
+  gitrepo=https://github.com/containers/podman.git#40ba9f10e5fbdd3c9d36389107b8bf1caec6cef0:contrib/helloimage
   run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
 }
 
