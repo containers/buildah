@@ -4090,7 +4090,7 @@ _EOF
     found_runtime=y
     if is_cgroupsv2; then
       # The result with cgroup v2 depends on the version of runc.
-      run_buildah ? bud --runtime=runc --runtime-flag=debug \
+      run_buildah '?' bud --runtime=runc --runtime-flag=debug \
                         -q -t alpine-bud-runc $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
       if [ "$status" -eq 0 ]; then
         expect_output --substring "$flag_accepted_rx"
