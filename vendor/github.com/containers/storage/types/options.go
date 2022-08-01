@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,42 +27,44 @@ type TomlConfig struct {
 }
 
 const (
-	// these are default path for run and graph root for rootful users
-	// for rootless path is constructed via getRootlessStorageOpts
-	defaultRunRoot   string = "/run/containers/storage"
-	defaultGraphRoot string = "/var/lib/containers/storage"
+	overlayDriver  = "overlay"
+	overlay2       = "overlay2"
+	storageConfEnv = "CONTAINERS_STORAGE_CONF"
 )
 
-// defaultConfigFile path to the system wide storage.conf file
 var (
-	defaultConfigFile         = "/usr/share/containers/storage.conf"
-	defaultOverrideConfigFile = "/etc/containers/storage.conf"
-	defaultConfigFileSet      = false
-	// DefaultStoreOptions is a reasonable default set of options.
-	defaultStoreOptions StoreOptions
+	defaultStoreOptionsOnce    sync.Once
+	loadDefaultStoreOptionsErr error
 )
 
-const (
-	overlayDriver = "overlay"
-	overlay2      = "overlay2"
-)
-
-func init() {
+func loadDefaultStoreOptions() {
 	defaultStoreOptions.RunRoot = defaultRunRoot
 	defaultStoreOptions.GraphRoot = defaultGraphRoot
 	defaultStoreOptions.GraphDriverName = ""
 
-	if _, err := os.Stat(defaultOverrideConfigFile); err == nil {
+	if path, ok := os.LookupEnv(storageConfEnv); ok {
+		defaultOverrideConfigFile = path
+		if err := ReloadConfigurationFileIfNeeded(path, &defaultStoreOptions); err != nil {
+			loadDefaultStoreOptionsErr = err
+			return
+		}
+	} else if _, err := os.Stat(defaultOverrideConfigFile); err == nil {
 		// The DefaultConfigFile(rootless) function returns the path
 		// of the used storage.conf file, by returning defaultConfigFile
 		// If override exists containers/storage uses it by default.
 		defaultConfigFile = defaultOverrideConfigFile
-		ReloadConfigurationFileIfNeeded(defaultOverrideConfigFile, &defaultStoreOptions)
+		if err := ReloadConfigurationFileIfNeeded(defaultOverrideConfigFile, &defaultStoreOptions); err != nil {
+			loadDefaultStoreOptionsErr = err
+			return
+		}
 	} else {
 		if !os.IsNotExist(err) {
 			logrus.Warningf("Attempting to use %s, %v", defaultConfigFile, err)
 		}
-		ReloadConfigurationFileIfNeeded(defaultConfigFile, &defaultStoreOptions)
+		if err := ReloadConfigurationFileIfNeeded(defaultConfigFile, &defaultStoreOptions); err != nil && !errors.Is(err, os.ErrNotExist) {
+			loadDefaultStoreOptionsErr = err
+			return
+		}
 	}
 	// reload could set values to empty for run and graph root if config does not contains anything
 	if defaultStoreOptions.RunRoot == "" {
@@ -80,6 +83,10 @@ func defaultStoreOptionsIsolated(rootless bool, rootlessUID int, storageConf str
 		defaultRootlessGraphRoot string
 		err                      error
 	)
+	defaultStoreOptionsOnce.Do(loadDefaultStoreOptions)
+	if loadDefaultStoreOptionsErr != nil {
+		return StoreOptions{}, loadDefaultStoreOptionsErr
+	}
 	storageOpts := defaultStoreOptions
 	if rootless && rootlessUID != 0 {
 		storageOpts, err = getRootlessStorageOpts(rootlessUID, storageOpts)
@@ -203,6 +210,7 @@ func getRootlessStorageOpts(rootlessUID int, systemOpts StoreOptions) (StoreOpti
 		return opts, err
 	}
 	opts.RunRoot = rootlessRuntime
+	opts.PullOptions = systemOpts.PullOptions
 	if systemOpts.RootlessStoragePath != "" {
 		opts.GraphRoot, err = expandEnvPath(systemOpts.RootlessStoragePath, rootlessUID)
 		if err != nil {
@@ -219,11 +227,15 @@ func getRootlessStorageOpts(rootlessUID int, systemOpts StoreOptions) (StoreOpti
 		opts.GraphDriverName = driver
 	}
 	if opts.GraphDriverName == overlay2 {
-		logrus.Warnf("Switching default driver from overlay2 to the equivalent overlay driver.")
+		logrus.Warnf("Switching default driver from overlay2 to the equivalent overlay driver")
 		opts.GraphDriverName = overlayDriver
 	}
 
-	if opts.GraphDriverName == overlayDriver {
+	// If the configuration file was explicitly set, then copy all the options
+	// present.
+	if defaultConfigFileSet {
+		opts.GraphDriverOptions = systemOpts.GraphDriverOptions
+	} else if opts.GraphDriverName == overlayDriver {
 		for _, o := range systemOpts.GraphDriverOptions {
 			if strings.Contains(o, "ignore_chown_errors") {
 				opts.GraphDriverOptions = append(opts.GraphDriverOptions, o)
@@ -256,52 +268,53 @@ var prevReloadConfig = struct {
 }{}
 
 // SetDefaultConfigFilePath sets the default configuration to the specified path
-func SetDefaultConfigFilePath(path string) {
+func SetDefaultConfigFilePath(path string) error {
 	defaultConfigFile = path
 	defaultConfigFileSet = true
-	ReloadConfigurationFileIfNeeded(defaultConfigFile, &defaultStoreOptions)
+	return ReloadConfigurationFileIfNeeded(defaultConfigFile, &defaultStoreOptions)
 }
 
-func ReloadConfigurationFileIfNeeded(configFile string, storeOptions *StoreOptions) {
+func ReloadConfigurationFileIfNeeded(configFile string, storeOptions *StoreOptions) error {
 	prevReloadConfig.mutex.Lock()
 	defer prevReloadConfig.mutex.Unlock()
 
 	fi, err := os.Stat(configFile)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			fmt.Printf("Failed to read %s %v\n", configFile, err.Error())
-		}
-		return
+		return err
 	}
 
 	mtime := fi.ModTime()
 	if prevReloadConfig.storeOptions != nil && prevReloadConfig.mod == mtime && prevReloadConfig.configFile == configFile {
 		*storeOptions = *prevReloadConfig.storeOptions
-		return
+		return nil
 	}
 
-	ReloadConfigurationFile(configFile, storeOptions)
+	if err := ReloadConfigurationFile(configFile, storeOptions); err != nil {
+		return err
+	}
 
-	prevReloadConfig.storeOptions = storeOptions
+	cOptions := *storeOptions
+	prevReloadConfig.storeOptions = &cOptions
 	prevReloadConfig.mod = mtime
 	prevReloadConfig.configFile = configFile
+	return nil
 }
 
 // ReloadConfigurationFile parses the specified configuration file and overrides
 // the configuration in storeOptions.
-func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
+func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) error {
 	config := new(TomlConfig)
 
 	meta, err := toml.DecodeFile(configFile, &config)
 	if err == nil {
 		keys := meta.Undecoded()
 		if len(keys) > 0 {
-			logrus.Warningf("Failed to decode the keys %q from %q.", keys, configFile)
+			logrus.Warningf("Failed to decode the keys %q from %q", keys, configFile)
 		}
 	} else {
 		if !os.IsNotExist(err) {
 			fmt.Printf("Failed to read %s %v\n", configFile, err.Error())
-			return
+			return err
 		}
 	}
 
@@ -315,11 +328,11 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
 		storeOptions.GraphDriverName = config.Storage.Driver
 	}
 	if storeOptions.GraphDriverName == overlay2 {
-		logrus.Warnf("Switching default driver from overlay2 to the equivalent overlay driver.")
+		logrus.Warnf("Switching default driver from overlay2 to the equivalent overlay driver")
 		storeOptions.GraphDriverName = overlayDriver
 	}
 	if storeOptions.GraphDriverName == "" {
-		logrus.Errorf("The storage 'driver' option must be set in %s, guarantee proper operation.", configFile)
+		logrus.Errorf("The storage 'driver' option must be set in %s to guarantee proper operation", configFile)
 	}
 	if config.Storage.RunRoot != "" {
 		storeOptions.RunRoot = config.Storage.RunRoot
@@ -364,7 +377,7 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
 		mappings, err := idtools.NewIDMappings(config.Storage.Options.RemapUser, config.Storage.Options.RemapGroup)
 		if err != nil {
 			fmt.Printf("Error initializing ID mappings for %s:%s %v\n", config.Storage.Options.RemapUser, config.Storage.Options.RemapGroup, err)
-			return
+			return err
 		}
 		storeOptions.UIDMap = mappings.UIDs()
 		storeOptions.GIDMap = mappings.GIDs()
@@ -372,16 +385,15 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
 
 	uidmap, err := idtools.ParseIDMap([]string{config.Storage.Options.RemapUIDs}, "remap-uids")
 	if err != nil {
-		fmt.Print(err)
-	} else {
-		storeOptions.UIDMap = uidmap
+		return err
 	}
 	gidmap, err := idtools.ParseIDMap([]string{config.Storage.Options.RemapGIDs}, "remap-gids")
 	if err != nil {
-		fmt.Print(err)
-	} else {
-		storeOptions.GIDMap = gidmap
+		return err
 	}
+
+	storeOptions.UIDMap = uidmap
+	storeOptions.GIDMap = gidmap
 	storeOptions.RootAutoNsUser = config.Storage.Options.RootAutoUsernsUser
 	if config.Storage.Options.AutoUsernsMinSize > 0 {
 		storeOptions.AutoNsMinSize = config.Storage.Options.AutoUsernsMinSize
@@ -403,10 +415,12 @@ func ReloadConfigurationFile(configFile string, storeOptions *StoreOptions) {
 	if len(storeOptions.GraphDriverOptions) == 1 && storeOptions.GraphDriverOptions[0] == "" {
 		storeOptions.GraphDriverOptions = nil
 	}
+	return nil
 }
 
-func Options() StoreOptions {
-	return defaultStoreOptions
+func Options() (StoreOptions, error) {
+	defaultStoreOptionsOnce.Do(loadDefaultStoreOptions)
+	return defaultStoreOptions, loadDefaultStoreOptionsErr
 }
 
 // Save overwrites the tomlConfig in storage.conf with the given conf

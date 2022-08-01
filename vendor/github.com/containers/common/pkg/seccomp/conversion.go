@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -71,11 +70,12 @@ var (
 		// https://github.com/opencontainers/runtime-spec/pull/1064
 		// specs.ActKillProcess   ActKillProcess,
 		// specs.ActKillThread   ActKillThread,
-		specs.ActErrno: ActErrno,
-		specs.ActTrap:  ActTrap,
-		specs.ActAllow: ActAllow,
-		specs.ActTrace: ActTrace,
-		specs.ActLog:   ActLog,
+		specs.ActErrno:  ActErrno,
+		specs.ActTrap:   ActTrap,
+		specs.ActAllow:  ActAllow,
+		specs.ActTrace:  ActTrace,
+		specs.ActLog:    ActLog,
+		specs.ActNotify: ActNotify,
 	}
 	specOperatorToSeccompOperatorMap = map[specs.LinuxSeccompOperator]Operator{
 		specs.OpNotEqual:     OpNotEqual,
@@ -107,7 +107,7 @@ func specToSeccomp(spec *specs.LinuxSeccomp) (*Seccomp, error) {
 	for _, arch := range spec.Architectures {
 		newArch, err := specArchToSeccompArch(arch)
 		if err != nil {
-			return nil, errors.Wrap(err, "convert spec arch")
+			return nil, fmt.Errorf("convert spec arch: %w", err)
 		}
 		res.Architectures = append(res.Architectures, newArch)
 	}
@@ -115,7 +115,7 @@ func specToSeccomp(spec *specs.LinuxSeccomp) (*Seccomp, error) {
 	// Convert default action
 	newDefaultAction, err := specActionToSeccompAction(spec.DefaultAction)
 	if err != nil {
-		return nil, errors.Wrap(err, "convert default action")
+		return nil, fmt.Errorf("convert default action: %w", err)
 	}
 	res.DefaultAction = newDefaultAction
 	res.DefaultErrnoRet = spec.DefaultErrnoRet
@@ -124,7 +124,7 @@ func specToSeccomp(spec *specs.LinuxSeccomp) (*Seccomp, error) {
 	for _, call := range spec.Syscalls {
 		newAction, err := specActionToSeccompAction(call.Action)
 		if err != nil {
-			return nil, errors.Wrap(err, "convert action")
+			return nil, fmt.Errorf("convert action: %w", err)
 		}
 
 		for _, name := range call.Names {
@@ -139,7 +139,7 @@ func specToSeccomp(spec *specs.LinuxSeccomp) (*Seccomp, error) {
 			for _, arg := range call.Args {
 				newOp, err := specOperatorToSeccompOperator(arg.Op)
 				if err != nil {
-					return nil, errors.Wrap(err, "convert operator")
+					return nil, fmt.Errorf("convert operator: %w", err)
 				}
 
 				newArg := Arg{
@@ -163,7 +163,7 @@ func specArchToLibseccompArch(arch specs.Arch) (string, error) {
 	if res, ok := specArchToLibseccompArchMap[arch]; ok {
 		return res, nil
 	}
-	return "", errors.Errorf(
+	return "", fmt.Errorf(
 		"architecture %q is not valid for libseccomp", arch,
 	)
 }
@@ -173,7 +173,7 @@ func specArchToSeccompArch(arch specs.Arch) (Arch, error) {
 	if res, ok := specArchToSeccompArchMap[arch]; ok {
 		return res, nil
 	}
-	return "", errors.Errorf("architecture %q is not valid", arch)
+	return "", fmt.Errorf("architecture %q is not valid", arch)
 }
 
 // specActionToSeccompAction converts a spec action into a seccomp one.
@@ -181,7 +181,7 @@ func specActionToSeccompAction(action specs.LinuxSeccompAction) (Action, error) 
 	if res, ok := specActionToSeccompActionMap[action]; ok {
 		return res, nil
 	}
-	return "", errors.Errorf(
+	return "", fmt.Errorf(
 		"spec action %q is not valid internal action", action,
 	)
 }
@@ -191,7 +191,7 @@ func specOperatorToSeccompOperator(operator specs.LinuxSeccompOperator) (Operato
 	if op, ok := specOperatorToSeccompOperatorMap[operator]; ok {
 		return op, nil
 	}
-	return "", errors.Errorf(
+	return "", fmt.Errorf(
 		"spec operator %q is not a valid internal operator", operator,
 	)
 }

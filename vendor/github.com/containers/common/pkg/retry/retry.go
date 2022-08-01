@@ -12,25 +12,32 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	errcodev2 "github.com/docker/distribution/registry/api/v2"
 	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-// RetryOptions defines the option to retry
-type RetryOptions struct {
-	MaxRetry int           // The number of times to possibly retry
-	Delay    time.Duration // The delay to use between retries, if set
+// Options defines the option to retry.
+type Options struct {
+	MaxRetry int           // The number of times to possibly retry.
+	Delay    time.Duration // The delay to use between retries, if set.
 }
 
-// RetryIfNecessary retries the operation in exponential backoff with the retryOptions
-func RetryIfNecessary(ctx context.Context, operation func() error, retryOptions *RetryOptions) error {
+// RetryOptions is deprecated, use Options.
+type RetryOptions = Options // nolint:revive
+
+// RetryIfNecessary deprecated function use IfNecessary.
+func RetryIfNecessary(ctx context.Context, operation func() error, options *Options) error { // nolint:revive
+	return IfNecessary(ctx, operation, options)
+}
+
+// IfNecessary retries the operation in exponential backoff with the retry Options.
+func IfNecessary(ctx context.Context, operation func() error, options *Options) error {
 	err := operation()
-	for attempt := 0; err != nil && isRetryable(err) && attempt < retryOptions.MaxRetry; attempt++ {
+	for attempt := 0; err != nil && isRetryable(err) && attempt < options.MaxRetry; attempt++ {
 		delay := time.Duration(int(math.Pow(2, float64(attempt)))) * time.Second
-		if retryOptions.Delay != 0 {
-			delay = retryOptions.Delay
+		if options.Delay != 0 {
+			delay = options.Delay
 		}
-		logrus.Warnf("Failed, retrying in %s ... (%d/%d). Error: %v", delay, attempt+1, retryOptions.MaxRetry, err)
+		logrus.Warnf("Failed, retrying in %s ... (%d/%d). Error: %v", delay, attempt+1, options.MaxRetry, err)
 		select {
 		case <-time.After(delay):
 			break
@@ -43,8 +50,6 @@ func RetryIfNecessary(ctx context.Context, operation func() error, retryOptions 
 }
 
 func isRetryable(err error) bool {
-	err = errors.Cause(err)
-
 	switch err {
 	case nil:
 		return false
@@ -91,6 +96,14 @@ func isRetryable(err error) bool {
 			}
 		}
 		return true
+	case net.Error:
+		if e.Timeout() {
+			return true
+		}
+		if unwrappable, ok := e.(unwrapper); ok {
+			err = unwrappable.Unwrap()
+			return isRetryable(err)
+		}
 	case unwrapper: // Test this last, because various error types might implement .Unwrap()
 		err = e.Unwrap()
 		return isRetryable(err)

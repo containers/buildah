@@ -1,5 +1,5 @@
-//go:build linux
-// +build linux
+//go:build linux || freebsd
+// +build linux freebsd
 
 package netavark
 
@@ -118,6 +118,9 @@ func (n *netavarkNetwork) execNetavark(args []string, stdin, result interface{})
 	// if we run with debug log level lets also set RUST_BACKTRACE=1 so we can get the full stack trace in case of panics
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		cmd.Env = append(cmd.Env, "RUST_BACKTRACE=1")
+	}
+	if n.dnsBindPort != 0 {
+		cmd.Env = append(cmd.Env, "NETAVARK_DNS_PORT="+strconv.Itoa(int(n.dnsBindPort)))
 	}
 
 	err = cmd.Start()

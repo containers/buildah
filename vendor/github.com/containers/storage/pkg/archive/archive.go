@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/bzip2"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -24,7 +26,6 @@ import (
 	"github.com/containers/storage/pkg/unshare"
 	gzip "github.com/klauspost/pgzip"
 	"github.com/opencontainers/runc/libcontainer/userns"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/ulikunitz/xz"
 )
@@ -72,10 +73,10 @@ type (
 )
 
 const (
-	tarExt                  = "tar"
-	solaris                 = "solaris"
-	windows                 = "windows"
-	containersOverrideXattr = "user.containers.override_stat"
+	tarExt  = "tar"
+	solaris = "solaris"
+	windows = "windows"
+	darwin  = "darwin"
 )
 
 var xattrsToIgnore = map[string]interface{}{
@@ -219,7 +220,7 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	case Zstd:
 		return zstdReader(buf)
 	default:
-		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
+		return nil, fmt.Errorf("unsupported compression format %s", (&compression).Extension())
 	}
 }
 
@@ -240,9 +241,9 @@ func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, er
 	case Bzip2, Xz:
 		// archive/bzip2 does not support writing, and there is no xz support at all
 		// However, this is not a problem as docker only currently generates gzipped tars
-		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
+		return nil, fmt.Errorf("unsupported compression format %s", (&compression).Extension())
 	default:
-		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
+		return nil, fmt.Errorf("unsupported compression format %s", (&compression).Extension())
 	}
 }
 
@@ -362,7 +363,7 @@ func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, erro
 	hdr.Mode = fillGo18FileTypeBits(int64(chmodTarEntry(os.FileMode(hdr.Mode))), fi)
 	name, err = canonicalTarName(name, fi.IsDir())
 	if err != nil {
-		return nil, fmt.Errorf("tar: cannot canonicalize path: %v", err)
+		return nil, fmt.Errorf("tar: cannot canonicalize path: %w", err)
 	}
 	hdr.Name = name
 	if err := setHeaderForSpecialDevice(hdr, name, fi.Sys()); err != nil {
@@ -405,7 +406,7 @@ func ReadSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
 	for _, xattr := range []string{"security.capability", "security.ima"} {
 		capability, err := system.Lgetxattr(path, xattr)
 		if err != nil && !errors.Is(err, system.EOPNOTSUPP) && err != system.ErrNotSupportedPlatform {
-			return errors.Wrapf(err, "failed to read %q attribute from %q", xattr, path)
+			return fmt.Errorf("failed to read %q attribute from %q: %w", xattr, path, err)
 		}
 		if capability != nil {
 			hdr.Xattrs[xattr] = string(capability)
@@ -698,9 +699,9 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		return fmt.Errorf("unhandled tar header type %d", hdr.Typeflag)
 	}
 
-	if forceMask != nil && hdr.Typeflag != tar.TypeSymlink {
+	if forceMask != nil && (hdr.Typeflag != tar.TypeSymlink || runtime.GOOS == "darwin") {
 		value := fmt.Sprintf("%d:%d:0%o", hdr.Uid, hdr.Gid, hdrInfo.Mode()&07777)
-		if err := system.Lsetxattr(path, containersOverrideXattr, []byte(value), 0); err != nil {
+		if err := system.Lsetxattr(path, idtools.ContainersOverrideXattr, []byte(value), 0); err != nil {
 			return err
 		}
 	}
@@ -981,7 +982,7 @@ func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) err
 		uid, gid, mode, err := GetFileOwner(dest)
 		if err == nil {
 			value := fmt.Sprintf("%d:%d:0%o", uid, gid, mode)
-			if err := system.Lsetxattr(dest, containersOverrideXattr, []byte(value), 0); err != nil {
+			if err := system.Lsetxattr(dest, idtools.ContainersOverrideXattr, []byte(value), 0); err != nil {
 				return err
 			}
 		}
@@ -1122,7 +1123,7 @@ func UntarUncompressed(tarArchive io.Reader, dest string, options *TarOptions) e
 // Handler for teasing out the automatic decompression
 func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decompress bool) error {
 	if tarArchive == nil {
-		return fmt.Errorf("Empty archive")
+		return fmt.Errorf("empty archive")
 	}
 	dest = filepath.Clean(dest)
 	if options == nil {
@@ -1238,7 +1239,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	}
 
 	if srcSt.IsDir() {
-		return fmt.Errorf("Can't copy a directory")
+		return fmt.Errorf("can't copy a directory")
 	}
 
 	// Clean up the trailing slash. This must be done in an operating
@@ -1312,6 +1313,21 @@ func remapIDs(readIDMappings, writeIDMappings *idtools.IDMappings, chownOpts *id
 			uid, gid, err = readIDMappings.ToContainer(idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid})
 			if err != nil {
 				return err
+			}
+		} else if runtime.GOOS == darwin {
+			uid, gid = hdr.Uid, hdr.Gid
+			if xstat, ok := hdr.Xattrs[idtools.ContainersOverrideXattr]; ok {
+				attrs := strings.Split(string(xstat), ":")
+				if len(attrs) == 3 {
+					val, err := strconv.ParseUint(attrs[0], 10, 32)
+					if err != nil {
+						uid = int(val)
+					}
+					val, err = strconv.ParseUint(attrs[1], 10, 32)
+					if err != nil {
+						gid = int(val)
+					}
+				}
 			}
 		} else {
 			uid, gid = hdr.Uid, hdr.Gid
@@ -1434,7 +1450,7 @@ func CopyFileWithTarAndChown(chownOpts *idtools.IDPair, hasher io.Writer, uidmap
 		archiver.Untar = func(tarArchive io.Reader, dest string, options *TarOptions) error {
 			contentReader, contentWriter, err := os.Pipe()
 			if err != nil {
-				return errors.Wrapf(err, "error creating pipe extract data to %q", dest)
+				return fmt.Errorf("creating pipe extract data to %q: %w", dest, err)
 			}
 			defer contentReader.Close()
 			defer contentWriter.Close()
@@ -1453,11 +1469,11 @@ func CopyFileWithTarAndChown(chownOpts *idtools.IDPair, hasher io.Writer, uidmap
 				hashWorker.Done()
 			}()
 			if err = originalUntar(io.TeeReader(tarArchive, contentWriter), dest, options); err != nil {
-				err = errors.Wrapf(err, "error extracting data to %q while copying", dest)
+				err = fmt.Errorf("extracting data to %q while copying: %w", dest, err)
 			}
 			hashWorker.Wait()
 			if err == nil {
-				err = errors.Wrapf(hashError, "error calculating digest of data for %q while copying", dest)
+				err = fmt.Errorf("calculating digest of data for %q while copying: %w", dest, hashError)
 			}
 			return err
 		}
