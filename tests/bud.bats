@@ -202,6 +202,18 @@ _EOF
   expect_output --substring $targetarch
 }
 
+@test "build with add resolving to invalid HTTP status code" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+ADD https://google.com/test /
+_EOF
+
+  run_buildah 125 build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "invalid response status"
+}
+
 @test "bud with --layers and --no-cache flags" {
   cp -a $BUDFILES/use-layers ${TEST_SCRATCH_DIR}/use-layers
 
@@ -1333,7 +1345,7 @@ function _test_http() {
   target=url-image
   url=https://raw.githubusercontent.com/containers/buildah/main/tests/bud/from-scratch/Dockerfile.bogus
   run_buildah 125 build $WITH_POLICY_JSON -t ${target} ${url}
-  expect_output "no FROM statement found"
+  expect_output --substring "invalid response status 404"
 }
 
 # When provided with a -f flag and directory, buildah will look for the alternate Dockerfile name in the supplied directory
@@ -3672,6 +3684,27 @@ _EOF
   run_buildah 1 run secretimg-working-container cat /run/secrets/mysecret
   expect_output --substring "cat: can't open '/run/secrets/mysecret': No such file or directory"
   run_buildah rm -a
+}
+
+@test "bud with containerfile secret and secret is accessed twice and build should be successful" {
+  _prefetch alpine
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
+  mkdir -p ${mytmpdir}
+  cat > $mytmpdir/mysecret << _EOF
+SOMESECRETDATA
+_EOF
+
+  cat > $mytmpdir/Dockerfile << _EOF
+FROM alpine
+
+RUN --mount=type=secret,id=mysecret,dst=/home/root/mysecret cat /home/root/mysecret
+
+RUN --mount=type=secret,id=mysecret,dst=/home/root/mysecret2 echo hello && cat /home/root/mysecret2
+_EOF
+
+  run_buildah build --secret=id=mysecret,src=${mytmpdir}/mysecret $WITH_POLICY_JSON  -t secretimg -f ${mytmpdir}
+  expect_output --substring "hello"
+  expect_output --substring "SOMESECRETDATA"
 }
 
 @test "bud with containerfile secret accessed on second RUN" {
