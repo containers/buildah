@@ -9,7 +9,6 @@ import (
 	"github.com/containers/image/v5/pkg/strslice"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 // Schema2Descriptor is a “descriptor” in docker/distribution schema 2.
@@ -234,7 +233,7 @@ var schema2CompressionMIMETypeSets = []compressionMIMETypeSet{
 // CompressionAlgorithm that would result in anything other than gzip compression.
 func (m *Schema2) UpdateLayerInfos(layerInfos []types.BlobInfo) error {
 	if len(m.LayersDescriptors) != len(layerInfos) {
-		return errors.Errorf("Error preparing updated manifest: layer count changed from %d to %d", len(m.LayersDescriptors), len(layerInfos))
+		return fmt.Errorf("Error preparing updated manifest: layer count changed from %d to %d", len(m.LayersDescriptors), len(layerInfos))
 	}
 	original := m.LayersDescriptors
 	m.LayersDescriptors = make([]Schema2Descriptor, len(layerInfos))
@@ -246,7 +245,7 @@ func (m *Schema2) UpdateLayerInfos(layerInfos []types.BlobInfo) error {
 		}
 		mimeType, err := updatedMIMEType(schema2CompressionMIMETypeSets, mimeType, info)
 		if err != nil {
-			return errors.Wrapf(err, "preparing updated manifest, layer %q", info.Digest)
+			return fmt.Errorf("preparing updated manifest, layer %q: %w", info.Digest, err)
 		}
 		m.LayersDescriptors[i].MediaType = mimeType
 		m.LayersDescriptors[i].Digest = info.Digest
@@ -294,4 +293,12 @@ func (m *Schema2) ImageID([]digest.Digest) (string, error) {
 		return "", err
 	}
 	return m.ConfigDescriptor.Digest.Hex(), nil
+}
+
+// CanChangeLayerCompression returns true if we can compress/decompress layers with mimeType in the current image
+// (and the code can handle that).
+// NOTE: Even if this returns true, the relevant format might not accept all compression algorithms; the set of accepted
+// algorithms depends not on the current format, but possibly on the target of a conversion.
+func (m *Schema2) CanChangeLayerCompression(mimeType string) bool {
+	return compressionVariantsRecognizeMIMEType(schema2CompressionMIMETypeSets, mimeType)
 }

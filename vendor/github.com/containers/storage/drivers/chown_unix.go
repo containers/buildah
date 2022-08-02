@@ -1,5 +1,5 @@
-//go:build !windows
-// +build !windows
+//go:build !windows && !darwin
+// +build !windows,!darwin
 
 package graphdriver
 
@@ -21,12 +21,12 @@ type inode struct {
 
 type platformChowner struct {
 	mutex  sync.Mutex
-	inodes map[inode]bool
+	inodes map[inode]string
 }
 
 func newLChowner() *platformChowner {
 	return &platformChowner{
-		inodes: make(map[inode]bool),
+		inodes: make(map[inode]string),
 	}
 }
 
@@ -40,15 +40,33 @@ func (c *platformChowner) LChown(path string, info os.FileInfo, toHost, toContai
 		Dev: uint64(st.Dev),
 		Ino: uint64(st.Ino),
 	}
+
 	c.mutex.Lock()
-	_, found := c.inodes[i]
+
+	oldTarget, found := c.inodes[i]
 	if !found {
-		c.inodes[i] = true
+		c.inodes[i] = path
 	}
-	c.mutex.Unlock()
+
+	// If we are dealing with a file with multiple links then keep the lock until the file is
+	// chowned to avoid a race where we link to the old version if the file is copied up.
+	if found || st.Nlink > 1 {
+		defer c.mutex.Unlock()
+	} else {
+		c.mutex.Unlock()
+	}
 
 	if found {
-		return nil
+		// If the dev/inode was already chowned then create a link to the old target instead
+		// of chowning it again.  This is necessary when the underlying file system breaks
+		// inodes on copy-up (as it is with overlay with index=off) to maintain the original
+		// link and correct file ownership.
+
+		// The target already exists so remove it before creating the link to the new target.
+		if err := os.Remove(path); err != nil {
+			return err
+		}
+		return os.Link(oldTarget, path)
 	}
 
 	// Map an on-disk UID/GID pair from host to container
@@ -65,7 +83,7 @@ func (c *platformChowner) LChown(path string, info os.FileInfo, toHost, toContai
 		mappedUID, mappedGID, err := toContainer.ToContainer(pair)
 		if err != nil {
 			if (uid != 0) || (gid != 0) {
-				return fmt.Errorf("error mapping host ID pair %#v for %q to container: %v", pair, path, err)
+				return fmt.Errorf("mapping host ID pair %#v for %q to container: %w", pair, path, err)
 			}
 			mappedUID, mappedGID = uid, gid
 		}
@@ -78,29 +96,29 @@ func (c *platformChowner) LChown(path string, info os.FileInfo, toHost, toContai
 		}
 		mappedPair, err := toHost.ToHostOverflow(pair)
 		if err != nil {
-			return fmt.Errorf("error mapping container ID pair %#v for %q to host: %v", pair, path, err)
+			return fmt.Errorf("mapping container ID pair %#v for %q to host: %w", pair, path, err)
 		}
 		uid, gid = mappedPair.UID, mappedPair.GID
 	}
 	if uid != int(st.Uid) || gid != int(st.Gid) {
 		cap, err := system.Lgetxattr(path, "security.capability")
 		if err != nil && !errors.Is(err, system.EOPNOTSUPP) && !errors.Is(err, system.EOVERFLOW) && err != system.ErrNotSupportedPlatform {
-			return fmt.Errorf("%s: %v", os.Args[0], err)
+			return fmt.Errorf("%s: %w", os.Args[0], err)
 		}
 
 		// Make the change.
 		if err := system.Lchown(path, uid, gid); err != nil {
-			return fmt.Errorf("%s: %v", os.Args[0], err)
+			return fmt.Errorf("%s: %w", os.Args[0], err)
 		}
 		// Restore the SUID and SGID bits if they were originally set.
 		if (info.Mode()&os.ModeSymlink == 0) && info.Mode()&(os.ModeSetuid|os.ModeSetgid) != 0 {
 			if err := system.Chmod(path, info.Mode()); err != nil {
-				return fmt.Errorf("%s: %v", os.Args[0], err)
+				return fmt.Errorf("%s: %w", os.Args[0], err)
 			}
 		}
 		if cap != nil {
 			if err := system.Lsetxattr(path, "security.capability", cap, 0); err != nil {
-				return fmt.Errorf("%s: %v", os.Args[0], err)
+				return fmt.Errorf("%s: %w", os.Args[0], err)
 			}
 		}
 

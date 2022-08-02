@@ -154,7 +154,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	}
 
 	if iopts.from != "" {
-		if from, err = openBuilder(getContext(), store, iopts.from); err != nil && errors.Cause(err) == storage.ErrContainerUnknown {
+		if from, err = openBuilder(getContext(), store, iopts.from); err != nil && errors.Is(err, storage.ErrContainerUnknown) {
 			systemContext, err2 := parse.SystemContextFromOptions(c)
 			if err2 != nil {
 				return errors.Wrap(err2, "error building system context")

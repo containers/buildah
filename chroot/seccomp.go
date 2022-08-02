@@ -21,7 +21,7 @@ func setSeccomp(spec *specs.Spec) error {
 	mapAction := func(specAction specs.LinuxSeccompAction, errnoRet *uint) libseccomp.ScmpAction {
 		switch specAction {
 		case specs.ActKill:
-			return libseccomp.ActKill
+			return libseccomp.ActKillThread
 		case specs.ActTrap:
 			return libseccomp.ActTrap
 		case specs.ActErrno:
@@ -108,7 +108,7 @@ func setSeccomp(spec *specs.Spec) error {
 		return libseccomp.CompareInvalid
 	}
 
-	filter, err := libseccomp.NewFilter(mapAction(spec.Linux.Seccomp.DefaultAction, nil))
+	filter, err := libseccomp.NewFilter(mapAction(spec.Linux.Seccomp.DefaultAction, spec.Linux.Seccomp.DefaultErrnoRet))
 	if err != nil {
 		return errors.Wrapf(err, "error creating seccomp filter with default action %q", spec.Linux.Seccomp.DefaultAction)
 	}

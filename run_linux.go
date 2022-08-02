@@ -2898,7 +2898,7 @@ func (b *Builder) cleanupRunMounts(context *imagetypes.SystemContext, mountpoint
 				// if image is being used by something else
 				_ = i.Unmount(false)
 			}
-			if errors.Cause(err) == storagetypes.ErrImageUnknown {
+			if errors.Is(errors.Cause(err), storagetypes.ErrImageUnknown) {
 				// Ignore only if ErrImageUnknown
 				// Reason: Image is already unmounted do nothing
 				continue

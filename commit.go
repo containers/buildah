@@ -364,7 +364,7 @@ func (b *Builder) Commit(ctx context.Context, dest types.ImageReference, options
 	}
 
 	img, err := is.Transport.GetStoreImage(b.store, dest)
-	if err != nil && errors.Cause(err) != storage.ErrImageUnknown {
+	if err != nil && !errors.Is(errors.Cause(err), storage.ErrImageUnknown) {
 		return imgID, nil, "", errors.Wrapf(err, "error locating image %q in local storage", transports.ImageName(dest))
 	}
 	if err == nil {

@@ -1,10 +1,11 @@
-//go:build linux
-// +build linux
+//go:build linux || freebsd
+// +build linux freebsd
 
 package cni
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -12,13 +13,10 @@ import (
 	"github.com/containernetworking/cni/libcni"
 	cnitypes "github.com/containernetworking/cni/pkg/types"
 	types040 "github.com/containernetworking/cni/pkg/types/040"
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containers/common/libnetwork/internal/util"
 	"github.com/containers/common/libnetwork/types"
 	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 )
 
 // Setup will setup the container network namespace. It returns
@@ -36,16 +34,9 @@ func (n *cniNetwork) Setup(namespacePath string, options types.SetupOptions) (ma
 		return nil, err
 	}
 
-	// set the loopback adapter up in the container netns
-	err = ns.WithNetNSPath(namespacePath, func(_ ns.NetNS) error {
-		link, err := netlink.LinkByName("lo")
-		if err == nil {
-			err = netlink.LinkSetUp(link)
-		}
-		return err
-	})
+	err = setupLoopback(namespacePath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to set the loopback adapter up")
+		return nil, fmt.Errorf("failed to set the loopback adapter up: %w", err)
 	}
 
 	var retErr error
@@ -106,7 +97,7 @@ func (n *cniNetwork) Setup(namespacePath string, options types.SetupOptions) (ma
 }
 
 // CNIResultToStatus convert the cni result to status block
-// nolint:golint
+// nolint:golint,revive
 func CNIResultToStatus(res cnitypes.Result) (types.StatusBlock, error) {
 	result := types.StatusBlock{}
 	cniResult, err := types040.GetResult(res)
@@ -117,7 +108,7 @@ func CNIResultToStatus(res cnitypes.Result) (types.StatusBlock, error) {
 	for _, nameserver := range cniResult.DNS.Nameservers {
 		ip := net.ParseIP(nameserver)
 		if ip == nil {
-			return result, errors.Errorf("failed to parse cni nameserver ip %s", nameserver)
+			return result, fmt.Errorf("failed to parse cni nameserver ip %s", nameserver)
 		}
 		nameservers = append(nameservers, ip)
 	}
@@ -142,7 +133,7 @@ func CNIResultToStatus(res cnitypes.Result) (types.StatusBlock, error) {
 				continue
 			}
 			if len(cniResult.Interfaces) <= *ip.Interface {
-				return result, errors.Errorf("invalid cni result, interface index %d out of range", *ip.Interface)
+				return result, fmt.Errorf("invalid cni result, interface index %d out of range", *ip.Interface)
 			}
 
 			// when we have a ip for this interface add it to the subnets
@@ -245,7 +236,7 @@ func (n *cniNetwork) teardown(namespacePath string, options types.TeardownOption
 			logrus.Warnf("Failed to load cached network config: %v, falling back to loading network %s from disk", err, name)
 			network := n.networks[name]
 			if network == nil {
-				multiErr = multierror.Append(multiErr, errors.Wrapf(types.ErrNoSuchNetwork, "network %s", name))
+				multiErr = multierror.Append(multiErr, fmt.Errorf("network %s: %w", name, types.ErrNoSuchNetwork))
 				continue
 			}
 			cniConfList = network.cniNet
@@ -267,7 +258,7 @@ func getCachedNetworkConfig(cniConf *libcni.CNIConfig, name string, rt *libcni.R
 	if err != nil {
 		return nil, nil, err
 	} else if confBytes == nil {
-		return nil, nil, errors.Errorf("network %s not found in CNI cache", name)
+		return nil, nil, fmt.Errorf("network %s not found in CNI cache", name)
 	}
 
 	cniConfList, err = libcni.ConfListFromBytes(confBytes)
