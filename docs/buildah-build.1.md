@@ -68,6 +68,32 @@ resulting image's configuration.
 Please refer to the [BUILD TIME VARIABLES](#build-time-variables) section for the
 list of variables that can be overridden within the Containerfile at run time.
 
+**--build-context** *name=value*
+
+Specify an additional build context using its short name and its location. Additional
+build contexts can be referenced in the same manner as we access different stages in `COPY`
+instruction.
+
+Valid values could be:
+* Local directory – e.g. --build-context project2=../path/to/project2/src
+* HTTP URL to a tarball – e.g. --build-context src=https://example.org/releases/src.tar
+* Container image – specified with a container-image:// prefix, e.g. --build-context alpine=container-image://alpine:3.15, (also accepts docker://, docker-image://)
+
+On the Containerfile side, you can reference the build context on all commands that accept the “from” parameter.
+Here’s how that might look:
+
+```Dockerfile
+FROM [name]
+COPY --from=[name] ...
+RUN --mount=from=[name] …
+```
+
+The value of `[name]` is matched with the following priority order:
+
+* Named build context defined with --build-context [name]=..
+* Stage defined with AS [name] inside Containerfile
+* Image [name], either local or in a remote registry
+
 **--cache-from**
 
 Images to utilise as potential cache sources. Buildah does not currently support --cache-from so this is a NOOP.
@@ -113,6 +139,13 @@ that the cgroup namespace in which `buildah` itself is being run should be reuse
 This option is added to be aligned with other containers CLIs.
 Buildah doesn't send a copy of the context directory to a daemon or a remote server.
 Thus, compressing the data before sending it is irrelevant to Buildah.
+
+**--cpp-flag**=""
+
+Set additional flags to pass to the C Preprocessor cpp(1).
+Containerfiles ending with a ".in" suffix will be preprocessed via cpp(1). This option can be used to pass additional flags to cpp.
+Note: You can also set default CPPFLAGS by setting the BUILDAH\_CPPFLAGS
+environment variable (e.g., `export BUILDAH_CPPFLAGS="-DDEBUG"`).
 
 **--cpu-period**=*0*
 
@@ -365,6 +398,11 @@ environment variable. `export BUILDAH_LAYERS=true`
 Log output which would be sent to standard output and standard error to the
 specified file instead of to standard output and standard error.
 
+**--logsplit** *bool-value*
+
+If --logfile and --platform is specified following flag allows end-users to split log file for each
+platform into different files with naming convention as `${logfile}_${platform-os}_${platform-arch}`.
+
 **--manifest** *listName*
 
 Name of the manifest list to which the built image will be added.  Creates the
@@ -416,6 +454,15 @@ Do not create _/etc/hosts_ for the container.
 
 By default, Buildah manages _/etc/hosts_, adding the container's own IP address.
 **--no-hosts** disables this, and the image's _/etc/hosts_ will be preserved unmodified. Conflicts with the --add-host option.
+
+**--omit-history** *bool-value*
+
+Omit build history information in the built image. (default false).
+
+This option is useful for the cases where end users explicitly
+want to set `--omit-history` to omit the optional `History` from
+built images or when working with images built using build tools that
+do not include `History` information in their images.
 
 **--os**="OS"
 
@@ -853,7 +900,7 @@ buildah build --no-cache --rm=false -t imageName .
 
 buildah build --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc .
 
-buildah build -f Containerfile.in -t imageName .
+buildah build -f Containerfile.in --cpp-flag="-DDEBUG" -t imageName .
 
 buildah build --network mynet .
 

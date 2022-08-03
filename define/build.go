@@ -11,10 +11,29 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+// AdditionalBuildContext contains verbose details about a parsed build context from --build-context
+type AdditionalBuildContext struct {
+	// Value is the URL of an external tar archive.
+	IsURL bool
+	// Value is the name of an image which may or may not have already been pulled.
+	IsImage bool
+	// Value holds a URL, an image name, or an absolute filesystem path.
+	Value string
+	// Absolute filesystem path to downloaded and exported build context
+	// from external tar archive. This will be populated only if following
+	// buildcontext is created from IsURL and was downloaded before in any
+	// of the RUN step.
+	DownloadedCache string
+}
+
 // CommonBuildOptions are resources that can be defined by flags for both buildah from and build
 type CommonBuildOptions struct {
 	// AddHost is the list of hostnames to add to the build container's /etc/hosts.
 	AddHost []string
+	// OmitHistory tells the builder to ignore the history of build layers and
+	// base while preparing image-spec, setting this to true will ensure no history
+	// is added to the image-spec. (default false)
+	OmitHistory bool
 	// CgroupParent is the path to cgroups under which the cgroup for the container will be created.
 	CgroupParent string
 	// CPUPeriod limits the CPU CFS (Completely Fair Scheduler) period
@@ -121,6 +140,8 @@ type BuildOptions struct {
 	Compression archive.Compression
 	// Arguments which can be interpolated into Dockerfiles
 	Args map[string]string
+	// Map of external additional build contexts
+	AdditionalBuildContexts map[string]*AdditionalBuildContext
 	// Name of the image to write to.
 	Output string
 	// BuildOutput specifies if any custom build output is selected for following build.
@@ -130,6 +151,12 @@ type BuildOptions struct {
 	// Additional tags to add to the image that we write, if we know of a
 	// way to add them.
 	AdditionalTags []string
+	// Logfile specifies if log output is redirected to an external file
+	// instead of stdout, stderr.
+	LogFile string
+	// LogByPlatform tells imagebuildah to split log to different log files
+	// for each platform if logging to external file was selected.
+	LogSplitByPlatform bool
 	// Log is a callback that will print a progress message.  If no value
 	// is supplied, the message will be sent to Err (or os.Stderr, if Err
 	// is nil) by default.
@@ -187,6 +214,8 @@ type BuildOptions struct {
 	DropCapabilities []string
 	// CommonBuildOpts is *required*.
 	CommonBuildOpts *CommonBuildOptions
+	// CPPFlags are additional arguments to pass to the C Preprocessor (cpp).
+	CPPFlags []string
 	// DefaultMountsFilePath is the file path holding the mounts to be mounted in "host-path:container-path" format
 	DefaultMountsFilePath string
 	// IIDFile tells the builder to write the image ID to the specified file

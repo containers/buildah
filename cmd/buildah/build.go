@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -157,6 +158,22 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		}
 	}
 
+	additionalBuildContext := make(map[string]*define.AdditionalBuildContext)
+	if c.Flag("build-context").Changed {
+		for _, contextString := range iopts.BuildContext {
+			av := strings.SplitN(contextString, "=", 2)
+			if len(av) > 1 {
+				parseAdditionalBuildContext, err := parse.GetAdditionalBuildContext(av[1])
+				if err != nil {
+					return errors.Wrapf(err, "while parsing additional build context")
+				}
+				additionalBuildContext[av[0]] = &parseAdditionalBuildContext
+			} else {
+				return fmt.Errorf("while parsing additional build context: %q, accepts value in the form of key=value", av)
+			}
+		}
+	}
+
 	containerfiles := getContainerfiles(iopts.File)
 	format, err := getFormat(iopts.Format)
 	if err != nil {
@@ -234,6 +251,12 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		stdout = f
 		stderr = f
 		reporter = f
+	}
+
+	if c.Flag("logsplit").Changed {
+		if !c.Flag("logfile").Changed {
+			return errors.Errorf("cannot use --logsplit without --logfile")
+		}
 	}
 
 	store, err := getStore(c)
@@ -344,6 +367,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		Annotations:             iopts.Annotation,
 		Architecture:            systemContext.ArchitectureChoice,
 		Args:                    args,
+		AdditionalBuildContexts: additionalBuildContext,
 		BlobDirectory:           iopts.BlobCache,
 		CNIConfigDir:            iopts.CNIConfigDir,
 		CNIPluginPath:           iopts.CNIPlugInPath,
@@ -351,6 +375,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		Compression:             compression,
 		ConfigureNetwork:        networkPolicy,
 		ContextDirectory:        contextDir,
+		CPPFlags:                iopts.CPPFlags,
 		DefaultMountsFilePath:   globalFlagResults.DefaultMountsFile,
 		Devices:                 iopts.Devices,
 		DropCapabilities:        iopts.CapDrop,
@@ -364,6 +389,8 @@ func buildCmd(c *cobra.Command, inputArgs []string, iopts buildOptions) error {
 		IgnoreFile:              iopts.IgnoreFile,
 		Labels:                  iopts.Label,
 		Layers:                  layers,
+		LogFile:                 iopts.Logfile,
+		LogSplitByPlatform:      iopts.LogSplitByPlatform,
 		LogRusage:               iopts.LogRusage,
 		Manifest:                iopts.Manifest,
 		MaxPullPushRetries:      maxPullPushRetries,

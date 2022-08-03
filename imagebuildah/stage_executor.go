@@ -369,18 +369,73 @@ func (s *StageExecutor) Copy(excludes []string, copies ...imagebuilder.Copy) err
 			if fromErr != nil {
 				return errors.Wrapf(fromErr, "unable to resolve argument %q", copy.From)
 			}
-			if isStage, err := s.executor.waitForStage(s.ctx, from, s.stages[:s.index]); isStage && err != nil {
-				return err
-			}
-			if other, ok := s.executor.stages[from]; ok && other.index < s.index {
-				contextDir = other.mountPoint
-				idMappingOptions = &other.builder.IDMappingOptions
-			} else if builder, ok := s.executor.containerMap[copy.From]; ok {
-				contextDir = builder.MountPoint
-				idMappingOptions = &builder.IDMappingOptions
+			var additionalBuildContext *define.AdditionalBuildContext
+			if foundContext, ok := s.executor.additionalBuildContexts[from]; ok {
+				additionalBuildContext = foundContext
 			} else {
-				return errors.Errorf("the stage %q has not been built", copy.From)
+				// Maybe index is given in COPY --from=index
+				// if that's the case check if provided index
+				// exists and if stage short_name matches any
+				// additionalContext replace stage with addtional
+				// build context.
+				if _, err := strconv.Atoi(from); err == nil {
+					if stage, ok := s.executor.stages[from]; ok {
+						if foundContext, ok := s.executor.additionalBuildContexts[stage.name]; ok {
+							additionalBuildContext = foundContext
+						}
+					}
+				}
 			}
+			if additionalBuildContext != nil {
+				if !additionalBuildContext.IsImage {
+					contextDir = additionalBuildContext.Value
+					if additionalBuildContext.IsURL {
+						// Check if following buildContext was already
+						// downloaded before in any other RUN step. If not
+						// download it and populate DownloadCache field for
+						// future RUN steps.
+						if additionalBuildContext.DownloadedCache == "" {
+							// additional context contains a tar file
+							// so download and explode tar to buildah
+							// temp and point context to that.
+							path, subdir, err := define.TempDirForURL(internalUtil.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
+							if err != nil {
+								return errors.Wrapf(err, "unable to download context from external source %q", additionalBuildContext.Value)
+							}
+							// point context dir to the extracted path
+							contextDir = filepath.Join(path, subdir)
+							// populate cache for next RUN step
+							additionalBuildContext.DownloadedCache = contextDir
+						} else {
+							contextDir = additionalBuildContext.DownloadedCache
+						}
+					}
+				} else {
+					copy.From = additionalBuildContext.Value
+				}
+			}
+			if additionalBuildContext == nil {
+				if isStage, err := s.executor.waitForStage(s.ctx, from, s.stages[:s.index]); isStage && err != nil {
+					return err
+				}
+				if other, ok := s.executor.stages[from]; ok && other.index < s.index {
+					contextDir = other.mountPoint
+					idMappingOptions = &other.builder.IDMappingOptions
+				} else if builder, ok := s.executor.containerMap[copy.From]; ok {
+					contextDir = builder.MountPoint
+					idMappingOptions = &builder.IDMappingOptions
+				} else {
+					return errors.Errorf("the stage %q has not been built", copy.From)
+				}
+			} else if additionalBuildContext.IsImage {
+				// Image was selected as additionalContext so only process image.
+				mountPoint, err := s.getImageRootfs(s.ctx, copy.From)
+				if err != nil {
+					return err
+				}
+				contextDir = mountPoint
+			}
+			// Original behaviour of buildah still stays true for COPY irrespective of additional context.
 			preserveOwnership = true
 			copyExcludes = excludes
 		} else {
@@ -445,6 +500,55 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 					from, fromErr := imagebuilder.ProcessWord(kv[1], s.stage.Builder.Arguments())
 					if fromErr != nil {
 						return nil, errors.Wrapf(fromErr, "unable to resolve argument %q", kv[1])
+					}
+					// If additional buildContext contains this
+					// give priority to that and break if additional
+					// is not an external image.
+					if additionalBuildContext, ok := s.executor.additionalBuildContexts[from]; ok {
+						if additionalBuildContext.IsImage {
+							mountPoint, err := s.getImageRootfs(s.ctx, additionalBuildContext.Value)
+							if err != nil {
+								return nil, errors.Errorf("%s from=%s: image found with that name", flag, from)
+							}
+							// The `from` in stageMountPoints should point
+							// to `mountPoint` replaced from additional
+							// build-context. Reason: Parser will use this
+							//  `from` to refer from stageMountPoints map later.
+							stageMountPoints[from] = internal.StageMountDetails{IsStage: false, MountPoint: mountPoint}
+							break
+						} else {
+							// Most likely this points to path on filesystem
+							// or external tar archive, Treat it as a stage
+							// nothing is different for this. So process and
+							// point mountPoint to path on host and it will
+							// be automatically handled correctly by since
+							// GetBindMount will honor IsStage:false while
+							// processing stageMountPoints.
+							mountPoint := additionalBuildContext.Value
+							if additionalBuildContext.IsURL {
+								// Check if following buildContext was already
+								// downloaded before in any other RUN step. If not
+								// download it and populate DownloadCache field for
+								// future RUN steps.
+								if additionalBuildContext.DownloadedCache == "" {
+									// additional context contains a tar file
+									// so download and explode tar to buildah
+									// temp and point context to that.
+									path, subdir, err := define.TempDirForURL(internalUtil.GetTempDir(), internal.BuildahExternalArtifactsDir, additionalBuildContext.Value)
+									if err != nil {
+										return nil, errors.Wrapf(err, "unable to download context from external source %q", additionalBuildContext.Value)
+									}
+									// point context dir to the extracted path
+									mountPoint = filepath.Join(path, subdir)
+									// populate cache for next RUN step
+									additionalBuildContext.DownloadedCache = mountPoint
+								} else {
+									mountPoint = additionalBuildContext.DownloadedCache
+								}
+							}
+							stageMountPoints[from] = internal.StageMountDetails{IsStage: true, MountPoint: mountPoint}
+							break
+						}
 					}
 					// If the source's name corresponds to the
 					// result of an earlier stage, wait for that
@@ -923,6 +1027,25 @@ func (s *StageExecutor) Execute(ctx context.Context, base string) (imgID string,
 				if fromErr != nil {
 					return "", nil, errors.Wrapf(fromErr, "unable to resolve argument %q", arr[1])
 				}
+				// If additional buildContext contains this
+				// give priority to that and break if additional
+				// is not an external image.
+				if additionalBuildContext, ok := s.executor.additionalBuildContexts[from]; ok {
+					if !additionalBuildContext.IsImage {
+						// We don't need to pull this
+						// since this additional context
+						// is not an image.
+						break
+					} else {
+						// replace with image set in build context
+						from = additionalBuildContext.Value
+						if _, err := s.getImageRootfs(ctx, from); err != nil {
+							return "", nil, errors.Errorf("%s --from=%s: no stage or image found with that name", command, from)
+						}
+						break
+					}
+				}
+
 				// If the source's name corresponds to the
 				// result of an earlier stage, wait for that
 				// stage to finish being built.
@@ -1585,6 +1708,7 @@ func (s *StageExecutor) commit(ctx context.Context, createdBy string, emptyLayer
 		PreferredManifestType: s.executor.outputFormat,
 		SystemContext:         s.executor.systemContext,
 		Squash:                squash,
+		OmitHistory:           s.executor.commonBuildOptions.OmitHistory,
 		EmptyLayer:            emptyLayer,
 		BlobDirectory:         s.executor.blobDirectory,
 		SignBy:                s.executor.signBy,

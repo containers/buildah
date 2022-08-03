@@ -53,6 +53,14 @@ function testconfighistory() {
   expect_output --substring "ONBUILD CMD /foo"
 }
 
+@test "commit-with-omit-history-set-to-true" {
+  run_buildah from --name onbuildctr --format docker scratch
+  run_buildah config --onbuild "CMD /foo" --add-history onbuildctr
+  run_buildah commit --omit-history $WITH_POLICY_JSON onbuildctr onbuildimg
+  run_buildah inspect --format "{{index .Docker.History}}" onbuildimg
+  expect_output "[]"
+}
+
 @test "history-port" {
   testconfighistory "--port 80/tcp" "EXPOSE 80/tcp"
 }

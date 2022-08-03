@@ -78,6 +78,15 @@ Write the image ID to the file.
 Name of the manifest list to which the built image will be added. Creates the manifest list
 if it does not exist. This option is useful for building multi architecture images.
 
+**--omit-history** *bool-value*
+
+Omit build history information in the built image. (default false).
+
+This option is useful for the cases where end users explicitly
+want to set `--omit-history` to omit the optional `History` from
+built images or when working with images built using build tools that
+do not include `History` information in their images.
+
 **--quiet**, **-q**
 
 When writing the output image, suppress progress output.

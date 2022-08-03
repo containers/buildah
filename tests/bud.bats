@@ -202,6 +202,156 @@ _EOF
   expect_output --substring $targetarch
 }
 
+# Test build with --add-history=false
+@test "build-with-omit-history-to-true should not add history" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1 << _EOF
+FROM alpine
+RUN echo hello
+RUN echo world
+_EOF
+
+  # Built image must not contain history for the layers which we have just built.
+  run_buildah build $WITH_POLICY_JSON --omit-history -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  run_buildah inspect --format "{{index .Docker.History}}" source
+  expect_output "[]"
+  run_buildah inspect --format "{{index .OCIv1.History}}" source
+  expect_output "[]"
+  run_buildah inspect --format "{{index .History}}" source
+  expect_output "[]"
+}
+
+
+# Test pinning image using additional build context
+@test "build-with-additional-build-context and COPY, test pinning image" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1 << _EOF
+FROM alpine
+RUN touch hello
+RUN echo world > hello
+_EOF
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2 << _EOF
+FROM alpine
+COPY --from=busybox hello .
+RUN cat hello
+_EOF
+
+  # Build a first image which we can use as source
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # Pin upstream busybox to local image source
+  run_buildah build $WITH_POLICY_JSON --build-context busybox=docker://source -t test -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2
+  expect_output --substring "world"
+}
+
+# Test conflict between stage short name and additional-context conflict
+# Buildkit parity give priority to additional-context over stage names.
+@test "build-with-additional-build-context and COPY, stagename and additional-context conflict" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1 << _EOF
+FROM alpine
+RUN touch hello
+RUN echo world > hello
+_EOF
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2 << _EOF
+FROM alpine as some-stage
+RUN echo world
+
+# hello should get copied since we are giving priority to additional context
+COPY --from=some-stage hello .
+RUN cat hello
+_EOF
+
+  # Build a first image which we can use as source
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # Pin upstream busybox to local image source
+  run_buildah build $WITH_POLICY_JSON --build-context some-stage=docker://source -t test -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2
+  expect_output --substring "world"
+}
+
+# When numeric index of stage is used and stage exists but additional context also exist with name
+# same as stage in such situations always use additional context.
+@test "build-with-additional-build-context and COPY, additionalContext and numeric value of stage" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1 << _EOF
+FROM alpine
+RUN touch hello
+RUN echo override-numeric > hello
+_EOF
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2 << _EOF
+FROM alpine as some-stage
+RUN echo world > hello
+
+# hello should get copied since we are accessing stage from its numeric value and not
+# addtional build context where some-stage is docker://alpine
+FROM alpine
+COPY --from=0 hello .
+RUN cat hello
+_EOF
+
+  # Build a first image which we can use as source
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  run_buildah build $WITH_POLICY_JSON --build-context some-stage=docker://source -t test -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2
+  expect_output --substring "override-numeric"
+}
+
+# Test conflict between stage short name and additional-context conflict on FROM
+# Buildkit parity give priority to additional-context over stage names.
+@test "build-with-additional-build-context and FROM, stagename and additional-context conflict" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1 << _EOF
+FROM alpine
+RUN touch hello
+RUN echo world > hello
+_EOF
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2 << _EOF
+FROM alpine as some-stage
+RUN echo world
+
+# hello should be there since we are giving priority to additional context
+FROM some-stage
+RUN cat hello
+_EOF
+
+  # Build a first image which we can use as source
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # Second FROM should choose base as `source` instead of local-stage named `some-stage`.
+  run_buildah build $WITH_POLICY_JSON --build-context some-stage=docker://source -t test -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2
+  expect_output --substring "world"
+}
+
+# Test adding additional build context
+@test "build-with-additional-build-context and COPY, additional context from host" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform2
+
+  # add file on original context
+  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+  # add file on additional context
+  echo hello_world > ${TEST_SCRATCH_DIR}/bud/platform2/hello
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+COPY somefile .
+RUN cat somefile
+COPY --from=context2 hello .
+RUN cat hello
+_EOF
+
+  # Test additional context
+  run_buildah build $WITH_POLICY_JSON -t source --build-context context2=${TEST_SCRATCH_DIR}/bud/platform2 ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "something"
+  expect_output --substring "hello_world"
+}
+
 @test "build with add resolving to invalid HTTP status code" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
 
@@ -212,6 +362,102 @@ _EOF
 
   run_buildah 125 build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
   expect_output --substring "invalid response status"
+}
+
+# Test adding additional build context but download tar
+@test "build-with-additional-build-context and COPY, additional context from external URL" {
+
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+COPY --from=crun-context . .
+RUN ls crun-1.4.5
+_EOF
+
+  # Test additional context but download from tar
+  run_buildah build $WITH_POLICY_JSON -t source --build-context crun-context=https://github.com/containers/crun/releases/download/1.4.5/crun-1.4.5.tar.xz ${TEST_SCRATCH_DIR}/bud/platform
+  # additional context from tar must show crun binary inside container
+  expect_output --substring "libcrun"
+}
+
+# Test pinning image
+@test "build-with-additional-build-context and FROM, pin busybox to alpine" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM busybox
+RUN ls /etc/*release
+_EOF
+
+  # Test additional context but download from tar
+  # We are pinning busybox to alpine so we must always pull alpine and use that
+  run_buildah build $WITH_POLICY_JSON -t source --build-context busybox=docker://alpine ${TEST_SCRATCH_DIR}/bud/platform
+  # We successfully pinned binary cause otherwise busybox should not contain alpine-release binary
+  expect_output --substring "alpine-release"
+}
+
+# Test usage of RUN --mount=from=<name> with additional context and also test conflict with stage-name
+@test "build-with-additional-build-context and RUN --mount=from=, additional-context and also test conflict with stagename" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1 << _EOF
+FROM alpine
+RUN touch hello
+RUN echo world > hello
+_EOF
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2 << _EOF
+FROM alpine as some-stage
+RUN echo something_random
+
+# hello should get copied since we are giving priority to additional context
+FROM alpine
+RUN --mount=type=bind,from=some-stage,target=/test cat /test/hello
+_EOF
+
+  # Build a first image which we can use as source
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # Additional Context for RUN --mount is additional image and it should not conflict with stage
+  run_buildah build $WITH_POLICY_JSON --build-context some-stage=docker://source -t test -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2
+  expect_output --substring "world"
+}
+
+# Test usage of RUN --mount=from=<name> with additional context and also test conflict with stage-name, when additionalContext is on host
+@test "build-with-additional-build-context and RUN --mount=from=, additional-context not image and also test conflict with stagename" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+  echo world > ${TEST_SCRATCH_DIR}/bud/platform/hello
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2 << _EOF
+FROM alpine as some-stage
+RUN echo some_text
+
+# hello should get copied since we are giving priority to additional context
+FROM alpine
+RUN --mount=type=bind,from=some-stage,target=/test,z cat /test/hello
+_EOF
+
+  # Addtional context for RUN --mount is file on host
+  run_buildah build $WITH_POLICY_JSON --build-context some-stage=${TEST_SCRATCH_DIR}/bud/platform -t test -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2
+  expect_output --substring "world"
+}
+
+# Test usage of RUN --mount=from=<name> with additional context is URL and mount source is relative using src
+@test "build-with-additional-build-context and RUN --mount=from=, additional-context is URL and mounted from subdir" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2 << _EOF
+FROM alpine as some-stage
+RUN echo world
+
+# hello should get copied since we are giving priority to additional context
+FROM alpine
+RUN --mount=type=bind,src=crun-1.4.5/src,from=some-stage,target=/test,z ls /test
+_EOF
+
+  # Addtional context for RUN --mount is file on host
+  run_buildah build $WITH_POLICY_JSON --build-context some-stage=https://github.com/containers/crun/releases/download/1.4.5/crun-1.4.5.tar.xz -t test -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile2
+  expect_output --substring "crun.c"
 }
 
 @test "bud with --layers and --no-cache flags" {
@@ -1458,6 +1704,25 @@ function _test_http() {
   test -s ${TEST_SCRATCH_DIR}/logfile
 }
 
+@test "bud-logfile-with-split-logfile-by-platform" {
+  mytmpdir=${TEST_SCRATCH_DIR}/my-dir
+  mkdir -p $mytmpdir
+
+  cat > $mytmpdir/Containerfile << _EOF
+FROM alpine
+COPY . .
+_EOF
+
+  rm -f ${TEST_SCRATCH_DIR}/logfile
+  run_buildah build --logfile ${TEST_SCRATCH_DIR}/logfile --logsplit --platform linux/arm64,linux/amd64 $WITH_POLICY_JSON ${mytmpdir}
+  run cat ${TEST_SCRATCH_DIR}/logfile_linux_arm64
+  expect_output --substring "FROM alpine"
+  expect_output --substring "[linux/arm64]"
+  run cat ${TEST_SCRATCH_DIR}/logfile_linux_amd64
+  expect_output --substring "FROM alpine"
+  expect_output --substring "[linux/amd64]"
+}
+
 @test "bud with ARGS" {
   _prefetch alpine
   target=alpine-image
@@ -2413,6 +2678,18 @@ _EOF
   [ "${status}" -eq 0 ]
   expect_output --substring "FROM alpine"
   expect_output --substring "success"
+  expect_output --substring "debug=no"
+  run_buildah build $WITH_POLICY_JSON -t ${target} --cpp-flag "-DDEBUG" -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM alpine"
+  expect_output --substring "success"
+  expect_output --substring "debug=yes"
+
+  BUILDAH_CPPFLAGS="-DDEBUG" run_buildah build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/containerfile/Containerfile.in $BUDFILES/containerfile
+  [ "${status}" -eq 0 ]
+  expect_output --substring "FROM alpine"
+  expect_output --substring "success"
+  expect_output --substring "debug=yes"
 }
 
 @test "bud with Dockerfile" {
@@ -3862,6 +4139,25 @@ _EOF
   run jq '.manifests | length' <<< "$output"
   echo "$output"
   [[ "$output" -gt 1 ]] # should at least be more than one entry in there, right?
+}
+
+@test "bud-multiple-platform for --all-platform with additional-build-context" {
+  outputlist=localhost/testlist
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1 << _EOF
+FROM busybox
+_EOF
+
+  # Pulled images must be ubi since we configured --build-context busybox=docker://registry.access.redhat.com/ubi8-micro
+  run_buildah build $WITH_POLICY_JSON --all-platforms --build-context busybox=docker://registry.access.redhat.com/ubi8-micro --manifest $outputlist -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # must contain pulling logs for ubi8 instead of busybox
+  expect_output --substring "ubi8"
+  run_buildah manifest inspect $outputlist
+  echo "$output"
+  run jq '.manifests | length' <<< "$output"
+  echo "$output"
+  [[ "$output" -eq 4 ]] # should be equal to 4 which is equivalent to images in registry.access.redhat.com/ubi8-micro
 }
 
 # * Performs multi-stage build with label1=value1 and verifies

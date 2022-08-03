@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.26.3
+Version:        1.26.4
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,13 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Wed Aug 3 2022 Nalin Dahyabhai <nalin@redhat.com> 1.26.4-1
+- build: add --cpp-flag
+- build: add --build-context flag
+- build: add --omit-history flag
+- build: add --logsplit flag
+- copier: add `NoOverwriteNonDirDir` option
+
 * Tue Aug 02 2022 Aditya R <arajan@redhat.com> 1.26.3-1
 - define.downloadToDirectory: fail early if bad HTTP response
 - add: fail on bad http response instead of writing to container

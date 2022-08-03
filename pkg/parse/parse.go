@@ -137,6 +137,7 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 	cpuShares, _ := flags.GetUint64("cpu-shares")
 	httpProxy, _ := flags.GetBool("http-proxy")
 	identityLabel, _ := flags.GetBool("identity-label")
+	omitHistory, _ := flags.GetBool("omit-history")
 
 	ulimit := []string{}
 	if flags.Changed("ulimit") {
@@ -162,6 +163,7 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 		Memory:        memoryLimit,
 		MemorySwap:    memorySwap,
 		NoHosts:       noHosts,
+		OmitHistory:   omitHistory,
 		ShmSize:       findFlagFunc("shm-size").Value.String(),
 		Ulimit:        ulimit,
 		Volumes:       volumes,
@@ -173,6 +175,31 @@ func CommonBuildOptionsFromFlagSet(flags *pflag.FlagSet, findFlagFunc func(name 
 		return nil, err
 	}
 	return commonOpts, nil
+}
+
+// GetAdditionalBuildContext consumes raw string and returns parsed AdditionalBuildContext
+func GetAdditionalBuildContext(value string) (define.AdditionalBuildContext, error) {
+	ret := define.AdditionalBuildContext{IsURL: false, IsImage: false, Value: value}
+	if strings.HasPrefix(value, "docker-image://") {
+		ret.IsImage = true
+		ret.Value = strings.TrimPrefix(value, "docker-image://")
+	} else if strings.HasPrefix(value, "container-image://") {
+		ret.IsImage = true
+		ret.Value = strings.TrimPrefix(value, "container-image://")
+	} else if strings.HasPrefix(value, "docker://") {
+		ret.IsImage = true
+		ret.Value = strings.TrimPrefix(value, "docker://")
+	} else if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
+		ret.IsImage = false
+		ret.IsURL = true
+	} else {
+		path, err := filepath.Abs(value)
+		if err != nil {
+			return define.AdditionalBuildContext{}, errors.Wrapf(err, "unable to convert additional build-context %q path to absolute", value)
+		}
+		ret.Value = path
+	}
+	return ret, nil
 }
 
 func parseSecurityOpts(securityOpts []string, commonOpts *define.CommonBuildOptions) error {

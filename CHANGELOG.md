@@ -2,6 +2,14 @@
 
 # Changelog
 
+## v1.26.4 (2022-08-03)
+
+    build: add --cpp-flag
+    build: add --build-context flag
+    build: add --omit-history flag
+    build: add --logsplit flag
+    copier: add `NoOverwriteNonDirDir` option
+
 ## v1.26.3 (2022-08-02)
 
     define.downloadToDirectory: fail early if bad HTTP response

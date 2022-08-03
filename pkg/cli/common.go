@@ -53,10 +53,12 @@ type BudResults struct {
 	Annotation          []string
 	Authfile            string
 	BuildArg            []string
+	BuildContext        []string
 	CacheFrom           string
 	CertDir             string
 	Compress            bool
 	Creds               string
+	CPPFlags            []string
 	DisableCompression  bool
 	DisableContentTrust bool
 	IgnoreFile          string
@@ -66,10 +68,12 @@ type BudResults struct {
 	Iidfile             string
 	Label               []string
 	Logfile             string
+	LogSplitByPlatform  bool
 	Manifest            string
 	NoHosts             bool
 	NoCache             bool
 	Timestamp           int64
+	OmitHistory         bool
 	Pull                string
 	PullAlways          bool
 	PullNever           bool
@@ -191,9 +195,11 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.StringArrayVar(&flags.Annotation, "annotation", []string{}, "set metadata for an image (default [])")
 	fs.StringVar(&flags.Authfile, "authfile", "", "path of the authentication file.")
 	fs.StringArrayVar(&flags.BuildArg, "build-arg", []string{}, "`argument=value` to supply to the builder")
+	fs.StringArrayVar(&flags.BuildContext, "build-context", []string{}, "`argument=value` to supply additional build context to the builder")
 	fs.StringVar(&flags.CacheFrom, "cache-from", "", "images to utilise as potential cache sources. The build process does not currently support caching so this is a NOOP.")
 	fs.StringVar(&flags.CertDir, "cert-dir", "", "use certificates at the specified path to access the registry")
 	fs.BoolVar(&flags.Compress, "compress", false, "this is a legacy option, which has no effect on the image")
+	fs.StringArrayVar(&flags.CPPFlags, "cpp-flag", []string{}, "set additional flag to pass to C preprocessor (cpp)")
 	fs.StringVar(&flags.Creds, "creds", "", "use `[username[:password]]` for accessing the registry")
 	fs.BoolVarP(&flags.DisableCompression, "disable-compression", "D", true, "don't compress layers by default")
 	fs.BoolVar(&flags.DisableContentTrust, "disable-content-trust", false, "this is a Docker specific option and is a NOOP")
@@ -206,6 +212,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	fs.IntVar(&flags.Jobs, "jobs", 1, "how many stages to run in parallel")
 	fs.StringArrayVar(&flags.Label, "label", []string{}, "set metadata for an image (default [])")
 	fs.StringVar(&flags.Logfile, "logfile", "", "log to `file` instead of stdout/stderr")
+	fs.BoolVar(&flags.LogSplitByPlatform, "logsplit", false, "split logfile to different files for each platform")
 	fs.Int("loglevel", 0, "NO LONGER USED, flag ignored, and hidden")
 	if err := fs.MarkHidden("loglevel"); err != nil {
 		panic(fmt.Sprintf("error marking the loglevel flag as hidden: %v", err))
@@ -235,6 +242,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 		panic(fmt.Sprintf("error marking the pull-never flag as hidden: %v", err))
 	}
 	fs.BoolVarP(&flags.Quiet, "quiet", "q", false, "refrain from announcing build instructions and image read/write progress")
+	fs.BoolVar(&flags.OmitHistory, "omit-history", false, "omit build history information from built image (default true)")
 	fs.BoolVar(&flags.IdentityLabel, "identity-label", true, "add default identity label (default true)")
 	fs.BoolVar(&flags.Rm, "rm", true, "remove intermediate containers after a successful build")
 	// "runtime" definition moved to avoid name collision in podman build.  Defined in cmd/buildah/build.go.
@@ -261,17 +269,19 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 // GetBudFlagsCompletions returns the FlagCompletions for the common build flags
 func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion := commonComp.FlagCompletions{}
-	flagCompletion["arch"] = commonComp.AutocompleteNone
 	flagCompletion["annotation"] = commonComp.AutocompleteNone
+	flagCompletion["arch"] = commonComp.AutocompleteNone
 	flagCompletion["authfile"] = commonComp.AutocompleteDefault
 	flagCompletion["build-arg"] = commonComp.AutocompleteNone
+	flagCompletion["build-context"] = commonComp.AutocompleteNone
 	flagCompletion["cache-from"] = commonComp.AutocompleteNone
 	flagCompletion["cert-dir"] = commonComp.AutocompleteDefault
+	flagCompletion["cpp-flag"] = commonComp.AutocompleteNone
 	flagCompletion["creds"] = commonComp.AutocompleteNone
 	flagCompletion["env"] = commonComp.AutocompleteNone
 	flagCompletion["file"] = commonComp.AutocompleteDefault
-	flagCompletion["from"] = commonComp.AutocompleteDefault
 	flagCompletion["format"] = commonComp.AutocompleteNone
+	flagCompletion["from"] = commonComp.AutocompleteDefault
 	flagCompletion["ignorefile"] = commonComp.AutocompleteDefault
 	flagCompletion["iidfile"] = commonComp.AutocompleteDefault
 	flagCompletion["jobs"] = commonComp.AutocompleteNone
@@ -281,18 +291,18 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["os"] = commonComp.AutocompleteNone
 	flagCompletion["os-feature"] = commonComp.AutocompleteNone
 	flagCompletion["os-version"] = commonComp.AutocompleteNone
+	flagCompletion["output"] = commonComp.AutocompleteNone
 	flagCompletion["pull"] = commonComp.AutocompleteDefault
 	flagCompletion["runtime-flag"] = commonComp.AutocompleteNone
 	flagCompletion["secret"] = commonComp.AutocompleteNone
-	flagCompletion["ssh"] = commonComp.AutocompleteNone
 	flagCompletion["sign-by"] = commonComp.AutocompleteNone
 	flagCompletion["signature-policy"] = commonComp.AutocompleteNone
+	flagCompletion["ssh"] = commonComp.AutocompleteNone
 	flagCompletion["tag"] = commonComp.AutocompleteNone
 	flagCompletion["target"] = commonComp.AutocompleteNone
 	flagCompletion["timestamp"] = commonComp.AutocompleteNone
-	flagCompletion["variant"] = commonComp.AutocompleteNone
 	flagCompletion["unsetenv"] = commonComp.AutocompleteNone
-	flagCompletion["output"] = commonComp.AutocompleteNone
+	flagCompletion["variant"] = commonComp.AutocompleteNone
 	return flagCompletion
 }
 
