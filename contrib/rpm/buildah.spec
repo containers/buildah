@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.26.2
+Version:        1.26.3
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,21 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Tue Aug 02 2022 Aditya R <arajan@redhat.com> 1.26.3-1
+- define.downloadToDirectory: fail early if bad HTTP response
+- add: fail on bad http response instead of writing to container
+- squash: never use build cache when computing last step of last stage
+- run: allow resuing secret twice in different RUN steps
+- integration tests: update expected error messages
+- integration tests: quote "?" in shell scripts
+- Use errors.Is() to check for storage errors
+- lint: inspectable is never nil
+- chroot: use ActKillThread instead of ActKill
+- chroot: honor DefaultErrnoRet
+- Bump dependencies
+- Set user namespace defaults correctly for the library
+- contrib/rpm/buildah.spec: fix `rpm` parser warnings
+
 * Thu Jun 30 2022 Tom Sweeney <tsweeney@redhat.com> 1.26.2-1
 - buildah: add support for renaming a device in rootless setups
 
