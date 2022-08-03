@@ -1584,12 +1584,9 @@ function _test_http() {
 }
 
 @test "bud-git-context" {
-  # We need git and ssh to be around to handle cloning a repository.
+  # We need git to be around to handle cloning a repository.
   if ! which git ; then
     skip "no git in PATH"
-  fi
-  if ! which ssh ; then
-    skip "no ssh in PATH"
   fi
   target=giturl-image
   # Any repo would do, but this one is small, is FROM: scratch, and local.
@@ -1599,6 +1596,27 @@ function _test_http() {
   gitrepo=git://localhost:${GITPORT}/repo
   run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
   run_buildah from ${target}
+}
+
+@test "bud-git-context-subdirectory" {
+  # We need git to be around to handle cloning a repository.
+  if ! which git ; then
+    skip "no git in PATH"
+  fi
+  target=giturl-image
+  # Any repo would do, but this one is small, is FROM: scratch, local, and has
+  # its entire build context in a subdirectory of the repository.
+  if ! start_git_daemon ${TEST_SOURCES}/git-daemon/subdirectory.tar.gz ; then
+    skip "error running git daemon"
+  fi
+  gitrepo=git://localhost:${GITPORT}/repo#main:nested/subdirectory
+  tmpdir="${TEST_SCRATCH_DIR}/build"
+  mkdir -p "${tmpdir}"
+  TMPDIR="${tmpdir}" run_buildah build $WITH_POLICY_JSON -t ${target} "${gitrepo}"
+  run_buildah from "${target}"
+  run find "${tmpdir}" -type d -print
+  echo "$output"
+  test "${#lines[*]}" -le 2
 }
 
 @test "bud-git-context-failure" {
