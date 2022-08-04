@@ -128,6 +128,12 @@ buildah build -t test --layers --cache-to registry/myrepo/cache --cache-from reg
 
 Note: `--cache-to` option is ignored unless `--layers` is specified.
 
+**--cache-ttl** *duration*
+
+Limit the use of cached images to only consider images with created timestamps less than *duration* ago.
+For example if `--cache-ttl=1h` is specified, Buildah will only consider intermediate cache images which are created
+under the duration of one hour, and intermediate cache images outside this duration will be ignored.
+
 **--cap-add**=*CAP\_xxx*
 
 When executing RUN instructions, run the command specified in the instruction

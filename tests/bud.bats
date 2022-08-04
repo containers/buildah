@@ -3981,6 +3981,37 @@ _EOF
   run_buildah rmi myalpine
 }
 
+@test "build verify cache behaviour with --cache-ttl" {
+  _prefetch alpine
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1 << _EOF
+FROM alpine
+RUN touch hello
+RUN echo world
+_EOF
+
+  # Build with --timestamp somewhere in the past
+  run_buildah build $WITH_POLICY_JSON --timestamp 1628099045 --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # Specify --cache-ttl 0.5s and cache should
+  # not be used since cached image is created
+  # with timestamp somwhere in past ( in ~2021 )
+  run_buildah build $WITH_POLICY_JSON --cache-ttl=0.5s --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # Should not contain `Using cache` since all
+  # cached layers are 1s old.
+  assert "$output" !~ "Using cache"
+  # clean all images and cache
+  run_buildah rmi --all -f
+  _prefetch alpine
+  run_buildah build $WITH_POLICY_JSON --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # Cache should be used since our ttl is 1h but
+  # cache layers are just built so they should be
+  # few seconds old.
+  run_buildah build $WITH_POLICY_JSON --cache-ttl=1h --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # must use already cached images.
+  expect_output --substring "Using cache"
+}
+
 @test "build test pushing and pulling from remote cache sources" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir

@@ -1799,6 +1799,17 @@ func (s *StageExecutor) intermediateImageExists(ctx context.Context, currNode *p
 		}
 	}
 	for _, image := range images {
+		// If s.executor.cacheTTL was specified
+		// then ignore processing image if it
+		// was created before the specified
+		// duration.
+		if int64(s.executor.cacheTTL) != 0 {
+			timeNow := time.Now()
+			imageDuration := timeNow.Sub(image.Created)
+			if s.executor.cacheTTL < imageDuration {
+				continue
+			}
+		}
 		var imageTopLayer *storage.Layer
 		var imageParentLayerID string
 		if image.TopLayer != "" {
