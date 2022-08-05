@@ -94,50 +94,6 @@ func logNamespaceDiagnostics(spec *specs.Spec) {
 	// Nothing here for FreeBSD
 }
 
-// parses the resource limits for ourselves and any processes that
-// we'll start into a format that's more in line with the kernel APIs
-func parseRlimits(spec *specs.Spec) (map[int]unix.Rlimit, error) {
-	if spec.Process == nil {
-		return nil, nil
-	}
-	parsed := make(map[int]unix.Rlimit)
-	for _, limit := range spec.Process.Rlimits {
-		resource, recognized := rlimitsMap[strings.ToUpper(limit.Type)]
-		if !recognized {
-			return nil, fmt.Errorf("error parsing limit type %q", limit.Type)
-		}
-		parsed[resource] = unix.Rlimit{Cur: int64(limit.Soft), Max: int64(limit.Hard)}
-	}
-	return parsed, nil
-}
-
-// setRlimits sets any resource limits that we want to apply to processes that
-// we'll start.
-func setRlimits(spec *specs.Spec, onlyLower, onlyRaise bool) error {
-	limits, err := parseRlimits(spec)
-	if err != nil {
-		return err
-	}
-	for resource, desired := range limits {
-		var current unix.Rlimit
-		if err := unix.Getrlimit(resource, &current); err != nil {
-			return fmt.Errorf("error reading %q limit: %w", rlimitsReverseMap[resource], err)
-		}
-		if desired.Max > current.Max && onlyLower {
-			// this would raise a hard limit, and we're only here to lower them
-			continue
-		}
-		if desired.Max < current.Max && onlyRaise {
-			// this would lower a hard limit, and we're only here to raise them
-			continue
-		}
-		if err := unix.Setrlimit(resource, &desired); err != nil {
-			return fmt.Errorf("error setting %q limit to soft=%d,hard=%d (was soft=%d,hard=%d): %w", rlimitsReverseMap[resource], desired.Cur, desired.Max, current.Cur, current.Max, err)
-		}
-	}
-	return nil
-}
-
 func makeReadOnly(mntpoint string, flags uintptr) error {
 	var fs unix.Statfs_t
 	// Make sure it's read-only.
