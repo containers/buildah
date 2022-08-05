@@ -7,6 +7,8 @@ import (
 
 type Dot struct{}
 
+const DotType = "dot"
+
 func (d Dot) MatchSpecificity(spec *parse.GciImports) specificity.MatchSpecificity {
 	if spec.Name == "." {
 		return specificity.NameMatch{}
@@ -15,5 +17,9 @@ func (d Dot) MatchSpecificity(spec *parse.GciImports) specificity.MatchSpecifici
 }
 
 func (d Dot) String() string {
-	return "dot"
+	return DotType
+}
+
+func (d Dot) Type() string {
+	return DotType
 }

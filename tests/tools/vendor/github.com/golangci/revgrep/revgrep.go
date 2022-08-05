@@ -67,23 +67,7 @@ type Issue struct {
 	Message string
 }
 
-func (c *Checker) preparePatch() error {
-	// Check if patch is supplied, if not, retrieve from VCS
-	if c.Patch == nil {
-		var err error
-		c.Patch, c.NewFiles, err = GitPatch(c.RevisionFrom, c.RevisionTo)
-		if err != nil {
-			return fmt.Errorf("could not read git repo: %s", err)
-		}
-		if c.Patch == nil {
-			return errors.New("no version control repository found")
-		}
-	}
-
-	return nil
-}
-
-// InputIssue represents issue found by some linter
+// InputIssue represents issue found by some linter.
 type InputIssue interface {
 	FilePath() string
 	Line() int
@@ -94,6 +78,11 @@ type simpleInputIssue struct {
 	lineNumber int
 }
 
+type pos struct {
+	lineNo  int // line number
+	hunkPos int // position relative to first @@ in file
+}
+
 func (i simpleInputIssue) FilePath() string {
 	return i.filePath
 }
@@ -102,16 +91,16 @@ func (i simpleInputIssue) Line() int {
 	return i.lineNumber
 }
 
-// Prepare extracts a patch and changed lines
+// Prepare extracts a patch and changed lines.
 func (c *Checker) Prepare() error {
 	returnErr := c.preparePatch()
 	c.changes = c.linesChanged()
 	return returnErr
 }
 
-// IsNewIssue checks whether issue found by linter is new: it was found in changed lines
-func (c Checker) IsNewIssue(i InputIssue) (hunkPos int, isNew bool) {
-	fchanges, ok := c.changes[i.FilePath()]
+// IsNewIssue checks whether issue found by linter is new: it was found in changed lines.
+func (c *Checker) IsNewIssue(i InputIssue) (hunkPos int, isNew bool) {
+	fchanges, ok := c.changes[filepath.ToSlash(i.FilePath())]
 	if !ok { // file wasn't changed
 		return 0, false
 	}
@@ -149,24 +138,24 @@ func (c Checker) IsNewIssue(i InputIssue) (hunkPos int, isNew bool) {
 // Check scans reader and writes any lines to writer that have been added in
 // Checker.Patch.
 //
-// Returns issues written to writer when no error occurs.
+// Returns the issues written to writer when no error occurs.
 //
 // If no VCS could be found or other VCS errors occur, all issues are written
 // to writer and an error is returned.
 //
 // File paths in reader must be relative to current working directory or
 // absolute.
-func (c Checker) Check(reader io.Reader, writer io.Writer) (issues []Issue, err error) {
+func (c *Checker) Check(reader io.Reader, writer io.Writer) (issues []Issue, err error) {
 	returnErr := c.Prepare()
 	writeAll := returnErr != nil
 
 	// file.go:lineNo:colNo:message
 	// colNo is optional, strip spaces before message
-	lineRE := regexp.MustCompile(`(.*?\.go):([0-9]+):([0-9]+)?:?\s*(.*)`)
+	lineRE := regexp.MustCompile(`(.+\.go):([0-9]+):([0-9]+)?:?\s*(.*)`)
 	if c.Regexp != "" {
 		lineRE, err = regexp.Compile(c.Regexp)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse regexp: %v", err)
+			return nil, fmt.Errorf("could not parse regexp: %w", err)
 		}
 	}
 
@@ -178,7 +167,7 @@ func (c Checker) Check(reader io.Reader, writer io.Writer) (issues []Issue, err 
 	if absPath == "" {
 		absPath, err = os.Getwd()
 		if err != nil {
-			returnErr = fmt.Errorf("could not get current working directory: %s", err)
+			returnErr = fmt.Errorf("could not get current working directory: %w", err)
 		}
 	}
 
@@ -192,7 +181,7 @@ func (c Checker) Check(reader io.Reader, writer io.Writer) (issues []Issue, err 
 		}
 
 		if writeAll {
-			fmt.Fprintln(writer, scanner.Text())
+			_, _ = fmt.Fprintln(writer, scanner.Text())
 			continue
 		}
 
@@ -224,11 +213,10 @@ func (c Checker) Check(reader io.Reader, writer io.Writer) (issues []Issue, err 
 		msg := string(line[4])
 
 		c.debugf("path: %q, lineNo: %v, colNo: %v, msg: %q", path, lno, cno, msg)
-		i := simpleInputIssue{
-			filePath:   path,
-			lineNumber: int(lno),
-		}
-		hunkPos, changed := c.IsNewIssue(i)
+
+		simpleIssue := simpleInputIssue{filePath: path, lineNumber: int(lno)}
+
+		hunkPos, changed := c.IsNewIssue(simpleIssue)
 		if changed {
 			issue := Issue{
 				File:    path,
@@ -239,33 +227,47 @@ func (c Checker) Check(reader io.Reader, writer io.Writer) (issues []Issue, err 
 				Message: msg,
 			}
 			issues = append(issues, issue)
-			fmt.Fprintln(writer, scanner.Text())
+
+			_, _ = fmt.Fprintln(writer, scanner.Text())
 		} else {
 			c.debugf("unchanged: %s", scanner.Text())
 		}
 	}
+
 	if err := scanner.Err(); err != nil {
-		returnErr = fmt.Errorf("error reading standard input: %s", err)
+		returnErr = fmt.Errorf("error reading standard input: %w", err)
 	}
+
 	return issues, returnErr
 }
 
-func (c Checker) debugf(format string, s ...interface{}) {
+func (c *Checker) debugf(format string, s ...interface{}) {
 	if c.Debug != nil {
-		fmt.Fprint(c.Debug, "DEBUG: ")
-		fmt.Fprintf(c.Debug, format+"\n", s...)
+		_, _ = fmt.Fprint(c.Debug, "DEBUG: ")
+		_, _ = fmt.Fprintf(c.Debug, format+"\n", s...)
 	}
 }
 
-type pos struct {
-	lineNo  int // line number
-	hunkPos int // position relative to first @@ in file
+func (c *Checker) preparePatch() error {
+	// Check if patch is supplied, if not, retrieve from VCS
+	if c.Patch == nil {
+		var err error
+		c.Patch, c.NewFiles, err = GitPatch(c.RevisionFrom, c.RevisionTo)
+		if err != nil {
+			return fmt.Errorf("could not read git repo: %w", err)
+		}
+		if c.Patch == nil {
+			return errors.New("no version control repository found")
+		}
+	}
+
+	return nil
 }
 
 // linesChanges returns a map of file names to line numbers being changed.
 // If key is nil, the file has been recently added, else it contains a slice
 // of positions that have been added.
-func (c Checker) linesChanged() map[string][]pos {
+func (c *Checker) linesChanged() map[string][]pos {
 	type state struct {
 		file    string
 		lineNo  int   // current line number within chunk
@@ -273,10 +275,7 @@ func (c Checker) linesChanged() map[string][]pos {
 		changes []pos // position of changes
 	}
 
-	var (
-		s       state
-		changes = make(map[string][]pos)
-	)
+	changes := make(map[string][]pos)
 
 	for _, file := range c.NewFiles {
 		changes[file] = nil
@@ -285,6 +284,8 @@ func (c Checker) linesChanged() map[string][]pos {
 	if c.Patch == nil {
 		return changes
 	}
+
+	var s state
 
 	scanner := bufio.NewReader(c.Patch)
 	var scanErr error
@@ -330,11 +331,12 @@ func (c Checker) linesChanged() map[string][]pos {
 		case strings.HasPrefix(line, "+"):
 			s.changes = append(s.changes, pos{lineNo: s.lineNo, hunkPos: s.hunkPos})
 		}
+	}
 
+	if !errors.Is(scanErr, io.EOF) {
+		_, _ = fmt.Fprintln(os.Stderr, "reading standard input:", scanErr)
 	}
-	if scanErr != nil && scanErr != io.EOF {
-		fmt.Fprintln(os.Stderr, "reading standard input:", scanErr)
-	}
+
 	// record the last state
 	changes[s.file] = s.changes
 
@@ -353,17 +355,18 @@ func GitPatch(revisionFrom, revisionTo string) (io.Reader, []string, error) {
 	var patch bytes.Buffer
 
 	// check if git repo exists
-	if err := exec.Command("git", "status").Run(); err != nil {
+	if err := exec.Command("git", "status", "--porcelain").Run(); err != nil {
 		// don't return an error, we assume the error is not repo exists
 		return nil, nil, nil
 	}
 
 	// make a patch for untracked files
-	var newFiles []string
 	ls, err := exec.Command("git", "ls-files", "--others", "--exclude-standard").CombinedOutput()
 	if err != nil {
-		return nil, nil, fmt.Errorf("error executing git ls-files: %s", err)
+		return nil, nil, fmt.Errorf("error executing git ls-files: %w", err)
 	}
+
+	var newFiles []string
 	for _, file := range bytes.Split(ls, []byte{'\n'}) {
 		if len(file) == 0 || bytes.HasSuffix(file, []byte{'/'}) {
 			// ls-files was sometimes showing directories when they were ignored
@@ -375,13 +378,15 @@ func GitPatch(revisionFrom, revisionTo string) (io.Reader, []string, error) {
 	}
 
 	if revisionFrom != "" {
-		cmd := exec.Command("git", "diff", "--relative", revisionFrom)
+		cmd := exec.Command("git", "diff", "--color=never", "--relative", revisionFrom)
 		if revisionTo != "" {
 			cmd.Args = append(cmd.Args, revisionTo)
 		}
+		cmd.Args = append(cmd.Args, "--")
+
 		cmd.Stdout = &patch
 		if err := cmd.Run(); err != nil {
-			return nil, nil, fmt.Errorf("error executing git diff %q %q: %s", revisionFrom, revisionTo, err)
+			return nil, nil, fmt.Errorf("error executing git diff %q %q: %w", revisionFrom, revisionTo, err)
 		}
 
 		if revisionTo == "" {
@@ -392,10 +397,10 @@ func GitPatch(revisionFrom, revisionTo string) (io.Reader, []string, error) {
 
 	// make a patch for unstaged changes
 	// use --no-prefix to remove b/ given: +++ b/main.go
-	cmd := exec.Command("git", "diff", "--relative")
+	cmd := exec.Command("git", "diff", "--color=never", "--relative", "--")
 	cmd.Stdout = &patch
 	if err := cmd.Run(); err != nil {
-		return nil, nil, fmt.Errorf("error executing git diff: %s", err)
+		return nil, nil, fmt.Errorf("error executing git diff: %w", err)
 	}
 	unstaged := patch.Len() > 0
 
@@ -407,10 +412,10 @@ func GitPatch(revisionFrom, revisionTo string) (io.Reader, []string, error) {
 
 	// check for changes in recent commit
 
-	cmd = exec.Command("git", "diff", "--relative", "HEAD~")
+	cmd = exec.Command("git", "diff", "--color=never", "--relative", "HEAD~", "--")
 	cmd.Stdout = &patch
 	if err := cmd.Run(); err != nil {
-		return nil, nil, fmt.Errorf("error executing git diff HEAD~: %s", err)
+		return nil, nil, fmt.Errorf("error executing git diff HEAD~: %w", err)
 	}
 
 	return &patch, nil, nil

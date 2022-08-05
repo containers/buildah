@@ -5,7 +5,7 @@ import (
 	"github.com/daixiang0/gci/pkg/specificity"
 )
 
-const StandardName = "standard"
+const StandardType = "standard"
 
 type Standard struct{}
 
@@ -17,7 +17,11 @@ func (s Standard) MatchSpecificity(spec *parse.GciImports) specificity.MatchSpec
 }
 
 func (s Standard) String() string {
-	return StandardName
+	return StandardType
+}
+
+func (s Standard) Type() string {
+	return StandardType
 }
 
 func isStandard(pkg string) bool {
