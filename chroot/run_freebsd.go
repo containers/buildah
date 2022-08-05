@@ -49,107 +49,6 @@ type runUsingChrootSubprocOptions struct {
 	BundlePath string
 }
 
-// runUsingChroot, still in the grandparent process, sets up various bind
-// mounts and then runs the parent process in its own user namespace with the
-// necessary ID mappings.
-func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io.Reader, stdout, stderr io.Writer, closeOnceRunning []*os.File) (wstatus unix.WaitStatus, err error) {
-	var confwg sync.WaitGroup
-
-	// Create a new mount namespace for ourselves and bind mount everything to a new location.
-	undoIntermediates, err := bind.SetupIntermediateMountNamespace(spec, bundlePath)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if undoErr := undoIntermediates(); undoErr != nil {
-			logrus.Debugf("error cleaning up intermediate mount NS: %v", err)
-		}
-	}()
-
-	// Bind mount in our filesystems.
-	undoChroots, err := setupChrootBindMounts(spec, bundlePath)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if undoErr := undoChroots(); undoErr != nil {
-			logrus.Debugf("error cleaning up intermediate chroot bind mounts: %v", err)
-		}
-	}()
-
-	// Create a pipe for passing configuration down to the next process.
-	preader, pwriter, err := os.Pipe()
-	if err != nil {
-		return 1, fmt.Errorf("error creating configuration pipe: %w", err)
-	}
-	config, conferr := json.Marshal(runUsingChrootExecSubprocOptions{
-		Spec:       spec,
-		BundlePath: bundlePath,
-	})
-	if conferr != nil {
-		fmt.Fprintf(os.Stderr, "error re-encoding configuration for %q", runUsingChrootExecCommand)
-		os.Exit(1)
-	}
-
-	// Start the parent subprocess.
-	cmd := unshare.Command(append([]string{runUsingChrootExecCommand}, spec.Process.Args...)...)
-	setPdeathsig(cmd.Cmd)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, stderr
-	cmd.Dir = "/"
-	cmd.Env = []string{fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel())}
-	if ctty != nil {
-		cmd.Setsid = true
-		cmd.Ctty = ctty
-	}
-	cmd.ExtraFiles = append([]*os.File{preader}, cmd.ExtraFiles...)
-	interrupted := make(chan os.Signal, 100)
-	cmd.Hook = func(int) error {
-		for _, f := range closeOnceRunning {
-			f.Close()
-		}
-		signal.Notify(interrupted, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
-		go func() {
-			for receivedSignal := range interrupted {
-				if err := cmd.Process.Signal(receivedSignal); err != nil {
-					logrus.Infof("%v while attempting to forward %v to child process", err, receivedSignal)
-				}
-			}
-		}()
-		return nil
-	}
-
-	logrus.Debugf("Running %#v in %#v", cmd.Cmd, cmd)
-	confwg.Add(1)
-	go func() {
-		_, conferr = io.Copy(pwriter, bytes.NewReader(config))
-		pwriter.Close()
-		confwg.Done()
-	}()
-	err = cmd.Run()
-	confwg.Wait()
-	signal.Stop(interrupted)
-	close(interrupted)
-	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			if waitStatus, ok := exitError.ProcessState.Sys().(syscall.WaitStatus); ok {
-				if waitStatus.Exited() {
-					if waitStatus.ExitStatus() != 0 {
-						fmt.Fprintf(os.Stderr, "subprocess exited with status %d\n", waitStatus.ExitStatus())
-					}
-					os.Exit(waitStatus.ExitStatus())
-				} else if waitStatus.Signaled() {
-					fmt.Fprintf(os.Stderr, "subprocess exited on %s\n", waitStatus.Signal())
-					os.Exit(1)
-				}
-			}
-		}
-		fmt.Fprintf(os.Stderr, "process exited with error: %v", err)
-		os.Exit(1)
-	}
-
-	return 0, nil
-}
-
 func createJail(options runUsingChrootExecSubprocOptions) error {
 	path := options.Spec.Root.Path
 	jconf := jail.NewConfig()
@@ -347,6 +246,12 @@ func runUsingChrootExecMain() {
 		fmt.Fprintf(os.Stderr, "process exited with error: %v", err)
 		os.Exit(1)
 	}
+}
+
+// logNamespaceDiagnostics knows which namespaces we want to create.
+// Output debug messages when that differs from what we're being asked to do.
+func logNamespaceDiagnostics(spec *specs.Spec) {
+	// Nothing here for FreeBSD
 }
 
 // parses the resource limits for ourselves and any processes that
