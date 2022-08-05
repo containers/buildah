@@ -143,6 +143,10 @@ type BuildOptions struct {
 	// CacheTo specifies any remote repository which can be treated as
 	// potential cache destination.
 	CacheTo reference.Named
+	// CacheTTL specifies duration, if specified using `--cache-ttl` then
+	// cache intermediate images under this duration will be considered as
+	// valid cache sources and images outside this duration will be ignored.
+	CacheTTL time.Duration
 	// Compression specifies the type of compression which is applied to
 	// layer blobs.  The default is to not use compression, but
 	// archive.Gzip is recommended.

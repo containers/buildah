@@ -303,6 +303,13 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 			return options, nil, nil, fmt.Errorf("unable to parse value provided `%s` to --cache-from: %w", iopts.CacheTo, err)
 		}
 	}
+	var cacheTTL time.Duration
+	if c.Flag("cache-ttl").Changed {
+		cacheTTL, err = time.ParseDuration(iopts.CacheTTL)
+		if err != nil {
+			return options, nil, nil, fmt.Errorf("unable to parse value provided %q as --cache-ttl: %w", iopts.CacheTTL, err)
+		}
+	}
 	options = define.BuildOptions{
 		AddCapabilities:         iopts.CapAdd,
 		AdditionalBuildContexts: additionalBuildContext,
@@ -315,6 +322,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		BuildOutput:             iopts.BuildOutput,
 		CacheFrom:               cacheFrom,
 		CacheTo:                 cacheTo,
+		CacheTTL:                cacheTTL,
 		CNIConfigDir:            iopts.CNIConfigDir,
 		CNIPluginPath:           iopts.CNIPlugInPath,
 		CPPFlags:                iopts.CPPFlags,
