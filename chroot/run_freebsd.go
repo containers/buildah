@@ -70,6 +70,10 @@ func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
 	return nil
 }
 
+func makeRlimit(limit specs.POSIXRlimit) unix.Rlimit {
+	return unix.Rlimit{Cur: int64(limit.Soft), Max: int64(limit.Hard)}
+}
+
 func createPlatformContainer(options runUsingChrootExecSubprocOptions) error {
 	path := options.Spec.Root.Path
 	jconf := jail.NewConfig()

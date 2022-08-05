@@ -780,7 +780,7 @@ func parseRlimits(spec *specs.Spec) (map[int]unix.Rlimit, error) {
 		if !recognized {
 			return nil, fmt.Errorf("error parsing limit type %q", limit.Type)
 		}
-		parsed[resource] = unix.Rlimit{Cur: limit.Soft, Max: limit.Hard}
+		parsed[resource] = makeRlimit(limit)
 	}
 	return parsed, nil
 }

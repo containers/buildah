@@ -221,6 +221,10 @@ func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
 	return nil
 }
 
+func makeRlimit(limit specs.POSIXRlimit) unix.Rlimit {
+	return unix.Rlimit{Cur: limit.Soft, Max: limit.Hard}
+}
+
 func createPlatformContainer(options runUsingChrootExecSubprocOptions) error {
 	return errors.New("unsupported createPlatformContainer")
 }
