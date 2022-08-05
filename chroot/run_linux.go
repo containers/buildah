@@ -20,6 +20,7 @@ import (
 
 	"github.com/containers/buildah/copier"
 	"github.com/containers/storage/pkg/mount"
+	"github.com/containers/storage/pkg/unshare"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -54,6 +55,45 @@ type runUsingChrootSubprocOptions struct {
 	BundlePath  string
 	UIDMappings []syscall.SysProcIDMap
 	GIDMappings []syscall.SysProcIDMap
+}
+
+func setPlatformUnshareOptions(spec *specs.Spec, cmd *unshare.Cmd) error {
+	// If we have configured ID mappings, set them here so that they can apply to the child.
+	hostUidmap, hostGidmap, err := unshare.GetHostIDMappings("")
+	if err != nil {
+		return err
+	}
+	uidmap, gidmap := spec.Linux.UIDMappings, spec.Linux.GIDMappings
+	if len(uidmap) == 0 {
+		// No UID mappings are configured for the container.  Borrow our parent's mappings.
+		uidmap = append([]specs.LinuxIDMapping{}, hostUidmap...)
+		for i := range uidmap {
+			uidmap[i].HostID = uidmap[i].ContainerID
+		}
+	}
+	if len(gidmap) == 0 {
+		// No GID mappings are configured for the container.  Borrow our parent's mappings.
+		gidmap = append([]specs.LinuxIDMapping{}, hostGidmap...)
+		for i := range gidmap {
+			gidmap[i].HostID = gidmap[i].ContainerID
+		}
+	}
+
+	cmd.UnshareFlags = syscall.CLONE_NEWUTS | syscall.CLONE_NEWNS
+	requestedUserNS := false
+	for _, ns := range spec.Linux.Namespaces {
+		if ns.Type == specs.UserNamespace {
+			requestedUserNS = true
+		}
+	}
+	if len(spec.Linux.UIDMappings) > 0 || len(spec.Linux.GIDMappings) > 0 || requestedUserNS {
+		cmd.UnshareFlags = cmd.UnshareFlags | syscall.CLONE_NEWUSER
+		cmd.UidMappings = uidmap
+		cmd.GidMappings = gidmap
+		cmd.GidMappingsEnableSetgroups = true
+	}
+	cmd.OOMScoreAdj = spec.Process.OOMScoreAdj
+	return nil
 }
 
 // main() for parent subprocess.  Its main job is to try to make our

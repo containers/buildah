@@ -4,7 +4,6 @@
 package chroot
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,10 +15,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 
-	"github.com/containers/buildah/bind"
 	"github.com/containers/buildah/pkg/jail"
 	"github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/unshare"
@@ -47,6 +44,10 @@ var (
 type runUsingChrootSubprocOptions struct {
 	Spec       *specs.Spec
 	BundlePath string
+}
+
+func setPlatformUnshareOptions(spec *specs.Spec, cmd *unshare.Cmd) error {
+	return nil
 }
 
 func createJail(options runUsingChrootExecSubprocOptions) error {

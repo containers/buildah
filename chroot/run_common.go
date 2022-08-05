@@ -501,52 +501,21 @@ func runUsingChroot(spec *specs.Spec, bundlePath string, ctty *os.File, stdin io
 	// Apologize for the namespace configuration that we're about to ignore.
 	logNamespaceDiagnostics(spec)
 
-	// If we have configured ID mappings, set them here so that they can apply to the child.
-	hostUidmap, hostGidmap, err := unshare.GetHostIDMappings("")
-	if err != nil {
-		return 1, err
-	}
-	uidmap, gidmap := spec.Linux.UIDMappings, spec.Linux.GIDMappings
-	if len(uidmap) == 0 {
-		// No UID mappings are configured for the container.  Borrow our parent's mappings.
-		uidmap = append([]specs.LinuxIDMapping{}, hostUidmap...)
-		for i := range uidmap {
-			uidmap[i].HostID = uidmap[i].ContainerID
-		}
-	}
-	if len(gidmap) == 0 {
-		// No GID mappings are configured for the container.  Borrow our parent's mappings.
-		gidmap = append([]specs.LinuxIDMapping{}, hostGidmap...)
-		for i := range gidmap {
-			gidmap[i].HostID = gidmap[i].ContainerID
-		}
-	}
-
 	// Start the parent subprocess.
 	cmd := unshare.Command(append([]string{runUsingChrootExecCommand}, spec.Process.Args...)...)
 	setPdeathsig(cmd.Cmd)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, stderr
 	cmd.Dir = "/"
 	cmd.Env = []string{fmt.Sprintf("LOGLEVEL=%d", logrus.GetLevel())}
-	cmd.UnshareFlags = syscall.CLONE_NEWUTS | syscall.CLONE_NEWNS
-	requestedUserNS := false
-	for _, ns := range spec.Linux.Namespaces {
-		if ns.Type == specs.UserNamespace {
-			requestedUserNS = true
-		}
-	}
-	if len(spec.Linux.UIDMappings) > 0 || len(spec.Linux.GIDMappings) > 0 || requestedUserNS {
-		cmd.UnshareFlags = cmd.UnshareFlags | syscall.CLONE_NEWUSER
-		cmd.UidMappings = uidmap
-		cmd.GidMappings = gidmap
-		cmd.GidMappingsEnableSetgroups = true
-	}
 	if ctty != nil {
 		cmd.Setsid = true
 		cmd.Ctty = ctty
 	}
-	cmd.OOMScoreAdj = spec.Process.OOMScoreAdj
 	cmd.ExtraFiles = append([]*os.File{preader}, cmd.ExtraFiles...)
+	if err := setPlatformUnshareOptions(spec, cmd); err != nil {
+		return 1, fmt.Errorf("error setting platform unshare options: %w", err)
+
+	}
 	interrupted := make(chan os.Signal, 100)
 	cmd.Hook = func(int) error {
 		for _, f := range closeOnceRunning {
