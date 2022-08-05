@@ -240,7 +240,7 @@ func runUsingChrootMain() {
 			}
 		}
 		if winsize.Row != 0 && winsize.Col != 0 {
-			if err = unix.IoctlSetWinsize(int(ptyFd), unix.TIOCSWINSZ, winsize); err != nil {
+			if err = unix.IoctlSetWinsize(ptyFd, unix.TIOCSWINSZ, winsize); err != nil {
 				logrus.Warnf("error setting terminal size for pty")
 			}
 			// FIXME - if we're connected to a terminal, we should
@@ -252,7 +252,7 @@ func runUsingChrootMain() {
 		// Set ownership for the PTY.
 		if err = ctty.Chown(rootUID, rootGID); err != nil {
 			var cttyInfo unix.Stat_t
-			err2 := unix.Fstat(int(ptyFd), &cttyInfo)
+			err2 := unix.Fstat(ptyFd, &cttyInfo)
 			from := ""
 			op := "setting"
 			if err2 == nil {
@@ -604,35 +604,37 @@ func runUsingChrootExecMain() {
 	}
 
 	if options.Spec.Hostname != "" {
-		if err := unix.Sethostname([]byte(options.Spec.Hostname)); err != nil {
-			logrus.Debugf("failed to set hostname %q for process: %v", options.Spec.Hostname, err)
-		}
+		setContainerHostname(options.Spec.Hostname)
 	}
 
-	// Try to chroot into the root.  Do this before we potentially block the syscall via the
-	// seccomp profile.
-	var oldst, newst unix.Stat_t
-	if err := unix.Stat(options.Spec.Root.Path, &oldst); err != nil {
-		fmt.Fprintf(os.Stderr, "error stat()ing intended root directory %q: %v\n", options.Spec.Root.Path, err)
-		os.Exit(1)
+	// Try to chroot into the root.  Do this before we potentially
+	// block the syscall via the seccomp profile. Allow the
+	// platform to override this - on FreeBSD, we use a simple
+	// jail to set the hostname in the container
+	if err := createPlatformContainer(options); err != nil {
+		var oldst, newst unix.Stat_t
+		if err := unix.Stat(options.Spec.Root.Path, &oldst); err != nil {
+			fmt.Fprintf(os.Stderr, "error stat()ing intended root directory %q: %v\n", options.Spec.Root.Path, err)
+			os.Exit(1)
+		}
+		if err := unix.Chdir(options.Spec.Root.Path); err != nil {
+			fmt.Fprintf(os.Stderr, "error chdir()ing to intended root directory %q: %v\n", options.Spec.Root.Path, err)
+			os.Exit(1)
+		}
+		if err := unix.Chroot(options.Spec.Root.Path); err != nil {
+			fmt.Fprintf(os.Stderr, "error chroot()ing into directory %q: %v\n", options.Spec.Root.Path, err)
+			os.Exit(1)
+		}
+		if err := unix.Stat("/", &newst); err != nil {
+			fmt.Fprintf(os.Stderr, "error stat()ing current root directory: %v\n", err)
+			os.Exit(1)
+		}
+		if oldst.Dev != newst.Dev || oldst.Ino != newst.Ino {
+			fmt.Fprintf(os.Stderr, "unknown error chroot()ing into directory %q: %v\n", options.Spec.Root.Path, err)
+			os.Exit(1)
+		}
+		logrus.Debugf("chrooted into %q", options.Spec.Root.Path)
 	}
-	if err := unix.Chdir(options.Spec.Root.Path); err != nil {
-		fmt.Fprintf(os.Stderr, "error chdir()ing to intended root directory %q: %v\n", options.Spec.Root.Path, err)
-		os.Exit(1)
-	}
-	if err := unix.Chroot(options.Spec.Root.Path); err != nil {
-		fmt.Fprintf(os.Stderr, "error chroot()ing into directory %q: %v\n", options.Spec.Root.Path, err)
-		os.Exit(1)
-	}
-	if err := unix.Stat("/", &newst); err != nil {
-		fmt.Fprintf(os.Stderr, "error stat()ing current root directory: %v\n", err)
-		os.Exit(1)
-	}
-	if oldst.Dev != newst.Dev || oldst.Ino != newst.Ino {
-		fmt.Fprintf(os.Stderr, "unknown error chroot()ing into directory %q: %v\n", options.Spec.Root.Path, err)
-		os.Exit(1)
-	}
-	logrus.Debugf("chrooted into %q", options.Spec.Root.Path)
 
 	// not doing because it's still shared: creating devices
 	// not doing because it's not applicable: setting annotations
@@ -699,7 +701,7 @@ func runUsingChrootExecMain() {
 	}
 
 	logrus.Debugf("setting gid")
-	if err = syscall.Setresgid(int(user.GID), int(user.GID), int(user.GID)); err != nil {
+	if err = unix.Setresgid(int(user.GID), int(user.GID), int(user.GID)); err != nil {
 		fmt.Fprintf(os.Stderr, "error setting GID: %v", err)
 		os.Exit(1)
 	}
@@ -720,7 +722,7 @@ func runUsingChrootExecMain() {
 	}
 
 	logrus.Debugf("setting uid")
-	if err = syscall.Setresuid(int(user.UID), int(user.UID), int(user.UID)); err != nil {
+	if err = unix.Setresuid(int(user.UID), int(user.UID), int(user.UID)); err != nil {
 		fmt.Fprintf(os.Stderr, "error setting UID: %v", err)
 		os.Exit(1)
 	}

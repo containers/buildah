@@ -91,6 +91,12 @@ func setPlatformUnshareOptions(spec *specs.Spec, cmd *unshare.Cmd) error {
 	return nil
 }
 
+func setContainerHostname(name string) {
+	if err := unix.Sethostname([]byte(name)); err != nil {
+		logrus.Debugf("failed to set hostname %q for process: %v", name, err)
+	}
+}
+
 // logNamespaceDiagnostics knows which namespaces we want to create.
 // Output debug messages when that differs from what we're being asked to do.
 func logNamespaceDiagnostics(spec *specs.Spec) {
@@ -213,6 +219,10 @@ func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
 		return fmt.Errorf("error setting capabilities: %w", err)
 	}
 	return nil
+}
+
+func createPlatformContainer(options runUsingChrootExecSubprocOptions) error {
+	return errors.New("unsupported createPlatformContainer")
 }
 
 // parses the resource limits for ourselves and any processes that

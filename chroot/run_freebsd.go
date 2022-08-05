@@ -4,16 +4,11 @@
 package chroot
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
-	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -50,7 +45,32 @@ func setPlatformUnshareOptions(spec *specs.Spec, cmd *unshare.Cmd) error {
 	return nil
 }
 
-func createJail(options runUsingChrootExecSubprocOptions) error {
+func setContainerHostname(name string) {
+	// On FreeBSD, we have to set this later when we create the
+	// jail below in createPlatformContainer
+}
+
+func setSeccomp(spec *specs.Spec) error {
+	// Ignore this on FreeBSD
+	return nil
+}
+
+func setSelinuxLabel(spec *specs.Spec) error {
+	// Ignore this on FreeBSD
+	return nil
+}
+
+func setApparmorProfile(spec *specs.Spec) error {
+	// FreeBSD doesn't have apparmor`
+	return nil
+}
+
+func setCapabilities(spec *specs.Spec, keepCaps ...string) error {
+	// FreeBSD capabilities are nothing like Linux
+	return nil
+}
+
+func createPlatformContainer(options runUsingChrootExecSubprocOptions) error {
 	path := options.Spec.Root.Path
 	jconf := jail.NewConfig()
 	jconf.Set("name", filepath.Base(path)+"-chroot")
