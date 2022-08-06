@@ -107,21 +107,6 @@ func makeReadOnly(mntpoint string, flags uintptr) error {
 	return nil
 }
 
-func isDevNull(dev os.FileInfo) bool {
-	if dev.Mode()&os.ModeCharDevice != 0 {
-		stat, _ := dev.Sys().(*syscall.Stat_t)
-		nullStat := syscall.Stat_t{}
-		if err := syscall.Stat(os.DevNull, &nullStat); err != nil {
-			logrus.Warnf("unable to stat /dev/null: %v", err)
-			return false
-		}
-		if stat.Rdev == nullStat.Rdev {
-			return true
-		}
-	}
-	return false
-}
-
 func saveDir(spec *specs.Spec, path string) string {
 	id := filepath.Base(spec.Root.Path)
 	return filepath.Join(filepath.Dir(path), ".save-"+id)
