@@ -7,6 +7,8 @@ import (
 
 type Blank struct{}
 
+const BlankType = "blank"
+
 func (b Blank) MatchSpecificity(spec *parse.GciImports) specificity.MatchSpecificity {
 	if spec.Name == "_" {
 		return specificity.NameMatch{}
@@ -15,5 +17,9 @@ func (b Blank) MatchSpecificity(spec *parse.GciImports) specificity.MatchSpecifi
 }
 
 func (b Blank) String() string {
-	return "blank"
+	return BlankType
+}
+
+func (b Blank) Type() string {
+	return BlankType
 }

@@ -18,3 +18,7 @@ func (c CommentLine) MatchSpecificity(spec *parse.GciImports) specificity.MatchS
 func (c CommentLine) String() string {
 	return fmt.Sprintf("commentline(%s)", c.Comment)
 }
+
+func (c CommentLine) Type() string {
+	return "commentline"
+}

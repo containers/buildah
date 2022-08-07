@@ -164,6 +164,7 @@ func (m Manager) GetAllSupportedLinterConfigs() []*linter.Config {
 		thelperCfg          *config.ThelperSettings
 		unparamCfg          *config.UnparamSettings
 		unusedCfg           *config.StaticCheckSettings
+		usestdlibvars       *config.UseStdlibVarsSettings
 		varcheckCfg         *config.VarCheckSettings
 		varnamelenCfg       *config.VarnamelenSettings
 		whitespaceCfg       *config.WhitespaceSettings
@@ -299,7 +300,8 @@ func (m Manager) GetAllSupportedLinterConfigs() []*linter.Config {
 			WithSince("v1.43.0").
 			WithPresets(linter.PresetBugs).
 			WithLoadForGoAnalysis().
-			WithURL("https://github.com/sylvia7788/contextcheck"),
+			WithURL("https://github.com/sylvia7788/contextcheck").
+			WithNoopFallback(m.cfg),
 
 		linter.NewConfig(golinters.NewCyclop(cyclopCfg)).
 			WithSince("v1.37.0").
@@ -541,7 +543,8 @@ func (m Manager) GetAllSupportedLinterConfigs() []*linter.Config {
 		linter.NewConfig(golinters.NewIfshort(ifshortCfg)).
 			WithSince("v1.36.0").
 			WithPresets(linter.PresetStyle).
-			WithURL("https://github.com/esimonov/ifshort"),
+			WithURL("https://github.com/esimonov/ifshort").
+			Deprecated("The repository of the linter has been deprecated by the owner.", "v1.48.0", ""),
 
 		linter.NewConfig(golinters.NewImportAs(importAsCfg)).
 			WithSince("v1.38.0").
@@ -765,6 +768,11 @@ func (m Manager) GetAllSupportedLinterConfigs() []*linter.Config {
 			ConsiderSlow().
 			WithChangeTypes().
 			WithURL("https://github.com/dominikh/go-tools/tree/master/unused"),
+
+		linter.NewConfig(golinters.NewUseStdlibVars(usestdlibvars)).
+			WithSince("v1.48.0").
+			WithPresets(linter.PresetStyle).
+			WithURL("https://github.com/sashamelentyev/usestdlibvars"),
 
 		linter.NewConfig(golinters.NewVarcheck(varcheckCfg)).
 			WithSince("v1.0.0").

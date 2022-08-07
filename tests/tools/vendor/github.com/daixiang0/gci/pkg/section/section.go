@@ -12,6 +12,9 @@ type Section interface {
 
 	// String Implements the stringer interface
 	String() string
+
+	// return section type
+	Type() string
 }
 
 type SectionList []Section

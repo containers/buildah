@@ -16,3 +16,7 @@ func (n NewLine) MatchSpecificity(spec *parse.GciImports) specificity.MatchSpeci
 func (n NewLine) String() string {
 	return newLineName
 }
+
+func (n NewLine) Type() string {
+	return newLineName
+}

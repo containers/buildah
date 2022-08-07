@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
-	"strings"
 	"sync"
 
 	"github.com/hexops/gotextdiff"
@@ -143,67 +141,21 @@ func LoadFormatGoFile(file io.FileObj, cfg config.Config) (src, dist []byte, err
 	head := src[:headEnd]
 	tail := src[tailStart:]
 
-	// sort for custom sections
-	customKeys := make([]string, 0, len(result))
-	for k := range result {
-		if strings.HasPrefix(k, "prefix(") {
-			customKeys = append(customKeys, k)
-		}
-	}
-
 	firstWithIndex := true
 
 	var body []byte
-	// order: standard > default > custom
-	if len(result["standard"]) > 0 {
-		for _, d := range result["standard"] {
-			AddIndent(&body, &firstWithIndex)
-			body = append(body, src[d.Start:d.End]...)
-		}
 
-		body = append(body, utils.Linebreak)
-	}
-
-	if len(result["default"]) > 0 {
-		for _, d := range result["default"] {
-			AddIndent(&body, &firstWithIndex)
-			body = append(body, src[d.Start:d.End]...)
-		}
-
-		body = append(body, utils.Linebreak)
-	}
-
-	if len(customKeys) > 0 {
-		sort.Sort(sort.StringSlice(customKeys))
-		for i, k := range customKeys {
-			for _, d := range result[k] {
+	// order by section list
+	for _, s := range cfg.Sections {
+		if len(result[s.String()]) > 0 {
+			if body != nil && len(body) > 0 {
+				body = append(body, utils.Linebreak)
+			}
+			for _, d := range result[s.String()] {
 				AddIndent(&body, &firstWithIndex)
 				body = append(body, src[d.Start:d.End]...)
 			}
-			if i+1 < len(customKeys) {
-				body = append(body, utils.Linebreak)
-			}
 		}
-
-		body = append(body, utils.Linebreak)
-	}
-
-	if len(result["blank"]) > 0 {
-		for _, d := range result["blank"] {
-			AddIndent(&body, &firstWithIndex)
-			body = append(body, src[d.Start:d.End]...)
-		}
-
-		body = append(body, utils.Linebreak)
-	}
-
-	if len(result["dot"]) > 0 {
-		for _, d := range result["dot"] {
-			AddIndent(&body, &firstWithIndex)
-			body = append(body, src[d.Start:d.End]...)
-		}
-
-		body = append(body, utils.Linebreak)
 	}
 
 	// remove breakline in the end

@@ -5,7 +5,7 @@ import (
 	"github.com/daixiang0/gci/pkg/specificity"
 )
 
-const defaultName = "default"
+const DefaultType = "default"
 
 type Default struct{}
 
@@ -14,5 +14,9 @@ func (d Default) MatchSpecificity(spec *parse.GciImports) specificity.MatchSpeci
 }
 
 func (d Default) String() string {
-	return defaultName
+	return DefaultType
+}
+
+func (d Default) Type() string {
+	return DefaultType
 }
