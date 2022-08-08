@@ -63,8 +63,6 @@ testing_task:
         matrix:  # Duplicate this task for each matrix product.
             image_name: "${FEDORA_CACHE_IMAGE_NAME}"
             image_name: "${PRIOR_FEDORA_CACHE_IMAGE_NAME}"
-            image_name: "${UBUNTU_CACHE_IMAGE_NAME}"
-            image_name: "${PRIOR_UBUNTU_CACHE_IMAGE_NAME}"
 
     # Separate scripts for separate outputs, makes debugging easier.
     setup_script: '${CIRRUS_WORKING_DIR}/${SCRIPT_BASE}/setup.sh |& ${_TIMESTAMP}'
@@ -73,13 +71,11 @@ testing_task:
     # Log collection when job was successful
     df_script: '${_DFCMD} || true'
     rh_audit_log_script: '${_RAUDITCMD} || true'
-    ubuntu_audit_log_script: '${_UAUDITCMD} || true'
     journal_log_script: '${_JOURNALCMD} || true'
 
     on_failure:  # Script names must be different from above
         failure_df_script: '${_DFCMD} || true'
         failure_rh_audit_log_script: '${_RAUDITCMD} || true'
-        failure_ubuntu_audit_log_script: '${_UAUDITCMD} || true'
         failure_journal_log_script: '${_JOURNALCMD} || true'
 
 
