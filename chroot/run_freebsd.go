@@ -50,11 +50,6 @@ func setContainerHostname(name string) {
 	// jail below in createPlatformContainer
 }
 
-func setSeccomp(spec *specs.Spec) error {
-	// Ignore this on FreeBSD
-	return nil
-}
-
 func setSelinuxLabel(spec *specs.Spec) error {
 	// Ignore this on FreeBSD
 	return nil
