@@ -305,3 +305,24 @@ load helpers
   run_buildah commit --authfile ${TEST_SCRATCH_DIR}/test.auth $WITH_POLICY_JSON --tls-verify=false $cid docker://localhost:${REGISTRY_PORT}/buildah/my-busybox
   expect_output --substring "Writing manifest to image destination"
 }
+
+@test "commit-without-names" {
+  _prefetch busybox
+  run_buildah from --quiet --pull=false $WITH_POLICY_JSON busybox
+  cid=$output
+  run_buildah run $cid touch /testfile
+  run_buildah run $cid chown $(id -u):$(id -g) /testfile
+  run_buildah commit $cid dir:${TEST_SCRATCH_DIR}/new-image
+  config=$(jq -r .config.digest ${TEST_SCRATCH_DIR}/new-image/manifest.json)
+  echo "config blob is $config"
+  diffid=$(jq -r '.rootfs.diff_ids[-1]' ${TEST_SCRATCH_DIR}/new-image/${config##*:})
+  echo "new layer is $diffid"
+  run_buildah copy $cid ${TEST_SCRATCH_DIR}/new-image/${diffid##*:} /testdiff.tar
+  # use in-container version of tar to avoid worrying about differences in
+  # output formats between tar implementations
+  run_buildah run $cid tar tvf /testdiff.tar testfile
+  echo "new file looks like [$output]"
+  # ownership information should be forced to be in number/number format
+  # instead of name/name because the names are gone
+  assert "$output" =~ $(id -u)/$(id -g)
+}
