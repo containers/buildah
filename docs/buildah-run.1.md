@@ -149,9 +149,11 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Foo
 
               · ro, readonly: read only cache if set.
 
-              · uid: uid for cache directory.
+              · uid: uid for cache directory (cannot be used with `U`).
 
-              · gid: gid for cache directory.
+              · gid: gid for cache directory (cannot be used with `U`).
+
+              · U, chown: true or false (default). Reset the ownership of the cache's contents to match the UID and GID of the container's configured user.
 
               · from: stage name for the root of the source. Defaults to host cache directory.
 

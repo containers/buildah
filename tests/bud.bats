@@ -534,6 +534,184 @@ _EOF
   assert "$output" !~ "unwanted stage"
 }
 
+
+# Verify --mount=type=cache with additional option U.
+# Following test ensures that a common cache created
+# with different ownership is accessible with additional
+# option.
+@test "build with --mount=type=cache and test ownership" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+COPY somefile .
+RUN --mount=type=cache,target=/mycache,z cp somefile /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z mkdir -p /mycache/foo/bar
+RUN --mount=type=cache,target=/mycache,z cat /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z ls -lrt /mycache/somefile
+_EOF
+
+  # build should be successful
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "something"
+  expect_output --substring "root     root"
+
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+COPY somefile .
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER 100:101
+RUN --mount=type=cache,target=/mycache,z,U cp somefile /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z,U mkdir -p /mycache/foo/bar
+RUN --mount=type=cache,target=/mycache,z,U cat /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z,U ls -lrt /mycache/somefile
+_EOF
+
+  # build should be successful since `U` is used
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "something"
+  expect_output --substring "appuser  appgroup"
+
+  # Test with custom uid and gid explicitly instead of `U`
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+COPY somefile .
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER 100:101
+RUN --mount=type=cache,target=/mycache,uid=100,gid=101,z cp somefile /mycache/somefile
+RUN --mount=type=cache,target=/mycache,uid=100,gid=101,z mkdir -p /mycache/foo/bar
+RUN --mount=type=cache,target=/mycache,uid=100,gid=101,z cat /mycache/somefile
+RUN --mount=type=cache,target=/mycache,uid=100,gid=101,z ls -lrt /mycache/somefile
+_EOF
+
+  # build should be successful since right `uid` and `gid` is used.
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "something"
+  expect_output --substring "appuser  appgroup"
+
+  # verify the default use-case
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+COPY somefile .
+RUN --mount=type=cache,target=/mycache,z cp somefile /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z mkdir -p /mycache/foo/bar
+RUN --mount=type=cache,target=/mycache,z cat /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z ls -lrt /mycache/somefile
+_EOF
+
+  # build should be successful
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "something"
+  expect_output --substring "root     root"
+
+  # ----- Verify failure for bad use-cases --- #
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER 100:101
+RUN --mount=type=cache,target=/mycache,z touch /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z mkdir -p /mycache/foo/bar
+RUN --mount=type=cache,target=/mycache,z cat /mycache/somefile
+_EOF
+
+  # build should fail with permission denied since container's user is not root
+  # and cache is not configured with `uid`,`gid` or `U`
+  run_buildah 1 build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "Permission denied"
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER 100:101
+RUN --mount=type=cache,target=/mycache,uid=200,gid=201,z touch /mycache/somefile
+RUN --mount=type=cache,target=/mycache,uid=200,gid=201,z mkdir -p /mycache/foo/bar
+RUN --mount=type=cache,target=/mycache,uid=200,gid=201,z cat /mycache/somefile
+_EOF
+
+  # build should fail with permission denied since container's user is not root
+  # and cache is not configured with `uid`,`gid` or `U`
+  run_buildah 1 build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "Permission denied"
+
+  # at last run a valid case again to verify if we not messed up central cache
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+COPY somefile .
+RUN --mount=type=cache,target=/mycache,z cp somefile /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z mkdir -p /mycache/foo/bar
+RUN --mount=type=cache,target=/mycache,z cat /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z ls -lrt /mycache/somefile
+_EOF
+
+  # build should be successful
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "something"
+  expect_output --substring "root     root"
+
+  # at last run a valid case again to verify if we update gid we keep original uid intact and vice versa
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+COPY somefile .
+RUN --mount=type=cache,target=/mycache,z,uid=100,gid=100 cp somefile /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z,uid=100,gid=100 mkdir -p /mycache/foo/bar
+RUN --mount=type=cache,target=/mycache,z cat /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z ls -n /mycache/somefile
+_EOF
+
+  # build should be successful
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "something"
+  expect_output --substring "100      100"
+  # only update gid and ensure uid stays same
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+COPY somefile .
+RUN --mount=type=cache,target=/mycache,z,uid=100,gid=200 cp somefile /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z,uid=100,gid=200 mkdir -p /mycache/foo/bar
+RUN --mount=type=cache,target=/mycache,z cat /mycache/somefile
+RUN --mount=type=cache,target=/mycache,z ls -n /mycache/somefile
+_EOF
+
+  # build should be successful
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "something"
+  expect_output --substring "100      200"
+}
+
+@test "build with --mount=type=cache: while parsing uid or gid must conflict with U" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN --mount=type=cache,target=/mycache,uid=1000,gid=1000,z,U cp somefile /mycache/somefile
+_EOF
+
+  # build must fail with "cannot use option `U` when option `uid` or `gid` is already set"
+  run_buildah 125 build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "cannot use option"
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN --mount=type=cache,target=/mycache,uid=1000,z,U cp somefile /mycache/somefile
+_EOF
+
+  # build must fail with "cannot use option `U` when option `uid` or `gid` is already set"
+  run_buildah 125 build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "cannot use option"
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN --mount=type=cache,target=/mycache,gid=1000,z,U cp somefile /mycache/somefile
+_EOF
+
+  # build must fail with "cannot use option `U` when option `uid` or `gid` is already set"
+  run_buildah 125 build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "cannot use option"
+}
+
 # Test pinning image using additional build context
 @test "build-with-additional-build-context and COPY, test pinning image" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform

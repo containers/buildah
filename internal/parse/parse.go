@@ -12,6 +12,7 @@ import (
 
 	"github.com/containers/buildah/internal"
 	internalUtil "github.com/containers/buildah/internal/util"
+	"github.com/containers/common/pkg/chown"
 	"github.com/containers/common/pkg/parse"
 	"github.com/containers/image/v5/types"
 	"github.com/containers/storage"
@@ -188,6 +189,9 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 		setDest     bool
 		setShared   bool
 		setReadOnly bool
+		foundU      bool
+		foundUID    bool
+		foundGID    bool
 	)
 	fromStage := ""
 	newMount := specs.Mount{
@@ -217,7 +221,10 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 			// Alias for "ro"
 			newMount.Options = append(newMount.Options, "ro")
 			setReadOnly = true
-		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z", "U":
+		case "U", "chown":
+			newMount.Options = append(newMount.Options, kv[0])
+			foundU = true
+		case "shared", "rshared", "private", "rprivate", "slave", "rslave", "Z", "z":
 			newMount.Options = append(newMount.Options, kv[0])
 			setShared = true
 		case "sharing":
@@ -267,6 +274,7 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 			if err != nil {
 				return newMount, lockedTargets, fmt.Errorf("unable to parse cache uid: %w", err)
 			}
+			foundUID = true
 		case "gid":
 			if len(kv) == 1 {
 				return newMount, lockedTargets, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
@@ -275,9 +283,14 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 			if err != nil {
 				return newMount, lockedTargets, fmt.Errorf("unable to parse cache gid: %w", err)
 			}
+			foundGID = true
 		default:
 			return newMount, lockedTargets, fmt.Errorf("%v: %w", kv[0], errBadMntOption)
 		}
+	}
+
+	if (foundUID || foundGID) && foundU {
+		return newMount, lockedTargets, fmt.Errorf("cannot use option `U` when option `uid` or `gid` is already set")
 	}
 
 	if !setDest {
@@ -331,6 +344,20 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 		if err != nil {
 			return newMount, lockedTargets, fmt.Errorf("unable to change uid,gid of cache directory: %w", err)
 		}
+		// buildkit parity: if `gid` was updated set `uid` to -1 to keep uid intact.
+		if foundUID && !foundGID {
+			gid = -1
+		}
+		// buildkit parity: if `uid` was updated set `gid` to -1 to keep gid intact.
+		if foundGID && !foundUID {
+			uid = -1
+		}
+		if (foundUID || foundGID) && !foundU {
+			if err := chown.ChangeHostPathOwnership(newMount.Source, true, uid, gid); err != nil {
+				return newMount, lockedTargets, err
+			}
+		}
+
 	}
 
 	switch sharing {
