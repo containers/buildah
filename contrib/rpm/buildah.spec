@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.11.6
+Version:        1.11.7
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -99,6 +99,20 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Wed Aug 10, 2022 Tom Sweeney <tsweeney@redhat.com> 1.11.7-1
+- release-1.11-rhel] Fix ADD with URL
+- Cirrus: Disable CI testing on Ubuntu
+- Bump github.com/prometheus/client_golang to v1.11.1
+- Add a test for CVE-2022-27651
+- do not set the inheritable capabilities
+- chroot: fix environment value leakage to intermediate processes
+- Cirrus: use more recent VM images to run tests
+- Travis: run htpasswd from outside of a container
+- Fix potential CVE in tarfile w/ symlink
+- copyFileWithTar: close source files at the right time
+- Check for .dockerignore specifically
+- [1.11-rhel] update github.com/containers/image
+
 * Tue Dec 3, 2019 Tom Sweeney <tsweeney@redhat.com> 1.11.6-1
 - Handle missing equal sign in --from and --chown flags for COPY/ADD
 - bud COPY does not download URL
