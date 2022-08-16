@@ -1,4 +1,4 @@
-# buildah-manifest-create "1" "September 2019" "buildah"
+# buildah-manifest-create "16" "August 2022" "buildah"
 
 ## NAME
 
@@ -29,10 +29,22 @@ If any of the images which should be added to the new list or index are
 themselves lists or indexes, add all of their contents.  By default, only one
 image from such a list will be added to the newly-created list or index.
 
+**--amend**
+
+If a manifest list named *listNameOrIndexName* already exists, modify the
+preexisting list instead of exiting with an error.  The contents of
+*listNameOrIndexName* are not modified if no *imageName*s are given.
+
+**--tls-verify** *bool-value*
+
+Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.
+
 ## EXAMPLE
 
 ```
 buildah manifest create mylist:v1.11
+941c1259e4b85bebf23580a044e4838aa3c1e627528422c9bf9262ff1661fca9
+buildah manifest create --amend mylist:v1.11
 941c1259e4b85bebf23580a044e4838aa3c1e627528422c9bf9262ff1661fca9
 ```
 
