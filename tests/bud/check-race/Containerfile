@@ -1,0 +1,2 @@
+FROM alpine
+RUN for i in $(seq 0 1000); do touch /$i; done
