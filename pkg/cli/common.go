@@ -454,7 +454,7 @@ func VerifyFlagsArgsOrder(args []string) error {
 	return nil
 }
 
-// aliasFlags is a function to handle backwards compatibility with old flags
+// AliasFlags is a function to handle backwards compatibility with old flags
 func AliasFlags(f *pflag.FlagSet, name string) pflag.NormalizedName {
 	switch name {
 	case "net":

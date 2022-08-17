@@ -30,13 +30,13 @@ import (
 )
 
 type manifestCreateOpts = struct {
-	os, arch string
-	all      bool
+	os, arch                        string
+	all, tlsVerify, insecure, amend bool
 }
 type manifestAddOpts = struct {
 	authfile, certDir, creds, os, arch, variant, osVersion string
 	features, osFeatures, annotations                      []string
-	tlsVerify, all                                         bool
+	tlsVerify, insecure, all                               bool
 }
 type manifestRemoveOpts = struct{}
 type manifestAnnotateOpts = struct {
@@ -93,6 +93,7 @@ func init() {
 	manifestCreateCommand.SetUsageTemplate(UsageTemplate())
 	flags := manifestCreateCommand.Flags()
 	flags.BoolVar(&manifestCreateOpts.all, "all", false, "add all of the lists' images if the images to add are lists")
+	flags.BoolVar(&manifestCreateOpts.amend, "amend", false, "modify an existing list if one with the desired name already exists")
 	flags.StringVar(&manifestCreateOpts.os, "os", "", "if any of the specified images is a list, choose the one for `os`")
 	if err := flags.MarkHidden("os"); err != nil {
 		panic(fmt.Sprintf("error marking --os as hidden: %v", err))
@@ -101,6 +102,11 @@ func init() {
 	if err := flags.MarkHidden("arch"); err != nil {
 		panic(fmt.Sprintf("error marking --arch as hidden: %v", err))
 	}
+	flags.BoolVar(&manifestCreateOpts.insecure, "insecure", false, "neither require HTTPS nor verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
+	if err := flags.MarkHidden("insecure"); err != nil {
+		panic(fmt.Sprintf("error marking insecure as hidden: %v", err))
+	}
+	flags.BoolVar(&manifestCreateOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.SetNormalizeFunc(cli.AliasFlags)
 	manifestCommand.AddCommand(manifestCreateCommand)
 
@@ -127,6 +133,10 @@ func init() {
 	flags.StringSliceVar(&manifestAddOpts.features, "features", nil, "override the `features` of the specified image")
 	flags.StringSliceVar(&manifestAddOpts.osFeatures, "os-features", nil, "override the OS `features` of the specified image")
 	flags.StringSliceVar(&manifestAddOpts.annotations, "annotation", nil, "set an `annotation` for the specified image")
+	flags.BoolVar(&manifestAddOpts.insecure, "insecure", false, "neither require HTTPS nor verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
+	if err := flags.MarkHidden("insecure"); err != nil {
+		panic(fmt.Sprintf("error marking insecure as hidden: %v", err))
+	}
 	flags.BoolVar(&manifestAddOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVar(&manifestAddOpts.all, "all", false, "add all of the list's images if the image is a list")
 	flags.SetNormalizeFunc(cli.AliasFlags)
@@ -204,6 +214,10 @@ func init() {
 	if err := flags.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking signature-policy as hidden: %v", err))
 	}
+	flags.BoolVar(&manifestPushOpts.insecure, "insecure", false, "neither require HTTPS nor verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
+	if err := flags.MarkHidden("insecure"); err != nil {
+		panic(fmt.Sprintf("error marking insecure as hidden: %v", err))
+	}
 	flags.BoolVar(&manifestPushOpts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
 	flags.BoolVarP(&manifestPushOpts.quiet, "quiet", "q", false, "don't output progress information when pushing lists")
 	flags.SetNormalizeFunc(cli.AliasFlags)
@@ -211,7 +225,7 @@ func init() {
 
 	manifestRmCommand := &cobra.Command{
 		Use:   "rm",
-		Short: "Remove manifest list",
+		Short: "Remove manifest list or image index",
 		Long:  manifestRmDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return manifestRmCmd(cmd, args)
@@ -239,12 +253,39 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 	if err != nil {
 		return fmt.Errorf("error building system context: %w", err)
 	}
+	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
+	if err != nil {
+		return err
+	}
 
 	list := manifests.Create()
+	var manifestListID string
 
 	names, err := util.ExpandNames([]string{listImageSpec}, systemContext, store)
 	if err != nil {
 		return fmt.Errorf("error encountered while expanding image name %q: %w", listImageSpec, err)
+	}
+	if manifestListID, err = list.SaveToImage(store, "", names, manifest.DockerV2ListMediaType); err != nil {
+		if errors.Is(err, storage.ErrDuplicateName) && opts.amend {
+			for _, name := range names {
+				manifestList, err := runtime.LookupManifestList(listImageSpec)
+				if err != nil {
+					logrus.Debugf("no list named %q found: %v", listImageSpec, err)
+					continue
+				}
+				if _, list, err = manifests.LoadFromImage(store, manifestList.ID()); err != nil {
+					logrus.Debugf("no list found in %q", name)
+					continue
+				}
+				manifestListID = manifestList.ID()
+				break
+			}
+			if list == nil {
+				return fmt.Errorf("--amend specified but no matching manifest list found with name %q", listImageSpec)
+			}
+		} else {
+			return err
+		}
 	}
 
 	for _, imageSpec := range imageSpecs {
@@ -268,7 +309,7 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 		}
 	}
 
-	imageID, err := list.SaveToImage(store, "", names, manifest.DockerV2ListMediaType)
+	imageID, err := list.SaveToImage(store, manifestListID, names, manifest.DockerV2ListMediaType)
 	if err == nil {
 		fmt.Printf("%s\n", imageID)
 	}

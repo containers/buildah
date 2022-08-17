@@ -44,6 +44,7 @@ type pushOptions struct {
 	tlsVerify          bool
 	encryptionKeys     []string
 	encryptLayers      []int
+	insecure           bool
 }
 
 func init() {

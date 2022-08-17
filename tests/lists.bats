@@ -13,6 +13,11 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 
 @test "manifest-create" {
     run_buildah manifest create foo
+    listid="$output"
+    run_buildah 125 manifest create foo
+    assert "$output" =~ "that name is already in use"
+    run_buildah manifest create --amend foo
+    assert "$output" == "$listid"
 }
 
 @test "manifest-inspect-id" {
