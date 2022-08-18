@@ -1,13 +1,13 @@
 package copier
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"syscall"
 	"testing"
 
-	"github.com/containers/buildah/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,7 +39,7 @@ func TestXattrs(t *testing.T) {
 			defer os.Remove(f.Name())
 
 			err = Lsetxattrs(f.Name(), map[string]string{attribute: value})
-			if util.Cause(err) == syscall.ENOTSUP {
+			if errors.Is(err, syscall.ENOTSUP) {
 				t.Skipf("extended attributes not supported on %q, skipping", tmp)
 			}
 			if !assert.Nil(t, err, "error setting attribute on file: %v", err) {
