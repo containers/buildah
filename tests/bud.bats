@@ -390,6 +390,24 @@ _EOF
   assert "$output" !~ "unwanted stage"
 }
 
+# Note: Please skip this tests in case of podman-remote build
+@test "build: test race in updating image name while performing parallel commits" {
+  _prefetch alpine
+  # Run 25 parallel builds using the same Containerfile
+  local count=25
+  for i in $(seq --format '%02g' 1 $count); do
+      timeout --foreground -v --kill=10 300 \
+              ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} $WITH_POLICY_JSON build --quiet --squash --iidfile ${TEST_SCRATCH_DIR}/id.$i --timestamp 0 -f $BUDFILES/check-race/Containerfile >/dev/null &
+  done
+  # Wait for all background builds to complete. Note that this succeeds
+  # even if some of the individual builds fail! Our actual test is below.
+  wait
+  # Number of output bytes must be always same, which confirms that there is no race.
+  assert "$(cat ${TEST_SCRATCH_DIR}/id.* | wc -c)" = 1775 "Total chars in all id.* files"
+  # clean all images built for this test
+  run_buildah rmi --all -f
+}
+
 # Test skipping images with FROM but stage name also conflicts with additional build context
 # so selected stage should be still skipped since it is not being actually used by additional build
 # context is being used.
