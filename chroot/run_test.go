@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -43,16 +42,10 @@ func testMinimal(t *testing.T, modify func(g *generate.Generator, rootDir, bundl
 		t.Fatalf("setupSeccomp(%q): %v", "", err)
 	}
 
-	tempDir, err := ioutil.TempDir("", "chroot-test")
-	if err != nil {
-		t.Fatalf("ioutil.TempDir(%q, %q): %v", "", "chrootTest", err)
-	}
-	defer os.RemoveAll(tempDir)
-	info, err := os.Stat(tempDir)
-	if err != nil {
-		t.Fatalf("error checking permissions on %q: %v", tempDir, err)
-	}
-	if err = os.Chmod(tempDir, info.Mode()|0111); err != nil {
+	// t.TempDir returns /tmp/TestName/001.
+	// /tmp/TestName/001 has permission 0777, but /tmp/TestName is 0700
+	tempDir := t.TempDir()
+	if err = os.Chmod(filepath.Dir(tempDir), 0711); err != nil {
 		t.Fatalf("error loosening permissions on %q: %v", tempDir, err)
 	}
 

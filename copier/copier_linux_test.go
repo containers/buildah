@@ -117,10 +117,8 @@ func TestGetPermissionErrorChroot(t *testing.T) {
 
 func testGetPermissionError(t *testing.T) {
 	dropCaps := []capability.Cap{capability.CAP_DAC_OVERRIDE, capability.CAP_DAC_READ_SEARCH}
-	tmp, err := ioutil.TempDir("", "copier-test-")
-	require.NoErrorf(t, err, "error creating temporary directory")
-	defer os.RemoveAll(tmp)
-	err = os.Mkdir(filepath.Join(tmp, "unreadable-directory"), 0000)
+	tmp := t.TempDir()
+	err := os.Mkdir(filepath.Join(tmp, "unreadable-directory"), 0000)
 	require.NoError(t, err, "error creating an unreadable directory")
 	err = os.Mkdir(filepath.Join(tmp, "readable-directory"), 0755)
 	require.NoError(t, err, "error creating a readable directory")
@@ -160,11 +158,9 @@ func TestGetNoCrossDevice(t *testing.T) {
 		t.Skip("test requires root privileges, skipping")
 	}
 
-	tmpdir, err := ioutil.TempDir("", "copier-test-noxdev-")
-	require.NoError(t, err, "error creating temporary directory")
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
-	err = unix.Unshare(unix.CLONE_NEWNS)
+	err := unix.Unshare(unix.CLONE_NEWNS)
 	require.NoError(t, err, "error creating new mount namespace")
 
 	subdir := filepath.Join(tmpdir, "subdir")
