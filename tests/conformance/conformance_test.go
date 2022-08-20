@@ -125,28 +125,21 @@ func TestMain(m *testing.M) {
 
 func TestConformance(t *testing.T) {
 	var tempdir string
-	var err error
 	if buildahDir == "" {
 		if tempdir == "" {
-			tempdir, err = ioutil.TempDir("", "buildah-conformance-")
-			require.Nil(t, err, "error creating temporary directory")
-			defer os.RemoveAll(tempdir)
+			tempdir = t.TempDir()
 		}
 		buildahDir = filepath.Join(tempdir, "buildah")
 	}
 	if dockerDir == "" {
 		if tempdir == "" {
-			tempdir, err = ioutil.TempDir("", "buildah-conformance-")
-			require.Nil(t, err, "error creating temporary directory")
-			defer os.RemoveAll(tempdir)
+			tempdir = t.TempDir()
 		}
 		dockerDir = filepath.Join(tempdir, "docker")
 	}
 	if imagebuilderDir == "" {
 		if tempdir == "" {
-			tempdir, err = ioutil.TempDir("", "buildah-conformance-")
-			require.Nil(t, err, "error creating temporary directory")
-			defer os.RemoveAll(tempdir)
+			tempdir = t.TempDir()
 		}
 		imagebuilderDir = filepath.Join(tempdir, "imagebuilder")
 	}
@@ -166,9 +159,7 @@ func testConformanceInternal(t *testing.T, dateStamp string, testIndex int) {
 	require.Nil(t, err, "error finding current directory")
 
 	// create a temporary directory to hold our build context
-	tempdir, err := ioutil.TempDir("", "buildah-conformance-")
-	require.Nil(t, err, "error creating temporary directory")
-	defer os.RemoveAll(tempdir)
+	tempdir := t.TempDir()
 
 	// create subdirectories to use as the build context and for buildah storage
 	contextDir := filepath.Join(tempdir, "context")

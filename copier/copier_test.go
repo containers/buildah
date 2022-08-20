@@ -123,17 +123,13 @@ func makeArchive(headers []tar.Header, contents map[string][]byte) io.ReadCloser
 // makeContextFromArchive creates a temporary directory, and a subdirectory
 // inside of it, from an archive and returns its location.  It can be removed
 // once it's no longer needed.
-func makeContextFromArchive(archive io.ReadCloser, subdir string) (string, error) {
-	tmp, err := ioutil.TempDir("", "copier-test-")
-	if err != nil {
-		return "", err
-	}
+func makeContextFromArchive(t *testing.T, archive io.ReadCloser, subdir string) (string, error) {
+	tmp := t.TempDir()
 	uidMap := []idtools.IDMap{{HostID: os.Getuid(), ContainerID: 0, Size: 1}}
 	gidMap := []idtools.IDMap{{HostID: os.Getgid(), ContainerID: 0, Size: 1}}
-	err = Put(tmp, path.Join(tmp, subdir), PutOptions{UIDMap: uidMap, GIDMap: gidMap}, archive)
+	err := Put(tmp, path.Join(tmp, subdir), PutOptions{UIDMap: uidMap, GIDMap: gidMap}, archive)
 	archive.Close()
 	if err != nil {
-		os.RemoveAll(tmp)
 		return "", err
 	}
 	return tmp, err
@@ -442,9 +438,8 @@ func testPut(t *testing.T) {
 					t.Skipf("test archive %q can only be tested with root privileges, skipping", testArchives[i].name)
 				}
 
-				dir, err := makeContextFromArchive(makeArchive(testArchives[i].headers, testArchives[i].contents), topdir)
+				dir, err := makeContextFromArchive(t, makeArchive(testArchives[i].headers, testArchives[i].contents), topdir)
 				require.NoErrorf(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, topdir)
-				defer os.RemoveAll(dir)
 
 				// enumerate what we expect to have created
 				expected := make([]enumeratedFile, 0, len(testArchives[i].headers)+1)
@@ -504,12 +499,10 @@ func testPut(t *testing.T) {
 					t.Skipf("test archive %q can only be tested with root privileges, skipping", testArchives[i].name)
 				}
 
-				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.NoErrorf(t, err, "error creating temporary directory")
-				defer os.RemoveAll(tmp)
+				tmp := t.TempDir()
 
 				archive := makeArchive(testArchives[i].headers, testArchives[i].contents)
-				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, Rename: renames.renames}, archive)
+				err := Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, Rename: renames.renames}, archive)
 				require.NoErrorf(t, err, "error extracting archive %q to directory %q", testArchives[i].name, tmp)
 
 				var found []string
@@ -550,10 +543,8 @@ func testPut(t *testing.T) {
 					{Name: "test/content", Typeflag: tar.TypeReg, Size: 0, Mode: 0755, ModTime: testDate},
 					{Name: "test", Typeflag: typeFlag, Size: 0, Mode: 0755, Linkname: "target", ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.NoErrorf(t, err, "error creating temporary directory")
-				defer os.RemoveAll(tmp)
-				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
+				tmp := t.TempDir()
+				err := Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteDirNonDir: !overwrite}, bytes.NewReader(archive))
 				if overwrite {
 					if util.Cause(err) != syscall.EPERM {
 						assert.Nilf(t, err, "expected to overwrite directory with type %c: %v", typeFlag, err)
@@ -578,10 +569,8 @@ func testPut(t *testing.T) {
 					{Name: "test", Typeflag: tar.TypeDir, Size: 0, Mode: 0755, ModTime: testDate},
 					{Name: "test/content", Typeflag: tar.TypeReg, Size: 0, Mode: 0755, ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.NoErrorf(t, err, "error creating temporary directory")
-				defer os.RemoveAll(tmp)
-				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteNonDirDir: !overwrite}, bytes.NewReader(archive))
+				tmp := t.TempDir()
+				err := Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, NoOverwriteNonDirDir: !overwrite}, bytes.NewReader(archive))
 				if overwrite {
 					if util.Cause(err) != syscall.EPERM {
 						assert.Nilf(t, err, "expected to overwrite file with type %c: %v", typeFlag, err)
@@ -603,10 +592,8 @@ func testPut(t *testing.T) {
 					{Name: "link", Typeflag: tar.TypeLink, Size: 0, Mode: 0600, ModTime: testDate, Linkname: "test"},
 					{Name: "unrelated", Typeflag: tar.TypeReg, Size: 0, Mode: 0600, ModTime: testDate},
 				})
-				tmp, err := ioutil.TempDir("", "copier-test-")
-				require.NoErrorf(t, err, "error creating temporary directory")
-				defer os.RemoveAll(tmp)
-				err = Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, IgnoreDevices: ignoreDevices}, bytes.NewReader(archive))
+				tmp := t.TempDir()
+				err := Put(tmp, tmp, PutOptions{UIDMap: uidMap, GIDMap: gidMap, IgnoreDevices: ignoreDevices}, bytes.NewReader(archive))
 				require.Nilf(t, err, "expected to extract content with typeflag %c without an error: %v", typeFlag, err)
 				fileList, err := enumerateFiles(tmp)
 				require.Nilf(t, err, "unexpected error scanning the contents of extraction directory for typeflag %c: %v", typeFlag, err)
@@ -627,9 +614,7 @@ func testPut(t *testing.T) {
 					archive := makeArchiveSlice([]tar.Header{
 						{Name: "test", Typeflag: tar.TypeReg, Size: 0, Mode: mode, ModTime: testDate},
 					})
-					tmp, err := ioutil.TempDir("", "copier-test-")
-					require.NoErrorf(t, err, "error creating temporary directory")
-					defer os.RemoveAll(tmp)
+					tmp := t.TempDir()
 					putOptions := PutOptions{
 						UIDMap:         uidMap,
 						GIDMap:         gidMap,
@@ -637,7 +622,7 @@ func testPut(t *testing.T) {
 						StripSetgidBit: stripSetgidBit,
 						StripStickyBit: stripStickyBit,
 					}
-					err = Put(tmp, tmp, putOptions, bytes.NewReader(archive))
+					err := Put(tmp, tmp, putOptions, bytes.NewReader(archive))
 					require.Nilf(t, err, "unexpected error writing sample file", err)
 					st, err := os.Stat(filepath.Join(tmp, "test"))
 					require.Nilf(t, err, "unexpected error checking permissions of file", err)
@@ -685,9 +670,8 @@ func testStat(t *testing.T) {
 					continue
 				}
 
-				dir, err := makeContextFromArchive(makeArchive(testArchive.headers, testArchive.contents), topdir)
+				dir, err := makeContextFromArchive(t, makeArchive(testArchive.headers, testArchive.contents), topdir)
 				require.NoErrorf(t, err, "error creating context from archive %q", testArchive.name)
-				defer os.RemoveAll(dir)
 
 				root := dir
 
@@ -783,9 +767,8 @@ func testGetSingle(t *testing.T) {
 					continue
 				}
 
-				dir, err := makeContextFromArchive(makeArchive(testArchive.headers, testArchive.contents), topdir)
+				dir, err := makeContextFromArchive(t, makeArchive(testArchive.headers, testArchive.contents), topdir)
 				require.NoErrorf(t, err, "error creating context from archive %q", testArchive.name)
-				defer os.RemoveAll(dir)
 
 				root := dir
 
@@ -1388,9 +1371,8 @@ func testGetMultiple(t *testing.T) {
 
 	for _, topdir := range []string{"", ".", "top"} {
 		for _, testArchive := range getTestArchives {
-			dir, err := makeContextFromArchive(makeArchive(testArchive.headers, testArchive.contents), topdir)
+			dir, err := makeContextFromArchive(t, makeArchive(testArchive.headers, testArchive.contents), topdir)
 			require.NoErrorf(t, err, "error creating context from archive %q", testArchive.name)
-			defer os.RemoveAll(dir)
 
 			root := dir
 
@@ -1470,11 +1452,7 @@ func TestEvalNoChroot(t *testing.T) {
 }
 
 func testEval(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "copier-test-")
-	if err != nil {
-		require.NoError(t, err, "error creating temporary directory")
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 	options := EvalOptions{}
 	linkname := filepath.Join(tmp, "link")
 	vectors := []struct {
@@ -1507,7 +1485,7 @@ func testEval(t *testing.T) {
 	}
 	for _, vector := range vectors {
 		t.Run(fmt.Sprintf("id=%s", vector.id), func(t *testing.T) {
-			err = os.Symlink(vector.linkTarget, linkname)
+			err := os.Symlink(vector.linkTarget, linkname)
 			if err != nil && errors.Is(err, os.ErrExist) {
 				os.Remove(linkname)
 				err = os.Symlink(vector.linkTarget, linkname)
@@ -1625,9 +1603,8 @@ func testMkdir(t *testing.T) {
 		t.Run(testArchives[i].name, func(t *testing.T) {
 			for _, testCase := range testArchives[i].testCases {
 				t.Run(testCase.name, func(t *testing.T) {
-					dir, err := makeContextFromArchive(makeArchive(testArchives[i].headers, nil), "")
+					dir, err := makeContextFromArchive(t, makeArchive(testArchives[i].headers, nil), "")
 					require.NoErrorf(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, "")
-					defer os.RemoveAll(dir)
 					root := dir
 					options := MkdirOptions{ChownNew: &idtools.IDPair{UID: os.Getuid(), GID: os.Getgid()}}
 					var beforeNames, afterNames []string
@@ -1841,9 +1818,8 @@ func testRemove(t *testing.T) {
 		t.Run(testArchives[i].name, func(t *testing.T) {
 			for _, testCase := range testArchives[i].testCases {
 				t.Run(testCase.name, func(t *testing.T) {
-					dir, err := makeContextFromArchive(makeArchive(testArchives[i].headers, nil), "")
+					dir, err := makeContextFromArchive(t, makeArchive(testArchives[i].headers, nil), "")
 					require.NoErrorf(t, err, "error creating context from archive %q, topdir=%q", testArchives[i].name, "")
-					defer os.RemoveAll(dir)
 					root := dir
 					options := RemoveOptions{All: testCase.all}
 					beforeNames := make(map[string]struct{})

@@ -24,11 +24,7 @@ func TestXattrs(t *testing.T) {
 		"user.a": "attribute value a",
 		"user.b": "attribute value b",
 	}
-	tmp, err := ioutil.TempDir("", "copier-xattr-test-")
-	if !assert.Nil(t, err, "error creating test directory: %v", err) {
-		t.FailNow()
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 	for attribute, value := range testValues {
 		t.Run(fmt.Sprintf("attribute=%s", attribute), func(t *testing.T) {
 			f, err := os.CreateTemp(tmp, "copier-xattr-test-")
