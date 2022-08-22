@@ -155,7 +155,7 @@ Current supported mount TYPES are bind, cache, secret and tmpfs. <sup>[[1]](#Foo
 
               · from: stage name for the root of the source. Defaults to host cache directory.
 
-              · z: Set shared SELinux label on mounted destination. Use if SELinux is enabled on host machine.
+              · z: Set shared SELinux label on mounted destination. Enabled by default if SELinux is enabled on the host machine.
 
               · Z: Set private SELinux label on mounted destination. Use if SELinux is enabled on host machine.
 

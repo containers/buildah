@@ -4959,6 +4959,18 @@ _EOF
   run_buildah rmi -f testbud2
 }
 
+@test "bud-with-mount-cache-like-buildkit-verify-default-selinux-option" {
+  skip_if_no_runtime
+  skip_if_in_container
+  cp -R $BUDFILES/buildkit-mount ${TEST_SCRATCH_DIR}/buildkit-mount2
+  _prefetch alpine
+  # try writing something to persistent cache
+  run_buildah build -t testbud $WITH_POLICY_JSON -f ${TEST_SCRATCH_DIR}/buildkit-mount2/Dockerfilecachewritewithoutz
+  # try reading something from persistent cache in a different build
+  run_buildah build -t testbud2 $WITH_POLICY_JSON -f ${TEST_SCRATCH_DIR}/buildkit-mount2/Dockerfilecachereadwithoutz
+  expect_output --substring "hello"
+}
+
 @test "bud-with-mount-cache-like-buildkit-locked-across-steps" {
   # Note: this test is just testing syntax for sharing, actual behaviour test needs parallel build in order to test locking.
   skip_if_no_runtime

@@ -1,0 +1,3 @@
+FROM alpine
+RUN mkdir /test2
+RUN --mount=type=cache,target=/test2 cat /test2/world
