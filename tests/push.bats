@@ -45,7 +45,7 @@ load helpers
   _prefetch alpine
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
-  run_buildah push $WITH_POLICY_JSON --format oci alpine dir:$mytmpdir
+  run_buildah push --retry 4 --retry-delay 4s $WITH_POLICY_JSON --format oci alpine dir:$mytmpdir
   run cat $mytmpdir/manifest.json
   expect_output --substring "application/vnd.oci.image.config.v1\\+json"
 

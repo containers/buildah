@@ -463,6 +463,19 @@ _EOF
   assert "$output" !~ "unwanted stage"
 }
 
+@test "build test --retry and --retry-delay" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN echo hello
+_EOF
+
+  run_buildah --log-level debug build --retry 4 --retry-delay 5s $WITH_POLICY_JSON --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "Setting MaxPullPushRetries to 4 and PullPushRetryDelay to 5s"
+}
+
 # Test skipping unwanted stage with COPY from stage index
 @test "build-test skipping unwanted stages with COPY from stage index" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform

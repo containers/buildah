@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/internal/util"
@@ -34,6 +35,8 @@ type addCopyResults struct {
 	creds            string
 	tlsVerify        bool
 	certDir          string
+	retry            int
+	retryDelay       string
 }
 
 func createCommand(addCopy string, desc string, short string, opts *addCopyResults) *cobra.Command {
@@ -78,6 +81,8 @@ func applyFlagVars(flags *pflag.FlagSet, opts *addCopyResults) {
 	}
 	flags.StringVar(&opts.ignoreFile, "ignorefile", "", "path to .containerignore file")
 	flags.StringVar(&opts.contextdir, "contextdir", "", "context directory path")
+	flags.IntVar(&opts.retry, "retry", buildahcli.MaxPullPushRetries, "number of times to retry in case of failure when performing pull")
+	flags.StringVar(&opts.retryDelay, "retry-delay", buildahcli.PullPushRetryDelay.String(), "delay between retries in case of pull failures")
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "don't output a digest of the newly-added/copied content")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing registries when pulling images. TLS verification cannot be used when talking to an insecure registry.")
 	if err := flags.MarkHidden("tls-verify"); err != nil {
@@ -165,13 +170,18 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 			if err2 != nil {
 				return fmt.Errorf("unable to obtain decrypt config: %w", err2)
 			}
+			var pullPushRetryDelay time.Duration
+			pullPushRetryDelay, err = time.ParseDuration(iopts.retryDelay)
+			if err != nil {
+				return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
+			}
 			options := buildah.BuilderOptions{
 				FromImage:           iopts.from,
 				BlobDirectory:       iopts.blobCache,
 				SignaturePolicyPath: iopts.signaturePolicy,
 				SystemContext:       systemContext,
-				MaxPullRetries:      buildahcli.MaxPullPushRetries,
-				PullRetryDelay:      buildahcli.PullPushRetryDelay,
+				MaxPullRetries:      iopts.retry,
+				PullRetryDelay:      pullPushRetryDelay,
 				OciDecryptConfig:    decryptConfig,
 			}
 			if !iopts.quiet {

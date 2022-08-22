@@ -35,7 +35,7 @@ load helpers
   elsewhere=${TEST_SCRATCH_DIR}/elsewhere-img
   mkdir -p ${elsewhere}
 
-  run_buildah from --pull $WITH_POLICY_JSON scratch
+  run_buildah from --retry 4 --retry-delay 4s --pull $WITH_POLICY_JSON scratch
   cid=$output
   run_buildah commit $WITH_POLICY_JSON $cid dir:${elsewhere}
   run_buildah rm $cid

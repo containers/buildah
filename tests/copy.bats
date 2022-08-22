@@ -24,7 +24,7 @@ load helpers
   root=$output
   run_buildah config --workingdir / $cid
   # copy ${TEST_SCRATCH_DIR}/randomfile to a file of the same name in the container's working directory
-  run_buildah copy $cid ${TEST_SCRATCH_DIR}/randomfile
+  run_buildah copy --retry 4 --retry-delay 4s $cid ${TEST_SCRATCH_DIR}/randomfile
   # copy ${TEST_SCRATCH_DIR}/other-randomfile and ${TEST_SCRATCH_DIR}/third-randomfile to a new directory named ${TEST_SCRATCH_DIR}/randomfile in the container
   run_buildah copy $cid ${TEST_SCRATCH_DIR}/other-randomfile ${TEST_SCRATCH_DIR}/third-randomfile ${TEST_SCRATCH_DIR}/randomfile
   # try to copy ${TEST_SCRATCH_DIR}/other-randomfile and ${TEST_SCRATCH_DIR}/third-randomfile to a /randomfile, which already exists and is a file
