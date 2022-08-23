@@ -52,6 +52,18 @@ Path to an alternative .containerignore (.dockerignore) file. Requires \-\-conte
 
 Refrain from printing a digest of the added content.
 
+**--retry** *attempts*
+
+Number of times to retry in case of failure when performing pull of images from registry.
+
+Defaults to `3`.
+
+**--retry-delay** *duration*
+
+Duration of delay between retry attempts in case of failure when performing pull of images from registry.
+
+Defaults to `2s`.
+
 ## EXAMPLE
 
 buildah add containerID '/myapp/app.conf' '/myapp/app.conf'

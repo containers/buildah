@@ -87,6 +87,18 @@ If an image needs to be pulled from the registry, suppress progress output.
 
 Don't copy signatures when pulling images.
 
+**--retry** *attempts*
+
+Number of times to retry in case of failure when performing pull of images from registry.
+
+Defaults to `3`.
+
+**--retry-delay** *duration*
+
+Duration of delay between retry attempts in case of failure when performing pull of images from registry.
+
+Defaults to `2s`.
+
 **--tls-verify** *bool-value*
 
 Require HTTPS and verification of certificates when talking to container registries (defaults to true).  TLS verification cannot be used when talking to an insecure registry.

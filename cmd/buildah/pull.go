@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/containers/buildah"
 	"github.com/containers/buildah/define"
@@ -28,6 +29,8 @@ type pullOptions struct {
 	tlsVerify        bool
 	decryptionKeys   []string
 	pullPolicy       string
+	retry            int
+	retryDelay       string
 }
 
 func init() {
@@ -72,6 +75,8 @@ func init() {
 	flags.StringSlice("platform", []string{parse.DefaultPlatform()}, "prefer OS/ARCH instead of the current operating system and architecture for choosing images")
 	flags.String("variant", "", "override the `variant` of the specified image")
 	flags.BoolVar(&opts.tlsVerify, "tls-verify", true, "require HTTPS and verify certificates when accessing the registry. TLS verification cannot be used when talking to an insecure registry.")
+	flags.IntVar(&opts.retry, "retry", buildahcli.MaxPullPushRetries, "number of times to retry in case of failure when performing pull")
+	flags.StringVar(&opts.retryDelay, "retry-delay", buildahcli.PullPushRetryDelay.String(), "delay between retries in case of pull failures")
 	if err := flags.MarkHidden("blob-cache"); err != nil {
 		panic(fmt.Sprintf("error marking blob-cache as hidden: %v", err))
 	}
@@ -119,6 +124,11 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 	if !ok {
 		return fmt.Errorf("unsupported pull policy %q", iopts.pullPolicy)
 	}
+	var pullPushRetryDelay time.Duration
+	pullPushRetryDelay, err = time.ParseDuration(iopts.retryDelay)
+	if err != nil {
+		return fmt.Errorf("unable to parse value provided %q as --retry-delay: %w", iopts.retryDelay, err)
+	}
 	options := buildah.PullOptions{
 		SignaturePolicyPath: iopts.signaturePolicy,
 		Store:               store,
@@ -127,8 +137,8 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 		AllTags:             iopts.allTags,
 		ReportWriter:        os.Stderr,
 		RemoveSignatures:    iopts.removeSignatures,
-		MaxRetries:          buildahcli.MaxPullPushRetries,
-		RetryDelay:          buildahcli.PullPushRetryDelay,
+		MaxRetries:          iopts.retry,
+		RetryDelay:          pullPushRetryDelay,
 		OciDecryptConfig:    decConfig,
 		PullPolicy:          policy,
 	}

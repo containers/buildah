@@ -333,6 +333,18 @@ Defaults to *true*.
 
 If an image needs to be pulled from the registry, suppress progress output.
 
+**--retry** *attempts*
+
+Number of times to retry in case of failure when performing pull of images from registry.
+
+Defaults to `3`.
+
+**--retry-delay** *duration*
+
+Duration of delay between retry attempts in case of failure when performing pull of images from registry.
+
+Defaults to `2s`.
+
 **--security-opt**=[]
 
 Security Options

@@ -612,6 +612,18 @@ Suppress output messages which indicate which instruction is being processed,
 and of progress when pulling images from a registry, and when writing the
 output image.
 
+**--retry** *attempts*
+
+Number of times to retry in case of failure when performing push/pull of images to/from registry.
+
+Defaults to `3`.
+
+**--retry-delay** *duration*
+
+Duration of delay between retry attempts in case of failure when performing push/pull of images to/from registry.
+
+Defaults to `2s`.
+
 **--rm** *bool-value*
 
 Remove intermediate containers after a successful build (default true).

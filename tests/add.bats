@@ -24,7 +24,7 @@ load helpers
   mkdir $root/subdir $root/other-subdir
   # Copy a file to the working directory
   run_buildah config --workingdir=/ $cid
-  run_buildah add $cid ${TEST_SCRATCH_DIR}/randomfile
+  run_buildah add --retry 4 --retry-delay 4s $cid ${TEST_SCRATCH_DIR}/randomfile
   # Copy a file to a specific subdirectory
   run_buildah add $cid ${TEST_SCRATCH_DIR}/randomfile /subdir
   # Copy two files to a specific subdirectory

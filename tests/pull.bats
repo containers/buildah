@@ -18,7 +18,7 @@ load helpers
 }
 
 @test "pull-flags-order-verification" {
-  run_buildah 125 pull image1 --tls-verify
+  run_buildah 125 pull --retry 4 --retry-delay 4s image1 --tls-verify
   check_options_flag_err "--tls-verify"
 
   run_buildah 125 pull image1 --authfile=/tmp/somefile
