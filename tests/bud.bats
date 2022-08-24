@@ -130,6 +130,22 @@ symlink(subdir)"
   check_options_flag_err "--userns=cnt1"
 }
 
+@test "build test has gid in supplemental groups" {
+  _prefetch alpine
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TESTSDIR}/bud/supplemental-groups/Dockerfile
+  # gid 1000 must be in supplemental groups
+  expect_output --substring "Groups:	1000"
+}
+
+@test "build test if supplemental groups has gid with --isolation chroot" {
+  test -z "${BUILDAH_ISOLATION}" || skip "BUILDAH_ISOLATION=${BUILDAH_ISOLATION} overrides --isolation"
+
+  _prefetch alpine
+  run_buildah build --isolation chroot $WITH_POLICY_JSON -t source -f ${TESTSDIR}/bud/supplemental-groups/Dockerfile
+  # gid 1000 must be in supplemental groups
+  expect_output --substring "Groups:	1000"
+}
+
 @test "bud with --layers and --no-cache flags" {
   cp -a ${TESTSDIR}/bud/use-layers ${TESTDIR}/use-layers
 
