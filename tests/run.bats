@@ -349,6 +349,20 @@ function configure_and_check_user() {
   expect_output "888:888"
 }
 
+@test "run --user and verify gid in supplemental groups" {
+  skip_if_no_runtime
+
+  # Create the container.
+  _prefetch alpine
+  run_buildah from $WITH_POLICY_JSON alpine
+  ctr="$output"
+
+  # Run with uid:gid 1000:1000 and verify if gid is present in additional groups
+  run_buildah run --user 1000:1000 "$ctr" cat /proc/self/status
+  # gid 1000 must be in additional/supplemental groups
+  expect_output --substring "Groups:	1000 "
+}
+
 @test "run --workingdir" {
 	skip_if_no_runtime
 
