@@ -6,7 +6,7 @@ load helpers
 	blobcachedir=${TEST_SCRATCH_DIR}/cache
 	mkdir -p ${blobcachedir}
 	# Pull an image using a fresh directory for the blob cache.
-	run_buildah pull --blob-cache=${blobcachedir} $WITH_POLICY_JSON k8s.gcr.io/pause
+	run_buildah pull --blob-cache=${blobcachedir} $WITH_POLICY_JSON registry.k8s.io/pause
 	# Check that we dropped some files in there.
 	run find ${blobcachedir} -type f
 	echo "$output"
@@ -18,7 +18,7 @@ load helpers
 	blobcachedir=${TEST_SCRATCH_DIR}/cache
 	mkdir -p ${blobcachedir}
 	# Pull an image using a fresh directory for the blob cache.
-	run_buildah from --blob-cache=${blobcachedir} $WITH_POLICY_JSON k8s.gcr.io/pause
+	run_buildah from --blob-cache=${blobcachedir} $WITH_POLICY_JSON registry.k8s.io/pause
 	# Check that we dropped some files in there.
 	run find ${blobcachedir} -type f
 	echo "$output"
@@ -59,7 +59,7 @@ function _check_matches() {
 	blobcachedir=${TEST_SCRATCH_DIR}/cache
 	mkdir -p ${blobcachedir}
 	# Pull an image using a fresh directory for the blob cache.
-	run_buildah from --quiet --blob-cache=${blobcachedir} $WITH_POLICY_JSON k8s.gcr.io/pause
+	run_buildah from --quiet --blob-cache=${blobcachedir} $WITH_POLICY_JSON registry.k8s.io/pause
 	ctr="$output"
 	run_buildah add ${ctr} $BUDFILES/add-file/file /
 	# Commit the image without using the blob cache, using compression so that uncompressed blobs
@@ -88,7 +88,7 @@ function _check_matches() {
 	blobcachedir=${TEST_SCRATCH_DIR}/cache
 	mkdir -p ${blobcachedir}
 	# Pull an image using a fresh directory for the blob cache.
-	run_buildah from --quiet --blob-cache=${blobcachedir} $WITH_POLICY_JSON k8s.gcr.io/pause
+	run_buildah from --quiet --blob-cache=${blobcachedir} $WITH_POLICY_JSON registry.k8s.io/pause
 	ctr="$output"
 	run_buildah add ${ctr} $BUDFILES/add-file/file /
 	# Commit the image using the blob cache.
