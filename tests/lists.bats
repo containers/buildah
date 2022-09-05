@@ -18,6 +18,10 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     assert "$output" =~ "that name is already in use"
     run_buildah manifest create --amend foo
     assert "$output" == "$listid"
+    # since manifest exists in local storage this should exit with `0`
+    run_buildah manifest exists foo
+    # since manifest does not exist in local storage this should exit with `1`
+    run_buildah 1 manifest exists foo2
 }
 
 @test "manifest-inspect-id" {
@@ -29,6 +33,10 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
 @test "manifest-add" {
     run_buildah manifest create foo
     run_buildah manifest add foo ${IMAGE_LIST}
+    # since manifest exists in local storage this should exit with `0`
+    run_buildah manifest exists foo
+    # since manifest does not exist in local storage this should exit with `1`
+    run_buildah 1 manifest exists foo2
     run_buildah manifest rm foo
 }
 
@@ -211,4 +219,8 @@ IMAGE_LIST_S390X_INSTANCE_DIGEST=sha256:882a20ee0df7399a445285361d38b711c299ca09
     run_buildah manifest inspect test
     # must contain amd64
     expect_output --substring "amd64"
+    # since manifest exists in local storage this should exit with `0`
+    run_buildah manifest exists test:latest
+    # since manifest does not exist in local storage this should exit with `1`
+    run_buildah 1 manifest exists test2
 }

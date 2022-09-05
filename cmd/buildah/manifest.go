@@ -55,6 +55,7 @@ func init() {
 		manifestInspectDescription  = "\n  Display the contents of a manifest list or image index."
 		manifestPushDescription     = "\n  Pushes manifest lists and image indexes to registries."
 		manifestRmDescription       = "\n  Remove one or more manifest lists from local storage."
+		manifestExistsDescription   = "\n  Check if a manifest list exists in local storage."
 		manifestCreateOpts          manifestCreateOpts
 		manifestAddOpts             manifestAddOpts
 		manifestRemoveOpts          manifestRemoveOpts
@@ -155,6 +156,19 @@ func init() {
 	manifestRemoveCommand.SetUsageTemplate(UsageTemplate())
 	manifestCommand.AddCommand(manifestRemoveCommand)
 
+	manifestExistsCommand := &cobra.Command{
+		Use:   "exists",
+		Short: "Check if a manifest list exists in local storage",
+		Long:  manifestExistsDescription,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return manifestExistsCmd(cmd, args)
+		},
+		Example: "buildah manifest exists mylist",
+	}
+	manifestExistsCommand.SetUsageTemplate(UsageTemplate())
+	manifestCommand.AddCommand(manifestExistsCommand)
+
 	manifestAnnotateCommand := &cobra.Command{
 		Use:   "annotate",
 		Short: "Add or update information about an entry in a manifest list or image index",
@@ -235,6 +249,39 @@ func init() {
 	}
 	manifestRmCommand.SetUsageTemplate(UsageTemplate())
 	manifestCommand.AddCommand(manifestRmCommand)
+}
+
+func manifestExistsCmd(c *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return errors.New("At least a name must be specified for the list")
+	}
+	name := args[0]
+
+	store, err := getStore(c)
+	if err != nil {
+		return err
+	}
+
+	systemContext, err := parse.SystemContextFromOptions(c)
+	if err != nil {
+		return fmt.Errorf("error building system context: %w", err)
+	}
+	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
+	if err != nil {
+		return err
+	}
+
+	_, err = runtime.LookupManifestList(name)
+	if err != nil {
+		if errors.Is(err, storage.ErrImageUnknown) {
+			if err := shutdownStore(c); err != nil {
+				return err
+			}
+			os.Exit(1)
+		}
+		return err
+	}
+	return nil
 }
 
 func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts) error {
