@@ -6,7 +6,7 @@ require (
 	github.com/containerd/containerd v1.6.8
 	github.com/containernetworking/cni v1.1.2
 	github.com/containers/common v0.50.1
-	github.com/containers/image/v5 v5.23.0
+	github.com/containers/image/v5 v5.23.1-0.20221012204947-6ea53742be58
 	github.com/containers/ocicrypt v1.1.6
 	github.com/containers/storage v1.43.0
 	github.com/docker/distribution v2.8.1+incompatible
@@ -19,7 +19,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.22.1
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc1
+	github.com/opencontainers/image-spec v1.1.0-rc2
 	github.com/opencontainers/runc v1.1.4
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/opencontainers/runtime-tools v0.9.1-0.20220714195903-17b3287fafb7
