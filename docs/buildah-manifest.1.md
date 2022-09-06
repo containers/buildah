@@ -22,6 +22,7 @@ The `buildah manifest` command provides subcommands which can be used to:
 | add      | [buildah-manifest-add(1)](buildah-manifest-add.1.md)           | Add an image to a manifest list or image index.                             |
 | annotate | [buildah-manifest-annotate(1)](buildah-manifest-annotate.1.md) | Add or update information about an image in a manifest list or image index. |
 | create   | [buildah-manifest-create(1)](buildah-manifest-create.1.md)     | Create a manifest list or image index.                                      |
+| exists   | [buildah-manifest-exists(1)](buildah-manifest-exists.1.md)     | Check if a manifest list exists in local storage.                           |
 | inspect  | [buildah-manifest-inspect(1)](buildah-manifest-inspect.1.md)   | Display the contents of a manifest list or image index.                     |
 | push     | [buildah-manifest-push(1)](buildah-manifest-push.1.md)         | Push a manifest list or image index to a registry or other location.        |
 | remove   | [buildah-manifest-remove(1)](buildah-manifest-remove.1.md)     | Remove an image from a manifest list or image index.                        |
