@@ -274,12 +274,10 @@ func manifestExistsCmd(c *cobra.Command, args []string) error {
 	_, err = runtime.LookupManifestList(name)
 	if err != nil {
 		if errors.Is(err, storage.ErrImageUnknown) {
-			if err := shutdownStore(c); err != nil {
-				return err
-			}
-			os.Exit(1)
+			exitCode = 1
+		} else {
+			return err
 		}
-		return err
 	}
 	return nil
 }
