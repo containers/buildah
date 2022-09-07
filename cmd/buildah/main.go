@@ -60,6 +60,7 @@ var rootCmd = &cobra.Command{
 
 var (
 	globalFlagResults globalFlags
+	exitCode          int
 )
 
 func init() {
@@ -236,7 +237,7 @@ func main() {
 		} else {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
-		exitCode := cli.ExecErrorCodeGeneric
+		exitCode = cli.ExecErrorCodeGeneric
 		var ee *exec.ExitError
 		if errors.As(err, &ee) {
 			if w, ok := ee.Sys().(syscall.WaitStatus); ok {
@@ -246,6 +247,6 @@ func main() {
 		if err := shutdownStore(rootCmd); err != nil {
 			logrus.Warnf("failed to shutdown storage: %q", err)
 		}
-		os.Exit(exitCode)
 	}
+	os.Exit(exitCode)
 }
