@@ -37,7 +37,7 @@ const (
 	// SeccompDefaultPath defines the default seccomp path
 	SeccompDefaultPath = "/usr/share/containers/seccomp.json"
 	// SeccompOverridePath if this exists it overrides the default seccomp path
-	SeccompOverridePath = "/etc/crio/seccomp.json"
+	SeccompOverridePath = "/etc/containers/seccomp.json"
 	// TypeBind is the type for mounting host dir
 	TypeBind = "bind"
 	// TypeTmpfs is the type for mounting tmpfs
