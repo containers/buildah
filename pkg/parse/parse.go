@@ -18,6 +18,7 @@ import (
 	"github.com/containers/buildah/define"
 	internalParse "github.com/containers/buildah/internal/parse"
 	"github.com/containers/buildah/pkg/sshagent"
+	"github.com/containers/common/pkg/config"
 	"github.com/containers/common/pkg/parse"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
@@ -35,9 +36,9 @@ import (
 
 const (
 	// SeccompDefaultPath defines the default seccomp path
-	SeccompDefaultPath = "/usr/share/containers/seccomp.json"
+	SeccompDefaultPath = config.SeccompDefaultPath
 	// SeccompOverridePath if this exists it overrides the default seccomp path
-	SeccompOverridePath = "/etc/containers/seccomp.json"
+	SeccompOverridePath = config.SeccompOverridePath
 	// TypeBind is the type for mounting host dir
 	TypeBind = "bind"
 	// TypeTmpfs is the type for mounting tmpfs
