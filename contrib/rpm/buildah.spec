@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.19.9
+Version:        1.19.10
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,14 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Mon Sep 9 2022 Tom Sweeney <tsweeney@redhat.com> 1.19.10-1
+- [release-1.19] github.com/prometheus/client_golang to v1.11.1
+- [release-1.19]Bump c/storage to 1.24.10
+- Tests: disable three gating-test failures
+- [release-1.19] CVE-2022-27651: do not set the inheritable capabilities
+- Cirrus: Disable conformance test
+- chroot isolation: environment value leakage to intermediate processes
+
 * Mon Jun 21 2021 Nalin Dahyabhai <nalin@redhat.com> 1.19.9-1
 - chroot: fix environment value leakage to intermediate processes
   (CVE-2021-3602).
@@ -1848,7 +1856,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 
 * Thu Feb 22 2018 Dan Walsh <dwalsh@redhat.com> 0.13-1
 - Vendor in latest containers/storage
-- This fixes a large SELinux bug.  
+- This fixes a large SELinux bug.
 - run: do not open /etc/hosts if not needed
 - Add the following flags to buildah bud and from
     --add-host
@@ -1966,7 +1974,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 - Bump for inclusion of OCI 1.0 Runtime and Image Spec
 
 * Tue Jul 18 2017 Dan Walsh <dwalsh@redhat.com> 0.2.0-1.gitac2aad6
-- buildah run: Add support for -- ending options parsing 
+- buildah run: Add support for -- ending options parsing
 - buildah Add/Copy support for glob syntax
 - buildah commit: Add flag to remove containers on commit
 - buildah push: Improve man page and help information
