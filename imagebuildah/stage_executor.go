@@ -602,6 +602,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		Args:             s.executor.runtimeArgs,
 		Cmd:              config.Cmd,
 		ContextDir:       s.executor.contextDir,
+		ConfigureNetwork: s.executor.configureNetwork,
 		Entrypoint:       config.Entrypoint,
 		Env:              config.Env,
 		Hostname:         config.Hostname,
@@ -624,10 +625,9 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		User:             config.User,
 		WorkingDir:       config.WorkingDir,
 	}
+
 	if config.NetworkDisabled {
 		options.ConfigureNetwork = buildah.NetworkDisabled
-	} else {
-		options.ConfigureNetwork = buildah.NetworkEnabled
 	}
 
 	args := run.Args
