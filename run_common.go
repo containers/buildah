@@ -1445,6 +1445,8 @@ func cleanableDestinationListFromMounts(mounts []spec.Mount) []string {
 
 // runSetupRunMounts sets up mounts that exist only in this RUN, not in subsequent runs
 func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMaps IDMaps) ([]spec.Mount, *runMountArtifacts, error) {
+	// If `type` is not set default to "bind"
+	mountType := internalParse.TypeBind
 	mountTargets := make([]string, 0, 10)
 	tmpFiles := make([]string, 0, len(mounts))
 	mountImages := make([]string, 0, 10)
@@ -1452,20 +1454,19 @@ func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMap
 	agents := make([]*sshagent.AgentServer, 0, len(mounts))
 	sshCount := 0
 	defaultSSHSock := ""
-	tokens := []string{}
 	lockedTargets := []string{}
 	for _, mount := range mounts {
-		arr := strings.SplitN(mount, ",", 2)
-
-		kv := strings.Split(arr[0], "=")
-		if len(kv) != 2 || kv[0] != "type" {
-			return nil, nil, errors.New("invalid mount type")
+		tokens := strings.Split(mount, ",")
+		for _, field := range tokens {
+			if strings.HasPrefix(field, "type=") {
+				kv := strings.Split(field, "=")
+				if len(kv) != 2 {
+					return nil, nil, errors.New("invalid mount type")
+				}
+				mountType = kv[1]
+			}
 		}
-		if len(arr) == 2 {
-			tokens = strings.Split(arr[1], ",")
-		}
-
-		switch kv[1] {
+		switch mountType {
 		case "secret":
 			mount, envFile, err := b.getSecretMount(tokens, sources.Secrets, idMaps)
 			if err != nil {
@@ -1520,7 +1521,7 @@ func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMap
 			mountTargets = append(mountTargets, mount.Destination)
 			lockedTargets = lockedPaths
 		default:
-			return nil, nil, fmt.Errorf("invalid mount type %q", kv[1])
+			return nil, nil, fmt.Errorf("invalid mount type %q", mountType)
 		}
 	}
 	artifacts := &runMountArtifacts{
@@ -1578,6 +1579,9 @@ func (b *Builder) getSecretMount(tokens []string, secrets map[string]define.Secr
 	for _, val := range tokens {
 		kv := strings.SplitN(val, "=", 2)
 		switch kv[0] {
+		case "type":
+			// This is already processed
+			continue
 		case "id":
 			id = kv[1]
 		case "target", "dst", "destination":
@@ -1698,6 +1702,9 @@ func (b *Builder) getSSHMount(tokens []string, count int, sshsources map[string]
 			return nil, nil, errInvalidSyntax
 		}
 		switch kv[0] {
+		case "type":
+			// This is already processed
+			continue
 		case "id":
 			id = kv[1]
 		case "target", "dst", "destination":

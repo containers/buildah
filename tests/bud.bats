@@ -607,6 +607,34 @@ _EOF
   assert "$output" !~ "unwanted stage"
 }
 
+# Test skipping unwanted stage with --mount from another stage
+@test "build-test skipping unwanted stages with --mount from stagename with flag order changed" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN echo "unwanted stage"
+
+FROM alpine as one
+RUN echo "needed stage"
+COPY somefile file
+
+FROM alpine
+RUN echo "another unwanted stage"
+
+FROM alpine
+RUN --mount=from=one,target=/test,type=bind cat /test/file
+RUN echo "target stage"
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "needed stage"
+  expect_output --substring "something"
+  expect_output --substring "target stage"
+  assert "$output" !~ "unwanted stage"
+}
+
 # Test pinning image using additional build context
 @test "build-with-additional-build-context and COPY, test pinning image" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
@@ -4954,6 +4982,14 @@ _EOF
   run_buildah build -t testbud $WITH_POLICY_JSON -f ${TEST_SCRATCH_DIR}/buildkit-mount/Dockerfile2 ${TEST_SCRATCH_DIR}/buildkit-mount/
   expect_output --substring "hello"
   run_buildah rmi -f testbud
+}
+
+@test "bud-with-mount-with-only-target-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  cp -R $BUDFILES/buildkit-mount ${TEST_SCRATCH_DIR}/buildkit-mount
+  run_buildah build -t testbud $WITH_POLICY_JSON -f ${TEST_SCRATCH_DIR}/buildkit-mount/Dockerfile6 ${TEST_SCRATCH_DIR}/buildkit-mount/
+  expect_output --substring "hello"
 }
 
 @test "bud-with-mount-no-subdir-like-buildkit" {
