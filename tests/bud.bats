@@ -120,7 +120,7 @@ symlink(subdir)"
 @test "bud with .dockerignore #4" {
   run_buildah 125 build -t testbud3 $WITH_POLICY_JSON -f Dockerfile.test $BUDFILES/dockerignore4
   expect_output --substring 'error building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
-  expect_output --substring $(realpath "$BUDFILES/dockerignore4/Dockerfile.test.dockerignore")
+  expect_output --substring '1 filtered out using /[^ ]*/Dockerfile.test.dockerignore'
 }
 
 @test "bud with .dockerignore #6" {
