@@ -371,10 +371,10 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	return id, ref, nil
 }
 
-func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logrus.Logger, logPrefix string, options define.BuildOptions, dockerfiles []string, dockerfilecontents [][]byte) (string, reference.Canonical, error) {
+func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logrus.Logger, logPrefix string, options define.BuildOptions, containerFiles []string, dockerfilecontents [][]byte) (string, reference.Canonical, error) {
 	mainNode, err := imagebuilder.ParseDockerfile(bytes.NewReader(dockerfilecontents[0]))
 	if err != nil {
-		return "", nil, fmt.Errorf("error parsing main Dockerfile: %s: %w", dockerfiles[0], err)
+		return "", nil, fmt.Errorf("error parsing main Dockerfile: %s: %w", containerFiles[0], err)
 	}
 
 	warnOnUnsetBuildArgs(logger, mainNode, options.Args)
@@ -416,8 +416,8 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 	for i, d := range dockerfilecontents[1:] {
 		additionalNode, err := imagebuilder.ParseDockerfile(bytes.NewReader(d))
 		if err != nil {
-			dockerfiles := dockerfiles[1:]
-			return "", nil, fmt.Errorf("error parsing additional Dockerfile %s: %w", dockerfiles[i], err)
+			containerFiles := containerFiles[1:]
+			return "", nil, fmt.Errorf("error parsing additional Dockerfile %s: %w", containerFiles[i], err)
 		}
 		mainNode.Children = append(mainNode.Children, additionalNode.Children...)
 	}
@@ -450,7 +450,7 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 		}
 	}
 
-	exec, err := newExecutor(logger, logPrefix, store, options, mainNode)
+	exec, err := newExecutor(logger, logPrefix, store, options, mainNode, containerFiles)
 	if err != nil {
 		return "", nil, fmt.Errorf("error creating build executor: %w", err)
 	}

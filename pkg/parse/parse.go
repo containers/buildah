@@ -1075,10 +1075,31 @@ func SSH(sshSources []string) (map[string]*sshagent.Source, error) {
 	return parsed, nil
 }
 
-func ContainerIgnoreFile(contextDir, path string) ([]string, string, error) {
+// ContainerIgnoreFile consumes path to `dockerignore` or `containerignore`
+// and returns list of files to exclude along with the path to processed ignore
+// file. Deprecated since this might become internal only, please avoid relying
+// on this function.
+func ContainerIgnoreFile(contextDir, path string, containerFiles []string) ([]string, string, error) {
 	if path != "" {
 		excludes, err := imagebuilder.ParseIgnore(path)
 		return excludes, path, err
+	}
+	// If path was not supplied give priority to `<containerfile>.containerignore` first.
+	for _, containerfile := range containerFiles {
+		if !filepath.IsAbs(containerfile) {
+			containerfile = filepath.Join(contextDir, containerfile)
+		}
+		containerfileIgnore := ""
+		if _, err := os.Stat(containerfile + ".containerignore"); err == nil {
+			containerfileIgnore = containerfile + ".containerignore"
+		}
+		if _, err := os.Stat(containerfile + ".dockerignore"); err == nil {
+			containerfileIgnore = containerfile + ".dockerignore"
+		}
+		if containerfileIgnore != "" {
+			excludes, err := imagebuilder.ParseIgnore(containerfileIgnore)
+			return excludes, containerfileIgnore, err
+		}
 	}
 	path = filepath.Join(contextDir, ".containerignore")
 	excludes, err := imagebuilder.ParseIgnore(path)

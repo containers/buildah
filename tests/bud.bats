@@ -117,6 +117,32 @@ symlink(subdir)"
   expect_output --substring $(realpath "$BUDFILES/dockerignore3/.dockerignore")
 }
 
+@test "bud with .dockerignore #4" {
+  run_buildah 125 build -t testbud3 $WITH_POLICY_JSON -f Dockerfile.test $BUDFILES/dockerignore4
+  expect_output --substring 'error building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
+  expect_output --substring $(realpath "$BUDFILES/dockerignore4/Dockerfile.test.dockerignore")
+}
+
+@test "bud with .dockerignore #6" {
+  _prefetch alpine busybox
+  run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $BUDFILES/dockerignore6/Dockerfile $BUDFILES/dockerignore6
+  expect_output --substring 'error building.*"COPY subdir \./".*no such file or directory'
+
+  run_buildah build -t testbud $WITH_POLICY_JSON -f $BUDFILES/dockerignore6/Dockerfile.succeed $BUDFILES/dockerignore6
+
+  run_buildah from --name myctr testbud
+
+  run_buildah 1 run myctr ls -l test1.txt
+
+  run_buildah run myctr ls -l test2.txt
+
+  run_buildah 1 run myctr ls -l sub1.txt
+
+  run_buildah 1 run myctr ls -l sub2.txt
+
+  run_buildah 1 run myctr ls -l subdir/
+}
+
 @test "build with basename resolving default arg" {
   run_buildah info --format '{{.host.arch}}'
   myarch="$output"

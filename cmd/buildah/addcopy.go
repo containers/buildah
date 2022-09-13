@@ -242,7 +242,7 @@ func addAndCopyCmd(c *cobra.Command, args []string, verb string, iopts addCopyRe
 	if iopts.contextdir != "" {
 		var excludes []string
 
-		excludes, options.IgnoreFile, err = parse.ContainerIgnoreFile(options.ContextDir, iopts.ignoreFile)
+		excludes, options.IgnoreFile, err = parse.ContainerIgnoreFile(options.ContextDir, iopts.ignoreFile, []string{})
 		if err != nil {
 			return err
 		}
