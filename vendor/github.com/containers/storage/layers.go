@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -344,7 +343,15 @@ func (r *layerStore) layerspath() string {
 func (r *layerStore) Load() error {
 	shouldSave := false
 	rpath := r.layerspath()
-	data, err := ioutil.ReadFile(rpath)
+	info, err := os.Stat(rpath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+	} else {
+		r.layerspathModified = info.ModTime()
+	}
+	data, err := os.ReadFile(rpath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -435,7 +442,7 @@ func (r *layerStore) LoadLocked() error {
 func (r *layerStore) loadMounts() error {
 	mounts := make(map[string]*Layer)
 	mpath := r.mountspath()
-	data, err := ioutil.ReadFile(mpath)
+	data, err := os.ReadFile(mpath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -746,7 +753,7 @@ func (r *layerStore) Put(id string, parentLayer *Layer, names []string, mountLab
 		templateUncompressedDigest, templateUncompressedSize = templateLayer.UncompressedDigest, templateLayer.UncompressedSize
 		templateCompressionType = templateLayer.CompressionType
 		templateUIDs, templateGIDs = append([]uint32{}, templateLayer.UIDs...), append([]uint32{}, templateLayer.GIDs...)
-		templateTSdata, tserr = ioutil.ReadFile(r.tspath(templateLayer.ID))
+		templateTSdata, tserr = os.ReadFile(r.tspath(templateLayer.ID))
 		if tserr != nil && !os.IsNotExist(tserr) {
 			return nil, -1, tserr
 		}
@@ -1660,7 +1667,7 @@ func (r *layerStore) applyDiffWithOptions(to string, layerOptions *LayerOptions,
 	if compressedDigester != nil {
 		compressedWriter = compressedDigester.Hash()
 	} else {
-		compressedWriter = ioutil.Discard
+		compressedWriter = io.Discard
 	}
 	compressedCounter := ioutils.NewWriteCounter(compressedWriter)
 	defragmented = io.TeeReader(defragmented, compressedCounter)
@@ -1924,7 +1931,6 @@ func (r *layerStore) Modified() (bool, error) {
 	}
 	if info != nil {
 		tmodified = info.ModTime() != r.layerspathModified
-		r.layerspathModified = info.ModTime()
 	}
 
 	return tmodified, nil

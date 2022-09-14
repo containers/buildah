@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -410,7 +409,7 @@ type Store interface {
 	SetImageBigData(id, key string, data []byte, digestManifest func([]byte) (digest.Digest, error)) error
 
 	// ListLayerBigData retrieves a list of the (possibly large) chunks of
-	// named data associated with an layer.
+	// named data associated with a layer.
 	ListLayerBigData(id string) ([]string, error)
 
 	// LayerBigData retrieves a (possibly large) chunk of named data
@@ -632,16 +631,17 @@ type store struct {
 // If StoreOptions `options` haven't been fully populated, then DefaultStoreOptions are used.
 //
 // These defaults observe environment variables:
-//  * `STORAGE_DRIVER` for the name of the storage driver to attempt to use
-//  * `STORAGE_OPTS` for the string of options to pass to the driver
+//   - `STORAGE_DRIVER` for the name of the storage driver to attempt to use
+//   - `STORAGE_OPTS` for the string of options to pass to the driver
 //
 // Note that we do some of this work in a child process.  The calling process's
 // main() function needs to import our pkg/reexec package and should begin with
 // something like this in order to allow us to properly start that child
 // process:
-//   if reexec.Init() {
-//       return
-//   }
+//
+//	if reexec.Init() {
+//	    return
+//	}
 func GetStore(options types.StoreOptions) (Store, error) {
 	defaultOpts, err := types.Options()
 	if err != nil {
@@ -3541,7 +3541,7 @@ func (s *store) FromContainerDirectory(id, file string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ioutil.ReadFile(filepath.Join(dir, file))
+	return os.ReadFile(filepath.Join(dir, file))
 }
 
 func (s *store) SetContainerRunDirectoryFile(id, file string, data []byte) error {
@@ -3561,7 +3561,7 @@ func (s *store) FromContainerRunDirectory(id, file string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ioutil.ReadFile(filepath.Join(dir, file))
+	return os.ReadFile(filepath.Join(dir, file))
 }
 
 func (s *store) Shutdown(force bool) ([]string, error) {

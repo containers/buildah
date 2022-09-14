@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -25,7 +24,6 @@ import (
 	"github.com/containers/storage/pkg/system"
 	"github.com/containers/storage/pkg/unshare"
 	gzip "github.com/klauspost/pgzip"
-	"github.com/opencontainers/runc/libcontainer/userns"
 	"github.com/sirupsen/logrus"
 	"github.com/ulikunitz/xz"
 )
@@ -484,7 +482,7 @@ func newTarAppender(idMapping *idtools.IDMappings, writer io.Writer, chownOpts *
 }
 
 // canonicalTarName provides a platform-independent and consistent posix-style
-//path for files and directories to be archived regardless of the platform.
+// path for files and directories to be archived regardless of the platform.
 func canonicalTarName(name string, isDir bool) (string, error) {
 	name, err := CanonicalTarNameForPath(name)
 	if err != nil {
@@ -1107,7 +1105,9 @@ loop:
 // Untar reads a stream of bytes from `archive`, parses it as a tar archive,
 // and unpacks it into the directory at `dest`.
 // The archive may be compressed with one of the following algorithms:
-//  identity (uncompressed), gzip, bzip2, xz.
+//
+//	identity (uncompressed), gzip, bzip2, xz.
+//
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(tarArchive io.Reader, dest string, options *TarOptions) error {
 	return untarHandler(tarArchive, dest, options, true)
@@ -1159,7 +1159,7 @@ func (archiver *Archiver) TarUntar(src, dst string) error {
 		GIDMaps:     tarMappings.GIDs(),
 		Compression: Uncompressed,
 		CopyPass:    true,
-		InUserNS:    userns.RunningInUserNS(),
+		InUserNS:    unshare.IsRootless(),
 	}
 	archive, err := TarWithOptions(src, options)
 	if err != nil {
@@ -1174,7 +1174,7 @@ func (archiver *Archiver) TarUntar(src, dst string) error {
 		UIDMaps:   untarMappings.UIDs(),
 		GIDMaps:   untarMappings.GIDs(),
 		ChownOpts: archiver.ChownOpts,
-		InUserNS:  userns.RunningInUserNS(),
+		InUserNS:  unshare.IsRootless(),
 	}
 	return archiver.Untar(archive, dst, options)
 }
@@ -1194,7 +1194,7 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 		UIDMaps:   untarMappings.UIDs(),
 		GIDMaps:   untarMappings.GIDs(),
 		ChownOpts: archiver.ChownOpts,
-		InUserNS:  userns.RunningInUserNS(),
+		InUserNS:  unshare.IsRootless(),
 	}
 	return archiver.Untar(archive, dst, options)
 }
@@ -1294,7 +1294,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		UIDMaps:              archiver.UntarIDMappings.UIDs(),
 		GIDMaps:              archiver.UntarIDMappings.GIDs(),
 		ChownOpts:            archiver.ChownOpts,
-		InUserNS:             userns.RunningInUserNS(),
+		InUserNS:             unshare.IsRootless(),
 		NoOverwriteDirNonDir: true,
 	}
 	err = archiver.Untar(r, filepath.Dir(dst), options)
@@ -1348,7 +1348,7 @@ func remapIDs(readIDMappings, writeIDMappings *idtools.IDMappings, chownOpts *id
 // of that file as an archive. The archive can only be read once - as soon as reading completes,
 // the file will be deleted.
 func NewTempArchive(src io.Reader, dir string) (*TempArchive, error) {
-	f, err := ioutil.TempFile(dir, "")
+	f, err := os.CreateTemp(dir, "")
 	if err != nil {
 		return nil, err
 	}
@@ -1472,7 +1472,7 @@ func CopyFileWithTarAndChown(chownOpts *idtools.IDPair, hasher io.Writer, uidmap
 				err = fmt.Errorf("extracting data to %q while copying: %w", dest, err)
 			}
 			hashWorker.Wait()
-			if err == nil {
+			if err == nil && hashError != nil {
 				err = fmt.Errorf("calculating digest of data for %q while copying: %w", dest, hashError)
 			}
 			return err

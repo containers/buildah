@@ -3,7 +3,6 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -197,7 +196,7 @@ func (r *containerStore) datapath(id, key string) string {
 func (r *containerStore) Load() error {
 	needSave := false
 	rpath := r.containerspath()
-	data, err := ioutil.ReadFile(rpath)
+	data, err := os.ReadFile(rpath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -484,7 +483,7 @@ func (r *containerStore) BigData(id, key string) ([]byte, error) {
 	if !ok {
 		return nil, ErrContainerUnknown
 	}
-	return ioutil.ReadFile(r.datapath(c.ID, key))
+	return os.ReadFile(r.datapath(c.ID, key))
 }
 
 func (r *containerStore) BigDataSize(id, key string) (int64, error) {
