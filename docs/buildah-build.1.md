@@ -134,6 +134,9 @@ Limit the use of cached images to only consider images with created timestamps l
 For example if `--cache-ttl=1h` is specified, Buildah will only consider intermediate cache images which are created
 under the duration of one hour, and intermediate cache images outside this duration will be ignored.
 
+Note: Setting `--cache-ttl=0` manually is equivalent to using `--no-cache` in the implementation since this would
+effectively mean that user is not willing to use cache at all.
+
 **--cap-add**=*CAP\_xxx*
 
 When executing RUN instructions, run the command specified in the instruction
