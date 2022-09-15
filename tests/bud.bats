@@ -4113,6 +4113,28 @@ _EOF
   expect_output --substring "Using cache"
 }
 
+@test "build verify cache behaviour with --cache-ttl=0s" {
+  _prefetch alpine
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1 << _EOF
+FROM alpine
+RUN touch hello
+RUN echo world
+_EOF
+
+  # Build with --timestamp somewhere in the past
+  run_buildah build $WITH_POLICY_JSON --timestamp 1628099045 --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # Specify --cache-ttl 0.5s and cache should
+  # not be used since cached image is created
+  # with timestamp somwhere in past ( in ~2021 )
+  run_buildah --log-level debug build $WITH_POLICY_JSON --cache-ttl=0 --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # Should not contain `Using cache` since all
+  # cached layers are 1s old.
+  assert "$output" !~ "Using cache"
+  expect_output --substring "Setting --no-cache=true"
+}
+
 @test "build test pushing and pulling from remote cache sources" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir

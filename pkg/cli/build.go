@@ -309,6 +309,18 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		if err != nil {
 			return options, nil, nil, fmt.Errorf("unable to parse value provided %q as --cache-ttl: %w", iopts.CacheTTL, err)
 		}
+		// If user explicitly specified `--cache-ttl=0s`
+		// it would effectively mean that user is asking
+		// to use no cache at all. In such use cases
+		// buildah can skip looking for cache entierly
+		// by setting `--no-cache=true` internally.
+		if int64(cacheTTL) == 0 {
+			logrus.Debug("Setting --no-cache=true since --cache-ttl was set to 0s which effectively means user wants to ignore cache")
+			if c.Flag("no-cache").Changed && !iopts.NoCache {
+				return options, nil, nil, fmt.Errorf("cannot use --cache-ttl with duration as 0 and --no-cache=false")
+			}
+			iopts.NoCache = true
+		}
 	}
 	var pullPushRetryDelay time.Duration
 	pullPushRetryDelay, err = time.ParseDuration(iopts.RetryDelay)
