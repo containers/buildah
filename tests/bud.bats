@@ -408,6 +408,38 @@ _EOF
   expect_output --substring "Groups:	1000"
 }
 
+@test "build-test skipping unwanted stages with --skip-unused-stages=false and --skip-unused-stages=true" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN echo "first unwanted stage"
+
+FROM alpine as one
+RUN echo "needed stage"
+
+FROM alpine
+RUN echo "another unwanted stage"
+
+FROM one
+RUN echo "target stage"
+_EOF
+
+  # with --skip-unused-stages=false
+  run_buildah build $WITH_POLICY_JSON --skip-unused-stages=false -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "needed stage"
+  expect_output --substring "target stage"
+  # this is expected since user specified `--skip-unused-stages=false`
+  expect_output --substring "first unwanted stage"
+  expect_output --substring "another unwanted stage"
+
+  # with --skip-unused-stages=true
+  run_buildah build $WITH_POLICY_JSON --skip-unused-stages=true -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "needed stage"
+  expect_output --substring "target stage"
+  assert "$output" !~ "unwanted stage"
+}
+
 # Test skipping images with FROM
 @test "build-test skipping unwanted stages with FROM" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform

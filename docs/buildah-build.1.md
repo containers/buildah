@@ -684,6 +684,10 @@ If you omit the unit, the system uses bytes. If you omit the size entirely, the 
 
 Sign the built image using the GPG key that matches the specified fingerprint.
 
+**--skip-unused-stages** *bool-value*
+
+Skip stages in multi-stage builds which don't affect the target stage. (Default is `true`).
+
 **--squash**
 
 Squash all of the image's new layers into a single new layer; any preexisting layers
