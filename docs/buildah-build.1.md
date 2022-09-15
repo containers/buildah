@@ -300,7 +300,7 @@ solely for scripting compatibility.
 
 **--dns**=[]
 
-Set custom DNS servers
+Set custom DNS servers.  Invalid if using **--dns** with **--network=none**.
 
 This option can be used to override the DNS configuration passed to the container. Typically this is necessary when the host DNS configuration is invalid for the container (e.g., 127.0.0.1). When this is the case the `--dns` flag is necessary for every run.
 
@@ -308,11 +308,11 @@ The special value **none** can be specified to disable creation of /etc/resolv.c
 
 **--dns-option**=[]
 
-Set custom DNS options
+Set custom DNS options. Invalid if using **--dns-option** with **--network=none**.
 
 **--dns-search**=[]
 
-Set custom DNS search domains
+Set custom DNS search domains. Invalid if using **--dns-search** with **--network=none**.
 
 **--env** *env[=value]*
 
@@ -489,7 +489,7 @@ Sets the configuration for network namespaces when handling `RUN` instructions.
 
 Valid _mode_ values are:
 
-- **none**: no networking;
+- **none**: no networking. Invalid if using **--dns**, **--dns-opt**, or **--dns-search**;
 - **host**: use the host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure;
 - **ns:**_path_: path to a network namespace to join;
 - **private**: create a new namespace for the container (default)
