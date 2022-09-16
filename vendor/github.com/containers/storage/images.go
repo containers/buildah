@@ -3,7 +3,6 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -242,8 +241,8 @@ func (i *Image) recomputeDigests() error {
 		if !bigDataNameIsManifest(name) {
 			continue
 		}
-		if digest.Validate() != nil {
-			return fmt.Errorf("validating digest %q for big data item %q: %w", string(digest), name, digest.Validate())
+		if err := digest.Validate(); err != nil {
+			return fmt.Errorf("validating digest %q for big data item %q: %w", string(digest), name, err)
 		}
 		// Deduplicate the digest values.
 		if _, known := digests[digest]; !known {
@@ -261,7 +260,7 @@ func (i *Image) recomputeDigests() error {
 func (r *imageStore) Load() error {
 	shouldSave := false
 	rpath := r.imagespath()
-	data, err := ioutil.ReadFile(rpath)
+	data, err := os.ReadFile(rpath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -636,7 +635,7 @@ func (r *imageStore) BigData(id, key string) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("locating image with ID %q: %w", id, ErrImageUnknown)
 	}
-	return ioutil.ReadFile(r.datapath(image.ID, key))
+	return os.ReadFile(r.datapath(image.ID, key))
 }
 
 func (r *imageStore) BigDataSize(id, key string) (int64, error) {
