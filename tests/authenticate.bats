@@ -121,28 +121,3 @@ EOM
   expect_output --from="${lines[0]}" "STEP 1/2: FROM localhost:$REGISTRY_PORT/my-alpine"
   expect_output --substring "Writing manifest to image destination"
 }
-
-
-@test "authenticate: with cached (not command-line) credentials" {
-  _prefetch alpine
-
-  start_registry
-
-  run_buildah 0 login --tls-verify=false --username testuser --password testpassword localhost:$REGISTRY_PORT
-  expect_output "Login Succeeded!"
-
-  # After login, push should pass
-  run_buildah push $WITH_POLICY_JSON --tls-verify=false alpine localhost:$REGISTRY_PORT/my-alpine
-  expect_output --substring "Storing signatures"
-
-  run_buildah 125 login --tls-verify=false --username testuser --password WRONGPASSWORD localhost:$REGISTRY_PORT
-  expect_output 'error logging into "localhost:'"$REGISTRY_PORT"'": invalid username/password' \
-                "buildah login, wrong credentials"
-
-  run_buildah 0 logout localhost:$REGISTRY_PORT
-  expect_output "Removed login credentials for localhost:$REGISTRY_PORT"
-
-  run_buildah 125 push $WITH_POLICY_JSON --tls-verify=false alpine localhost:$REGISTRY_PORT/my-alpine
-  expect_output --substring "unauthorized: authentication required" \
-                "buildah push after buildah logout"
-}
