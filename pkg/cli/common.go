@@ -89,6 +89,7 @@ type BudResults struct {
 	SignaturePolicy     string
 	SignBy              string
 	Squash              bool
+	SkipUnusedStages    bool
 	Stdin               bool
 	Tag                 []string
 	BuildOutput         string
@@ -260,6 +261,7 @@ func GetBudFlags(flags *BudResults) pflag.FlagSet {
 	if err := fs.MarkHidden("signature-policy"); err != nil {
 		panic(fmt.Sprintf("error marking the signature-policy flag as hidden: %v", err))
 	}
+	fs.BoolVar(&flags.SkipUnusedStages, "skip-unused-stages", true, "skips stages in multi-stage builds which do not affect the final target")
 	fs.BoolVar(&flags.Squash, "squash", false, "squash newly built layers into a single new layer")
 	fs.StringArrayVar(&flags.SSH, "ssh", []string{}, "SSH agent socket or keys to expose to the build. (format: default|<id>[=<socket>|<key>[,<key>]])")
 	fs.BoolVar(&flags.Stdin, "stdin", false, "pass stdin into containers")
@@ -307,6 +309,7 @@ func GetBudFlagsCompletions() commonComp.FlagCompletions {
 	flagCompletion["secret"] = commonComp.AutocompleteNone
 	flagCompletion["sign-by"] = commonComp.AutocompleteNone
 	flagCompletion["signature-policy"] = commonComp.AutocompleteNone
+	flagCompletion["skip-unused-stages"] = commonComp.AutocompleteNone
 	flagCompletion["ssh"] = commonComp.AutocompleteNone
 	flagCompletion["tag"] = commonComp.AutocompleteNone
 	flagCompletion["target"] = commonComp.AutocompleteNone
