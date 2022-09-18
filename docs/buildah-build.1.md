@@ -134,6 +134,9 @@ Limit the use of cached images to only consider images with created timestamps l
 For example if `--cache-ttl=1h` is specified, Buildah will only consider intermediate cache images which are created
 under the duration of one hour, and intermediate cache images outside this duration will be ignored.
 
+Note: Setting `--cache-ttl=0` manually is equivalent to using `--no-cache` in the implementation since this would
+effectively mean that user is not willing to use cache at all.
+
 **--cap-add**=*CAP\_xxx*
 
 When executing RUN instructions, run the command specified in the instruction
@@ -680,6 +683,10 @@ If you omit the unit, the system uses bytes. If you omit the size entirely, the 
 **--sign-by** *fingerprint*
 
 Sign the built image using the GPG key that matches the specified fingerprint.
+
+**--skip-unused-stages** *bool-value*
+
+Skip stages in multi-stage builds which don't affect the target stage. (Default is `true`).
 
 **--squash**
 

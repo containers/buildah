@@ -117,6 +117,32 @@ symlink(subdir)"
   expect_output --substring $(realpath "$BUDFILES/dockerignore3/.dockerignore")
 }
 
+@test "bud with .dockerignore #4" {
+  run_buildah 125 build -t testbud3 $WITH_POLICY_JSON -f Dockerfile.test $BUDFILES/dockerignore4
+  expect_output --substring 'error building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
+  expect_output --substring '1 filtered out using /[^ ]*/Dockerfile.test.dockerignore'
+}
+
+@test "bud with .dockerignore #6" {
+  _prefetch alpine busybox
+  run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $BUDFILES/dockerignore6/Dockerfile $BUDFILES/dockerignore6
+  expect_output --substring 'error building.*"COPY subdir \./".*no such file or directory'
+
+  run_buildah build -t testbud $WITH_POLICY_JSON -f $BUDFILES/dockerignore6/Dockerfile.succeed $BUDFILES/dockerignore6
+
+  run_buildah from --name myctr testbud
+
+  run_buildah 1 run myctr ls -l test1.txt
+
+  run_buildah run myctr ls -l test2.txt
+
+  run_buildah 1 run myctr ls -l sub1.txt
+
+  run_buildah 1 run myctr ls -l sub2.txt
+
+  run_buildah 1 run myctr ls -l subdir/
+}
+
 @test "build with basename resolving default arg" {
   run_buildah info --format '{{.host.arch}}'
   myarch="$output"
@@ -382,6 +408,38 @@ _EOF
   expect_output --substring "Groups:	1000"
 }
 
+@test "build-test skipping unwanted stages with --skip-unused-stages=false and --skip-unused-stages=true" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN echo "first unwanted stage"
+
+FROM alpine as one
+RUN echo "needed stage"
+
+FROM alpine
+RUN echo "another unwanted stage"
+
+FROM one
+RUN echo "target stage"
+_EOF
+
+  # with --skip-unused-stages=false
+  run_buildah build $WITH_POLICY_JSON --skip-unused-stages=false -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "needed stage"
+  expect_output --substring "target stage"
+  # this is expected since user specified `--skip-unused-stages=false`
+  expect_output --substring "first unwanted stage"
+  expect_output --substring "another unwanted stage"
+
+  # with --skip-unused-stages=true
+  run_buildah build $WITH_POLICY_JSON --skip-unused-stages=true -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
+  expect_output --substring "needed stage"
+  expect_output --substring "target stage"
+  assert "$output" !~ "unwanted stage"
+}
+
 # Test skipping images with FROM
 @test "build-test skipping unwanted stages with FROM" {
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
@@ -571,6 +629,34 @@ RUN echo "another unwanted stage"
 
 FROM alpine
 RUN --mount=type=bind,from=one,target=/test cat /test/file
+RUN echo "target stage"
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile ${TEST_SCRATCH_DIR}/bud/platform
+  expect_output --substring "needed stage"
+  expect_output --substring "something"
+  expect_output --substring "target stage"
+  assert "$output" !~ "unwanted stage"
+}
+
+# Test skipping unwanted stage with --mount from another stage
+@test "build-test skipping unwanted stages with --mount from stagename with flag order changed" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM alpine
+RUN echo "unwanted stage"
+
+FROM alpine as one
+RUN echo "needed stage"
+COPY somefile file
+
+FROM alpine
+RUN echo "another unwanted stage"
+
+FROM alpine
+RUN --mount=from=one,target=/test,type=bind cat /test/file
 RUN echo "target stage"
 _EOF
 
@@ -4059,6 +4145,28 @@ _EOF
   expect_output --substring "Using cache"
 }
 
+@test "build verify cache behaviour with --cache-ttl=0s" {
+  _prefetch alpine
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1 << _EOF
+FROM alpine
+RUN touch hello
+RUN echo world
+_EOF
+
+  # Build with --timestamp somewhere in the past
+  run_buildah build $WITH_POLICY_JSON --timestamp 1628099045 --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # Specify --cache-ttl 0.5s and cache should
+  # not be used since cached image is created
+  # with timestamp somwhere in past ( in ~2021 )
+  run_buildah --log-level debug build $WITH_POLICY_JSON --cache-ttl=0 --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
+  # Should not contain `Using cache` since all
+  # cached layers are 1s old.
+  assert "$output" !~ "Using cache"
+  expect_output --substring "Setting --no-cache=true"
+}
+
 @test "build test pushing and pulling from remote cache sources" {
   _prefetch alpine
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
@@ -4930,6 +5038,14 @@ _EOF
   run_buildah rmi -f testbud
 }
 
+@test "bud-with-mount-with-only-target-like-buildkit" {
+  skip_if_no_runtime
+  skip_if_in_container
+  cp -R $BUDFILES/buildkit-mount ${TEST_SCRATCH_DIR}/buildkit-mount
+  run_buildah build -t testbud $WITH_POLICY_JSON -f ${TEST_SCRATCH_DIR}/buildkit-mount/Dockerfile6 ${TEST_SCRATCH_DIR}/buildkit-mount/
+  expect_output --substring "hello"
+}
+
 @test "bud-with-mount-no-subdir-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
@@ -5223,4 +5339,17 @@ _EOF
   echo '# escape=|\nFROM alpine' | tee ${TEST_SCRATCH_DIR}/Dockerfile2
   run_buildah 125 build -f ${TEST_SCRATCH_DIR}/Dockerfile1 -f ${TEST_SCRATCH_DIR}/Dockerfile2 ${TEST_SCRATCH_DIR}
   assert "$output" =~ "error parsing additional Dockerfile .*Dockerfile2: invalid ESCAPE"
+}
+
+@test "build-with-network-test" {
+  skip_if_in_container # Test only works in OCI isolation, which doesn't work in CI/CD systems. Buildah defaults to chroot isolation
+  _prefetch alpine
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine
+RUN ping -c 1 4.2.2.2
+_EOF
+  run_buildah build $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+
+  run_buildah 1 build --network=none $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "Network unreachable"
 }

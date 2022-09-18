@@ -726,7 +726,9 @@ func (b *Builder) configureNamespaces(g *generate.Generator, options *RunOptions
 			options.ConfigureNetwork = networkPolicy
 		}
 	}
-
+	if networkPolicy == NetworkDisabled {
+		namespaceOptions.AddOrReplace(define.NamespaceOptions{{Name: string(specs.NetworkNamespace), Host: false}}...)
+	}
 	configureNetwork, configureNetworks, configureUTS, err := setupNamespaces(options.Logger, g, namespaceOptions, b.IDMappingOptions, networkPolicy)
 	if err != nil {
 		return false, nil, err

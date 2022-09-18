@@ -488,7 +488,7 @@ func (s *StageExecutor) runStageMountPoints(mountList []string) (map[string]inte
 			if len(arr) < 2 {
 				return nil, fmt.Errorf("Invalid --mount command: %s", flag)
 			}
-			tokens := strings.Split(arr[1], ",")
+			tokens := strings.Split(flag, ",")
 			for _, val := range tokens {
 				kv := strings.SplitN(val, "=", 2)
 				switch kv[0] {
@@ -602,6 +602,7 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		Args:             s.executor.runtimeArgs,
 		Cmd:              config.Cmd,
 		ContextDir:       s.executor.contextDir,
+		ConfigureNetwork: s.executor.configureNetwork,
 		Entrypoint:       config.Entrypoint,
 		Env:              config.Env,
 		Hostname:         config.Hostname,
@@ -624,10 +625,9 @@ func (s *StageExecutor) Run(run imagebuilder.Run, config docker.Config) error {
 		User:             config.User,
 		WorkingDir:       config.WorkingDir,
 	}
+
 	if config.NetworkDisabled {
 		options.ConfigureNetwork = buildah.NetworkDisabled
-	} else {
-		options.ConfigureNetwork = buildah.NetworkEnabled
 	}
 
 	args := run.Args

@@ -20,6 +20,7 @@ import (
 	"github.com/containers/buildah/pkg/util"
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/image/v5/docker/reference"
+	"github.com/containers/image/v5/types"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -269,7 +270,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 
 	var excludes []string
 	if iopts.IgnoreFile != "" {
-		if excludes, _, err = parse.ContainerIgnoreFile(contextDir, iopts.IgnoreFile); err != nil {
+		if excludes, _, err = parse.ContainerIgnoreFile(contextDir, iopts.IgnoreFile, containerfiles); err != nil {
 			return options, nil, nil, err
 		}
 	}
@@ -308,6 +309,18 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		cacheTTL, err = time.ParseDuration(iopts.CacheTTL)
 		if err != nil {
 			return options, nil, nil, fmt.Errorf("unable to parse value provided %q as --cache-ttl: %w", iopts.CacheTTL, err)
+		}
+		// If user explicitly specified `--cache-ttl=0s`
+		// it would effectively mean that user is asking
+		// to use no cache at all. In such use cases
+		// buildah can skip looking for cache entierly
+		// by setting `--no-cache=true` internally.
+		if int64(cacheTTL) == 0 {
+			logrus.Debug("Setting --no-cache=true since --cache-ttl was set to 0s which effectively means user wants to ignore cache")
+			if c.Flag("no-cache").Changed && !iopts.NoCache {
+				return options, nil, nil, fmt.Errorf("cannot use --cache-ttl with duration as 0 and --no-cache=false")
+			}
+			iopts.NoCache = true
 		}
 	}
 	var pullPushRetryDelay time.Duration
@@ -378,6 +391,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		RusageLogFile:           iopts.RusageLogFile,
 		SignBy:                  iopts.SignBy,
 		SignaturePolicyPath:     iopts.SignaturePolicy,
+		SkipUnusedStages:        types.NewOptionalBool(iopts.SkipUnusedStages),
 		Squash:                  iopts.Squash,
 		SystemContext:           systemContext,
 		Target:                  iopts.Target,
