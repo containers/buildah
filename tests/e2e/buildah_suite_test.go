@@ -205,11 +205,11 @@ func (p *BuildAhTest) CreateArtifact(image string) error {
 	}
 	policy, err := signature.DefaultPolicy(&systemContext)
 	if err != nil {
-		return fmt.Errorf("error loading signature policy: %w", err)
+		return fmt.Errorf("loading signature policy: %w", err)
 	}
 	policyContext, err := signature.NewPolicyContext(policy)
 	if err != nil {
-		return fmt.Errorf("error loading signature policy: %w", err)
+		return fmt.Errorf("loading signature policy: %w", err)
 	}
 	defer func() {
 		_ = policyContext.Destroy()
@@ -218,14 +218,14 @@ func (p *BuildAhTest) CreateArtifact(image string) error {
 
 	importRef, err := docker.ParseReference("//" + image)
 	if err != nil {
-		return fmt.Errorf("error parsing image name %v: %w", image, err)
+		return fmt.Errorf("parsing image name %v: %w", image, err)
 	}
 
 	imageDir := strings.Replace(image, "/", "_", -1)
 	exportDir := filepath.Join(p.ArtifactPath, imageDir)
 	exportRef, err := directory.NewReference(exportDir)
 	if err != nil {
-		return fmt.Errorf("error creating image reference for %v: %w", exportDir, err)
+		return fmt.Errorf("creating image reference for %v: %w", exportDir, err)
 	}
 
 	_, err = copy.Image(context.Background(), policyContext, exportRef, importRef, options)
@@ -245,7 +245,7 @@ func (p *BuildAhTest) RestoreArtifact(image string) error {
 
 	options := &copy.Options{}
 	if err != nil {
-		return fmt.Errorf("error opening storage: %w", err)
+		return fmt.Errorf("opening storage: %w", err)
 	}
 	defer func() {
 		_, _ = store.Shutdown(false)
@@ -254,32 +254,32 @@ func (p *BuildAhTest) RestoreArtifact(image string) error {
 	storage.Transport.SetStore(store)
 	ref, err := storage.Transport.ParseStoreReference(store, image)
 	if err != nil {
-		return fmt.Errorf("error parsing image name: %w", err)
+		return fmt.Errorf("parsing image name: %w", err)
 	}
 
 	imageDir := strings.Replace(image, "/", "_", -1)
 	importDir := filepath.Join(p.ArtifactPath, imageDir)
 	importRef, err := directory.NewReference(importDir)
 	if err != nil {
-		return fmt.Errorf("error creating image reference for %v: %w", image, err)
+		return fmt.Errorf("creating image reference for %v: %w", image, err)
 	}
 	systemContext := types.SystemContext{
 		SignaturePolicyPath: p.SignaturePath,
 	}
 	policy, err := signature.DefaultPolicy(&systemContext)
 	if err != nil {
-		return fmt.Errorf("error loading signature policy: %w", err)
+		return fmt.Errorf("loading signature policy: %w", err)
 	}
 	policyContext, err := signature.NewPolicyContext(policy)
 	if err != nil {
-		return fmt.Errorf("error loading signature policy: %w", err)
+		return fmt.Errorf("loading signature policy: %w", err)
 	}
 	defer func() {
 		_ = policyContext.Destroy()
 	}()
 	_, err = copy.Image(context.Background(), policyContext, ref, importRef, options)
 	if err != nil {
-		return fmt.Errorf("error importing %s: %w", importDir, err)
+		return fmt.Errorf("importing %s: %w", importDir, err)
 	}
 	return nil
 }

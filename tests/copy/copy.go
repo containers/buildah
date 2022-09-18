@@ -94,27 +94,27 @@ func main() {
 			}
 			src, err := alltransports.ParseImageName(args[0])
 			if err != nil {
-				return fmt.Errorf("error parsing source name: %w", err)
+				return fmt.Errorf("parsing source name: %w", err)
 			}
 			if len(args) < 1 {
 				return errors.New("no destination name provided")
 			}
 			dest, err := alltransports.ParseImageName(args[1])
 			if err != nil {
-				return fmt.Errorf("error parsing destination name: %w", err)
+				return fmt.Errorf("parsing destination name: %w", err)
 			}
 
 			policy, err := signature.DefaultPolicy(&systemContext)
 			if err != nil {
-				return fmt.Errorf("error reading signature policy: %w", err)
+				return fmt.Errorf("reading signature policy: %w", err)
 			}
 			policyContext, err := signature.NewPolicyContext(policy)
 			if err != nil {
-				return fmt.Errorf("error creating new signature policy context: %w", err)
+				return fmt.Errorf("creating new signature policy context: %w", err)
 			}
 			defer func() {
 				if err := policyContext.Destroy(); err != nil {
-					logrus.Error(fmt.Errorf("error destroying signature policy context: %w", err))
+					logrus.Error(fmt.Errorf("destroying signature policy context: %w", err))
 				}
 			}()
 

@@ -166,12 +166,12 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 
 	builder, err := openBuilder(ctx, store, name)
 	if err != nil {
-		return fmt.Errorf("error reading build container %q: %w", name, err)
+		return fmt.Errorf("reading build container %q: %w", name, err)
 	}
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 
 	// If the user specified an image, we may need to massage it a bit if
@@ -183,11 +183,11 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 				return err2
 			}
 			if len(candidates) == 0 {
-				return fmt.Errorf("error parsing target image name %q", image)
+				return fmt.Errorf("parsing target image name %q", image)
 			}
 			dest2, err2 := storageTransport.Transport.ParseStoreReference(store, candidates[0].String())
 			if err2 != nil {
-				return fmt.Errorf("error parsing target image name %q: %w", image, err)
+				return fmt.Errorf("parsing target image name %q: %w", image, err)
 			}
 			dest = dest2
 		}
@@ -224,7 +224,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 		referenceFile := iopts.referenceTime
 		finfo, err := os.Stat(referenceFile)
 		if err != nil {
-			return fmt.Errorf("error reading timestamp of file %q: %w", referenceFile, err)
+			return fmt.Errorf("reading timestamp of file %q: %w", referenceFile, err)
 		}
 		timestamp := finfo.ModTime().UTC()
 		options.HistoryTimestamp = &timestamp
@@ -249,7 +249,7 @@ func commitCmd(c *cobra.Command, args []string, iopts commitInputOptions) error 
 	}
 	id, ref, _, err := builder.Commit(ctx, dest, options)
 	if err != nil {
-		return util.GetFailureCause(err, fmt.Errorf("error committing container %q to %q: %w", builder.Container, image, err))
+		return util.GetFailureCause(err, fmt.Errorf("committing container %q to %q: %w", builder.Container, image, err))
 	}
 	if ref != nil && id != "" {
 		logrus.Debugf("wrote image %s with ID %s", ref, id)

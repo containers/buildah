@@ -46,7 +46,7 @@ load helpers
 
   # Directory mustn't exist
   run_buildah 125 source create $srcdir
-  expect_output --substring "error creating source image: "
+  expect_output --substring "creating source image: "
   expect_output --substring " already exists"
 }
 

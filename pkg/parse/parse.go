@@ -812,15 +812,15 @@ func parseIDMap(spec []string) (m [][3]uint32, err error) {
 		for len(args) >= 3 {
 			cid, err := strconv.ParseUint(args[0], 10, 32)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing container ID %q from mapping %q as a number: %w", args[0], s, err)
+				return nil, fmt.Errorf("parsing container ID %q from mapping %q as a number: %w", args[0], s, err)
 			}
 			hostid, err := strconv.ParseUint(args[1], 10, 32)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing host ID %q from mapping %q as a number: %w", args[1], s, err)
+				return nil, fmt.Errorf("parsing host ID %q from mapping %q as a number: %w", args[1], s, err)
 			}
 			size, err := strconv.ParseUint(args[2], 10, 32)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing %q from mapping %q as a number: %w", args[2], s, err)
+				return nil, fmt.Errorf("parsing %q from mapping %q as a number: %w", args[2], s, err)
 			}
 			m = append(m, [3]uint32{uint32(cid), uint32(hostid), uint32(size)})
 			args = args[3:]

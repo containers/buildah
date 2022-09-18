@@ -108,7 +108,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 
 	builder, err := openBuilder(getContext(), store, name)
 	if err != nil {
-		return fmt.Errorf("error reading build container %q: %w", name, err)
+		return fmt.Errorf("reading build container %q: %w", name, err)
 	}
 
 	isolation, err := parse.IsolationOption(c.Flag("isolation").Value.String())
@@ -157,7 +157,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 	mounts, mountedImages, lockedTargets, err := internalParse.GetVolumes(systemContext, store, iopts.volumes, iopts.mounts, iopts.contextDir)
 	if err != nil {

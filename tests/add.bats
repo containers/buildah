@@ -221,7 +221,7 @@ stuff/mystuff"
   cid=$output
 
   run_buildah 125 copy --ignorefile ${mytest}/.ignore $cid ${mytest} /stuff
-  expect_output -- "--ignorefile option requires that you specify a context dir using --contextdir" "container file list"
+  expect_output -- "Error: --ignorefile option requires that you specify a context dir using --contextdir" "container file list"
 
   run_buildah add --contextdir=${mytest} --ignorefile ${mytest}/.ignore $cid ${mytest} /stuff
 

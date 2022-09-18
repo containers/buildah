@@ -77,7 +77,7 @@ func umountCmd(c *cobra.Command, args []string) error {
 	} else {
 		builders, err := openBuilders(store)
 		if err != nil {
-			return fmt.Errorf("error reading build Containers: %w", err)
+			return fmt.Errorf("reading build Containers: %w", err)
 		}
 		for _, builder := range builders {
 			if builder.MountPoint == "" {

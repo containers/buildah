@@ -48,7 +48,7 @@ load helpers
   cid2=$output
 
   run_buildah 125 images --noheading --filter since registry.k8s.io/pause
-  expect_output 'invalid image filter "since": must be in the format "filter=value or filter!=value"'
+  expect_output 'Error: invalid image filter "since": must be in the format "filter=value or filter!=value"'
 
 
   run_buildah images --noheading --filter since=registry.k8s.io/pause
@@ -153,7 +153,7 @@ load helpers
 
 @test "specify a nonexistent image" {
   run_buildah 125 images alpine
-  expect_output --from="${lines[0]}" "alpine: image not known"
+  expect_output --from="${lines[0]}" "Error: alpine: image not known"
   expect_line_count 1
 }
 

@@ -1539,33 +1539,33 @@ var internalTestCases = []testCase{
 			content := []byte("test content")
 
 			if err := os.Mkdir(filepath.Join(contextDir, "archive"), 0755); err != nil {
-				return fmt.Errorf("error creating subdirectory of temporary context directory: %w", err)
+				return fmt.Errorf("creating subdirectory of temporary context directory: %w", err)
 			}
 			filename := filepath.Join(contextDir, "archive", "should-be-owned-by-root")
 			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
-				return fmt.Errorf("error creating file owned by root in temporary context directory: %w", err)
+				return fmt.Errorf("creating file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 0, 0); err != nil {
-				return fmt.Errorf("error setting ownership on file owned by root in temporary context directory: %w", err)
+				return fmt.Errorf("setting ownership on file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on file owned by root file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on file owned by root file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "archive", "should-be-owned-by-99")
 			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
-				return fmt.Errorf("error creating file owned by 99 in temporary context directory: %w", err)
+				return fmt.Errorf("creating file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 99, 99); err != nil {
-				return fmt.Errorf("error setting ownership on file owned by 99 in temporary context directory: %w", err)
+				return fmt.Errorf("setting ownership on file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on file owned by 99 in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on file owned by 99 in temporary context directory: %w", err)
 			}
 
 			filename = filepath.Join(contextDir, "archive.tar")
 			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
-				return fmt.Errorf("error creating archive file: %w", err)
+				return fmt.Errorf("creating archive file: %w", err)
 			}
 			defer f.Close()
 			tw := tar.NewWriter(f)
@@ -1580,11 +1580,11 @@ var internalTestCases = []testCase{
 				Gid:      0,
 			})
 			if err != nil {
-				return fmt.Errorf("error writing archive file header: %w", err)
+				return fmt.Errorf("writing archive file header: %w", err)
 			}
 			n, err := tw.Write(content)
 			if err != nil {
-				return fmt.Errorf("error writing archive file contents: %w", err)
+				return fmt.Errorf("writing archive file contents: %w", err)
 			}
 			if n != len(content) {
 				return errors.New("short write writing archive file contents")
@@ -1599,11 +1599,11 @@ var internalTestCases = []testCase{
 				Gid:      99,
 			})
 			if err != nil {
-				return fmt.Errorf("error writing archive file header: %w", err)
+				return fmt.Errorf("writing archive file header: %w", err)
 			}
 			n, err = tw.Write(content)
 			if err != nil {
-				return fmt.Errorf("error writing archive file contents: %w", err)
+				return fmt.Errorf("writing archive file contents: %w", err)
 			}
 			if n != len(content) {
 				return errors.New("short write writing archive file contents")
@@ -1625,27 +1625,27 @@ var internalTestCases = []testCase{
 			content := []byte("test content")
 
 			if err := os.Mkdir(filepath.Join(contextDir, "subdir"), 0755); err != nil {
-				return fmt.Errorf("error creating subdirectory of temporary context directory: %w", err)
+				return fmt.Errorf("creating subdirectory of temporary context directory: %w", err)
 			}
 			filename := filepath.Join(contextDir, "subdir", "would-be-owned-by-root")
 			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
-				return fmt.Errorf("error creating file owned by root in temporary context directory: %w", err)
+				return fmt.Errorf("creating file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 0, 0); err != nil {
-				return fmt.Errorf("error setting ownership on file owned by root in temporary context directory: %w", err)
+				return fmt.Errorf("setting ownership on file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on file owned by root file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on file owned by root file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "subdir", "would-be-owned-by-99")
 			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
-				return fmt.Errorf("error creating file owned by 99 in temporary context directory: %w", err)
+				return fmt.Errorf("creating file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 99, 99); err != nil {
-				return fmt.Errorf("error setting ownership on file owned by 99 in temporary context directory: %w", err)
+				return fmt.Errorf("setting ownership on file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on file owned by 99 in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on file owned by 99 in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -1664,27 +1664,27 @@ var internalTestCases = []testCase{
 			content := []byte("test content")
 
 			if err := os.Mkdir(filepath.Join(contextDir, "subdir"), 0755); err != nil {
-				return fmt.Errorf("error creating subdirectory of temporary context directory: %w", err)
+				return fmt.Errorf("creating subdirectory of temporary context directory: %w", err)
 			}
 			filename := filepath.Join(contextDir, "subdir", "would-be-owned-by-root")
 			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
-				return fmt.Errorf("error creating file owned by root in temporary context directory: %w", err)
+				return fmt.Errorf("creating file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 0, 0); err != nil {
-				return fmt.Errorf("error setting ownership on file owned by root in temporary context directory: %w", err)
+				return fmt.Errorf("setting ownership on file owned by root in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on file owned by root file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on file owned by root file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "subdir", "would-be-owned-by-99")
 			if err = ioutil.WriteFile(filename, content, 0640); err != nil {
-				return fmt.Errorf("error creating file owned by 99 in temporary context directory: %w", err)
+				return fmt.Errorf("creating file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chown(filename, 99, 99); err != nil {
-				return fmt.Errorf("error setting ownership on file owned by 99 in temporary context directory: %w", err)
+				return fmt.Errorf("setting ownership on file owned by 99 in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on file owned by 99 in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on file owned by 99 in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -1725,43 +1725,43 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			filename := filepath.Join(contextDir, "should-be-setuid-file")
 			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
-				return fmt.Errorf("error creating setuid test file in temporary context directory: %w", err)
+				return fmt.Errorf("creating setuid test file in temporary context directory: %w", err)
 			}
 			if err = syscall.Chmod(filename, syscall.S_ISUID|0755); err != nil {
-				return fmt.Errorf("error setting setuid bit on test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting setuid bit on test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on setuid test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on setuid test file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "should-be-setgid-file")
 			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
-				return fmt.Errorf("error creating setgid test file in temporary context directory: %w", err)
+				return fmt.Errorf("creating setgid test file in temporary context directory: %w", err)
 			}
 			if err = syscall.Chmod(filename, syscall.S_ISGID|0755); err != nil {
-				return fmt.Errorf("error setting setgid bit on test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting setgid bit on test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on setgid test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on setgid test file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "should-be-sticky-file")
 			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
-				return fmt.Errorf("error creating sticky test file in temporary context directory: %w", err)
+				return fmt.Errorf("creating sticky test file in temporary context directory: %w", err)
 			}
 			if err = syscall.Chmod(filename, syscall.S_ISVTX|0755); err != nil {
-				return fmt.Errorf("error setting permissions on sticky test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting permissions on sticky test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on sticky test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on sticky test file in temporary context directory: %w", err)
 			}
 			filename = filepath.Join(contextDir, "should-not-be-setuid-setgid-sticky-file")
 			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
-				return fmt.Errorf("error creating non-suid non-sgid non-sticky test file in temporary context directory: %w", err)
+				return fmt.Errorf("creating non-suid non-sgid non-sticky test file in temporary context directory: %w", err)
 			}
 			if err = syscall.Chmod(filename, 0640); err != nil {
-				return fmt.Errorf("error setting permissions on plain test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting permissions on plain test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on plain test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on plain test file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -1786,16 +1786,16 @@ var internalTestCases = []testCase{
 
 			filename := filepath.Join(contextDir, "xattrs-file")
 			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
-				return fmt.Errorf("error creating test file with xattrs in temporary context directory: %w", err)
+				return fmt.Errorf("creating test file with xattrs in temporary context directory: %w", err)
 			}
 			if err = copier.Lsetxattrs(filename, map[string]string{"user.a": "test"}); err != nil {
-				return fmt.Errorf("error setting xattrs on test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting xattrs on test file in temporary context directory: %w", err)
 			}
 			if err = syscall.Chmod(filename, 0640); err != nil {
-				return fmt.Errorf("error setting permissions on test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting permissions on test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on test file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -1813,7 +1813,7 @@ var internalTestCases = []testCase{
 			filename := filepath.Join(contextDir, "archive.tar")
 			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
-				return fmt.Errorf("error creating new archive file in temporary context directory: %w", err)
+				return fmt.Errorf("creating new archive file in temporary context directory: %w", err)
 			}
 			defer f.Close()
 			tw := tar.NewWriter(f)
@@ -1828,10 +1828,10 @@ var internalTestCases = []testCase{
 				ModTime:  testDate,
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
-				return fmt.Errorf("error writing tar archive header: %w", err)
+				return fmt.Errorf("writing tar archive header: %w", err)
 			}
 			if _, err = io.Copy(tw, bytes.NewReader([]byte("whatever"))); err != nil {
-				return fmt.Errorf("error writing tar archive content: %w", err)
+				return fmt.Errorf("writing tar archive content: %w", err)
 			}
 			hdr = tar.Header{
 				Name:     "setgid-file",
@@ -1843,10 +1843,10 @@ var internalTestCases = []testCase{
 				ModTime:  testDate,
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
-				return fmt.Errorf("error writing tar archive header: %w", err)
+				return fmt.Errorf("writing tar archive header: %w", err)
 			}
 			if _, err = io.Copy(tw, bytes.NewReader([]byte("whatever"))); err != nil {
-				return fmt.Errorf("error writing tar archive content: %w", err)
+				return fmt.Errorf("writing tar archive content: %w", err)
 			}
 			hdr = tar.Header{
 				Name:     "sticky-file",
@@ -1858,10 +1858,10 @@ var internalTestCases = []testCase{
 				ModTime:  testDate,
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
-				return fmt.Errorf("error writing tar archive header: %w", err)
+				return fmt.Errorf("writing tar archive header: %w", err)
 			}
 			if _, err = io.Copy(tw, bytes.NewReader([]byte("whatever"))); err != nil {
-				return fmt.Errorf("error writing tar archive content: %w", err)
+				return fmt.Errorf("writing tar archive content: %w", err)
 			}
 			return nil
 		},
@@ -1885,7 +1885,7 @@ var internalTestCases = []testCase{
 			filename := filepath.Join(contextDir, "archive.tar")
 			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
-				return fmt.Errorf("error creating new archive file in temporary context directory: %w", err)
+				return fmt.Errorf("creating new archive file in temporary context directory: %w", err)
 			}
 			defer f.Close()
 			tw := tar.NewWriter(f)
@@ -1901,10 +1901,10 @@ var internalTestCases = []testCase{
 				Xattrs:   map[string]string{"user.a": "test"},
 			}
 			if err = tw.WriteHeader(&hdr); err != nil {
-				return fmt.Errorf("error writing tar archive header: %w", err)
+				return fmt.Errorf("writing tar archive header: %w", err)
 			}
 			if _, err = io.Copy(tw, bytes.NewReader([]byte("whatever"))); err != nil {
-				return fmt.Errorf("error writing tar archive content: %w", err)
+				return fmt.Errorf("writing tar archive content: %w", err)
 			}
 			return nil
 		},
@@ -1945,16 +1945,16 @@ var internalTestCases = []testCase{
 
 			filename := filepath.Join(contextDir, "xattrs-file")
 			if err = ioutil.WriteFile(filename, []byte("test content"), 0644); err != nil {
-				return fmt.Errorf("error creating test file with xattrs in temporary context directory: %w", err)
+				return fmt.Errorf("creating test file with xattrs in temporary context directory: %w", err)
 			}
 			if err = copier.Lsetxattrs(filename, map[string]string{"user.a": "test"}); err != nil {
-				return fmt.Errorf("error setting xattrs on test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting xattrs on test file in temporary context directory: %w", err)
 			}
 			if err = syscall.Chmod(filename, 0640); err != nil {
-				return fmt.Errorf("error setting permissions on test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting permissions on test file in temporary context directory: %w", err)
 			}
 			if err = os.Chtimes(filename, testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on test file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on test file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2112,10 +2112,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0600); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2132,10 +2132,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0644); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2152,10 +2152,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/*-a", "!**/*-c"}, "\n"))
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0600); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2172,10 +2172,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"!**/*-c"}, "\n"))
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0640); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2192,10 +2192,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("!**/*-c\n")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0100); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2212,10 +2212,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("subdir-c")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0200); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2232,10 +2232,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("subdir-c")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0400); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2252,10 +2252,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-c")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0200); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2272,10 +2272,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-c")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0400); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2292,10 +2292,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("subdir-*")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0000); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2312,10 +2312,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("subdir-*")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0660); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2332,10 +2332,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-*")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0000); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2352,10 +2352,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-*")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0660); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2372,10 +2372,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-f")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0666); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2392,10 +2392,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-f")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0640); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2412,10 +2412,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-b")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0705); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2432,10 +2432,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte("**/subdir-b")
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2452,10 +2452,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-e", "!**/subdir-f"}, "\n"))
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2472,10 +2472,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-e", "!**/subdir-f"}, "\n"))
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2492,10 +2492,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-f", "!**/subdir-g"}, "\n"))
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},
@@ -2512,10 +2512,10 @@ var internalTestCases = []testCase{
 		tweakContextDir: func(t *testing.T, contextDir, storageDriver, storageRoot string) (err error) {
 			dockerignore := []byte(strings.Join([]string{"**/subdir-f", "!**/subdir-g"}, "\n"))
 			if err := ioutil.WriteFile(filepath.Join(contextDir, ".dockerignore"), dockerignore, 0750); err != nil {
-				return fmt.Errorf("error writing .dockerignore file: %w", err)
+				return fmt.Errorf("writing .dockerignore file: %w", err)
 			}
 			if err = os.Chtimes(filepath.Join(contextDir, ".dockerignore"), testDate, testDate); err != nil {
-				return fmt.Errorf("error setting date on .dockerignore file in temporary context directory: %w", err)
+				return fmt.Errorf("setting date on .dockerignore file in temporary context directory: %w", err)
 			}
 			return nil
 		},

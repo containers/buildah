@@ -68,7 +68,7 @@ func inspectCmd(c *cobra.Command, args []string, iopts inspectResults) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 
 	name := args[0]
@@ -85,7 +85,7 @@ func inspectCmd(c *cobra.Command, args []string, iopts inspectResults) error {
 		builder, err = openBuilder(ctx, store, name)
 		if err != nil {
 			if c.Flag("type").Changed {
-				return fmt.Errorf("error reading build container: %w", err)
+				return fmt.Errorf("reading build container: %w", err)
 			}
 			builder, err = openImage(ctx, systemContext, store, name)
 			if err != nil {
@@ -109,9 +109,9 @@ func inspectCmd(c *cobra.Command, args []string, iopts inspectResults) error {
 	if iopts.format != "" {
 		format := iopts.format
 		if matched, err := regexp.MatchString("{{.*}}", format); err != nil {
-			return fmt.Errorf("error validating format provided: %s: %w", format, err)
+			return fmt.Errorf("validating format provided: %s: %w", format, err)
 		} else if !matched {
-			return fmt.Errorf("error invalid format provided: %s", format)
+			return fmt.Errorf("invalid format provided: %s", format)
 		}
 		t, err := template.New("format").Parse(format)
 		if err != nil {

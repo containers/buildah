@@ -85,7 +85,7 @@ func mountCmd(c *cobra.Command, args []string, opts mountOptions) error {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
 				}
-				lastError = fmt.Errorf("error reading build container %q: %w", name, err)
+				lastError = fmt.Errorf("reading build container %q: %w", name, err)
 				continue
 			}
 			mountPoint, err := builder.Mount(builder.MountLabel)
@@ -93,7 +93,7 @@ func mountCmd(c *cobra.Command, args []string, opts mountOptions) error {
 				if lastError != nil {
 					fmt.Fprintln(os.Stderr, lastError)
 				}
-				lastError = fmt.Errorf("error mounting %q container %q: %w", name, builder.Container, err)
+				lastError = fmt.Errorf("mounting %q container %q: %w", name, builder.Container, err)
 				continue
 			}
 			if len(args) > 1 {
@@ -113,7 +113,7 @@ func mountCmd(c *cobra.Command, args []string, opts mountOptions) error {
 	} else {
 		builders, err := openBuilders(store)
 		if err != nil {
-			return fmt.Errorf("error reading build containers: %w", err)
+			return fmt.Errorf("reading build containers: %w", err)
 		}
 
 		for _, builder := range builders {

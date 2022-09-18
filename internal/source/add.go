@@ -62,7 +62,7 @@ func Add(ctx context.Context, sourcePath string, artifactPath string, options Ad
 
 	tarStream, err := archive.TarWithOptions(artifactPath, &archive.TarOptions{Compression: archive.Gzip})
 	if err != nil {
-		return fmt.Errorf("error creating compressed tar stream: %w", err)
+		return fmt.Errorf("creating compressed tar stream: %w", err)
 	}
 
 	info := types.BlobInfo{
@@ -70,7 +70,7 @@ func Add(ctx context.Context, sourcePath string, artifactPath string, options Ad
 	}
 	addedBlob, err := ociDest.PutBlob(ctx, tarStream, info, nil, false)
 	if err != nil {
-		return fmt.Errorf("error adding source artifact: %w", err)
+		return fmt.Errorf("adding source artifact: %w", err)
 	}
 
 	// Add the new layers to the source image's manifest.
@@ -97,7 +97,7 @@ func Add(ctx context.Context, sourcePath string, artifactPath string, options Ad
 	// manually.  Not an issue, since paths are predictable for an OCI
 	// layout.
 	if err := removeBlob(oldManifestDigest, sourcePath); err != nil {
-		return fmt.Errorf("error removing old manifest: %w", err)
+		return fmt.Errorf("removing old manifest: %w", err)
 	}
 
 	manifestDescriptor := specV1.Descriptor{

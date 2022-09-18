@@ -210,7 +210,7 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 	}
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 	platforms, err := parse.PlatformsFromOptions(c)
 	if err != nil {
@@ -269,11 +269,11 @@ func fromCmd(c *cobra.Command, args []string, iopts fromReply) error {
 
 	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
-		return fmt.Errorf("error parsing namespace-related options: %w", err)
+		return fmt.Errorf("parsing namespace-related options: %w", err)
 	}
 	usernsOption, idmappingOptions, err := parse.IDMappingOptions(c, isolation)
 	if err != nil {
-		return fmt.Errorf("error parsing ID mapping options: %w", err)
+		return fmt.Errorf("parsing ID mapping options: %w", err)
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 

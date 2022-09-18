@@ -38,7 +38,7 @@ func renameCmd(c *cobra.Command, args []string) error {
 
 	builder, err = openBuilder(getContext(), store, name)
 	if err != nil {
-		return fmt.Errorf("error reading build container %q: %w", name, err)
+		return fmt.Errorf("reading build container %q: %w", name, err)
 	}
 
 	oldName := builder.Container
@@ -52,7 +52,7 @@ func renameCmd(c *cobra.Command, args []string) error {
 
 	err = store.SetNames(builder.ContainerID, []string{newName})
 	if err != nil {
-		return fmt.Errorf("error renaming container %q to the name %q: %w", oldName, newName, err)
+		return fmt.Errorf("renaming container %q to the name %q: %w", oldName, newName, err)
 	}
 	builder.Container = newName
 	return builder.Save()

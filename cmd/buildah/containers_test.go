@@ -43,7 +43,7 @@ func TestContainerTemplateOutputInvalidFormat(t *testing.T) {
 	formatString := "ContainerID"
 
 	err := containerOutputUsingTemplate(formatString, params)
-	if err == nil || err.Error() != "error invalid format provided: ContainerID" {
+	if err == nil || err.Error() != "invalid format provided: ContainerID" {
 		t.Fatalf("expected error invalid format")
 	}
 }

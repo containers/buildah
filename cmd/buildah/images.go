@@ -125,7 +125,7 @@ func imagesCmd(c *cobra.Command, args []string, iopts *imageResults) error {
 	}
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {

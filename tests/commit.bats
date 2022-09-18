@@ -95,7 +95,7 @@ load helpers
   cid=$output
   run_buildah commit $WITH_POLICY_JSON --rm $cid alpine-image
   run_buildah 125 rm $cid
-  expect_output --substring "error removing container \"alpine-working-container\": container not known"
+  expect_output --substring "removing container \"alpine-working-container\": container not known"
 }
 
 @test "commit-alternate-storage" {

@@ -264,7 +264,7 @@ func manifestExistsCmd(c *cobra.Command, args []string) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
@@ -296,7 +296,7 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
@@ -308,7 +308,7 @@ func manifestCreateCmd(c *cobra.Command, args []string, opts manifestCreateOpts)
 
 	names, err := util.ExpandNames([]string{listImageSpec}, systemContext, store)
 	if err != nil {
-		return fmt.Errorf("error encountered while expanding image name %q: %w", listImageSpec, err)
+		return fmt.Errorf("encountered while expanding image name %q: %w", listImageSpec, err)
 	}
 	if manifestListID, err = list.SaveToImage(store, "", names, manifest.DockerV2ListMediaType); err != nil {
 		if errors.Is(err, storage.ErrDuplicateName) && opts.amend {
@@ -391,7 +391,7 @@ func manifestAddCmd(c *cobra.Command, args []string, opts manifestAddOpts) error
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
@@ -516,7 +516,7 @@ func manifestRemoveCmd(c *cobra.Command, args []string, opts manifestRemoveOpts)
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
@@ -545,7 +545,7 @@ func manifestRmCmd(c *cobra.Command, args []string) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
@@ -605,7 +605,7 @@ func manifestAnnotateCmd(c *cobra.Command, args []string, opts manifestAnnotateO
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 	runtime, err := libimage.RuntimeFromStore(store, &libimage.RuntimeOptions{SystemContext: systemContext})
 	if err != nil {
@@ -717,7 +717,7 @@ func manifestInspectCmd(c *cobra.Command, args []string, opts manifestInspectOpt
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 
 	return manifestInspect(getContext(), store, systemContext, imageSpec)
@@ -733,7 +733,7 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 		var b bytes.Buffer
 		err = json.Indent(&b, manifest, "", "    ")
 		if err != nil {
-			return fmt.Errorf("error rendering manifest for display: %w", err)
+			return fmt.Errorf("rendering manifest for display: %w", err)
 		}
 
 		fmt.Printf("%s\n", b.String())
@@ -774,7 +774,7 @@ func manifestInspect(ctx context.Context, store storage.Store, systemContext *ty
 		refs = append(refs, ref)
 	}
 	if len(refs) == 0 {
-		return fmt.Errorf("error locating images with names %v", imageSpec)
+		return fmt.Errorf("locating images with names %v", imageSpec)
 	}
 
 	var (
@@ -851,7 +851,7 @@ func manifestPushCmd(c *cobra.Command, args []string, opts pushOptions) error {
 	}
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 
 	return manifestPush(systemContext, store, listImageSpec, destSpec, opts)

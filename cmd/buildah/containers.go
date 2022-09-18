@@ -124,7 +124,7 @@ func containersCmd(c *cobra.Command, args []string, iopts containersResults) err
 	if c.Flag("filter").Changed {
 		params, err = parseCtrFilter(iopts.filter)
 		if err != nil {
-			return fmt.Errorf("error parsing filter: %w", err)
+			return fmt.Errorf("parsing filter: %w", err)
 		}
 	}
 
@@ -154,7 +154,7 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 
 	builders, err := openBuilders(store)
 	if err != nil {
-		return fmt.Errorf("error reading build containers: %w", err)
+		return fmt.Errorf("reading build containers: %w", err)
 	}
 	var (
 		containerOutput []containerOutputParams
@@ -192,7 +192,7 @@ func outputContainers(store storage.Store, opts containerOptions, params *contai
 		}
 		containers, err2 := store.Containers()
 		if err2 != nil {
-			return fmt.Errorf("error reading list of all containers: %w", err2)
+			return fmt.Errorf("reading list of all containers: %w", err2)
 		}
 		for _, container := range containers {
 			name := ""
@@ -260,9 +260,9 @@ func containersToGeneric(templParams []containerOutputParams) (genericParams []i
 
 func containerOutputUsingTemplate(format string, params containerOutputParams) error {
 	if matched, err := regexp.MatchString("{{.*}}", format); err != nil {
-		return fmt.Errorf("error validating format provided: %s: %w", format, err)
+		return fmt.Errorf("validating format provided: %s: %w", format, err)
 	} else if !matched {
-		return fmt.Errorf("error invalid format provided: %s", format)
+		return fmt.Errorf("invalid format provided: %s", format)
 	}
 
 	tmpl, err := template.New("container").Parse(format)

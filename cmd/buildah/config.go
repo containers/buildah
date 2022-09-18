@@ -117,7 +117,7 @@ func updateCmd(builder *buildah.Builder, cmd string) error {
 	}
 	cmdSpec, err := shellwords.Parse(cmd)
 	if err != nil {
-		return fmt.Errorf("error parsing --cmd %q: %w", cmd, err)
+		return fmt.Errorf("parsing --cmd %q: %w", cmd, err)
 	}
 	builder.SetCmd(cmdSpec)
 	return nil
@@ -203,7 +203,7 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 		shell := iopts.shell
 		shellSpec, err := shellwords.Parse(shell)
 		if err != nil {
-			return fmt.Errorf("error parsing --shell %q: %w", shell, err)
+			return fmt.Errorf("parsing --shell %q: %w", shell, err)
 		}
 		builder.SetShell(shellSpec)
 		conditionallyAddHistory(builder, c, "/bin/sh -c #(nop) SHELL %s", shell)
@@ -251,7 +251,7 @@ func updateConfig(builder *buildah.Builder, c *cobra.Command, iopts configResult
 		default:
 			value := os.Getenv(env[0])
 			if value == "" {
-				return fmt.Errorf("error setting env %q: no value given", env[0])
+				return fmt.Errorf("setting env %q: no value given", env[0])
 			}
 			builder.SetEnv(env[0], value)
 		}
@@ -363,14 +363,14 @@ func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configR
 		if c.Flag("healthcheck").Changed {
 			test, err := shellwords.Parse(iopts.healthcheck)
 			if err != nil {
-				return fmt.Errorf("error parsing --healthcheck %q: %w", iopts.healthcheck, err)
+				return fmt.Errorf("parsing --healthcheck %q: %w", iopts.healthcheck, err)
 			}
 			healthcheck.Test = test
 		}
 		if c.Flag("healthcheck-interval").Changed {
 			duration, err := time.ParseDuration(iopts.healthcheckInterval)
 			if err != nil {
-				return fmt.Errorf("error parsing --healthcheck-interval %q: %w", iopts.healthcheckInterval, err)
+				return fmt.Errorf("parsing --healthcheck-interval %q: %w", iopts.healthcheckInterval, err)
 			}
 			healthcheck.Interval = duration
 			args = args + "--interval=" + iopts.healthcheckInterval + " "
@@ -384,7 +384,7 @@ func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configR
 		if c.Flag("healthcheck-start-period").Changed {
 			duration, err := time.ParseDuration(iopts.healthcheckStartPeriod)
 			if err != nil {
-				return fmt.Errorf("error parsing --healthcheck-start-period %q: %w", iopts.healthcheckStartPeriod, err)
+				return fmt.Errorf("parsing --healthcheck-start-period %q: %w", iopts.healthcheckStartPeriod, err)
 			}
 			healthcheck.StartPeriod = duration
 			args = args + "--start-period=" + iopts.healthcheckStartPeriod + " "
@@ -392,7 +392,7 @@ func updateHealthcheck(builder *buildah.Builder, c *cobra.Command, iopts configR
 		if c.Flag("healthcheck-timeout").Changed {
 			duration, err := time.ParseDuration(iopts.healthcheckTimeout)
 			if err != nil {
-				return fmt.Errorf("error parsing --healthcheck-timeout %q: %w", iopts.healthcheckTimeout, err)
+				return fmt.Errorf("parsing --healthcheck-timeout %q: %w", iopts.healthcheckTimeout, err)
 			}
 			healthcheck.Timeout = duration
 			args = args + "--timeout=" + iopts.healthcheckTimeout + " "
@@ -427,7 +427,7 @@ func configCmd(c *cobra.Command, args []string, iopts configResults) error {
 
 	builder, err := openBuilder(getContext(), store, name)
 	if err != nil {
-		return fmt.Errorf("error reading build container %q: %w", name, err)
+		return fmt.Errorf("reading build container %q: %w", name, err)
 	}
 
 	if err := updateConfig(builder, c, iopts); err != nil {

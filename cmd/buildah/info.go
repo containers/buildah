@@ -52,7 +52,7 @@ func infoCmd(c *cobra.Command, iopts infoResults) error {
 
 	infoArr, err := buildah.Info(store)
 	if err != nil {
-		return fmt.Errorf("error getting info: %w", err)
+		return fmt.Errorf("getting info: %w", err)
 	}
 
 	if iopts.debug {
@@ -67,9 +67,9 @@ func infoCmd(c *cobra.Command, iopts infoResults) error {
 	if iopts.format != "" {
 		format := iopts.format
 		if matched, err := regexp.MatchString("{{.*}}", format); err != nil {
-			return fmt.Errorf("error validating format provided: %s: %w", format, err)
+			return fmt.Errorf("validating format provided: %s: %w", format, err)
 		} else if !matched {
-			return fmt.Errorf("error invalid format provided: %s", format)
+			return fmt.Errorf("invalid format provided: %s", format)
 		}
 		t, err := template.New("format").Parse(format)
 		if err != nil {

@@ -39,7 +39,7 @@ func Run(filename string, needSimplify bool) ([]byte, error) {
 	// formatting has changed
 	data, err := diff(src, res, filename)
 	if err != nil {
-		return nil, fmt.Errorf("error computing diff: %s", err)
+		return nil, fmt.Errorf("computing diff: %s", err)
 	}
 
 	return data, nil
