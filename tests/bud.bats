@@ -5340,3 +5340,16 @@ _EOF
   run_buildah 125 build -f ${TEST_SCRATCH_DIR}/Dockerfile1 -f ${TEST_SCRATCH_DIR}/Dockerfile2 ${TEST_SCRATCH_DIR}
   assert "$output" =~ "error parsing additional Dockerfile .*Dockerfile2: invalid ESCAPE"
 }
+
+@test "build-with-network-test" {
+  skip_if_in_container # Test only works in OCI isolation, which doesn't work in CI/CD systems. Buildah defaults to chroot isolation
+  _prefetch alpine
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine
+RUN ping -c 1 4.2.2.2
+_EOF
+  run_buildah build $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+
+  run_buildah 1 build --network=none $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "Network unreachable"
+}
