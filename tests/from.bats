@@ -390,7 +390,7 @@ load helpers
 
 @test "from with nonexistent authfile: fails" {
   run_buildah 125 from --authfile /no/such/file --pull $WITH_POLICY_JSON alpine
-  expect_output "checking authfile: stat /no/such/file: no such file or directory"
+  expect_output "Error: checking authfile: stat /no/such/file: no such file or directory"
 }
 
 @test "from --pull-always: emits 'Getting' even if image is cached" {

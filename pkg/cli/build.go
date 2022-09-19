@@ -148,7 +148,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 		// The context directory could be a URL.  Try to handle that.
 		tempDir, subDir, err := define.TempDirForURL("", "buildah", cliArgs[0])
 		if err != nil {
-			return options, nil, nil, fmt.Errorf("error prepping temporary context directory: %w", err)
+			return options, nil, nil, fmt.Errorf("prepping temporary context directory: %w", err)
 		}
 		if tempDir != "" {
 			// We had to download it to a temporary directory.
@@ -159,7 +159,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 			// Nope, it was local.  Use it as is.
 			absDir, err := filepath.Abs(cliArgs[0])
 			if err != nil {
-				return options, nil, nil, fmt.Errorf("error determining path to directory: %w", err)
+				return options, nil, nil, fmt.Errorf("determining path to directory: %w", err)
 			}
 			contextDir = absDir
 		}
@@ -177,7 +177,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 
 	contextDir, err = filepath.EvalSymlinks(contextDir)
 	if err != nil {
-		return options, nil, nil, fmt.Errorf("error evaluating symlinks in build context path: %w", err)
+		return options, nil, nil, fmt.Errorf("evaluating symlinks in build context path: %w", err)
 	}
 
 	var stdin io.Reader
@@ -198,7 +198,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return options, nil, nil, fmt.Errorf("error building system context: %w", err)
+		return options, nil, nil, fmt.Errorf("building system context: %w", err)
 	}
 
 	isolation, err := parse.IsolationOption(iopts.Isolation)
@@ -254,7 +254,7 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 	}
 	usernsOption, idmappingOptions, err := parse.IDMappingOptions(c, isolation)
 	if err != nil {
-		return options, nil, nil, fmt.Errorf("error parsing ID mapping options: %w", err)
+		return options, nil, nil, fmt.Errorf("parsing ID mapping options: %w", err)
 	}
 	namespaceOptions.AddOrReplace(usernsOption...)
 

@@ -233,9 +233,9 @@ func main() {
 
 	if err := rootCmd.Execute(); err != nil {
 		if logrus.IsLevelEnabled(logrus.TraceLevel) {
-			fmt.Fprintf(os.Stderr, "%+v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: %+v\n", err)
 		} else {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
 		exitCode = cli.ExecErrorCodeGeneric
 		var ee *exec.ExitError

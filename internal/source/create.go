@@ -33,7 +33,7 @@ func (o *CreateOptions) createdTime() *time.Time {
 // that `sourcePath` must not exist.
 func Create(ctx context.Context, sourcePath string, options CreateOptions) error {
 	if _, err := os.Stat(sourcePath); err == nil {
-		return fmt.Errorf("error creating source image: %q already exists", sourcePath)
+		return fmt.Errorf("creating source image: %q already exists", sourcePath)
 	}
 
 	ociDest, err := openOrCreateSourceImage(ctx, sourcePath)

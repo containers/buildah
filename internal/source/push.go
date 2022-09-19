@@ -48,11 +48,11 @@ func Push(ctx context.Context, sourcePath string, imageInput string, options Pus
 
 	policy, err := signature.DefaultPolicy(sysCtx)
 	if err != nil {
-		return fmt.Errorf("error obtaining default signature policy: %w", err)
+		return fmt.Errorf("obtaining default signature policy: %w", err)
 	}
 	policyContext, err := signature.NewPolicyContext(policy)
 	if err != nil {
-		return fmt.Errorf("error creating new signature policy context: %w", err)
+		return fmt.Errorf("creating new signature policy context: %w", err)
 	}
 
 	copyOpts := &copy.Options{
@@ -62,7 +62,7 @@ func Push(ctx context.Context, sourcePath string, imageInput string, options Pus
 		copyOpts.ReportWriter = os.Stderr
 	}
 	if _, err := copy.Image(ctx, policyContext, destRef, ociSource.Reference(), copyOpts); err != nil {
-		return fmt.Errorf("error pushing source image: %w", err)
+		return fmt.Errorf("pushing source image: %w", err)
 	}
 
 	return nil

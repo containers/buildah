@@ -40,7 +40,7 @@ func init() {
 }
 
 func rmCmd(c *cobra.Command, args []string, iopts rmResults) error {
-	delContainerErrStr := "error removing container"
+	delContainerErrStr := "removing container"
 	if len(args) == 0 && !iopts.all {
 		return errors.New("container ID must be specified")
 	}
@@ -61,7 +61,7 @@ func rmCmd(c *cobra.Command, args []string, iopts rmResults) error {
 	if iopts.all {
 		builders, err := openBuilders(store)
 		if err != nil {
-			return fmt.Errorf("error reading build containers: %w", err)
+			return fmt.Errorf("reading build containers: %w", err)
 		}
 
 		for _, builder := range builders {

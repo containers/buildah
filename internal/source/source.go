@@ -33,11 +33,11 @@ type ImageConfig struct {
 func writeManifest(ctx context.Context, manifest *specV1.Manifest, ociDest types.ImageDestination) (*digest.Digest, int64, error) {
 	rawData, err := json.Marshal(&manifest)
 	if err != nil {
-		return nil, -1, fmt.Errorf("error marshalling manifest: %w", err)
+		return nil, -1, fmt.Errorf("marshalling manifest: %w", err)
 	}
 
 	if err := ociDest.PutManifest(ctx, rawData, nil); err != nil {
-		return nil, -1, fmt.Errorf("error writing manifest: %w", err)
+		return nil, -1, fmt.Errorf("writing manifest: %w", err)
 	}
 
 	manifestDigest := digest.FromBytes(rawData)
@@ -57,7 +57,7 @@ func readManifestFromImageSource(ctx context.Context, src types.ImageSource) (*s
 
 	manifest := specV1.Manifest{}
 	if err := json.Unmarshal(rawData, &manifest); err != nil {
-		return nil, nil, -1, fmt.Errorf("error reading manifest: %w", err)
+		return nil, nil, -1, fmt.Errorf("reading manifest: %w", err)
 	}
 
 	manifestDigest := digest.FromBytes(rawData)
@@ -99,7 +99,7 @@ func openOrCreateSourceImage(ctx context.Context, sourcePath string) (types.Imag
 func addConfig(ctx context.Context, config *ImageConfig, ociDest types.ImageDestination) (*types.BlobInfo, error) {
 	rawData, err := json.Marshal(config)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling config: %w", err)
+		return nil, fmt.Errorf("marshalling config: %w", err)
 	}
 
 	info := types.BlobInfo{
@@ -107,7 +107,7 @@ func addConfig(ctx context.Context, config *ImageConfig, ociDest types.ImageDest
 	}
 	addedBlob, err := ociDest.PutBlob(ctx, bytes.NewReader(rawData), info, nil, true)
 	if err != nil {
-		return nil, fmt.Errorf("error adding config: %w", err)
+		return nil, fmt.Errorf("adding config: %w", err)
 	}
 
 	return &addedBlob, nil

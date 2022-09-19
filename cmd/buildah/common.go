@@ -131,7 +131,7 @@ func openBuilder(ctx context.Context, store storage.Store, name string) (builder
 		return nil, err
 	}
 	if builder == nil {
-		return nil, errors.New("error finding build container")
+		return nil, errors.New("finding build container")
 	}
 	return builder, nil
 }
@@ -150,7 +150,7 @@ func openImage(ctx context.Context, sc *types.SystemContext, store storage.Store
 		return nil, err
 	}
 	if builder == nil {
-		return nil, errors.New("error mocking up build configuration")
+		return nil, errors.New("mocking up build configuration")
 	}
 	return builder, nil
 }

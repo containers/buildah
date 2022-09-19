@@ -23,7 +23,7 @@ load helpers
   run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
   cid=$output
   run_buildah 125 rename ${cid} ${cid}
-  expect_output 'renaming a container with the same name as its current name'
+  expect_output 'Error: renaming a container with the same name as its current name'
 }
 
 @test "rename same name as other container name" {

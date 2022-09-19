@@ -461,16 +461,16 @@ _EOF
 
 @test "invalid userns-uid-map userns-gid-map" {
 	run_buildah 125 from --userns-uid-map 16  --userns-gid-map 0:48:16 scratch
-	expect_output 'initializing ID mappings: userns-uid-map setting is malformed expected ["uint32:uint32:uint32"]: ["16"]'
+	expect_output 'Error: initializing ID mappings: userns-uid-map setting is malformed expected ["uint32:uint32:uint32"]: ["16"]'
 
 	run_buildah 125 from --userns-uid-map 0:32:16  --userns-gid-map 16 scratch
-	expect_output 'initializing ID mappings: userns-gid-map setting is malformed expected ["uint32:uint32:uint32"]: ["16"]'
+	expect_output 'Error: initializing ID mappings: userns-gid-map setting is malformed expected ["uint32:uint32:uint32"]: ["16"]'
 
 	run_buildah 125 bud --userns-uid-map a  --userns-gid-map bogus bud/from-scratch
-	expect_output 'initializing ID mappings: userns-uid-map setting is malformed expected ["uint32:uint32:uint32"]: ["a"]'
+	expect_output 'Error: initializing ID mappings: userns-uid-map setting is malformed expected ["uint32:uint32:uint32"]: ["a"]'
 
 	run_buildah 125 bud --userns-uid-map 0:32:16 --userns-gid-map bogus bud/from-scratch
-	expect_output 'initializing ID mappings: userns-gid-map setting is malformed expected ["uint32:uint32:uint32"]: ["bogus"]'
+	expect_output 'Error: initializing ID mappings: userns-gid-map setting is malformed expected ["uint32:uint32:uint32"]: ["bogus"]'
 
 	run_buildah from --userns-uid-map 0:32:16  scratch
 }

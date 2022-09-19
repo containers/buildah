@@ -47,12 +47,12 @@ func unshareMount(c *cobra.Command, mounts []string) ([]string, func(), error) {
 		for _, mounted := range mountedContainers {
 			builder, err := openBuilder(getContext(), store, mounted)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, fmt.Errorf("error loading information about build container %q: %w", mounted, err))
+				fmt.Fprintln(os.Stderr, fmt.Errorf("loading information about build container %q: %w", mounted, err))
 				continue
 			}
 			err = builder.Unmount()
 			if err != nil {
-				fmt.Fprintln(os.Stderr, fmt.Errorf("error unmounting build container %q: %w", mounted, err))
+				fmt.Fprintln(os.Stderr, fmt.Errorf("unmounting build container %q: %w", mounted, err))
 				continue
 			}
 		}
@@ -72,12 +72,12 @@ func unshareMount(c *cobra.Command, mounts []string) ([]string, func(), error) {
 		builder, err := openBuilder(getContext(), store, container)
 		if err != nil {
 			unmount()
-			return nil, nil, fmt.Errorf("error loading information about build container %q: %w", container, err)
+			return nil, nil, fmt.Errorf("loading information about build container %q: %w", container, err)
 		}
 		mountPoint, err := builder.Mount(builder.MountLabel)
 		if err != nil {
 			unmount()
-			return nil, nil, fmt.Errorf("error mounting build container %q: %w", container, err)
+			return nil, nil, fmt.Errorf("mounting build container %q: %w", container, err)
 		}
 		logrus.Debugf("mounted container %q at %q", container, mountPoint)
 		mountedContainers = append(mountedContainers, container)

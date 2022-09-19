@@ -100,7 +100,7 @@ func pullCmd(c *cobra.Command, args []string, iopts pullOptions) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 	platforms, err := parse.PlatformsFromOptions(c)
 	if err != nil {

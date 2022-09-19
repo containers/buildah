@@ -22,7 +22,7 @@ load helpers
 @test "bud with .dockerignore #1" {
   _prefetch alpine busybox
   run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $BUDFILES/dockerignore/Dockerfile $BUDFILES/dockerignore
-  expect_output --substring 'error building.*"COPY subdir \./".*no such file or directory'
+  expect_output --substring 'building.*"COPY subdir \./".*no such file or directory'
 
   run_buildah build -t testbud $WITH_POLICY_JSON -f $BUDFILES/dockerignore/Dockerfile.succeed $BUDFILES/dockerignore
 
@@ -42,7 +42,7 @@ load helpers
 @test "bud with .containerignore" {
   _prefetch alpine busybox
   run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $BUDFILES/containerignore/Dockerfile $BUDFILES/containerignore
-  expect_output --substring 'error building.*"COPY subdir \./".*no such file or directory'
+  expect_output --substring 'building.*"COPY subdir \./".*no such file or directory'
 
   run_buildah build -t testbud $WITH_POLICY_JSON -f $BUDFILES/containerignore/Dockerfile.succeed $BUDFILES/containerignore
 
@@ -113,20 +113,20 @@ symlink(subdir)"
 
 @test "bud with .dockerignore #2" {
   run_buildah 125 build -t testbud3 $WITH_POLICY_JSON $BUDFILES/dockerignore3
-  expect_output --substring 'error building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
+  expect_output --substring 'building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
   expect_output --substring $(realpath "$BUDFILES/dockerignore3/.dockerignore")
 }
 
 @test "bud with .dockerignore #4" {
   run_buildah 125 build -t testbud3 $WITH_POLICY_JSON -f Dockerfile.test $BUDFILES/dockerignore4
-  expect_output --substring 'error building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
+  expect_output --substring 'building.*"COPY test1.txt /upload/test1.txt".*no such file or directory'
   expect_output --substring '1 filtered out using /[^ ]*/Dockerfile.test.dockerignore'
 }
 
 @test "bud with .dockerignore #6" {
   _prefetch alpine busybox
   run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $BUDFILES/dockerignore6/Dockerfile $BUDFILES/dockerignore6
-  expect_output --substring 'error building.*"COPY subdir \./".*no such file or directory'
+  expect_output --substring 'building.*"COPY subdir \./".*no such file or directory'
 
   run_buildah build -t testbud $WITH_POLICY_JSON -f $BUDFILES/dockerignore6/Dockerfile.succeed $BUDFILES/dockerignore6
 
@@ -2044,7 +2044,7 @@ function _test_http() {
   _prefetch alpine
   target=alpine-image
   run_buildah 125 build $WITH_POLICY_JSON -t ${target} -f $BUDFILES/symlink/Dockerfile.symlink-points-to-itself $BUDFILES/symlink
-  assert "$output" =~ "error building .* open /test-log/test: too many levels of symbolic links"
+  assert "$output" =~ "building .* open /test-log/test: too many levels of symbolic links"
 }
 
 @test "bud multi-stage with symlink to absolute path" {
@@ -2090,7 +2090,7 @@ function _test_http() {
   target=alpine-image
   run_buildah 2 bud $WITH_POLICY_JSON -t ${target} -f Dockerfile.entrypoint-empty-run $BUDFILES/run-scenarios
   expect_output --substring " -c requires an argument"
-  expect_output --substring "error building at STEP.*: exit status 2"
+  expect_output --substring "building at STEP.*: exit status 2"
 }
 
 @test "bud with CMD and RUN" {
@@ -2106,7 +2106,7 @@ function _test_http() {
   target=alpine-image
   run_buildah 2 bud $WITH_POLICY_JSON -t ${target} -f Dockerfile.cmd-empty-run $BUDFILES/run-scenarios
   expect_output --substring " -c requires an argument"
-  expect_output --substring "error building at STEP.*: exit status 2"
+  expect_output --substring "building at STEP.*: exit status 2"
 }
 
 @test "bud with ENTRYPOINT, CMD and RUN" {
@@ -2122,7 +2122,7 @@ function _test_http() {
   target=alpine-image
   run_buildah 2 bud $WITH_POLICY_JSON -t ${target} -f $BUDFILES/run-scenarios/Dockerfile.entrypoint-cmd-empty-run $BUDFILES/run-scenarios
   expect_output --substring " -c requires an argument"
-  expect_output --substring "error building at STEP.*: exit status 2"
+  expect_output --substring "building at STEP.*: exit status 2"
 }
 
 # Determines if a variable set with ENV is available to following commands in the Dockerfile
@@ -2401,7 +2401,7 @@ _EOF
   imgName=alpine-image
   ctrName=alpine-chown
   run_buildah 125 build $WITH_POLICY_JSON -t ${imgName} -f $BUDFILES/copy-chown/Dockerfile.bad2 $BUDFILES/copy-chown
-  expect_output --substring "error looking up UID/GID for \":\": can't find uid for user"
+  expect_output --substring "looking up UID/GID for \":\": can't find uid for user"
 }
 
 @test "bud with chmod copy" {
@@ -3414,7 +3414,7 @@ _EOF
 @test "bud with Containerfile should fail with nonexistent authfile" {
   target=alpine-image
   run_buildah 125 build --authfile /tmp/nonexistent $WITH_POLICY_JSON -t ${target} $BUDFILES/containerfile
-  expect_output "checking authfile: stat /tmp/nonexistent: no such file or directory"
+  expect_output "Error: checking authfile: stat /tmp/nonexistent: no such file or directory"
 }
 
 
@@ -3434,7 +3434,7 @@ COPY https://getfedora.org/index.html .
 EOM
 
   run_buildah 125 build $WITH_POLICY_JSON -t foo -f ${TEST_SCRATCH_DIR}/budcopy/Dockerfile.url
-  expect_output --substring "error building .* source can.t be a URL for COPY"
+  expect_output --substring "building .* source can.t be a URL for COPY"
 }
 
 @test "bud quiet" {
@@ -3946,7 +3946,7 @@ _EOF
 
   # fail without --stdin
   run_buildah 1 bud -t testbud $WITH_POLICY_JSON ${mytmpdir} <<< input
-  expect_output --substring "error building .*: exit status 1"
+  expect_output --substring "building .*: exit status 1"
 
   run_buildah build --stdin -t testbud $WITH_POLICY_JSON ${mytmpdir} <<< input
   expect_output --substring "test got <input>"
@@ -4414,7 +4414,7 @@ _EOF
 
   run_buildah 1 build --no-cache --no-hosts \
                   $WITH_POLICY_JSON --file ${mytmpdir}/Containerfile .
-  expect_output --substring 'error building at STEP "RUN grep "myhostname" /etc/hosts'
+  expect_output --substring 'building at STEP "RUN grep "myhostname" /etc/hosts'
 }
 
 @test "bud with --cgroup-parent" {
@@ -4680,7 +4680,7 @@ _EOF
   run_buildah build -t test2 -f Containerfile.missing $WITH_POLICY_JSON $BUDFILES/copy-globs
 
   run_buildah 125 build -t test3 -f Containerfile.bad $WITH_POLICY_JSON $BUDFILES/copy-globs
-  expect_output --substring 'error building.*"COPY \*foo /testdir".*no such file or directory'
+  expect_output --substring 'building.*"COPY \*foo /testdir".*no such file or directory'
 }
 
 @test "bud with containerfile secret" {
@@ -4837,7 +4837,7 @@ _EOF
 @test "bud-multiple-platform-no-partial-manifest-list" {
   outputlist=localhost/testlist
   run_buildah 1 bud $WITH_POLICY_JSON --platform=linux/arm,linux/amd64 --manifest $outputlist -f $BUDFILES/multiarch/Dockerfile.fail $BUDFILES/multiarch
-  expect_output --substring "error building at STEP \"RUN test .arch. = x86_64"
+  expect_output --substring "building at STEP \"RUN test .arch. = x86_64"
   run_buildah 125 manifest inspect $outputlist
   expect_output --substring "reading image .* pinging container registry"
 }
@@ -4861,7 +4861,7 @@ _EOF
   fi
   outputlist=localhost/testlist
   run_buildah 125 build $WITH_POLICY_JSON --jobs=0 --platform=linux/arm64,linux/amd64 --manifest $outputlist -f $BUDFILES/multiarch/Dockerfile.fail-multistage $BUDFILES/multiarch
-  expect_output --substring 'error building at STEP "RUN false"'
+  expect_output --substring 'building at STEP "RUN false"'
 }
 
 @test "bud-multiple-platform-no-run" {
@@ -5338,7 +5338,7 @@ _EOF
   echo 'FROM alpine' | tee ${TEST_SCRATCH_DIR}/Dockerfile1
   echo '# escape=|\nFROM alpine' | tee ${TEST_SCRATCH_DIR}/Dockerfile2
   run_buildah 125 build -f ${TEST_SCRATCH_DIR}/Dockerfile1 -f ${TEST_SCRATCH_DIR}/Dockerfile2 ${TEST_SCRATCH_DIR}
-  assert "$output" =~ "error parsing additional Dockerfile .*Dockerfile2: invalid ESCAPE"
+  assert "$output" =~ "parsing additional Dockerfile .*Dockerfile2: invalid ESCAPE"
 }
 
 @test "build-with-network-test" {

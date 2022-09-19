@@ -41,7 +41,7 @@ func getWrapped(root string, directory string, getOptions GetOptions, globs []st
 	}
 	encoded, err := json.Marshal(&options)
 	if err != nil {
-		return fmt.Errorf("error marshalling options: %w", err)
+		return fmt.Errorf("marshalling options: %w", err)
 	}
 	cmd := reexec.Command("get")
 	cmd.Env = append(cmd.Env, "OPTIONS="+string(encoded))

@@ -57,11 +57,11 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 
 	policy, err := signature.DefaultPolicy(sysCtx)
 	if err != nil {
-		return fmt.Errorf("error obtaining default signature policy: %w", err)
+		return fmt.Errorf("obtaining default signature policy: %w", err)
 	}
 	policyContext, err := signature.NewPolicyContext(policy)
 	if err != nil {
-		return fmt.Errorf("error creating new signature policy context: %w", err)
+		return fmt.Errorf("creating new signature policy context: %w", err)
 	}
 
 	copyOpts := copy.Options{
@@ -71,7 +71,7 @@ func Pull(ctx context.Context, imageInput string, sourcePath string, options Pul
 		copyOpts.ReportWriter = os.Stderr
 	}
 	if _, err := copy.Image(ctx, policyContext, ociDest.Reference(), srcRef, &copyOpts); err != nil {
-		return fmt.Errorf("error pulling source image: %w", err)
+		return fmt.Errorf("pulling source image: %w", err)
 	}
 
 	return nil
@@ -84,7 +84,7 @@ func stringToImageReference(imageInput string) (types.ImageReference, error) {
 
 	ref, err := alltransports.ParseImageName("docker://" + imageInput)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing image name: %w", err)
+		return nil, fmt.Errorf("parsing image name: %w", err)
 	}
 
 	return ref, nil
@@ -93,7 +93,7 @@ func stringToImageReference(imageInput string) (types.ImageReference, error) {
 func validateSourceImageReference(ctx context.Context, ref types.ImageReference, sysCtx *types.SystemContext) error {
 	src, err := ref.NewImageSource(ctx, sysCtx)
 	if err != nil {
-		return fmt.Errorf("error creating image source from reference: %w", err)
+		return fmt.Errorf("creating image source from reference: %w", err)
 	}
 	defer src.Close()
 

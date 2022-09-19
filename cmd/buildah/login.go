@@ -60,7 +60,7 @@ func loginCmd(c *cobra.Command, args []string, iopts *loginReply) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 	ctx := getContext()
 	iopts.loginOpts.GetLoginSet = c.Flag("get-login").Changed

@@ -171,7 +171,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 
 	systemContext, err := parse.SystemContextFromOptions(c)
 	if err != nil {
-		return fmt.Errorf("error building system context: %w", err)
+		return fmt.Errorf("building system context: %w", err)
 	}
 
 	var manifestType string
@@ -235,7 +235,7 @@ func pushCmd(c *cobra.Command, args []string, iopts pushOptions) error {
 				return nil
 			}
 		}
-		return util.GetFailureCause(err, fmt.Errorf("error pushing image %q to %q: %w", src, destSpec, err))
+		return util.GetFailureCause(err, fmt.Errorf("pushing image %q to %q: %w", src, destSpec, err))
 	}
 	if ref != nil {
 		logrus.Debugf("pushed image %q with digest %s", ref, digest.String())
