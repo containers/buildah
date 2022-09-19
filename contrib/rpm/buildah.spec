@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.23.4
+Version:        1.23.5
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,10 +100,15 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Tue Sep 20 2022 Nalin Dahyabhai <nalin@redhat.com> 1.23.5-1
+- run: add container gid to additional groups
+- Bump golang.org/x/crypto to 7b82a4e
+
 * Thu April 7, 2022 Dan Walsh <dwalsh@redhat.com> 1.23.4-1
 - chroot: run gofmt on run.go
 - vendor: bump c/image to v5.16.0-rhel/8b06d33
 - Use race-free c/storage by bumping it to 1.36.3
+- run: do not set the inheritable capabilities
 
 * Thu Feb 3, 2022 Nalin Dahyabhai <nalin@redhat.com> 1.23.3-1
 - bump(github.com/modern-go/reflect2) to v1.0.2
