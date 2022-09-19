@@ -13,6 +13,12 @@ load helpers
 
 @test "bud with --dns* flags" {
   _prefetch alpine
+
+  for dnsopt in --dns --dns-option --dns-search; do
+    run_buildah 125 build $dnsopt=example.com --network=none $WITH_POLICY_JSON -f $BUDFILES/dns/Dockerfile  $BUDFILES/dns
+    expect_output "the $dnsopt option can not be used with --network=none" "dns options should not be allowed with --network=none"
+  done
+
   run_buildah build --dns-search=example.com --dns=223.5.5.5 --dns-option=use-vc  $WITH_POLICY_JSON -f $BUDFILES/dns/Dockerfile  $BUDFILES/dns
   expect_output --substring "search example.com"
   expect_output --substring "nameserver 223.5.5.5"

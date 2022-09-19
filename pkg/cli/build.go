@@ -48,6 +48,18 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 	output := ""
 	cleanTmpFile := false
 	tags := []string{}
+	if iopts.Network == "none" {
+		if c.Flag("dns").Changed {
+			return options, nil, nil, errors.New("the --dns option can not be used with --network=none")
+		}
+		if c.Flag("dns-option").Changed {
+			return options, nil, nil, errors.New("the --dns-option option can not be used with --network=none")
+		}
+		if c.Flag("dns-search").Changed {
+			return options, nil, nil, errors.New("the --dns-search option can not be used with --network=none")
+		}
+
+	}
 	if c.Flag("tag").Changed {
 		tags = iopts.Tag
 		if len(tags) > 0 {
