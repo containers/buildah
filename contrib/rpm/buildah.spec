@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.20.1
+Version:        1.20.2
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,11 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Tue Sep 20 2022 Nalin Dahyabhai <nalin@redhat.com> 1.20.2-1
+- run: add container gid to additional groups
+- run: do not set the inheritable capabilities
+- bump github.com/prometheus/client_golang to v1.11.1
+
 * Tue Apr 13, 2021 Tom Sweeney <tsweeney@redhat.com> 1.20.1-1
 - Run container with isolation type set at 'from'
 - bats helpers.bash - minor refactoring

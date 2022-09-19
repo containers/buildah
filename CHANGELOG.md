@@ -2,6 +2,149 @@
 
 # Changelog
 
+## v1.20.2 (2022-09-20)
+    run: add container gid to additional groups
+    run: do not set the inheritable capabilities
+    bump github.com/prometheus/client_golang to v1.11.1
+
+## v1.20.1 (2021-04-13)
+    Run container with isolation type set at 'from'
+    bats helpers.bash - minor refactoring
+    Bump containers/storage vendor to v1.29.0
+    build(deps): bump github.com/onsi/ginkgo from 1.16.0 to 1.16.1
+    Cirrus: Update VMs w/ F34beta
+    CLI add/copy: add a --from option
+    build(deps): bump github.com/onsi/ginkgo from 1.15.2 to 1.16.0
+    Add authentication system tests for 'commit' and 'bud'
+    fix local image lookup for custom platform
+    Double-check existence of OCI runtimes
+    Cirrus: Make use of shared get_ci_vm container
+    Add system tests of "buildah run"
+    Update nix pin with `make nixpkgs`
+    Remove some stuttering on returns errors
+    Setup alias for --tty to --terminal
+    Add conformance tests for COPY /...
+    Put a few more minutes on the clock for the CI conformance test
+    Add a conformance test for COPY --from $symlink
+    Add conformance tests for COPY ""
+    Check for symlink in builtin volume
+    Sort all mounts by destination directory
+    System-test cleanup
+    Export parse.Platform string to be used by podman-remote
+    blobcache: fix sequencing error
+    build(deps): bump github.com/containers/common from 0.35.3 to 0.35.4
+    Fix URL in demos/buildah_multi_stage.sh
+    Add a few system tests
+    [NO TESTS NEEDED] Use --recurse-modules when building git context
+    Bump to v1.20.1-dev
+
+## v1.20.0 (2021-03-25)
+    vendor in containers/storage v1.28.1
+    build(deps): bump github.com/containers/common from 0.35.2 to 0.35.3
+    tests: prefetch: use buildah, not podman, for pulls
+    Use faster way to check image tag existence during multi-arch build
+    Add information about multi-arch images to the Readme
+    COPY --chown: expand the conformance test
+    pkg/chrootuser: use a bufio.Scanner
+    [CI:DOCS] Fix rootful typo in docs
+    build(deps): bump github.com/onsi/ginkgo from 1.15.1 to 1.15.2
+    Add documentation and testing for .containerignore
+    build(deps): bump github.com/sirupsen/logrus from 1.8.0 to 1.8.1
+    build(deps): bump github.com/hashicorp/go-multierror from 1.1.0 to 1.1.1
+    Lookup Containerfile if user specifies a directory
+    Add Tag format placeholder to docs
+    copier: ignore sockets
+    image: propagate errors from extractRootfs
+    Remove system test of 'buildah containers -a'
+    Clarify userns options are usable only as root in man pages
+    Fix system test of 'containers -a'
+    Remove duplicated code in addcopy
+    build(deps): bump github.com/onsi/ginkgo from 1.15.0 to 1.15.1
+    build(deps): bump github.com/onsi/gomega from 1.10.5 to 1.11.0
+    build(deps): bump github.com/fsouza/go-dockerclient from 1.7.1 to 1.7.2
+    Update multi-arch buildah build setup with new logic
+    Update nix pin with `make nixpkgs`
+    overlay.bats: fix the "overlay source permissions" test
+    imagebuildah: use overlay for volumes when using overlay
+    Make PolicyMap and PullPolicy names align
+    copier: add GetOptions.IgnoreUnreadable
+    Check local image to match system context
+    fix: Containerfiles - smaller set of userns u/gids
+    Set upperdir permissions based on source
+    Shrink the vendoring size of pkc/cli
+    Clarify image name match failure message
+    ADD/COPY: create the destination directory first, chroot to it
+    copier.GetOptions: add NoDerefSymLinks
+    copier: add an Eval function
+    Update system test for 'from --cap-add/drop'
+    copier: fix a renaming bug
+    copier: return child process stderr if we can't JSON decode the response
+    Add some system tests
+    build(deps): bump github.com/containers/storage from 1.26.0 to 1.27.0
+    complement add/copy --chmod documentation
+    buildah login and logout, do not need to enter user namespace
+    Add multi-arch image build
+    chmod/chown added/fixed in bash completions
+    OWNERS: add @lsm5
+    buildah add/copy --chmod dockerfile implementation
+    bump github.com/openshift/imagebuilder from 1.1.8 to 1.2.0
+    buildah add/copy --chmod cli implementation for files and urls
+    Make sure we set the buildah version label
+    Isolation strings, should match user input
+    [CI:DOCS] buildah-from.md: remove dup arch,os
+    build(deps): bump github.com/containers/image/v5 from 5.10.2 to 5.10.3
+    Cirrus: Temp. disable prior-fedora (F32) testing
+    pr-should-include-tests: recognized "renamed" tests
+    build(deps): bump github.com/sirupsen/logrus from 1.7.0 to 1.8.0
+    build(deps): bump github.com/fsouza/go-dockerclient from 1.7.0 to 1.7.1
+    build(deps): bump github.com/containers/common from 0.34.2 to 0.35.0
+    Fix reaping of stages with no instructions
+    add stale bot
+    Add base image name to comment
+    build(deps): bump github.com/spf13/cobra from 1.1.1 to 1.1.3
+    Don't fail copy to emptydir
+    buildah: use volatile containers
+    vendor: update containers/storage
+    Eliminate the use of containers/building import in pkg subdirs
+    Add more support for removing config
+    Improve messages about --cache-from not being supported
+    Revert patch to allow COPY/ADD of empty dirs.
+    Don't fail copy to emptydir
+    Fix tutorial for rootless mode
+    Fix caching layers with build args
+    Vendor in containers/image v5.10.2
+    build(deps): bump github.com/containers/common from 0.34.0 to 0.34.2
+    build(deps): bump github.com/onsi/ginkgo from 1.14.2 to 1.15.0
+    'make validate': require PRs to include tests
+    build(deps): bump github.com/onsi/gomega from 1.10.4 to 1.10.5
+    build(deps): bump github.com/containers/storage from 1.24.5 to 1.25.0
+    Use chown function for U volume flag from containers/common repository
+    --iidfile: print hash prefix
+    bump containernetworking/cni to v0.8.1 - fix for CVE-2021-20206
+    run: fix check for host pid namespace
+    Finish plumbing for buildah bud --manifest
+    buildah manifest add localimage should work
+    Stop testing directory permissions with latest docker
+    Fix build arg check
+    build(deps): bump github.com/containers/ocicrypt from 1.0.3 to 1.1.0
+    [ci:docs] Fix man page for buildah push
+    Update nix pin with `make nixpkgs`
+    Bump to containers/image v5.10.1
+    Rebuild layer if a change in ARG is detected
+    Bump golang.org/x/crypto to the latest
+    Add Ashley and Urvashi to Approvers
+    local image lookup by digest
+    Use build-arg ENV val from local environment if set
+    Pick default OCI Runtime from containers.conf
+    Added required devel packages
+    Cirrus: Native OSX Build
+    Cirrus: Two minor cleanup items
+    Workaround for RHEL gating test failure
+    build(deps): bump github.com/stretchr/testify from 1.6.1 to 1.7.0
+    build(deps): bump github.com/mattn/go-shellwords from 1.0.10 to 1.0.11
+    Reset upstream branch to dev version
+    If destination does not exists, do not throw error
+
 ## v1.19.0 (2021-01-08)
     Update vendor of containers/storage and containers/common
     Buildah inspect should be able to inspect manifests
