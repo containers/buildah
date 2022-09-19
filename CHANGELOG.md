@@ -1,6 +1,11 @@
 ![buildah logo](https://cdn.rawgit.com/containers/buildah/master/logos/buildah-logo_large.png)
 
 # Changelog
+## v1.21.5 (2022-09-20)
+    run: add container gid to additional groups
+    run: do not set the inheritable capabilities
+    bump github.com/prometheus/client_golang to v1.11.1
+
 ## v1.21.4 (2021-07-22)
     tests: make it easer to override the location of the copy helper
     tests: add and use a "copy" helper instead of podman load/save
