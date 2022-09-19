@@ -94,6 +94,9 @@ ALPINE_FQIN=${ALPINE_FQIN:-docker.io/library/alpine}
 IN_PODMAN_NAME="in_podman_$CIRRUS_TASK_ID"
 IN_PODMAN="${IN_PODMAN:-false}"
 
+# Downloaded, but not installed packages.
+PACKAGE_DOWNLOAD_DIR=/var/cache/download
+
 lilto() { err_retry 8 1000 "" "$@"; }  # just over 4 minutes max
 bigto() { err_retry 7 5670 "" "$@"; }  # 12 minutes max
 
