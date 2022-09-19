@@ -728,14 +728,19 @@ $output"
 
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
 	cid=$output
-	run_buildah run --isolation=chroot --network=none $cid sh -c 'echo "nameserver 110.110.0.110" >> /etc/resolv.conf; cat /etc/resolv.conf'
-	expect_output "nameserver 110.110.0.110"
-	if ! is_rootless; then
-		run_buildah mount $cid
-		assert "$output" != ""
-		assert "$(< $output/etc/resolv.conf)" =~ "^nameserver 110.110.0.110" "Nameserver is set in the image resolv.conf file"
-	fi
+	run_buildah 125 run --isolation=chroot --network=none $cid sh -c 'echo "nameserver 110.110.0.110" >> /etc/resolv.conf; cat /etc/resolv.conf'
+        expect_output --substring "cannot set --network other than host with --isolation chroot"
 	run_buildah rm -a
+}
+
+@test "run --network=none and --isolation chroot must conflict" {
+	skip_if_no_runtime
+
+	run_buildah from --quiet --pull=false $WITH_POLICY_JSON alpine
+	cid=$output
+	# should fail by default
+	run_buildah 125 run --isolation=chroot --network=none $cid wget google.com
+        expect_output --substring "cannot set --network other than host with --isolation chroot"
 }
 
 @test "run --network should override build --network" {

@@ -21,6 +21,7 @@ import (
 	"github.com/containers/common/pkg/auth"
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/types"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -342,6 +343,16 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 	}
 	// Following log line is used in integration test.
 	logrus.Debugf("Setting MaxPullPushRetries to %d and PullPushRetryDelay to %v", iopts.Retry, pullPushRetryDelay)
+
+	if c.Flag("network").Changed && c.Flag("isolation").Changed {
+		if isolation == define.IsolationChroot {
+			if ns := namespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil {
+				if !ns.Host {
+					return options, nil, nil, fmt.Errorf("cannot set --network other than host with --isolation %s", c.Flag("isolation").Value.String())
+				}
+			}
+		}
+	}
 
 	options = define.BuildOptions{
 		AddCapabilities:         iopts.CapAdd,

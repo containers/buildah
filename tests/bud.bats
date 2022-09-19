@@ -25,6 +25,17 @@ load helpers
   expect_output --substring "options use-vc"
 }
 
+@test "build-conflicting-isolation-chroot-and-network" {
+  _prefetch alpine
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine
+RUN ping -c 1 4.2.2.2
+_EOF
+
+  run_buildah 125 build --network=none --isolation=chroot $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "cannot set --network other than host with --isolation chroot"
+}
+
 @test "bud with .dockerignore #1" {
   _prefetch alpine busybox
   run_buildah 125 build -t testbud $WITH_POLICY_JSON -f $BUDFILES/dockerignore/Dockerfile $BUDFILES/dockerignore
