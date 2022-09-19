@@ -10,12 +10,18 @@ import (
 func testFlagCompletion(t *testing.T, flags pflag.FlagSet, flagCompletions completion.FlagCompletions) {
 	// lookup if for each flag a flag completion function exists
 	flags.VisitAll(func(f *pflag.Flag) {
-		// skip hidden, deprecated and boolean flags
-		if f.Hidden || len(f.Deprecated) > 0 || f.Value.Type() == "bool" {
+		// skip hidden and deprecated flags
+		if f.Hidden || len(f.Deprecated) > 0 {
 			return
 		}
-		if _, ok := flagCompletions[f.Name]; !ok {
+		if _, ok := flagCompletions[f.Name]; !ok && f.Value.Type() != "bool" {
 			t.Errorf("Flag %q has no shell completion function set.", f.Name)
+		} else if ok && f.Value.Type() == "bool" {
+			// make sure bool flags don't have a completion function
+			t.Errorf(`Flag %q is a bool flag but has a shell completion function set.
+	You have to remove this shell completion function.`, f.Name)
+			return
+
 		}
 	})
 
