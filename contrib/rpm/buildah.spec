@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in define/types.go too
-Version:        1.26.4
+Version:        1.26.5
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,11 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Tue Sep 20 2022 Nalin Dahyabhai <nalin@redhat.com> 1.26.5-1
+- build: error out if path to containerfile is a directory
+- "make cross": ignore loong64 from target list
+- run: add container gid to additional groups
+
 * Wed Aug 3 2022 Nalin Dahyabhai <nalin@redhat.com> 1.26.4-1
 - build: add --cpp-flag
 - build: add --build-context flag
