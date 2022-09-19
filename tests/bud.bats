@@ -222,6 +222,21 @@ _EOF
   expect_output "[]"
 }
 
+@test "build test has gid in supplemental groups" {
+  _prefetch alpine
+  run_buildah build $WITH_POLICY_JSON -t source -f $BUDFILES/supplemental-groups/Dockerfile
+  # gid 1000 must be in supplemental groups
+  expect_output --substring "Groups:	1000"
+}
+
+@test "build test if supplemental groups has gid with --isolation chroot" {
+  test -z "${BUILDAH_ISOLATION}" || skip "BUILDAH_ISOLATION=${BUILDAH_ISOLATION} overrides --isolation"
+
+  _prefetch alpine
+  run_buildah build --isolation chroot $WITH_POLICY_JSON -t source -f $BUDFILES/supplemental-groups/Dockerfile
+  # gid 1000 must be in supplemental groups
+  expect_output --substring "Groups:	1000"
+}
 
 # Test pinning image using additional build context
 @test "build-with-additional-build-context and COPY, test pinning image" {
