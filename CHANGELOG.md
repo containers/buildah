@@ -2,9 +2,13 @@
 
 # Changelog
 
+## v1.27.2 (2022-09-20)
+
+    build: backport the --skip-unused-stages flag.
+
 ## v1.27.1 (2022-09-09)
 
-   run: add container gid to additional groups.
+    run: add container gid to additional groups.
 
 ## v1.27.0 (2022-08-01)
 
