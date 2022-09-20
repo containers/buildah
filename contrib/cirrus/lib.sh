@@ -181,10 +181,9 @@ in_podman() {
     done
     showrun podman run -i --name="$IN_PODMAN_NAME" \
                    --net="container:registry" \
-                   --security-opt=label=disable \
-                   --security-opt=seccomp=unconfined \
-                   --cap-add=all \
                    --env-file=$envfile \
+                   --privileged \
+                   --cgroupns=host \
                    -e "GOPATH=$GOPATH" \
                    -e "GOSRC=$GOSRC" \
                    -e "IN_PODMAN=false" \
