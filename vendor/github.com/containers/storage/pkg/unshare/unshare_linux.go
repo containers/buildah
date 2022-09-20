@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -390,11 +389,13 @@ const (
 
 // hasFullUsersMappings checks whether the current user namespace has all the IDs mapped.
 func hasFullUsersMappings() (bool, error) {
-	content, err := ioutil.ReadFile("/proc/self/uid_map")
+	content, err := os.ReadFile("/proc/self/uid_map")
 	if err != nil {
 		return false, err
 	}
-	// if the uid_map contains 4294967295, the entire IDs space is available in the
+	// The kernel rejects attempts to create mappings where either starting
+	// point is (u32)-1: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/kernel/user_namespace.c?id=af3e9579ecfb#n1006 .
+	// So, if the uid_map contains 4294967295, the entire IDs space is available in the
 	// user namespace, so it is likely the initial user namespace.
 	return bytes.Contains(content, []byte("4294967295")), nil
 }
