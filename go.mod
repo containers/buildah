@@ -26,6 +26,7 @@ require (
 	github.com/opencontainers/selinux v1.8.0
 	github.com/openshift/imagebuilder v1.2.0
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.11.1 // indirect
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200616122406-847368b35ebf
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
@@ -35,7 +36,7 @@ require (
 	go.etcd.io/bbolt v1.3.5
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
-	golang.org/x/sys v0.0.0-20210324051608-47abb6519492
+	golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40
 	k8s.io/klog v1.0.0 // indirect
 )
 
