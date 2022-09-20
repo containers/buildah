@@ -1,3 +1,14 @@
+## 1.20.2
+
+## Fixes
+- label specs that rely on remote access; bump timeout on short-circuit test to make it less flaky [35eeadf]
+- gexec: allow more headroom for SIGABRT-related unit tests (#581) [5b78f40]
+- Enable reading from a closed gbytes.Buffer (#575) [061fd26]
+
+## Maintenance
+- Bump github.com/onsi/ginkgo/v2 from 2.1.5 to 2.1.6 (#583) [55d895b]
+- Bump github.com/onsi/ginkgo/v2 from 2.1.4 to 2.1.5 (#582) [346de7c]
+
 ## 1.20.1
 
 ## Fixes
