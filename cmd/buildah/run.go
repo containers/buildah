@@ -12,6 +12,7 @@ import (
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
 	"github.com/containers/storage/pkg/lockfile"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -126,6 +127,15 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	namespaceOptions, networkPolicy, err := parse.NamespaceOptions(c)
 	if err != nil {
 		return err
+	}
+	if c.Flag("network").Changed && c.Flag("isolation").Changed {
+		if isolation == buildah.IsolationChroot {
+			if ns := namespaceOptions.Find(string(specs.NetworkNamespace)); ns != nil {
+				if !ns.Host {
+					return fmt.Errorf("cannot set --network other than host with --isolation %s", c.Flag("isolation").Value.String())
+				}
+			}
+		}
 	}
 
 	options := buildah.RunOptions{
