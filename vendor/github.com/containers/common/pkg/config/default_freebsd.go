@@ -1,7 +1,7 @@
 package config
 
 func getDefaultCgroupsMode() string {
-	return "disabled"
+	return "enabled"
 }
 
 // In theory, FreeBSD should be able to use shm locks but in practice,
@@ -17,4 +17,9 @@ func getDefaultLockType() string {
 
 func getLibpodTmpDir() string {
 	return "/var/run/libpod"
+}
+
+// getDefaultMachineVolumes returns default mounted volumes (possibly with env vars, which will be expanded)
+func getDefaultMachineVolumes() []string {
+	return []string{"$HOME:$HOME"}
 }

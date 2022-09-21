@@ -28,7 +28,7 @@ func getStore(c *cobra.Command) (storage.Store, error) {
 	if err := setXDGRuntimeDir(); err != nil {
 		return nil, err
 	}
-	options, err := storage.DefaultStoreOptions(unshare.IsRootless(), unshare.GetRootlessUID())
+	options, err := storage.DefaultStoreOptions(unshare.GetRootlessUID() > 0, unshare.GetRootlessUID())
 	if err != nil {
 		return nil, err
 	}

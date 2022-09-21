@@ -387,10 +387,41 @@ const (
 	UsernsEnvName = "_CONTAINERS_USERNS_CONFIGURED"
 )
 
+// hasFullUsersMappings checks whether the current user namespace has all the IDs mapped.
+func hasFullUsersMappings() (bool, error) {
+	content, err := os.ReadFile("/proc/self/uid_map")
+	if err != nil {
+		return false, err
+	}
+	// The kernel rejects attempts to create mappings where either starting
+	// point is (u32)-1: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/kernel/user_namespace.c?id=af3e9579ecfb#n1006 .
+	// So, if the uid_map contains 4294967295, the entire IDs space is available in the
+	// user namespace, so it is likely the initial user namespace.
+	return bytes.Contains(content, []byte("4294967295")), nil
+}
+
 // IsRootless tells us if we are running in rootless mode
 func IsRootless() bool {
 	isRootlessOnce.Do(func() {
 		isRootless = getRootlessUID() != 0 || getenv(UsernsEnvName) != ""
+		if !isRootless {
+			hasCapSysAdmin, err := HasCapSysAdmin()
+			if err != nil {
+				logrus.Warnf("Failed to read CAP_SYS_ADMIN presence for the current process")
+			}
+			if err == nil && !hasCapSysAdmin {
+				isRootless = true
+			}
+		}
+		if !isRootless {
+			hasMappings, err := hasFullUsersMappings()
+			if err != nil {
+				logrus.Warnf("Failed to read current user namespace mappings")
+			}
+			if err == nil && !hasMappings {
+				isRootless = true
+			}
+		}
 	})
 	return isRootless
 }

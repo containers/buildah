@@ -29,7 +29,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -47,7 +46,7 @@ import (
 	mountpk "github.com/containers/storage/pkg/mount"
 	"github.com/containers/storage/pkg/parsers"
 	"github.com/containers/storage/pkg/system"
-	"github.com/opencontainers/runc/libcontainer/userns"
+	"github.com/containers/storage/pkg/unshare"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/storage"
@@ -170,7 +169,7 @@ func Init(home string, options graphdriver.Options) (graphdriver.Driver, error) 
 
 	for _, path := range []string{"mnt", "diff"} {
 		p := filepath.Join(home, path)
-		entries, err := ioutil.ReadDir(p)
+		entries, err := os.ReadDir(p)
 		if err != nil {
 			logger.WithError(err).WithField("dir", p).Error("error reading dir entries")
 			continue
@@ -200,7 +199,7 @@ func supportsAufs() error {
 	// proc/filesystems for when aufs is supported
 	exec.Command("modprobe", "aufs").Run()
 
-	if userns.RunningInUserNS() {
+	if unshare.IsRootless() {
 		return ErrAufsNested
 	}
 
@@ -730,14 +729,14 @@ func (a *Driver) aufsMount(ro []string, rw, target string, options graphdriver.M
 // version of aufs.
 func useDirperm() bool {
 	enableDirpermLock.Do(func() {
-		base, err := ioutil.TempDir("", "storage-aufs-base")
+		base, err := os.MkdirTemp("", "storage-aufs-base")
 		if err != nil {
 			logrus.Errorf("Checking dirperm1: %v", err)
 			return
 		}
 		defer os.RemoveAll(base)
 
-		union, err := ioutil.TempDir("", "storage-aufs-union")
+		union, err := os.MkdirTemp("", "storage-aufs-union")
 		if err != nil {
 			logrus.Errorf("Checking dirperm1: %v", err)
 			return
