@@ -2,6 +2,12 @@
 
 # Changelog
 
+## v1.26.5 (2022-09-20)
+
+    build: error out if path to containerfile is a directory
+    "make cross": ignore loong64 from target list
+    run: add container gid to additional groups
+
 ## v1.26.4 (2022-08-03)
 
     build: add --cpp-flag
