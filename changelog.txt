@@ -1,3 +1,8 @@
+- Changelog for v1.20.2 (2022-09-20)
+  * run: add container gid to additional groups
+  * run: do not set the inheritable capabilities
+  * bump github.com/prometheus/client_golang to v1.11.1
+
 - Changelog for v1.20.1 (2021-04-13)
   * Run container with isolation type set at 'from'
   * bats helpers.bash - minor refactoring
