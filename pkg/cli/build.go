@@ -50,13 +50,13 @@ func GenBuildOptions(c *cobra.Command, inputArgs []string, iopts BuildOptions) (
 	tags := []string{}
 	if iopts.Network == "none" {
 		if c.Flag("dns").Changed {
-			return options, nil, nil, errors.New("the --dns option can not be used with --network=none")
+			return options, nil, nil, errors.New("the --dns option cannot be used with --network=none")
 		}
 		if c.Flag("dns-option").Changed {
-			return options, nil, nil, errors.New("the --dns-option option can not be used with --network=none")
+			return options, nil, nil, errors.New("the --dns-option option cannot be used with --network=none")
 		}
 		if c.Flag("dns-search").Changed {
-			return options, nil, nil, errors.New("the --dns-search option can not be used with --network=none")
+			return options, nil, nil, errors.New("the --dns-search option cannot be used with --network=none")
 		}
 
 	}
