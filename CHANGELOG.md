@@ -1,6 +1,11 @@
 ![buildah logo](https://cdn.rawgit.com/containers/buildah/main/logos/buildah-logo_large.png)
 
 # Changelog
+## v1.22.5 (2022-09-20)
+    run: add container gid to additional groups
+    run: do not set the inheritable capabilities
+    Bump github.com/prometheus/client_golang to v1.11.1
+
 ## v1.22.4 (2022-01-24)
     Bump containerd to v1.5.7
     copier: RemoveAll possibly-directories
