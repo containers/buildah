@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/docker"
+	"github.com/containers/common/libimage"
 	"github.com/containers/common/pkg/util"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/compression"
@@ -139,6 +140,15 @@ func (b *Builder) fixupConfig(sys *types.SystemContext) {
 		ps := platforms.Normalize(ociv1.Platform{OS: b.OS(), Architecture: b.Architecture(), Variant: b.Variant()})
 		b.SetArchitecture(ps.Architecture)
 		b.SetVariant(ps.Variant)
+	}
+	if b.Variant() == "" {
+		if sys != nil && sys.VariantChoice != "" {
+			b.SetVariant(sys.VariantChoice)
+		}
+		// in case the arch string we started with was shorthand for a known arch+variant pair, normalize it
+		_, normalizedArch, normalizedVariant := libimage.NormalizePlatform(b.OS(), b.Architecture(), b.Variant())
+		b.SetArchitecture(normalizedArch)
+		b.SetVariant(normalizedVariant)
 	}
 	if b.Format == define.Dockerv2ImageManifest && b.Hostname() == "" {
 		b.SetHostname(stringid.TruncateID(stringid.GenerateRandomID()))
