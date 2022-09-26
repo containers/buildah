@@ -115,7 +115,7 @@ load helpers
 }
 
 @test "inspect-format-docker-variant" {
-	# github.com/containerd/containerd/platforms.Normalize() converts Arch:"armhf" to Arch:"arm"+Variant:"v7",
+	# libimage.Normalize() converts Arch:"armhf" to Arch:"arm" and variant: "v7",
 	# so check that platform normalization happens at least for that one
 	run_buildah from --quiet --pull=false $WITH_POLICY_JSON --arch=armhf scratch
 	cid=$output
