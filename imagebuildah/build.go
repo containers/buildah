@@ -285,7 +285,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 		return "", nil, merr.ErrorOrNil()
 	}
 
-	// Reasons for this id, ref assigment w.r.t to use-case:
+	// Reasons for this id, ref assignment w.r.t to use-case:
 	//
 	// * Single-platform build: On single platform build we only
 	//   have one built instance i.e on indice 0 of built instances,
@@ -294,7 +294,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	// * Multi-platform build with manifestList: If this is a build for
 	//   multiple platforms ( more than one platform ) and --manifest
 	//   option then this assignment is insignificant since it will be
-	//   overriden anyways with the id and ref of manifest list later in
+	//   overridden anyways with the id and ref of manifest list later in
 	//   in this code.
 	//
 	// * Multi-platform build without manifest list: If this is a build for
