@@ -237,7 +237,7 @@ _EOF
   run_buildah build --platform linux/arm64 $WITH_POLICY_JSON --build-arg TARGETOS=android -t test -f $BUDFILES/multiarch/Dockerfile.built-in-args
   expect_output --substring "I'm compiling for linux/arm64"
   expect_output --substring "and tagging for linux/arm64"
-  ## Note since we used --build-arg and overrided hence OS must be android
+  ## Note since we used --build-arg and overrode OS, OS must be android
   expect_output --substring "and OS android"
   expect_output --substring "and ARCH $otherarch"
   run_buildah inspect --format '{{ .OCIv1.Architecture }}' test
@@ -1337,9 +1337,9 @@ COPY --from=intermediate artifact target
 _EOF
   run_buildah build --output type=local,dest=$mytmpdir/rootfs $WITH_POLICY_JSON -t test-bud -f $mytmpdir/Containerfile .
   ls $mytmpdir/rootfs
-  # exported rootfs must contain only 'target' from last/final stage and not contain file `rouge` from first stage
+  # exported rootfs must contain only 'target' from last/final stage and not contain file `rogue` from first stage
   expect_output --substring 'target'
-  # must not contain rouge from first stage
+  # must not contain rogue from first stage
   assert "$output" =~ "rogue"
   # must not contain artifact from second stage
   assert "$output" =~ "artifact"
@@ -1366,7 +1366,7 @@ _EOF
   ls $mytmpdir/rootfs
   # exported rootfs must contain only 'target' from last/final stage and not contain file `rouge` from first stage
   expect_output --substring 'target'
-  # must not contain rouge from first stage
+  # must not contain rogue from first stage
   assert "$output" =~ "rogue"
   # must not contain artifact from second stage
   assert "$output" =~ "artifact"
@@ -4145,7 +4145,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON --timestamp 1628099045 --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
   # Specify --cache-ttl 0.5s and cache should
   # not be used since cached image is created
-  # with timestamp somwhere in past ( in ~2021 )
+  # with timestamp somewhere in past ( in ~2021 )
   run_buildah build $WITH_POLICY_JSON --cache-ttl=0.5s --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
   # Should not contain `Using cache` since all
   # cached layers are 1s old.
@@ -4176,7 +4176,7 @@ _EOF
   run_buildah build $WITH_POLICY_JSON --timestamp 1628099045 --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
   # Specify --cache-ttl 0.5s and cache should
   # not be used since cached image is created
-  # with timestamp somwhere in past ( in ~2021 )
+  # with timestamp somewhere in past ( in ~2021 )
   run_buildah --log-level debug build $WITH_POLICY_JSON --cache-ttl=0 --layers -t source -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile1
   # Should not contain `Using cache` since all
   # cached layers are 1s old.
@@ -4218,7 +4218,7 @@ _EOF
   # First run step in second stage should not be pushed since its already pushed
   run printf "STEP 2/3: RUN echo hello\n--> Using cache"
   step5=$output
-  # Last step is `COPY --from=0 hello hello' so it must be commited and pushed
+  # Last step is `COPY --from=0 hello hello' so it must be committed and pushed
   # actual output is `[2/2] STEP 3/3: COPY --from=0 hello hello\n[2/2] COMMIT test\n-->Pushing cache`
   # but lets match smaller suffix
   run printf "COMMIT test\n--> Pushing cache"
