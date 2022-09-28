@@ -29,8 +29,8 @@ RUN sed -e 's|^#mount_program|mount_program|g' \
            -e '/additionalimage.*/a "/var/lib/shared",' \
            -e 's|^mountopt[[:space:]]*=.*$|mountopt = "nodev,fsync=0"|g' \
            /usr/share/containers/storage.conf \
-           > /etc/containers/storage.conf; \
-    chmod 644 /etc/containers/storage.conf; \
+           > /etc/containers/storage.conf && \
+    chmod 644 /etc/containers/storage.conf && \
     chmod 644 /etc/containers/containers.conf
 
 RUN mkdir -p /var/lib/shared/overlay-images \
@@ -43,9 +43,9 @@ RUN mkdir -p /var/lib/shared/overlay-images \
     touch /var/lib/shared/vfs-layers/layers.lock
 
 # Define uid/gid ranges for our user https://github.com/containers/buildah/issues/3053
-RUN echo -e "build:1:999\nbuild:1001:64535" > /etc/subuid; \
- echo -e "build:1:999\nbuild:1001:64535" > /etc/subgid; \
- mkdir -p /home/build/.local/share/containers; \
+RUN echo -e "build:1:999\nbuild:1001:64535" > /etc/subuid && \
+ echo -e "build:1:999\nbuild:1001:64535" > /etc/subgid && \
+ mkdir -p /home/build/.local/share/containers && \
  chown -R build:build /home/build
 
 VOLUME /var/lib/containers
