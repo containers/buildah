@@ -106,3 +106,24 @@ EOF
     cid=$(buildah from $WITH_POLICY_JSON alpine)
     CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah --log-level=error run $cid true
 }
+
+@test "containers.conf network sysctls" {
+    if test "$BUILDAH_ISOLATION" = "chroot" ; then
+        skip "BUILDAH_ISOLATION = $BUILDAH_ISOLATION"
+    fi
+
+    cat >${TEST_SCRATCH_DIR}/containers.conf << EOF
+[containers]
+default_sysctls = [
+  "net.ipv4.ping_group_range=0 0",
+  "net.ipv4.tcp_timestamps=123"
+]
+EOF
+    _prefetch alpine
+    cat >${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine
+RUN echo -n "timestamp="; cat /proc/sys/net/ipv4/tcp_timestamps
+_EOF
+    CONTAINERS_CONF=${TEST_SCRATCH_DIR}/containers.conf run_buildah build ${TEST_SCRATCH_DIR}
+    expect_output --substring "timestamp=123"
+}
