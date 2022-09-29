@@ -43,7 +43,8 @@ RUN sed -e 's|^#mount_program|mount_program|g' \
         -e 's|^mountopt[[:space:]]*=.*$|mountopt = "nodev,fsync=0"|g' \
         /usr/share/containers/storage.conf \
         > /etc/containers/storage.conf && \
-    chmod 644 /etc/containers/storage.conf
+    chmod 644 /etc/containers/storage.conf && \
+    chmod 644 /etc/containers/containers.conf
 
 RUN mkdir -p /var/lib/shared/overlay-images \
              /var/lib/shared/overlay-layers \
