@@ -248,7 +248,7 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 			loggerPerPlatform := logger
 			if platformOptions.LogFile != "" && platformOptions.LogSplitByPlatform {
 				logFile := platformOptions.LogFile + "_" + platformOptions.OS + "_" + platformOptions.Architecture
-				f, err := os.OpenFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+				f, err := os.OpenFile(logFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 				if err != nil {
 					return fmt.Errorf("opening logfile: %q: %w", logFile, err)
 				}
@@ -377,8 +377,6 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 		return "", nil, fmt.Errorf("parsing main Dockerfile: %s: %w", containerFiles[0], err)
 	}
 
-	warnOnUnsetBuildArgs(logger, mainNode, options.Args)
-
 	// --platform was explicitly selected for this build
 	// so set correct TARGETPLATFORM in args if it is not
 	// already selected by the user.
@@ -412,6 +410,8 @@ func buildDockerfilesOnce(ctx context.Context, store storage.Store, logger *logr
 			}
 		}
 	}
+
+	warnOnUnsetBuildArgs(logger, mainNode, options.Args)
 
 	for i, d := range dockerfilecontents[1:] {
 		additionalNode, err := imagebuilder.ParseDockerfile(bytes.NewReader(d))
