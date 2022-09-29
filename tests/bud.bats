@@ -184,6 +184,22 @@ symlink(subdir)"
   expect_output --substring "invalid reference format"
 }
 
+# Try building with arch and variant
+# Issue: https://github.com/containers/buildah/issues/4276
+@test "build-with-inline-platform-and-variant" {
+  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
+  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+FROM --platform=freebsd/arm64/v8 scratch
+COPY . .
+_EOF
+
+  run_buildah build $WITH_POLICY_JSON -t test ${TEST_SCRATCH_DIR}/bud/platform
+  run_buildah inspect --format '{{ .OCIv1.Architecture }}' test
+  expect_output --substring "arm64"
+  run_buildah inspect --format '{{ .OCIv1.Variant }}' test
+  expect_output --substring "v8"
+}
+
 # Following test must fail since we are trying to run linux/arm64 on linux/amd64
 # Issue: https://github.com/containers/buildah/issues/3712
 @test "build-with-inline-platform" {

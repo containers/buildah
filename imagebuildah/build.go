@@ -17,6 +17,7 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/containers/buildah/define"
+	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/buildah/util"
 	"github.com/containers/common/libimage"
 	"github.com/containers/common/pkg/config"
@@ -216,12 +217,12 @@ func BuildDockerfiles(ctx context.Context, store storage.Store, options define.B
 	systemContext := options.SystemContext
 	for _, platform := range options.Platforms {
 		platformContext := *systemContext
-		platformSpec := platforms.Normalize(v1.Platform{
+		platformSpec := internalUtil.NormalizePlatform(v1.Platform{
 			OS:           platform.OS,
 			Architecture: platform.Arch,
 			Variant:      platform.Variant,
 		})
-		// platforms.Normalize converts an empty os value to GOOS
+		// internalUtil.NormalizePlatform converts an empty os value to GOOS
 		// so we have to check the original value here to not overwrite the default for no reason
 		if platform.OS != "" {
 			platformContext.OSChoice = platformSpec.OS
@@ -622,7 +623,7 @@ func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfi
 				if instance.Platform == nil {
 					continue
 				}
-				platform := platforms.Normalize(*instance.Platform)
+				platform := internalUtil.NormalizePlatform(*instance.Platform)
 				targetPlatforms[platforms.Format(platform)] = struct{}{}
 				logger.Debugf("image %q supports %q", baseImage, platforms.Format(platform))
 			}
@@ -633,7 +634,7 @@ func platformsForBaseImages(ctx context.Context, logger *logrus.Logger, dockerfi
 				if instance.Platform == nil {
 					continue
 				}
-				platform := platforms.Normalize(*instance.Platform)
+				platform := internalUtil.NormalizePlatform(*instance.Platform)
 				imagePlatforms[platforms.Format(platform)] = struct{}{}
 				logger.Debugf("image %q supports %q", baseImage, platforms.Format(platform))
 			}
