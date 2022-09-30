@@ -3,13 +3,13 @@
 # Build a Buildah container image from the latest version
 # of Fedora.
 #
-# RELEASE defaults to stable if unset
+# FLAVOUR defaults to stable if unset
 #
-# RELEASE=stable    aquires a stable version of Buildah
+# FLAVOUR=stable    aquires a stable version of Buildah
 #                   from the Fedoras Updates System.
-# RELEASE=testing   aquires a testing version of Buildah
+# FLAVOUR=testing   aquires a testing version of Buildah
 #                   from the Fedoras Updates System.
-# RELEASE=upstream  aquires a testing version of Buildah
+# FLAVOUR=upstream  aquires a testing version of Buildah
 #                   from the Fedora Copr Buildsystem.
 #                   https://github.com/containers/buildah
 #
@@ -20,7 +20,7 @@
 #
 
 FROM registry.fedoraproject.org/fedora:latest
-ARG RELEASE="${RELEASE:-stable}"
+ARG FLAVOUR=stable
 
 # Don't include container-selinux and remove
 # directories used by dnf that are just taking
@@ -30,7 +30,7 @@ ARG RELEASE="${RELEASE:-stable}"
 #       https://bugzilla.redhat.com/show_bug.cgi?id=1995337#c3
 RUN dnf -y update && \
     rpm --setcaps shadow-utils 2>/dev/null && \
-    case "${RELEASE}" in \
+    case "${FLAVOUR}" in \
       stable) \
         dnf -y install buildah fuse-overlayfs cpp --exclude container-selinux \
       ;; \
@@ -46,7 +46,7 @@ RUN dnf -y update && \
             --enablerepo=updates-testing  \
       ;; \
       *) \
-        printf "\\nRELEASE argument must be set and valid, currently: '${RELEASE}'\\n\\n" 1>&2 && \
+        printf "\\nFLAVOUR argument must be set and valid, currently: '${FLAVOUR}'\\n\\n" 1>&2 && \
         exit 1 \
       ;; \
     esac && \
