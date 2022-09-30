@@ -1,3 +1,16 @@
+[comment]: <> (***ATTENTION*** ***WARNING*** ***ALERT*** ***CAUTION*** ***DANGER***)
+[comment]: <> ()
+[comment]: <> (ANY changes made to this file, once commited/merged must)
+[comment]: <> (be manually copy/pasted -in markdown- into the description)
+[comment]: <> (field on Quay at the following locations:)
+[comment]: <> ()
+[comment]: <> (https://quay.io/repository/containers/buildah)
+[comment]: <> (https://quay.io/repository/buildah/stable)
+[comment]: <> (https://quay.io/repository/buildah/testing)
+[comment]: <> (https://quay.io/repository/buildah/upstream)
+[comment]: <> ()
+[comment]: <> (***ATTENTION*** ***WARNING*** ***ALERT*** ***CAUTION*** ***DANGER***)
+
 ![buildah logo](https://cdn.rawgit.com/containers/buildah/main/logos/buildah-logo_large.png)
 
 # buildahimage
