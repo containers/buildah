@@ -10,7 +10,7 @@ import (
 type UnconditionalRecursionRule struct{}
 
 // Apply applies the rule to given file.
-func (r *UnconditionalRecursionRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*UnconditionalRecursionRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -23,7 +23,7 @@ func (r *UnconditionalRecursionRule) Apply(file *lint.File, _ lint.Arguments) []
 }
 
 // Name returns the rule name.
-func (r *UnconditionalRecursionRule) Name() string {
+func (*UnconditionalRecursionRule) Name() string {
 	return "unconditional-recursion"
 }
 
@@ -151,7 +151,7 @@ var exitFunctions = map[string]map[string]bool{
 	},
 }
 
-func (w *lintUnconditionalRecursionRule) hasControlExit(node ast.Node) bool {
+func (lintUnconditionalRecursionRule) hasControlExit(node ast.Node) bool {
 	// isExit returns true if the given node makes control exit the function
 	isExit := func(node ast.Node) bool {
 		switch n := node.(type) {

@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 	"strings"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -14,7 +15,9 @@ import (
 // This has a notable false positive in that a package comment
 // could rightfully appear in a different file of the same package,
 // but that's not easy to fix since this linter is file-oriented.
-type PackageCommentsRule struct{}
+type PackageCommentsRule struct {
+	checkPackageCommentCache sync.Map
+}
 
 // Apply applies the rule to given file.
 func (r *PackageCommentsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
@@ -29,13 +32,13 @@ func (r *PackageCommentsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 	}
 
 	fileAst := file.AST
-	w := &lintPackageComments{fileAst, file, onFailure}
+	w := &lintPackageComments{fileAst, file, onFailure, r}
 	ast.Walk(w, fileAst)
 	return failures
 }
 
 // Name returns the rule name.
-func (r *PackageCommentsRule) Name() string {
+func (*PackageCommentsRule) Name() string {
 	return "package-comments"
 }
 
@@ -43,6 +46,49 @@ type lintPackageComments struct {
 	fileAst   *ast.File
 	file      *lint.File
 	onFailure func(lint.Failure)
+	rule      *PackageCommentsRule
+}
+
+func (l *lintPackageComments) checkPackageComment() []lint.Failure {
+	// deduplicate warnings in package
+	if _, exists := l.rule.checkPackageCommentCache.LoadOrStore(l.file.Pkg, struct{}{}); exists {
+		return nil
+	}
+	var docFile *ast.File     // which name is doc.go
+	var packageFile *ast.File // which name is $package.go
+	var firstFile *ast.File
+	var firstFileName string
+	for name, file := range l.file.Pkg.Files() {
+		if file.AST.Doc != nil {
+			return nil
+		}
+		if name == "doc.go" {
+			docFile = file.AST
+		}
+		if name == file.AST.Name.String()+".go" {
+			packageFile = file.AST
+		}
+		if firstFileName == "" || firstFileName > name {
+			firstFile = file.AST
+			firstFileName = name
+		}
+	}
+	// prefer warning on doc.go, $package.go over first file
+	if docFile == nil {
+		docFile = packageFile
+	}
+	if docFile == nil {
+		docFile = firstFile
+	}
+	if docFile != nil {
+		return []lint.Failure{{
+			Category:   "comments",
+			Node:       docFile,
+			Confidence: 1,
+			Failure:    "should have a package comment",
+		}}
+	}
+	return nil
 }
 
 func (l *lintPackageComments) Visit(_ ast.Node) ast.Visitor {
@@ -50,7 +96,6 @@ func (l *lintPackageComments) Visit(_ ast.Node) ast.Visitor {
 		return nil
 	}
 
-	const ref = styleGuideBase + "#package-comments"
 	prefix := "Package " + l.fileAst.Name.Name + " "
 
 	// Look for a detached package comment.
@@ -90,12 +135,9 @@ func (l *lintPackageComments) Visit(_ ast.Node) ast.Visitor {
 	}
 
 	if l.fileAst.Doc == nil {
-		l.onFailure(lint.Failure{
-			Category:   "comments",
-			Node:       l.fileAst,
-			Confidence: 0.2,
-			Failure:    "should have a package comment, unless it's in another file for this package",
-		})
+		for _, failure := range l.checkPackageComment() {
+			l.onFailure(failure)
+		}
 		return nil
 	}
 	s := l.fileAst.Doc.Text()

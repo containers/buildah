@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"reflect"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -12,15 +13,22 @@ import (
 type FunctionLength struct {
 	maxStmt  int
 	maxLines int
+	sync.Mutex
 }
 
-// Apply applies the rule to given file.
-func (r *FunctionLength) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+func (r *FunctionLength) configure(arguments lint.Arguments) {
+	r.Lock()
 	if r.maxLines == 0 {
 		maxStmt, maxLines := r.parseArguments(arguments)
 		r.maxStmt = int(maxStmt)
 		r.maxLines = int(maxLines)
 	}
+	r.Unlock()
+}
+
+// Apply applies the rule to given file.
+func (r *FunctionLength) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+	r.configure(arguments)
 
 	var failures []lint.Failure
 
@@ -39,11 +47,11 @@ func (r *FunctionLength) Apply(file *lint.File, arguments lint.Arguments) []lint
 }
 
 // Name returns the rule name.
-func (r *FunctionLength) Name() string {
+func (*FunctionLength) Name() string {
 	return "function-length"
 }
 
-func (r *FunctionLength) parseArguments(arguments lint.Arguments) (maxStmt, maxLines int64) {
+func (*FunctionLength) parseArguments(arguments lint.Arguments) (maxStmt, maxLines int64) {
 	if len(arguments) != 2 {
 		panic(fmt.Sprintf(`invalid configuration for "function-length" rule, expected 2 arguments but got %d`, len(arguments)))
 	}
@@ -64,7 +72,7 @@ func (r *FunctionLength) parseArguments(arguments lint.Arguments) (maxStmt, maxL
 		panic(fmt.Sprintf(`the configuration value for max statements in "function-length" rule cannot be negative, got %d`, maxLines))
 	}
 
-	return
+	return maxStmt, maxLines
 }
 
 type lintFuncLength struct {

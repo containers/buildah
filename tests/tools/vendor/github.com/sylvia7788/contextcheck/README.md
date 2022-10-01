@@ -17,6 +17,7 @@ func call1(ctx context.Context) {
     call2(context.Background()) // Non-inherited new context, use function like `context.WithXXX` instead
 
     call3() // Function `call3` should pass the context parameter
+    call4() // Function `call4->call3` should pass the context parameter
     ...
 }
 
@@ -29,9 +30,67 @@ func call3() {
     call2(ctx)
 }
 
+func call4() {
+    call3()
+}
+
+
+// if you want none-inherit ctx, use this function
 func getNewCtx(ctx context.Context) (newCtx context.Context) {
     ...
     return
+}
+
+/* ---------- check net/http.HandleFunc ---------- */
+
+func call5(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+}
+
+func call6(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	call5(ctx, w, r)
+	call5(context.Background(), w, r) // Non-inherited new context, use function like `context.WithXXX` or `r.Context` instead
+}
+
+func call7(in bool, w http.ResponseWriter, r *http.Request) {
+	call5(r.Context(), w, r)
+	call5(context.Background(), w, r)
+}
+
+func call8() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		call5(r.Context(), w, r)
+		call5(context.Background(), w, r) // Non-inherited new context, use function like `context.WithXXX` or `r.Context` instead
+
+		call6(w, r)
+
+		// call7 should be like `func call7(ctx context.Context, in bool, w http.ResponseWriter, r *http.Request)`
+		call7(true, w, r) // Function `call7` should pass the context parameter
+	})
+}
+```
+
+## Tips
+
+You can break ctx inheritance by this way, eg: [issue](https://github.com/sylvia7788/contextcheck/issues/2).
+
+```go
+func call1(ctx context.Context) {
+    ...
+
+    newCtx, cancel := NoInheritCancel(ctx)
+    defer cancel()
+
+    call2(newCtx)
+    ...
+}
+
+func call2(ctx context.Context) {
+    ...
+}
+
+func NoInheritCancel(_ context.Context) (context.Context,context.CancelFunc) {
+  return context.WithCancel(context.Background())
 }
 ```
 

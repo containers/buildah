@@ -183,20 +183,19 @@ func (a *analyzer) structMissingFields(lit *ast.CompositeLit, strct *types.Struc
 	keys, unnamed := literalKeys(lit)
 	fields := a.structFields(strct)
 
-	var fieldNames []string
+	if unnamed {
+		if private {
+			return fields.All[len(keys):]
+		}
+
+		return fields.Public[len(keys):]
+	}
 
 	if private {
-		// we're in same package and should match private fields
-		fieldNames = fields.All
-	} else {
-		fieldNames = fields.Public
+		return difference(fields.AllRequired, keys)
 	}
 
-	if unnamed {
-		return fieldNames[len(keys):]
-	}
-
-	return difference(fieldNames, keys)
+	return difference(fields.PublicRequired, keys)
 }
 
 func (a *analyzer) structFields(strct *types.Struct) *StructFields {

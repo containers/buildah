@@ -95,6 +95,12 @@ func (conv *converter) ConvertFile(f *ast.File) *ir.File {
 				conv.dslPkgname = imp.Name.Name
 			}
 		}
+		// Right now this list is hardcoded from the knowledge of which
+		// stdlib packages are supported inside the bytecode.
+		switch importPath {
+		case "fmt", "strings", "strconv":
+			conv.addCustomImport(result, importPath)
+		}
 	}
 
 	for _, decl := range f.Decls {
@@ -159,6 +165,10 @@ func (conv *converter) convertInitFunc(dst *ir.File, decl *ast.FuncDecl) {
 			panic(conv.errorf(stmt, "unsupported %s call", fn.Sel.Name))
 		}
 	}
+}
+
+func (conv *converter) addCustomImport(dst *ir.File, pkgPath string) {
+	dst.CustomDecls = append(dst.CustomDecls, `import "`+pkgPath+`"`)
 }
 
 func (conv *converter) addCustomDecl(dst *ir.File, decl ast.Decl) {
@@ -436,6 +446,7 @@ func (conv *converter) convertRuleExpr(call *ast.CallExpr) {
 		suggestArgs      *[]ast.Expr
 		reportArgs       *[]ast.Expr
 		atArgs           *[]ast.Expr
+		doArgs           *[]ast.Expr
 	)
 
 	for {
@@ -475,6 +486,8 @@ func (conv *converter) convertRuleExpr(call *ast.CallExpr) {
 				panic(conv.errorf(chain.Sel, "Report() can't be repeated"))
 			}
 			reportArgs = &call.Args
+		case "Do":
+			doArgs = &call.Args
 		case "At":
 			if atArgs != nil {
 				panic(conv.errorf(chain.Sel, "At() can't be repeated"))
@@ -527,13 +540,27 @@ func (conv *converter) convertRuleExpr(call *ast.CallExpr) {
 		rule.SuggestTemplate = conv.parseStringArg((*suggestArgs)[0])
 	}
 
-	if suggestArgs == nil && reportArgs == nil {
-		panic(conv.errorf(origCall, "missing Report() or Suggest() call"))
+	if suggestArgs == nil && reportArgs == nil && doArgs == nil {
+		panic(conv.errorf(origCall, "missing Report(), Suggest() or Do() call"))
 	}
-	if reportArgs == nil {
-		rule.ReportTemplate = "suggestion: " + rule.SuggestTemplate
+	if doArgs != nil {
+		if suggestArgs != nil || reportArgs != nil {
+			panic(conv.errorf(origCall, "can't combine Report/Suggest with Do yet"))
+		}
+		if matchCommentArgs != nil {
+			panic(conv.errorf(origCall, "can't use Do() with MatchComment() yet"))
+		}
+		funcName, ok := (*doArgs)[0].(*ast.Ident)
+		if !ok {
+			panic(conv.errorf((*doArgs)[0], "only named function args are supported"))
+		}
+		rule.DoFuncName = funcName.String()
 	} else {
-		rule.ReportTemplate = conv.parseStringArg((*reportArgs)[0])
+		if reportArgs == nil {
+			rule.ReportTemplate = "suggestion: " + rule.SuggestTemplate
+		} else {
+			rule.ReportTemplate = conv.parseStringArg((*reportArgs)[0])
+		}
 	}
 
 	for i, alt := range alternatives {
@@ -636,6 +663,8 @@ func (conv *converter) convertFilterExprImpl(e ast.Expr) ir.FilterExpr {
 			return ir.FilterExpr{Op: ir.FilterVarConstSliceOp, Value: op.varName}
 		case "Addressable":
 			return ir.FilterExpr{Op: ir.FilterVarAddressableOp, Value: op.varName}
+		case "Comparable":
+			return ir.FilterExpr{Op: ir.FilterVarComparableOp, Value: op.varName}
 		case "Type.Size":
 			return ir.FilterExpr{Op: ir.FilterVarTypeSizeOp, Value: op.varName}
 		}
@@ -717,6 +746,12 @@ func (conv *converter) convertFilterExprImpl(e ast.Expr) ir.FilterExpr {
 			return ir.FilterExpr{Op: ir.FilterVarObjectIsOp, Value: op.varName, Args: args}
 		case "Object.IsGlobal":
 			return ir.FilterExpr{Op: ir.FilterVarObjectIsGlobalOp, Value: op.varName}
+		case "SinkType.Is":
+			if op.varName != "$$" {
+				// TODO: remove this restriction.
+				panic(conv.errorf(e.Args[0], "sink type is only implemented for $$ var"))
+			}
+			return ir.FilterExpr{Op: ir.FilterRootSinkTypeIsOp, Value: op.varName, Args: args}
 		case "Type.HasPointers":
 			return ir.FilterExpr{Op: ir.FilterVarTypeHasPointersOp, Value: op.varName}
 		case "Type.Is":

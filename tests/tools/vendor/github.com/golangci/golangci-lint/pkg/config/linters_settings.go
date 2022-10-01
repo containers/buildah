@@ -40,8 +40,8 @@ var defaultLintersSettings = LintersSettings{
 	Gocognit: GocognitSettings{
 		MinComplexity: 30,
 	},
-	Gocritic: GocriticSettings{
-		SettingsPerCheck: map[string]GocriticCheckSettings{},
+	Gocritic: GoCriticSettings{
+		SettingsPerCheck: map[string]GoCriticCheckSettings{},
 	},
 	Godox: GodoxSettings{
 		Keywords: []string{},
@@ -133,7 +133,7 @@ type LintersSettings struct {
 	Gci              GciSettings
 	Gocognit         GocognitSettings
 	Goconst          GoConstSettings
-	Gocritic         GocriticSettings
+	Gocritic         GoCriticSettings
 	Gocyclo          GoCycloSettings
 	Godot            GodotSettings
 	Godox            GodoxSettings
@@ -151,6 +151,7 @@ type LintersSettings struct {
 	Grouper          GrouperSettings
 	Ifshort          IfshortSettings
 	ImportAs         ImportAsSettings
+	InterfaceBloat   InterfaceBloatSettings
 	Ireturn          IreturnSettings
 	Lll              LllSettings
 	MaintIdx         MaintIdxSettings
@@ -167,6 +168,7 @@ type LintersSettings struct {
 	Prealloc         PreallocSettings
 	Predeclared      PredeclaredSettings
 	Promlinter       PromlinterSettings
+	Reassign         ReassignSettings
 	Revive           ReviveSettings
 	RowsErrCheck     RowsErrCheckSettings
 	Staticcheck      StaticCheckSettings
@@ -306,6 +308,16 @@ type GoConstSettings struct {
 	IgnoreCalls         bool `mapstructure:"ignore-calls"`
 }
 
+type GoCriticSettings struct {
+	EnabledChecks    []string                         `mapstructure:"enabled-checks"`
+	DisabledChecks   []string                         `mapstructure:"disabled-checks"`
+	EnabledTags      []string                         `mapstructure:"enabled-tags"`
+	DisabledTags     []string                         `mapstructure:"disabled-tags"`
+	SettingsPerCheck map[string]GoCriticCheckSettings `mapstructure:"settings"`
+}
+
+type GoCriticCheckSettings map[string]interface{}
+
 type GoCycloSettings struct {
 	MinComplexity int `mapstructure:"min-complexity"`
 }
@@ -444,6 +456,10 @@ type ImportAsAlias struct {
 	Alias string
 }
 
+type InterfaceBloatSettings struct {
+	Max int `mapstructure:"max"`
+}
+
 type IreturnSettings struct {
 	Allow  []string `mapstructure:"allow"`
 	Reject []string `mapstructure:"reject"`
@@ -515,6 +531,10 @@ type PredeclaredSettings struct {
 type PromlinterSettings struct {
 	Strict          bool     `mapstructure:"strict"`
 	DisabledLinters []string `mapstructure:"disabled-linters"`
+}
+
+type ReassignSettings struct {
+	Patterns []string `mapstructure:"patterns"`
 }
 
 type ReviveSettings struct {

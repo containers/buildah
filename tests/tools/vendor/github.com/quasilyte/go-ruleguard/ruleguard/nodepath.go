@@ -31,8 +31,8 @@ func (p nodePath) Current() ast.Node {
 }
 
 func (p nodePath) NthParent(n int) ast.Node {
-	index := len(p.stack) - n - 1
-	if index >= 0 {
+	index := uint(len(p.stack) - n - 1)
+	if index < uint(len(p.stack)) {
 		return p.stack[index]
 	}
 	return nil

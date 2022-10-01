@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+var invalidType = types.Typ[types.Invalid]
+
 func regexpHasCaptureGroups(pattern string) bool {
 	// regexp.Compile() uses syntax.Perl flags, so
 	// we use the same flags here.

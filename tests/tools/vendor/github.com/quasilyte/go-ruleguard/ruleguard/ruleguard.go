@@ -75,7 +75,7 @@ func (e *Engine) Run(ctx *RunContext, f *ast.File) error {
 }
 
 type LoadContext struct {
-	DebugFilter  string
+	DebugFunc    string
 	DebugImports bool
 	DebugPrint   func(string)
 

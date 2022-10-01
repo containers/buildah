@@ -15,7 +15,7 @@ import (
 
 //go:generate go run ./rules/precompile.go -rules ./rules/rules.go -o ./rulesdata/rulesdata.go
 
-func init() {
+func InitEmbeddedRules() {
 	filename := "rules/rules.go"
 
 	fset := token.NewFileSet()

@@ -4,6 +4,8 @@ package astequal
 import (
 	"go/ast"
 	"go/token"
+
+	"golang.org/x/exp/typeparams"
 )
 
 // Node reports whether two AST nodes are structurally (deep) equal.
@@ -316,7 +318,8 @@ func astFuncTypeEq(x, y *ast.FuncType) bool {
 		return x == y
 	}
 	return astFieldListEq(x.Params, y.Params) &&
-		astFieldListEq(x.Results, y.Results)
+		astFieldListEq(x.Results, y.Results) &&
+		astFieldListEq(typeparams.ForFuncType(x), typeparams.ForFuncType(y))
 }
 
 func astBasicLitEq(x, y *ast.BasicLit) bool {
@@ -675,7 +678,8 @@ func astTypeSpecEq(x, y *ast.TypeSpec) bool {
 	if x == nil || y == nil {
 		return x == y
 	}
-	return astIdentEq(x.Name, y.Name) && astExprEq(x.Type, y.Type)
+	return astIdentEq(x.Name, y.Name) && astExprEq(x.Type, y.Type) &&
+		astFieldListEq(typeparams.ForTypeSpec(x), typeparams.ForTypeSpec(y))
 }
 
 func astValueSpecEq(x, y *ast.ValueSpec) bool {

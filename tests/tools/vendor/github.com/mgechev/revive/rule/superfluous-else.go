@@ -12,7 +12,7 @@ import (
 type SuperfluousElseRule struct{}
 
 // Apply applies the rule to given file.
-func (r *SuperfluousElseRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*SuperfluousElseRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 	onFailure := func(failure lint.Failure) {
 		failures = append(failures, failure)
@@ -36,7 +36,7 @@ func (r *SuperfluousElseRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fa
 }
 
 // Name returns the rule name.
-func (r *SuperfluousElseRule) Name() string {
+func (*SuperfluousElseRule) Name() string {
 	return "superfluous-else"
 }
 
@@ -82,9 +82,9 @@ func (w lintSuperfluousElse) Visit(node ast.Node) ast.Visitor {
 	lastStmt := ifStmt.Body.List[len(ifStmt.Body.List)-1]
 	switch stmt := lastStmt.(type) {
 	case *ast.BranchStmt:
-		token := stmt.Tok.String()
-		if token != "fallthrough" {
-			w.onFailure(newFailure(ifStmt.Else, "if block ends with a "+token+" statement, so drop this else and outdent its block"+extra))
+		tok := stmt.Tok.String()
+		if tok != "fallthrough" {
+			w.onFailure(newFailure(ifStmt.Else, "if block ends with a "+tok+" statement, so drop this else and outdent its block"+extra))
 		}
 	case *ast.ExprStmt:
 		if ce, ok := stmt.X.(*ast.CallExpr); ok { // it's a function call

@@ -11,7 +11,7 @@ import (
 type RangeValInClosureRule struct{}
 
 // Apply applies the rule to given file.
-func (r *RangeValInClosureRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*RangeValInClosureRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	walker := rangeValInClosure{
@@ -26,7 +26,7 @@ func (r *RangeValInClosureRule) Apply(file *lint.File, _ lint.Arguments) []lint.
 }
 
 // Name returns the rule name.
-func (r *RangeValInClosureRule) Name() string {
+func (*RangeValInClosureRule) Name() string {
 	return "range-val-in-closure"
 }
 

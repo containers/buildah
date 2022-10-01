@@ -2,7 +2,6 @@ package contextcheck
 
 import (
 	"go/ast"
-	"go/token"
 	"go/types"
 	"strconv"
 	"strings"
@@ -11,49 +10,94 @@ import (
 	"github.com/gostaticanalysis/analysisutil"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 )
 
-func NewAnalyzer() *analysis.Analyzer {
-	return &analysis.Analyzer{
+type Configuration struct {
+	DisableFact bool
+}
+
+func NewAnalyzer(cfg Configuration) *analysis.Analyzer {
+	analyzer := &analysis.Analyzer{
 		Name: "contextcheck",
 		Doc:  "check the function whether use a non-inherited context",
-		Run:  NewRun(),
+		Run:  NewRun(nil, cfg.DisableFact),
 		Requires: []*analysis.Analyzer{
 			buildssa.Analyzer,
 		},
 	}
+
+	if !cfg.DisableFact {
+		analyzer.FactTypes = append(analyzer.FactTypes, (*ctxFact)(nil))
+	}
+
+	return analyzer
 }
 
 const (
 	ctxPkg  = "context"
 	ctxName = "Context"
+
+	httpPkg = "net/http"
+	httpRes = "ResponseWriter"
+	httpReq = "Request"
 )
 
 const (
 	CtxIn      int = 1 << iota // ctx in function's param
 	CtxOut                     // ctx in function's results
 	CtxInField                 // ctx in function's field param
+)
 
-	CtxInOut = CtxIn | CtxOut
+type entryType int
+
+const (
+	EntryNone            entryType = iota
+	EntryWithCtx                   // has ctx in
+	EntryWithHttpHandler           // is http handler
 )
 
 var (
-	checkedMap     = make(map[string]bool)
-	checkedMapLock sync.RWMutex
+	pkgFactMap = make(map[*types.Package]ctxFact)
+	pkgFactMu  sync.RWMutex
 )
+
+type resInfo struct {
+	Valid bool
+	Funcs []string
+}
+
+type ctxFact map[string]resInfo
+
+func (*ctxFact) String() string { return "ctxCheck" }
+func (*ctxFact) AFact()         {}
 
 type runner struct {
 	pass     *analysis.Pass
 	ctxTyp   *types.Named
 	ctxPTyp  *types.Pointer
-	cmpPath  string
 	skipFile map[*ast.File]bool
+
+	httpResTyps []types.Type
+	httpReqTyps []types.Type
+
+	currentFact ctxFact
+	disableFact bool
 }
 
-func NewRun() func(pass *analysis.Pass) (interface{}, error) {
+func NewRun(pkgs []*packages.Package, disableFact bool) func(pass *analysis.Pass) (interface{}, error) {
+	m := make(map[string]bool)
+	for _, pkg := range pkgs {
+		m[strings.Split(pkg.PkgPath, "/")[0]] = true
+	}
 	return func(pass *analysis.Pass) (interface{}, error) {
-		r := new(runner)
+		// skip different repo
+		if !m[strings.Split(pass.Pkg.Path(), "/")[0]] {
+			return nil, nil
+		}
+
+		r := &runner{disableFact: disableFact}
 		r.run(pass)
 		return nil, nil
 	}
@@ -61,49 +105,90 @@ func NewRun() func(pass *analysis.Pass) (interface{}, error) {
 
 func (r *runner) run(pass *analysis.Pass) {
 	r.pass = pass
-	r.cmpPath = strings.Split(pass.Pkg.Path(), "/")[0]
 	pssa := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA)
 	funcs := pssa.SrcFuncs
-	name := pass.Pkg.Path()
-	_ = name
 
-	pkg := pssa.Pkg.Prog.ImportedPackage(ctxPkg)
+	// collect ctx obj
+	var ok bool
+	r.ctxTyp, r.ctxPTyp, ok = r.getRequiedType(pssa, ctxPkg, ctxName)
+	if !ok {
+		return
+	}
+
+	// collect http obj
+	r.collectHttpTyps(pssa)
+
+	r.skipFile = make(map[*ast.File]bool)
+	r.currentFact = make(ctxFact)
+
+	type entryInfo struct {
+		f  *ssa.Function // entryfunc
+		tp entryType     // entrytype
+	}
+	var tmpFuncs []entryInfo
+	for _, f := range funcs {
+		// skip checked function
+		key := f.RelString(nil)
+		if _, ok := r.currentFact[key]; ok {
+			continue
+		}
+
+		if entryType := r.checkIsEntry(f); entryType == EntryNone {
+			// record the result of nomal function
+			checkingMap := make(map[string]bool)
+			checkingMap[key] = true
+			r.setFact(key, r.checkFuncWithoutCtx(f, checkingMap), f.Name())
+			continue
+		} else {
+			tmpFuncs = append(tmpFuncs, entryInfo{f: f, tp: entryType})
+		}
+	}
+
+	for _, v := range tmpFuncs {
+		r.checkFuncWithCtx(v.f, v.tp)
+	}
+
+	if len(r.currentFact) > 0 {
+		if r.disableFact {
+			setPkgFact(pass.Pkg, r.currentFact)
+		} else {
+			pass.ExportPackageFact(&r.currentFact)
+		}
+	}
+}
+
+func (r *runner) getRequiedType(pssa *buildssa.SSA, path, name string) (obj *types.Named, pobj *types.Pointer, ok bool) {
+	pkg := pssa.Pkg.Prog.ImportedPackage(path)
 	if pkg == nil {
 		return
 	}
 
-	ctxType := pkg.Type(ctxName)
-	if ctxType == nil {
+	objTyp := pkg.Type(name)
+	if objTyp == nil {
 		return
 	}
-
-	if resNamed, ok := ctxType.Object().Type().(*types.Named); !ok {
+	obj, ok = objTyp.Object().Type().(*types.Named)
+	if !ok {
 		return
-	} else {
-		r.ctxTyp = resNamed
-		r.ctxPTyp = types.NewPointer(resNamed)
+	}
+	pobj = types.NewPointer(obj)
+
+	return
+}
+
+func (r *runner) collectHttpTyps(pssa *buildssa.SSA) {
+	objRes, pobjRes, ok := r.getRequiedType(pssa, httpPkg, httpRes)
+	if ok {
+		r.httpResTyps = append(r.httpResTyps, objRes, pobjRes)
 	}
 
-	r.skipFile = make(map[*ast.File]bool)
-
-	for _, f := range funcs {
-		// skip checked function
-		key := f.RelString(nil)
-		_, ok := getValue(key)
-		if ok {
-			continue
-		}
-
-		if !r.checkIsEntry(f, f.Pos()) {
-			continue
-		}
-
-		r.checkFuncWithCtx(f)
-		setValue(key, true)
+	objReq, pobjReq, ok := r.getRequiedType(pssa, httpPkg, httpReq)
+	if ok {
+		r.httpReqTyps = append(r.httpReqTyps, objReq, pobjReq, types.NewPointer(pobjReq))
 	}
 }
 
-func (r *runner) noImportedContext(f *ssa.Function) (ret bool) {
+func (r *runner) noImportedContextAndHttp(f *ssa.Function) (ret bool) {
 	if !f.Pos().IsValid() {
 		return false
 	}
@@ -126,7 +211,7 @@ func (r *runner) noImportedContext(f *ssa.Function) (ret bool) {
 			continue
 		}
 		path = analysisutil.RemoveVendor(path)
-		if path == ctxPkg {
+		if path == ctxPkg || path == httpPkg {
 			return false
 		}
 	}
@@ -134,16 +219,34 @@ func (r *runner) noImportedContext(f *ssa.Function) (ret bool) {
 	return true
 }
 
-func (r *runner) checkIsEntry(f *ssa.Function, pos token.Pos) (ret bool) {
-	if r.noImportedContext(f) {
-		return false
+func (r *runner) checkIsEntry(f *ssa.Function) entryType {
+	if r.noImportedContextAndHttp(f) {
+		return EntryNone
 	}
 
+	ctxIn, ctxOut := r.checkIsCtx(f)
+	if ctxOut {
+		// skip the function which generate ctx
+		return EntryNone
+	} else if ctxIn {
+		// has ctx in, ignore *http.Request.Context()
+		return EntryWithCtx
+	}
+
+	// check is `func handler(w http.ResponseWriter, r *http.Request) {}`
+	if r.checkIsHttpHandler(f) {
+		return EntryWithHttpHandler
+	}
+
+	return EntryNone
+}
+
+func (r *runner) checkIsCtx(f *ssa.Function) (in, out bool) {
 	// check params
 	tuple := f.Signature.Params()
 	for i := 0; i < tuple.Len(); i++ {
 		if r.isCtxType(tuple.At(i).Type()) {
-			ret = true
+			in = true
 			break
 		}
 	}
@@ -151,7 +254,7 @@ func (r *runner) checkIsEntry(f *ssa.Function, pos token.Pos) (ret bool) {
 	// check freevars
 	for _, param := range f.FreeVars {
 		if r.isCtxType(param.Type()) {
-			ret = true
+			in = true
 			break
 		}
 	}
@@ -159,17 +262,29 @@ func (r *runner) checkIsEntry(f *ssa.Function, pos token.Pos) (ret bool) {
 	// check results
 	tuple = f.Signature.Results()
 	for i := 0; i < tuple.Len(); i++ {
-		// skip the function which generate ctx
 		if r.isCtxType(tuple.At(i).Type()) {
-			ret = false
+			out = true
 			break
 		}
 	}
-
 	return
 }
 
-func (r *runner) collectCtxRef(f *ssa.Function) (refMap map[ssa.Instruction]bool, ok bool) {
+func (r *runner) checkIsHttpHandler(f *ssa.Function) bool {
+	// must has no result
+	if f.Signature.Results().Len() > 0 {
+		return false
+	}
+
+	// must be `func f(w http.ResponseWriter, r *http.Request) {}`
+	tuple := f.Signature.Params()
+	if tuple.Len() != 2 {
+		return false
+	}
+	return r.isHttpResType(tuple.At(0).Type()) && r.isHttpReqType(tuple.At(1).Type())
+}
+
+func (r *runner) collectCtxRef(f *ssa.Function, isHttpHandler bool) (refMap map[ssa.Instruction]bool, ok bool) {
 	ok = true
 	refMap = make(map[ssa.Instruction]bool)
 	checkedRefMap := make(map[ssa.Value]bool)
@@ -233,15 +348,21 @@ func (r *runner) collectCtxRef(f *ssa.Function) (refMap map[ssa.Instruction]bool
 		}
 	}
 
-	for _, param := range f.Params {
-		if r.isCtxType(param.Type()) {
-			checkRefs(param, false)
+	if isHttpHandler {
+		for _, v := range r.getHttpReqCtx(f) {
+			checkRefs(v, false)
 		}
-	}
+	} else {
+		for _, param := range f.Params {
+			if r.isCtxType(param.Type()) {
+				checkRefs(param, false)
+			}
+		}
 
-	for _, param := range f.FreeVars {
-		if r.isCtxType(param.Type()) {
-			checkRefs(param, false)
+		for _, param := range f.FreeVars {
+			if r.isCtxType(param.Type()) {
+				checkRefs(param, false)
+			}
 		}
 	}
 
@@ -264,23 +385,76 @@ func (r *runner) collectCtxRef(f *ssa.Function) (refMap map[ssa.Instruction]bool
 	return
 }
 
-func (r *runner) buildPkg(f *ssa.Function) {
-	if f.Blocks != nil {
-		return
+func (r *runner) getHttpReqCtx(f *ssa.Function) (rets []ssa.Value) {
+	checkedRefMap := make(map[ssa.Value]bool)
+
+	var checkRefs func(val ssa.Value, fromAddr bool)
+	var checkInstr func(instr ssa.Instruction, fromAddr bool)
+
+	checkRefs = func(val ssa.Value, fromAddr bool) {
+		if val == nil || val.Referrers() == nil {
+			return
+		}
+
+		if checkedRefMap[val] {
+			return
+		}
+		checkedRefMap[val] = true
+
+		for _, instr := range *val.Referrers() {
+			checkInstr(instr, fromAddr)
+		}
 	}
 
-	// only build the pkg which is in the same repo
-	if r.checkIsSameRepo(f.Pkg.Pkg.Path()) {
-		f.Pkg.Build()
+	checkInstr = func(instr ssa.Instruction, fromAddr bool) {
+		switch i := instr.(type) {
+		case ssa.CallInstruction:
+			// r.Context() only has one recv
+			if len(i.Common().Args) != 1 {
+				break
+			}
+
+			// find r.Context()
+			if r.getCallInstrCtxType(i)&CtxOut != CtxOut {
+				break
+			}
+
+			// check is r.Context
+			f := r.getFunction(instr)
+			if f == nil || f.Name() != ctxName {
+				break
+			}
+			if f.Signature.Recv() != nil {
+				// collect the return of r.Context
+				rets = append(rets, i.Value())
+			}
+		case *ssa.Store:
+			if !fromAddr {
+				checkRefs(i.Addr, true)
+			}
+		case *ssa.UnOp:
+			checkRefs(i, false)
+		case *ssa.Phi:
+			checkRefs(i, false)
+		case *ssa.MakeClosure:
+		case *ssa.Extract:
+			// http.Request can only be input
+		}
 	}
+
+	for _, param := range f.Params {
+		if r.isHttpReqType(param.Type()) {
+			checkRefs(param, false)
+			break
+		}
+	}
+
+	return
 }
 
-func (r *runner) checkIsSameRepo(s string) bool {
-	return strings.HasPrefix(s, r.cmpPath+"/")
-}
-
-func (r *runner) checkFuncWithCtx(f *ssa.Function) {
-	refMap, ok := r.collectCtxRef(f)
+func (r *runner) checkFuncWithCtx(f *ssa.Function, tp entryType) {
+	isHttpHandler := tp == EntryWithHttpHandler
+	refMap, ok := r.collectCtxRef(f, isHttpHandler)
 	if !ok {
 		return
 	}
@@ -299,7 +473,11 @@ func (r *runner) checkFuncWithCtx(f *ssa.Function) {
 
 			if tp&CtxIn != 0 {
 				if !refMap[instr] {
-					r.pass.Reportf(instr.Pos(), "Non-inherited new context, use function like `context.WithXXX` instead")
+					if isHttpHandler {
+						r.pass.Reportf(instr.Pos(), "Non-inherited new context, use function like `context.WithXXX` or `r.Context` instead")
+					} else {
+						r.pass.Reportf(instr.Pos(), "Non-inherited new context, use function like `context.WithXXX` instead")
+					}
 				}
 			}
 
@@ -309,29 +487,10 @@ func (r *runner) checkFuncWithCtx(f *ssa.Function) {
 			}
 
 			key := ff.RelString(nil)
-			valid, ok := getValue(key)
+			res, ok := r.getValue(key, ff)
 			if ok {
-				if !valid {
-					r.pass.Reportf(instr.Pos(), "Function `%s` should pass the context parameter", ff.Name())
-				}
-				continue
-			}
-
-			// check is thunk or bound
-			if strings.HasSuffix(key, "$thunk") || strings.HasSuffix(key, "$bound") {
-				continue
-			}
-
-			// if ff has no ctx, start deep traversal check
-			if !r.checkIsEntry(ff, instr.Pos()) {
-				r.buildPkg(ff)
-
-				checkingMap := make(map[string]bool)
-				checkingMap[key] = true
-				valid := r.checkFuncWithoutCtx(ff, checkingMap)
-				setValue(key, valid)
-				if !valid {
-					r.pass.Reportf(instr.Pos(), "Function `%s` should pass the context parameter", ff.Name())
+				if !res.Valid {
+					r.pass.Reportf(instr.Pos(), "Function `%s` should pass the context parameter", strings.Join(reverse(res.Funcs), "->"))
 				}
 			}
 		}
@@ -340,6 +499,7 @@ func (r *runner) checkFuncWithCtx(f *ssa.Function) {
 
 func (r *runner) checkFuncWithoutCtx(f *ssa.Function, checkingMap map[string]bool) (ret bool) {
 	ret = true
+	orgKey := f.RelString(nil)
 	for _, b := range f.Blocks {
 		for _, instr := range b.Instrs {
 			tp, ok := r.getCtxType(instr)
@@ -356,7 +516,6 @@ func (r *runner) checkFuncWithoutCtx(f *ssa.Function, checkingMap map[string]boo
 				if tp&CtxInField == 0 {
 					ret = false
 				}
-				continue
 			}
 
 			ff := r.getFunction(instr)
@@ -365,11 +524,13 @@ func (r *runner) checkFuncWithoutCtx(f *ssa.Function, checkingMap map[string]boo
 			}
 
 			key := ff.RelString(nil)
-			valid, ok := getValue(key)
+			res, ok := r.getValue(key, ff)
 			if ok {
-				if !valid {
+				if !res.Valid {
 					ret = false
-					r.pass.Reportf(instr.Pos(), "Function `%s` should pass the context parameter", ff.Name())
+
+					// save the call link
+					r.setFact(orgKey, res.Valid, res.Funcs...)
 				}
 				continue
 			}
@@ -379,20 +540,22 @@ func (r *runner) checkFuncWithoutCtx(f *ssa.Function, checkingMap map[string]boo
 				continue
 			}
 
-			if !r.checkIsEntry(ff, instr.Pos()) {
-				// handler ring call
+			if entryType := r.checkIsEntry(ff); entryType == EntryNone {
+				// cannot get info from fact, skip
+				if ff.Blocks == nil {
+					continue
+				}
+
+				// handler cycle call
 				if checkingMap[key] {
 					continue
 				}
 				checkingMap[key] = true
 
-				r.buildPkg(ff)
-
 				valid := r.checkFuncWithoutCtx(ff, checkingMap)
-				setValue(key, valid)
+				r.setFact(orgKey, valid, ff.Name())
 				if !valid {
 					ret = false
-					r.pass.Reportf(instr.Pos(), "Function `%s` should pass the context parameter", ff.Name())
 				}
 			}
 		}
@@ -493,15 +656,78 @@ func (r *runner) isCtxType(tp types.Type) bool {
 	return types.Identical(tp, r.ctxTyp) || types.Identical(tp, r.ctxPTyp)
 }
 
-func getValue(key string) (valid, ok bool) {
-	checkedMapLock.RLock()
-	valid, ok = checkedMap[key]
-	checkedMapLock.RUnlock()
+func (r *runner) isHttpResType(tp types.Type) bool {
+	for _, v := range r.httpResTyps {
+		if ok := types.Identical(v, v); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *runner) isHttpReqType(tp types.Type) bool {
+	for _, v := range r.httpReqTyps {
+		if ok := types.Identical(tp, v); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *runner) getValue(key string, f *ssa.Function) (res resInfo, ok bool) {
+	res, ok = r.currentFact[key]
+	if ok {
+		return
+	}
+
+	if f.Pkg == nil {
+		return
+	}
+
+	var fact ctxFact
+	var got bool
+	if r.disableFact {
+		fact, got = getPkgFact(f.Pkg.Pkg)
+	} else {
+		got = r.pass.ImportPackageFact(f.Pkg.Pkg, &fact)
+	}
+	if got {
+		res, ok = fact[key]
+	}
 	return
 }
 
-func setValue(key string, valid bool) {
-	checkedMapLock.Lock()
-	checkedMap[key] = valid
-	checkedMapLock.Unlock()
+func (r *runner) setFact(key string, valid bool, funcs ...string) {
+	r.currentFact[key] = resInfo{
+		Valid: valid,
+		Funcs: append(r.currentFact[key].Funcs, funcs...),
+	}
+}
+
+// setPkgFact save fact to mem
+func setPkgFact(pkg *types.Package, fact ctxFact) {
+	pkgFactMu.Lock()
+	pkgFactMap[pkg] = fact
+	pkgFactMu.Unlock()
+}
+
+// getPkgFact get fact from mem
+func getPkgFact(pkg *types.Package) (fact ctxFact, ok bool) {
+	pkgFactMu.RLock()
+	fact, ok = pkgFactMap[pkg]
+	pkgFactMu.RUnlock()
+	return
+}
+
+func reverse(arr1 []string) (arr2 []string) {
+	l := len(arr1)
+	if l == 0 {
+		return
+	}
+	arr2 = make([]string, l)
+	for i := 0; i <= l/2; i++ {
+		arr2[i] = arr1[l-1-i]
+		arr2[l-1-i] = arr1[i]
+	}
+	return
 }

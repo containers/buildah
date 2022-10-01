@@ -10,16 +10,6 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-var newLines = map[rune]bool{
-	0x000A: true,
-	0x000B: true,
-	0x000C: true,
-	0x000D: true,
-	0x0085: true,
-	0x2028: true,
-	0x2029: true,
-}
-
 func getErrorEmoji() string {
 	return color.RedString("✘")
 }
@@ -35,7 +25,7 @@ type Friendly struct {
 }
 
 // Name returns the name of the formatter
-func (f *Friendly) Name() string {
+func (*Friendly) Name() string {
 	return "friendly"
 }
 
@@ -78,7 +68,7 @@ func (f *Friendly) printHeaderRow(failure lint.Failure, severity lint.Severity) 
 	fmt.Print(f.table([][]string{{emoji, "https://revive.run/r#" + failure.RuleName, color.GreenString(failure.Failure)}}))
 }
 
-func (f *Friendly) printFilePosition(failure lint.Failure) {
+func (*Friendly) printFilePosition(failure lint.Failure) {
 	fmt.Printf("  %s:%d:%d", failure.GetFilename(), failure.Position.Start.Line, failure.Position.Start.Column)
 }
 
@@ -87,7 +77,7 @@ type statEntry struct {
 	failures int
 }
 
-func (f *Friendly) printSummary(errors, warnings int) {
+func (*Friendly) printSummary(errors, warnings int) {
 	emoji := getWarningEmoji()
 	if errors > 0 {
 		emoji = getErrorEmoji()
@@ -136,7 +126,7 @@ func (f *Friendly) printStatistics(header string, stats map[string]int) {
 	fmt.Println(f.table(formatted))
 }
 
-func (f *Friendly) table(rows [][]string) string {
+func (*Friendly) table(rows [][]string) string {
 	buf := new(bytes.Buffer)
 	table := tablewriter.NewWriter(buf)
 	table.SetBorder(false)

@@ -67,7 +67,7 @@ var Analyzer = &analysis.Analyzer{
 		}
 		cfg, err := Load(dir)
 		if err != nil {
-			return nil, fmt.Errorf("loading staticcheck.conf: %s", err)
+			return nil, fmt.Errorf("error loading staticcheck.conf: %s", err)
 		}
 		return &cfg, nil
 	},

@@ -20,6 +20,10 @@ func (l ImportList) Len() int {
 }
 
 func (l ImportList) Less(i, j int) bool {
+	if strings.Compare(l[i].Path, l[j].Path) == 0 {
+		return strings.Compare(l[i].Name, l[j].Name) < 0
+	}
+
 	return strings.Compare(l[i].Path, l[j].Path) < 0
 }
 

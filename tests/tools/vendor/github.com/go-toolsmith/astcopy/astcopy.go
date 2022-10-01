@@ -3,6 +3,8 @@ package astcopy
 
 import (
 	"go/ast"
+
+	"golang.org/x/exp/typeparams"
 )
 
 // Node returns x node deep copy.
@@ -341,6 +343,9 @@ func FuncType(x *ast.FuncType) *ast.FuncType {
 	cp := *x
 	cp.Params = FieldList(x.Params)
 	cp.Results = FieldList(x.Results)
+	if typeParams := typeparams.ForFuncType(x); typeParams != nil {
+		*typeparams.ForFuncType(&cp) = *FieldList(typeParams)
+	}
 	return &cp
 }
 
@@ -429,6 +434,9 @@ func TypeSpec(x *ast.TypeSpec) *ast.TypeSpec {
 	cp.Type = copyExpr(x.Type)
 	cp.Doc = CommentGroup(x.Doc)
 	cp.Comment = CommentGroup(x.Comment)
+	if typeParams := typeparams.ForTypeSpec(x); typeParams != nil {
+		*typeparams.ForTypeSpec(&cp) = *FieldList(typeParams)
+	}
 	return &cp
 }
 

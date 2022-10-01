@@ -9,6 +9,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"github.com/sashamelentyev/usestdlibvars/pkg/analyzer/internal/mapping"
 )
 
 const (
@@ -48,9 +50,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	filter := []ast.Node{
-		(*ast.BasicLit)(nil),
 		(*ast.CallExpr)(nil),
+		(*ast.BasicLit)(nil),
 		(*ast.CompositeLit)(nil),
+		(*ast.IfStmt)(nil),
+		(*ast.SwitchStmt)(nil),
 	}
 
 	insp.Preorder(filter, func(node ast.Node) {
@@ -61,32 +65,77 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				return
 			}
 
-			switch selectorExpr.Sel.Name {
-			case "WriteHeader":
-				if !lookupFlag(pass, HTTPStatusCodeFlag) {
-					return
-				}
+			ident, ok := selectorExpr.X.(*ast.Ident)
+			if !ok {
+				return
+			}
 
-				if basicLit := getBasicLitFromArgs(n.Args, 1, 0, token.INT); basicLit != nil {
-					checkHTTPStatusCode(pass, basicLit)
-				}
+			switch ident.Name {
+			case "http":
+				switch selectorExpr.Sel.Name {
+				case "NewRequest":
+					if !lookupFlag(pass, HTTPMethodFlag) {
+						return
+					}
 
-			case "NewRequest":
-				if !lookupFlag(pass, HTTPMethodFlag) {
-					return
-				}
+					if basicLit := getBasicLitFromArgs(n.Args, 3, 0, token.STRING); basicLit != nil {
+						checkHTTPMethod(pass, basicLit)
+					}
 
-				if basicLit := getBasicLitFromArgs(n.Args, 3, 0, token.STRING); basicLit != nil {
-					checkHTTPMethod(pass, basicLit)
-				}
+				case "NewRequestWithContext":
+					if !lookupFlag(pass, HTTPMethodFlag) {
+						return
+					}
 
-			case "NewRequestWithContext":
-				if !lookupFlag(pass, HTTPMethodFlag) {
-					return
-				}
+					if basicLit := getBasicLitFromArgs(n.Args, 4, 1, token.STRING); basicLit != nil {
+						checkHTTPMethod(pass, basicLit)
+					}
 
-				if basicLit := getBasicLitFromArgs(n.Args, 4, 1, token.STRING); basicLit != nil {
-					checkHTTPMethod(pass, basicLit)
+				case "Error":
+					if !lookupFlag(pass, HTTPStatusCodeFlag) {
+						return
+					}
+
+					if basicLit := getBasicLitFromArgs(n.Args, 3, 2, token.INT); basicLit != nil {
+						checkHTTPStatusCode(pass, basicLit)
+					}
+
+				case "StatusText":
+					if !lookupFlag(pass, HTTPStatusCodeFlag) {
+						return
+					}
+
+					if basicLit := getBasicLitFromArgs(n.Args, 1, 0, token.INT); basicLit != nil {
+						checkHTTPStatusCode(pass, basicLit)
+					}
+
+				case "Redirect":
+					if !lookupFlag(pass, HTTPStatusCodeFlag) {
+						return
+					}
+
+					if basicLit := getBasicLitFromArgs(n.Args, 4, 3, token.INT); basicLit != nil {
+						checkHTTPStatusCode(pass, basicLit)
+					}
+
+				case "RedirectHandler":
+					if !lookupFlag(pass, HTTPStatusCodeFlag) {
+						return
+					}
+
+					if basicLit := getBasicLitFromArgs(n.Args, 2, 1, token.INT); basicLit != nil {
+						checkHTTPStatusCode(pass, basicLit)
+					}
+				}
+			default:
+				if selectorExpr.Sel.Name == "WriteHeader" {
+					if !lookupFlag(pass, HTTPStatusCodeFlag) {
+						return
+					}
+
+					if basicLit := getBasicLitFromArgs(n.Args, 1, 0, token.INT); basicLit != nil {
+						checkHTTPStatusCode(pass, basicLit)
+					}
 				}
 			}
 
@@ -127,13 +176,90 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			if ident.Name == "http" {
 				switch selectorExpr.Sel.Name {
 				case "Request":
+					if !lookupFlag(pass, HTTPMethodFlag) {
+						return
+					}
+
 					if basicLit := getBasicLitFromElts(n.Elts, "Method"); basicLit != nil {
 						checkHTTPMethod(pass, basicLit)
 					}
+
 				case "Response":
+					if !lookupFlag(pass, HTTPStatusCodeFlag) {
+						return
+					}
+
 					if basicLit := getBasicLitFromElts(n.Elts, "StatusCode"); basicLit != nil {
 						checkHTTPStatusCode(pass, basicLit)
 					}
+				}
+			}
+
+		case *ast.IfStmt:
+			binaryExpr, ok := n.Cond.(*ast.BinaryExpr)
+			if !ok {
+				return
+			}
+
+			selectorExpr, ok := binaryExpr.X.(*ast.SelectorExpr)
+			if !ok {
+				return
+			}
+
+			basicLit, ok := binaryExpr.Y.(*ast.BasicLit)
+			if !ok {
+				return
+			}
+
+			switch selectorExpr.Sel.Name {
+			case "StatusCode":
+				if !lookupFlag(pass, HTTPStatusCodeFlag) {
+					return
+				}
+
+				checkHTTPStatusCode(pass, basicLit)
+			case "Method":
+				if !lookupFlag(pass, HTTPMethodFlag) {
+					return
+				}
+
+				checkHTTPMethod(pass, basicLit)
+			}
+
+		case *ast.SwitchStmt:
+			selectorExpr, ok := n.Tag.(*ast.SelectorExpr)
+			if !ok {
+				return
+			}
+
+			var checkFunc func(pass *analysis.Pass, basicLit *ast.BasicLit)
+
+			switch selectorExpr.Sel.Name {
+			case "StatusCode":
+				if !lookupFlag(pass, HTTPStatusCodeFlag) {
+					return
+				}
+				checkFunc = checkHTTPStatusCode
+			case "Method":
+				if !lookupFlag(pass, HTTPMethodFlag) {
+					return
+				}
+				checkFunc = checkHTTPMethod
+			default:
+				return
+			}
+
+			for _, stmt := range n.Body.List {
+				caseClause, ok := stmt.(*ast.CaseClause)
+				if !ok {
+					continue
+				}
+				for _, expr := range caseClause.List {
+					basicLit, ok := expr.(*ast.BasicLit)
+					if !ok {
+						continue
+					}
+					checkFunc(pass, basicLit)
 				}
 			}
 		}
@@ -149,61 +275,55 @@ func lookupFlag(pass *analysis.Pass, name string) bool {
 func checkHTTPMethod(pass *analysis.Pass, basicLit *ast.BasicLit) {
 	currentVal := getBasicLitValue(basicLit)
 
-	newVal, ok := httpMethod[currentVal]
-	if ok {
-		report(pass, basicLit.Pos(), newVal, currentVal)
+	if newVal, ok := mapping.HTTPMethod[strings.ToUpper(currentVal)]; ok {
+		report(pass, basicLit.Pos(), currentVal, newVal)
 	}
 }
 
 func checkHTTPStatusCode(pass *analysis.Pass, basicLit *ast.BasicLit) {
 	currentVal := getBasicLitValue(basicLit)
 
-	newVal, ok := httpStatusCode[currentVal]
-	if ok {
-		report(pass, basicLit.Pos(), newVal, currentVal)
+	if newVal, ok := mapping.HTTPStatusCode[currentVal]; ok {
+		report(pass, basicLit.Pos(), currentVal, newVal)
 	}
 }
 
 func checkTimeWeekday(pass *analysis.Pass, pos token.Pos, currentVal string) {
-	newVal, ok := timeWeekday[currentVal]
-	if ok {
-		report(pass, pos, newVal, currentVal)
+	if newVal, ok := mapping.TimeWeekday[currentVal]; ok {
+		report(pass, pos, currentVal, newVal)
 	}
 }
 
 func checkTimeMonth(pass *analysis.Pass, pos token.Pos, currentVal string) {
-	newVal, ok := timeMonth[currentVal]
-	if ok {
-		report(pass, pos, newVal, currentVal)
+	if newVal, ok := mapping.TimeMonth[currentVal]; ok {
+		report(pass, pos, currentVal, newVal)
 	}
 }
 
 func checkTimeLayout(pass *analysis.Pass, pos token.Pos, currentVal string) {
-	newVal, ok := timeLayout[currentVal]
-	if ok {
-		report(pass, pos, newVal, currentVal)
+	if newVal, ok := mapping.TimeLayout[currentVal]; ok {
+		report(pass, pos, currentVal, newVal)
 	}
 }
 
 func checkCryptoHash(pass *analysis.Pass, pos token.Pos, currentVal string) {
-	newVal, ok := cryptoHash[currentVal]
-	if ok {
-		report(pass, pos, newVal, currentVal)
+	if newVal, ok := mapping.CryptoHash[currentVal]; ok {
+		report(pass, pos, currentVal, newVal)
 	}
 }
 
 func checkDefaultRPCPath(pass *analysis.Pass, pos token.Pos, currentVal string) {
-	newVal, ok := defaultRPCPath[currentVal]
-	if ok {
-		report(pass, pos, newVal, currentVal)
+	if newVal, ok := mapping.DefaultRPCPath[currentVal]; ok {
+		report(pass, pos, currentVal, newVal)
 	}
 }
 
 // getBasicLitFromArgs gets the *ast.BasicLit of a function argument.
 //
-// - count: expected number of argument in function
-// - idx: index of the argument to get the *ast.BasicLit
-// - typ: argument type
+// Arguments:
+//   - count - expected number of argument in function
+//   - idx - index of the argument to get the *ast.BasicLit
+//   - typ - argument type
 func getBasicLitFromArgs(args []ast.Expr, count, idx int, typ token.Token) *ast.BasicLit {
 	if len(args) != count {
 		return nil
@@ -223,33 +343,33 @@ func getBasicLitFromArgs(args []ast.Expr, count, idx int, typ token.Token) *ast.
 
 // getBasicLitFromElts gets the *ast.BasicLit of a struct elements.
 //
-// - key: name of key in struct
+// Arguments:
+//   - key: name of key in struct
 func getBasicLitFromElts(elts []ast.Expr, key string) *ast.BasicLit {
 	for _, e := range elts {
 		expr, ok := e.(*ast.KeyValueExpr)
 		if !ok {
 			continue
 		}
-		i, ok := expr.Key.(*ast.Ident)
+		ident, ok := expr.Key.(*ast.Ident)
 		if !ok {
 			continue
 		}
-		if i.Name != key {
+		if ident.Name != key {
 			continue
 		}
-		basicLit, ok := expr.Value.(*ast.BasicLit)
-		if !ok {
-			continue
+		if basicLit, ok := expr.Value.(*ast.BasicLit); ok {
+			return basicLit
 		}
-		return basicLit
 	}
 	return nil
 }
 
+// getBasicLitValue returns BasicLit value as string without quotes
 func getBasicLitValue(basicLit *ast.BasicLit) string {
 	return strings.Trim(basicLit.Value, "\"")
 }
 
-func report(pass *analysis.Pass, pos token.Pos, newVal, currentVal string) {
+func report(pass *analysis.Pass, pos token.Pos, currentVal, newVal string) {
 	pass.Reportf(pos, `%q can be replaced by %s`, currentVal, newVal)
 }

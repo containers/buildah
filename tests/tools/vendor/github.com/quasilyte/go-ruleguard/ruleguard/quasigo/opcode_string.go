@@ -34,29 +34,32 @@ func _() {
 	_ = x[opJumpTrue-23]
 	_ = x[opSetVariadicLen-24]
 	_ = x[opCallNative-25]
-	_ = x[opIsNil-26]
-	_ = x[opIsNotNil-27]
-	_ = x[opNot-28]
-	_ = x[opEqInt-29]
-	_ = x[opNotEqInt-30]
-	_ = x[opGtInt-31]
-	_ = x[opGtEqInt-32]
-	_ = x[opLtInt-33]
-	_ = x[opLtEqInt-34]
-	_ = x[opEqString-35]
-	_ = x[opNotEqString-36]
-	_ = x[opConcat-37]
-	_ = x[opAdd-38]
-	_ = x[opSub-39]
-	_ = x[opStringSlice-40]
-	_ = x[opStringSliceFrom-41]
-	_ = x[opStringSliceTo-42]
-	_ = x[opStringLen-43]
+	_ = x[opCall-26]
+	_ = x[opIntCall-27]
+	_ = x[opVoidCall-28]
+	_ = x[opIsNil-29]
+	_ = x[opIsNotNil-30]
+	_ = x[opNot-31]
+	_ = x[opEqInt-32]
+	_ = x[opNotEqInt-33]
+	_ = x[opGtInt-34]
+	_ = x[opGtEqInt-35]
+	_ = x[opLtInt-36]
+	_ = x[opLtEqInt-37]
+	_ = x[opEqString-38]
+	_ = x[opNotEqString-39]
+	_ = x[opConcat-40]
+	_ = x[opAdd-41]
+	_ = x[opSub-42]
+	_ = x[opStringSlice-43]
+	_ = x[opStringSliceFrom-44]
+	_ = x[opStringSliceTo-45]
+	_ = x[opStringLen-46]
 }
 
-const _opcode_name = "InvalidPopDupPushParamPushIntParamPushLocalPushIntLocalPushFalsePushTruePushConstPushIntConstConvIntToIfaceSetLocalSetIntLocalIncLocalDecLocalReturnTopReturnIntTopReturnFalseReturnTrueReturnJumpJumpFalseJumpTrueSetVariadicLenCallNativeIsNilIsNotNilNotEqIntNotEqIntGtIntGtEqIntLtIntLtEqIntEqStringNotEqStringConcatAddSubStringSliceStringSliceFromStringSliceToStringLen"
+const _opcode_name = "InvalidPopDupPushParamPushIntParamPushLocalPushIntLocalPushFalsePushTruePushConstPushIntConstConvIntToIfaceSetLocalSetIntLocalIncLocalDecLocalReturnTopReturnIntTopReturnFalseReturnTrueReturnJumpJumpFalseJumpTrueSetVariadicLenCallNativeCallIntCallVoidCallIsNilIsNotNilNotEqIntNotEqIntGtIntGtEqIntLtIntLtEqIntEqStringNotEqStringConcatAddSubStringSliceStringSliceFromStringSliceToStringLen"
 
-var _opcode_index = [...]uint16{0, 7, 10, 13, 22, 34, 43, 55, 64, 72, 81, 93, 107, 115, 126, 134, 142, 151, 163, 174, 184, 190, 194, 203, 211, 225, 235, 240, 248, 251, 256, 264, 269, 276, 281, 288, 296, 307, 313, 316, 319, 330, 345, 358, 367}
+var _opcode_index = [...]uint16{0, 7, 10, 13, 22, 34, 43, 55, 64, 72, 81, 93, 107, 115, 126, 134, 142, 151, 163, 174, 184, 190, 194, 203, 211, 225, 235, 239, 246, 254, 259, 267, 270, 275, 283, 288, 295, 300, 307, 315, 326, 332, 335, 338, 349, 364, 377, 386}
 
 func (i opcode) String() string {
 	if i >= opcode(len(_opcode_index)-1) {

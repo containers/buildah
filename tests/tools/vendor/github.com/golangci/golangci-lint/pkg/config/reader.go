@@ -122,7 +122,7 @@ func (r *FileReader) validateConfig() error {
 	}
 	for i, rule := range c.Issues.ExcludeRules {
 		if err := rule.Validate(); err != nil {
-			return fmt.Errorf("in exclude rule #%d: %v", i, err)
+			return fmt.Errorf("error in exclude rule #%d: %v", i, err)
 		}
 	}
 	if len(c.Severity.Rules) > 0 && c.Severity.Default == "" {
@@ -130,11 +130,11 @@ func (r *FileReader) validateConfig() error {
 	}
 	for i, rule := range c.Severity.Rules {
 		if err := rule.Validate(); err != nil {
-			return fmt.Errorf("in severity rule #%d: %v", i, err)
+			return fmt.Errorf("error in severity rule #%d: %v", i, err)
 		}
 	}
 	if err := c.LintersSettings.Govet.Validate(); err != nil {
-		return fmt.Errorf("in govet config: %v", err)
+		return fmt.Errorf("error in govet config: %v", err)
 	}
 	return nil
 }

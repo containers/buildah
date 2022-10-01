@@ -11,7 +11,7 @@ import (
 type ModifiesValRecRule struct{}
 
 // Apply applies the rule to given file.
-func (r *ModifiesValRecRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*ModifiesValRecRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -26,7 +26,7 @@ func (r *ModifiesValRecRule) Apply(file *lint.File, _ lint.Arguments) []lint.Fai
 }
 
 // Name returns the rule name.
-func (r *ModifiesValRecRule) Name() string {
+func (*ModifiesValRecRule) Name() string {
 	return "modifies-value-receiver"
 }
 
