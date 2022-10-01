@@ -25,6 +25,35 @@ load helpers
   expect_output --substring "options use-vc"
 }
 
+# Test for https://github.com/containers/buildah/pull/4295
+@test "build test warning for preconfigured TARGETARCH, TARGETOS, TARGETPLATFORM or TARGETVARIANT" {
+  _prefetch alpine
+  containerfile=${TEST_SCRATCH_DIR}/Containerfile
+
+  # buildah should not warn when any of these is indirectly set by cli options
+  local -a checkvars=(ARCH OS PLATFORM VARIANT)
+  echo "FROM alpine" >$containerfile
+  for var in "${checkvars[@]}"; do
+    echo "ARG TARGET${var}" >>$containerfile
+  done
+  echo "COPY . ." >>$containerfile
+
+  # With explicit and full --platform, there should be no warnings
+  run_buildah build $WITH_POLICY_JSON --platform linux/amd64/v2 -t source -f $containerfile
+  assert "$output" !~ "missing .* build argument" \
+         "With explicit --platform, buildah should not warn"
+
+  # Without --platform, we want one warning for each variable
+  run_buildah build $WITH_POLICY_JSON -t source -f $containerfile
+#  for var in "${checkvars[@]}"; do
+  for i in $(seq 0 3); do
+    var="TARGET${checkvars[$i]}"
+    # The '..'s cover backslash-quote: "missing \"TARGETFOO\" ..."
+    assert "${lines[$i]}" =~ "missing ..${var}.. build argument" \
+           "buildah should warn about undefined ${var}"
+  done
+}
+
 @test "build-conflicting-isolation-chroot-and-network" {
   _prefetch alpine
   cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
