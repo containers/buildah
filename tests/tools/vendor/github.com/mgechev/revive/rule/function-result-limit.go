@@ -3,6 +3,7 @@ package rule
 import (
 	"fmt"
 	"go/ast"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -10,10 +11,11 @@ import (
 // FunctionResultsLimitRule lints given else constructs.
 type FunctionResultsLimitRule struct {
 	max int
+	sync.Mutex
 }
 
-// Apply applies the rule to given file.
-func (r *FunctionResultsLimitRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+func (r *FunctionResultsLimitRule) configure(arguments lint.Arguments) {
+	r.Lock()
 	if r.max == 0 {
 		checkNumberOfArguments(1, arguments, r.Name())
 
@@ -26,6 +28,12 @@ func (r *FunctionResultsLimitRule) Apply(file *lint.File, arguments lint.Argumen
 		}
 		r.max = int(max)
 	}
+	r.Unlock()
+}
+
+// Apply applies the rule to given file.
+func (r *FunctionResultsLimitRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+	r.configure(arguments)
 
 	var failures []lint.Failure
 
@@ -42,7 +50,7 @@ func (r *FunctionResultsLimitRule) Apply(file *lint.File, arguments lint.Argumen
 }
 
 // Name returns the rule name.
-func (r *FunctionResultsLimitRule) Name() string {
+func (*FunctionResultsLimitRule) Name() string {
 	return "function-result-limit"
 }
 

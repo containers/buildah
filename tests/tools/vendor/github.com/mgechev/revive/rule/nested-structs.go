@@ -10,12 +10,8 @@ import (
 type NestedStructs struct{}
 
 // Apply applies the rule to given file.
-func (r *NestedStructs) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+func (*NestedStructs) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
-
-	if len(arguments) > 0 {
-		panic(r.Name() + " doesn't take any arguments")
-	}
 
 	walker := &lintNestedStructs{
 		fileAST: file.AST,
@@ -30,7 +26,7 @@ func (r *NestedStructs) Apply(file *lint.File, arguments lint.Arguments) []lint.
 }
 
 // Name returns the rule name.
-func (r *NestedStructs) Name() string {
+func (*NestedStructs) Name() string {
 	return "nested-structs"
 }
 
@@ -47,6 +43,11 @@ func (l *lintNestedStructs) Visit(n ast.Node) ast.Visitor {
 		}
 		return nil
 	case *ast.Field:
+		_, isChannelField := v.Type.(*ast.ChanType)
+		if isChannelField {
+			return nil
+		}
+
 		filter := func(n ast.Node) bool {
 			switch n.(type) {
 			case *ast.StructType:

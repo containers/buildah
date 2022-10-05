@@ -34,12 +34,15 @@ import (
 // initialization only imports.
 //
 // Usage:
-// 	node, matched := MatchCallByPackage(n, ctx, "math/rand", "Read")
 //
+//	node, matched := MatchCallByPackage(n, ctx, "math/rand", "Read")
 func MatchCallByPackage(n ast.Node, c *Context, pkg string, names ...string) (*ast.CallExpr, bool) {
 	importedName, found := GetImportedName(pkg, c)
 	if !found {
-		return nil, false
+		importedName, found = GetAliasedName(pkg, c)
+		if !found {
+			return nil, false
+		}
 	}
 
 	if callExpr, ok := n.(*ast.CallExpr); ok {
@@ -245,7 +248,7 @@ func GetBinaryExprOperands(be *ast.BinaryExpr) []ast.Node {
 }
 
 // GetImportedName returns the name used for the package within the
-// code. It will resolve aliases and ignores initialization only imports.
+// code. It will ignore initialization only imports.
 func GetImportedName(path string, ctx *Context) (string, bool) {
 	importName, imported := ctx.Imports.Imported[path]
 	if !imported {
@@ -256,20 +259,39 @@ func GetImportedName(path string, ctx *Context) (string, bool) {
 		return "", false
 	}
 
-	if alias, ok := ctx.Imports.Aliased[path]; ok {
-		importName = alias
+	return importName, true
+}
+
+// GetAliasedName returns the aliased name used for the package within the
+// code. It will ignore initialization only imports.
+func GetAliasedName(path string, ctx *Context) (string, bool) {
+	importName, imported := ctx.Imports.Aliased[path]
+	if !imported {
+		return "", false
 	}
+
+	if _, initonly := ctx.Imports.InitOnly[path]; initonly {
+		return "", false
+	}
+
 	return importName, true
 }
 
 // GetImportPath resolves the full import path of an identifier based on
-// the imports in the current context.
+// the imports in the current context(including aliases).
 func GetImportPath(name string, ctx *Context) (string, bool) {
 	for path := range ctx.Imports.Imported {
 		if imported, ok := GetImportedName(path, ctx); ok && imported == name {
 			return path, true
 		}
 	}
+
+	for path := range ctx.Imports.Aliased {
+		if imported, ok := GetAliasedName(path, ctx); ok && imported == name {
+			return path, true
+		}
+	}
+
 	return "", false
 }
 
@@ -452,9 +474,25 @@ func RootPath(root string) (string, error) {
 
 // GoVersion returns parsed version of Go from runtime
 func GoVersion() (int, int, int) {
-	versionParts := strings.Split(runtime.Version(), ".")
-	major, _ := strconv.Atoi(versionParts[0][2:])
-	minor, _ := strconv.Atoi(versionParts[1])
-	build, _ := strconv.Atoi(versionParts[2])
+	return parseGoVersion(runtime.Version())
+}
+
+// parseGoVersion parses Go version.
+// example:
+// - go1.19rc2
+// - go1.19beta2
+// - go1.19.4
+// - go1.19
+func parseGoVersion(version string) (int, int, int) {
+	exp := regexp.MustCompile(`go(\d+).(\d+)(?:.(\d+))?.*`)
+	parts := exp.FindStringSubmatch(version)
+	if len(parts) <= 1 {
+		return 0, 0, 0
+	}
+
+	major, _ := strconv.Atoi(parts[1])
+	minor, _ := strconv.Atoi(parts[2])
+	build, _ := strconv.Atoi(parts[3])
+
 	return major, minor, build
 }

@@ -10,7 +10,7 @@ import (
 type EarlyReturnRule struct{}
 
 // Apply applies the rule to given file.
-func (r *EarlyReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*EarlyReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -23,7 +23,7 @@ func (r *EarlyReturnRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failur
 }
 
 // Name returns the rule name.
-func (r *EarlyReturnRule) Name() string {
+func (*EarlyReturnRule) Name() string {
 	return "early-return"
 }
 

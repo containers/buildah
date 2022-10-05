@@ -85,19 +85,19 @@ func runGofumpt(lintCtx *linter.Context, pass *analysis.Pass, diff differ, optio
 
 		output, err := format.Source(input, options)
 		if err != nil {
-			return nil, fmt.Errorf("while running gofumpt: %w", err)
+			return nil, fmt.Errorf("error while running gofumpt: %w", err)
 		}
 
 		if !bytes.Equal(input, output) {
 			out := bytes.Buffer{}
 			_, err = out.WriteString(fmt.Sprintf("--- %[1]s\n+++ %[1]s\n", f))
 			if err != nil {
-				return nil, fmt.Errorf("while running gofumpt: %w", err)
+				return nil, fmt.Errorf("error while running gofumpt: %w", err)
 			}
 
 			err = diff.Diff(&out, bytes.NewReader(input), bytes.NewReader(output))
 			if err != nil {
-				return nil, fmt.Errorf("while running gofumpt: %w", err)
+				return nil, fmt.Errorf("error while running gofumpt: %w", err)
 			}
 
 			diff := out.String()

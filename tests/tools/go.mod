@@ -1,9 +1,9 @@
 module github.com/containers/buildah/tests/tools
 
-go 1.14
+go 1.17
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2
-	github.com/golangci/golangci-lint v1.48.0
+	github.com/golangci/golangci-lint v1.50.0
 	github.com/onsi/ginkgo v1.16.5
 )

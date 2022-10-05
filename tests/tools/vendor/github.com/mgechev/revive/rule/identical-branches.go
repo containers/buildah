@@ -10,7 +10,7 @@ import (
 type IdenticalBranchesRule struct{}
 
 // Apply applies the rule to given file.
-func (r *IdenticalBranchesRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*IdenticalBranchesRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -24,7 +24,7 @@ func (r *IdenticalBranchesRule) Apply(file *lint.File, _ lint.Arguments) []lint.
 }
 
 // Name returns the rule name.
-func (r *IdenticalBranchesRule) Name() string {
+func (*IdenticalBranchesRule) Name() string {
 	return "identical-branches"
 }
 
@@ -57,7 +57,7 @@ func (w *lintIdenticalBranches) Visit(node ast.Node) ast.Visitor {
 	return w
 }
 
-func (w *lintIdenticalBranches) identicalBranches(branches []*ast.BlockStmt) bool {
+func (lintIdenticalBranches) identicalBranches(branches []*ast.BlockStmt) bool {
 	if len(branches) < 2 {
 		return false
 	}

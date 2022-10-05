@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const C = "\"C\""
+
 type GciImports struct {
 	// original index of import group, include doc, name, path and comment
 	Start, End int
@@ -20,6 +22,10 @@ func (l ImportList) Len() int {
 }
 
 func (l ImportList) Less(i, j int) bool {
+	if strings.Compare(l[i].Path, l[j].Path) == 0 {
+		return strings.Compare(l[i].Name, l[j].Name) < 0
+	}
+
 	return strings.Compare(l[i].Path, l[j].Path) < 0
 }
 
@@ -75,14 +81,17 @@ func ParseFile(src []byte, filename string) (ImportList, int, int, error) {
 		return nil, 0, 0, NoImportError{}
 	}
 
-	var headEnd int
-	var tailStart int
+	var headEnd, tailStart int
 
 	var data ImportList
 	for i, imp := range f.Imports {
+		if imp.Path.Value == C {
+			continue
+		}
+
 		start, end, name := getImports(imp)
 
-		if i == 0 {
+		if headEnd == 0 {
 			headEnd = start
 		}
 		if i == len(f.Imports)-1 {

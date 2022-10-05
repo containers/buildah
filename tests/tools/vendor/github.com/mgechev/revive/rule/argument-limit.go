@@ -3,6 +3,7 @@ package rule
 import (
 	"fmt"
 	"go/ast"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -10,10 +11,11 @@ import (
 // ArgumentsLimitRule lints given else constructs.
 type ArgumentsLimitRule struct {
 	total int
+	sync.Mutex
 }
 
-// Apply applies the rule to given file.
-func (r *ArgumentsLimitRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+func (r *ArgumentsLimitRule) configure(arguments lint.Arguments) {
+	r.Lock()
 	if r.total == 0 {
 		checkNumberOfArguments(1, arguments, r.Name())
 
@@ -23,14 +25,21 @@ func (r *ArgumentsLimitRule) Apply(file *lint.File, arguments lint.Arguments) []
 		}
 		r.total = int(total)
 	}
+	r.Unlock()
+}
+
+// Apply applies the rule to given file.
+func (r *ArgumentsLimitRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+	r.configure(arguments)
 
 	var failures []lint.Failure
+	onFailure := func(failure lint.Failure) {
+		failures = append(failures, failure)
+	}
 
 	walker := lintArgsNum{
-		total: r.total,
-		onFailure: func(failure lint.Failure) {
-			failures = append(failures, failure)
-		},
+		total:     r.total,
+		onFailure: onFailure,
 	}
 
 	ast.Walk(walker, file.AST)
@@ -39,7 +48,7 @@ func (r *ArgumentsLimitRule) Apply(file *lint.File, arguments lint.Arguments) []
 }
 
 // Name returns the rule name.
-func (r *ArgumentsLimitRule) Name() string {
+func (*ArgumentsLimitRule) Name() string {
 	return "argument-limit"
 }
 

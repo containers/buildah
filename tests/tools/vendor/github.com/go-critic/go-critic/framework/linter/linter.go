@@ -6,6 +6,7 @@ import (
 	"go/types"
 
 	"github.com/go-toolsmith/astfmt"
+	"golang.org/x/exp/typeparams"
 )
 
 // CheckerCollection provides additional information for a group of checkers.
@@ -312,6 +313,16 @@ func (ctx *CheckerContext) TypeOf(x ast.Expr) types.Type {
 	// that will fail most type assertions as well as kind checks
 	// (if the call side expects a *types.Basic).
 	return UnknownType
+}
+
+// SizeOf returns the size of the typ in bytes.
+//
+// Unlike SizesInfo.SizeOf, it will not panic on generic types.
+func (ctx *CheckerContext) SizeOf(typ types.Type) (int64, bool) {
+	if _, ok := typ.(*typeparams.TypeParam); ok {
+		return 0, false
+	}
+	return ctx.SizesInfo.Sizeof(typ), true
 }
 
 // FileWalker is an interface every checker should implement.

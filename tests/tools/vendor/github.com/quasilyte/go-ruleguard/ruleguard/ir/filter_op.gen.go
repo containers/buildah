@@ -36,147 +36,154 @@ const (
 	// $Value type: string
 	FilterVarAddressableOp FilterOp = 10
 
+	// m[$Value].Comparable
+	// $Value type: string
+	FilterVarComparableOp FilterOp = 11
+
 	// m[$Value].Pure
 	// $Value type: string
-	FilterVarPureOp FilterOp = 11
+	FilterVarPureOp FilterOp = 12
 
 	// m[$Value].Const
 	// $Value type: string
-	FilterVarConstOp FilterOp = 12
+	FilterVarConstOp FilterOp = 13
 
 	// m[$Value].ConstSlice
 	// $Value type: string
-	FilterVarConstSliceOp FilterOp = 13
+	FilterVarConstSliceOp FilterOp = 14
 
 	// m[$Value].Text
 	// $Value type: string
-	FilterVarTextOp FilterOp = 14
+	FilterVarTextOp FilterOp = 15
 
 	// m[$Value].Line
 	// $Value type: string
-	FilterVarLineOp FilterOp = 15
+	FilterVarLineOp FilterOp = 16
 
 	// m[$Value].Value.Int()
 	// $Value type: string
-	FilterVarValueIntOp FilterOp = 16
+	FilterVarValueIntOp FilterOp = 17
 
 	// m[$Value].Type.Size
 	// $Value type: string
-	FilterVarTypeSizeOp FilterOp = 17
+	FilterVarTypeSizeOp FilterOp = 18
 
 	// m[$Value].Type.HasPointers()
 	// $Value type: string
-	FilterVarTypeHasPointersOp FilterOp = 18
+	FilterVarTypeHasPointersOp FilterOp = 19
 
 	// m[$Value].Filter($Args[0])
 	// $Value type: string
-	FilterVarFilterOp FilterOp = 19
+	FilterVarFilterOp FilterOp = 20
 
 	// m[$Value].Node.Is($Args[0])
 	// $Value type: string
-	FilterVarNodeIsOp FilterOp = 20
+	FilterVarNodeIsOp FilterOp = 21
 
 	// m[$Value].Object.Is($Args[0])
 	// $Value type: string
-	FilterVarObjectIsOp FilterOp = 21
+	FilterVarObjectIsOp FilterOp = 22
 
 	// m[$Value].Object.IsGlobal()
 	// $Value type: string
-	FilterVarObjectIsGlobalOp FilterOp = 22
+	FilterVarObjectIsGlobalOp FilterOp = 23
 
 	// m[$Value].Type.Is($Args[0])
 	// $Value type: string
-	FilterVarTypeIsOp FilterOp = 23
+	FilterVarTypeIsOp FilterOp = 24
 
 	// m[$Value].Type.IdenticalTo($Args[0])
 	// $Value type: string
-	FilterVarTypeIdenticalToOp FilterOp = 24
+	FilterVarTypeIdenticalToOp FilterOp = 25
 
 	// m[$Value].Type.Underlying().Is($Args[0])
 	// $Value type: string
-	FilterVarTypeUnderlyingIsOp FilterOp = 25
+	FilterVarTypeUnderlyingIsOp FilterOp = 26
 
 	// m[$Value].Type.OfKind($Args[0])
 	// $Value type: string
-	FilterVarTypeOfKindOp FilterOp = 26
+	FilterVarTypeOfKindOp FilterOp = 27
 
 	// m[$Value].Type.Underlying().OfKind($Args[0])
 	// $Value type: string
-	FilterVarTypeUnderlyingOfKindOp FilterOp = 27
+	FilterVarTypeUnderlyingOfKindOp FilterOp = 28
 
 	// m[$Value].Type.ConvertibleTo($Args[0])
 	// $Value type: string
-	FilterVarTypeConvertibleToOp FilterOp = 28
+	FilterVarTypeConvertibleToOp FilterOp = 29
 
 	// m[$Value].Type.AssignableTo($Args[0])
 	// $Value type: string
-	FilterVarTypeAssignableToOp FilterOp = 29
+	FilterVarTypeAssignableToOp FilterOp = 30
 
 	// m[$Value].Type.Implements($Args[0])
 	// $Value type: string
-	FilterVarTypeImplementsOp FilterOp = 30
+	FilterVarTypeImplementsOp FilterOp = 31
 
 	// m[$Value].Type.HasMethod($Args[0])
 	// $Value type: string
-	FilterVarTypeHasMethodOp FilterOp = 31
+	FilterVarTypeHasMethodOp FilterOp = 32
 
 	// m[$Value].Text.Matches($Args[0])
 	// $Value type: string
-	FilterVarTextMatchesOp FilterOp = 32
+	FilterVarTextMatchesOp FilterOp = 33
 
 	// m[$Value].Contains($Args[0])
 	// $Value type: string
-	FilterVarContainsOp FilterOp = 33
+	FilterVarContainsOp FilterOp = 34
 
 	// m.Deadcode()
-	FilterDeadcodeOp FilterOp = 34
+	FilterDeadcodeOp FilterOp = 35
 
 	// m.GoVersion().Eq($Value)
 	// $Value type: string
-	FilterGoVersionEqOp FilterOp = 35
+	FilterGoVersionEqOp FilterOp = 36
 
 	// m.GoVersion().LessThan($Value)
 	// $Value type: string
-	FilterGoVersionLessThanOp FilterOp = 36
+	FilterGoVersionLessThanOp FilterOp = 37
 
 	// m.GoVersion().GreaterThan($Value)
 	// $Value type: string
-	FilterGoVersionGreaterThanOp FilterOp = 37
+	FilterGoVersionGreaterThanOp FilterOp = 38
 
 	// m.GoVersion().LessEqThan($Value)
 	// $Value type: string
-	FilterGoVersionLessEqThanOp FilterOp = 38
+	FilterGoVersionLessEqThanOp FilterOp = 39
 
 	// m.GoVersion().GreaterEqThan($Value)
 	// $Value type: string
-	FilterGoVersionGreaterEqThanOp FilterOp = 39
+	FilterGoVersionGreaterEqThanOp FilterOp = 40
 
 	// m.File.Imports($Value)
 	// $Value type: string
-	FilterFileImportsOp FilterOp = 40
+	FilterFileImportsOp FilterOp = 41
 
 	// m.File.PkgPath.Matches($Value)
 	// $Value type: string
-	FilterFilePkgPathMatchesOp FilterOp = 41
+	FilterFilePkgPathMatchesOp FilterOp = 42
 
 	// m.File.Name.Matches($Value)
 	// $Value type: string
-	FilterFileNameMatchesOp FilterOp = 42
+	FilterFileNameMatchesOp FilterOp = 43
 
 	// $Value holds a function name
 	// $Value type: string
-	FilterFilterFuncRefOp FilterOp = 43
+	FilterFilterFuncRefOp FilterOp = 44
 
 	// $Value holds a string constant
 	// $Value type: string
-	FilterStringOp FilterOp = 44
+	FilterStringOp FilterOp = 45
 
 	// $Value holds an int64 constant
 	// $Value type: int64
-	FilterIntOp FilterOp = 45
+	FilterIntOp FilterOp = 46
 
 	// m[`$$`].Node.Parent().Is($Args[0])
-	FilterRootNodeParentIsOp FilterOp = 46
+	FilterRootNodeParentIsOp FilterOp = 47
+
+	// m[`$$`].SinkType.Is($Args[0])
+	FilterRootSinkTypeIsOp FilterOp = 48
 )
 
 var filterOpNames = map[FilterOp]string{
@@ -191,6 +198,7 @@ var filterOpNames = map[FilterOp]string{
 	FilterGtEqOp:                    `GtEq`,
 	FilterLtEqOp:                    `LtEq`,
 	FilterVarAddressableOp:          `VarAddressable`,
+	FilterVarComparableOp:           `VarComparable`,
 	FilterVarPureOp:                 `VarPure`,
 	FilterVarConstOp:                `VarConst`,
 	FilterVarConstSliceOp:           `VarConstSlice`,
@@ -227,6 +235,7 @@ var filterOpNames = map[FilterOp]string{
 	FilterStringOp:                  `String`,
 	FilterIntOp:                     `Int`,
 	FilterRootNodeParentIsOp:        `RootNodeParentIs`,
+	FilterRootSinkTypeIsOp:          `RootSinkTypeIs`,
 }
 var filterOpFlags = map[FilterOp]uint64{
 	FilterAndOp:                     flagIsBinaryExpr,
@@ -238,6 +247,7 @@ var filterOpFlags = map[FilterOp]uint64{
 	FilterGtEqOp:                    flagIsBinaryExpr,
 	FilterLtEqOp:                    flagIsBinaryExpr,
 	FilterVarAddressableOp:          flagHasVar,
+	FilterVarComparableOp:           flagHasVar,
 	FilterVarPureOp:                 flagHasVar,
 	FilterVarConstOp:                flagHasVar,
 	FilterVarConstSliceOp:           flagHasVar,

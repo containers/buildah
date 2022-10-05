@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -33,53 +34,12 @@ func (wl whiteList) add(kind, list string) {
 type AddConstantRule struct {
 	whiteList   whiteList
 	strLitLimit int
+	sync.Mutex
 }
 
 // Apply applies the rule to given file.
 func (r *AddConstantRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
-	if r.whiteList == nil {
-		r.strLitLimit = defaultStrLitLimit
-		r.whiteList = newWhiteList()
-		if len(arguments) > 0 {
-			args, ok := arguments[0].(map[string]interface{})
-			if !ok {
-				panic(fmt.Sprintf("Invalid argument to the add-constant rule. Expecting a k,v map, got %T", arguments[0]))
-			}
-			for k, v := range args {
-				kind := ""
-				switch k {
-				case "allowFloats":
-					kind = kindFLOAT
-					fallthrough
-				case "allowInts":
-					if kind == "" {
-						kind = kindINT
-					}
-					fallthrough
-				case "allowStrs":
-					if kind == "" {
-						kind = kindSTRING
-					}
-					list, ok := v.(string)
-					if !ok {
-						panic(fmt.Sprintf("Invalid argument to the add-constant rule, string expected. Got '%v' (%T)", v, v))
-					}
-					r.whiteList.add(kind, list)
-				case "maxLitCount":
-					sl, ok := v.(string)
-					if !ok {
-						panic(fmt.Sprintf("Invalid argument to the add-constant rule, expecting string representation of an integer. Got '%v' (%T)", v, v))
-					}
-
-					limit, err := strconv.Atoi(sl)
-					if err != nil {
-						panic(fmt.Sprintf("Invalid argument to the add-constant rule, expecting string representation of an integer. Got '%v'", v))
-					}
-					r.strLitLimit = limit
-				}
-			}
-		}
-	}
+	r.configure(arguments)
 
 	var failures []lint.Failure
 
@@ -95,7 +55,7 @@ func (r *AddConstantRule) Apply(file *lint.File, arguments lint.Arguments) []lin
 }
 
 // Name returns the rule name.
-func (r *AddConstantRule) Name() string {
+func (*AddConstantRule) Name() string {
 	return "add-constant"
 }
 
@@ -153,4 +113,53 @@ func (w lintAddConstantRule) checkNumLit(kind string, n *ast.BasicLit) {
 		Category:   "style",
 		Failure:    fmt.Sprintf("avoid magic numbers like '%s', create a named constant for it", n.Value),
 	})
+}
+
+func (r *AddConstantRule) configure(arguments lint.Arguments) {
+	r.Lock()
+	defer r.Unlock()
+
+	if r.whiteList == nil {
+		r.strLitLimit = defaultStrLitLimit
+		r.whiteList = newWhiteList()
+		if len(arguments) > 0 {
+			args, ok := arguments[0].(map[string]interface{})
+			if !ok {
+				panic(fmt.Sprintf("Invalid argument to the add-constant rule. Expecting a k,v map, got %T", arguments[0]))
+			}
+			for k, v := range args {
+				kind := ""
+				switch k {
+				case "allowFloats":
+					kind = kindFLOAT
+					fallthrough
+				case "allowInts":
+					if kind == "" {
+						kind = kindINT
+					}
+					fallthrough
+				case "allowStrs":
+					if kind == "" {
+						kind = kindSTRING
+					}
+					list, ok := v.(string)
+					if !ok {
+						panic(fmt.Sprintf("Invalid argument to the add-constant rule, string expected. Got '%v' (%T)", v, v))
+					}
+					r.whiteList.add(kind, list)
+				case "maxLitCount":
+					sl, ok := v.(string)
+					if !ok {
+						panic(fmt.Sprintf("Invalid argument to the add-constant rule, expecting string representation of an integer. Got '%v' (%T)", v, v))
+					}
+
+					limit, err := strconv.Atoi(sl)
+					if err != nil {
+						panic(fmt.Sprintf("Invalid argument to the add-constant rule, expecting string representation of an integer. Got '%v'", v))
+					}
+					r.strLitLimit = limit
+				}
+			}
+		}
+	}
 }

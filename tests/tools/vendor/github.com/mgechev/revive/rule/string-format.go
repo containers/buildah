@@ -16,7 +16,7 @@ import (
 type StringFormatRule struct{}
 
 // Apply applies the rule to the given file.
-func (r *StringFormatRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
+func (*StringFormatRule) Apply(file *lint.File, arguments lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	onFailure := func(failure lint.Failure) {
@@ -31,12 +31,12 @@ func (r *StringFormatRule) Apply(file *lint.File, arguments lint.Arguments) []li
 }
 
 // Name returns the rule name.
-func (r *StringFormatRule) Name() string {
+func (*StringFormatRule) Name() string {
 	return "string-format"
 }
 
 // ParseArgumentsTest is a public wrapper around w.parseArguments used for testing. Returns the error message provided to panic, or nil if no error was encountered
-func (r *StringFormatRule) ParseArgumentsTest(arguments lint.Arguments) *string {
+func (StringFormatRule) ParseArgumentsTest(arguments lint.Arguments) *string {
 	w := lintStringFormatRule{}
 	c := make(chan interface{})
 	// Parse the arguments in a goroutine, defer a recover() call, return the error encountered (or nil if there was no error)
@@ -61,9 +61,7 @@ func (r *StringFormatRule) ParseArgumentsTest(arguments lint.Arguments) *string 
 
 type lintStringFormatRule struct {
 	onFailure func(lint.Failure)
-
-	rules              []stringFormatSubrule
-	stringDeclarations map[string]string
+	rules     []stringFormatSubrule
 }
 
 type stringFormatSubrule struct {
@@ -161,12 +159,12 @@ func (w lintStringFormatRule) parseArgument(argument interface{}, ruleNum int) (
 }
 
 // Report an invalid config, this is specifically the user's fault
-func (w lintStringFormatRule) configError(msg string, ruleNum, option int) {
+func (lintStringFormatRule) configError(msg string, ruleNum, option int) {
 	panic(fmt.Sprintf("invalid configuration for string-format: %s [argument %d, option %d]", msg, ruleNum, option))
 }
 
 // Report a general config parsing failure, this may be the user's fault, but it isn't known for certain
-func (w lintStringFormatRule) parseError(msg string, ruleNum, option int) {
+func (lintStringFormatRule) parseError(msg string, ruleNum, option int) {
 	panic(fmt.Sprintf("failed to parse configuration for string-format: %s [argument %d, option %d]", msg, ruleNum, option))
 }
 
@@ -197,7 +195,7 @@ func (w lintStringFormatRule) Visit(node ast.Node) ast.Visitor {
 }
 
 // Return the name of a call expression in the form of package.Func or Func
-func (w lintStringFormatRule) getCallName(call *ast.CallExpr) (callName string, ok bool) {
+func (lintStringFormatRule) getCallName(call *ast.CallExpr) (callName string, ok bool) {
 	if ident, ok := call.Fun.(*ast.Ident); ok {
 		// Local function call
 		return ident.Name, true
@@ -220,14 +218,14 @@ func (w lintStringFormatRule) getCallName(call *ast.CallExpr) (callName string, 
 // #region Linting logic
 
 // Apply a single format rule to a call expression (should be done after verifying the that the call expression matches the rule's scope)
-func (rule stringFormatSubrule) Apply(call *ast.CallExpr) {
-	if len(call.Args) <= rule.scope.argument {
+func (r *stringFormatSubrule) Apply(call *ast.CallExpr) {
+	if len(call.Args) <= r.scope.argument {
 		return
 	}
 
-	arg := call.Args[rule.scope.argument]
+	arg := call.Args[r.scope.argument]
 	var lit *ast.BasicLit
-	if len(rule.scope.field) > 0 {
+	if len(r.scope.field) > 0 {
 		// Try finding the scope's Field, treating arg as a composite literal
 		composite, ok := arg.(*ast.CompositeLit)
 		if !ok {
@@ -239,7 +237,7 @@ func (rule stringFormatSubrule) Apply(call *ast.CallExpr) {
 				continue
 			}
 			key, ok := kv.Key.(*ast.Ident)
-			if !ok || key.Name != rule.scope.field {
+			if !ok || key.Name != r.scope.field {
 				continue
 			}
 
@@ -259,21 +257,21 @@ func (rule stringFormatSubrule) Apply(call *ast.CallExpr) {
 	}
 	// Unquote the string literal before linting
 	unquoted := lit.Value[1 : len(lit.Value)-1]
-	rule.lintMessage(unquoted, lit)
+	r.lintMessage(unquoted, lit)
 }
 
-func (rule stringFormatSubrule) lintMessage(s string, node ast.Node) {
+func (r *stringFormatSubrule) lintMessage(s string, node ast.Node) {
 	// Fail if the string doesn't match the user's regex
-	if rule.regexp.MatchString(s) {
+	if r.regexp.MatchString(s) {
 		return
 	}
 	var failure string
-	if len(rule.errorMessage) > 0 {
-		failure = rule.errorMessage
+	if len(r.errorMessage) > 0 {
+		failure = r.errorMessage
 	} else {
-		failure = fmt.Sprintf("string literal doesn't match user defined regex /%s/", rule.regexp.String())
+		failure = fmt.Sprintf("string literal doesn't match user defined regex /%s/", r.regexp.String())
 	}
-	rule.parent.onFailure(lint.Failure{
+	r.parent.onFailure(lint.Failure{
 		Confidence: 1,
 		Failure:    failure,
 		Node:       node,

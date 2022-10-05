@@ -2,6 +2,7 @@ package exhaustive
 
 import (
 	"go/ast"
+	"go/token"
 	"regexp"
 	"strings"
 )
@@ -50,9 +51,27 @@ func isGeneratedFileComment(s string) bool {
 	return generatedCodeRe.MatchString(s)
 }
 
+type generatedCache map[*ast.File]bool
+
+func (c generatedCache) IsGenerated(file *ast.File) bool {
+	if _, ok := c[file]; !ok {
+		c[file] = isGeneratedFile(file)
+	}
+	return c[file]
+}
+
 // ignoreDirective is used to exclude checking of specific switch statements.
 const ignoreDirective = "//exhaustive:ignore"
 const enforceDirective = "//exhaustive:enforce"
+
+type commentsCache map[*ast.File]ast.CommentMap
+
+func (c commentsCache) GetComments(file *ast.File, set *token.FileSet) ast.CommentMap {
+	if _, ok := c[file]; !ok {
+		c[file] = ast.NewCommentMap(set, file, file.Comments)
+	}
+	return c[file]
+}
 
 func containsDirective(comments []*ast.CommentGroup, directive string) bool {
 	for _, c := range comments {

@@ -16,14 +16,14 @@ type Sarif struct {
 }
 
 // Name returns the name of the formatter
-func (f *Sarif) Name() string {
+func (*Sarif) Name() string {
 	return "sarif"
 }
 
 const reviveSite = "https://revive.run"
 
 // Format formats the failures gotten from the lint.
-func (f *Sarif) Format(failures <-chan lint.Failure, cfg lint.Config) (string, error) {
+func (*Sarif) Format(failures <-chan lint.Failure, cfg lint.Config) (string, error) {
 	sarifLog := newReviveRunLog(cfg)
 
 	for failure := range failures {

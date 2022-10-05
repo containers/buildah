@@ -96,8 +96,14 @@ func (c *truncateCmpChecker) checkCmp(cmpX, cmpY ast.Expr) {
 		return
 	}
 
-	xsize := c.ctx.SizesInfo.Sizeof(xtyp)
-	ysize := c.ctx.SizesInfo.Sizeof(ytyp)
+	xsize, ok := c.ctx.SizeOf(xtyp)
+	if !ok {
+		return
+	}
+	ysize, ok := c.ctx.SizeOf(ytyp)
+	if !ok {
+		return
+	}
 	if xsize <= ysize {
 		return
 	}
