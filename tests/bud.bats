@@ -36,7 +36,7 @@ load helpers
   for var in "${checkvars[@]}"; do
     echo "ARG TARGET${var}" >>$containerfile
   done
-  echo "COPY . ." >>$containerfile
+  echo "RUN echo hi" >>$containerfile
 
   # With explicit and full --platform, there should be no warnings
   run_buildah build $WITH_POLICY_JSON --platform linux/amd64/v2 -t source -f $containerfile
