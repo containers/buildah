@@ -13,6 +13,12 @@ OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc 
 # Default timeout for a buildah command.
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 
+# Prompt to display when logging buildah commands; distinguish root/rootless
+_LOG_PROMPT='$'
+if [ $(id -u) -eq 0 ]; then
+    _LOG_PROMPT='#'
+fi
+
 # Shortcut for directory containing Containerfiles for bud.bats
 BUDFILES=${TEST_SOURCES}/bud
 
@@ -31,6 +37,11 @@ function setup(){
 function setup_tests() {
     pushd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 
+    # $TEST_SCRATCH_DIR is a custom scratch directory for each @test,
+    # but it is NOT EMPTY! It is the caller's responsibility to make
+    # empty subdirectories as needed. All of it will be deleted upon
+    # test completion.
+    #
     # buildah/podman: "repository name must be lowercase".
     # me: "but it's a local file path, not a repository name!"
     # buildah/podman: "i dont care. no caps anywhere!"
@@ -263,7 +274,7 @@ function run_buildah() {
         retry=$(( retry - 1 ))
 
         # stdout is only emitted upon error; this echo is to help a debugger
-        echo "\$ $BUILDAH_BINARY $*"
+        echo "${_LOG_PROMPT} $BUILDAH_BINARY $*"
         run env CONTAINERS_CONF=${CONTAINERS_CONF:-$(dirname ${BASH_SOURCE})/containers.conf} timeout --foreground --kill=10 $BUILDAH_TIMEOUT ${BUILDAH_BINARY} ${BUILDAH_REGISTRY_OPTS} ${ROOTDIR_OPTS} "$@"
         # without "quotes", multiple lines are glommed together into one
         if [ -n "$output" ]; then
