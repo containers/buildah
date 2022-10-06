@@ -432,19 +432,19 @@ _EOF
 # Test bud with prestart hook
 @test "build-test with OCI prestart hook" {
   skip_if_in_container # This works in privileged container setup but does not works in CI setup
-  local contextdir=${TEST_SCRATCH_DIR}/bud/platform/hooks
-  mkdir -p $contextdir
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir/hooks
 
-  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+  cat > $contextdir/Dockerfile << _EOF
 FROM alpine
 RUN echo hello
 _EOF
 
-  cat > $contextdir/test.json << _EOF
+  cat > $contextdir/hooks/test.json << _EOF
 {
   "version": "1.0.0",
   "hook": {
-    "path": "$contextdir/test"
+    "path": "$contextdir/hooks/test"
   },
   "when": {
     "always": true
@@ -453,15 +453,15 @@ _EOF
 }
 _EOF
 
-  cat > ${TEST_SCRATCH_DIR}/bud/platform/hooks/test << _EOF
+  cat > $contextdir/hooks/test << _EOF
 #!/bin/sh
-echo from-hook > ${TEST_SCRATCH_DIR}/bud/platform/hooks/hook-output
+echo from-hook > $contextdir/hooks/hook-output
 _EOF
 
   # make actual hook executable
-  chmod +x ${TEST_SCRATCH_DIR}/bud/platform/hooks/test
-  run_buildah build $WITH_POLICY_JSON -t source --hooks-dir=${TEST_SCRATCH_DIR}/bud/platform/hooks -f ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile
-  run cat ${TEST_SCRATCH_DIR}/bud/platform/hooks/hook-output
+  chmod +x $contextdir/hooks/test
+  run_buildah build $WITH_POLICY_JSON -t source --hooks-dir=$contextdir/hooks -f $contextdir/Dockerfile
+  run cat $contextdir/hooks/hook-output
   expect_output --substring "from-hook"
 }
 
@@ -874,17 +874,16 @@ _EOF
 
 # Test adding additional build context
 @test "build-with-additional-build-context and COPY, additional context from host" {
-  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
-  mkdir -p $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/bud/platform2
-  mkdir -p $contextdir
+  local contextdir1=${TEST_SCRATCH_DIR}/bud/platform
+  local contextdir2=${TEST_SCRATCH_DIR}/bud/platform2
+  mkdir -p $contextdir1 $contextdir2
 
   # add file on original context
-  echo something > ${TEST_SCRATCH_DIR}/bud/platform/somefile
+  echo something > $contextdir1/somefile
   # add file on additional context
-  echo hello_world > $contextdir/hello
+  echo hello_world > $contextdir2/hello
 
-  cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
+  cat > $contextdir1/Dockerfile << _EOF
 FROM alpine
 COPY somefile .
 RUN cat somefile
@@ -893,7 +892,7 @@ RUN cat hello
 _EOF
 
   # Test additional context
-  run_buildah build $WITH_POLICY_JSON -t source --build-context context2=$contextdir ${TEST_SCRATCH_DIR}/bud/platform
+  run_buildah build $WITH_POLICY_JSON -t source --build-context context2=$contextdir2 $contextdir1
   expect_output --substring "something"
   expect_output --substring "hello_world"
 }
@@ -1026,22 +1025,21 @@ _EOF
   run_buildah images -a
   expect_line_count 12
 
-  local contextdir=${TEST_SCRATCH_DIR}/use-layers/mount/subdir
-  mkdir -p $contextdir
-  run_buildah build $WITH_POLICY_JSON --layers -t test4 -f Dockerfile.3 ${TEST_SCRATCH_DIR}/use-layers
+  mkdir -p $contextdir/mount/subdir
+  run_buildah build $WITH_POLICY_JSON --layers -t test4 -f Dockerfile.3 $contextdir
   run_buildah images -a
   expect_line_count 14
 
-  run_buildah build $WITH_POLICY_JSON --layers -t test5 -f Dockerfile.3 ${TEST_SCRATCH_DIR}/use-layers
+  run_buildah build $WITH_POLICY_JSON --layers -t test5 -f Dockerfile.3 $contextdir
   run_buildah images -a
   expect_line_count 15
 
-  touch $contextdir/file.txt
-  run_buildah build $WITH_POLICY_JSON --layers -t test6 -f Dockerfile.3 ${TEST_SCRATCH_DIR}/use-layers
+  touch $contextdir/mount/subdir/file.txt
+  run_buildah build $WITH_POLICY_JSON --layers -t test6 -f Dockerfile.3 $contextdir
   run_buildah images -a
   expect_line_count 17
 
-  run_buildah build $WITH_POLICY_JSON --no-cache -t test7 -f Dockerfile.2 ${TEST_SCRATCH_DIR}/use-layers
+  run_buildah build $WITH_POLICY_JSON --no-cache -t test7 -f Dockerfile.2 $contextdir
   run_buildah images -a
   expect_line_count 18
 }
@@ -1079,30 +1077,28 @@ _EOF
   local contextdir=${TEST_SCRATCH_DIR}/use-layers
   cp -a $BUDFILES/use-layers $contextdir
 
-  local contextdir=${TEST_SCRATCH_DIR}/use-layers/uuid
-  mkdir -p $contextdir
-  uuidgen > $contextdir/data
-  local contextdir=${TEST_SCRATCH_DIR}/use-layers/date
-  mkdir -p $contextdir
-  date > $contextdir/data
+  mkdir -p $contextdir/uuid
+  uuidgen > $contextdir/uuid/data
+  mkdir -p $contextdir/date
+  date > $contextdir/date/data
 
-  run_buildah build $WITH_POLICY_JSON --layers -t test1 -f Dockerfile.multistage-copy ${TEST_SCRATCH_DIR}/use-layers
+  run_buildah build $WITH_POLICY_JSON --layers -t test1 -f Dockerfile.multistage-copy $contextdir
   run_buildah images -a
   expect_line_count 6
   # The second time through, the layers should all get reused.
-  run_buildah build $WITH_POLICY_JSON --layers -t test1 -f Dockerfile.multistage-copy ${TEST_SCRATCH_DIR}/use-layers
+  run_buildah build $WITH_POLICY_JSON --layers -t test1 -f Dockerfile.multistage-copy $contextdir
   run_buildah images -a
   expect_line_count 6
   # The third time through, the layers should all get reused, but we'll have a new line of output for the new name.
 
-  run_buildah build $WITH_POLICY_JSON --layers -t test2 -f Dockerfile.multistage-copy ${TEST_SCRATCH_DIR}/use-layers
+  run_buildah build $WITH_POLICY_JSON --layers -t test2 -f Dockerfile.multistage-copy $contextdir
   run_buildah images -a
   expect_line_count 7
 
   # Both interim images will be different, and all of the layers in the final image will be different.
-  uuidgen > ${TEST_SCRATCH_DIR}/use-layers/uuid/data
-  date > $contextdir/data
-  run_buildah build $WITH_POLICY_JSON --layers -t test3 -f Dockerfile.multistage-copy ${TEST_SCRATCH_DIR}/use-layers
+  uuidgen > $contextdir/uuid/data
+  date > $contextdir/date/data
+  run_buildah build $WITH_POLICY_JSON --layers -t test3 -f Dockerfile.multistage-copy $contextdir
   run_buildah images -a
   expect_line_count 11
   # No leftover containers, just the header line.
@@ -1117,7 +1113,7 @@ _EOF
   test -e $mnt/date
 
   # Layers won't get reused because this build won't use caching.
-  run_buildah build $WITH_POLICY_JSON -t test4 -f Dockerfile.multistage-copy ${TEST_SCRATCH_DIR}/use-layers
+  run_buildah build $WITH_POLICY_JSON -t test4 -f Dockerfile.multistage-copy $contextdir
   run_buildah images -a
   expect_line_count 12
 }
@@ -1209,15 +1205,14 @@ _EOF
   _prefetch alpine
   local contextdir=${TEST_SCRATCH_DIR}/use-layers
   cp -a $BUDFILES/use-layers $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/use-layers/blah
-  mkdir $contextdir
-  ln -s ${TEST_SOURCES}/policy.json $contextdir/policy.json
+  mkdir $contextdir/blah
+  ln -s ${TEST_SOURCES}/policy.json $contextdir/blah/policy.json
 
-  run_buildah build $WITH_POLICY_JSON --layers -t test -f Dockerfile.dangling-symlink ${TEST_SCRATCH_DIR}/use-layers
+  run_buildah build $WITH_POLICY_JSON --layers -t test -f Dockerfile.dangling-symlink $contextdir
   run_buildah images -a
   expect_line_count 3
 
-  run_buildah build $WITH_POLICY_JSON --layers -t test1 -f Dockerfile.dangling-symlink ${TEST_SCRATCH_DIR}/use-layers
+  run_buildah build $WITH_POLICY_JSON --layers -t test1 -f Dockerfile.dangling-symlink $contextdir
   run_buildah images -a
   expect_line_count 4
 
@@ -3018,13 +3013,12 @@ _EOF
   local contextdir=${TEST_SCRATCH_DIR}/use-layers
   cp -a $BUDFILES/use-layers $contextdir
 
-  local contextdir=${TEST_SCRATCH_DIR}/use-layers/subdir
-  mkdir -p $contextdir
+  mkdir -p $contextdir/subdir
   touch $contextdir/file.txt
-  run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/iid1 -f Dockerfile.7 ${TEST_SCRATCH_DIR}/use-layers
+  run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/iid1 -f Dockerfile.7 $contextdir
 
   touch $contextdir/file.txt
-  run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/iid2 -f Dockerfile.7 ${TEST_SCRATCH_DIR}/use-layers
+  run_buildah build $WITH_POLICY_JSON --layers --iidfile ${TEST_SCRATCH_DIR}/iid2 -f Dockerfile.7 $contextdir
 
   if [[ $(cat ${TEST_SCRATCH_DIR}/iid1) != $(cat ${TEST_SCRATCH_DIR}/iid2) ]]; then
     echo "Expected image id to not change after touching a file copied into the image" >&2
@@ -3215,15 +3209,15 @@ _EOF
 
 @test "bud-copy-dockerignore-hardlinks" {
   target=image
-  local contextdir=${TEST_SCRATCH_DIR}/hardlinks/subdir
-  mkdir -p $contextdir
-  cp $BUDFILES/recurse/Dockerfile ${TEST_SCRATCH_DIR}/hardlinks
-  echo foo > ${TEST_SCRATCH_DIR}/hardlinks/.dockerignore
-  echo test1 > $contextdir/test1.txt
-  ln $contextdir/test1.txt $contextdir/test2.txt
-  ln $contextdir/test2.txt ${TEST_SCRATCH_DIR}/hardlinks/test3.txt
-  ln ${TEST_SCRATCH_DIR}/hardlinks/test3.txt ${TEST_SCRATCH_DIR}/hardlinks/test4.txt
-  run_buildah build $WITH_POLICY_JSON -t ${target} ${TEST_SCRATCH_DIR}/hardlinks
+  local contextdir=${TEST_SCRATCH_DIR}/hardlinks
+  mkdir -p $contextdir/subdir
+  cp $BUDFILES/recurse/Dockerfile $contextdir
+  echo foo > $contextdir/.dockerignore
+  echo test1 > $contextdir/subdir/test1.txt
+  ln $contextdir/subdir/test1.txt $contextdir/subdir/test2.txt
+  ln $contextdir/subdir/test2.txt $contextdir/test3.txt
+  ln $contextdir/test3.txt $contextdir/test4.txt
+  run_buildah build $WITH_POLICY_JSON -t ${target} $contextdir
   run_buildah from ${target}
   ctrid="$output"
   run_buildah mount "$ctrid"
@@ -5295,9 +5289,7 @@ _EOF
 @test "bud-with-mount-bind-from-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  local contextdir=${TEST_SCRATCH_DIR}/bud
-  mkdir $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/bud/buildkit-mount-from
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
   # build base image which we will use as our `from`
   run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $contextdir/Dockerfilebuildkitbase $contextdir/
@@ -5311,9 +5303,7 @@ _EOF
 @test "bud-with-writeable-mount-bind-from-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  local contextdir=${TEST_SCRATCH_DIR}/bud
-  mkdir $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/bud/buildkit-mount-from
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
   # build base image which we will use as our `from`
   run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $contextdir/Dockerfilebuildkitbase $contextdir/
@@ -5327,9 +5317,7 @@ _EOF
 @test "bud-with-mount-bind-from-without-source-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  local contextdir=${TEST_SCRATCH_DIR}/bud
-  mkdir $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/bud/buildkit-mount-from
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
   # build base image which we will use as our `from`
   run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $contextdir/Dockerfilebuildkitbase $contextdir/
@@ -5343,9 +5331,7 @@ _EOF
 @test "bud-with-mount-bind-from-with-empty-from-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  local contextdir=${TEST_SCRATCH_DIR}/bud
-  mkdir $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/bud/buildkit-mount-from
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
   # build base image which we will use as our `from`
   run_buildah build -t buildkitbase $WITH_POLICY_JSON -f $contextdir/Dockerfilebuildkitbase $contextdir/
@@ -5358,9 +5344,7 @@ _EOF
 @test "bud-with-mount-cache-from-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  local contextdir=${TEST_SCRATCH_DIR}/bud
-  mkdir $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/bud/buildkit-mount-from
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
   # try reading something from persistent cache in a different build
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachefrom $contextdir/
@@ -5372,9 +5356,7 @@ _EOF
 @test "bud-with-mount-cache-image-from-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  local contextdir=${TEST_SCRATCH_DIR}/bud
-  mkdir $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/bud/buildkit-mount-from
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
 
   # build base image which we will use as our `from`
@@ -5389,9 +5371,7 @@ _EOF
 @test "bud-with-mount-cache-multiple-from-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  local contextdir=${TEST_SCRATCH_DIR}/bud
-  mkdir $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/bud/buildkit-mount-from
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
   # try reading something from persistent cache in a different build
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilecachemultiplefrom $contextdir/
@@ -5403,9 +5383,7 @@ _EOF
 @test "bud-with-mount-bind-from-relative-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  local contextdir=${TEST_SCRATCH_DIR}/bud
-  mkdir $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/bud/buildkit-mount-from
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
   # build base image which we will use as our `from`
   run_buildah build -t buildkitbaserelative $WITH_POLICY_JSON -f $contextdir/Dockerfilebuildkitbaserelative $contextdir/
@@ -5417,9 +5395,7 @@ _EOF
 }
 
 @test "bud-with-mount-bind-from-multistage-relative-like-buildkit" {
-  local contextdir=${TEST_SCRATCH_DIR}/bud
-  mkdir $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/bud/buildkit-mount-from
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
   skip_if_no_runtime
   skip_if_in_container
@@ -5432,9 +5408,7 @@ _EOF
 @test "bud-with-mount-bind-from-cache-multistage-relative-like-buildkit" {
   skip_if_no_runtime
   skip_if_in_container
-  local contextdir=${TEST_SCRATCH_DIR}/bud
-  mkdir $contextdir
-  local contextdir=${TEST_SCRATCH_DIR}/bud/buildkit-mount-from
+  local contextdir=${TEST_SCRATCH_DIR}/buildkit-mount-from
   cp -R $BUDFILES/buildkit-mount-from $contextdir
   # build base image which we will use as our `from`
   run_buildah build -t testbud $WITH_POLICY_JSON -f $contextdir/Dockerfilemultistagefromcache $contextdir/
