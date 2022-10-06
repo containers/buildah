@@ -28,30 +28,45 @@ load helpers
 # Test for https://github.com/containers/buildah/pull/4295
 @test "build test warning for preconfigured TARGETARCH, TARGETOS, TARGETPLATFORM or TARGETVARIANT" {
   _prefetch alpine
-  containerfile=${TEST_SCRATCH_DIR}/Containerfile
+  containerfile=$BUDFILES/platform-sets-args/Containerfile
 
-  # buildah should not warn when any of these is indirectly set by cli options
-  local -a checkvars=(ARCH OS PLATFORM VARIANT)
-  echo "FROM alpine" >$containerfile
-  for var in "${checkvars[@]}"; do
-    echo "ARG TARGET${var}" >>$containerfile
-  done
-  echo "RUN echo hi" >>$containerfile
+  # Containerfile must contain one or more (four, as of 2022-10) lines
+  # of the form 'ARG TARGETxxx' for each of the variables of interest.
+  local -a checkvars=($(sed -ne 's/^ARG //p' <$containerfile))
+  assert "${checkvars[*]}" != "" \
+         "INTERNAL ERROR! No 'ARG xxx' lines in $containerfile!"
 
-  # With explicit and full --platform, there should be no warnings
-  run_buildah build $WITH_POLICY_JSON --platform linux/amd64/v2 -t source -f $containerfile
+  # With explicit and full --platform, buildah should not warn.
+  run_buildah build $WITH_POLICY_JSON --platform linux/amd64/v2 \
+              -t source -f $containerfile
   assert "$output" !~ "missing .* build argument" \
          "With explicit --platform, buildah should not warn"
 
-  # Without --platform, we want one warning for each variable
+  # Likewise with individual args
+  run_buildah build $WITH_POLICY_JSON --os linux --arch amd64 --variant v2 \
+              -t source -f $containerfile
+  assert "$output" !~ "missing .* build argument" \
+         "With explicit --os + --arch + --variant, buildah should not warn"
+
+  # FIXME FIXME FIXME: #4319: with --os only, buildah should not warn about OS
+  if false; then
+      run_buildah build $WITH_POLICY_JSON --os linux \
+                  -t source -f $containerfile
+      assert "$output" !~ "missing.*TARGETOS" \
+             "With explicit --os (but no arch/variant), buildah should not warn about TARGETOS"
+      # FIXME: add --arch test too, and maybe make this cleaner
+  fi
+
+  # Without --platform nor other args, we want one warning for each variable
   run_buildah build $WITH_POLICY_JSON -t source -f $containerfile
-#  for var in "${checkvars[@]}"; do
-  for i in $(seq 0 3); do
-    var="TARGET${checkvars[$i]}"
+  local i=0
+  for var in "${checkvars[@]}"; do
     # The '..'s cover backslash-quote: "missing \"TARGETFOO\" ..."
     assert "${lines[$i]}" =~ "missing ..${var}.. build argument" \
-           "buildah should warn about undefined ${var}"
+           "line $i: buildah should warn about undefined ${var}"
+    i=$((i+1))
   done
+  assert "$i" -ne 0 "INTERNAL ERROR: did not check for any warnings!"
 }
 
 @test "build-conflicting-isolation-chroot-and-network" {
@@ -409,7 +424,6 @@ _EOF
 # Test bud with prestart hook
 @test "build-test with OCI prestart hook" {
   skip_if_in_container # This works in privileged container setup but does not works in CI setup
-  mkdir -p ${TEST_SCRATCH_DIR}/bud/platform
   mkdir -p ${TEST_SCRATCH_DIR}/bud/platform/hooks
 
   cat > ${TEST_SCRATCH_DIR}/bud/platform/Dockerfile << _EOF
