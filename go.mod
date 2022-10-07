@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.20.2
+	github.com/onsi/gomega v1.21.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc1
 	github.com/opencontainers/runc v1.1.4
