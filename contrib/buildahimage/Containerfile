@@ -11,7 +11,7 @@
 #                   from the Fedoras Updates System.
 # FLAVOR=upstream  aquires a testing version of Buildah
 #                   from the Fedora Copr Buildsystem.
-#                   https://github.com/containers/buildah
+#                   https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/
 #
 # https://bodhi.fedoraproject.org/updates/?search=buildah
 #
