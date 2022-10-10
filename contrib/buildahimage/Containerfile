@@ -1,12 +1,26 @@
-# testing/Containerfile
+# [stable|testing|upstream]/Containerfile
 #
-# Build a Buildah container image from the latest
-# stable version of Buildah on the Fedoras Updates System.
+# Build a Buildah container image from the latest version
+# of Fedora.
+#
+# FLAVOR defaults to stable if unset
+#
+# FLAVOR=stable    aquires a stable version of Buildah
+#                   from the Fedoras Updates System.
+# FLAVOR=testing   aquires a testing version of Buildah
+#                   from the Fedoras Updates System.
+# FLAVOR=upstream  aquires a testing version of Buildah
+#                   from the Fedora Copr Buildsystem.
+#                   https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/
+#
 # https://bodhi.fedoraproject.org/updates/?search=buildah
+#
 # This image can be used to create a secured container
 # that runs safely with privileges within the container.
 #
+
 FROM registry.fedoraproject.org/fedora:latest
+ARG FLAVOR=stable
 
 # Don't include container-selinux and remove
 # directories used by dnf that are just taking
@@ -14,23 +28,40 @@ FROM registry.fedoraproject.org/fedora:latest
 # TODO: rpm --setcaps... needed due to Fedora (base) image builds
 #       being (maybe still?) affected by
 #       https://bugzilla.redhat.com/show_bug.cgi?id=1995337#c3
-RUN useradd build && \
-    dnf -y update && \
+RUN dnf -y update && \
     rpm --setcaps shadow-utils 2>/dev/null && \
-    dnf -y install --enablerepo=updates-testing buildah fuse-overlayfs cpp \
-        --exclude container-selinux && \
+    case "${FLAVOR}" in \
+      stable) \
+        dnf -y install buildah fuse-overlayfs cpp --exclude container-selinux \
+      ;; \
+      testing) \
+        dnf -y install --enablerepo=updates-testing buildah fuse-overlayfs cpp \
+            --exclude container-selinux \
+      ;; \
+      upstream) \
+        dnf -y install 'dnf-command(copr)' --enablerepo=updates-testing && \
+        dnf -y copr enable rhcontainerbot/podman-next && \
+        dnf -y install buildah fuse-overlayfs \
+            --exclude container-selinux \
+            --enablerepo=updates-testing  \
+      ;; \
+      *) \
+        printf "\\nFLAVOR argument must be set and valid, currently: '${FLAVOR}'\\n\\n" 1>&2 && \
+        exit 1 \
+      ;; \
+    esac && \
     dnf -y clean all && \
     rm -rf /var/cache /var/log/dnf* /var/log/yum.*
 
-ADD https://raw.githubusercontent.com/containers/buildah/main/contrib/buildahimage/stable/containers.conf /etc/containers/
+ADD ./containers.conf /etc/containers/
 
 # Copy & modify the defaults to provide reference if runtime changes needed.
 # Changes here are required for running with fuse-overlay storage inside container.
 RUN sed -e 's|^#mount_program|mount_program|g' \
-           -e '/additionalimage.*/a "/var/lib/shared",' \
-           -e 's|^mountopt[[:space:]]*=.*$|mountopt = "nodev,fsync=0"|g' \
-           /usr/share/containers/storage.conf \
-           > /etc/containers/storage.conf && \
+        -e '/additionalimage.*/a "/var/lib/shared",' \
+        -e 's|^mountopt[[:space:]]*=.*$|mountopt = "nodev,fsync=0"|g' \
+        /usr/share/containers/storage.conf \
+        > /etc/containers/storage.conf && \
     chmod 644 /etc/containers/storage.conf && \
     chmod 644 /etc/containers/containers.conf
 
@@ -44,7 +75,8 @@ RUN mkdir -p /var/lib/shared/overlay-images \
     touch /var/lib/shared/vfs-layers/layers.lock
 
 # Define uid/gid ranges for our user https://github.com/containers/buildah/issues/3053
-RUN echo -e "build:1:999\nbuild:1001:64535" > /etc/subuid && \
+RUN useradd build && \
+    echo -e "build:1:999\nbuild:1001:64535" > /etc/subuid && \
     echo -e "build:1:999\nbuild:1001:64535" > /etc/subgid && \
     mkdir -p /home/build/.local/share/containers && \
     chown -R build:build /home/build
