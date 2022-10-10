@@ -4433,12 +4433,13 @@ _EOF
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir1
   mkdir -p ${mytmpdir}
   cat > $mytmpdir/Containerfile << _EOF
-ARG SECRET="Itismysecret"
 FROM alpine
-ARG SECRET
+ARG SECRET="Itismysecret"
 ARG NEWSECRET
 RUN echo $SECRET
+RUN touch hello
 FROM alpine
+COPY --from=0 hello .
 RUN echo "$SECRET"
 _EOF
 
