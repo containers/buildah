@@ -527,6 +527,41 @@ _EOF
   assert "$output" !~ "unwanted stage"
 }
 
+@test "build-test: do not warn for instructions declared in unused stages" {
+  local contextdir=${TEST_SCRATCH_DIR}/bud/platform
+  mkdir -p $contextdir
+
+  cat > $contextdir/Dockerfile << _EOF
+FROM alpine
+RUN echo "first unwanted stage"
+
+FROM alpine as one
+RUN echo "needed stage"
+
+FROM alpine
+ARG FOO_BAR
+RUN echo "another unwanted stage"
+
+FROM one
+RUN echo "target stage"
+_EOF
+
+  # with --skip-unused-stages=true no warning should be printed since ARG is decalred in stage which is not used
+  run_buildah build $WITH_POLICY_JSON --skip-unused-stages=true -t source -f $contextdir/Dockerfile
+  expect_output --substring "needed stage"
+  expect_output --substring "target stage"
+  assert "$output" !~ "unwanted stage"
+  # must not contain warning "missing FOO_BAR"
+  assert "$output" !~ "missing"
+
+  # with --skip-unused-stages=false should print unwanted stage as well as warning for unused arg
+  run_buildah build $WITH_POLICY_JSON --skip-unused-stages=false -t source -f $contextdir/Dockerfile
+  expect_output --substring "needed stage"
+  expect_output --substring "target stage"
+  expect_output --substring "unwanted stage"
+  expect_output --substring "missing"
+}
+
 # Test skipping images with FROM
 @test "build-test skipping unwanted stages with FROM" {
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
