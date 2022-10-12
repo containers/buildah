@@ -26,7 +26,7 @@
 
 Name:           buildah
 # Bump version in buildah.go too
-Version:        1.19.10
+Version:        1.19.11
 Release:        1.git%{shortcommit}%{?dist}
 Summary:        A command line tool used to creating OCI Images
 License:        ASL 2.0
@@ -100,6 +100,11 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install install.completions
 %{_datadir}/bash-completion/completions/*
 
 %changelog
+* Wed Oct 12 2022 Aditya R <arajan@redhat.com> 1.19.11-1
+- run: add container gid to additional groups
+- imagebuilder.util.downloadToDirectory: fail early if bad HTTP response
+- add: fail on bad http response instead of writing to container
+
 * Mon Sep 9 2022 Tom Sweeney <tsweeney@redhat.com> 1.19.10-1
 - [release-1.19] github.com/prometheus/client_golang to v1.11.1
 - [release-1.19]Bump c/storage to 1.24.10
