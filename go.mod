@@ -7,7 +7,7 @@ require (
 	github.com/containernetworking/cni v1.1.2
 	github.com/containers/common v0.50.1
 	github.com/containers/image/v5 v5.23.0
-	github.com/containers/ocicrypt v1.1.5
+	github.com/containers/ocicrypt v1.1.6
 	github.com/containers/storage v1.43.0
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.18+incompatible
