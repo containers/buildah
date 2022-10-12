@@ -781,6 +781,23 @@ Valid `auto` options:
 * size=SIZE: to specify an explicit size for the automatic user namespace. e.g. --userns=auto:size=8192. If size is not specified, auto will estimate a size for the user namespace.
 * uidmapping=CONTAINER_UID:HOST_UID:SIZE: to force a UID mapping to be present in the user namespace.
 
+**--userns-gid-map** *mapping*
+
+Directly specifies a GID mapping which should be used to set ownership, at the
+filesystem level, on the working container's contents.
+Commands run when handling `RUN` instructions will default to being run in
+their own user namespaces, configured using the UID and GID maps.
+
+Entries in this map take the form of one or more colon-separated triples of a starting
+in-container GID, a corresponding starting host-level GID, and the number of
+consecutive IDs which the map entry represents.
+
+This option overrides the *remap-gids* setting in the *options* section of
+/etc/containers/storage.conf.
+
+If this option is not specified, but a global --userns-gid-map setting is
+supplied, settings from the global option will be used.
+
 **--userns-gid-map-group** *group*
 
 Specifies that a GID mapping which should be used to set ownership, at the
@@ -796,6 +813,23 @@ Users can specify the maps directly using `--userns-gid-map` described in the bu
 
 **NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootful.
 
+**--userns-uid-map** *mapping*
+
+Directly specifies a UID mapping which should be used to set ownership, at the
+filesystem level, on the working container's contents.
+Commands run when handling `RUN` instructions will default to being run in
+their own user namespaces, configured using the UID and GID maps.
+
+Entries in this map take the form of one or more colon-separated triples of a starting
+in-container UID, a corresponding starting host-level UID, and the number of
+consecutive IDs which the map entry represents.
+
+This option overrides the *remap-uids* setting in the *options* section of
+/etc/containers/storage.conf.
+
+If this option is not specified, but a global --userns-uid-map setting is
+supplied, settings from the global option will be used.
+
 **--userns-uid-map-user** *user*
 
 Specifies that a UID mapping which should be used to set ownership, at the
@@ -806,8 +840,6 @@ their own user namespaces, configured using the UID and GID maps.
 If --userns-gid-map-group is specified, but --userns-uid-map-user is not
 specified, `buildah` will assume that the specified group name is also a
 suitable user name to use as the default setting for this option.
-
-Users can specify the maps directly using `--userns-uid-map` described in the buildah(1) man page.
 
 **NOTE:** When this option is specified by a rootless user, the specified mappings are relative to the rootless usernamespace in the container, rather than being relative to the host as it would be when run rootful.
 
