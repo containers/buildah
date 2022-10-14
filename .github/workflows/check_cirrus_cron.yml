@@ -45,12 +45,12 @@ jobs:
     cron_failures:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v3
               with:
                   persist-credentials: false
 
             # Avoid duplicating cron_failures.sh in buildah repo.
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v3
               with:
                   repository: containers/podman
                   path: '_podman'
