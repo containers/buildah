@@ -96,7 +96,7 @@ jobs:
                 body: file://./artifacts/email_body.txt
 
             - if: always()
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v3
               with:
                   name: ${{ github.job }}_artifacts
                   path: artifacts/*
