@@ -45,12 +45,12 @@ jobs:
     cron_failures:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v3
               with:
                   persist-credentials: false
 
             # Avoid duplicating cron_failures.sh in buildah repo.
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v3
               with:
                   repository: containers/podman
                   path: '_podman'
@@ -84,7 +84,7 @@ jobs:
             - if: steps.cron.outputs.failures > 0
               name: Send failure notification e-mail
               # Ref: https://github.com/dawidd6/action-send-mail
-              uses: dawidd6/action-send-mail@a80d851dc950256421f1d1d735a2dc1ef314ac8f # v2.2.2
+              uses: dawidd6/action-send-mail@6063705cefe50cb915fc53bb06d4049cae2953b2 # v2.2.2
               with:
                 server_address: ${{secrets.ACTION_MAIL_SERVER}}
                 server_port: 465
@@ -96,14 +96,14 @@ jobs:
                 body: file://./artifacts/email_body.txt
 
             - if: always()
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v3
               with:
                   name: ${{ github.job }}_artifacts
                   path: artifacts/*
 
             - if: failure()
               name: Send error notification e-mail
-              uses: dawidd6/action-send-mail@a80d851dc950256421f1d1d735a2dc1ef314ac8f # v2.2.2
+              uses: dawidd6/action-send-mail@6063705cefe50cb915fc53bb06d4049cae2953b2 # v2.2.2
               with:
                 server_address: ${{secrets.ACTION_MAIL_SERVER}}
                 server_port: 465

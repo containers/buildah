@@ -10,7 +10,9 @@ buildah\-info - Display Buildah system information.
 The information displayed pertains to the host and current storage statistics which is useful when reporting issues.
 
 ## OPTIONS
-**--debug, -D**
+
+**--debug**, **-d**
+
 Show additional information.
 
 **--format** *template*

@@ -1,0 +1,6 @@
+FROM alpine
+ARG TARGETARCH
+ARG TARGETOS
+ARG TARGETPLATFORM
+ARG TARGETVARIANT
+ENV nothing="multiarch-safe statement that will result in a built image"
