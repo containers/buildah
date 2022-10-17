@@ -78,7 +78,7 @@ func openLock(path string, ro bool) (fd int, err error) {
 	}
 	fd, err = unix.Open(path, flags, 0o644)
 	if err == nil {
-		return
+		return fd, nil
 	}
 
 	// the directory of the lockfile seems to be removed, try to create it
@@ -133,7 +133,7 @@ func createLockerForPath(path string, ro bool) (Locker, error) {
 func (l *lockfile) lock(lType int16) {
 	lk := unix.Flock_t{
 		Type:   lType,
-		Whence: int16(os.SEEK_SET),
+		Whence: int16(unix.SEEK_SET),
 		Start:  0,
 		Len:    0,
 	}
@@ -184,7 +184,7 @@ func (l *lockfile) RLock() {
 // Unlock unlocks the lockfile.
 func (l *lockfile) Unlock() {
 	l.stateMutex.Lock()
-	if l.locked == false {
+	if !l.locked {
 		// Panic when unlocking an unlocked lock.  That's a violation
 		// of the lock semantics and will reveal such.
 		panic("calling Unlock on unlocked lock")
@@ -251,9 +251,10 @@ func (l *lockfile) Modified() (bool, error) {
 	if err != nil {
 		return true, err
 	}
-	if n != len(l.lw) {
-		return true, nil
-	}
+	// It is important to handle the partial read case, because
+	// the initial size of the lock file is zero, which is a valid
+	// state (no writes yet)
+	currentLW = currentLW[:n]
 	oldLW := l.lw
 	l.lw = currentLW
 	return !bytes.Equal(currentLW, oldLW), nil

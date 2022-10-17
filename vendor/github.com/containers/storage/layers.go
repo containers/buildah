@@ -214,18 +214,8 @@ type rwLayerStore interface {
 	// Put combines the functions of CreateWithFlags and ApplyDiff.
 	Put(id string, parent *Layer, names []string, mountLabel string, options map[string]string, moreOptions *LayerOptions, writeable bool, flags map[string]interface{}, diff io.Reader) (*Layer, int64, error)
 
-	// SetNames replaces the list of names associated with a layer with the
-	// supplied values.
-	// Deprecated: Prone to race conditions, suggested alternatives are `AddNames` and `RemoveNames`.
-	SetNames(id string, names []string) error
-
-	// AddNames adds the supplied values to the list of names associated with the layer with the
-	// specified id.
-	AddNames(id string, names []string) error
-
-	// RemoveNames remove the supplied values from the list of names associated with the layer with the
-	// specified id.
-	RemoveNames(id string, names []string) error
+	// updateNames modifies names associated with a layer based on (op, names).
+	updateNames(id string, names []string, op updateNameOperation) error
 
 	// Delete deletes a layer with the specified name or ID.
 	Delete(id string) error
@@ -1091,19 +1081,6 @@ func (r *layerStore) removeName(layer *Layer, name string) {
 	layer.Names = stringSliceWithoutValue(layer.Names, name)
 }
 
-// Deprecated: Prone to race conditions, suggested alternatives are `AddNames` and `RemoveNames`.
-func (r *layerStore) SetNames(id string, names []string) error {
-	return r.updateNames(id, names, setNames)
-}
-
-func (r *layerStore) AddNames(id string, names []string) error {
-	return r.updateNames(id, names, addNames)
-}
-
-func (r *layerStore) RemoveNames(id string, names []string) error {
-	return r.updateNames(id, names, removeNames)
-}
-
 func (r *layerStore) updateNames(id string, names []string, op updateNameOperation) error {
 	if !r.IsReadWrite() {
 		return fmt.Errorf("not allowed to change layer name assignments at %q: %w", r.layerspath(), ErrStoreIsReadOnly)
@@ -1258,8 +1235,7 @@ func (r *layerStore) deleteInternal(id string) error {
 	// We never unset incompleteFlag; below, we remove the entire object from r.layers.
 
 	id = layer.ID
-	err := r.driver.Remove(id)
-	if err != nil {
+	if err := r.driver.Remove(id); err != nil {
 		return err
 	}
 
