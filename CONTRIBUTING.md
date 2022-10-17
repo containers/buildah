@@ -145,12 +145,12 @@ is available, showing all PRs awaiting review and approval.
 For general questions or discussions, please use the
 IRC channel `#podman` on `irc.libera.chat`. If you are unfamiliar with IRC you can start a web client at https://web.libera.chat/#podman.
 
-Alternatively [\[matrix\]](https://matrix.org) can be used to access the same channel via federiation at https://matrix.to/#/#podman:chat.fedoraproject.org.
+Alternatively, [\[matrix\]](https://matrix.org) can be used to access the same channel via federation at https://matrix.to/#/#podman:chat.fedoraproject.org.
 
 ### For discussions around issues/bugs and features:
 
 #### GitHub
-You can also use the github
+You can also use GitHub
 [issues](https://github.com/containers/buildah/issues)
 and
 [PRs](https://github.com/containers/buildah/pulls)
@@ -158,7 +158,6 @@ tracking system.
 
 #### Buildah Mailing List
 
-_This list sees low traffic, the GitHub links or IRC above are better options in most cases._
 
 You can join the Buildah mailing list by sending an email to `buildah-join@lists.buildah.io` with the word `subscribe` in the subject.  You can also go to this [page](https://lists.podman.io/admin/lists/buildah.lists.buildah.io/), then scroll down to the bottom of the page and enter your email and optionally name, then click on the "Subscribe" button.
 
