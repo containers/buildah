@@ -25,6 +25,14 @@ load helpers
   expect_output --substring "options use-vc"
 }
 
+#Verify https://github.com/containers/buildah/issues/4342
+@test "buildkit-mount type=cache should not hang if cache is wiped in between" {
+  containerfile=$BUDFILES/cache-mount-locked/Containerfile
+  run_buildah build $WITH_POLICY_JSON --build-arg WIPE_CACHE=1 -t source -f $containerfile $BUDFILES/cache-mount-locked
+  # build should be success and must contain `hello` from `file` in last step
+  expect_output --substring "hello"
+}
+
 # Test for https://github.com/containers/buildah/pull/4295
 @test "build test warning for preconfigured TARGETARCH, TARGETOS, TARGETPLATFORM or TARGETVARIANT" {
   _prefetch alpine
