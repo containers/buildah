@@ -1519,7 +1519,7 @@ func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMap
 			}
 			finalMounts = append(finalMounts, *mount)
 			mountTargets = append(mountTargets, mount.Destination)
-			lockedTargets = lockedPaths
+			lockedTargets = append(lockedTargets, lockedPaths...)
 		default:
 			return nil, nil, fmt.Errorf("invalid mount type %q", mountType)
 		}
