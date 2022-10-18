@@ -5,6 +5,21 @@ import (
 	"time"
 )
 
+// LayersDiskUsage returns the sum of the size of all layers in the current store.
+func (r *Runtime) LayersDiskUsage(ctx context.Context) (int64, error) {
+	layers, err := r.store.Layers()
+	if err != nil {
+		return -1, err
+	}
+
+	var size int64
+	for _, l := range layers {
+		size += l.UncompressedSize
+	}
+
+	return size, nil
+}
+
 // ImageDiskUsage reports the total size of an image.  That is the size
 type ImageDiskUsage struct {
 	// Number of containers using the image.

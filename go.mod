@@ -5,10 +5,10 @@ go 1.17
 require (
 	github.com/containerd/containerd v1.6.8
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.50.2-0.20221014181637-a6a9c521b6a5
-	github.com/containers/image/v5 v5.23.1-0.20221013202101-87afcefe9766
+	github.com/containers/common v0.50.2-0.20221017133459-7a4bcca6b86c
+	github.com/containers/image/v5 v5.23.1-0.20221015133641-1921a1993c67
 	github.com/containers/ocicrypt v1.1.6
-	github.com/containers/storage v1.43.1-0.20221014072257-a144fee6f51c
+	github.com/containers/storage v1.43.1-0.20221017123904-a4d4fe98e37d
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.19+incompatible
 	github.com/docker/go-units v0.5.0
@@ -48,7 +48,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/containerd/cgroups v1.0.4 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.12.0 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.12.1 // indirect
 	github.com/containernetworking/plugins v1.1.1 // indirect
 	github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
