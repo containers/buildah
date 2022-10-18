@@ -213,11 +213,33 @@ func (l *lockfile) Unlock() {
 	l.stateMutex.Unlock()
 }
 
-// Locked checks if lockfile is locked for writing by a thread in this process.
-func (l *lockfile) Locked() bool {
-	l.stateMutex.Lock()
-	defer l.stateMutex.Unlock()
-	return l.locked && (l.locktype == unix.F_WRLCK)
+func (l *lockfile) AssertLocked() {
+	// DO NOT provide a variant that returns the value of l.locked.
+	//
+	// If the caller does not hold the lock, l.locked might nevertheless be true because another goroutine does hold it, and
+	// we can’t tell the difference.
+	//
+	// Hence, this “AssertLocked” method, which exists only for sanity checks.
+
+	// Don’t even bother with l.stateMutex: The caller is expected to hold the lock, and in that case l.locked is constant true
+	// with no possible writers.
+	// If the caller does not hold the lock, we are violating the locking/memory model anyway, and accessing the data
+	// without the lock is more efficient for callers, and potentially more visible to lock analysers for incorrect callers.
+	if !l.locked {
+		panic("internal error: lock is not held by the expected owner")
+	}
+}
+
+func (l *lockfile) AssertLockedForWriting() {
+	// DO NOT provide a variant that returns the current lock state.
+	//
+	// The same caveats as for AssertLocked apply equally.
+
+	l.AssertLocked()
+	// Like AssertLocked, don’t even bother with l.stateMutex.
+	if l.locktype != unix.F_WRLCK {
+		panic("internal error: lock is not held for writing")
+	}
 }
 
 // Touch updates the lock file with the UID of the user.

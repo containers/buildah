@@ -121,3 +121,5 @@ require (
 )
 
 replace github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20211123152302-43a7dee1ec31
+
+replace github.com/containers/storage => github.com/mtrmac/storage v0.0.0-20221019205850-2982ce5485db

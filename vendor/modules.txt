@@ -200,7 +200,7 @@ github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
 github.com/containers/ocicrypt/utils/keyprovider
-# github.com/containers/storage v1.43.1-0.20221019193442-95f15672c2a5
+# github.com/containers/storage v1.43.1-0.20221019193442-95f15672c2a5 => github.com/mtrmac/storage v0.0.0-20221019205850-2982ce5485db
 ## explicit; go 1.17
 github.com/containers/storage
 github.com/containers/storage/drivers
@@ -813,3 +813,4 @@ gopkg.in/yaml.v3
 ## explicit; go 1.12
 k8s.io/klog
 # github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20211123152302-43a7dee1ec31
+# github.com/containers/storage => github.com/mtrmac/storage v0.0.0-20221019205850-2982ce5485db

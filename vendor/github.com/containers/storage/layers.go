@@ -331,7 +331,7 @@ func (r *layerStore) startWritingWithReload(canReload bool) error {
 	}()
 
 	if canReload {
-		if err := r.ReloadIfChanged(); err != nil {
+		if err := r.reloadIfChanged(true); err != nil {
 			return err
 		}
 	}
@@ -366,7 +366,7 @@ func (r *layerStore) startReadingWithReload(canReload bool) error {
 	}()
 
 	if canReload {
-		if err := r.ReloadIfChanged(); err != nil {
+		if err := r.reloadIfChanged(false); err != nil {
 			return err
 		}
 	}
@@ -420,14 +420,17 @@ func (r *layerStore) Modified() (bool, error) {
 	return tmodified, nil
 }
 
-// ReloadIfChanged reloads the contents of the store from disk if it is changed.
-func (r *layerStore) ReloadIfChanged() error {
+// reloadIfChanged reloads the contents of the store from disk if it is changed.
+//
+// The caller must hold r.lockfile for reading _or_ writing; lockedForWriting is true
+// if it is held for writing.
+func (r *layerStore) reloadIfChanged(lockedForWriting bool) error {
 	r.loadMut.Lock()
 	defer r.loadMut.Unlock()
 
 	modified, err := r.Modified()
 	if err == nil && modified {
-		return r.Load()
+		return r.load(lockedForWriting)
 	}
 	return err
 }
@@ -448,9 +451,11 @@ func (r *layerStore) layerspath() string {
 	return filepath.Join(r.layerdir, "layers.json")
 }
 
-// Load reloads the contents of the store from disk.  It should be called
-// with the lock held.
-func (r *layerStore) Load() error {
+// load reloads the contents of the store from disk.
+//
+// The caller must hold r.lockfile for reading _or_ writing; lockedForWriting is true
+// if it is held for writing.
+func (r *layerStore) load(lockedForWriting bool) error {
 	shouldSave := false
 	rpath := r.layerspath()
 	info, err := os.Stat(rpath)
@@ -499,7 +504,8 @@ func (r *layerStore) Load() error {
 		}
 		err = nil
 	}
-	if shouldSave && (!r.lockfile.IsReadWrite() || !r.lockfile.Locked()) {
+	if shouldSave && (!r.lockfile.IsReadWrite() || !lockedForWriting) {
+		// Eventually, the callers should be modified to retry with a write lock if IsReadWrite && !lockedForWriting, instead.
 		return ErrDuplicateLayerNames
 	}
 	r.layers = layers
@@ -520,7 +526,7 @@ func (r *layerStore) Load() error {
 		// Last step: as we’re writable, try to remove anything that a previous
 		// user of this storage area marked for deletion but didn't manage to
 		// actually delete.
-		if r.lockfile.Locked() {
+		if lockedForWriting {
 			for _, layer := range r.layers {
 				if layer.Flags == nil {
 					layer.Flags = make(map[string]interface{})
@@ -581,7 +587,7 @@ func (r *layerStore) loadMounts() error {
 }
 
 // Save saves the contents of the store to disk.  It should be called with
-// the lock held.
+// the lock held, locked for writing.
 func (r *layerStore) Save() error {
 	r.mountsLockfile.Lock()
 	defer r.mountsLockfile.Unlock()
@@ -595,9 +601,7 @@ func (r *layerStore) saveLayers() error {
 	if !r.lockfile.IsReadWrite() {
 		return fmt.Errorf("not allowed to modify the layer store at %q: %w", r.layerspath(), ErrStoreIsReadOnly)
 	}
-	if !r.lockfile.Locked() {
-		return errors.New("layer store is not locked for writing")
-	}
+	r.lockfile.AssertLockedForWriting()
 	rpath := r.layerspath()
 	if err := os.MkdirAll(filepath.Dir(rpath), 0700); err != nil {
 		return err
@@ -616,9 +620,7 @@ func (r *layerStore) saveMounts() error {
 	if !r.lockfile.IsReadWrite() {
 		return fmt.Errorf("not allowed to modify the layer store at %q: %w", r.layerspath(), ErrStoreIsReadOnly)
 	}
-	if !r.mountsLockfile.Locked() {
-		return errors.New("layer store mount information is not locked for writing")
-	}
+	r.mountsLockfile.AssertLockedForWriting()
 	mpath := r.mountspath()
 	if err := os.MkdirAll(filepath.Dir(mpath), 0700); err != nil {
 		return err
@@ -675,7 +677,7 @@ func (s *store) newLayerStore(rundir string, layerdir string, driver drivers.Dri
 		return nil, err
 	}
 	defer rlstore.stopWriting()
-	if err := rlstore.Load(); err != nil {
+	if err := rlstore.load(true); err != nil {
 		return nil, err
 	}
 	return &rlstore, nil
@@ -700,7 +702,7 @@ func newROLayerStore(rundir string, layerdir string, driver drivers.Driver) (roL
 		return nil, err
 	}
 	defer rlstore.stopReading()
-	if err := rlstore.Load(); err != nil {
+	if err := rlstore.load(false); err != nil {
 		return nil, err
 	}
 	return &rlstore, nil
