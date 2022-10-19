@@ -246,7 +246,7 @@ func (l *lockfile) Modified() (bool, error) {
 		panic("attempted to check last-writer in lockfile without locking it first")
 	}
 	defer l.stateMutex.Unlock()
-	currentLW := make([]byte, len(l.lw))
+	currentLW := make([]byte, lastWriterIDSize)
 	n, err := unix.Pread(int(l.fd), currentLW, 0)
 	if err != nil {
 		return true, err

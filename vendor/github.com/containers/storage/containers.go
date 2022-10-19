@@ -68,10 +68,23 @@ type Container struct {
 
 // rwContainerStore provides bookkeeping for information about Containers.
 type rwContainerStore interface {
-	fileBasedStore
 	metadataStore
 	containerBigDataStore
 	flaggableStore
+
+	// startWriting makes sure the store is fresh, and locks it for writing.
+	// If this succeeds, the caller MUST call stopWriting().
+	startWriting() error
+
+	// stopWriting releases locks obtained by startWriting.
+	stopWriting()
+
+	// startReading makes sure the store is fresh, and locks it for reading.
+	// If this succeeds, the caller MUST call stopReading().
+	startReading() error
+
+	// stopReading releases locks obtained by startReading.
+	stopReading()
 
 	// Create creates a container that has a specified ID (or generates a
 	// random one if an empty value is supplied) and optional names,
@@ -163,6 +176,77 @@ func (c *Container) MountOpts() []string {
 	}
 }
 
+// startWritingWithReload makes sure the store is fresh if canReload, and locks it for writing.
+// If this succeeds, the caller MUST call stopWriting().
+//
+// This is an internal implementation detail of containerStore construction, every other caller
+// should use startWriting() instead.
+func (r *containerStore) startWritingWithReload(canReload bool) error {
+	r.lockfile.Lock()
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			r.lockfile.Unlock()
+		}
+	}()
+
+	if canReload {
+		if err := r.ReloadIfChanged(); err != nil {
+			return err
+		}
+	}
+
+	succeeded = true
+	return nil
+}
+
+// startWriting makes sure the store is fresh, and locks it for writing.
+// If this succeeds, the caller MUST call stopWriting().
+func (r *containerStore) startWriting() error {
+	return r.startWritingWithReload(true)
+}
+
+// stopWriting releases locks obtained by startWriting.
+func (r *containerStore) stopWriting() {
+	r.lockfile.Unlock()
+}
+
+// startReading makes sure the store is fresh, and locks it for reading.
+// If this succeeds, the caller MUST call stopReading().
+func (r *containerStore) startReading() error {
+	r.lockfile.RLock()
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			r.lockfile.Unlock()
+		}
+	}()
+
+	if err := r.ReloadIfChanged(); err != nil {
+		return err
+	}
+
+	succeeded = true
+	return nil
+}
+
+// stopReading releases locks obtained by startReading.
+func (r *containerStore) stopReading() {
+	r.lockfile.Unlock()
+}
+
+// ReloadIfChanged reloads the contents of the store from disk if it is changed.
+func (r *containerStore) ReloadIfChanged() error {
+	r.loadMut.Lock()
+	defer r.loadMut.Unlock()
+
+	modified, err := r.lockfile.Modified()
+	if err == nil && modified {
+		return r.Load()
+	}
+	return err
+}
+
 func (r *containerStore) Containers() ([]Container, error) {
 	containers := make([]Container, len(r.containers))
 	for i := range r.containers {
@@ -183,6 +267,8 @@ func (r *containerStore) datapath(id, key string) string {
 	return filepath.Join(r.datadir(id), makeBigDataBaseName(key))
 }
 
+// Load reloads the contents of the store from disk.  It should be called
+// with the lock held.
 func (r *containerStore) Load() error {
 	needSave := false
 	rpath := r.containerspath()
@@ -221,8 +307,10 @@ func (r *containerStore) Load() error {
 	return nil
 }
 
+// Save saves the contents of the store to disk.  It should be called with
+// the lock held.
 func (r *containerStore) Save() error {
-	if !r.Locked() {
+	if !r.lockfile.Locked() {
 		return errors.New("container store is not locked")
 	}
 	rpath := r.containerspath()
@@ -236,7 +324,7 @@ func (r *containerStore) Save() error {
 	if err := ioutils.AtomicWriteFile(rpath, jdata, 0600); err != nil {
 		return err
 	}
-	return r.Touch()
+	return r.lockfile.Touch()
 }
 
 func newContainerStore(dir string) (rwContainerStore, error) {
@@ -255,8 +343,10 @@ func newContainerStore(dir string) (rwContainerStore, error) {
 		bylayer:    make(map[string]*Container),
 		byname:     make(map[string]*Container),
 	}
-	cstore.Lock()
-	defer cstore.Unlock()
+	if err := cstore.startWritingWithReload(false); err != nil {
+		return nil, err
+	}
+	defer cstore.stopWriting()
 	if err := cstore.Load(); err != nil {
 		return nil, err
 	}
@@ -594,47 +684,4 @@ func (r *containerStore) Wipe() error {
 		}
 	}
 	return nil
-}
-
-func (r *containerStore) Lock() {
-	r.lockfile.Lock()
-}
-
-func (r *containerStore) RLock() {
-	r.lockfile.RLock()
-}
-
-func (r *containerStore) Unlock() {
-	r.lockfile.Unlock()
-}
-
-func (r *containerStore) Touch() error {
-	return r.lockfile.Touch()
-}
-
-func (r *containerStore) Modified() (bool, error) {
-	return r.lockfile.Modified()
-}
-
-func (r *containerStore) IsReadWrite() bool {
-	return r.lockfile.IsReadWrite()
-}
-
-func (r *containerStore) TouchedSince(when time.Time) bool {
-	return r.lockfile.TouchedSince(when)
-}
-
-func (r *containerStore) Locked() bool {
-	return r.lockfile.Locked()
-}
-
-func (r *containerStore) ReloadIfChanged() error {
-	r.loadMut.Lock()
-	defer r.loadMut.Unlock()
-
-	modified, err := r.Modified()
-	if err == nil && modified {
-		return r.Load()
-	}
-	return err
 }
