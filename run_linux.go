@@ -1197,18 +1197,25 @@ func checkIdsGreaterThan5(ids []spec.LinuxIDMapping) bool {
 	return false
 }
 
-// The caller should eventually unlock returned lockfile.Locker, if it is non-nil, even if this function fails.
+// If this function succeeds and returns a non-nil lockfile.Locker, the caller must unlock it (when??).
 func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps) (*spec.Mount, lockfile.Locker, error) {
 	var optionMounts []specs.Mount
 	mount, targetLock, err := internalParse.GetCacheMount(tokens, b.store, b.MountLabel, stageMountPoints)
 	if err != nil {
-		return nil, targetLock, err
+		return nil, nil, err
 	}
+	succeeded := false
+	defer func() {
+		if !succeeded && targetLock != nil {
+			targetLock.Unlock()
+		}
+	}()
 	optionMounts = append(optionMounts, mount)
 	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
 	if err != nil {
-		return nil, targetLock, err
+		return nil, nil, err
 	}
+	succeeded = true
 	return &volumes[0], targetLock, nil
 }
 

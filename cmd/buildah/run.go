@@ -172,6 +172,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	if err != nil {
 		return err
 	}
+	defer internalParse.UnlockLockArray(targetLocks)
 	options.Mounts = mounts
 	// Run() will automatically clean them up.
 	options.ExternalImageMounts = mountedImages
@@ -189,10 +190,6 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		}
 		conditionallyAddHistory(builder, c, "%s %s", shell, strings.Join(args, " "))
 		return builder.Save()
-	}
-	// unlock if any locked files from this RUN statement
-	for _, lockfile := range targetLocks {
-		lockfile.Unlock()
 	}
 	return runerr
 }
