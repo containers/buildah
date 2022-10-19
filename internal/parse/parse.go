@@ -554,7 +554,7 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mounts []string, c
 			mountedImages = append(mountedImages, image)
 		case TypeCache:
 			mount, tl, err := GetCacheMount(tokens, store, "", nil)
-			targetLocks = tl
+			targetLocks = append(targetLocks, tl...)
 			if err != nil {
 				return nil, mountedImages, targetLocks, err
 			}
