@@ -192,12 +192,7 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	}
 	// unlock if any locked files from this RUN statement
 	for _, lockfile := range targetLocks {
-		if lockfile.Locked() {
-			lockfile.Unlock()
-		} else {
-			logrus.Warnf("Some lockfile was expected to be locked, this is unexpected")
-			continue
-		}
+		lockfile.Unlock()
 	}
 	return runerr
 }

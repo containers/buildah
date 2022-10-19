@@ -1863,12 +1863,7 @@ func (b *Builder) cleanupRunMounts(context *imageTypes.SystemContext, mountpoint
 	}
 	// unlock if any locked files from this RUN statement
 	for _, lockfile := range artifacts.TargetLocks {
-		if lockfile.Locked() {
-			lockfile.Unlock()
-		} else {
-			logrus.Warnf("Some lockfile %q was expected to be locked, this is unexpected", path)
-			continue
-		}
+		lockfile.Unlock()
 	}
 	return prevErr
 }
