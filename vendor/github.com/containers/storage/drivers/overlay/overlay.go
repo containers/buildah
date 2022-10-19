@@ -89,7 +89,7 @@ const (
 	// is true (512 is a buffer for label metadata, 128 is the
 	// number of lowers we want to be able to use without having
 	// to use bind mounts to get all the way to the kernel limit).
-	// ((idLength + len(linkDir) + 1) * maxDepth) <= (pageSize - 512)
+	// ((idLength + len(linkDir) + 1) * 128) <= (pageSize - 512)
 	idLength = 26
 )
 
