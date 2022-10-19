@@ -1,0 +1,21 @@
+FROM quay.io/centos/centos:7
+
+ARG WIPE_CACHE
+
+COPY file .
+
+RUN --mount=type=cache,target=/cache1,sharing=locked \
+    --mount=type=cache,target=/cache2 \
+    set -ex; \
+    ls -l /cache1; \
+    if [[ -v WIPE_CACHE ]]; then \
+      >&2 echo "Wiping cache"; \
+      find /cache1 -mindepth 1 -delete; \
+    fi; \
+    echo "foo" > /cache1/foo.txt; \
+    ls -l /cache1; \
+    chmod --recursive g=u /cache1; \
+    : ;
+
+# Cache was wiped-out but lock should not hang here: https://github.com/containers/buildah/issues/4342
+RUN --mount=type=cache,target=/cache1,sharing=locked cat file

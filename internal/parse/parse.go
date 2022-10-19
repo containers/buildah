@@ -33,6 +33,9 @@ const (
 	BuildahCacheDir = "buildah-cache"
 	// mount=type=cache allows users to lock a cache store while its being used by another build
 	BuildahCacheLockfile = "buildah-cache-lockfile"
+	// All the lockfiles are stored in a separate directory inside `BuildahCacheDir`
+	// Example `/var/tmp/buildah-cache/<target>/buildah-cache-lockfile`
+	BuildahCacheLockfileDir = "buildah-cache-lockfiles"
 )
 
 var (
@@ -187,6 +190,7 @@ func GetBindMount(ctx *types.SystemContext, args []string, contextDir string, st
 func GetCacheMount(args []string, store storage.Store, imageMountLabel string, additionalMountPoints map[string]internal.StageMountDetails) (specs.Mount, []string, error) {
 	var err error
 	var mode uint64
+	var buildahLockFilesDir string
 	lockedTargets := make([]string, 0)
 	var (
 		setDest           bool
@@ -336,8 +340,10 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 
 		if id != "" {
 			newMount.Source = filepath.Join(cacheParent, filepath.Clean(id))
+			buildahLockFilesDir = filepath.Join(BuildahCacheLockfileDir, filepath.Clean(id))
 		} else {
 			newMount.Source = filepath.Join(cacheParent, filepath.Clean(newMount.Destination))
+			buildahLockFilesDir = filepath.Join(BuildahCacheLockfileDir, filepath.Clean(newMount.Destination))
 		}
 		idPair := idtools.IDPair{
 			UID: uid,
@@ -348,18 +354,25 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 		if err != nil {
 			return newMount, lockedTargets, fmt.Errorf("unable to change uid,gid of cache directory: %w", err)
 		}
+
+		// create a subdirectory inside `cacheParent` just to store lockfiles
+		buildahLockFilesDir = filepath.Join(cacheParent, buildahLockFilesDir)
+		err = os.MkdirAll(buildahLockFilesDir, os.FileMode(0700))
+		if err != nil {
+			return newMount, lockedTargets, fmt.Errorf("unable to create build cache lockfiles directory: %w", err)
+		}
 	}
 
 	switch sharing {
 	case "locked":
 		// lock parent cache
-		lockfile, err := lockfile.GetLockfile(filepath.Join(newMount.Source, BuildahCacheLockfile))
+		lockfile, err := lockfile.GetLockfile(filepath.Join(buildahLockFilesDir, BuildahCacheLockfile))
 		if err != nil {
 			return newMount, lockedTargets, fmt.Errorf("unable to acquire lock when sharing mode is locked: %w", err)
 		}
 		// Will be unlocked after the RUN step is executed.
 		lockfile.Lock()
-		lockedTargets = append(lockedTargets, filepath.Join(newMount.Source, BuildahCacheLockfile))
+		lockedTargets = append(lockedTargets, filepath.Join(buildahLockFilesDir, BuildahCacheLockfile))
 	case "shared":
 		// do nothing since default is `shared`
 		break
