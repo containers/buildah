@@ -237,8 +237,8 @@ github.com/containernetworking/plugins v0.8.6/go.mod h1:qnw5mN19D8fIwkqW7oHHYDHV
 github.com/containernetworking/plugins v0.9.1/go.mod h1:xP/idU2ldlzN6m4p5LmGiwRDjeJr6FLK6vuiUwoH7P8=
 github.com/containernetworking/plugins v1.1.1 h1:+AGfFigZ5TiQH00vhR8qPeSatj53eNGz0C1d3wVYlHE=
 github.com/containernetworking/plugins v1.1.1/go.mod h1:Sr5TH/eBsGLXK/h71HeLfX19sZPp3ry5uHSkI4LPxV8=
-github.com/containers/common v0.50.2-0.20221017133459-7a4bcca6b86c h1:qkVakshfoxSFucrPG8CtRnAwZmXu3BwiYe7CfuuJFEQ=
-github.com/containers/common v0.50.2-0.20221017133459-7a4bcca6b86c/go.mod h1:71Q12SyFJO8rWgdMjvR6MC73KGpIpQU6PPkBRgoSots=
+github.com/containers/common v0.50.2-0.20221019193843-c73d138e5848 h1:8eW8JobVYNR9L5tgc7TeaR7qQlR9dDgZwQXI9S+ElsM=
+github.com/containers/common v0.50.2-0.20221019193843-c73d138e5848/go.mod h1:S7b20/fPHlwefhCYlnyBdePRnTdNiKk9M2Su5fMzu0s=
 github.com/containers/image/v5 v5.23.1-0.20221015133641-1921a1993c67 h1:kCKq/UASl4o6mwlqbBP8r+6fMIdQg3RkC2znw6H65A4=
 github.com/containers/image/v5 v5.23.1-0.20221015133641-1921a1993c67/go.mod h1:V+wF8uIye+czYC4HWHGh4IK9dZBTsQUG1ZYie9gXxCQ=
 github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a h1:spAGlqziZjCJL25C6F1zsQY05tfCKE9F5YwtEWWe6hU=
@@ -249,8 +249,8 @@ github.com/containers/ocicrypt v1.1.1/go.mod h1:Dm55fwWm1YZAjYRaJ94z2mfZikIyIN4B
 github.com/containers/ocicrypt v1.1.6 h1:uoG52u2e91RE4UqmBICZY8dNshgfvkdl3BW6jnxiFaI=
 github.com/containers/ocicrypt v1.1.6/go.mod h1:WgjxPWdTJMqYMjf3M6cuIFFA1/MpyyhIM99YInA+Rvc=
 github.com/containers/storage v1.37.0/go.mod h1:kqeJeS0b7DO2ZT1nVWs0XufrmPFbgV3c+Q/45RlH6r4=
-github.com/containers/storage v1.43.1-0.20221017123904-a4d4fe98e37d h1:x29qOIepRBNGxdkVj3igm0X+QHAXZd+qpPivPAU7+rw=
-github.com/containers/storage v1.43.1-0.20221017123904-a4d4fe98e37d/go.mod h1:3DWrMisPOdjM9rZTL3g6p1ZCXSkBqaatGPgWiXClNsc=
+github.com/containers/storage v1.43.1-0.20221019193442-95f15672c2a5 h1:w96afA/ctw0+qcmzsWJMakcFc/Ky6D7tt9PLsOif4xM=
+github.com/containers/storage v1.43.1-0.20221019193442-95f15672c2a5/go.mod h1:3DWrMisPOdjM9rZTL3g6p1ZCXSkBqaatGPgWiXClNsc=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-iptables v0.4.5/go.mod h1:/mVI274lEDI2ns62jHCDnCyBF9Iwsmekav8Dbxlm1MU=
@@ -298,8 +298,8 @@ github.com/docker/distribution v2.8.1+incompatible h1:Q50tZOPR6T/hjNsyc9g8/syEs6
 github.com/docker/distribution v2.8.1+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
 github.com/docker/docker v1.4.2-0.20190924003213-a8608b5b67c7/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/docker v20.10.12+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
-github.com/docker/docker v20.10.19+incompatible h1:lzEmjivyNHFHMNAFLXORMBXyGIhw/UP4DvJwvyKYq64=
-github.com/docker/docker v20.10.19+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
+github.com/docker/docker v20.10.20+incompatible h1:kH9tx6XO+359d+iAkumyKDc5Q1kOwPuAUaeri48nD6E=
+github.com/docker/docker v20.10.20+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/docker-credential-helpers v0.6.3/go.mod h1:WRaJzqw3CTB9bk10avuGsjVBZsD05qeibJ1/TYlvc0Y=
 github.com/docker/docker-credential-helpers v0.7.0 h1:xtCHsjxogADNZcdv1pKUHXryefjlVRqWqIhk/uXJp0A=
 github.com/docker/docker-credential-helpers v0.7.0/go.mod h1:rETQfLdHNT3foU5kuNkFR1R1V12OJRRO5lzt2D1b5X0=

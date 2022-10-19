@@ -368,6 +368,9 @@ func defaultConfigFromMemory() (*EngineConfig, error) {
 			"/usr/bin/krun",
 			"/usr/local/bin/krun",
 		},
+		"ocijail": {
+			"/usr/local/bin/ocijail",
+		},
 	}
 	// Needs to be called after populating c.OCIRuntimes.
 	c.OCIRuntime = c.findRuntime()
@@ -685,4 +688,3 @@ func useUserConfigLocations() bool {
 	// GetRootlessUID == -1 on Windows, so exclude negative range
 	return unshare.GetRootlessUID() > 0
 }
-
