@@ -8,7 +8,7 @@ require (
 	github.com/containers/common v0.50.2-0.20221017133459-7a4bcca6b86c
 	github.com/containers/image/v5 v5.23.1-0.20221015133641-1921a1993c67
 	github.com/containers/ocicrypt v1.1.6
-	github.com/containers/storage v1.43.1-0.20221017123904-a4d4fe98e37d
+	github.com/containers/storage v1.43.1-0.20221019113204-742493c6ca75
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.19+incompatible
 	github.com/docker/go-units v0.5.0
