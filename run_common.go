@@ -1454,7 +1454,7 @@ func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMap
 	agents := make([]*sshagent.AgentServer, 0, len(mounts))
 	sshCount := 0
 	defaultSSHSock := ""
-	lockedTargets := []string{}
+	targetLocks := []lockfile.Locker{}
 	for _, mount := range mounts {
 		tokens := strings.Split(mount, ",")
 		for _, field := range tokens {
@@ -1513,13 +1513,13 @@ func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMap
 			finalMounts = append(finalMounts, *mount)
 			mountTargets = append(mountTargets, mount.Destination)
 		case "cache":
-			mount, lockedPaths, err := b.getCacheMount(tokens, sources.StageMountPoints, idMaps)
+			mount, tl, err := b.getCacheMount(tokens, sources.StageMountPoints, idMaps)
 			if err != nil {
 				return nil, nil, err
 			}
 			finalMounts = append(finalMounts, *mount)
 			mountTargets = append(mountTargets, mount.Destination)
-			lockedTargets = append(lockedTargets, lockedPaths...)
+			targetLocks = append(targetLocks, tl...)
 		default:
 			return nil, nil, fmt.Errorf("invalid mount type %q", mountType)
 		}
@@ -1530,7 +1530,7 @@ func (b *Builder) runSetupRunMounts(mounts []string, sources runMountInfo, idMap
 		Agents:          agents,
 		MountedImages:   mountImages,
 		SSHAuthSock:     defaultSSHSock,
-		LockedTargets:   lockedTargets,
+		TargetLocks:     targetLocks,
 	}
 	return finalMounts, artifacts, nil
 }
@@ -1862,28 +1862,11 @@ func (b *Builder) cleanupRunMounts(context *imageTypes.SystemContext, mountpoint
 		}
 	}
 	// unlock if any locked files from this RUN statement
-	for _, path := range artifacts.LockedTargets {
-		_, err := os.Stat(path)
-		if err != nil {
-			// Lockfile not found this might be a problem,
-			// since LockedTargets must contain list of all locked files
-			// don't break here since we need to unlock other files but
-			// log so user can take a look
-			logrus.Warnf("Lockfile %q was expected here, stat failed with %v", path, err)
-			continue
-		}
-		lockfile, err := lockfile.GetLockfile(path)
-		if err != nil {
-			// unable to get lockfile
-			// lets log error and continue
-			// unlocking other files
-			logrus.Warn(err)
-			continue
-		}
+	for _, lockfile := range artifacts.TargetLocks {
 		if lockfile.Locked() {
 			lockfile.Unlock()
 		} else {
-			logrus.Warnf("Lockfile %q was expected to be locked, this is unexpected", path)
+			logrus.Warnf("Some lockfile %q was expected to be locked, this is unexpected", path)
 			continue
 		}
 	}
