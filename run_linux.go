@@ -1197,18 +1197,19 @@ func checkIdsGreaterThan5(ids []spec.LinuxIDMapping) bool {
 	return false
 }
 
-func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps) (*spec.Mount, []lockfile.Locker, error) {
+// The caller should eventually unlock returned lockfile.Locker, if it is non-nil, even if this function fails.
+func (b *Builder) getCacheMount(tokens []string, stageMountPoints map[string]internal.StageMountDetails, idMaps IDMaps) (*spec.Mount, lockfile.Locker, error) {
 	var optionMounts []specs.Mount
-	mount, targetLocks, err := internalParse.GetCacheMount(tokens, b.store, b.MountLabel, stageMountPoints)
+	mount, targetLock, err := internalParse.GetCacheMount(tokens, b.store, b.MountLabel, stageMountPoints)
 	if err != nil {
-		return nil, targetLocks, err
+		return nil, targetLock, err
 	}
 	optionMounts = append(optionMounts, mount)
 	volumes, err := b.runSetupVolumeMounts(b.MountLabel, nil, optionMounts, idMaps)
 	if err != nil {
-		return nil, targetLocks, err
+		return nil, targetLock, err
 	}
-	return &volumes[0], targetLocks, nil
+	return &volumes[0], targetLock, nil
 }
 
 // setPdeathsig sets a parent-death signal for the process

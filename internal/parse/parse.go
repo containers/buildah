@@ -187,11 +187,10 @@ func GetBindMount(ctx *types.SystemContext, args []string, contextDir string, st
 }
 
 // GetCacheMount parses a single cache mount entry from the --mount flag.
-func GetCacheMount(args []string, store storage.Store, imageMountLabel string, additionalMountPoints map[string]internal.StageMountDetails) (specs.Mount, []lockfile.Locker, error) {
+func GetCacheMount(args []string, store storage.Store, imageMountLabel string, additionalMountPoints map[string]internal.StageMountDetails) (specs.Mount, lockfile.Locker, error) {
 	var err error
 	var mode uint64
 	var buildahLockFilesDir string
-	targetLocks := make([]lockfile.Locker, 0)
 	var (
 		setDest           bool
 		setShared         bool
@@ -239,59 +238,59 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 			sharing = kv[1]
 		case "bind-propagation":
 			if len(kv) == 1 {
-				return newMount, targetLocks, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			newMount.Options = append(newMount.Options, kv[1])
 		case "id":
 			if len(kv) == 1 {
-				return newMount, targetLocks, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			id = kv[1]
 		case "from":
 			if len(kv) == 1 {
-				return newMount, targetLocks, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			fromStage = kv[1]
 		case "target", "dst", "destination":
 			if len(kv) == 1 {
-				return newMount, targetLocks, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			if err := parse.ValidateVolumeCtrDir(kv[1]); err != nil {
-				return newMount, targetLocks, err
+				return newMount, nil, err
 			}
 			newMount.Destination = kv[1]
 			setDest = true
 		case "src", "source":
 			if len(kv) == 1 {
-				return newMount, targetLocks, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			newMount.Source = kv[1]
 		case "mode":
 			if len(kv) == 1 {
-				return newMount, targetLocks, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			mode, err = strconv.ParseUint(kv[1], 8, 32)
 			if err != nil {
-				return newMount, targetLocks, fmt.Errorf("unable to parse cache mode: %w", err)
+				return newMount, nil, fmt.Errorf("unable to parse cache mode: %w", err)
 			}
 		case "uid":
 			if len(kv) == 1 {
-				return newMount, targetLocks, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			uid, err = strconv.Atoi(kv[1])
 			if err != nil {
-				return newMount, targetLocks, fmt.Errorf("unable to parse cache uid: %w", err)
+				return newMount, nil, fmt.Errorf("unable to parse cache uid: %w", err)
 			}
 		case "gid":
 			if len(kv) == 1 {
-				return newMount, targetLocks, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
+				return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadOptionArg)
 			}
 			gid, err = strconv.Atoi(kv[1])
 			if err != nil {
-				return newMount, targetLocks, fmt.Errorf("unable to parse cache gid: %w", err)
+				return newMount, nil, fmt.Errorf("unable to parse cache gid: %w", err)
 			}
 		default:
-			return newMount, targetLocks, fmt.Errorf("%v: %w", kv[0], errBadMntOption)
+			return newMount, nil, fmt.Errorf("%v: %w", kv[0], errBadMntOption)
 		}
 	}
 
@@ -302,7 +301,7 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 	}
 
 	if !setDest {
-		return newMount, targetLocks, errBadVolDest
+		return newMount, nil, errBadVolDest
 	}
 
 	if fromStage != "" {
@@ -319,7 +318,7 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 		// Cache does not supports using image so if not stage found
 		// return with error
 		if mountPoint == "" {
-			return newMount, targetLocks, fmt.Errorf("no stage found with name %s", fromStage)
+			return newMount, nil, fmt.Errorf("no stage found with name %s", fromStage)
 		}
 		// path should be /contextDir/specified path
 		newMount.Source = filepath.Join(mountPoint, filepath.Clean(string(filepath.Separator)+newMount.Source))
@@ -335,7 +334,7 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 		// create cache on host if not present
 		err = os.MkdirAll(cacheParent, os.FileMode(0755))
 		if err != nil {
-			return newMount, targetLocks, fmt.Errorf("unable to create build cache directory: %w", err)
+			return newMount, nil, fmt.Errorf("unable to create build cache directory: %w", err)
 		}
 
 		if id != "" {
@@ -352,33 +351,34 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 		//buildkit parity: change uid and gid if specified otheriwise keep `0`
 		err = idtools.MkdirAllAndChownNew(newMount.Source, os.FileMode(mode), idPair)
 		if err != nil {
-			return newMount, targetLocks, fmt.Errorf("unable to change uid,gid of cache directory: %w", err)
+			return newMount, nil, fmt.Errorf("unable to change uid,gid of cache directory: %w", err)
 		}
 
 		// create a subdirectory inside `cacheParent` just to store lockfiles
 		buildahLockFilesDir = filepath.Join(cacheParent, buildahLockFilesDir)
 		err = os.MkdirAll(buildahLockFilesDir, os.FileMode(0700))
 		if err != nil {
-			return newMount, targetLocks, fmt.Errorf("unable to create build cache lockfiles directory: %w", err)
+			return newMount, nil, fmt.Errorf("unable to create build cache lockfiles directory: %w", err)
 		}
 	}
 
+	var targetLock lockfile.Locker // = nil
 	switch sharing {
 	case "locked":
 		// lock parent cache
 		lockfile, err := lockfile.GetLockfile(filepath.Join(buildahLockFilesDir, BuildahCacheLockfile))
 		if err != nil {
-			return newMount, targetLocks, fmt.Errorf("unable to acquire lock when sharing mode is locked: %w", err)
+			return newMount, targetLock, fmt.Errorf("unable to acquire lock when sharing mode is locked: %w", err)
 		}
 		// Will be unlocked after the RUN step is executed.
 		lockfile.Lock()
-		targetLocks = append(targetLocks, lockfile)
+		targetLock = lockfile
 	case "shared":
 		// do nothing since default is `shared`
 		break
 	default:
 		// error out for unknown values
-		return newMount, targetLocks, fmt.Errorf("unrecognized value %q for field `sharing`: %w", sharing, err)
+		return newMount, targetLock, fmt.Errorf("unrecognized value %q for field `sharing`: %w", sharing, err)
 	}
 
 	// buildkit parity: default sharing should be shared
@@ -396,11 +396,11 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 
 	opts, err := parse.ValidateVolumeOpts(newMount.Options)
 	if err != nil {
-		return newMount, targetLocks, err
+		return newMount, targetLock, err
 	}
 	newMount.Options = opts
 
-	return newMount, targetLocks, nil
+	return newMount, targetLock, nil
 }
 
 // ValidateVolumeMountHostDir validates the host path of buildah --volume
@@ -554,7 +554,9 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mounts []string, c
 			mountedImages = append(mountedImages, image)
 		case TypeCache:
 			mount, tl, err := GetCacheMount(tokens, store, "", nil)
-			targetLocks = append(targetLocks, tl...)
+			if tl != nil {
+				targetLocks = append(targetLocks, tl)
+			}
 			if err != nil {
 				return nil, mountedImages, targetLocks, err
 			}
