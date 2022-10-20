@@ -5,12 +5,12 @@ go 1.17
 require (
 	github.com/containerd/containerd v1.6.8
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.50.2-0.20221017133459-7a4bcca6b86c
+	github.com/containers/common v0.50.2-0.20221019193843-c73d138e5848
 	github.com/containers/image/v5 v5.23.1-0.20221015133641-1921a1993c67
 	github.com/containers/ocicrypt v1.1.6
-	github.com/containers/storage v1.43.1-0.20221017123904-a4d4fe98e37d
+	github.com/containers/storage v1.43.1-0.20221019193442-95f15672c2a5
 	github.com/docker/distribution v2.8.1+incompatible
-	github.com/docker/docker v20.10.19+incompatible
+	github.com/docker/docker v20.10.20+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/fsouza/go-dockerclient v1.9.0
 	github.com/ghodss/yaml v1.0.0

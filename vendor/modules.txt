@@ -79,7 +79,7 @@ github.com/containernetworking/cni/pkg/version
 # github.com/containernetworking/plugins v1.1.1
 ## explicit; go 1.17
 github.com/containernetworking/plugins/pkg/ns
-# github.com/containers/common v0.50.2-0.20221017133459-7a4bcca6b86c
+# github.com/containers/common v0.50.2-0.20221019193843-c73d138e5848
 ## explicit; go 1.17
 github.com/containers/common/libimage
 github.com/containers/common/libimage/define
@@ -200,7 +200,7 @@ github.com/containers/ocicrypt/keywrap/pkcs7
 github.com/containers/ocicrypt/spec
 github.com/containers/ocicrypt/utils
 github.com/containers/ocicrypt/utils/keyprovider
-# github.com/containers/storage v1.43.1-0.20221017123904-a4d4fe98e37d
+# github.com/containers/storage v1.43.1-0.20221019193442-95f15672c2a5
 ## explicit; go 1.17
 github.com/containers/storage
 github.com/containers/storage/drivers
@@ -262,7 +262,7 @@ github.com/docker/distribution/reference
 github.com/docker/distribution/registry/api/errcode
 github.com/docker/distribution/registry/api/v2
 github.com/docker/distribution/registry/client/auth/challenge
-# github.com/docker/docker v20.10.19+incompatible
+# github.com/docker/docker v20.10.20+incompatible
 ## explicit
 github.com/docker/docker/api
 github.com/docker/docker/api/types
