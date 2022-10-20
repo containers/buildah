@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v1.27.3 (2022-10-20)
+
+    Update to c/image 5.22.1
+
 ## v1.27.2 (2022-09-20)
 
     build: backport the --skip-unused-stages flag.
