@@ -11,7 +11,6 @@ import (
 	buildahcli "github.com/containers/buildah/pkg/cli"
 	"github.com/containers/buildah/pkg/parse"
 	"github.com/containers/buildah/util"
-	"github.com/containers/storage/pkg/lockfile"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -169,10 +168,11 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 	if err != nil {
 		return fmt.Errorf("building system context: %w", err)
 	}
-	mounts, mountedImages, lockedTargets, err := internalParse.GetVolumes(systemContext, store, iopts.volumes, iopts.mounts, iopts.contextDir)
+	mounts, mountedImages, targetLocks, err := internalParse.GetVolumes(systemContext, store, iopts.volumes, iopts.mounts, iopts.contextDir)
 	if err != nil {
 		return err
 	}
+	defer internalParse.UnlockLockArray(targetLocks)
 	options.Mounts = mounts
 	// Run() will automatically clean them up.
 	options.ExternalImageMounts = mountedImages
@@ -190,32 +190,6 @@ func runCmd(c *cobra.Command, args []string, iopts runInputOptions) error {
 		}
 		conditionallyAddHistory(builder, c, "%s %s", shell, strings.Join(args, " "))
 		return builder.Save()
-	}
-	// unlock if any locked files from this RUN statement
-	for _, path := range lockedTargets {
-		_, err := os.Stat(path)
-		if err != nil {
-			// Lockfile not found this might be a problem,
-			// since LockedTargets must contain list of all locked files
-			// don't break here since we need to unlock other files but
-			// log so user can take a look
-			logrus.Warnf("Lockfile %q was expected here, stat failed with %v", path, err)
-			continue
-		}
-		lockfile, err := lockfile.GetLockfile(path)
-		if err != nil {
-			// unable to get lockfile
-			// lets log error and continue
-			// unlocking other files
-			logrus.Warn(err)
-			continue
-		}
-		if lockfile.Locked() {
-			lockfile.Unlock()
-		} else {
-			logrus.Warnf("Lockfile %q was expected to be locked, this is unexpected", path)
-			continue
-		}
 	}
 	return runerr
 }
