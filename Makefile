@@ -123,7 +123,7 @@ validate: install.tools
 
 .PHONY: install.tools
 install.tools:
-	make -C tests/tools
+	$(MAKE) -C tests/tools
 
 .PHONY: runc
 runc: gopath
