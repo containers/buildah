@@ -17,7 +17,7 @@ The tools are:
 
 ## Buildah
 
-The Buildah project provides a command line tool that be used to create an OCI or traditional Docker
+The Buildah project provides a command line tool that can be used to create an OCI or traditional Docker
 image format image and to then build a working container from the image.  The container can be mounted
 and modified and then an image can be saved based on the updated container.
 
