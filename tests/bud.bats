@@ -3981,24 +3981,24 @@ _EOF
   mytmpdir=${TEST_SCRATCH_DIR}/my-dir
   mkdir -p ${mytmpdir}
 cat > $mytmpdir/Containerfile << _EOF
-FROM registry.access.redhat.com/ubi8-minimal
+FROM $SAFEIMAGE
 _EOF
-  run_buildah build -f Containerfile --pull=false -q --arch=amd64 -t image-amd $WITH_POLICY_JSON ${mytmpdir}
-  run_buildah inspect --format '{{ index .Docker.Config.Labels "architecture" }}' image-amd
-  expect_output --substring x86_64
+  run_buildah build --pull=false -q --arch=amd64 -t image-amd $WITH_POLICY_JSON ${mytmpdir}
+  run_buildah inspect --format '{{ .OCIv1.Architecture }}' image-amd
+  expect_output amd64
 
-  # Tag the image to localhost/ubi8-minimal to make sure that the image gets
+  # Tag the image to localhost/safeimage to make sure that the image gets
   # pulled since the local one does not match the requested architecture.
-  run_buildah tag image-amd localhost/ubi8-minimal
-  run_buildah build -f Containerfile --pull=false -q --arch=arm64 -t image-arm $WITH_POLICY_JSON ${mytmpdir}
-  run_buildah inspect --format '{{ index .Docker.Config.Labels "architecture" }}' image-arm
-  expect_output --substring arm64
+  run_buildah tag image-amd localhost/${SAFEIMAGE_NAME}:${SAFEIMAGE_TAG}
+  run_buildah build --pull=false -q --arch=arm64 -t image-arm $WITH_POLICY_JSON ${mytmpdir}
+  run_buildah inspect --format '{{ .OCIv1.Architecture }}' image-arm
+  expect_output arm64
 
   run_buildah inspect --format '{{ .FromImageID }}' image-arm
   fromiid=$output
 
-  run_buildah inspect --format '{{ index .OCIv1.Architecture  }}'  $fromiid
-  expect_output --substring arm64
+  run_buildah inspect --format '{{ .OCIv1.Architecture  }}'  $fromiid
+  expect_output arm64
 }
 
 @test "bud --file with directory" {
