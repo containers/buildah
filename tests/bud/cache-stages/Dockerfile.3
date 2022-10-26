@@ -1,0 +1,25 @@
+FROM alpine AS common
+
+RUN echo "common" > /common.txt
+
+FROM common AS buildA
+RUN echo "foo" > /foo.txt
+
+FROM common AS buildB
+# This is contrived to force a cached layer without having to build twice
+# Ordinarily you wouldn't have duplicate stages
+RUN echo "foo" > /foo.txt
+
+FROM alpine
+
+ARG NONCE
+
+RUN --mount=type=bind,from=buildA,target=/buildA \
+    --mount=type=bind,from=buildB,target=/buildB \
+    set -ex; \
+    cat /buildA/common.txt; \
+    cat /buildA/foo.txt; \
+    cat /buildB/common.txt; \
+    cat /buildB/foo.txt; \
+    echo "Worked"; \
+    : ;
