@@ -4470,7 +4470,13 @@ _EOF
   # clean all cache and intermediate images
   # to make sure that we are only using cache
   # from remote repo and not the local storage.
-  run_buildah rmi --all -f
+
+  # Important side-note: don't use `run_buildah rmi --all -f`
+  # since on podman-remote test this will remove prefetched alpine
+  # and it will try to pull alpine from docker.io with
+  # completely different digest (ruining our cache logic).
+  run_buildah rmi --prune
+  run_buildah rmi test
 
   # ------ Test case ------ #
   # expect cache to be pushed on remote stream
