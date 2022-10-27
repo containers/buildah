@@ -13,6 +13,13 @@ OCI=$(${BUILDAH_BINARY} info --format '{{.host.OCIRuntime}}' || command -v runc 
 # Default timeout for a buildah command.
 BUILDAH_TIMEOUT=${BUILDAH_TIMEOUT:-300}
 
+# Safe reliable unchanging test image
+SAFEIMAGE_REGISTRY=${SAFEIMAGE_REGISTRY:-quay.io}
+SAFEIMAGE_USER=${SAFEIMAGE_USER:-libpod}
+SAFEIMAGE_NAME=${SAFEIMAGE_NAME:-testimage}
+SAFEIMAGE_TAG=${SAFEIMAGE_TAG:-20221018}
+SAFEIMAGE="${SAFEIMAGE:-$SAFEIMAGE_REGISTRY/$SAFEIMAGE_USER/$SAFEIMAGE_NAME:$SAFEIMAGE_TAG}"
+
 # Prompt to display when logging buildah commands; distinguish root/rootless
 _LOG_PROMPT='$'
 if [ $(id -u) -eq 0 ]; then
