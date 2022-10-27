@@ -4238,13 +4238,13 @@ _EOF
   run_buildah tag image-amd localhost/${SAFEIMAGE_NAME}:${SAFEIMAGE_TAG}
   run_buildah build --pull=false -q --arch=arm64 -t image-arm $WITH_POLICY_JSON ${mytmpdir}
   run_buildah inspect --format '{{ .OCIv1.Architecture }}' image-arm
-  expect_output arm64
+  expect_output aarch64
 
   run_buildah inspect --format '{{ .FromImageID }}' image-arm
   fromiid=$output
 
   run_buildah inspect --format '{{ .OCIv1.Architecture  }}'  $fromiid
-  expect_output arm64
+  expect_output aarch64
 }
 
 @test "bud --file with directory" {
