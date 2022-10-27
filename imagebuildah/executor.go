@@ -757,6 +757,8 @@ func (b *Executor) Build(ctx context.Context, stages imagebuilder.Stages) (image
 										// add base to current stage's dependency tree
 										// but also confirm if this is not in additional context.
 										if _, ok := b.additionalBuildContexts[mountFrom]; !ok {
+											// Treat from as a rootfs we need to preserve
+											b.rootfsMap[mountFrom] = true
 											if _, ok := dependencyMap[mountFrom]; ok {
 												// update current stage's dependency info
 												currentStageInfo := dependencyMap[stage.Name]
