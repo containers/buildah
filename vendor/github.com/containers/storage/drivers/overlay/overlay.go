@@ -1378,28 +1378,9 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 		return "", errors.New("max depth exceeded")
 	}
 
-	// absLowers is the list of lowers as absolute paths, which works well with additional stores.
+	// absLowers is the list of lowers as absolute paths.
 	absLowers := []string{}
-	// relLowers is the list of lowers as paths relative to the driver's home directory.  If
-	// additional stores are being used, some of these will still be absolute paths.
-	relLowers := []string{}
 
-	// Check if $link/../diff{1-*} exist.  If they do, add them, in order, as the front of the lowers
-	// lists that we're building.  "diff" itself is the upper, so it won't be in the lists.
-	link, err := os.ReadFile(path.Join(dir, "link"))
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return "", err
-		}
-		logrus.Warnf("Can't read parent link %q because it does not exist. Going through storage to recreate the missing links.", path.Join(dir, "link"))
-		if err := d.recreateSymlinks(); err != nil {
-			return "", fmt.Errorf("recreating the links: %w", err)
-		}
-		link, err = os.ReadFile(path.Join(dir, "link"))
-		if err != nil {
-			return "", err
-		}
-	}
 	diffN := 1
 	perms := defaultPerms
 	if d.options.forceMask != nil {
@@ -1413,7 +1394,6 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 	}
 	for err == nil {
 		absLowers = append(absLowers, filepath.Join(dir, nameWithSuffix("diff", diffN)))
-		relLowers = append(relLowers, dumbJoin(linkDir, string(link), "..", nameWithSuffix("diff", diffN)))
 		diffN++
 		st, err = os.Stat(filepath.Join(dir, nameWithSuffix("diff", diffN)))
 		if err == nil && !permsKnown {
@@ -1463,12 +1443,10 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 			lower = newpath
 		}
 		absLowers = append(absLowers, lower)
-		relLowers = append(relLowers, l)
 		diffN = 1
 		_, err = os.Stat(dumbJoin(lower, "..", nameWithSuffix("diff", diffN)))
 		for err == nil {
 			absLowers = append(absLowers, dumbJoin(lower, "..", nameWithSuffix("diff", diffN)))
-			relLowers = append(relLowers, dumbJoin(l, "..", nameWithSuffix("diff", diffN)))
 			diffN++
 			_, err = os.Stat(dumbJoin(lower, "..", nameWithSuffix("diff", diffN)))
 		}
@@ -1476,7 +1454,6 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 
 	if len(absLowers) == 0 {
 		absLowers = append(absLowers, path.Join(dir, "empty"))
-		relLowers = append(relLowers, path.Join(id, "empty"))
 	}
 	// user namespace requires this to move a directory from lower to upper.
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
@@ -1610,17 +1587,16 @@ func (d *Driver) get(id string, disableShifting bool, options graphdriver.MountO
 			return nil
 		}
 	} else if len(mountData) >= pageSize {
-		// Use (possibly) relative paths and mountFrom when the mount data has exceeded
-		// the page size. The mount syscall fails if the mount data cannot
-		// fit within a page and relative links make the mount data much
+		// Use mountFrom when the mount data has exceeded the page size. The mount syscall fails if
+		// the mount data cannot fit within a page and relative links make the mount data much
 		// smaller at the expense of requiring a fork exec to chdir().
 
 		workdir = path.Join(id, "work")
 		if readWrite {
 			diffDir := path.Join(id, "diff")
-			opts = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", strings.Join(relLowers, ":"), diffDir, workdir)
+			opts = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", strings.Join(absLowers, ":"), diffDir, workdir)
 		} else {
-			opts = fmt.Sprintf("lowerdir=%s:%s", diffDir, strings.Join(relLowers, ":"))
+			opts = fmt.Sprintf("lowerdir=%s:%s", diffDir, strings.Join(absLowers, ":"))
 		}
 		if len(optsList) > 0 {
 			opts = fmt.Sprintf("%s,%s", opts, strings.Join(optsList, ","))

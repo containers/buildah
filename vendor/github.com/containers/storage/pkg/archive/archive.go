@@ -527,6 +527,9 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	if err := ReadUserXattrToTarHeader(path, hdr); err != nil {
 		return err
 	}
+	if err := ReadFileFlagsToTarHeader(path, hdr); err != nil {
+		return err
+	}
 	if ta.CopyPass {
 		copyPassHeader(hdr)
 	}
@@ -768,6 +771,15 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 			return err
 		}
 
+	}
+
+	// We defer setting flags on directories until the end of
+	// Unpack or UnpackLayer in case setting them makes the
+	// directory immutable.
+	if hdr.Typeflag != tar.TypeDir {
+		if err := WriteFileFlagsFromTarHeader(path, hdr); err != nil {
+			return err
+		}
 	}
 
 	if len(errs) > 0 {
@@ -1099,6 +1111,9 @@ loop:
 		path := filepath.Join(dest, hdr.Name)
 
 		if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
+			return err
+		}
+		if err := WriteFileFlagsFromTarHeader(path, hdr); err != nil {
 			return err
 		}
 	}
