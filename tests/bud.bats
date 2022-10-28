@@ -3844,7 +3844,7 @@ EOM
 
 @test "bud preserve rootfs for --mount=type=bind,from=" {
   _prefetch alpine
-  run_buildah build --build-arg NONCE="$(date)" --layers --quiet --pull=false $WITH_POLICY_JSON -f Dockerfile.3 $BUDFILES/cache-stages
+  run_buildah build --build-arg NONCE="$(date)" --layers --pull=false $WITH_POLICY_JSON -f Dockerfile.3 $BUDFILES/cache-stages
   expect_output --substring "Worked"
 }
 
