@@ -156,8 +156,12 @@ func LintErrorComparisons(fset *token.FileSet, info *TypesInfoExt) []Lint {
 		if !isErrorComparison(info.Info, binExpr) {
 			continue
 		}
-
+		// Some errors that are returned from some functions are exempt.
 		if isAllowedErrorComparison(info, binExpr) {
+			continue
+		}
+		// Comparisons that happen in `func (type) Is(error) bool` are okay.
+		if isNodeInErrorIsFunc(info, binExpr) {
 			continue
 		}
 
@@ -181,11 +185,17 @@ func LintErrorComparisons(fset *token.FileSet, info *TypesInfoExt) []Lint {
 		if tagType.Type.String() != "error" {
 			continue
 		}
+		if isNodeInErrorIsFunc(info, switchStmt) {
+			continue
+		}
 
-		lints = append(lints, Lint{
-			Message: "switch on an error will fail on wrapped errors. Use errors.Is to check for specific errors",
-			Pos:     switchStmt.Pos(),
-		})
+		if switchComparesNonNil(switchStmt) {
+			lints = append(lints, Lint{
+				Message: "switch on an error will fail on wrapped errors. Use errors.Is to check for specific errors",
+				Pos:     switchStmt.Pos(),
+			})
+		}
+
 	}
 
 	return lints
@@ -205,6 +215,55 @@ func isErrorComparison(info types.Info, binExpr *ast.BinaryExpr) bool {
 	tx := info.Types[binExpr.X]
 	ty := info.Types[binExpr.Y]
 	return tx.Type.String() == "error" || ty.Type.String() == "error"
+}
+
+func isNodeInErrorIsFunc(info *TypesInfoExt, node ast.Node) bool {
+	funcDecl := info.ContainingFuncDecl(node)
+	if funcDecl == nil {
+		return false
+	}
+
+	if funcDecl.Name.Name != "Is" {
+		return false
+	}
+	if funcDecl.Recv == nil {
+		return false
+	}
+	// There should be 1 argument of type error.
+	if ii := funcDecl.Type.Params.List; len(ii) != 1 || info.Types[ii[0].Type].Type.String() != "error" {
+		return false
+	}
+	// The return type should be bool.
+	if ii := funcDecl.Type.Results.List; len(ii) != 1 || info.Types[ii[0].Type].Type.String() != "bool" {
+		return false
+	}
+
+	return true
+}
+
+// switchComparesNonNil returns true if one of its clauses compares by value.
+func switchComparesNonNil(switchStmt *ast.SwitchStmt) bool {
+	for _, caseBlock := range switchStmt.Body.List {
+		caseClause, ok := caseBlock.(*ast.CaseClause)
+		if !ok {
+			continue
+		}
+		for _, clause := range caseClause.List {
+			switch clause := clause.(type) {
+			case nil:
+				// default label is safe
+				continue
+			case *ast.Ident:
+				// `case nil` is safe
+				if clause.Name == "nil" {
+					continue
+				}
+			}
+			// anything else (including an Ident other than nil) isn't safe
+			return true
+		}
+	}
+	return false
 }
 
 func LintErrorTypeAssertions(fset *token.FileSet, info types.Info) []Lint {

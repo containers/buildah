@@ -226,7 +226,7 @@ func (p *Parser) accept(typ itemType) (item, bool) {
 
 func (p *Parser) unexpectedToken(valid string) error {
 	if p.cur.typ == itemError {
-		return fmt.Errorf("lexing input: %s", p.cur.val)
+		return fmt.Errorf("error lexing input: %s", p.cur.val)
 	}
 	var got string
 	switch p.cur.typ {

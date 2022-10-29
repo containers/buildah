@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	goFormat "go/format"
 	"os"
 	"sync"
 
@@ -129,7 +130,7 @@ func LoadFormatGoFile(file io.FileObj, cfg config.Config) (src, dist []byte, err
 	}
 
 	// do not do format if only one import
-	if len(imports) == 1 {
+	if len(imports) <= 1 {
 		return src, src, nil
 	}
 
@@ -138,8 +139,22 @@ func LoadFormatGoFile(file io.FileObj, cfg config.Config) (src, dist []byte, err
 		return nil, nil, err
 	}
 
-	head := src[:headEnd]
+	var head []byte
+	if src[headEnd-1] == '\t' || src[headEnd-1] == utils.Linebreak {
+		head = src[:headEnd]
+	} else {
+		// handle multiple import blocks
+		// cover `import ` to `import (`
+		head = make([]byte, headEnd)
+		copy(head, src[:headEnd])
+		head = append(head, []byte{40, 10, 9}...)
+	}
+
 	tail := src[tailStart:]
+	// for test
+	if len(tail) == 0 {
+		tail = []byte(")\n")
+	}
 
 	firstWithIndex := true
 
@@ -158,11 +173,6 @@ func LoadFormatGoFile(file io.FileObj, cfg config.Config) (src, dist []byte, err
 		}
 	}
 
-	// remove breakline in the end
-	for body[len(body)-1] == utils.Linebreak {
-		body = body[:len(body)-1]
-	}
-
 	if tail[0] != utils.Linebreak {
 		body = append(body, utils.Linebreak)
 	}
@@ -176,6 +186,11 @@ func LoadFormatGoFile(file io.FileObj, cfg config.Config) (src, dist []byte, err
 	var i int
 	for _, s := range slices {
 		i += copy(dist[i:], s)
+	}
+
+	dist, err = goFormat.Source(dist)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return src, dist, nil

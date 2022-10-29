@@ -3,6 +3,8 @@ package astcopy
 
 import (
 	"go/ast"
+
+	"golang.org/x/exp/typeparams"
 )
 
 // Node returns x node deep copy.
@@ -194,6 +196,18 @@ func IndexExpr(x *ast.IndexExpr) *ast.IndexExpr {
 	return &cp
 }
 
+// IndexListExpr returns x deep copy.
+// Copy of nil argument is nil.
+func IndexListExpr(x *typeparams.IndexListExpr) *typeparams.IndexListExpr {
+	if x == nil {
+		return nil
+	}
+	cp := *x
+	cp.X = copyExpr(x.X)
+	cp.Indices = ExprList(x.Indices)
+	return &cp
+}
+
 // SliceExpr returns x deep copy.
 // Copy of nil argument is nil.
 func SliceExpr(x *ast.SliceExpr) *ast.SliceExpr {
@@ -341,6 +355,9 @@ func FuncType(x *ast.FuncType) *ast.FuncType {
 	cp := *x
 	cp.Params = FieldList(x.Params)
 	cp.Results = FieldList(x.Results)
+	if typeParams := typeparams.ForFuncType(x); typeParams != nil {
+		*typeparams.ForFuncType(&cp) = *FieldList(typeParams)
+	}
 	return &cp
 }
 
@@ -429,6 +446,9 @@ func TypeSpec(x *ast.TypeSpec) *ast.TypeSpec {
 	cp.Type = copyExpr(x.Type)
 	cp.Doc = CommentGroup(x.Doc)
 	cp.Comment = CommentGroup(x.Comment)
+	if typeParams := typeparams.ForTypeSpec(x); typeParams != nil {
+		*typeparams.ForTypeSpec(&cp) = *FieldList(typeParams)
+	}
 	return &cp
 }
 
@@ -850,6 +870,8 @@ func copyExpr(x ast.Expr) ast.Expr {
 		return SelectorExpr(x)
 	case *ast.IndexExpr:
 		return IndexExpr(x)
+	case *typeparams.IndexListExpr:
+		return IndexListExpr(x)
 	case *ast.SliceExpr:
 		return SliceExpr(x)
 	case *ast.TypeAssertExpr:

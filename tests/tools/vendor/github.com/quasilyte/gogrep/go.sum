@@ -1,8 +1,10 @@
-github.com/go-toolsmith/astequal v1.0.1 h1:JbSszi42Jiqu36Gnf363HWS9MTEAz67vTQLponh3Moc=
-github.com/go-toolsmith/astequal v1.0.1/go.mod h1:4oGA3EZXTVItV/ipGiOx7NWkY5veFfcsOJVS2YxltLw=
+github.com/go-toolsmith/astequal v1.0.2 h1:+XvaV8zNxua+9+Oa4AHmgmpo4RYAbwr/qjNppLfX2yM=
+github.com/go-toolsmith/astequal v1.0.2/go.mod h1:9Ai4UglvtR+4up+bAD4+hCj7iTo4m/OXVTSLnCyTAx4=
+github.com/go-toolsmith/astequal v1.0.3 h1:+LVdyRatFS+XO78SGV4I3TCEA0AC7fKEGma+fH+674o=
+github.com/go-toolsmith/astequal v1.0.3/go.mod h1:9Ai4UglvtR+4up+bAD4+hCj7iTo4m/OXVTSLnCyTAx4=
 github.com/go-toolsmith/strparse v1.0.0 h1:Vcw78DnpCAKlM20kSbAyO4mPfJn/lyYA4BJUDxe2Jb4=
 github.com/go-toolsmith/strparse v1.0.0/go.mod h1:YI2nUKP9YGZnL/L1/DLFBfixrcjslWct4wyljWhSRy8=
-github.com/google/go-cmp v0.5.6 h1:BKbKCqvP6I+rmFHt06ZmyQtvB8xAkWdhFyr0ZUNZcxQ=
-github.com/google/go-cmp v0.5.6/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
-golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=
-golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+github.com/google/go-cmp v0.5.8 h1:e6P7q2lk1O+qJJb4BtCQXlK8vWEO8V1ZeuEdJNOqZyg=
+github.com/google/go-cmp v0.5.8/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+golang.org/x/exp/typeparams v0.0.0-20220428152302-39d4317da171 h1:DZhP7zSquENyG3Yb6ZpGqNEtgE8dfXhcLcheIF9RQHY=
+golang.org/x/exp/typeparams v0.0.0-20220428152302-39d4317da171/go.mod h1:AbB0pIl9nAr9wVwH+Z2ZpaocVmF5I4GyWCDIsVjR0bk=

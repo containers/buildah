@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"sync"
 
 	"github.com/mgechev/revive/lint"
 )
@@ -11,16 +12,17 @@ import (
 // UnhandledErrorRule lints given else constructs.
 type UnhandledErrorRule struct {
 	ignoreList ignoreListType
+	sync.Mutex
 }
 
 type ignoreListType map[string]struct{}
 
-// Apply applies the rule to given file.
-func (r *UnhandledErrorRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
+func (r *UnhandledErrorRule) configure(arguments lint.Arguments) {
+	r.Lock()
 	if r.ignoreList == nil {
-		r.ignoreList = make(ignoreListType, len(args))
+		r.ignoreList = make(ignoreListType, len(arguments))
 
-		for _, arg := range args {
+		for _, arg := range arguments {
 			argStr, ok := arg.(string)
 			if !ok {
 				panic(fmt.Sprintf("Invalid argument to the unhandled-error rule. Expecting a string, got %T", arg))
@@ -29,6 +31,12 @@ func (r *UnhandledErrorRule) Apply(file *lint.File, args lint.Arguments) []lint.
 			r.ignoreList[argStr] = struct{}{}
 		}
 	}
+	r.Unlock()
+}
+
+// Apply applies the rule to given file.
+func (r *UnhandledErrorRule) Apply(file *lint.File, args lint.Arguments) []lint.Failure {
+	r.configure(args)
 
 	var failures []lint.Failure
 
@@ -47,7 +55,7 @@ func (r *UnhandledErrorRule) Apply(file *lint.File, args lint.Arguments) []lint.
 }
 
 // Name returns the rule name.
-func (r *UnhandledErrorRule) Name() string {
+func (*UnhandledErrorRule) Name() string {
 	return "unhandled-error"
 }
 
