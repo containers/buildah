@@ -2810,6 +2810,10 @@ _EOF
   _prefetch busybox:musl
   target=leading-args
   run_buildah build $WITH_POLICY_JSON -t ${target} --build-arg=VERSION=musl -f $BUDFILES/leading-args/Dockerfile $BUDFILES/leading-args
+
+  #Verify https://github.com/containers/buildah/issues/4312
+  # stage `FROM stage_${my_env}` must be resolved with default arg value and build should be successful.
+  run_buildah build $WITH_POLICY_JSON -t source -f $BUDFILES/multi-stage-builds/Dockerfile.arg_in_stage
 }
 
 @test "bud-with-healthcheck" {

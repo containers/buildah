@@ -1,0 +1,7 @@
+ARG my_env=a
+
+FROM alpine as stage_a
+RUN /bin/true
+
+FROM stage_${my_env} as stage_b
+RUN /bin/true
