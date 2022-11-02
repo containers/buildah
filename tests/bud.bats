@@ -379,6 +379,12 @@ _EOF
   cat > $contextdir/Dockerfile << _EOF
 FROM alpine
 RUN cat /proc/self/uid_map
+RUN echo hello
+
+FROM alpine
+COPY --from=0 /tmp /tmp
+RUN cat /proc/self/uid_map
+RUN ls -a
 _EOF
 
   run_buildah build --userns=auto $WITH_POLICY_JSON -t source -f $contextdir/Dockerfile
