@@ -4481,7 +4481,6 @@ _EOF
   # since on podman-remote test this will remove prefetched alpine
   # and it will try to pull alpine from docker.io with
   # completely different digest (ruining our cache logic).
-  run_buildah rmi --prune
   run_buildah rmi test
 
   # ------ Test case ------ #
