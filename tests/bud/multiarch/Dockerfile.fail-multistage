@@ -1,18 +1,19 @@
-FROM registry.access.redhat.com/ubi8-micro
+ARG SAFEIMAGE
+FROM $SAFEIMAGE
 RUN touch -r /etc/os-release /timestamped
 RUN sleep 0
-FROM registry.access.redhat.com/ubi8-micro
+FROM $SAFEIMAGE
 COPY --from=0 /timestamped /timestamped
 RUN sleep 0
-FROM registry.access.redhat.com/ubi8-micro
+FROM $SAFEIMAGE
 COPY --from=1 /timestamped /timestamped
 RUN sleep 0
-FROM registry.access.redhat.com/ubi8-micro
+FROM $SAFEIMAGE
 COPY --from=2 /timestamped /timestamped
 RUN false
-FROM registry.access.redhat.com/ubi8-micro
+FROM $SAFEIMAGE
 COPY --from=3 /timestamped /timestamped
 RUN sleep 0
-FROM registry.access.redhat.com/ubi8-micro
+FROM $SAFEIMAGE
 COPY --from=4 /timestamped /timestamped
 RUN sleep 0
