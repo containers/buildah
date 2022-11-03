@@ -696,10 +696,15 @@ func baseImages(dockerfilenames []string, dockerfilecontents [][]byte, from stri
 						}
 						base := child.Next.Value
 						if base != "scratch" && !nicknames[base] {
-							// TODO: this didn't undergo variable and arg
-							// expansion, so if the AS clause in another
-							// FROM instruction uses argument values,
-							// we might not record the right value here.
+							base, err = imagebuilder.ProcessWord(base, b.Env)
+							if err != nil {
+								return nil, err
+							}
+
+							base, err = imagebuilder.ProcessWord(base, argsMapToSlice(args))
+							if err != nil {
+								return nil, err
+							}
 							baseImages = append(baseImages, base)
 						}
 					}

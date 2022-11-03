@@ -3,5 +3,6 @@ FROM docker.io/library/alpine
 COPY Dockerfile.no-run /root/
 # A different base image that is known to be a manifest list, supporting a
 # different but partially-overlapping set of platforms.
-FROM quay.io/libpod/testimage:20221018
+ARG SAFEIMAGE
+FROM $SAFEIMAGE
 COPY --from=0 /root/Dockerfile.no-run /root/
