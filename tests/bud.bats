@@ -5095,9 +5095,9 @@ _EOF
 @test "bud-multiple-platform-failure" {
   # check if we can run a couple of 32-bit versions of an image, and if we can,
   # assume that emulation for other architectures is in place.
-  os=`go env GOOS`
-  if test "$os" != linux ; then
-    skip "test Dockerfile is ubi, we can't run it"
+  os=$(go env GOOS)
+  if [[ "$os" != linux ]]; then
+    skip "GOOS is '$os'; this test can only run on linux"
   fi
   run_buildah from $WITH_POLICY_JSON --name try-386 --platform=$os/386 alpine
   run_buildah '?' run try-386 true
@@ -5110,7 +5110,13 @@ _EOF
     skip "unable to run arm container, assuming emulation is not available"
   fi
   outputlist=localhost/testlist
-  run_buildah 125 build $WITH_POLICY_JSON --jobs=0 --platform=linux/arm64,linux/amd64 --manifest $outputlist -f $BUDFILES/multiarch/Dockerfile.fail-multistage $BUDFILES/multiarch
+  run_buildah 1 build $WITH_POLICY_JSON \
+              --jobs=0 \
+              --platform=linux/arm64,linux/amd64 \
+              --manifest $outputlist \
+              --build-arg SAFEIMAGE=$SAFEIMAGE \
+              -f $BUDFILES/multiarch/Dockerfile.fail-multistage \
+              $BUDFILES/multiarch
   expect_output --substring 'building at STEP "RUN false"'
 }
 
@@ -5120,12 +5126,17 @@ _EOF
   # concurrency to maximum which uncovers all sorts of race condition causing
   # flakes in CI. Please put this back to --jobs=0 when https://github.com/containers/buildah/issues/3710
   # is resolved.
-  run_buildah build $WITH_POLICY_JSON --jobs=1 --all-platforms --manifest $outputlist -f $BUDFILES/multiarch/Dockerfile.no-run $BUDFILES/multiarch
+  run_buildah build $WITH_POLICY_JSON \
+              --jobs=1 \
+              --all-platforms \
+              --manifest $outputlist \
+              --build-arg SAFEIMAGE=$SAFEIMAGE \
+              -f $BUDFILES/multiarch/Dockerfile.no-run \
+              $BUDFILES/multiarch
+
   run_buildah manifest inspect $outputlist
-  echo "$output"
-  run jq '.manifests | length' <<< "$output"
-  echo "$output"
-  assert "$output" -gt 1 "length(.manifests)"
+  manifests=$(jq -r '.manifests[].platform.architecture' <<<"$output" |sort|fmt)
+  assert "$manifests" = "amd64 arm64 ppc64le s390x" "arch list in manifest"
 }
 
 @test "bud-multiple-platform for --all-platform with additional-build-context" {
@@ -5137,15 +5148,19 @@ cat > $contextdir/Dockerfile1 << _EOF
 FROM busybox
 _EOF
 
-  # Pulled images must be ubi since we configured --build-context busybox=docker://registry.access.redhat.com/ubi8-micro
-  run_buildah build $WITH_POLICY_JSON --all-platforms --build-context busybox=docker://registry.access.redhat.com/ubi8-micro --manifest $outputlist -f $contextdir/Dockerfile1
-  # must contain pulling logs for ubi8 instead of busybox
-  expect_output --substring "ubi8"
+  # Pulled images must be $SAFEIMAGE since we configured --build-context
+  run_buildah build $WITH_POLICY_JSON --all-platforms --build-context busybox=docker://$SAFEIMAGE --manifest $outputlist -f $contextdir/Dockerfile1
+  # must contain pulling logs for $SAFEIMAGE instead of busybox
+  expect_output --substring "STEP 1/1: FROM $SAFEIMAGE"
+  assert "$output" =~ "\[linux/s390x\] COMMIT"
+  assert "$output" =~ "\[linux/ppc64le\] COMMIT"
+  assert "$output" !~ "busybox"
+
+  # Confirm the manifests and their architectures. It is not possible for
+  # this to change, unless we bump $SAFEIMAGE to a new versioned tag.
   run_buildah manifest inspect $outputlist
-  echo "$output"
-  run jq '.manifests | length' <<< "$output"
-  # should be equal to 4 which is equivalent to images in registry.access.redhat.com/ubi8-micro
-  assert "$output" -eq 4 "length(manifests)"
+  manifests=$(jq -r '.manifests[].platform.architecture' <<<"$output" |sort|fmt)
+  assert "$manifests" = "amd64 arm64 ppc64le s390x" "arch list in manifest"
 }
 
 # * Performs multi-stage build with label1=value1 and verifies
