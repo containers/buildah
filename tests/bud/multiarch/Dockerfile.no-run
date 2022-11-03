@@ -3,5 +3,5 @@ FROM docker.io/library/alpine
 COPY Dockerfile.no-run /root/
 # A different base image that is known to be a manifest list, supporting a
 # different but partially-overlapping set of platforms.
-FROM registry.access.redhat.com/ubi8-micro
+FROM quay.io/libpod/testimage:20221018
 COPY --from=0 /root/Dockerfile.no-run /root/
