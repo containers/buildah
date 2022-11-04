@@ -696,16 +696,17 @@ func baseImages(dockerfilenames []string, dockerfilecontents [][]byte, from stri
 						}
 						base := child.Next.Value
 						if base != "scratch" && !nicknames[base] {
-							base, err = imagebuilder.ProcessWord(base, b.Env)
+							headingArgs := argsMapToSlice(stage.Builder.HeadingArgs)
+							userArgs := argsMapToSlice(stage.Builder.Args)
+							// append heading args so if --build-arg key=value is not
+							// specified but default value is set in Containerfile
+							// via `ARG key=value` so default value can be used.
+							userArgs = append(headingArgs, userArgs...)
+							baseWithArg, err := imagebuilder.ProcessWord(base, userArgs)
 							if err != nil {
-								return nil, err
+								return nil, fmt.Errorf("while replacing arg variables with values for format %q: %w", base, err)
 							}
-
-							base, err = imagebuilder.ProcessWord(base, argsMapToSlice(args))
-							if err != nil {
-								return nil, err
-							}
-							baseImages = append(baseImages, base)
+							baseImages = append(baseImages, baseWithArg)
 						}
 					}
 				}
