@@ -1,0 +1,2 @@
+ARG foo=alpine
+FROM $foo
