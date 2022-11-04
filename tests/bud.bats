@@ -5143,6 +5143,21 @@ _EOF
   assert "$manifests" = "amd64 arm64 ppc64le s390x" "arch list in manifest"
 }
 
+# attempts to resolve heading arg as base-image with --all-platforms
+@test "bud-multiple-platform-with-base-as-default-arg" {
+  outputlist=localhost/testlist
+  run_buildah build $WITH_POLICY_JSON \
+              --jobs=1 \
+              --all-platforms \
+              --manifest $outputlist \
+              -f $BUDFILES/all-platform/Containerfile.default-arg \
+              $BUDFILES/all-platform
+
+  run_buildah manifest inspect $outputlist
+  manifests=$(jq -r '.manifests[].platform.architecture' <<<"$output" |sort|fmt)
+  assert "$manifests" = "386 amd64 arm arm arm64 ppc64le s390x" "arch list in manifest"
+}
+
 @test "bud-multiple-platform for --all-platform with additional-build-context" {
   outputlist=localhost/testlist
   local contextdir=${TEST_SCRATCH_DIR}/bud/platform
