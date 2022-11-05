@@ -5651,3 +5651,14 @@ _EOF
   run_buildah 1 build --network=none $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
   expect_output --substring "Network unreachable"
 }
+
+@test "build-with-no-new-privileges-test" {
+  _prefetch alpine
+  cat > ${TEST_SCRATCH_DIR}/Containerfile << _EOF
+FROM alpine
+RUN grep NoNewPrivs /proc/self/status
+_EOF
+
+  run_buildah build --security-opt no-new-privileges $WITH_POLICY_JSON ${TEST_SCRATCH_DIR}
+  expect_output --substring "NoNewPrivs:.*1"
+}
