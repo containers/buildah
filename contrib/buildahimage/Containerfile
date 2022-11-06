@@ -5,11 +5,11 @@
 #
 # FLAVOR defaults to stable if unset
 #
-# FLAVOR=stable    aquires a stable version of Buildah
+# FLAVOR=stable    acquires a stable version of Buildah
 #                   from the Fedoras Updates System.
-# FLAVOR=testing   aquires a testing version of Buildah
+# FLAVOR=testing   acquires a testing version of Buildah
 #                   from the Fedoras Updates System.
-# FLAVOR=upstream  aquires a testing version of Buildah
+# FLAVOR=upstream  acquires a testing version of Buildah
 #                   from the Fedora Copr Buildsystem.
 #                   https://copr.fedorainfracloud.org/coprs/rhcontainerbot/podman-next/
 #
