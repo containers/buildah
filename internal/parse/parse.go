@@ -10,6 +10,7 @@ import (
 
 	"errors"
 
+	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/internal"
 	internalUtil "github.com/containers/buildah/internal/util"
 	"github.com/containers/common/pkg/parse"
@@ -22,8 +23,6 @@ import (
 )
 
 const (
-	// TypeBind is the type for mounting host dir
-	TypeBind = "bind"
 	// TypeTmpfs is the type for mounting tmpfs
 	TypeTmpfs = "tmpfs"
 	// TypeCache is the type for mounting a common persistent cache from host
@@ -51,7 +50,7 @@ var (
 // Caller is expected to perform unmount of any mounted images
 func GetBindMount(ctx *types.SystemContext, args []string, contextDir string, store storage.Store, imageMountLabel string, additionalMountPoints map[string]internal.StageMountDetails) (specs.Mount, string, error) {
 	newMount := specs.Mount{
-		Type: TypeBind,
+		Type: define.TypeBind,
 	}
 
 	mountReadability := false
@@ -201,7 +200,7 @@ func GetCacheMount(args []string, store storage.Store, imageMountLabel string, a
 	)
 	fromStage := ""
 	newMount := specs.Mount{
-		Type: TypeBind,
+		Type: define.TypeBind,
 	}
 	// if id is set a new subdirectory with `id` will be created under /host-temp/buildah-build-cache/id
 	id := ""
@@ -544,7 +543,7 @@ func GetVolumes(ctx *types.SystemContext, store storage.Store, volumes []string,
 // If this function succeeds, the caller must unlock the returned lockfile.Lockers if any (when??).
 func getMounts(ctx *types.SystemContext, store storage.Store, mounts []string, contextDir string) (map[string]specs.Mount, []string, []lockfile.Locker, error) {
 	// If `type` is not set default to "bind"
-	mountType := TypeBind
+	mountType := define.TypeBind
 	finalMounts := make(map[string]specs.Mount)
 	mountedImages := make([]string, 0)
 	targetLocks := make([]lockfile.Locker, 0)
@@ -575,7 +574,7 @@ func getMounts(ctx *types.SystemContext, store storage.Store, mounts []string, c
 			}
 		}
 		switch mountType {
-		case TypeBind:
+		case define.TypeBind:
 			mount, image, err := GetBindMount(ctx, tokens, contextDir, store, "", nil)
 			if err != nil {
 				return nil, mountedImages, nil, err
