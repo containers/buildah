@@ -455,7 +455,7 @@ github.com/onsi/ginkgo/reporters/stenographer
 github.com/onsi/ginkgo/reporters/stenographer/support/go-colorable
 github.com/onsi/ginkgo/reporters/stenographer/support/go-isatty
 github.com/onsi/ginkgo/types
-# github.com/onsi/gomega v1.24.0
+# github.com/onsi/gomega v1.24.1
 ## explicit; go 1.18
 github.com/onsi/gomega
 github.com/onsi/gomega/format
@@ -640,7 +640,7 @@ golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 # golang.org/x/mod v0.6.0
 ## explicit; go 1.17
 golang.org/x/mod/semver
-# golang.org/x/net v0.1.0
+# golang.org/x/net v0.2.0
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/html
@@ -664,7 +664,7 @@ golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.1.0
+# golang.org/x/term v0.2.0
 ## explicit; go 1.17
 golang.org/x/term
 # golang.org/x/text v0.4.0
