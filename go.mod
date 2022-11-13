@@ -5,10 +5,10 @@ go 1.17
 require (
 	github.com/containerd/containerd v1.6.9
 	github.com/containernetworking/cni v1.1.2
-	github.com/containers/common v0.50.2-0.20221104122933-582fadb8228b
-	github.com/containers/image/v5 v5.23.1-0.20221101011818-2f770d6d5a0c
+	github.com/containers/common v0.50.2-0.20221111184705-791b83e1cdf1
+	github.com/containers/image/v5 v5.23.1-0.20221109193300-0d85878d7a77
 	github.com/containers/ocicrypt v1.1.6
-	github.com/containers/storage v1.43.1-0.20221104122514-74e37433a2a0
+	github.com/containers/storage v1.44.1-0.20221110192950-67e9778710f8
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.21+incompatible
 	github.com/docker/go-units v0.5.0
@@ -32,7 +32,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/crypto v0.1.0
+	golang.org/x/crypto v0.2.0
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.2.0
 	golang.org/x/term v0.2.0
@@ -91,7 +91,7 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/sigstore/sigstore v1.4.5 // indirect
 	github.com/stefanberger/go-pkcs11uri v0.0.0-20201008174630-78d3cae3a980 // indirect
-	github.com/sylabs/sif/v2 v2.8.1 // indirect
+	github.com/sylabs/sif/v2 v2.8.3 // indirect
 	github.com/tchap/go-patricia v2.3.0+incompatible // indirect
 	github.com/theupdateframework/go-tuf v0.5.2-0.20220930112810-3890c1e7ace4 // indirect
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
@@ -108,7 +108,7 @@ require (
 	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
-	golang.org/x/tools v0.1.12 // indirect
+	golang.org/x/tools v0.2.0 // indirect
 	google.golang.org/genproto v0.0.0-20221014213838-99cd37c6964a // indirect
 	google.golang.org/grpc v1.50.1 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
