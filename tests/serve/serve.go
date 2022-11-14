@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -49,7 +48,7 @@ func main() {
 		BaseContext: func(l net.Listener) context.Context {
 			if tcp, ok := l.Addr().(*net.TCPAddr); ok {
 				if len(args) > 3 {
-					f, err := ioutil.TempFile(filepath.Dir(args[3]), filepath.Base(args[3]))
+					f, err := os.CreateTemp(filepath.Dir(args[3]), filepath.Base(args[3]))
 					if err != nil {
 						log.Fatalf("%v", err)
 					}
